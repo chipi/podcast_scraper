@@ -38,6 +38,30 @@ class ProviderCallMetrics:
     _provider_name: str = field(
         default="unknown", init=False, repr=False
     )  # Provider name for logging
+    _breaker_config: Optional[Any] = field(
+        default=None, init=False, repr=False
+    )  # LLMCircuitBreakerConfig derived from cfg, populated lazily.
+
+    def set_breaker_config_from_cfg(self, cfg: Any) -> None:
+        """Derive :class:`LLMCircuitBreakerConfig` from ``cfg`` and attach.
+
+        ADR-100 follow-up: lets cloud providers wire the per-provider
+        circuit breaker without threading ``circuit_breaker_config`` through
+        every :func:`retry_with_metrics` call site. The breaker is opt-in
+        via ``cfg.llm_circuit_breaker_enabled``; default is off.
+        """
+        if cfg is None:
+            return
+        if not getattr(cfg, "llm_circuit_breaker_enabled", False):
+            return
+        from .llm_circuit_breaker import LLMCircuitBreakerConfig
+
+        self._breaker_config = LLMCircuitBreakerConfig(
+            enabled=True,
+            failure_threshold=int(getattr(cfg, "llm_circuit_breaker_failure_threshold", 3)),
+            window_seconds=float(getattr(cfg, "llm_circuit_breaker_window_seconds", 30.0)),
+            cooldown_seconds=float(getattr(cfg, "llm_circuit_breaker_cooldown_seconds", 60.0)),
+        )
 
     def set_provider_name(self, name: str) -> None:
         """Set provider name for logging.
@@ -371,6 +395,12 @@ def retry_with_metrics(
     _provider_name = (
         getattr(metrics, "_provider_name", "unknown") if metrics is not None else "unknown"
     )
+    # Fall back to a breaker config attached to ``metrics`` (ADR-100
+    # follow-up) so cloud providers can wire the breaker once on
+    # ProviderCallMetrics creation rather than threading it through every
+    # call site. Explicit ``circuit_breaker_config`` wins if provided.
+    if circuit_breaker_config is None and metrics is not None:
+        circuit_breaker_config = getattr(metrics, "_breaker_config", None)
     if circuit_breaker_config is not None and getattr(circuit_breaker_config, "enabled", False):
         from . import llm_circuit_breaker as _llm_breaker_module
 

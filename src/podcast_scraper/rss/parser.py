@@ -48,6 +48,20 @@ def parse_rss_items(xml_bytes: bytes) -> Tuple[str, List[str], List[ET.Element]]
     Returns:
         Tuple of (channel_title, list_of_authors, list_of_items)
     """
+    if not xml_bytes:
+        logger.warning("parse_rss_items: empty xml_bytes — feed fetch likely failed silently")
+        return "", [], []
+    # ADR-100 parallel: surface a suspicious HTML body returned as
+    # ``application/rss+xml`` (some CDN error pages do this). Trips the
+    # log at WARNING level; doesn't fail-up because the parse below will
+    # either succeed or surface its own error.
+    head = xml_bytes[:200].lstrip().lower()
+    if head.startswith(b"<!doctype html") or head.startswith(b"<html"):
+        logger.warning(
+            "parse_rss_items: response body looks like HTML, not RSS XML — "
+            "likely a CDN/origin error page disguised as 200 OK (first 80 bytes: %r)",
+            xml_bytes[:80],
+        )
     try:
         root = safe_fromstring(xml_bytes)
         if root is None:
@@ -111,10 +125,18 @@ def parse_rss_items(xml_bytes: bytes) -> Tuple[str, List[str], List[ET.Element]]
         else:
             items = [e for e in root.iter() if isinstance(e.tag, str) and e.tag.endswith("item")]
         return title, authors, items
+    except DefusedXMLParseError as exc:
+        # Real parse error — promote from DEBUG to WARNING so the operator
+        # can distinguish "feed legitimately has zero items" from
+        # "feed body was malformed and we silently dropped it on the floor".
+        logger.warning(
+            "parse_rss_items: defusedxml ParseError (%s); feed body length=%d",
+            exc,
+            len(xml_bytes),
+        )
+        return "", [], []
     except Exception:
-        # If parsing fails, return empty values
-        # This ensures the function always returns a tuple of 3 values
-        logger.debug("Failed to parse RSS XML, returning empty values", exc_info=True)
+        logger.warning("parse_rss_items: unexpected error parsing RSS XML", exc_info=True)
         return "", [], []
 
 

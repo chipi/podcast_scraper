@@ -585,6 +585,7 @@ class DeepSeekProvider:
             if call_metrics is None:
                 call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("deepseek")
+            call_metrics.set_breaker_config_from_cfg(self.cfg)
 
             def _make_api_call():
                 return self.client.chat.completions.create(
@@ -814,6 +815,7 @@ class DeepSeekProvider:
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("deepseek")
+        call_metrics.set_breaker_config_from_cfg(self.cfg)
 
         def _make_api_call() -> Any:
             return self.client.chat.completions.create(
@@ -897,6 +899,7 @@ class DeepSeekProvider:
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("deepseek")
+        call_metrics.set_breaker_config_from_cfg(self.cfg)
 
         def _make_api_call() -> Any:
             return self.client.chat.completions.create(
@@ -987,6 +990,7 @@ class DeepSeekProvider:
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("deepseek")
+        call_metrics.set_breaker_config_from_cfg(self.cfg)
 
         def _make_api_call() -> Any:
             return self.client.chat.completions.create(
@@ -1021,23 +1025,8 @@ class DeepSeekProvider:
         )
         raw = (response.choices[0].message.content or "").strip()
         finish_reason = response.choices[0].finish_reason
-        # Response-shape guardrail (ADR-100, #1003) on bundled output.
-        _guardrails.check_chat_response(raw, service="deepseek", finish_reason=finish_reason)
 
-        try:
-            data = json.loads(raw)
-        except json.JSONDecodeError as exc:
-            raise ValueError(f"Bundled response is not valid JSON: {exc}") from exc
-
-        if not isinstance(data, dict):
-            raise ValueError("Bundled JSON must be an object")
-        summary_prose = data.get("summary")
-        bullets = data.get("bullets")
-        if not isinstance(summary_prose, str) or not summary_prose.strip():
-            raise ValueError("Bundled JSON missing non-empty summary string")
-        if not isinstance(bullets, list) or not bullets:
-            raise ValueError("Bundled JSON missing non-empty bullets list")
-
+        # Token + cost capture up-front so cost emits in both branches (ADR-100).
         input_tokens = None
         output_tokens = None
         if hasattr(response, "usage") and response.usage:
@@ -1060,6 +1049,10 @@ class DeepSeekProvider:
                 prompt_tokens=input_tokens,
                 completion_tokens=output_tokens,
             )
+
+        def _record_cost(*, triggered_guardrail: bool = False) -> None:
+            if input_tokens is None:
+                return
             from ...utils.provider_metrics import record_provider_call_cost
 
             record_provider_call_cost(
@@ -1071,7 +1064,31 @@ class DeepSeekProvider:
                 model=self.summary_model,
                 prompt_tokens=input_tokens,
                 completion_tokens=output_tokens,
+                triggered_guardrail=triggered_guardrail,
             )
+
+        # Response-shape guardrail (ADR-100, #1003) on bundled output.
+        try:
+            _guardrails.check_chat_response(raw, service="deepseek", finish_reason=finish_reason)
+        except _guardrails.GuardrailViolation:
+            _record_cost(triggered_guardrail=True)
+            raise
+
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Bundled response is not valid JSON: {exc}") from exc
+
+        if not isinstance(data, dict):
+            raise ValueError("Bundled JSON must be an object")
+        summary_prose = data.get("summary")
+        bullets = data.get("bullets")
+        if not isinstance(summary_prose, str) or not summary_prose.strip():
+            raise ValueError("Bundled JSON missing non-empty summary string")
+        if not isinstance(bullets, list) or not bullets:
+            raise ValueError("Bundled JSON missing non-empty bullets list")
+
+        _record_cost()
 
         if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
             pipeline_metrics.record_llm_bundled_clean_summary_call(
@@ -1216,10 +1233,56 @@ class DeepSeekProvider:
             )
             content = (response.choices[0].message.content or "").strip()
             finish_reason = response.choices[0].finish_reason
-            # Response-shape guardrail (ADR-100, #1003) on GI insights output.
-            _guardrails.check_chat_response(
-                content, service="deepseek", finish_reason=finish_reason
-            )
+
+            # ADR-100 cost-attribution: emit llm_cost in both branches.
+            in_tok_gi = None
+            out_tok_gi = None
+            if hasattr(response, "usage") and response.usage:
+                pt = getattr(response.usage, "prompt_tokens", None)
+                ct = getattr(response.usage, "completion_tokens", None)
+                in_tok_gi = int(pt) if isinstance(pt, (int, float)) else None
+                out_tok_gi = int(ct) if isinstance(ct, (int, float)) else None
+            gi_cost: Optional[float] = None
+            if in_tok_gi is not None and out_tok_gi is not None:
+                from ...workflow.helpers import calculate_provider_cost
+
+                gi_cost = calculate_provider_cost(
+                    cfg=self.cfg,
+                    provider_type="deepseek",
+                    capability="gi",
+                    model=self.summary_model,
+                    prompt_tokens=in_tok_gi,
+                    completion_tokens=out_tok_gi,
+                )
+
+            def _emit_gi_cost(*, triggered_guardrail: bool = False) -> None:
+                if in_tok_gi is None or out_tok_gi is None:
+                    return
+                try:
+                    from ...workflow.cost_monitoring import emit_llm_cost_event
+
+                    emit_llm_cost_event(
+                        self.cfg,
+                        provider="deepseek",
+                        stage="gi",
+                        model=self.summary_model,
+                        estimated_cost_usd=float(gi_cost or 0.0),
+                        prompt_tokens=in_tok_gi,
+                        completion_tokens=out_tok_gi,
+                        triggered_guardrail=triggered_guardrail,
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
+
+            # ADR-100: GI is fail-up. Cost emitted in BOTH branches.
+            try:
+                _guardrails.check_chat_response(
+                    content, service="deepseek", finish_reason=finish_reason
+                )
+            except _guardrails.GuardrailViolation:
+                _emit_gi_cost(triggered_guardrail=True)
+                raise
+            _emit_gi_cost()
             lines = [
                 line.strip()
                 for line in content.splitlines()
@@ -1237,6 +1300,8 @@ class DeepSeekProvider:
                 if s:
                     cleaned.append(s)
             return cleaned[:max_insights]
+        except _guardrails.GuardrailViolation:
+            raise
         except Exception as e:
             logger.debug("DeepSeek generate_insights failed: %s", e, exc_info=True)
             return []
@@ -1415,6 +1480,7 @@ class DeepSeekProvider:
 
             call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("deepseek")
+            call_metrics.set_breaker_config_from_cfg(self.cfg)
             pm = kwargs.get("pipeline_metrics")
 
             def _make_api_call():
@@ -1519,6 +1585,7 @@ class DeepSeekProvider:
 
             call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("deepseek")
+            call_metrics.set_breaker_config_from_cfg(self.cfg)
             pm = kwargs.get("pipeline_metrics")
 
             def _make_api_call():
@@ -1603,6 +1670,7 @@ class DeepSeekProvider:
         user = extract_quotes_bundled_user(transcript_clip(transcript), insight_texts)
         call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("deepseek")
+        call_metrics.set_breaker_config_from_cfg(self.cfg)
         pm = kwargs.get("pipeline_metrics")
         max_out = extract_quotes_bundled_max_tokens(len(insight_texts))
 
@@ -1726,6 +1794,7 @@ class DeepSeekProvider:
         user = score_entailment_bundled_user(chunk_pairs)
         call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("deepseek")
+        call_metrics.set_breaker_config_from_cfg(self.cfg)
         max_out = score_entailment_bundled_max_tokens(len(chunk_pairs))
 
         def _make_api_call() -> Any:
@@ -1814,6 +1883,7 @@ class DeepSeekProvider:
 
             call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("deepseek")
+            call_metrics.set_breaker_config_from_cfg(self.cfg)
 
             def _make_api_call():
                 return self.client.chat.completions.create(
@@ -1853,27 +1923,76 @@ class DeepSeekProvider:
             )
 
             cleaned = response.choices[0].message.content
+
+            # Cost capture up-front (ADR-100 cost-attribution).
+            in_tok_cl = None
+            out_tok_cl = None
+            if hasattr(response, "usage") and response.usage:
+                pt = getattr(response.usage, "prompt_tokens", None)
+                ct = getattr(response.usage, "completion_tokens", None)
+                in_tok_cl = int(pt) if isinstance(pt, (int, float)) else None
+                out_tok_cl = int(ct) if isinstance(ct, (int, float)) else None
+            cleaning_cost: Optional[float] = None
+            if in_tok_cl is not None and out_tok_cl is not None:
+                from ...workflow.helpers import calculate_provider_cost
+
+                cleaning_cost = calculate_provider_cost(
+                    cfg=self.cfg,
+                    provider_type="deepseek",
+                    capability="cleaning",
+                    model=self.cleaning_model,
+                    prompt_tokens=in_tok_cl,
+                    completion_tokens=out_tok_cl,
+                )
+
+            def _emit_cleaning_cost(*, triggered_guardrail: bool = False) -> None:
+                if in_tok_cl is None or out_tok_cl is None:
+                    return
+                try:
+                    from ...workflow.cost_monitoring import emit_llm_cost_event
+
+                    emit_llm_cost_event(
+                        self.cfg,
+                        provider="deepseek",
+                        stage="cleaning",
+                        model=self.cleaning_model,
+                        estimated_cost_usd=float(cleaning_cost or 0.0),
+                        prompt_tokens=in_tok_cl,
+                        completion_tokens=out_tok_cl,
+                        triggered_guardrail=triggered_guardrail,
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
+
             if not cleaned:
                 logger.warning("DeepSeek API returned empty cleaned text, using original")
+                _emit_cleaning_cost()
                 return text
-            # Response-shape guardrail (ADR-100, #1003) on cleaning output —
-            # only the thinking-prose case. Empty handled gracefully above.
-            _guardrails.check_chat_response(
-                cleaned,
-                service="deepseek",
-                finish_reason=response.choices[0].finish_reason,
-            )
+            # ADR-100: cleaning catch-and-degrade; cost emitted in both branches.
+            try:
+                _guardrails.check_chat_response(
+                    cleaned,
+                    service="deepseek",
+                    finish_reason=response.choices[0].finish_reason,
+                )
+            except _guardrails.GuardrailViolation:
+                _emit_cleaning_cost(triggered_guardrail=True)
+                logger.warning(
+                    "DeepSeek cleaning output failed guardrail; "
+                    "returning original transcript text"
+                )
+                return text
 
+            _emit_cleaning_cost()
             logger.debug("DeepSeek cleaning completed: %d -> %d chars", len(text), len(cleaned))
             return cast(str, cleaned)
 
         except _guardrails.GuardrailViolation:
-            # ADR-100 per-stage policy: cleaning degrades gracefully — a
-            # guardrail-tripping cleaned response means we serve the original
-            # transcript text rather than fail the run. Distinct from summarize
-            # (fail-up) and GI/KG (fail-up).
+            # Defensive outer catch — preserve contract if a future change
+            # adds a guardrail call outside the inline block.
             logger.warning(
-                "DeepSeek cleaning output failed guardrail; " "returning original transcript text"
+                "DeepSeek cleaning output failed guardrail (outer); "
+                "returning original transcript text"
             )
             return text
         except Exception as exc:

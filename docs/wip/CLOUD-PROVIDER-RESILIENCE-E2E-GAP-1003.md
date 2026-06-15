@@ -100,15 +100,49 @@ same batch (not in the original audit list):
   by adding a `GuardrailViolation` early-return to
   `utils/retryable_errors.py::is_retryable_error`.
 
-## Out-of-scope items recorded for future visibility
+## Second-round close-out (also 2026-06-15) — both scope-outs closed
 
-- **Cost-emit-with-flag at the bundled / GI / KG / cleaning call sites.**
-  The summarize site is the load-bearing one for paid-but-rejected spend
-  attribution (largest spend per call). The bundled/GI/KG sites have the
-  guardrail check wired and propagate correctly; they just don't yet
-  emit a cost event with the flag in the violation branch. Deliberately
-  scoped to summarize only — this is a scope decision, not a deferred
-  follow-up: the unit tests cover the field exists and the architectural
-  pattern is proven by the summarize wiring at all 5 providers.
-- **Cloud per-provider CircuitBreaker.** As above — deliberate
-  scope-out, not deferred.
+Operator pushback on the two scope-outs above. Both closed in the same
+batch:
+
+### Cost-emit-with-flag at ALL guardrail-bearing call sites
+
+Wired at every site (5 providers × 3-4 sites each) that calls
+``check_chat_response``: summarize, summarize_bundled,
+generate_insights, clean_transcript. Where the site was missing base
+``llm_cost`` emission entirely (GI and cleaning across all providers
+were going only to ``pipeline_metrics`` internals), base emission was
+added with the right ``stage`` label (``gi`` / ``cleaning``). The
+``triggered_guardrail`` flag now fires in BOTH happy and violation
+branches.
+
+Surfaced + fixed during the close-out:
+
+- GI on every provider was silently catching ``GuardrailViolation``
+  via ``except Exception: return []`` — ADR-100-incompatible (GI is
+  fail-up). Now propagates to FallbackAware.
+- Cleaning across cloud + Ollama had no llm_cost emission at all
+  (only pipeline_metrics internal). Now emits with the right stage
+  label.
+
+### Per-cloud-provider CircuitBreaker
+
+The substrate has existed since #697 (``LLMCircuitBreakerConfig`` +
+integration in ``retry_with_metrics``). The wiring at the provider
+level didn't. Closed by:
+
+- Adding ``ProviderCallMetrics.set_breaker_config_from_cfg(cfg)`` —
+  builds the breaker config from cfg when
+  ``llm_circuit_breaker_enabled=True`` and attaches it to the metrics
+  object.
+- ``retry_with_metrics`` reads the breaker config off the metrics
+  object as a fallback (preserves the existing explicit kwarg path).
+- Each cloud provider's ``ProviderCallMetrics`` construction now calls
+  ``set_breaker_config_from_cfg(self.cfg)`` immediately after
+  ``set_provider_name``. Auto-wires every retry_with_metrics call
+  through the provider — no per-site refactor of 84 call sites.
+
+New E2E: ``test_cloud_circuit_breaker_e2e.py`` proves breaker trips
+under a real 503 burst (against the mock server) when
+``llm_circuit_breaker_enabled=True``, and stays unwired when the
+config is default-off.

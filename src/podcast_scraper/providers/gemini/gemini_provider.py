@@ -649,6 +649,7 @@ class GeminiProvider:
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("gemini")
+        call_metrics.set_breaker_config_from_cfg(self.cfg)
 
         from ...utils.provider_metrics import (
             _safe_gemini_retryable,
@@ -1071,6 +1072,7 @@ class GeminiProvider:
             if call_metrics is None:
                 call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("gemini")
+            call_metrics.set_breaker_config_from_cfg(self.cfg)
 
             from ...utils.provider_metrics import (
                 _safe_gemini_retryable,
@@ -1329,6 +1331,7 @@ class GeminiProvider:
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("gemini")
+        call_metrics.set_breaker_config_from_cfg(self.cfg)
 
         def _make_api_call() -> Any:
             generation_config = _merge_generate_content_config(
@@ -1417,6 +1420,7 @@ class GeminiProvider:
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("gemini")
+        call_metrics.set_breaker_config_from_cfg(self.cfg)
 
         def _make_api_call() -> Any:
             generation_config = _merge_generate_content_config(
@@ -1508,6 +1512,7 @@ class GeminiProvider:
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("gemini")
+        call_metrics.set_breaker_config_from_cfg(self.cfg)
 
         def _make_api_call() -> Any:
             generation_config = _merge_generate_content_config(
@@ -1544,25 +1549,8 @@ class GeminiProvider:
         call_metrics.finalize()
 
         raw = (response.text if hasattr(response, "text") else str(response) or "").strip()
-        # Response-shape guardrail (ADR-100, #1003) on bundled output.
-        _guardrails.check_chat_response(
-            raw, service="gemini", finish_reason=_gemini_finish_reason(response)
-        )
 
-        try:
-            data = json.loads(raw, strict=False)
-        except json.JSONDecodeError as exc:
-            raise ValueError(f"Bundled response is not valid JSON: {exc}") from exc
-
-        if not isinstance(data, dict):
-            raise ValueError("Bundled JSON must be an object")
-        summary_prose = data.get("summary")
-        bullets = data.get("bullets")
-        if not isinstance(summary_prose, str) or not summary_prose.strip():
-            raise ValueError("Bundled JSON missing non-empty summary string")
-        if not isinstance(bullets, list) or not bullets:
-            raise ValueError("Bundled JSON missing non-empty bullets list")
-
+        # Token + cost capture up-front so cost emits in both branches (ADR-100).
         input_tokens = None
         output_tokens = None
         if hasattr(response, "usage_metadata") and response.usage_metadata:
@@ -1592,6 +1580,10 @@ class GeminiProvider:
                 prompt_tokens=input_tokens,
                 completion_tokens=output_tokens,
             )
+
+        def _record_cost(*, triggered_guardrail: bool = False) -> None:
+            if input_tokens is None:
+                return
             from ...utils.provider_metrics import record_provider_call_cost
 
             record_provider_call_cost(
@@ -1603,7 +1595,33 @@ class GeminiProvider:
                 model=self.summary_model,
                 prompt_tokens=input_tokens,
                 completion_tokens=output_tokens,
+                triggered_guardrail=triggered_guardrail,
             )
+
+        # Response-shape guardrail (ADR-100, #1003) on bundled output.
+        try:
+            _guardrails.check_chat_response(
+                raw, service="gemini", finish_reason=_gemini_finish_reason(response)
+            )
+        except _guardrails.GuardrailViolation:
+            _record_cost(triggered_guardrail=True)
+            raise
+
+        try:
+            data = json.loads(raw, strict=False)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Bundled response is not valid JSON: {exc}") from exc
+
+        if not isinstance(data, dict):
+            raise ValueError("Bundled JSON must be an object")
+        summary_prose = data.get("summary")
+        bullets = data.get("bullets")
+        if not isinstance(summary_prose, str) or not summary_prose.strip():
+            raise ValueError("Bundled JSON missing non-empty summary string")
+        if not isinstance(bullets, list) or not bullets:
+            raise ValueError("Bundled JSON missing non-empty bullets list")
+
+        _record_cost()
 
         if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
             pipeline_metrics.record_llm_bundled_clean_summary_call(
@@ -1762,10 +1780,63 @@ class GeminiProvider:
             )
             content = response.text if hasattr(response, "text") else str(response)
             content = (content or "").strip()
-            # Response-shape guardrail (ADR-100, #1003) on GI insights output.
-            _guardrails.check_chat_response(
-                content, service="gemini", finish_reason=_gemini_finish_reason(response)
-            )
+
+            # ADR-100 cost-attribution: emit llm_cost in both branches.
+            in_tok_gi = None
+            out_tok_gi = None
+            if hasattr(response, "usage_metadata") and response.usage_metadata:
+                usage_gi = response.usage_metadata
+                in_raw = getattr(usage_gi, "prompt_token_count", 0)
+                out_raw = getattr(usage_gi, "candidates_token_count", 0)
+                try:
+                    in_tok_gi = int(in_raw) if in_raw is not None else None
+                except (TypeError, ValueError):
+                    in_tok_gi = None
+                try:
+                    out_tok_gi = int(out_raw) if out_raw is not None else None
+                except (TypeError, ValueError):
+                    out_tok_gi = None
+            gi_cost: Optional[float] = None
+            if in_tok_gi is not None and out_tok_gi is not None:
+                from ...workflow.helpers import calculate_provider_cost
+
+                gi_cost = calculate_provider_cost(
+                    cfg=self.cfg,
+                    provider_type="gemini",
+                    capability="gi",
+                    model=self.summary_model,
+                    prompt_tokens=in_tok_gi,
+                    completion_tokens=out_tok_gi,
+                )
+
+            def _emit_gi_cost(*, triggered_guardrail: bool = False) -> None:
+                if in_tok_gi is None or out_tok_gi is None:
+                    return
+                try:
+                    from ...workflow.cost_monitoring import emit_llm_cost_event
+
+                    emit_llm_cost_event(
+                        self.cfg,
+                        provider="gemini",
+                        stage="gi",
+                        model=self.summary_model,
+                        estimated_cost_usd=float(gi_cost or 0.0),
+                        prompt_tokens=in_tok_gi,
+                        completion_tokens=out_tok_gi,
+                        triggered_guardrail=triggered_guardrail,
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
+
+            # ADR-100: GI is fail-up. Cost emitted in BOTH branches.
+            try:
+                _guardrails.check_chat_response(
+                    content, service="gemini", finish_reason=_gemini_finish_reason(response)
+                )
+            except _guardrails.GuardrailViolation:
+                _emit_gi_cost(triggered_guardrail=True)
+                raise
+            _emit_gi_cost()
             lines = [
                 line.strip()
                 for line in content.splitlines()
@@ -1783,6 +1854,9 @@ class GeminiProvider:
                 if s:
                     cleaned.append(s)
             return cleaned[:max_insights]
+        except _guardrails.GuardrailViolation:
+            # ADR-100: GI is fail-up. Propagate so FallbackAware routes.
+            raise
         except Exception as e:
             logger.debug("Gemini generate_insights failed: %s", e, exc_info=True)
             return []
@@ -1982,6 +2056,7 @@ class GeminiProvider:
 
             call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("gemini")
+            call_metrics.set_breaker_config_from_cfg(self.cfg)
             pm = kwargs.get("pipeline_metrics")
 
             generation_config = _merge_generate_content_config(
@@ -2117,6 +2192,7 @@ class GeminiProvider:
 
         call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("gemini")
+        call_metrics.set_breaker_config_from_cfg(self.cfg)
         pm = kwargs.get("pipeline_metrics")
 
         # Bundled call may need a larger output budget than the per-insight call.
@@ -2220,6 +2296,7 @@ class GeminiProvider:
 
             call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("gemini")
+            call_metrics.set_breaker_config_from_cfg(self.cfg)
             pm = kwargs.get("pipeline_metrics")
 
             generation_config = _merge_generate_content_config(
@@ -2344,6 +2421,7 @@ class GeminiProvider:
 
         call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("gemini")
+        call_metrics.set_breaker_config_from_cfg(self.cfg)
 
         max_out = score_entailment_bundled_max_tokens(len(chunk_pairs))
         generation_config = _merge_generate_content_config(
@@ -2435,6 +2513,7 @@ class GeminiProvider:
 
             call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("gemini")
+            call_metrics.set_breaker_config_from_cfg(self.cfg)
 
             def _make_api_call():
                 generation_config = _merge_generate_content_config(
@@ -2477,26 +2556,80 @@ class GeminiProvider:
             )
 
             cleaned = response.text if hasattr(response, "text") else str(response)
+
+            # Cost capture up-front (ADR-100 cost-attribution in both branches).
+            in_tok_cl = None
+            out_tok_cl = None
+            if hasattr(response, "usage_metadata") and response.usage_metadata:
+                u = response.usage_metadata
+                ir = getattr(u, "prompt_token_count", 0)
+                or_ = getattr(u, "candidates_token_count", 0)
+                try:
+                    in_tok_cl = int(ir) if ir is not None else None
+                except (TypeError, ValueError):
+                    in_tok_cl = None
+                try:
+                    out_tok_cl = int(or_) if or_ is not None else None
+                except (TypeError, ValueError):
+                    out_tok_cl = None
+            cleaning_cost: Optional[float] = None
+            if in_tok_cl is not None and out_tok_cl is not None:
+                from ...workflow.helpers import calculate_provider_cost
+
+                cleaning_cost = calculate_provider_cost(
+                    cfg=self.cfg,
+                    provider_type="gemini",
+                    capability="cleaning",
+                    model=self.cleaning_model,
+                    prompt_tokens=in_tok_cl,
+                    completion_tokens=out_tok_cl,
+                )
+
+            def _emit_cleaning_cost(*, triggered_guardrail: bool = False) -> None:
+                if in_tok_cl is None or out_tok_cl is None:
+                    return
+                try:
+                    from ...workflow.cost_monitoring import emit_llm_cost_event
+
+                    emit_llm_cost_event(
+                        self.cfg,
+                        provider="gemini",
+                        stage="cleaning",
+                        model=self.cleaning_model,
+                        estimated_cost_usd=float(cleaning_cost or 0.0),
+                        prompt_tokens=in_tok_cl,
+                        completion_tokens=out_tok_cl,
+                        triggered_guardrail=triggered_guardrail,
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
+
             if not cleaned:
                 logger.warning("Gemini API returned empty cleaned text, using original")
+                _emit_cleaning_cost()
                 return text
-            # Response-shape guardrail (ADR-100, #1003) on cleaning output —
-            # only the thinking-prose case. Empty handled gracefully above
-            # per ADR-100 per-stage policy.
-            _guardrails.check_chat_response(
-                cleaned, service="gemini", finish_reason=_gemini_finish_reason(response)
-            )
+            # ADR-100: cleaning catch-and-degrade; cost emitted in both branches.
+            try:
+                _guardrails.check_chat_response(
+                    cleaned, service="gemini", finish_reason=_gemini_finish_reason(response)
+                )
+            except _guardrails.GuardrailViolation:
+                _emit_cleaning_cost(triggered_guardrail=True)
+                logger.warning(
+                    "Gemini cleaning output failed guardrail; " "returning original transcript text"
+                )
+                return text
 
+            _emit_cleaning_cost()
             logger.debug("Gemini cleaning completed: %d -> %d chars", len(text), len(cleaned))
             return cast(str, cleaned)
 
         except _guardrails.GuardrailViolation:
-            # ADR-100 per-stage policy: cleaning degrades gracefully — a
-            # guardrail-tripping cleaned response means we serve the original
-            # transcript text rather than fail the run. Distinct from summarize
-            # (fail-up) and GI/KG (fail-up).
+            # Defensive outer catch — preserve the catch-and-degrade contract
+            # if a future change adds a guardrail call outside the inline block.
             logger.warning(
-                "Gemini cleaning output failed guardrail; returning original transcript text"
+                "Gemini cleaning output failed guardrail (outer); "
+                "returning original transcript text"
             )
             return text
         except Exception as exc:
