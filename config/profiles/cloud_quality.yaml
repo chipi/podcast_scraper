@@ -32,10 +32,9 @@ profile: cloud_quality
 
 # Transcription — Deepgram nova-3 for the quality tier: native, server-side
 # speaker diarization, no separate pyannote pass needed. Diarization is a
-# core pipeline stage (#913 follow-up, 2026-06-15): we now route the
-# diarize stage explicitly to Deepgram too. With both stages on Deepgram,
-# a future "reuse transcription response" optimization can collapse to a
-# single API call; today the wiring is intentionally simple (two calls).
+# core pipeline stage (#913, 2026-06-15): we route the diarize stage
+# explicitly to Deepgram too. Two Listen API calls per episode (transcribe
+# + diarize) — a deliberate tradeoff for stage independence.
 transcription_provider: deepgram
 deepgram_model: nova-3
 diarize: true

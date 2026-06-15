@@ -7,15 +7,11 @@ response — no local install required.
 
 When paired with ``transcription_provider: deepgram`` this means two
 Deepgram API calls per episode (one for transcription, one for
-diarization). That's the cost of keeping the stages independent — same
+diarization). That's a deliberate tradeoff for stage independence — same
 shape as pairing OpenAI Whisper with local pyannote on an ML-capable
-host. To collapse to a single Deepgram call, set both
-``transcription_provider`` and ``diarization_provider`` to ``deepgram``
-and the future "reuse transcription response" optimization (#913
-follow-up) can detect the pairing and skip the second call.
-
-For now the implementation is intentionally simple: separate Listen
-call, only the speaker-turn timestamps consumed.
+host. A "reuse transcription response" optimization would require the
+orchestrator to thread the transcription response into the diarization
+stage, which crosses the provider-interface boundary; not done here.
 """
 
 from __future__ import annotations

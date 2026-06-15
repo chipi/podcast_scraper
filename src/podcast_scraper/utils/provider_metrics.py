@@ -340,7 +340,69 @@ def _safe_deepgram_retryable() -> tuple[type[Exception], ...]:
     return (Exception,)
 
 
-def retry_with_metrics(
+_CANONICAL_STAGES = (
+    "summarization",
+    "gi",
+    "kg",
+    "cleaning",
+    "speaker_detection",
+    "transcription",
+    "diarization",
+)
+_CANONICAL_STAGE_KEYWORDS = (
+    # Order matters. Specific compound tags first, then summary/cleaning, then
+    # GIL/KG/speaker/transcribe/diarize. The compound clean+summary bundled
+    # call carries BOTH ``clean`` and ``summary`` keywords; we want it grouped
+    # under summarization because it IS the summary call — the cleaning step
+    # is incidental to that one round-trip.
+    ("bundled_clean_summary", "summarization"),
+    ("clean_summary", "summarization"),
+    ("extraction_bundle", "summarization"),
+    ("gil", "gi"),
+    ("extract_quotes", "gi"),
+    ("score_entailment", "gi"),
+    ("gi_", "gi"),
+    ("kg_graph", "kg"),
+    ("extract_kg", "kg"),
+    ("kg", "kg"),
+    ("megabundle", "summarization"),
+    ("mega_bundle", "summarization"),
+    ("summar", "summarization"),
+    ("summary", "summarization"),
+    ("clean", "cleaning"),
+    ("speaker", "speaker_detection"),
+    ("transcribe", "transcription"),
+    ("transcript", "transcription"),
+    ("diarize", "diarization"),
+    ("diariz", "diarization"),
+)
+
+
+def canonical_stage(stage: Optional[str]) -> str:
+    """Map a provider-specific stage tag to a canonical pipeline stage (#988).
+
+    Provider call sites tag their ``retry_context`` with descriptive stage
+    strings like ``gemini_transcribe`` / ``gemini_gil_extract_quotes`` /
+    ``deepseek_summarize``. The reliability eval needs canonical
+    pipeline-stage buckets (``transcription`` / ``summarization`` / ``gi`` /
+    etc.) so 503 rates can be compared across providers.
+
+    Unknown / empty inputs fall through to ``"other"`` so attribution still
+    happens but lands in a clearly-labeled catch-all bucket rather than a
+    mis-attributed pipeline-stage.
+    """
+    if not stage:
+        return "other"
+    s = str(stage).strip().lower()
+    if s in _CANONICAL_STAGES:
+        return s
+    for needle, canonical in _CANONICAL_STAGE_KEYWORDS:
+        if needle in s:
+            return canonical
+    return "other"
+
+
+def retry_with_metrics(  # noqa: C901
     func: Callable[[], T],
     max_retries: int = 3,
     initial_delay: float = 1.0,
@@ -477,6 +539,23 @@ def retry_with_metrics(
                         f"provider_retry: provider={provider_name} attempt={attempt + 2} "
                         f"sleep={sleep_time:.1f} reason={reason}"
                     )
+                # #988: per-stage attribution. Only fires when the caller wired
+                # both ``pipeline_metrics`` and a stage hint in ``retry_context``.
+                if pipeline_metrics is not None and retry_context:
+                    stage_hint = (
+                        retry_context.get("stage") if isinstance(retry_context, dict) else None
+                    )
+                    if stage_hint and hasattr(pipeline_metrics, "record_provider_retry"):
+                        reason_for_stage = reason if metrics is not None else get_retry_reason(e)
+                        try:
+                            pipeline_metrics.record_provider_retry(
+                                canonical_stage(stage_hint), reason_for_stage
+                            )
+                        except Exception as attribution_exc:  # noqa: BLE001
+                            logger.debug(
+                                "per-stage retry attribution skipped: %s",
+                                attribution_exc,
+                            )
 
                 logger.warning(
                     "Attempt %d/%d failed: %s. Retrying in %.1fs...",

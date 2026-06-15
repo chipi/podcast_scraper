@@ -224,6 +224,20 @@ class Metrics:
     # Per-run signal: True/non-empty if the run had to fall back at least once.
     llm_summary_fallback_active_count: int = 0
     llm_summary_fallback_provider: Optional[str] = None
+    # #988: per-stage retry-reason attribution. Stage → reason → count.
+    # Stages are the canonical pipeline stages (summarization, gi, kg, cleaning,
+    # speaker_detection, transcription). Reasons come from
+    # ``provider_metrics.get_retry_reason`` (e.g. ``"503"``, ``"429"``,
+    # ``"connection_reset"``). Lets the reliability eval slice 503 rates per
+    # stage instead of conflating all cloud-LLM retries into a single bucket.
+    # Populated by ``retry_with_metrics`` when callers pass both
+    # ``pipeline_metrics`` and ``retry_context["stage"]`` — providers that
+    # haven't been wired yet remain absent from the table rather than being
+    # mis-attributed.
+    llm_retry_reasons: Dict[str, Dict[str, int]] = field(default_factory=dict)
+    _retry_reasons_lock: threading.Lock = field(
+        default_factory=threading.Lock, init=False, repr=False
+    )
     # #652 Part C — deterministic post-extraction filter counters.
     ads_filtered_count: int = 0
     dialogue_insights_dropped_count: int = 0
@@ -648,6 +662,23 @@ class Metrics:
     def record_llm_bundled_fallback_to_staged(self) -> None:
         """Increment count when bundled clean+summary fails and staged path is used."""
         self.llm_bundled_fallback_to_staged_count += 1
+
+    def record_provider_retry(self, stage: str, reason: str) -> None:
+        """Attribute one provider-call retry to a canonical pipeline stage (#988).
+
+        ``stage`` is the canonical pipeline stage (``"summarization"``,
+        ``"gi"``, ``"kg"``, ``"cleaning"``, ``"speaker_detection"``,
+        ``"transcription"``, or ``"other"``). ``reason`` is the retry-reason
+        slug produced by ``provider_metrics.get_retry_reason``
+        (``"503"`` / ``"429"`` / ``"connection_reset"`` / etc.).
+
+        Thread-safe; called from inside ``retry_with_metrics`` on each retry.
+        """
+        if not stage or not reason:
+            return
+        with self._retry_reasons_lock:
+            bucket = self.llm_retry_reasons.setdefault(str(stage), {})
+            bucket[str(reason)] = bucket.get(str(reason), 0) + 1
 
     def record_llm_summary_fallback_active(self, fallback_provider: str) -> None:
         """Record that the summarization stage fell back from its primary provider.
@@ -1446,6 +1477,12 @@ class Metrics:
             # Device usage per stage (Issue #387)
             "transcription_device": self.transcription_device,
             "summarization_device": self.summarization_device,
+            # #988: per-stage retry-reason attribution (stage → reason → count).
+            # Empty dict when no retries fired (or none of the firing call sites
+            # were wired for stage attribution).
+            "llm_retry_reasons": {
+                stage: dict(reasons) for stage, reasons in self.llm_retry_reasons.items()
+            },
         }
         out.update(http_policy_metrics)
         return out

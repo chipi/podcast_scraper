@@ -1371,7 +1371,7 @@ class Config(BaseModel):
         default="local",
         alias="diarization_provider",
         description=(
-            "Diarization backend (#926, #962, #913-followup). ``local`` runs "
+            "Diarization backend (#926, #962, #913). ``local`` runs "
             "pyannote.audio in-process on the pipeline host (laptop / prod VPS, "
             "needs ``[ml]`` extras + HF_TOKEN). ``tailnet_dgx`` POSTs audio to "
             "the DGX-hosted pyannote service on dgx_diarize_port. ``gemini`` "

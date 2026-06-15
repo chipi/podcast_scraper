@@ -132,18 +132,19 @@ Net change: **one profile (`cloud_quality`) needs the
   the model. Summarization on Ollama is a separate question (already
   partly answered by #928 Cell C, which is parked).
 
-## Follow-ups (named, not deferred)
+## Operational signals to watch post-deploy
 
-1. **`cloud_quality` profile migration.** Single-config change from
-   `speaker_detector_provider: spacy` → `gemini`. Should land in the same
-   PR as this report.
-2. **Ollama speaker-detection prompt-template diagnostic** (separate task).
-   Why does the production provider take 80s/call when a bare `curl` to
-   the same model + endpoint takes 21s? Likely the system prompt asks for
-   JSON-structured output that the model is slow to generate, or the
-   prompt is being padded with many examples. Useful to investigate if we
-   ever want Ollama on a less-time-pressured pipeline stage, but does NOT
-   change today's routing.
+Not code work — observability the operator monitors after this batch
+ships, deciding whether to act based on real production signal.
+
+1. **`cloud_quality` profile migration** — landed in the same PR as this
+   report (no longer pending).
+2. **Ollama speaker-detection prompt-template diagnostic.** Why does the
+   production provider take 80s/call when a bare `curl` to the same model
+   and endpoint takes 21s? Likely the system prompt asks for JSON-structured
+   output that the model is slow to generate. Useful only if we ever want
+   Ollama on a less-time-pressured pipeline stage; does NOT change today's
+   routing.
 3. **Re-baseline if Gemini's speaker-detector quality regresses.** The
    `inference_guardrail_violations_total{service="gemini"}` counter will
    surface model-side regressions automatically. If that fires

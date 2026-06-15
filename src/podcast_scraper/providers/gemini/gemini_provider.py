@@ -369,8 +369,19 @@ class GeminiProvider:
         self._summarization_initialized = True
         logger.debug("Gemini summarization initialized successfully")
 
-    def _gemini_retry_params(self, ctx: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Kwargs for ``retry_with_metrics`` on Gemini HTTP/SDK calls (configurable)."""
+    def _gemini_retry_params(
+        self,
+        ctx: Optional[Dict[str, Any]] = None,
+        pipeline_metrics: Optional[Any] = None,
+    ) -> Dict[str, Any]:
+        """Kwargs for ``retry_with_metrics`` on Gemini HTTP/SDK calls (configurable).
+
+        Passes ``pipeline_metrics`` through so #988 per-stage retry-reason
+        attribution fires from inside the retry loop. The ``ctx["stage"]``
+        already carries a per-call-site tag (e.g. ``gemini_megabundle``,
+        ``gemini_gil_extract_quotes``) which the canonical-stage normalizer
+        maps onto pipeline buckets (summarization, gi, …).
+        """
         out: Dict[str, Any] = {
             "max_retries": self.cfg.gemini_retry_max_retries,
             "initial_delay": self.cfg.gemini_retry_initial_delay_seconds,
@@ -378,6 +389,8 @@ class GeminiProvider:
         }
         if ctx:
             out["retry_context"] = ctx
+        if pipeline_metrics is not None:
+            out["pipeline_metrics"] = pipeline_metrics
         return out
 
     # ============================================================================
@@ -660,7 +673,10 @@ class GeminiProvider:
         try:
             text = retry_with_metrics(
                 lambda: self.transcribe(audio_path, language),
-                **self._gemini_retry_params({"stage": "gemini_transcribe_outer"}),
+                **self._gemini_retry_params(
+                    {"stage": "gemini_transcribe_outer"},
+                    pipeline_metrics=pipeline_metrics,
+                ),
                 retryable_exceptions=_safe_gemini_retryable(),
                 metrics=call_metrics,
             )
@@ -838,7 +854,10 @@ class GeminiProvider:
                     contents=user_prompt,
                     config=cast(Any, generation_config),
                 ),
-                **self._gemini_retry_params({"stage": "gemini_speaker"}),
+                **self._gemini_retry_params(
+                    {"stage": "gemini_speaker"},
+                    pipeline_metrics=pipeline_metrics,
+                ),
                 retryable_exceptions=_safe_gemini_retryable(),
             )
 
@@ -1102,7 +1121,8 @@ class GeminiProvider:
                         {
                             "stage": "gemini_summarize",
                             "episode_title": (episode_title or "")[:200],
-                        }
+                        },
+                        pipeline_metrics=pipeline_metrics,
                     ),
                     retryable_exceptions=_safe_gemini_retryable(),
                     metrics=call_metrics,
@@ -1352,7 +1372,10 @@ class GeminiProvider:
         try:
             resp = retry_with_metrics(
                 _make_api_call,
-                **self._gemini_retry_params({"stage": "gemini_megabundle"}),
+                **self._gemini_retry_params(
+                    {"stage": "gemini_megabundle"},
+                    pipeline_metrics=pipeline_metrics,
+                ),
                 retryable_exceptions=_safe_gemini_retryable(),
                 metrics=call_metrics,
             )
@@ -1445,7 +1468,8 @@ class GeminiProvider:
                     {
                         "stage": "gemini_extraction_bundle",
                         "episode_title": (episode_title or "")[:200],
-                    }
+                    },
+                    pipeline_metrics=pipeline_metrics,
                 ),
                 retryable_exceptions=_safe_gemini_retryable(),
                 metrics=call_metrics,
@@ -1537,7 +1561,8 @@ class GeminiProvider:
                     {
                         "stage": "gemini_bundled_clean_summary",
                         "episode_title": (episode_title or "")[:200],
-                    }
+                    },
+                    pipeline_metrics=pipeline_metrics,
                 ),
                 retryable_exceptions=_safe_gemini_retryable(),
                 metrics=call_metrics,
@@ -1917,7 +1942,11 @@ class GeminiProvider:
             response = retry_with_metrics(
                 _make_api_call,
                 **self._gemini_retry_params(
-                    {"stage": "gemini_kg_transcript", "episode_title": (episode_title or "")[:200]}
+                    {
+                        "stage": "gemini_kg_transcript",
+                        "episode_title": (episode_title or "")[:200],
+                    },
+                    pipeline_metrics=pipeline_metrics,
                 ),
                 retryable_exceptions=_safe_gemini_retryable(),
             )
@@ -1996,7 +2025,11 @@ class GeminiProvider:
             response = retry_with_metrics(
                 _make_api_call,
                 **self._gemini_retry_params(
-                    {"stage": "gemini_kg_bullets", "episode_title": (episode_title or "")[:200]}
+                    {
+                        "stage": "gemini_kg_bullets",
+                        "episode_title": (episode_title or "")[:200],
+                    },
+                    pipeline_metrics=pipeline_metrics,
                 ),
                 retryable_exceptions=_safe_gemini_retryable(),
             )
@@ -2078,7 +2111,10 @@ class GeminiProvider:
             try:
                 response = retry_with_metrics(
                     _make_api_call,
-                    **self._gemini_retry_params({"stage": "gemini_gil_extract_quotes"}),
+                    **self._gemini_retry_params(
+                        {"stage": "gemini_gil_extract_quotes"},
+                        pipeline_metrics=pm,
+                    ),
                     retryable_exceptions=_safe_gemini_retryable(),
                     metrics=call_metrics,
                 )
@@ -2216,7 +2252,10 @@ class GeminiProvider:
         try:
             response = retry_with_metrics(
                 _make_api_call,
-                **self._gemini_retry_params({"stage": "gemini_gil_extract_quotes_bundled"}),
+                **self._gemini_retry_params(
+                    {"stage": "gemini_gil_extract_quotes_bundled"},
+                    pipeline_metrics=pm,
+                ),
                 retryable_exceptions=_safe_gemini_retryable(),
                 metrics=call_metrics,
             )
@@ -2318,7 +2357,10 @@ class GeminiProvider:
             try:
                 response = retry_with_metrics(
                     _make_api_call,
-                    **self._gemini_retry_params({"stage": "gemini_gil_score_entailment"}),
+                    **self._gemini_retry_params(
+                        {"stage": "gemini_gil_score_entailment"},
+                        pipeline_metrics=pm,
+                    ),
                     retryable_exceptions=_safe_gemini_retryable(),
                     metrics=call_metrics,
                 )
@@ -2443,7 +2485,10 @@ class GeminiProvider:
         try:
             response = retry_with_metrics(
                 _make_api_call,
-                **self._gemini_retry_params({"stage": "gemini_gil_score_entailment_bundled"}),
+                **self._gemini_retry_params(
+                    {"stage": "gemini_gil_score_entailment_bundled"},
+                    pipeline_metrics=pipeline_metrics,
+                ),
                 retryable_exceptions=_safe_gemini_retryable(),
                 metrics=call_metrics,
             )
@@ -2537,7 +2582,10 @@ class GeminiProvider:
             try:
                 response = retry_with_metrics(
                     _make_api_call,
-                    **self._gemini_retry_params({"stage": "gemini_clean_transcript"}),
+                    **self._gemini_retry_params(
+                        {"stage": "gemini_clean_transcript"},
+                        pipeline_metrics=pipeline_metrics,
+                    ),
                     retryable_exceptions=_safe_gemini_retryable(),
                     metrics=call_metrics,
                 )

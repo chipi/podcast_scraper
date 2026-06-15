@@ -1,4 +1,4 @@
-"""Unit tests for ``DeepgramDiarizationProvider`` (#913 follow-up).
+"""Unit tests for ``DeepgramDiarizationProvider`` (#913, 2026-06-15).
 
 The provider POSTs audio to Deepgram's Listen API and parses speaker
 turns. These tests cover the response-parsing logic (handles dict and

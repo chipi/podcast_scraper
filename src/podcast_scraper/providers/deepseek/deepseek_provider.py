@@ -362,6 +362,8 @@ class DeepSeekProvider:
                 initial_delay=1.0,
                 max_delay=30.0,
                 retryable_exceptions=_safe_openai_retryable(),
+                pipeline_metrics=pipeline_metrics,
+                retry_context={"stage": "deepseek_speaker"},
             )
 
             response_text = response.choices[0].message.content
@@ -606,6 +608,8 @@ class DeepSeekProvider:
                     max_delay=30.0,
                     retryable_exceptions=_safe_openai_retryable(),
                     metrics=call_metrics,
+                    pipeline_metrics=pipeline_metrics,
+                    retry_context={"stage": "deepseek_summarize"},
                 )
             except Exception:
                 call_metrics.finalize()
@@ -837,6 +841,8 @@ class DeepSeekProvider:
                 max_delay=30.0,
                 retryable_exceptions=_safe_openai_retryable(),
                 metrics=call_metrics,
+                pipeline_metrics=pipeline_metrics,
+                retry_context={"stage": "deepseek_megabundle"},
             )
         except Exception:
             call_metrics.finalize()
@@ -921,6 +927,8 @@ class DeepSeekProvider:
                 max_delay=30.0,
                 retryable_exceptions=_safe_openai_retryable(),
                 metrics=call_metrics,
+                pipeline_metrics=pipeline_metrics,
+                retry_context={"stage": "deepseek_extraction_bundle"},
             )
         except Exception:
             call_metrics.finalize()
@@ -1012,6 +1020,8 @@ class DeepSeekProvider:
                 max_delay=30.0,
                 retryable_exceptions=_safe_openai_retryable(),
                 metrics=call_metrics,
+                pipeline_metrics=pipeline_metrics,
+                retry_context={"stage": "deepseek_bundled_clean_summary"},
             )
         except Exception:
             call_metrics.finalize()
@@ -1360,6 +1370,8 @@ class DeepSeekProvider:
                 initial_delay=1.0,
                 max_delay=30.0,
                 retryable_exceptions=_safe_openai_retryable(),
+                pipeline_metrics=pipeline_metrics,
+                retry_context={"stage": "deepseek_kg_transcript"},
             )
             _record_deepseek_llm_call(
                 response,
@@ -1430,6 +1442,8 @@ class DeepSeekProvider:
                 initial_delay=1.0,
                 max_delay=30.0,
                 retryable_exceptions=_safe_openai_retryable(),
+                pipeline_metrics=pipeline_metrics,
+                retry_context={"stage": "deepseek_kg_bullets"},
             )
             _record_deepseek_llm_call(
                 response,
@@ -1502,6 +1516,8 @@ class DeepSeekProvider:
                     max_delay=30.0,
                     retryable_exceptions=_safe_openai_retryable(),
                     metrics=call_metrics,
+                    pipeline_metrics=pm,
+                    retry_context={"stage": "deepseek_gil_extract_quotes"},
                 )
             except Exception:
                 merge_gil_evidence_call_metrics_on_failure(call_metrics, pm)
@@ -1607,6 +1623,8 @@ class DeepSeekProvider:
                     max_delay=30.0,
                     retryable_exceptions=_safe_openai_retryable(),
                     metrics=call_metrics,
+                    pipeline_metrics=pm,
+                    retry_context={"stage": "deepseek_gil_score_entailment"},
                 )
             except Exception:
                 merge_gil_evidence_call_metrics_on_failure(call_metrics, pm)
@@ -1693,6 +1711,8 @@ class DeepSeekProvider:
                 max_delay=30.0,
                 retryable_exceptions=_safe_openai_retryable(),
                 metrics=call_metrics,
+                pipeline_metrics=pm,
+                retry_context={"stage": "deepseek_gil_extract_quotes_bundled"},
             )
         except Exception:
             merge_gil_evidence_call_metrics_on_failure(call_metrics, pm)
@@ -1816,6 +1836,8 @@ class DeepSeekProvider:
                 max_delay=30.0,
                 retryable_exceptions=_safe_openai_retryable(),
                 metrics=call_metrics,
+                pipeline_metrics=pipeline_metrics,
+                retry_context={"stage": "deepseek_gil_score_entailment_bundled"},
             )
         except Exception:
             merge_gil_evidence_call_metrics_on_failure(call_metrics, pipeline_metrics)
@@ -1907,6 +1929,8 @@ class DeepSeekProvider:
                     max_delay=30.0,
                     retryable_exceptions=_safe_openai_retryable(),
                     metrics=call_metrics,
+                    pipeline_metrics=pipeline_metrics,
+                    retry_context={"stage": "deepseek_clean_transcript"},
                 )
             except Exception:
                 call_metrics.finalize()

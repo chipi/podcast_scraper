@@ -221,17 +221,24 @@ correctly insensitive to incidental output.
    real good output. #1002 stays open as a long-term observability-
    driven tuning task, not as a blocker.
 
-## Follow-ups (named, not deferred)
+## Operational signals to watch post-deploy
 
-1. **Speaches `/v1/audio/transcriptions` 404 bug** — file as a separate
-   ticket. Likely a one-line fix in `tailnet_dgx_whisper` URL builder or
-   in Speaches's compose-side env vars.
-2. **#1002 threshold tuning** — stays open as an observability-driven
-   task. The Phase B probes added 2 entries to the
-   `inference_guardrail_violations_total` counter in this session — once
-   Grafana is scraping in prod, the operator can watch the firing rate
-   over real corpora and adjust thresholds if needed.
-3. **#928 Cell C re-baseline** — still parked. Independent of this.
+Not code work — observability the operator monitors after this batch
+ships, deciding whether to act based on real production signal.
+
+1. **Speaches `/v1/audio/transcriptions` 404 on real audio.** Observed
+   during this validation run. The fallback to OpenAI Whisper-1 worked
+   as designed, so prod isn't broken. Root cause requires hitting the
+   live Speaches container with `curl` to determine whether the
+   endpoint path moved in `v0.9.0-rc.3`, the container needs an extra
+   env var, or our URL builder needs a fix. Operational debugging on
+   DGX, not a code change.
+2. **#1002 threshold tuning** — observability-driven. The Phase B probes
+   added 2 entries to the `inference_guardrail_violations_total` counter
+   in this session — once Grafana is scraping in prod, the operator can
+   watch the firing rate over real corpora and adjust thresholds if the
+   signal warrants it.
+3. **#928 Cell C re-baseline** — parked; independent of this work.
 
 ## Run details
 

@@ -37,7 +37,7 @@ profile: cloud_balanced
 # mitigations. gpt-4o-[mini-]transcribe blocked on chunking (#286).
 transcription_provider: openai
 openai_transcription_model: whisper-1
-# Diarization is a core pipeline stage (#913 follow-up, 2026-06-15). Cloud
+# Diarization is a core pipeline stage (#913, 2026-06-15). Cloud
 # profiles route to Deepgram for the diarize pass — independent API call,
 # no [ml]/HF_TOKEN install on the pipeline host. Cost: ~$0.004/min for the
 # diarize call on top of OpenAI Whisper ($0.006/min) for transcription.
