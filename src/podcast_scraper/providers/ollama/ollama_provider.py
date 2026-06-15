@@ -55,6 +55,7 @@ from ...utils.log_redaction import format_exception_for_log
 from ...utils.provider_metadata import warn_if_truncated
 from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
+from ..tailnet_dgx import resilience as _dgx_resilience
 
 logger = logging.getLogger(__name__)
 
@@ -1114,9 +1115,12 @@ class OllamaProvider:
             )
 
             summary = response.choices[0].message.content
-            if not summary:
-                logger.warning("Ollama API returned empty summary")
-                summary = ""
+            # Response-shape guardrail (ADR-099, #999): empty content OR
+            # thinking-prose markers (qwen3.5 budget trap, #985/#959 evidence).
+            # Raises GuardrailViolation which the caller's existing exception
+            # handler treats as a failed Ollama call (falls back per the
+            # configured degradation_policy.fallback_provider_on_failure).
+            _dgx_resilience.check_ollama_response(summary)
 
             logger.debug(
                 "Ollama summarization completed: %d characters",
@@ -1303,8 +1307,11 @@ class OllamaProvider:
             "summarize_bundled",
         )
         raw = (response.choices[0].message.content or "").strip()
-        if not raw:
-            raise ValueError("Ollama bundled call returned empty content")
+        # Response-shape guardrail (ADR-099, #999): empty bundled response
+        # OR thinking-prose markers. Replaces the narrower "if not raw"
+        # check that was here before; same effect plus thinking-prose
+        # detection for the qwen3.5 budget-trap case.
+        _dgx_resilience.check_ollama_response(raw)
 
         try:
             data = json.loads(raw, strict=False)
@@ -1544,6 +1551,12 @@ class OllamaProvider:
             if not cleaned:
                 logger.warning("Ollama API returned empty cleaned text, using original")
                 return text
+            # Response-shape guardrail (ADR-099, #999): catch thinking-prose markers
+            # appearing AS the "cleaned" text (qwen3.5 budget trap). Empty content
+            # is intentionally allowed above — cleaning stage gracefully degrades
+            # to the original text. By this point ``cleaned`` is non-empty so the
+            # empty-check inside check_ollama_response won't false-fire.
+            _dgx_resilience.check_ollama_response(cleaned)
 
             logger.debug("Ollama cleaning completed: %d -> %d chars", len(text), len(cleaned))
             return cast(str, cleaned)
@@ -1612,6 +1625,11 @@ class OllamaProvider:
                 **_ollama_openai_chat_extra_kwargs(self.summary_model),
             )
             content = (response.choices[0].message.content or "").strip()
+            # Response-shape guardrail (ADR-099, #999) on the GI insights output —
+            # empty content or thinking-prose markers should fail the call rather
+            # than silently parse into zero insights. The caller's existing
+            # exception handler treats this as a failed Ollama call.
+            _dgx_resilience.check_ollama_response(content)
             lines = [
                 line.strip()
                 for line in content.splitlines()

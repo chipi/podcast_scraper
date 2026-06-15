@@ -425,6 +425,19 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     _transient_errors: Dict[str, Dict[str, Any]] = {}
     _transient_errors_lock = threading.Lock()
 
+    # Guardrail-violation injection registry (#999 / ADR-099).
+    # Format: {url_path: violation_type}
+    # Per-route violation_type vocabulary:
+    #   /v1/audio/transcriptions:  "transcription:empty" | "transcription:length_floor"
+    #   /v1/diarize:               "diarize:empty_segments"
+    #   /v1/chat/completions:      "chat:empty_content" | "chat:thinking_prose"
+    #                              | "chat:bad_json" | "chat:finish_length"
+    #   /api/generate:             "generate:empty" | "generate:thinking_prose"
+    # Tests set an injection, run the pipeline, assert fallback fires.
+    # Cleared at fixture teardown so tests don't leak state to siblings.
+    _injected_violations: Dict[str, str] = {}
+    _injected_violations_lock = threading.Lock()
+
     @classmethod
     def set_error_behavior(cls, url_path: str, status: int, delay: float = 0.0):
         """Set error behavior for a specific URL path.
@@ -470,6 +483,38 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             cls._error_behaviors.clear()
         with cls._transient_errors_lock:
             cls._transient_errors.clear()
+
+    @classmethod
+    def inject_violation(cls, url_path: str, violation_type: str) -> None:
+        """Inject a guardrail-violating response on the next request to ``url_path``.
+
+        For #999 / ADR-099 E2E tests. The handler for ``url_path`` checks the
+        injection registry; if a violation is set, it returns a structurally-
+        valid HTTP 200 response whose content fails the per-service guardrail
+        check, then clears the injection (one-shot per call). The test asserts
+        the consumer's fallback path fired.
+
+        See ``_injected_violations`` class attribute for the vocabulary of
+        ``violation_type`` values per route.
+        """
+        with cls._injected_violations_lock:
+            cls._injected_violations[url_path] = violation_type
+
+    @classmethod
+    def clear_violations(cls) -> None:
+        """Clear all guardrail-violation injections (call at fixture teardown)."""
+        with cls._injected_violations_lock:
+            cls._injected_violations.clear()
+
+    @classmethod
+    def _pop_injected_violation(cls, url_path: str) -> Optional[str]:
+        """Atomic check-and-pop: returns the injected violation_type for
+        ``url_path`` (and removes it) or None. Used by per-route handlers
+        to enforce one-shot semantics — the same route's next call returns
+        a normal mock response unless the test re-injects.
+        """
+        with cls._injected_violations_lock:
+            return cls._injected_violations.pop(url_path, None)
 
     @classmethod
     def set_allowed_podcasts(cls, podcasts: Optional[set[str]]):
@@ -773,6 +818,12 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def _handle_chat_completions(self):
         """Handle OpenAI chat (summarization, speaker, GIL extract_quotes/score_entailment)."""
+        # Guardrail-injection check (#999 / ADR-099): tests can pre-inject
+        # an empty/thinking-prose/bad-JSON/finish_reason=length response.
+        injection = type(self)._pop_injected_violation("/v1/chat/completions")
+        if injection:
+            self._emit_chat_violation(injection)
+            return
         try:
             # Read request body
             content_length = int(self.headers.get("Content-Length", 0))
@@ -1008,6 +1059,14 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def _handle_audio_transcriptions(self):
         """Handle OpenAI audio transcriptions API requests."""
+        # Guardrail-injection check (#999 / ADR-099): tests can pre-inject a
+        # structurally-valid HTTP 200 response whose content fails the whisper
+        # length-floor or empty-response guardrail. The consumer's
+        # GuardrailViolation handler then fires its fallback path.
+        injection = type(self)._pop_injected_violation("/v1/audio/transcriptions")
+        if injection:
+            self._emit_transcription_violation(injection)
+            return
         try:
             # Parse multipart form data
             content_type = self.headers.get("Content-Type", "")
@@ -1101,6 +1160,111 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         except Exception as e:
             self.send_error(500, f"Error handling audio transcriptions: {e}")
 
+    # ---------------------------------------------------------------------
+    # Guardrail-violation payloads (#999 / ADR-099 E2E test support).
+    # Each emitter returns a structurally-valid HTTP 200 whose CONTENT trips
+    # the corresponding consumer-side guardrail. Tests assert that the
+    # consumer's fallback path fired in response.
+    # ---------------------------------------------------------------------
+
+    def _send_json_200(self, body: Dict[str, Any]) -> None:
+        payload = json.dumps(body)
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload.encode("utf-8"))
+
+    def _emit_transcription_violation(self, violation_type: str) -> None:
+        """Return a guardrail-violating whisper transcription response.
+
+        violation_type ∈ {"transcription:empty", "transcription:length_floor"}.
+        Default to ``length_floor`` for any unknown value (safer than 500).
+        """
+        if violation_type == "transcription:empty":
+            text = ""
+        else:  # transcription:length_floor (or unknown)
+            text = "fragment"  # 1 word — well under any plausible duration-floor
+        self._send_json_200(
+            {
+                "text": text,
+                "segments": [{"id": 0, "start": 0.0, "end": 0.5, "text": text}],
+            }
+        )
+
+    def _emit_diarize_violation(self, violation_type: str) -> None:
+        """Return a guardrail-violating diarize response (empty segments).
+
+        Only one violation_type today: ``diarize:empty_segments``.
+        """
+        self._send_json_200(
+            {
+                "model_name": "pyannote/speaker-diarization-3.1",
+                "num_speakers": 0,
+                "segments": [],
+            }
+        )
+
+    def _emit_chat_violation(self, violation_type: str) -> None:
+        """Return a guardrail-violating chat-completions response.
+
+        Covers Ollama, OpenAI-compatible vLLM, etc. violation_type ∈ {
+            'chat:empty_content', 'chat:thinking_prose',
+            'chat:bad_json', 'chat:finish_length'
+        }.
+        """
+        if violation_type == "chat:thinking_prose":
+            content = "<think>let me think about this carefully</think>"
+            finish_reason = "stop"
+        elif violation_type == "chat:bad_json":
+            content = "this is not { valid json"
+            finish_reason = "stop"
+        elif violation_type == "chat:finish_length":
+            content = "This response was truncated mid-sentence becau"
+            finish_reason = "length"
+        else:  # chat:empty_content (or unknown)
+            content = ""
+            finish_reason = "stop"
+        self._send_json_200(
+            {
+                "id": "chatcmpl-violation-injected",
+                "object": "chat.completion",
+                "created": 0,
+                "model": "violation-injected",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": content},
+                        "finish_reason": finish_reason,
+                    }
+                ],
+                "usage": {
+                    "prompt_tokens": 0,
+                    "completion_tokens": len(content),
+                    "total_tokens": len(content),
+                },
+            }
+        )
+
+    def _emit_generate_violation(self, violation_type: str) -> None:
+        """Return a guardrail-violating Ollama /api/generate response.
+
+        violation_type ∈ {'generate:empty', 'generate:thinking_prose'}.
+        """
+        if violation_type == "generate:thinking_prose":
+            response = "<think>okay so I need to think about this</think>"
+        else:  # generate:empty (or unknown)
+            response = ""
+        self._send_json_200(
+            {
+                "model": "violation-injected",
+                "created_at": "2026-06-15T00:00:00Z",
+                "response": response,
+                "done": True,
+                "done_reason": "stop",
+            }
+        )
+
     def _handle_dgx_probe(self, path: str, head_only: bool = False):
         """DGX health/model probe: GET /v1/models (faster-whisper + pyannote) and
         GET /health (pyannote). OpenAI-style envelope so ``check_*_health`` passes."""
@@ -1128,6 +1292,17 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def _handle_dgx_diarize(self):
         """Mock the DGX pyannote ``POST /v1/diarize`` (#954): canned two-speaker
         result so the real TailnetDgxDiarizationProvider HTTP round-trip runs."""
+        # Guardrail-injection check (#999 / ADR-099): empty-segments injection
+        # for the pyannote-side preventive guardrail.
+        injection = type(self)._pop_injected_violation("/v1/diarize")
+        if injection:
+            # Drain any audio body the client uploaded first so the socket
+            # state stays clean for the canned response.
+            content_length = int(self.headers.get("Content-Length", 0))
+            if content_length:
+                self.rfile.read(content_length)
+            self._emit_diarize_violation(injection)
+            return
         try:
             content_length = int(self.headers.get("Content-Length", 0))
             if content_length:
@@ -1219,6 +1394,16 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         OllamaProvider.warmup posts JSON: model, prompt, stream, options.
         The E2E mock must return 200 so warm-up does not log 404 warnings.
         """
+        # Guardrail-injection check (#999 / ADR-099): empty/thinking-prose
+        # injection for the Ollama generate guardrail. Drain the body first
+        # so socket state stays clean.
+        injection = type(self)._pop_injected_violation("/api/generate")
+        if injection:
+            content_length = int(self.headers.get("Content-Length", 0))
+            if content_length:
+                self.rfile.read(content_length)
+            self._emit_generate_violation(injection)
+            return
         try:
             content_length = int(self.headers.get("Content-Length", 0))
             if content_length == 0:

@@ -199,6 +199,21 @@ class TailnetDgxWhisperTranscriptionProvider:
                             format_exception_for_log(exc),
                         )
                         break
+                    except resilience.GuardrailViolation as exc:
+                        # DGX returned a successful HTTP response but the content
+                        # failed the structural sanity check (ADR-099, #999) —
+                        # e.g. WER=1.0 garbage transcript under GPU contention.
+                        # Retry would likely return the same garbage; fall back
+                        # to cloud. Counted as a DGX failure (breaker records it).
+                        last_err = exc
+                        logger.warning(
+                            "DGX Whisper attempt %s returned guardrail-violating "
+                            "response (reason=%s); falling back to cloud: %s",
+                            attempt + 1,
+                            exc.reason,
+                            exc.response_summary,
+                        )
+                        break
                     except Exception as exc:
                         # Connection blip / transient server error — safe to retry with
                         # exponential backoff (no duplicate work is in flight).
@@ -281,8 +296,14 @@ class TailnetDgxWhisperTranscriptionProvider:
         resp.raise_for_status()
         payload = resp.json()
         text = str(payload.get("text") or "").strip()
-        if not text:
-            raise ValueError("empty transcription from DGX faster-whisper-server")
+        # Response-shape guardrail (ADR-099, #999) — catches both the empty-
+        # response case AND the WER=1.0 garbage-content case observed in #996.
+        # Replaces the narrower "if not text: raise ValueError" pattern that
+        # was here before; the guardrail raises GuardrailViolation, which the
+        # caller treats as a sibling of TimeoutLike (DGX fails, breaker counts,
+        # cloud fallback fires).
+        audio_duration_sec = resilience.probe_audio_duration_sec(audio_path)
+        resilience.check_whisper_response(text, audio_duration_sec=audio_duration_sec)
         duration = float(time.perf_counter() - started)
         segments: list[dict[str, object]] = []
         if isinstance(payload.get("segments"), list):

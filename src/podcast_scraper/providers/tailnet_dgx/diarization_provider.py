@@ -180,6 +180,20 @@ class TailnetDgxDiarizationProvider:
                         format_exception_for_log(exc),
                     )
                     break
+                except resilience.GuardrailViolation as exc:
+                    # DGX returned a successful HTTP response but the content
+                    # failed the structural sanity check (ADR-099, #999). Retry
+                    # would likely return the same shape; fall back to local
+                    # pyannote. Counted as a DGX failure (breaker records it).
+                    last_err = exc
+                    logger.warning(
+                        "DGX diarize attempt %s returned guardrail-violating "
+                        "response (reason=%s); falling back to local: %s",
+                        attempt + 1,
+                        exc.reason,
+                        exc.response_summary,
+                    )
+                    break
                 except Exception as exc:
                     # Connection blip / transient server error — safe to retry with
                     # exponential backoff (no duplicate work is in flight).
@@ -298,8 +312,15 @@ class TailnetDgxDiarizationProvider:
             for s in raw_segments
             if isinstance(s, dict)
         ]
-        if not segments:
-            raise ValueError("empty diarization result from DGX pyannote service")
+        # Response-shape guardrail (ADR-099, #999): empty segments for non-trivial
+        # audio is structurally invalid (every non-empty audio has at least one
+        # speech segment). Replaces the narrower "if not segments: raise ValueError"
+        # check that was here before — the guardrail raises GuardrailViolation
+        # which the caller treats as a sibling of TimeoutLike (DGX fails, breaker
+        # counts, in-process pyannote fallback fires). Preventive — no observed
+        # cases of this failure mode in production yet.
+        audio_duration_sec = resilience.probe_audio_duration_sec(audio_path)
+        resilience.check_pyannote_response(segments, audio_duration_sec=audio_duration_sec)
         return DiarizationResult(
             segments=segments,
             num_speakers=int(payload.get("num_speakers") or len({s.speaker for s in segments})),

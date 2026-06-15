@@ -248,6 +248,56 @@ def test_whisper_provider_cleanup_calls_fallback() -> None:
     fallback.cleanup.assert_called_once()
 
 
+# ---------------------------------------------------------------------------
+# Response-shape guardrail integration — #999 / ADR-099                       #
+# ---------------------------------------------------------------------------
+
+
+@patch("httpx.Client")
+def test_guardrail_fires_on_empty_dgx_response(mock_client_cls: MagicMock, tmp_path) -> None:
+    """An empty ``text`` from DGX whisper-server trips the guardrail (ADR-099 §
+    Initial thresholds), raising GuardrailViolation rather than the older
+    ValueError. The exception class carries service + reason for downstream
+    logging + Sentry capture.
+    """
+    audio = tmp_path / "clip.mp3"
+    audio.write_bytes(b"abc")
+
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {"text": "", "segments": []}
+    mock_client = MagicMock()
+    mock_client.__enter__.return_value = mock_client
+    mock_client.post.return_value = mock_resp
+    mock_client_cls.return_value = mock_client
+
+    provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
+    with pytest.raises(wp.resilience.GuardrailViolation) as exc_info:
+        provider._transcribe_dgx(str(audio), "en")
+    assert exc_info.value.service == "whisper"
+    assert exc_info.value.reason == "empty_response"
+
+
+@patch("httpx.Client")
+def test_guardrail_passes_on_normal_response(mock_client_cls: MagicMock, tmp_path) -> None:
+    """A response whose text matches expected length does NOT raise."""
+    audio = tmp_path / "clip.mp3"
+    audio.write_bytes(b"\x00" * 100)  # small fake audio (probe will likely return None)
+
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {
+        "text": " ".join(["word"] * 200),
+        "segments": [],
+    }
+    mock_client = MagicMock()
+    mock_client.__enter__.return_value = mock_client
+    mock_client.post.return_value = mock_resp
+    mock_client_cls.return_value = mock_client
+
+    provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
+    text, _segments, _dur = provider._transcribe_dgx(str(audio), "en")
+    assert text.count("word") == 200
+
+
 def test_transcribe_dgx_missing_file() -> None:
     provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
     with pytest.raises(FileNotFoundError):

@@ -268,3 +268,218 @@ class CircuitBreaker:
             self._state = "closed"
             self._failures.clear()
             self._open_until = 0.0
+
+
+# ---------------------------------------------------------------------------
+# Response-shape guardrails (#999 / ADR-099)
+# ---------------------------------------------------------------------------
+#
+# The connection-level primitives above (timeouts, watchdog, breaker) catch
+# transport failures from the self-deployed DGX services. They cannot catch the
+# "200 OK + semantically corrupted content" failure mode surfaced by the #996
+# catastrophic-tail sweep. ``GuardrailViolation`` is the failure-class added to
+# close that gap; the existing consumer fallback paths (which already catch
+# ``TimeoutLike``) treat it as a sibling exception — DGX fails, breaker counts,
+# cloud fallback fires. See ``docs/adr/ADR-099-response-shape-guardrails-*``.
+#
+# Initial thresholds are first-principles defaults locked at ship time;
+# fine-tuning against firing-rate data is tracked in #1002.
+
+
+# Service identifiers — also used as the Prometheus label and the dispatch key.
+SERVICE_WHISPER = "whisper"
+SERVICE_OLLAMA = "ollama"
+SERVICE_VLLM = "vllm"
+SERVICE_PYANNOTE = "pyannote"
+
+# Reason identifiers — per-service enum. Keep this list small; Prometheus
+# cardinality budget assumes ~10 distinct (service, reason) combos total.
+REASON_WHISPER_LENGTH_FLOOR = "length_floor_violated"
+REASON_WHISPER_EMPTY = "empty_response"
+REASON_OLLAMA_EMPTY = "empty_content"
+REASON_OLLAMA_THINKING_PROSE = "thinking_prose_detected"
+REASON_VLLM_BAD_JSON = "json_parse_failed"
+REASON_VLLM_FINISH_LENGTH = "finish_reason_length"
+REASON_PYANNOTE_EMPTY_SEGMENTS = "empty_segments"
+
+# Whisper length floor: 50% of expected word count, where the speaking rate
+# estimate is 2.5 words/sec (median podcast pace). Catches the WER=1.0 mode
+# without false-firing on natural silence stretches.
+_WHISPER_WORDS_PER_SEC_ESTIMATE = 2.5
+_WHISPER_LENGTH_FLOOR_FRACTION = 0.5
+
+# Pyannote: only enforce the empty-segments check for non-trivially-short audio
+# — < 5s clips legitimately diarize as empty in some configs.
+_PYANNOTE_MIN_DURATION_FOR_CHECK_SEC = 5.0
+
+# Ollama: reasoning-prose markers seen in qwen3.5 thinking-budget failures.
+_OLLAMA_THINKING_MARKERS: tuple[str, ...] = (
+    "<think>",
+    "<think ",
+    "Okay, so I need to",
+    "Let me think",
+)
+
+
+class GuardrailViolation(Exception):
+    """A self-deployed inference service returned a successful HTTP response
+    whose content fails a structural sanity check (ADR-099).
+
+    Behaviour: callers that already handle ``TimeoutLike`` should add a
+    sibling ``except GuardrailViolation`` block. The fallback path is
+    identical — DGX call counted as a failure, breaker records it, cloud
+    fallback fires. No retry against DGX: a guardrail-violating response
+    under contention is unlikely to repair on immediate retry, and the
+    fallback path is already paid for.
+
+    Attributes carry enough context for log + telemetry without needing
+    high-cardinality label values on Prometheus side (those live in the
+    log body and Sentry event scope).
+    """
+
+    def __init__(self, service: str, reason: str, response_summary: str = "") -> None:
+        self.service = service
+        self.reason = reason
+        # Truncated to ~200 chars to keep log lines bounded; full response
+        # body goes to the consumer's debug log if it needs investigation.
+        self.response_summary = (response_summary or "")[:200]
+        super().__init__(
+            f"guardrail violation: service={service} reason={reason} "
+            f"summary={self.response_summary!r}"
+        )
+
+
+# Prometheus counter — lazy-imported on first use, cached at module scope so the
+# Counter is registered exactly once even when this module is reloaded under
+# pytest. Pattern matches ``server/pipeline_run_prometheus.py:_PROM_STATE``.
+_GUARDRAIL_COUNTER: Any = None
+
+
+def _record_guardrail_violation(service: str, reason: str) -> None:
+    """Increment the Prometheus counter for a guardrail violation.
+
+    Strict label discipline: only `service` + `reason` are labels. Both are
+    drawn from the fixed enum constants above. **Never** add high-cardinality
+    fields (audio filename, request ID, response content) as labels — those
+    belong in the structured log body / Sentry context. If the active series
+    count for this counter climbs above ~50, that is a bug.
+    """
+    global _GUARDRAIL_COUNTER
+    if _GUARDRAIL_COUNTER is None:
+        try:
+            from prometheus_client import Counter
+
+            _GUARDRAIL_COUNTER = Counter(
+                "dgx_guardrail_violations_total",
+                "Count of response-shape guardrail violations from self-deployed "
+                "inference services (ADR-099). Labels: service, reason.",
+                labelnames=("service", "reason"),
+            )
+        except Exception:  # pragma: no cover - prometheus_client optional
+            _GUARDRAIL_COUNTER = False  # sentinel — don't retry the import
+            return
+    if _GUARDRAIL_COUNTER:
+        try:
+            _GUARDRAIL_COUNTER.labels(service=service, reason=reason).inc()
+        except Exception:  # pragma: no cover - telemetry never breaks the caller
+            pass
+
+
+def _raise_violation(service: str, reason: str, summary: str = "") -> None:
+    """Emit telemetry then raise ``GuardrailViolation``. Centralised so the
+    log + counter pair stays in lockstep across every per-service callback.
+    """
+    logger.warning(
+        "DGX guardrail violation: service=%s reason=%s summary=%s",
+        service,
+        reason,
+        summary[:200] if summary else "",
+    )
+    _record_guardrail_violation(service, reason)
+    raise GuardrailViolation(service, reason, summary)
+
+
+def check_whisper_response(text: str, *, audio_duration_sec: Optional[float]) -> None:
+    """Whisper length-floor guardrail.
+
+    Raises if the returned transcript has < 50% of the word count expected
+    from audio duration. Catches the WER=1.0 mode observed in #996. When
+    ``audio_duration_sec`` is None (probe failed), the check is skipped — a
+    miss on length scaling is harmless; the check is advisory in that case.
+    """
+    if text is None or text == "":
+        _raise_violation(SERVICE_WHISPER, REASON_WHISPER_EMPTY, "")
+    if audio_duration_sec is None or audio_duration_sec <= 0:
+        return
+    word_count = len(text.split())
+    floor = int(
+        audio_duration_sec * _WHISPER_WORDS_PER_SEC_ESTIMATE * _WHISPER_LENGTH_FLOOR_FRACTION
+    )
+    if word_count < floor:
+        summary = f"word_count={word_count} floor={floor} " f"duration_sec={audio_duration_sec:.1f}"
+        _raise_violation(SERVICE_WHISPER, REASON_WHISPER_LENGTH_FLOOR, summary)
+
+
+def check_ollama_response(content: Optional[str]) -> None:
+    """Ollama empty / thinking-prose guardrail.
+
+    Catches the qwen3.5 thinking-budget trap (#959/#985 evidence). Empty
+    content is a hard fail; reasoning-prose prefix markers (``<think>``,
+    "Okay, so I need to", "Let me think") are a hard fail because the
+    response indicates the model burned its budget on hidden reasoning
+    before producing user-facing text.
+    """
+    if content is None or content == "":
+        _raise_violation(SERVICE_OLLAMA, REASON_OLLAMA_EMPTY, "")
+    head = (content or "")[:200]
+    for marker in _OLLAMA_THINKING_MARKERS:
+        if marker in head:
+            _raise_violation(SERVICE_OLLAMA, REASON_OLLAMA_THINKING_PROSE, head)
+
+
+def check_vllm_response(
+    content: Optional[str],
+    *,
+    finish_reason: Optional[str] = None,
+    expect_json: bool = False,
+) -> None:
+    """vLLM JSON / finish-reason guardrail.
+
+    Preventive for the autoresearch path — failure modes observed in #985
+    cross-provider sweeps. ``finish_reason='length'`` means the model
+    truncated mid-output and the response is structurally incomplete;
+    ``expect_json=True`` enables a JSON-parse check on the content.
+    """
+    if finish_reason == "length":
+        summary = f"finish_reason=length content_head={(content or '')[:80]!r}"
+        _raise_violation(SERVICE_VLLM, REASON_VLLM_FINISH_LENGTH, summary)
+    if expect_json:
+        if content is None or content == "":
+            _raise_violation(SERVICE_VLLM, REASON_VLLM_BAD_JSON, "empty content")
+        try:
+            import json as _json
+
+            # ``content`` is non-empty by the early-return above; type-narrow
+            # for mypy (Optional[str] -> str).
+            assert content is not None
+            _json.loads(content)
+        except (ValueError, TypeError) as exc:
+            summary = f"parse_error={exc!s} head={(content or '')[:80]!r}"
+            _raise_violation(SERVICE_VLLM, REASON_VLLM_BAD_JSON, summary)
+
+
+def check_pyannote_response(segments: list[Any], *, audio_duration_sec: Optional[float]) -> None:
+    """Pyannote empty-segments guardrail.
+
+    Preventive — no observed cases yet. Empty diarization output for audio
+    longer than 5 s is structurally invalid (every non-trivial audio file
+    has at least one speech segment). Skipped for shorter clips because
+    pyannote legitimately can return ``[]`` on near-empty audio.
+    """
+    if (
+        not segments
+        and audio_duration_sec
+        and audio_duration_sec > _PYANNOTE_MIN_DURATION_FOR_CHECK_SEC
+    ):
+        summary = f"duration_sec={audio_duration_sec:.1f} segments=[]"
+        _raise_violation(SERVICE_PYANNOTE, REASON_PYANNOTE_EMPTY_SEGMENTS, summary)

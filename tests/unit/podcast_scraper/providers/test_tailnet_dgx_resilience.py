@@ -226,3 +226,149 @@ class TestDgxHttpClient:
             assert client.headers.get("x-test") == "1"
         finally:
             client.close()
+
+
+# ---------------------------------------------------------------------------
+# Response-shape guardrails — #999 / ADR-099                                  #
+# ---------------------------------------------------------------------------
+
+
+class TestWhisperGuardrail:
+    """Whisper length-floor + empty-response guardrail."""
+
+    def test_normal_response_passes(self):
+        # 60s audio at 2.5 words/sec * 0.5 floor = 75 words required
+        text = " ".join(["word"] * 200)
+        resilience.check_whisper_response(text, audio_duration_sec=60.0)  # no raise
+
+    def test_empty_text_fires(self):
+        with pytest.raises(resilience.GuardrailViolation) as exc_info:
+            resilience.check_whisper_response("", audio_duration_sec=60.0)
+        assert exc_info.value.service == resilience.SERVICE_WHISPER
+        assert exc_info.value.reason == resilience.REASON_WHISPER_EMPTY
+
+    def test_length_floor_fires(self):
+        # 60s audio expects ~150 words; floor is 75; 5 words is way under
+        with pytest.raises(resilience.GuardrailViolation) as exc_info:
+            resilience.check_whisper_response("one two three four five", audio_duration_sec=60.0)
+        assert exc_info.value.reason == resilience.REASON_WHISPER_LENGTH_FLOOR
+        assert "word_count=5" in exc_info.value.response_summary
+
+    def test_no_duration_skips_floor_check(self):
+        # Audio duration probe failed (None) → length check is advisory only,
+        # only the empty-check remains. Short text should pass.
+        resilience.check_whisper_response("brief text", audio_duration_sec=None)  # no raise
+
+    def test_no_duration_still_fires_on_empty(self):
+        with pytest.raises(resilience.GuardrailViolation):
+            resilience.check_whisper_response("", audio_duration_sec=None)
+
+
+class TestOllamaGuardrail:
+    """Ollama empty + thinking-prose guardrail."""
+
+    def test_normal_response_passes(self):
+        resilience.check_ollama_response("This is a valid summary of the episode.")  # no raise
+
+    def test_empty_content_fires(self):
+        with pytest.raises(resilience.GuardrailViolation) as exc_info:
+            resilience.check_ollama_response("")
+        assert exc_info.value.reason == resilience.REASON_OLLAMA_EMPTY
+
+    def test_none_content_fires_as_empty(self):
+        with pytest.raises(resilience.GuardrailViolation) as exc_info:
+            resilience.check_ollama_response(None)
+        assert exc_info.value.reason == resilience.REASON_OLLAMA_EMPTY
+
+    def test_think_tag_fires(self):
+        with pytest.raises(resilience.GuardrailViolation) as exc_info:
+            resilience.check_ollama_response("<think>let me reason</think>")
+        assert exc_info.value.reason == resilience.REASON_OLLAMA_THINKING_PROSE
+
+    def test_okay_so_i_need_fires(self):
+        with pytest.raises(resilience.GuardrailViolation):
+            resilience.check_ollama_response("Okay, so I need to summarize this podcast.")
+
+    def test_let_me_think_fires(self):
+        with pytest.raises(resilience.GuardrailViolation):
+            resilience.check_ollama_response("Let me think about the main themes here.")
+
+    def test_thinking_marker_only_at_head(self):
+        # Marker buried at char 500 should NOT fire — we check only the
+        # first 200 chars (the "head") to avoid false-positives on
+        # transcripts that legitimately quote a thinking-prose phrase.
+        # (The actual cutoff is 200 chars per _OLLAMA_THINKING_MARKERS impl.)
+        long_prefix = "x" * 250 + " Let me think about it."
+        resilience.check_ollama_response(long_prefix)  # no raise
+
+
+class TestVllmGuardrail:
+    """vLLM JSON + finish_reason guardrail."""
+
+    def test_normal_passes(self):
+        resilience.check_vllm_response("hello world", finish_reason="stop")  # no raise
+
+    def test_finish_reason_length_fires(self):
+        with pytest.raises(resilience.GuardrailViolation) as exc_info:
+            resilience.check_vllm_response("truncated mid", finish_reason="length")
+        assert exc_info.value.reason == resilience.REASON_VLLM_FINISH_LENGTH
+
+    def test_expect_json_empty_fires(self):
+        with pytest.raises(resilience.GuardrailViolation) as exc_info:
+            resilience.check_vllm_response("", expect_json=True)
+        assert exc_info.value.reason == resilience.REASON_VLLM_BAD_JSON
+
+    def test_expect_json_bad_parse_fires(self):
+        with pytest.raises(resilience.GuardrailViolation) as exc_info:
+            resilience.check_vllm_response("not { valid json", expect_json=True)
+        assert exc_info.value.reason == resilience.REASON_VLLM_BAD_JSON
+
+    def test_expect_json_valid_passes(self):
+        resilience.check_vllm_response('{"key": "value"}', expect_json=True)  # no raise
+
+    def test_no_json_check_when_not_requested(self):
+        # Non-JSON content without expect_json=True should NOT fire.
+        resilience.check_vllm_response("plain text response", expect_json=False)  # no raise
+
+
+class TestPyannoteGuardrail:
+    """Pyannote empty-segments guardrail."""
+
+    def test_normal_segments_pass(self):
+        segments = [object(), object()]  # any non-empty list
+        resilience.check_pyannote_response(segments, audio_duration_sec=60.0)  # no raise
+
+    def test_empty_segments_for_long_audio_fires(self):
+        with pytest.raises(resilience.GuardrailViolation) as exc_info:
+            resilience.check_pyannote_response([], audio_duration_sec=60.0)
+        assert exc_info.value.reason == resilience.REASON_PYANNOTE_EMPTY_SEGMENTS
+
+    def test_empty_segments_for_short_audio_skipped(self):
+        # 3-second audio legitimately diarizes as empty in some configs;
+        # guardrail is skipped below the 5-second threshold.
+        resilience.check_pyannote_response([], audio_duration_sec=3.0)  # no raise
+
+    def test_empty_segments_no_duration_skipped(self):
+        # When duration probe fails (None), the empty check is also skipped
+        # — we can't tell whether the audio was non-trivial.
+        resilience.check_pyannote_response([], audio_duration_sec=None)  # no raise
+
+
+class TestGuardrailViolationException:
+    """The exception itself carries enough context for downstream logging."""
+
+    def test_attributes_set(self):
+        exc = resilience.GuardrailViolation("whisper", "length_floor_violated", "word_count=5")
+        assert exc.service == "whisper"
+        assert exc.reason == "length_floor_violated"
+        assert exc.response_summary == "word_count=5"
+
+    def test_summary_truncated_to_200_chars(self):
+        exc = resilience.GuardrailViolation("ollama", "empty_content", "x" * 500)
+        assert len(exc.response_summary) == 200
+
+    def test_repr_contains_service_and_reason(self):
+        exc = resilience.GuardrailViolation("vllm", "json_parse_failed", "summary")
+        msg = str(exc)
+        assert "vllm" in msg
+        assert "json_parse_failed" in msg
