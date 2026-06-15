@@ -476,6 +476,7 @@ def index_corpus(
             target_tokens=cfg.vector_chunk_size_tokens,
             overlap_tokens=cfg.vector_chunk_overlap_tokens,
             allow_download=False,
+            upsert_batch_size=cfg.vector_upsert_batch_size,
         )
     except Exception as exc:  # non-fatal: callers (maybe_index_corpus) log + continue
         stats.errors.append(f"two-tier index build: {exc}")

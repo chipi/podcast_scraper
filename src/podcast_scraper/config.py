@@ -2448,6 +2448,18 @@ class Config(BaseModel):
         alias="vector_chunk_overlap_tokens",
         description="Token overlap between consecutive transcript chunks.",
     )
+    vector_upsert_batch_size: int = Field(
+        default=config_constants.DEFAULT_VECTOR_UPSERT_BATCH_SIZE,
+        ge=1,
+        le=100000,
+        alias="vector_upsert_batch_size",
+        description=(
+            "Rows buffered per tier before one LanceDB merge_insert flush during index "
+            "build. Larger batches = fewer/bigger transactions (fewer fragments, faster "
+            "build) at higher peak memory; smaller = lower memory. Applies to the "
+            "pipeline's incremental reindex as well as a full rebuild."
+        ),
+    )
     vector_embedding_model: str = Field(
         default=config_constants.DEFAULT_EMBEDDING_MODEL,
         alias="vector_embedding_model",

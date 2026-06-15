@@ -102,6 +102,7 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # vector_index_types: null  # Optional list: insight, quote, summary, transcript, kg_topic, kg_entity (default: all)
 # vector_chunk_size_tokens: 300  # Transcript chunk target (must be > vector_chunk_overlap_tokens)
 # vector_chunk_overlap_tokens: 50  # Overlap between consecutive transcript chunks
+# vector_upsert_batch_size: 512  # Rows per LanceDB merge_insert flush during index build (fewer/bigger = fewer fragments, more memory)
 # skip_auto_vector_index: false  # Advanced: when true, pipeline skips auto index even if vector_search
 #   is on (multi-feed runs set this per-feed and build one parent index after the batch — GitHub #505).
 # After a run: `python -m podcast_scraper.cli index --output-dir <out>` to rebuild; `... search ...`

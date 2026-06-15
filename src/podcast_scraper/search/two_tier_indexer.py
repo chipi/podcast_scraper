@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import cast, Dict, List, Optional, Tuple
 
-from .. import config as _config
+from .. import config as _config, config_constants as _config_constants
 from ..providers.ml import embedding_loader
 from .backend import AuxDocument, InsightDocument, SegmentDocument
 from .backends.lancedb_backend import lance_index_is_stale, LanceDBBackend
@@ -43,8 +43,9 @@ DEFAULT_OVERLAP_TOKENS = 32
 # Each flush = one LanceDB transaction (data file + version), so this trades peak
 # memory for fewer fragments: ~total_rows/batch transactions per tier instead of
 # one-per-document. 512 keeps buffers small (<~1MB/tier at 384-dim) while collapsing
-# a 99-episode corpus's thousands of docs into tens of transactions.
-DEFAULT_UPSERT_BATCH_SIZE = 512
+# a 99-episode corpus's thousands of docs into tens of transactions. Single source of
+# truth in config_constants so the Config field + profiles share the same default.
+DEFAULT_UPSERT_BATCH_SIZE = _config_constants.DEFAULT_VECTOR_UPSERT_BATCH_SIZE
 
 # Non-tiered corpus surfaces indexed into the aux tier for full coverage.
 _AUX_DOC_TYPES = frozenset({"kg_entity", "kg_topic", "quote", "summary"})
