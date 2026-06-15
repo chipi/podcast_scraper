@@ -34,10 +34,12 @@ try:
 except Exception as exc:  # pragma: no cover - environment-dependent
     pytest.skip(f"pyannote.audio unavailable: {exc}", allow_module_level=True)
 
-# Audio fixtures are versioned (#902). Pin to v1: its two TTS voices separate cleanly
-# under the diarizer, whereas the default (v2) fixture's voices don't (the #921 limitation
-# noted in tests/e2e/test_diarization_e2e.py). The old non-versioned path no longer exists.
-_FIXTURE = Path(__file__).resolve().parents[3] / "fixtures" / "audio" / "v1" / "p01_multi_e01.mp3"
+# Audio fixtures are versioned (#902). Use v2 (the current default): its host (female,
+# ~178Hz) and guest (male, ~117Hz) voices are acoustically distinct (cross-voice embedding
+# cosine ~0.22) and pyannote separates them deterministically. An earlier note pinned this
+# to v1 claiming v2 "doesn't separate" (#921); that did not reproduce — v1 and v2 both
+# diarize into two clean voices. The old non-versioned path no longer exists.
+_FIXTURE = Path(__file__).resolve().parents[3] / "fixtures" / "audio" / "v2" / "p01_multi_e01.mp3"
 
 
 def _hf_token_available() -> bool:

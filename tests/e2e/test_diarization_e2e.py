@@ -30,14 +30,13 @@ try:
 except Exception as exc:  # pragma: no cover - environment-dependent
     pytest.skip(f"pyannote.audio unavailable: {exc}", allow_module_level=True)
 
-# Pin to v1 audio explicitly: the v2 fixture regenerated in #902 produces audio whose
-# two TTS voices the diarizer can't cleanly separate, so the "Maya+Liam diarized"
-# assertion fails. v1 audio (171KB, richer voice differentiation) separates into two
-# voices cleanly. Neither fixture's host self-introduces in a whisper-clean way (whisper
-# hears "Maya" as "Ma'am"), so the host name reaches the roster via known_hosts (below),
-# not self-intro. Re-evaluate after v2 fixtures are regenerated with diarization-aware,
-# self-intro-clean voice synthesis (descendant of #921); until then this test stays on v1.
-_FIXTURE = fixtures_dir("audio", version="v1") / "p01_multi_e01.mp3"
+# Use v2 (the current default fixture). An earlier note pinned this to v1 claiming v2's
+# two TTS voices "can't separate cleanly" (a descendant of #921) — that did not reproduce.
+# v2 p01_multi_e01 diarizes into two acoustically distinct voices (host female ~178Hz,
+# guest male ~117Hz; cross-voice embedding cosine ~0.22) and the full Maya/Liam roster maps
+# deterministically (verified 4/4 runs). The host name reaches the roster via known_hosts
+# (below) — the production path for a feed-known host — rather than self-intro.
+_FIXTURE = fixtures_dir("audio", version="v2") / "p01_multi_e01.mp3"
 
 _PROVISIONING_MARKERS = (
     "offlinemode",
