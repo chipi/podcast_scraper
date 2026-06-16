@@ -194,6 +194,11 @@ def build_two_tier_index(
     ins_buf: List[InsightDocument] = []
     aux_buf: List[AuxDocument] = []
     batch = max(1, int(upsert_batch_size))
+    # FAISS retirement (#1010) dropped the ``search/metadata.json`` sidecar (doc_id -> chunk
+    # meta incl. char_start/char_end) that the GIL chunk-offset verifier and ``make
+    # verify-gil-offsets-after-acceptance`` still read. Re-emit it from the same row meta we
+    # already build, written next to the lance index (see search/gil_chunk_offset_verify.py).
+    index_metadata: Dict[str, dict] = {}
 
     def _flush_segments() -> None:
         if seg_buf:
@@ -235,6 +240,7 @@ def build_two_tier_index(
         aux_docs: List[AuxDocument] = []
         node_id_by_insight: Dict[str, Optional[str]] = {}
         for doc_id, text, meta in rows:
+            index_metadata[doc_id] = meta
             doc_type = meta.get("doc_type")
             if doc_type == "insight":
                 ins_docs.append(
@@ -328,4 +334,10 @@ def build_two_tier_index(
         # Reclaim the fragments + superseded versions this build created, so the index
         # stays bounded across full AND incremental reindexes.
         backend.compact()
+        # Re-emit the FAISS-era ``metadata.json`` sidecar (doc_id -> meta) next to the index;
+        # the GIL chunk-offset verifier reads char_start/char_end from it (see note above).
+        (Path(lance_path).parent / "metadata.json").write_text(
+            json.dumps(index_metadata, ensure_ascii=False, sort_keys=True),
+            encoding="utf-8",
+        )
     return stats

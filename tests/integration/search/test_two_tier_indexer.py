@@ -71,6 +71,49 @@ def test_builds_both_tiers_and_is_queryable(tmp_path, monkeypatch):
     assert by_id["chunk:1"].metadata["timestamp_start_ms"] == 2000  # ms preserved via seconds
 
 
+def test_writes_metadata_json_sidecar_with_char_offsets(tmp_path, monkeypatch):
+    """#1010 regression: GIL offset verify reads ``search/metadata.json`` (doc_id -> meta with
+    char_start/char_end). FAISS wrote it; the LanceDB build must re-emit it from chunk meta.
+    """
+    rows = [
+        (
+            "chunk:0",
+            "Markets moved sharply as the central bank signaled a policy shift",
+            {
+                "doc_type": "transcript",
+                "episode_id": "ep1",
+                "feed_id": "show1",
+                "char_start": 0,
+                "char_end": 64,
+                "timestamp_start_ms": 0,
+                "timestamp_end_ms": 4000,
+            },
+        ),
+        (
+            "insight:1",
+            "The central bank is shifting monetary policy",
+            {"doc_type": "insight", "episode_id": "ep1", "feed_id": "show1", "grounded": True},
+        ),
+    ]
+    _stub_extraction(monkeypatch, tmp_path, rows)
+    corpus = tmp_path / "corpus"
+    (corpus / "metadata").mkdir(parents=True)
+    tti.build_two_tier_index(corpus, corpus / "search" / "lance_index")
+
+    # Sidecar lands next to the lance index, where the verifier resolves <root>/search.
+    assert (corpus / "search" / "metadata.json").is_file(), "metadata.json sidecar not written"
+
+    # The verifier's OWN reader must parse it and recover the transcript chunk char spans.
+    from podcast_scraper.search.gil_chunk_offset_verify import (
+        load_index_metadata_map,
+        transcript_chunk_spans_by_episode,
+    )
+
+    meta_map = load_index_metadata_map(corpus / "search")
+    assert meta_map["chunk:0"]["char_start"] == 0 and meta_map["chunk:0"]["char_end"] == 64
+    assert transcript_chunk_spans_by_episode(meta_map) == {"ep1": [(0, 64)]}
+
+
 def test_linking_populates_compounds(tmp_path, monkeypatch):
     """Native index links insight↔segment so dedup actually produces a CompoundResult."""
     import json
