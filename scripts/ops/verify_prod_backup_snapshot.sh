@@ -134,4 +134,19 @@ fi
 echo "--- sample paths under corpus/ (maxdepth 3, first 25) ---"
 find unpacked/corpus -maxdepth 3 \( -type d -o -type f \) | head -25
 
+# #877: count DISTINCT (feed,episode) across all run dirs — the true episode total. The
+# raw gi_json count above includes every run dir; the app's latest-run-only views can
+# report fewer. PODCAST_BACKUP_EXPECTED_EPISODES (e.g. prod's 110) makes this fail loudly
+# if a future snapshot genuinely drops episodes.
+echo "--- distinct-episode count (#877) ---"
+PY_BIN="$REPO_ROOT/.venv/bin/python"
+[[ -x "$PY_BIN" ]] || PY_BIN="$(command -v python3 || command -v python)"
+COUNTER="$SCRIPT_DIR/corpus_snapshot/count_distinct_episodes.py"
+# Avoid expanding an empty array under `set -u` (errors on macOS bash 3.2).
+if [[ -n "${PODCAST_BACKUP_EXPECTED_EPISODES:-}" ]]; then
+  "$PY_BIN" "$COUNTER" "$WORKDIR/unpacked/corpus" --expect "$PODCAST_BACKUP_EXPECTED_EPISODES"
+else
+  "$PY_BIN" "$COUNTER" "$WORKDIR/unpacked/corpus"
+fi
+
 echo "OK. Unpacked tree: $WORKDIR/unpacked/corpus"

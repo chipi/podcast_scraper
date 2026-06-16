@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import xml.etree.ElementTree as ET
 from unittest.mock import patch
 
@@ -88,3 +89,42 @@ class TestCacheAwareDownload:
                 episode, cfg, temp_media, None, str(tmp_path / "corpus")
             )
         assert audio_cache.lookup_by_guid(cache, "g-off") is None  # nothing cached when disabled
+
+
+@pytest.mark.unit
+class TestPersistMediaLinkMode:
+    """G6: corpus media/ hardlinks to the retained #947 cache entry instead of copying."""
+
+    def _persist(self, tmp_path, link_mode, *, seed_cache=True, guid="g-persist"):
+        cache = tmp_path / "cache"
+        corpus = tmp_path / "corpus"
+        cfg = create_test_config(audio_cache_dir=str(cache), corpus_media_link_mode=link_mode)
+        episode = _episode_with_guid(guid)
+        cache_entry = None
+        if seed_cache:
+            seed = tmp_path / "seed.mp3"
+            seed.write_bytes(b"cached-audio" * 100)
+            cache_entry = audio_cache.store(cache, guid, str(seed))
+        temp_media = tmp_path / "run" / "ep.mp3"
+        os.makedirs(temp_media.parent, exist_ok=True)
+        temp_media.write_bytes(b"cached-audio" * 100)
+        episode_processor._maybe_persist_episode_media(
+            cfg, str(temp_media), str(corpus), "transcripts/ep.txt", episode=episode
+        )
+        return corpus / "media" / "ep.mp3", cache_entry
+
+    def test_hardlink_mode_shares_inode_with_cache_entry(self, tmp_path):
+        dest, cache_entry = self._persist(tmp_path, "hardlink")
+        assert dest.is_file()
+        assert cache_entry is not None
+        assert dest.stat().st_ino == os.stat(cache_entry).st_ino
+
+    def test_copy_mode_default_does_not_link(self, tmp_path):
+        dest, cache_entry = self._persist(tmp_path, "copy")
+        assert dest.is_file() and not dest.is_symlink()
+        assert dest.stat().st_ino != os.stat(cache_entry).st_ino
+
+    def test_hardlink_without_cache_entry_falls_back_to_copy(self, tmp_path):
+        dest, cache_entry = self._persist(tmp_path, "hardlink", seed_cache=False)
+        assert cache_entry is None
+        assert dest.is_file() and not dest.is_symlink()

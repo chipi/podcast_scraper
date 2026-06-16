@@ -7,7 +7,7 @@ from typing import Dict
 
 from fastapi import APIRouter, Query, Request
 
-from podcast_scraper.server.corpus_catalog import build_catalog_rows
+from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
 from podcast_scraper.server.pathutil import resolved_corpus_root_str
 from podcast_scraper.server.routes.corpus_library import _resolve_corpus_root
 from podcast_scraper.server.schemas import (
@@ -43,11 +43,17 @@ async def corpus_coverage(
         description="Corpus root. Omit to use server default output_dir.",
     ),
 ) -> CorpusCoverageResponse:
-    """Scan catalog once; check sibling ``*.gi.json`` / ``*.kg.json`` existence per episode."""
+    """Scan catalog once; check sibling ``*.gi.json`` / ``*.kg.json`` existence per episode.
+
+    Uses the cumulative (all-runs, deduped by ``(feed_id, episode_id)``) reader so coverage
+    reflects EVERY episode in the corpus, not just the latest run per feed — otherwise an
+    episode that lives only in an older ``run_*`` dir is silently dropped from the totals
+    and GI/KG percentages (the #877 under-count; cf. library/metrics which already do this).
+    """
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, anchor)
     root_safe = resolved_corpus_root_str(root, anchor)
-    rows = build_catalog_rows(root)
+    rows = build_catalog_rows_cumulative(root)
 
     total_episodes = len(rows)
     with_gi = sum(1 for r in rows if r.has_gi)

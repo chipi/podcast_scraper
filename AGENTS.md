@@ -412,8 +412,14 @@ are regressions, not stubs. Don't ship them.
 
 ### Document location
 
-ALL analysis/plans/WIP docs → `docs/wip/`. NEVER `docs/analysis/` or
-`docs/plan/`.
+- **Agent journal** (`.journal/`, git-ignored, survives `/clear`): EVERY agent keeps
+  a running journal here — plans, approaches, decisions, findings, run logs: anything
+  you'd otherwise lose on context-clear. One file per work-stream, named
+  `YYYY-MM-DD-<topic>.md`; append as you work so the next session can recover context.
+  This is the default home for working notes. Only `.journal/README.md` is tracked.
+- **Committed WIP docs** (`docs/wip/`): analysis/plans meant to be shared or shipped
+  with a PR (tracked, listed in `WIP_README.md`). Promote a journal note here when it
+  needs to travel with the code. NEVER `docs/analysis/` or `docs/plan/`.
 
 ---
 

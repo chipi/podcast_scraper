@@ -10,11 +10,9 @@ from .factory import create_speaker_detector
 from .hosts import detect_hosts_from_feed, detect_hosts_from_transcript_intro
 from .ner import get_ner_model
 from .normalization import filter_default_speaker_names, is_default_speaker_name
-from .patterns import analyze_episode_patterns
 
 __all__ = [
     "SpeakerDetector",
-    "analyze_episode_patterns",
     "create_speaker_detector",
     "DEFAULT_SAMPLE_SIZE",
     "DEFAULT_SPEAKER_NAMES",

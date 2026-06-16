@@ -63,7 +63,7 @@ def _extract(sha: str, package: str, dest: Path) -> Path | None:
     if not archive:
         return None
     with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
-        tar.extractall(dest)  # noqa: S202 - our own git archive, trusted content
+        tar.extractall(dest)  # nosec B202 - our own git archive, trusted content
     p = dest / package
     return p if p.exists() else None
 

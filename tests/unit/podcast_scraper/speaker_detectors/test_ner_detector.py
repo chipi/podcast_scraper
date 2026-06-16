@@ -172,22 +172,18 @@ class TestNERSpeakerDetector(unittest.TestCase):
             nlp=mock_nlp,
         )
 
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.analyze_episode_patterns")
     @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
-    def test_analyze_patterns(self, mock_get_model, mock_analyze):
-        """Test analyze_patterns method."""
+    def test_analyze_patterns(self, mock_get_model):
+        """analyze_patterns returns empty heuristics (#598 removed the learner)."""
         mock_nlp = Mock()
         mock_get_model.return_value = mock_nlp
-        mock_heuristics = {"pattern": "value"}
-        mock_analyze.return_value = mock_heuristics
 
         episodes = [create_test_episode(idx=1, title="Episode 1")]
         detector = create_speaker_detector(self.cfg)
         result = detector.analyze_patterns(episodes, {"Host1"})
 
-        self.assertEqual(result, mock_heuristics)
-        self.assertEqual(detector._spacy_heuristics, mock_heuristics)
-        mock_analyze.assert_called_once()
+        self.assertEqual(result, {})
+        self.assertEqual(detector._spacy_heuristics, {})
 
     @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
     def test_analyze_patterns_no_nlp(self, mock_get_model):

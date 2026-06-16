@@ -40,3 +40,10 @@ kg_extraction_source: provider
 generate_metadata: true
 generate_summaries: true
 language: en
+
+# Vector search intentionally OFF (explicit, not by default omission): this is a
+# pure-DGX autoresearch *measurement* profile (transcription/diarization/LLM
+# comparison), not a viewer/search-serving profile — building a LanceDB index would
+# add cost with no bearing on the comparison. Search-serving profiles
+# (local_dgx_balanced, cloud_*, prod_*) set vector_search: true instead.
+vector_search: false

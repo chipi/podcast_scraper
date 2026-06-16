@@ -1837,6 +1837,18 @@ def _add_pipeline_stage_arguments(parser: argparse.ArgumentParser) -> None:
         help="Do not copy episode audio into corpus media/ for viewer playback",
     )
     parser.set_defaults(persist_episode_media=None)
+    parser.add_argument(
+        "--corpus-media-link-mode",
+        choices=["copy", "hardlink", "symlink"],
+        default=None,
+        dest="corpus_media_link_mode",
+        help=(
+            "How to place persisted corpus media/ audio (G6): copy (full copy, default), "
+            "hardlink or symlink to the #947 GUID audio cache to halve the on-disk audio "
+            "footprint when the cache is on the same filesystem (e.g. --audio-cache-in-corpus). "
+            "hardlink/symlink fall back to copy when linking is unavailable."
+        ),
+    )
     # #947 raw-audio cache for reprocessing (re-diarization without re-fetching the feed).
     parser.add_argument(
         "--no-audio-cache",
@@ -4064,6 +4076,8 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         payload["pipeline_stage"] = args.pipeline_stage
     if hasattr(args, "persist_episode_media") and args.persist_episode_media is not None:
         payload["persist_episode_media"] = args.persist_episode_media
+    if hasattr(args, "corpus_media_link_mode") and args.corpus_media_link_mode is not None:
+        payload["corpus_media_link_mode"] = args.corpus_media_link_mode
     # Add DeepSeek API configuration
     payload["deepseek_api_base"] = getattr(args, "deepseek_api_base", None)
     if hasattr(args, "deepseek_speaker_model") and args.deepseek_speaker_model is not None:

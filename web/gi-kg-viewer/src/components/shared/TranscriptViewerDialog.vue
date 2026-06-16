@@ -454,8 +454,22 @@ defineExpose({ open, close, seekToMs })
                 :key="i"
                 class="pl-0.5"
               >
-                <span class="font-mono text-[10px] text-primary">{{ formatSegmentTimeRange(seg) }}</span>
-                <span class="text-surface-foreground"> — {{ seg.text.trim() || '—' }}</span>
+                <!-- I5: when audio is loaded, each row seeks the player to its start. -->
+                <button
+                  v-if="audioUrl"
+                  type="button"
+                  class="group w-full cursor-pointer rounded px-0.5 text-left hover:bg-primary/10 focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary"
+                  :data-testid="`transcript-viewer-timeline-seek-${i}`"
+                  :aria-label="`Play from ${formatSegmentTimeRange(seg)}`"
+                  @click="seekToMs(Math.round(seg.startSec * 1000))"
+                >
+                  <span class="font-mono text-[10px] text-primary group-hover:underline">{{ formatSegmentTimeRange(seg) }}</span>
+                  <span class="text-surface-foreground"> — {{ seg.text.trim() || '—' }}</span>
+                </button>
+                <template v-else>
+                  <span class="font-mono text-[10px] text-primary">{{ formatSegmentTimeRange(seg) }}</span>
+                  <span class="text-surface-foreground"> — {{ seg.text.trim() || '—' }}</span>
+                </template>
               </li>
             </ol>
           </details>

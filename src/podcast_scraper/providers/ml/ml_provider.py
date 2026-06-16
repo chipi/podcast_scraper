@@ -1059,13 +1059,11 @@ class MLProvider:
         if not self._spacy_nlp:
             return None
 
-        # Analyze patterns and cache heuristics for use in detect_speakers
-        self._spacy_heuristics = speaker_detection.analyze_episode_patterns(
-            episodes=episodes,
-            nlp=self._spacy_nlp,
-            cached_hosts=known_hosts,
-            sample_size=speaker_detection.DEFAULT_SAMPLE_SIZE,
-        )
+        # The heuristic pattern learner was removed in #598; no per-episode
+        # heuristics are computed. Cache an empty mapping so callers (e.g. the
+        # ``heuristics`` property and detect_speakers) keep seeing a stable,
+        # non-None value once the spaCy model is loaded.
+        self._spacy_heuristics = {}
 
         return self._spacy_heuristics
 

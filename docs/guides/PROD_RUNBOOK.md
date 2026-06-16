@@ -570,6 +570,17 @@ or **`--no-extract`** (list only, no unpack). Releases after RFC-084 also ship
 `snapshot-prod-*` (fail closed if none match — pin **`backup_tag`** / **`PODCAST_BACKUP_TAG`**).
 See [Corpus snapshot manifest and restore](CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md).
 
+After unpack the script prints a **distinct-episode count** (#877): unique
+`(feed_id, episode_id)` across **all** `run_*` dirs vs the app's latest-run-only view.
+With `append=false`, prod scatters a feed's episodes across run dirs, so the latest-run
+view legitimately shows fewer than the true total — the snapshot still holds every
+episode. Set **`PODCAST_BACKUP_EXPECTED_EPISODES=<N>`** (e.g. prod's current total) to
+make the script **fail closed** if a snapshot ever genuinely under-captures:
+
+```bash
+PODCAST_BACKUP_EXPECTED_EPISODES=110 ./scripts/ops/verify_prod_backup_snapshot.sh
+```
+
 ---
 
 ## VPS access control (no HTTP Basic Auth)

@@ -496,15 +496,12 @@ class TestMLProviderSpeakerDetection(unittest.TestCase):
         self.assertEqual(hosts, {"Alice", "Bob"})
 
     @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.analyze_episode_patterns")
-    def test_analyze_patterns_success(self, mock_analyze, mock_get_ner):
-        """Test successful pattern analysis."""
+    def test_analyze_patterns_success(self, mock_get_ner):
+        """analyze_patterns returns empty heuristics (#598 removed the learner)."""
         from podcast_scraper import models
 
         mock_nlp = Mock()
         mock_get_ner.return_value = mock_nlp
-        mock_heuristics = {"pattern": "value"}
-        mock_analyze.return_value = mock_heuristics
 
         provider = MLProvider(self.cfg)
         provider.initialize()
@@ -523,12 +520,11 @@ class TestMLProviderSpeakerDetection(unittest.TestCase):
 
         result = provider.analyze_patterns(episodes=episodes, known_hosts={"Alice"})
 
-        self.assertEqual(result, mock_heuristics)
-        self.assertEqual(provider._spacy_heuristics, mock_heuristics)
+        self.assertEqual(result, {})
+        self.assertEqual(provider._spacy_heuristics, {})
 
     @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.analyze_episode_patterns")
-    def test_analyze_patterns_no_nlp(self, mock_analyze, mock_get_ner):
+    def test_analyze_patterns_no_nlp(self, mock_get_ner):
         """Test analyze_patterns returns None if nlp is None."""
         mock_get_ner.return_value = None
 
