@@ -1,4 +1,4 @@
-"""Corpus-wide KG topic clustering from FAISS ``kg_topic`` embeddings."""
+"""Corpus-wide KG topic clustering from indexed ``kg_topic`` embeddings."""
 
 from __future__ import annotations
 
@@ -13,11 +13,11 @@ import numpy as np
 import yaml
 
 from podcast_scraper.graph_id_utils import slugify_label, topic_node_id_from_slug
+from podcast_scraper.search.backends.lancedb_backend import LanceDBBackend
 from podcast_scraper.search.corpus_scope import (
     discover_metadata_files,
     episode_root_from_metadata_path,
 )
-from podcast_scraper.search.faiss_store import FaissVectorStore, VECTORS_FILE
 from podcast_scraper.search.indexer import _kg_path, _load_metadata_file
 from podcast_scraper.utils.path_validation import safe_resolve_directory
 
@@ -240,27 +240,35 @@ class TopicVectorRow:
     vector: np.ndarray
 
 
-def collect_topic_rows_from_faiss(
-    store: FaissVectorStore,
+def collect_topic_rows_from_lance(
+    lance_dir: Path,
     label_by_topic_id: Mapping[str, str],
 ) -> List[TopicVectorRow]:
-    """Aggregate ``kg_topic`` FAISS rows by ``metadata['source_id']`` (topic node id)."""
-    vectors_by_doc = store.export_vectors_by_doc_id()
+    """Aggregate ``kg_topic`` rows from the LanceDB ``aux`` table by ``source_id`` (#995)."""
+    be = LanceDBBackend(str(lance_dir))
+    tbl = be._open_if_exists("aux")
+    if tbl is None:
+        return []
+    n = tbl.count_rows()
+    raw = (
+        tbl.search()
+        .where("doc_type = 'kg_topic'")
+        .limit(max(n, 1))
+        .select(["source_id", "episode_id", "embedding"])
+        .to_list()
+    )
     # source_id -> list of (episode_id, vec)
     bucket: Dict[str, List[Tuple[str, np.ndarray]]] = {}
-    for doc_id, meta in store.metadata_by_doc_id.items():
-        if meta.get("doc_type") != "kg_topic":
-            continue
-        sid = meta.get("source_id")
+    for r in raw:
+        sid = r.get("source_id")
         if not isinstance(sid, str) or not sid.strip():
             continue
-        ep = meta.get("episode_id")
+        ep = r.get("episode_id")
         eid = ep.strip() if isinstance(ep, str) and ep.strip() else ""
-        vec = vectors_by_doc.get(doc_id)
-        if vec is None:
-            logger.warning("Missing vector for doc_id %s (metadata present)", doc_id)
+        emb = r.get("embedding")
+        if emb is None:
             continue
-        bucket.setdefault(sid, []).append((eid, vec))
+        bucket.setdefault(sid, []).append((eid, np.asarray(emb, dtype=np.float32)))
 
     rows: List[TopicVectorRow] = []
     for topic_id, pairs in sorted(bucket.items()):
@@ -424,16 +432,18 @@ def build_topic_clusters_for_corpus(
     threshold: float = 0.75,
     out_path: Optional[Path] = None,
 ) -> Dict[str, Any]:
-    """Load FAISS index, aggregate ``kg_topic`` vectors, cluster, return JSON payload."""
+    """Load the LanceDB index, aggregate ``kg_topic`` vectors, cluster, return JSON payload."""
     root = Path(output_dir).resolve()
     idx = Path(index_dir).resolve() if index_dir is not None else (root / "search").resolve()
-    if not (idx / VECTORS_FILE).is_file():
-        raise FileNotFoundError(f"No FAISS index at {idx} (expected {VECTORS_FILE})")
+    lance_dir = idx / "lance_index"
+    if not (lance_dir.is_dir() and any(lance_dir.iterdir())):
+        raise FileNotFoundError(f"No LanceDB index at {lance_dir}")
 
-    store = FaissVectorStore.load(idx)
     labels_map = load_kg_topic_labels_from_corpus(root)
-    rows = collect_topic_rows_from_faiss(store, labels_map)
-    model = store.embedding_model
+    rows = collect_topic_rows_from_lance(lance_dir, labels_map)
+    model = str(
+        (LanceDBBackend(str(lance_dir)).read_index_meta() or {}).get("embedding_model") or ""
+    )
     payload = build_topic_clusters_payload(rows, threshold=threshold, embedding_model=model)
     target = out_path if out_path is not None else idx / TOPIC_CLUSTERS_FILENAME
     write_topic_clusters_json(target, payload)

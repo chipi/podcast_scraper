@@ -6,7 +6,7 @@ imported when ML-related packages (spacy, torch, transformers, etc.) are not loa
 This catches top-level imports that would force ``[ml]`` just to import the package.
 
 PR and nightly **test-unit** jobs install ``pip install -e .[dev]`` only.
-Tests that need non-``[dev]`` extras (FastAPI, httpx, faiss, etc.) belong in
+Tests that need non-``[dev]`` extras (FastAPI, httpx, lancedb, etc.) belong in
 ``tests/integration/``, not ``tests/unit/``. See ``docs/guides/UNIT_TESTING_GUIDE.md``.
 
 Usage:

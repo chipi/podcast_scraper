@@ -188,7 +188,7 @@ operator repeatedly. Adherence beats every other rule.
 
 - **Python** 3.11.8, Pydantic v2, pytest, black/isort/flake8/mypy, MkDocs
 - **Node** 22 (viewer: `web/gi-kg-viewer/`, Vue 3 + Vite + Cytoscape + Playwright)
-- **ML**: sentence-transformers + faiss-cpu + torch (`[search]`), Whisper +
+- **ML**: sentence-transformers + lancedb + torch (`[search]`), Whisper +
   spaCy + transformers + llama-cpp-python (`[ml]`), see `pyproject.toml`
   extras header
 - **Infra**: Docker Compose stack-test, Tailscale for prod join, OpenTofu for

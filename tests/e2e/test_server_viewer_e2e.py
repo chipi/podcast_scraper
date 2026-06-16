@@ -169,7 +169,7 @@ class TestServerViewerHealthArtifacts:
         names = sorted(a["name"] for a in resp.json()["artifacts"])
         assert names == ["ep1.bridge.json", "ep1.gi.json", "ep1.kg.json"]
 
-    def test_index_stats_no_faiss(self, client: TestClient, corpus: Path) -> None:
+    def test_index_stats_no_index(self, client: TestClient, corpus: Path) -> None:
         resp = client.get("/api/index/stats", params={"path": str(corpus)})
         assert resp.status_code == 200
         body = resp.json()

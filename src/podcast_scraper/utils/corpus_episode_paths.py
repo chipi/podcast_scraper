@@ -162,15 +162,10 @@ def pick_single_artifact_path(
 
 
 def corpus_search_parent_hint(listed_root: Path) -> List[str]:
-    """If ``listed_root`` is not where the unified FAISS index lives, suggest parent.
+    """If ``listed_root`` is not where the unified LanceDB index lives, suggest the parent.
 
     Returns human-readable hint strings (empty when none).
     """
-    try:
-        from podcast_scraper.search.faiss_store import VECTORS_FILE
-    except ImportError:
-        return []
-
     root = safe_resolve_directory(listed_root)
     if root is None:
         return []
@@ -179,8 +174,8 @@ def corpus_search_parent_hint(listed_root: Path) -> List[str]:
     if not root_normed.startswith(os.sep):
         return []
 
-    vec_str = os.path.normpath(os.path.join(root_normed, "search", VECTORS_FILE))
-    if vec_str.startswith(os.sep) and os.path.isfile(vec_str):
+    here = os.path.normpath(os.path.join(root_normed, "search", "lance_index"))
+    if here.startswith(os.sep) and os.path.isdir(here):
         return []
 
     hints: List[str] = []
@@ -188,10 +183,10 @@ def corpus_search_parent_hint(listed_root: Path) -> List[str]:
         ancestor_normed = os.path.normpath(str(ancestor))
         if not ancestor_normed.startswith(os.sep):
             continue
-        idx_str = os.path.normpath(os.path.join(ancestor_normed, "search", VECTORS_FILE))
+        idx_str = os.path.normpath(os.path.join(ancestor_normed, "search", "lance_index"))
         if not idx_str.startswith(os.sep):
             continue
-        if not os.path.isfile(idx_str):
+        if not os.path.isdir(idx_str):
             continue
         try:
             root.relative_to(ancestor)

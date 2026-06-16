@@ -1,6 +1,6 @@
 """POST /api/index/rebuild (GitHub #507 follow-up).
 
-Requires ``fastapi`` and FAISS (``pip install -e '.[dev]'``).
+Requires ``fastapi`` and LanceDB (``pip install -e '.[dev,search]'``).
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from unittest.mock import patch
 import pytest
 
 pytest.importorskip("fastapi")
-pytest.importorskip("faiss")
+pytest.importorskip("lancedb")
 
 from fastapi.testclient import TestClient
 
@@ -29,7 +29,7 @@ def test_index_rebuild_requires_corpus_path(tmp_path: Path) -> None:
     assert response.status_code == 400
 
 
-def test_index_rebuild_202_when_faiss_available(tmp_path: Path) -> None:
+def test_index_rebuild_202_when_lancedb_available(tmp_path: Path) -> None:
     meta = tmp_path / "metadata"
     meta.mkdir()
     (meta / "a.metadata.json").write_text(

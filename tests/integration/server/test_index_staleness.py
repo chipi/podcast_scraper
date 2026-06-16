@@ -41,7 +41,7 @@ def test_no_index_with_metadata_recommends(tmp_path: Path) -> None:
     assert REASON_NO_INDEX_BUT_METADATA in st.reindex_reasons
 
 
-def test_faiss_unavailable_does_not_force_reindex(tmp_path: Path) -> None:
+def test_unavailable_reason_does_not_force_reindex(tmp_path: Path) -> None:
     meta = tmp_path / "metadata"
     meta.mkdir(parents=True)
     (meta / "a.metadata.json").write_text(
@@ -51,7 +51,7 @@ def test_faiss_unavailable_does_not_force_reindex(tmp_path: Path) -> None:
     st = compute_index_staleness(
         tmp_path,
         index_available=False,
-        index_reason="faiss_unavailable",
+        index_reason="index_load_skipped",
         index_last_updated=None,
         index_embedding_model=None,
         embedding_model_query=None,
@@ -127,8 +127,8 @@ def test_embedding_model_mismatch_via_query_param(tmp_path: Path) -> None:
 def test_corpus_search_parent_hint_in_reasons(tmp_path: Path) -> None:
     """When corpus root is a feed subtree but parent has search/, emit hint."""
     corpus = tmp_path / "corpus"
-    (corpus / "search").mkdir(parents=True)
-    (corpus / "search" / "vectors.faiss").write_bytes(b"x")
+    (corpus / "search" / "lance_index").mkdir(parents=True)
+    (corpus / "search" / "lance_index" / "marker").write_text("x", encoding="utf-8")
     feed_root = corpus / "feeds" / "show_a"
     meta_dir = feed_root / "metadata"
     meta_dir.mkdir(parents=True)

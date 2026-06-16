@@ -138,7 +138,7 @@ describe('giKgCoseNodeRepulsion (NodeSingular wrapper)', () => {
 describe('giKgCoseLayoutOptionsMain', () => {
   it('includes nestingFactor for cross-graph edges', () => {
     const o = giKgCoseLayoutOptionsMain()
-    expect(o.name).toBe('cose')
+    expect(o.name).toBe('fcose')
     expect(o.nestingFactor).toBe(1.52)
     expect(o.numIter).toBe(2500)
     expect(typeof o.nodeRepulsion).toBe('function')
@@ -292,7 +292,7 @@ describe('giKgCoseEdgeElasticity', () => {
 describe('giKgCoseLayoutOptionsMainFallback', () => {
   it('uses flat repulsion/edge length (no per-node callbacks)', () => {
     const o = giKgCoseLayoutOptionsMainFallback()
-    expect(o.name).toBe('cose')
+    expect(o.name).toBe('fcose')
     expect(o.nestingFactor).toBe(1.52)
     expect(o.numIter).toBe(2500)
     expect(typeof o.nodeRepulsion).toBe('function')
@@ -323,7 +323,7 @@ describe('giKgCoseLayoutOptionsCompact', () => {
 
   it('exposes the static COMPACT tuning constants', () => {
     const o = giKgCoseLayoutOptionsCompact()
-    expect(o.name).toBe('cose')
+    expect(o.name).toBe('fcose')
     expect(o.padding).toBe(14)
     expect(o.fit).toBe(false)
     expect(o.nodeDimensionsIncludeLabels).toBe(true)

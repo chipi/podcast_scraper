@@ -1,4 +1,4 @@
-"""Unit tests for GIL Quote vs FAISS chunk offset verification (#528)."""
+"""Unit tests for GIL Quote vs indexed transcript chunk offset verification (#528)."""
 
 from __future__ import annotations
 

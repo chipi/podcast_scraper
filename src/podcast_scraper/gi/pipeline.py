@@ -813,15 +813,32 @@ def _build_stub_artifact(
     transcript_ref: str,
     episode_duration_ms: Optional[int] = None,
     feed_id: Optional[str] = None,
+    transcript_segments: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """Build minimal stub artifact (one Episode, one Insight, one Quote, one SUPPORTED_BY)."""
     ep_node_id = episode_node_id(episode_id)
     stub_insight_text = _STUB_INSIGHT_TEXT
     insight_id = gil_insight_node_id(episode_id, 0, stub_insight_text)
-    text_slice = (transcript_text or "No transcript.").strip()[:100]
-    char_start = 0
-    char_end = max(0, len(text_slice) - 1)
+    # char offsets must slice the transcript back to ``text`` exactly: char_end is
+    # EXCLUSIVE (contracts.py) and char_start accounts for any leading whitespace the
+    # ``.strip()`` drops — otherwise the Quote violates the offset invariant (Fault A).
+    base_text = transcript_text or "No transcript."
+    text_slice = base_text.strip()[:100]
+    char_start = len(base_text) - len(base_text.lstrip())
+    char_end = char_start + len(text_slice)
     quote_id = gil_quote_node_id(episode_id, 0, text_slice, char_start, char_end)
+    # #876/#974 Fault B: when diarized segments are available, the stub Quote still carries
+    # the speaker + timing of the segment its char range falls in (parity with the real path).
+    quote_speaker_id: Optional[str] = None
+    ts_start_ms = 0
+    ts_end_ms = 0
+    if transcript_segments:
+        quote_speaker_id = _speaker_id_for_char_range(
+            base_text, char_start, char_end, transcript_segments
+        )
+        ts_start_ms, ts_end_ms = _char_range_to_ms(
+            base_text, char_start, char_end, transcript_segments
+        )
 
     ep_props: Dict[str, Any] = {
         "podcast_id": podcast_id,
@@ -857,11 +874,11 @@ def _build_stub_artifact(
             "properties": {
                 "text": text_slice,
                 "episode_id": episode_id,
-                "speaker_id": None,
+                "speaker_id": quote_speaker_id,
                 "char_start": char_start,
                 "char_end": char_end,
-                "timestamp_start_ms": 0,
-                "timestamp_end_ms": 0,
+                "timestamp_start_ms": ts_start_ms,
+                "timestamp_end_ms": ts_end_ms,
                 "transcript_ref": transcript_ref,
             },
         },
@@ -1193,6 +1210,7 @@ def build_artifact(
             transcript_ref=transcript_ref,
             episode_duration_ms=episode_duration_ms,
             feed_id=feed_id,
+            transcript_segments=transcript_segments,
         )
 
     # Multiple insights but evidence stack failed: still emit multi-insight artifact
@@ -1226,6 +1244,7 @@ def build_artifact(
             transcript_ref=transcript_ref,
             episode_duration_ms=episode_duration_ms,
             feed_id=feed_id,
+            transcript_segments=transcript_segments,
         )
 
 

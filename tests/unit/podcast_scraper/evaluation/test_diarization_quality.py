@@ -25,6 +25,7 @@ def _write_episode(
     spoken_by=None,
     feed: str = "f1",
     run: str = "run_20260101-000000",
+    transcript_source: str | None = None,
 ) -> None:
     """Write one episode's gi.json + metadata.json under feeds/<feed>/<run>/metadata/.
 
@@ -40,7 +41,10 @@ def _write_episode(
         "edges": [{"type": "SPOKEN_BY"} for _ in range(spoken_by)],
     }
     (meta_dir / f"{stem}.gi.json").write_text(json.dumps(gi))
-    meta = {"content": {"speakers": speakers}, "diarization_num_speakers": num_speakers}
+    content: dict = {"speakers": speakers}
+    if transcript_source is not None:
+        content["transcript_source"] = transcript_source
+    meta = {"content": content, "diarization_num_speakers": num_speakers}
     (meta_dir / f"{stem}.metadata.json").write_text(json.dumps(meta))
 
 
@@ -127,20 +131,71 @@ def test_network_speaker_name_flagged(tmp_path: Path) -> None:
     assert not passed and any("network/org" in f for f in failures)
 
 
-def test_unnamed_speaker_flagged(tmp_path: Path) -> None:
-    # #876 partial naming: a quote attributed to an unnamed person:speaker-xx while another
-    # voice is named → a diarized voice the roster could not name. This MUST fail.
+def test_majority_unnamed_speaker_flagged(tmp_path: Path) -> None:
+    # #876 partial naming: when the NAMED voices are a strict minority of the attributed
+    # voices (here 1 named, 2 unnamed person:speaker-xx) the roster systematically failed —
+    # this MUST fail enforcement.
     _write_episode(
         tmp_path,
         "0001-ep",
-        quotes=[_good_quote("person:brian-chesky"), _good_quote("person:speaker-02")],
+        quotes=[
+            _good_quote("person:brian-chesky"),
+            _good_quote("person:speaker-02"),
+            _good_quote("person:speaker-03"),
+        ],
         speakers=[{"id": "guest", "name": "Brian Chesky", "role": "guest"}],
-        num_speakers=2,
+        num_speakers=3,
     )
     m = compute_diarization_quality_metrics(tmp_path)
-    assert m["episodes_with_unnamed_speaker"] == 1
+    assert m["episodes_majority_unnamed"] == 1
+    assert m["episodes_with_unnamed_speaker"] == 1  # informational: at least one unnamed
     passed, failures = enforce_diarization_thresholds(m)
     assert not passed and any("unnamed speaker" in f for f in failures)
+
+
+def test_partial_naming_with_named_majority_not_enforced(tmp_path: Path) -> None:
+    # A legit panel that names the host + main guest but leaves ONE background voice anonymous
+    # (2 named, 1 unnamed) keeps named in the majority → informational only, must NOT fail
+    # enforcement. (Reconsidered #876 check: the old "any unnamed voice" bar over-fired here.)
+    _write_episode(
+        tmp_path,
+        "0001-ep",
+        quotes=[
+            _good_quote("person:brian-chesky"),
+            _good_quote("person:joe-gebbia"),
+            _good_quote("person:speaker-03"),
+        ],
+        speakers=[
+            {"id": "host", "name": "Brian Chesky", "role": "host"},
+            {"id": "guest", "name": "Joe Gebbia", "role": "guest"},
+        ],
+        num_speakers=3,
+    )
+    m = compute_diarization_quality_metrics(tmp_path)
+    assert m["episodes_with_unnamed_speaker"] == 1  # one unnamed voice (informational)
+    assert m["episodes_majority_unnamed"] == 0  # named voices are the majority → not enforced
+    passed, _ = enforce_diarization_thresholds(m)
+    assert passed
+
+
+def test_direct_download_excluded_from_attribution(tmp_path: Path) -> None:
+    # A direct_download episode has a downloaded transcript and no audio → its quotes carry no
+    # diarized speaker_id by design. It must NOT count as the #545 "0 attributed" failure.
+    _write_episode(
+        tmp_path,
+        "0001-ep",
+        quotes=[_good_quote(""), _good_quote("")],  # no speaker_id (no diarization)
+        speakers=[{"id": "guest", "name": "Brandon Scott", "role": "guest"}],
+        num_speakers=None,
+        transcript_source="direct_download",
+    )
+    m = compute_diarization_quality_metrics(tmp_path)
+    assert m["episodes_direct_download"] == 1
+    assert m["episodes_diarizable"] == 0
+    assert m["episodes_unattributed"] == 0  # excluded — not a #545 failure
+    assert m["quote_attribution_rate"] == 1.0
+    passed, _ = enforce_diarization_thresholds(m)
+    assert passed
 
 
 def test_guest_dominated_quotes_all_named_passes(tmp_path: Path) -> None:

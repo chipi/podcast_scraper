@@ -1381,32 +1381,16 @@ def _add_metadata_arguments(parser: argparse.ArgumentParser) -> None:
         help="Enable/disable corpus vector indexing after pipeline finalize.",
     )
     parser.add_argument(
-        "--vector-backend",
-        choices=["faiss"],
-        default=None,
-        help=(
-            "Vector index backend (default: faiss). "
-            "qdrant is reserved for a future vector backend and not yet wired."
-        ),
-    )
-    parser.add_argument(
         "--vector-index-path",
         default=None,
         dest="vector_index_path",
-        help="Directory for FAISS index (relative paths resolve under output_dir).",
+        help="Directory for the LanceDB search index (relative paths resolve under output_dir).",
     )
     parser.add_argument(
         "--vector-embedding-model",
         default=None,
         dest="vector_embedding_model",
         help="Embedding model id or registry alias for corpus vectors (default: config).",
-    )
-    parser.add_argument(
-        "--vector-faiss-index-mode",
-        choices=["auto", "flat", "ivf_flat", "ivfpq"],
-        default=None,
-        dest="vector_faiss_index_mode",
-        help="FAISS structure: auto thresholds per #484, or force flat/ivf_flat/ivfpq.",
     )
     parser.add_argument(
         "--vector-index-types",
@@ -3347,10 +3331,10 @@ def _parse_gi_args(gi_argv: Sequence[str]) -> argparse.Namespace:
         "--format", choices=("pretty", "json"), default="pretty", help="Output format"
     )
 
-    # gi explore-quotes (#601 3c: quote-level FAISS search)
+    # gi explore-quotes (#601 3c: quote-level semantic search)
     eq_parser = subparsers.add_parser(
         "explore-quotes",
-        help="Search quotes directly via FAISS semantic search",
+        help="Search quotes directly via semantic (LanceDB) search",
     )
     eq_parser.add_argument("--query", type=str, required=True, help="Search query")
     eq_parser.add_argument(
@@ -4165,8 +4149,6 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "vector_embedding_model",
         "vector_chunk_size_tokens",
         "vector_chunk_overlap_tokens",
-        "vector_backend",
-        "vector_faiss_index_mode",
     )
     for _vk in _vector_optional_keys:
         if hasattr(args, _vk):
@@ -5079,10 +5061,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
                             )
                         )
                         continue
-                    if (
-                        cfg.vector_search is True
-                        and getattr(cfg, "vector_backend", "faiss") == "faiss"
-                    ):
+                    if cfg.vector_search is True:
                         cfg = cfg.model_copy(update={"skip_auto_vector_index": True})
                     if not (cfg.incident_log_path or "").strip():
                         cfg = cfg.model_copy(

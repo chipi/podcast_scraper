@@ -3,7 +3,7 @@
 podcast_scraper.egg-info/
 .wily/
 
-# FAISS index + topic_clusters.json built at CI step 0 for the synthetic
+# LanceDB search index + topic_clusters.json built at CI step 0 for the synthetic
 # validation corpus (GH #774). Binary, embedding-model-hash-keyed — would
 # churn on every model bump and bloat the repo. Built via
 # ``make build-validation-index``.

@@ -42,7 +42,10 @@ DEFAULT_DIGEST_TOPICS: list[dict[str, str]] = [
 
 DIGEST_MAX_TOPICS_PER_REQUEST = 5
 DIGEST_TOPIC_SEARCH_TIMEOUT_SEC = 0.8
-DIGEST_TOPIC_SEARCH_TOP_K = 24
+# A band displays at most _MAX_HITS_PER_TOPIC (8); searching deeper just to discard the rest
+# wastes per-query cost on the database (ADR-099 #995). 12 leaves headroom for the digest
+# time-window filter applied to the hits while keeping the fetch small.
+DIGEST_TOPIC_SEARCH_TOP_K = 12
 
 
 def digest_topics_config_path() -> Path:

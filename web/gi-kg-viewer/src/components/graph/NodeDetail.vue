@@ -19,6 +19,7 @@ import {
 import {
   countPersonEntityIncidentEdges,
   findRawNodeInArtifact,
+  findRawNodeInArtifactByIdOrPrefixed,
   fullPrimaryNodeLabel,
   insightProvenanceLine,
   insightRelatedTopicRows,
@@ -168,13 +169,16 @@ const node = computed(() => {
   }
   const slice = props.viewArtifact
   if (slice) {
-    const hit = findRawNodeInArtifact(slice, id)
+    // Prefix-tolerant: a `quote`/`person` id from search arrives bare (``quote:…``)
+    // but the merged artifact stores it GI/KG-prefixed (``g:quote:…``). Exact match
+    // would miss it → empty "Node" rail on real (merged) corpora. (#967↔#974)
+    const hit = findRawNodeInArtifactByIdOrPrefixed(slice, id)
     if (hit) {
       return hit
     }
   }
   const full = graphFilters.fullArtifact
-  return full ? findRawNodeInArtifact(full, id) : null
+  return full ? findRawNodeInArtifactByIdOrPrefixed(full, id) : null
 })
 
 const nodeType = computed(() => {

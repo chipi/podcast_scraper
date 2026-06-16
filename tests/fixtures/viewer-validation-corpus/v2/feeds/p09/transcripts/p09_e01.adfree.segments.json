@@ -1,0 +1,1994 @@
+[
+  {
+    "char_end": 163,
+    "char_start": 13,
+    "end": 6.0,
+    "speaker_label": "Alex Morgan",
+    "start": 0.0,
+    "text": "Welcome to The Long View. Today we're exploring the biohacking premise in depth with Dr. Elena Fischer, researcher in metabolic and longevity science."
+  },
+  {
+    "char_end": 242,
+    "char_start": 183,
+    "end": 12.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 6.0,
+    "text": "Thanks, Alex Morgan. This is a topic I've spent decades on."
+  },
+  {
+    "char_end": 457,
+    "char_start": 256,
+    "end": 18.0,
+    "speaker_label": "Alex Morgan",
+    "start": 12.0,
+    "text": "This episode is brought to you by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Get started at linear.com/podcast."
+  },
+  {
+    "char_end": 519,
+    "char_start": 457,
+    "end": 24.0,
+    "speaker_label": "Alex Morgan",
+    "start": 18.0,
+    "text": "Why is systems thinking the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 775,
+    "char_start": 539,
+    "end": 30.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 24.0,
+    "text": "The short answer is Biohacking is mostly hygiene factors and recovery \u2014 the exotic stuff is downstream. Teams working with WHOOP run into this constantly. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 843,
+    "char_start": 789,
+    "end": 36.0,
+    "speaker_label": "Alex Morgan",
+    "start": 30.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 1091,
+    "char_start": 863,
+    "end": 42.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 36.0,
+    "text": "That ties to another point \u2014 Risk management in biohacking is about not breaking yourself with high-confidence interventions. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 1156,
+    "char_start": 1105,
+    "end": 48.0,
+    "speaker_label": "Alex Morgan",
+    "start": 42.0,
+    "text": "Let's talk about risk management. What's your read?"
+  },
+  {
+    "char_end": 1374,
+    "char_start": 1176,
+    "end": 54.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 48.0,
+    "text": "Honestly, Sleep is the most underpriced intervention in the entire space. Teams working with Levels run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 1447,
+    "char_start": 1388,
+    "end": 60.0,
+    "speaker_label": "Alex Morgan",
+    "start": 54.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 1648,
+    "char_start": 1467,
+    "end": 66.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 60.0,
+    "text": "That ties to another point \u2014 Biohacking is mostly hygiene factors and recovery \u2014 the exotic stuff is downstream. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 1740,
+    "char_start": 1662,
+    "end": 72.0,
+    "speaker_label": "Alex Morgan",
+    "start": 66.0,
+    "text": "What's the deepest piece of context on reliability that listeners are missing?"
+  },
+  {
+    "char_end": 2005,
+    "char_start": 1760,
+    "end": 78.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 72.0,
+    "text": "I'd put it this way: Most supplements show effect sizes you can't distinguish from noise without N-of-1 protocols. Teams working with InsideTracker run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 2039,
+    "char_start": 2019,
+    "end": 84.0,
+    "speaker_label": "Alex Morgan",
+    "start": 78.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 2254,
+    "char_start": 2059,
+    "end": 90.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 84.0,
+    "text": "That ties to another point \u2014 Sleep is the most underpriced intervention in the entire space. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 2356,
+    "char_start": 2268,
+    "end": 96.0,
+    "speaker_label": "Alex Morgan",
+    "start": 90.0,
+    "text": "Walk me through how reliability interacts with the broader the biohacking premise story."
+  },
+  {
+    "char_end": 2614,
+    "char_start": 2376,
+    "end": 102.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 96.0,
+    "text": "Honestly, Risk management in biohacking is about not breaking yourself with high-confidence interventions. Teams working with InsideTracker run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 2640,
+    "char_start": 2628,
+    "end": 108.0,
+    "speaker_label": "Alex Morgan",
+    "start": 102.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 2885,
+    "char_start": 2660,
+    "end": 114.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 108.0,
+    "text": "That ties to another point \u2014 Most supplements show effect sizes you can't distinguish from noise without N-of-1 protocols. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 2930,
+    "char_start": 2899,
+    "end": 120.0,
+    "speaker_label": "Alex Morgan",
+    "start": 114.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 3133,
+    "char_start": 2935,
+    "end": 126.0,
+    "speaker_label": "Ad",
+    "start": 120.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 3172,
+    "char_start": 3147,
+    "end": 132.0,
+    "speaker_label": "Alex Morgan",
+    "start": 126.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 3229,
+    "char_start": 3172,
+    "end": 138.0,
+    "speaker_label": "Alex Morgan",
+    "start": 132.0,
+    "text": "Why is reliability the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 3495,
+    "char_start": 3249,
+    "end": 144.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 138.0,
+    "text": "Here's how I think about it. Biohacking is mostly hygiene factors and recovery \u2014 the exotic stuff is downstream. Teams working with Levels run into this constantly. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 3536,
+    "char_start": 3509,
+    "end": 150.0,
+    "speaker_label": "Alex Morgan",
+    "start": 144.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 3763,
+    "char_start": 3556,
+    "end": 156.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 150.0,
+    "text": "That ties to another point \u2014 Risk management in biohacking is about not breaking yourself with high-confidence interventions. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 3859,
+    "char_start": 3777,
+    "end": 162.0,
+    "speaker_label": "Alex Morgan",
+    "start": 156.0,
+    "text": "What's the deepest piece of context on risk management that listeners are missing?"
+  },
+  {
+    "char_end": 4085,
+    "char_start": 3879,
+    "end": 168.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 162.0,
+    "text": "Yeah, so \u2014 Sleep is the most underpriced intervention in the entire space. Teams working with InsideTracker run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 4111,
+    "char_start": 4099,
+    "end": 174.0,
+    "speaker_label": "Alex Morgan",
+    "start": 168.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 4308,
+    "char_start": 4131,
+    "end": 180.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 174.0,
+    "text": "That ties to another point \u2014 Biohacking is mostly hygiene factors and recovery \u2014 the exotic stuff is downstream. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 4404,
+    "char_start": 4322,
+    "end": 186.0,
+    "speaker_label": "Alex Morgan",
+    "start": 180.0,
+    "text": "What's the deepest piece of context on risk management that listeners are missing?"
+  },
+  {
+    "char_end": 4656,
+    "char_start": 4424,
+    "end": 192.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 186.0,
+    "text": "Yeah, so \u2014 Most supplements show effect sizes you can't distinguish from noise without N-of-1 protocols. Teams working with InsideTracker run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 4682,
+    "char_start": 4670,
+    "end": 198.0,
+    "speaker_label": "Alex Morgan",
+    "start": 192.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 4886,
+    "char_start": 4702,
+    "end": 204.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 198.0,
+    "text": "That ties to another point \u2014 Sleep is the most underpriced intervention in the entire space. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 4993,
+    "char_start": 4900,
+    "end": 210.0,
+    "speaker_label": "Alex Morgan",
+    "start": 204.0,
+    "text": "Walk me through how systems thinking interacts with the broader the biohacking premise story."
+  },
+  {
+    "char_end": 5244,
+    "char_start": 5013,
+    "end": 216.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 210.0,
+    "text": "Honestly, Risk management in biohacking is about not breaking yourself with high-confidence interventions. Teams working with Levels run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 5286,
+    "char_start": 5258,
+    "end": 222.0,
+    "speaker_label": "Alex Morgan",
+    "start": 216.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 5493,
+    "char_start": 5306,
+    "end": 228.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 222.0,
+    "text": "That ties to another point \u2014 Most supplements show effect sizes you can't distinguish from noise without N-of-1 protocols. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 5595,
+    "char_start": 5507,
+    "end": 234.0,
+    "speaker_label": "Alex Morgan",
+    "start": 228.0,
+    "text": "Walk me through how reliability interacts with the broader the biohacking premise story."
+  },
+  {
+    "char_end": 5835,
+    "char_start": 5615,
+    "end": 240.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 234.0,
+    "text": "The short answer is Biohacking is mostly hygiene factors and recovery \u2014 the exotic stuff is downstream. Teams working with InsideTracker run into this constantly. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 5861,
+    "char_start": 5849,
+    "end": 246.0,
+    "speaker_label": "Alex Morgan",
+    "start": 240.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 6079,
+    "char_start": 5881,
+    "end": 252.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 246.0,
+    "text": "That ties to another point \u2014 Risk management in biohacking is about not breaking yourself with high-confidence interventions. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 6124,
+    "char_start": 6093,
+    "end": 258.0,
+    "speaker_label": "Alex Morgan",
+    "start": 252.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 6327,
+    "char_start": 6129,
+    "end": 264.0,
+    "speaker_label": "Ad",
+    "start": 258.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 6366,
+    "char_start": 6341,
+    "end": 270.0,
+    "speaker_label": "Alex Morgan",
+    "start": 264.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 6444,
+    "char_start": 6366,
+    "end": 276.0,
+    "speaker_label": "Alex Morgan",
+    "start": 270.0,
+    "text": "What's the deepest piece of context on reliability that listeners are missing?"
+  },
+  {
+    "char_end": 6661,
+    "char_start": 6464,
+    "end": 282.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 276.0,
+    "text": "Sure. Sleep is the most underpriced intervention in the entire space. Teams working with InsideTracker run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 6695,
+    "char_start": 6675,
+    "end": 288.0,
+    "speaker_label": "Alex Morgan",
+    "start": 282.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 6900,
+    "char_start": 6715,
+    "end": 294.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 288.0,
+    "text": "That ties to another point \u2014 Biohacking is mostly hygiene factors and recovery \u2014 the exotic stuff is downstream. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 6965,
+    "char_start": 6914,
+    "end": 300.0,
+    "speaker_label": "Alex Morgan",
+    "start": 294.0,
+    "text": "Let's talk about risk management. What's your read?"
+  },
+  {
+    "char_end": 7251,
+    "char_start": 6985,
+    "end": 306.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 300.0,
+    "text": "Yeah, so \u2014 Most supplements show effect sizes you can't distinguish from noise without N-of-1 protocols. Teams working with InsideTracker run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 7292,
+    "char_start": 7265,
+    "end": 312.0,
+    "speaker_label": "Alex Morgan",
+    "start": 306.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 7496,
+    "char_start": 7312,
+    "end": 318.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 312.0,
+    "text": "That ties to another point \u2014 Sleep is the most underpriced intervention in the entire space. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 7598,
+    "char_start": 7510,
+    "end": 324.0,
+    "speaker_label": "Alex Morgan",
+    "start": 318.0,
+    "text": "Walk me through how reliability interacts with the broader the biohacking premise story."
+  },
+  {
+    "char_end": 7878,
+    "char_start": 7618,
+    "end": 330.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 324.0,
+    "text": "Let me give you the version I actually believe. Risk management in biohacking is about not breaking yourself with high-confidence interventions. Teams working with WHOOP run into this constantly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 7919,
+    "char_start": 7892,
+    "end": 336.0,
+    "speaker_label": "Alex Morgan",
+    "start": 330.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 8153,
+    "char_start": 7939,
+    "end": 342.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 336.0,
+    "text": "That ties to another point \u2014 Most supplements show effect sizes you can't distinguish from noise without N-of-1 protocols. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 8250,
+    "char_start": 8167,
+    "end": 348.0,
+    "speaker_label": "Alex Morgan",
+    "start": 342.0,
+    "text": "What's the deepest piece of context on systems thinking that listeners are missing?"
+  },
+  {
+    "char_end": 8507,
+    "char_start": 8270,
+    "end": 354.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 348.0,
+    "text": "There are two angles \u2014 Biohacking is mostly hygiene factors and recovery \u2014 the exotic stuff is downstream. Teams working with InsideTracker run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 8575,
+    "char_start": 8521,
+    "end": 360.0,
+    "speaker_label": "Alex Morgan",
+    "start": 354.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 8823,
+    "char_start": 8595,
+    "end": 366.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 360.0,
+    "text": "That ties to another point \u2014 Risk management in biohacking is about not breaking yourself with high-confidence interventions. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 8889,
+    "char_start": 8837,
+    "end": 372.0,
+    "speaker_label": "Alex Morgan",
+    "start": 366.0,
+    "text": "Let's talk about systems thinking. What's your read?"
+  },
+  {
+    "char_end": 9117,
+    "char_start": 8909,
+    "end": 378.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 372.0,
+    "text": "The short answer is Sleep is the most underpriced intervention in the entire space. Teams working with Levels run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 9143,
+    "char_start": 9131,
+    "end": 384.0,
+    "speaker_label": "Alex Morgan",
+    "start": 378.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 9344,
+    "char_start": 9163,
+    "end": 390.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 384.0,
+    "text": "That ties to another point \u2014 Biohacking is mostly hygiene factors and recovery \u2014 the exotic stuff is downstream. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 9389,
+    "char_start": 9358,
+    "end": 396.0,
+    "speaker_label": "Alex Morgan",
+    "start": 390.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 9592,
+    "char_start": 9394,
+    "end": 402.0,
+    "speaker_label": "Ad",
+    "start": 396.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 9631,
+    "char_start": 9606,
+    "end": 408.0,
+    "speaker_label": "Alex Morgan",
+    "start": 402.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 9724,
+    "char_start": 9631,
+    "end": 414.0,
+    "speaker_label": "Alex Morgan",
+    "start": 408.0,
+    "text": "Walk me through how systems thinking interacts with the broader the biohacking premise story."
+  },
+  {
+    "char_end": 10003,
+    "char_start": 9744,
+    "end": 420.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 414.0,
+    "text": "There are two angles \u2014 Most supplements show effect sizes you can't distinguish from noise without N-of-1 protocols. Teams working with WHOOP run into this constantly. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 10071,
+    "char_start": 10017,
+    "end": 426.0,
+    "speaker_label": "Alex Morgan",
+    "start": 420.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 10275,
+    "char_start": 10091,
+    "end": 432.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 426.0,
+    "text": "That ties to another point \u2014 Sleep is the most underpriced intervention in the entire space. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 10367,
+    "char_start": 10289,
+    "end": 438.0,
+    "speaker_label": "Alex Morgan",
+    "start": 432.0,
+    "text": "What's the deepest piece of context on reliability that listeners are missing?"
+  },
+  {
+    "char_end": 10645,
+    "char_start": 10387,
+    "end": 444.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 438.0,
+    "text": "Here's how I think about it. Risk management in biohacking is about not breaking yourself with high-confidence interventions. Teams working with WHOOP run into this constantly. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 10686,
+    "char_start": 10659,
+    "end": 450.0,
+    "speaker_label": "Alex Morgan",
+    "start": 444.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 10910,
+    "char_start": 10706,
+    "end": 456.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 450.0,
+    "text": "That ties to another point \u2014 Most supplements show effect sizes you can't distinguish from noise without N-of-1 protocols. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 11007,
+    "char_start": 10924,
+    "end": 462.0,
+    "speaker_label": "Alex Morgan",
+    "start": 456.0,
+    "text": "What's the deepest piece of context on systems thinking that listeners are missing?"
+  },
+  {
+    "char_end": 11275,
+    "char_start": 11027,
+    "end": 468.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 462.0,
+    "text": "I'd put it this way: Biohacking is mostly hygiene factors and recovery \u2014 the exotic stuff is downstream. Teams working with Levels run into this constantly. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 11309,
+    "char_start": 11289,
+    "end": 474.0,
+    "speaker_label": "Alex Morgan",
+    "start": 468.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 11523,
+    "char_start": 11329,
+    "end": 480.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 474.0,
+    "text": "That ties to another point \u2014 Risk management in biohacking is about not breaking yourself with high-confidence interventions. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 11619,
+    "char_start": 11537,
+    "end": 486.0,
+    "speaker_label": "Alex Morgan",
+    "start": 480.0,
+    "text": "What's the deepest piece of context on risk management that listeners are missing?"
+  },
+  {
+    "char_end": 11833,
+    "char_start": 11639,
+    "end": 492.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 486.0,
+    "text": "I'd put it this way: Sleep is the most underpriced intervention in the entire space. Teams working with Levels run into this constantly. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 11906,
+    "char_start": 11847,
+    "end": 498.0,
+    "speaker_label": "Alex Morgan",
+    "start": 492.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 12103,
+    "char_start": 11926,
+    "end": 504.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 498.0,
+    "text": "That ties to another point \u2014 Biohacking is mostly hygiene factors and recovery \u2014 the exotic stuff is downstream. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 12178,
+    "char_start": 12117,
+    "end": 510.0,
+    "speaker_label": "Alex Morgan",
+    "start": 504.0,
+    "text": "Why is risk management the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 12448,
+    "char_start": 12198,
+    "end": 516.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 510.0,
+    "text": "Let me give you the version I actually believe. Most supplements show effect sizes you can't distinguish from noise without N-of-1 protocols. Teams working with WHOOP run into this constantly. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 12516,
+    "char_start": 12462,
+    "end": 522.0,
+    "speaker_label": "Alex Morgan",
+    "start": 516.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 12700,
+    "char_start": 12536,
+    "end": 528.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 522.0,
+    "text": "That ties to another point \u2014 Sleep is the most underpriced intervention in the entire space. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 12745,
+    "char_start": 12714,
+    "end": 534.0,
+    "speaker_label": "Alex Morgan",
+    "start": 528.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 12948,
+    "char_start": 12750,
+    "end": 540.0,
+    "speaker_label": "Ad",
+    "start": 534.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 12987,
+    "char_start": 12962,
+    "end": 546.0,
+    "speaker_label": "Alex Morgan",
+    "start": 540.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 13080,
+    "char_start": 12987,
+    "end": 552.0,
+    "speaker_label": "Alex Morgan",
+    "start": 546.0,
+    "text": "Walk me through how systems thinking interacts with the broader the biohacking premise story."
+  },
+  {
+    "char_end": 13326,
+    "char_start": 13100,
+    "end": 558.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 552.0,
+    "text": "I'd put it this way: Risk management in biohacking is about not breaking yourself with high-confidence interventions. Teams working with WHOOP run into this constantly. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 13367,
+    "char_start": 13340,
+    "end": 564.0,
+    "speaker_label": "Alex Morgan",
+    "start": 558.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 13591,
+    "char_start": 13387,
+    "end": 570.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 564.0,
+    "text": "That ties to another point \u2014 Most supplements show effect sizes you can't distinguish from noise without N-of-1 protocols. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 13652,
+    "char_start": 13605,
+    "end": 576.0,
+    "speaker_label": "Alex Morgan",
+    "start": 570.0,
+    "text": "Let's talk about reliability. What's your read?"
+  },
+  {
+    "char_end": 13905,
+    "char_start": 13672,
+    "end": 582.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 576.0,
+    "text": "Here's how I think about it. Biohacking is mostly hygiene factors and recovery \u2014 the exotic stuff is downstream. Teams working with Levels run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 13939,
+    "char_start": 13919,
+    "end": 588.0,
+    "speaker_label": "Alex Morgan",
+    "start": 582.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 14176,
+    "char_start": 13959,
+    "end": 594.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 588.0,
+    "text": "That ties to another point \u2014 Risk management in biohacking is about not breaking yourself with high-confidence interventions. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 14268,
+    "char_start": 14190,
+    "end": 600.0,
+    "speaker_label": "Alex Morgan",
+    "start": 594.0,
+    "text": "What's the deepest piece of context on reliability that listeners are missing?"
+  },
+  {
+    "char_end": 14489,
+    "char_start": 14288,
+    "end": 606.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 600.0,
+    "text": "Honestly, Sleep is the most underpriced intervention in the entire space. Teams working with InsideTracker run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 14562,
+    "char_start": 14503,
+    "end": 612.0,
+    "speaker_label": "Alex Morgan",
+    "start": 606.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 14797,
+    "char_start": 14582,
+    "end": 618.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 612.0,
+    "text": "That ties to another point \u2014 Biohacking is mostly hygiene factors and recovery \u2014 the exotic stuff is downstream. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 14872,
+    "char_start": 14811,
+    "end": 624.0,
+    "speaker_label": "Alex Morgan",
+    "start": 618.0,
+    "text": "Why is risk management the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 15125,
+    "char_start": 14892,
+    "end": 630.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 624.0,
+    "text": "Sure. Most supplements show effect sizes you can't distinguish from noise without N-of-1 protocols. Teams working with Levels run into this constantly. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 15193,
+    "char_start": 15139,
+    "end": 636.0,
+    "speaker_label": "Alex Morgan",
+    "start": 630.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 15397,
+    "char_start": 15213,
+    "end": 642.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 636.0,
+    "text": "That ties to another point \u2014 Sleep is the most underpriced intervention in the entire space. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 15463,
+    "char_start": 15411,
+    "end": 648.0,
+    "speaker_label": "Alex Morgan",
+    "start": 642.0,
+    "text": "Let's talk about systems thinking. What's your read?"
+  },
+  {
+    "char_end": 15699,
+    "char_start": 15483,
+    "end": 654.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 648.0,
+    "text": "Yeah, so \u2014 Risk management in biohacking is about not breaking yourself with high-confidence interventions. Teams working with WHOOP run into this constantly. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 15740,
+    "char_start": 15713,
+    "end": 660.0,
+    "speaker_label": "Alex Morgan",
+    "start": 654.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 15947,
+    "char_start": 15760,
+    "end": 666.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 660.0,
+    "text": "That ties to another point \u2014 Most supplements show effect sizes you can't distinguish from noise without N-of-1 protocols. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 15992,
+    "char_start": 15961,
+    "end": 672.0,
+    "speaker_label": "Alex Morgan",
+    "start": 666.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 16195,
+    "char_start": 15997,
+    "end": 678.0,
+    "speaker_label": "Ad",
+    "start": 672.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 16234,
+    "char_start": 16209,
+    "end": 684.0,
+    "speaker_label": "Alex Morgan",
+    "start": 678.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 16322,
+    "char_start": 16234,
+    "end": 690.0,
+    "speaker_label": "Alex Morgan",
+    "start": 684.0,
+    "text": "Walk me through how reliability interacts with the broader the biohacking premise story."
+  },
+  {
+    "char_end": 16587,
+    "char_start": 16342,
+    "end": 696.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 690.0,
+    "text": "Here's how I think about it. Biohacking is mostly hygiene factors and recovery \u2014 the exotic stuff is downstream. Teams working with WHOOP run into this constantly. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 16628,
+    "char_start": 16601,
+    "end": 702.0,
+    "speaker_label": "Alex Morgan",
+    "start": 696.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 16865,
+    "char_start": 16648,
+    "end": 708.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 702.0,
+    "text": "That ties to another point \u2014 Risk management in biohacking is about not breaking yourself with high-confidence interventions. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 16957,
+    "char_start": 16879,
+    "end": 714.0,
+    "speaker_label": "Alex Morgan",
+    "start": 708.0,
+    "text": "What's the deepest piece of context on reliability that listeners are missing?"
+  },
+  {
+    "char_end": 17170,
+    "char_start": 16977,
+    "end": 720.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 714.0,
+    "text": "The short answer is Sleep is the most underpriced intervention in the entire space. Teams working with Levels run into this constantly. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 17211,
+    "char_start": 17184,
+    "end": 726.0,
+    "speaker_label": "Alex Morgan",
+    "start": 720.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 17408,
+    "char_start": 17231,
+    "end": 732.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 726.0,
+    "text": "That ties to another point \u2014 Biohacking is mostly hygiene factors and recovery \u2014 the exotic stuff is downstream. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 17484,
+    "char_start": 17422,
+    "end": 738.0,
+    "speaker_label": "Alex Morgan",
+    "start": 732.0,
+    "text": "Why is systems thinking the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 17737,
+    "char_start": 17504,
+    "end": 744.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 738.0,
+    "text": "The short answer is Most supplements show effect sizes you can't distinguish from noise without N-of-1 protocols. Teams working with WHOOP run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 17771,
+    "char_start": 17751,
+    "end": 750.0,
+    "speaker_label": "Alex Morgan",
+    "start": 744.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 17952,
+    "char_start": 17791,
+    "end": 756.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 750.0,
+    "text": "That ties to another point \u2014 Sleep is the most underpriced intervention in the entire space. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 18027,
+    "char_start": 17966,
+    "end": 762.0,
+    "speaker_label": "Alex Morgan",
+    "start": 756.0,
+    "text": "Why is risk management the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 18289,
+    "char_start": 18047,
+    "end": 768.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 762.0,
+    "text": "Here's how I think about it. Risk management in biohacking is about not breaking yourself with high-confidence interventions. Teams working with Levels run into this constantly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 18331,
+    "char_start": 18303,
+    "end": 774.0,
+    "speaker_label": "Alex Morgan",
+    "start": 768.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 18542,
+    "char_start": 18351,
+    "end": 780.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 774.0,
+    "text": "That ties to another point \u2014 Most supplements show effect sizes you can't distinguish from noise without N-of-1 protocols. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 18638,
+    "char_start": 18556,
+    "end": 786.0,
+    "speaker_label": "Alex Morgan",
+    "start": 780.0,
+    "text": "What's the deepest piece of context on risk management that listeners are missing?"
+  },
+  {
+    "char_end": 18875,
+    "char_start": 18658,
+    "end": 792.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 786.0,
+    "text": "Sure. Biohacking is mostly hygiene factors and recovery \u2014 the exotic stuff is downstream. Teams working with InsideTracker run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 18917,
+    "char_start": 18889,
+    "end": 798.0,
+    "speaker_label": "Alex Morgan",
+    "start": 792.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 19135,
+    "char_start": 18937,
+    "end": 804.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 798.0,
+    "text": "That ties to another point \u2014 Risk management in biohacking is about not breaking yourself with high-confidence interventions. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 19180,
+    "char_start": 19149,
+    "end": 810.0,
+    "speaker_label": "Alex Morgan",
+    "start": 804.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 19383,
+    "char_start": 19185,
+    "end": 816.0,
+    "speaker_label": "Ad",
+    "start": 810.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 19422,
+    "char_start": 19397,
+    "end": 822.0,
+    "speaker_label": "Alex Morgan",
+    "start": 816.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 19469,
+    "char_start": 19422,
+    "end": 828.0,
+    "speaker_label": "Alex Morgan",
+    "start": 822.0,
+    "text": "Let's talk about reliability. What's your read?"
+  },
+  {
+    "char_end": 19707,
+    "char_start": 19489,
+    "end": 834.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 828.0,
+    "text": "There are two angles \u2014 Sleep is the most underpriced intervention in the entire space. Teams working with InsideTracker run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 19775,
+    "char_start": 19721,
+    "end": 840.0,
+    "speaker_label": "Alex Morgan",
+    "start": 834.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 19965,
+    "char_start": 19795,
+    "end": 846.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 840.0,
+    "text": "That ties to another point \u2014 Biohacking is mostly hygiene factors and recovery \u2014 the exotic stuff is downstream. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 20057,
+    "char_start": 19979,
+    "end": 852.0,
+    "speaker_label": "Alex Morgan",
+    "start": 846.0,
+    "text": "What's the deepest piece of context on reliability that listeners are missing?"
+  },
+  {
+    "char_end": 20323,
+    "char_start": 20077,
+    "end": 858.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 852.0,
+    "text": "The short answer is Most supplements show effect sizes you can't distinguish from noise without N-of-1 protocols. Teams working with WHOOP run into this constantly. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 20357,
+    "char_start": 20337,
+    "end": 864.0,
+    "speaker_label": "Alex Morgan",
+    "start": 858.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 20534,
+    "char_start": 20377,
+    "end": 870.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 864.0,
+    "text": "That ties to another point \u2014 Sleep is the most underpriced intervention in the entire space. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 20609,
+    "char_start": 20548,
+    "end": 876.0,
+    "speaker_label": "Alex Morgan",
+    "start": 870.0,
+    "text": "Why is risk management the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 20899,
+    "char_start": 20629,
+    "end": 882.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 876.0,
+    "text": "There are two angles \u2014 Risk management in biohacking is about not breaking yourself with high-confidence interventions. Teams working with InsideTracker run into this constantly. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 20941,
+    "char_start": 20913,
+    "end": 888.0,
+    "speaker_label": "Alex Morgan",
+    "start": 882.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 21141,
+    "char_start": 20961,
+    "end": 894.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 888.0,
+    "text": "That ties to another point \u2014 Most supplements show effect sizes you can't distinguish from noise without N-of-1 protocols. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 21212,
+    "char_start": 21155,
+    "end": 900.0,
+    "speaker_label": "Alex Morgan",
+    "start": 894.0,
+    "text": "Why is reliability the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 21462,
+    "char_start": 21232,
+    "end": 906.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 900.0,
+    "text": "It comes down to this: Biohacking is mostly hygiene factors and recovery \u2014 the exotic stuff is downstream. Teams working with InsideTracker run into this constantly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 21488,
+    "char_start": 21476,
+    "end": 912.0,
+    "speaker_label": "Alex Morgan",
+    "start": 906.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 21691,
+    "char_start": 21508,
+    "end": 918.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 912.0,
+    "text": "That ties to another point \u2014 Risk management in biohacking is about not breaking yourself with high-confidence interventions. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 21766,
+    "char_start": 21705,
+    "end": 924.0,
+    "speaker_label": "Alex Morgan",
+    "start": 918.0,
+    "text": "Why is risk management the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 21992,
+    "char_start": 21786,
+    "end": 930.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 924.0,
+    "text": "The short answer is Sleep is the most underpriced intervention in the entire space. Teams working with WHOOP run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 22018,
+    "char_start": 22006,
+    "end": 936.0,
+    "speaker_label": "Alex Morgan",
+    "start": 930.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 22232,
+    "char_start": 22038,
+    "end": 942.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 936.0,
+    "text": "That ties to another point \u2014 Biohacking is mostly hygiene factors and recovery \u2014 the exotic stuff is downstream. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 22277,
+    "char_start": 22246,
+    "end": 948.0,
+    "speaker_label": "Alex Morgan",
+    "start": 942.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 22480,
+    "char_start": 22282,
+    "end": 954.0,
+    "speaker_label": "Ad",
+    "start": 948.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 22519,
+    "char_start": 22494,
+    "end": 960.0,
+    "speaker_label": "Alex Morgan",
+    "start": 954.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 22597,
+    "char_start": 22519,
+    "end": 966.0,
+    "speaker_label": "Alex Morgan",
+    "start": 960.0,
+    "text": "What's the deepest piece of context on reliability that listeners are missing?"
+  },
+  {
+    "char_end": 22881,
+    "char_start": 22617,
+    "end": 972.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 966.0,
+    "text": "Let me give you the version I actually believe. Most supplements show effect sizes you can't distinguish from noise without N-of-1 protocols. Teams working with WHOOP run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 22923,
+    "char_start": 22895,
+    "end": 978.0,
+    "speaker_label": "Alex Morgan",
+    "start": 972.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 23104,
+    "char_start": 22943,
+    "end": 984.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 978.0,
+    "text": "That ties to another point \u2014 Sleep is the most underpriced intervention in the entire space. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 23165,
+    "char_start": 23118,
+    "end": 990.0,
+    "speaker_label": "Alex Morgan",
+    "start": 984.0,
+    "text": "Let's talk about reliability. What's your read?"
+  },
+  {
+    "char_end": 23447,
+    "char_start": 23185,
+    "end": 996.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 990.0,
+    "text": "Yeah, so \u2014 Risk management in biohacking is about not breaking yourself with high-confidence interventions. Teams working with Levels run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 23515,
+    "char_start": 23461,
+    "end": 1002.0,
+    "speaker_label": "Alex Morgan",
+    "start": 996.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 23730,
+    "char_start": 23535,
+    "end": 1008.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1002.0,
+    "text": "That ties to another point \u2014 Most supplements show effect sizes you can't distinguish from noise without N-of-1 protocols. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 23801,
+    "char_start": 23744,
+    "end": 1014.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1008.0,
+    "text": "Why is reliability the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 24037,
+    "char_start": 23821,
+    "end": 1020.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1014.0,
+    "text": "Honestly, Biohacking is mostly hygiene factors and recovery \u2014 the exotic stuff is downstream. Teams working with WHOOP run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 24105,
+    "char_start": 24051,
+    "end": 1026.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1020.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 24332,
+    "char_start": 24125,
+    "end": 1032.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1026.0,
+    "text": "That ties to another point \u2014 Risk management in biohacking is about not breaking yourself with high-confidence interventions. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 24408,
+    "char_start": 24346,
+    "end": 1038.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1032.0,
+    "text": "Why is systems thinking the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 24643,
+    "char_start": 24428,
+    "end": 1044.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1038.0,
+    "text": "The short answer is Sleep is the most underpriced intervention in the entire space. Teams working with InsideTracker run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 24716,
+    "char_start": 24657,
+    "end": 1050.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1044.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 24917,
+    "char_start": 24736,
+    "end": 1056.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1050.0,
+    "text": "That ties to another point \u2014 Biohacking is mostly hygiene factors and recovery \u2014 the exotic stuff is downstream. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 24993,
+    "char_start": 24931,
+    "end": 1062.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1056.0,
+    "text": "Why is systems thinking the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 25267,
+    "char_start": 25013,
+    "end": 1068.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1062.0,
+    "text": "The short answer is Most supplements show effect sizes you can't distinguish from noise without N-of-1 protocols. Teams working with InsideTracker run into this constantly. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 25293,
+    "char_start": 25281,
+    "end": 1074.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1068.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 25474,
+    "char_start": 25313,
+    "end": 1080.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1074.0,
+    "text": "That ties to another point \u2014 Sleep is the most underpriced intervention in the entire space. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 25519,
+    "char_start": 25488,
+    "end": 1086.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1080.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 25722,
+    "char_start": 25524,
+    "end": 1092.0,
+    "speaker_label": "Ad",
+    "start": 1086.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 25761,
+    "char_start": 25736,
+    "end": 1098.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1092.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 25822,
+    "char_start": 25761,
+    "end": 1104.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1098.0,
+    "text": "Why is risk management the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 26137,
+    "char_start": 25842,
+    "end": 1110.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1104.0,
+    "text": "Let me give you the version I actually believe. Risk management in biohacking is about not breaking yourself with high-confidence interventions. Teams working with InsideTracker run into this constantly. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 26163,
+    "char_start": 26151,
+    "end": 1116.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1110.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 26374,
+    "char_start": 26183,
+    "end": 1122.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1116.0,
+    "text": "That ties to another point \u2014 Most supplements show effect sizes you can't distinguish from noise without N-of-1 protocols. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 26449,
+    "char_start": 26388,
+    "end": 1128.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1122.0,
+    "text": "Why is risk management the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 26687,
+    "char_start": 26469,
+    "end": 1134.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1128.0,
+    "text": "Yeah, so \u2014 Biohacking is mostly hygiene factors and recovery \u2014 the exotic stuff is downstream. Teams working with WHOOP run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 26729,
+    "char_start": 26701,
+    "end": 1140.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1134.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 26932,
+    "char_start": 26749,
+    "end": 1146.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1140.0,
+    "text": "That ties to another point \u2014 Risk management in biohacking is about not breaking yourself with high-confidence interventions. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 27008,
+    "char_start": 26946,
+    "end": 1152.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1146.0,
+    "text": "Why is systems thinking the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 27231,
+    "char_start": 27028,
+    "end": 1158.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1152.0,
+    "text": "There are two angles \u2014 Sleep is the most underpriced intervention in the entire space. Teams working with Levels run into this constantly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 27299,
+    "char_start": 27245,
+    "end": 1164.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1158.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 27503,
+    "char_start": 27319,
+    "end": 1170.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1164.0,
+    "text": "That ties to another point \u2014 Biohacking is mostly hygiene factors and recovery \u2014 the exotic stuff is downstream. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 27574,
+    "char_start": 27517,
+    "end": 1176.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1170.0,
+    "text": "Why is reliability the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 27841,
+    "char_start": 27594,
+    "end": 1182.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1176.0,
+    "text": "Honestly, Most supplements show effect sizes you can't distinguish from noise without N-of-1 protocols. Teams working with Levels run into this constantly. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 27909,
+    "char_start": 27855,
+    "end": 1188.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1182.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 28079,
+    "char_start": 27929,
+    "end": 1194.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1188.0,
+    "text": "That ties to another point \u2014 Sleep is the most underpriced intervention in the entire space. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 28154,
+    "char_start": 28093,
+    "end": 1200.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1194.0,
+    "text": "Why is risk management the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 28409,
+    "char_start": 28174,
+    "end": 1206.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1200.0,
+    "text": "It comes down to this: Risk management in biohacking is about not breaking yourself with high-confidence interventions. Teams working with WHOOP run into this constantly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 28482,
+    "char_start": 28423,
+    "end": 1212.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1206.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 28696,
+    "char_start": 28502,
+    "end": 1218.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1212.0,
+    "text": "That ties to another point \u2014 Most supplements show effect sizes you can't distinguish from noise without N-of-1 protocols. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 28741,
+    "char_start": 28710,
+    "end": 1224.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1218.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 28944,
+    "char_start": 28746,
+    "end": 1230.0,
+    "speaker_label": "Ad",
+    "start": 1224.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 28983,
+    "char_start": 28958,
+    "end": 1236.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1230.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 29034,
+    "char_start": 28983,
+    "end": 1242.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1236.0,
+    "text": "Let's talk about risk management. What's your read?"
+  },
+  {
+    "char_end": 29281,
+    "char_start": 29054,
+    "end": 1248.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1242.0,
+    "text": "The short answer is Biohacking is mostly hygiene factors and recovery \u2014 the exotic stuff is downstream. Teams working with WHOOP run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 29307,
+    "char_start": 29295,
+    "end": 1254.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1248.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 29534,
+    "char_start": 29327,
+    "end": 1260.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1254.0,
+    "text": "That ties to another point \u2014 Risk management in biohacking is about not breaking yourself with high-confidence interventions. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 29640,
+    "char_start": 29548,
+    "end": 1266.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1260.0,
+    "text": "Walk me through how risk management interacts with the broader the biohacking premise story."
+  },
+  {
+    "char_end": 29858,
+    "char_start": 29660,
+    "end": 1272.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1266.0,
+    "text": "Yeah, so \u2014 Sleep is the most underpriced intervention in the entire space. Teams working with WHOOP run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 29926,
+    "char_start": 29872,
+    "end": 1278.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1272.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 30123,
+    "char_start": 29946,
+    "end": 1284.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1278.0,
+    "text": "That ties to another point \u2014 Biohacking is mostly hygiene factors and recovery \u2014 the exotic stuff is downstream. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 30198,
+    "char_start": 30137,
+    "end": 1290.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1284.0,
+    "text": "Why is risk management the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 30483,
+    "char_start": 30218,
+    "end": 1296.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1290.0,
+    "text": "I'd put it this way: Most supplements show effect sizes you can't distinguish from noise without N-of-1 protocols. Teams working with InsideTracker run into this constantly. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 30524,
+    "char_start": 30497,
+    "end": 1302.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1296.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 30694,
+    "char_start": 30544,
+    "end": 1308.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1302.0,
+    "text": "That ties to another point \u2014 Sleep is the most underpriced intervention in the entire space. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 30786,
+    "char_start": 30708,
+    "end": 1314.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1308.0,
+    "text": "What's the deepest piece of context on reliability that listeners are missing?"
+  },
+  {
+    "char_end": 31023,
+    "char_start": 30806,
+    "end": 1320.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1314.0,
+    "text": "Yeah, so \u2014 Risk management in biohacking is about not breaking yourself with high-confidence interventions. Teams working with Levels run into this constantly. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 31049,
+    "char_start": 31037,
+    "end": 1326.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1320.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 31260,
+    "char_start": 31069,
+    "end": 1332.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1326.0,
+    "text": "That ties to another point \u2014 Most supplements show effect sizes you can't distinguish from noise without N-of-1 protocols. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 31352,
+    "char_start": 31274,
+    "end": 1338.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1332.0,
+    "text": "What's the deepest piece of context on reliability that listeners are missing?"
+  },
+  {
+    "char_end": 31600,
+    "char_start": 31372,
+    "end": 1344.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1338.0,
+    "text": "Here's how I think about it. Biohacking is mostly hygiene factors and recovery \u2014 the exotic stuff is downstream. Teams working with WHOOP run into this constantly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 31642,
+    "char_start": 31614,
+    "end": 1350.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1344.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 31869,
+    "char_start": 31662,
+    "end": 1356.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1350.0,
+    "text": "That ties to another point \u2014 Risk management in biohacking is about not breaking yourself with high-confidence interventions. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 31914,
+    "char_start": 31883,
+    "end": 1362.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1356.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 32117,
+    "char_start": 31919,
+    "end": 1368.0,
+    "speaker_label": "Ad",
+    "start": 1362.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 32156,
+    "char_start": 32131,
+    "end": 1374.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1368.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 32238,
+    "char_start": 32156,
+    "end": 1380.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1374.0,
+    "text": "What's the deepest piece of context on risk management that listeners are missing?"
+  },
+  {
+    "char_end": 32455,
+    "char_start": 32258,
+    "end": 1386.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1380.0,
+    "text": "Honestly, Sleep is the most underpriced intervention in the entire space. Teams working with InsideTracker run into this constantly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 32481,
+    "char_start": 32469,
+    "end": 1392.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1386.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 32686,
+    "char_start": 32501,
+    "end": 1398.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1392.0,
+    "text": "That ties to another point \u2014 Biohacking is mostly hygiene factors and recovery \u2014 the exotic stuff is downstream. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 32788,
+    "char_start": 32700,
+    "end": 1404.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1398.0,
+    "text": "Walk me through how reliability interacts with the broader the biohacking premise story."
+  },
+  {
+    "char_end": 33038,
+    "char_start": 32808,
+    "end": 1410.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1404.0,
+    "text": "The short answer is Most supplements show effect sizes you can't distinguish from noise without N-of-1 protocols. Teams working with Levels run into this constantly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 33080,
+    "char_start": 33052,
+    "end": 1416.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1410.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 33295,
+    "char_start": 33100,
+    "end": 1422.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1416.0,
+    "text": "That ties to another point \u2014 Sleep is the most underpriced intervention in the entire space. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 33360,
+    "char_start": 33309,
+    "end": 1428.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1422.0,
+    "text": "Let's talk about risk management. What's your read?"
+  },
+  {
+    "char_end": 33640,
+    "char_start": 33380,
+    "end": 1434.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1428.0,
+    "text": "Let me give you the version I actually believe. Risk management in biohacking is about not breaking yourself with high-confidence interventions. Teams working with WHOOP run into this constantly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 33708,
+    "char_start": 33654,
+    "end": 1440.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1434.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 33953,
+    "char_start": 33728,
+    "end": 1446.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1440.0,
+    "text": "That ties to another point \u2014 Most supplements show effect sizes you can't distinguish from noise without N-of-1 protocols. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 34050,
+    "char_start": 33967,
+    "end": 1452.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1446.0,
+    "text": "What's the deepest piece of context on systems thinking that listeners are missing?"
+  },
+  {
+    "char_end": 34303,
+    "char_start": 34070,
+    "end": 1458.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1452.0,
+    "text": "Here's how I think about it. Biohacking is mostly hygiene factors and recovery \u2014 the exotic stuff is downstream. Teams working with Levels run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 34371,
+    "char_start": 34317,
+    "end": 1464.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1458.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 34574,
+    "char_start": 34391,
+    "end": 1470.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1464.0,
+    "text": "That ties to another point \u2014 Risk management in biohacking is about not breaking yourself with high-confidence interventions. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 34738,
+    "char_start": 34588,
+    "end": 1476.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1470.0,
+    "text": "Before we wrap, thanks again to our partners at Stripe. Stripe makes payments simple, whether you're running a marketplace or a subscription business."
+  },
+  {
+    "char_end": 34783,
+    "char_start": 34738,
+    "end": 1482.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1476.0,
+    "text": "Dr. Elena Fischer, thanks for the depth here."
+  },
+  {
+    "char_end": 34826,
+    "char_start": 34803,
+    "end": 1488.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1482.0,
+    "text": "Thank you, Alex Morgan."
+  },
+  {
+    "char_end": 34881,
+    "char_start": 34840,
+    "end": 1494.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1488.0,
+    "text": "That's The Long View \u2014 see you next time."
+  }
+]

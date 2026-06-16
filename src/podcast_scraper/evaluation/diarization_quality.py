@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from ..search.corpus_scope import discover_metadata_files
-from ..speaker_detectors.hosts import is_network_or_org_author
+from ..speaker_detectors.hosts import has_org_markers, is_known_network
 
 # Default enforcement thresholds.
 MIN_QUOTE_ATTRIBUTION_RATE = 0.90  # quotes whose speaker_id is a real person:<slug>
@@ -37,6 +37,7 @@ class EpisodeDiarMetrics:
 
     episode: str
     diarized: bool = False
+    direct_download: bool = False  # transcript downloaded, never audio → no diarization possible
     num_speakers: Optional[int] = None
     quotes_total: int = 0
     quotes_attributed: int = 0  # speaker_id is a non-empty person:<slug>
@@ -112,6 +113,9 @@ def _episode_metrics(gi_path: Path, meta: Optional[dict]) -> EpisodeDiarMetrics:
     em.named_speaker_count = len(named_ids)
 
     if meta is not None:
+        em.direct_download = str(_find(meta, "transcript_source") or "").strip().lower() == (
+            "direct_download"
+        )
         ns = _find(meta, "diarization_num_speakers")
         em.num_speakers = ns if isinstance(ns, int) else None
         speakers = _find(meta, "speakers")
@@ -120,7 +124,12 @@ def _episode_metrics(gi_path: Path, meta: Optional[dict]) -> EpisodeDiarMetrics:
                 name = (sp.get("name") if isinstance(sp, dict) else None) or ""
                 if name:
                     em.content_speaker_names.append(name)
-                    if is_network_or_org_author(name):
+                    # ``content.speakers`` come from the diarized roster / transcript — a TRUSTED
+                    # person source where a lone token is a real first-name speaker (Neeraj,
+                    # Sarah), NOT a network. So flag only explicit org markers OR a name on the
+                    # known-network list (catches the "Pushkin" bumper leak, which has no
+                    # generic markers) — not the bare mononym rule used for RSS author tags (#876).
+                    if has_org_markers(name) or is_known_network(name):
                         em.network_org_speaker_names.append(name)
 
     em.diarized = em.distinct_speakers > 0 or bool(em.num_speakers)
@@ -152,32 +161,44 @@ def compute_diarization_quality_metrics(corpus_root: Path) -> Dict[str, Any]:
     # Score over every episode that produced quotes — an episode with quotes but zero
     # attributed speakers is the #545 failure mode (don't silently drop it from the denominator).
     with_quotes = [e for e in per_episode if e.quotes_total > 0]
-    q_total = sum(e.quotes_total for e in with_quotes)
-    q_attr = sum(e.quotes_attributed for e in with_quotes)
-    q_ts = sum(e.quotes_with_timestamp for e in with_quotes)
-    q_spoken = sum(e.spoken_by_edges for e in with_quotes)
-    multispeaker = [e for e in with_quotes if e.multispeaker]
+    # Attribution/diarization checks only apply where diarization was POSSIBLE. A
+    # ``direct_download`` episode has a downloaded transcript and never any audio, so its quotes
+    # carry no diarized ``speaker_id`` by design — including it in the attribution denominator
+    # mislabels an unavoidable absence as the #545 drift bug (#876).
+    diarizable = [e for e in with_quotes if not e.direct_download]
+    q_total = sum(e.quotes_total for e in diarizable)
+    q_attr = sum(e.quotes_attributed for e in diarizable)
+    q_ts = sum(e.quotes_with_timestamp for e in diarizable)
+    q_spoken = sum(e.spoken_by_edges for e in diarizable)
+    multispeaker = [e for e in diarizable if e.multispeaker]
 
     return {
         "episodes_total": len(per_episode),
         "episodes_with_quotes": len(with_quotes),
+        "episodes_direct_download": sum(1 for e in with_quotes if e.direct_download),
+        "episodes_diarizable": len(diarizable),
         "quotes_total": q_total,
         "quote_attribution_rate": (q_attr / q_total) if q_total else 1.0,
         "quote_timestamp_rate": (q_ts / q_total) if q_total else 1.0,
         "spoken_by_coverage": (q_spoken / q_total) if q_total else 1.0,
         "episodes_unattributed": sum(
-            1 for e in with_quotes if e.quotes_attributed == 0
-        ),  # quotes present, 0 attributed (#545)
-        "episodes_with_network_speaker": sum(1 for e in with_quotes if e.network_org_speaker_names),
-        "episodes_missing_num_speakers": sum(1 for e in with_quotes if e.num_speakers is None),
+            1 for e in diarizable if e.quotes_attributed == 0
+        ),  # diarizable quotes present, 0 attributed (#545)
+        "episodes_with_network_speaker": sum(1 for e in diarizable if e.network_org_speaker_names),
+        "episodes_missing_num_speakers": sum(1 for e in diarizable if e.num_speakers is None),
         "multispeaker_episodes": len(multispeaker),
-        # The #876 partial-naming bug: a diarized voice the roster could NOT name, so a quote
-        # is attributed to an unnamed ``person:speaker-xx`` while another voice has a real name.
-        # The signal is ``distinct attributed speakers > distinct NAMED speakers`` (some
-        # attributed voice is unnamed) — NOT "quotes span <2 named speakers", which fires
-        # on the common (correct) case where GI's quotes are all from the dominant speaker.
+        # The #876 partial-naming bug: a diarized voice the roster could NOT name, so a quote is
+        # attributed to an unnamed ``person:speaker-xx``. Enforced signal: NAMED voices are a
+        # strict minority of the attributed voices (``named*2 < distinct``) — a systematic naming
+        # failure. A legit panel that names the host + main guest but leaves a couple of
+        # background voices anonymous keeps named in the majority, so it no longer false-fails.
+        "episodes_majority_unnamed": sum(
+            1 for e in diarizable if e.named_speaker_count * 2 < e.distinct_speakers
+        ),
+        # Informational only (NOT enforced): ANY unnamed attributed voice — the strict
+        # "every voice named" bar, which over-fires on legit multi-speaker panels.
         "episodes_with_unnamed_speaker": sum(
-            1 for e in with_quotes if e.distinct_speakers > e.named_speaker_count
+            1 for e in diarizable if e.distinct_speakers > e.named_speaker_count
         ),
         # Informational only (NOT enforced): multi-speaker episodes whose extracted quotes
         # happen to come from <2 distinct named people (usually a guest-dominated interview).
@@ -221,11 +242,11 @@ def enforce_diarization_thresholds(
             f"{metrics['episodes_with_network_speaker']} episode(s) have a network/org "
             f"speaker name in content.speakers"
         )
-    if metrics.get("episodes_with_unnamed_speaker", 0) > 0:
+    if metrics.get("episodes_majority_unnamed", 0) > 0:
         failures.append(
-            f"{metrics['episodes_with_unnamed_speaker']} episode(s) attribute a quote to an "
-            f"unnamed speaker (person:speaker-xx) — diarized voice the roster could not name "
-            f"(#876 partial naming)"
+            f"{metrics['episodes_majority_unnamed']} episode(s) attribute the majority of their "
+            f"voices to unnamed speakers (person:speaker-xx) — a systematic naming failure the "
+            f"roster could not resolve (#876 partial naming)"
         )
     if require_num_speakers and metrics["episodes_missing_num_speakers"] > 0:
         failures.append(

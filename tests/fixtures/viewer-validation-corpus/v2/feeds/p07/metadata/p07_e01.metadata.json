@@ -13,9 +13,31 @@
       "topic_id": "topic:health"
     }
   ],
+  "content": {
+    "diarization_num_speakers": 3,
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Alex Morgan",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Dr. Elena Fischer",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p07_e01.txt",
+    "transcript_source": "synthetic"
+  },
   "episode": {
     "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
-    "published_date": "2026-06-07",
+    "published_date": "2026-06-15",
     "title": "The Long View \u2014 Episode 1"
   },
   "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
@@ -40,7 +62,7 @@
     "artifact_path": "feeds/p07/metadata/p07_e01.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-06-07",
+  "publish_date": "2026-06-15",
   "schema_version": "1",
   "summary": {
     "bullets": [

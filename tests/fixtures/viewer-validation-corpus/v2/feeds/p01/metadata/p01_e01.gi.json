@@ -31,19 +31,64 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
-      "to": "quote:3ee7b0d9152b2df2",
-      "type": "HAS_QUOTE"
+      "from": "quote:ef8d604714dd2892",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
     },
     {
-      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
-      "to": "quote:f9ccca4b3ab307ca",
-      "type": "HAS_QUOTE"
+      "from": "insight:a9007839a644d4d8",
+      "to": "quote:ef8d604714dd2892",
+      "type": "SUPPORTED_BY"
     },
     {
-      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
-      "to": "quote:ee9f60cc56218a72",
-      "type": "HAS_QUOTE"
+      "from": "quote:f6fc35aad65210f8",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:4fcccbf9181c2a25",
+      "to": "quote:f6fc35aad65210f8",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:4f0af7a40ce52996",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:f247d55c98c9b199",
+      "to": "quote:4f0af7a40ce52996",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f344c76240322df1",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:a9007839a644d4d8",
+      "to": "quote:f344c76240322df1",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:7f2246720f0d0d71",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:4fcccbf9181c2a25",
+      "to": "quote:7f2246720f0d0d71",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:343efaa683fd96ac",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:f247d55c98c9b199",
+      "to": "quote:343efaa683fd96ac",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
@@ -56,7 +101,7 @@
         "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
         "metadata_relative_path": "feeds/p01/metadata/p01_e01.metadata.json",
         "podcast_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
-        "publish_date": "2026-06-07T12:00:00",
+        "publish_date": "2026-06-15T12:00:00",
         "title": "Singletrack Sessions \u2014 Episode 1"
       },
       "type": "Episode"
@@ -113,26 +158,100 @@
       "type": "Insight"
     },
     {
-      "id": "quote:3ee7b0d9152b2df2",
+      "id": "person:speaker-01",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "Before we dive in, a quick word from our sponsor Strava."
+        "name": "Maya"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:ef8d604714dd2892",
+      "properties": {
+        "char_end": 179,
+        "char_start": 6,
+        "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Singletrack Sessions. Today we're talking about trail building, and I'm joined by Liam, trail builder for the Cascadia Alliance. Liam, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p01_e01.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:f9ccca4b3ab307ca",
+      "id": "person:speaker-02",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "Strava is the home for athletes \u2014 track every ride, run, and swim, and compare segments with friends."
+        "name": "Liam"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:f6fc35aad65210f8",
+      "properties": {
+        "char_end": 282,
+        "char_start": 186,
+        "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Maya. Excited for this one \u2014 trail building is something I've been thinking about a lot.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p01_e01.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:ee9f60cc56218a72",
+      "id": "quote:4f0af7a40ce52996",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "Use code POD for an extended trial."
+        "char_end": 483,
+        "char_start": 289,
+        "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we dive in, a quick word from our sponsor Strava. Strava is the home for athletes \u2014 track every ride, run, and swim, and compare segments with friends. Use code POD for an extended trial.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p01_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:f344c76240322df1",
+      "properties": {
+        "char_end": 553,
+        "char_start": 483,
+        "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+        "speaker_id": "person:speaker-01",
+        "text": "Let's start there. What's the most underrated piece of trail building?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p01_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:7f2246720f0d0d71",
+      "properties": {
+        "char_end": 826,
+        "char_start": 560,
+        "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+        "speaker_id": "person:speaker-02",
+        "text": "The short answer is Drainage is the single highest-leverage design choice on any trail. If water leaves on its own, the trail will last a decade. We've seen this play out at teams using Spoke & Wrench. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p01_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:343efaa683fd96ac",
+      "properties": {
+        "char_end": 929,
+        "char_start": 833,
+        "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+        "speaker_id": "person:speaker-01",
+        "text": "Push back on the conventional wisdom for me. What's the most underrated piece of trail building?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p01_e01.txt"
       },
       "type": "Quote"
     }

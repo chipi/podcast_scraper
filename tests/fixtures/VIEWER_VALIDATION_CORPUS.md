@@ -27,8 +27,18 @@ schema changes.
 - **23 episodes** total (up to 3 per podcast, limited by available
   transcripts).
 - **GI + KG artifacts** per episode with Episode / Topic / Insight /
-  Quote / Entity nodes. Episode nodes carry `metadata_relative_path` +
-  `episode_id` properties so the viewer's resolver can map back.
+  Quote / **Person** / Entity nodes. Episode nodes carry
+  `metadata_relative_path` + `episode_id` properties so the viewer's
+  resolver can map back.
+- **Diarization + two-artifact transcripts (#876/#974)** so the corpus
+  resembles a real reprocessed one: each episode has a raw diarized
+  screenplay `transcripts/<ep>.txt` + ad-free sidecars
+  (`.adfree.txt` / `.adfree.segments.json` / `.adfree.admap.json`),
+  GI Quotes carry `speaker_id` + char offsets + timestamps with
+  **SPOKEN_BY** (quote→Person) and **SUPPORTED_BY** (insight→quote)
+  edges, and metadata carries a `content` block (`transcript_file_path`,
+  `speakers`, `diarization_num_speakers`). This is what lets the indexer
+  produce real transcript **segments** (so V3 search runs, not skips).
 - **5 cross-cutting umbrella topics** (`technology`, `outdoor
   activities`, `gear`, `environment`, `health`) injected into each
   episode's topics so multiple podcasts share topic ids — this enables
@@ -36,7 +46,9 @@ schema changes.
   the API ever reads pre-built data.
 - **Recent publish dates** (within last 7 days from generation time)
   so the default graph-lens window captures everything.
-- **~300 KB total** — well under any size budget.
+- **~2.4 MB total** (the diarized transcripts dominate) — still well
+  under any reasonable fixture budget; the `lance_index/` itself is
+  gitignored and rebuilt on demand.
 
 ## Run Tier-3 against it
 
@@ -54,14 +66,15 @@ make serve-for-validation
 make ci-ui-validation CORPUS=$PWD/tests/fixtures/viewer-validation-corpus
 ```
 
-For the full set (V1, V2, V4, V5 — V3 still cleanly skips), build the
-FAISS index + topic clusters first:
+For the full set (V1–V6, including **V3 search** now that the corpus has
+diarized transcripts that index into real segments), build the LanceDB
+index + topic clusters first:
 
 ```bash
 # One-time prereq (downloads ~80MB MiniLM model on first run):
 make preload-ml-models
 
-# Build the in-corpus FAISS index + topic_clusters.json
+# Build the in-corpus LanceDB index + topic_clusters.json
 make build-validation-index
 
 # Then terminal 1 + terminal 2 as above.
@@ -72,11 +85,11 @@ make build-validation-index
 - **V1 — Library row "Open in graph"** ✓ Episode resolves, camera
   centers, full 6-point contract holds.
 - **V2 — Digest topic pill "Open in graph"** ✓ (after
-  `make build-validation-index`) — the FAISS index gives
+  `make build-validation-index`) — the LanceDB index gives
   `/api/corpus/digest` real `kg_topic` + `insight` embeddings to
   derive topic-bands from.
 - **V3 — Search "Show on graph"** ✓ (after
-  `make build-validation-index`) — the FAISS index lets semantic search
+  `make build-validation-index`) — the LanceDB index lets semantic search
   return focusable hits with a "Show on graph" affordance; the FSM
   resolves them like any other handoff.
 - **V4 — Dashboard topic-cluster chip** ✓ (after
@@ -89,7 +102,7 @@ make build-validation-index
 
 ## Why the prereq instead of a checked-in index
 
-`vectors.faiss` + `metadata.json` are binary / hash-keyed by embedding
+The `lance_index/` directory contents are binary / hash-keyed by embedding
 model id, so they would churn on every model-version bump and bloat
 the repo. Building the index at CI step 0 (or via
 `make build-validation-index` locally) is ~30s on a warm runner and
@@ -101,7 +114,7 @@ not just a viewer walk.
 
 | Use case | Corpus | Notes |
 | --- | --- | --- |
-| CI Tier-3 smoke (V1, V3-skip, V5, filters) | this synthetic | Self-contained, no external deps |
+| CI Tier-3 smoke (V1–V6, full walk) | this synthetic | Self-contained; diarized transcripts index into real segments (V3 search runs) |
 | Pre-push local validation (V2 + V4 too) | operator-supplied real corpus | Needs vector index |
 | Investigation of cross-episode bugs | operator real corpus | Synthetic doesn't reproduce |
 

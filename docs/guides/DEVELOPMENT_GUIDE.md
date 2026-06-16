@@ -604,7 +604,7 @@ restore script to replace it.
 
 ## Semantic corpus search (RFC-061) {#semantic-corpus-search-rfc-061}
 
-Optional **FAISS** vector index under `<output_dir>/search/` for meaning-based retrieval over
+Optional **LanceDB** search index under `<output_dir>/search/` for meaning-based retrieval over
 GIL, summaries, and transcripts. Enable with **`vector_search: true`** in config (YAML
 keys mirror `Config`: `vector_index_path`, `vector_embedding_model`,
 `vector_chunk_size_tokens`, `vector_chunk_overlap_tokens`). The pipeline runs
@@ -829,7 +829,7 @@ before pushing.
 | Extra | Purpose | When to install |
 | ----- | ------- | --------------- |
 | `[dev]` | Tooling plus FastAPI / uvicorn / viewer scheduler deps | Always for development |
-| `[ml]` | Local ML (Whisper, spaCy, torch, FAISS, etc.) | When using local models |
+| `[ml]` | Local ML (Whisper, spaCy, torch, LanceDB, etc.) | When using local models |
 | `[llm]` | LLM API SDKs (openai, google-genai, anthropic, mistralai, httpx) | When using cloud providers |
 | `[compare]` | Streamlit | When using `make run-compare` |
 
@@ -1657,7 +1657,7 @@ So exit code 0 means "the run finished", not "every episode succeeded". Use the 
 | `cache` | ML model cache management (`--status`, `--clean`) |
 | `serve` | Start the FastAPI viewer server (`--output-dir`) |
 | `search` | Semantic search over a corpus index |
-| `index` | Build or rebuild the FAISS vector index |
+| `index` | Build or rebuild the LanceDB search index |
 | `gi` | GIL subcommands (`inspect`, `show-insight`, `explore`) |
 | `kg` | KG subcommands (`inspect`) |
 | `corpus-status` | Show multi-feed corpus status |
@@ -1866,7 +1866,7 @@ compact package-level overview.
 
 ### Search
 
-- **`search/`** — FAISS vector indexing, transcript
+- **`search/`** — LanceDB indexing, transcript
   chunking, corpus search/similarity, protocols,
   CLI handlers
 
@@ -1882,7 +1882,7 @@ compact package-level overview.
   episode catalog
 - **`server/corpus_digest.py`** — Digest selection
 - **`server/index_rebuild.py`** /
-  **`server/index_staleness.py`** — Background FAISS
+  **`server/index_staleness.py`** — Background index
   rebuild and freshness
 - **`server/pathutil.py`** — Safe corpus path
   resolution

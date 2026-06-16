@@ -193,7 +193,9 @@ class TestHybridMLProviderBehavior(unittest.TestCase):
         self.assertEqual(out["metadata"]["provider"], "hybrid_ml")
         self.assertEqual(out["metadata"]["map_chunks"], 1)
         mock_profile.assert_called_once()
-        self.assertEqual(mock_profile.call_args[0][1], "cleaning_v4")
+        # #989 flipped the hard fallback v4 → v3 (judge verdict 15/15 on the v2 sample);
+        # no profile is set on the cfg/params here, so the provider uses cleaning_v3.
+        self.assertEqual(mock_profile.call_args[0][1], "cleaning_v3")
         backend.reduce.assert_called_once()
         instr = backend.reduce.call_args.kwargs["instruction"]
         self.assertIn("Ep1", instr)

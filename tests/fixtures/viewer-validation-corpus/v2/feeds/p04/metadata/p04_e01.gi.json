@@ -31,19 +31,64 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
-      "to": "quote:5dc2253d421449be",
-      "type": "HAS_QUOTE"
+      "from": "quote:f93f6ce3ae3b3f94",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
     },
     {
-      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
-      "to": "quote:49cb8bfdfb28dccf",
-      "type": "HAS_QUOTE"
+      "from": "insight:0afee1649ef910d9",
+      "to": "quote:f93f6ce3ae3b3f94",
+      "type": "SUPPORTED_BY"
     },
     {
-      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
-      "to": "quote:bd65660330ee9e2a",
-      "type": "HAS_QUOTE"
+      "from": "quote:3c678d272fa18881",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:a929e389641180b2",
+      "to": "quote:3c678d272fa18881",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:613c813e9ad906a6",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:e4d827ca6454fa6f",
+      "to": "quote:613c813e9ad906a6",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:fa18c3bb338e30f1",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:0afee1649ef910d9",
+      "to": "quote:fa18c3bb338e30f1",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:da1d520c423a3e72",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:a929e389641180b2",
+      "to": "quote:da1d520c423a3e72",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:a2dc9e1c4f362c2a",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:e4d827ca6454fa6f",
+      "to": "quote:a2dc9e1c4f362c2a",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
@@ -56,7 +101,7 @@
         "episode_id": "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
         "metadata_relative_path": "feeds/p04/metadata/p04_e01.metadata.json",
         "podcast_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
-        "publish_date": "2026-06-04T12:00:00",
+        "publish_date": "2026-06-12T12:00:00",
         "title": "Frame & Light \u2014 Episode 1"
       },
       "type": "Episode"
@@ -113,26 +158,100 @@
       "type": "Insight"
     },
     {
-      "id": "quote:5dc2253d421449be",
+      "id": "person:speaker-01",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "Today's episode is sponsored by Adobe."
+        "name": "Leo"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:f93f6ce3ae3b3f94",
+      "properties": {
+        "char_end": 161,
+        "char_start": 5,
+        "episode_id": "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Frame & Light. Today we're talking about underwater photography, and I'm joined by Ava, underwater photographer. Ava, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p04_e01.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:49cb8bfdfb28dccf",
+      "id": "person:speaker-02",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "Adobe Creative Cloud puts Lightroom, Photoshop, and Premiere on every device you edit on."
+        "name": "Ava"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:3c678d272fa18881",
+      "properties": {
+        "char_end": 266,
+        "char_start": 167,
+        "episode_id": "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Leo. Excited for this one \u2014 underwater imaging is something I've been thinking about a lot.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p04_e01.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:bd65660330ee9e2a",
+      "id": "quote:613c813e9ad906a6",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "What's the version of the question that actually matters?"
+        "char_end": 421,
+        "char_start": 272,
+        "episode_id": "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Adobe. Adobe Creative Cloud puts Lightroom, Photoshop, and Premiere on every device you edit on. Try adobe.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p04_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:fa18c3bb338e30f1",
+      "properties": {
+        "char_end": 503,
+        "char_start": 421,
+        "episode_id": "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to dig into that. What's the version of the question that actually matters?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p04_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:da1d520c423a3e72",
+      "properties": {
+        "char_end": 730,
+        "char_start": 509,
+        "episode_id": "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+        "speaker_id": "person:speaker-02",
+        "text": "I'd put it this way: An underwater frame is built around backscatter management before it's about composition. We've seen this play out at teams using Capture One. And the second-order effect is the part most people miss.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p04_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:a2dc9e1c4f362c2a",
+      "properties": {
+        "char_end": 829,
+        "char_start": 736,
+        "episode_id": "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+        "speaker_id": "person:speaker-01",
+        "text": "How do you balance that? What's something you used to believe about this that you've revised?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p04_e01.txt"
       },
       "type": "Quote"
     }

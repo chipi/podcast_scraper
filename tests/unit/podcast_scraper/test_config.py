@@ -738,27 +738,13 @@ class TestValidationEdgeCases(unittest.TestCase):
         )
         self.assertEqual(cfg.vector_index_types, ["insight", "transcript"])
 
-    def test_vector_backend_rejects_qdrant_until_wired(self):
-        """qdrant is reserved for a future vector backend and not yet dispatched; Config must
-        reject it rather than silently accept a value with no live code path
-        (#646 profile-completeness rule)."""
-        from pydantic import ValidationError
-
-        with self.assertRaises(ValidationError):
-            Config(
-                rss_url="https://example.com/feed.xml",
-                vector_backend="qdrant",
-            )
-
     def test_vector_search_true_with_embedding_model(self):
         cfg = Config(
             rss_url="https://example.com/feed.xml",
             vector_search=True,
             vector_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
-            vector_faiss_index_mode="flat",
         )
         self.assertTrue(cfg.vector_search)
-        self.assertEqual(cfg.vector_faiss_index_mode, "flat")
         self.assertIn("MiniLM", cfg.vector_embedding_model)
 
     def test_skip_auto_vector_index_defaults_false(self):

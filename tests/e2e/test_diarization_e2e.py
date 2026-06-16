@@ -30,13 +30,13 @@ try:
 except Exception as exc:  # pragma: no cover - environment-dependent
     pytest.skip(f"pyannote.audio unavailable: {exc}", allow_module_level=True)
 
-# Pin to v1 audio explicitly: the v2 fixture regenerated in #902 produces audio
-# where pyannote 3.x can't distinguish the two TTS voices (Maya + Liam), so the
-# downstream "Maya+Liam diarized" assertion fails. v1 audio (171KB, richer voice
-# differentiation) passes diarization cleanly. Re-evaluate after v2 fixtures are
-# regenerated with diarization-aware voice synthesis (descendant of #921). Until
-# then, this test stays on v1 — every other versioned test picks up the default.
-_FIXTURE = fixtures_dir("audio", version="v1") / "p01_multi_e01.mp3"
+# Use v2 (the current default fixture). An earlier note pinned this to v1 claiming v2's
+# two TTS voices "can't separate cleanly" (a descendant of #921) — that did not reproduce.
+# v2 p01_multi_e01 diarizes into two acoustically distinct voices (host female ~178Hz,
+# guest male ~117Hz; cross-voice embedding cosine ~0.22) and the full Maya/Liam roster maps
+# deterministically (verified 4/4 runs). The host name reaches the roster via known_hosts
+# (below) — the production path for a feed-known host — rather than self-intro.
+_FIXTURE = fixtures_dir("audio", version="v2") / "p01_multi_e01.mp3"
 
 _PROVISIONING_MARKERS = (
     "offlinemode",
@@ -81,12 +81,19 @@ def test_default_path_transcribe_diarize_screenplay_into_graph() -> None:
     from podcast_scraper.providers.ml.diarization.pipeline import apply_diarization_to_result
     from podcast_scraper.providers.ml.ml_provider import MLProvider
 
+    # Host **Maya** is supplied via known_hosts, guest **Liam** via detected names. The v1
+    # fixture's TTS host never self-introduces in a whisper-clean way (whisper hears the
+    # host's name "Maya" as "Ma'am"), so the roster's self-intro path can't name the host
+    # off this audio — known_hosts is how a feed-known host name reaches the roster in
+    # production. This still exercises the real mapping: known host → intro-dominant voice,
+    # detected guest → the other voice, end-to-end into a named screenplay.
     cfg = config.Config(
         rss="https://example.com/feed.xml",
         transcription_provider="whisper",
         whisper_model="tiny.en",
         diarize=True,
         screenplay=True,
+        known_hosts=["Maya"],
     )
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -95,7 +102,7 @@ def test_default_path_transcribe_diarize_screenplay_into_graph() -> None:
             provider.initialize()
             result, _elapsed = provider.transcribe_with_segments(str(_FIXTURE))
             enriched = apply_diarization_to_result(
-                result, str(_FIXTURE), cfg, ["Maya", "Liam"], cache_dir=tmp
+                result, str(_FIXTURE), cfg, ["Liam"], cache_dir=tmp
             )
         except Exception as exc:  # noqa: BLE001 - provisioning vs regression
             _skip_if_unprovisioned(exc)

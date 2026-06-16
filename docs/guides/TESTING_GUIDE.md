@@ -19,7 +19,7 @@
 | **E2E** | < 60s | Complete workflow | Real | No mocking (real everything) |
 | **Browser UI E2E** | ~1-3 min (suite) | Vue viewer in Firefox (Playwright) | N/A | Vite + route/API mocks in specs |
 
-**Unit tests and `pyproject` extras:** `tests/unit/` must **only** depend on **`[dev]`** — never on `[ml]`, `[llm]`, or `[compare]` (and keep FastAPI route tests out of `tests/unit/` per policy). CI `test-unit` installs `.[dev]` only, so any test requiring a non-`[dev]` extra will be silently skipped and never validated. If a test needs real torch, spaCy, faiss, etc., move it to `tests/integration/` (where CI installs `.[dev,ml,llm]`). Do **not** use `pytest.importorskip()` in `tests/unit/` to work around missing extras. See [Unit Testing Guide -- Pyproject extras](UNIT_TESTING_GUIDE.md#pyproject-extras-what-unit-tests-may-depend-on) and [Testing Strategy -- Unit tests and optional extras](../architecture/TESTING_STRATEGY.md#unit-tests-and-optional-extras-pyproject).
+**Unit tests and `pyproject` extras:** `tests/unit/` must **only** depend on **`[dev]`** — never on `[ml]`, `[llm]`, or `[compare]` (and keep FastAPI route tests out of `tests/unit/` per policy). CI `test-unit` installs `.[dev]` only, so any test requiring a non-`[dev]` extra will be silently skipped and never validated. If a test needs real torch, spaCy, lancedb, etc., move it to `tests/integration/` (where CI installs `.[dev,ml,llm]`). Do **not** use `pytest.importorskip()` in `tests/unit/` to work around missing extras. See [Unit Testing Guide -- Pyproject extras](UNIT_TESTING_GUIDE.md#pyproject-extras-what-unit-tests-may-depend-on) and [Testing Strategy -- Unit tests and optional extras](../architecture/TESTING_STRATEGY.md#unit-tests-and-optional-extras-pyproject).
 
 **Automated policy enforcement:** Two scripts run in `make ci` and `make ci-fast` to
 catch testing-policy violations before they reach CI:
@@ -149,7 +149,7 @@ PR should include green runs for both (see
 
 ### GIL, KG, CIL, and semantic search validation {#gil-kg-cil-and-semantic-search-validation}
 
-Use this table when you change **GIL**, **KG**, **`bridge.json`**, **CIL HTTP**, **FAISS
+Use this table when you change **GIL**, **KG**, **`bridge.json`**, **CIL HTTP**, **LanceDB
 indexing**, or **search response shape**.
 
 | Change area | Suggested checks |
@@ -623,7 +623,7 @@ tests/
 │   ├── workflow/            # Orchestration, stages, metadata, resume
 │   ├── gi/                  # GI/KG artifacts, evidence stack
 │   ├── server/              # FastAPI app, viewer API
-│   ├── search/              # FAISS indexing, corpus search
+│   ├── search/              # LanceDB indexing, corpus search
 │   ├── rss/                 # RSS parsing, HTTP fetching
 │   ├── eval/                # Evaluation framework
 │   ├── infrastructure/      # Fixture mapping, infra
@@ -663,7 +663,7 @@ integration (**`COVERAGE_THRESHOLD_E2E`** in the Makefile; **`--cov-fail-under`*
 the fraction. The reported percentage is: lines hit by **`tests/e2e/`** divided by **all**
 measurable lines under **`podcast_scraper`**.
 
-**Why the E2E percentage is lower than unit/integration:** many modules (FastAPI app, FAISS
+**Why the E2E percentage is lower than unit/integration:** many modules (FastAPI app, LanceDB
 indexer, large GI helpers, eval harness) are **not** exercised on every pytest E2E run. That is
 visible in the number: it is a **signal to add pytest E2E** (or subprocess workflows) for **key
 capabilities**, not a reason to shrink the denominator.

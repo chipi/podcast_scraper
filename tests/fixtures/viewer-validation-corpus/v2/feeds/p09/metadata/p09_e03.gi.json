@@ -31,19 +31,64 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "episode:79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
-      "to": "quote:c277ce16d6012df4",
-      "type": "HAS_QUOTE"
+      "from": "quote:242904e4d15d443e",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
     },
     {
-      "from": "episode:79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
-      "to": "quote:e0e21829d9d08a8f",
-      "type": "HAS_QUOTE"
+      "from": "insight:71a5799ea206dcd4",
+      "to": "quote:242904e4d15d443e",
+      "type": "SUPPORTED_BY"
     },
     {
-      "from": "episode:79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
-      "to": "quote:82288b1f7f7a7ad7",
-      "type": "HAS_QUOTE"
+      "from": "quote:3305ca88e09a0b50",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:84304fb24a96f6ae",
+      "to": "quote:3305ca88e09a0b50",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:e6a5c6b2399309af",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:0989e1b01ea24a17",
+      "to": "quote:e6a5c6b2399309af",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:2c40947eadf74a9c",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:71a5799ea206dcd4",
+      "to": "quote:2c40947eadf74a9c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:0dbf6907ce8bf5a8",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:84304fb24a96f6ae",
+      "to": "quote:0dbf6907ce8bf5a8",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:25b94a8b75638a3f",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:0989e1b01ea24a17",
+      "to": "quote:25b94a8b75638a3f",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
@@ -56,7 +101,7 @@
         "episode_id": "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
         "metadata_relative_path": "feeds/p09/metadata/p09_e03.metadata.json",
         "podcast_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
-        "publish_date": "2026-06-07T12:00:00",
+        "publish_date": "2026-06-15T12:00:00",
         "title": "The Long View: Biohacking \u2014 Episode 3"
       },
       "type": "Episode"
@@ -113,26 +158,100 @@
       "type": "Insight"
     },
     {
-      "id": "quote:c277ce16d6012df4",
+      "id": "person:speaker-01",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "Elena Fischer, researcher in metabolic and longevity science."
+        "name": "Alex Morgan"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:242904e4d15d443e",
+      "properties": {
+        "char_end": 181,
+        "char_start": 13,
+        "episode_id": "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome to The Long View. Today we're exploring the risk profile of self experimentation in depth with Dr. Elena Fischer, researcher in metabolic and longevity science.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p09_e03.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:e0e21829d9d08a8f",
+      "id": "person:speaker-02",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "Elena Fischer: Thanks, Alex Morgan."
+        "name": "Dr. Elena Fischer"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:3305ca88e09a0b50",
+      "properties": {
+        "char_end": 260,
+        "char_start": 201,
+        "episode_id": "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Alex Morgan. This is a topic I've spent decades on.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p09_e03.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:82288b1f7f7a7ad7",
+      "id": "quote:e6a5c6b2399309af",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "This is a topic I've spent decades on."
+        "char_end": 475,
+        "char_start": 274,
+        "episode_id": "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Get started at linear.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p09_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:2c40947eadf74a9c",
+      "properties": {
+        "char_end": 537,
+        "char_start": 475,
+        "episode_id": "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+        "speaker_id": "person:speaker-01",
+        "text": "Why is systems thinking the part that most analyses get wrong?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p09_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:0dbf6907ce8bf5a8",
+      "properties": {
+        "char_end": 809,
+        "char_start": 557,
+        "episode_id": "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+        "speaker_id": "person:speaker-02",
+        "text": "The short answer is Self-experimentation requires a control group of one, and that control is your own boring baseline. Teams working with WHOOP run into this constantly. The framing matters because it tells you which trade-offs you're actually making.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p09_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:25b94a8b75638a3f",
+      "properties": {
+        "char_end": 877,
+        "char_start": 823,
+        "episode_id": "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+        "speaker_id": "person:speaker-01",
+        "text": "Is there a counterexample that would change your view?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p09_e03.txt"
       },
       "type": "Quote"
     }

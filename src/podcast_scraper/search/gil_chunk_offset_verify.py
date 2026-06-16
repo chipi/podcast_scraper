@@ -1,4 +1,4 @@
-"""Verify GIL Quote char offsets vs FAISS transcript chunk offsets (#528)."""
+"""Verify GIL Quote char offsets vs indexed transcript chunk offsets (#528)."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ def overlap_width(a0: int, a1: int, b0: int, b1: int) -> int:
 
 
 def load_index_metadata_map(index_dir: Path) -> Dict[str, Dict[str, Any]]:
-    """Load FAISS ``metadata.json`` (doc_id → metadata dict)."""
+    """Load the index ``metadata.json`` (doc_id → metadata dict)."""
     path = index_dir / "metadata.json"
     if not path.is_file():
         raise FileNotFoundError(f"metadata.json not found under {index_dir}")
@@ -124,7 +124,7 @@ def build_offset_alignment_report(
     metadata_by_doc: Mapping[str, Mapping[str, Any]],
     max_samples_per_episode: int = 8,
 ) -> dict[str, Any]:
-    """Compare Quote spans from GI files to FAISS transcript chunk spans per episode.
+    """Compare Quote spans from GI files to indexed transcript chunk spans per episode.
 
     Only episodes present in ``gi_by_episode`` are scanned for quotes. Chunk spans
     come from all transcript rows in the index metadata.

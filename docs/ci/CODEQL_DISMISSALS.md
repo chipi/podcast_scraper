@@ -260,6 +260,14 @@ number, file, line, date, and a short comment.
 | 1 | #361 | search/backends/lancedb_backend.py | 335 | 2026-06-11 | Type 1: same sanitizer chain, ``open(meta_path)`` sink in ``stored_schema_version`` (PR #969) |
 | 1 | #362 | search/backends/lancedb_backend.py | 359 | 2026-06-11 | Type 1: same sanitizer chain, schema-version helper filesystem sink on the route-confined corpus root (PR #969) |
 | 1 | #363 | search/backends/lancedb_backend.py | 341 | 2026-06-11 | Type 1: same sanitizer chain, ``stored_schema_version`` sink re-numbered after the fix line-shift; ``meta_path`` via ``normpath_if_under_root``. Same shape as #338/#342 (PR #969) |
+| 1 | #369 | server/routes/corpus_digest.py | 278 | 2026-06-15 | Type 1: corpus path sanitised upstream (resolve_corpus_path_param/safe_resolve_directory); index sub-path from constant suffix. FAISS→LanceDB refactor (#995, PR #1010) |
+| 1 | #370 | gi/explore.py | 131 | 2026-06-15 | Type 1: ``default_vector_index_dir`` builds ``output_dir/search`` (constant suffix) on a validated root. #995, PR #1010 |
+| 1 | #371 | search/index_pool.py | 45 | 2026-06-15 | Type 1: ``getmtime`` on a validated index_dir (resolve_corpus_path_param/safe_resolve_directory upstream). #995, PR #1010 |
+| 1 | #372 | search/index_pool.py | 69 | 2026-06-15 | Type 1: ``get_lance_backend`` resolves a validated index_dir; cross-fn sanitiser. #995, PR #1010 |
+| 1 | #374 | search/lance_index_stats.py | 38 | 2026-06-15 | Type 1: ``_dir_size`` os.walk on a validated lance_dir under the sanitised corpus root. #995, PR #1010 |
+| 1 | #375 | search/lance_index_stats.py | 41 | 2026-06-15 | Type 1: os.path.getsize under a validated lance_dir. #995, PR #1010 |
+| 1 | #376 | search/lance_index_stats.py | 50 | 2026-06-15 | Type 1: ``read_lance_index_stats`` is_dir on a validated lance_dir. #995, PR #1010 |
+| 1 | #377 | search/lance_index_stats.py | 82 | 2026-06-15 | Type 1: LanceDB open on a validated lance_dir; sanitised upstream. #995, PR #1010 |
 
 ## Still open (not yet dismissed)
 

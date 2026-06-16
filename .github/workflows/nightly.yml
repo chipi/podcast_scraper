@@ -30,7 +30,7 @@
 # - nightly-test-e2e: E2E tests (multi_episode mode - same as regular CI)
 # - nightly-viewer-e2e: Playwright + Firefox (Tier-1 + Tier-2, after nightly-test-e2e)
 # - nightly-tier3-validation: Tier-3 real-backend Playwright walk against the
-#     in-repo synthetic corpus + in-CI-built FAISS index. RFC-086 / ADR-095 / #774.
+#     in-repo synthetic corpus + in-CI-built LanceDB search index. RFC-086 / ADR-095 / #774.
 #     Auto-files a deduped tier3-regression issue on failure (scheduled runs only).
 # - nightly-only-tests: Nightly-specific tests with production models
 # - nightly-metrics: Collect metrics and generate dashboard
@@ -572,7 +572,7 @@ jobs:
   # Tier-3 viewer validation (RFC-086 / ADR-095 / GH #774)
   #
   # Runs the real-backend Playwright walk against the in-repo synthetic
-  # corpus + an in-CI-built FAISS index. Catches drift between mocks
+  # corpus + an in-CI-built LanceDB search index. Catches drift between mocks
   # (Tier-1 + Tier-2 above) and what the real Python API actually serves.
   # Auto-files a deduped ``tier3-regression`` issue on failure.
   #
@@ -613,12 +613,12 @@ jobs:
         run: |
           python -m venv .venv
           .venv/bin/python -m pip install --upgrade pip
-          # ``[search]`` = sentence-transformers + faiss-cpu + torch — the
+          # ``[search]`` = sentence-transformers + lancedb + torch — the
           # minimum needed by the indexing step below. ``[dev]`` adds the
           # FastAPI / uvicorn stack the in-process viewer API needs. We
           # deliberately do NOT install ``[ml]`` (whisper / spaCy / etc.) —
           # tier-3 doesn't transcribe or summarise; it only indexes for
-          # the digest/search FAISS lookup.
+          # the digest/search lookup.
           .venv/bin/python -m pip install -e ".[search,dev]"
 
       - name: Install viewer deps
@@ -659,15 +659,15 @@ jobs:
           # production way to populate the HF cache for embedding-only use.
           .venv/bin/python scripts/cache/preload_ml_models.py
 
-      - name: Build FAISS index against synthetic corpus (V2 prereq)
+      - name: Build LanceDB search index against synthetic corpus (V2 prereq)
         run: |
           # /api/corpus/digest derives topic-bands dynamically from
-          # FAISS semantic search over kg_topic + insight embeddings.
+          # semantic search over kg_topic + insight embeddings (LanceDB).
           # Without this step, the digest endpoint returns empty bands
           # and V2 (Digest topic pill "Open in graph") times out.
           .venv/bin/python -m podcast_scraper.cli index \
             --output-dir tests/fixtures/viewer-validation-corpus \
-            --rebuild --vector-faiss-index-mode flat
+            --rebuild
 
       - name: Build topic clusters (V4 prereq)
         run: |
@@ -768,13 +768,13 @@ jobs:
                 '## What this catches',
                 '',
                 '- V1 — Library row "Open in graph" full 6-point contract',
-                '- V2 — Digest topic pill "Open in graph" (FAISS-backed)',
-                '- V3 — Search "Show on graph" (FAISS-backed)',
+                '- V2 — Digest topic pill "Open in graph" (search-backed)',
+                '- V3 — Search "Show on graph" (search-backed)',
                 '- V4 — Dashboard topic-cluster chip',
                 '- V5 — Hot-state Library → Library supersession',
                 '- + 24 expanded matrix rows in handoff-matrix-real-corpus.spec.ts',
                 '',
-                'V2 / V4 prerequisites are built in-CI (FAISS index +',
+                'V2 / V4 prerequisites are built in-CI (search index +',
                 '``topic_clusters.json``) before the validation walk. See',
                 '``tests/fixtures/VIEWER_VALIDATION_CORPUS.md``.',
                 '',

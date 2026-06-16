@@ -5,6 +5,7 @@ import GraphCanvas from './GraphCanvas.vue'
 import HandoffErrorStrip from './HandoffErrorStrip.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useGraphExpansionStore } from '../../stores/graphExpansion'
+import { GRAPH_DEFAULT_EPISODE_CAP } from '../../utils/graphEpisodeSelection'
 
 const emit = defineEmits<{
   'request-corpus-graph-sync': []
@@ -65,7 +66,7 @@ defineExpose({
     >
       <span class="max-w-md text-center">
         With a healthy API, set <strong>Corpus path</strong> and open this tab to auto-load a
-        <strong>graph time slice</strong> (15 episodes max); or use the status bar <strong>List</strong>
+        <strong>graph time slice</strong> ({{ GRAPH_DEFAULT_EPISODE_CAP }} episodes max); or use the status bar <strong>List</strong>
         → <strong>Load into graph</strong> in the <strong>Corpus artifacts</strong> dialog.
         Offline: <strong>Choose files…</strong> on the <strong>status bar</strong>.
       </span>

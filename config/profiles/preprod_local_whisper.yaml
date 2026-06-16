@@ -53,7 +53,6 @@ kg_max_topics: 10
 kg_max_entities: 15
 
 vector_search: true
-vector_backend: faiss
 llm_circuit_breaker_enabled: true
 
 generate_metadata: true

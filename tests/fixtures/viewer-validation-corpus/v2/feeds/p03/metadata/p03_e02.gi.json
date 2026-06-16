@@ -31,19 +31,64 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
-      "to": "quote:52e198e8632938c0",
-      "type": "HAS_QUOTE"
+      "from": "quote:8f3e7768e3e2372c",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
     },
     {
-      "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
-      "to": "quote:d6971b5964955704",
-      "type": "HAS_QUOTE"
+      "from": "insight:3c07a9ec6895756b",
+      "to": "quote:8f3e7768e3e2372c",
+      "type": "SUPPORTED_BY"
     },
     {
-      "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
-      "to": "quote:8c824df01c9236b3",
-      "type": "HAS_QUOTE"
+      "from": "quote:f07cb1f67f92b18d",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:d11ccb1d5c3b1cd9",
+      "to": "quote:f07cb1f67f92b18d",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:a1ff01dec99d22ab",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:e7b90825a574637b",
+      "to": "quote:a1ff01dec99d22ab",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:d8826fd83864f306",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3c07a9ec6895756b",
+      "to": "quote:d8826fd83864f306",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:65ee0bec7d823fb5",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:d11ccb1d5c3b1cd9",
+      "to": "quote:65ee0bec7d823fb5",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:ce971125015bf042",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:e7b90825a574637b",
+      "to": "quote:ce971125015bf042",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
@@ -56,7 +101,7 @@
         "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
         "metadata_relative_path": "feeds/p03/metadata/p03_e02.metadata.json",
         "podcast_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
-        "publish_date": "2026-06-03T12:00:00",
+        "publish_date": "2026-06-11T12:00:00",
         "title": "Below the Surface \u2014 Episode 2"
       },
       "type": "Episode"
@@ -113,26 +158,100 @@
       "type": "Insight"
     },
     {
-      "id": "quote:52e198e8632938c0",
+      "id": "person:speaker-01",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "PADI is the global standard for dive education \u2014 find a certified instructor in your area."
+        "name": "Rina"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:8f3e7768e3e2372c",
+      "properties": {
+        "char_end": 179,
+        "char_start": 6,
+        "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Below the Surface. Today we're talking about marine biology, and I'm joined by Hanna, marine biologist focused on reef systems. Hanna, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p03_e02.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:d6971b5964955704",
+      "id": "person:speaker-02",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "Get started at padi.com/podcast."
+        "name": "Hanna"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:f07cb1f67f92b18d",
+      "properties": {
+        "char_end": 218,
+        "char_start": 187,
+        "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Rina. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p03_e02.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:8c824df01c9236b3",
+      "id": "quote:a1ff01dec99d22ab",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "Before we get into it \u2014 Marco was on last week talking about wreck planning."
+        "char_end": 388,
+        "char_start": 225,
+        "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by PADI. PADI is the global standard for dive education \u2014 find a certified instructor in your area. Get started at padi.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p03_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:d8826fd83864f306",
+      "properties": {
+        "char_end": 539,
+        "char_start": 388,
+        "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Marco was on last week talking about wreck planning. The same discipline applies to reef diving \u2014 plan the dive, dive the plan.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p03_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:65ee0bec7d823fb5",
+      "properties": {
+        "char_end": 605,
+        "char_start": 547,
+        "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, exactly. And it ties into what we're covering today.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p03_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:ce971125015bf042",
+      "properties": {
+        "char_end": 693,
+        "char_start": 612,
+        "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
+        "speaker_id": "person:speaker-01",
+        "text": "Take me through the decision. What's the most underrated piece of marine biology?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p03_e02.txt"
       },
       "type": "Quote"
     }

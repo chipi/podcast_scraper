@@ -141,7 +141,7 @@ def test_sanitize():
 
 - **`tests/unit/`** must **only** depend on **`[dev]`** — never on **`[ml]`**, **`[llm]`**,
   **`[compare]`**, or real ML stacks. If a test needs **FastAPI `TestClient` / `create_app`**, torch,
-  spaCy, httpx, faiss, etc., it belongs in **`tests/integration/`**, not `tests/unit/` (policy, even though `[dev]` ships FastAPI).
+  spaCy, httpx, lancedb, etc., it belongs in **`tests/integration/`**, not `tests/unit/` (policy, even though `[dev]` ships FastAPI).
 - **Do not use `pytest.importorskip()` in `tests/unit/`** to paper over missing extras.
   `importorskip` causes the test to be silently skipped in CI (which only installs `.[dev]`),
   meaning it never actually runs. Move the test to `tests/integration/` instead.
@@ -168,7 +168,7 @@ tests/
 │   ├── workflow/      # orchestration, stages, metadata, resume
 │   ├── gi/            # GI/KG artifacts, evidence stack
 │   ├── server/        # FastAPI viewer API (e.g. test_server_api, corpus_library, index_rebuild)
-│   ├── search/        # FAISS indexing
+│   ├── search/        # LanceDB indexing
 │   ├── rss/           # RSS parsing, HTTP fetching
 │   └── test_*.py      # cross-cutting (filesystem, retry, cache)
 └── e2e/              # End-to-end workflow tests

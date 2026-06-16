@@ -1,0 +1,1930 @@
+[
+  {
+    "char_end": 191,
+    "char_start": 13,
+    "end": 6.0,
+    "speaker_label": "Alex Morgan",
+    "start": 0.0,
+    "text": "Welcome to The Long View. Today we're exploring continuous glucose monitors and what they tell you in depth with Dr. Elena Fischer, researcher in metabolic and longevity science."
+  },
+  {
+    "char_end": 270,
+    "char_start": 211,
+    "end": 12.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 6.0,
+    "text": "Thanks, Alex Morgan. This is a topic I've spent decades on."
+  },
+  {
+    "char_end": 485,
+    "char_start": 284,
+    "end": 18.0,
+    "speaker_label": "Alex Morgan",
+    "start": 12.0,
+    "text": "This episode is brought to you by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Get started at linear.com/podcast."
+  },
+  {
+    "char_end": 547,
+    "char_start": 485,
+    "end": 24.0,
+    "speaker_label": "Alex Morgan",
+    "start": 18.0,
+    "text": "Why is systems thinking the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 780,
+    "char_start": 567,
+    "end": 30.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 24.0,
+    "text": "The short answer is CGMs are diagnostic tools more than they are training tools. Teams working with WHOOP run into this constantly. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 848,
+    "char_start": 794,
+    "end": 36.0,
+    "speaker_label": "Alex Morgan",
+    "start": 30.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 1128,
+    "char_start": 868,
+    "end": 42.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 36.0,
+    "text": "That ties to another point \u2014 I changed my mind on CGM use for general population \u2014 turns out 80% gain at 5% of intervention cost is wellness, not biohacking. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 1193,
+    "char_start": 1142,
+    "end": 48.0,
+    "speaker_label": "Alex Morgan",
+    "start": 42.0,
+    "text": "Let's talk about risk management. What's your read?"
+  },
+  {
+    "char_end": 1433,
+    "char_start": 1213,
+    "end": 54.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 48.0,
+    "text": "Honestly, Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Teams working with Levels run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 1506,
+    "char_start": 1447,
+    "end": 60.0,
+    "speaker_label": "Alex Morgan",
+    "start": 54.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 1684,
+    "char_start": 1526,
+    "end": 66.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 60.0,
+    "text": "That ties to another point \u2014 CGMs are diagnostic tools more than they are training tools. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 1776,
+    "char_start": 1698,
+    "end": 72.0,
+    "speaker_label": "Alex Morgan",
+    "start": 66.0,
+    "text": "What's the deepest piece of context on reliability that listeners are missing?"
+  },
+  {
+    "char_end": 2024,
+    "char_start": 1796,
+    "end": 78.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 72.0,
+    "text": "I'd put it this way: The systems-thinking version of CGM use is feedback loops, not gamification. Teams working with InsideTracker run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 2058,
+    "char_start": 2038,
+    "end": 84.0,
+    "speaker_label": "Alex Morgan",
+    "start": 78.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 2295,
+    "char_start": 2078,
+    "end": 90.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 84.0,
+    "text": "That ties to another point \u2014 Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 2425,
+    "char_start": 2309,
+    "end": 96.0,
+    "speaker_label": "Alex Morgan",
+    "start": 90.0,
+    "text": "Walk me through how reliability interacts with the broader continuous glucose monitors and what they tell you story."
+  },
+  {
+    "char_end": 2715,
+    "char_start": 2445,
+    "end": 102.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 96.0,
+    "text": "Honestly, I changed my mind on CGM use for general population \u2014 turns out 80% gain at 5% of intervention cost is wellness, not biohacking. Teams working with InsideTracker run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 2741,
+    "char_start": 2729,
+    "end": 108.0,
+    "speaker_label": "Alex Morgan",
+    "start": 102.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 2969,
+    "char_start": 2761,
+    "end": 114.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 108.0,
+    "text": "That ties to another point \u2014 The systems-thinking version of CGM use is feedback loops, not gamification. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 3014,
+    "char_start": 2983,
+    "end": 120.0,
+    "speaker_label": "Alex Morgan",
+    "start": 114.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 3217,
+    "char_start": 3019,
+    "end": 126.0,
+    "speaker_label": "Ad",
+    "start": 120.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 3256,
+    "char_start": 3231,
+    "end": 132.0,
+    "speaker_label": "Alex Morgan",
+    "start": 126.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 3313,
+    "char_start": 3256,
+    "end": 138.0,
+    "speaker_label": "Alex Morgan",
+    "start": 132.0,
+    "text": "Why is reliability the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 3556,
+    "char_start": 3333,
+    "end": 144.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 138.0,
+    "text": "Here's how I think about it. CGMs are diagnostic tools more than they are training tools. Teams working with Levels run into this constantly. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 3597,
+    "char_start": 3570,
+    "end": 150.0,
+    "speaker_label": "Alex Morgan",
+    "start": 144.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 3856,
+    "char_start": 3617,
+    "end": 156.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 150.0,
+    "text": "That ties to another point \u2014 I changed my mind on CGM use for general population \u2014 turns out 80% gain at 5% of intervention cost is wellness, not biohacking. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 3952,
+    "char_start": 3870,
+    "end": 162.0,
+    "speaker_label": "Alex Morgan",
+    "start": 156.0,
+    "text": "What's the deepest piece of context on risk management that listeners are missing?"
+  },
+  {
+    "char_end": 4200,
+    "char_start": 3972,
+    "end": 168.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 162.0,
+    "text": "Yeah, so \u2014 Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Teams working with InsideTracker run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 4226,
+    "char_start": 4214,
+    "end": 174.0,
+    "speaker_label": "Alex Morgan",
+    "start": 168.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 4400,
+    "char_start": 4246,
+    "end": 180.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 174.0,
+    "text": "That ties to another point \u2014 CGMs are diagnostic tools more than they are training tools. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 4496,
+    "char_start": 4414,
+    "end": 186.0,
+    "speaker_label": "Alex Morgan",
+    "start": 180.0,
+    "text": "What's the deepest piece of context on risk management that listeners are missing?"
+  },
+  {
+    "char_end": 4731,
+    "char_start": 4516,
+    "end": 192.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 186.0,
+    "text": "Yeah, so \u2014 The systems-thinking version of CGM use is feedback loops, not gamification. Teams working with InsideTracker run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 4757,
+    "char_start": 4745,
+    "end": 198.0,
+    "speaker_label": "Alex Morgan",
+    "start": 192.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 4983,
+    "char_start": 4777,
+    "end": 204.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 198.0,
+    "text": "That ties to another point \u2014 Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 5118,
+    "char_start": 4997,
+    "end": 210.0,
+    "speaker_label": "Alex Morgan",
+    "start": 204.0,
+    "text": "Walk me through how systems thinking interacts with the broader continuous glucose monitors and what they tell you story."
+  },
+  {
+    "char_end": 5401,
+    "char_start": 5138,
+    "end": 216.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 210.0,
+    "text": "Honestly, I changed my mind on CGM use for general population \u2014 turns out 80% gain at 5% of intervention cost is wellness, not biohacking. Teams working with Levels run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 5443,
+    "char_start": 5415,
+    "end": 222.0,
+    "speaker_label": "Alex Morgan",
+    "start": 216.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 5633,
+    "char_start": 5463,
+    "end": 228.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 222.0,
+    "text": "That ties to another point \u2014 The systems-thinking version of CGM use is feedback loops, not gamification. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 5763,
+    "char_start": 5647,
+    "end": 234.0,
+    "speaker_label": "Alex Morgan",
+    "start": 228.0,
+    "text": "Walk me through how reliability interacts with the broader continuous glucose monitors and what they tell you story."
+  },
+  {
+    "char_end": 5980,
+    "char_start": 5783,
+    "end": 240.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 234.0,
+    "text": "The short answer is CGMs are diagnostic tools more than they are training tools. Teams working with InsideTracker run into this constantly. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 6006,
+    "char_start": 5994,
+    "end": 246.0,
+    "speaker_label": "Alex Morgan",
+    "start": 240.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 6256,
+    "char_start": 6026,
+    "end": 252.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 246.0,
+    "text": "That ties to another point \u2014 I changed my mind on CGM use for general population \u2014 turns out 80% gain at 5% of intervention cost is wellness, not biohacking. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 6301,
+    "char_start": 6270,
+    "end": 258.0,
+    "speaker_label": "Alex Morgan",
+    "start": 252.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 6504,
+    "char_start": 6306,
+    "end": 264.0,
+    "speaker_label": "Ad",
+    "start": 258.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 6543,
+    "char_start": 6518,
+    "end": 270.0,
+    "speaker_label": "Alex Morgan",
+    "start": 264.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 6621,
+    "char_start": 6543,
+    "end": 276.0,
+    "speaker_label": "Alex Morgan",
+    "start": 270.0,
+    "text": "What's the deepest piece of context on reliability that listeners are missing?"
+  },
+  {
+    "char_end": 6860,
+    "char_start": 6641,
+    "end": 282.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 276.0,
+    "text": "Sure. Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Teams working with InsideTracker run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 6894,
+    "char_start": 6874,
+    "end": 288.0,
+    "speaker_label": "Alex Morgan",
+    "start": 282.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 7076,
+    "char_start": 6914,
+    "end": 294.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 288.0,
+    "text": "That ties to another point \u2014 CGMs are diagnostic tools more than they are training tools. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 7141,
+    "char_start": 7090,
+    "end": 300.0,
+    "speaker_label": "Alex Morgan",
+    "start": 294.0,
+    "text": "Let's talk about risk management. What's your read?"
+  },
+  {
+    "char_end": 7410,
+    "char_start": 7161,
+    "end": 306.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 300.0,
+    "text": "Yeah, so \u2014 The systems-thinking version of CGM use is feedback loops, not gamification. Teams working with InsideTracker run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 7451,
+    "char_start": 7424,
+    "end": 312.0,
+    "speaker_label": "Alex Morgan",
+    "start": 306.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 7677,
+    "char_start": 7471,
+    "end": 318.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 312.0,
+    "text": "That ties to another point \u2014 Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 7807,
+    "char_start": 7691,
+    "end": 324.0,
+    "speaker_label": "Alex Morgan",
+    "start": 318.0,
+    "text": "Walk me through how reliability interacts with the broader continuous glucose monitors and what they tell you story."
+  },
+  {
+    "char_end": 8119,
+    "char_start": 7827,
+    "end": 330.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 324.0,
+    "text": "Let me give you the version I actually believe. I changed my mind on CGM use for general population \u2014 turns out 80% gain at 5% of intervention cost is wellness, not biohacking. Teams working with WHOOP run into this constantly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 8160,
+    "char_start": 8133,
+    "end": 336.0,
+    "speaker_label": "Alex Morgan",
+    "start": 330.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 8377,
+    "char_start": 8180,
+    "end": 342.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 336.0,
+    "text": "That ties to another point \u2014 The systems-thinking version of CGM use is feedback loops, not gamification. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 8474,
+    "char_start": 8391,
+    "end": 348.0,
+    "speaker_label": "Alex Morgan",
+    "start": 342.0,
+    "text": "What's the deepest piece of context on systems thinking that listeners are missing?"
+  },
+  {
+    "char_end": 8708,
+    "char_start": 8494,
+    "end": 354.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 348.0,
+    "text": "There are two angles \u2014 CGMs are diagnostic tools more than they are training tools. Teams working with InsideTracker run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 8776,
+    "char_start": 8722,
+    "end": 360.0,
+    "speaker_label": "Alex Morgan",
+    "start": 354.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 9056,
+    "char_start": 8796,
+    "end": 366.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 360.0,
+    "text": "That ties to another point \u2014 I changed my mind on CGM use for general population \u2014 turns out 80% gain at 5% of intervention cost is wellness, not biohacking. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 9122,
+    "char_start": 9070,
+    "end": 372.0,
+    "speaker_label": "Alex Morgan",
+    "start": 366.0,
+    "text": "Let's talk about systems thinking. What's your read?"
+  },
+  {
+    "char_end": 9372,
+    "char_start": 9142,
+    "end": 378.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 372.0,
+    "text": "The short answer is Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Teams working with Levels run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 9398,
+    "char_start": 9386,
+    "end": 384.0,
+    "speaker_label": "Alex Morgan",
+    "start": 378.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 9576,
+    "char_start": 9418,
+    "end": 390.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 384.0,
+    "text": "That ties to another point \u2014 CGMs are diagnostic tools more than they are training tools. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 9621,
+    "char_start": 9590,
+    "end": 396.0,
+    "speaker_label": "Alex Morgan",
+    "start": 390.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 9824,
+    "char_start": 9626,
+    "end": 402.0,
+    "speaker_label": "Ad",
+    "start": 396.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 9863,
+    "char_start": 9838,
+    "end": 408.0,
+    "speaker_label": "Alex Morgan",
+    "start": 402.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 9984,
+    "char_start": 9863,
+    "end": 414.0,
+    "speaker_label": "Alex Morgan",
+    "start": 408.0,
+    "text": "Walk me through how systems thinking interacts with the broader continuous glucose monitors and what they tell you story."
+  },
+  {
+    "char_end": 10246,
+    "char_start": 10004,
+    "end": 420.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 414.0,
+    "text": "There are two angles \u2014 The systems-thinking version of CGM use is feedback loops, not gamification. Teams working with WHOOP run into this constantly. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 10314,
+    "char_start": 10260,
+    "end": 426.0,
+    "speaker_label": "Alex Morgan",
+    "start": 420.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 10540,
+    "char_start": 10334,
+    "end": 432.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 426.0,
+    "text": "That ties to another point \u2014 Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 10632,
+    "char_start": 10554,
+    "end": 438.0,
+    "speaker_label": "Alex Morgan",
+    "start": 432.0,
+    "text": "What's the deepest piece of context on reliability that listeners are missing?"
+  },
+  {
+    "char_end": 10942,
+    "char_start": 10652,
+    "end": 444.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 438.0,
+    "text": "Here's how I think about it. I changed my mind on CGM use for general population \u2014 turns out 80% gain at 5% of intervention cost is wellness, not biohacking. Teams working with WHOOP run into this constantly. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 10983,
+    "char_start": 10956,
+    "end": 450.0,
+    "speaker_label": "Alex Morgan",
+    "start": 444.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 11190,
+    "char_start": 11003,
+    "end": 456.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 450.0,
+    "text": "That ties to another point \u2014 The systems-thinking version of CGM use is feedback loops, not gamification. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 11287,
+    "char_start": 11204,
+    "end": 462.0,
+    "speaker_label": "Alex Morgan",
+    "start": 456.0,
+    "text": "What's the deepest piece of context on systems thinking that listeners are missing?"
+  },
+  {
+    "char_end": 11532,
+    "char_start": 11307,
+    "end": 468.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 462.0,
+    "text": "I'd put it this way: CGMs are diagnostic tools more than they are training tools. Teams working with Levels run into this constantly. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 11566,
+    "char_start": 11546,
+    "end": 474.0,
+    "speaker_label": "Alex Morgan",
+    "start": 468.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 11812,
+    "char_start": 11586,
+    "end": 480.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 474.0,
+    "text": "That ties to another point \u2014 I changed my mind on CGM use for general population \u2014 turns out 80% gain at 5% of intervention cost is wellness, not biohacking. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 11908,
+    "char_start": 11826,
+    "end": 486.0,
+    "speaker_label": "Alex Morgan",
+    "start": 480.0,
+    "text": "What's the deepest piece of context on risk management that listeners are missing?"
+  },
+  {
+    "char_end": 12144,
+    "char_start": 11928,
+    "end": 492.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 486.0,
+    "text": "I'd put it this way: Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Teams working with Levels run into this constantly. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 12217,
+    "char_start": 12158,
+    "end": 498.0,
+    "speaker_label": "Alex Morgan",
+    "start": 492.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 12391,
+    "char_start": 12237,
+    "end": 504.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 498.0,
+    "text": "That ties to another point \u2014 CGMs are diagnostic tools more than they are training tools. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 12466,
+    "char_start": 12405,
+    "end": 510.0,
+    "speaker_label": "Alex Morgan",
+    "start": 504.0,
+    "text": "Why is risk management the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 12719,
+    "char_start": 12486,
+    "end": 516.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 510.0,
+    "text": "Let me give you the version I actually believe. The systems-thinking version of CGM use is feedback loops, not gamification. Teams working with WHOOP run into this constantly. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 12787,
+    "char_start": 12733,
+    "end": 522.0,
+    "speaker_label": "Alex Morgan",
+    "start": 516.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 12993,
+    "char_start": 12807,
+    "end": 528.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 522.0,
+    "text": "That ties to another point \u2014 Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 13038,
+    "char_start": 13007,
+    "end": 534.0,
+    "speaker_label": "Alex Morgan",
+    "start": 528.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 13241,
+    "char_start": 13043,
+    "end": 540.0,
+    "speaker_label": "Ad",
+    "start": 534.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 13280,
+    "char_start": 13255,
+    "end": 546.0,
+    "speaker_label": "Alex Morgan",
+    "start": 540.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 13401,
+    "char_start": 13280,
+    "end": 552.0,
+    "speaker_label": "Alex Morgan",
+    "start": 546.0,
+    "text": "Walk me through how systems thinking interacts with the broader continuous glucose monitors and what they tell you story."
+  },
+  {
+    "char_end": 13679,
+    "char_start": 13421,
+    "end": 558.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 552.0,
+    "text": "I'd put it this way: I changed my mind on CGM use for general population \u2014 turns out 80% gain at 5% of intervention cost is wellness, not biohacking. Teams working with WHOOP run into this constantly. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 13720,
+    "char_start": 13693,
+    "end": 564.0,
+    "speaker_label": "Alex Morgan",
+    "start": 558.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 13927,
+    "char_start": 13740,
+    "end": 570.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 564.0,
+    "text": "That ties to another point \u2014 The systems-thinking version of CGM use is feedback loops, not gamification. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 13988,
+    "char_start": 13941,
+    "end": 576.0,
+    "speaker_label": "Alex Morgan",
+    "start": 570.0,
+    "text": "Let's talk about reliability. What's your read?"
+  },
+  {
+    "char_end": 14218,
+    "char_start": 14008,
+    "end": 582.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 576.0,
+    "text": "Here's how I think about it. CGMs are diagnostic tools more than they are training tools. Teams working with Levels run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 14252,
+    "char_start": 14232,
+    "end": 588.0,
+    "speaker_label": "Alex Morgan",
+    "start": 582.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 14521,
+    "char_start": 14272,
+    "end": 594.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 588.0,
+    "text": "That ties to another point \u2014 I changed my mind on CGM use for general population \u2014 turns out 80% gain at 5% of intervention cost is wellness, not biohacking. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 14613,
+    "char_start": 14535,
+    "end": 600.0,
+    "speaker_label": "Alex Morgan",
+    "start": 594.0,
+    "text": "What's the deepest piece of context on reliability that listeners are missing?"
+  },
+  {
+    "char_end": 14856,
+    "char_start": 14633,
+    "end": 606.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 600.0,
+    "text": "Honestly, Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Teams working with InsideTracker run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 14929,
+    "char_start": 14870,
+    "end": 612.0,
+    "speaker_label": "Alex Morgan",
+    "start": 606.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 15141,
+    "char_start": 14949,
+    "end": 618.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 612.0,
+    "text": "That ties to another point \u2014 CGMs are diagnostic tools more than they are training tools. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 15216,
+    "char_start": 15155,
+    "end": 624.0,
+    "speaker_label": "Alex Morgan",
+    "start": 618.0,
+    "text": "Why is risk management the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 15452,
+    "char_start": 15236,
+    "end": 630.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 624.0,
+    "text": "Sure. The systems-thinking version of CGM use is feedback loops, not gamification. Teams working with Levels run into this constantly. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 15520,
+    "char_start": 15466,
+    "end": 636.0,
+    "speaker_label": "Alex Morgan",
+    "start": 630.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 15746,
+    "char_start": 15540,
+    "end": 642.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 636.0,
+    "text": "That ties to another point \u2014 Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 15812,
+    "char_start": 15760,
+    "end": 648.0,
+    "speaker_label": "Alex Morgan",
+    "start": 642.0,
+    "text": "Let's talk about systems thinking. What's your read?"
+  },
+  {
+    "char_end": 16080,
+    "char_start": 15832,
+    "end": 654.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 648.0,
+    "text": "Yeah, so \u2014 I changed my mind on CGM use for general population \u2014 turns out 80% gain at 5% of intervention cost is wellness, not biohacking. Teams working with WHOOP run into this constantly. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 16121,
+    "char_start": 16094,
+    "end": 660.0,
+    "speaker_label": "Alex Morgan",
+    "start": 654.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 16311,
+    "char_start": 16141,
+    "end": 666.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 660.0,
+    "text": "That ties to another point \u2014 The systems-thinking version of CGM use is feedback loops, not gamification. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 16356,
+    "char_start": 16325,
+    "end": 672.0,
+    "speaker_label": "Alex Morgan",
+    "start": 666.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 16559,
+    "char_start": 16361,
+    "end": 678.0,
+    "speaker_label": "Ad",
+    "start": 672.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 16598,
+    "char_start": 16573,
+    "end": 684.0,
+    "speaker_label": "Alex Morgan",
+    "start": 678.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 16714,
+    "char_start": 16598,
+    "end": 690.0,
+    "speaker_label": "Alex Morgan",
+    "start": 684.0,
+    "text": "Walk me through how reliability interacts with the broader continuous glucose monitors and what they tell you story."
+  },
+  {
+    "char_end": 16956,
+    "char_start": 16734,
+    "end": 696.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 690.0,
+    "text": "Here's how I think about it. CGMs are diagnostic tools more than they are training tools. Teams working with WHOOP run into this constantly. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 16997,
+    "char_start": 16970,
+    "end": 702.0,
+    "speaker_label": "Alex Morgan",
+    "start": 696.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 17266,
+    "char_start": 17017,
+    "end": 708.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 702.0,
+    "text": "That ties to another point \u2014 I changed my mind on CGM use for general population \u2014 turns out 80% gain at 5% of intervention cost is wellness, not biohacking. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 17358,
+    "char_start": 17280,
+    "end": 714.0,
+    "speaker_label": "Alex Morgan",
+    "start": 708.0,
+    "text": "What's the deepest piece of context on reliability that listeners are missing?"
+  },
+  {
+    "char_end": 17593,
+    "char_start": 17378,
+    "end": 720.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 714.0,
+    "text": "The short answer is Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Teams working with Levels run into this constantly. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 17634,
+    "char_start": 17607,
+    "end": 726.0,
+    "speaker_label": "Alex Morgan",
+    "start": 720.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 17808,
+    "char_start": 17654,
+    "end": 732.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 726.0,
+    "text": "That ties to another point \u2014 CGMs are diagnostic tools more than they are training tools. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 17884,
+    "char_start": 17822,
+    "end": 738.0,
+    "speaker_label": "Alex Morgan",
+    "start": 732.0,
+    "text": "Why is systems thinking the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 18120,
+    "char_start": 17904,
+    "end": 744.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 738.0,
+    "text": "The short answer is The systems-thinking version of CGM use is feedback loops, not gamification. Teams working with WHOOP run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 18154,
+    "char_start": 18134,
+    "end": 750.0,
+    "speaker_label": "Alex Morgan",
+    "start": 744.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 18357,
+    "char_start": 18174,
+    "end": 756.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 750.0,
+    "text": "That ties to another point \u2014 Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 18432,
+    "char_start": 18371,
+    "end": 762.0,
+    "speaker_label": "Alex Morgan",
+    "start": 756.0,
+    "text": "Why is risk management the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 18726,
+    "char_start": 18452,
+    "end": 768.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 762.0,
+    "text": "Here's how I think about it. I changed my mind on CGM use for general population \u2014 turns out 80% gain at 5% of intervention cost is wellness, not biohacking. Teams working with Levels run into this constantly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 18768,
+    "char_start": 18740,
+    "end": 774.0,
+    "speaker_label": "Alex Morgan",
+    "start": 768.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 18962,
+    "char_start": 18788,
+    "end": 780.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 774.0,
+    "text": "That ties to another point \u2014 The systems-thinking version of CGM use is feedback loops, not gamification. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 19058,
+    "char_start": 18976,
+    "end": 786.0,
+    "speaker_label": "Alex Morgan",
+    "start": 780.0,
+    "text": "What's the deepest piece of context on risk management that listeners are missing?"
+  },
+  {
+    "char_end": 19272,
+    "char_start": 19078,
+    "end": 792.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 786.0,
+    "text": "Sure. CGMs are diagnostic tools more than they are training tools. Teams working with InsideTracker run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 19314,
+    "char_start": 19286,
+    "end": 798.0,
+    "speaker_label": "Alex Morgan",
+    "start": 792.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 19564,
+    "char_start": 19334,
+    "end": 804.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 798.0,
+    "text": "That ties to another point \u2014 I changed my mind on CGM use for general population \u2014 turns out 80% gain at 5% of intervention cost is wellness, not biohacking. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 19609,
+    "char_start": 19578,
+    "end": 810.0,
+    "speaker_label": "Alex Morgan",
+    "start": 804.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 19812,
+    "char_start": 19614,
+    "end": 816.0,
+    "speaker_label": "Ad",
+    "start": 810.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 19851,
+    "char_start": 19826,
+    "end": 822.0,
+    "speaker_label": "Alex Morgan",
+    "start": 816.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 19898,
+    "char_start": 19851,
+    "end": 828.0,
+    "speaker_label": "Alex Morgan",
+    "start": 822.0,
+    "text": "Let's talk about reliability. What's your read?"
+  },
+  {
+    "char_end": 20158,
+    "char_start": 19918,
+    "end": 834.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 828.0,
+    "text": "There are two angles \u2014 Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Teams working with InsideTracker run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 20226,
+    "char_start": 20172,
+    "end": 840.0,
+    "speaker_label": "Alex Morgan",
+    "start": 834.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 20393,
+    "char_start": 20246,
+    "end": 846.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 840.0,
+    "text": "That ties to another point \u2014 CGMs are diagnostic tools more than they are training tools. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 20485,
+    "char_start": 20407,
+    "end": 852.0,
+    "speaker_label": "Alex Morgan",
+    "start": 846.0,
+    "text": "What's the deepest piece of context on reliability that listeners are missing?"
+  },
+  {
+    "char_end": 20734,
+    "char_start": 20505,
+    "end": 858.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 852.0,
+    "text": "The short answer is The systems-thinking version of CGM use is feedback loops, not gamification. Teams working with WHOOP run into this constantly. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 20768,
+    "char_start": 20748,
+    "end": 864.0,
+    "speaker_label": "Alex Morgan",
+    "start": 858.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 20967,
+    "char_start": 20788,
+    "end": 870.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 864.0,
+    "text": "That ties to another point \u2014 Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 21042,
+    "char_start": 20981,
+    "end": 876.0,
+    "speaker_label": "Alex Morgan",
+    "start": 870.0,
+    "text": "Why is risk management the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 21364,
+    "char_start": 21062,
+    "end": 882.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 876.0,
+    "text": "There are two angles \u2014 I changed my mind on CGM use for general population \u2014 turns out 80% gain at 5% of intervention cost is wellness, not biohacking. Teams working with InsideTracker run into this constantly. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 21406,
+    "char_start": 21378,
+    "end": 888.0,
+    "speaker_label": "Alex Morgan",
+    "start": 882.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 21589,
+    "char_start": 21426,
+    "end": 894.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 888.0,
+    "text": "That ties to another point \u2014 The systems-thinking version of CGM use is feedback loops, not gamification. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 21660,
+    "char_start": 21603,
+    "end": 900.0,
+    "speaker_label": "Alex Morgan",
+    "start": 894.0,
+    "text": "Why is reliability the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 21887,
+    "char_start": 21680,
+    "end": 906.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 900.0,
+    "text": "It comes down to this: CGMs are diagnostic tools more than they are training tools. Teams working with InsideTracker run into this constantly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 21913,
+    "char_start": 21901,
+    "end": 912.0,
+    "speaker_label": "Alex Morgan",
+    "start": 906.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 22148,
+    "char_start": 21933,
+    "end": 918.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 912.0,
+    "text": "That ties to another point \u2014 I changed my mind on CGM use for general population \u2014 turns out 80% gain at 5% of intervention cost is wellness, not biohacking. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 22223,
+    "char_start": 22162,
+    "end": 924.0,
+    "speaker_label": "Alex Morgan",
+    "start": 918.0,
+    "text": "Why is risk management the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 22471,
+    "char_start": 22243,
+    "end": 930.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 924.0,
+    "text": "The short answer is Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Teams working with WHOOP run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 22497,
+    "char_start": 22485,
+    "end": 936.0,
+    "speaker_label": "Alex Morgan",
+    "start": 930.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 22688,
+    "char_start": 22517,
+    "end": 942.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 936.0,
+    "text": "That ties to another point \u2014 CGMs are diagnostic tools more than they are training tools. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 22733,
+    "char_start": 22702,
+    "end": 948.0,
+    "speaker_label": "Alex Morgan",
+    "start": 942.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 22936,
+    "char_start": 22738,
+    "end": 954.0,
+    "speaker_label": "Ad",
+    "start": 948.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 22975,
+    "char_start": 22950,
+    "end": 960.0,
+    "speaker_label": "Alex Morgan",
+    "start": 954.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 23053,
+    "char_start": 22975,
+    "end": 966.0,
+    "speaker_label": "Alex Morgan",
+    "start": 960.0,
+    "text": "What's the deepest piece of context on reliability that listeners are missing?"
+  },
+  {
+    "char_end": 23320,
+    "char_start": 23073,
+    "end": 972.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 966.0,
+    "text": "Let me give you the version I actually believe. The systems-thinking version of CGM use is feedback loops, not gamification. Teams working with WHOOP run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 23362,
+    "char_start": 23334,
+    "end": 978.0,
+    "speaker_label": "Alex Morgan",
+    "start": 972.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 23565,
+    "char_start": 23382,
+    "end": 984.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 978.0,
+    "text": "That ties to another point \u2014 Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 23626,
+    "char_start": 23579,
+    "end": 990.0,
+    "speaker_label": "Alex Morgan",
+    "start": 984.0,
+    "text": "Let's talk about reliability. What's your read?"
+  },
+  {
+    "char_end": 23940,
+    "char_start": 23646,
+    "end": 996.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 990.0,
+    "text": "Yeah, so \u2014 I changed my mind on CGM use for general population \u2014 turns out 80% gain at 5% of intervention cost is wellness, not biohacking. Teams working with Levels run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 24008,
+    "char_start": 23954,
+    "end": 1002.0,
+    "speaker_label": "Alex Morgan",
+    "start": 996.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 24206,
+    "char_start": 24028,
+    "end": 1008.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1002.0,
+    "text": "That ties to another point \u2014 The systems-thinking version of CGM use is feedback loops, not gamification. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 24277,
+    "char_start": 24220,
+    "end": 1014.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1008.0,
+    "text": "Why is reliability the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 24490,
+    "char_start": 24297,
+    "end": 1020.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1014.0,
+    "text": "Honestly, CGMs are diagnostic tools more than they are training tools. Teams working with WHOOP run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 24558,
+    "char_start": 24504,
+    "end": 1026.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1020.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 24817,
+    "char_start": 24578,
+    "end": 1032.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1026.0,
+    "text": "That ties to another point \u2014 I changed my mind on CGM use for general population \u2014 turns out 80% gain at 5% of intervention cost is wellness, not biohacking. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 24893,
+    "char_start": 24831,
+    "end": 1038.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1032.0,
+    "text": "Why is systems thinking the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 25150,
+    "char_start": 24913,
+    "end": 1044.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1038.0,
+    "text": "The short answer is Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Teams working with InsideTracker run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 25223,
+    "char_start": 25164,
+    "end": 1050.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1044.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 25401,
+    "char_start": 25243,
+    "end": 1056.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1050.0,
+    "text": "That ties to another point \u2014 CGMs are diagnostic tools more than they are training tools. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 25477,
+    "char_start": 25415,
+    "end": 1062.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1056.0,
+    "text": "Why is systems thinking the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 25734,
+    "char_start": 25497,
+    "end": 1068.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1062.0,
+    "text": "The short answer is The systems-thinking version of CGM use is feedback loops, not gamification. Teams working with InsideTracker run into this constantly. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 25760,
+    "char_start": 25748,
+    "end": 1074.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1068.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 25963,
+    "char_start": 25780,
+    "end": 1080.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1074.0,
+    "text": "That ties to another point \u2014 Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 26008,
+    "char_start": 25977,
+    "end": 1086.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1080.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 26211,
+    "char_start": 26013,
+    "end": 1092.0,
+    "speaker_label": "Ad",
+    "start": 1086.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 26250,
+    "char_start": 26225,
+    "end": 1098.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1092.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 26311,
+    "char_start": 26250,
+    "end": 1104.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1098.0,
+    "text": "Why is risk management the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 26658,
+    "char_start": 26331,
+    "end": 1110.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1104.0,
+    "text": "Let me give you the version I actually believe. I changed my mind on CGM use for general population \u2014 turns out 80% gain at 5% of intervention cost is wellness, not biohacking. Teams working with InsideTracker run into this constantly. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 26684,
+    "char_start": 26672,
+    "end": 1116.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1110.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 26878,
+    "char_start": 26704,
+    "end": 1122.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1116.0,
+    "text": "That ties to another point \u2014 The systems-thinking version of CGM use is feedback loops, not gamification. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 26953,
+    "char_start": 26892,
+    "end": 1128.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1122.0,
+    "text": "Why is risk management the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 27168,
+    "char_start": 26973,
+    "end": 1134.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1128.0,
+    "text": "Yeah, so \u2014 CGMs are diagnostic tools more than they are training tools. Teams working with WHOOP run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 27210,
+    "char_start": 27182,
+    "end": 1140.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1134.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 27445,
+    "char_start": 27230,
+    "end": 1146.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1140.0,
+    "text": "That ties to another point \u2014 I changed my mind on CGM use for general population \u2014 turns out 80% gain at 5% of intervention cost is wellness, not biohacking. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 27521,
+    "char_start": 27459,
+    "end": 1152.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1146.0,
+    "text": "Why is systems thinking the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 27766,
+    "char_start": 27541,
+    "end": 1158.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1152.0,
+    "text": "There are two angles \u2014 Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Teams working with Levels run into this constantly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 27834,
+    "char_start": 27780,
+    "end": 1164.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1158.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 28015,
+    "char_start": 27854,
+    "end": 1170.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1164.0,
+    "text": "That ties to another point \u2014 CGMs are diagnostic tools more than they are training tools. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 28086,
+    "char_start": 28029,
+    "end": 1176.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1170.0,
+    "text": "Why is reliability the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 28336,
+    "char_start": 28106,
+    "end": 1182.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1176.0,
+    "text": "Honestly, The systems-thinking version of CGM use is feedback loops, not gamification. Teams working with Levels run into this constantly. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 28404,
+    "char_start": 28350,
+    "end": 1188.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1182.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 28596,
+    "char_start": 28424,
+    "end": 1194.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1188.0,
+    "text": "That ties to another point \u2014 Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 28671,
+    "char_start": 28610,
+    "end": 1200.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1194.0,
+    "text": "Why is risk management the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 28958,
+    "char_start": 28691,
+    "end": 1206.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1200.0,
+    "text": "It comes down to this: I changed my mind on CGM use for general population \u2014 turns out 80% gain at 5% of intervention cost is wellness, not biohacking. Teams working with WHOOP run into this constantly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 29031,
+    "char_start": 28972,
+    "end": 1212.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1206.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 29228,
+    "char_start": 29051,
+    "end": 1218.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1212.0,
+    "text": "That ties to another point \u2014 The systems-thinking version of CGM use is feedback loops, not gamification. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 29273,
+    "char_start": 29242,
+    "end": 1224.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1218.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 29476,
+    "char_start": 29278,
+    "end": 1230.0,
+    "speaker_label": "Ad",
+    "start": 1224.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 29515,
+    "char_start": 29490,
+    "end": 1236.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1230.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 29566,
+    "char_start": 29515,
+    "end": 1242.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1236.0,
+    "text": "Let's talk about risk management. What's your read?"
+  },
+  {
+    "char_end": 29790,
+    "char_start": 29586,
+    "end": 1248.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1242.0,
+    "text": "The short answer is CGMs are diagnostic tools more than they are training tools. Teams working with WHOOP run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 29816,
+    "char_start": 29804,
+    "end": 1254.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1248.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 30075,
+    "char_start": 29836,
+    "end": 1260.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1254.0,
+    "text": "That ties to another point \u2014 I changed my mind on CGM use for general population \u2014 turns out 80% gain at 5% of intervention cost is wellness, not biohacking. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 30209,
+    "char_start": 30089,
+    "end": 1266.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1260.0,
+    "text": "Walk me through how risk management interacts with the broader continuous glucose monitors and what they tell you story."
+  },
+  {
+    "char_end": 30449,
+    "char_start": 30229,
+    "end": 1272.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1266.0,
+    "text": "Yeah, so \u2014 Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Teams working with WHOOP run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 30517,
+    "char_start": 30463,
+    "end": 1278.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1272.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 30691,
+    "char_start": 30537,
+    "end": 1284.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1278.0,
+    "text": "That ties to another point \u2014 CGMs are diagnostic tools more than they are training tools. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 30766,
+    "char_start": 30705,
+    "end": 1290.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1284.0,
+    "text": "Why is risk management the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 31034,
+    "char_start": 30786,
+    "end": 1296.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1290.0,
+    "text": "I'd put it this way: The systems-thinking version of CGM use is feedback loops, not gamification. Teams working with InsideTracker run into this constantly. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 31075,
+    "char_start": 31048,
+    "end": 1302.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1296.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 31267,
+    "char_start": 31095,
+    "end": 1308.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1302.0,
+    "text": "That ties to another point \u2014 Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 31359,
+    "char_start": 31281,
+    "end": 1314.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1308.0,
+    "text": "What's the deepest piece of context on reliability that listeners are missing?"
+  },
+  {
+    "char_end": 31628,
+    "char_start": 31379,
+    "end": 1320.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1314.0,
+    "text": "Yeah, so \u2014 I changed my mind on CGM use for general population \u2014 turns out 80% gain at 5% of intervention cost is wellness, not biohacking. Teams working with Levels run into this constantly. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 31654,
+    "char_start": 31642,
+    "end": 1326.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1320.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 31848,
+    "char_start": 31674,
+    "end": 1332.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1326.0,
+    "text": "That ties to another point \u2014 The systems-thinking version of CGM use is feedback loops, not gamification. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 31940,
+    "char_start": 31862,
+    "end": 1338.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1332.0,
+    "text": "What's the deepest piece of context on reliability that listeners are missing?"
+  },
+  {
+    "char_end": 32165,
+    "char_start": 31960,
+    "end": 1344.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1338.0,
+    "text": "Here's how I think about it. CGMs are diagnostic tools more than they are training tools. Teams working with WHOOP run into this constantly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 32207,
+    "char_start": 32179,
+    "end": 1350.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1344.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 32466,
+    "char_start": 32227,
+    "end": 1356.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1350.0,
+    "text": "That ties to another point \u2014 I changed my mind on CGM use for general population \u2014 turns out 80% gain at 5% of intervention cost is wellness, not biohacking. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 32511,
+    "char_start": 32480,
+    "end": 1362.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1356.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 32714,
+    "char_start": 32516,
+    "end": 1368.0,
+    "speaker_label": "Ad",
+    "start": 1362.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 32753,
+    "char_start": 32728,
+    "end": 1374.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1368.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 32835,
+    "char_start": 32753,
+    "end": 1380.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1374.0,
+    "text": "What's the deepest piece of context on risk management that listeners are missing?"
+  },
+  {
+    "char_end": 33074,
+    "char_start": 32855,
+    "end": 1386.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1380.0,
+    "text": "Honestly, Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Teams working with InsideTracker run into this constantly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 33100,
+    "char_start": 33088,
+    "end": 1392.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1386.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 33282,
+    "char_start": 33120,
+    "end": 1398.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1392.0,
+    "text": "That ties to another point \u2014 CGMs are diagnostic tools more than they are training tools. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 33412,
+    "char_start": 33296,
+    "end": 1404.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1398.0,
+    "text": "Walk me through how reliability interacts with the broader continuous glucose monitors and what they tell you story."
+  },
+  {
+    "char_end": 33645,
+    "char_start": 33432,
+    "end": 1410.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1404.0,
+    "text": "The short answer is The systems-thinking version of CGM use is feedback loops, not gamification. Teams working with Levels run into this constantly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 33687,
+    "char_start": 33659,
+    "end": 1416.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1410.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 33924,
+    "char_start": 33707,
+    "end": 1422.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1416.0,
+    "text": "That ties to another point \u2014 Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 34088,
+    "char_start": 33938,
+    "end": 1428.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1422.0,
+    "text": "Before we wrap, thanks again to our partners at Stripe. Stripe makes payments simple, whether you're running a marketplace or a subscription business."
+  },
+  {
+    "char_end": 34133,
+    "char_start": 34088,
+    "end": 1434.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1428.0,
+    "text": "Dr. Elena Fischer, thanks for the depth here."
+  },
+  {
+    "char_end": 34176,
+    "char_start": 34153,
+    "end": 1440.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1434.0,
+    "text": "Thank you, Alex Morgan."
+  },
+  {
+    "char_end": 34231,
+    "char_start": 34190,
+    "end": 1446.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1440.0,
+    "text": "That's The Long View \u2014 see you next time."
+  }
+]

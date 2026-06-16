@@ -1,8 +1,8 @@
 # GitHub #659: FastAPI viewer API (no bundled SPA — Nginx serves static + proxies /api/*).
 #
-# Preflight: the HTTP stack alone is not enough for ``create_app`` (routers import FAISS / embeddings).
+# Preflight: the HTTP stack alone is not enough for ``create_app`` (routers import LanceDB / embeddings).
 # This image installs the same FastAPI/uvicorn pins as ``[dev]`` in pyproject.toml (no full ``.[dev]`` —
-# avoids pytest/black in production) plus ``.[search]`` (CPU torch, FAISS, sentence-transformers)
+# avoids pytest/black in production) plus ``.[search]`` (CPU torch, lancedb, sentence-transformers)
 # without the full ``.[ml]`` stack (Whisper/spaCy/llama-cpp). See docs/guides/DOCKER_SERVICE_GUIDE.md.
 #
 # Build from repository root: docker build -f docker/api/Dockerfile .
@@ -59,7 +59,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # /api/search``. The endpoint calls ``embedding_loader.encode(...,
 # allow_download=False)`` so the model MUST be cached on disk before
 # runtime — otherwise queries fail with ``embed_failed`` even though
-# the FAISS index is present. ``HF_HOME`` is shared across users via
+# the LanceDB index is present. ``HF_HOME`` is shared across users via
 # ``/opt/podcast_hf``; the entrypoint chowns it for the runtime user.
 ENV HF_HOME=/opt/podcast_hf
 RUN mkdir -p "$HF_HOME" \
@@ -90,7 +90,7 @@ RUN chmod +x /entrypoint.sh
 
 # #666 review item #5: run as a non-root user, consistent with
 # ``docker/pipeline/Dockerfile``. The entrypoint chowns ``/app/output``
-# so the user can write corpus artifacts and FAISS lock files on a
+# so the user can write corpus artifacts and LanceDB lock files on a
 # fresh named volume (root-owned on first mount). When
 # ``PODCAST_PIPELINE_EXEC_MODE=docker`` is enabled, the entrypoint also
 # adds ``podcast`` to the group that owns the host-mounted

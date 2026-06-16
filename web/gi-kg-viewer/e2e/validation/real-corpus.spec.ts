@@ -483,12 +483,13 @@ test.describe('Real-corpus validation', () => {
     expect(errs.errors).toEqual([])
   })
 
-  test('V6 — search is served by LanceDB hybrid, not the FAISS fallback', async ({ page }) => {
+  test('V6 — search is served by the LanceDB two-tier hybrid', async ({ page }) => {
     // Tier-3 proof that the live search path is the LanceDB two-tier hybrid
-    // (BM25 + dense, fused via RRF) rather than the legacy single-signal FAISS
-    // fallback. The two are distinguishable by response shape, so a stale/broken
-    // ``lance_index`` that silently degrades to FAISS fails THIS test loudly
-    // instead of passing — the provenance guard for "less FAISS, more LanceDB".
+    // (BM25 + dense, fused via RRF) rather than a degraded single-signal
+    // path. The shapes are distinguishable by response fields, so a
+    // stale/broken ``lance_index`` that silently degrades to a single-signal
+    // result fails THIS test loudly instead of passing — the provenance guard
+    // for the LanceDB hybrid backend.
     const stats = await page.request
       .get(`http://localhost:8000/api/index/stats?path=${encodeURIComponent(CORPUS_PATH)}`)
       .then((r) => r.json())
@@ -506,9 +507,10 @@ test.describe('Real-corpus validation', () => {
     const results: Array<{ score: number; source_tier?: string }> = body.results ?? []
     expect(results.length).toBeGreaterThan(0)
 
-    // (1) RRF score signature — the definitive discriminator. FAISS returns a
-    // cosine similarity (top hit ≈ 1.0); LanceDB returns fused RRF scores
-    // 1/(60+rank), always well below 0.1. A FAISS fallback would blow this.
+    // (1) RRF score signature — the definitive discriminator. A raw
+    // single-signal cosine similarity peaks near 1.0; the LanceDB hybrid
+    // returns fused RRF scores 1/(60+rank), always well below 0.1. A degraded
+    // single-signal path would blow this.
     const maxScore = Math.max(...results.map((r) => r.score))
     expect(maxScore).toBeLessThan(0.1)
 
@@ -517,7 +519,7 @@ test.describe('Real-corpus validation', () => {
       expect(['insight', 'segment', 'aux']).toContain(r.source_tier)
     }
 
-    // (3) Hybrid-only top-level response fields (the FAISS path leaves them unset).
+    // (3) Hybrid-only top-level response fields (a single-signal path leaves them unset).
     expect(body).toHaveProperty('lift_stats')
     expect(body).toHaveProperty('query_type')
 

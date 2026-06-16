@@ -6,13 +6,12 @@ import argparse
 import json
 import logging
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from podcast_scraper.search import cli_handlers
 from podcast_scraper.search.corpus_search import CorpusSearchOutcome
-from podcast_scraper.search.faiss_store import VECTORS_FILE
 from podcast_scraper.search.protocol import SearchResult
 
 pytestmark = [pytest.mark.unit]
@@ -188,7 +187,6 @@ def test_run_index_cli_success(mock_index, tmp_path, caplog) -> None:
         output_dir=str(tmp_path),
         vector_index_path=None,
         embedding_model=None,
-        vector_faiss_index_mode=None,
         vector_index_types=None,
         stats=False,
         rebuild=False,
@@ -208,15 +206,11 @@ def test_run_index_cli_missing_output_dir() -> None:
     assert code == cli_handlers.EXIT_INVALID_ARGS
 
 
-@patch("podcast_scraper.search.cli_handlers.FaissVectorStore.load")
-def test_run_index_cli_stats_reads_index(mock_load, tmp_path) -> None:
-    from types import SimpleNamespace
+@patch("podcast_scraper.search.lance_index_stats.read_lance_index_stats")
+def test_run_index_cli_stats_reads_index(mock_stats, tmp_path) -> None:
+    from podcast_scraper.search.lance_index_stats import LanceIndexStats
 
-    search_dir = tmp_path / "search"
-    search_dir.mkdir()
-    (search_dir / VECTORS_FILE).write_bytes(b"")
-
-    st = SimpleNamespace(
+    mock_stats.return_value = LanceIndexStats(
         total_vectors=5,
         doc_type_counts={"insight": 5},
         feeds_indexed=["f1"],
@@ -226,9 +220,6 @@ def test_run_index_cli_stats_reads_index(mock_load, tmp_path) -> None:
         last_updated="t",
         index_size_bytes=100,
     )
-    store = MagicMock()
-    store.stats.return_value = st
-    mock_load.return_value = store
 
     import logging
 
@@ -236,7 +227,6 @@ def test_run_index_cli_stats_reads_index(mock_load, tmp_path) -> None:
         output_dir=str(tmp_path),
         vector_index_path=None,
         embedding_model=None,
-        vector_faiss_index_mode=None,
         vector_index_types=None,
         stats=True,
         rebuild=False,

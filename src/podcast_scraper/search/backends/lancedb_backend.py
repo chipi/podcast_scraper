@@ -10,8 +10,12 @@ instantiating the backend requires the dependency.
 from __future__ import annotations
 
 import dataclasses
+import logging
+from datetime import timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
+
+logger = logging.getLogger(__name__)
 
 from ...utils.path_validation import (
     normpath_if_under_root,
@@ -30,13 +34,13 @@ from ..backend import (
 if TYPE_CHECKING:  # pragma: no cover - typing only
     import pyarrow as pa
 
-# all-MiniLM-L6-v2 dimensionality (matches the existing FAISS index).
+# all-MiniLM-L6-v2 dimensionality.
 DEFAULT_EMBED_DIM = 384
 
 # Bump whenever the stored table schema changes so existing indexes self-heal:
-# read paths fall back to FAISS on a stale index and (re)index moments rebuild it.
+# read paths report no_index on a stale index and (re)index moments rebuild it.
 #   1 — initial two-tier schema (#855)
-#   2 — FAISS-parity fields: ``publish_date`` (date/``since`` filter) on all tiers +
+#   2 — added fields: ``publish_date`` (date/``since`` filter) on all tiers +
 #       ``source_id`` (canonical graph node id → "Show on graph") on insight/aux
 LANCE_SCHEMA_VERSION = 2
 
@@ -214,6 +218,26 @@ class LanceDBBackend:
             except Exception:  # noqa: BLE001 - small tables use brute force; index optional
                 pass
 
+    def compact(self) -> None:
+        """Compact data fragments + prune superseded versions on every table.
+
+        LanceDB is MVCC and the indexer upserts **one document at a time**, so each
+        build (and every incremental post-pipeline reindex) appends thousands of tiny
+        fragments + versions that are never reclaimed — the index grows unbounded
+        (observed: a single ``aux`` table at 8k fragments / 2.7G). ``optimize`` merges
+        the fragments and ``cleanup_older_than=0`` drops every version but the current
+        one, bounding the on-disk size and keeping reads fast (fewer fragments to scan).
+        Best-effort: a compaction failure must never fail the build.
+        """
+        for tier in ("segment", "insight", "aux"):
+            table = self._open_if_exists(tier)
+            if table is None:
+                continue
+            try:
+                table.optimize(cleanup_older_than=timedelta(0))
+            except Exception as exc:  # noqa: BLE001 - optimize is best-effort
+                logger.warning("LanceDB compaction skipped for %s table: %s", tier, exc)
+
     def _tables_for_tier(self, tier: Tier) -> List[str]:
         if tier == "all":
             return ["segment", "insight", "aux"]
@@ -267,16 +291,73 @@ class LanceDBBackend:
         """Dense-vector results over the query's tier(s) (signal ``vector``)."""
         return self._run(query, query_type="vector", score_key="_distance")
 
+    def search_hybrid(self, query: SearchQuery) -> List[ScoredResult]:
+        """Native LanceDB hybrid: vector + BM25 fused in-engine by an RRF reranker.
+
+        One ``query_type="hybrid"`` query per tier runs the dense + full-text search and
+        the reciprocal-rank fusion *inside the engine*, returning ``_relevance_score`` —
+        replacing the former Python-side vector+BM25+RRF fan-out (ADR-099 Stage 2). The
+        heavy ``embedding`` column is projected away (never read back). Per-table RRF
+        scores share a scale, so results across tiers are merged by that score. (#995)
+        """
+        from lancedb.rerankers import RRFReranker
+
+        reranker = RRFReranker()
+        where = self._to_sql(query.filters)
+        hits: List[tuple[float, Dict[str, Any], str]] = []
+        for tier in self._tables_for_tier(query.tier):
+            table = self._open_if_exists(tier)  # read must not create empty tables on disk
+            if table is None:
+                continue
+            payload_cols = [c for c in table.schema.names if c != "embedding"]
+            req = (
+                table.search(query_type="hybrid")
+                .vector(query.embedding)
+                .text(query.text)
+                .rerank(reranker)
+            )
+            if payload_cols:
+                req = req.select(payload_cols)
+            if where:
+                req = req.where(where)
+            for row in req.limit(query.k).to_list():
+                score = float(row.get("_relevance_score", 0.0) or 0.0)
+                row.pop("embedding", None)  # never shipped back; keep the payload lean
+                hits.append((score, row, tier))
+        hits.sort(key=lambda h: h[0], reverse=True)
+        return [
+            ScoredResult(
+                doc_id=str(row.get("id")),
+                score=score,
+                rank=i + 1,
+                payload=row,
+                signal="hybrid",
+                source_tier=tier,
+            )
+            for i, (score, row, tier) in enumerate(hits)
+        ]
+
     # --- writes ----------------------------------------------------------------
 
-    def _upsert(self, tier: str, data: Dict[str, Any]) -> None:
+    def _upsert_many(self, tier: str, rows: List[Dict[str, Any]]) -> None:
+        """Upsert a batch of rows in a SINGLE merge_insert transaction.
+
+        One transaction per batch (not per row) is what keeps the index from
+        fragmenting: LanceDB writes one data file + one version per ``execute``, so
+        batching N rows is N× fewer fragments/versions than per-document upserts.
+        """
+        if not rows:
+            return
         table = self._ensure_table(tier)
         (
             table.merge_insert("id")
             .when_matched_update_all()
             .when_not_matched_insert_all()
-            .execute([data])
+            .execute(rows)
         )
+
+    def _upsert(self, tier: str, data: Dict[str, Any]) -> None:
+        self._upsert_many(tier, [data])
 
     def upsert_segment(self, doc: SegmentDocument) -> None:
         """Insert or update a Tier-1 segment document."""
@@ -289,6 +370,18 @@ class LanceDBBackend:
     def upsert_aux(self, doc: AuxDocument) -> None:
         """Insert or update an aux document (kg_entity / kg_topic / quote / summary)."""
         self._upsert("aux", dataclasses.asdict(doc))
+
+    def upsert_segments(self, docs: List[SegmentDocument]) -> None:
+        """Batch-upsert Tier-1 segments in one transaction (see ``_upsert_many``)."""
+        self._upsert_many("segment", [dataclasses.asdict(d) for d in docs])
+
+    def upsert_insights(self, docs: List[InsightDocument]) -> None:
+        """Batch-upsert Tier-2 insights in one transaction."""
+        self._upsert_many("insight", [dataclasses.asdict(d) for d in docs])
+
+    def upsert_auxes(self, docs: List[AuxDocument]) -> None:
+        """Batch-upsert aux rows in one transaction."""
+        self._upsert_many("aux", [dataclasses.asdict(d) for d in docs])
 
     def delete(self, doc_id: str, tier: Tier) -> None:
         """Delete a document by id; ``tier="all"`` removes from every table."""
@@ -356,14 +449,14 @@ def lance_index_is_stale(lance_path: Path | str) -> bool:
     """True when a lance index dir exists but its schema predates the code's.
 
     A stale index lacks columns the current read path expects (e.g. ``publish_date``),
-    so read paths must skip it (FAISS fallback) and (re)index moments must rebuild it
-    rather than upsert into the incompatible schema.
+    so read paths must skip it (reporting no_index, since there is no fallback) and
+    (re)index moments must rebuild it rather than upsert into the incompatible schema.
 
     Requires *positive evidence* of an older schema: an existing ``index_meta.json``
     whose version is below the code's. A missing/unreadable meta is treated as
     not-stale — a real build always writes meta, so an absent one is an ambiguous
     partial/empty dir (the build path's own "already exists" no-op handles that), and
-    the read path's try/except still falls back to FAISS if such an index can't serve.
+    the read path's try/except still reports no_index if such an index can't serve.
     """
     p = safe_resolve_directory(Path(lance_path))
     if p is None or not Path(p).is_dir():

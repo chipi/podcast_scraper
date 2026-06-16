@@ -31,19 +31,64 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
-      "to": "quote:ba0248f7d7723706",
-      "type": "HAS_QUOTE"
+      "from": "quote:4419d2d027fe9bd2",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
     },
     {
-      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
-      "to": "quote:239feecd8319059a",
-      "type": "HAS_QUOTE"
+      "from": "insight:83e86afd480f434f",
+      "to": "quote:4419d2d027fe9bd2",
+      "type": "SUPPORTED_BY"
     },
     {
-      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
-      "to": "quote:2554331b77145529",
-      "type": "HAS_QUOTE"
+      "from": "quote:7f22144da157055b",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:8db68805aad64080",
+      "to": "quote:7f22144da157055b",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:bdf4183cfa40bcd2",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:4ba774bae707cf97",
+      "to": "quote:bdf4183cfa40bcd2",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f1e933d8a970384a",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:83e86afd480f434f",
+      "to": "quote:f1e933d8a970384a",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:1e43fe1f0b3813d0",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:8db68805aad64080",
+      "to": "quote:1e43fe1f0b3813d0",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:961b9e58286b9701",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:4ba774bae707cf97",
+      "to": "quote:961b9e58286b9701",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
@@ -56,7 +101,7 @@
         "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
         "metadata_relative_path": "feeds/p05/metadata/p05_e01.metadata.json",
         "podcast_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
-        "publish_date": "2026-06-03T12:00:00",
+        "publish_date": "2026-06-11T12:00:00",
         "title": "Long Horizon Notes \u2014 Episode 1"
       },
       "type": "Episode"
@@ -113,26 +158,100 @@
       "type": "Insight"
     },
     {
-      "id": "quote:ba0248f7d7723706",
+      "id": "person:speaker-01",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "Excited for this one \u2014 index investing is something I've been thinking about a lot."
+        "name": "Nora"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:4419d2d027fe9bd2",
+      "properties": {
+        "char_end": 183,
+        "char_start": 6,
+        "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Long Horizon Notes. Today we're talking about index investing, and I'm joined by Daniel, former bond trader turned index advocate. Daniel, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p05_e01.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:239feecd8319059a",
+      "id": "person:speaker-02",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "Before we dive in, a quick word from our sponsor Vanguard."
+        "name": "Daniel"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:7f22144da157055b",
+      "properties": {
+        "char_end": 289,
+        "char_start": 192,
+        "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Nora. Excited for this one \u2014 index investing is something I've been thinking about a lot.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p05_e01.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:2554331b77145529",
+      "id": "quote:bdf4183cfa40bcd2",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "Vanguard pioneered low-cost index funds and still keeps expense ratios where they belong."
+        "char_end": 480,
+        "char_start": 296,
+        "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we dive in, a quick word from our sponsor Vanguard. Vanguard pioneered low-cost index funds and still keeps expense ratios where they belong. Use code POD for an extended trial.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p05_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:f1e933d8a970384a",
+      "properties": {
+        "char_end": 600,
+        "char_start": 480,
+        "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+        "speaker_id": "person:speaker-01",
+        "text": "How do you know when you've gotten it right? Where do people most often confuse correlation with causation in this area?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p05_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:1e43fe1f0b3813d0",
+      "properties": {
+        "char_end": 829,
+        "char_start": 609,
+        "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+        "speaker_id": "person:speaker-02",
+        "text": "Honestly, Index funds are not a strategy \u2014 they're the absence of one. That's their advantage. We've seen this play out at teams using Morningstar. Most of the cost shows up downstream, which is why teams keep paying it.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p05_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:961b9e58286b9701",
+      "properties": {
+        "char_end": 937,
+        "char_start": 836,
+        "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+        "speaker_id": "person:speaker-01",
+        "text": "What does that look like day-to-day? What's the structural angle most listeners don't have access to?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p05_e01.txt"
       },
       "type": "Quote"
     }

@@ -481,10 +481,17 @@ class TestRSSToMetadataWorkflowML(_ComponentWorkflowBase):
                     self.assertIn("speakers", data["content"])
                     speakers = data["content"]["speakers"]
                     self.assertIsInstance(speakers, list)
-                    host_speakers = [s for s in speakers if s.get("role") == "host"]
-                    guest_speakers = [s for s in speakers if s.get("role") == "guest"]
-                    self.assertEqual(len(host_speakers), len(detected_hosts))
-                    self.assertIsInstance(guest_speakers, list)
+                    # content.speakers comes from the diarized roster when the gated diarization
+                    # model is available (the audio's self-introduced voices), otherwise from the
+                    # detected host/guest names — environment-dependent (CI's fast lane has no
+                    # HF_TOKEN), so assert the roster is well-formed and non-empty rather than
+                    # pinning a count. The exact #876 roster is asserted deterministically in the
+                    # unit test test_diarized_speakers_metadata.py and end-to-end in the
+                    # HF-gated tests/e2e/test_diarization_e2e.py.
+                    self.assertTrue(speakers, "content.speakers should be non-empty")
+                    for spk in speakers:
+                        self.assertIn(spk.get("role"), {"host", "guest"})
+                        self.assertTrue(spk.get("name"), f"speaker missing name: {spk}")
                 finally:
                     if hasattr(transcription_provider, "cleanup"):
                         transcription_provider.cleanup()
@@ -668,10 +675,16 @@ class TestRSSToMetadataWorkflowML(_ComponentWorkflowBase):
                         self.assertIn("speakers", data["content"])
                         speakers = data["content"]["speakers"]
                         self.assertIsInstance(speakers, list)
-                        host_speakers = [s for s in speakers if s.get("role") == "host"]
-                        guest_speakers = [s for s in speakers if s.get("role") == "guest"]
-                        self.assertEqual(len(host_speakers), len(detected_hosts))
-                        self.assertIsInstance(guest_speakers, list)
+                        # content.speakers comes from the diarized roster when the gated
+                        # diarization model is available, else from the detected host/guest names
+                        # — environment-dependent (CI's fast lane has no HF_TOKEN), so assert the
+                        # roster is well-formed and non-empty rather than pinning a count. Exact
+                        # #876 roster: unit test test_diarized_speakers_metadata.py + HF-gated
+                        # tests/e2e/test_diarization_e2e.py.
+                        self.assertTrue(speakers, "content.speakers should be non-empty")
+                        for spk in speakers:
+                            self.assertIn(spk.get("role"), {"host", "guest"})
+                            self.assertTrue(spk.get("name"), f"speaker missing name: {spk}")
 
                         self.assertIn("summary", data)
                         summary = data["summary"]
@@ -961,10 +974,15 @@ class TestMultipleComponentsWorkflowML(_ComponentWorkflowBase):
                 self.assertIn("speakers", data["content"])
                 speakers = data["content"]["speakers"]
                 self.assertIsInstance(speakers, list)
-                host_speakers = [s for s in speakers if s.get("role") == "host"]
-                guest_speakers = [s for s in speakers if s.get("role") == "guest"]
-                self.assertEqual(len(host_speakers), len(detected_hosts))
-                self.assertIsInstance(guest_speakers, list)
+                # content.speakers comes from the diarized roster when the gated diarization
+                # model is available, else from the detected host/guest names —
+                # environment-dependent, so assert the roster is well-formed and non-empty rather
+                # than pinning a count. Exact #876 roster: unit test
+                # test_diarized_speakers_metadata.py + HF-gated tests/e2e/test_diarization_e2e.py.
+                self.assertTrue(speakers, "content.speakers should be non-empty")
+                for spk in speakers:
+                    self.assertIn(spk.get("role"), {"host", "guest"})
+                    self.assertTrue(spk.get("name"), f"speaker missing name: {spk}")
 
                 self.assertIn("summary", data)
                 summary = data["summary"]

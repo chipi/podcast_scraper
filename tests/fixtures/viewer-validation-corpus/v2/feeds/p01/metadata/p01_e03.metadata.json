@@ -13,9 +13,31 @@
       "topic_id": "topic:gear"
     }
   ],
+  "content": {
+    "diarization_num_speakers": 3,
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Maya",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Noah",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p01_e03.txt",
+    "transcript_source": "synthetic"
+  },
   "episode": {
     "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
-    "published_date": "2026-06-03",
+    "published_date": "2026-06-11",
     "title": "Singletrack Sessions \u2014 Episode 3"
   },
   "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
@@ -40,7 +62,7 @@
     "artifact_path": "feeds/p01/metadata/p01_e03.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-06-03",
+  "publish_date": "2026-06-11",
   "schema_version": "1",
   "summary": {
     "bullets": [

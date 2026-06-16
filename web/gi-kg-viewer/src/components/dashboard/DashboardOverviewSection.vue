@@ -308,11 +308,7 @@ const corpusCatalogRefreshDisabled = computed(
           <button
             type="button"
             class="rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-overlay disabled:opacity-40"
-            :title="
-              indexStats.indexEnvelope?.reason === 'faiss_unavailable'
-                ? 'FAISS is not available on the server.'
-                : 'Run incremental indexing (podcast index) in the background.'
-            "
+            title="Run incremental indexing (podcast index) in the background."
             :disabled="indexStats.rebuildActionsDisabled"
             @click="indexStats.requestIndexRebuild(false)"
           >
@@ -408,12 +404,10 @@ const corpusCatalogRefreshDisabled = computed(
             <span class="font-medium text-surface-foreground">No index</span>
             —
             {{ indexStats.indexEnvelope.reason === 'no_index'
-              ? 'No FAISS data at the expected path (run corpus indexing).'
+              ? 'No search index at the expected path (run corpus indexing).'
               : indexStats.indexEnvelope.reason === 'no_corpus_path'
                 ? 'Set corpus root or start the server with --output-dir.'
-                : indexStats.indexEnvelope.reason === 'faiss_unavailable'
-                  ? 'FAISS is not installed in this Python environment.'
-                  : (indexStats.indexEnvelope.reason || 'Unavailable') }}
+                : (indexStats.indexEnvelope.reason || 'Unavailable') }}
           </p>
           <p
             v-if="indexStats.indexEnvelope.index_path"

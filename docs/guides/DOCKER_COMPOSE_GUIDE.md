@@ -142,7 +142,7 @@ A typical airgapped run on a laptop: ~60–90 s for one short episode (Whisper t
 
 - **Library** — feed/episode list with status badges and per-episode rails.
 - **Digest** — time-windowed summary of the latest episodes; honours the **All time** lens for static-date fixtures.
-- **Search** — semantic FAISS search (only when the active profile sets `vector_search: true` — `airgapped_thin` does, `cloud_thin` does not).
+- **Search** — semantic LanceDB search (only when the active profile sets `vector_search: true` — `airgapped_thin` does, `cloud_thin` does not).
 - **Graph** — Cytoscape graph of topics, entities, episodes, and bridges.
 
 ## Persistence
@@ -261,7 +261,7 @@ Two compose service profiles map to two image tiers:
 
 | Compose service | Image | Built by | Pipeline profile that uses it | Roughly |
 | --------------- | ----- | -------- | ----------------------------- | ------- |
-| `pipeline` | `podcast-scraper-stack-pipeline` (`INSTALL_EXTRAS=ml`) | `make stack-test-build` | `airgapped`, `airgapped_thin`, `local`, `dev`, `cloud_balanced`, `cloud_quality` (anything that needs local Whisper / spaCy / transformers / FAISS) | ~5 GB image; full local pipeline. |
+| `pipeline` | `podcast-scraper-stack-pipeline` (`INSTALL_EXTRAS=ml`) | `make stack-test-build` | `airgapped`, `airgapped_thin`, `local`, `dev`, `cloud_balanced`, `cloud_quality` (anything that needs local Whisper / spaCy / transformers / LanceDB) | ~5 GB image; full local pipeline. |
 | `pipeline-llm` | `podcast-scraper-stack-pipeline-llm` (`INSTALL_EXTRAS=llm`) | `make stack-test-build-cloud` | `cloud_thin` | ~500 MB image; cloud APIs only. |
 
 The mapping happens via `pipeline_install_extras` in the operator yaml — when you save a profile in the UI, the API writes `pipeline_install_extras: ml` or `llm`, then the next job spawn picks the right service.

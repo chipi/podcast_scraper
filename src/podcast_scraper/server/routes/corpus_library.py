@@ -451,7 +451,7 @@ async def corpus_episodes_similar(
     ),
     top_k: int = Query(default=8, ge=1, le=25, description="Max peer episodes after dedupe."),
 ) -> CorpusSimilarEpisodesResponse:
-    """Semantic peers via FAISS; 200 with ``error`` when index missing."""
+    """Semantic peers via the LanceDB index; 200 with ``error`` when index missing."""
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, anchor)
     target = _safe_metadata_path_str(root, metadata_relpath)

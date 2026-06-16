@@ -1,27 +1,22 @@
-# Two-tier hybrid search backend configuration (RFC-090 §3.10).
+# Two-tier hybrid search backend configuration (RFC-090 §3.10 / ADR-099).
 # NOTE: `backend` and `lancedb.path` below are RESERVED — the live serving path
-# (`search.hybrid_search`) currently instantiates LanceDB unconditionally at a
-# per-corpus path (`<corpus>/search/lance_index`), so it does not yet read these two
-# keys. `serving.hybrid_enabled` and the `router` block ARE read. Keep this in mind
-# until a backend factory honors `backend`.
+# (`search.hybrid_search`) instantiates LanceDB unconditionally at a per-corpus path
+# (`<corpus>/search/lance_index`), so it does not read these two keys. Only the
+# `router` block is read. Keep this in mind until a backend factory honors `backend`.
 
 backend: lancedb  # reserved: only LanceDB is implemented; not yet read by code
 
-# Live serving path (RFC-090 Phase 2). When hybrid_enabled is true AND a LanceDB
-# index exists for the corpus, GET /api/search routes through the two-tier hybrid
-# RetrievalLayer (BM25 + dense → RRF); otherwise it falls back to FAISS (so this can
-# never regress: flag off, no index, or any error → FAISS).
+# Live serving path (RFC-090 Phase 2 / ADR-099, #995). The LanceDB two-tier index is
+# the single search path — there is no toggle and no FAISS fallback. GET /api/search
+# routes through the two-tier hybrid RetrievalLayer (BM25 + dense → RRF); when no
+# usable index exists the response is `no_index`.
 #
-# DEFAULT ON (#874): the full-coverage aux tier (kg_entity/kg_topic/quote/summary)
-# closed the coverage gap that previously justified keeping this off, and a fair
-# LLM-judged eval found hybrid >= FAISS on every query class (decisively on
-# named-entity/exact-phrase, ~par on semantic). FAISS is retained as the switchable
-# fallback for airgapped/thin deployments. NOTE: KG-proximity is intentionally NOT
-# wired into RetrievalLayer here — it was empirically refuted as a retrieval signal
-# (see RFC-091 decision record); the KG's value is meaning-bearing relational edges
-# (Person->Insight, #874), not proximity ranking.
-serving:
-  hybrid_enabled: true
+# The full-coverage aux tier (kg_entity/kg_topic/quote/summary) spans every doc type.
+# A fair LLM-judged eval found hybrid >= the old FAISS path on every query class
+# (decisively on named-entity/exact-phrase, ~par on semantic), which justified retiring
+# FAISS (#995). NOTE: KG-proximity is intentionally NOT wired into RetrievalLayer here —
+# it was empirically refuted as a retrieval signal (see RFC-091 decision record); the
+# KG's value is meaning-bearing relational edges (Person->Insight, #874), not proximity.
 
 lancedb:
   path: ./data/lance_index  # reserved: live path is <corpus>/search/lance_index (not read)

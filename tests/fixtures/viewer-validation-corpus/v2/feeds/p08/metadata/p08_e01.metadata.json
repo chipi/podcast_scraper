@@ -13,9 +13,31 @@
       "topic_id": "topic:technology"
     }
   ],
+  "content": {
+    "diarization_num_speakers": 3,
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Alex Morgan",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Dr. Elena Fischer",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p08_e01.txt",
+    "transcript_source": "synthetic"
+  },
   "episode": {
     "episode_id": "15a1cbea-1449-50ac-bb1c-11784d7421c3",
-    "published_date": "2026-06-06",
+    "published_date": "2026-06-14",
     "title": "The Long View \u2014 Episode 1"
   },
   "episode_id": "15a1cbea-1449-50ac-bb1c-11784d7421c3",
@@ -40,7 +62,7 @@
     "artifact_path": "feeds/p08/metadata/p08_e01.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-06-06",
+  "publish_date": "2026-06-14",
   "schema_version": "1",
   "summary": {
     "bullets": [

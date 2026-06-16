@@ -1,18 +1,15 @@
-"""Hybrid retrieval bridge for the live search path (RFC-090 Phase 2 / wire-live).
+"""Hybrid retrieval bridge for the live search path (RFC-090 Phase 2 / ADR-099).
 
-Connects the dormant two-tier stack (``RetrievalLayer`` over ``LanceDBBackend``,
-#855-861) to the serving path (``corpus_search.run_corpus_search``) without changing
-the response contract: hybrid candidates are mapped to the same ``SearchResult``
-shape the FAISS path produces, then run through the *identical* filter/enrich/lift
-pipeline.
+Connects the two-tier stack (``RetrievalLayer`` over ``LanceDBBackend``, #855-861) to
+the serving path (``corpus_search.run_corpus_search``): hybrid candidates are mapped to
+the ``SearchResult`` shape, then run through the filter/enrich/lift pipeline.
 
-**Opt-in and non-regressing.** It activates only when ``serving.hybrid_enabled`` is
-true in ``config/search.yaml`` (default false) *and* a LanceDB index exists for the
-corpus. Any miss — flag off, no index, embed failure — returns ``None`` so the caller
-falls back to FAISS. This matters because the two-tier index covers only the
-*insight* and *segment* (transcript) tiers; kg_entity / kg_topic / quote / summary
-still live only in FAISS, so flipping hybrid on narrows coverage to those two tiers
-by design. Full-coverage hybrid (kg/quote tiers in LanceDB) is a follow-up.
+**Always-on, single index.** Since FAISS was retired (#995, ADR-099) the LanceDB
+two-tier index is the only search path; there is no toggle. The segment + insight
+tiers cover transcript and insight docs, and the *aux* tier covers kg_entity /
+kg_topic / quote / summary, so the index spans every doc type. ``hybrid_candidates``
+returns ``None`` only when there is no usable index (no index, embed failure, dim
+mismatch); the caller then reports ``no_index`` (there is no FAISS fallback).
 """
 
 from __future__ import annotations
@@ -40,7 +37,6 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
 logger = logging.getLogger(__name__)
 
 _DEFAULT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-_TRUTHY = {"1", "true", "yes", "on"}
 
 
 def _search_config_path() -> Optional[Path]:
@@ -67,19 +63,6 @@ def _load_search_config() -> Dict[str, Any]:
     except (OSError, yaml.YAMLError):
         return {}
     return doc if isinstance(doc, dict) else {}
-
-
-def hybrid_search_enabled() -> bool:
-    """True when hybrid is enabled via env (``PODCAST_HYBRID_SEARCH``) or config.
-
-    The env override exists so an operator can enable hybrid in a container where the
-    config file may not be on the CWD path (audit H1).
-    """
-    env = os.getenv("PODCAST_HYBRID_SEARCH")
-    if env is not None:
-        return env.strip().lower() in _TRUTHY
-    serving = _load_search_config().get("serving")
-    return bool(isinstance(serving, dict) and serving.get("hybrid_enabled"))
 
 
 def _serving_router() -> "Optional[QueryRouter]":
@@ -115,7 +98,7 @@ def _tier_for(doc_types: Optional[Sequence[str]]) -> Tier:
 
 
 def _doc_type_for_result(result: ScoredResult, payload: Dict) -> str:
-    # Segment = transcript in the FAISS vocab; aux rows carry their own doc_type.
+    # Segment = transcript; aux rows carry their own doc_type.
     if result.source_tier == "insight":
         return "insight"
     if result.source_tier == "aux":
@@ -137,12 +120,12 @@ def _to_search_result(result: ScoredResult) -> SearchResult:
         metadata["timestamp_end_ms"] = int(float(payload.get("end_time") or 0.0) * 1000)
     if payload.get("speaker_id"):
         metadata["speaker_id"] = payload["speaker_id"]
-    # Carry the episode publish date (parity with FAISS rows) so the shared
-    # date/``since`` filter — and digest topic-band window join — work on the
-    # hybrid path. Without it, every hybrid hit is dropped whenever ``since`` is set.
+    # Carry the episode publish date so the shared date/``since`` filter — and the
+    # digest topic-band window join — work on the hybrid path. Without it, every
+    # hybrid hit is dropped whenever ``since`` is set.
     if payload.get("publish_date"):
         metadata["publish_date"] = payload["publish_date"]
-    # Canonical graph node id (parity with FAISS) so a result's "Show on graph"
+    # Canonical graph node id so a result's "Show on graph"
     # affordance resolves — the viewer reads metadata.source_id for focusable tiers
     # (insight / quote / kg_topic / kg_entity). Absent it, no graph handoff renders.
     if payload.get("source_id"):
@@ -166,13 +149,19 @@ def hybrid_candidates(
     top_k: int,
     doc_types: Optional[Sequence[str]] = None,
     embedding_model: Optional[str] = None,
-    fetch_multiplier: int = 25,
+    # ADR-099 Stage 2 (#995): the ×25 over-fetch was an in-memory-index habit — cheap to pull 600
+    # rows from an in-memory array, then filter in Python. On the database it dominates cost
+    # (limit 600 ≈ 0.37s vs limit 100 ≈ 0.09s per query). Native in-engine RRF fusion needs
+    # far fewer candidates; ×6 keeps enough headroom for the downstream type/feed/since
+    # filters in ``_filter_and_enrich`` while cutting the per-query cost ~4×.
+    fetch_multiplier: int = 6,
 ) -> Optional[List[SearchResult]]:
-    """Hybrid candidates as ``SearchResult`` rows, or ``None`` to fall back to FAISS.
+    """Hybrid candidates as ``SearchResult`` rows, or ``None`` when there is no usable index.
 
-    Returns ``None`` (not an empty list) on any condition that should defer to FAISS:
-    missing LanceDB index or a query-embedding failure. An empty list means the index
-    was searched and genuinely had no hits.
+    Returns ``None`` (not an empty list) when the index cannot serve the query: missing
+    LanceDB index, a stale schema, or a query-embedding failure — the caller then reports
+    ``no_index`` (FAISS was retired, #995; there is no fallback). An empty list means the
+    index was searched and genuinely had no hits.
     """
     # py/path-injection sanitizer chain (CodeQL Type 1, docs/ci/CODEQL_DISMISSALS.md;
     # mirrors jobs_log_path): resolve the corpus dir, confine the CONSTANT index subpath
@@ -195,7 +184,7 @@ def hybrid_candidates(
 
     # Self-healing schema guard: an index built before a schema bump lacks columns the
     # read path expects (e.g. publish_date → date filters silently drop every hit), so
-    # skip it and serve via FAISS until a (re)index moment rebuilds it.
+    # skip it (report no_index) until a (re)index moment rebuilds it.
     from .backends.lancedb_backend import (
         lance_index_is_stale,
         LANCE_SCHEMA_VERSION,
@@ -204,8 +193,8 @@ def hybrid_candidates(
 
     if lance_index_is_stale(index_dir):
         logger.warning(
-            "hybrid_search: lance index at %s has a stale schema (v%s < v%s); falling "
-            "back to FAISS — rebuild via `cli index-two-tier` or `cli upgrade`",
+            "hybrid_search: lance index at %s has a stale schema (v%s < v%s); reporting "
+            "no_index — rebuild via `cli index-two-tier` or `cli upgrade`",
             index_dir,
             stored_schema_version(index_dir),
             LANCE_SCHEMA_VERSION,
@@ -214,11 +203,15 @@ def hybrid_candidates(
 
     try:
         from .backends.lancedb_backend import LanceDBBackend
+        from .index_pool import get_lance_backend
         from .retrieval import RetrievalLayer
 
-        backend = LanceDBBackend(str(index_dir))
-    except Exception as exc:  # noqa: BLE001 - cannot open index → FAISS fallback
-        logger.warning("hybrid_search open failed (%s); falling back to FAISS", exc)
+        # ADR-099 / #995: reuse one warm backend per index_dir instead of opening the
+        # LanceDB connection + index readers on every query (~0.8 s) — the query on a
+        # warm table is ~7 ms. Pooling also removes the concurrent-cold-init segfault.
+        backend = get_lance_backend(index_dir, lambda: LanceDBBackend(str(index_dir)))
+    except Exception as exc:  # noqa: BLE001 - cannot open index → report no_index
+        logger.warning("hybrid_search open failed (%s); reporting no_index", exc)
         return None
 
     # Embed the query in the SAME space the index was built in: explicit override >
@@ -240,8 +233,8 @@ def hybrid_candidates(
             remote_endpoint=_cfg.vector_embedding_endpoint,
             provider=_cfg.vector_embedding_provider,
         )
-    except Exception as exc:  # noqa: BLE001 - any embed failure → FAISS fallback
-        logger.warning("hybrid_search embed failed (%s); falling back to FAISS", exc)
+    except Exception as exc:  # noqa: BLE001 - any embed failure → report no_index
+        logger.warning("hybrid_search embed failed (%s); reporting no_index", exc)
         return None
     if not (isinstance(qvec, list) and qvec and isinstance(qvec[0], float)):
         return None
@@ -250,7 +243,7 @@ def hybrid_candidates(
     expected_dim = meta.get("embed_dim")
     if isinstance(expected_dim, int) and len(qemb) != expected_dim:
         logger.warning(
-            "hybrid_search dim mismatch (query %d != index %d for model %s); FAISS fallback",
+            "hybrid_search dim mismatch (query %d != index %d for model %s); no_index",
             len(qemb),
             expected_dim,
             model_id,
@@ -261,8 +254,8 @@ def hybrid_candidates(
         layer = RetrievalLayer(backend, router=_serving_router())
         fetch_k = max(top_k * fetch_multiplier, top_k)
         results = layer.retrieve(query, qemb, k=fetch_k, tier=_tier_for(doc_types))
-    except Exception as exc:  # noqa: BLE001 - backend/index error → FAISS fallback
-        logger.warning("hybrid_search retrieve failed (%s); falling back to FAISS", exc)
+    except Exception as exc:  # noqa: BLE001 - backend/index error → report no_index
+        logger.warning("hybrid_search retrieve failed (%s); reporting no_index", exc)
         return None
 
     rows: List[SearchResult] = []

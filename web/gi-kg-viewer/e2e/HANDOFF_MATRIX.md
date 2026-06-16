@@ -228,7 +228,7 @@ Distribution:
 `e2e/validation/handoff-matrix-real-corpus.spec.ts` extends matrix
 coverage end-to-end against a real `make serve` stack and an on-disk
 operator corpus. Catches behaviours that depend on real-backend timing,
-real Cytoscape layout, or real-FAISS-derived content — things mock-driven
+real Cytoscape layout, or real-search-derived content — things mock-driven
 Tier-1/2 can't faithfully reproduce.
 
 Covered: P1.1–P1.3, P1.5, P1.6, P1.8, P1.10, P1.12, P1.13, P2.1–P2.6,

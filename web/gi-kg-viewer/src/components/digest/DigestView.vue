@@ -873,7 +873,7 @@ onBeforeUnmount(() => {
                 ``topic:<editorial-slug>`` that the FSM cannot resolve.
                 Render as static text; the "Search topic" button next to
                 it remains as the actionable affordance (runs the query
-                via FAISS to surface real, focusable hits).
+                via semantic search to surface real, focusable hits).
               -->
               <span
                 class="min-w-0 flex-1 px-0.5 py-0.5 text-left"

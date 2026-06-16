@@ -111,7 +111,7 @@ flags. Changing `corpusPath` triggers cascading refreshes across stores
 
   explore  ────────────>  (NL + filtered explore, insights, leaderboard)
 
-  indexStats  ─────────>  (FAISS index envelope, rebuild polling)
+  indexStats  ─────────>  (search index envelope, rebuild polling)
        \__ uses shell (corpus path, health gating)
 
   subject      ────────>  (which subject kind, metadata path, graph node id, …)

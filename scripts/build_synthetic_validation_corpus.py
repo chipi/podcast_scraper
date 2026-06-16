@@ -7,15 +7,19 @@ schema-valid corpus from ``tests/fixtures/rss/*.xml`` + matching
 so CI / scheduled GHA can run Tier-3 validation against a stable,
 version-pinned corpus without external dependencies or operator setup.
 
-This corpus is **synthetic, low-fidelity**. The text fixtures have low
-cross-episode topic intermingling, so this catches:
+This corpus is **synthetic** but production-shaped: it carries diarized
+two-artifact transcripts (raw screenplay + ad-free sidecars), GI Person
+nodes + SPOKEN_BY/SUPPORTED_BY edges, and a metadata content block
+(#876/#974), so a real LanceDB build indexes real transcript segments.
+It catches:
   - Schema regressions (endpoints return wrong shape)
   - Empty-state bugs (digest/dashboard with sparse data)
   - Per-episode handoff contract (cold-start Library, Episode panel)
-It does NOT catch:
+  - Real LanceDB indexing + hybrid search over transcript segments (V3),
+    diarized speakers + SPOKEN_BY in the graph
+It does NOT catch (text fixtures have low cross-episode intermingling):
   - Cross-episode topic-cluster supersession bugs (need richer mock data)
   - KG-second-wave timing at production scale
-  - Real-vector-index search
 
 Usage:
     python scripts/build_synthetic_validation_corpus.py \\
@@ -169,15 +173,152 @@ def short_hash(text: str, n: int = 16) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:n]
 
 
+# --- Diarization / transcript synthesis (#876 / #974) -----------------------
+# The validation corpus must resemble a real reprocessed corpus: diarized
+# screenplay transcripts (raw + ad-free two-artifact), Person nodes, Quotes
+# carrying ``speaker_id`` + char offsets + timestamps, and SPOKEN_BY edges.
+# Without these the Tier-3 walk can't exercise the migration's graph/transcript
+# elements (it would index 0 transcript segments and have no speakers).
+
+
+def parse_diarized_segments(
+    transcript_path: Path,
+) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+    """Parse a diarized-screenplay fixture into (segments, speakers).
+
+    The text fixtures are screenplays: a header (``# title``, ``Host: X``,
+    ``Guest: Y``) followed by ``Name: utterance`` lines (optionally with
+    ``[mm:ss]`` markers). Returns segments ``[{start, end, speaker_label, text}]``
+    with synthetic monotonic timestamps, plus a speaker roster
+    ``[{id, name, role}]`` (host/guest from the header).
+    """
+    try:
+        raw = transcript_path.read_text(encoding="utf-8")
+    except Exception as exc:  # noqa: BLE001
+        print(f"  warn: failed to read {transcript_path.name}: {exc}")
+        return [], []
+
+    host_name: str | None = None
+    guest_names: list[str] = []
+    segments: list[dict[str, Any]] = []
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        mh = re.match(r"^Host:\s*(.+)$", line)
+        if mh:
+            host_name = mh.group(1).strip()
+            continue
+        mg = re.match(r"^Guests?:\s*(.+)$", line)
+        if mg:
+            guest_names = [g.strip() for g in re.split(r"[,&]", mg.group(1)) if g.strip()]
+            continue
+        # Drop a leading [mm:ss] / mm:ss timestamp marker if present.
+        line = re.sub(r"^\[?\d{1,2}:\d{2}\]?\s*", "", line)
+        m = re.match(r"^([A-Z][A-Za-z0-9 .'\-]{0,40}):\s+(.+)$", line)
+        if not m:
+            continue
+        speaker = m.group(1).strip()
+        text = m.group(2).strip()
+        if text:
+            segments.append({"speaker_label": speaker, "text": text})
+
+    # Synthetic monotonic timestamps (~6s per turn) so ordering + ms are stable.
+    for i, seg in enumerate(segments):
+        seg["start"] = float(i * 6)
+        seg["end"] = float(i * 6 + 6)
+
+    # Roster: unique speakers in first-seen order, role from the header.
+    roster: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for seg in segments:
+        label = seg["speaker_label"]
+        if label in seen:
+            continue
+        seen.add(label)
+        if host_name and label == host_name:
+            role = "host"
+        elif label in guest_names:
+            role = "guest"
+        else:
+            role = "host" if not roster else "guest"
+        roster.append({"id": f"speaker_{len(roster) + 1}", "name": label, "role": role})
+    return segments, roster
+
+
+def format_screenplay_with_offsets(
+    segments: list[dict[str, Any]],
+) -> tuple[str, list[dict[str, Any]]]:
+    """Self-contained mirror of the pipeline screenplay formatter.
+
+    Returns ``(text, offset_segments)`` where each offset segment carries
+    ``char_start`` / ``char_end`` such that ``text[char_start:char_end] == text``.
+    Kept inline so this fixture generator stays dependency-light (no ML imports).
+    """
+    parts: list[str] = []
+    out: list[dict[str, Any]] = []
+    cursor = 0
+    prev_label: str | None = None
+
+    def emit(fragment: str) -> int:
+        nonlocal cursor
+        start = cursor
+        parts.append(fragment)
+        cursor += len(fragment)
+        return start
+
+    for seg in sorted(segments, key=lambda s: float(s.get("start") or 0.0)):
+        text = (seg.get("text") or "").strip()
+        if not text:
+            continue
+        label = str(seg.get("speaker_label") or seg.get("speaker") or "SPEAKER")
+        if label != prev_label:
+            if prev_label is not None:
+                emit("\n")
+            emit(f"{label}: ")
+            prev_label = label
+        char_start = emit(text)
+        out.append(
+            {
+                "start": float(seg.get("start") or 0.0),
+                "end": float(seg.get("end") or 0.0),
+                "speaker_label": label,
+                "text": text,
+                "char_start": char_start,
+                "char_end": cursor,
+            }
+        )
+    if prev_label is not None:
+        emit("\n")
+    return "".join(parts), out
+
+
+def person_id_for(label: str, roster: list[dict[str, str]]) -> str:
+    """Stable Person node id for a speaker label, e.g. ``person:speaker-01``."""
+    for i, sp in enumerate(roster):
+        if sp["name"] == label:
+            return f"person:speaker-{i + 1:02d}"
+    return f"person:speaker-{(len(roster) + 1):02d}"
+
+
 def build_gi(
     episode_id: str,
     podcast_id: str,
     title: str,
     publish_date: str,
     excerpts: dict[str, list[str]],
+    quote_segments: list[dict[str, Any]],
+    roster: list[dict[str, str]],
+    transcript_ref: str,
     metadata_relative_path: str | None = None,
 ) -> dict[str, Any]:
-    """Build a minimal GI artifact matching the pipeline schema."""
+    """Build a GI artifact matching the pipeline schema, with diarization (#876/#974).
+
+    Quotes are grounded in the diarized transcript: each carries ``speaker_id`` +
+    ``char_start`` / ``char_end`` (into the ad-free transcript) + timestamps, with a
+    Person node per speaker and a SPOKEN_BY edge (quote → person). Insights link to
+    quotes via SUPPORTED_BY (matching real GI).
+    """
     ep_node_id = f"episode:{episode_id}"
     ep_props: dict[str, Any] = {
         "podcast_id": podcast_id,
@@ -211,8 +352,10 @@ def build_gi(
             }
         )
         edges.append({"type": "MENTIONS", "from": ep_node_id, "to": tid})
+    insight_ids: list[str] = []
     for txt in excerpts["insights"]:
         iid = f"insight:{short_hash(txt)}"
+        insight_ids.append(iid)
         nodes.append(
             {
                 "id": iid,
@@ -221,16 +364,47 @@ def build_gi(
             }
         )
         edges.append({"type": "HAS_INSIGHT", "from": ep_node_id, "to": iid})
-    for txt in excerpts["quotes"]:
-        qid = f"quote:{short_hash(txt)}"
+
+    # Person nodes for every speaker that actually appears in a quote.
+    persons_emitted: set[str] = set()
+    # Diarized Quotes grounded in the ad-free transcript. Cap at a handful so the
+    # artifact stays small but each speaker is represented.
+    quote_budget = quote_segments[:6]
+    for qi, seg in enumerate(quote_budget):
+        label = str(seg.get("speaker_label") or "SPEAKER")
+        pid = person_id_for(label, roster)
+        if pid not in persons_emitted:
+            persons_emitted.add(pid)
+            nodes.append({"id": pid, "type": "Person", "properties": {"name": label}})
+        qtext = str(seg.get("text") or "").strip()
+        qid = f"quote:{short_hash(f'{episode_id}:{qi}:{qtext}')}"
         nodes.append(
             {
                 "id": qid,
                 "type": "Quote",
-                "properties": {"text": txt, "speaker": "Speaker 1"},
+                "properties": {
+                    "text": qtext,
+                    "episode_id": episode_id,
+                    "speaker_id": pid,
+                    "char_start": int(seg.get("char_start") or 0),
+                    "char_end": int(seg.get("char_end") or 0),
+                    "timestamp_start_ms": int(float(seg.get("start") or 0.0) * 1000),
+                    "timestamp_end_ms": int(float(seg.get("end") or 0.0) * 1000),
+                    "transcript_ref": transcript_ref,
+                },
             }
         )
-        edges.append({"type": "HAS_QUOTE", "from": ep_node_id, "to": qid})
+        # quote → person (diarized speaker attribution)
+        edges.append({"type": "SPOKEN_BY", "from": qid, "to": pid})
+        # insight → quote (evidence grounding), cycling through insights
+        if insight_ids:
+            edges.append(
+                {
+                    "type": "SUPPORTED_BY",
+                    "from": insight_ids[qi % len(insight_ids)],
+                    "to": qid,
+                }
+            )
     return {
         "schema_version": "2",
         "model_version": "synthetic-validation-corpus-v1",
@@ -406,12 +580,25 @@ def main() -> int:
             excerpts["topics"] = (
                 umbrellas + [headline_topic] + excerpts["topics"][: max(0, 3 - len(umbrellas) - 1)]
             )
+            # #876/#974 — synthesize a diarized two-artifact transcript so the
+            # corpus resembles a real reprocessed one: raw screenplay + ad-free
+            # sidecars, indexed transcript segments, and diarized graph quotes.
+            diar_segments, roster = parse_diarized_segments(transcript_path)
+            raw_text, offset_segs = format_screenplay_with_offsets(diar_segments)
+            # Synthetic transcripts carry no ad regions → the ad-free base is the
+            # identity of the raw screenplay (a valid processing base, #974).
+            adfree_text, adfree_segs = raw_text, offset_segs
+            transcript_rel_eproot = f"transcripts/{ep_label}.txt"  # relative to episode root
+
             gi = build_gi(
                 ep_uuid,
                 podcast_id,
                 title,
                 publish + "T12:00:00",
                 excerpts,
+                quote_segments=adfree_segs,
+                roster=roster,
+                transcript_ref=transcript_rel_eproot,
                 metadata_relative_path=metadata_rel,
             )
             kg = build_kg(ep_uuid, title, excerpts, metadata_relative_path=metadata_rel)
@@ -428,6 +615,27 @@ def main() -> int:
             gi_full.parent.mkdir(parents=True, exist_ok=True)
             gi_full.write_text(json.dumps(gi, indent=2, sort_keys=True) + "\n")
             kg_full.write_text(json.dumps(kg, indent=2, sort_keys=True) + "\n")
+
+            # Two-artifact transcript (#974): raw screenplay + ad-free sidecars,
+            # laid out under <episode_root>/transcripts/ so the indexer's
+            # ``_transcript_path`` resolves them (it prefers the .adfree.txt base)
+            # and produces transcript segments — the segment search tier.
+            tr_dir = out / f"feeds/{feed_prefix}/transcripts"
+            tr_dir.mkdir(parents=True, exist_ok=True)
+            (tr_dir / f"{ep_label}.txt").write_text(raw_text, encoding="utf-8")
+            (tr_dir / f"{ep_label}.adfree.txt").write_text(adfree_text, encoding="utf-8")
+            (tr_dir / f"{ep_label}.adfree.segments.json").write_text(
+                json.dumps(adfree_segs, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+            (tr_dir / f"{ep_label}.adfree.admap.json").write_text(
+                json.dumps(
+                    {"excised_ranges": [], "chars_removed": 0, "schema_version": "1"},
+                    indent=2,
+                    sort_keys=True,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
             # bridge.json — required by
             # ``build_cil_digest_topics_for_row`` in the API server. Without
             # one, ``cil_digest_topics`` is empty in the digest response,
@@ -485,6 +693,14 @@ def main() -> int:
                             "title": feed_meta["display_title"],
                             "url": feed_meta["rss_url"],
                             "description": feed_meta["description"],
+                        },
+                        # #876/#974 — content block carrying the diarized two-artifact
+                        # transcript pointer + speaker roster, as a real corpus has.
+                        "content": {
+                            "transcript_file_path": transcript_rel_eproot,
+                            "transcript_source": "synthetic",
+                            "speakers": roster,
+                            "diarization_num_speakers": len(roster),
                         },
                         "grounded_insights": {
                             "artifact_path": gi_rel,

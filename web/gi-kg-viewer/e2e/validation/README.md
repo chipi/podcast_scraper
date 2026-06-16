@@ -31,7 +31,7 @@ Screenshots land in `web/gi-kg-viewer/validation-results/v*.png`.
 | V3 | Search "Show on graph" | Requires real vector index — skip if `index_stats.available=false` |
 | V4 | Dashboard topic-cluster chip | Compound parent selected, camera centered |
 | V5 | Hot-state Library → Library | Second click supersedes cleanly within 15 s |
-| V6 | Search backend provenance | `GET /api/search` is served by the LanceDB hybrid, not the FAISS fallback — asserts the RRF score signature (`max(score) < 0.1`, vs FAISS cosine ≈ 1.0), `source_tier` on every hit, and `lift_stats`/`query_type` present. Catches a stale/broken `lance_index` that silently degrades to FAISS. |
+| V6 | Search backend provenance | `GET /api/search` is served by the LanceDB two-tier hybrid (the only backend), not a degraded single-signal path — asserts the RRF score signature (`max(score) < 0.1`), `source_tier` on every hit, and `lift_stats`/`query_type` present. Catches a stale/broken `lance_index`. |
 
 The companion file `handoff-matrix-real-corpus.spec.ts` extends Tier-3
 to **29 of the 41 `HANDOFF_MATRIX.md` rows** (V1–V5 plus P1.3, P1.6,

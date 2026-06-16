@@ -1,4 +1,4 @@
-"""POST /api/index/rebuild — background FAISS index update (GitHub #507 follow-up)."""
+"""POST /api/index/rebuild — background LanceDB index update (GitHub #507 follow-up)."""
 
 from __future__ import annotations
 
@@ -41,7 +41,6 @@ def _spawn_rebuild_thread(
     rebuild: bool,
     vector_index_path: Optional[str],
     vector_embedding_model: Optional[str],
-    vector_faiss_index_mode: Optional[str],
     vector_index_types: Optional[List[str]],
     gate: CorpusRebuildGate,
 ) -> None:
@@ -52,7 +51,6 @@ def _spawn_rebuild_thread(
             output_dir,
             vector_index_path=vector_index_path,
             vector_embedding_model=vector_embedding_model,
-            vector_faiss_index_mode=vector_faiss_index_mode,
             vector_index_types=vector_index_types,
         )
         index_corpus(output_dir, cfg, rebuild=rebuild)
@@ -78,7 +76,7 @@ async def trigger_index_rebuild(
     ),
     rebuild: bool = Query(
         default=False,
-        description="If true, delete existing FAISS dir and rebuild from scratch.",
+        description="If true, delete the existing index dir and rebuild from scratch.",
     ),
     embedding_model: str | None = Query(
         default=None,
@@ -88,10 +86,6 @@ async def trigger_index_rebuild(
         default=None,
         description="Optional relative or absolute vector index directory override.",
     ),
-    vector_faiss_index_mode: str | None = Query(
-        default=None,
-        description="Optional FAISS mode: auto, flat, ivf_flat, ivfpq.",
-    ),
     vector_index_types: str | None = Query(
         default=None,
         description="Comma-separated doc types to embed (optional).",
@@ -99,11 +93,11 @@ async def trigger_index_rebuild(
 ) -> IndexRebuildAccepted:
     """Queue an incremental (or full) index build; poll ``GET /api/index/stats`` for progress."""
     try:
-        import podcast_scraper.search.faiss_store  # noqa: F401
+        import lancedb  # noqa: F401
     except ImportError:
         raise HTTPException(
             status_code=503,
-            detail="FAISS is not available in this Python environment.",
+            detail="LanceDB is not available in this Python environment.",
         ) from None
 
     fallback = getattr(request.app.state, "output_dir", None)
@@ -132,7 +126,6 @@ async def trigger_index_rebuild(
             "rebuild": rebuild,
             "vector_index_path": vector_index_path,
             "vector_embedding_model": embedding_model,
-            "vector_faiss_index_mode": vector_faiss_index_mode,
             "vector_index_types": vit,
             "gate": gate,
         },

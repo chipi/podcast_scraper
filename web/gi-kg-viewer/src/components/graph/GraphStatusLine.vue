@@ -10,6 +10,7 @@ import {
   graphLensActivePreset,
   graphLensSummaryLabel,
 } from '../../utils/graphLensLabels'
+import { GRAPH_DEFAULT_EPISODE_CAP } from '../../utils/graphEpisodeSelection'
 import { weaklyConnectedComponentCount } from '../../utils/graphWeakComponents'
 
 /** ``summary`` — counts text only (top of graph card). ``controls`` — lens presets + Reset (bottom bar). */
@@ -211,7 +212,7 @@ const summaryRootClass = computed(() =>
             : 'rounded border border-border bg-surface px-2 py-0.5 text-[10px] font-medium text-surface-foreground hover:bg-overlay/40 disabled:cursor-not-allowed disabled:opacity-40'
         "
         data-testid="graph-status-reset"
-        title="Clear cross-episode expansions, restore the default time slice (15 episodes max), and fit the graph"
+        :title="`Clear cross-episode expansions, restore the default time slice (${GRAPH_DEFAULT_EPISODE_CAP} episodes max), and fit the graph`"
         @click="onRequestGraphFullReset"
       >
         Reset

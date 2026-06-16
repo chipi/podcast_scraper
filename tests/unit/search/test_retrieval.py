@@ -136,3 +136,41 @@ def test_retrieval_single_signal_skips_fusion():
 def test_retrieval_classify_helper():
     layer = RetrievalLayer(_FakeBackend([], []))
     assert layer.classify("Sam Altman") == "entity_lookup"
+
+
+class _FakeHybridBackend:
+    """Backend exposing native ``search_hybrid`` (ADR-099 Stage 2)."""
+
+    def __init__(self, hybrid):
+        self._hybrid = hybrid
+        self.bm25_called = False
+        self.vector_called = False
+
+    def search_hybrid(self, query):
+        return list(self._hybrid)
+
+    def search_bm25(self, query):
+        self.bm25_called = True
+        return []
+
+    def search_vector(self, query):
+        self.vector_called = True
+        return []
+
+
+def test_retrieval_uses_native_hybrid_when_available():
+    # ADR-099 Stage 2 (#995): the default hybrid signal uses the backend's in-engine
+    # search_hybrid and does NOT fan out to the Python bm25+vector+RRF path.
+    hits = [_sr("a", 1, "hybrid", "segment"), _sr("b", 2, "hybrid", "insight")]
+    be = _FakeHybridBackend(hits)
+    out = RetrievalLayer(be).retrieve("query", [0.1, 0.2])  # signals="hybrid" (default)
+    assert [r.doc_id for r in out] == ["a", "b"]
+    assert not be.bm25_called and not be.vector_called  # native path, no fan-out
+
+
+def test_retrieval_explicit_bm25_signal_bypasses_native_hybrid():
+    # An explicit single-signal request still uses the fan-out methods even when
+    # search_hybrid exists (native hybrid is only for the default hybrid signal).
+    be = _FakeHybridBackend([])
+    RetrievalLayer(be).retrieve("query", [0.1], signals="bm25")
+    assert be.bm25_called and not be.vector_called

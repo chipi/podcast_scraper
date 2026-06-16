@@ -82,7 +82,6 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # --- GI / KG / vector index (copy from config/manual/manual_multi_feed_corpus_rss_registry_openai_gemini.yaml) ---
 # (generate_gi / gi_insight_source / gi_max_insights / generate_kg / kg_* are set active above.)
 # vector_search: true
-# vector_backend: faiss
 
 # Grounded Insights (GIL) - optional; when enabled, writes gi.json per episode (see docs/guides/GROUNDED_INSIGHTS_GUIDE.md)
 # generate_gi: false  # Set true to run GIL extraction after transcript/speaker detection
@@ -96,21 +95,20 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # nli_model: cross-encoder/nli-deberta-v3-base  # Or alias: nli-deberta-base
 # nli_device: null
 
-# Semantic corpus search (PRD-021): FAISS index over GIL, summaries, transcripts
+# Semantic corpus search (PRD-021 / RFC-090): LanceDB two-tier index over GIL, summaries, transcripts
 # vector_search: false  # Default off. When true, pipeline runs embed-and-index after finalize
-# vector_backend: faiss  # Only value accepted today; qdrant reserved for a future vector backend (re-added to Literal when wired)
 # vector_index_path: null  # Optional; relative → under output_dir. Default: search/ → <output_dir>/search/
 # vector_embedding_model: minilm-l6  # Registry alias or full sentence-transformers id (see ModelRegistry)
 # vector_index_types: null  # Optional list: insight, quote, summary, transcript, kg_topic, kg_entity (default: all)
-# vector_faiss_index_mode: auto  # auto | flat | ivf_flat | ivfpq (#484 corpus-size thresholds when auto)
 # vector_chunk_size_tokens: 300  # Transcript chunk target (must be > vector_chunk_overlap_tokens)
 # vector_chunk_overlap_tokens: 50  # Overlap between consecutive transcript chunks
+# vector_upsert_batch_size: 512  # Rows per LanceDB merge_insert flush during index build (fewer/bigger = fewer fragments, more memory)
 # skip_auto_vector_index: false  # Advanced: when true, pipeline skips auto index even if vector_search
 #   is on (multi-feed runs set this per-feed and build one parent index after the batch — GitHub #505).
 # After a run: `python -m podcast_scraper.cli index --output-dir <out>` to rebuild; `... search ...`
 # for queries. With an index, `gi explore --topic` uses vectors first. Guide: docs/guides/SEMANTIC_SEARCH_GUIDE.md
 # Optional corpus topic clusters (not part of the main pipeline): after `vector_search` produced
-# `search/vectors.faiss`, run `python -m podcast_scraper.cli topic-clusters --output-dir <corpus_parent>`
+# `search/lance_index`, run `python -m podcast_scraper.cli topic-clusters --output-dir <corpus_parent>`
 # to write `search/topic_clusters.json` for the viewer overlay. See docs/guides/SEMANTIC_SEARCH_GUIDE.md
 # Multi-feed corpus parent: point `index` / `search` / `gi explore` / `serve` at the same parent that
 # contains `feeds/`; discovery is recursive under each feed tree (GitHub #505).

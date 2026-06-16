@@ -141,6 +141,9 @@ except Exception:
 # GIL evidence stack defaults
 # Used when generate_gi is enabled; loaders resolve aliases via model_registry.
 DEFAULT_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"  # minilm-l6
+# Rows buffered per tier before a LanceDB merge_insert flush during index build
+# (fewer/larger transactions → fewer fragments). See two_tier_indexer.
+DEFAULT_VECTOR_UPSERT_BATCH_SIZE = 512
 DEFAULT_EXTRACTIVE_QA_MODEL = "deepset/roberta-base-squad2"  # roberta-squad2
 DEFAULT_NLI_MODEL = "cross-encoder/nli-deberta-v3-base"  # nli-deberta-base
 

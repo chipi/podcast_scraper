@@ -5,7 +5,7 @@ producer → resolver → GI grounded build → enrich-edges. Asserts the two fa
 two-artifact model fixes:
 
 - Fault A: a quote's ``char_start`` indexes the *saved* ad-free text exactly (so the
-  viewer / FAISS / enrich-edges that read it align).
+  viewer / search / enrich-edges that read it align).
 - Fault B: the quote gets a ``speaker_id`` mapped through the screenplay ``Name:``
   markers — which the legacy cumulative-length guard would have dropped.
 """

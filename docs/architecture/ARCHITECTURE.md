@@ -76,7 +76,7 @@ This architecture document is the central hub for understanding the system. For 
   transcripts and summaries, producing structured
   topic graphs per episode.
 - Provide **semantic corpus search** (PRD-021) via
-  FAISS vector indexing over transcript chunks,
+  LanceDB vector indexing over transcript chunks,
   enabling natural-language queries and episode
   similarity across multi-feed corpora.
 - Expose a **read-oriented HTTP API and viewer**
@@ -89,7 +89,7 @@ This architecture document is the central hub for understanding the system. For 
   KG under shared **`person:`** / **`topic:`** / **`org:`**
   ids; **read-only CIL HTTP APIs** and optional
   **transcript hit lift** in semantic search depend on
-  aligned **Quote** and **FAISS chunk** char offsets.
+  aligned **Quote** and **indexed transcript chunk** char offsets.
   Overview: [GIL / KG / CIL cross-layer guide](../guides/GIL_KG_CIL_CROSS_LAYER.md).
 
 ## Ways to run and deploy
@@ -132,7 +132,7 @@ The system has **one pipeline** (`workflow.run_pipeline`) and **one configuratio
 **Boundaries:**
 
 - **In scope:** Build-time or CLI-triggered clustering; optional operator-authored YAML for `topic-clusters --validate-config` (no committed canonical file); HTTP surface to serve the JSON artifact; viewer overlay only.
-- **Out of scope:** Replacing KG extraction, replacing FAISS, or requiring a database. No query-time external embedding APIs.
+- **Out of scope:** Replacing KG extraction, replacing the LanceDB search index, or requiring a database. No query-time external embedding APIs.
 
 **Design:** [RFC-075](../rfc/RFC-075-corpus-topic-clustering.md) (Draft) — current writers emit **`schema_version`: `"2"`** with distinct **`graph_compound_parent_id`** (viewer) vs **`cil_alias_target_topic_id`** (CIL).
 
@@ -200,7 +200,7 @@ The following architectural principles govern this system. For the full history 
 The pipeline processes podcast feeds through a sequence of stages: RSS
 acquisition, episode selection, transcript download (or Whisper transcription),
 optional metadata generation, optional summarization, optional GIL/KG
-extraction, and optional FAISS vector indexing. Multi-feed corpora run the inner
+extraction, and optional LanceDB vector indexing. Multi-feed corpora run the inner
 pipeline per feed with a single parent index pass. Append/resume mode skips
 already-processed episodes.
 
@@ -220,7 +220,7 @@ multi-feed semantics, and behavioral details see the
 | `providers/` | 9 unified providers (ML, Hybrid, 7 LLM); factories, capabilities, prompts | [Provider Guide](../guides/PROVIDER_IMPLEMENTATION_GUIDE.md) |
 | `gi/` | Grounded Insight Layer extraction (PRD-017) | [GI Guide](../guides/GROUNDED_INSIGHTS_GUIDE.md) |
 | `kg/` | Knowledge Graph extraction (RFC-055) | [KG Guide](../guides/KNOWLEDGE_GRAPH_GUIDE.md) |
-| `search/` | FAISS vector indexing, semantic search, episode similarity; **corpus topic clustering** (`topic_clusters.json`, RFC-075) | [Search Guide](../guides/SEMANTIC_SEARCH_GUIDE.md), [RFC-075](../rfc/RFC-075-corpus-topic-clustering.md) |
+| `search/` | LanceDB vector indexing, semantic search, episode similarity; **corpus topic clustering** (`topic_clusters.json`, RFC-075) | [Search Guide](../guides/SEMANTIC_SEARCH_GUIDE.md), [RFC-075](../rfc/RFC-075-corpus-topic-clustering.md) |
 | `server/` | FastAPI HTTP layer, corpus catalog, digest, index rebuild | [Server Guide](../guides/SERVER_GUIDE.md), [Viewer Frontend](VIEWER_FRONTEND_ARCHITECTURE.md) |
 | `monitor/` | Live pipeline monitor (RFC-065) | [Monitor Guide](../guides/LIVE_PIPELINE_MONITOR.md) |
 | `models/` | Shared dataclasses (`RssFeed`, `Episode`, etc.) | |
@@ -285,7 +285,7 @@ graph TB
 
     subgraph "Semantic Search"
         SearchIndexer[search/indexer.py]
-        FaissStore[search/faiss_store.py]
+        LanceBackend[search/backends/lancedb_backend.py]
         Chunker[search/chunker.py]
         CorpusSearch[search/corpus_search.py]
         CorpusSimilar[search/corpus_similar.py]
@@ -351,11 +351,11 @@ graph TB
     CorpusDigest --> CorpusCatalog
     IndexRebuild --> SearchIndexer
     IndexStaleness --> CorpusScope
-    SearchIndexer --> FaissStore
+    SearchIndexer --> LanceBackend
     SearchIndexer --> Chunker
-    CorpusSearch --> FaissStore
+    CorpusSearch --> LanceBackend
     CorpusSimilar --> CorpusSearch
-    FaissStore -. optional read .-> TopicClusters
+    LanceBackend -. optional read .-> TopicClusters
     Workflow --> RSSParser
     Workflow --> EpisodeProc
     Workflow --> Downloader
@@ -662,32 +662,41 @@ API route table and
 for the SPA internals (component tree, Pinia stores,
 API client layer, async correctness).
 
-### Phase 5a: Corpus Search — FAISS, then Hybrid (RFC-061 → RFC-090) {:#phase-5a-corpus-search}
+### Phase 5a: Corpus Search — Hybrid over LanceDB (RFC-061 → RFC-090 → ADR-099) {:#phase-5a-corpus-search}
 
-**Status**: **Implemented.** FAISS semantic search (RFC-061) shipped first; **hybrid retrieval
-(RFC-090) is now the default** (v2.7+).
+**Status**: **Implemented.** FAISS semantic search (RFC-061) shipped historically; **hybrid retrieval
+(RFC-090) is the default** (v2.7+), and **FAISS was fully retired** (ADR-099, #995) — LanceDB is now
+the only search backend.
 
-**Hybrid retrieval (RFC-090, default-on).** A **two-tier** index — transcript **segments** (Tier 1)
+**Hybrid retrieval (RFC-090, always-on).** A **two-tier** index — transcript **segments** (Tier 1)
 and GIL **insights** (Tier 2) — with **BM25 + dense vector fused via RRF** over an embedded **LanceDB**
 backend, **compound results** (a segment and its linked insight merged), and rules-based **intent
-routing**. The live `/api/search` path uses hybrid when a two-tier index exists and **falls back to
-FAISS** otherwise (so it can never regress). KG-proximity was evaluated as a third signal and
-**rejected** (RFC-091); relational structure comes from typed edges in the cross-layer graph
-(`Person→Insight`, `Insight→Entity`, `Podcast→Episode`, #874) consumed by surfaces — not by ranking.
+routing**. The live `/api/search` path routes through the two-tier hybrid `RetrievalLayer`; when no
+usable index exists the response is `no_index` — there is **no FAISS fallback** (FAISS retired #995).
+KG-proximity was evaluated as a third signal and **rejected** (RFC-091); relational structure comes
+from typed edges in the cross-layer graph (`Person→Insight`, `Insight→Entity`,
+`Podcast→Episode`, #874) consumed by surfaces — not by ranking.
 
-**FAISS semantic search (RFC-061, retained as fallback).** Sentence-transformers embeddings,
-corpus-wide indexing, CLI (`podcast search`) and HTTP (`/api/search`). Multi-feed corpora use a
-single unified index under `<corpus>/search/`.
+**Semantic search (sentence-transformers embeddings).** Corpus-wide LanceDB indexing, CLI
+(`podcast search`) and HTTP (`/api/search`). Multi-feed corpora use a single unified index under
+`<corpus>/search/lance_index/`.
+
+**Index lifecycle (bounded growth).** LanceDB is MVCC and the indexer upserts per document, so
+each build appends data fragments + superseded versions. To keep the index bounded across the
+**incremental** reindex the pipeline runs after every batch, `build_two_tier_index` **compacts**
+each table at the end (`Table.optimize(cleanup_older_than=0)` — merges fragments, prunes
+all-but-current versions). A **full** reindex (`index-two-tier`, `index --rebuild`) additionally
+clears the index directory first (`drop_existing`) for a clean slate. Without this the index grew
+unbounded (a real reprocessed corpus reached ~3.8G of stale fragments before the fix).
 
 **Modules (implemented):**
 
 - `search/two_tier_indexer.py` — native two-tier (segment + insight + aux) LanceDB index build
 - `search/backends/lancedb_backend.py` — LanceDB BM25 + vector backend
 - `search/retrieval.py` — `RetrievalLayer` (signals → RRF → compound dedup)
-- `search/hybrid_search.py` — live hybrid bridge (with FAISS fallback)
+- `search/hybrid_search.py` — live hybrid bridge (no FAISS fallback; missing index → `no_index`)
 - `search/relational_edges.py`, `gi/speakers.py` — derived relational edges (#874)
-- `search/indexer.py` — FAISS corpus index build
-- `search/faiss_store.py` — FAISS vector store (fallback)
+- `search/indexer.py` — corpus index build
 - `search/chunker.py` — Transcript chunking
 - `search/protocol.py` — `VectorStore` / `SearchResult` protocols
 - `search/corpus_search.py` — Shared search logic
@@ -736,7 +745,7 @@ Phase 3: RFC-049 (GIL Core)             Implemented
     3c:  KG Extraction (RFC-055)        Implemented
 Phase 4: RFC-053 (Adaptive Routing)     planned
 Phase 5: RFC-062 (Server & Viewer)      Implemented
-    5a:  Corpus Search (RFC-061→090)    Implemented (FAISS → Hybrid default)
+    5a:  Corpus Search (RFC-061→090)    Implemented (Hybrid over LanceDB; FAISS retired #995)
     5b:  RFC-067 (Corpus Library)       Implemented (Phases 1–3)
     5c:  RFC-068 (Corpus Digest)        Implemented
     5d:  RFC-069 (Graph Exploration)    in progress
@@ -757,7 +766,7 @@ and summarization.
 **ML Dependencies** (optional, install via
 `pip install -e .[ml]`): `openai-whisper`, `spacy`,
 `torch`, `transformers`, `sentencepiece`,
-`sentence-transformers`, `faiss-cpu`, `accelerate`, `protobuf`,
+`sentence-transformers`, `lancedb`, `accelerate`, `protobuf`,
 `llama-cpp-python` (GGUF / hybrid REDUCE, RFC-042)
 
 **API Provider Dependencies:**
@@ -768,7 +777,7 @@ and summarization.
 **Other optional extras:** `[compare]` (Streamlit run comparison, RFC-047), `[dev]` (tooling, typecheck, security, and **FastAPI / uvicorn** for the RFC-062 viewer API), `[monitor]` (optional profiling, RFC-065)
 
 **Search dependencies** (included in `[ml]`):
-`sentence-transformers` (embeddings), `faiss-cpu`
+`sentence-transformers` (embeddings), `lancedb`
 (vector storage and retrieval)
 
 For detailed dependency information including

@@ -302,6 +302,25 @@ describe('NodeDetail', () => {
     expect(w.find('[data-testid="node-detail-full-quote-copy"]').exists()).toBe(true)
   })
 
+  it('resolves a bare subject id against a GI/KG-prefixed merged node (#967↔#974)', () => {
+    // On a real merged corpus ``mergeGiKg`` prefixes GI ids (``g:``); a search hit / subject
+    // carries the BARE id (``quote:1``). Exact-match resolution missed the prefixed node, so
+    // the rail showed an empty "Node" with no detail. The rail must resolve through the
+    // prefix-tolerant lookup. (Single-artifact fixtures never get the ``g:`` prefix, so the
+    // e2e suite couldn't catch this — only a real merged corpus exposed it.)
+    const art = artifactOf([
+      {
+        id: 'g:quote:1',
+        type: 'Quote',
+        properties: { text: 'The full passage of the quote, uncapped.' },
+      },
+    ])
+    const w = mountDetail({ viewArtifact: art, nodeId: 'quote:1' })
+    expect(w.find('aside').exists()).toBe(true)
+    expect(w.find('[data-testid="node-detail-kind-row"]').text()).toContain('Quote')
+    expect(w.find('[data-testid="node-detail-full-quote"]').text()).toContain('full passage')
+  })
+
   // --- Extra properties + diagnostics ---------------------------------------
 
   it('lists extra properties (sorted, humanized) excluding hidden keys', () => {

@@ -127,7 +127,7 @@ async function onLoadIntoGraphClick(): Promise<void> {
     <p class="text-[10px] leading-snug text-muted">
       Capability flags from
       <code class="rounded bg-overlay px-0.5 font-mono text-[9px]">GET /api/health</code>
-      (graph, search, index routes, catalog). FAISS availability is separate — see the
+      (graph, search, index routes, catalog). Search-index availability is separate — see the
       <strong>Vector index</strong> card below.
     </p>
     <div class="rounded border border-border bg-elevated p-2 text-[10px]">

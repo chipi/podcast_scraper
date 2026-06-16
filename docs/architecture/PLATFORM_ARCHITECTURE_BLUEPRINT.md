@@ -171,7 +171,8 @@ Avoid **schema-per-tenant** early unless compliance requires it.
    later. **Semantic search** (RFC-061) adds vector indexing and embedding-based retrieval as a
    parallel path alongside SQL projection. **Hybrid retrieval** (RFC-090, v2.7+) is now the default:
    a two-tier index (transcript segments + GIL insights) with BM25 + dense vector fused via RRF over
-   LanceDB, plus compound results; FAISS is retained as a switchable fallback. (KG-proximity was
+   LanceDB, plus compound results; LanceDB is the sole search backend (the legacy FAISS store was
+   retired — ADR-099 / #995). (KG-proximity was
    evaluated as a third signal and rejected — RFC-091; relational structure comes from typed edges.)
 
 **Pipeline core:** `run_pipeline`-class logic = **one unit of work** (config in, artifacts
@@ -271,7 +272,7 @@ User/UI → API (RFC-062 server) → Postgres (catalog, subscriptions, entitleme
                     ↓
 Worker(s) → run_pipeline(cfg) → canonical files (+ optional object store)
                     ↓                       ↓
-              projection → Postgres    vector index → FAISS (RFC-061) / Qdrant (RFC-070 Draft)
+              projection → Postgres    vector index → LanceDB (RFC-090) / Qdrant (RFC-070 Draft)
                     ↓                       ↓
 User/UI → API → read Postgres       → semantic search API
               (+ signed URLs to blobs if needed)
@@ -368,7 +369,7 @@ transcription job. Each stage targets the worker pool with the right resource pr
 | **`ingest`** | Poll RSS, download audio/transcripts | `worker-io` | High (I/O-bound) |
 | **`transcribe`** | Whisper / diarization (RFC-058) | `worker-gpu` | 1 per GPU |
 | **`enrich`** | Summarize, GIL, KG, NLI, adaptive routing (RFC-053) | `worker-ml` | 2–4 (CPU/RAM) |
-| **`index`** | Embed + FAISS upsert (RFC-061), vector index maintenance | `worker-ml` | Medium |
+| **`index`** | Embed + LanceDB upsert (RFC-090), vector index maintenance | `worker-ml` | Medium |
 | **`projection`** | Files → Postgres (RFC-051) | `worker-io` | Medium |
 
 Episode state machine: `pending → downloading → transcribing → enriching → indexing →
@@ -508,32 +509,31 @@ keyed by episode identity (ADR-007) + pipeline fingerprint.
 
 ### B.14 Shared volume concurrency and file locking
 
-Workers read and write shared artifact directories and the FAISS index concurrently. Without
+Workers read and write shared artifact directories and the LanceDB index concurrently. Without
 coordination, race conditions can corrupt data (e.g., two workers writing the same episode's
-artifacts, or one worker reading a FAISS index while another writes to it).
+artifacts, or one worker reading the LanceDB index while another writes to it).
 
 **Strategies by data type:**
 
 | Data | Risk | Mitigation |
 | --- | --- | --- |
 | **Episode artifacts** (JSON files) | Two workers processing same episode | Queue dedup: `episode_key` as job unique ID prevents double-enqueue. If a duplicate slips through, the later worker finds existing output and skips (idempotent writes). |
-| **FAISS index** (single `.faiss` file) | Concurrent reads + writes | **Write-aside + atomic swap:** Writer builds index in a temp file (`index.faiss.tmp`), then `os.rename()` over the live file (atomic on Linux/macOS). Readers see either old or new — never a partial write. |
+| **LanceDB index** (`search/lance_index/` directory) | Concurrent reads + writes | **MVCC + atomic manifest commit:** LanceDB writes new data fragments and commits a new manifest version atomically; readers pin a manifest version and see a consistent snapshot — never a partial write. A single-writer lock serializes concurrent index builds. |
 | **Model cache** (`~/.cache/huggingface/`) | Multiple workers downloading same model | Mount a shared read-only volume with pre-populated models. Use `HF_HOME` env var. Model downloads are idempotent; concurrent downloads to the same path are safe (Hugging Face uses temp files + rename). |
 | **Postgres** | Standard DB concurrency | Normal transaction isolation. No file-level concern. |
 | **Redis** | Standard message queue | Atomic operations built into Redis. No file-level concern. |
 
-**FAISS index update pattern:**
+**LanceDB index update pattern:**
 
 ```python
-import os, tempfile, shutil
+import lancedb
 
-def update_faiss_index(index, new_vectors, index_path):
-    index.add(new_vectors)
-    # Write to temp file in same directory (same filesystem for atomic rename)
-    fd, tmp_path = tempfile.mkstemp(dir=os.path.dirname(index_path), suffix=".tmp")
-    os.close(fd)
-    faiss.write_index(index, tmp_path)
-    os.rename(tmp_path, index_path)  # atomic on POSIX
+def update_lance_index(index_dir, table_name, new_rows):
+    db = lancedb.connect(index_dir)  # <corpus>/search/lance_index/
+    table = db.open_table(table_name)
+    # LanceDB appends new fragments and commits a new manifest version
+    # atomically; concurrent readers keep their pinned snapshot.
+    table.add(new_rows)
 ```
 
 ### B.15 Queue library decision: arq
@@ -632,7 +632,7 @@ The agent can report the current schema version and pending migrations.
 
 The existing test pyramid (unit ~80%, integration ~14%, E2E ~6%) covers `run_pipeline`,
 CLI, and API paths well. The distributed tier introduces new components (arq workers,
-scheduler, stage decomposition, FAISS atomic swap, multi-container interaction) that need
+scheduler, stage decomposition, LanceDB index commit, multi-container interaction) that need
 their own testing strategy — without duplicating what's already tested.
 
 **Principle:** The distributed tier is a **deployment concern** wrapping existing pipeline
@@ -646,7 +646,7 @@ produces correct transcripts.
 | --- | --- | --- | --- |
 | **Unit** | Stage decomposition logic: `run_pipeline(cfg, start_stage=X, end_stage=X)` produces correct partial output. Config validation for `resume_from_stage` / `run_only_stage` fields. Job payload serialization/deserialization. | Mock pipeline internals; test that stage boundaries are correct. | None |
 | **Unit** | Scheduler state machine: episode transitions (`pending → downloading → ... → done`), retry logic (exponential backoff, max retries → `failed`), stage-chain creation from a full-pipeline request. | In-memory state; no Redis. | None |
-| **Unit** | FAISS atomic-swap write pattern: temp file → rename. File locking edge cases. | `tmp_path` fixture; no real FAISS index needed (mock `faiss.write_index`). | None |
+| **Unit** | LanceDB index commit pattern: append fragments → manifest version bump. File locking edge cases. | `tmp_path` fixture; no real LanceDB index needed (mock the table writer). | None |
 | **Integration** | arq worker picks up a job from Redis, calls `run_pipeline(cfg)` (mocked), and reports completion. Verify job lifecycle: enqueue → dequeue → execute → result. | Real Redis (Docker or `fakeredis`), real arq, mocked pipeline. | Redis |
 | **Integration** | Scheduler + arq: scheduler decomposes a job into stages, enqueues stage 1, worker completes it, scheduler advances to stage 2. Full stage chain for one episode. | Real Redis, real arq, mocked pipeline stages (return canned output per stage). | Redis |
 | **Integration** | Dead-letter: job fails 3 times → moves to DLQ. Verify alert would fire. | Real Redis, real arq, job that always raises. | Redis |
@@ -668,7 +668,7 @@ produces correct transcripts.
 
 | CI stage | What runs | Time budget |
 | --- | --- | --- |
-| **`make ci-fast`** | Unit tests for stage decomposition, scheduler state machine, FAISS swap, job serialization. No Redis/Postgres needed. | +30s over current |
+| **`make ci-fast`** | Unit tests for stage decomposition, scheduler state machine, LanceDB index commit, job serialization. No Redis/Postgres needed. | +30s over current |
 | **`make ci`** | + Integration tests with Redis (`fakeredis`) and Postgres (testcontainers). arq job lifecycle, migration roundtrip. | +2–3 min |
 | **`make docker-test`** | + E2E distributed tests in Docker Compose test profile. Full job flow with `tiny` Whisper model. | +5–10 min |
 
@@ -847,7 +847,7 @@ current codebase (`providers/ml/`, `evaluation/`, `search/`, `gi/`, `kg/`):
 | **Embedding encode** | `sentence-transformers` (all-MiniLM-L6-v2 etc.) | 0.5–1 GB RAM | Optional | 10–30s per episode |
 | **NLI entailment** | CrossEncoder NLI (`providers/ml/nli_loader.py`) | 1–2 GB RAM | Optional | 5–20s per episode |
 | **Extractive QA** | HF QA pipeline (`providers/ml/extractive_qa.py`) | 1–2 GB RAM | Optional | 5–15s per episode |
-| **FAISS index** | `faiss-cpu` (RFC-061) | RAM proportional to corpus | No | Seconds (incremental) |
+| **LanceDB index** | `lancedb` (RFC-090) | RAM proportional to corpus | No | Seconds (incremental) |
 | **Evaluation scoring** | ROUGE, BLEU, WER, embedding sim (`evaluation/scorer.py`) | 0.5–1 GB RAM | No | 10–60s per run |
 | **Audio preprocessing** | FFmpeg + VAD (RFC-040, ADR-036/037/038/039) | Minimal | No | 30s–2 min per episode |
 
@@ -860,7 +860,7 @@ a worker pool, and stages with **different needs** never block each other:
 | --- | --- | --- | --- |
 | **GPU-heavy** | Whisper, pyannote diarization | VRAM (4–8 GB), GPU compute | Only with each other (serialized on GPU) |
 | **ML-compute** | Summarization, GIL, KG, NLI, QA, **embedding encode** (`sentence-transformers`), adaptive routing (RFC-053) | RAM (4–16 GB), CPU cores | Yes — CPU-parallel, multiple concurrent |
-| **IO-bound** | RSS fetch, audio download, transcript download, file projection, **FAISS upsert** (index write, disk-bound) | Network, disk I/O | Yes — high concurrency OK |
+| **IO-bound** | RSS fetch, audio download, transcript download, file projection, **LanceDB upsert** (index write, disk-bound) | Network, disk I/O | Yes — high concurrency OK |
 | **DB-bound** | Postgres projection (RFC-051), index stats | DB connection pool | Yes — separate from ML |
 
 **Key insight:** GPU-heavy and ML-compute **must not** share a queue because a 45-minute
@@ -868,12 +868,12 @@ Whisper job blocks 15 episodes' worth of 3-minute summarizations. Separating the
 **pipeline-level parallelism**: while Whisper transcribes episode N, ML-compute processes
 episodes N-1, N-2, ... that already have transcripts.
 
-**Embedding + FAISS split:** The `index` stage has two sub-steps with different profiles:
+**Embedding + LanceDB split:** The `index` stage has two sub-steps with different profiles:
 encoding text into vectors (ML-compute, needs ~1 GB RAM for the `sentence-transformers`
-model) and upserting vectors into the FAISS index (IO-bound, disk write). In practice
+model) and upserting vectors into the LanceDB index (IO-bound, disk write). In practice
 both run in the same worker because encoding dominates runtime (seconds vs milliseconds).
 The `index` queue runs on **`worker-ml`**, not `worker-io`, because the worker must have
-the embedding model loaded. The FAISS write is fast enough that it doesn't warrant a
+the embedding model loaded. The LanceDB write is fast enough that it doesn't warrant a
 separate queue.
 
 ### D.3 Minimum hardware specifications
@@ -885,7 +885,7 @@ separate queue.
 | **CPU** | 8 cores | 16 cores | 2 API + 2 IO workers + 4 ML workers |
 | **RAM** | 32 GB | 64 GB | Models load 1–6 GB each; concurrent models need headroom |
 | **GPU** | 1× discrete, 8 GB VRAM | 1× discrete, 12+ GB VRAM | For Whisper + diarization. NVIDIA preferred (CUDA), AMD ROCm possible |
-| **Storage** | 100 GB SSD | 250 GB NVMe | Model cache (~20 GB), audio temp, corpus artifacts, FAISS index |
+| **Storage** | 100 GB SSD | 250 GB NVMe | Model cache (~20 GB), audio temp, corpus artifacts, LanceDB index |
 | **Network** | 10 Mbps | 100 Mbps | RSS/audio download; API providers if using cloud LLMs |
 
 #### D.3.2 Apple Silicon path (MPS, no discrete GPU)
@@ -931,7 +931,7 @@ times on recommended hardware:
 | Summarization (LED-16384) | 30s–2 min | 3–8 min | 1–3 min |
 | GIL extraction (hybrid tier) | 1–3 min | 2–5 min | 1–4 min |
 | KG extraction | 30s–2 min | 1–3 min | 1–2 min |
-| Embedding + FAISS index | 10–30s | 20–60s | 15–40s |
+| Embedding + LanceDB index | 10–30s | 20–60s | 15–40s |
 | Postgres projection | 5–15s | 5–15s | 5–15s |
 | **Total (sequential)** | **~10–25 min** | **~55–115 min** | **~15–30 min** |
 | **Total (parallel, Part D topology)** | **~8–15 min** | **~35–65 min** | **~12–20 min** |
@@ -975,7 +975,7 @@ by 30–50%.
 │  caddy           │  │  api + viewer                   │  │  scheduler           │
 │  (reverse proxy) │  │  (FastAPI, RFC-062 server,      │  │  (stage-chain        │
 │                  │  │  Vue SPA, search API,           │  │  orchestration,      │
-│  64 MB RAM       │  │  FAISS query)                   │  │  B.7.1)              │
+│  64 MB RAM       │  │  LanceDB query)                 │  │  B.7.1)              │
 │  0.5 CPU         │  │  2 CPU, 4 GB RAM                │  │  1 CPU, 1 GB RAM     │
 └─────────────────┘  └────────────────────────────────┘  └─────────────────────┘
 
@@ -985,7 +985,7 @@ by 30–50%.
 │                         │  │                            │  │         projection    │
 │  Whisper, pyannote      │  │  Summarization, GIL, KG,   │  │                       │
 │  diarization            │  │  NLI, QA, embedding encode,│  │  Download, Postgres   │
-│                         │  │  FAISS upsert (D.2)        │  │  projection           │
+│                         │  │  LanceDB upsert (D.2)      │  │  projection           │
 │  GPU + 8–12 GB VRAM     │  │  Adaptive routing (RFC-053) │  │  2 CPU, 4 GB RAM      │
 │  2 CPU, 8 GB RAM        │  │                            │  │  Concurrency: 4–8     │
 │  Concurrency: 1 per GPU │  │  4 CPU, 8–16 GB RAM        │  │                       │
@@ -1001,7 +1001,7 @@ by 30–50%.
 ```
 
 **Shared volumes:** Artifact root (read/write by all workers, read by API), model cache
-(read by `worker-gpu` and `worker-ml`), FAISS index directory (write by `worker-ml`,
+(read by `worker-gpu` and `worker-ml`), LanceDB index directory (write by `worker-ml`,
 read by `api`). See B.14 for file locking strategy on shared volumes.
 
 **Image strategy:** See B.9.2. Single image by default; split into `podcast-scraper-gpu`
@@ -1036,7 +1036,7 @@ and `podcast-scraper-base` when GPU dependencies make the image > 8 GB.
              ┌────────────────┐  ┌──────────────────┐
              │ index           │  │ projection        │
              │ (worker-ml)     │  │ (worker-io)       │
-             │ Embed + FAISS   │  │ Files → Postgres  │
+             │ Embed + LanceDB │  │ Files → Postgres  │
              └────────────────┘  └──────────────────┘
 ```
 
@@ -1228,7 +1228,7 @@ have 300W PSU — verify before buying.
 
 **When this makes sense:** If you primarily use cloud providers for transcription and
 summarization (the existing multi-provider architecture), you don't need a GPU at all. The mini
-PC handles API orchestration, GIL/KG extraction (cloud tier), FAISS indexing, and the viewer.
+PC handles API orchestration, GIL/KG extraction (cloud tier), LanceDB indexing, and the viewer.
 Local ML (Whisper, BART) would be very slow on CPU-only.
 
 #### D.14.2 Linux PC — Optimal tier (~€800–1200)
@@ -1547,7 +1547,7 @@ Each service exposes `GET /healthz` (or equivalent) returning structured JSON:
 
 | Service | Health checks | Degradation examples |
 | --- | --- | --- |
-| **api** | Postgres reachable, Redis reachable, FAISS index loadable, response latency < 2s | Postgres slow (queries degraded); FAISS index missing (search disabled, graph-only mode) |
+| **api** | Postgres reachable, Redis reachable, LanceDB index loadable, response latency < 2s | Postgres slow (queries degraded); LanceDB index missing (search disabled, graph-only mode) |
 | **worker-gpu** | GPU available (`nvidia-smi`), VRAM free > model requirement, queue connection, model loadable | GPU at 95% VRAM (can't load larger model); CUDA error (falls back to CPU = severely degraded) |
 | **worker-ml** | Sufficient RAM for models, queue connection, model loadable, CPU not saturated | RAM pressure (model loading slow); all models loaded but CPU at 100% (throughput degraded) |
 | **worker-io** | Network connectivity, disk I/O responsive, queue connection, Postgres writable | Disk nearly full (projection fails); network flapping (download retries increasing) |
@@ -1607,7 +1607,7 @@ Alerts are **tiered** to distinguish noise from emergencies:
 | **Provider API down** | `provider_errors_total` spike + HTTP 5xx | **P2** | Check provider status page | Switch to fallback provider (ADR-026 per-capability selection) |
 | **Provider rate-limited** | `provider_retry_total` spike + HTTP 429 | **P3** | Review API plan | Throttle concurrency for that provider; queue jobs slower |
 | **Disk space low** | `node_filesystem_avail_bytes < 10 GB` | **P1** | Expand storage | Run cleanup script (old runs, temp files); alert if < 5 GB after cleanup |
-| **API latency** | `api_request_duration_seconds{p95} > 5s` | **P2** | Check Postgres/index | Analyze slow query log; check FAISS index size; restart if connection leak |
+| **API latency** | `api_request_duration_seconds{p95} > 5s` | **P2** | Check Postgres/index | Analyze slow query log; check LanceDB index size; restart if connection leak |
 | **Postgres connections** | `active_connections > max_connections * 0.8` | **P2** | Tune pool | Restart idle workers; increase pool size in config |
 | **Redis memory** | `redis_memory_used > redis_maxmemory * 0.85` | **P2** | Review queue sizes | Purge completed jobs; increase maxmemory or add eviction policy |
 | **Episode stuck** | Job in `transcribing` state > 120 min | **P2** | Check worker logs | Kill stuck job; re-enqueue; if pattern repeats, flag episode as problematic |
@@ -2197,7 +2197,7 @@ Define a clear contract for all environment variables the system reads:
 COMPOSE_PROJECT_NAME=podcast-scraper
 DATA_DIR=/data                      # Artifact root (shared volume)
 MODEL_CACHE_DIR=/models             # HuggingFace / Whisper model cache
-FAISS_INDEX_DIR=/data/index         # Vector index directory
+LANCE_INDEX_DIR=/data/index         # Vector index directory
 
 # Application
 PODCAST_SCRAPER_CONFIG=/app/config.yaml  # Default pipeline config
@@ -2304,7 +2304,7 @@ and pins all services to the previous image digest.
 | What | How | Frequency | Retention |
 | --- | --- | --- | --- |
 | **Postgres** | `pg_dump` via `backup-db.sh` to backup volume or object storage | Daily | 30 days |
-| **FAISS index** | Copy index directory to backup | Daily | 7 days (rebuildable from artifacts) |
+| **LanceDB index** | Copy index directory to backup | Daily | 7 days (rebuildable from artifacts) |
 | **Artifacts** (gi.json, kg.json, transcripts) | Rsync to backup volume or object storage | Daily (incremental) | Indefinite |
 | **Config** | Git (`.env.example` template) + encrypted backup of `.env` | On change | Indefinite |
 | **Grafana dashboards** | Git (`deploy/grafana/dashboards/`) | On change | Indefinite |

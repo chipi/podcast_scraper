@@ -16,7 +16,7 @@ stays in the linked guides and RFCs.
 | **KG** (`*.kg.json`) | Entities, topics, and relationships for navigation and linking. | [Knowledge Graph Guide](KNOWLEDGE_GRAPH_GUIDE.md), [KG ontology](../architecture/kg/ontology.md) |
 | **`bridge.json`** (per episode) | Joins GI and KG surfaces under **one** canonical id per real-world person/topic/org; **`display_name`** for UI. Emitted next to `gi.json` / `kg.json` stems. | [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) |
 | **CIL HTTP API** | Read-only queries over on-disk **bridge + gi + kg** (position arc, person profile, topic timeline, id lists). | [Server Guide](SERVER_GUIDE.md) (`/api/persons/*`, `/api/topics/*`) |
-| **Semantic search lift** | For **transcript** FAISS hits, optional **`lifted`** block (insight, speaker, topic, quote times) when chunk spans overlap a **Quote** and `bridge.json` resolves names. | [Semantic Search Guide](SEMANTIC_SEARCH_GUIDE.md) |
+| **Semantic search lift** | For **transcript** search hits, optional **`lifted`** block (insight, speaker, topic, quote times) when chunk spans overlap a **Quote** and `bridge.json` resolves names. | [Semantic Search Guide](SEMANTIC_SEARCH_GUIDE.md) |
 | **Corpus topic clustering (RFC-075)** | Optional **`search/topic_clusters.json`**: viewer **TopicCluster** compound parents (`tc:` **`graph_compound_parent_id`**); optional CIL **`topic_id_aliases`** from **`cil_alias_target_topic_id`**. Does not replace **`bridge.json`**. | [RFC-075](../rfc/RFC-075-corpus-topic-clustering.md), [Semantic Search Guide](SEMANTIC_SEARCH_GUIDE.md) |
 | **Offset verification** | Confirms **Quote** char ranges overlap **transcript chunk** metadata in the index (same coordinate space). | [Semantic Search Guide — lift and verification](SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification-rfc-072--528) |
 
@@ -35,7 +35,7 @@ Typical episode workspace (paths vary for multi-feed; see [CORPUS_MULTI_FEED_ART
 
 **Path rules in code:** `src/podcast_scraper/builders/bridge_artifact_paths.py` (bridge next to metadata; GI/KG siblings of bridge; bridge next to `gi.json`). **GIL edge `type` comparisons:** `src/podcast_scraper/gi/edge_normalization.py`.
 
-The vector index lives at **`<corpus_root>/search/`** (`vectors.faiss`, `metadata.json`, …) when `vector_search` / `index` has run at the **corpus parent** for multi-feed trees.
+The vector index lives at **`<corpus_root>/search/`** (`lance_index/`, `index_meta.json`, …) when `vector_search` / `index` has run at the **corpus parent** for multi-feed trees.
 
 ---
 
@@ -67,7 +67,7 @@ stance](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md#operationa
 | ------- | ------- |
 | `python -m podcast_scraper.cli verify-gil-chunk-offsets --output-dir <corpus>` | JSON report: Quote vs transcript chunk overlap (RFC-072 Phase 5 gate). Supports **feed-nested** metadata (`feeds/.../metadata/`) via discovered metadata files. |
 | `make verify-gil-offsets-strict` | Same verifier with **`--strict`** and **`--min-overlap-rate`** (default **0.95**). Override corpus: `GIL_OFFSET_VERIFY_DIR=/path/to/run`. |
-| `python -m podcast_scraper.cli search …` / `index …` | Semantic search and FAISS maintenance ([Semantic Search Guide](SEMANTIC_SEARCH_GUIDE.md)). |
+| `python -m podcast_scraper.cli search …` / `index …` | Semantic search and LanceDB index maintenance ([Semantic Search Guide](SEMANTIC_SEARCH_GUIDE.md)). |
 | `python -m podcast_scraper.cli gi …` / `kg …` | GIL and KG CLIs ([Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md), [Knowledge Graph Guide](KNOWLEDGE_GRAPH_GUIDE.md)). |
 
 ---

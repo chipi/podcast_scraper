@@ -1,7 +1,7 @@
 """Two-tier hybrid search backend contracts (RFC-090 §3.1–3.2).
 
-Coexists with the single-signal ``VectorStore`` (``protocol.py`` / ``FaissVectorStore``)
-until FAISS is deprecated (RFC-090 Stage 4, #858). The two-tier ``SearchBackend``
+Coexists with the single-signal ``VectorStore`` (``protocol.py``); the legacy FAISS
+store was since retired (RFC-090 Stage 4, #858). The two-tier ``SearchBackend``
 exposes BM25 and dense-vector retrieval **separately** so the retrieval layer can
 fuse them — plus a KG-proximity signal (RFC-091) — via RRF (#856).
 
@@ -15,8 +15,8 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Literal, Optional, Protocol, runtime_checkable
 
 # segment = Tier 1 (transcript), insight = Tier 2 (GIL), aux = the other corpus
-# surfaces FAISS also indexes (kg_entity / kg_topic / quote / summary) so hybrid
-# doesn't lose coverage vs FAISS (RFC-090 full-coverage follow-up). "all" spans them.
+# surfaces the index covers (kg_entity / kg_topic / quote / summary) so hybrid
+# retrieval doesn't lose coverage (RFC-090 full-coverage follow-up). "all" spans them.
 Tier = Literal["segment", "insight", "aux", "all"]
 
 
@@ -34,7 +34,9 @@ class SegmentDocument:
     speaker_id: Optional[str] = None  # if diarized
     linked_insight_ids: List[str] = field(default_factory=list)  # GIL insights by timestamp overlap
     source_tier: str = "segment"
-    publish_date: Optional[str] = None  # episode publish date (parity with FAISS; date filters)
+    publish_date: Optional[str] = (
+        None  # episode publish date (carried so date/`since` filters work)
+    )
 
 
 @dataclass
@@ -52,14 +54,18 @@ class InsightDocument:
     speaker_id: Optional[str] = None
     source_segment_id: Optional[str] = None  # back-ref to grounding-quote segment
     source_tier: str = "insight"
-    publish_date: Optional[str] = None  # episode publish date (parity with FAISS; date filters)
-    source_id: Optional[str] = None  # canonical graph node id (parity with FAISS; graph handoff)
+    publish_date: Optional[str] = (
+        None  # episode publish date (carried so date/`since` filters work)
+    )
+    source_id: Optional[str] = (
+        None  # canonical graph node id (carried so the graph handoff resolves)
+    )
 
 
 @dataclass
 class AuxDocument:
-    """A non-tiered corpus surface FAISS also indexes (kg_entity / kg_topic / quote /
-    summary) — kept so hybrid retrieval covers the same doc types as FAISS."""
+    """A non-tiered corpus surface the index covers (kg_entity / kg_topic / quote /
+    summary) — kept so hybrid retrieval covers these doc types too."""
 
     id: str
     text: str
@@ -68,8 +74,12 @@ class AuxDocument:
     doc_type: str  # kg_entity | kg_topic | quote | summary
     embedding: List[float] = field(default_factory=list)
     source_tier: str = "aux"
-    publish_date: Optional[str] = None  # episode publish date (parity with FAISS; date filters)
-    source_id: Optional[str] = None  # canonical graph node id (parity with FAISS; graph handoff)
+    publish_date: Optional[str] = (
+        None  # episode publish date (carried so date/`since` filters work)
+    )
+    source_id: Optional[str] = (
+        None  # canonical graph node id (carried so the graph handoff resolves)
+    )
 
 
 @dataclass

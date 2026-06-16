@@ -22,6 +22,60 @@ _NONPERSON_AUTHOR_MARKERS = re.compile(
 )
 
 
+# Known podcast networks / publishers that appear as a spoken bumper ("This is Unhedged,
+# I'm Pushkin. I'm Katie Martin…") or an RSS author tag, but are NOT a person. A bare
+# mononym is not enough to reject a self-introduced name (real hosts go by one name —
+# Oprah, Sting), so host-intro extraction needs this explicit list to skip the network
+# bumper and fall through to the actual host. Lowercased; matched against the whole name
+# and its first token. (#876 — "Pushkin" leaked as the Unhedged host.)
+KNOWN_NETWORKS: frozenset[str] = frozenset(
+    {
+        "pushkin",
+        "wondery",
+        "gimlet",
+        "npr",
+        "iheart",
+        "iheartradio",
+        "spotify",
+        "audible",
+        "stitcher",
+        "radiotopia",
+        "earwolf",
+        "headgum",
+        "ringer",
+        "the ringer",
+        "vox",
+        "crooked media",
+        "maximum fun",
+        "maximumfun",
+        "barstool",
+        "cadence13",
+        "megaphone",
+        "acast",
+        "patreon",
+        "substack",
+        "bloomberg",
+        "kaleidoscope",
+    }
+)
+
+
+def is_known_network(name: str) -> bool:
+    """True when ``name`` (whole or its first token) is a known podcast network/publisher.
+
+    Used to skip a network *bumper* in a host self-introduction ("I'm Pushkin") and to flag a
+    network name that leaked into ``content.speakers`` even when it carries no generic org
+    markers (``Pushkin`` has none — :func:`has_org_markers` returns False for it). #876.
+    """
+    n = (name or "").strip().lower()
+    if not n:
+        return False
+    if n in KNOWN_NETWORKS:
+        return True
+    first = n.split()[0] if n.split() else ""
+    return first in KNOWN_NETWORKS
+
+
 def has_org_markers(name: str) -> bool:
     """True when ``name`` contains explicit network/organisation markers.
 
@@ -77,11 +131,18 @@ def extract_self_introduced_host(
     """
     if not transcript_text:
         return None
-    match = _HOST_SELF_INTRO.search(transcript_text[:intro_chars])
-    if not match:
-        return None
-    name = match.group(1).strip(" .,")
-    return name if len(name) >= 2 else None
+    # Scan ALL self-introductions in the intro, not just the first: network shows open with a
+    # publisher bumper in the same "I'm <X>" shape ("This is Unhedged… I'm Pushkin. I'm Katie
+    # Martin"), so the first match is often the network, not the host. Skip known-network
+    # bumpers and return the first match that is a real person name (#876 — "Pushkin" leak).
+    for match in _HOST_SELF_INTRO.finditer(transcript_text[:intro_chars]):
+        name = match.group(1).strip(" .,")
+        if len(name) < 2:
+            continue
+        if is_known_network(name):
+            continue
+        return name
+    return None
 
 
 def _extract_person_entities(text: str, nlp: Any) -> list[tuple[str, float]]:

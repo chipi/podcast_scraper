@@ -47,7 +47,7 @@ profile, but it **does not** run **`topic-clusters`**. The viewer/API read
 built for that corpus. See [RFC-075](../rfc/RFC-075-corpus-topic-clustering.md)
 and [Prod runbook — FAQ](PROD_RUNBOOK.md#corpus-directory-host-vs-appoutput).
 
-**Prerequisite:** `search/vectors.faiss` under the corpus (needs a profile with
+**Prerequisite:** `search/lance_index/` under the corpus (needs a profile with
 `vector_search: true` for indexing, e.g. `cloud_balanced`).
 
 **Option A — host venv (no container for Python):**

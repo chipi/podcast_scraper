@@ -8,7 +8,7 @@
   - `docs/prd/PRD-031-search.md` — Search product surface
   - `docs/prd/PRD-021-semantic-corpus-search.md` — predecessor (FAISS)
 - **Related ADRs**:
-  - _(none yet)_
+  - [ADR-099](../adr/ADR-099-lancedb-first-single-index-search.md) — completes this RFC's vision: make LanceDB the single search index (opened once, native hybrid) and retire the FAISS transitional path.
 - **Related RFCs**:
   - `docs/rfc/RFC-091-kg-proximity-signal.md` — third RRF signal (additive)
   - `docs/rfc/RFC-092-ml-query-router.md` — ML query router (additive)

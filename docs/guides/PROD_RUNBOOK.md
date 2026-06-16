@@ -1671,11 +1671,11 @@ view.
 when `vector_search` is true in the profile (see
 `src/podcast_scraper/workflow/orchestration.py`), but nothing in that
 path runs `topic-clusters`. So `search/topic_clusters.json` can be
-absent even when `search/vectors.faiss` exists.
+absent even when `search/lance_index/` exists.
 
-**Profiles:** `cloud_thin` sets `vector_search: false` — no FAISS index
+**Profiles:** `cloud_thin` sets `vector_search: false` — no search index
 from the pipeline; clustering cannot run until an indexing-capable
-profile has built `vectors.faiss`. See profile YAMLs under
+profile has built `search/lance_index/`. See profile YAMLs under
 `config/profiles/`.
 
 **What to run:** follow [Prod operator cheat sheet — Topic clusters](PROD_OPERATOR_CHEAT_SHEET.md#topic-clusters-manual-maintenance)
@@ -1686,9 +1686,9 @@ container). Reference clustering design in
 
 **Troubleshooting:**
 
-- **`topic-clusters` exits with missing FAISS:** ensure
-  `$HOST_CORPUS/search/vectors.faiss` exists (or
-  `/app/output/search/vectors.faiss` in-container).
+- **`topic-clusters` exits with missing index:** ensure
+  `$HOST_CORPUS/search/lance_index/` exists (or
+  `/app/output/search/lance_index/` in-container).
 - **404 on `GET /api/corpus/topic-clusters`:** artifact not built or wrong
   `path` query versus server default.
 - **Host `python3 -m venv` fails (`ensurepip`):** install

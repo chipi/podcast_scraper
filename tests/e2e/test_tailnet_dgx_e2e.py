@@ -110,7 +110,9 @@ def _whisper_provider(e2e_server, fallback_text="cloud", **overrides):
 
 class TestDGXWhisperE2E:
     def test_transcribes_against_mock_server(self, e2e_server):
-        text = _whisper_provider(e2e_server).transcribe(str(_AUDIO))
+        # Generous request timeout: the happy path must not trip the breaker on transient
+        # slowness under parallel CI load (the 0.5s default is only for the fail-over tests).
+        text = _whisper_provider(e2e_server, dgx_request_timeout_sec=10.0).transcribe(str(_AUDIO))
         # The mock server answers verbose_json with a canned transcript.
         assert "test transcription" in text.lower()
         assert wp._whisper_breaker.state == "closed"
@@ -136,7 +138,12 @@ class TestDGXWhisperE2E:
 
 class TestDGXDiarizeE2E:
     def test_diarizes_against_mock_server(self, e2e_server):
-        result = _diarize_provider(e2e_server).diarize(str(_AUDIO))
+        # Happy-path: give a generous request timeout so transient slowness under
+        # parallel CI load can't trip the breaker (the 0.5s default exists only for
+        # the fail-over tests, which force failure via 503 / watchdog, not this timeout).
+        result = _diarize_provider(e2e_server, dgx_diarize_request_timeout_sec=10.0).diarize(
+            str(_AUDIO)
+        )
         assert isinstance(result, DiarizationResult)
         assert result.num_speakers == 2
         assert {s.speaker for s in result.segments} == {"SPEAKER_00", "SPEAKER_01"}

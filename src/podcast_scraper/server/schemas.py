@@ -345,7 +345,7 @@ class SearchHitModel(BaseModel):
         description=(
             "Retrieval tier for this hit (PRD-033 FR1.1): 'insight' (synthesized), "
             "'segment' (raw transcript), or 'aux' (kg_entity/kg_topic/quote/summary). "
-            "Derived from metadata.doc_type; stable across FAISS and hybrid paths."
+            "Derived from metadata.doc_type; stable across all retrieval paths."
         ),
     )
     supporting_quotes: list[dict[str, Any]] | None = Field(

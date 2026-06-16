@@ -416,7 +416,7 @@ responsibility:
 - **`cli.py`** — CLI only; **`service.py`** — daemon
   API; **`workflow/`** — pipeline orchestration
 - **`server/`** — FastAPI viewer routes;
-  **`search/`** — FAISS indexing
+  **`search/`** — LanceDB indexing
 - **`gi/`** — GIL extraction; **`kg/`** — KG
   extraction
 - **`providers/`** — All 9 provider implementations

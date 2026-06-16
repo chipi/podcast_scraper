@@ -109,7 +109,7 @@ def run_similar_episodes(
     index_path: Optional[str] = None,
     embedding_model: Optional[str] = None,
 ) -> SimilarEpisodesOutcome:
-    """Embed summary-derived text, search FAISS, return deduped peer episodes."""
+    """Embed summary-derived text, search the LanceDB index, return deduped peer episodes."""
     q = build_similarity_query(
         summary_title,
         summary_bullets,

@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -33,8 +33,7 @@ from podcast_scraper.gi.grounding import GroundedQuote
 from podcast_scraper.gi.io import read_artifact
 from podcast_scraper.gi.pipeline import _artifact_from_multi_insight
 from podcast_scraper.graph_id_utils import slugify_label, topic_node_id_from_slug
-from podcast_scraper.search.faiss_store import VECTORS_FILE
-from podcast_scraper.search.protocol import IndexStats
+from podcast_scraper.search.corpus_search import CorpusSearchOutcome
 
 
 @pytest.mark.unit
@@ -466,44 +465,27 @@ def test_collect_insights_semantic_topic_substring_filters_vector_hits(tmp_path:
     ]
     search_dir = tmp_path / "search"
     search_dir.mkdir(parents=True, exist_ok=True)
-    (search_dir / VECTORS_FILE).touch()
 
-    def _hit(ep: str, score: float = 0.99) -> MagicMock:
-        h = MagicMock()
-        h.metadata = {"episode_id": ep, "source_id": "insight-1", "feed_id": None}
-        h.score = score
-        return h
-
-    store_mock = MagicMock()
-    store_mock.ntotal = 100
-    store_mock.stats.return_value = IndexStats(
-        total_vectors=100,
-        doc_type_counts={"insight": 100},
-        feeds_indexed=[],
-        embedding_model="sentence-transformers/all-MiniLM-L6-v2",
-        embedding_dim=384,
-        last_updated="2020-01-01T00:00:00Z",
-        index_size_bytes=1,
+    # explore now ranks via run_corpus_search (LanceDB hybrid); mock it to return the two
+    # insight hits in vector order (ep_a first). The topic-substring filter then keeps ep_b.
+    outcome = CorpusSearchOutcome(
+        results=[
+            {"metadata": {"episode_id": "ep_a", "source_id": "insight-1"}, "score": 0.99},
+            {"metadata": {"episode_id": "ep_b", "source_id": "insight-1"}, "score": 0.5},
+        ]
     )
-    # ep_a ranks first by "vector" order but does not contain topic needle
-    store_mock.search.return_value = [_hit("ep_a", 0.99), _hit("ep_b", 0.5)]
-
-    with patch("podcast_scraper.search.faiss_store.FaissVectorStore.load", return_value=store_mock):
-        with patch(
-            "podcast_scraper.providers.ml.embedding_loader.encode",
-            return_value=[0.01] * 384,
-        ):
-            insights, gi_paths = _collect_insights_semantic(
-                tmp_path,
-                loaded,
-                topic="xyzneedle789",
-                speaker=None,
-                grounded_only=False,
-                min_confidence=None,
-                limit=10,
-                index_dir=search_dir,
-                strict=False,
-            )
+    with patch("podcast_scraper.search.corpus_search.run_corpus_search", return_value=outcome):
+        insights, gi_paths = _collect_insights_semantic(
+            tmp_path,
+            loaded,
+            topic="xyzneedle789",
+            speaker=None,
+            grounded_only=False,
+            min_confidence=None,
+            limit=10,
+            index_dir=search_dir,
+            strict=False,
+        )
 
     assert len(insights) == 1
     assert "xyzneedle789" in (insights[0].text or "").lower()

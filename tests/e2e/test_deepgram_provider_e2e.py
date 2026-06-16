@@ -27,7 +27,8 @@ pytestmark = [pytest.mark.e2e, pytest.mark.llm, pytest.mark.deepgram, pytest.mar
 
 USE_REAL_DEEPGRAM_API = os.getenv("USE_REAL_DEEPGRAM_API", "0") == "1"
 
-_FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "audio" / "p01_multi_e01.mp3"
+# Audio fixtures are versioned (#902); the old non-versioned path no longer exists.
+_FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "audio" / "v1" / "p01_multi_e01.mp3"
 
 
 @pytest.mark.skipif(

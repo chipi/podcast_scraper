@@ -1,6 +1,6 @@
 {
   "compact": false,
-  "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v2",
+  "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v2",
   "rows": [
     {
       "cil_digest_topics": [
@@ -31,7 +31,7 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p01/metadata/p01_e01.kg.json",
       "metadata_relative_path": "feeds/p01/metadata/p01_e01.metadata.json",
-      "publish_date": "2026-06-07",
+      "publish_date": "2026-06-15",
       "summary_bullet_graph_topic_ids": [
         "topic:outdoor-activities",
         "topic:gear",
@@ -79,7 +79,7 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p01/metadata/p01_e02.kg.json",
       "metadata_relative_path": "feeds/p01/metadata/p01_e02.metadata.json",
-      "publish_date": "2026-06-05",
+      "publish_date": "2026-06-13",
       "summary_bullet_graph_topic_ids": [
         "topic:outdoor-activities",
         "topic:gear",
@@ -127,7 +127,7 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p01/metadata/p01_e03.kg.json",
       "metadata_relative_path": "feeds/p01/metadata/p01_e03.metadata.json",
-      "publish_date": "2026-06-03",
+      "publish_date": "2026-06-11",
       "summary_bullet_graph_topic_ids": [
         "topic:outdoor-activities",
         "topic:gear",
@@ -175,7 +175,7 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p02/metadata/p02_e01.kg.json",
       "metadata_relative_path": "feeds/p02/metadata/p02_e01.metadata.json",
-      "publish_date": "2026-06-06",
+      "publish_date": "2026-06-14",
       "summary_bullet_graph_topic_ids": [
         "topic:technology",
         "topic:science-research",
@@ -223,7 +223,7 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p02/metadata/p02_e02.kg.json",
       "metadata_relative_path": "feeds/p02/metadata/p02_e02.metadata.json",
-      "publish_date": "2026-06-04",
+      "publish_date": "2026-06-12",
       "summary_bullet_graph_topic_ids": [
         "topic:technology",
         "topic:technology",
@@ -245,162 +245,6 @@
   ],
   "topic_bands": [
     {
-      "graph_topic_id": "topic:health",
-      "hits": [
-        {
-          "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
-          "episode_title": "The Long View \u2014 Episode 1",
-          "feed_display_title": "The Long View",
-          "feed_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
-          "gi_relative_path": "feeds/p07/metadata/p07_e01.gi.json",
-          "has_gi": true,
-          "has_kg": true,
-          "kg_relative_path": "feeds/p07/metadata/p07_e01.kg.json",
-          "metadata_relative_path": "feeds/p07/metadata/p07_e01.metadata.json",
-          "publish_date": "2026-06-07",
-          "score": 0.85,
-          "summary_preview": "# The Long View \u2014 Episode\n## What Sustainability Really Means (And Why Everyone Is Talking About It)\nHost: Alex Morgan\nGuest: Dr."
-        },
-        {
-          "episode_id": "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
-          "episode_title": "The Long View: Biohacking \u2014 Episode 1",
-          "feed_display_title": "The Long View: Biohacking",
-          "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
-          "gi_relative_path": "feeds/p09/metadata/p09_e01.gi.json",
-          "has_gi": true,
-          "has_kg": true,
-          "kg_relative_path": "feeds/p09/metadata/p09_e01.kg.json",
-          "metadata_relative_path": "feeds/p09/metadata/p09_e01.metadata.json",
-          "publish_date": "2026-06-05",
-          "score": 0.85,
-          "summary_preview": "# The Long View \u2014 Episode\n## The Biohacking Premise\nHost: Alex Morgan\nGuest: Dr."
-        },
-        {
-          "episode_id": "d24c1620-8d16-54dd-b681-2f2e06c0b579",
-          "episode_title": "The Long View: Biohacking \u2014 Episode 2",
-          "feed_display_title": "The Long View: Biohacking",
-          "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
-          "gi_relative_path": "feeds/p09/metadata/p09_e02.gi.json",
-          "has_gi": true,
-          "has_kg": true,
-          "kg_relative_path": "feeds/p09/metadata/p09_e02.kg.json",
-          "metadata_relative_path": "feeds/p09/metadata/p09_e02.metadata.json",
-          "publish_date": "2026-06-03",
-          "score": 0.85,
-          "summary_preview": "# The Long View \u2014 Episode\n## Continuous Glucose Monitors and What They Tell You\nHost: Alex Morgan\nGuest: Dr."
-        },
-        {
-          "episode_id": "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
-          "episode_title": "The Long View: Biohacking \u2014 Episode 3",
-          "feed_display_title": "The Long View: Biohacking",
-          "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
-          "gi_relative_path": "feeds/p09/metadata/p09_e03.gi.json",
-          "has_gi": true,
-          "has_kg": true,
-          "kg_relative_path": "feeds/p09/metadata/p09_e03.kg.json",
-          "metadata_relative_path": "feeds/p09/metadata/p09_e03.metadata.json",
-          "publish_date": "2026-06-07",
-          "score": 0.85,
-          "summary_preview": "# The Long View \u2014 Episode\n## The Risk Profile of Self-Experimentation\nHost: Alex Morgan\nGuest: Dr."
-        }
-      ],
-      "label": "Health",
-      "query": "health",
-      "topic_id": "t-health"
-    },
-    {
-      "graph_topic_id": "topic:outdoor-activities",
-      "hits": [
-        {
-          "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
-          "episode_title": "Singletrack Sessions \u2014 Episode 1",
-          "feed_display_title": "Singletrack Sessions",
-          "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
-          "gi_relative_path": "feeds/p01/metadata/p01_e01.gi.json",
-          "has_gi": true,
-          "has_kg": true,
-          "kg_relative_path": "feeds/p01/metadata/p01_e01.kg.json",
-          "metadata_relative_path": "feeds/p01/metadata/p01_e01.metadata.json",
-          "publish_date": "2026-06-07",
-          "score": 0.85,
-          "summary_preview": "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions."
-        },
-        {
-          "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
-          "episode_title": "Singletrack Sessions \u2014 Episode 2",
-          "feed_display_title": "Singletrack Sessions",
-          "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
-          "gi_relative_path": "feeds/p01/metadata/p01_e02.gi.json",
-          "has_gi": true,
-          "has_kg": true,
-          "kg_relative_path": "feeds/p01/metadata/p01_e02.kg.json",
-          "metadata_relative_path": "feeds/p01/metadata/p01_e02.metadata.json",
-          "publish_date": "2026-06-05",
-          "score": 0.85,
-          "summary_preview": "# Singletrack Sessions \u2014 Episode\n## Enduro Skills Without the Hype\nHost: Maya\nGuest: Sophie\nMaya: Welcome back to Singletrack Sessions."
-        },
-        {
-          "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
-          "episode_title": "Singletrack Sessions \u2014 Episode 3",
-          "feed_display_title": "Singletrack Sessions",
-          "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
-          "gi_relative_path": "feeds/p01/metadata/p01_e03.gi.json",
-          "has_gi": true,
-          "has_kg": true,
-          "kg_relative_path": "feeds/p01/metadata/p01_e03.kg.json",
-          "metadata_relative_path": "feeds/p01/metadata/p01_e03.metadata.json",
-          "publish_date": "2026-06-03",
-          "score": 0.85,
-          "summary_preview": "# Singletrack Sessions \u2014 Episode\n## The Mechanics of a Quiet, Fast Bike\nHost: Maya\nGuest: Noah\nMaya: Welcome back to Singletrack Sessions."
-        },
-        {
-          "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
-          "episode_title": "Below the Surface \u2014 Episode 1",
-          "feed_display_title": "Below the Surface",
-          "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
-          "gi_relative_path": "feeds/p03/metadata/p03_e01.gi.json",
-          "has_gi": true,
-          "has_kg": true,
-          "kg_relative_path": "feeds/p03/metadata/p03_e01.kg.json",
-          "metadata_relative_path": "feeds/p03/metadata/p03_e01.metadata.json",
-          "publish_date": "2026-06-05",
-          "score": 0.85,
-          "summary_preview": "# Below the Surface \u2014 Episode\n## Wreck Diving Fundamentals\nHost: Rina\nGuest: Marco\nRina: Welcome back to Below the Surface."
-        },
-        {
-          "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
-          "episode_title": "Below the Surface \u2014 Episode 2",
-          "feed_display_title": "Below the Surface",
-          "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
-          "gi_relative_path": "feeds/p03/metadata/p03_e02.gi.json",
-          "has_gi": true,
-          "has_kg": true,
-          "kg_relative_path": "feeds/p03/metadata/p03_e02.kg.json",
-          "metadata_relative_path": "feeds/p03/metadata/p03_e02.metadata.json",
-          "publish_date": "2026-06-03",
-          "score": 0.85,
-          "summary_preview": "# Below the Surface \u2014 Episode\n## Marine Biology for Divers\nHost: Rina\nGuest: Hanna\nRina: Welcome back to Below the Surface."
-        },
-        {
-          "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
-          "episode_title": "Below the Surface \u2014 Episode 3",
-          "feed_display_title": "Below the Surface",
-          "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
-          "gi_relative_path": "feeds/p03/metadata/p03_e03.gi.json",
-          "has_gi": true,
-          "has_kg": true,
-          "kg_relative_path": "feeds/p03/metadata/p03_e03.kg.json",
-          "metadata_relative_path": "feeds/p03/metadata/p03_e03.metadata.json",
-          "publish_date": "2026-06-07",
-          "score": 0.85,
-          "summary_preview": "# Below the Surface \u2014 Episode\n## Calm Under Pressure\nHost: Rina\nGuest: Owen\nRina: Welcome back to Below the Surface."
-        }
-      ],
-      "label": "Outdoor Activities",
-      "query": "outdoor activities",
-      "topic_id": "t-outdoor-activities"
-    },
-    {
       "graph_topic_id": "topic:gear",
       "hits": [
         {
@@ -413,7 +257,7 @@
           "has_kg": true,
           "kg_relative_path": "feeds/p01/metadata/p01_e01.kg.json",
           "metadata_relative_path": "feeds/p01/metadata/p01_e01.metadata.json",
-          "publish_date": "2026-06-07",
+          "publish_date": "2026-06-15",
           "score": 0.85,
           "summary_preview": "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions."
         },
@@ -427,7 +271,7 @@
           "has_kg": true,
           "kg_relative_path": "feeds/p01/metadata/p01_e02.kg.json",
           "metadata_relative_path": "feeds/p01/metadata/p01_e02.metadata.json",
-          "publish_date": "2026-06-05",
+          "publish_date": "2026-06-13",
           "score": 0.85,
           "summary_preview": "# Singletrack Sessions \u2014 Episode\n## Enduro Skills Without the Hype\nHost: Maya\nGuest: Sophie\nMaya: Welcome back to Singletrack Sessions."
         },
@@ -441,7 +285,7 @@
           "has_kg": true,
           "kg_relative_path": "feeds/p01/metadata/p01_e03.kg.json",
           "metadata_relative_path": "feeds/p01/metadata/p01_e03.metadata.json",
-          "publish_date": "2026-06-03",
+          "publish_date": "2026-06-11",
           "score": 0.85,
           "summary_preview": "# Singletrack Sessions \u2014 Episode\n## The Mechanics of a Quiet, Fast Bike\nHost: Maya\nGuest: Noah\nMaya: Welcome back to Singletrack Sessions."
         },
@@ -455,7 +299,7 @@
           "has_kg": true,
           "kg_relative_path": "feeds/p03/metadata/p03_e01.kg.json",
           "metadata_relative_path": "feeds/p03/metadata/p03_e01.metadata.json",
-          "publish_date": "2026-06-05",
+          "publish_date": "2026-06-13",
           "score": 0.85,
           "summary_preview": "# Below the Surface \u2014 Episode\n## Wreck Diving Fundamentals\nHost: Rina\nGuest: Marco\nRina: Welcome back to Below the Surface."
         },
@@ -469,7 +313,7 @@
           "has_kg": true,
           "kg_relative_path": "feeds/p03/metadata/p03_e02.kg.json",
           "metadata_relative_path": "feeds/p03/metadata/p03_e02.metadata.json",
-          "publish_date": "2026-06-03",
+          "publish_date": "2026-06-11",
           "score": 0.85,
           "summary_preview": "# Below the Surface \u2014 Episode\n## Marine Biology for Divers\nHost: Rina\nGuest: Hanna\nRina: Welcome back to Below the Surface."
         },
@@ -483,7 +327,7 @@
           "has_kg": true,
           "kg_relative_path": "feeds/p03/metadata/p03_e03.kg.json",
           "metadata_relative_path": "feeds/p03/metadata/p03_e03.metadata.json",
-          "publish_date": "2026-06-07",
+          "publish_date": "2026-06-15",
           "score": 0.85,
           "summary_preview": "# Below the Surface \u2014 Episode\n## Calm Under Pressure\nHost: Rina\nGuest: Owen\nRina: Welcome back to Below the Surface."
         },
@@ -497,7 +341,7 @@
           "has_kg": true,
           "kg_relative_path": "feeds/p04/metadata/p04_e01.kg.json",
           "metadata_relative_path": "feeds/p04/metadata/p04_e01.metadata.json",
-          "publish_date": "2026-06-04",
+          "publish_date": "2026-06-12",
           "score": 0.85,
           "summary_preview": "# Frame & Light \u2014 Episode\n## Underwater Images That Feel Alive\nHost: Leo\nGuest: Ava\nLeo: Welcome back to Frame & Light."
         },
@@ -511,7 +355,7 @@
           "has_kg": true,
           "kg_relative_path": "feeds/p04/metadata/p04_e02.kg.json",
           "metadata_relative_path": "feeds/p04/metadata/p04_e02.metadata.json",
-          "publish_date": "2026-06-02",
+          "publish_date": "2026-06-10",
           "score": 0.85,
           "summary_preview": "# Frame & Light \u2014 Episode\n## Documentary Workflow in the Field\nHost: Leo\nGuest: Tariq\nLeo: Welcome back to Frame & Light."
         },
@@ -525,7 +369,7 @@
           "has_kg": true,
           "kg_relative_path": "feeds/p04/metadata/p04_e03.kg.json",
           "metadata_relative_path": "feeds/p04/metadata/p04_e03.metadata.json",
-          "publish_date": "2026-06-06",
+          "publish_date": "2026-06-14",
           "score": 0.85,
           "summary_preview": "# Frame & Light \u2014 Episode\n## Lighting Decisions That Save a Shoot\nHost: Leo\nGuest: Elise\nLeo: Welcome back to Frame & Light."
         }
@@ -547,7 +391,7 @@
           "has_kg": true,
           "kg_relative_path": "feeds/p02/metadata/p02_e01.kg.json",
           "metadata_relative_path": "feeds/p02/metadata/p02_e01.metadata.json",
-          "publish_date": "2026-06-06",
+          "publish_date": "2026-06-14",
           "score": 0.85,
           "summary_preview": "# Practical Systems \u2014 Episode\n## On-Call That Doesn't Break People\nHost: Ethan\nGuest: Priya\nEthan: Welcome back to Practical Systems."
         },
@@ -561,7 +405,7 @@
           "has_kg": true,
           "kg_relative_path": "feeds/p02/metadata/p02_e02.kg.json",
           "metadata_relative_path": "feeds/p02/metadata/p02_e02.metadata.json",
-          "publish_date": "2026-06-04",
+          "publish_date": "2026-06-12",
           "score": 0.85,
           "summary_preview": "# Practical Systems \u2014 Episode\n## Staff-Engineer Communication Patterns\nHost: Ethan\nGuest: Jonas\nEthan: Welcome back to Practical Systems."
         },
@@ -575,7 +419,7 @@
           "has_kg": true,
           "kg_relative_path": "feeds/p02/metadata/p02_e03.kg.json",
           "metadata_relative_path": "feeds/p02/metadata/p02_e03.metadata.json",
-          "publish_date": "2026-06-02",
+          "publish_date": "2026-06-10",
           "score": 0.85,
           "summary_preview": "# Practical Systems \u2014 Episode\n## Security as Design, Not a Checklist\nHost: Ethan\nGuest: Priya\nEthan: Welcome back to Practical Systems."
         },
@@ -589,7 +433,7 @@
           "has_kg": true,
           "kg_relative_path": "feeds/p04/metadata/p04_e01.kg.json",
           "metadata_relative_path": "feeds/p04/metadata/p04_e01.metadata.json",
-          "publish_date": "2026-06-04",
+          "publish_date": "2026-06-12",
           "score": 0.85,
           "summary_preview": "# Frame & Light \u2014 Episode\n## Underwater Images That Feel Alive\nHost: Leo\nGuest: Ava\nLeo: Welcome back to Frame & Light."
         },
@@ -603,7 +447,7 @@
           "has_kg": true,
           "kg_relative_path": "feeds/p04/metadata/p04_e02.kg.json",
           "metadata_relative_path": "feeds/p04/metadata/p04_e02.metadata.json",
-          "publish_date": "2026-06-02",
+          "publish_date": "2026-06-10",
           "score": 0.85,
           "summary_preview": "# Frame & Light \u2014 Episode\n## Documentary Workflow in the Field\nHost: Leo\nGuest: Tariq\nLeo: Welcome back to Frame & Light."
         },
@@ -617,7 +461,7 @@
           "has_kg": true,
           "kg_relative_path": "feeds/p04/metadata/p04_e03.kg.json",
           "metadata_relative_path": "feeds/p04/metadata/p04_e03.metadata.json",
-          "publish_date": "2026-06-06",
+          "publish_date": "2026-06-14",
           "score": 0.85,
           "summary_preview": "# Frame & Light \u2014 Episode\n## Lighting Decisions That Save a Shoot\nHost: Leo\nGuest: Elise\nLeo: Welcome back to Frame & Light."
         },
@@ -631,7 +475,7 @@
           "has_kg": true,
           "kg_relative_path": "feeds/p08/metadata/p08_e01.kg.json",
           "metadata_relative_path": "feeds/p08/metadata/p08_e01.metadata.json",
-          "publish_date": "2026-06-06",
+          "publish_date": "2026-06-14",
           "score": 0.85,
           "summary_preview": "# The Long View \u2014 Episode\n## Solar Energy: Past, Present, and Long-Term Outlook\nHost: Alex Morgan\nGuest: Dr."
         },
@@ -645,7 +489,7 @@
           "has_kg": true,
           "kg_relative_path": "feeds/p09/metadata/p09_e01.kg.json",
           "metadata_relative_path": "feeds/p09/metadata/p09_e01.metadata.json",
-          "publish_date": "2026-06-05",
+          "publish_date": "2026-06-13",
           "score": 0.85,
           "summary_preview": "# The Long View \u2014 Episode\n## The Biohacking Premise\nHost: Alex Morgan\nGuest: Dr."
         },
@@ -659,7 +503,7 @@
           "has_kg": true,
           "kg_relative_path": "feeds/p09/metadata/p09_e02.kg.json",
           "metadata_relative_path": "feeds/p09/metadata/p09_e02.metadata.json",
-          "publish_date": "2026-06-03",
+          "publish_date": "2026-06-11",
           "score": 0.85,
           "summary_preview": "# The Long View \u2014 Episode\n## Continuous Glucose Monitors and What They Tell You\nHost: Alex Morgan\nGuest: Dr."
         },
@@ -673,7 +517,7 @@
           "has_kg": true,
           "kg_relative_path": "feeds/p09/metadata/p09_e03.kg.json",
           "metadata_relative_path": "feeds/p09/metadata/p09_e03.metadata.json",
-          "publish_date": "2026-06-07",
+          "publish_date": "2026-06-15",
           "score": 0.85,
           "summary_preview": "# The Long View \u2014 Episode\n## The Risk Profile of Self-Experimentation\nHost: Alex Morgan\nGuest: Dr."
         }
@@ -695,7 +539,7 @@
           "has_kg": true,
           "kg_relative_path": "feeds/p07/metadata/p07_e01.kg.json",
           "metadata_relative_path": "feeds/p07/metadata/p07_e01.metadata.json",
-          "publish_date": "2026-06-07",
+          "publish_date": "2026-06-15",
           "score": 0.85,
           "summary_preview": "# The Long View \u2014 Episode\n## What Sustainability Really Means (And Why Everyone Is Talking About It)\nHost: Alex Morgan\nGuest: Dr."
         },
@@ -709,7 +553,7 @@
           "has_kg": true,
           "kg_relative_path": "feeds/p08/metadata/p08_e01.kg.json",
           "metadata_relative_path": "feeds/p08/metadata/p08_e01.metadata.json",
-          "publish_date": "2026-06-06",
+          "publish_date": "2026-06-14",
           "score": 0.85,
           "summary_preview": "# The Long View \u2014 Episode\n## Solar Energy: Past, Present, and Long-Term Outlook\nHost: Alex Morgan\nGuest: Dr."
         }
@@ -717,6 +561,162 @@
       "label": "Environment",
       "query": "environment",
       "topic_id": "t-environment"
+    },
+    {
+      "graph_topic_id": "topic:health",
+      "hits": [
+        {
+          "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+          "episode_title": "The Long View \u2014 Episode 1",
+          "feed_display_title": "The Long View",
+          "feed_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
+          "gi_relative_path": "feeds/p07/metadata/p07_e01.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/p07/metadata/p07_e01.kg.json",
+          "metadata_relative_path": "feeds/p07/metadata/p07_e01.metadata.json",
+          "publish_date": "2026-06-15",
+          "score": 0.85,
+          "summary_preview": "# The Long View \u2014 Episode\n## What Sustainability Really Means (And Why Everyone Is Talking About It)\nHost: Alex Morgan\nGuest: Dr."
+        },
+        {
+          "episode_id": "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+          "episode_title": "The Long View: Biohacking \u2014 Episode 1",
+          "feed_display_title": "The Long View: Biohacking",
+          "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+          "gi_relative_path": "feeds/p09/metadata/p09_e01.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/p09/metadata/p09_e01.kg.json",
+          "metadata_relative_path": "feeds/p09/metadata/p09_e01.metadata.json",
+          "publish_date": "2026-06-13",
+          "score": 0.85,
+          "summary_preview": "# The Long View \u2014 Episode\n## The Biohacking Premise\nHost: Alex Morgan\nGuest: Dr."
+        },
+        {
+          "episode_id": "d24c1620-8d16-54dd-b681-2f2e06c0b579",
+          "episode_title": "The Long View: Biohacking \u2014 Episode 2",
+          "feed_display_title": "The Long View: Biohacking",
+          "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+          "gi_relative_path": "feeds/p09/metadata/p09_e02.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/p09/metadata/p09_e02.kg.json",
+          "metadata_relative_path": "feeds/p09/metadata/p09_e02.metadata.json",
+          "publish_date": "2026-06-11",
+          "score": 0.85,
+          "summary_preview": "# The Long View \u2014 Episode\n## Continuous Glucose Monitors and What They Tell You\nHost: Alex Morgan\nGuest: Dr."
+        },
+        {
+          "episode_id": "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+          "episode_title": "The Long View: Biohacking \u2014 Episode 3",
+          "feed_display_title": "The Long View: Biohacking",
+          "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+          "gi_relative_path": "feeds/p09/metadata/p09_e03.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/p09/metadata/p09_e03.kg.json",
+          "metadata_relative_path": "feeds/p09/metadata/p09_e03.metadata.json",
+          "publish_date": "2026-06-15",
+          "score": 0.85,
+          "summary_preview": "# The Long View \u2014 Episode\n## The Risk Profile of Self-Experimentation\nHost: Alex Morgan\nGuest: Dr."
+        }
+      ],
+      "label": "Health",
+      "query": "health",
+      "topic_id": "t-health"
+    },
+    {
+      "graph_topic_id": "topic:outdoor-activities",
+      "hits": [
+        {
+          "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+          "episode_title": "Singletrack Sessions \u2014 Episode 1",
+          "feed_display_title": "Singletrack Sessions",
+          "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+          "gi_relative_path": "feeds/p01/metadata/p01_e01.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/p01/metadata/p01_e01.kg.json",
+          "metadata_relative_path": "feeds/p01/metadata/p01_e01.metadata.json",
+          "publish_date": "2026-06-15",
+          "score": 0.85,
+          "summary_preview": "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions."
+        },
+        {
+          "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+          "episode_title": "Singletrack Sessions \u2014 Episode 2",
+          "feed_display_title": "Singletrack Sessions",
+          "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+          "gi_relative_path": "feeds/p01/metadata/p01_e02.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/p01/metadata/p01_e02.kg.json",
+          "metadata_relative_path": "feeds/p01/metadata/p01_e02.metadata.json",
+          "publish_date": "2026-06-13",
+          "score": 0.85,
+          "summary_preview": "# Singletrack Sessions \u2014 Episode\n## Enduro Skills Without the Hype\nHost: Maya\nGuest: Sophie\nMaya: Welcome back to Singletrack Sessions."
+        },
+        {
+          "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
+          "episode_title": "Singletrack Sessions \u2014 Episode 3",
+          "feed_display_title": "Singletrack Sessions",
+          "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+          "gi_relative_path": "feeds/p01/metadata/p01_e03.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/p01/metadata/p01_e03.kg.json",
+          "metadata_relative_path": "feeds/p01/metadata/p01_e03.metadata.json",
+          "publish_date": "2026-06-11",
+          "score": 0.85,
+          "summary_preview": "# Singletrack Sessions \u2014 Episode\n## The Mechanics of a Quiet, Fast Bike\nHost: Maya\nGuest: Noah\nMaya: Welcome back to Singletrack Sessions."
+        },
+        {
+          "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
+          "episode_title": "Below the Surface \u2014 Episode 1",
+          "feed_display_title": "Below the Surface",
+          "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+          "gi_relative_path": "feeds/p03/metadata/p03_e01.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/p03/metadata/p03_e01.kg.json",
+          "metadata_relative_path": "feeds/p03/metadata/p03_e01.metadata.json",
+          "publish_date": "2026-06-13",
+          "score": 0.85,
+          "summary_preview": "# Below the Surface \u2014 Episode\n## Wreck Diving Fundamentals\nHost: Rina\nGuest: Marco\nRina: Welcome back to Below the Surface."
+        },
+        {
+          "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
+          "episode_title": "Below the Surface \u2014 Episode 2",
+          "feed_display_title": "Below the Surface",
+          "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+          "gi_relative_path": "feeds/p03/metadata/p03_e02.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/p03/metadata/p03_e02.kg.json",
+          "metadata_relative_path": "feeds/p03/metadata/p03_e02.metadata.json",
+          "publish_date": "2026-06-11",
+          "score": 0.85,
+          "summary_preview": "# Below the Surface \u2014 Episode\n## Marine Biology for Divers\nHost: Rina\nGuest: Hanna\nRina: Welcome back to Below the Surface."
+        },
+        {
+          "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+          "episode_title": "Below the Surface \u2014 Episode 3",
+          "feed_display_title": "Below the Surface",
+          "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+          "gi_relative_path": "feeds/p03/metadata/p03_e03.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/p03/metadata/p03_e03.kg.json",
+          "metadata_relative_path": "feeds/p03/metadata/p03_e03.metadata.json",
+          "publish_date": "2026-06-15",
+          "score": 0.85,
+          "summary_preview": "# Below the Surface \u2014 Episode\n## Calm Under Pressure\nHost: Rina\nGuest: Owen\nRina: Welcome back to Below the Surface."
+        }
+      ],
+      "label": "Outdoor Activities",
+      "query": "outdoor activities",
+      "topic_id": "t-outdoor-activities"
     }
   ],
   "topics_unavailable_reason": null,

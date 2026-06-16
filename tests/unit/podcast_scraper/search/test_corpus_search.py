@@ -1,18 +1,19 @@
-"""Unit tests for ``corpus_search`` (dedupe, filters, mocked FAISS path)."""
+"""Unit tests for ``corpus_search`` (dedupe, filters, mocked LanceDB hybrid path)."""
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from podcast_scraper.search.corpus_search import dedupe_kg_surface_rows, run_corpus_search
-from podcast_scraper.search.faiss_store import VECTORS_FILE
-from podcast_scraper.search.protocol import IndexStats, SearchResult
+from podcast_scraper.search.protocol import SearchResult
 
 pytestmark = [pytest.mark.unit]
+
+_HYBRID = "podcast_scraper.search.corpus_search.hybrid_candidates"
 
 
 def test_run_corpus_search_empty_query(tmp_path: Path) -> None:
@@ -21,9 +22,9 @@ def test_run_corpus_search_empty_query(tmp_path: Path) -> None:
 
 
 def test_run_corpus_search_no_index(tmp_path: Path) -> None:
+    # No LanceDB index on disk → hybrid_candidates returns None → no_index.
     out = run_corpus_search(tmp_path, "climate")
     assert out.error == "no_index"
-    assert "search" in (out.detail or "")
 
 
 def test_dedupe_kg_surface_rows_merges_same_surface_text() -> None:
@@ -59,39 +60,15 @@ def test_dedupe_kg_surface_rows_non_dict_metadata_still_keeps_row() -> None:
     assert len(out) == 1
 
 
-@patch("podcast_scraper.search.corpus_search.embedding_loader.encode")
-@patch("podcast_scraper.search.corpus_search.FaissVectorStore.load")
-def test_run_corpus_search_success_mocked(
-    mock_load: MagicMock,
-    mock_encode: MagicMock,
-    tmp_path: Path,
-) -> None:
-    search_dir = tmp_path / "search"
-    search_dir.mkdir()
-    (search_dir / VECTORS_FILE).write_bytes(b"")
-
-    mock_encode.return_value = [0.1] * 8
-
-    store = MagicMock()
-    store.ntotal = 2
-    store.stats.return_value = IndexStats(
-        total_vectors=2,
-        doc_type_counts={"insight": 2},
-        feeds_indexed=[],
-        embedding_model="test-model",
-        embedding_dim=8,
-        last_updated="",
-        index_size_bytes=0,
-    )
-    store.search.return_value = [
+@patch(_HYBRID)
+def test_run_corpus_search_success_mocked(mock_hybrid: object, tmp_path: Path) -> None:
+    mock_hybrid.return_value = [
         SearchResult(
             doc_id="d1",
             score=0.99,
             metadata={"doc_type": "insight", "episode_id": "e1", "text": "hello"},
         ),
     ]
-    mock_load.return_value = store
-
     out = run_corpus_search(tmp_path, "q", top_k=5, dedupe_kg_surfaces=False)
     assert out.error is None
     assert len(out.results) == 1
@@ -100,16 +77,12 @@ def test_run_corpus_search_success_mocked(
     assert "transcript_hits_returned" in out.lift_stats
 
 
-@patch("podcast_scraper.search.corpus_search.embedding_loader.encode")
-@patch("podcast_scraper.search.corpus_search.FaissVectorStore.load")
+@patch(_HYBRID)
 def test_run_corpus_search_attaches_topic_cluster_metadata(
-    mock_load: MagicMock,
-    mock_encode: MagicMock,
-    tmp_path: Path,
+    mock_hybrid: object, tmp_path: Path
 ) -> None:
     search_dir = tmp_path / "search"
     search_dir.mkdir()
-    (search_dir / VECTORS_FILE).write_bytes(b"")
     (search_dir / "topic_clusters.json").write_text(
         json.dumps(
             {
@@ -124,21 +97,7 @@ def test_run_corpus_search_attaches_topic_cluster_metadata(
         ),
         encoding="utf-8",
     )
-
-    mock_encode.return_value = [0.1] * 8
-
-    store = MagicMock()
-    store.ntotal = 2
-    store.stats.return_value = IndexStats(
-        total_vectors=2,
-        doc_type_counts={"kg_topic": 2},
-        feeds_indexed=[],
-        embedding_model="test-model",
-        embedding_dim=8,
-        last_updated="",
-        index_size_bytes=0,
-    )
-    store.search.return_value = [
+    mock_hybrid.return_value = [
         SearchResult(
             doc_id="d1",
             score=0.99,
@@ -150,89 +109,30 @@ def test_run_corpus_search_attaches_topic_cluster_metadata(
             },
         ),
     ]
-    mock_load.return_value = store
-
     out = run_corpus_search(tmp_path, "q", top_k=5, dedupe_kg_surfaces=False)
     assert out.error is None
     assert len(out.results) == 1
-    meta = out.results[0]["metadata"]
-    tc = meta.get("topic_cluster")
+    tc = out.results[0]["metadata"].get("topic_cluster")
     assert isinstance(tc, dict)
     assert tc.get("graph_compound_parent_id") == "tc:cam"
     assert tc.get("canonical_label") == "Cam Label"
 
 
-@patch("podcast_scraper.search.corpus_search.embedding_loader.encode")
-@patch("podcast_scraper.search.corpus_search.FaissVectorStore.load")
-def test_run_corpus_search_load_failed(
-    mock_load: MagicMock,
-    mock_encode: MagicMock,
-    tmp_path: Path,
-) -> None:
-    search_dir = tmp_path / "search"
-    search_dir.mkdir()
-    (search_dir / VECTORS_FILE).write_bytes(b"")
-    mock_load.side_effect = RuntimeError("bad index")
+@patch(_HYBRID)
+def test_run_corpus_search_no_index_when_hybrid_none(mock_hybrid: object, tmp_path: Path) -> None:
+    # hybrid_candidates returns None for a missing/unusable index → no_index (no FAISS fallback).
+    mock_hybrid.return_value = None
     out = run_corpus_search(tmp_path, "q")
-    assert out.error == "load_failed"
-    mock_encode.assert_not_called()
+    assert out.error == "no_index"
 
 
-@patch("podcast_scraper.search.corpus_search.embedding_loader.encode")
-@patch("podcast_scraper.search.corpus_search.FaissVectorStore.load")
-def test_run_corpus_search_embed_failed(
-    mock_load: MagicMock,
-    mock_encode: MagicMock,
-    tmp_path: Path,
-) -> None:
-    search_dir = tmp_path / "search"
-    search_dir.mkdir()
-    (search_dir / VECTORS_FILE).write_bytes(b"")
-    store = MagicMock()
-    store.ntotal = 1
-    store.stats.return_value = IndexStats(
-        total_vectors=1,
-        doc_type_counts={},
-        feeds_indexed=[],
-        embedding_model="m",
-        embedding_dim=4,
-        last_updated="",
-        index_size_bytes=0,
-    )
-    mock_load.return_value = store
-    mock_encode.side_effect = RuntimeError("no embedder")
-    out = run_corpus_search(tmp_path, "q")
-    assert out.error == "embed_failed"
-
-
-@patch("podcast_scraper.search.corpus_search.embedding_loader.encode")
-@patch("podcast_scraper.search.corpus_search.FaissVectorStore.load")
-def test_run_corpus_search_multi_doc_type_filter(
-    mock_load: MagicMock,
-    mock_encode: MagicMock,
-    tmp_path: Path,
-) -> None:
-    search_dir = tmp_path / "search"
-    search_dir.mkdir()
-    (search_dir / VECTORS_FILE).write_bytes(b"")
-    mock_encode.return_value = [0.0] * 4
-    store = MagicMock()
-    store.ntotal = 10
-    store.stats.return_value = IndexStats(
-        total_vectors=10,
-        doc_type_counts={},
-        feeds_indexed=[],
-        embedding_model="m",
-        embedding_dim=4,
-        last_updated="",
-        index_size_bytes=0,
-    )
-    store.search.return_value = [
+@patch(_HYBRID)
+def test_run_corpus_search_multi_doc_type_filter(mock_hybrid: object, tmp_path: Path) -> None:
+    mock_hybrid.return_value = [
         SearchResult("a", 0.9, {"doc_type": "insight", "episode_id": "e"}),
         SearchResult("b", 0.8, {"doc_type": "quote", "episode_id": "e"}),
         SearchResult("c", 0.7, {"doc_type": "summary", "episode_id": "e"}),
     ]
-    mock_load.return_value = store
     out = run_corpus_search(
         tmp_path,
         "q",
@@ -244,34 +144,3 @@ def test_run_corpus_search_multi_doc_type_filter(
     dts = {r["metadata"]["doc_type"] for r in out.results}
     assert dts <= {"insight", "quote"}
     assert "summary" not in dts
-
-
-def test_run_corpus_search_embed_returns_wrong_shape(
-    tmp_path: Path,
-) -> None:
-    search_dir = tmp_path / "search"
-    search_dir.mkdir()
-    (search_dir / VECTORS_FILE).write_bytes(b"")
-    store = MagicMock()
-    store.ntotal = 1
-    store.stats.return_value = IndexStats(
-        total_vectors=1,
-        doc_type_counts={},
-        feeds_indexed=[],
-        embedding_model="m",
-        embedding_dim=4,
-        last_updated="",
-        index_size_bytes=0,
-    )
-    with (
-        patch(
-            "podcast_scraper.search.corpus_search.FaissVectorStore.load",
-            return_value=store,
-        ),
-        patch(
-            "podcast_scraper.search.corpus_search.embedding_loader.encode",
-            return_value=[[0.1, 0.2]],
-        ),
-    ):
-        out = run_corpus_search(tmp_path, "q")
-    assert out.error == "embed_failed"

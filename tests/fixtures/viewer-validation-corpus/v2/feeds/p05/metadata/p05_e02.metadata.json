@@ -13,9 +13,31 @@
       "topic_id": "topic:welcome-back-to"
     }
   ],
+  "content": {
+    "diarization_num_speakers": 3,
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Nora",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Isabel",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p05_e02.txt",
+    "transcript_source": "synthetic"
+  },
   "episode": {
     "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
-    "published_date": "2026-06-07",
+    "published_date": "2026-06-15",
     "title": "Long Horizon Notes \u2014 Episode 2"
   },
   "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
@@ -40,7 +62,7 @@
     "artifact_path": "feeds/p05/metadata/p05_e02.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-06-07",
+  "publish_date": "2026-06-15",
   "schema_version": "1",
   "summary": {
     "bullets": [

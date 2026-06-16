@@ -60,7 +60,7 @@ With **`summary_provider: transformers`** (or **`hybrid_ml`**) and **`gi_insight
 
 ### Topic nodes, `ABOUT` edges, and `gi explore --topic`
 
-When **`<output_dir>/search/vectors.faiss`** exists (semantic corpus index, RFC-061),
+When **`<output_dir>/search/lance_index/`** exists (semantic corpus index, RFC-061),
 **`gi explore --topic`** ranks **Insight** rows by embedding similarity to the topic
 string first; if the index is missing, errors, or yields no hits after filters, it falls
 back to the behavior below. See [Semantic Search Guide](SEMANTIC_SEARCH_GUIDE.md).
@@ -174,7 +174,7 @@ Use this field for audits and metrics, not a second hand-maintained model id in 
 The file is co-located with the transcript and summary. The logical “full” set of grounded insights across the project is the union of all per-episode `gi.json` files (no global store in v1).
 
 **Quote character offsets:** **Quote** nodes store **`char_start`** / **`char_end`** in the
-**same transcript coordinate space** as FAISS **transcript** chunks when both are built from the
+**same transcript coordinate space** as indexed **transcript** chunks when both are built from the
 same on-disk transcript. **Semantic search lift** and **offset verification** assume that
 alignment. See [Semantic Search Guide — Chunk-to-Insight lift](SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification-rfc-072--528).
 

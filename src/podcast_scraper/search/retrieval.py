@@ -63,8 +63,22 @@ class RetrievalLayer:
         ``vector``). Returns a score-ordered list of ``ScoredResult`` /
         ``CompoundResult``.
         """
-        intent = intent or self._classify(text)
         query = SearchQuery(text=text, embedding=embedding, filters=filters or {}, k=k, tier=tier)
+
+        # ADR-099 Stage 2 (#995): native LanceDB hybrid — vector + BM25 + RRF fused
+        # in-engine, one query per tier — replaces the Python-side fan-out for the default
+        # ``hybrid`` signal. Kept off when an explicit bm25/vector-only signal is requested
+        # or when the KG-proximity signal is wired (it composes a third ranked list that the
+        # native reranker does not know about). Drops the router's per-intent tier/signal
+        # weighting; validated to not regress top-k relevance before rollout.
+        if (
+            signals == "hybrid"
+            and self.kg_proximity is None
+            and hasattr(self.backend, "search_hybrid")
+        ):
+            return deduplicate(self.backend.search_hybrid(query))
+
+        intent = intent or self._classify(text)
 
         ranked_lists = []
         if signals in ("hybrid", "bm25"):

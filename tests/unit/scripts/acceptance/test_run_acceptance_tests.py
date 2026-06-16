@@ -7,6 +7,7 @@ import os
 import sys
 import tempfile
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -190,18 +191,48 @@ class TestEstimateLlmCostAcceptance:
 
 @pytest.mark.unit
 class TestAssessVectorIndexRun:
-    """FAISS health flags for acceptance run_data / strict mode."""
+    """LanceDB search-index health flags for acceptance run_data / strict mode."""
 
-    def test_empty_metadata_with_episodes_is_fail(self, tmp_path):
+    def test_missing_index_with_episodes_is_fail(self, tmp_path):
         from podcast_scraper.config import Config
 
-        (tmp_path / "search").mkdir()
-        (tmp_path / "search" / "metadata.json").write_text("{}", encoding="utf-8")
+        # vector_search on + episodes processed, but no LanceDB index on disk → fail.
         cfg = Config(rss="https://example.com/f.xml", output_dir=str(tmp_path), max_episodes=1)
-        cfg = cfg.model_copy(update={"vector_search": True, "vector_backend": "faiss"})
+        cfg = cfg.model_copy(update={"vector_search": True})
         ok, note = _assess_vector_index_run(tmp_path, cfg, episodes_processed=3, is_dry_run=False)
         assert ok is False
+        assert note == "missing_lance_index"
+
+    def test_empty_index_with_episodes_is_fail(self, tmp_path):
+        from podcast_scraper.config import Config
+
+        cfg = Config(rss="https://example.com/f.xml", output_dir=str(tmp_path), max_episodes=1)
+        cfg = cfg.model_copy(update={"vector_search": True})
+        # Index dir exists but has zero indexed rows → strict failure.
+        with patch(
+            "podcast_scraper.search.lance_index_stats.read_lance_index_stats",
+            return_value=MagicMock(total_vectors=0),
+        ):
+            ok, note = _assess_vector_index_run(
+                tmp_path, cfg, episodes_processed=3, is_dry_run=False
+            )
+        assert ok is False
         assert "empty" in note
+
+    def test_indexed_with_episodes_ok(self, tmp_path):
+        from podcast_scraper.config import Config
+
+        cfg = Config(rss="https://example.com/f.xml", output_dir=str(tmp_path), max_episodes=1)
+        cfg = cfg.model_copy(update={"vector_search": True})
+        with patch(
+            "podcast_scraper.search.lance_index_stats.read_lance_index_stats",
+            return_value=MagicMock(total_vectors=12),
+        ):
+            ok, note = _assess_vector_index_run(
+                tmp_path, cfg, episodes_processed=3, is_dry_run=False
+            )
+        assert ok is True
+        assert note == "indexed"
 
     def test_vector_search_off_skips(self, tmp_path):
         from podcast_scraper.config import Config

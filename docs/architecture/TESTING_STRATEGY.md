@@ -26,7 +26,7 @@ templates managed by `PromptStore` (RFC-017).
 grounding contract validation, and `gi.json` schema compliance. See **GIL Testing (Implemented)** below.
 
 **CIL / bridge / search lift (RFC-072, #527–528):** Unit tests cover **`bridge.json`**
-building, **`cil_queries`**, **transcript chunk lift**, and **GIL–FAISS offset**
+building, **`cil_queries`**, **transcript chunk lift**, and **GIL–index offset**
 verification helpers; FastAPI integration tests cover **CIL routes** and extended
 **search** responses. The **strict offset gate** is a **Makefile** target
 (`make verify-gil-offsets-strict`) run against a **concrete indexed corpus**, not part of
@@ -319,7 +319,7 @@ In short:
 **Contract for `tests/unit/`:**
 
 1. **Never require any non-`[dev]` extra** (`[ml]`, `[llm]`, `[compare]`, etc.).
-   Real FAISS, Whisper, spaCy, **FastAPI `TestClient` / `create_app`**, httpx, cloud SDKs, etc. belong in **integration** or
+   Real LanceDB, Whisper, spaCy, **FastAPI `TestClient` / `create_app`**, httpx, cloud SDKs, etc. belong in **integration** or
    **E2E** tests (with the workflow installing the right extras). Use **mocks**,
    **`sys.modules` stubs**, or **lazy imports** in unit tests.
 2. **`[dev]`** is the **only baseline** for `tests/unit/`. CI `test-unit` installs
@@ -327,9 +327,9 @@ In short:
    in `pyproject.toml` (and its transitive wheels) is allowed; nothing else.
 3. **Do not use `pytest.importorskip()` in `tests/unit/`** to guard non-`[dev]` imports.
    It causes silent skips in CI, meaning the test never validates anything. If a test needs
-   FastAPI, httpx, faiss, torch, etc., move it to `tests/integration/` where CI installs
+   FastAPI, httpx, lancedb, torch, etc., move it to `tests/integration/` where CI installs
    the full extras (`.[dev,ml,llm]`). Do not pull ML into unit tests -- keep
-   FAISS / torch / spacy out of `tests/unit/` except via mocks.
+   LanceDB / torch / spacy out of `tests/unit/` except via mocks.
 
 **Verification (two complementary scripts, both in `make ci` / `make ci-fast`):**
 
@@ -1077,12 +1077,10 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 - [x] Three-tier extraction (ML-only, Hybrid, Cloud) — implemented (transformers, hybrid_ml, LLM providers)
 - [ ] GIL extraction latency per tier — benchmarking planned
 
-### `search/` (Corpus Search — RFC-061 FAISS + RFC-090 Hybrid)
+### `search/` (Corpus Search — RFC-090 Hybrid over LanceDB)
 
 - [x] `search/chunker.py` — transcript chunking
   (unit: `test_chunker.py`)
-- [x] `search/faiss_store.py` — FAISS vector store
-  operations (unit: `test_faiss_store.py`)
 - [x] `search/two_tier_indexer.py` — native two-tier
   (segment + insight + aux) LanceDB build + insight↔segment
   linking (integration: `test_migration.py`; e2e:
@@ -1091,9 +1089,9 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
   BM25 + vector backend (integration: `test_migration.py`)
 - [x] `search/retrieval.py` — `RetrievalLayer` (signals →
   RRF → compound dedup) (unit: `test_backend.py`)
-- [x] `search/hybrid_search.py` — live hybrid bridge +
-  FAISS fallback (unit: `test_hybrid_dispatch.py`,
-  `test_hybrid_helpers.py`)
+- [x] `search/hybrid_search.py` — live hybrid bridge
+  (missing index → `no_index`, no fallback) (unit:
+  `test_hybrid_dispatch.py`, `test_hybrid_helpers.py`)
 - [x] `search/relational_edges.py`, `gi/speakers.py` —
   derived relational edges (#874) (unit:
   `test_relational_edges.py`, `test_speakers.py`,
@@ -1120,7 +1118,7 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
   integration: `test_viewer_corpus_library.py`)
 - [x] `server/corpus_digest.py` — time-window digest
   selection and topic config
-- [x] `server/index_rebuild.py` — background FAISS
+- [x] `server/index_rebuild.py` — background LanceDB
   rebuild coordination (unit:
   `test_index_rebuild_gate.py`; integration:
   `test_index_rebuild.py`)

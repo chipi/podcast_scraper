@@ -1,7 +1,7 @@
 """Integration tests for the hybrid serving bridge (RFC-090 Phase 2 wire-live).
 
 Real LanceDB index + real MiniLM query embedding; asserts candidate mapping, tier
-scoping, and the FAISS-fallback signal.
+scoping, and the no_index signal.
 """
 
 from __future__ import annotations
@@ -76,5 +76,5 @@ def test_tier_scoping(corpus):
 
 
 def test_missing_index_returns_none(tmp_path):
-    # No LanceDB index → None (signals FAISS fallback), not an empty list.
+    # No LanceDB index → None (no_index signal), not an empty list.
     assert hs.hybrid_candidates(tmp_path / "nope", "AI", top_k=5) is None

@@ -46,7 +46,7 @@ const GraphStatusLineStub = {
 const baseProps = {
   zoomPercent: 100,
   searchHighlightCount: 0,
-  preferredLayout: 'cose' as const,
+  preferredLayout: 'fcose' as const,
 }
 
 const mountBar = (props: Record<string, unknown> = {}) =>
@@ -81,17 +81,17 @@ describe('GraphBottomBar', () => {
   })
 
   it('computes a layout-cycle title describing current + next layout', () => {
-    const w = mountBar({ preferredLayout: 'cose' })
+    const w = mountBar({ preferredLayout: 'fcose' })
     // cose -> breadthfirst is the first wrap in GRAPH_LAYOUT_CYCLE_ORDER.
     expect(w.get(LAYOUT_CYCLE).attributes('title')).toBe(
-      'Current: COSE force-directed. Click to switch to Breadthfirst and re-layout.',
+      'Current: fCoSE force-directed. Click to switch to Breadthfirst and re-layout.',
     )
   })
 
   it('wraps the layout cycle from the last entry back to the first', () => {
     const w = mountBar({ preferredLayout: 'timeline' })
     expect(w.get(LAYOUT_CYCLE).attributes('title')).toBe(
-      'Current: Timeline (date axis). Click to switch to COSE force-directed and re-layout.',
+      'Current: Timeline (date axis). Click to switch to fCoSE force-directed and re-layout.',
     )
   })
 

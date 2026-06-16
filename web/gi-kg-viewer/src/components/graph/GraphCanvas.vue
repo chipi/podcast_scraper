@@ -47,6 +47,7 @@ import {
   computeNodeIdSetDifference,
   decideReconcileAction,
 } from '../../utils/graphHandoffInvariant'
+import { resolveHandoffCandidateNode } from '../../utils/graphHandoffRestore'
 import * as giKgCoseLayout from '../../utils/cyCoseLayoutOptions'
 import { syncGraphLabelTierClasses } from '../../utils/cyGraphLabelTier'
 import { buildGiKgCyStylesheet, cytoscapeSideLabelMarginXCallback } from '../../utils/cyGraphStylesheet'
@@ -437,6 +438,14 @@ type ViewportPreserveSnap = {
 
 /** Library/Digest handoff: run ``animateCameraToFocusedNode`` after paint hold so Cytoscape has real layout size. */
 let pendingFocusCameraAfterLayoutHold: { cyId: string; extras: string[] } | null = null
+
+/**
+ * #967 — when a full-replacement redraw early-restores the FSM-applied selection at
+ * cy-creation (closing the no-selection window), the layout positions aren't final yet,
+ * so the camera centre is deferred to ``finishLayoutPass``. This carries the cy id whose
+ * camera still needs centring; cleared once honoured (or on a redraw that supersedes it).
+ */
+let pendingEarlyHandoffCameraCyId = ''
 
 let pendingViewportPreserve: ViewportPreserveSnap | null = null
 /** Full-graph viewport before entering 1-hop (shift+dbl-click); applied when returning to full graph. */
@@ -1007,7 +1016,7 @@ function applyTopicDegreeHeat(core: Core): void {
 }
 
 function layoutOptionsFor(name: string, opts?: { numIter?: number }): Record<string, unknown> {
-  if (name === 'cose') {
+  if (name === 'fcose') {
     // Namespace import + fallback: avoids rare `ReferenceError` from named-import/HMR chunks.
     try {
       const fn = giKgCoseLayout.giKgCoseLayoutOptionsMain
@@ -1524,43 +1533,40 @@ function finishLayoutPass(core: Core): void {
     graphHandoff.pending === null &&
     lrRecoverable
   ) {
-    const lastAppliedCyId = lr?.appliedCyId?.trim() || ''
-    if (lastAppliedCyId) {
-      // Same logical node may now be addressable under a different
-      // ``g:`` / ``k:`` prefix if KG joined GI-only data between layout
-      // passes (or vice-versa). Try the exact id first, then the
-      // alternative-prefix variant; finally try prefixing if the id is
-      // bare.
-      const candidateIds: string[] = [lastAppliedCyId]
-      if (lastAppliedCyId.startsWith('g:')) {
-        candidateIds.push('k:' + lastAppliedCyId.slice(2))
-      } else if (lastAppliedCyId.startsWith('k:')) {
-        candidateIds.push('g:' + lastAppliedCyId.slice(2))
-      } else {
-        candidateIds.push('g:' + lastAppliedCyId, 'k:' + lastAppliedCyId)
+    const restored = resolveHandoffCandidateNode(core, lr?.appliedCyId?.trim() || '')
+    if (restored) {
+      core.nodes().unselect()
+      restored.select()
+      selectedNodeId.value = restored.id()
+      try {
+        applyGraphSelectionDimFromNode(core, restored)
+      } catch {
+        /* dimming is cosmetic; never let a styling error abort restore */
       }
-      let restored: NodeSingular | null = null
-      for (const candId of candidateIds) {
-        const n = core.$id(candId)
-        if (n.length > 0) {
-          restored = n.first() as NodeSingular
-          break
-        }
-      }
-      if (restored) {
-        core.nodes().unselect()
-        restored.select()
-        selectedNodeId.value = restored.id()
+      // Centre the camera on the restored node with the regular
+      // animation path so zoom + pan look intentional (not a fit-all
+      // jump). Preserves zoom semantics via the function's
+      // ``GRAPH_FOCUS_FRAME_MIN_ZOOM`` floor.
+      animateCameraToFocusedNode(core, restored.id())
+    }
+    pendingEarlyHandoffCameraCyId = ''
+  } else if (pendingEarlyHandoffCameraCyId) {
+    // #967 — the full-replacement early-restore already re-selected the FSM node at
+    // cy-creation (so the gate above sees ``cyHasSelection`` and skips), but the camera
+    // still sits at the post-``fit()`` zoom-collapse. Centre it now that layout positions
+    // are final. Always drop the marker; only centre when nothing else owns the camera
+    // this pass (a pending / episode-rep focus wins when present).
+    const camId = pendingEarlyHandoffCameraCyId
+    pendingEarlyHandoffCameraCyId = ''
+    if (!appliedPending && graphHandoff.pending === null) {
+      const camNode = resolveHandoffCandidateNode(core, camId)
+      if (camNode) {
         try {
-          applyGraphSelectionDimFromNode(core, restored)
+          applyGraphSelectionDimFromNode(core, camNode)
         } catch {
           /* dimming is cosmetic; never let a styling error abort restore */
         }
-        // Centre the camera on the restored node with the regular
-        // animation path so zoom + pan look intentional (not a fit-all
-        // jump). Preserves zoom semantics via the function's
-        // ``GRAPH_FOCUS_FRAME_MIN_ZOOM`` floor.
-        animateCameraToFocusedNode(core, restored.id())
+        animateCameraToFocusedNode(core, camNode.id())
       }
     }
   }
@@ -2141,8 +2147,10 @@ function tryApplyPendingFocus(core: Core): boolean {
   if (!rawId) return false
   const fallbackRaw = nav.pendingFocusFallbackNodeId
   let cyId = resolveCyNodeId(core, rawId)
+  let usedFallback = false
   if (!cyId && fallbackRaw) {
     cyId = resolveCyNodeId(core, fallbackRaw)
+    usedFallback = true
   }
   /** Do not clear pending: ``redraw`` can leave the graph mid-rebuild; a later ``finishLayoutPass`` / watcher applies. */
   if (!cyId) {
@@ -2166,8 +2174,17 @@ function tryApplyPendingFocus(core: Core): boolean {
   } catch {
     /* ignore */
   }
-  const rawNode = rawNodeForRailInteraction(cyId)
-  void openGraphEpisodeOrNodeRail(cyId, rawNode)
+  // RAIL target ≠ camera target when we fell back: a `quote` search hit has no cy node of its
+  // own, so ``cyId`` here is its *Episode* (camera anchor). But the user picked the quote, and
+  // ``onFocusHit`` already opened the quote's detail rail from the artifact (``subject`` =
+  // quote). Opening the Episode rail now would clobber it. So only (re)open the rail when we
+  // resolved the PRIMARY; on a fallback, leave the subject rail on the user's actual target.
+  // (Pre-#967 the cose layout stayed busy long enough that this fallback never fired here;
+  // fcose goes idle fast, exposing the clobber — hence the explicit guard.)
+  if (!usedFallback) {
+    const rawNode = rawNodeForRailInteraction(cyId)
+    void openGraphEpisodeOrNodeRail(cyId, rawNode)
+  }
   const extras = [...nav.pendingFocusCameraIncludeRawIds]
   nav.clearPendingFocus()
   // Record the apply with the FSM so it transitions back to ``ready``.
@@ -3068,7 +3085,7 @@ function redraw(): void {
     // 100-600 ms off cose convergence without affecting final layout
     // quality (cose has already settled by the cap).
     const isExternalNavRedraw =
-      layoutName === 'cose' &&
+      layoutName === 'fcose' &&
       (artifacts.currentLoadSource === 'subject-external' ||
         artifacts.currentLoadSource === 'digest-external')
     const numIterCap = isExternalNavRedraw
@@ -3098,10 +3115,31 @@ function redraw(): void {
     // path clears it), so during a KG-second-wave merge it still carries
     // the user's intent from the prior FSM apply.
     const earlySid = selectedNodeId.value
+    pendingEarlyHandoffCameraCyId = ''
     if (earlySid) {
       const earlyNode = core.$id(earlySid)
       if (earlyNode.length > 0) {
         earlyNode.select()
+      }
+    } else {
+      // #967 — the full-replacement path cleared ``selectedNodeId`` above, so the
+      // ``selectedNodeId``-driven restore can't fire. If the FSM's last apply is
+      // recoverable (and no fresh handoff is pending), re-select that node NOW to close
+      // the no-selection window that the ego→full reload otherwise leaves open until
+      // ``finishLayoutPass``. Positions aren't final yet, so defer the camera centre to
+      // layoutstop via ``pendingEarlyHandoffCameraCyId`` (selecting pre-layout is safe;
+      // animating the camera to a not-yet-laid-out node is not).
+      const lr0 = graphHandoff.lastResult
+      const lr0Recoverable =
+        lr0?.status === 'applied' ||
+        (lr0?.status === 'failed' && (lr0.reason?.startsWith('stuck-timeout') ?? false))
+      if (lr0Recoverable && graphHandoff.pending === null) {
+        const earlyHandoff = resolveHandoffCandidateNode(core, lr0?.appliedCyId?.trim() || '')
+        if (earlyHandoff) {
+          earlyHandoff.select()
+          selectedNodeId.value = earlyHandoff.id()
+          pendingEarlyHandoffCameraCyId = earlyHandoff.id()
+        }
       }
     }
 
@@ -3645,42 +3683,49 @@ watch(
       })
       return
     }
-    // Primary not in cy yet. If a redraw is pending/active it will add the primary and
-    // ``finishLayoutPass`` will apply it (or fall back to the episode, or fail) on
-    // layoutstop — do nothing now. Only when the canvas is genuinely IDLE (no redraw
-    // coming → the primary will never load) do we resolve here: apply the fallback if it
-    // exists (``tryApplyPendingFocus`` tries primary then fallback), else fail fast instead
-    // of waiting out the 15s stuck-timeout. Re-check one frame later so a just-scheduled
-    // redraw wins.
-    void nextTick(() => {
-      requestAnimationFrame(() => {
-        if (!cy || !graphHandoff.pending) return // resolved / failed elsewhere
-        if (resolveCyNodeId(cy, newFocusId)) {
-          safeGraphWatch('pendingFocus', () => {
-            if (cy) tryApplyPendingFocus(cy)
-          })
-          return
-        }
-        const idle =
-          !redrawPending &&
-          redrawDebounceTimer == null &&
-          redrawGateDepth === 0 &&
-          !graphContentHiddenUntilLayout.value
-        if (!idle) return // redraw in flight → finishLayoutPass handles primary + fallback
-        const fb = nav.pendingFocusFallbackNodeId
-        if (fb && resolveCyNodeId(cy, fb)) {
-          safeGraphWatch('pendingFocus', () => {
-            if (cy) tryApplyPendingFocus(cy)
-          })
-          return
-        }
-        graphHandoff.handoffFailed(
-          `no graph node for focus target "${newFocusId}"` +
-            (fb ? ` (fallback "${fb}")` : ''),
-        )
-        nav.clearPendingFocus()
-      })
-    })
+    // Primary not in cy yet. A handoff redraw may still add it (e.g. a quote that becomes a
+    // node once its episode's gi.json merges), and that redraw + its fcose layout (#967) can
+    // take many frames — so a single-frame idle-check races the layout and would apply the
+    // fallback before the primary renders. Instead POLL: each frame, bail if the handoff
+    // settled elsewhere (``finishLayoutPass``), apply the moment the primary appears, and keep
+    // waiting while a redraw/layout is in flight OR a small frame budget remains. Only once the
+    // canvas is genuinely IDLE *and* that budget is spent (no redraw is coming → the primary
+    // will never load) do we resolve the fallback (``tryApplyPendingFocus`` tries primary then
+    // fallback) or fail fast — instead of waiting out the 15s stuck-timeout.
+    let framesWaited = 0
+    const FOCUS_RESOLVE_FRAME_BUDGET = 40 // ~650ms: covers a redraw + fcose layout adding the node
+    const pollForFocusTarget = (): void => {
+      if (!cy || !graphHandoff.pending) return // resolved / failed elsewhere
+      if (resolveCyNodeId(cy, newFocusId)) {
+        safeGraphWatch('pendingFocus', () => {
+          if (cy) tryApplyPendingFocus(cy)
+        })
+        return
+      }
+      const idle =
+        !redrawPending &&
+        redrawDebounceTimer == null &&
+        redrawGateDepth === 0 &&
+        !graphContentHiddenUntilLayout.value
+      if (!idle || framesWaited++ < FOCUS_RESOLVE_FRAME_BUDGET) {
+        requestAnimationFrame(pollForFocusTarget)
+        return
+      }
+      // Idle + budget spent + primary still absent → it will never load. Resolve the fallback
+      // (its episode) or fail fast.
+      const fb = nav.pendingFocusFallbackNodeId
+      if (fb && resolveCyNodeId(cy, fb)) {
+        safeGraphWatch('pendingFocus', () => {
+          if (cy) tryApplyPendingFocus(cy)
+        })
+        return
+      }
+      graphHandoff.handoffFailed(
+        `no graph node for focus target "${newFocusId}"` + (fb ? ` (fallback "${fb}")` : ''),
+      )
+      nav.clearPendingFocus()
+    }
+    void nextTick(() => requestAnimationFrame(pollForFocusTarget))
   },
   { flush: 'post' },
 )

@@ -1,0 +1,530 @@
+[
+  {
+    "char_end": 177,
+    "char_start": 7,
+    "end": 6.0,
+    "speaker_label": "Ethan",
+    "start": 0.0,
+    "text": "Welcome back to Practical Systems. Today we're talking about security design, and I'm joined by Priya, principal SRE at a payments platform. Priya, thanks for being here."
+  },
+  {
+    "char_end": 217,
+    "char_start": 185,
+    "end": 12.0,
+    "speaker_label": "Priya",
+    "start": 6.0,
+    "text": "Thanks, Ethan. Great to be back."
+  },
+  {
+    "char_end": 386,
+    "char_start": 225,
+    "end": 18.0,
+    "speaker_label": "Ethan",
+    "start": 12.0,
+    "text": "Today's episode is sponsored by Vanta. Vanta automates SOC 2 and ISO compliance so you can focus on building, not on collecting screenshots. Try vanta.com today."
+  },
+  {
+    "char_end": 539,
+    "char_start": 386,
+    "end": 24.0,
+    "speaker_label": "Ethan",
+    "start": 18.0,
+    "text": "Before we get into it \u2014 I was last on the show talking about on-call rotations. The pattern shows up again here \u2014 embed ownership where the work happens."
+  },
+  {
+    "char_end": 605,
+    "char_start": 547,
+    "end": 30.0,
+    "speaker_label": "Priya",
+    "start": 24.0,
+    "text": "Yeah, exactly. And it ties into what we're covering today."
+  },
+  {
+    "char_end": 764,
+    "char_start": 605,
+    "end": 36.0,
+    "speaker_label": "Priya",
+    "start": 30.0,
+    "text": "I used to argue for a single central security team. I changed my mind after the 2024 webhook incident \u2014 the embedded model gets faster fixes and better signal."
+  },
+  {
+    "char_end": 810,
+    "char_start": 772,
+    "end": 42.0,
+    "speaker_label": "Ethan",
+    "start": 36.0,
+    "text": "That's a real shift. Worth pulling on."
+  },
+  {
+    "char_end": 911,
+    "char_start": 810,
+    "end": 48.0,
+    "speaker_label": "Ethan",
+    "start": 42.0,
+    "text": "What's the one heuristic you keep coming back to? Where do reliability and security design intersect?"
+  },
+  {
+    "char_end": 1160,
+    "char_start": 919,
+    "end": 54.0,
+    "speaker_label": "Priya",
+    "start": 48.0,
+    "text": "Yeah, so \u2014 Secrets handling improves when tokens are short-lived, scoped narrowly, and rotated with automation. We've seen this play out at teams using Notion. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 1270,
+    "char_start": 1168,
+    "end": 60.0,
+    "speaker_label": "Ethan",
+    "start": 54.0,
+    "text": "Where do most teams get it wrong? What's something you used to believe about this that you've revised?"
+  },
+  {
+    "char_end": 1503,
+    "char_start": 1278,
+    "end": 66.0,
+    "speaker_label": "Priya",
+    "start": 60.0,
+    "text": "Let me give you the version I actually believe. Threat modeling can be lightweight: identify assets, entry points, trust boundaries, and likely abuse cases. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 1609,
+    "char_start": 1511,
+    "end": 72.0,
+    "speaker_label": "Ethan",
+    "start": 66.0,
+    "text": "Take me through the decision. What's something you used to believe about this that you've revised?"
+  },
+  {
+    "char_end": 1872,
+    "char_start": 1617,
+    "end": 78.0,
+    "speaker_label": "Priya",
+    "start": 72.0,
+    "text": "Yeah, so \u2014 Vanta-style compliance work and real security work overlap maybe 60% \u2014 don't confuse the two. We've seen this play out at teams using Linear. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 1908,
+    "char_start": 1880,
+    "end": 84.0,
+    "speaker_label": "Ethan",
+    "start": 78.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 2064,
+    "char_start": 1916,
+    "end": 90.0,
+    "speaker_label": "Priya",
+    "start": 84.0,
+    "text": "I've seen this with teams running Notion and teams running everything in-house. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 2185,
+    "char_start": 2072,
+    "end": 96.0,
+    "speaker_label": "Ethan",
+    "start": 90.0,
+    "text": "What does the failure mode look like? Where do people most often confuse correlation with causation in this area?"
+  },
+  {
+    "char_end": 2412,
+    "char_start": 2193,
+    "end": 102.0,
+    "speaker_label": "Priya",
+    "start": 96.0,
+    "text": "I'd put it this way: Authn/authz separation matters more than people think \u2014 most breaches I've seen confused who someone is with what they can do. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 2533,
+    "char_start": 2420,
+    "end": 108.0,
+    "speaker_label": "Ethan",
+    "start": 102.0,
+    "text": "How do you know when you've gotten it right? What's something you used to believe about this that you've revised?"
+  },
+  {
+    "char_end": 2839,
+    "char_start": 2541,
+    "end": 114.0,
+    "speaker_label": "Priya",
+    "start": 108.0,
+    "text": "Let me give you the version I actually believe. Security incidents are reliability incidents \u2014 Datadog can show you the spike, but only the on-call structure makes it survivable. We've seen this play out at teams using Linear. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 2940,
+    "char_start": 2847,
+    "end": 120.0,
+    "speaker_label": "Ethan",
+    "start": 114.0,
+    "text": "I want to dig into that. What's something you used to believe about this that you've revised?"
+  },
+  {
+    "char_end": 3211,
+    "char_start": 2948,
+    "end": 126.0,
+    "speaker_label": "Priya",
+    "start": 120.0,
+    "text": "Honestly, I used to think security teams should own all the security work. After three incidents I revised that \u2014 embedded ownership beats a central gatekeeper every time. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 3246,
+    "char_start": 3219,
+    "end": 132.0,
+    "speaker_label": "Ethan",
+    "start": 126.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 3398,
+    "char_start": 3254,
+    "end": 138.0,
+    "speaker_label": "Priya",
+    "start": 132.0,
+    "text": "I've seen this with teams running Sentry and teams running everything in-house. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 3463,
+    "char_start": 3406,
+    "end": 144.0,
+    "speaker_label": "Ethan",
+    "start": 138.0,
+    "text": "We'll be right back after a quick word from our sponsors."
+  },
+  {
+    "char_end": 3658,
+    "char_start": 3468,
+    "end": 150.0,
+    "speaker_label": "Ad",
+    "start": 144.0,
+    "text": "Today's episode is sponsored by Sentry. Sentry catches the errors your tests didn't and puts the stack trace, breadcrumbs, and context in one view. Visit sentry.com/podcast for a free trial."
+  },
+  {
+    "char_end": 3691,
+    "char_start": 3666,
+    "end": 156.0,
+    "speaker_label": "Ethan",
+    "start": 150.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 3778,
+    "char_start": 3691,
+    "end": 162.0,
+    "speaker_label": "Ethan",
+    "start": 156.0,
+    "text": "Let's start there. What's something you used to believe about this that you've revised?"
+  },
+  {
+    "char_end": 4024,
+    "char_start": 3786,
+    "end": 168.0,
+    "speaker_label": "Priya",
+    "start": 162.0,
+    "text": "The short answer is Secrets handling improves when tokens are short-lived, scoped narrowly, and rotated with automation. We've seen this play out at teams using Datadog. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 4147,
+    "char_start": 4032,
+    "end": 174.0,
+    "speaker_label": "Ethan",
+    "start": 168.0,
+    "text": "What's the one heuristic you keep coming back to? What's the operational angle most listeners don't have access to?"
+  },
+  {
+    "char_end": 4378,
+    "char_start": 4155,
+    "end": 180.0,
+    "speaker_label": "Priya",
+    "start": 174.0,
+    "text": "It comes down to this: Threat modeling can be lightweight: identify assets, entry points, trust boundaries, and likely abuse cases. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 4474,
+    "char_start": 4386,
+    "end": 186.0,
+    "speaker_label": "Ethan",
+    "start": 180.0,
+    "text": "Walk me through a concrete example. What's the most underrated piece of security design?"
+  },
+  {
+    "char_end": 4698,
+    "char_start": 4482,
+    "end": 192.0,
+    "speaker_label": "Priya",
+    "start": 186.0,
+    "text": "Sure. Vanta-style compliance work and real security work overlap maybe 60% \u2014 don't confuse the two. We've seen this play out at teams using Sentry. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 4718,
+    "char_start": 4706,
+    "end": 198.0,
+    "speaker_label": "Ethan",
+    "start": 192.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 4903,
+    "char_start": 4726,
+    "end": 204.0,
+    "speaker_label": "Priya",
+    "start": 198.0,
+    "text": "And when teams adopt Datadog in that flow, the trade-off becomes visible \u2014 I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 5031,
+    "char_start": 4911,
+    "end": 210.0,
+    "speaker_label": "Ethan",
+    "start": 204.0,
+    "text": "Push back on the conventional wisdom for me. Where do people most often confuse correlation with causation in this area?"
+  },
+  {
+    "char_end": 5251,
+    "char_start": 5039,
+    "end": 216.0,
+    "speaker_label": "Priya",
+    "start": 210.0,
+    "text": "I'd put it this way: Authn/authz separation matters more than people think \u2014 most breaches I've seen confused who someone is with what they can do. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 5361,
+    "char_start": 5259,
+    "end": 222.0,
+    "speaker_label": "Ethan",
+    "start": 216.0,
+    "text": "What's the one heuristic you keep coming back to? What's the most underrated piece of security design?"
+  },
+  {
+    "char_end": 5652,
+    "char_start": 5369,
+    "end": 228.0,
+    "speaker_label": "Priya",
+    "start": 222.0,
+    "text": "Honestly, Security incidents are reliability incidents \u2014 Datadog can show you the spike, but only the on-call structure makes it survivable. We've seen this play out at teams using PagerDuty. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 5757,
+    "char_start": 5660,
+    "end": 234.0,
+    "speaker_label": "Ethan",
+    "start": 228.0,
+    "text": "Push back on the conventional wisdom for me. What's the most underrated piece of security design?"
+  },
+  {
+    "char_end": 6019,
+    "char_start": 5765,
+    "end": 240.0,
+    "speaker_label": "Priya",
+    "start": 234.0,
+    "text": "I'd put it this way: I used to think security teams should own all the security work. After three incidents I revised that \u2014 embedded ownership beats a central gatekeeper every time. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 6039,
+    "char_start": 6027,
+    "end": 246.0,
+    "speaker_label": "Ethan",
+    "start": 240.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 6192,
+    "char_start": 6047,
+    "end": 252.0,
+    "speaker_label": "Priya",
+    "start": 246.0,
+    "text": "And when teams adopt Notion in that flow, the trade-off becomes visible \u2014 If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 6272,
+    "char_start": 6200,
+    "end": 258.0,
+    "speaker_label": "Ethan",
+    "start": 252.0,
+    "text": "Let's pivot \u2014 risk management is where I want to spend the last stretch."
+  },
+  {
+    "char_end": 6416,
+    "char_start": 6280,
+    "end": 264.0,
+    "speaker_label": "Priya",
+    "start": 258.0,
+    "text": "That's where the conversation gets interesting, because the trade-offs around risk management cross-cut everything we've covered so far."
+  },
+  {
+    "char_end": 6524,
+    "char_start": 6424,
+    "end": 270.0,
+    "speaker_label": "Ethan",
+    "start": 264.0,
+    "text": "How do you balance that? Where do people most often confuse correlation with causation in this area?"
+  },
+  {
+    "char_end": 6773,
+    "char_start": 6532,
+    "end": 276.0,
+    "speaker_label": "Priya",
+    "start": 270.0,
+    "text": "The short answer is Secrets handling improves when tokens are short-lived, scoped narrowly, and rotated with automation. We've seen this play out at teams using Linear. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 6863,
+    "char_start": 6781,
+    "end": 282.0,
+    "speaker_label": "Ethan",
+    "start": 276.0,
+    "text": "That's a useful framing. What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 7100,
+    "char_start": 6871,
+    "end": 288.0,
+    "speaker_label": "Priya",
+    "start": 282.0,
+    "text": "Let me give you the version I actually believe. Threat modeling can be lightweight: identify assets, entry points, trust boundaries, and likely abuse cases. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 7196,
+    "char_start": 7108,
+    "end": 294.0,
+    "speaker_label": "Ethan",
+    "start": 288.0,
+    "text": "What's the one heuristic you keep coming back to? How does Notion fit into this picture?"
+  },
+  {
+    "char_end": 7450,
+    "char_start": 7204,
+    "end": 300.0,
+    "speaker_label": "Priya",
+    "start": 294.0,
+    "text": "It comes down to this: Vanta-style compliance work and real security work overlap maybe 60% \u2014 don't confuse the two. We've seen this play out at teams using Sentry. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 7486,
+    "char_start": 7458,
+    "end": 306.0,
+    "speaker_label": "Ethan",
+    "start": 300.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 7632,
+    "char_start": 7494,
+    "end": 312.0,
+    "speaker_label": "Priya",
+    "start": 306.0,
+    "text": "And when teams adopt Linear in that flow, the trade-off becomes visible \u2014 Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 7742,
+    "char_start": 7640,
+    "end": 318.0,
+    "speaker_label": "Ethan",
+    "start": 312.0,
+    "text": "How do you know when you've gotten it right? What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 8027,
+    "char_start": 7750,
+    "end": 324.0,
+    "speaker_label": "Priya",
+    "start": 318.0,
+    "text": "Let me give you the version I actually believe. Authn/authz separation matters more than people think \u2014 most breaches I've seen confused who someone is with what they can do. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 8129,
+    "char_start": 8035,
+    "end": 330.0,
+    "speaker_label": "Ethan",
+    "start": 324.0,
+    "text": "What does that look like day-to-day? What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 8440,
+    "char_start": 8137,
+    "end": 336.0,
+    "speaker_label": "Priya",
+    "start": 330.0,
+    "text": "I'd put it this way: Security incidents are reliability incidents \u2014 Datadog can show you the spike, but only the on-call structure makes it survivable. We've seen this play out at teams using Datadog. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 8560,
+    "char_start": 8448,
+    "end": 342.0,
+    "speaker_label": "Ethan",
+    "start": 336.0,
+    "text": "What does that look like day-to-day? Where do people most often confuse correlation with causation in this area?"
+  },
+  {
+    "char_end": 8832,
+    "char_start": 8568,
+    "end": 348.0,
+    "speaker_label": "Priya",
+    "start": 342.0,
+    "text": "I'd put it this way: I used to think security teams should own all the security work. After three incidents I revised that \u2014 embedded ownership beats a central gatekeeper every time. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 8899,
+    "char_start": 8840,
+    "end": 354.0,
+    "speaker_label": "Ethan",
+    "start": 348.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 9038,
+    "char_start": 8907,
+    "end": 360.0,
+    "speaker_label": "Priya",
+    "start": 354.0,
+    "text": "Sentry is one of the platforms where this shows up cleanly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 9107,
+    "char_start": 9046,
+    "end": 366.0,
+    "speaker_label": "Ethan",
+    "start": 360.0,
+    "text": "Before we wrap, what's one thing listeners can try this week?"
+  },
+  {
+    "char_end": 9196,
+    "char_start": 9115,
+    "end": 372.0,
+    "speaker_label": "Priya",
+    "start": 366.0,
+    "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
+  },
+  {
+    "char_end": 9406,
+    "char_start": 9204,
+    "end": 378.0,
+    "speaker_label": "Ethan",
+    "start": 372.0,
+    "text": "And finally, a big thank you to our partners at Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Check out linear.com."
+  },
+  {
+    "char_end": 9441,
+    "char_start": 9406,
+    "end": 384.0,
+    "speaker_label": "Ethan",
+    "start": 378.0,
+    "text": "Priya, thanks for the conversation."
+  },
+  {
+    "char_end": 9463,
+    "char_start": 9449,
+    "end": 390.0,
+    "speaker_label": "Priya",
+    "start": 384.0,
+    "text": "Thanks, Ethan."
+  },
+  {
+    "char_end": 9541,
+    "char_start": 9471,
+    "end": 396.0,
+    "speaker_label": "Ethan",
+    "start": 390.0,
+    "text": "That's it for today's episode of Practical Systems. See you next time."
+  }
+]

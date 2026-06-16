@@ -23,7 +23,7 @@ def _rec():
             {"doc_id": "a", "text": "crude oil rallied"},
             {"doc_id": "b", "text": "unrelated cooking show"},
         ],
-        faiss_ranking=["a", "b"],
+        baseline_ranking=["a", "b"],
         hybrid_ranking=["b", "a"],
     )
 

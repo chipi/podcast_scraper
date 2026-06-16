@@ -3603,7 +3603,7 @@ def generate_episode_metadata(  # noqa: C901
         transcript_segments_arg: Optional[List[Dict[str, Any]]] = None
         # #974: prefer the ad-free processing base (.adfree.txt + offset segments).
         # char_start computed below lives in THAT saved space, so GI, enrich-edges,
-        # FAISS, and the viewer all share one coordinate system. transcript_ref_for_gi
+        # the search index, and the viewer all share one coordinate system. transcript_ref_for_gi
         # is the relpath actually read — quote/viewer references point at it.
         transcript_ref_for_gi = transcript_file_path or "transcript.txt"
         if transcript_file_path and output_dir:

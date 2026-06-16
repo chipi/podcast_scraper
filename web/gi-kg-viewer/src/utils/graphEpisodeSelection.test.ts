@@ -79,9 +79,9 @@ describe('selectRelPathsForGraphLoad', () => {
   })
 
   it('uses default cap constant', () => {
-    // Interim ceiling pending the large-graph layout work (#967); see the constant's
-    // doc comment for the stress-test rationale (cose is ~O(n²)).
-    expect(GRAPH_DEFAULT_EPISODE_CAP).toBe(25)
+    // #967 raised this 25→50 once fcose removed the O(n²) cose layout wall; the cap now
+    // tracks interaction cost, not layout time. See the constant's doc for the ceiling rationale.
+    expect(GRAPH_DEFAULT_EPISODE_CAP).toBe(50)
   })
 })
 

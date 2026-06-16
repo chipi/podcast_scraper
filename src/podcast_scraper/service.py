@@ -87,8 +87,8 @@ def _run_multi_feed(cfg: config.Config, entries: List[config.RssFeedEntry]) -> S
     ``classify_multi_feed_feed_exception``), ``success`` stays True with details on
     ``ServiceResult.soft_failures``. If ``multi_feed_strict`` is True (strict CI), or any
     failure is **hard**, ``success`` is False if any feed fails.
-    After the batch, writes manifest/summary (#506) and builds a parent vector
-    index when ``vector_search`` and FAISS are enabled (#505).
+    After the batch, writes manifest/summary (#506) and builds a parent LanceDB
+    search index when ``vector_search`` is enabled (#505).
     """
     from podcast_scraper.rss.feeds_spec import merge_feed_entry_into_config
     from podcast_scraper.utils.corpus_lock import corpus_parent_lock
@@ -98,7 +98,7 @@ def _run_multi_feed(cfg: config.Config, entries: List[config.RssFeedEntry]) -> S
     err_parts: List[str] = []
     parent = cfg.output_dir or ""
     batch: List[MultiFeedFeedResult] = []
-    skip_auto = cfg.vector_search is True and getattr(cfg, "vector_backend", "faiss") == "faiss"
+    skip_auto = cfg.vector_search is True
     incident_log_default = str(Path(parent) / "corpus_incidents.jsonl")
     incident_log_start = (
         Path(incident_log_default).stat().st_size if Path(incident_log_default).is_file() else 0

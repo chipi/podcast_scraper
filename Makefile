@@ -19,7 +19,7 @@ PYTEST_PROGRESS_OPTS := -o console_output_style=classic
 # GI/KG viewer (Vue + Vite + Playwright). Override if the app moves, e.g. ``make serve-ui WEB_VIEWER_DIR=apps/viewer``.
 WEB_VIEWER_DIR ?= web/gi-kg-viewer
 
-# GIL Quote vs FAISS chunk offset gate (#528 Phase 5). ``make verify-gil-offsets-strict`` uses these.
+# GIL Quote vs indexed transcript chunk offset gate (#528 Phase 5). ``make verify-gil-offsets-strict`` uses these.
 # Override for CI or another indexed corpus: GIL_OFFSET_VERIFY_DIR=/path/to/corpus-root make verify-gil-offsets-strict
 GIL_OFFSET_VERIFY_DIR ?= output
 GIL_OFFSET_MIN_RATE ?= 0.95
@@ -94,7 +94,7 @@ help:
 	@echo "  make fetch-ci-metrics-validate [N=40]  Download (same as above) then validate every run-* bundle"
 	@echo "  make fetch-nightly-metrics [N=25]  N unset: one artifact or Pages curl; N>=1: download N nightlies + merge JSONL for charts"
 	@echo "  make validate-metrics-bundle BUNDLE=path  Validate downloaded latest-*.json + optional history JSONL"
-	@echo "  make verify-gil-offsets-strict [GIL_OFFSET_VERIFY_DIR=path] [GIL_OFFSET_MIN_RATE=0.95]  Quote vs FAISS chunk offsets (#528; strict gate)"
+	@echo "  make verify-gil-offsets-strict [GIL_OFFSET_VERIFY_DIR=path] [GIL_OFFSET_MIN_RATE=0.95]  Quote vs indexed transcript chunk offsets (#528; strict gate)"
 	@echo "  make verify-gil-offsets-after-acceptance [OUTPUT_DIR=path]  After test-acceptance*: verify every run_* with search/metadata.json"
 	@echo "  make build-metrics-dashboard-preview   CI: merged history + nightly + dashboard-data.json → artifacts/dashboard-preview/"
 	@echo "  make metrics-preview-check             Same as preview build with strict history-*.jsonl validation (METRICS_PREVIEW_STRICT)"
@@ -160,13 +160,13 @@ help:
 	@echo "  make test-acceptance  Run E2E acceptance tests (multiple configs sequentially)"
 	@echo "                            Usage: make test-acceptance CONFIGS=\"…\" [USE_FIXTURES=1] …"
 	@echo "                            Or:     make test-acceptance FROM_FAST_STEMS=1 USE_FIXTURES=1 (materialize MAIN_ACCEPTANCE_CONFIG.yaml rows)"
-	@echo "                            Configs with vector_search: run make preload-ml-models without SKIP_GIL=1 so FAISS indexing has cached embeddings offline."
+	@echo "                            Configs with vector_search: run make preload-ml-models without SKIP_GIL=1 so vector indexing has cached embeddings offline."
 	@echo "  make test-acceptance-fixtures-fast  Same as FROM_FAST_STEMS=1 + USE_FIXTURES=1 + no auto analyze/benchmark; TIMEOUT default 900; PER_RUN_WALL_SECONDS default 600 (post-run wall budget)"
 	@echo "                            Options: USE_FIXTURES=1 uses test fixtures (default: uses real RSS/APIs)"
 	@echo "                                     NO_SHOW_LOGS=1 disables real-time log streaming (default: logs shown)"
 	@echo "                                     NO_AUTO_ANALYZE=1 disables automatic analysis (default: analysis runs automatically)"
 	@echo "                                     ANALYZE_MODE=comprehensive uses comprehensive analysis mode (default: basic)"
-	@echo "                                     STRICT_VECTOR_INDEX=1 fails run if vector_search builds empty FAISS (exit 1 if any run fails)"
+	@echo "                                     STRICT_VECTOR_INDEX=1 fails run if vector_search builds an empty index (exit 1 if any run fails)"
 	@echo "  make analyze-acceptance  Analyze acceptance test results"
 	@echo "                                 Usage: make analyze-acceptance SESSION_ID=\"20260208_093757\" [MODE=basic|comprehensive] [COMPARE_BASELINE=...]"
 	@echo "  Tip: For debugging, use pytest directly with -n 0 for sequential execution"
@@ -227,7 +227,7 @@ help:
 	@echo "  make clean-all       Remove both build artifacts and ML model caches"
 	@echo "  make download-spacy-wheels  Download spaCy en_core_web_* wheels into wheels/spacy (use with PIP_FIND_LINKS)"
 	@echo "  make preload-ml-models  Pre-download/cache ML models (Whisper, spaCy, Transformers, GIL evidence: embedding+QA+NLI)"
-	@echo "                            Omit SKIP_GIL=1 when you need sentence-transformers cached for vector_search/FAISS (indexing uses allow_download=False)."
+	@echo "                            Omit SKIP_GIL=1 when you need sentence-transformers cached for vector_search/LanceDB (indexing uses allow_download=False)."
 	@echo "  make preload-ml-models-production  Same idea for nightly-sized model set (Whisper base, BART/LED/Pegasus, hybrid, en_core_web_sm)"
 	@echo "  make hf-hub-smoke-test  Diagnose Hugging Face HTTPS + hub API + tokenizer load (optional HF_SMOKE_ARGS=... for script flags)"
 	@echo "  make backup-cache    Backup .cache directory (ML models)"
@@ -1051,7 +1051,7 @@ corpus-compat-check:
 	$(PYTHON) -c "from pathlib import Path; from podcast_scraper.corpus_version import read_produced_by, assess_corpus_version_compat, MIN_SUPPORTED_CORPUS_CODE_VERSION; from podcast_scraper import __version__; root = Path('$${CORPUS_DIR}').expanduser().resolve(); pb = read_produced_by(root); ver, warn = assess_corpus_version_compat(pb); print(f'server={__version__} min_supported={MIN_SUPPORTED_CORPUS_CODE_VERSION}'); print(f'corpus_code_version={ver!r}'); print(f'produced_by={pb!r}'); import sys; (print(f'WARNING: {warn}') or sys.exit(1)) if warn else print('COMPAT OK')"
 
 # Build the two-tier LanceDB index from corpus artifacts (RFC-090 Phase 2, follow-up
-# B). Native path for corpora without a FAISS index to migrate. CORPUS_DIR required.
+# B). Native path for corpora with no legacy index to migrate. CORPUS_DIR required.
 index-two-tier:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
 	$(PYTHON) -m podcast_scraper.cli index-two-tier --output-dir "$${CORPUS_DIR}"
@@ -1190,9 +1190,9 @@ build-viewer:
 	@echo "Production viewer bundle (vue-tsc -b && vite build)..."
 	@cd $(WEB_VIEWER_DIR) && npm install && npm run build
 
-# Phase 5 (#528): fail if GIL Quote spans do not overlap FAISS transcript chunks enough.
+# Phase 5 (#528): fail if GIL Quote spans do not overlap indexed transcript chunks enough.
 verify-gil-offsets-strict:
-	@echo "GIL vs FAISS chunk offset verification (strict, min overlap rate $(GIL_OFFSET_MIN_RATE))..."
+	@echo "GIL vs indexed transcript chunk offset verification (strict, min overlap rate $(GIL_OFFSET_MIN_RATE))..."
 	@test -d "$(GIL_OFFSET_VERIFY_DIR)" || { echo "GIL_OFFSET_VERIFY_DIR not found: $(GIL_OFFSET_VERIFY_DIR)"; exit 2; }
 	@test -f "$(GIL_OFFSET_VERIFY_DIR)/search/metadata.json" || { echo "No search/metadata.json under $(GIL_OFFSET_VERIFY_DIR) (index missing?)"; exit 2; }
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) -m $(PACKAGE).cli verify-gil-chunk-offsets \
@@ -1221,7 +1221,7 @@ verify-gil-offsets-after-acceptance:
 	if test "$$n" -eq 0; then \
 		echo "No run_* with search/metadata.json under $$runs"; exit 2; \
 	fi; \
-	echo "OK: verified GIL vs FAISS offsets for $$n acceptance run(s)"
+	echo "OK: verified GIL vs indexed transcript offsets for $$n acceptance run(s)"
 
 gil-quality-metrics:
 	# PRD-017 GIL quality metrics over .gi.json (see scripts/tools/gil_quality_metrics.py).
@@ -1451,10 +1451,12 @@ test-analytical:
 	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/analytical/ -m "analytical" -v --disable-socket --allow-hosts=127.0.0.1,localhost --durations=10
 
 test-diarization: cleanup-processes
-	# Real-pyannote speaker-diarization tests (RFC-058). The gated pyannote models
-	# must be cached first (``make preload-ml-models`` with an HF token that has
-	# accepted the model terms); the tests skip when the model isn't in the cache.
-	# Selected by NO other target, so without this it never runs in CI/nightly.
+	# Speaker-diarization tests (RFC-058). Two tiers under the ``diarization`` marker:
+	#   - integration: factory + provider wiring with pyannote MOCKED (always runs, no token).
+	#   - e2e (tests/e2e/test_diarization_e2e.py): the REAL pyannote full flow — needs the
+	#     gated models cached (``make preload-ml-models`` with an HF token that accepted the
+	#     model terms) and skips when the model/token isn't available.
+	# The e2e tier is selected by NO other target, so without this it never runs in CI/nightly.
 	@echo "🎙️  Running pyannote diarization tests at $$(date '+%H:%M:%S')..."
 	$(PYTHON) -m pytest tests/ -m diarization -v --tb=short --allow-hosts=127.0.0.1,localhost
 
@@ -2209,35 +2211,26 @@ build-validation-index:
 	# synthetic validation corpus. Run this BEFORE ``make serve-for-validation``.
 	# Unlocks the index-dependent specs (V1/V5 — Library/Digest handoffs — do NOT
 	# need any of this; they pass on the path fix alone):
-	#   1. FAISS flat index (vectors.faiss + sidecars) — required for V3
-	#      (semantic search → Show on graph). Without it V3 is SKIPPED
-	#      (test.skip on ``!indexJson.available``).
-	#   2. LanceDB two-tier index (search/lance_index/) — the current search
-	#      layer on top of FAISS (native BM25 + hybrid RRF). serve-api uses it
-	#      when present (hybrid_enabled default on) and falls back to FAISS if
-	#      absent, so V3 passes either way — but building it makes the synthetic
-	#      corpus match prod's two-tier layout and exercises the real hybrid path.
-	#   3. topic_clusters.json — required for V2 (digest topic-band) and V4
+	#   1. LanceDB two-tier index (search/lance_index/) — the single search layer
+	#      (native BM25 + dense + hybrid RRF). Required for V3 (semantic search →
+	#      Show on graph); without it V3 is SKIPPED (test.skip on
+	#      ``!indexJson.available``).
+	#   2. topic_clusters.json — required for V2 (digest topic-band) and V4
 	#      (dashboard topic-cluster chip). Without it the Intelligence tab shows
 	#      "Topic clusters not yet built" → no chips → V4 fails.
-	# All three live under <corpus>/search/ and are gitignored (binary,
+	# Both live under <corpus>/search/ and are gitignored (binary,
 	# embedding-model-hash-keyed, regenerable) — never committed.
 	@CORPUS=$(if $(CORPUS),$(CORPUS),$(VIEWER_VALIDATION_CORPUS)); \
-	echo "=== 1/3 Building FAISS flat index at $$CORPUS/search ==="; \
-	$(PYTHON) -m podcast_scraper.cli index \
-		--output-dir $$CORPUS \
-		--rebuild --vector-faiss-index-mode flat
-	@CORPUS=$(if $(CORPUS),$(CORPUS),$(VIEWER_VALIDATION_CORPUS)); \
-	echo "=== 2/3 Building LanceDB two-tier index at $$CORPUS/search/lance_index ==="; \
+	echo "=== 1/2 Building LanceDB two-tier index at $$CORPUS/search/lance_index ==="; \
 	$(PYTHON) -m podcast_scraper.cli index-two-tier \
 		--output-dir $$CORPUS
 	@CORPUS=$(if $(CORPUS),$(CORPUS),$(VIEWER_VALIDATION_CORPUS)); \
-	echo "=== 3/3 Building topic_clusters.json at $$CORPUS/search ==="; \
+	echo "=== 2/2 Building topic_clusters.json at $$CORPUS/search ==="; \
 	$(PYTHON) -m podcast_scraper.cli topic-clusters \
 		--output-dir $$CORPUS \
 		--threshold 0.35
 	@echo ""
-	@echo "Done — FAISS + LanceDB two-tier + topic_clusters built. Now run:"
+	@echo "Done — LanceDB two-tier + topic_clusters built. Now run:"
 	@echo "  make serve-for-validation       (terminal 1)"
 	@echo "  make ci-ui-validation CORPUS=$(VIEWER_VALIDATION_CORPUS)  (terminal 2)"
 
@@ -3536,7 +3529,7 @@ preprod-local:
 	@echo "  - transcripts/*.segments.json — should have speaker labels (SPEAKER_00, _01, ...)"
 	@echo "  - metadata/*.gi.json       — GI insights with grounding"
 	@echo "  - metadata/*.kg.json       — KG topics + entities"
-	@echo "  - search/vectors.faiss     — vector index"
+	@echo "  - search/lance_index/      — LanceDB search index"
 	@echo "  - metrics.json             — run timing + cost"
 
 # Stage B chaos: DGX denied mid-run, cloud fallback must fire (#814).

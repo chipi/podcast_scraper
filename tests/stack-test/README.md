@@ -47,7 +47,7 @@ make stack-test-seed STACK_TEST_OPERATOR_VARIANT=cloud-thin
 STACK_TEST_OPERATOR_PROFILE=cloud_thin make stack-test-playwright
 ```
 
-The cloud-thin path does **not** run on public CI (avoids recurring API costs). When `STACK_TEST_OPERATOR_PROFILE=cloud_thin`, the spec gracefully skips the populated-FAISS semantic-search assertion (`vector_search: false` in the profile) and instead asserts `/api/search` returns the structured `error: "no_index"` response.
+The cloud-thin path does **not** run on public CI (avoids recurring API costs). When `STACK_TEST_OPERATOR_PROFILE=cloud_thin`, the spec gracefully skips the populated-index semantic-search assertion (`vector_search: false` in the profile) and instead asserts `/api/search` returns the structured `error: "no_index"` response.
 
 ### Tear down
 

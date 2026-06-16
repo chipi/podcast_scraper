@@ -1,9 +1,10 @@
 # Corpus upgrade framework (#862)
 
 Managed, idempotent migrations for moving a **deployed corpus** across releases. The
-first registered step is the 2.6 → 2.7 FAISS → two-tier LanceDB migration (RFC-090
-/ #858). Use this when upgrading an on-disk corpus to a newer code version — not for
-fresh corpora (those are produced at the current version by the pipeline).
+registered steps bring a 2.6 corpus up to the 2.7 two-tier **LanceDB** search index
+(RFC-090 / #858, ADR-099). Use this when upgrading an on-disk corpus to a newer code
+version — not for fresh corpora (those are produced at the current version by the
+pipeline).
 
 ## TL;DR
 
@@ -42,8 +43,8 @@ python -m podcast_scraper.cli upgrade verify  --corpus-dir $CORPUS_DIR
   (`produced_by.code_version`, #796). After a migration runs, the new version is
   recorded in `upgrade_ledger.json` at the corpus root, which then takes precedence.
 - **Ledger-driven** (like a DB migrations table): a migration runs unless its id is
-  already recorded. Re-runs are safe — steps are idempotent (the FAISS→LanceDB step
-  merge-inserts) and recorded steps are skipped.
+  already recorded. Re-runs are safe — steps are idempotent (the native reindex builds
+  the index in place) and recorded steps are skipped.
 - **Stop on failure:** if a step fails, earlier steps stay recorded; fix and re-run
   to resume from the failed step.
 
@@ -68,12 +69,14 @@ files-on-disk to a database:
 
 ## Registered migrations
 
-- `0001_faiss_to_lance` — migrate an existing FAISS index into the two-tier LanceDB
-  layout (reuses embeddings). No-op when the corpus has no FAISS index.
-- `0002_two_tier_native_reindex` — build the two-tier index **natively** from corpus
-  artifacts, but only when `0001` left none (no FAISS to migrate). No-op when an index
-  already exists. Together, 0001 + 0002 guarantee a two-tier index via the cheapest
-  available path without double-building.
+- `0001_faiss_to_lance` — **historical, now a recorded no-op.** It once migrated an
+  existing FAISS index into the two-tier LanceDB layout; FAISS was retired in #995
+  (ADR-099), so there is nothing to migrate. Kept registered so the version chain and
+  ledger stay intact for corpora that already recorded it.
+- `0002_two_tier_native_reindex` — build the two-tier LanceDB index **natively** from
+  corpus artifacts when none exists. No-op when an index is already present. With 0001
+  reduced to a no-op, this step is what actually (re)builds the index for a pre-2.7
+  corpus.
 
 **Not a migration:** the cross-episode entity canonical map (#852) is computed *live*
 at graph-build (`search/corpus_graph.py` → `build_entity_id_map`), not persisted —

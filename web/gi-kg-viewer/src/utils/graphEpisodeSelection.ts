@@ -8,12 +8,19 @@ import type { ParsedArtifact } from '../types/artifact'
 /**
  * Tunable: max episodes merged on corpus graph auto-load (ceiling on episodes, not nodes).
  *
- * Interim ceiling: the default `cose` layout is ~O(n²) and the no-selection window during the
- * ego→full reload scales with layout time, so this cap bounds usable graph size. Stress test:
- * ~15 ep ≈ 600 nodes ≈ 6s layout (fine); 100 ep ≈ 2861 nodes ≈ 134s (frozen). Raising this
- * meaningfully is gated on the large-graph layout + selection-persistence work — see GH issue.
+ * History: the old `cose` layout was ~O(n²) — 100 ep ≈ 2861 nodes ≈ 134s frozen canvas — so
+ * the cap existed to bound layout time (15 cose-safe → 25 interim). #967 swapped to `fcose`
+ * (spectral seed): the same ~2.9k nodes lay out in <1s, so layout is no longer the limit.
+ *
+ * The remaining cost at scale is canvas *interaction* (pan/zoom repaint + hit-testing), already
+ * softened by degree-visibility + label-tier culling. A live devtools trace (docs/wip/
+ * 967-interaction-cost-trace.md) measured pan/zoom FPS vs node count on a 14-core / DPR-1 laptop:
+ * ~1.5k nodes ≈ 37 fps (good), ~2.1k ≈ 25 fps (sluggish), ~2.9k ≈ 20 fps (laggy) — degrading
+ * ~linearly, and worse on retina / low-end devices. 50 ep (≈ 1.4k nodes at prod density) is the
+ * empirically smooth ceiling. Do NOT raise the default toward the full corpus (100+ ep) without
+ * interaction mitigations first (LOD-during-gesture, edge culling, or an opt-in "load all") — #967.
  */
-export const GRAPH_DEFAULT_EPISODE_CAP = 25
+export const GRAPH_DEFAULT_EPISODE_CAP = 50
 
 /** Tunable: recency component for the oldest episode in a dated lens window (linear floor). */
 export const GRAPH_SCORE_RECENCY_MIN = 0.2

@@ -30,7 +30,7 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p01/metadata/p01_e01.kg.json",
       "metadata_relative_path": "feeds/p01/metadata/p01_e01.metadata.json",
-      "publish_date": "2026-06-07",
+      "publish_date": "2026-06-15",
       "summary_bullet_graph_topic_ids": [
         "topic:outdoor-activities",
         "topic:gear",
@@ -78,7 +78,7 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p01/metadata/p01_e02.kg.json",
       "metadata_relative_path": "feeds/p01/metadata/p01_e02.metadata.json",
-      "publish_date": "2026-06-05",
+      "publish_date": "2026-06-13",
       "summary_bullet_graph_topic_ids": [
         "topic:outdoor-activities",
         "topic:gear",
@@ -126,7 +126,7 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p01/metadata/p01_e03.kg.json",
       "metadata_relative_path": "feeds/p01/metadata/p01_e03.metadata.json",
-      "publish_date": "2026-06-03",
+      "publish_date": "2026-06-11",
       "summary_bullet_graph_topic_ids": [
         "topic:outdoor-activities",
         "topic:gear",
@@ -174,7 +174,7 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p02/metadata/p02_e01.kg.json",
       "metadata_relative_path": "feeds/p02/metadata/p02_e01.metadata.json",
-      "publish_date": "2026-06-06",
+      "publish_date": "2026-06-14",
       "summary_bullet_graph_topic_ids": [
         "topic:technology",
         "topic:science-research",
@@ -222,7 +222,7 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p02/metadata/p02_e02.kg.json",
       "metadata_relative_path": "feeds/p02/metadata/p02_e02.metadata.json",
-      "publish_date": "2026-06-04",
+      "publish_date": "2026-06-12",
       "summary_bullet_graph_topic_ids": [
         "topic:technology",
         "topic:technology",
@@ -270,7 +270,7 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p02/metadata/p02_e03.kg.json",
       "metadata_relative_path": "feeds/p02/metadata/p02_e03.metadata.json",
-      "publish_date": "2026-06-02",
+      "publish_date": "2026-06-10",
       "summary_bullet_graph_topic_ids": [
         "topic:technology",
         "topic:business-markets",
@@ -318,7 +318,7 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p03/metadata/p03_e01.kg.json",
       "metadata_relative_path": "feeds/p03/metadata/p03_e01.metadata.json",
-      "publish_date": "2026-06-05",
+      "publish_date": "2026-06-13",
       "summary_bullet_graph_topic_ids": [
         "topic:outdoor-activities",
         "topic:gear",
@@ -366,7 +366,7 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p03/metadata/p03_e02.kg.json",
       "metadata_relative_path": "feeds/p03/metadata/p03_e02.metadata.json",
-      "publish_date": "2026-06-03",
+      "publish_date": "2026-06-11",
       "summary_bullet_graph_topic_ids": [
         "topic:outdoor-activities",
         "topic:gear",
@@ -414,7 +414,7 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p03/metadata/p03_e03.kg.json",
       "metadata_relative_path": "feeds/p03/metadata/p03_e03.metadata.json",
-      "publish_date": "2026-06-07",
+      "publish_date": "2026-06-15",
       "summary_bullet_graph_topic_ids": [
         "topic:outdoor-activities",
         "topic:gear",
@@ -462,7 +462,7 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p04/metadata/p04_e01.kg.json",
       "metadata_relative_path": "feeds/p04/metadata/p04_e01.metadata.json",
-      "publish_date": "2026-06-04",
+      "publish_date": "2026-06-12",
       "summary_bullet_graph_topic_ids": [
         "topic:technology",
         "topic:gear",
@@ -510,7 +510,7 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p04/metadata/p04_e02.kg.json",
       "metadata_relative_path": "feeds/p04/metadata/p04_e02.metadata.json",
-      "publish_date": "2026-06-02",
+      "publish_date": "2026-06-10",
       "summary_bullet_graph_topic_ids": [
         "topic:technology",
         "topic:gear",
@@ -558,7 +558,7 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p04/metadata/p04_e03.kg.json",
       "metadata_relative_path": "feeds/p04/metadata/p04_e03.metadata.json",
-      "publish_date": "2026-06-06",
+      "publish_date": "2026-06-14",
       "summary_bullet_graph_topic_ids": [
         "topic:technology",
         "topic:gear",
@@ -606,7 +606,7 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p05/metadata/p05_e01.kg.json",
       "metadata_relative_path": "feeds/p05/metadata/p05_e01.metadata.json",
-      "publish_date": "2026-06-03",
+      "publish_date": "2026-06-11",
       "summary_bullet_graph_topic_ids": [
         "topic:science-research",
         "topic:without-the",
@@ -654,7 +654,7 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p05/metadata/p05_e02.kg.json",
       "metadata_relative_path": "feeds/p05/metadata/p05_e02.metadata.json",
-      "publish_date": "2026-06-07",
+      "publish_date": "2026-06-15",
       "summary_bullet_graph_topic_ids": [
         "topic:technology",
         "topic:welcome-back-to",
@@ -702,7 +702,7 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p05/metadata/p05_e03.kg.json",
       "metadata_relative_path": "feeds/p05/metadata/p05_e03.metadata.json",
-      "publish_date": "2026-06-05",
+      "publish_date": "2026-06-13",
       "summary_bullet_graph_topic_ids": [
         "topic:business-markets",
         "topic:management-for",
@@ -750,7 +750,7 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p06/metadata/p06_e01.kg.json",
       "metadata_relative_path": "feeds/p06/metadata/p06_e01.metadata.json",
-      "publish_date": "2026-06-02",
+      "publish_date": "2026-06-10",
       "summary_bullet_graph_topic_ids": [
         "topic:science-research",
         "topic:this-is-an-edge",
@@ -798,7 +798,7 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p06/metadata/p06_e02.kg.json",
       "metadata_relative_path": "feeds/p06/metadata/p06_e02.metadata.json",
-      "publish_date": "2026-06-06",
+      "publish_date": "2026-06-14",
       "summary_bullet_graph_topic_ids": [
         "topic:technology",
         "topic:this-is-an-edge",
@@ -846,7 +846,7 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p06/metadata/p06_e03.kg.json",
       "metadata_relative_path": "feeds/p06/metadata/p06_e03.metadata.json",
-      "publish_date": "2026-06-04",
+      "publish_date": "2026-06-12",
       "summary_bullet_graph_topic_ids": [
         "topic:business-markets",
         "topic:this-is-an-edge",
@@ -894,7 +894,7 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p07/metadata/p07_e01.kg.json",
       "metadata_relative_path": "feeds/p07/metadata/p07_e01.metadata.json",
-      "publish_date": "2026-06-07",
+      "publish_date": "2026-06-15",
       "summary_bullet_graph_topic_ids": [
         "topic:environment",
         "topic:health",
@@ -942,7 +942,7 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p08/metadata/p08_e01.kg.json",
       "metadata_relative_path": "feeds/p08/metadata/p08_e01.metadata.json",
-      "publish_date": "2026-06-06",
+      "publish_date": "2026-06-14",
       "summary_bullet_graph_topic_ids": [
         "topic:environment",
         "topic:technology",
@@ -990,7 +990,7 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p09/metadata/p09_e01.kg.json",
       "metadata_relative_path": "feeds/p09/metadata/p09_e01.metadata.json",
-      "publish_date": "2026-06-05",
+      "publish_date": "2026-06-13",
       "summary_bullet_graph_topic_ids": [
         "topic:technology",
         "topic:health",
@@ -1038,7 +1038,7 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p09/metadata/p09_e02.kg.json",
       "metadata_relative_path": "feeds/p09/metadata/p09_e02.metadata.json",
-      "publish_date": "2026-06-03",
+      "publish_date": "2026-06-11",
       "summary_bullet_graph_topic_ids": [
         "topic:technology",
         "topic:health",
@@ -1086,7 +1086,7 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p09/metadata/p09_e03.kg.json",
       "metadata_relative_path": "feeds/p09/metadata/p09_e03.metadata.json",
-      "publish_date": "2026-06-07",
+      "publish_date": "2026-06-15",
       "summary_bullet_graph_topic_ids": [
         "topic:technology",
         "topic:health",
@@ -1107,5 +1107,5 @@
     }
   ],
   "next_cursor": null,
-  "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v2"
+  "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v2"
 }

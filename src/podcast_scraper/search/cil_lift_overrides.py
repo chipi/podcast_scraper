@@ -1,7 +1,7 @@
 """Optional corpus-level overrides for transcript chunk lift to CIL (#528).
 
 ``cil_lift_overrides.json`` at the corpus root (pipeline output directory) adjusts
-char alignment and resolves split canonical ids without rebuilding the FAISS index.
+char alignment and resolves split canonical ids without rebuilding the LanceDB index.
 """
 
 from __future__ import annotations

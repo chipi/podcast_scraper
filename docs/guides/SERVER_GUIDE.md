@@ -95,7 +95,7 @@ Routers are included with `prefix="/api"` and organized by domain:
 routes/
   health.py          # viewer — always available
   artifacts.py       # viewer — list / load GI & KG JSON
-  index_stats.py     # viewer — FAISS vector index metrics + staleness
+  index_stats.py     # viewer — LanceDB index metrics + staleness
   index_rebuild.py   # viewer — POST /index/rebuild (background job)
   search.py          # viewer — semantic corpus search (+ query-activity logging)
   relational.py      # viewer — /relational/* relational-query layer (RFC-094, #882)
@@ -400,7 +400,7 @@ Located in `tests/unit/podcast_scraper/server/`:
 | File | Coverage |
 | ---- | -------- |
 | `test_viewer_api_m1.py` | Health endpoint, artifact listing, artifact loading, path traversal rejection. |
-| `test_viewer_index_stats.py` | Index stats with no corpus, no index, and mocked FAISS store. |
+| `test_viewer_index_stats.py` | Index stats with no corpus, no index, and a mocked LanceDB index. |
 | `test_viewer_search.py` | Search with no corpus, mocked `run_corpus_search` results. |
 | `test_viewer_explore.py` | Explore filter mode and UC4 natural-language mode with mocked GI functions. |
 | `test_cil_queries.py` | CIL query helpers over synthetic bridge + GI/KG bundles (#527). |

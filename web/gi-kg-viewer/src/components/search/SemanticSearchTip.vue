@@ -15,9 +15,9 @@
     </p>
     <ul class="mt-1.5 list-disc space-y-1.5 pl-4 marker:text-muted">
       <li>
-        The server reads the FAISS index under
+        The server reads the search index under
         <code class="whitespace-nowrap rounded bg-canvas px-1 py-0.5 font-mono text-[11px] text-canvas-foreground">
-          &lt;corpus&gt;/search/
+          &lt;corpus&gt;/search/lance_index/
         </code>
         — build it with
         <code class="rounded bg-canvas px-1 py-0.5 font-mono text-[11px] text-canvas-foreground">
