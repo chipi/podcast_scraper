@@ -113,7 +113,7 @@ llm = [
   # files on https://pypi.org/simple/mistralai/ as of 2026-05). Pin the official v2.4.5
   # tree (commit matches tag v2.4.5) until PyPI restores the project.
   "mistralai @ https://github.com/mistralai/client-python/archive/7ebe84b5a9eee0714f81c687c8cf636eaa12476f.tar.gz",
-  "deepgram-sdk>=3.0.0,<8.0.0",
+  "deepgram-sdk>=7.3.1,<8.0.0",
   "httpx>=0.28.1,<1.0.0",  # Ollama provider (Issue #196) - for health checks
 ]
 # Minimum local ML to build the LanceDB vector index when running an otherwise cloud-only
