@@ -680,6 +680,11 @@ class Metrics:
             bucket = self.llm_retry_reasons.setdefault(str(stage), {})
             bucket[str(reason)] = bucket.get(str(reason), 0) + 1
 
+    def _snapshot_llm_retry_reasons(self) -> Dict[str, Dict[str, int]]:
+        """Lock-protected deep copy for safe serialization (#988)."""
+        with self._retry_reasons_lock:
+            return {stage: dict(reasons) for stage, reasons in self.llm_retry_reasons.items()}
+
     def record_llm_summary_fallback_active(self, fallback_provider: str) -> None:
         """Record that the summarization stage fell back from its primary provider.
 
@@ -1479,10 +1484,11 @@ class Metrics:
             "summarization_device": self.summarization_device,
             # #988: per-stage retry-reason attribution (stage → reason → count).
             # Empty dict when no retries fired (or none of the firing call sites
-            # were wired for stage attribution).
-            "llm_retry_reasons": {
-                stage: dict(reasons) for stage, reasons in self.llm_retry_reasons.items()
-            },
+            # were wired for stage attribution). Lock-protected read so a
+            # concurrent ``record_provider_retry`` from a background retry
+            # thread can't trigger ``RuntimeError: dictionary changed size
+            # during iteration`` while finalize runs.
+            "llm_retry_reasons": self._snapshot_llm_retry_reasons(),
         }
         out.update(http_policy_metrics)
         return out

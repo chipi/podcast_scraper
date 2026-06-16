@@ -149,7 +149,12 @@ server.shell(
 server.shell(
     name="assert: WHISPER__COMPUTE_TYPE=int8 in running container (#948 pin)",
     commands=[
-        'ct=$(docker exec faster-whisper sh -c "echo $WHISPER__COMPUTE_TYPE"); '
+        # Read the env directly from the container's process table to avoid
+        # the host shell expanding $WHISPER__COMPUTE_TYPE before docker exec
+        # sees it. ``docker inspect`` returns the env list verbatim from the
+        # container's compose config.
+        "ct=$(docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "
+        "faster-whisper 2>/dev/null | awk -F= '/^WHISPER__COMPUTE_TYPE=/{print $2; exit}'); "
         'echo "runtime compute type: $ct"; '
         '[ "$ct" = "int8" ] '
         '|| { echo "ERR: WHISPER__COMPUTE_TYPE=$ct, expected int8 — see '

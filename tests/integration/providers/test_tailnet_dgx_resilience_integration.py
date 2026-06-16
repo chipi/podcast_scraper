@@ -26,10 +26,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from podcast_scraper import Config
+from podcast_scraper.providers import resilience
 from podcast_scraper.providers.ml.diarization.base import DiarizationResult
 from podcast_scraper.providers.tailnet_dgx import (
     diarization_provider as dp,
-    resilience,
     whisper_provider as wp,
 )
 from podcast_scraper.providers.tailnet_dgx.diarization_provider import (

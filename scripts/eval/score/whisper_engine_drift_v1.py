@@ -80,24 +80,26 @@ def wer(ref: str, hyp: str) -> float:
 # silence-hallucination phrases. False positives bias toward 0; false
 # negatives bias higher. Good enough for a count-level signal.
 
-_HALLUCINATION_PHRASES = (
-    "thanks for watching",
-    "thank you for watching",
-    "subscribe to my channel",
-    "please subscribe",
-    "like and subscribe",
-    "don't forget to subscribe",
-    "♪",
-    "♫",
-    "[music]",
-    "[applause]",
-    "you you you you",  # repetition loop
+# Phrase patterns scored as a single hit when they appear, regardless of how
+# many times the phrase repeats inside the text. The original ``count()``-based
+# scoring over-weighted music-intro symbols (``♪♪♪♪`` would score 4) and
+# repetition loops; we only care whether the engine produced the hallucination
+# *signature*, not how florid it was about it.
+_HALLUCINATION_PATTERNS = (
+    re.compile(r"thanks?\s+(?:you\s+)?for\s+watching", re.IGNORECASE),
+    re.compile(r"subscribe\s+to\s+my\s+channel", re.IGNORECASE),
+    re.compile(r"please\s+subscribe", re.IGNORECASE),
+    re.compile(r"like\s+and\s+subscribe", re.IGNORECASE),
+    re.compile(r"don'?t\s+forget\s+to\s+subscribe", re.IGNORECASE),
+    re.compile(r"[♪♫]{2,}"),  # ``♪♪`` or more — single ♪ is a legit music note mention
+    re.compile(r"\[music\]", re.IGNORECASE),
+    re.compile(r"\[applause\]", re.IGNORECASE),
+    re.compile(r"(\b\w+\b)(?:\s+\1){3,}", re.IGNORECASE),  # any word repeated 4+ times
 )
 
 
 def hallucination_count(segments: List[Dict[str, Any]], text: str) -> int:
-    text_lower = text.lower()
-    count = sum(text_lower.count(p) for p in _HALLUCINATION_PHRASES)
+    count = sum(1 for pat in _HALLUCINATION_PATTERNS if pat.search(text))
     # Add: very short segments at the very end (silence padding artifact)
     if segments:
         tail = segments[-1]
@@ -388,10 +390,20 @@ def main() -> int:
     if args.score:
         scores = score_runs(args.score)
         out_json = json.dumps(scores, indent=2)
-        if args.output:
-            args.output.parent.mkdir(parents=True, exist_ok=True)
-            args.output.write_text(out_json)
-            print(f"wrote scores: {args.output}")
+        # In score mode ``--output`` defaults to the predictions directory
+        # (shared default for transcribe mode). That's a *directory*, not a
+        # file — writing scores there with ``args.output.write_text`` would
+        # raise ``IsADirectoryError``. Default to <score-dir>/../scores.json
+        # so the docstring example works without an explicit ``--output``.
+        if args.output and args.output.is_dir():
+            target = args.output.parent / "scores.json"
+        elif args.output:
+            target = args.output
+        else:
+            target = args.score.parent / "scores.json"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(out_json)
+        print(f"wrote scores: {target}")
         print(out_json)
         return 0
 
