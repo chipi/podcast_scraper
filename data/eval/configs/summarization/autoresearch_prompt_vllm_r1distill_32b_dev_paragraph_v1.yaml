@@ -1,0 +1,54 @@
+# Autoresearch v2 paragraph — vLLM-served DeepSeek-R1-Distill-Qwen-32B on DGX.
+#
+# Candidate #3 in the #1016 Phase 2a tier-1 eval. Reuses the #961
+# anti-reasoning prompt fix at
+# ``src/podcast_scraper/prompts/vllm/r1_distill_32b/summarization/``
+# which lifted the model's mean Sonnet 4.6 score from 3.25 (#928 parent
+# eval) to 4.05 (#961 prompt-fix re-eval), closing 45% of the gap to
+# qwen3.5:35b champion. This config is the next step of that work:
+# locking the prompt + sampling shape against the dev_v1 dataset so the
+# Phase 2b formal comparison runs against the model's best-effort
+# configuration.
+#
+# Requires the homelab autoresearch vLLM compose to be re-pinned to
+# this model BEFORE running this config. Procedure:
+#
+#   ssh into DGX
+#   sudo -u markodragoljevic gpu-mode-swap.sh idle
+#   $EDITOR ~/agentic-ai-homelab/infra/vllm/autoresearch/docker-compose.yml
+#     # Change the `- Qwen/Qwen3-30B-A3B-Instruct-2507` line to
+#     #         `- deepseek-ai/DeepSeek-R1-Distill-Qwen-32B`
+#   sudo -u markodragoljevic gpu-mode-swap.sh research
+#   # Wait for /health 200 (cold boot ~10-15 min, smaller model than Qwen)
+#
+# Post-processing: R1-Distill emits ``<think>...</think>`` blocks
+# regardless of prompt. The strip is applied to predictions.jsonl
+# after this run, BEFORE scoring, via:
+#
+#   from podcast_scraper.evaluation.r1_postprocess import strip_r1_reasoning
+#   for row in predictions:
+#     row['output']['summary_final'] = strip_r1_reasoning(row['output']['summary_final'])
+id: "autoresearch_prompt_vllm_r1distill_32b_dev_paragraph_v1"
+task: "summarization"
+backend:
+  type: "openai"
+  model: "autoresearch"  # served-model-name (homelab compose convention)
+  base_url: "http://${DGX_TAILNET_HOST}:8003/v1"
+  api_key_env: "VLLM_NO_AUTH_NEEDED"
+  # R1-Distill has no chat-template toggle like Qwen3.x.
+  # Anti-reasoning is enforced via the prompt contract (system_no_thinking_v1
+  # + long_no_thinking_v1) and the strip_r1_reasoning post-processor.
+prompts:
+  system: "vllm/r1_distill_32b/summarization/system_no_thinking_v1"
+  user: "vllm/r1_distill_32b/summarization/long_no_thinking_v1"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  max_length: 800
+  min_length: 200
+  # Vendor recommendation for R1-Distill reasoning suppression.
+  # Higher than 0.0 (allows the prompt-side anti-thinking contract to
+  # dominate over the default reasoning trace).
+  temperature: 0.6
+  top_p: 0.95
+preprocessing_profile: "cleaning_v4"

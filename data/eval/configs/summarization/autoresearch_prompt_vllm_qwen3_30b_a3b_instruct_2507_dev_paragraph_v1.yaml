@@ -1,0 +1,47 @@
+# Autoresearch v2 paragraph — vLLM-served Qwen3-30B-A3B-Instruct-2507 on DGX.
+#
+# Candidate #2 in the #1016 Phase 2a tier-1 eval. The vLLM autoresearch
+# container is brought up via ``gpu-mode-swap.sh research`` against the
+# homelab repo's compose pin. The served-model-name is ``autoresearch``
+# (set by the homelab compose's ``--served-model-name=autoresearch``).
+#
+# Reasoning toggle: ``enable_thinking: false`` is required for the Qwen3
+# family on vLLM — without it the model emits reasoning preamble that
+# inflates output length and tanks coherence/fluency scores
+# (#928 / #961 finding).
+#
+# Sampling defaults: Qwen3-30B-A3B-Instruct-2507 ships its own
+# generation_config.json. vLLM honors those automatically when no
+# explicit temperature/top_p override is sent. We pin temperature=0.0
+# here for reproducibility (silver-vs-candidate comparison needs
+# deterministic prediction).
+id: "autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_paragraph_v1"
+task: "summarization"
+backend:
+  type: "openai"
+  # Served-model-name pinned in homelab compose (see
+  # infra/vllm/autoresearch/docker-compose.yml on agentic-ai-homelab repo).
+  # NOT the HF repo path — vLLM exposes only the served name.
+  model: "autoresearch"
+  base_url: "http://${DGX_TAILNET_HOST}:8003/v1"
+  api_key_env: "VLLM_NO_AUTH_NEEDED"
+  # Required for Qwen3.x family on vLLM. Without this the model leaks
+  # reasoning prose into the summary.
+  extra_body:
+    chat_template_kwargs:
+      enable_thinking: false
+prompts:
+  # Reuse the qwen3.5:35b prompts as the baseline. Per the #1016
+  # Phase 2a per-candidate optimization phase, if Phase 2a smoke shows
+  # output drift, fork these into qwen3_30b_a3b_instruct_2507/ — but
+  # the family is close enough (same Qwen3 prompt-tuning vintage) that
+  # we expect this to work out-of-the-box.
+  system: "ollama/qwen3.5_35b/summarization/system_v1"
+  user: "ollama/qwen3.5_35b/summarization/long_v1"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+preprocessing_profile: "cleaning_v4"
