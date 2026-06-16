@@ -16,6 +16,7 @@ WIP file is removed.
 
 | File | Description | Status |
 | ---- | ----------- | ------ |
+| `APPROACH-913-909-964-993.md` | Approach plan for #913/#909/#964/#993. Verified-already-done: #913 (pyannote-on-openai) fully shipped in #969; #964 wave-hardening 32/45 done (~13 residual cleanup items). Real work left: #993 (small TTS drop-in), #964 (one cleanup PR), #909 (viewer person-profile surface — backend already built) | Active |
 | `DEP-EXTRAS-SEPARATION-1019-SCOPE.md` | #1019 dependency-extras audit + scope: lancedb is the only truly-misplaced dep in `[ml]` (search-only) → moved to `[search]`; api Dockerfile server pins bumped to match `[dev]` (fixes prometheus v7≠v8). `[api]` extract considered + rejected (kept deps in `[dev]`). All folded into #1019 | Active |
 | `967-interaction-cost-trace.md` | #967 live devtools trace: fcose removed the layout wall; pan/zoom FPS vs node count → cap=50 is the smooth ceiling. Plus a side finding (FAISS-fallback segfault on a legacy-schema corpus) | Active |
 | `POST-MIGRATION-GRAPH-VALIDATION-967-974-876.md` | Post-migration graph validation on re-diarized prod-v2: 2 bugs found+fixed (focus reconciliation, prefix-tolerant rail), Tier-3 data scan (offset 1.0, SPOKEN_BY, adfree) + test tiers all green, open findings | Active |
