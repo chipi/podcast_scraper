@@ -128,3 +128,59 @@ class TestPersistMediaLinkMode:
         dest, cache_entry = self._persist(tmp_path, "hardlink", seed_cache=False)
         assert cache_entry is None
         assert dest.is_file() and not dest.is_symlink()
+
+    def test_persist_disabled_writes_nothing(self, tmp_path):
+        cfg = create_test_config(persist_episode_media=False, corpus_media_link_mode="hardlink")
+        temp_media = tmp_path / "run" / "ep.mp3"
+        temp_media.parent.mkdir(parents=True)
+        temp_media.write_bytes(b"ID3")
+        episode_processor._maybe_persist_episode_media(
+            cfg,
+            str(temp_media),
+            str(tmp_path / "corpus"),
+            "transcripts/ep.txt",
+            episode=_episode_with_guid("g1"),
+        )
+        assert not (tmp_path / "corpus" / "media" / "ep.mp3").exists()
+
+    def test_missing_transcript_relpath_is_noop(self, tmp_path):
+        cfg = create_test_config(corpus_media_link_mode="hardlink")
+        temp_media = tmp_path / "run" / "ep.mp3"
+        temp_media.parent.mkdir(parents=True)
+        temp_media.write_bytes(b"ID3")
+        episode_processor._maybe_persist_episode_media(
+            cfg,
+            str(temp_media),
+            str(tmp_path / "corpus"),
+            None,
+            episode=_episode_with_guid("g1"),
+        )
+        assert not (tmp_path / "corpus" / "media").exists()
+
+    def test_episode_without_guid_copies(self, tmp_path):
+        cfg = create_test_config(
+            audio_cache_dir=str(tmp_path / "cache"), corpus_media_link_mode="hardlink"
+        )
+        temp_media = tmp_path / "run" / "ep.mp3"
+        temp_media.parent.mkdir(parents=True)
+        temp_media.write_bytes(b"ID3")
+        episode = create_test_episode(item=ET.Element("item"))  # no <guid> → no cache entry
+        episode_processor._maybe_persist_episode_media(
+            cfg, str(temp_media), str(tmp_path / "corpus"), "transcripts/ep.txt", episode=episode
+        )
+        dest = tmp_path / "corpus" / "media" / "ep.mp3"
+        assert dest.is_file() and not dest.is_symlink()
+
+
+@pytest.mark.unit
+def test_resolve_audio_cache_entry_swallows_errors(tmp_path):
+    """Best-effort: a broken episode never blocks persistence (returns None)."""
+    cfg = create_test_config(audio_cache_dir=str(tmp_path / "cache"))
+
+    class _BadEpisode:
+        @property
+        def item(self):
+            raise RuntimeError("boom")
+
+    assert episode_processor._resolve_audio_cache_entry(cfg, str(tmp_path), _BadEpisode()) is None
+    assert episode_processor._resolve_audio_cache_entry(cfg, str(tmp_path), None) is None

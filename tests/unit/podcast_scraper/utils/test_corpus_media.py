@@ -7,7 +7,9 @@ from pathlib import Path
 
 import pytest
 
+from podcast_scraper.utils import corpus_media
 from podcast_scraper.utils.corpus_media import (
+    _same_filesystem,
     audio_relpath_for_transcript,
     persist_episode_media,
     resolve_audio_relpath_for_metadata,
@@ -128,3 +130,57 @@ def test_persist_symlink_to_external_target_falls_back_to_copy(tmp_path: Path) -
     )
     dest = corpus / "media" / "ep.mp3"
     assert dest.is_file() and not dest.is_symlink()
+
+
+def test_hardlink_replaces_existing_dest(tmp_path: Path) -> None:
+    """Re-persisting over an existing media file removes it then links (no 'file exists')."""
+    src = tmp_path / "dl.mp3"
+    src.write_bytes(b"NEW")
+    cache = tmp_path / "cache.mp3"
+    cache.write_bytes(b"NEW")
+    dest = tmp_path / "media" / "ep.mp3"
+    dest.parent.mkdir(parents=True)
+    dest.write_bytes(b"OLD")  # stale file already present
+    persist_episode_media(
+        str(src), str(tmp_path), "transcripts/ep.txt", link_source=str(cache), link_mode="hardlink"
+    )
+    assert dest.stat().st_ino == cache.stat().st_ino
+
+
+def test_hardlink_cross_filesystem_falls_back_to_copy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    src = tmp_path / "dl.mp3"
+    src.write_bytes(b"ID3")
+    cache = tmp_path / "cache.mp3"
+    cache.write_bytes(b"ID3")
+    monkeypatch.setattr(corpus_media, "_same_filesystem", lambda *_a: False)  # simulate cross-FS
+    persist_episode_media(
+        str(src), str(tmp_path), "transcripts/ep.txt", link_source=str(cache), link_mode="hardlink"
+    )
+    dest = tmp_path / "media" / "ep.mp3"
+    assert dest.is_file() and not dest.is_symlink()
+    assert dest.stat().st_ino != cache.stat().st_ino  # copied, not linked
+
+
+def test_link_oserror_falls_back_to_copy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    src = tmp_path / "dl.mp3"
+    src.write_bytes(b"ID3")
+    cache = tmp_path / "cache.mp3"
+    cache.write_bytes(b"ID3")
+
+    def _boom(*_a, **_k):
+        raise OSError("link failed")
+
+    monkeypatch.setattr(corpus_media.os, "link", _boom)
+    rel = persist_episode_media(
+        str(src), str(tmp_path), "transcripts/ep.txt", link_source=str(cache), link_mode="hardlink"
+    )
+    dest = tmp_path / "media" / "ep.mp3"
+    assert rel == "media/ep.mp3"
+    assert dest.is_file() and not dest.is_symlink()
+
+
+def test_same_filesystem_handles_stat_error(tmp_path: Path) -> None:
+    missing = str(tmp_path / "missing.mp3")
+    assert _same_filesystem(missing, str(tmp_path / "media" / "x.mp3")) is False
