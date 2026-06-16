@@ -57,7 +57,11 @@ UNIT_FASTAPI_IMPORT_RE = re.compile(
     re.MULTILINE,
 )
 
-ML_MODELS_MARKER_RE = re.compile(r"@pytest\.mark\.ml_models")
+# Match BOTH the decorator form (``@pytest.mark.ml_models``) and the list form
+# (``pytestmark = [..., pytest.mark.ml_models]``). The list form is how a real-ML test once
+# evaded this check by hiding in tests/integration/ (#1010 audit) — anchoring on ``@`` only
+# would miss it. Integration files must carry no ml_models marker in any form.
+ML_MODELS_MARKER_RE = re.compile(r"pytest\.mark\.ml_models")
 
 # Match module-level ``def test_*`` (column 0) and methods inside classes (indented).
 TEST_METHOD_RE = re.compile(r"^[\t ]*def (test_\w+)\(", re.MULTILINE)
@@ -158,8 +162,8 @@ def check_integration_ml_models(files: list[Path]) -> list[Violation]:
                     f,
                     lineno,
                     "I1-ml-models-marker",
-                    "@pytest.mark.ml_models in integration test — real ML "
-                    "models belong in tests/e2e/ only",
+                    "pytest.mark.ml_models in integration test (decorator or pytestmark "
+                    "list) — real ML models belong in tests/e2e/ only",
                 )
             )
     return violations

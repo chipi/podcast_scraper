@@ -166,15 +166,22 @@ def build_two_tier_index(
     out = Path(corpus_dir)
     import shutil
 
+    def _clear_index(reason: str) -> None:
+        shutil.rmtree(Path(lance_path), ignore_errors=True)
+        # Drop the sibling metadata.json too: it's written only when a backend is built
+        # (below), so a subsequent empty/zero-vector rebuild would otherwise leave a stale
+        # sidecar next to a now-absent index, with doc_ids the index no longer contains.
+        Path(lance_path).parent.joinpath("metadata.json").unlink(missing_ok=True)
+        logger.info("%s: cleared LanceDB index + metadata.json at %s", reason, lance_path)
+
     # Full reindex: clear the index so a fresh build can't inherit prior fragments.
     if drop_existing and Path(lance_path).exists():
-        logger.info("Full reindex: clearing existing LanceDB index at %s", lance_path)
-        shutil.rmtree(Path(lance_path), ignore_errors=True)
+        _clear_index("Full reindex")
     # A pre-schema-bump index has incompatible tables — wipe it so we rebuild fresh.
     # Upserting new-schema rows (e.g. with publish_date) into old tables would error or
     # silently drop the new columns, so a stale index must be removed, not merged into.
     elif lance_index_is_stale(Path(lance_path)):
-        shutil.rmtree(Path(lance_path), ignore_errors=True)
+        _clear_index("Stale-schema reindex")
     stats = TwoTierIndexStats()
     backend: Optional[LanceDBBackend] = None
 
@@ -240,7 +247,10 @@ def build_two_tier_index(
         aux_docs: List[AuxDocument] = []
         node_id_by_insight: Dict[str, Optional[str]] = {}
         for doc_id, text, meta in rows:
-            index_metadata[doc_id] = meta
+            # Strip the embedded chunk ``text``: the offset verifier reads only char_start/
+            # char_end/doc_type/episode_id, and keeping ``text`` would re-duplicate the whole
+            # transcript corpus into the sidecar JSON (the index-bloat class #1010 just fixed).
+            index_metadata[doc_id] = {k: v for k, v in meta.items() if k != "text"}
             doc_type = meta.get("doc_type")
             if doc_type == "insight":
                 ins_docs.append(
