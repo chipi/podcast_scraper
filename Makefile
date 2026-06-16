@@ -800,6 +800,11 @@ stack-test-playwright:
 # corpus volume can be poked at; run ``make stack-test-down`` to clean up.
 # CI uses the underlying step-by-step targets in the workflow file.
 stack-test-ml:
+	@# Start from a clean corpus volume. A stale/partial LanceDB index left in the
+	@# persisted compose volume by a previous run causes false "no_index" search
+	@# failures (the dataset manifest references a compacted-away data fragment).
+	@# CI runners are ephemeral so they never hit this; locally we must wipe first.
+	$(MAKE) stack-test-down STACK_TEST_DOWN_VOLUMES=1 || true
 	$(MAKE) stack-test-build
 	$(MAKE) stack-test-up
 	$(MAKE) stack-test-seed STACK_TEST_OPERATOR_VARIANT=ml
@@ -814,6 +819,8 @@ stack-test-ml:
 # providers expect (OPENAI / GEMINI / ANTHROPIC). Local-only — public CI
 # does not run this variant to avoid recurring API costs.
 stack-test-cloud-thin:
+	@# Clean corpus volume first — see stack-test-ml (stale LanceDB index → false no_index).
+	$(MAKE) stack-test-down STACK_TEST_DOWN_VOLUMES=1 || true
 	$(MAKE) stack-test-build
 	$(MAKE) stack-test-build-cloud
 	$(MAKE) stack-test-up
@@ -830,8 +837,12 @@ stack-test-cloud-thin:
 # at the failed step, then the EXIT trap fires before the recipe
 # returns the captured non-zero status.
 stack-test-ml-ci:
+	@# Wipe the corpus volume both before (clean slate — a stale/partial LanceDB index
+	@# from a prior run yields false "no_index" search failures; ephemeral CI runners
+	@# never hit it, local re-runs do) and on EXIT (leave a clean laptop, no carryover).
 	@set -u; \
-	trap '$(MAKE) stack-test-down >/dev/null 2>&1 || true' EXIT; \
+	trap '$(MAKE) stack-test-down STACK_TEST_DOWN_VOLUMES=1 >/dev/null 2>&1 || true' EXIT; \
+	$(MAKE) stack-test-down STACK_TEST_DOWN_VOLUMES=1 >/dev/null 2>&1 || true; \
 	$(MAKE) stack-test-build \
 		&& $(MAKE) stack-test-up \
 		&& $(MAKE) stack-test-seed STACK_TEST_OPERATOR_VARIANT=ml \
