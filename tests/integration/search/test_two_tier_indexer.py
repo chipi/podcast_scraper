@@ -112,6 +112,9 @@ def test_writes_metadata_json_sidecar_with_char_offsets(tmp_path, monkeypatch):
     meta_map = load_index_metadata_map(corpus / "search")
     assert meta_map["chunk:0"]["char_start"] == 0 and meta_map["chunk:0"]["char_end"] == 64
     assert transcript_chunk_spans_by_episode(meta_map) == {"ep1": [(0, 64)]}
+    # Bloat guard: the sidecar must NOT re-duplicate the embedded chunk text — the verifier
+    # only needs the char offsets (see two_tier_indexer text-strip).
+    assert "text" not in meta_map["chunk:0"], "sidecar should not carry full chunk text"
 
 
 def test_linking_populates_compounds(tmp_path, monkeypatch):
