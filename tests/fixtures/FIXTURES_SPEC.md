@@ -152,8 +152,15 @@ Audio is generated locally from transcripts.
 
 ### Voices
 
-- Host voice: `Samantha`
-- Guest voice: `Daniel`
+Per-speaker voice map (RFC-059 / #111): each named speaker gets a distinct `say`
+voice with accent variety so diarization can separate them. See `SPEAKER_VOICE_MAP`
+in `tests/fixtures/scripts/transcripts_to_mp3.py` for the full table. Examples:
+
+- Hosts: Maya = `Samantha` (en_US f), Ethan = `Alex` (en_US m), Rina = `Karen`
+  (en_AU f), Leo = `Daniel` (en_GB m), Nora = `Moira` (en_IE f)
+- Guests: Liam = `Daniel` (en_GB m), Sophie = `Flo`, Noah = `Tom`, Priya = `Isha`
+  (en_IN f), …
+- Synthetic: `Ad` = `Zarvox` (robotic, for pre-recorded mid-roll ads)
 
 ### TTS parameters
 
@@ -163,8 +170,12 @@ Audio is generated locally from transcripts.
 
 ### Voice assignment logic
 
-- Host voice is used when speaker name matches the podcast host
-- Guest voice is used for all other speakers
+Resolution order (`voice_for_speaker` in `transcripts_to_mp3.py`):
+
+1. Exact name match in `SPEAKER_VOICE_MAP`
+2. First-word match (e.g. `Alex Morgan` → `Alex`)
+3. Stable md5 hash-based fallback for speakers not in the map (deterministic)
+
 - Host detection is inferred from filename prefix:
   - `p01_*` → Maya
   - `p02_*` → Ethan

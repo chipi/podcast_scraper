@@ -7,13 +7,18 @@ spaCy3.8 — integration+e2e don't run in ci-fast).
 
 ## Headline: the diarization failure mode is SYSTEMIC, not a one-off
 
-- **e2e has ZERO real pyannote diarization coverage.** What's labelled "speaker
-  detection" e2e is spaCy NER name-extraction, not audio diarization. `grep pyannote`
-  across 44 e2e files = nothing executes.
-- The one real-pyannote test (`tests/integration/providers/ml/test_diarization.py`,
-  `-m diarization`) is **orphaned**: no Makefile/CI target selects `-m diarization`,
-  it skips without HF token + cached model, and it's marked `integration` not
-  `e2e`/`nightly`. Decorative until wired.
+- **UPDATE (post-#1010 / diarization refactor):** e2e now has real pyannote
+  diarization coverage — `tests/e2e/test_diarization_e2e.py` runs real pyannote on
+  the v2 fixture audio (passes 4/4). The two bullets below describe the pre-refactor
+  state and are kept as history.
+- ~~**e2e has ZERO real pyannote diarization coverage.**~~ What's labelled "speaker
+  detection" e2e is spaCy NER name-extraction, not audio diarization. (Superseded:
+  real-pyannote e2e now lives in `tests/e2e/test_diarization_e2e.py`.)
+- `tests/integration/providers/ml/test_diarization.py` is now a **mocked** integration
+  test (patches `_create_pyannote_pipeline` + `_load_waveform`; no real pyannote, no
+  HF token; markers `integration`, `diarization`). This is correct per the test
+  pyramid (integration = mocked, e2e = real ML); real pyannote runs only in the e2e
+  test above.
 - The ML "integration" tier is overwhelmingly **mocks mislabelled as integration**:
   embedding/QA/NLI/model-loader tests fake the model and assert the fake's return.
   **No executing real-model assertion exists** for the numpy2 inference paths

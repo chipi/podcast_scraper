@@ -27,7 +27,7 @@ Survey baseline: `src/podcast_scraper/server/routes/` and pipeline writers under
 | Bridge artifacts | `feeds/<stable>/run_*/metadata/*.bridge.json` | CIL bridge step | library filters, node-episodes, graph | implicit (bridge builder) | 2.5+ |
 | LanceDB two-tier index | `search/lance_index/` (segment + insight + aux tables) | two-tier index build / migration | `GET /api/search` (hybrid, default) | n/a (embedded DB) | 2.7+ |
 | LanceDB index | `search/lance_index/` | embed / index build | `GET /api/search`, explore | n/a (embedded DB) | 2.7+ |
-| Index metadata | `search/metadata.json`, `search/id_map.json` | embed / index build | search, index stats | n/a | 2.5+ |
+| Index metadata | `search/metadata.json` | `build_two_tier_index` (written next to the LanceDB index) | GIL chunk-offset verifier (char offsets), index stats | n/a | 2.5+ |
 | Topic clusters | `search/topic_clusters.json` | post-index cluster build | `GET /api/corpus/topic-clusters`, digest topics, library filter | yes (`2`) | 2.5.5+ |
 | Catalog JSON (optional) | `corpus/*.json` (e.g. precomputed catalog exports) | tooling / fixtures | some dashboard paths when present | varies | n/a |
 
@@ -85,7 +85,7 @@ Post-deploy smoke (`scripts/ops/post_deploy_smoke.sh`) hits the **primary** rout
 | 2.6.0 | No required schema bumps | Optional fields only; `produced_by` added to `corpus_manifest.json` (#796). |
 | 2.5.2 | `corpus_manifest` 1.0 → 1.1 | Added `cost_rollup` — PR #650. |
 | 2.5.0 | Multi-feed corpus artifacts | `corpus_manifest.json`, unified `search/` index (#505 / #506). |
-| 2.5.x | `topic_clusters.json` | schema `"2"`; built after FAISS index exists. |
+| 2.5.x | `topic_clusters.json` | schema `"2"`; built after LanceDB index exists. |
 | 2.4.0 | GIL 2.0, KG 1.2 | RFC-072 canonical identity; read-time migrations in `gil_kg_identity_migrations.py`. |
 | 2.4.0 | Bridge artifacts | `*.bridge.json` siblings next to metadata/GI/KG. |
 

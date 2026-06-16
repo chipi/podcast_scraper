@@ -57,6 +57,8 @@ The TTS audio generation script (`transcripts_to_mp3.py`) uses only **two voices
 
 This means all hosts sound identical and all guests sound identical. When RFC-058 adds diarization, pyannote cannot distinguish speakers in test audio because they share the same voice. Additionally, there are no commercial segments (Issue #109), making it impossible to test sponsor-block cleaning against realistic fixtures.
 
+> **Resolved:** v2 fixtures replace the binary scheme with a per-speaker voice map (`SPEAKER_VOICE_MAP` in `tests/fixtures/scripts/transcripts_to_mp3.py`) — each named speaker gets a distinct `say` voice (host Maya = Samantha/female ~178Hz, guest Liam = Daniel/male ~117Hz). pyannote separates them; see `tests/e2e/test_diarization_e2e.py` (passes 4/4 on v2).
+
 **Use Cases:**
 
 1. **Diarization integration**: Clean speaker detection module with clear extension points for diarization name-mapping
