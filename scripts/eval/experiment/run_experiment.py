@@ -1460,6 +1460,21 @@ def run_experiment(  # noqa: C901
                             summary = str(summary_result)
                             intermediates = None
 
+                        # Apply the per-model output post-processor declared
+                        # in ``prompts.postprocessor``. Strips R1-style
+                        # ``<summary>...</summary>`` wrappers + ``<think>``
+                        # blocks + leaked reasoning preambles for models
+                        # whose prompt contract asks for those. Models that
+                        # emit clean text already (Qwen with
+                        # ``enable_thinking=False``, Gemini, ...) declare no
+                        # postprocessor and pass through verbatim.
+                        from podcast_scraper.evaluation.output_postprocess import (
+                            get_postprocessor,
+                        )
+
+                        _post = get_postprocessor(getattr(cfg.prompts, "postprocessor", None))
+                        summary = _post(summary)
+
                         dt = time.time() - t0
                         total_chars_out += len(summary)
                         output_hash = hash_text(summary)

@@ -1,0 +1,40 @@
+# Autoresearch v2 paragraph — vLLM-served Magistral-Small-2509 (24B reasoning).
+#
+# Candidate D in the #1016 Phase 2a tier-1 eval. Magistral is Mistral's
+# reasoning model — same harness shape as DeepSeek-R1-Distill: prompt
+# template suppresses "thinking" preamble, sampling tuned for reasoning
+# defaults. vLLM compose adds the Mistral-specific flags
+# (--reasoning-parser=mistral --tokenizer-mode=mistral
+# --config-format=mistral --tool-call-parser=mistral).
+#
+# The vLLM ``served-model-name`` is "autoresearch" regardless of which
+# model is loaded — so this config and the others all hit the same
+# endpoint. They differ only by ID (which controls the run-dir) and
+# prompt selection.
+id: "autoresearch_prompt_vllm_magistral_small_2509_dev_paragraph_v1"
+task: "summarization"
+backend:
+  type: "openai"
+  model: "autoresearch"
+  # Non-secret placeholder; supply real tailnet URL via VLLM_API_BASE
+  # env var or --vllm-base-url flag at runtime.
+  base_url: "http://localhost:8003/v1"
+  api_key_env: "VLLM_API_KEY"
+prompts:
+  # Reuse the R1-Distill anti-reasoning prompts as the starting point.
+  # If smoke shows Magistral leaks despite these, fork into
+  # ``prompts/vllm/magistral_small_2509/summarization/``.
+  system: "vllm/r1_distill_32b/summarization/system_no_thinking_v1"
+  user: "vllm/r1_distill_32b/summarization/long_no_thinking_v1"
+  # Same prompt contract → same strip strategy. Removes the
+  # ``<summary>...</summary>`` wrapping Magistral honors.
+  postprocessor: "strip_r1_reasoning"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  max_length: 800
+  min_length: 200
+  # Mistral docs: reasoning sampling defaults (top_p 0.95, temp 0.7).
+  temperature: 0.7
+  top_p: 0.95
+preprocessing_profile: "cleaning_v4"

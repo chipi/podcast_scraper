@@ -43,6 +43,13 @@ backend:
 prompts:
   system: "vllm/r1_distill_32b/summarization/system_no_thinking_v1"
   user: "vllm/r1_distill_32b/summarization/long_no_thinking_v1"
+  # R1-Distill on vLLM 26.05-py3 emits byte-level BPE artifacts
+  # (``Ġ`` for space, ``Ċ`` for newline, etc.) even after the
+  # ``--reasoning-parser=deepseek_r1`` flag. Empirically observed
+  # 2026-06-16 during the #1016 sweep. The composed post-processor
+  # first applies #961's R1 reasoning strip, then the byte-level
+  # token decoder. Both are idempotent / safe on clean text.
+  postprocessor: "strip_r1_reasoning_and_decode"
 data:
   dataset_id: "curated_5feeds_dev_v1"
 params:
