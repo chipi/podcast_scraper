@@ -259,6 +259,46 @@ def test_stale_schema_is_detected_and_read_falls_back(tmp_path, monkeypatch):
     assert hs.hybrid_candidates(corpus, "x", top_k=5) is None
 
 
+def test_stale_schema_build_clears_index_and_sidecar_then_rebuilds(tmp_path, monkeypatch):
+    """A present-but-stale index (no drop_existing) is wiped via _clear_index — including the
+    sibling metadata.json sidecar — then rebuilt fresh (covers the stale-schema reindex path)."""
+    import json
+
+    from podcast_scraper.search.backends import lancedb_backend as lb
+
+    rows = [
+        (
+            "chunk:0",
+            "central bank policy text",
+            {
+                "doc_type": "transcript",
+                "episode_id": "ep1",
+                "feed_id": "s",
+                "char_start": 0,
+                "char_end": 24,
+            },
+        )
+    ]
+    _stub_extraction(monkeypatch, tmp_path, rows)
+    corpus = tmp_path / "corpus"
+    (corpus / "metadata").mkdir(parents=True)
+    lance = corpus / "search" / "lance_index"
+
+    tti.build_two_tier_index(corpus, lance)  # fresh build → index + metadata.json sidecar
+    # Make it pre-versioning stale, and plant a stale entry in the existing sidecar.
+    meta = json.loads((lance / "index_meta.json").read_text())
+    meta.pop("schema_version", None)
+    (lance / "index_meta.json").write_text(json.dumps(meta))
+    assert lb.lance_index_is_stale(lance) is True
+    (corpus / "search" / "metadata.json").write_text('{"stale:doc": {"doc_type": "transcript"}}')
+
+    # Rebuild WITHOUT drop_existing → the stale branch clears index + sidecar, then rebuilds.
+    tti.build_two_tier_index(corpus, lance)
+    assert lb.lance_index_is_stale(lance) is False  # rebuilt fresh
+    sidecar = json.loads((corpus / "search" / "metadata.json").read_text())
+    assert "stale:doc" not in sidecar and "chunk:0" in sidecar  # old sidecar wiped, fresh written
+
+
 def test_limit_episodes_caps_walk(tmp_path, monkeypatch):
     rows = [("insight:1", "x", {"doc_type": "insight", "episode_id": "ep1", "feed_id": "s"})]
     # Two metadata files, but limit_episodes=0 stops before any work.
@@ -343,6 +383,177 @@ def test_configurable_batch_size_flushes_in_chunks(tmp_path, monkeypatch):
     backend = LanceDBBackend(str(lance))
     health = backend.health()
     assert health["insights"] == 5 and health["segments"] == 5  # nothing dropped across flushes
+
+
+def test_aux_buffer_flushes_mid_build_at_batch_size(tmp_path, monkeypatch):
+    """A build with more aux rows than upsert_batch_size flushes the aux tier mid-walk
+    (covers the len(aux_buf) >= batch aux-flush branch) and lands every row."""
+    rows = [
+        (
+            f"kg_topic:{i}",
+            f"topic {i} on monetary policy",
+            {"doc_type": "kg_topic", "episode_id": "ep1", "feed_id": "s"},
+        )
+        for i in range(5)
+    ]
+    _stub_extraction(monkeypatch, tmp_path, rows)
+    corpus = tmp_path / "corpus"
+    (corpus / "metadata").mkdir(parents=True)
+    lance = corpus / "search" / "lance_index"
+
+    # batch_size=2 over 5 aux rows -> at least two mid-build aux flushes + a final partial.
+    stats = tti.build_two_tier_index(corpus, lance, upsert_batch_size=2)
+    assert stats.aux == 5 and stats.segments == 0 and stats.insights == 0
+    assert LanceDBBackend(str(lance)).health()["aux"] == 5  # nothing dropped across flushes
+
+
+def test_grounding_quote_texts_links_insight_to_segment(tmp_path, monkeypatch):
+    """Text-containment grounding (verbatim quote text) links an insight to the segment that
+    contains it — the primary linking path that needs no segment timestamps."""
+    import json
+
+    corpus = tmp_path / "corpus"
+    (corpus / "metadata").mkdir(parents=True)
+    gi = corpus / "ep1.gi.json"
+    gi.write_text(
+        json.dumps(
+            {
+                "nodes": [
+                    {"id": "insight:n1", "type": "Insight", "properties": {"text": "x"}},
+                    # A Quote with verbatim text (drives _insight_grounding_quote_texts).
+                    {
+                        "id": "quote:q1",
+                        "type": "Quote",
+                        "properties": {"text": "central bank signaled a policy shift"},
+                    },
+                    # A Quote with blank text must be ignored (the strip()/isinstance guard).
+                    {"id": "quote:q2", "type": "Quote", "properties": {"text": "   "}},
+                ],
+                "edges": [{"type": "SUPPORTED_BY", "from": "insight:n1", "to": "quote:q1"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    rows = [
+        (
+            "insight:s:insight:n1",
+            "the central bank policy outlook",
+            {"doc_type": "insight", "episode_id": "ep1", "feed_id": "s", "source_id": "insight:n1"},
+        ),
+        (
+            "chunk:s:1",
+            "markets reacted after the central bank signaled a policy shift today",
+            {"doc_type": "transcript", "episode_id": "ep1", "feed_id": "s"},
+        ),  # contains the verbatim quote text -> text-containment link
+    ]
+    monkeypatch.setattr(
+        tti, "discover_metadata_files", lambda root: [corpus / "metadata" / "ep1.json"]
+    )
+    monkeypatch.setattr(tti, "_load_metadata_file", lambda p: {"episode": {"episode_id": "ep1"}})
+    monkeypatch.setattr(tti, "episode_root_from_metadata_path", lambda p: corpus)
+    monkeypatch.setattr(tti, "_collect_docs_for_episode", lambda *a, **k: rows)
+    monkeypatch.setattr(tti, "_gi_path", lambda root, mp, doc: gi)
+
+    stats = tti.build_two_tier_index(corpus, corpus / "search" / "lance_index")
+    assert stats.linked == 1  # insight linked to the segment via verbatim quote text
+
+
+def test_grounding_quote_texts_handles_unreadable_gi(tmp_path):
+    """_insight_grounding_quote_texts returns {} for a missing or malformed gi.json
+    (covers the is_file()=False and the OSError/ValueError guards)."""
+    # Missing file -> {}.
+    assert tti._insight_grounding_quote_texts(tmp_path / "nope.gi.json") == {}
+    # Malformed JSON -> the try/except returns {}.
+    bad = tmp_path / "bad.gi.json"
+    bad.write_text("{not json", encoding="utf-8")
+    assert tti._insight_grounding_quote_texts(bad) == {}
+
+
+def test_grounding_quotes_handles_unreadable_gi(tmp_path):
+    """_insight_grounding_quotes (timestamp variant) returns {} for missing/malformed gi.json."""
+    assert tti._insight_grounding_quotes(tmp_path / "nope.gi.json") == {}
+    bad = tmp_path / "bad.gi.json"
+    bad.write_text("{not json", encoding="utf-8")
+    assert tti._insight_grounding_quotes(bad) == {}
+
+
+def test_limit_episodes_breaks_after_first_episode(tmp_path, monkeypatch):
+    """limit_episodes=1 over two metadata files processes one then breaks on the second
+    (covers the mid-walk break after a prior episode was counted)."""
+    rows = [("insight:1", "x", {"doc_type": "insight", "episode_id": "ep1", "feed_id": "s"})]
+    meta = tmp_path / "corpus" / "metadata" / "ep1.json"
+    monkeypatch.setattr(tti, "discover_metadata_files", lambda root: [meta, meta])
+    monkeypatch.setattr(tti, "_load_metadata_file", lambda p: {"episode": {"episode_id": "ep1"}})
+    monkeypatch.setattr(tti, "episode_root_from_metadata_path", lambda p: tmp_path / "corpus")
+    monkeypatch.setattr(tti, "_collect_docs_for_episode", lambda *a, **k: rows)
+    (tmp_path / "corpus" / "metadata").mkdir(parents=True)
+
+    stats = tti.build_two_tier_index(
+        tmp_path / "corpus", tmp_path / "corpus" / "search" / "li", limit_episodes=1
+    )
+    assert stats.episodes == 1 and stats.insights == 1  # second file skipped by the break
+
+
+def test_skips_episode_with_empty_metadata(tmp_path, monkeypatch):
+    """An episode whose metadata fails to load is skipped (the `if not doc: continue` path)
+    without bumping the episode count or producing rows."""
+    rows = [("insight:1", "x", {"doc_type": "insight", "episode_id": "ep1", "feed_id": "s"})]
+    meta_a = tmp_path / "corpus" / "metadata" / "ep_empty.json"
+    meta_b = tmp_path / "corpus" / "metadata" / "ep_ok.json"
+    monkeypatch.setattr(tti, "discover_metadata_files", lambda root: [meta_a, meta_b])
+    # First file loads empty (skipped), second loads fine.
+    monkeypatch.setattr(
+        tti,
+        "_load_metadata_file",
+        lambda p: {} if p == meta_a else {"episode": {"episode_id": "ep1"}},
+    )
+    monkeypatch.setattr(tti, "episode_root_from_metadata_path", lambda p: tmp_path / "corpus")
+    monkeypatch.setattr(tti, "_collect_docs_for_episode", lambda *a, **k: rows)
+    (tmp_path / "corpus" / "metadata").mkdir(parents=True)
+
+    stats = tti.build_two_tier_index(tmp_path / "corpus", tmp_path / "corpus" / "search" / "li")
+    assert stats.episodes == 1 and stats.insights == 1  # only the loadable episode counted
+
+
+def test_unknown_doc_type_rows_are_ignored(tmp_path, monkeypatch):
+    """A row whose doc_type is none of insight/transcript/aux falls through the dispatch
+    and contributes to no tier (covers the if/elif chain's implicit else)."""
+    rows = [
+        ("insight:1", "central bank policy", {"doc_type": "insight", "episode_id": "ep1"}),
+        # doc_type not recognized -> dropped silently.
+        ("weird:1", "mystery row", {"doc_type": "totally_unknown", "episode_id": "ep1"}),
+        ("nodt:1", "no doc_type at all", {"episode_id": "ep1"}),
+    ]
+    _stub_extraction(monkeypatch, tmp_path, rows)
+    corpus = tmp_path / "corpus"
+    (corpus / "metadata").mkdir(parents=True)
+    stats = tti.build_two_tier_index(corpus, corpus / "search" / "li")
+    assert stats.insights == 1 and stats.segments == 0 and stats.aux == 0  # unknowns ignored
+
+
+def test_grounding_quote_text_edge_without_matching_quote(tmp_path):
+    """A SUPPORTED_BY edge pointing at a quote id with no captured text yields no mapping
+    (covers the edge-loop branch where quote_id is absent from quote_text)."""
+    import json
+
+    gi = tmp_path / "ep.gi.json"
+    gi.write_text(
+        json.dumps(
+            {
+                "nodes": [
+                    {"id": "q1", "type": "Quote", "properties": {"text": "captured"}},
+                ],
+                "edges": [
+                    # A non-SUPPORTED_BY edge is skipped by the type guard.
+                    {"type": "MENTIONS", "from": "ins1", "to": "q1"},
+                    # Edge references q_missing, which has no text entry -> skipped.
+                    {"type": "SUPPORTED_BY", "from": "ins1", "to": "q_missing"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert tti._insight_grounding_quote_texts(gi) == {}
 
 
 def test_drop_existing_clears_before_full_reindex(tmp_path, monkeypatch):
