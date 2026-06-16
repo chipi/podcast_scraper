@@ -1,12 +1,13 @@
 # Phase 1: Open-Weight LLM Landscape (≤35B total params), as of 2026-06
 
-**Status:** Phase 1 (analysis) complete. Phase 2 (eval) is a follow-up
-ticket; this doc is the canonical record of how we arrived at the
-tier-1 shortlist.
+**Status:** Phase 1 (analysis) complete. Phase 2 (eval) is tracked at
+**[#1016](https://github.com/chipi/podcast_scraper/issues/1016)**;
+this doc is the canonical record of how we arrived at the tier-1
+shortlist.
 
 **Issue:** #928 reframe (parent #928 itself is closed; this reframes its
 Cell C re-baseline scope into a broader landscape analysis +
-candidate-selection question).
+candidate-selection question). Phase 2 execution: see #1016.
 **Target hardware:** NVIDIA Blackwell GB10, 128 GB unified memory.
 **Use case:** Three pipeline stages on DGX — summary, GI (insight +
 quote extraction with structured JSON output), KG (Topic/Entity/relation
