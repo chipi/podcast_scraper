@@ -107,16 +107,19 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e ".[dev,ml,llm,search]"
 
-    - name: Validate ML model cache
+    - name: Validate ML model cache (probe only — preload runs next if incomplete)
       id: validate-cache
       run: |
         # Single manifest (#917): verify_required_models.py reads
         # model_manifest.ci_artifact_model_ids() -- no duplicated bash arrays.
+        # Must NOT exit non-zero: this step only SETS models_complete so the conditional
+        # preload below can run. A cache miss (e.g. config.py changed -> cache key changed,
+        # as on the #1010 merge) is expected and is handled by the preload + the final
+        # validation step; exiting 1 here killed the job before preload could run.
         if python scripts/cache/verify_required_models.py --tier production; then
           echo "models_complete=true" >> "$GITHUB_OUTPUT"
         else
           echo "models_complete=false" >> "$GITHUB_OUTPUT"
-          exit 1
         fi
     - name: Preload production ML models (if incomplete)
       if: steps.validate-cache.outputs.models_complete != 'true'
@@ -620,6 +623,16 @@ jobs:
           # tier-3 doesn't transcribe or summarise; it only indexes for
           # the digest/search lookup.
           .venv/bin/python -m pip install -e ".[search,dev]"
+
+      - name: Install ffmpeg (torchcodec — pulled in via [search]'s torch — needs FFmpeg shared libs to import)
+        run: |
+          # The synthetic-corpus build + indexing import modules that transitively load
+          # torchcodec, which auto-loads libavutil/libtorchcodec on import. Without ffmpeg
+          # that import raises "Could not load libtorchcodec" and the job dies (it does not
+          # decode audio — the import just needs the shared libs present, same as the other
+          # nightly ml jobs).
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
 
       - name: Install viewer deps
         working-directory: web/gi-kg-viewer
