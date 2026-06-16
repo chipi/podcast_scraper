@@ -35,6 +35,47 @@ export interface CilIdListResponse {
   ids: string[]
 }
 
+/** One corpus-wide quote evidence row from ``GET /api/persons/{id}/brief`` (#909). */
+export interface CilPersonProfileQuoteRow {
+  episode_id: string
+  quote: Record<string, unknown>
+}
+
+/** Response for ``GET /api/persons/{id}/brief`` — corpus-wide person profile (#909). */
+export interface CilPersonProfileResponse {
+  path: string
+  person_id: string
+  topics: Record<string, Record<string, unknown>[]>
+  quotes: CilPersonProfileQuoteRow[]
+}
+
+/**
+ * #909 — fetch a person's corpus-wide profile: every quote they spoke across ALL
+ * episodes (server-side ``person_profile`` resolves #852 cross-episode name variants),
+ * independent of which episodes are currently loaded into the viewer graph.
+ */
+export async function fetchPersonProfile(
+  corpusPath: string,
+  personId: string,
+): Promise<CilPersonProfileResponse> {
+  const root = corpusPath.trim()
+  const pid = personId.trim()
+  if (!root) {
+    throw new Error('Corpus path is required')
+  }
+  if (!pid) {
+    throw new Error('Person id is required')
+  }
+  const enc = encodeURIComponent(pid)
+  const q = new URLSearchParams({ path: root })
+  const res = await fetchWithTimeout(`/api/persons/${enc}/brief?${q.toString()}`)
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(detail.trim() || `HTTP ${res.status}`)
+  }
+  return (await res.json()) as CilPersonProfileResponse
+}
+
 export async function fetchTopicTimeline(
   corpusPath: string,
   topicId: string,
