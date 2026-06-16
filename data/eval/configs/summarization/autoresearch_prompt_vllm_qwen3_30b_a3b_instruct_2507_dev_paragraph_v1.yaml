@@ -23,8 +23,14 @@ backend:
   # infra/vllm/autoresearch/docker-compose.yml on agentic-ai-homelab repo).
   # NOT the HF repo path — vLLM exposes only the served name.
   model: "autoresearch"
-  base_url: "http://${DGX_TAILNET_HOST}:8003/v1"
-  api_key_env: "VLLM_NO_AUTH_NEEDED"
+  # Non-secret placeholder. The real tailnet FQDN is operator-private
+  # and never committed; provide it via ``--vllm-base-url`` CLI flag or
+  # the ``VLLM_API_BASE`` env var at runtime. Precedence: CLI flag >
+  # env var > this placeholder. The placeholder will fail loudly on
+  # the OpenAI client if neither override is supplied, which is the
+  # intended behavior — a real run must explicitly supply the endpoint.
+  base_url: "http://localhost:8003/v1"
+  api_key_env: "VLLM_API_KEY"
   # Required for Qwen3.x family on vLLM. Without this the model leaks
   # reasoning prose into the summary.
   extra_body:

@@ -453,6 +453,15 @@ def validate_reference(reference_id: str, reference_path: Path, dataset_id: str)
         )
 
 
+# Module-level state for the ``--vllm-base-url`` CLI override. Set by
+# ``main()`` before calling ``run_experiment``. Defaulted to None so
+# library callers that import ``run_experiment`` directly aren't
+# affected. ``VLLM_API_BASE`` env var is the other override path; the
+# CLI flag wins when both are set. See the override block inside
+# ``run_experiment`` for the precedence chain.
+_CLI_VLLM_BASE_URL_OVERRIDE: Optional[str] = None
+
+
 def run_experiment(  # noqa: C901
     cfg: ExperimentConfig,
     baseline_id: Optional[str] = None,
@@ -725,6 +734,19 @@ def run_experiment(  # noqa: C901
             # value can be any non-empty string (vLLM ignores key validation).
             backend_api_key_env = getattr(cfg.backend, "api_key_env", None) or "OPENAI_API_KEY"
             backend_base_url = getattr(cfg.backend, "base_url", None)
+            # Runtime override for vLLM / OpenAI-compatible endpoints.
+            # Precedence (highest first):
+            #   1. ``--vllm-base-url`` CLI flag (``cli_vllm_base_url_override``
+            #      on the parsed args; threaded via module-level state because
+            #      ``run_experiment`` is reused across call sites)
+            #   2. ``VLLM_API_BASE`` env var
+            #   3. ``backend.base_url`` from the YAML config
+            # The committed configs hold non-secret placeholders (e.g.
+            # ``http://localhost:8003/v1``) so the real tailnet FQDN never
+            # ends up in git.
+            _override = _CLI_VLLM_BASE_URL_OVERRIDE or os.environ.get("VLLM_API_BASE")
+            if _override:
+                backend_base_url = _override
             backend_extra_body = getattr(cfg.backend, "extra_body", None)
             optional_openai_kwargs: dict[str, Any] = {}
             if backend_base_url is not None:
@@ -2286,8 +2308,26 @@ def main() -> None:
             "LLM token totals plus rough USD estimates (Issue #477 tooling)."
         ),
     )
+    parser.add_argument(
+        "--vllm-base-url",
+        type=str,
+        default=None,
+        help=(
+            "Override the backend ``base_url`` at runtime for vLLM / "
+            "OpenAI-compatible endpoints. Precedence (highest first): this "
+            "flag, ``VLLM_API_BASE`` env var, ``backend.base_url`` in the "
+            "config. Configs in git hold a non-secret placeholder "
+            "(``http://localhost:8003/v1``); supply the real tailnet URL "
+            "here or via the env var so the real FQDN never ends up in git."
+        ),
+    )
 
     args = parser.parse_args()
+
+    # Plumb the override into module-level state so ``run_experiment``
+    # picks it up at backend-config construction time.
+    global _CLI_VLLM_BASE_URL_OVERRIDE
+    _CLI_VLLM_BASE_URL_OVERRIDE = args.vllm_base_url
 
     # Setup logging
     logging.basicConfig(

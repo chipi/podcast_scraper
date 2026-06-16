@@ -1,0 +1,36 @@
+# Autoresearch v2 paragraph — Ollama-served Magistral Small 1.2 (24B).
+#
+# Candidate #4 in the #1016 Phase 2a tier-1 eval. Magistral is Mistral's
+# reasoning model — same harness shape as DeepSeek-R1-Distill: prompt
+# template suppresses "thinking" preamble, sampling tuned for reasoning
+# defaults, post-processor strips any stray <think> blocks.
+#
+# Requires pull on DGX:
+#   ollama pull magistral:24b-small-2506-q4_K_M
+#
+# Prompts at src/podcast_scraper/prompts/ollama/magistral_24b/summarization/
+# are ported from the #961 R1 anti-reasoning fix, then patched to
+# reference Magistral instead of R1-Distill in the model-specific
+# instructions. The <summary>...</summary> tagged-output contract is
+# identical to R1's — same downstream strip_r1_reasoning() post-processor
+# works on Magistral output (both share the "emit prose preamble then
+# the summary" failure mode).
+id: "autoresearch_prompt_ollama_magistral_24b_dev_paragraph_v1"
+task: "summarization"
+backend:
+  type: "ollama"
+  model: "magistral:24b-small-2506-q4_K_M"
+prompts:
+  system: "ollama/magistral_24b/summarization/system_v1"
+  user: "ollama/magistral_24b/summarization/long_v1"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  max_length: 800
+  min_length: 200
+  # Vendor recommendation for Magistral reasoning suppression.
+  # Higher than 0.0 (allows the prompt-side anti-thinking contract to
+  # dominate over the default reasoning trace).
+  temperature: 0.6
+  top_p: 0.95
+preprocessing_profile: "cleaning_v4"

@@ -33,8 +33,10 @@ task: "summarization"
 backend:
   type: "openai"
   model: "autoresearch"  # served-model-name (homelab compose convention)
-  base_url: "http://${DGX_TAILNET_HOST}:8003/v1"
-  api_key_env: "VLLM_NO_AUTH_NEEDED"
+  # Non-secret placeholder. Real tailnet FQDN supplied via
+  # ``--vllm-base-url`` CLI flag or ``VLLM_API_BASE`` env var at runtime.
+  base_url: "http://localhost:8003/v1"
+  api_key_env: "VLLM_API_KEY"
   # R1-Distill has no chat-template toggle like Qwen3.x.
   # Anti-reasoning is enforced via the prompt contract (system_no_thinking_v1
   # + long_no_thinking_v1) and the strip_r1_reasoning post-processor.
