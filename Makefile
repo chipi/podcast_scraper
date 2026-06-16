@@ -411,10 +411,11 @@ spelling-docs:
 quality: complexity deadcode docstrings spelling
 	@echo ""
 	@echo "✓ All code quality checks completed"
-	# This ensures production dependencies like torch, transformers, spacy, openai-whisper are audited
-	$(PYTHON) -m pip install --quiet -e .[ml] || \
+	# This ensures production deps (torch, transformers, spacy, openai-whisper) AND search-only
+	# deps (lancedb, since it left [ml] in #1019) are all audited.
+	$(PYTHON) -m pip install --quiet -e .[ml,search] || \
 		(echo "⚠️  Editable install failed, using non-editable install" && \
-		 $(PYTHON) -m pip install --quiet .[ml])
+		 $(PYTHON) -m pip install --quiet .[ml,search])
 	# Audit all installed packages (including ML dependencies from pyproject.toml)
 	# Ignore PYSEC-2022-42969: py package vulnerability (transitive dep of interrogate, deprecated, not exploitable here)
 	# Ignore CVE-2026-0994: protobuf vulnerability (affects 6.33.4, fixed in later versions; transitive dep of ML packages)

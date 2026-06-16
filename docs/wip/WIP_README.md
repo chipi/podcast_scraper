@@ -16,6 +16,7 @@ WIP file is removed.
 
 | File | Description | Status |
 | ---- | ----------- | ------ |
+| `DEP-EXTRAS-SEPARATION-1019-SCOPE.md` | #1019 dependency-extras audit + scope: lancedb is the only truly-misplaced dep in `[ml]` (search-only) → moved to `[search]`; api Dockerfile server pins bumped to match `[dev]` (fixes prometheus v7≠v8). `[api]` extract considered + rejected (kept deps in `[dev]`). All folded into #1019 | Active |
 | `967-interaction-cost-trace.md` | #967 live devtools trace: fcose removed the layout wall; pan/zoom FPS vs node count → cap=50 is the smooth ceiling. Plus a side finding (FAISS-fallback segfault on a legacy-schema corpus) | Active |
 | `POST-MIGRATION-GRAPH-VALIDATION-967-974-876.md` | Post-migration graph validation on re-diarized prod-v2: 2 bugs found+fixed (focus reconciliation, prefix-tolerant rail), Tier-3 data scan (offset 1.0, SPOKEN_BY, adfree) + test tiers all green, open findings | Active |
 | `DASHBOARD-PERF-ANALYSIS-digest-99ep.md` | Dashboard perf root-cause: `corpus/digest` runs ~6 sequential topic-band semantic searches (4.6s, no cache); ranked options (parallelise + cache + lazy-load) + cold-init segfault caveat | Active |

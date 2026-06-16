@@ -62,7 +62,7 @@ jobs:
           python -m pip install --upgrade pip
           # Retry: spaCy model wheels are direct GitHub release URLs; transient 502s happen.
           for n in 1 2 3 4 5; do
-            if pip install -e ".[dev,ml,llm]"; then
+            if pip install -e ".[dev,ml,llm,search]"; then
               pip cache purge || true
               exit 0
             fi
@@ -216,7 +216,7 @@ jobs:
           python -m pip install --upgrade pip
           # Retry: spaCy model wheels are direct GitHub release URLs; transient 502s happen.
           for n in 1 2 3 4 5; do
-            if pip install -e ".[dev,ml,llm]"; then
+            if pip install -e ".[dev,ml,llm,search]"; then
               pip cache purge || true
               exit 0
             fi

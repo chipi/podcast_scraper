@@ -21,10 +21,12 @@ Use `pip install -e ".[<extra>]"` from the repo root. Combine extras with commas
 
 | Extra | Purpose |
 | --- | --- |
-| **`ml`** | Local ML stack: Whisper, spaCy (+models), torch, **pyannote.audio + torchaudio** (speaker diarization, RFC-058), transformers, sentence-transformers, LanceDB, **llama-cpp-python** (GGUF hybrid REDUCE, RFC-042), etc. |
-| **`dev`** | Tests, lint, typecheck, security, **FastAPI + uvicorn** (GI/KG viewer API, RFC-062), scheduler/metrics deps, text eval helpers (ROUGE, BLEU, WER), and **pyannote.audio + torchaudio** pins aligned with `[ml]` for CI/dev venv parity. Embedding cosine in `evaluation/scorer.py` needs **`[ml]`** (sentence-transformers). |
+| **`ml`** | Local ML stack: Whisper, spaCy (+models), torch, **pyannote.audio + torchaudio** (speaker diarization, RFC-058), transformers, sentence-transformers, **llama-cpp-python** (GGUF hybrid REDUCE, RFC-042), etc. **LanceDB is NOT here** — it is search-only; an ML pipeline that also indexes composes `.[ml,search]` (#1019). |
+| **`search`** | Corpus vector + FTS search (RFC-090): **LanceDB** two-tier store + sentence-transformers / torch / transformers (embeddings). The cloud-deployment set — independently installable without `[ml]`; `[ml]` and `[search]` share the torch/transformers base because both genuinely import it, not as a subset. |
+| **`dev`** | Tests, lint, typecheck, security, **FastAPI + uvicorn + prometheus-fastapi-instrumentator + apscheduler** (GI/KG viewer API, RFC-062), text eval helpers (ROUGE, BLEU, WER), MCP SDK + httpx (TestClient), and **pyannote.audio + torchaudio** pins aligned with `[ml]` for CI/dev venv parity. The server pins are mirrored in `docker/api/Dockerfile` (installed there without full `[dev]` to keep test tooling out of prod) — **keep the two in sync**. Embedding cosine in `evaluation/scorer.py` needs sentence-transformers (`[ml]` or `[search]`). |
 | **`compare`** | Streamlit run comparison UI (RFC-047; `make run-compare`). |
 | **`llm`** | API client SDKs bundled for CI/dev: Gemini (`google-genai`), Anthropic, Mistral, **httpx** (Ollama health checks). The **OpenAI** SDK ships with **core** dependencies. |
+| **`monitor`** | Live pipeline monitor profiling: py-spy + memray (RFC-065; core `--monitor` uses stdlib + psutil). |
 
 **Not defined as extras:** there is no **`[llama]`** (GGUF is under **`[ml]`**), no **`[ollama]`** (use **`[llm]`** for httpx), no **`[gemini]`**, and no **`[docs]`** group — MkDocs builds install `docs/requirements.txt` and, where needed, `pip install -e ".[ml]"` for ML-aware docstrings.
 
@@ -271,7 +273,8 @@ pip cache (for example some CI jobs) can still re-download the large `.whl` file
   not HTTP API clients (those live under `[llm]`, e.g. Ollama health checks via **httpx**).
 
 - **Fallback**: If you use **Ollama** for REDUCE instead, you do not need **llama-cpp-python**; install **`[llm]`**
-  for Ollama and keep **`[ml]`** only if you also need Whisper, GIL evidence models, LanceDB, etc.
+  for Ollama and keep **`[ml]`** only if you also need Whisper, GIL evidence models, etc. (LanceDB
+  corpus search lives under **`[search]`**, not `[ml]` — #1019.)
 
 ### `openai` (>=1.0.0)
 
