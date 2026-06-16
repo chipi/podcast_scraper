@@ -1408,22 +1408,10 @@ jobs:
         if [ -s metrics/history-ci.jsonl ]; then
           python scripts/dashboard/repair_metrics_jsonl.py metrics/history-ci.jsonl --in-place || true
         fi
-    - name: Install wily
-      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5' || github.ref == 'refs/heads/release/2.6')
-      run: pip install wily
-      continue-on-error: true
-    - name: Build wily baseline
-      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5' || github.ref == 'refs/heads/release/2.6')
-      run: |
-        python -m wily build src/podcast_scraper -n 50 || echo "Wily build failed (non-blocking)"
-      continue-on-error: true
-    - name: Generate wily trend reports
-      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5' || github.ref == 'refs/heads/release/2.6')
-      run: |
-        mkdir -p reports/wily
-        python -m wily report src/podcast_scraper/workflow/orchestration.py > reports/wily/orchestration-trends.txt 2>&1 || echo "Wily report failed (non-blocking)"
-        python -m wily report src/podcast_scraper/ > reports/wily/overall-trends.txt 2>&1 || echo "Wily report failed (non-blocking)"
-      continue-on-error: true
+    # wily removed (#1014): it pinned radon<5.2 and blocked the radon 6.x bump, and a mid-job
+    # `pip install wily` would downgrade radon. The radon-derived complexity/maintainability
+    # trends below (wily_trends_to_json.py reads radon metrics + history, NOT wily's git build)
+    # are unaffected; only the supplementary wily build/report .txt artifacts are dropped.
     - name: Generate wily trends JSON for metrics pipeline
       if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5' || github.ref == 'refs/heads/release/2.6')
       run: |
@@ -1535,9 +1523,10 @@ jobs:
       uses: actions/upload-artifact@v7
       with:
         name: wily-reports
+        # wily dropped (#1014); reports/wily/trends.json is now radon-derived
+        # (wily_trends_to_json.py). The .wily/ git-history cache is no longer produced.
         path: |
           reports/wily/
-          .wily/
         retention-days: 90
       continue-on-error: true
 
