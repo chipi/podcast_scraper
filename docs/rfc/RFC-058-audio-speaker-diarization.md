@@ -429,21 +429,21 @@ def _import_pyannote():
 **Test Coverage:**
 
 - **Unit tests**: Alignment algorithm, speaker name mapping, cache key generation, config validation
-- **Integration tests**: pyannote pipeline on test audio fixtures (see RFC-059 for improved fixtures)
+- **Integration tests**: mocked diarization path (patches `_create_pyannote_pipeline` + `_load_waveform`; no real pyannote / HF token) — see `tests/integration/providers/ml/test_diarization.py`. Real pyannote runs only in the e2e tier.
 - **E2E tests**: Full pipeline with `--diarize` on sample podcast audio
 
 **Test Organization:**
 
 - `tests/unit/podcast_scraper/providers/ml/diarization/` — alignment, mapping, caching
-- `tests/integration/providers/ml/test_diarization.py` — pyannote on fixture audio
-- Marker: `@pytest.mark.diarization` (requires `[ml]` / pyannote + HuggingFace token for integration runs)
+- `tests/integration/providers/ml/test_diarization.py` — **mocked** diarization (no real pyannote, no HF token; markers `integration`, `diarization`)
+- `tests/e2e/test_diarization_e2e.py` — **real** pyannote on v2 fixture audio (e2e tier)
+- Marker: `@pytest.mark.diarization` (integration runs are mocked; real pyannote + HuggingFace token live in the e2e test)
 - Marker: `@pytest.mark.slow` (diarization is inherently slow)
 
 **Test Fixtures:**
 
-- Depends on RFC-059 improvements: unique voices per speaker in test audio make diarization testable
-- Without distinct voices, pyannote cannot distinguish speakers in TTS-generated audio
-- May need a small set of real podcast audio snippets (CC-licensed) for integration tests
+- RFC-059 shipped unique voices per speaker (v2 `SPEAKER_VOICE_MAP`), so pyannote separates speakers in the TTS-generated fixtures — `tests/e2e/test_diarization_e2e.py` passes 4/4 on v2
+- Real podcast audio snippets are not required: the v2 fixtures exercise the real-pyannote e2e path
 
 **Test Execution:**
 

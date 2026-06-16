@@ -40,6 +40,11 @@ class TwoTierNativeReindexMigration(Migration):
         if lance_path.exists():
             if lance_index_is_stale(lance_path):
                 return "LanceDB index present but schema-stale — rebuild natively."
+            if not (lance_path.parent / "metadata.json").is_file():
+                return (
+                    "LanceDB index present but missing the metadata.json offset sidecar "
+                    "(pre-#1010 index) — reindex natively to emit it for the GIL offset verifier."
+                )
             return "LanceDB index already present — no-op."
         return (
             f"Build two-tier LanceDB index natively from {ctx.corpus_root} (no FAISS to migrate)."
@@ -50,12 +55,18 @@ class TwoTierNativeReindexMigration(Migration):
         from ...search.backends.lancedb_backend import lance_index_is_stale
 
         lance_path = self._lance_path(ctx)
-        if lance_path.exists() and not lance_index_is_stale(lance_path):
+        sidecar_present = (lance_path.parent / "metadata.json").is_file()
+        if lance_path.exists() and not lance_index_is_stale(lance_path) and sidecar_present:
             ctx.log(f"LanceDB index already present at {lance_path}; skipping native build")
             return MigrationResult(
                 self.id, applied=True, dry_run=ctx.dry_run, message="index already present — no-op"
             )
-        if lance_path.exists():
+        if lance_path.exists() and not lance_index_is_stale(lance_path):
+            # Healthy index, but it predates the metadata.json offset sidecar (#1010). Reindex
+            # to emit it (build_two_tier_index upserts idempotently + writes the sidecar) so the
+            # GIL chunk-offset verifier works on upgraded corpora.
+            ctx.log(f"LanceDB index at {lance_path} lacks metadata.json sidecar; reindexing")
+        elif lance_path.exists():
             ctx.log(f"LanceDB index at {lance_path} has a stale schema; rebuilding natively")
         if ctx.dry_run:
             ctx.log(self.plan(ctx))

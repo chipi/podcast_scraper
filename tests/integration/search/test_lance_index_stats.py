@@ -16,8 +16,10 @@ pytestmark = pytest.mark.integration
 
 lancedb = pytest.importorskip("lancedb")
 
+from podcast_scraper.search import lance_index_stats as lis  # noqa: E402
 from podcast_scraper.search.backends.lancedb_backend import LanceDBBackend  # noqa: E402
 from podcast_scraper.search.lance_index_stats import (  # noqa: E402
+    _dir_size,
     read_lance_index_stats,
 )
 
@@ -91,3 +93,144 @@ def test_returns_none_when_backend_construction_fails(tmp_path, monkeypatch):
 
     monkeypatch.setattr("podcast_scraper.search.lance_index_stats.LanceDBBackend", _boom)
     assert read_lance_index_stats(tmp_path / "lance") is None
+
+
+def test_dir_size_skips_unreadable_files(tmp_path, monkeypatch):
+    # _dir_size swallows per-file OSError (e.g. a vanished/permission-denied file) and
+    # keeps summing the rest (line 42-43). Force getsize to raise for every file.
+    (tmp_path / "a.bin").write_bytes(b"x" * 16)
+
+    def _boom(_p):
+        raise OSError("permission denied")
+
+    monkeypatch.setattr("podcast_scraper.search.lance_index_stats.os.path.getsize", _boom)
+    # Every file errored -> total falls back to 0, no exception propagates.
+    assert _dir_size(tmp_path) == 0
+
+
+def test_last_updated_stays_none_on_stat_oserror(lance_dir, monkeypatch):
+    # When the last_updated stat/timestamp lookup raises OSError, the stamp is left unset
+    # (line 86-87) while the rest of the stats (counts, size) still populate. We make the
+    # datetime.fromtimestamp inside that try-block raise (the stat result feeds it), which
+    # is exactly the failure mode the except OSError guards.
+    real_fromtimestamp = lis.datetime.fromtimestamp
+
+    class _RaisingDatetime:
+        @staticmethod
+        def fromtimestamp(*_a, **_k):
+            raise OSError("clock/stat failure")
+
+    monkeypatch.setattr(lis, "datetime", _RaisingDatetime)
+    st = read_lance_index_stats(lance_dir)
+    assert st is not None
+    assert st.last_updated is None  # the OSError in the try-block left the stamp unset
+    assert st.total_vectors == 3  # counts unaffected
+    # sanity: the real fromtimestamp is restored after the test (monkeypatch undoes it).
+    assert real_fromtimestamp is not None
+
+
+class _StubTable:
+    """A tier table with NO doc_type/show_id columns -> exercises the _TIER_DEFAULT path."""
+
+    def __init__(self, n: int) -> None:
+        self._n = n
+
+        class _Schema:
+            names = ["id", "text", "embedding"]  # neither doc_type nor show_id
+
+        self.schema = _Schema()
+
+    def count_rows(self) -> int:
+        return self._n
+
+
+def test_schema_light_tier_uses_default_doc_type(tmp_path, monkeypatch):
+    # A tier whose schema lacks both doc_type and show_id can't be searched per-row, so the
+    # whole count folds into the tier's implicit doc_type (line 70-72). The real schemas
+    # always carry show_id, so this is exercised with a stub table.
+    (tmp_path / "lance").mkdir()
+    be = LanceDBBackend.__new__(LanceDBBackend)  # bypass lancedb.connect
+
+    def _open(tier):
+        # Only the segment tier exists; it has the schema-light stub.
+        return _StubTable(5) if tier == "segment" else None
+
+    monkeypatch.setattr(be, "_open_if_exists", _open, raising=False)
+    monkeypatch.setattr(be, "read_index_meta", lambda: {}, raising=False)
+    monkeypatch.setattr(lis, "LanceDBBackend", lambda _p: be)
+
+    st = read_lance_index_stats(tmp_path / "lance")
+    assert st is not None
+    assert st.total_vectors == 5
+    # No show_id/doc_type columns -> the 5 rows fold into "transcript" (segment's default),
+    # and no feeds can be derived.
+    assert st.doc_type_counts == {"transcript": 5}
+    assert st.feeds_indexed == []
+
+
+class _SearchableStubTable:
+    """A tier table WITH a show_id column whose rows carry an empty show_id, exercising the
+    per-row path where the `if sid:` guard is false (no feed recorded)."""
+
+    def __init__(self, rows):
+        self._rows = rows
+
+        class _Schema:
+            names = ["id", "doc_type", "show_id"]
+
+        self.schema = _Schema()
+
+    def count_rows(self):
+        return len(self._rows)
+
+    def search(self):
+        rows = self._rows
+
+        class _Q:
+            def limit(self, _n):
+                return self
+
+            def select(self, _cols):
+                return self
+
+            def to_list(self):
+                return rows
+
+        return _Q()
+
+
+def test_row_with_empty_show_id_records_no_feed(tmp_path, monkeypatch):
+    # A populated tier whose rows have a falsy show_id counts the doc_type but adds no feed
+    # (covers the per-row `if sid:` false branch).
+    (tmp_path / "lance").mkdir()
+    be = LanceDBBackend.__new__(LanceDBBackend)
+    table = _SearchableStubTable([{"doc_type": "quote", "show_id": ""}])
+
+    monkeypatch.setattr(
+        be, "_open_if_exists", lambda tier: table if tier == "aux" else None, raising=False
+    )
+    monkeypatch.setattr(be, "read_index_meta", lambda: {}, raising=False)
+    monkeypatch.setattr(lis, "LanceDBBackend", lambda _p: be)
+
+    st = read_lance_index_stats(tmp_path / "lance")
+    assert st is not None
+    assert st.doc_type_counts == {"quote": 1}  # the row's own doc_type was used
+    assert st.feeds_indexed == []  # empty show_id -> no feed recorded
+
+
+def test_schema_light_unknown_tier_falls_back_to_tier_name(tmp_path, monkeypatch):
+    # A schema-light tier with no _TIER_DEFAULT_DOC_TYPE entry (aux) folds into the tier name.
+    (tmp_path / "lance").mkdir()
+    be = LanceDBBackend.__new__(LanceDBBackend)
+
+    def _open(tier):
+        return _StubTable(3) if tier == "aux" else None
+
+    monkeypatch.setattr(be, "_open_if_exists", _open, raising=False)
+    monkeypatch.setattr(be, "read_index_meta", lambda: {}, raising=False)
+    monkeypatch.setattr(lis, "LanceDBBackend", lambda _p: be)
+
+    st = read_lance_index_stats(tmp_path / "lance")
+    assert st is not None
+    # aux is not in _TIER_DEFAULT_DOC_TYPE -> falls back to the literal tier name "aux".
+    assert st.doc_type_counts == {"aux": 3}

@@ -31,7 +31,7 @@ except Exception as exc:  # pragma: no cover - environment-dependent
     pytest.skip(f"pyannote.audio unavailable: {exc}", allow_module_level=True)
 
 # Use v2 (the current default fixture). An earlier note pinned this to v1 claiming v2's
-# two TTS voices "can't separate cleanly" (a descendant of #921) — that did not reproduce.
+# two TTS voices "can't separate cleanly" (a descendant of #934) — that did not reproduce.
 # v2 p01_multi_e01 diarizes into two acoustically distinct voices (host female ~178Hz,
 # guest male ~117Hz; cross-voice embedding cosine ~0.22) and the full Maya/Liam roster maps
 # deterministically (verified 4/4 runs). The host name reaches the roster via known_hosts

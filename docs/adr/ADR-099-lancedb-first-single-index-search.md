@@ -1,11 +1,11 @@
 # ADR-099: LanceDB-first single-index search; retire FAISS
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-06-14
 - **Authors**: Podcast Scraper Team
 - **Related RFCs**: [RFC-090](../rfc/RFC-090-hybrid-retrieval.md) (two-tier hybrid retrieval — this ADR completes its vision and retires the FAISS transitional path), [RFC-094](../rfc/RFC-094-search-powered-surfaces-query-layer.md) (search-powered surfaces consume this path)
 - **Related ADRs**: [ADR-098](ADR-098-embedding-provider-profile-axis.md) (embedding provider axis — unchanged; the query still embeds in the index's recorded space)
-- **Related issues**: [#995](https://github.com/chipi/podcast_scraper/issues/995) (implementation)
+- **Related issues**: [#995](https://github.com/chipi/podcast_scraper/issues/995) (implementation), [#1010](https://github.com/chipi/podcast_scraper/issues/1010) (shipped — FAISS retired, `faiss_store.py` deleted)
 
 > **History.** This ADR was first drafted as "process-scoped search-index pooling"
 > — a narrow fix to "we open a new `LanceDBBackend` per query." Investigation

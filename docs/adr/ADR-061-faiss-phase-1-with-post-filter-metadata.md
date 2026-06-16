@@ -1,5 +1,7 @@
 # ADR-061: FAISS Phase 1 with Post-Filter Metadata Strategy
 
+> **Superseded by [ADR-099](ADR-099-lancedb-first-single-index-search.md)** — FAISS retired for LanceDB. Body kept as frozen history.
+
 - **Status**: Accepted
 - **Date**: 2026-04-03
 - **Authors**: Podcast Scraper Team
