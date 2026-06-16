@@ -71,6 +71,7 @@ def test_builds_both_tiers_and_is_queryable(tmp_path, monkeypatch):
     assert by_id["chunk:1"].metadata["timestamp_start_ms"] == 2000  # ms preserved via seconds
 
 
+@pytest.mark.critical_path  # runs in test-integration-fast so codecov/patch covers the diff
 def test_writes_metadata_json_sidecar_with_char_offsets(tmp_path, monkeypatch):
     """#1010 regression: GIL offset verify reads ``search/metadata.json`` (doc_id -> meta with
     char_start/char_end). FAISS wrote it; the LanceDB build must re-emit it from chunk meta.
@@ -259,6 +260,7 @@ def test_stale_schema_is_detected_and_read_falls_back(tmp_path, monkeypatch):
     assert hs.hybrid_candidates(corpus, "x", top_k=5) is None
 
 
+@pytest.mark.critical_path  # runs in test-integration-fast so codecov/patch covers the diff
 def test_stale_schema_build_clears_index_and_sidecar_then_rebuilds(tmp_path, monkeypatch):
     """A present-but-stale index (no drop_existing) is wiped via _clear_index — including the
     sibling metadata.json sidecar — then rebuilt fresh (covers the stale-schema reindex path)."""
@@ -556,6 +558,7 @@ def test_grounding_quote_text_edge_without_matching_quote(tmp_path):
     assert tti._insight_grounding_quote_texts(gi) == {}
 
 
+@pytest.mark.critical_path  # runs in test-integration-fast so codecov/patch covers the diff
 def test_drop_existing_clears_before_full_reindex(tmp_path, monkeypatch):
     """``drop_existing=True`` wipes the prior index so a full reindex starts clean."""
     corpus = tmp_path / "corpus"
