@@ -23,6 +23,14 @@ logger = logging.getLogger(__name__)
 
 
 class CircuitBreaker:
+    """In-memory failure-rate circuit breaker for provider calls.
+
+    Transitions ``closed → open`` once ``failure_threshold`` failures land
+    within ``window_sec``; stays open for ``cooldown_sec`` before flipping
+    back to ``closed`` on the next ``allow()``-then-success cycle. Thread-safe
+    via an internal lock so it can be shared across worker threads.
+    """
+
     def __init__(
         self,
         failure_threshold: int,
