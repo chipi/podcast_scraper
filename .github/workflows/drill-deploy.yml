@@ -160,6 +160,34 @@ jobs:
             echo "::notice::Tailscale live host ($R) differs from vars.DRILL_TAILNET_FQDN ($WANT). Using $R for SSH and probes."
           fi
 
+      # First-boot race (#808 root cause): Tailscale reports the node Online and
+      # deploy@ SSH works before cloud-init's runcmd finishes. runcmd does a slow
+      # `git clone --depth 50` + `cp -a` into /srv/podcast-scraper BEFORE it creates
+      # /srv/podcast-scraper/corpus and finishes the repo — so a deploy that races
+      # in finds /srv/podcast-scraper present but corpus dir absent and the repo
+      # half-populated. Wait for cloud-init's boot-finished sentinel (written after
+      # the final stage incl. runcmd) so the corpus dir, full repo, and deploy.sh
+      # all exist before we stage + deploy. Sentinel is world-readable (no sudo).
+      - name: "DR drill — wait: cloud-init boot-finished (first-boot race)"
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+        run: |
+          set -euo pipefail
+          mx=40
+          it=15
+          for a in $(seq 1 "$mx"); do
+            if ssh -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              'test -f /var/lib/cloud/instance/boot-finished'; then
+              echo "::notice::cloud-init boot-finished observed after ${a} check(s)."
+              exit 0
+            fi
+            echo "::notice::cloud-init still running or SSH not ready (check ${a}/${mx}); sleeping ${it}s."
+            sleep "$it"
+          done
+          echo "::warning::cloud-init boot-finished not observed after $((mx*it))s; proceeding (downstream checks will surface any gap)."
+
       # The drill host's /srv/podcast-scraper/.env is NOT written by cloud-init
       # (infra/cloud-init/prod.user-data:41 — deploy workflows stage it, #841).
       # Prod's deploy-prod.yml stages it from PROD_* secrets; the drill is a
@@ -196,6 +224,7 @@ jobs:
                  "set -euo pipefail; cd /srv/podcast-scraper; \
                   mv .env.deploy-staged .env; chmod 600 .env; \
                   chown deploy:deploy .env 2>/dev/null || true; \
+                  mkdir -p corpus; chown deploy:deploy corpus 2>/dev/null || true; \
                   test -f .bootstrap-needs-env && rm -f .bootstrap-needs-env || true"; then
               echo "::notice::Staged host .env on SSH attempt ${a} of ${mx}"
               exit 0
