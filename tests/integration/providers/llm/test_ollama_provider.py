@@ -1795,8 +1795,11 @@ class TestOllamaProviderPatchCoverage(unittest.TestCase):
 
     @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
     @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
-    def test_summarize_empty_content_uses_empty_string(self, mock_openai_class, mock_httpx):
-        """Test summarize when API returns empty content uses empty string."""
+    def test_summarize_empty_content_raises_guardrail(self, mock_openai_class, mock_httpx):
+        """ADR-100: empty response content now raises GuardrailViolation
+        instead of being silently propagated as an empty string."""
+        from podcast_scraper.providers.guardrails.exceptions import GuardrailViolation
+
         mock_health = Mock()
         mock_health.raise_for_status = Mock()
         mock_models = Mock()
@@ -1823,9 +1826,9 @@ class TestOllamaProviderPatchCoverage(unittest.TestCase):
         provider = OllamaProvider(cfg)
         provider.initialize()
 
-        result = provider.summarize("Some text.")
-        self.assertEqual(result["summary"], "")
-        self.assertIn("metadata", result)
+        with self.assertRaises(GuardrailViolation) as cm:
+            provider.summarize("Some text.")
+        self.assertEqual(cm.exception.reason, "empty_content")
 
     @patch("podcast_scraper.prompts.store.render_prompt", return_value="Cleaning prompt")
     @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")

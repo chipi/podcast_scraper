@@ -1246,13 +1246,14 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         transcription="deepgram_nova_3",
         summary="anthropic_haiku_4_5",
         kg="provider_n10_15",
-        ner="spacy_trf",
+        ner="gemini_speaker_detector",  # 2026-06-17 drift fix: YAML chose Gemini per v3 research
         clustering="topic_clusters_default_0_75",
         gi="provider_n12_grounded_bundled",
         notes=(
             "Cloud quality-first profile: Deepgram for transcription (best WER + best "
             "latency on v2 fixtures), Anthropic Haiku 4.5 for summary "
-            "(compound-winner per EVAL_HELDOUT_V2)."
+            "(compound-winner per EVAL_HELDOUT_V2). NER flipped from spacy_trf to "
+            "gemini_speaker_detector per the YAML's v3 (22ep) research note."
         ),
     ),
     "local": ProfilePreset(

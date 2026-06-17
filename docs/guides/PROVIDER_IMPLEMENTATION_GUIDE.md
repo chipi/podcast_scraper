@@ -162,7 +162,7 @@ response-shape guardrail at every content-producing call site — summarize,
 summarize_bundled, generate_insights, KG extraction, clean_transcript,
 speaker detection if it returns prose. The helper catches the failure modes
 the SDK can't (empty content / thinking-prose markers / `finish_reason=length`
-/ unparseable JSON when expected).
+/ unparsable JSON when expected).
 
 ```python
 from .. import guardrails as _guardrails
