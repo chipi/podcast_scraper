@@ -45,6 +45,11 @@ on:
 permissions:
   contents: read
   actions: write
+  # drill-deploy (reusable) requests ``packages: read`` to pull the GHCR image; a caller
+  # cannot grant a reusable less than it requests, so the orchestrator must grant it too —
+  # otherwise the whole workflow fails to load (``packages: none`` < ``packages: read``,
+  # startup_failure on every trigger; #815 added drill-deploy but not this grant).
+  packages: read
   # drill-infra-plan (reusable) posts PR comments when permissions are evaluated for workflow_call.
   pull-requests: write
 
