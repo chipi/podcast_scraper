@@ -1,0 +1,51 @@
+# Round 3 v1 — Magistral-Small-2509 treated AS the reasoning model it is.
+#
+# Vendor Round 1/2 gap (per HF model card 2026-06-17):
+#   - Magistral is a REASONING model with [THINK]/[/THINK] special tokens.
+#   - Vendor's system prompt EMBEDS the reasoning template ("First draft
+#     your thinking process [THINK]…[/THINK]Here, provide a self-contained
+#     response.").
+#   - Vendor sampling: temperature=0.7, top_p=0.95, max_tokens=131072.
+#   - Vendor requires --reasoning-parser=mistral server flag.
+#   - We ran Round 1/2 like a vanilla summarizer (no parser flag, greedy
+#     sampling, generic Qwen-style summary prompt). The [THINK] block
+#     likely consumed token budget similar to R1 — though Magistral's
+#     output budget is large enough (131k) that it may not have hit
+#     length caps at our 500/800 limits.
+#
+# COMPOSE FLAGS REQUIRED ON SWAP-IN:
+#   - --reasoning-parser=mistral
+#   - --tokenizer_mode mistral
+#   - --config_format mistral
+#   - --load_format mistral
+#
+# Note: --reasoning-parser=mistral strips [THINK]/[/THINK] blocks from the
+# response content server-side. With max_tokens=4096 (rather than vendor's
+# 131k — we're summarizing, not solving), there's room for both thinking
+# and a concise summary.
+#
+# PROMPT TODO: System prompt needs to include the vendor's reasoning
+# template. For Round 3 we use the cohort-uniform summary prompt and let
+# the parser strip thinking server-side — the model may produce a clean
+# summary with the parser's help even without the reasoning prompt.
+#
+# Reference: autoresearch/MODEL_PLAYBOOK.md § Round 3 plan, Priority 1
+id: "autoresearch_prompt_vllm_magistral_small_2509_dev_paragraph_round3_v1"
+task: "summarization"
+backend:
+  type: "openai"
+  model: "autoresearch"
+  base_url: "http://localhost:8003/v1"
+  api_key_env: "VLLM_API_KEY"
+  extra_body:
+    top_p: 0.95
+prompts:
+  system: "ollama/qwen3.5_35b/summarization/system_v1"
+  user: "ollama/qwen3.5_35b/summarization/long_v1"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  max_length: 4096
+  min_length: 200
+  temperature: 0.7
+preprocessing_profile: "cleaning_v4"

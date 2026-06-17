@@ -1,0 +1,21 @@
+# Phase 2b re-run — Ollama qwen3.5:35b (Q4_K_M), TIGHT length.
+#
+# Companion to the vLLM v2_tight configs. Same model, same prompts, same
+# tight length budget (max_length=500 → paragraphs_max=5). Used to verify
+# whether the vLLM-vs-Ollama quality gap survives matched length, or
+# disappears once both produce 2-5 paragraph summaries.
+id: "autoresearch_prompt_ollama_qwen3_5_35b_dev_paragraph_v4_apples_tight"
+task: "summarization"
+backend:
+  type: "ollama"
+  model: "qwen3.5:35b"
+prompts:
+  system: "ollama/qwen3.5_35b/summarization/system_v1"
+  user: "ollama/qwen3.5_35b/summarization/long_v1"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  max_length: 500
+  min_length: 200
+  temperature: 0.0
+preprocessing_profile: "cleaning_v4"

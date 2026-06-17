@@ -1,0 +1,53 @@
+# Round 3 v1 — Qwen3.5-35B-A3B with vendor-correct configuration.
+#
+# CRITICAL CONTEXT: this is the current cohort winner on GI+KG. Round 1/2
+# results need re-validation — vendor docs reveal we were missing the
+# server-side reasoning parser AND running at greedy sampling.
+#
+# Vendor Round 1/2 gap (per HF model card 2026-06-17 doc pass):
+#   - "Qwen3.5 models operate in thinking mode by default."
+#   - Disable thinking: --reasoning-parser=qwen3 server flag is REQUIRED
+#     (we likely never had this — risk: think content leaked into the
+#     summary response, since the response parser splits think vs content
+#     server-side ONLY when this flag is on).
+#   - Vendor recommended sampling (instruct mode, general tasks):
+#       temperature=0.7, top_p=0.8, top_k=20, min_p=0.0,
+#       presence_penalty=1.5, repetition_penalty=1.0
+#   - We ran greedy temp=0.0.
+#
+# COMPOSE FLAG REQUIRED ON SWAP-IN:
+#   - --reasoning-parser=qwen3
+#
+# HARNESS GAP: SummarizationParams does not have top_k / presence_penalty
+# fields, so this config passes them via backend.extra_body. top_p ALSO
+# goes via extra_body (silently dropped from `params:`).
+#
+# Reference: autoresearch/MODEL_PLAYBOOK.md § Round 3 plan, Priority 1
+id: "autoresearch_prompt_vllm_qwen3_5_35b_a3b_dev_paragraph_round3_v1"
+task: "summarization"
+backend:
+  type: "openai"
+  model: "autoresearch"
+  base_url: "http://localhost:8003/v1"
+  api_key_env: "VLLM_API_KEY"
+  extra_body:
+    # Disable thinking on chat-template side (vendor confirms this is supported).
+    chat_template_kwargs:
+      enable_thinking: false
+    # Vendor-recommended sampling (instruct/non-thinking mode, general tasks).
+    # These reach the OpenAI Chat Completions API at the top level via
+    # extra_body merge — they would be silently dropped if put in `params:`.
+    top_p: 0.8
+    top_k: 20
+    min_p: 0.0
+    presence_penalty: 1.5
+prompts:
+  system: "ollama/qwen3.5_35b/summarization/system_v1"
+  user: "ollama/qwen3.5_35b/summarization/long_v1"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  max_length: 500
+  min_length: 200
+  temperature: 0.7
+preprocessing_profile: "cleaning_v4"

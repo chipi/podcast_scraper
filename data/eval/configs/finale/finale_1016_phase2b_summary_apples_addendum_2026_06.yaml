@@ -1,0 +1,38 @@
+# #1016 Phase 2b — Apples-to-apples Ollama vs vLLM addendum.
+#
+# Single-candidate finale to add the matched-conditions Ollama qwen3.5:35b
+# run (autoresearch_prompt_ollama_qwen3_5_35b_dev_paragraph_v3_apples) to
+# the Phase 2b scorecard. Same judge panel as the main Phase 2b sweep:
+# Sonnet 4.6 primary + GPT-5.4 cross-check.
+
+tag: finale_1016_phase2b_summary_apples_addendum_2026_06
+
+runs_glob:
+  - data/eval/runs/autoresearch_prompt_ollama_qwen3_5_35b_dev_paragraph_v3_apples
+
+metrics_filename: metrics_vs_silver_opus47_dev_v1_paragraph.json
+
+strata:
+  - name: cohort
+    match:
+      - autoresearch_prompt_
+
+promotion:
+  per_stratum_top_k: 1
+  floor_fraction: 0.0
+  overall_cap: 1
+  carte_blanche:
+    - autoresearch_prompt_
+
+judges:
+  primary:
+    kind: sonnet46
+    model: claude-sonnet-4-6
+  cross_check:
+    kind: openai_chat
+    model: gpt-5.4
+    top_n_per_stratum: 1
+
+max_episodes_per_finalist: 10
+cost_cap_usd: 3.0
+output_root: data/eval/runs/finale

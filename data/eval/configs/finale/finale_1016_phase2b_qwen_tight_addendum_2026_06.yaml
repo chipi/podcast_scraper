@@ -1,0 +1,45 @@
+# #1016 Phase 2b — Qwen tight (length-fix) addendum.
+#
+# Re-judges the two Qwen vLLM candidates with the cloud_structured_max_output_tokens
+# floor bypass applied to plain-text summary calls. Same judge panel as
+# the main Phase 2b sweep (Sonnet 4.6 primary + GPT-5.4 cross-check).
+#
+# Runs picked up by this finale:
+# - autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_paragraph_v2_tight
+# - autoresearch_prompt_vllm_qwen3_5_35b_a3b_dev_paragraph_v2_tight (when ready)
+#
+# The metrics_filename is the rescore against silver_opus47_dev_v1_paragraph
+# computed via scripts/eval/score/rescore_against_silver.py.
+
+tag: finale_1016_phase2b_qwen_tight_addendum_2026_06
+
+runs_glob:
+  - data/eval/runs/autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_paragraph_v2_tight
+  - data/eval/runs/autoresearch_prompt_vllm_qwen3_5_35b_a3b_dev_paragraph_v2_tight
+
+metrics_filename: metrics_vs_silver_opus47_dev_v1_paragraph.json
+
+strata:
+  - name: cohort
+    match:
+      - autoresearch_prompt_
+
+promotion:
+  per_stratum_top_k: 2
+  floor_fraction: 0.0
+  overall_cap: 2
+  carte_blanche:
+    - autoresearch_prompt_
+
+judges:
+  primary:
+    kind: sonnet46
+    model: claude-sonnet-4-6
+  cross_check:
+    kind: openai_chat
+    model: gpt-5.4
+    top_n_per_stratum: 2
+
+max_episodes_per_finalist: 10
+cost_cap_usd: 4.0
+output_root: data/eval/runs/finale

@@ -1,0 +1,32 @@
+# Round 3 v3 — Kimi-Linear-48B-A3B-Instruct, NO system prompt, JSON output mode.
+#
+# Hypothesis: forcing JSON structure side-steps both Kimi's safety refusal
+# (strict prompt) AND its task-narration tendency (natural prompt). The model
+# must emit a JSON object with a single "summary" field; no room to refuse
+# or narrate. Postprocessor extracts the field for fair scoring vs other
+# candidates' plain-text outputs.
+#
+# Requires harness support for response_format={"type": "json_object"};
+# if not yet wired, set this aside and run v1_nosys / v4_vendorsys first.
+#
+# Reference: autoresearch/MODEL_PLAYBOOK.md § "Kimi-Linear-48B-A3B-Instruct"
+id: "autoresearch_prompt_vllm_kimi_linear_48b_a3b_dev_paragraph_round3_v3_json"
+task: "summarization"
+backend:
+  type: "openai"
+  model: "autoresearch"
+  base_url: "http://localhost:8003/v1"
+  api_key_env: "VLLM_API_KEY"
+  extra_body:
+    response_format:
+      type: "json_object"
+prompts:
+  user: "vllm/kimi_round3/user_v3_json"
+  postprocessor: "extract_json_summary_field"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+preprocessing_profile: "cleaning_v4"

@@ -1,0 +1,59 @@
+# #1016 Phase 2b — Summary per-stage eval, 6-candidate cohort.
+#
+# Cohort:
+#   1. ollama_qwen35_35b           — incumbent (Sonnet-style prompt family)
+#   2. vllm_qwen3_30b_a3b_2507     — Qwen3-30B-A3B-Instruct-2507
+#   3. vllm_qwen3_5_35b_a3b        — Qwen3.5-35B-A3B
+#   4. vllm_r1distill_32b          — DeepSeek-R1-Distill-Qwen-32B (#961 anti-think prompts)
+#   5. vllm_magistral_small_2509   — Mistral Magistral Small 2509
+#   6. vllm_mistral_small_3_2_24b  — Mistral Small 3.2 24B Instruct
+#   7. gemini25_flash_lite         — Google Gemini 2.5 Flash Lite (cloud)
+#
+# Primary metric: ROUGE-L vs silver_opus47_dev_v1_paragraph (cross-vendor
+# silver — see autoresearch/JUDGING.md §Silver / judge vendor-bias rule).
+# The Sonnet silver remains computed (metrics_vs_silver_sonnet46_dev_v1_paragraph.json)
+# for the side-by-side bias-disclosure table.
+#
+# Judge panel (multi-vendor):
+#   - Primary: Sonnet 4.6 (claude-sonnet-4-6) — high precision, low cost
+#   - Cross-check: GPT-5.4 (gpt-5.4) — cross-vendor
+# Gemini 2.5 Pro cross-check is omitted (Gemini-Flash-Lite is a candidate; same family).
+# Empirical bias check happens via the dual ROUGE table instead.
+
+tag: finale_1016_phase2b_summary_2026_06
+
+runs_glob:
+  - data/eval/runs/autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_paragraph_v1
+  - data/eval/runs/autoresearch_prompt_vllm_qwen3_5_35b_a3b_dev_paragraph_v1
+  - data/eval/runs/autoresearch_prompt_vllm_r1distill_32b_dev_paragraph_v1
+  - data/eval/runs/autoresearch_prompt_vllm_magistral_small_2509_dev_paragraph_v1
+  - data/eval/runs/autoresearch_prompt_vllm_mistral_small_3_2_24b_dev_paragraph_v1
+  - data/eval/runs/autoresearch_prompt_gemini25_flash_lite_dev_paragraph_v2
+  - data/eval/runs/autoresearch_prompt_ollama_qwen35_35b_dev_paragraph_v2
+
+metrics_filename: metrics_vs_silver_opus47_dev_v1_paragraph.json
+
+strata:
+  - name: cohort
+    match:
+      - autoresearch_prompt_
+
+promotion:
+  per_stratum_top_k: 7
+  floor_fraction: 0.0          # every candidate must be judged for the per-stage decision
+  overall_cap: 7
+  carte_blanche:
+    - autoresearch_prompt_
+
+judges:
+  primary:
+    kind: sonnet46
+    model: claude-sonnet-4-6
+  cross_check:
+    kind: openai_chat
+    model: gpt-5.4
+    top_n_per_stratum: 7        # cross-check every candidate (no top-N filter)
+
+max_episodes_per_finalist: 10
+cost_cap_usd: 25.0
+output_root: data/eval/runs/finale

@@ -1,0 +1,26 @@
+# Round 2 — DeepSeek-R1-0528-Qwen3-8B with anti-thinking prompts
+# (Round 1 failure mode: full token budget consumed by <think> block; never reached summary).
+id: "autoresearch_prompt_vllm_deepseek_r1_0528_qwen3_8b_dev_paragraph_strict_v2"
+task: "summarization"
+backend:
+  type: "openai"
+  model: "autoresearch"
+  base_url: "http://localhost:8003/v1"
+  api_key_env: "VLLM_API_KEY"
+  # DS-R1-0528-Qwen3-8B is R1-distilled from Qwen3-8B. The Qwen3 base's
+  # chat-template lever to disable thinking may still survive post-distill.
+  extra_body:
+    chat_template_kwargs:
+      enable_thinking: false
+prompts:
+  system: "vllm/r1_distill_8b/system_v1"
+  user: "vllm/r1_distill_8b/long_v1"
+  postprocessor: "strip_r1_reasoning_and_decode"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.6
+  top_p: 0.95
+preprocessing_profile: "cleaning_v4"

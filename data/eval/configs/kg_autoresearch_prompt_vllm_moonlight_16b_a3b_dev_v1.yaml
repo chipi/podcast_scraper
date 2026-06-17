@@ -1,0 +1,18 @@
+id: autoresearch_prompt_vllm_moonlight_16b_a3b_dev_knowledge_graph_v1
+task: knowledge_graph
+backend:
+  type: openai
+  model: autoresearch
+  base_url: http://localhost:8003/v1
+  api_key_env: VLLM_API_KEY
+prompts:
+  system: ollama/qwen3.5_35b/summarization/system_v1
+  user: ollama/qwen3.5_35b/summarization/long_v1
+data:
+  dataset_id: curated_5feeds_dev_v1
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+  kg_extraction_src: summary_bullets
+preprocessing_profile: cleaning_v4

@@ -1,0 +1,31 @@
+# Silver Reference Candidate — Claude Opus 4.7 on dev_v1 dataset (#1016).
+#
+# Generated as a cross-vendor counterweight to silver_sonnet46_dev_v1_paragraph
+# for the #928 reframe per-stage eval (#1016 Phase 2b). Using a Sonnet-family
+# silver while Gemini-Flash-Lite is a candidate would create vendor bias —
+# the Sonnet judge would compare against its own family's output. The Opus
+# silver gives every candidate an apples-to-apples reference NOT in their
+# vendor family (Anthropic-Opus vs Anthropic-Sonnet judge is still in-family
+# but at a tier above; combined with cross-vendor judges GPT-5.4 and Gemini
+# 2.5 Pro the overall judging panel is balanced).
+
+id: "silver_candidate_anthropic_opus47_dev_v1_paragraph"
+task: "summarization"
+
+backend:
+  type: "anthropic"
+  model: "claude-opus-4-7"
+
+prompts:
+  system: "anthropic/summarization/system_v1"
+  user: "anthropic/summarization/long_v2"
+
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

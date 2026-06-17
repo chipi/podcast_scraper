@@ -1,0 +1,10 @@
+Summarize the podcast transcript below. Reply with ONLY a JSON object of the form: {"summary": "<your {{ paragraphs_min }}-{{ paragraphs_max }} paragraph third-person prose summary here>"}.
+
+No prose outside the JSON. No markdown. No explanation. Just the JSON object.
+
+{% if title %}
+Episode topic: {{ title }}
+{% endif %}
+
+Transcript:
+{{ transcript }}

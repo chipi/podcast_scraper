@@ -1,0 +1,33 @@
+# Phase 2b re-run — Qwen3.5-35B-A3B BF16 on vLLM, TIGHT length (3-5 paragraphs).
+#
+# The original v1 config used max_length=800, which through
+# paragraphs_max = max_length // 100 = 8 told the model to write up to
+# 8 paragraphs. The vLLM BF16 stack took the full budget (~3779 mean
+# chars, 4847 max), while Ollama Q4 of the same model produced ~2381
+# chars on the same prompt. Length over the spec dragged G-Eval coherence
+# / efficiency scores down.
+#
+# This v2 config drops max_length to 500 so paragraphs_max = 5; the model
+# is asked for 2-5 paragraphs, which other vLLM candidates (Mistral,
+# Magistral) already respect. Apples-to-apples vs Ollama with comparable
+# length budget.
+id: "autoresearch_prompt_vllm_qwen3_5_35b_a3b_dev_paragraph_v2_tight"
+task: "summarization"
+backend:
+  type: "openai"
+  model: "autoresearch"
+  base_url: "http://localhost:8003/v1"
+  api_key_env: "VLLM_API_KEY"
+  extra_body:
+    chat_template_kwargs:
+      enable_thinking: false
+prompts:
+  system: "ollama/qwen3.5_35b/summarization/system_v1"
+  user: "ollama/qwen3.5_35b/summarization/long_v1"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  max_length: 500
+  min_length: 200
+  temperature: 0.0
+preprocessing_profile: "cleaning_v4"

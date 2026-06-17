@@ -1,0 +1,26 @@
+# Round 3 v4 — Kimi-Linear-48B-A3B-Instruct with Moonshot's documented
+# minimal system prompt + minimal user prompt.
+#
+# Hypothesis: the model may be sensitive to seeing the exact vendor-documented
+# system prompt ("You are a helpful assistant provided by Moonshot-AI.") and
+# stay in-distribution. Lowest-resistance configuration for an Instruct model
+# whose instruction-tuning we don't fully understand.
+#
+# Reference: autoresearch/MODEL_PLAYBOOK.md § "Kimi-Linear-48B-A3B-Instruct"
+id: "autoresearch_prompt_vllm_kimi_linear_48b_a3b_dev_paragraph_round3_v4_vendorsys"
+task: "summarization"
+backend:
+  type: "openai"
+  model: "autoresearch"
+  base_url: "http://localhost:8003/v1"
+  api_key_env: "VLLM_API_KEY"
+prompts:
+  system: "vllm/kimi_round3/system_v4_vendor"
+  user: "vllm/kimi_round3/user_v1_minimal"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+preprocessing_profile: "cleaning_v4"

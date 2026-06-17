@@ -24,7 +24,12 @@ logger = logging.getLogger(__name__)
 _DEFAULT_CLOUD_STRUCTURED_MIN_OUTPUT_TOKENS = 4096
 
 
-def cloud_structured_max_output_tokens(cfg: Any, requested: Optional[int]) -> int:
+def cloud_structured_max_output_tokens(
+    cfg: Any,
+    requested: Optional[int],
+    *,
+    structured: bool = True,
+) -> int:
     """Clamp requested max_output_tokens up to the cloud-LLM structured floor.
 
     Cloud LLMs emit proportionally larger structured JSON for longer transcripts
@@ -32,18 +37,34 @@ def cloud_structured_max_output_tokens(cfg: Any, requested: Optional[int]) -> in
     default to cloud LLM calls causes mid-JSON truncation on long episodes
     (observed 2026-04-20 on Flightcast with Gemini 2.5-flash-lite).
 
+    The floor was originally enforced unconditionally at every cloud-provider
+    summarize() call site. That was wrong: only structured-JSON paths need the
+    floor; plain-text summary calls were also being silently clamped UP to
+    4096 tokens, which let Qwen models on vLLM produce ~4× over-spec output
+    and dragged judge scores in #1016 Phase 2b. From #1016 onward the floor
+    is gated on ``structured=True`` — plain-text paths bypass it.
+
     Args:
         cfg: Config object (reads ``cloud_llm_structured_min_output_tokens`` if set).
         requested: Caller-provided max_output_tokens (e.g. from
             params.max_length or cfg.summary_reduce_params.max_new_tokens).
+        structured: Whether the caller is requesting structured JSON output.
+            ``True`` (default) preserves the original Flightcast 2026-04-20
+            anti-truncation behavior for bundled / structured paths.
+            ``False`` bypasses the floor — required for plain-text summary
+            paths where the harness's max_length is the spec, not a lower
+            bound to a higher floor.
 
     Returns:
-        ``max(requested, cloud_llm_structured_min_output_tokens)``.
+        If ``structured=True``: ``max(requested, cloud_llm_structured_min_output_tokens)``.
+        If ``structured=False``: ``int(requested or 0)`` — no floor applied.
     """
+    current = int(requested or 0)
+    if not structured:
+        return current
     floor = getattr(cfg, "cloud_llm_structured_min_output_tokens", None) or (
         _DEFAULT_CLOUD_STRUCTURED_MIN_OUTPUT_TOKENS
     )
-    current = int(requested or 0)
     if current >= floor:
         return current
     if current > 0 and current < floor:

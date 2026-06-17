@@ -1,0 +1,47 @@
+# Round 3 v1 — DeepSeek-R1-0528-Qwen3-8B with vendor-correct configuration:
+# (a) NO system prompt (DeepSeek docs: "Avoid adding a system prompt; all
+#     instructions should be contained within the user prompt.")
+# (b) --reasoning-parser=deepseek_r1 added to vLLM compose flags so the
+#     server STRIPS the <think> block before returning content to the
+#     OpenAI API. No postprocessor needed — the API response's `content`
+#     field is post-think.
+# (c) max_tokens=800 — sufficient if the server-side parser actually does
+#     the work. If still overruns, fall back to round3_v2.
+#
+# COMPOSE FLAG REQUIRED ON SWAP-IN:
+#   - --reasoning-parser=deepseek_r1
+#
+# Reference: autoresearch/MODEL_PLAYBOOK.md § "DeepSeek-R1-0528-Qwen3-8B"
+id: "autoresearch_prompt_vllm_deepseek_r1_0528_qwen3_8b_dev_paragraph_round3_v1"
+task: "summarization"
+backend:
+  type: "openai"
+  model: "autoresearch"
+  base_url: "http://localhost:8003/v1"
+  api_key_env: "VLLM_API_KEY"
+  # SummarizationParams has NO top_p field — passing it in `params:` below
+  # would be silently dropped (pydantic default-ignore extras). Vendor's
+  # generation_config recommends top_p=0.95 for DeepSeek-R1-0528-Qwen3-8B.
+  # Routing it through extra_body merges it into every chat.completions
+  # request body as a top-level OpenAI-API field.
+  extra_body:
+    top_p: 0.95
+prompts:
+  # system: intentionally omitted — DeepSeek-R1 README explicitly says NO system prompt.
+  user: "vllm/r1_0528_qwen3_8b_round3/user_v1"
+  # vLLM 26.05-py3 emits raw byte-level BPE artifacts (`Ġ` for space, `Ċ`
+  # for newline) for DeepSeek-R1 family. Decoder is idempotent / safe.
+  postprocessor: "decode_r1_byte_level"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  # max_length bumped from 800→2048 (Round 3 v1→v2 lever per playbook).
+  # DSR1 produced a real summary at 800 but hit finish_reason=length; the
+  # model has a vendor-recommended output length of 32k+ for benchmarks
+  # and naturally writes longer than 800 tokens. 2048 is the apples-to-
+  # apples-as-possible compromise — still 4-5x the cohort max=500 but
+  # large enough for the model to finish naturally.
+  max_length: 4096
+  min_length: 200
+  temperature: 0.6
+preprocessing_profile: "cleaning_v4"

@@ -1,0 +1,33 @@
+# Phase 2b re-run — Qwen3-30B-A3B-Instruct-2507 BF16 on vLLM, TIGHT length.
+#
+# Same fix as the qwen3_5_35b_a3b_v2_tight config: drop max_length 800→500
+# so paragraphs_max=5 instead of 8, bringing output length in line with
+# spec and matching what Mistral/Magistral/Ollama-Qwen all generate.
+# Original v1 produced 4472 char mean (5470 max) — way over spec.
+id: "autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_paragraph_v2_tight"
+task: "summarization"
+backend:
+  type: "openai"
+  model: "autoresearch"
+  base_url: "http://localhost:8003/v1"
+  api_key_env: "VLLM_API_KEY"
+  extra_body:
+    chat_template_kwargs:
+      enable_thinking: false
+prompts:
+  system: "ollama/qwen3.5_35b/summarization/system_v1"
+  user: "ollama/qwen3.5_35b/summarization/long_v1"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  max_length: 500
+  min_length: 200
+  temperature: 0.0
+  # CRITICAL: bypass the cloud_structured_max_output_tokens floor (default
+  # 4096) that openai_provider applies. The floor was added for cloud LLM
+  # structured-JSON truncation prevention (#Flightcast 2026-04-20) but
+  # silently clamps plain-text summary max_tokens up to 4096 → defeats
+  # the entire point of asking for a short summary. Set this lower than
+  # max_length so the floor is satisfied without raising max_tokens.
+  cloud_llm_structured_min_output_tokens: 500
+preprocessing_profile: "cleaning_v4"

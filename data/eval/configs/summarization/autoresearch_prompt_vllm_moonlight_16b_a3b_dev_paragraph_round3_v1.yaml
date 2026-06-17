@@ -1,0 +1,35 @@
+# Round 3 v1 — Moonlight-16B-A3B-Instruct (Moonshot AI's representative,
+# substituting for Kimi-Linear-48B which was dropped after 3 boot failures
+# on GB10 unified mem — see MODEL_PLAYBOOK.md § Kimi-Linear-48B-A3B-Instruct).
+#
+# Vendor doc pass (2026-06-17):
+#   - No explicit sampling recommendations documented.
+#   - Generic chat template, "You are a helpful assistant provided by
+#     Moonshot-AI." example system prompt.
+#   - Architecture: same as DeepSeek-V3 (MoE).
+#   - Context: 8K (max_position_embeddings=8192).
+#   - Round 1 already passed at 8.8s/ep mean, 1674-char outputs.
+#
+# This Round 3 v1 confirms Round 1's result through the updated harness
+# (extra_body plumbing, postprocessor registry additions) so the Moonshot
+# row in the final landscape uses identical methodology to all other
+# Round 3 candidates.
+#
+# Reference: autoresearch/MODEL_PLAYBOOK.md § Round 3 plan, Priority 3
+id: "autoresearch_prompt_vllm_moonlight_16b_a3b_dev_paragraph_round3_v1"
+task: "summarization"
+backend:
+  type: "openai"
+  model: "autoresearch"
+  base_url: "http://localhost:8003/v1"
+  api_key_env: "VLLM_API_KEY"
+prompts:
+  system: "ollama/qwen3.5_35b/summarization/system_v1"
+  user: "ollama/qwen3.5_35b/summarization/long_v1"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+preprocessing_profile: "cleaning_v4"

@@ -53,6 +53,41 @@ class TestCloudStructuredMaxOutputTokens:
         assert cloud_structured_max_output_tokens(cfg, 650) == 8192
         assert cloud_structured_max_output_tokens(cfg, 16384) == 16384
 
+    # --- #1016 Phase 2b: structured=False bypasses the floor for
+    # plain-text summary paths. Added because the floor was silently
+    # clamping plain-text vLLM summary max_tokens up to 4096, which
+    # let Qwen models produce 4× over-spec output and dragged judge
+    # scores in #1016 Phase 2b.
+
+    def test_structured_false_bypasses_floor(self):
+        cfg = MagicMock()
+        cfg.cloud_llm_structured_min_output_tokens = 4096
+        assert cloud_structured_max_output_tokens(cfg, 500, structured=False) == 500
+
+    def test_structured_false_with_zero_returns_zero(self):
+        cfg = MagicMock()
+        cfg.cloud_llm_structured_min_output_tokens = 4096
+        assert cloud_structured_max_output_tokens(cfg, 0, structured=False) == 0
+
+    def test_structured_false_with_none_returns_zero(self):
+        cfg = MagicMock()
+        cfg.cloud_llm_structured_min_output_tokens = 4096
+        assert cloud_structured_max_output_tokens(cfg, None, structured=False) == 0
+
+    def test_structured_false_with_larger_request_preserves_value(self):
+        cfg = MagicMock()
+        cfg.cloud_llm_structured_min_output_tokens = 4096
+        assert cloud_structured_max_output_tokens(cfg, 8192, structured=False) == 8192
+
+    def test_structured_true_default_still_applies_floor(self):
+        """Backwards-compat: existing callers without structured=False kwarg
+        still get the floor (Flightcast 2026-04-20 behavior preserved for
+        bundled / structured-JSON paths)."""
+        cfg = MagicMock()
+        cfg.cloud_llm_structured_min_output_tokens = 4096
+        assert cloud_structured_max_output_tokens(cfg, 500) == 4096
+        assert cloud_structured_max_output_tokens(cfg, 500, structured=True) == 4096
+
 
 class TestWarnIfOutputTruncated:
     def test_warns_on_max_tokens_finish_reason(self, caplog):

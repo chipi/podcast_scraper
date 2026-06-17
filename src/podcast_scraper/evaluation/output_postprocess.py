@@ -90,10 +90,43 @@ def strip_r1_reasoning_and_decode(text: str) -> str:
     return decode_r1_byte_level(strip_r1_reasoning(text))
 
 
+def extract_json_summary_field(text: str) -> str:
+    """Extract the ``summary`` field from a JSON-mode response.
+
+    Used with prompts that ask the model to emit ``{"summary": "..."}``
+    (e.g. Kimi-Linear Round 3 v3_json — JSON mode side-steps the model's
+    refusal + task-narration failure modes by forcing structure).
+
+    Behavior:
+
+    - Strips a single leading ```json fenced block if present.
+    - Parses the JSON object and returns the value of ``summary``.
+    - On any parse/lookup failure, returns the original text unchanged so
+      the eval scorer + manual inspection see what the model actually
+      emitted (don't silently lose the raw output).
+    """
+    import json
+    import re
+
+    candidate = text.strip()
+    # Strip a fenced code block if the model decided to be helpful.
+    fenced = re.match(r"^```(?:json)?\s*(.*?)\s*```$", candidate, re.DOTALL)
+    if fenced:
+        candidate = fenced.group(1).strip()
+    try:
+        obj = json.loads(candidate)
+        if isinstance(obj, dict) and isinstance(obj.get("summary"), str):
+            return obj["summary"]
+    except (json.JSONDecodeError, ValueError):
+        pass
+    return text
+
+
 REGISTRY: Dict[str, Callable[[str], str]] = {
     "strip_r1_reasoning": strip_r1_reasoning,
     "strip_r1_reasoning_and_decode": strip_r1_reasoning_and_decode,
     "decode_r1_byte_level": decode_r1_byte_level,
+    "extract_json_summary_field": extract_json_summary_field,
     "noop": noop,
 }
 
