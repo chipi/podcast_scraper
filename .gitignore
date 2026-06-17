@@ -54,6 +54,12 @@ metrics/index.html
 # Ad-hoc experiment batch log (machine-local; regenerate from your runs if needed)
 docs/wip/_batch_experiment_log.txt
 
+# Agent journal — persistent, machine-local working notes (plans/approaches/logs/
+# decisions) that survive a session clear. Ignore all entries; keep only the README
+# that documents the convention. See AGENTS.md → "Document location".
+.journal/*
+!.journal/README.md
+
 # Local unified dashboard preview (CI bundle + nightly from metrics/)
 artifacts/dashboard-preview/
 output/

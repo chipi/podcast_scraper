@@ -65,6 +65,21 @@ jobs:
           test -d "${RESTORE_ROOT}/corpus"
           echo "corpus_bytes=$(du -sb "${RESTORE_ROOT}/corpus" | awk '{print $1}')" >> "$GITHUB_ENV"
 
+      - name: Verify restored episode count (#877)
+        run: |
+          set -euo pipefail
+          # Stdlib-only checker (no app deps): distinct (feed,episode) across ALL run dirs
+          # vs the app's latest-run-only view. Guards against a snapshot that silently drops
+          # episodes (and surfaces the run-scatter that #877 mistook for data loss).
+          OUT="$(python3 scripts/ops/corpus_snapshot/count_distinct_episodes.py \
+            "${RESTORE_ROOT}/corpus" --json)"
+          echo "episode counts: $OUT"
+          DISTINCT="$(python3 -c 'import json,sys;print(json.loads(sys.argv[1])["distinct"])' "$OUT")"
+          if [ "$DISTINCT" -lt 1 ]; then
+            echo "::error::restored corpus has 0 episodes — backup/restore is broken"
+            exit 1
+          fi
+
       - name: Write ephemeral compose env
         run: |
           set -euo pipefail

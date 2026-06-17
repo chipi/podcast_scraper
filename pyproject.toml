@@ -81,9 +81,12 @@ ml = [
   # GIL evidence stack: SentenceTransformer + CrossEncoder (NLI); Docker .[ml] preload
   # v3+ CrossEncoder: pass local_files_only on constructor, not inside tokenizer/automodel kwargs
   "sentence-transformers>=5.4.1,<6.0.0",
-  # Semantic corpus search (PRD-021 / RFC-061 / RFC-090): embedded two-tier vector +
-  # native FTS (BM25) store — the single search backend since FAISS was retired (#995).
-  "lancedb>=0.33.0,<1.0.0",
+  # NOTE: lancedb is intentionally NOT here — it is search-only (used solely under
+  # ``search/`` + the index-rebuild route + upgrade migration, never by transcription /
+  # summarization / GI). It lives in [search]; an ML pipeline that also indexes composes
+  # ``.[ml,search]``. The torch/transformers/sentence-transformers/sentencepiece/protobuf
+  # overlap with [search] above is genuine — both ML (whisper, summarization, GI grounding +
+  # NLI) and search (embeddings) import them — not a subset relationship (#1019).
   "accelerate>=1.13.0,<2.0.0",
   "protobuf>=3.20.0,!=6.33.4,<8.0.0",  # Exclude 6.33.4 due to CVE-2026-0994 (fixed in 6.33.5+)
   # GGUF in-process inference for hybrid_ml Tier 2 REDUCE (RFC-042, Issue #352); Ollama needs no extra
@@ -134,7 +137,10 @@ monitor = [
   "py-spy>=0.4.2",
   "memray>=1.19.3",
 ]
-# Development tools plus GI/KG viewer HTTP stack (FastAPI, RFC-062) — same pins as docker/api/Dockerfile
+# Development tools plus GI/KG viewer HTTP stack (FastAPI, RFC-062). The server-runtime pins
+# (fastapi/uvicorn/prometheus-fastapi-instrumentator/apscheduler) are mirrored by
+# docker/api/Dockerfile, which installs them directly rather than via ``.[dev]`` (to keep
+# pytest/black/etc out of the production image). KEEP THE TWO IN SYNC — they drifted once (#1019).
 dev = [
   "fastapi>=0.115.0,<1.0.0",
   # Generic MCP server (PRD-034 / RFC-095) — a core dev/server capability, not a separate

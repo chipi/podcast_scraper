@@ -164,15 +164,13 @@ class TestMLProviderSpeakerDetectionViaFactory(unittest.TestCase):
         self.assertEqual(result, {"John Doe"})
         mock_detect_hosts.assert_called_once()
 
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.analyze_episode_patterns")
     @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
-    def test_detector_analyze_patterns(self, mock_get_model, mock_analyze):
-        """Test that analyze_patterns() calls analyze_episode_patterns()."""
+    def test_detector_analyze_patterns(self, mock_get_model):
+        """analyze_patterns() returns empty heuristics (#598 removed learner) and caches them."""
         # Use factory instead of direct import
 
         mock_nlp = Mock()
         mock_get_model.return_value = mock_nlp
-        mock_analyze.return_value = {"title_position_preference": "end"}
 
         detector = create_speaker_detector(self.cfg)
         detector.initialize()
@@ -197,11 +195,9 @@ class TestMLProviderSpeakerDetectionViaFactory(unittest.TestCase):
 
         result = detector.analyze_patterns(episodes=episodes, known_hosts={"Host"})
 
-        self.assertIsNotNone(result)
-        self.assertEqual(result.get("title_position_preference"), "end")
-        # Verify heuristics are cached
+        self.assertEqual(result, {})
+        # Heuristics are cached on the detector for detect_speakers().
         self.assertEqual(detector.heuristics, result)
-        mock_analyze.assert_called_once()
 
     def test_detector_analyze_patterns_no_model(self):
         """Test that analyze_patterns() raises RuntimeError if auto_speakers is False."""

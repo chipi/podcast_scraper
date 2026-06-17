@@ -3052,6 +3052,18 @@ class Config(BaseModel):
             "viewer playback (Wave 3)."
         ),
     )
+    corpus_media_link_mode: Literal["copy", "hardlink", "symlink"] = Field(
+        default="copy",
+        alias="corpus_media_link_mode",
+        description=(
+            "How persisted corpus ``media/`` audio is placed (G6). ``copy`` (default) is a "
+            "full copy. ``hardlink``/``symlink`` link the corpus file to the retained #947 "
+            "GUID audio-cache entry instead, halving on-disk audio footprint when the cache "
+            "is on the same filesystem (e.g. ``audio_cache_in_corpus=True``); both fall back "
+            "to a copy when linking is unavailable (cross-filesystem, cache miss, or a "
+            "symlink target outside the corpus that viewer playback would reject)."
+        ),
+    )
     commercial_confidence_threshold: float = Field(
         default=0.65,
         ge=0.0,

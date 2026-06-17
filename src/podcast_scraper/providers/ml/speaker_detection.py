@@ -43,7 +43,6 @@ from ...speaker_detectors.normalization import (
     filter_default_speaker_names,
     is_default_speaker_name,
 )
-from ...speaker_detectors.patterns import analyze_episode_patterns
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +63,6 @@ def extract_person_entities(text: str, nlp: Any) -> list[tuple[str, float]]:
 
 
 __all__ = [
-    "analyze_episode_patterns",
     "DEFAULT_CONFIDENCE_SCORE",
     "DEFAULT_SAMPLE_SIZE",
     "DEFAULT_SPEAKER_NAMES",

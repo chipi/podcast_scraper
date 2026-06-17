@@ -98,8 +98,9 @@ RUN --mount=type=cache,target=/root/.cache/pip \
         # libtorchcodec_core*.so link CUDA in the default (PyPI) wheels and fail to load on this
         # CPU image with "libnvrtc.so.13: cannot open shared object file".
         pip install torch torchaudio torchcodec --index-url https://download.pytorch.org/whl/cpu && \
-        # Install core + ML dependencies
-        pip install .[ml] && \
+        # Install core + ML deps, plus [search] (lancedb): the pipeline image runs corpus
+        # upgrade/migrations which build the LanceDB index, and lancedb is search-only (#1019).
+        pip install '.[ml,search]' && \
         pip uninstall -y podcast-scraper && \
         # `.[ml]` pulls CUDA-linked torch/torchaudio/torchcodec from PyPI; force the whole stack back
         # to the CPU builds so torchcodec loads against the system FFmpeg (not CUDA/libnvrtc). Installing

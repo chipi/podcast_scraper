@@ -292,6 +292,53 @@ describe('TranscriptViewerDialog', () => {
     expect(w.find('[data-testid="transcript-viewer-audio"]').exists()).toBe(false)
   })
 
+  it('I5: timeline rows become seek buttons that seek the player when audio is present', async () => {
+    installFetchRouter({
+      transcript: mockResponse({ ok: true, body: 'body text' }),
+      audioHead: mockResponse({ ok: true, status: 200 }),
+      segments: mockResponse({
+        ok: true,
+        body: JSON.stringify([
+          { start: 0, end: 1.5, text: 'first' },
+          { start: 1.5, end: 3, text: 'second' },
+        ]),
+      }),
+    })
+    const w = mountDialog()
+    await exposed(w).open(basePayload())
+    await settle(w)
+    const seekBtn = w.find('[data-testid="transcript-viewer-timeline-seek-1"]')
+    expect(seekBtn.exists()).toBe(true)
+    expect(seekBtn.attributes('aria-label')).toContain('Play from')
+    const audio = w.get('[data-testid="transcript-viewer-audio"]').element as HTMLAudioElement
+    let seeked = 0
+    Object.defineProperty(audio, 'currentTime', {
+      configurable: true,
+      get: () => seeked,
+      set: (v: number) => {
+        seeked = v
+      },
+    })
+    await seekBtn.trigger('click')
+    expect(seeked).toBe(1.5) // segment 1 startSec 1.5 → seekToMs(1500) → currentTime 1.5s
+  })
+
+  it('I5: timeline rows are non-interactive text when no audio is available', async () => {
+    installFetchRouter({
+      transcript: mockResponse({ ok: true, body: 'body text' }),
+      audioHead: mockResponse({ ok: false, status: 404 }),
+      segments: mockResponse({
+        ok: true,
+        body: JSON.stringify([{ start: 0, end: 1.5, text: 'first' }]),
+      }),
+    })
+    const w = mountDialog()
+    await exposed(w).open(basePayload())
+    await settle(w)
+    expect(w.find('[data-testid="transcript-viewer-timeline"]').exists()).toBe(true)
+    expect(w.find('[data-testid="transcript-viewer-timeline-seek-0"]').exists()).toBe(false)
+  })
+
   it('closes via the Close button and stops dialog.open', async () => {
     installFetchRouter({ transcript: mockResponse({ ok: true, body: 'b' }) })
     const w = mountDialog()

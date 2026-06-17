@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fetchTopicPersons, fetchTopicTimeline, fetchTopicTimelineMerged } from './cilApi'
+import {
+  fetchPersonProfile,
+  fetchTopicPersons,
+  fetchTopicTimeline,
+  fetchTopicTimelineMerged,
+} from './cilApi'
 
 describe('cilApi', () => {
   afterEach(() => {
@@ -229,5 +234,66 @@ describe('cilApi', () => {
     )
     const body = await fetchTopicPersons('/root', 'topic:x')
     expect(body.ids).toEqual(['person:a'])
+  })
+
+  // #909 — corpus-wide person profile (/api/persons/{id}/brief)
+  it('fetchPersonProfile GETs encoded person id + path and parses quotes', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        expect(url).toContain('/api/persons/')
+        expect(url).toContain(encodeURIComponent('person:satya-nadella'))
+        expect(url).toContain('/brief?')
+        expect(url).toContain('path=%2Fcorpus')
+        return {
+          ok: true,
+          json: async () => ({
+            path: '/corpus',
+            person_id: 'person:satya-nadella',
+            topics: {},
+            quotes: [
+              { episode_id: 'ep1', quote: { id: 'q1', properties: { text: 'hello' } } },
+              { episode_id: 'ep2', quote: { id: 'q2', properties: { text: 'world' } } },
+            ],
+          }),
+        }
+      }) as unknown as typeof fetch,
+    )
+    const body = await fetchPersonProfile('/corpus', 'person:satya-nadella')
+    expect(body.quotes).toHaveLength(2)
+    expect(body.quotes[0].episode_id).toBe('ep1')
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1)
+  })
+
+  it('fetchPersonProfile throws when corpus path empty', async () => {
+    await expect(fetchPersonProfile('   ', 'person:x')).rejects.toThrow(/Corpus path/)
+  })
+
+  it('fetchPersonProfile throws when person id empty', async () => {
+    await expect(fetchPersonProfile('/c', '   ')).rejects.toThrow(/Person id/)
+  })
+
+  it('fetchPersonProfile propagates body text on non-OK', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: false,
+        status: 500,
+        text: async () => '  profile boom  ',
+      })) as unknown as typeof fetch,
+    )
+    await expect(fetchPersonProfile('/c', 'person:x')).rejects.toThrow('profile boom')
+  })
+
+  it('fetchPersonProfile falls back to HTTP status when body empty', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: false,
+        status: 404,
+        text: async () => '',
+      })) as unknown as typeof fetch,
+    )
+    await expect(fetchPersonProfile('/c', 'person:x')).rejects.toThrow('HTTP 404')
   })
 })

@@ -4,6 +4,11 @@
  * a Profile / Positions tab pair: Profile holds basic identity info +
  * mentions timeline; Positions lists ``SPOKEN_BY`` quotes attributed to
  * this person with episode context.
+ *
+ * #909 — the Positions tab also surfaces an "Across the corpus" section: the
+ * person's quotes across ALL episodes (from the CIL ``person_profile`` endpoint),
+ * not just the episodes currently merged into the loaded graph. This is the
+ * corpus-wide "what X said across episodes" payoff of the #875/#876 diarization work.
  */
 import { computed, ref, watch } from 'vue'
 import type { RawGraphNode } from '../../types/artifact'
@@ -11,6 +16,7 @@ import { useArtifactsStore } from '../../stores/artifacts'
 import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
 import { fetchPositions, type RelatedNode } from '../../api/relationalApi'
+import { fetchPersonProfile } from '../../api/cilApi'
 import { StaleGeneration } from '../../utils/staleGeneration'
 import {
   countPersonEntityIncidentEdges,
@@ -105,6 +111,69 @@ watch(
   (id) => void loadStatedPositions(id ?? ''),
   { immediate: true },
 )
+
+/**
+ * #909 — corpus-wide quotes this person spoke across ALL episodes, from the CIL
+ * ``person_profile`` endpoint (``GET /api/persons/{id}/brief``). Unlike ``positionRows``
+ * below (which only sees the loaded/merged graph), this resolves the person across the
+ * whole corpus (incl. #852 name variants). Async, skeleton-first, stale-gated; renders
+ * only when an API corpus is connected (no-op in local-file mode).
+ */
+interface CorpusQuoteRow {
+  id: string
+  text: string
+  episodeId: string | null
+}
+const corpusLoading = ref(false)
+const corpusError = ref<string | null>(null)
+const corpusQuotes = ref<CorpusQuoteRow[]>([])
+const corpusGate = new StaleGeneration()
+
+const corpusEpisodeCount = computed(() => {
+  const eps = new Set<string>()
+  for (const q of corpusQuotes.value) if (q.episodeId) eps.add(q.episodeId)
+  return eps.size
+})
+
+async function loadCorpusQuotes(rawId: string): Promise<void> {
+  const id = rawId.trim()
+  const root = shell.corpusPath?.trim()
+  if (!id || !root || !shell.healthStatus) {
+    corpusQuotes.value = []
+    corpusError.value = null
+    return
+  }
+  const seq = corpusGate.bump()
+  corpusLoading.value = true
+  corpusQuotes.value = []
+  corpusError.value = null
+  try {
+    const body = await fetchPersonProfile(root, id)
+    if (corpusGate.isStale(seq)) return
+    const rows: CorpusQuoteRow[] = []
+    const seen = new Set<string>()
+    for (const r of body.quotes ?? []) {
+      const node = r?.quote as Record<string, unknown> | undefined
+      const qid = node && node.id != null ? String(node.id) : ''
+      if (!qid || seen.has(qid)) continue
+      seen.add(qid)
+      const p = node?.properties as Record<string, unknown> | undefined
+      const text = typeof p?.text === 'string' ? p.text.trim() : ''
+      const episodeId =
+        typeof r.episode_id === 'string' && r.episode_id.trim() ? r.episode_id.trim() : null
+      rows.push({ id: qid, text, episodeId })
+    }
+    corpusQuotes.value = rows
+  } catch (e) {
+    if (corpusGate.isStale(seq)) return
+    corpusError.value = e instanceof Error ? e.message : String(e)
+    corpusQuotes.value = []
+  } finally {
+    if (corpusGate.isCurrent(seq)) corpusLoading.value = false
+  }
+}
+
+watch(personId, (id) => void loadCorpusQuotes(id ?? ''), { immediate: true })
 
 const personName = computed(() => {
   const n = personNode.value
@@ -342,6 +411,60 @@ function onPrefillSearch(): void {
       data-testid="person-landing-panel-positions"
       class="min-h-0 flex-1 space-y-2 overflow-y-auto px-1 py-2"
     >
+      <!-- #909 — corpus-wide quotes this person spoke across ALL episodes (CIL person_profile). -->
+      <section
+        v-if="corpusLoading || corpusError || corpusQuotes.length"
+        aria-label="Across the corpus"
+        data-testid="person-landing-corpus"
+      >
+        <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+          Across the corpus<span v-if="corpusEpisodeCount">
+            · {{ corpusEpisodeCount }} episode{{ corpusEpisodeCount === 1 ? '' : 's' }}</span>
+        </h3>
+        <p
+          v-if="corpusLoading"
+          data-testid="person-landing-corpus-loading"
+          class="text-[11px] text-muted"
+        >
+          Loading…
+        </p>
+        <p
+          v-else-if="corpusError"
+          class="text-[11px] text-warning"
+        >
+          {{ corpusError }}
+        </p>
+        <ul
+          v-else
+          class="space-y-1.5"
+          data-testid="person-landing-corpus-list"
+        >
+          <li
+            v-for="row in corpusQuotes.slice(0, PERSON_LANDING_POSITIONS_CAP)"
+            :key="row.id"
+            data-testid="person-landing-corpus-row"
+            class="rounded border border-border bg-elevated/40 px-2 py-1.5 text-[11px] leading-snug"
+          >
+            <blockquote class="border-l-2 border-primary/40 pl-2 text-surface-foreground">
+              {{ row.text || row.id }}
+            </blockquote>
+            <p
+              v-if="row.episodeId"
+              class="mt-0.5 text-[10px] text-muted"
+            >
+              {{ row.episodeId }}
+            </p>
+          </li>
+        </ul>
+        <p
+          v-if="corpusQuotes.length > PERSON_LANDING_POSITIONS_CAP"
+          class="text-[10px] text-muted"
+          data-testid="person-landing-corpus-overflow"
+        >
+          + {{ corpusQuotes.length - PERSON_LANDING_POSITIONS_CAP }} more
+        </p>
+      </section>
+
       <!-- PRD-033 FR4.1 — synthesized positions this person stated (relational layer). -->
       <section
         v-if="statedLoading || statedError || statedRows.length"

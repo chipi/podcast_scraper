@@ -16,16 +16,9 @@ WIP file is removed.
 
 | File | Description | Status |
 | ---- | ----------- | ------ |
-| `967-interaction-cost-trace.md` | #967 live devtools trace: fcose removed the layout wall; pan/zoom FPS vs node count → cap=50 is the smooth ceiling. Plus a side finding (FAISS-fallback segfault on a legacy-schema corpus) | Active |
-| `POST-MIGRATION-GRAPH-VALIDATION-967-974-876.md` | Post-migration graph validation on re-diarized prod-v2: 2 bugs found+fixed (focus reconciliation, prefix-tolerant rail), Tier-3 data scan (offset 1.0, SPOKEN_BY, adfree) + test tiers all green, open findings | Active |
 | `DASHBOARD-PERF-ANALYSIS-digest-99ep.md` | Dashboard perf root-cause: `corpus/digest` runs ~6 sequential topic-band semantic searches (4.6s, no cache); ranked options (parallelise + cache + lazy-load) + cold-init segfault caveat | Active |
-| `BATCH-PLAN-diarization-followups.md` | Plan for the `feat/diarization-followups` PR (#875/#876/#909 + coverage debt + graph-validation phase) | Active |
-| `SPOKEN_BY-REPROCESS-876.md` | Runbook for the corpus-wide `SPOKEN_BY` re-diarize reprocess (#876); see `make redo-diarization` (#925) | Active |
 | `RUNBOOK-876-corpus-rediarization.md` | #876 DGX re-diarization operational runbook (health gate → pilot → backup → full run → rollback); gated on #944 | Ready |
-| `REHEARSAL-876-findings-20260609.md` | #876 runbook rehearsal findings: fixed DGX per-feed config drop + built strict existing-only migration mode (#946) | Active |
 | `MULTI-USER-AND-GRAPH-FSM-ANALYSIS.md` | Multi-user/FSM analysis + graph-viewer diarization-support gaps | Backlog |
-| `COVERAGE-DEBT-deepgram-diarization-pr908.md` | Coverage gaps from PR #908 to clear in the next batch | Backlog |
-| `AUDIO-WAVES-HARDENING-AUDIT.md` | Review findings + change list for audio Waves 1–3 (#850/#895/#898) | Backlog |
 | `AUTORESEARCH_LEARNINGS_FOR_V3.md` | Rolling failure-mode catalogue from #907 children — spec input for v3 (#921) | Reference |
 | `AUTORESEARCH_NEXT_PHASE_AGENT_PLAN.md` | 3-phase 2-agent parallelization plan for post-v2.1 autoresearch work | Reference |
 | `AUTORESEARCH_NEXT_PHASE_DEPENDENCIES.md` | Dependency map across #907 next-phase open issues (#921/#924/#927/#928-31/#932/#933/#923) | Reference |
@@ -55,6 +48,13 @@ WIP file is removed.
 
 ## Recent cleanups
 
+- **2026-06-16** — Removed 11 notes for shipped/closed work: `APPROACH-913-909-964-993.md`,
+  `AUDIO-WAVES-HARDENING-AUDIT.md` (#964 done; #913/#400 closed), `967-interaction-cost-trace.md`,
+  `974-adfree-validation.md`, `POST-MIGRATION-GRAPH-VALIDATION-967-974-876.md` (#967/#974 in #1010),
+  `DEP-EXTRAS-SEPARATION-1019-SCOPE.md` (#1019), `BATCH-PLAN-diarization-followups.md`,
+  `SPOKEN_BY-REPROCESS-876.md`, `REHEARSAL-876-findings-20260609.md`,
+  `NEXT_SESSION_HANDOFF-feat-946.md` (#876/#946 done), `COVERAGE-DEBT-deepgram-diarization-pr908.md`
+  (PR #908). Working notes now live in the git-ignored `.journal/` (see AGENTS.md → Document location).
 - **2026-05-22** — Removed `GRAPH_NAVIGATION_HANDOFF_ANALYSIS.md`; superseded by
   shipped graph handoff orchestrator ([ADR-094](../adr/ADR-094-graph-handoff-orchestrator-fsm.md),
   [RFC-085](../rfc/RFC-085-graph-handoff-orchestrator-retrospective.md)).

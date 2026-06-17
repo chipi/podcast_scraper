@@ -53,6 +53,7 @@ kg_max_topics: 10
 kg_max_entities: 15
 
 vector_search: true
+vector_embedding_provider: sentence_transformers  # explicit (preprod mirrors prod; matches all search-on profiles)
 llm_circuit_breaker_enabled: true
 
 generate_metadata: true

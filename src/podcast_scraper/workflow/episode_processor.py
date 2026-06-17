@@ -640,20 +640,51 @@ def _check_and_reuse_existing_transcript(
     return None
 
 
+def _resolve_audio_cache_entry(
+    cfg: config.Config, effective_output_dir: str, episode: Any
+) -> Optional[str]:
+    """Retained #947 GUID audio-cache path for this episode (G6 hardlink source), or None."""
+    try:
+        from ..rss import extract_item_guid
+        from ..utils import audio_cache
+
+        item = getattr(episode, "item", None)
+        guid = extract_item_guid(item) if item is not None else None
+        if not guid:
+            return None
+        cache_root = audio_cache.resolve_cache_root(cfg, effective_output_dir)
+        return audio_cache.lookup_by_guid(cache_root, guid)
+    except Exception:  # best-effort optimisation; never block persistence
+        return None
+
+
 def _maybe_persist_episode_media(
     cfg: config.Config,
     temp_media: str,
     effective_output_dir: str,
     transcript_relpath: Optional[str],
+    episode: Any = None,
 ) -> None:
-    """Copy temp media into corpus ``media/`` when enabled."""
+    """Persist temp media into corpus ``media/`` when enabled (copy, or G6 hard/sym-link)."""
     if not getattr(cfg, "persist_episode_media", True):
         return
     if not transcript_relpath or not temp_media or not os.path.exists(temp_media):
         return
     from ..utils.corpus_media import persist_episode_media
 
-    persist_episode_media(temp_media, effective_output_dir, transcript_relpath)
+    link_mode = getattr(cfg, "corpus_media_link_mode", "copy") or "copy"
+    link_source = (
+        _resolve_audio_cache_entry(cfg, effective_output_dir, episode)
+        if link_mode in ("hardlink", "symlink") and episode is not None
+        else None
+    )
+    persist_episode_media(
+        temp_media,
+        effective_output_dir,
+        transcript_relpath,
+        link_source=link_source,
+        link_mode=link_mode,
+    )
 
 
 def _check_transcript_cache(
@@ -713,7 +744,9 @@ def _check_transcript_cache(
             _maybe_produce_adfree(
                 cfg, cached_transcript, cached_segments, rel_path, effective_output_dir
             )
-        _maybe_persist_episode_media(cfg, temp_media, effective_output_dir, rel_path)
+        _maybe_persist_episode_media(
+            cfg, temp_media, effective_output_dir, rel_path, episode=job.episode
+        )
         logger.info(
             "[%s] Transcript cache hit: global cache entry audio_hash=%s "
             "(no API transcribe; same file bytes can repeat across feeds in multi-feed) -> %s",
@@ -1576,7 +1609,9 @@ def transcribe_media_to_text(
             # #974: derive the ad-free processing-base sibling. Raw .txt left untouched.
             _maybe_produce_adfree(cfg, text, segments, rel_path, effective_output_dir)
 
-        _maybe_persist_episode_media(cfg, temp_media, effective_output_dir, rel_path)
+        _maybe_persist_episode_media(
+            cfg, temp_media, effective_output_dir, rel_path, episode=job.episode
+        )
 
         # Save transcript to cache for future use (enables fast multi-provider experimentation)
         _save_transcript_to_cache_if_needed(
