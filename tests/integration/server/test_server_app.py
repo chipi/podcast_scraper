@@ -29,6 +29,37 @@ def test_create_app_resolves_output_dir(tmp_path: Path) -> None:
     assert app.state.output_dir == tmp_path.resolve()
 
 
+def test_api_health_ok_with_metrics_enabled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression guard (#1029): /api/health must stay 200 with metrics ON.
+
+    The prod overlay sets ``PODCAST_METRICS_ENABLED=1``, which installs the
+    Prometheus instrumentator middleware. fastapi 0.137's internal
+    ``_IncludedRouter`` route type broke prometheus-fastapi-instrumentator
+    8.0.0's route-name resolution (``'_IncludedRouter' object has no attribute
+    'path'``) -> every request, including /api/health, 500'd, so the api never
+    became healthy and prod/DR-drill deploys were blocked. stack-test runs the
+    api metrics-OFF, so it never exercised this path; this test does. It runs
+    against the installed fastapi, so a future incompatible bump fails here at
+    PR time rather than at deploy time.
+    """
+    from prometheus_client import REGISTRY
+
+    monkeypatch.setenv("PODCAST_METRICS_ENABLED", "1")
+    # The instrumentator registers its collectors in the process-global default
+    # registry; unregister whatever this app adds so the test is safe to re-run
+    # and never collides with another metrics-on test ("Duplicated timeseries").
+    before = set(REGISTRY._collector_to_names)
+    try:
+        client = TestClient(create_app(tmp_path, static_dir=False))
+        assert client.get("/api/health").status_code == 200
+        assert client.get("/metrics").status_code == 200
+    finally:
+        for collector in set(REGISTRY._collector_to_names) - before:
+            REGISTRY.unregister(collector)
+
+
 def test_create_app_static_false_skips_mount() -> None:
     app = create_app(None, static_dir=False)
     names = [getattr(r, "name", None) for r in app.routes]
