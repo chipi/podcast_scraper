@@ -261,7 +261,8 @@ def main() -> int:
             weighted_rate += rate * t["silver"]
             weight_sum += t["silver"]
         print(
-            f"  {bucket}: silver={t['silver']} cand={t['candidate']} covered={t['covered']} ({rate:.0%}) sim={avg_sim:.3f}"
+            f"  {bucket}: silver={t['silver']} cand={t['candidate']} "
+            f"covered={t['covered']} ({rate:.0%}) sim={avg_sim:.3f}"
         )
     overall_rate = weighted_rate / weight_sum if weight_sum else 0.0
     overall_payload["overall_weighted_coverage_rate"] = overall_rate

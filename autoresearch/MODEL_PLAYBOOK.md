@@ -880,6 +880,12 @@ already documented for that vendor family.
   4.8s/ep** (vs Moonlight 9.0s, Llama-3.3 42.9s) but quality floor: bottom on
   every silver metric. Right candidate when GPU minute cost dominates summary
   quality.
+- **Phase 2c result** (2026-06-17): **GI/KG = 0% INVALID** due to harness
+  bug (task #111). Configured `postprocessor: decode_r1_byte_level` is
+  applied to summary text but NOT to GI/KG `node.label` fields. DSV2-Lite's
+  GI/KG node labels contain undecoded `Ġ` (space) and `Ċ` (newline) tokens,
+  collapsing embedding cosine similarity to ~0.09 (near-random). **Summary
+  path is fine — only GI/KG affected.** Fix + rerun is ~40 min total.
 - Cite: `https://huggingface.co/deepseek-ai/DeepSeek-V2-Lite-Chat`
 
 ### DeepSeek-R1-Distill-Qwen-32B (Jan 2025, reasoning)
@@ -990,6 +996,11 @@ already documented for that vendor family.
   quality, mid speed. Style-leaning-Sonnet but Δ is borderline noise (+2.1
   vs Qwen3.5's +3.6 or Gemma 4's +4.5). Reasonable choice when 14B dense
   fits budget constraints (smaller KV cache than MoE A3B family).
+- **Phase 2c result** (2026-06-17): GI vs Opus 30%, vs Sonnet 38%
+  (Δ = **+8 — LARGEST GI Sonnet-mimicry in cohort**). KG vs Opus 32% (R1/2
+  32%; no change). Summary borderline-neutral (+2.1) but GI heavily
+  Sonnet-leaning. Reinforces "**style is task-dependent**" finding from
+  Qwen3-30B-Instruct.
 
 ### Ministral-3-14B-Instruct-2512 — original notes (pre-Round 3)
 
@@ -1014,6 +1025,10 @@ already documented for that vendor family.
 - Cohort role: mid-pack quality, very consistent latency (cv=0.06 unmatched).
   Boot is slow (22 min — multimodal vision shards). Reasonable per-stage summary
   candidate if speed is acceptable.
+- **Phase 2c result** (2026-06-17): **GI vs Opus 41% — STAGE WINNER** (R1/2
+  was 45%; dropped 4pts but still leads). KG vs Opus 27% (R1/2 29%; small).
+  KG Δ S−O = +6 (Sonnet-lean) consistent with summary's +4.5 mimicry.
+  **Per-stage Round 3 GI winner**; cross-vendor judging mandatory.
 - Other notes below pre-date Round 3:
 
 - HF: `google/gemma-4-26B-A4B-it` — 51.6 GB BF16
@@ -1056,6 +1071,13 @@ already documented for that vendor family.
   below smaller BF16 MoE candidates (Moonlight 16B, Qwen3.5 35B-A3B). NOT
   top-dog material at this quant; BF16 70B doesn't fit GB10. See #1022 for
   potential quant retuning.
+- **Phase 2c result** (2026-06-17): **WORST IN COHORT** on extraction. GI
+  vs Opus 16% (cohort floor, tied with Moonlight). KG vs Opus 20% (sole
+  cohort floor). Throughput-bound: 5 tok/s (cohort avg 25), TPOT 200ms
+  (cohort avg 50ms), TTFT 500ms. NVFP4 quant tax brutal on structured
+  extraction. KV cache peak only 2.5% — massive memory headroom unused,
+  suggests `--max-num-batched-tokens` >4096 + prefix caching could help.
+  **Drop or quant-retune for #1022 follow-up.**
 - Cite: `https://huggingface.co/RedHatAI/Llama-3.3-70B-Instruct-NVFP4`
 
 ---
@@ -1081,6 +1103,13 @@ already documented for that vendor family.
   candidate: top-3 quality + cohort speed leader (after DSV2-Lite). Weak GI/KG
   (Round 1 bottom) — top-dog material for summary-only, not autoresearch
   full-stack.
+- **Phase 2c result** (2026-06-17): GI vs Opus 16% (R1/2 19%; smallest cohort
+  drop). KG vs Opus 29% (R1/2 29% — **PERFECT stability**, only cohort
+  candidate with no drop). **30% entity coverage** (rare in cohort — only
+  Moonlight + Qwen3-30B emit entities at all). Δ S−O across all 3 stages
+  is [−2, 0] — **truly style-neutral**. **Best safe pick for cross-vendor
+  judging contexts** where Qwen3.5/Gemma 4's +3.6 to +4.5 Sonnet-mimicry
+  would create methodological doubt.
 
 ### Kimi-Linear-48B-A3B-Instruct (Oct 2025, novel linear-attention MoE)
 
@@ -1163,6 +1192,13 @@ already documented for that vendor family.
 - **Cohort role**: mid-pack quality; vendor sampling clearly **leans Sonnet
   style** (Δ=+4.4 ROUGE-1). Speed competitive, consistency excellent. NOT
   the per-stage summary winner but a defensible balanced candidate.
+- **Phase 2c result** (2026-06-17): GI vs Opus 36% (R1/2 38%; small drop).
+  KG vs Opus **35% (IMPROVED +4pts vs R1/2's 31%)** — sole candidate where
+  Round 3 helped extraction. Mechanism: 2507 over-produces topic candidates
+  (190 vs cohort 110), so vendor sampling's diversity helps coverage. KG
+  Δ S−O = **−9** (Opus-leaning on KG) even though summary is +4.4 Sonnet.
+  **Sonnet-mimicry is task-dependent, not model-dependent** — important
+  methodology finding ([[silver_judge_vendor_bias]]).
 
 ### Qwen3.5-35B-A3B (early 2026, MoE 3B-active, multimodal-capable)
 
@@ -1188,6 +1224,13 @@ already documented for that vendor family.
   reveals its full quality. **However, Sonnet-mimicry caveat applies**:
   cross-vendor judging required to validate the top-dog claim
   ([[silver_judge_vendor_bias]]).
+- **Phase 2c result** (2026-06-17): GI vs Opus 36% (R1/2 was 44% — DROPPED
+  8pts under vendor sampling). KG vs Opus 38% (R1/2 47% — DROPPED 9pts).
+  Confirms hypothesis: vendor sampling helps generative tasks, hurts
+  structured extraction. GI/KG Δ S−O both ~+1 (style-neutral on extraction,
+  despite +3.6 Sonnet-mimicry on summary). **Per-stage Round 3 winner**:
+  KG (38% leads cohort), summary (59.4%). **Top dog overall** with 2-of-3
+  stage wins.
 
 ---
 

@@ -1,0 +1,22 @@
+# Phase 2c Round 3 v1 — Moonlight-16B-A3B-Instruct Grounded Insights.
+# No vendor sampling docs; use temp=0.0 same as Round 3 Phase 2b.
+# Compose flag REQUIRED: --max-model-len=8192 (max_position_embeddings=8192).
+id: autoresearch_prompt_vllm_moonlight_16b_a3b_dev_grounded_insights_round3_v1
+task: grounded_insights
+backend:
+  type: openai
+  model: autoresearch
+  base_url: http://localhost:8003/v1
+  api_key_env: VLLM_API_KEY
+prompts:
+  system: ollama/qwen3.5_35b/summarization/system_v1
+  user: ollama/qwen3.5_35b/summarization/long_v1
+data:
+  dataset_id: curated_5feeds_dev_v1
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+  gi_insight_src: summary_bullets
+  gi_max_insights: 12
+preprocessing_profile: cleaning_v4

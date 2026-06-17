@@ -115,8 +115,10 @@ def extract_json_summary_field(text: str) -> str:
         candidate = fenced.group(1).strip()
     try:
         obj = json.loads(candidate)
-        if isinstance(obj, dict) and isinstance(obj.get("summary"), str):
-            return obj["summary"]
+        if isinstance(obj, dict):
+            summary = obj.get("summary")
+            if isinstance(summary, str):
+                return summary
     except (json.JSONDecodeError, ValueError):
         pass
     return text

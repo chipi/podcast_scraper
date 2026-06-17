@@ -141,8 +141,43 @@ Round 1/2 Phase 2c leaders (pre-Round 3, will likely shift with parser flag fix)
   (44%)
 - KG vs Opus silver leader (DGX): Qwen3.5-35B-A3B (47% — decisive)
 
-The same Sonnet-mimicry amplification effect likely applies — `--reasoning-parser=qwen3`
-+ vendor sampling may shift Qwen3.5's GI/KG numbers materially.
+### Round 3 Phase 2c outcome (COMPLETE, 2026-06-17)
+
+All 7 candidates' GI + KG inference + scoring done. **Full per-stage scorecard
+and analysis is in `EVAL_1016_FINAL_REPORT_2026_06_17.md` (same dir).**
+
+**Per-stage winners** at Round 3:
+
+- **Summary**: Qwen3.5-35B-A3B (59.4% ROUGE-1 Opus, 83.7% cosine, with `--reasoning-parser=qwen3`)
+- **GI**: Gemma-4-26B-A4B-it (41% coverage Opus)
+- **KG**: Qwen3.5-35B-A3B (38% weighted Opus); Qwen3-30B-Instruct-2507 surprise IMPROVED (+4 vs R1/2)
+
+**Top-dog**: Qwen3.5-35B-A3B leads 2 of 3 stages. Single-model deploy viable
+with Sonnet-mimicry caveat on summary requiring cross-vendor judge panel.
+
+**Operator's pre-Phase-2c hypothesis confirmed**:
+
+- Generative (summary): vendor sampling **improves** semantic alignment (+2.6 cos for Qwen3.5)
+- Extraction (GI/KG): vendor sampling **hurts** structured stability (−8/−9 for Qwen3.5)
+- **Exception**: Qwen3-30B-Instruct-2507 KG improved at R3 — its over-extraction (190 topics vs 110) benefits from sampling diversity
+- **Sonnet-mimicry is task-dependent** — Qwen3-30B summary +4.4 Sonnet-lean but KG −9 Opus-lean. Style is not a fixed model property.
+
+**Issues found during Phase 2c**:
+
+1. **DSV2-Lite GI/KG = 0% (harness bug, NOT model failure)** — BPE postprocessor
+   only applied to summary text path, not GI/KG `node.label` fields. Tasked
+   as #111; fix is ~30 min + rerun (10 min). Model fine for summary.
+2. **Entity coverage near-zero cohort-wide** — 5/7 produce 0 entity nodes.
+   Cohort-uniform prompt doesn't request entity extraction. Separate KG
+   re-experiment recommended with entity-focused prompt.
+
+**Operator decisions queued**:
+
+- Per-stage-per-model tuning OR top-dog single-mix deploy
+- G-Eval batch judging on Round 3 predictions (cloud judges, no DGX needed)
+- BPE postprocessor fix + DSV2-Lite rerun (#111)
+- Entity-focused KG re-experiment
+- #1022 vLLM tuning workstream (data collected in `PER_MODEL_OPTIMAL_PARAMS.md`)
 
 ---
 
