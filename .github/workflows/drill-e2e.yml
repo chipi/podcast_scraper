@@ -103,7 +103,13 @@ jobs:
       - name: "DR drill — smoke: post_deploy_smoke.sh (HTTPS + corpus path)"
         env:
           DRILL_FQDN: ${{ steps.ts_host.outputs.resolved_fqdn }}
-          SMOKE_CORPUS_PATH: /srv/podcast-scraper/corpus
+          # The /api/corpus/episodes ``path=`` is validated against the api's
+          # configured corpus root, which is the IN-CONTAINER path (CLI
+          # ``serve --output-dir /app/output``; PODCAST_DEFAULT_CORPUS_PATH=/app/output).
+          # The host path /srv/podcast-scraper/corpus is the bind-mount SOURCE and
+          # is rejected ("path must be the configured corpus root..."). deploy-prod.yml
+          # passes the in-container path the same way (--corpus-path $CONTAINER_CORPUS).
+          SMOKE_CORPUS_PATH: /app/output
         run: |
           set -euo pipefail
           bash scripts/ops/post_deploy_smoke.sh "$DRILL_FQDN" \
