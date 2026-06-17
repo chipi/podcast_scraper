@@ -160,6 +160,52 @@ jobs:
             echo "::notice::Tailscale live host ($R) differs from vars.DRILL_TAILNET_FQDN ($WANT). Using $R for SSH and probes."
           fi
 
+      # The drill host's /srv/podcast-scraper/.env is NOT written by cloud-init
+      # (infra/cloud-init/prod.user-data:41 — deploy workflows stage it, #841).
+      # Prod's deploy-prod.yml stages it from PROD_* secrets; the drill is a
+      # throwaway, so we stage just the static paths + profiles the stack and the
+      # #808 corpus-path preflight need. Missing LLM/Sentry/Grafana keys fall
+      # through to compose ${VAR:-} defaults, so the stack still starts. Atomic:
+      # tmpfile in /dev/shm (RAM, never disk) -> scp -> mv on host. Retries the
+      # same first-boot publickey race the PODCAST_RELEASE wire step handles.
+      - name: "DR drill — deploy: stage host /srv/podcast-scraper/.env (#808/#841)"
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+        run: |
+          set -euo pipefail
+          ENVTMP=$(mktemp -p /dev/shm drill-env.XXXXXX)
+          trap 'shred -u "$ENVTMP" 2>/dev/null || rm -f "$ENVTMP"' EXIT
+          chmod 600 "$ENVTMP"
+          {
+            printf '%s=%s\n' PODCAST_DOCKER_PROJECT_DIR /srv/podcast-scraper
+            printf '%s=%s\n' PODCAST_CORPUS_HOST_PATH   /srv/podcast-scraper/corpus
+            printf '%s=%s\n' PODCAST_DEFAULT_CORPUS_PATH /app/output
+            printf '%s=%s\n' PODCAST_ENV                 prod
+            printf '%s=%s\n' PODCAST_AVAILABLE_PROFILES  cloud_balanced,cloud_thin
+            printf '%s=%s\n' PODCAST_DEFAULT_PROFILE     cloud_balanced
+          } > "$ENVTMP"
+          mx=12
+          it=10
+          for a in $(seq 1 "$mx"); do
+            if scp -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
+                 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+                 "$ENVTMP" "${SSH_TARGET}:/srv/podcast-scraper/.env.deploy-staged" \
+               && ssh -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
+                 -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+                 "set -euo pipefail; cd /srv/podcast-scraper; \
+                  mv .env.deploy-staged .env; chmod 600 .env; \
+                  chown deploy:deploy .env 2>/dev/null || true; \
+                  test -f .bootstrap-needs-env && rm -f .bootstrap-needs-env || true"; then
+              echo "::notice::Staged host .env on SSH attempt ${a} of ${mx}"
+              exit 0
+            fi
+            echo "::notice::stage .env attempt ${a}/${mx} failed; sleeping ${it}s (first-boot publickey race)."
+            sleep "$it"
+          done
+          echo "::error::Failed to stage host .env after ${mx} attempts (publickey?)."
+          exit 1
+
       # First-boot race: Tailscale can show the node Online before cloud-init
       # finishes writing ``deploy@`` ``authorized_keys``. ``publickey`` then is
       # often transient; retry before concluding a keypair mismatch.
