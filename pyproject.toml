@@ -142,7 +142,11 @@ monitor = [
 # docker/api/Dockerfile, which installs them directly rather than via ``.[dev]`` (to keep
 # pytest/black/etc out of the production image). KEEP THE TWO IN SYNC — they drifted once (#1019).
 dev = [
-  "fastapi>=0.115.0,<1.0.0",
+  # Cap <0.137 (#1029): fastapi 0.137 added the internal ``_IncludedRouter`` route
+  # type, which prometheus-fastapi-instrumentator 8.0.0 (latest) cannot resolve
+  # (``'_IncludedRouter' object has no attribute 'path'``) -> /api/health 500 when
+  # metrics are enabled (prod default). Lift once the instrumentator supports it.
+  "fastapi>=0.115.0,<0.137.0",
   # Generic MCP server (PRD-034 / RFC-095) — a core dev/server capability, not a separate
   # extra. The official MCP Python SDK bundles FastMCP; the retrieval tools also need
   # [search] (ML deps) at runtime, same as the viewer.

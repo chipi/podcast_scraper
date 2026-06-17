@@ -48,7 +48,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --upgrade pip \
     && pip install torch --index-url https://download.pytorch.org/whl/cpu \
     && pip install \
-         "fastapi>=0.115.0,<1.0.0" \
+         "fastapi>=0.115.0,<0.137.0" \
          "uvicorn[standard]>=0.48.0,<1.0.0" \
          "prometheus-fastapi-instrumentator>=8.0.0,<9.0.0" \
          "apscheduler>=3.11.2,<4.0.0" \
