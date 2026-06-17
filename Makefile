@@ -56,7 +56,7 @@ PYTEST_WORKERS ?= 2
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e build-viewer verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans
+.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e build-viewer verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
 
 help:
 	@echo "Common developer commands:"
@@ -3486,6 +3486,36 @@ infra-apply:
 	@set -a && . ./$(INFRA_ENV_FILE) && set +a && cd infra && ./tofu init && ./tofu plan && ./tofu apply
 
 INFRA_DRILL_ENV_FILE := infra/.env.drill.local
+
+# --- Local DR-drill OpenTofu (workspace `drill`, isolated from prod) — #1027 ---
+# Source infra/.env.drill.local, map its secrets to the TF_VAR_* the config requires
+# (same names as the GHA drill-infra-* jobs), and run the wrapper in drill mode
+# (INFRA_WORKSPACE=drill → terraform.tfstate.enc.drill; the prod state is never touched).
+# plan is read-only; apply/destroy prompt y/n. Requires the drill state present at
+# infra/terraform/terraform.tfstate.enc.drill (from a drill apply run's
+# `terraform-state-after-apply-drill` artifact, or a prior local drill apply).
+drill-tofu-plan drill-tofu-apply drill-tofu-destroy: drill-tofu-%:
+	@if [ ! -f $(INFRA_DRILL_ENV_FILE) ]; then \
+		echo "ERROR: $(INFRA_DRILL_ENV_FILE) missing — run: make drill-env (and add TS_API_KEY, OPERATOR_SSH_PUBLIC_KEY, TAILNET_NAME)." >&2; \
+		exit 1; \
+	fi
+	@set -a && . ./$(INFRA_DRILL_ENV_FILE) && set +a; \
+	 : "$${HCLOUD_TOKEN_DRILL:?set HCLOUD_TOKEN_DRILL in $(INFRA_DRILL_ENV_FILE)}"; \
+	 : "$${TS_API_KEY:?set TS_API_KEY in $(INFRA_DRILL_ENV_FILE)}"; \
+	 : "$${OPERATOR_SSH_PUBLIC_KEY:?set OPERATOR_SSH_PUBLIC_KEY in $(INFRA_DRILL_ENV_FILE)}"; \
+	 : "$${TAILNET_NAME:?set TAILNET_NAME in $(INFRA_DRILL_ENV_FILE)}"; \
+	 export TF_VAR_hcloud_token="$$HCLOUD_TOKEN_DRILL"; \
+	 export TF_VAR_tailscale_api_key="$$TS_API_KEY"; \
+	 export TF_VAR_ssh_public_key="$$OPERATOR_SSH_PUBLIC_KEY"; \
+	 export TF_VAR_tailscale_tailnet="$$TAILNET_NAME"; \
+	 cd infra \
+	   && yes yes | INFRA_WORKSPACE=drill ./tofu init \
+	   && INFRA_WORKSPACE=drill ./tofu $* -var-file=terraform.drill.ci.tfvars
+	@# `yes yes |` answers the one-time "migrate workspaces to local" prompt that
+	@# tofu raises on a fresh checkout (the wrapper decrypts drill state into
+	@# terraform.tfstate.d/drill/ before init, so tofu offers to adopt it). The
+	@# prompt needs the literal word "yes"; -input=false would hard-error it.
+	@# On an already-initialized .terraform/ there is no prompt and stdin is ignored.
 
 dgx-smoke:
 	@# RFC-089: probe DGX Ollama via tailnet (non-fatal when DGX offline).

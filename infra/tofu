@@ -16,9 +16,36 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TF_DIR="$REPO_ROOT/infra/terraform"
-ENC_STATE="$TF_DIR/terraform.tfstate.enc"
-PLAIN_STATE="$TF_DIR/terraform.tfstate"
-BACKUP_STATE="$TF_DIR/terraform.tfstate.backup"
+
+# Workspace selector (RFC-082 / #752 — local parity with the GHA drill-infra-* jobs).
+#   INFRA_WORKSPACE=prod  (default) → default OpenTofu workspace + terraform.tfstate.enc
+#   INFRA_WORKSPACE=drill           → 'drill' workspace + terraform.tfstate.enc.drill
+# The drill path NEVER reads or writes the prod state file, and selects the 'drill'
+# OpenTofu workspace (via `tofu workspace select -or-create drill` before each non-init
+# command), so `make drill-tofu-*` can run the DR-drill (incl. Plan A teardown) locally
+# with zero risk of touching prod. The prod branch is byte-identical to the original wrapper.
+INFRA_WORKSPACE="${INFRA_WORKSPACE:-prod}"
+case "$INFRA_WORKSPACE" in
+  prod | default)
+    ENC_STATE="$TF_DIR/terraform.tfstate.enc"
+    PLAIN_STATE="$TF_DIR/terraform.tfstate"
+    BACKUP_STATE="$TF_DIR/terraform.tfstate.backup"
+    ;;
+  drill)
+    ENC_STATE="$TF_DIR/terraform.tfstate.enc.drill"
+    PLAIN_STATE="$TF_DIR/terraform.tfstate.d/drill/terraform.tfstate"
+    BACKUP_STATE="$TF_DIR/terraform.tfstate.d/drill/terraform.tfstate.backup"
+    mkdir -p "$TF_DIR/terraform.tfstate.d/drill"
+    # NOTE: we do NOT export TF_WORKSPACE here — setting it during `init` triggers a
+    # state-migration prompt that -input=false rejects. Instead the workspace is
+    # selected (-or-create) just before non-init commands below, matching the GHA flow.
+    echo "[infra/tofu] WORKSPACE=drill — state: terraform.tfstate.enc.drill (prod state NOT touched)." >&2
+    ;;
+  *)
+    echo "ERROR: INFRA_WORKSPACE must be 'prod' or 'drill' (got: '$INFRA_WORKSPACE')." >&2
+    exit 2
+    ;;
+esac
 
 # Verify required dependencies up-front so we fail fast rather than half-way
 # through a decrypt with no encryptor available.
@@ -85,6 +112,14 @@ PRE_HASH=""
 # its non-zero exits (e.g. plan with diffs and -detailed-exitcode) are normal.
 cd "$TF_DIR"
 set +e
+# In drill mode, ensure the 'drill' workspace is selected before any non-init command
+# (init must run first on the default workspace; `workspace` commands manage it directly).
+if [[ "$INFRA_WORKSPACE" == "drill" && "${1:-}" != "init" && "${1:-}" != "workspace" ]]; then
+  tofu workspace select -or-create drill >&2 || {
+    echo "[infra/tofu] ERROR: 'tofu workspace select -or-create drill' failed (run init first?)." >&2
+    exit 1
+  }
+fi
 tofu "$@"
 TOFU_EXIT=$?
 set -e
