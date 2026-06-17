@@ -96,6 +96,12 @@ variable "manage_tailscale_acl" {
   default     = true
 }
 
+variable "enable_delete_protection" {
+  type        = bool
+  description = "Hetzner delete/rebuild protection on the server + corpus volume. True (default) hardens PROD against accidental destroy/rebuild (post-2026-05-30 incident). Set false ONLY for the ephemeral drill workspace so its automated teardown (`tofu destroy`) can actually delete the drill server/volume instead of hitting \"server deletion is protected\" and orphaning infra — see infra/README.md \"DR drill workspace\"."
+  default     = true
+}
+
 variable "tailscale_advertise_tags" {
   type        = list(string)
   description = "Tailscale tags for tailscale_tailnet_key and for `tailscale up --advertise-tags` in cloud-init. Prod uses [\"tag:prod\"]; drill uses e.g. [\"tag:dr-drill\"] per tailscale/policy.hujson tagOwners."

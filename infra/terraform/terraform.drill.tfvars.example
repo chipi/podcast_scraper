@@ -8,6 +8,9 @@ manage_tailscale_acl     = false
 tailscale_advertise_tags = ["tag:dr-drill"]
 tailnet_hostname         = "dr-podcast"
 hcloud_environment_label = "drill"
+# Ephemeral drill infra must be destroyable by the automated teardown — disable
+# Hetzner delete/rebuild protection (PROD keeps it on via the var default).
+enable_delete_protection = false
 
 # Optional: allow inbound TCP/22 from these CIDRs for operator SSH when the tailnet is down.
 # CI uses 0.0.0.0/0 and ::/0 in terraform.drill.ci.tfvars; use your /32 here for a tighter drill VM.

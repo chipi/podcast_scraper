@@ -75,8 +75,9 @@ resource "hcloud_volume" "corpus" {
   # delete_protection — Hetzner refuses to delete the volume until this
   # is flipped to false in a prior apply. Corpus is the most expensive
   # thing to recreate (snapshots are weekly at best); worth the
-  # two-step ratchet to destroy.
-  delete_protection = true
+  # two-step ratchet to destroy. PROD keeps this true (default); the drill
+  # workspace sets enable_delete_protection=false so its teardown can destroy.
+  delete_protection = var.enable_delete_protection
 }
 
 # === The VPS itself ===
@@ -92,9 +93,11 @@ resource "hcloud_server" "prod" {
   # Hetzner with "protected: deletion/rebuild protection enabled" before
   # any destruction happens. To legitimately destroy the server (DR
   # drill, planned migration), first apply a change setting these to
-  # false, then run the destroy / wipe-then-apply.
-  delete_protection  = true
-  rebuild_protection = true
+  # false, then run the destroy / wipe-then-apply. PROD keeps these true
+  # (var default); the drill workspace sets enable_delete_protection=false
+  # so its automated teardown destroys instead of orphaning the server.
+  delete_protection  = var.enable_delete_protection
+  rebuild_protection = var.enable_delete_protection
 
   ssh_keys     = [hcloud_ssh_key.operator.id]
   firewall_ids = [hcloud_firewall.main.id]

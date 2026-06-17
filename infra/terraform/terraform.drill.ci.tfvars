@@ -10,6 +10,11 @@
 manage_tailscale_acl     = false
 tailscale_advertise_tags = ["tag:dr-drill"]
 tailnet_hostname         = "dr-podcast"
+# Drill servers are ephemeral — disable Hetzner delete/rebuild protection so the
+# orchestrator's teardown (`tofu destroy`) can actually remove them. PROD keeps
+# protection on (var default true). Without this, destroy hits "server deletion is
+# protected" and orphans the drill server (observed 2026-06-17, run 27681998910).
+enable_delete_protection = false
 hcloud_environment_label = "drill"
 # Break-glass: public SSH while Tailscale join is broken or slow (narrow in a private tfvars).
 hcloud_inbound_ssh_troubleshoot_cidrs = ["0.0.0.0/0", "::/0"]
