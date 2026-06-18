@@ -343,7 +343,12 @@ def main() -> int:  # noqa: C901
     import jinja2
 
     prompt_root = Path("src/podcast_scraper/prompts")
-    env = jinja2.Environment(loader=jinja2.FileSystemLoader(str(prompt_root)))
+    # nosec B701 — autoescape=False is intentional: we're rendering LLM
+    # prompts for chat-completion API consumption, NOT HTML for a browser.
+    # XSS isn't a threat model for plain-text LLM payloads.
+    env = jinja2.Environment(
+        loader=jinja2.FileSystemLoader(str(prompt_root)), autoescape=False
+    )  # nosec B701
     # System prompt is optional per PromptConfig schema. DeepSeek-R1 docs
     # explicitly recommend NO system prompt; Kimi-Linear's Round 3 nosys
     # variant also omits it. Skip rendering when absent.

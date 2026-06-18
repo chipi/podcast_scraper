@@ -242,7 +242,7 @@ per-model delta table. Summary: every Round 1/2 model is queued for
 re-run with its vendor-recommended sampling (temp/top_p/top_k) from
 the HF `generation_config.json` doc pass, plus any missed compose flags
 (`--reasoning-parser=qwen3` for Qwen3.5, chat_template `enable_thinking`
-for Gemma 4). Re-uses same dataset + silvers + judge panel so deltas
+for Gemma 4). Reuses same dataset + silvers + judge panel so deltas
 isolate the sampling/flag change.
 
 **Discipline**: one change per model per round; onboarding smoke test

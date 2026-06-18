@@ -55,6 +55,15 @@ providers:
       gpt-4o:
         input_cost_per_1m_tokens: 2.5
         output_cost_per_1m_tokens: 10.0
+      # Local DGX-served vLLM via the OpenAI-compat path. The `model` field in
+      # autoresearch-on-DGX profiles is the served-model-name on the vLLM slot
+      # (e.g. Qwen3.5-35B-A3B, Moonlight-16B-A3B, etc.), not an OpenAI cloud
+      # model. Cost is electricity-only — $0/token at the API layer. Pin to 0
+      # so the pricing coverage gate accepts the reference; real cost is
+      # tracked via DGX power monitoring (#923 / #943).
+      autoresearch:
+        input_cost_per_1m_tokens: 0.0
+        output_cost_per_1m_tokens: 0.0
 
   gemini:
     transcription:
