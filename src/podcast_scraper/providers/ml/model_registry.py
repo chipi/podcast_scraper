@@ -978,6 +978,65 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         tier="primary",
         resident_memory_gb=6.0,
     ),
+    # vLLM-served Qwen3.5-35B-A3B — #1016 Round 3 top-dog (2 of 3 stages won).
+    # Requires `--reasoning-parser=qwen3` server flag. Highest absolute quality
+    # but +3.6 Sonnet-mimicry on summary — cross-vendor judge panel required to
+    # validate top-dog claim ([[silver_judge_vendor_bias]]).
+    "vllm_qwen3_5_35b_a3b": StageOption(
+        stage="summary",
+        option_id="vllm_qwen3_5_35b_a3b",
+        provider="openai",
+        model="autoresearch",  # served-model-name on the autoresearch slot
+        endpoint="http://{dgx_tailnet_host}:8003/v1",
+        extra_settings={
+            "api_key_env": "VLLM_API_KEY",
+            "compose_flag_required": "--reasoning-parser=qwen3",
+            "chat_template_kwargs": {"enable_thinking": False},
+            "vendor_sampling": {
+                "temperature": 0.7,
+                "top_p": 0.8,
+                "top_k": 20,
+                "presence_penalty": 1.5,
+            },
+        },
+        research_ref="docs/wip/EVAL_1016_FINAL_REPORT_2026_06_17.md",
+        headline_metric=(
+            "ROUGE-1 vs Opus 59.4%, cosine 83.7% (cohort leader); GI 36%, KG 38% "
+            "(KG cohort leader). 13.6s/ep. Δ S−O = +3.6 (Sonnet-mimicry — needs "
+            "cross-vendor judge panel)."
+        ),
+        measured_at="2026-06-17",
+        tier="primary",
+        resident_memory_gb=67.0,
+    ),
+    # vLLM-served Moonlight-16B-A3B-Instruct — #1016 Round 3 safe pick.
+    # Style-neutral (Δ S−O = 0.0 across all 3 stages) — no judge-vendor caveat.
+    # Lower absolute quality than Qwen3.5 but half the memory + 33% faster.
+    # Right pick when (a) DGX is contended, (b) downstream judge vendor is
+    # unknown / Sonnet-heavy, (c) audit-clean rankings matter more than peak
+    # quality. Requires `--max-model-len=8192` (model's max_position_embeddings).
+    "vllm_moonlight_16b_a3b": StageOption(
+        stage="summary",
+        option_id="vllm_moonlight_16b_a3b",
+        provider="openai",
+        model="autoresearch",  # served-model-name on the autoresearch slot
+        endpoint="http://{dgx_tailnet_host}:8003/v1",
+        extra_settings={
+            "api_key_env": "VLLM_API_KEY",
+            "compose_flag_required": "--trust-remote-code --max-model-len=8192",
+            "vendor_sampling": "greedy (no vendor recommendation)",
+        },
+        research_ref="docs/wip/EVAL_1016_FINAL_REPORT_2026_06_17.md",
+        headline_metric=(
+            "ROUGE-1 vs Opus 57.5%, cosine 78.6%. GI 16% (cohort floor — small "
+            "MoE active params hurt extraction). KG 29% (stable vs R1/2). "
+            "9.0s/ep (cohort speed leader after DSV2-Lite). Δ S−O = 0.0 across "
+            "all 3 stages — truly style-neutral."
+        ),
+        measured_at="2026-06-17",
+        tier="primary",
+        resident_memory_gb=32.0,
+    ),
 }
 
 
@@ -1224,7 +1283,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     "prod_dgx_full_with_fallback": ProfilePreset(
         name="prod_dgx_full_with_fallback",
         transcription="tailnet_dgx_whisper_openai",  # #929 winner + cloud Whisper fallback
-        summary="ollama_qwen35_35b",  # #928 Cell C winner on DGX
+        summary="vllm_qwen3_5_35b_a3b",  # #1016 R3 top dog (was: ollama_qwen35_35b #928 Cell C)
         kg="provider_n10_15",
         ner="gemini_speaker_detector",  # sub-cent, better than spacy on names
         clustering="topic_clusters_default_0_75",
@@ -1234,11 +1293,63 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
             "Gemini for the cheap speaker-detect, cloud Gemini as the summary "
             "degradation_policy.fallback_provider_on_failure. Marginal cost ≈ $0 "
             "vs cloud_with_dgx_primary's ~$0.85/mo at ~100ep/mo. "
+            "2026-06-17 UPDATE: summary stage flipped from ollama qwen3.5:35b "
+            "(#928 Cell C winner) to vLLM Qwen3.5-35B-A3B (#1016 R3 top dog). "
+            "Wins 2 of 3 stages decisively (summary 59.4% R-1 vs Opus cohort "
+            "leader, KG 38% cohort leader, GI 36% second). Cost: needs "
+            "--reasoning-parser=qwen3 server flag; carries +3.6 Sonnet-mimicry "
+            "on summary so any prod judge panel must be cross-vendor. If "
+            "judge-bias concerns dominate (third-party leaderboards, customer-"
+            "facing audited rankings), use prod_dgx_balanced (Moonlight safe "
+            "pick) instead. "
             "OPERATIONAL GATE: the #963 / #996 catastrophic-tail risk applies — "
             "do not run autoresearch sweeps on coder-next vLLM concurrent with a "
             "pipeline run on this profile. The transcription and summary stages "
             "are sequential per-episode so on-profile they don't overlap, but "
             "external vLLM sweeps will."
+        ),
+    ),
+    "prod_dgx_balanced": ProfilePreset(
+        name="prod_dgx_balanced",
+        transcription="tailnet_dgx_whisper_openai",
+        summary="vllm_moonlight_16b_a3b",  # #1016 Round 3 safe pick
+        kg="provider_n10_15",
+        ner="gemini_speaker_detector",
+        clustering="topic_clusters_default_0_75",
+        gi="provider_n12_grounded_bundled",
+        notes=(
+            "Prod variant of prod_dgx_full_with_fallback that swaps the summary "
+            "stage to vLLM-served Moonlight-16B-A3B (#1016 Round 3 safe pick). "
+            "Trade-off vs prod_dgx_full_with_fallback (Qwen3.5-35B-A3B top dog): "
+            "- 33% faster (9s/ep vs 13.6s/ep) "
+            "- half the resident memory (32 GB vs 67 GB) — DGX-contention friendly "
+            "- style-neutral (Δ S−O = 0.0) — no judge-vendor caveat "
+            "- ROUGE-1 -1.9pt vs the top-dog Qwen3.5 (57.5% vs 59.4%) "
+            "Pick this profile when (a) DGX is shared with other workloads, "
+            "(b) downstream judge vendor is unknown/Sonnet-heavy, or (c) "
+            "audit-clean ranking matters more than peak quality. Otherwise "
+            "use prod_dgx_full_with_fallback."
+        ),
+    ),
+    "eval_default": ProfilePreset(
+        name="eval_default",
+        transcription="tailnet_dgx_whisper_openai",
+        summary="vllm_moonlight_16b_a3b",  # style-neutral for self-comparison
+        kg="provider_n10_15",
+        ner="gemini_speaker_detector",
+        clustering="topic_clusters_default_0_75",
+        gi="provider_n12_grounded_bundled",
+        notes=(
+            "Internal autoresearch eval-loop default. Uses Moonlight-16B-A3B "
+            "(#1016 Round 3 safe pick) as the summary stage because we're our "
+            "own downstream consumer — bias-clean baseline gives more defensible "
+            "self-comparison when running future autoresearch cohorts. "
+            "Style-neutral (Δ S−O = 0.0) means new candidates' rankings don't "
+            "get distorted by judge-vendor bias. The autoresearch compose at "
+            "~/agentic-ai-homelab/infra/vllm/autoresearch/docker-compose.yml has "
+            "had --max-num-seqs=4 + --enforce-eager defaults applied since "
+            "2026-06-17 (lever A + C from #1016 §5) — these are right for the "
+            "eval-loop iteration cadence."
         ),
     ),
     "cloud_quality": ProfilePreset(

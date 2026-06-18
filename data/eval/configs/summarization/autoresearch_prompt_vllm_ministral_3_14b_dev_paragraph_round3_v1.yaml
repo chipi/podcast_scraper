@@ -1,0 +1,38 @@
+# Round 3 v1 — Ministral-3-14B-Instruct-2512 with vendor-correct config.
+#
+# Vendor Round 1/2 gap (per HF model card 2026-06-17):
+#   - "Use a temperature below 0.1 for daily-driver and production
+#     environments." (vendor's literal quote — even lower than Mistral-Small-3.2's 0.15)
+#   - We ran greedy temp=0.0 — within "below 0.1" so this is fine.
+#   - Vendor REQUIRES mistral_common tokenizer:
+#       --tokenizer_mode mistral --config_format mistral --load_format mistral
+#   - Vendor REQUIRES loading SYSTEM_PROMPT.txt from the model repo.
+#   - We never loaded SYSTEM_PROMPT.txt.
+#   - Context: 256k native.
+#
+# COMPOSE FLAGS REQUIRED ON SWAP-IN:
+#   - --tokenizer_mode mistral
+#   - --config_format mistral
+#   - --load_format mistral
+#   - --tool-call-parser mistral
+#
+# PROMPT TODO: SYSTEM_PROMPT.txt fetch (see task #109).
+#
+# Reference: autoresearch/MODEL_PLAYBOOK.md § Round 3 plan, Priority 1
+id: "autoresearch_prompt_vllm_ministral_3_14b_dev_paragraph_round3_v1"
+task: "summarization"
+backend:
+  type: "openai"
+  model: "autoresearch"
+  base_url: "http://localhost:8003/v1"
+  api_key_env: "VLLM_API_KEY"
+prompts:
+  system: "ollama/qwen3.5_35b/summarization/system_v1"
+  user: "ollama/qwen3.5_35b/summarization/long_v1"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  max_length: 500
+  min_length: 200
+  temperature: 0.05
+preprocessing_profile: "cleaning_v4"

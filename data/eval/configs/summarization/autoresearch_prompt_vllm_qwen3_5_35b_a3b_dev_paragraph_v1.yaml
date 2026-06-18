@@ -1,0 +1,30 @@
+# Autoresearch v2 paragraph — vLLM-served Qwen3.5-35B-A3B (vLLM mirror
+# of the Ollama qwen3.5:35b incumbent on production).
+#
+# Candidate A in the #1016 Phase 2a tier-1 eval. Same model family as
+# the Ollama production champion — re-served on vLLM for consistency
+# across the candidate matrix. Vendor explicitly endorses vLLM with
+# ``--reasoning-parser qwen3``; the homelab compose doesn't pass it
+# because our prompts ask for instruct-only (thinking off) anyway.
+id: "autoresearch_prompt_vllm_qwen3_5_35b_a3b_dev_paragraph_v1"
+task: "summarization"
+backend:
+  type: "openai"
+  model: "autoresearch"
+  base_url: "http://localhost:8003/v1"
+  api_key_env: "VLLM_API_KEY"
+  # Qwen3 family default emits reasoning preamble — disable via
+  # extra_body. Same lever as the Qwen2507 config.
+  extra_body:
+    chat_template_kwargs:
+      enable_thinking: false
+prompts:
+  system: "ollama/qwen3.5_35b/summarization/system_v1"
+  user: "ollama/qwen3.5_35b/summarization/long_v1"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+preprocessing_profile: "cleaning_v4"

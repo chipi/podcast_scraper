@@ -1,0 +1,26 @@
+# #1016 Phase 2b summary tight — DeepSeek-R1-0528-Qwen3-8B (NEW Phase 2c candidate, R1 distill on Qwen3-8B base, reasoning).
+#
+# R1-Distill family — emits <think> blocks. We tested R1-Distill-Qwen-32B
+# in Phase 2a and it speed-disqualified at 204s mean. This 8B variant on
+# the newer Qwen3 base may be substantially faster while keeping reasoning
+# quality. Use the same anti-thinking prompt family + post-processor that
+# helped the 32B distill.
+id: "autoresearch_prompt_vllm_deepseek_r1_0528_qwen3_8b_dev_paragraph_tight_v1"
+task: "summarization"
+backend:
+  type: "openai"
+  model: "autoresearch"
+  base_url: "http://localhost:8003/v1"
+  api_key_env: "VLLM_API_KEY"
+prompts:
+  system: "vllm/r1_distill_32b/summarization/system_no_thinking_v1"
+  user: "vllm/r1_distill_32b/summarization/long_no_thinking_v1"
+  postprocessor: "strip_r1_reasoning_and_decode"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.6
+  top_p: 0.95
+preprocessing_profile: "cleaning_v4"

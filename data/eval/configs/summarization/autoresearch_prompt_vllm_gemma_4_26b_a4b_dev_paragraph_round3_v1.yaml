@@ -1,0 +1,35 @@
+# Round 3 v1 — Gemma-4-26B-A4B-it with vendor-correct sampling.
+#
+# Vendor Round 1/2 gap (per HF model card 2026-06-17):
+#   - "Use the following standardized sampling configuration across all
+#     use cases: temperature=1.0, top_p=0.95, top_k=64."
+#   - We ran greedy temp=0.0. Largest single sampling delta in the cohort
+#     (greedy → temp=1.0).
+#   - enable_thinking=False is the DEFAULT — no chat_template_kwarg needed.
+#   - --max-num-batched-tokens=4096 remains required (Gemma 4's
+#     max_tokens_per_mm_item exceeds the default 2048).
+#
+# COMPOSE FLAG REQUIRED ON SWAP-IN:
+#   - --max-num-batched-tokens=4096  (kept from Round 1/2)
+#
+# Reference: autoresearch/MODEL_PLAYBOOK.md § Round 3 plan, Priority 2
+id: "autoresearch_prompt_vllm_gemma_4_26b_a4b_dev_paragraph_round3_v1"
+task: "summarization"
+backend:
+  type: "openai"
+  model: "autoresearch"
+  base_url: "http://localhost:8003/v1"
+  api_key_env: "VLLM_API_KEY"
+  extra_body:
+    top_p: 0.95
+    top_k: 64
+prompts:
+  system: "ollama/qwen3.5_35b/summarization/system_v1"
+  user: "ollama/qwen3.5_35b/summarization/long_v1"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  max_length: 500
+  min_length: 200
+  temperature: 1.0
+preprocessing_profile: "cleaning_v4"

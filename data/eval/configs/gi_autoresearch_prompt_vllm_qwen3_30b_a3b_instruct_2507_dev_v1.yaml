@@ -1,0 +1,22 @@
+id: autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_grounded_insights_v1
+task: grounded_insights
+backend:
+  type: openai
+  model: autoresearch
+  base_url: http://localhost:8003/v1
+  api_key_env: VLLM_API_KEY
+  extra_body:
+    chat_template_kwargs:
+      enable_thinking: false
+prompts:
+  system: ollama/qwen3.5_35b/summarization/system_v1
+  user: ollama/qwen3.5_35b/summarization/long_v1
+data:
+  dataset_id: curated_5feeds_dev_v1
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+  gi_insight_src: summary_bullets
+  gi_max_insights: 12
+preprocessing_profile: cleaning_v4

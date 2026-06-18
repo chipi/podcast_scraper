@@ -46,6 +46,20 @@ class PromptConfig(BaseModel):
         default_factory=dict,
         description="Template parameters to render into prompts.",
     )
+    postprocessor: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional output post-processor name. Looked up in "
+            "``podcast_scraper.evaluation.output_postprocess.REGISTRY`` "
+            "and applied to each prediction's text BEFORE writing to "
+            "``predictions.jsonl``. Use when the prompt contract asks "
+            "the model to wrap output in tags (``<summary>...</summary>``) "
+            "or strip a reasoning preamble (``<think>...</think>``). "
+            "If unset, output is written verbatim. Known values include "
+            "``strip_r1_reasoning`` (handles R1-style tags + leaked "
+            "preambles; safe no-op on already-clean text)."
+        ),
+    )
 
 
 # ----- Backend / model configuration -----

@@ -1,0 +1,97 @@
+# Profile: prod_dgx_balanced — Moonlight summary variant of prod_dgx_full_with_fallback (#1016 R3)
+#
+# Same operational shape as prod_dgx_full_with_fallback, but the summary stage
+# uses vLLM-served Moonlight-16B-A3B-Instruct (the #1016 Round 3 safe pick)
+# instead of Ollama qwen3.5:35b (the #928 Cell C winner).
+#
+# Trade-off (from EVAL_1016_FINAL_REPORT_2026_06_17.md):
+#
+#   | Axis            | prod_dgx_full_with_fallback (Qwen3.5)  | prod_dgx_balanced (Moonlight)        |
+#   |-----------------|----------------------------------------|--------------------------------------|
+#   | ROUGE-1 vs Opus | 59.4%                                  | 57.5%   (-1.9pt)                     |
+#   | Summary speed   | 13.6 s/ep                              | 9.0 s/ep    (33% faster)             |
+#   | Resident mem    | 67 GB BF16                             | 32 GB BF16  (half)                   |
+#   | Style bias      | +3.6 Sonnet-mimicry                    | 0.0 — perfectly neutral              |
+#   | Judge req       | cross-vendor panel required            | any judge OK                         |
+#
+# When to pick this profile (over prod_dgx_full_with_fallback):
+#
+#   (a) DGX is shared with other workloads — half-mem matters
+#   (b) downstream judge vendor is unknown or Sonnet-heavy
+#   (c) audit-clean rankings matter more than peak quality
+#       (e.g. customer-facing leaderboards, third-party-graded outputs)
+#   (d) latency matters (33% faster summary)
+#
+# Same #963 / #996 catastrophic-tail operational gate applies as
+# prod_dgx_full_with_fallback. See that profile's header for the full rule.
+#
+# 2026-06-17 — Created from #1016 Round 3 final report.
+
+profile: prod_dgx_balanced
+
+# --- Transcription: DGX whisper-openai with cloud Whisper fallback ---
+transcription:
+  primary: tailnet_dgx_whisper
+  fallback: openai
+
+dgx_tailnet_host: ${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}
+dgx_whisper_model: large-v3
+dgx_whisper_port: 8002
+transcription_fallback_provider: openai
+openai_transcription_model: whisper-1
+
+# --- Diarization: pyannote on DGX with local fallback ---
+screenplay: true
+diarize: true
+diarization_provider: tailnet_dgx
+dgx_diarize_port: 8001
+dgx_diarize_model: pyannote/speaker-diarization-3.1
+dgx_diarize_request_timeout_sec: 180.0
+
+audio_preprocessing_profile: speech_optimal_v1
+
+# --- Speaker detection: Gemini ---
+speaker_detector_provider: gemini
+auto_speakers: true
+
+# --- LLM summary stage: vLLM-served Moonlight-16B-A3B-Instruct ---
+# Requires the autoresearch slot to be serving Moonlight (compose flag set
+# to model `moonshotai/Moonlight-16B-A3B-Instruct` + --trust-remote-code +
+# --max-model-len=8192). See ~/agentic-ai-homelab/infra/vllm/autoresearch/
+# docker-compose.yml and use gpu-mode-swap.sh research.
+summary_provider: openai
+openai_base_url: http://${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}:8003/v1
+openai_summary_model: autoresearch  # served-model-name on the vLLM slot
+openai_api_key_env: VLLM_API_KEY
+llm_pipeline_mode: staged
+
+# Cloud fallback for summary if DGX is down.
+degradation_policy:
+  fallback_provider_on_failure: gemini
+  continue_on_stage_failure: true
+gemini_summary_model: gemini-2.5-flash-lite
+
+preprocessing_enabled: true
+cloud_llm_structured_min_output_tokens: 4096
+
+# --- GI / KG / vector search ---
+generate_gi: true
+gi_insight_source: provider
+gi_max_insights: 12
+gi_require_grounding: true
+gil_evidence_quote_mode: bundled
+gil_evidence_nli_mode: bundled
+
+generate_kg: true
+kg_extraction_source: provider
+kg_max_topics: 10
+kg_max_entities: 15
+
+vector_search: true
+vector_embedding_provider: sentence_transformers
+llm_circuit_breaker_enabled: true
+
+generate_metadata: true
+generate_summaries: true
+language: en
+log_level: INFO

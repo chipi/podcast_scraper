@@ -27,27 +27,37 @@ transcription:
   fallback: openai
 
 dgx_tailnet_host: ${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}
-# Registry-driven choice (`tailnet_dgx_whisper_openai` in
+# Registry-driven choice (`tailnet_dgx_whisper_speaches` in
 # src/podcast_scraper/providers/ml/model_registry.py).
 #
-# 2026-06-10/12: switched from `Systran/faster-whisper-large-v3` on port
-# 8000 (Speaches) to `large-v3` on port 8002 (our custom openai-whisper
-# container). Evidence: docs/guides/eval-reports/EVAL_TRANSCRIPTION_3WAY_2026_06.md
-# — whisper-openai mean WER 0.10 / 4.6× realtime on v2 fixtures vs
-# speaches/Thread-B at 0.066 WER / 0.93× realtime. Quality is competitive;
-# speed difference (~5×) makes whisper-openai the production primary.
+# 2026-06-16 (#955 reopen + #952 close): flipped back from
+# `large-v3` on :8002 (whisper-openai wrapper) to
+# `Systran/faster-whisper-large-v3` on :8000 (Speaches).
 #
-# The :8002 service is OpenAI-API-compatible (GET /v1/models → "large-v3")
-# and takes the short model id "large-v3" (NOT the HF
-# "Systran/faster-whisper-large-v3" id). Per-episode latency is ~10-15×
-# slower than Speaches' CUDA-enabled path but still well within the #946
-# duration-scaled timeout.
+# History — the routing went :8000 → :8002 on 2026-06-10/12 based on
+# `EVAL_TRANSCRIPTION_3WAY_2026_06.md` (v2 fixtures), which reported
+# whisper-openai at 4.6× realtime vs Speaches at 0.93× realtime.
+# That decision predated the Speaches int8 pin (#948) and the
+# `v0.9.0-rc.3-cuda` image bump (#920) — Speaches was on the slow
+# `default` (fp32) compute type when measured. The 2026-06-15 #920 pin
+# + #948 empirical re-confirmation cut Speaches per-episode wall-time
+# by ~3× (Speaches int8 = 4.89× realtime on a 33-min real episode).
 #
-# Speaches stays available as a fallback per `tailnet_dgx_speaches_thread_b`
-# in the registry (now built on the speaches-gb10 source-built ctranslate2
-# image per #948 + this PR's Thread B temperature-fallback patch).
-dgx_whisper_model: large-v3
-dgx_whisper_port: 8002
+# Today's #952 real-podcast eval on the post-#948 image overturns
+# the routing decision on both metrics:
+#
+# | metric                 | whisper-openai (:8002) | Speaches int8 (:8000) |
+# | ---------------------- | ---------------------- | --------------------- |
+# | WER vs Deepgram silver | 12.97%                 | 10.23% ← better       |
+# | wall-clock per episode | 340s mean              | 281s mean (~20% fast) |
+#
+# Speaches now wins on both quality AND speed. Eval report:
+# `docs/guides/eval-reports/EVAL_WHISPER_ENGINE_DRIFT_2026_06_16.md`.
+#
+# The whisper-openai container stays parallel-deployed at :8002 as the
+# comparison sibling for future engine-drift evals — not the prod path.
+dgx_whisper_model: Systran/faster-whisper-large-v3
+dgx_whisper_port: 8000
 transcription_fallback_provider: openai
 
 openai_transcription_model: whisper-1

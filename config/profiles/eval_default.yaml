@@ -1,0 +1,100 @@
+# Profile: eval_default — bias-clean baseline for internal autoresearch (#1016 R3)
+#
+# Used as the default profile when we run our OWN autoresearch evals (cohort
+# comparisons across new candidate LLMs). Uses Moonlight-16B-A3B-Instruct on
+# vLLM as the summary stage because we're our own downstream consumer — a
+# bias-clean (Δ S−O = 0.0) baseline gives more defensible self-comparison when
+# new candidates are introduced.
+#
+# Why not Qwen3.5-35B-A3B (the #1016 top-dog)?
+#   - Qwen3.5 has +3.6 Sonnet-mimicry on summary stage
+#   - If we use it as the autoresearch eval baseline, our future cohorts will
+#     be compared against a candidate that judges-with-Sonnet-style score better
+#   - That would silently inflate Qwen3.5's wins in subsequent rounds
+#   - Moonlight is style-neutral across all 3 stages — no silent inflation
+#
+# Why not Ollama qwen3.5:35b (the #928 winner)?
+#   - It's an Ollama path, not vLLM — different compose, different sampling
+#   - Our autoresearch tooling targets vLLM via the OpenAI-compat path
+#   - Using Ollama for the eval baseline would create a compose-dance mismatch
+#     when iterating on new vLLM candidates
+#
+# Trade-offs vs prod_dgx_full_with_fallback / prod_dgx_balanced:
+#   - prod_dgx_balanced uses Moonlight too — these profiles are
+#     functionally equivalent for the summary stage. The split exists for
+#     CLARITY: prod is for serving real users; eval_default is for running
+#     comparisons. Operators can flip either without affecting the other.
+#
+# Compose defaults applied to ~/agentic-ai-homelab/infra/vllm/autoresearch/
+# docker-compose.yml on 2026-06-17 (lever A + C from #1016 §5):
+#   - --max-num-seqs=4 (down from 64; KV peak was 2.5% even at 64)
+#   - --enforce-eager (saves 2-4 min boot at ~10-15% inference perf cost)
+# These are RIGHT for eval-loop iteration. For prod-mirror benchmark runs,
+# remove --enforce-eager and bump --max-num-seqs back to 64.
+#
+# 2026-06-17 — Created from #1016 Round 3 final report.
+
+profile: eval_default
+
+# --- Transcription: DGX whisper-openai with cloud Whisper fallback ---
+transcription:
+  primary: tailnet_dgx_whisper
+  fallback: openai
+
+dgx_tailnet_host: ${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}
+dgx_whisper_model: large-v3
+dgx_whisper_port: 8002
+transcription_fallback_provider: openai
+openai_transcription_model: whisper-1
+
+# --- Diarization: pyannote on DGX with local fallback ---
+screenplay: true
+diarize: true
+diarization_provider: tailnet_dgx
+dgx_diarize_port: 8001
+dgx_diarize_model: pyannote/speaker-diarization-3.1
+dgx_diarize_request_timeout_sec: 180.0
+
+audio_preprocessing_profile: speech_optimal_v1
+
+# --- Speaker detection: Gemini ---
+speaker_detector_provider: gemini
+auto_speakers: true
+
+# --- LLM summary stage: vLLM-served Moonlight-16B-A3B-Instruct ---
+summary_provider: openai
+openai_base_url: http://${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}:8003/v1
+openai_summary_model: autoresearch  # served-model-name on the vLLM slot
+openai_api_key_env: VLLM_API_KEY
+llm_pipeline_mode: staged
+
+# Cloud fallback path.
+degradation_policy:
+  fallback_provider_on_failure: gemini
+  continue_on_stage_failure: true
+gemini_summary_model: gemini-2.5-flash-lite
+
+preprocessing_enabled: true
+cloud_llm_structured_min_output_tokens: 4096
+
+# --- GI / KG / vector search ---
+generate_gi: true
+gi_insight_source: provider
+gi_max_insights: 12
+gi_require_grounding: true
+gil_evidence_quote_mode: bundled
+gil_evidence_nli_mode: bundled
+
+generate_kg: true
+kg_extraction_source: provider
+kg_max_topics: 10
+kg_max_entities: 15
+
+vector_search: true
+vector_embedding_provider: sentence_transformers
+llm_circuit_breaker_enabled: true
+
+generate_metadata: true
+generate_summaries: true
+language: en
+log_level: INFO

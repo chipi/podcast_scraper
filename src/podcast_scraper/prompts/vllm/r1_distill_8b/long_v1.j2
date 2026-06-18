@@ -1,0 +1,10 @@
+Summarize the podcast episode below. NO REASONING — produce ONLY the final summary, immediately, with no `<think>` block.
+
+{% if title %}
+Episode topic: {{ title }}
+{% endif %}
+
+Transcript:
+{{ transcript }}
+
+Output the {{ paragraphs_min }}-{{ paragraphs_max }} paragraph summary now. Start with substantive content. NO <think>.

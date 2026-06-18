@@ -1,0 +1,18 @@
+# #1016 Phase 2b summary tight — Nemotron-Super-49B-v1_5-FP8 (NEW Phase 2c candidate, NVIDIA Llama-3.3 tuned + FP8).
+id: "autoresearch_prompt_vllm_nemotron_super_49b_fp8_dev_paragraph_tight_v1"
+task: "summarization"
+backend:
+  type: "openai"
+  model: "autoresearch"
+  base_url: "http://localhost:8003/v1"
+  api_key_env: "VLLM_API_KEY"
+prompts:
+  system: "ollama/qwen3.5_35b/summarization/system_v1"
+  user: "ollama/qwen3.5_35b/summarization/long_v1"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+preprocessing_profile: "cleaning_v4"

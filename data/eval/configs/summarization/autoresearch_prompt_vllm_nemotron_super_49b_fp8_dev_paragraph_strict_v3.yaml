@@ -1,0 +1,19 @@
+# Round 3 — Nemotron with vLLM --reasoning-parser=nemotron_v3 server-side strip
+# AND minimal positive prompt with "detailed thinking off" as first line of system+user.
+id: "autoresearch_prompt_vllm_nemotron_super_49b_fp8_dev_paragraph_strict_v3"
+task: "summarization"
+backend:
+  type: "openai"
+  model: "autoresearch"
+  base_url: "http://localhost:8003/v1"
+  api_key_env: "VLLM_API_KEY"
+prompts:
+  system: "vllm/nemotron_thinking_off/system_v2"
+  user: "vllm/nemotron_thinking_off/long_v2"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+preprocessing_profile: "cleaning_v4"

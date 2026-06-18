@@ -1,0 +1,19 @@
+# Round 2 — Kimi-Linear-48B-A3B-Instruct with STRICT anti-echo + anti-QA prompt
+# (Round 1 failure mode: model started Q&A-style paraphrase with "A:" prefix and exceeded length budget).
+id: "autoresearch_prompt_vllm_kimi_linear_48b_a3b_dev_paragraph_strict_v2"
+task: "summarization"
+backend:
+  type: "openai"
+  model: "autoresearch"
+  base_url: "http://localhost:8003/v1"
+  api_key_env: "VLLM_API_KEY"
+prompts:
+  system: "vllm/strict_summarization/system_v1"
+  user: "vllm/strict_summarization/long_v1"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+preprocessing_profile: "cleaning_v4"

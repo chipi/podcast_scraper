@@ -1,0 +1,42 @@
+# Round 3 v1 — Mistral-Small-3.2-24B-Instruct-2506 with vendor-correct config.
+#
+# Vendor Round 1/2 gap (per HF model card 2026-06-17):
+#   - "We recommend using a relatively low temperature, such as
+#     temperature=0.15." (vendor's literal quote)
+#   - We ran greedy temp=0.0.
+#   - Vendor REQUIRES mistral_common tokenizer (NOT HF tokenizer):
+#       --tokenizer_mode mistral --config_format mistral --load_format mistral
+#   - Vendor REQUIRES loading SYSTEM_PROMPT.txt from the model repo for
+#     general assistant use. We never loaded it.
+#   - Mistral-Small-3.2 has 2x reduction in infinite generations vs 3.1
+#     (1.29% from 2.11%) — material for our summary stage where overruns
+#     occur.
+#
+# COMPOSE FLAGS REQUIRED ON SWAP-IN:
+#   - --tokenizer_mode mistral
+#   - --config_format mistral
+#   - --load_format mistral
+#   - --tool-call-parser mistral  (vendor's recommended deploy)
+#
+# PROMPT TODO: Need to ship a new system prompt template that loads
+# SYSTEM_PROMPT.txt from the HF repo and uses it as system content.
+# Until then this config falls back to the cohort-uniform prompt.
+#
+# Reference: autoresearch/MODEL_PLAYBOOK.md § Round 3 plan, Priority 1
+id: "autoresearch_prompt_vllm_mistral_small_3_2_24b_dev_paragraph_round3_v1"
+task: "summarization"
+backend:
+  type: "openai"
+  model: "autoresearch"
+  base_url: "http://localhost:8003/v1"
+  api_key_env: "VLLM_API_KEY"
+prompts:
+  system: "ollama/qwen3.5_35b/summarization/system_v1"
+  user: "ollama/qwen3.5_35b/summarization/long_v1"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  max_length: 500
+  min_length: 200
+  temperature: 0.15
+preprocessing_profile: "cleaning_v4"

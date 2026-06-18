@@ -1,0 +1,38 @@
+# Phase 2c Round 3 v1 — Qwen3.5-35B-A3B Grounded Insights.
+# Mirrors Round 3 v1 Phase 2b sampling (vendor-correct) so the GI run is
+# apples-to-apples with the summary scorecard.
+#
+# COMPOSE FLAG REQUIRED ON SWAP-IN:
+#   - --reasoning-parser=qwen3   (model is thinking-by-default; without flag
+#                                  think content leaks into the GI response)
+#
+# Sampling (via extra_body — SummarizationParams silently drops top_p/top_k):
+#   temperature=0.7, top_p=0.8, top_k=20, min_p=0.0, presence_penalty=1.5
+#
+# Reference: docs/wip/EVAL_1016_ROUND3_REVIEW.md § Per-stage routing → GI + KG
+id: autoresearch_prompt_vllm_qwen3_5_35b_a3b_dev_grounded_insights_round3_v1
+task: grounded_insights
+backend:
+  type: openai
+  model: autoresearch
+  base_url: http://localhost:8003/v1
+  api_key_env: VLLM_API_KEY
+  extra_body:
+    chat_template_kwargs:
+      enable_thinking: false
+    top_p: 0.8
+    top_k: 20
+    min_p: 0.0
+    presence_penalty: 1.5
+prompts:
+  system: ollama/qwen3.5_35b/summarization/system_v1
+  user: ollama/qwen3.5_35b/summarization/long_v1
+data:
+  dataset_id: curated_5feeds_dev_v1
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.7
+  gi_insight_src: summary_bullets
+  gi_max_insights: 12
+preprocessing_profile: cleaning_v4

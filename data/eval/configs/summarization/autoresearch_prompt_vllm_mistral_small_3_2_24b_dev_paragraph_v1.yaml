@@ -1,0 +1,30 @@
+# Autoresearch v2 paragraph — vLLM-served Mistral-Small-3.2-24B-Instruct-2506.
+#
+# Candidate E in the #1016 Phase 2a tier-1 eval. Mistral instruct slot
+# (Mistral-Small-4 is 119B, out of ≤35B envelope). 3.2 supersedes 3.1
+# on most public benchmarks (Wildbench 55.6→65.3, Arena Hard v2
+# 19.6→43.1, HumanEval+ 89.0→92.9) and ships with 2× fewer infinite-
+# repetition errors than 3.1.
+id: "autoresearch_prompt_vllm_mistral_small_3_2_24b_dev_paragraph_v1"
+task: "summarization"
+backend:
+  type: "openai"
+  model: "autoresearch"
+  base_url: "http://localhost:8003/v1"
+  api_key_env: "VLLM_API_KEY"
+prompts:
+  # Mistral 3.2 is instruct-only (not reasoning). Use the standard
+  # Qwen3.5:35b production summary prompts — same instruct-only shape.
+  system: "ollama/qwen3.5_35b/summarization/system_v1"
+  user: "ollama/qwen3.5_35b/summarization/long_v1"
+  # Empirically clean output (smoke 2026-06-16 showed 0-char delta
+  # under strip_r1_reasoning), but apply the safe no-op-on-clean
+  # post-processor anyway for defense in depth.
+  postprocessor: "strip_r1_reasoning"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+preprocessing_profile: "cleaning_v4"

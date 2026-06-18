@@ -62,14 +62,26 @@ audio_preprocessing_profile: speech_optimal_v1
 speaker_detector_provider: gemini
 auto_speakers: true
 
-# --- LLM stages: Ollama qwen3.5:35b on DGX with Gemini fallback ---
-# qwen3.5:35b is the #928 Cell C cross-stack winner against vLLM-served
-# Qwen3.6-35B-A3B (tied within scoring noise; Ollama is operationally
-# simpler so it stays the default). `llm_pipeline_mode: staged` follows
-# the operator-validated #912 workaround for the bundled-mode flake.
-summary_provider: ollama
-ollama_api_base: http://${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}:11434/v1
-ollama_summary_model: qwen3.5:35b
+# --- LLM stages: vLLM Qwen3.5-35B-A3B on DGX with Gemini fallback ---
+# 2026-06-17 UPDATE: flipped from Ollama qwen3.5:35b to vLLM Qwen3.5-35B-A3B.
+#   - #928 Cell C had crowned Ollama qwen3.5:35b
+#   - #1016 Round 3 re-eval with vendor-correct sampling +
+#     --reasoning-parser=qwen3 found vLLM Qwen3.5-35B-A3B is the cohort top
+#     dog: wins 2 of 3 stages (summary 59.4% R-1 cohort leader, KG 38%
+#     cohort leader, GI 36% second behind Gemma 4)
+# Cost:
+#   - Requires `--reasoning-parser=qwen3` on the autoresearch vLLM compose
+#     (without it, think content leaks into the response)
+#   - Carries +3.6 Sonnet-mimicry on summary stage → any judge panel for
+#     prod quality monitoring MUST be cross-vendor (Sonnet + GPT-5.4 +
+#     Gemini, not a single Anthropic-family judge)
+# When judge-bias concerns dominate (audited leaderboards, customer-facing
+# rankings), use prod_dgx_balanced (Moonlight safe pick, Δ S−O = 0.0).
+# `llm_pipeline_mode: staged` retained per #912 workaround.
+summary_provider: openai
+openai_base_url: http://${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}:8003/v1
+openai_summary_model: autoresearch  # served-model-name on the vLLM slot
+openai_api_key_env: VLLM_API_KEY
 llm_pipeline_mode: staged
 
 # Cloud fallback path for the LLM stages. The FallbackAwareSummarizationProvider

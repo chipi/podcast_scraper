@@ -1,0 +1,18 @@
+# GPT-5.4 silver candidate (#1016) — cross-vendor counterweight to the
+# Anthropic Opus 4.7 silver for the #928 reframe per-stage eval. See
+# autoresearch/JUDGING.md §Silver / judge vendor-bias rule.
+id: silver_candidate_openai_gpt54_dev_v1_paragraph
+task: summarization
+backend:
+  type: openai
+  model: gpt-5.4
+prompts:
+  user: openai/summarization/long_v1
+  system: openai/summarization/system_v1
+data:
+  dataset_id: curated_5feeds_dev_v1
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+preprocessing_profile: cleaning_v4

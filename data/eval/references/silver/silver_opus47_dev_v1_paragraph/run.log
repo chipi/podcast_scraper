@@ -1,0 +1,23 @@
+2026-06-16 20:10:51,563 INFO __main__: Starting silver generation: run_id=silver_candidate_anthropic_opus47_dev_v1_paragraph model=claude-opus-4-7 dataset=curated_5feeds_dev_v1
+2026-06-16 20:10:51,808 INFO __main__: Loaded 10 episode(s)
+2026-06-16 20:10:51,809 INFO __main__: Summarizing p01_e01 (11049 chars)
+2026-06-16 20:11:03,128 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-16 20:11:03,139 INFO __main__: Summarizing p01_e02 (11059 chars)
+2026-06-16 20:11:12,858 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-16 20:11:12,858 INFO __main__: Summarizing p02_e01 (11537 chars)
+2026-06-16 20:11:27,613 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-16 20:11:27,614 INFO __main__: Summarizing p02_e02 (11265 chars)
+2026-06-16 20:11:40,802 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-16 20:11:40,802 INFO __main__: Summarizing p03_e01 (10679 chars)
+2026-06-16 20:11:51,958 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-16 20:11:51,958 INFO __main__: Summarizing p03_e02 (11172 chars)
+2026-06-16 20:12:02,623 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-16 20:12:02,623 INFO __main__: Summarizing p04_e01 (10723 chars)
+2026-06-16 20:12:14,022 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-16 20:12:14,023 INFO __main__: Summarizing p04_e02 (10913 chars)
+2026-06-16 20:12:25,402 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-16 20:12:25,402 INFO __main__: Summarizing p05_e01 (11190 chars)
+2026-06-16 20:12:35,518 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-16 20:12:35,519 INFO __main__: Summarizing p05_e02 (11679 chars)
+2026-06-16 20:12:45,972 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-16 20:12:45,974 INFO __main__: Done. 10 episodes, total_in=42023, total_out=6640, cost_usd=0.3761, wall=114.2s

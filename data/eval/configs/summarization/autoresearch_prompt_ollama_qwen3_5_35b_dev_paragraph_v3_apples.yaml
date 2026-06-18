@@ -1,0 +1,28 @@
+# Autoresearch v2 paragraph — Ollama qwen3.5:35b (Q4_K_M) under EXACT
+# Phase 2b conditions. This config exists solely to enable apples-to-
+# apples runtime comparison vs `autoresearch_prompt_vllm_qwen3_5_35b_a3b_dev_paragraph_v1`:
+# same model architecture (Qwen3.5-35B-A3B family), same prompts, same
+# dataset, same cleaning, same sampling — only the runtime (Ollama vs
+# vLLM) and quantization (Q4_K_M vs BF16) differ.
+#
+# Why this is separate from the earlier `_v2` ollama config: that one used
+# the generic `ollama/summarization/` prompt family. The Round 1 vLLM
+# Qwen3.5-35B-A3B run used the qwen-family-specific
+# `ollama/qwen3.5_35b/summarization/` prompts. Cross-mixing runtime AND
+# prompts confounds the comparison. This `_v3_apples` config matches the
+# vLLM Round 1 winner's prompt block exactly.
+id: "autoresearch_prompt_ollama_qwen3_5_35b_dev_paragraph_v3_apples"
+task: "summarization"
+backend:
+  type: "ollama"
+  model: "qwen3.5:35b"
+prompts:
+  system: "ollama/qwen3.5_35b/summarization/system_v1"
+  user: "ollama/qwen3.5_35b/summarization/long_v1"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+preprocessing_profile: "cleaning_v4"

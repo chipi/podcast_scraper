@@ -95,12 +95,14 @@ def generate_gi_silver(transcript: str, model: str = "claude-sonnet-4-20250514")
     client = anthropic.Anthropic()
     prompt = GI_SILVER_PROMPT.format(transcript=transcript[:80000])
 
-    response = client.messages.create(
+    kwargs = dict(
         model=model,
         max_tokens=4096,
         messages=[{"role": "user", "content": prompt}],
-        temperature=0.0,
     )
+    if "opus" not in model.lower():
+        kwargs["temperature"] = 0.0
+    response = client.messages.create(**kwargs)
 
     text = response.content[0].text if response.content else "{}"
     # Strip code fences if present

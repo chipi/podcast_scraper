@@ -1,0 +1,19 @@
+# Round 2 — Nemotron-Super-49B-v1_5-FP8 with NVIDIA "detailed thinking off" system convention
+# (Round 1 failure mode: model produced <think> block that consumed full token budget).
+id: "autoresearch_prompt_vllm_nemotron_super_49b_fp8_dev_paragraph_strict_v2"
+task: "summarization"
+backend:
+  type: "openai"
+  model: "autoresearch"
+  base_url: "http://localhost:8003/v1"
+  api_key_env: "VLLM_API_KEY"
+prompts:
+  system: "vllm/nemotron_thinking_off/system_v1"
+  user: "vllm/nemotron_thinking_off/long_v1"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+preprocessing_profile: "cleaning_v4"

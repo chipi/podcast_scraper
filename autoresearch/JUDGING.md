@@ -169,6 +169,213 @@ combined mitigation.
 
 ---
 
+## Silver / judge vendor-bias rule (cross-vendor cohorts)
+
+**Rule.** When a candidate cohort spans multiple vendor families (e.g. Anthropic +
+OpenAI + Google models all compared in one sweep), the silver reference and the
+primary judge **MUST NOT** be the same vendor family as any *single* candidate. If
+they are, that candidate gets a free same-vendor style boost — judges score writing
+that resembles the silver higher, and writing that resembles the judge's own style
+higher. Both effects compound.
+
+Concrete failure mode observed in #939 (commit `56f95727`): against Sonnet 4.6
+silver, Qwen3 family topped the ROUGE leaderboard (qwen3.5:27b 0.271, qwen3.6
+0.271 tied #1). Against an **Opus 4.7** silver (different model, even within
+Anthropic family — Opus writes meaningfully differently from Sonnet), the same
+predictions reshuffled: mistral:7b 0.329, llama3.2:3b 0.326, qwen3.5:35b dropped
+to #11 (0.262 → 0.243). The ROUGE spread also **widened** (0.024 → 0.086) — the
+flat Sonnet baseline was masking real quality differences.
+
+The phenomenon is documented as the **Sonnet-mimicry artifact**: Qwen3 family
+trains heavily on Sonnet-style outputs, so it scores artificially high against a
+Sonnet silver and mid-pack against Opus.
+
+**What to do.**
+
+1. For any cross-vendor candidate cohort, generate **two silver references** with
+   models from disjoint vendor families:
+   - Anthropic side: Opus 4.7 (`silver_candidate_anthropic_opus47_*`)
+   - OpenAI side: GPT-5.4 or GPT-4o (`silver_candidate_openai_gpt54_*`)
+   - (Google Gemini silver optional — we don't use it as silver because Gemini
+     2.5 Pro is on the judge panel.)
+2. Run the candidates' predictions through `rescore_against_silver.py` for BOTH
+   silvers and report ROUGE side-by-side. Disagreements between the two silvers
+   are diagnostic — they identify candidates that are silver-style-mimicking
+   rather than genuinely better.
+3. The **judge panel** for the finale tier should likewise be cross-vendor:
+   - Primary: Sonnet 4.6 (high precision, low cost)
+   - Cross-check: GPT-5.4 (cross-vendor)
+   - Optional second cross-check: Gemini 2.5 Pro (third vendor) — adds cost but
+     necessary when one of the candidates IS a Gemini family member.
+
+This rule applies to **all autoresearch tiers** that compare cross-vendor
+candidates (#928 reframe, #1016 per-stage eval, and any future per-vendor
+landscape comparisons). It does **not** apply to single-vendor sweeps (e.g.
+prompt tuning within Qwen family) where same-vendor silver is fine.
+
+See `docs/guides/eval-reports/SILVER_OPUS47_GENERATION_2026_06.md` for the full
+generation procedure + the `EVAL_SMOKE_V2_DGX_REFRESH_2026_06.md` addendum for
+the rescored-against-Opus numbers that surfaced the Sonnet-mimicry artifact.
+
+---
+
+## Distribution + output-length sanity checks (mandatory)
+
+Two failure modes burned hours in #1016 Phase 2b: a misleading mean (Phase 1
+batch-total log line slipping into a per-episode aggregator → all vLLM
+candidates looked 2× slower than they actually were), and a silent output
+inflation (the `cloud_structured_max_output_tokens` floor in
+`openai_provider.py:1095` clamped max_tokens up to 4096 → Qwen models
+generated 4-6× over the requested spec, dragging their judge scores).
+
+**Both were preventable with mandatory sanity checks. Apply these every
+autoresearch round:**
+
+### 1. Every aggregate must report min / p50 / mean / p99 / max + spread
+
+A bare "mean=132s" is useless. The required reporting shape:
+
+```text
+candidate            N  min  p50  mean  p95  max  spread(max/min)  cv(sd/mean)
+example_vllm        10  17s  22s   22s  27s  27s  1.6×              0.15
+```
+
+- **spread > 3× or cv > 0.5** → flag a suspicious data point. Investigate
+  the outlier episode before drawing conclusions.
+- **mean diverges from p50 by > 30%** → the mean is being dragged by an
+  outlier. Use p50 as the primary headline, mean as secondary.
+- **Always tag the dataset / config version** the numbers came from so a
+  later session can't mix prior-run timings into a new-run table.
+
+### 2. Validate output size against spec on every prediction
+
+Cloud LLM providers (and the OpenAI provider in this repo) have silent
+clamps that can override `max_length`. The harness may also have prompts
+that don't carry the spec to the model (e.g. `{{ paragraphs_max }}` ranges
+that derive from `max_length // 100` and can mislead the model).
+
+Required per-prediction-set table:
+
+| candidate | spec (chars) | min ch | p50 ch | mean ch | max ch | in spec? |
+|-----------|-------------:|-------:|-------:|--------:|-------:|:--------:|
+| example   | 800-3200     | 1800   | 2100   | 2150    | 2400   | ✓        |
+| broken    | 800-3200     | 3000   | 4200   | 4400    | 5500   | ✗ over   |
+
+- **mean chars > 1.5 × upper-spec** → there's a clamp, a floor, or a
+  prompt issue. Diagnose before scoring; running judges on out-of-spec
+  outputs invalidates the comparison.
+- **mean chars < 0.5 × lower-spec** → model is terminating early. Could
+  be EOS injection, prompt issue, or quantization-induced premature
+  stopping. Diagnose before scoring.
+
+### 3. Sample-output sanity check
+
+Before publishing G-Eval results, eyeball at least 1 sample per candidate.
+Look for:
+
+- Reasoning preamble leaking through (e.g. `<think>` blocks in DeepSeek-R1,
+  reasoning prose in Qwen3 family if `enable_thinking=False` isn't honored).
+- Byte-level BPE artifacts (`Ġ`, `Ċ`, `âĢĻ` in DeepSeek-R1 on vLLM 26.05).
+- Markdown / JSON in plain-text-spec outputs (prompt says "plain text only"
+  but model returns bullets or `**bold**`).
+- Truncated mid-sentence outputs (finish_reason="length" → max_tokens hit
+  before natural EOS; output is incomplete and shouldn't be scored).
+- Same / templated openings across episodes (model is over-relying on
+  prompt scaffolding rather than the transcript).
+
+If any of these are present in the sample, the cohort's judge scores are
+not comparable. Patch the harness / prompt / config and re-run.
+
+### 4. Run direct-API probe to confirm the harness sends what the config says
+
+For any unexpected output (length, format, content), bypass the harness
+and `curl` the provider directly with the exact max_tokens / params the
+config claims. If the direct probe matches the spec but the harness output
+doesn't, the harness is mutating the request between config and call.
+This is exactly how the `cloud_structured_max_output_tokens` floor was
+caught in Phase 2b — direct probe at `max_tokens=500` returned 500-token
+output, but the harness produced 800+ token output despite the same config.
+
+### 4b. Preliminary Result Gate (mandatory before any judge call)
+
+Each prediction set MUST pass a preliminary gate before any expensive
+downstream step (judge calls, finale promotion, report writing). The gate
+is a fixed checklist — if ANY check fails, STOP. Diagnose, fix, re-run.
+Do NOT proceed to judges on a set that hasn't passed the gate.
+
+**Treat every result as suspicious until proven otherwise.** Confirmation
+bias is the dominant failure mode in eval work — once a number lands in
+a table, it propagates into reports, decisions, and follow-up tickets
+before anyone questions whether it's correct.
+
+The gate (run in order, stop at first failure):
+
+```text
+┌─────────────────────────────────────────────────────────────────────┐
+│ PRELIMINARY RESULT GATE                                              │
+├─────────────────────────────────────────────────────────────────────┤
+│ Check 1: predictions.jsonl exists with N == expected episode count   │
+│   FAIL → inference incomplete; check run.log for errors              │
+│                                                                      │
+│ Check 2: per-prediction finish_reason ∈ {"stop", "eos_token"}        │
+│   FAIL on "length" → truncated mid-generation; output incomplete     │
+│   FAIL on "content_filter" → moderation blocked; flag, don't score  │
+│                                                                      │
+│ Check 3: char-count distribution fits spec                           │
+│   spec = (max_length × 4 chars/tok) ± 50%                            │
+│   mean_chars within spec: PASS                                       │
+│   mean_chars > 1.5 × spec_upper: FAIL — config / floor / clamp bug  │
+│   mean_chars < 0.5 × spec_lower: FAIL — premature termination       │
+│                                                                      │
+│ Check 4: cross-candidate length parity                               │
+│   max(mean_chars) / min(mean_chars) across cohort < 2.0: PASS        │
+│   ratio ≥ 2.0: FAIL — judges will penalize verbose responses;        │
+│     either tighten spec to match the shortest or run with disclosure │
+│                                                                      │
+│ Check 5: latency distribution sanity                                 │
+│   per-candidate cv(latency) < 0.5: PASS                              │
+│   cv ≥ 0.5: FAIL — investigate outlier episode (transcript pathology,│
+│     network, model state — fix before scoring)                       │
+│                                                                      │
+│ Check 6: sample-eyeball (1 random prediction per candidate)          │
+│   no reasoning preamble, no byte-level BPE artifacts,                │
+│   no markdown when spec says plain text, no templated openings,      │
+│   no mid-sentence truncation: PASS                                   │
+│   any visible artifact: FAIL — patch harness/prompt, re-run          │
+│                                                                      │
+│ Check 7: harness-vs-direct-API spot check                            │
+│   curl the provider directly with the same params as the config     │
+│   claims. Output length should match within 20%.                     │
+│   mismatch > 20%: FAIL — harness is mutating the request; trace     │
+│   (clamps, floors, default overrides) before scoring                  │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+Pass the gate → proceed to judges. Fail any check → stop, diagnose, fix.
+**Document every gate failure** in the eval report's methodology section,
+even after it's been fixed — the failure trail prevents the same trap
+from recurring and signals the limits of the methodology to future readers.
+
+This gate would have caught both #1016 Phase 2b failures (the Phase 1
+timing artifact via Check 5, and the cloud-floor verbose-output bug via
+Check 3 + Check 7). Cost of running the gate: ~5 minutes of analysis per
+cohort. Cost of skipping it: hours of judge spend on uncomparable results
+plus wrong conclusions in the eval report.
+
+### 5. Cross-candidate output-length parity
+
+If candidate A produces 2000 mean chars and candidate B produces 4000 mean
+chars on the same dataset + same prompts, **they are NOT being judged
+fairly** — judges penalize verbose responses on coherence + efficiency.
+Either tighten the spec until both produce comparable length, or disclose
+the length disparity prominently in the verdict (so the result can't be
+read as "A is more concise / better").
+
+These rules apply to ALL eval reports under `docs/guides/eval-reports/`
+and to every autoresearch round (#928, #1016, future tickets).
+
+---
+
 ## Known limitations
 
 1. **Cheap judge models.** `gpt-4o-mini` and `claude-haiku` are the cheapest models

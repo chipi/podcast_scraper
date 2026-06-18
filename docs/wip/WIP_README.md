@@ -16,6 +16,10 @@ WIP file is removed.
 
 | File | Description | Status |
 | ---- | ----------- | ------ |
+| `PHASE1-OPEN-WEIGHT-LLM-LANDSCAPE-2026-06.md` | #928 reframe Phase 1: open-weight LLM landscape (≤35B) → 6-candidate tier-1 shortlist (Qwen3.5:35b incumbent + Qwen3-30B-A3B-Instruct-2507 + DeepSeek-R1-Distill-32B + Magistral 1.2 + Mistral Small 4 + gemini-2.5-flash-lite cloud anchor). Phase 2 eval → #1016. | Active |
+| `EVAL_1016_LANDSCAPE_2026_06.md` | #1016 Phase 2 per-stage eval (summary / GI / KG) of the 6-candidate cohort; dual-silver methodology (Opus 4.7 + Sonnet 4.6) + multi-vendor judge panel (Sonnet 4.6 + GPT-5.4). Promoted to `docs/guides/eval-reports/` when complete. | Active |
+| `967-interaction-cost-trace.md` | #967 live devtools trace: fcose removed the layout wall; pan/zoom FPS vs node count → cap=50 is the smooth ceiling. Plus a side finding (FAISS-fallback segfault on a legacy-schema corpus) | Active |
+| `POST-MIGRATION-GRAPH-VALIDATION-967-974-876.md` | Post-migration graph validation on re-diarized prod-v2: 2 bugs found+fixed (focus reconciliation, prefix-tolerant rail), Tier-3 data scan (offset 1.0, SPOKEN_BY, adfree) + test tiers all green, open findings | Active |
 | `DASHBOARD-PERF-ANALYSIS-digest-99ep.md` | Dashboard perf root-cause: `corpus/digest` runs ~6 sequential topic-band semantic searches (4.6s, no cache); ranked options (parallelise + cache + lazy-load) + cold-init segfault caveat | Active |
 | `RUNBOOK-876-corpus-rediarization.md` | #876 DGX re-diarization operational runbook (health gate → pilot → backup → full run → rollback); gated on #944 | Ready |
 | `MULTI-USER-AND-GRAPH-FSM-ANALYSIS.md` | Multi-user/FSM analysis + graph-viewer diarization-support gaps | Backlog |

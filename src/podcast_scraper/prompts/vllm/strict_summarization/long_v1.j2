@@ -1,0 +1,12 @@
+SUMMARIZE THE PODCAST EPISODE BELOW.
+
+You are NOT continuing the dialogue. You are NOT echoing the transcript. You are NOT producing question-and-answer pairs. You ARE producing a single concise prose summary in {{ paragraphs_min }}-{{ paragraphs_max }} paragraphs.
+
+{% if title %}
+Episode topic: {{ title }}
+{% endif %}
+
+Transcript (input only — do not reproduce):
+{{ transcript }}
+
+Output the summary now. Start with a third-person sentence about the topic. Do not begin with a speaker label, greeting, or "Welcome back". Do not add any prefix like "Summary:" or "Output:".

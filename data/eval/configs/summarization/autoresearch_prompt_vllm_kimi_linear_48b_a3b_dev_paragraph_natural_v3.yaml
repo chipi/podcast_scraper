@@ -1,0 +1,21 @@
+# Round 3 — Kimi-Linear with NATURAL prompt (positive framing only).
+# Round 2 strict prompt triggered refusals on 2 episodes (`I can't comply...`, `Stop.`)
+# and conversational preambles on others. The aggressive negative-constraint stack
+# read as adversarial framing. Round 3 uses positive instructions only.
+id: "autoresearch_prompt_vllm_kimi_linear_48b_a3b_dev_paragraph_natural_v3"
+task: "summarization"
+backend:
+  type: "openai"
+  model: "autoresearch"
+  base_url: "http://localhost:8003/v1"
+  api_key_env: "VLLM_API_KEY"
+prompts:
+  system: "vllm/natural_summarization/system_v1"
+  user: "vllm/natural_summarization/long_v1"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+preprocessing_profile: "cleaning_v4"

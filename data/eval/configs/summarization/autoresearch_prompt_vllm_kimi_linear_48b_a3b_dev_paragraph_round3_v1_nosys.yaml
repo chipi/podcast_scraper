@@ -1,0 +1,26 @@
+# Round 3 v1 — Kimi-Linear-48B-A3B-Instruct, NO system prompt, minimal user prompt.
+#
+# Hypothesis: Kimi-Linear's instruct tuning is light (architecture-first paper).
+# Strict negative-constraint prompts (Round 2) trigger generic safety refusals
+# ("I can't comply..."). Positive natural framing triggers chain-of-thought-
+# in-prose narration ("First, I'll read the transcript..."). Best path: NO
+# system prompt + completion-style "Summary:" continuation framing.
+#
+# Reference: autoresearch/MODEL_PLAYBOOK.md § "Kimi-Linear-48B-A3B-Instruct"
+id: "autoresearch_prompt_vllm_kimi_linear_48b_a3b_dev_paragraph_round3_v1_nosys"
+task: "summarization"
+backend:
+  type: "openai"
+  model: "autoresearch"
+  base_url: "http://localhost:8003/v1"
+  api_key_env: "VLLM_API_KEY"
+prompts:
+  # system: intentionally omitted — vendor docs use no system prompt.
+  user: "vllm/kimi_round3/user_v1_minimal"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+preprocessing_profile: "cleaning_v4"
