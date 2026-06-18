@@ -485,6 +485,8 @@ The decision questions above provide a quick way to determine test type. For cri
 | DeepSeekProvider | `test_deepseek_provider.py`, `_factory.py`, `_lifecycle.py` | `test_deepseek_providers.py` | `test_deepseek_provider_e2e.py` |
 | GrokProvider | `test_grok_provider.py`, `_factory.py`, `_lifecycle.py` | `test_grok_providers.py` | `test_grok_provider_e2e.py` |
 | OllamaProvider | `test_ollama_provider.py`, `_factory.py`, `_lifecycle.py` | `test_ollama_providers.py` | `test_ollama_provider_e2e.py` |
+| TailnetDgxWhisper | `test_tailnet_dgx_whisper.py` | (covered by unit + e2e) | `test_tailnet_dgx_e2e.py` |
+| TailnetDgxDiarization | `test_tailnet_dgx_diarization.py` | (covered by unit + e2e) | `test_tailnet_dgx_e2e.py` |
 
 - **Provider Capabilities**: `test_capabilities.py`
   (unit) and `test_capabilities_e2e.py` (E2E) test
@@ -513,6 +515,31 @@ The decision questions above provide a quick way to determine test type. For cri
     MLProvider uses real ML models (Whisper, spaCy,
     Transformers). Tests: complete workflows,
     error scenarios (API failures, rate limits).
+
+#### Cross-cutting provider E2E (ADR-099 / ADR-100)
+
+Two separate E2E suites exercise the provider-cross-cutting
+`providers/guardrails/` and `providers/resilience/` layers against the
+shared mock server, independent of the per-provider happy-path E2E above.
+They were added during #999 / #1003 because the per-provider e2e suites
+only cover the happy path and would silently miss regressions in
+either the guardrail wiring or the wrap-into-`ProviderRuntimeError`
+trap (see [ADR-100 §A](../adr/ADR-100-response-shape-guardrails-for-cloud-llm-providers.md#a-the-except-guardrailviolation-raise-clause)).
+
+| Suite | Coverage |
+| --- | --- |
+| `tests/e2e/test_cloud_guardrails_e2e.py` | Each cloud provider's `summarize()` against an injected `200 OK + bad-shape` response from the mock server; asserts `GuardrailViolation` propagates raw (not wrapped). Empty content, thinking-prose, `finish_reason=length` per provider. |
+| `tests/e2e/test_cloud_resilience_e2e.py` | Each cloud provider's `summarize()` against an injected permanent 5xx; asserts `ProviderRuntimeError` surfaces with the right provider/stage tag. Baseline for the broader resilience matrix gap documented in `docs/wip/CLOUD-PROVIDER-RESILIENCE-E2E-GAP-1003.md`. |
+| `tests/e2e/test_tailnet_dgx_e2e.py` | Self-hosted whisper / diarize equivalents: 5xx → cloud-fallback, watchdog-hang → cloud-fallback, guardrail-violation → cloud-fallback. |
+| `tests/unit/podcast_scraper/test_e2e_mock_server_guardrail_injection.py` | The `inject_violation` / `_pop_injected_violation` / `clear_violations` class methods on the mock server itself, isolated from any provider. |
+| `tests/unit/podcast_scraper/providers/test_cloud_guardrails_wiring.py` | Per-provider wiring smoke-tests for `check_chat_response` at each call site, using fake SDK response objects. Catches a guardrail wired with the wrong `service=` label or wrong content path. |
+| `tests/unit/podcast_scraper/providers/test_resilience_and_guardrails.py` | Unit-level coverage of the `providers/resilience/` + `providers/guardrails/` packages themselves: `CircuitBreaker` state machine, `hardened_http_client` socket options, helper return shapes. |
+
+When you wire a new chat-completion provider, add it to
+`test_cloud_guardrails_e2e.py` and `test_cloud_resilience_e2e.py` (one
+test class per provider, ~15 lines). See
+[PROVIDER_IMPLEMENTATION_GUIDE.md — Response-shape guardrails](../guides/PROVIDER_IMPLEMENTATION_GUIDE.md#response-shape-guardrails-adr-099-adr-100)
+for the wiring template.
 
 ### Prompt Management (RFC-017)
 

@@ -583,6 +583,8 @@ class TestFinish(unittest.TestCase):
             "summarize_time_by_episode",
             "cleaning_time_by_episode",
             "episode_statuses",
+            # #988 — per-stage retry-reason attribution
+            "llm_retry_reasons",
         }
         self.assertEqual(set(result.keys()), expected_keys)
 
@@ -1499,6 +1501,61 @@ class TestFinishIncludesLLMMetrics(unittest.TestCase):
         self.assertEqual(result["llm_kg_calls"], 1)
         self.assertEqual(result["llm_kg_input_tokens"], 1000)
         self.assertEqual(result["llm_kg_output_tokens"], 300)
+
+
+class TestProviderRetryAttribution(unittest.TestCase):
+    """#988: per-stage 503 attribution surfaced via metrics.json."""
+
+    def test_record_provider_retry_aggregates_by_stage_and_reason(self):
+        m = metrics.Metrics()
+        m.record_provider_retry("summarization", "503")
+        m.record_provider_retry("summarization", "503")
+        m.record_provider_retry("summarization", "429")
+        m.record_provider_retry("gi", "503")
+        self.assertEqual(
+            m.llm_retry_reasons,
+            {"summarization": {"503": 2, "429": 1}, "gi": {"503": 1}},
+        )
+
+    def test_record_provider_retry_ignores_empty_inputs(self):
+        m = metrics.Metrics()
+        m.record_provider_retry("", "503")
+        m.record_provider_retry("summarization", "")
+        m.record_provider_retry(None, None)  # type: ignore[arg-type]
+        self.assertEqual(m.llm_retry_reasons, {})
+
+    def test_finish_includes_llm_retry_reasons(self):
+        m = metrics.Metrics()
+        m.record_provider_retry("summarization", "503")
+        m.record_provider_retry("kg", "connection_reset")
+        result = m.finish()
+        self.assertIn("llm_retry_reasons", result)
+        self.assertEqual(
+            result["llm_retry_reasons"],
+            {"summarization": {"503": 1}, "kg": {"connection_reset": 1}},
+        )
+
+    def test_finish_empty_when_no_retries_recorded(self):
+        m = metrics.Metrics()
+        result = m.finish()
+        self.assertEqual(result["llm_retry_reasons"], {})
+
+    def test_record_provider_retry_thread_safety(self):
+        import threading as _threading
+
+        m = metrics.Metrics()
+
+        def worker():
+            for _ in range(100):
+                m.record_provider_retry("summarization", "503")
+
+        threads = [_threading.Thread(target=worker) for _ in range(4)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        # 4 threads × 100 retries each
+        self.assertEqual(m.llm_retry_reasons, {"summarization": {"503": 400}})
 
 
 if __name__ == "__main__":

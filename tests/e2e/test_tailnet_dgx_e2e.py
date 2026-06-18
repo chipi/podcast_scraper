@@ -25,11 +25,11 @@ if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
 from podcast_scraper import Config  # noqa: E402
+from podcast_scraper.providers import resilience  # noqa: E402
 from podcast_scraper.providers.ml.diarization.base import (  # noqa: E402
     DiarizationResult,
     DiarizationSegment,
 )
-from podcast_scraper.providers.tailnet_dgx import resilience  # noqa: E402
 from podcast_scraper.providers.tailnet_dgx import (  # noqa: E402
     diarization_provider as dp,
     whisper_provider as wp,

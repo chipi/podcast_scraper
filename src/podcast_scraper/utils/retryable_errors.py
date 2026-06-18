@@ -49,6 +49,20 @@ def is_retryable_error(error: Exception, *, error_context: str = "default") -> b
     Returns:
         True if error is retryable, False otherwise
     """
+    # ADR-100: response-shape guardrail violations are NEVER retryable.
+    # The provider returned a structurally-valid HTTP 200 whose content
+    # the helper rejected (empty / thinking-prose / finish_reason=length /
+    # malformed JSON). Retrying the exact same request will yield the same
+    # bad content — there's no transport-level transient to wait out. The
+    # caller (FallbackAware) is the layer that knows what to do next.
+    try:
+        from podcast_scraper.providers.guardrails import GuardrailViolation
+
+        if isinstance(error, GuardrailViolation):
+            return False
+    except ImportError:
+        pass
+
     error_str = str(error).lower()
     error_type_name = type(error).__name__.lower()
 

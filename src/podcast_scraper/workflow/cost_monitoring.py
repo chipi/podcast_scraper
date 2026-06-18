@@ -58,8 +58,18 @@ def emit_llm_cost_event(
     corpus_path: Optional[str] = None,
     feed_id: Optional[str] = None,
     run_id: Optional[str] = None,
+    triggered_guardrail: bool = False,
 ) -> None:
-    """Emit one JSON log line per billable call (Loki ``| json`` / Grafana #804)."""
+    """Emit one JSON log line per billable call (Loki ``| json`` / Grafana #804).
+
+    ``triggered_guardrail`` (added ADR-100, #1003): set True for cost events
+    on calls whose response tripped a response-shape guardrail. Downstream
+    cost-rollup can pivot on this field to surface paid-but-rejected spend
+    (e.g. when a Gemini call burned its budget on hidden reasoning and then
+    fell back to OpenAI — both calls cost money but only the second produced
+    usable output). The field is False (the default) for the normal happy
+    path.
+    """
     if estimated_cost_usd <= 0:
         return
     event = {
@@ -73,6 +83,7 @@ def emit_llm_cost_event(
         "corpus_path": corpus_path or getattr(cfg, "output_dir", None),
         "feed_id": feed_id or getattr(cfg, "rss_url", None),
         "run_id": run_id,
+        "triggered_guardrail": bool(triggered_guardrail),
     }
     line = json.dumps(event, ensure_ascii=False)
     # Single JSON object per line so Loki/Grafana ``| json`` parses fields directly.

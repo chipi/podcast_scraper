@@ -353,8 +353,11 @@ class TestGrokProviderSummarization(unittest.TestCase):
 
     @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
     @patch("podcast_scraper.prompts.store.render_prompt")
-    def test_summarize_empty_response(self, mock_render, mock_openai):
-        """Test handling of empty API response."""
+    def test_summarize_empty_response_raises_guardrail(self, mock_render, mock_openai):
+        """ADR-100: empty response content raises GuardrailViolation instead of
+        silently returning an empty summary string."""
+        from podcast_scraper.providers.guardrails.exceptions import GuardrailViolation
+
         mock_client = Mock()
         mock_response = Mock()
         mock_response.choices = [Mock()]
@@ -367,9 +370,9 @@ class TestGrokProviderSummarization(unittest.TestCase):
         provider = GrokProvider(self.cfg)
         provider.initialize()
 
-        result = provider.summarize("Text")
-
-        self.assertEqual(result["summary"], "")
+        with self.assertRaises(GuardrailViolation) as cm:
+            provider.summarize("Text")
+        self.assertEqual(cm.exception.reason, "empty_content")
 
     @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
     @patch("podcast_scraper.prompts.store.render_prompt")

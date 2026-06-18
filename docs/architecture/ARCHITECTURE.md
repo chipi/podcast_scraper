@@ -218,6 +218,9 @@ multi-feed semantics, and behavioral details see the
 | `workflow/` | Orchestration, stages, degradation, corpus ops, run tracking | [Pipeline Guide](../guides/PIPELINE_AND_WORKFLOW.md) |
 | `rss/` | RSS parsing (`defusedxml`), HTTP downloads, feed cache | [RSS Guide](../guides/RSS_GUIDE.md) |
 | `providers/` | 9 unified providers (ML, Hybrid, 7 LLM); factories, capabilities, prompts | [Provider Guide](../guides/PROVIDER_IMPLEMENTATION_GUIDE.md) |
+| `providers/tailnet_dgx/` | Self-hosted DGX inference providers: whisper transcription + pyannote diarization over tailnet | [ADR-096](../adr/ADR-096-dgx-spark-prod-primary-with-fallback.md), [RFC-089](../rfc/RFC-089-dgx-spark-tailnet-integration.md) |
+| `providers/resilience/` | Deployment-agnostic primitives: `CircuitBreaker`, `TimeoutLike`, `run_with_watchdog`, `hardened_http_client` (TCP keepalive + `Connection: close`). Used by `tailnet_dgx/*` today; available to any provider that needs connection-level resilience. | [ADR-099](../adr/ADR-099-response-shape-guardrails-for-self-deployed-services.md) |
+| `providers/guardrails/` | Response-shape sanity checks: `check_chat_response`, `check_whisper_response`, `check_diarization_response` — raise `GuardrailViolation` when a `200 OK` response contains semantically-corrupted content (empty, thinking-prose, `finish_reason=length`, malformed JSON). Wired at every chat-completion call site across cloud + self-hosted providers. | [ADR-099](../adr/ADR-099-response-shape-guardrails-for-self-deployed-services.md), [ADR-100](../adr/ADR-100-response-shape-guardrails-for-cloud-llm-providers.md) |
 | `gi/` | Grounded Insight Layer extraction (PRD-017) | [GI Guide](../guides/GROUNDED_INSIGHTS_GUIDE.md) |
 | `kg/` | Knowledge Graph extraction (RFC-055) | [KG Guide](../guides/KNOWLEDGE_GRAPH_GUIDE.md) |
 | `search/` | LanceDB vector indexing, semantic search, episode similarity; **corpus topic clustering** (`topic_clusters.json`, RFC-075) | [Search Guide](../guides/SEMANTIC_SEARCH_GUIDE.md), [RFC-075](../rfc/RFC-075-corpus-topic-clustering.md) |
@@ -281,7 +284,21 @@ graph TB
         DeepSeekProvider[providers/deepseek/]
         GrokProvider[providers/grok/]
         OllamaProvider[providers/ollama/]
+        TailnetDgxProvider[providers/tailnet_dgx/]
     end
+
+    subgraph "Provider Cross-cutting"
+        Resilience[providers/resilience/]
+        Guardrails[providers/guardrails/]
+    end
+
+    OpenAIProvider --> Guardrails
+    GeminiProvider --> Guardrails
+    AnthropicProvider --> Guardrails
+    DeepSeekProvider --> Guardrails
+    OllamaProvider --> Guardrails
+    TailnetDgxProvider --> Resilience
+    TailnetDgxProvider --> Guardrails
 
     subgraph "Semantic Search"
         SearchIndexer[search/indexer.py]
@@ -448,6 +465,7 @@ The following diagram shows which functions call which in the pipeline entry poi
 <!-- markdownlint-disable MD037 -->
 - **Typed, immutable configuration**: `Config` is a frozen Pydantic model, ensuring every module receives canonicalized values (e.g., normalized URLs, integer coercions, validated Whisper models). This centralizes validation and guards downstream logic.
 - **Resilient HTTP interactions**: A per-thread `requests.Session` with exponential backoff retry (`LoggingRetry`) handles transient network issues while logging retries for observability. Retry counts and backoff factors are configurable via `Config` fields (`http_retry_total`, `http_backoff_factor`, `rss_retry_total`, `rss_backoff_factor`) with resilient defaults (8 retries / 1.0 s backoff for media; 10 retries / 2.0 s backoff for RSS). An additional application-level episode retry (`episode_retry_max`, default 1) re-runs the full episode download on transient network errors after urllib3 retries are exhausted. Model loading operations use `retry_with_exponential_backoff` for transient errors (network failures, timeouts). See [CONFIGURATION.md -- Download Resilience](../api/CONFIGURATION.md#download-resilience).
+- **Response-shape guardrails** (ADR-099 / ADR-100): A second layer of defense above transport-level resilience. `providers/guardrails/` runs content-aware sanity checks on every `200 OK` response from chat-completion providers (cloud + self-hosted) and from the self-hosted whisper / pyannote services. A response that fails the check (empty content, thinking-prose markers, `finish_reason=length`, mid-truncated JSON, single-speaker labels for multi-speaker audio) raises `GuardrailViolation`, which the `FallbackAwareSummarizationProvider` wrapper routes the same way it routes connection-level failures. Per-stage policy: summary / GI / KG / speaker fail-up; cleaning degrades gracefully to the original transcript. Violations emit a Prometheus counter (`inference_guardrail_violations_total{service, reason}`) for alerting. See [ADR-099](../adr/ADR-099-response-shape-guardrails-for-self-deployed-services.md) (self-hosted), [ADR-100](../adr/ADR-100-response-shape-guardrails-for-cloud-llm-providers.md) (cloud).
 - **Concurrent transcript pulls**: Transcript downloads are parallelized via `ThreadPoolExecutor`, guarded with locks when mutating shared counters/job queues. Whisper remains sequential to avoid GPU/CPU thrashing and to keep the UX predictable.
 - **Deterministic filesystem layout**: Output folders follow `output/rss_<host>_<hash>` conventions. Optional `run_id` and Whisper suffixes create run-scoped subdirectories while `sanitize_filename` protects against filesystem hazards.
 - **Dry-run and resumability**: `--dry-run` walks the entire plan without touching disk, while `--skip-existing` short-circuits work per episode, making repeated runs idempotent.

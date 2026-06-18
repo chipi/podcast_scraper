@@ -155,17 +155,87 @@ def create_transcription_provider(cfg: config.Config) -> TranscriptionProvider:
 
 ---
 
+## Response-shape guardrails (ADR-099 / ADR-100)
+
+When you add a new chat-completion provider (cloud or self-hosted), wire the
+response-shape guardrail at every content-producing call site — summarize,
+summarize_bundled, generate_insights, KG extraction, clean_transcript,
+speaker detection if it returns prose. The helper catches the failure modes
+the SDK can't (empty content / thinking-prose markers / `finish_reason=length`
+/ unparsable JSON when expected).
+
+```python
+from .. import guardrails as _guardrails
+
+# at the content-producing call site, after extracting content + finish_reason
+content = response.choices[0].message.content          # provider-specific path
+finish_reason = response.choices[0].finish_reason      # or stop_reason / candidates[0].finish_reason
+_guardrails.check_chat_response(
+    content,
+    service="<your-service-name>",   # short string, no deployment details
+    finish_reason=finish_reason,
+    expect_json=False,                # True only for JSON-out call sites
+)
+```
+
+The `service` kwarg is the Prometheus label
+(`inference_guardrail_violations_total{service, reason}`) and the
+`GuardrailViolation.service` attribute. Pick a fixed short string
+(`"openai"` / `"anthropic"` / etc.) and **don't embed deployment details**
+(no `"openai-via-azure"`, no `"gemini-prod"`).
+
+### The wrap-into-ProviderRuntimeError trap (ADR-100 §A)
+
+If your provider's call site has a broad `except Exception` that maps into
+`ProviderRuntimeError` / `ProviderAuthError` for the operator-facing error
+system, `GuardrailViolation` will be silently wrapped and the
+`FallbackAwareSummarizationProvider` layer will never see the type. Always
+add an explicit passthrough **before** the broad except:
+
+```python
+except _guardrails.GuardrailViolation:
+    raise  # ADR-100: let FallbackAware see the raw type, don't wrap
+except Exception as exc:
+    # existing error-classification block
+```
+
+### Per-stage failure handling
+
+Cleaning is graceful (catch and degrade to original text); summarize / GI /
+KG / speaker are fail-up. See
+[ADR-100 §3](../adr/ADR-100-response-shape-guardrails-for-cloud-llm-providers.md#3-failure-handling-per-stage-not-per-provider)
+for the matrix and reasoning. Cleaning template:
+
+```python
+except _guardrails.GuardrailViolation:
+    logger.warning(
+        "<Service> cleaning output failed guardrail; returning original transcript text"
+    )
+    return text   # NOT raise — cleaning's contract permits the no-op fallback
+```
+
+---
+
 ## Testing Your Provider
 
 ### E2E Server Mock Endpoints
 
 For API providers, you must add mock endpoint handlers to the E2E test server (`tests/e2e/fixtures/e2e_http_server.py`). This allows tests to run without real API keys or internet access.
 
+If the provider exposes a chat-completion-shaped endpoint, also extend the
+mock server's `inject_violation` registry so guardrail E2E tests can target
+it. The vocabulary is documented at the top of the `_injected_violations`
+declaration in the mock server; follow the existing
+`_emit_chat_violation` / `_emit_anthropic_violation` /
+`_emit_gemini_violation` pattern.
+
 ### Testing Checklist
 
 - [ ] **Unit Tests**: Test logic in isolation, mock all external dependencies.
 - [ ] **Integration Tests**: Test provider with the real E2E server mock endpoints.
 - [ ] **E2E Tests**: Test provider in the full pipeline context.
+- [ ] **Guardrail E2E** (chat-shaped providers): inject empty / thinking-prose / finish-length response via the mock server, assert `GuardrailViolation` propagates out of the public method (not wrapped into `ProviderRuntimeError`). See `tests/e2e/test_cloud_guardrails_e2e.py` for the template.
+- [ ] **Resilience E2E** (chat-shaped providers): inject permanent 5xx + transient 5xx via `set_error_behavior` / `set_transient_error`, assert behavior matches the per-stage contract. See `tests/e2e/test_cloud_resilience_e2e.py`.
 - [ ] **Resource Management**: Verify `cleanup()` properly unloads models or closes connections.
 
 ## Related Documentation

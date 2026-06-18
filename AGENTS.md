@@ -162,6 +162,133 @@ operator repeatedly. Adherence beats every other rule.
     plainly "the bridge is the seam, not a merge" — that wrong mental model
     derailed a plan before the design doc was read.
 
+15. **Never open GitHub issues without explicit operator approval.** Follow-up
+    work, scope-bounded sub-tasks, "I noticed this on the side" observations, and
+    architectural cleanups that surface mid-task are tracked as **local tasks**
+    via the harness's TaskCreate, not as GH issues. A GH issue is a public
+    commitment that drains operator attention every time it shows up in `gh issue
+    list`; local tasks stay in the session and disappear when handled. The agent
+    does not get to decide which side observations deserve operator attention.
+
+    Acceptable triggers for opening a GH issue:
+    - The operator explicitly says "file an issue" / "open a ticket" / "make a GH
+      issue for this."
+    - The operator's instruction in the active PR clearly requires an issue
+      (e.g. "closes #N" needs the issue to exist).
+    - The operator pre-authorized it for a specific scope ("for the rest of this
+      session you can file follow-ups as issues").
+
+    Default for everything else — including refactoring observations, naming
+    cleanups, deferred scope, "would be nice to track this" patterns: use
+    TaskCreate. If the operator decides later that it warrants an issue, they
+    will say so.
+
+    Failure mode of record (2026-06-15): opened #1002, #1003, #1004 unprompted
+    during a guardrails design session; operator's response was *"stop fucking
+    opening GH issues from now on. no more issues, all things are immediate
+    follow-up in tasks."* The same pattern had played out earlier in the
+    session with autoresearch-vLLM and homelab follow-up tickets.
+
+16. **Deployment-specific words don't belong in code identifiers.** Module
+    paths, function names, class names, Prometheus counter names, and any
+    other code-level identifier MUST be written in terms of what the code
+    *does*, not where it happens to run today. Deployment names (DGX,
+    Tailnet, AWS, Hetzner, the operator's-desk-server) belong in operational
+    config (compose files, deploy scripts, Tailscale tags, runbook prose) —
+    not in `import` statements.
+
+    The same identifier should still make sense if the underlying server is
+    swapped from a DGX on the operator's desk to an AWS instance to a colo
+    box. If swapping the deployment would force renaming the identifier, the
+    identifier is wrong.
+
+    Examples (this codebase, as of 2026-06-15):
+
+    | Code identifier today | Why it's wrong | Right shape |
+    | --- | --- | --- |
+    | `providers/tailnet_dgx/resilience.py` | "tailnet" is a transport; "dgx" is a hardware vendor. Neither describes what the module does (universal resilience + content-shape guardrails). | `providers/resilience/` + `providers/guardrails/` |
+    | `dgx_http_client(...)` | Function adds keepalive + `Connection: close` — that's HTTP-client hardening, not anything DGX-specific. | `hardened_http_client(...)` (or similar) |
+    | Prometheus counter `dgx_guardrail_violations_total` | The metric counts guardrail violations from self-hosted inference services. "DGX" is incidental. | `inference_guardrail_violations_total` |
+
+    OK to use deployment names in **human-readable text**: log messages,
+    eval reports, runbook prose, comment context ("the DGX whisper service
+    on :8002") — those explain WHERE something runs, which the operator
+    wants to know. Just keep them out of identifiers.
+
+    Failure mode of record (2026-06-15): #999 landed `GuardrailViolation` +
+    helpers inside `tailnet_dgx/resilience.py`. Setting up #1003 (cloud-API
+    guardrails) would have meant cloud provider code importing from
+    `tailnet_dgx.*` — the operator flagged this immediately, and a cleanup
+    is now mandatory precursor to #1003.
+
+17. **Adding a chat-completion provider — the wiring conventions.** Every
+    cloud or self-hosted chat-completion provider added after the 2026-06-15
+    ADR-100 close-out MUST follow the same wiring pattern at EVERY call
+    site that calls `_guardrails.check_chat_response` (summarize,
+    summarize_bundled, generate_insights, KG extraction, clean_transcript).
+    Half-applied wiring is the failure mode this rule exists to prevent.
+
+    a. **Guardrail propagation, not wrap.** Add an explicit
+       `except _guardrails.GuardrailViolation: raise` clause BEFORE the
+       broad `except Exception` that wraps into `ProviderRuntimeError`.
+       Without this, FallbackAware never sees the violation type.
+
+    b. **Per-SDK finish_reason normalization at the call-site boundary.** If
+       the provider's SDK returns a non-canonical truncation value (Anthropic
+       `"max_tokens"`, Gemini `"MAX_TOKENS"`, etc.), normalize to `"length"`
+       in a tiny helper (`_<provider>_finish_reason(response)`). Keep the
+       guardrail helper service-neutral.
+
+    c. **Cost-emit-with-flag in BOTH branches.** Extract token + cost data
+       up-front, define a local `_record_cost(*, triggered_guardrail=False)`
+       closure, then:
+
+       ```python
+       try:
+           _guardrails.check_chat_response(...)
+       except _guardrails.GuardrailViolation:
+           _record_cost(triggered_guardrail=True)
+           raise  # or `return text` for cleaning
+       _record_cost()
+       ```
+
+       The `llm_cost` Loki/Grafana stream depends on this — paid-but-rejected
+       spend is invisible without it.
+
+    d. **GI / KG stages are fail-up, NOT silent degrade.** ADR-100 §3.
+       The outer broad-except pattern `except Exception: return []` MUST add
+       an explicit `except _guardrails.GuardrailViolation: raise` clause
+       above it so FallbackAware can route. Same for KG returning None.
+
+    e. **Cleaning is catch-and-degrade.** ADR-100 §3. Inline-handle the
+       violation: emit cost-with-flag, log WARNING, return original `text`.
+
+    f. **Per-provider circuit breaker.** After every
+       `ProviderCallMetrics()` construction + `set_provider_name(...)`,
+       call `call_metrics.set_breaker_config_from_cfg(self.cfg)`. This
+       auto-wires every `retry_with_metrics` call through to the
+       `LLMCircuitBreakerConfig` substrate — opt-in via
+       `cfg.llm_circuit_breaker_enabled`, default off.
+
+    g. **Add the provider to the cross-cutting E2E suites.** Append a
+       per-provider test class to:
+       - `tests/e2e/test_cloud_guardrails_e2e.py`
+       - `tests/e2e/test_cloud_resilience_e2e.py`
+       - `tests/e2e/test_cloud_gi_failup_e2e.py`
+       - `tests/e2e/test_cloud_cleaning_degrades_e2e.py`
+       - `tests/e2e/test_cloud_circuit_breaker_e2e.py` (parameterized list)
+       - `tests/e2e/test_cloud_guardrails_fallback_e2e.py`
+
+    Reference implementations: OpenAI / Anthropic / Gemini / DeepSeek /
+    Mistral / Grok / Ollama in `src/podcast_scraper/providers/*/`.
+
+    Failure mode of record (2026-06-15 batch): #999 + #1003 + close-out
+    landed across 7 providers, with the cost-emit-with-flag + circuit
+    breaker wiring + GI fail-up policy added in three separate close-out
+    rounds because earlier scope-cuts had marked them as "deferred." Hold
+    the line — finish the matrix in the same batch a new provider is
+    added.
+
 ---
 
 ## User intent beats procedural defaults

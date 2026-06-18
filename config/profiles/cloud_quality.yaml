@@ -31,23 +31,27 @@ profile: cloud_quality
 #     --rss <feed_url> --output-dir <output>
 
 # Transcription — Deepgram nova-3 for the quality tier: native, server-side
-# speaker diarization that the local-Whisper path can't produce without a second
-# pyannote pass. `screenplay: true` renders Deepgram's utterance-level speaker
-# labels as a named screenplay (for deepgram, the pyannote `diarize` pass is
-# coerced off while screenplay is kept — see #597 / audit D1). Requires
-# DEEPGRAM_API_KEY (or deepgram_api_key). Aligned with "quality > cost".
+# speaker diarization, no separate pyannote pass needed. Diarization is a
+# core pipeline stage (#913, 2026-06-15): we route the diarize stage
+# explicitly to Deepgram too. Two Listen API calls per episode (transcribe
+# + diarize) — a deliberate tradeoff for stage independence.
 transcription_provider: deepgram
 deepgram_model: nova-3
+diarize: true
+diarization_provider: deepgram
 screenplay: true
 
 # Audio preprocessing — named preset (#634 Scope 1).
 audio_preprocessing_profile: speech_optimal_v1
 
-# Speaker detection — spaCy trf ties all cloud LLMs at F1=1.000 on NER smoke
-# (5 eps / 15 entities). Free, local, deterministic. Larger-corpus validation
-# deferred to post-reingestion (see POST_REINGESTION_PLAN.md Step 6).
-speaker_detector_provider: spacy
-ner_model: en_core_web_trf
+# Speaker detection — Gemini 2.5 Flash-Lite (#997 bake-off 2026-06-15).
+# The earlier "spaCy trf ties at F1=1.000 on NER smoke" finding was
+# entity-recognition-on-transcript, not the speaker-from-RSS-metadata task
+# the speaker_detector actually performs. On v3 (22 episodes), Gemini
+# extracts guests faithfully from title/description 77% of the time vs
+# spaCy's 4.5% — see EVAL_SPEAKER_DETECTION_NAMING_2026_06_15.md.
+# All other cloud_* profiles already use gemini for the same reason.
+speaker_detector_provider: gemini
 auto_speakers: true
 
 # Summarization — Anthropic haiku-4.5 for tier-1 mega-bundle (#646 validation).

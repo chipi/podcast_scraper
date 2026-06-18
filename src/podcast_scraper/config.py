@@ -86,28 +86,48 @@ def _raw_screenplay_requested(value: Any) -> bool:
 # see ``apply_diarization_to_result(result, media_for_transcription, ...)``) AND
 # returns timestamped Whisper-format segments for alignment. ``whisper`` /
 # ``tailnet_dgx_whisper`` and (#913) ``openai`` (``verbose_json``) all qualify;
-# Gemini / Mistral emit plain text (no segments) so they stay ineligible, and
-# ``deepgram`` self-diarizes (see ``_NATIVE_SCREENPLAY_TRANSCRIPTION_PROVIDERS``).
+# Gemini / Mistral emit plain text (no segments) so they stay ineligible.
+# ``deepgram`` joined the eligibility set in the 2026-06-15 "diarize-everywhere"
+# change — its self-diarized output feeds the ``deepgram`` diarization_provider
+# (new in the same change), and a Deepgram-paired pyannote pass also runs cleanly.
 _DIARIZATION_ELIGIBLE_TRANSCRIPTION_PROVIDERS = frozenset(
-    {"whisper", "tailnet_dgx_whisper", "openai"}
+    {"whisper", "tailnet_dgx_whisper", "openai", "deepgram"}
 )
 
 # Of the eligible providers, these default ``diarize`` ON (the local Whisper paths
-# where the pyannote pass is the natural default). ``openai`` is eligible but
-# *opt-in* (#913): it's a cloud transcription provider, so layering a local pyannote
-# pass + HF-token dependency on top is an explicit choice, not a silent default —
-# otherwise every existing ``openai`` run/test would start attempting diarization.
+# where the pyannote pass is the natural default). ``openai`` / ``deepgram`` are
+# eligible but *opt-in*: they're cloud transcription providers, so layering a
+# diarization pass on top is an explicit choice, not a silent default — otherwise
+# every existing ``openai`` / ``deepgram`` run/test would start attempting it.
 _DIARIZATION_DEFAULT_ON_TRANSCRIPTION_PROVIDERS = frozenset({"whisper", "tailnet_dgx_whisper"})
 
 # Providers that produce their own speaker-labelled segments via the transcription
 # API (no local pyannote pass) and can therefore self-format a screenplay. Screenplay
-# stays enabled for these even though diarize (the pyannote pass) is coerced off.
+# stays enabled for these even when ``diarize`` (the pyannote pass) is off — the
+# transcription response carries the speaker labels natively.
 _NATIVE_SCREENPLAY_TRANSCRIPTION_PROVIDERS = frozenset({"deepgram"})
 
 
 def _screenplay_strict_env_enabled() -> bool:
     """When set, invalid screenplay + API transcription is an error instead of coercion."""
     v = os.environ.get("PODCAST_SCRAPER_SCREENPLAY_STRICT", "")
+    return str(v).strip().lower() in ("1", "true", "yes", "on")
+
+
+def _diarize_lax_env_enabled() -> bool:
+    """When set, ``diarize: true`` on an ineligible transcription provider
+    silently coerces to ``diarize: false`` (the pre-2026-06-15 behavior).
+
+    Default is strict — misconfiguration raises ``ValueError`` at Config
+    validation. Diarization is a core stage; a profile that asserts
+    ``diarize: true`` but pairs it with a provider that can't diarize is
+    just broken, and the silent coerce hid that bug.
+
+    Escape hatch retained for CI / migration runs that haven't been
+    updated yet — set ``PODCAST_SCRAPER_DIARIZE_LAX=1`` to fall back to
+    the old behavior.
+    """
+    v = os.environ.get("PODCAST_SCRAPER_DIARIZE_LAX", "")
     return str(v).strip().lower() in ("1", "true", "yes", "on")
 
 
@@ -1347,18 +1367,21 @@ class Config(BaseModel):
             "faster-whisper-server which takes HF repo IDs."
         ),
     )
-    diarization_provider: Literal["local", "tailnet_dgx", "gemini"] = Field(
+    diarization_provider: Literal["local", "tailnet_dgx", "gemini", "deepgram"] = Field(
         default="local",
         alias="diarization_provider",
         description=(
-            "Diarization backend (#926, #962). ``local`` runs pyannote.audio in-process "
-            "on the pipeline host (laptop / prod VPS). ``tailnet_dgx`` POSTs audio to "
-            "the DGX-hosted pyannote service on dgx_diarize_port and gets speaker turns "
-            "back over the tailnet. ``gemini`` sends audio to Gemini's 2.5 audio API "
-            "and parses speaker turns from the structured-JSON response — the cloud_* "
-            "profile path that needs no local pyannote install. Falls back to local "
-            "pyannote when DGX is unreachable so the pipeline never hard-fails on "
-            "diarize. Default ``local`` keeps behavior backwards-compatible."
+            "Diarization backend (#926, #962, #913). ``local`` runs "
+            "pyannote.audio in-process on the pipeline host (laptop / prod VPS, "
+            "needs ``[ml]`` extras + HF_TOKEN). ``tailnet_dgx`` POSTs audio to "
+            "the DGX-hosted pyannote service on dgx_diarize_port. ``gemini`` "
+            "sends audio to Gemini's 2.5 audio API (note: structurally broken "
+            "per #992 — kept only as last-resort fall-back). ``deepgram`` posts "
+            "the audio to Deepgram's Listen API with diarize=true and parses "
+            "speaker turns from the response — the cloud_* path that needs no "
+            "local pyannote install and no DGX. Default ``local`` keeps "
+            "behavior backwards-compatible for laptop / DGX paths; cloud_* "
+            "profiles now pin ``deepgram``."
         ),
     )
     dgx_diarize_port: int = Field(
@@ -2053,6 +2076,17 @@ class Config(BaseModel):
         default="nova-3",
         alias="deepgram_model",
         description="Deepgram model for transcription (default: nova-3)",
+    )
+    deepgram_diarization_model: str = Field(
+        default="nova-3-general",
+        alias="deepgram_diarization_model",
+        description=(
+            "Deepgram model for the standalone diarization pass (when "
+            "``diarization_provider: deepgram``). Default ``nova-3-general`` "
+            "matches the transcription default. Separate from "
+            "``deepgram_model`` so the two stages can pin different models "
+            "if quality vs. cost trade-offs justify it."
+        ),
     )
     deepgram_api_base: Optional[str] = Field(
         default=None,
@@ -3457,6 +3491,20 @@ class Config(BaseModel):
             return merged
         tp = merged.get("transcription_provider", "whisper")
         if tp not in _DIARIZATION_ELIGIBLE_TRANSCRIPTION_PROVIDERS:
+            # The 2026-06-15 diarize-everywhere change made this strict by
+            # default: a profile that explicitly sets ``diarize: true`` paired
+            # with a provider that can't diarize is broken, not "silently OK."
+            # See ``_diarize_lax_env_enabled`` for the escape hatch.
+            diarize_explicitly_requested = "diarize" in merged and merged["diarize"]
+            if diarize_explicitly_requested and not _diarize_lax_env_enabled():
+                raise ValueError(
+                    f"diarize=true requires a transcription_provider that keeps "
+                    f"the audio locally and emits timestamped segments "
+                    f"(got transcription_provider={tp!r}). Eligible providers: "
+                    f"{sorted(_DIARIZATION_ELIGIBLE_TRANSCRIPTION_PROVIDERS)}. "
+                    f"Set PODCAST_SCRAPER_DIARIZE_LAX=1 to fall back to the "
+                    f"pre-2026-06-15 silent-coerce behavior (deprecated)."
+                )
             merged["diarize"] = False
             with _diarize_coerce_lock:
                 should_log = not _diarize_coerce_state["logged"]
@@ -3464,19 +3512,26 @@ class Config(BaseModel):
                     _diarize_coerce_state["logged"] = True
             if should_log:
                 logger.info(
-                    "diarize (local pyannote pass) applies only to providers that keep "
-                    "the audio locally and emit timestamped segments (%s); "
-                    "transcription_provider=%r does not — coercing diarize=false.",
-                    ", ".join(sorted(_DIARIZATION_ELIGIBLE_TRANSCRIPTION_PROVIDERS)),
+                    "diarize default-off for transcription_provider=%r — eligible "
+                    "providers are %s. To force diarize on this provider, set "
+                    "diarize: true explicitly (will raise unless "
+                    "PODCAST_SCRAPER_DIARIZE_LAX=1 is set).",
                     tp,
+                    ", ".join(sorted(_DIARIZATION_ELIGIBLE_TRANSCRIPTION_PROVIDERS)),
                 )
             return merged
-        # #913: eligible-but-opt-in providers (openai) default diarize OFF unless it
-        # was explicitly requested — so existing openai runs/tests are unchanged and
-        # the pyannote pass + HF-token dependency is only added on an explicit opt-in.
+        # Eligible-but-opt-in providers (``openai`` / ``deepgram``) default
+        # diarize OFF unless it was explicitly requested — so existing runs/tests
+        # are unchanged and the diarize stage is only added on an explicit opt-in.
         if tp not in _DIARIZATION_DEFAULT_ON_TRANSCRIPTION_PROVIDERS and "diarize" not in merged:
             merged["diarize"] = False
             return merged
+        # ``deepgram`` + explicit ``diarize: true`` — default the
+        # ``diarization_provider`` to ``deepgram`` too (most natural
+        # pairing; avoids surprising the user by silently picking
+        # ``local`` pyannote which needs [ml] extras + HF_TOKEN).
+        if tp == "deepgram" and merged.get("diarize") and "diarization_provider" not in merged:
+            merged["diarization_provider"] = "deepgram"
         if not _raw_screenplay_requested(merged.get("screenplay")):
             merged["screenplay"] = True
         return merged

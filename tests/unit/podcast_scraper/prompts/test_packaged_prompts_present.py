@@ -5,7 +5,7 @@ distribution unless ``[tool.setuptools.package-data]`` lists them.
 Without that config, an editable install (``pip install -e .``) reads
 ``.j2`` templates from the source tree fine — but a wheel install
 (Docker images, ``pip install podcast-scraper``) loses them and
-Gemini / Groq / OpenAI provider paths fail at runtime with
+Gemini / OpenAI provider paths fail at runtime with
 ``PromptNotFoundError`` (``stack-test cloud-thin`` was the canonical
 trip wire — #666 follow-up).
 
@@ -54,7 +54,6 @@ def _prompts_root() -> Path:
         # Shared (KG extraction). Used by all providers.
         "shared/kg_graph_extraction/v1.j2",
         # Local providers (airgapped path) — also bundled.
-        "groq/ner/guest_host_v1.j2",
         "deepseek/cleaning/v1.j2",
     ],
 )

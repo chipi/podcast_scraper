@@ -40,6 +40,7 @@ from ...utils.provider_metadata import (
 )
 from ...utils.timeout_config import get_openai_client_timeout
 from ...workflow import metrics
+from .. import guardrails as _guardrails
 from ..capabilities import ProviderCapabilities
 
 logger = logging.getLogger(__name__)
@@ -494,6 +495,7 @@ class OpenAIProvider:
             if call_metrics is None:
                 call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("openai")
+            call_metrics.set_breaker_config_from_cfg(self.cfg)
 
             # Wrap API call with retry tracking
             from ...utils.provider_metrics import (
@@ -1123,6 +1125,7 @@ class OpenAIProvider:
             if call_metrics is None:
                 call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("openai")
+            call_metrics.set_breaker_config_from_cfg(self.cfg)
 
             # Wrap API call with retry tracking
             from ...utils.provider_metrics import (
@@ -1174,22 +1177,16 @@ class OpenAIProvider:
             )
 
             summary = response.choices[0].message.content
-            if not summary:
-                logger.warning("OpenAI API returned empty summary")
-                summary = ""
+            finish_reason = response.choices[0].finish_reason
 
-            logger.debug(
-                "OpenAI summarization completed: %d characters",
-                len(summary),
-            )
-
-            # Extract token counts and populate call_metrics
+            # Extract token counts up-front so the cost event can fire on
+            # both the happy path and the GuardrailViolation path
+            # (ADR-100 paid-but-rejected cost-attribution).
             input_tokens = None
             output_tokens = None
             if hasattr(response, "usage") and response.usage:
                 prompt_tokens = getattr(response.usage, "prompt_tokens", None)
                 completion_tokens = getattr(response.usage, "completion_tokens", None)
-                # Convert to int if they're actual numbers, otherwise use 0
                 # Handle Mock objects from tests by checking type
                 input_tokens = int(prompt_tokens) if isinstance(prompt_tokens, (int, float)) else 0
                 output_tokens = (
@@ -1198,8 +1195,6 @@ class OpenAIProvider:
                 if input_tokens > 0 or output_tokens > 0:
                     call_metrics.set_tokens(input_tokens, output_tokens)
 
-            # Calculate cost first so the value flows into both call_metrics and
-            # pipeline_metrics.record_llm_summarization_call(cost_usd=...).
             cost: Optional[float] = None
             if input_tokens is not None:
                 from ...workflow.helpers import calculate_provider_cost
@@ -1212,6 +1207,10 @@ class OpenAIProvider:
                     prompt_tokens=input_tokens,
                     completion_tokens=output_tokens,
                 )
+
+            def _record_cost(*, triggered_guardrail: bool = False) -> None:
+                if input_tokens is None:
+                    return
                 from ...utils.provider_metrics import record_provider_call_cost
 
                 record_provider_call_cost(
@@ -1223,7 +1222,28 @@ class OpenAIProvider:
                     model=self.summary_model,
                     prompt_tokens=input_tokens,
                     completion_tokens=output_tokens,
+                    triggered_guardrail=triggered_guardrail,
                 )
+
+            # Response-shape guardrail (ADR-100, #1003): empty / thinking-prose /
+            # finish_reason=length. Cost event fires in BOTH branches so the
+            # operator can pivot on paid-but-rejected spend; the raw
+            # GuardrailViolation propagates so FallbackAware can route the
+            # configured degradation_policy.fallback_provider_on_failure.
+            try:
+                _guardrails.check_chat_response(
+                    summary, service="openai", finish_reason=finish_reason
+                )
+            except _guardrails.GuardrailViolation:
+                _record_cost(triggered_guardrail=True)
+                raise
+
+            logger.debug(
+                "OpenAI summarization completed: %d characters",
+                len(summary),
+            )
+
+            _record_cost()
 
             # Track LLM call metrics if available (aggregate tracking)
             if (
@@ -1265,6 +1285,11 @@ class OpenAIProvider:
                 },
             }
 
+        except _guardrails.GuardrailViolation:
+            # ADR-100: propagate the raw violation so FallbackAwareSummarizationProvider
+            # can route to the degradation policy's fallback. Wrapping into
+            # ProviderRuntimeError would hide the type from the fallback layer.
+            raise
         except Exception as exc:
             logger.error("OpenAI API error in summarization: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError
@@ -1348,6 +1373,7 @@ class OpenAIProvider:
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("openai")
+        call_metrics.set_breaker_config_from_cfg(self.cfg)
 
         def _make_api_call() -> Any:
             kwargs: Dict[str, Any] = {
@@ -1445,6 +1471,7 @@ class OpenAIProvider:
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("openai")
+        call_metrics.set_breaker_config_from_cfg(self.cfg)
 
         def _make_api_call() -> Any:
             kwargs: Dict[str, Any] = {
@@ -1540,6 +1567,7 @@ class OpenAIProvider:
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("openai")
+        call_metrics.set_breaker_config_from_cfg(self.cfg)
 
         def _make_api_call() -> Any:
             kwargs: Dict[str, Any] = {
@@ -1577,23 +1605,10 @@ class OpenAIProvider:
             "summarize_bundled",
         )
         raw = (response.choices[0].message.content or "").strip()
-        if not raw:
-            raise ValueError("OpenAI bundled call returned empty content")
+        finish_reason = response.choices[0].finish_reason
 
-        try:
-            data = json.loads(raw)
-        except json.JSONDecodeError as exc:
-            raise ValueError(f"Bundled response is not valid JSON: {exc}") from exc
-
-        if not isinstance(data, dict):
-            raise ValueError("Bundled JSON must be an object")
-        summary_prose = data.get("summary")
-        bullets = data.get("bullets")
-        if not isinstance(summary_prose, str) or not summary_prose.strip():
-            raise ValueError("Bundled JSON missing non-empty summary string")
-        if not isinstance(bullets, list) or not bullets:
-            raise ValueError("Bundled JSON missing non-empty bullets list")
-
+        # Extract tokens up-front so the cost event can fire on both the
+        # happy path and the GuardrailViolation path (ADR-100).
         input_tokens = None
         output_tokens = None
         if hasattr(response, "usage") and response.usage:
@@ -1616,6 +1631,10 @@ class OpenAIProvider:
                 prompt_tokens=input_tokens,
                 completion_tokens=output_tokens,
             )
+
+        def _record_cost(*, triggered_guardrail: bool = False) -> None:
+            if input_tokens is None:
+                return
             from ...utils.provider_metrics import record_provider_call_cost
 
             record_provider_call_cost(
@@ -1627,7 +1646,33 @@ class OpenAIProvider:
                 model=self.summary_model,
                 prompt_tokens=input_tokens,
                 completion_tokens=output_tokens,
+                triggered_guardrail=triggered_guardrail,
             )
+
+        # Response-shape guardrail (ADR-100, #1003) — empty content, thinking-
+        # prose markers, finish_reason=length. Cost emitted in BOTH branches
+        # for paid-but-rejected attribution.
+        try:
+            _guardrails.check_chat_response(raw, service="openai", finish_reason=finish_reason)
+        except _guardrails.GuardrailViolation:
+            _record_cost(triggered_guardrail=True)
+            raise
+
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Bundled response is not valid JSON: {exc}") from exc
+
+        if not isinstance(data, dict):
+            raise ValueError("Bundled JSON must be an object")
+        summary_prose = data.get("summary")
+        bullets = data.get("bullets")
+        if not isinstance(summary_prose, str) or not summary_prose.strip():
+            raise ValueError("Bundled JSON missing non-empty summary string")
+        if not isinstance(bullets, list) or not bullets:
+            raise ValueError("Bundled JSON missing non-empty bullets list")
+
+        _record_cost()
 
         if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
             pipeline_metrics.record_llm_bundled_clean_summary_call(
@@ -1706,25 +1751,55 @@ class OpenAIProvider:
                 max_tokens=min(1024, max_insights * 150),
             )
             in_tok, out_tok = _openai_chat_usage_tokens(response)
-            if (
-                pipeline_metrics is not None
-                and in_tok is not None
-                and out_tok is not None
-                and hasattr(pipeline_metrics, "record_llm_gi_call")
-            ):
-                gi_cost: Optional[float] = None
+            # Cost computed up-front so it can be emitted on both happy-path
+            # and guardrail-violation branches. ADR-100 cost-attribution.
+            gi_cost: Optional[float] = None
+            if in_tok is not None and out_tok is not None:
                 from ...workflow.helpers import calculate_provider_cost
 
                 gi_cost = calculate_provider_cost(
                     cfg=self.cfg,
                     provider_type="openai",
-                    capability="summarization",
+                    capability="gi",
                     model=self.insight_model,
                     prompt_tokens=int(in_tok),
                     completion_tokens=int(out_tok),
                 )
-                pipeline_metrics.record_llm_gi_call(in_tok, out_tok, cost_usd=gi_cost)
+                if pipeline_metrics is not None and hasattr(pipeline_metrics, "record_llm_gi_call"):
+                    pipeline_metrics.record_llm_gi_call(in_tok, out_tok, cost_usd=gi_cost)
+
+            def _emit_gi_cost(*, triggered_guardrail: bool = False) -> None:
+                if in_tok is None or out_tok is None:
+                    return
+                try:
+                    from ...workflow.cost_monitoring import emit_llm_cost_event
+
+                    emit_llm_cost_event(
+                        self.cfg,
+                        provider="openai",
+                        stage="gi",
+                        model=self.insight_model,
+                        estimated_cost_usd=float(gi_cost or 0.0),
+                        prompt_tokens=int(in_tok),
+                        completion_tokens=int(out_tok),
+                        triggered_guardrail=triggered_guardrail,
+                    )
+                except Exception:  # noqa: BLE001 - defensive; never block GI on telemetry
+                    pass
+
             content = (response.choices[0].message.content or "").strip()
+            finish_reason = response.choices[0].finish_reason
+            # Response-shape guardrail (ADR-100): GI is fail-up. Cost emitted
+            # in BOTH branches; raw GuardrailViolation re-raised so the outer
+            # `except Exception: return []` does NOT swallow it.
+            try:
+                _guardrails.check_chat_response(
+                    content, service="openai", finish_reason=finish_reason
+                )
+            except _guardrails.GuardrailViolation:
+                _emit_gi_cost(triggered_guardrail=True)
+                raise
+            _emit_gi_cost()
             lines = [
                 line.strip()
                 for line in content.splitlines()
@@ -1743,6 +1818,10 @@ class OpenAIProvider:
                 if s:
                     cleaned.append(s)
             return cleaned[:max_insights]
+        except _guardrails.GuardrailViolation:
+            # ADR-100: GI is fail-up. Propagate so FallbackAware can route to
+            # the configured fallback provider. Do NOT mask as empty insights.
+            raise
         except Exception as e:
             logger.debug("OpenAI generate_insights failed: %s", e, exc_info=True)
             return []
@@ -1943,6 +2022,7 @@ class OpenAIProvider:
 
             call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("openai")
+            call_metrics.set_breaker_config_from_cfg(self.cfg)
             pm = kwargs.get("pipeline_metrics")
 
             def _make_api_call():
@@ -2045,6 +2125,7 @@ class OpenAIProvider:
 
             call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("openai")
+            call_metrics.set_breaker_config_from_cfg(self.cfg)
             pm = kwargs.get("pipeline_metrics")
 
             def _make_api_call():
@@ -2128,6 +2209,7 @@ class OpenAIProvider:
 
         call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("openai")
+        call_metrics.set_breaker_config_from_cfg(self.cfg)
         pm = kwargs.get("pipeline_metrics")
         max_out = extract_quotes_bundled_max_tokens(len(insight_texts))
 
@@ -2255,6 +2337,7 @@ class OpenAIProvider:
 
         call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("openai")
+        call_metrics.set_breaker_config_from_cfg(self.cfg)
         max_out = score_entailment_bundled_max_tokens(len(chunk_pairs))
 
         def _make_api_call() -> Any:
@@ -2457,6 +2540,7 @@ class OpenAIProvider:
 
             call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("openai")
+            call_metrics.set_breaker_config_from_cfg(self.cfg)
 
             def _make_api_call():
                 return self.client.chat.completions.create(
@@ -2488,31 +2572,82 @@ class OpenAIProvider:
             call_metrics.finalize()
 
             cleaned = response.choices[0].message.content
+            # Token + cost capture up-front so cost emits on both happy path
+            # and the GuardrailViolation catch-and-degrade path (ADR-100).
             in_tok, out_tok = _openai_chat_usage_tokens(response)
-            if (
-                pipeline_metrics is not None
-                and in_tok is not None
-                and out_tok is not None
-                and hasattr(pipeline_metrics, "record_llm_cleaning_call")
-            ):
+            cleaning_cost: Optional[float] = None
+            if in_tok is not None and out_tok is not None:
                 from ...workflow.helpers import calculate_provider_cost
 
                 cleaning_cost = calculate_provider_cost(
                     cfg=self.cfg,
                     provider_type="openai",
-                    capability="summarization",
+                    capability="cleaning",
                     model=self.cleaning_model,
                     prompt_tokens=int(in_tok),
                     completion_tokens=int(out_tok),
                 )
-                pipeline_metrics.record_llm_cleaning_call(in_tok, out_tok, cost_usd=cleaning_cost)
+                if pipeline_metrics is not None and hasattr(
+                    pipeline_metrics, "record_llm_cleaning_call"
+                ):
+                    pipeline_metrics.record_llm_cleaning_call(
+                        in_tok, out_tok, cost_usd=cleaning_cost
+                    )
+
+            def _emit_cleaning_cost(*, triggered_guardrail: bool = False) -> None:
+                if in_tok is None or out_tok is None:
+                    return
+                try:
+                    from ...workflow.cost_monitoring import emit_llm_cost_event
+
+                    emit_llm_cost_event(
+                        self.cfg,
+                        provider="openai",
+                        stage="cleaning",
+                        model=self.cleaning_model,
+                        estimated_cost_usd=float(cleaning_cost or 0.0),
+                        prompt_tokens=int(in_tok),
+                        completion_tokens=int(out_tok),
+                        triggered_guardrail=triggered_guardrail,
+                    )
+                except Exception:  # noqa: BLE001 - defensive
+                    pass
+
+            # Response-shape guardrail (ADR-100): cleaning catch-and-degrade.
+            # Empty content is the gracefully-handled path (return text below);
+            # the guardrail only fires on thinking-prose / finish_reason=length.
+            if cleaned:
+                try:
+                    _guardrails.check_chat_response(
+                        cleaned,
+                        service="openai",
+                        finish_reason=response.choices[0].finish_reason,
+                    )
+                except _guardrails.GuardrailViolation:
+                    _emit_cleaning_cost(triggered_guardrail=True)
+                    logger.warning(
+                        "OpenAI cleaning output failed guardrail; "
+                        "returning original transcript text"
+                    )
+                    return text
             if not cleaned:
                 logger.warning("OpenAI API returned empty cleaned text, using original")
+                _emit_cleaning_cost()
                 return text
 
+            _emit_cleaning_cost()
             logger.debug("OpenAI cleaning completed: %d -> %d chars", len(text), len(cleaned))
             return cast(str, cleaned)
 
+        except _guardrails.GuardrailViolation:
+            # ADR-100 per-stage policy: cleaning degrades gracefully — a
+            # guardrail-tripping cleaned response means we serve the original
+            # transcript text rather than fail the run. Distinct from summarize
+            # (fail-up) and GI/KG (fail-up).
+            logger.warning(
+                "OpenAI cleaning output failed guardrail; returning original transcript text"
+            )
+            return text
         except Exception as exc:
             logger.error("OpenAI API error in cleaning: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError

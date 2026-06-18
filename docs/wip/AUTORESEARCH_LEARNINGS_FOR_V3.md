@@ -572,3 +572,35 @@ detector provider deploy — unblocks the `cloud_*` slot of
 #930's panel), **#963** (re-test DGX whisper under contention
 now that the temperature bug is fixed), **#964** (Wave audio
 hardening umbrella from the WIP audit).
+
+### #952 — faster-whisper vs openai-whisper engine drift (2026-06-16)
+
+**Eval report:** `docs/guides/eval-reports/EVAL_WHISPER_ENGINE_DRIFT_2026_06_16.md`
+
+**Question:** is the community `faster-whisper` library (via Speaches)
+WER-equivalent to OpenAI's reference `openai-whisper` on real podcast
+audio, or do we need to swap the DGX prod path?
+
+**Method:** 5 stratified episodes (~127 min audio), Deepgram nova-3 as
+silver reference (independent third engine; not gold). Three engines
+parallel-deployed on DGX: Speaches at `:8000` (faster-whisper int8 per
+#948), whisper-openai wrapper at `:8002` (large-v3), Deepgram via API.
+
+**Verdict:** faster-whisper validated, no swap. Aggregate WER vs silver:
+faster 10.23% vs openai 12.97% (faster is 2.74pp BETTER than the
+reference engine). Zero hallucinations on the conservative heuristic
+across all 15 runs. Spot-check shows both engines produce coherent
+output; the WER deltas are stylistic punctuation differences
+compounding across long transcripts, not engine breakdowns.
+
+**Engine-choice rationale (for v3 + future):** keep
+``transcription_provider: tailnet_dgx_whisper`` (Speaches/faster-whisper)
+as the DGX prod path. The whisper-openai wrapper at `:8002` stays
+deployed as a parallel-comparison sibling for future eval cycles, not
+as a routing target.
+
+**Pattern data for v3:** none specifically. faster-whisper does not
+exhibit silence-hallucinations on this corpus — the well-known
+"Thanks for watching" pattern is absent at the conservative heuristic
+threshold. v3 fixtures don't need to simulate that failure mode (yet);
+if a future production sample surfaces it, revisit.

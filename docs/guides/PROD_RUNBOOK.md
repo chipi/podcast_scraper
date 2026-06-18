@@ -419,7 +419,7 @@ panel with `--calls N --concurrency C` scaled to the production operating point 
 | Transcription | `tailnet_dgx` whisper-openai | `dgx:8002` (`large-v3`) | WER 0.10 mean / 4.6× realtime — matches MPS within noise, ~3× faster. **Cloud Whisper API stays the configured fallback** (`transcription_fallback_provider: openai`). |
 | Diarization | `tailnet_dgx` pyannote | `dgx:8001` (`speaker-diarization-3.1`) | DGX ties Apple MPS within noise (~23s / 5-min episode, ~13× realtime). Same model + same numerics; falls back to local pyannote on circuit-open. |
 | Summary | Gemini | `gemini-2.5-flash-lite` | Cloud kept for the summary stage — Ollama qwen3.5:35b is the DGX-only alternative; Gemini is cheaper, faster, and reliability-floor validated (§ Provider model selection above). |
-| Speaker-detector | Gemini | `speaker_detector_provider: gemini` | Cloud kept — no measured DGX win for this stage. |
+| Speaker-detector | Gemini | `speaker_detector_provider: gemini` | Cloud kept — Ollama-on-DGX measured at 80s/call (vs Gemini 0.6s/call) at the same accuracy floor; the 133× latency penalty disqualifies DGX for this stage. spaCy is 17× worse on the production-relevant metric (faithful guest extraction from RSS metadata). See [EVAL_SPEAKER_DETECTION_NAMING_2026_06_15.md](eval-reports/EVAL_SPEAKER_DETECTION_NAMING_2026_06_15.md). |
 
 **Validated by:**
 
@@ -427,6 +427,7 @@ panel with `--calls N --concurrency C` scaled to the production operating point 
 - [EVAL_TRANSCRIPTION_3WAY_2026_06.md](eval-reports/EVAL_TRANSCRIPTION_3WAY_2026_06.md) — #929 transcription championship.
 - [EVAL_DIARIZATION_DGX_VS_CLOUD_2026_06.md](eval-reports/EVAL_DIARIZATION_DGX_VS_CLOUD_2026_06.md) — #930 diarization championship.
 - [EVAL_SUMMARY_DGX_LOCAL_2026_06.md](eval-reports/EVAL_SUMMARY_DGX_LOCAL_2026_06.md) — #928 Cell C summary parity.
+- [EVAL_SPEAKER_DETECTION_NAMING_2026_06_15.md](eval-reports/EVAL_SPEAKER_DETECTION_NAMING_2026_06_15.md) — #997 speaker-detector bake-off (Gemini vs spaCy vs Ollama on DGX).
 - [EVAL_WHISPER_CONTENTION_2026_06.md](eval-reports/EVAL_WHISPER_CONTENTION_2026_06.md) — #963 contention re-tests (2026-06-11 + 2026-06-14).
 
 **Operator-gated rule: do not overlap *any* active vLLM serving (coder-next,

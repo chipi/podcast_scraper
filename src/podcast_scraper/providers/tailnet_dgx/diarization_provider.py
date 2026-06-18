@@ -47,9 +47,9 @@ from ...providers.ml.diarization.base import (
     DiarizationSegment,
 )
 from ...utils.log_redaction import format_exception_for_log
-from . import resilience
+from .. import guardrails, resilience
+from ..resilience import CircuitBreaker, hardened_http_client, TimeoutLike
 from .health import check_pyannote_diarize_health, dgx_diarize_base_url
-from .resilience import CircuitBreaker, dgx_http_client, TimeoutLike
 from .telemetry import emit_dgx_fallback_breadcrumb
 
 logger = logging.getLogger(__name__)
@@ -180,6 +180,20 @@ class TailnetDgxDiarizationProvider:
                         format_exception_for_log(exc),
                     )
                     break
+                except guardrails.GuardrailViolation as exc:
+                    # DGX returned a successful HTTP response but the content
+                    # failed the structural sanity check (ADR-099, #999). Retry
+                    # would likely return the same shape; fall back to local
+                    # pyannote. Counted as a DGX failure (breaker records it).
+                    last_err = exc
+                    logger.warning(
+                        "DGX diarize attempt %s returned guardrail-violating "
+                        "response (reason=%s); falling back to local: %s",
+                        attempt + 1,
+                        exc.reason,
+                        exc.response_summary,
+                    )
+                    break
                 except Exception as exc:
                     # Connection blip / transient server error — safe to retry with
                     # exponential backoff (no duplicate work is in flight).
@@ -284,7 +298,7 @@ class TailnetDgxDiarizationProvider:
             }
             if num_speakers is not None:
                 data["num_speakers"] = str(num_speakers)
-            with dgx_http_client(timeout) as client:
+            with hardened_http_client(timeout) as client:
                 resp = client.post(url, data=data, files=files)
         resp.raise_for_status()
         payload = resp.json()
@@ -298,8 +312,15 @@ class TailnetDgxDiarizationProvider:
             for s in raw_segments
             if isinstance(s, dict)
         ]
-        if not segments:
-            raise ValueError("empty diarization result from DGX pyannote service")
+        # Response-shape guardrail (ADR-099, #999): empty segments for non-trivial
+        # audio is structurally invalid (every non-empty audio has at least one
+        # speech segment). Replaces the narrower "if not segments: raise ValueError"
+        # check that was here before — the guardrail raises GuardrailViolation
+        # which the caller treats as a sibling of TimeoutLike (DGX fails, breaker
+        # counts, in-process pyannote fallback fires). Preventive — no observed
+        # cases of this failure mode in production yet.
+        audio_duration_sec = resilience.probe_audio_duration_sec(audio_path)
+        guardrails.check_pyannote_response(segments, audio_duration_sec=audio_duration_sec)
         return DiarizationResult(
             segments=segments,
             num_speakers=int(payload.get("num_speakers") or len({s.speaker for s in segments})),

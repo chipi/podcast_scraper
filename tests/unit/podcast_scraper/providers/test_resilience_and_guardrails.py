@@ -1,4 +1,4 @@
-"""Unit tests for the shared DGX resilience primitives (#946 / #954).
+"""Unit tests for the resilience + guardrails packages (#946 / #954 / #999 / ADR-099).
 
 Pure-logic coverage: circuit-breaker state machine, the hard wall-clock watchdog,
 and the duration-scaled timeout math. No network, no ML deps — ``soundfile`` is
@@ -11,8 +11,8 @@ import time
 
 import pytest
 
-from podcast_scraper.providers.tailnet_dgx import resilience
-from podcast_scraper.providers.tailnet_dgx.resilience import (
+from podcast_scraper.providers import guardrails, resilience
+from podcast_scraper.providers.resilience import (
     CircuitBreaker,
     effective_timeout_sec,
     probe_audio_duration_sec,
@@ -129,7 +129,7 @@ class TestCircuitBreaker:
 
     def test_cooldown_then_half_open_probe(self, monkeypatch):
         clock = _FakeClock()
-        monkeypatch.setattr(resilience.time, "monotonic", clock)
+        monkeypatch.setattr(resilience.breakers.time, "monotonic", clock)
         cb = CircuitBreaker(failure_threshold=1, window_sec=60, cooldown_sec=60)
         cb.record_failure(hard=True)
         assert cb.allow() is False  # still cooling down
@@ -139,7 +139,7 @@ class TestCircuitBreaker:
 
     def test_half_open_success_closes(self, monkeypatch):
         clock = _FakeClock()
-        monkeypatch.setattr(resilience.time, "monotonic", clock)
+        monkeypatch.setattr(resilience.breakers.time, "monotonic", clock)
         cb = CircuitBreaker(failure_threshold=1, window_sec=60, cooldown_sec=60)
         cb.record_failure(hard=True)
         clock.advance(61)
@@ -150,7 +150,7 @@ class TestCircuitBreaker:
 
     def test_half_open_failure_reopens(self, monkeypatch):
         clock = _FakeClock()
-        monkeypatch.setattr(resilience.time, "monotonic", clock)
+        monkeypatch.setattr(resilience.breakers.time, "monotonic", clock)
         cb = CircuitBreaker(failure_threshold=5, window_sec=60, cooldown_sec=60)
         cb.record_failure(hard=True)
         clock.advance(61)
@@ -186,7 +186,7 @@ def test_timeout_like_includes_builtin_timeouterror():
 # --------------------------------------------------------------------------- #
 # dgx_http_client / keepalive_socket_options — #956 transport hardening        #
 # --------------------------------------------------------------------------- #
-class TestDgxHttpClient:
+class TestHardenedHttpClient:
     def test_keepalive_options_enable_so_keepalive(self):
         import socket
 
@@ -213,16 +213,174 @@ class TestDgxHttpClient:
         )
 
     def test_client_sets_connection_close_and_is_closeable(self):
-        client = resilience.dgx_http_client(30.0)
+        client = resilience.hardened_http_client(30.0)
         try:
             assert client.headers.get("connection") == "close"
         finally:
             client.close()
 
     def test_client_merges_extra_headers(self):
-        client = resilience.dgx_http_client(30.0, headers={"X-Test": "1"})
+        client = resilience.hardened_http_client(30.0, headers={"X-Test": "1"})
         try:
             assert client.headers.get("connection") == "close"
             assert client.headers.get("x-test") == "1"
         finally:
             client.close()
+
+
+# ---------------------------------------------------------------------------
+# Response-shape guardrails — #999 / ADR-099                                  #
+# ---------------------------------------------------------------------------
+
+
+class TestWhisperGuardrail:
+    """Whisper length-floor + empty-response guardrail."""
+
+    def test_normal_response_passes(self):
+        # 60s audio at 2.5 words/sec * 0.5 floor = 75 words required
+        text = " ".join(["word"] * 200)
+        guardrails.check_whisper_response(text, audio_duration_sec=60.0)  # no raise
+
+    def test_empty_text_fires(self):
+        with pytest.raises(guardrails.GuardrailViolation) as exc_info:
+            guardrails.check_whisper_response("", audio_duration_sec=60.0)
+        assert exc_info.value.service == "whisper"
+        assert exc_info.value.reason == guardrails.REASON_TRANSCRIPTION_EMPTY
+
+    def test_length_floor_fires(self):
+        # 60s audio expects ~150 words; floor is 75; 5 words is way under
+        with pytest.raises(guardrails.GuardrailViolation) as exc_info:
+            guardrails.check_whisper_response("one two three four five", audio_duration_sec=60.0)
+        assert exc_info.value.reason == guardrails.REASON_TRANSCRIPTION_LENGTH_FLOOR
+        assert "word_count=5" in exc_info.value.response_summary
+
+    def test_no_duration_skips_floor_check(self):
+        # Audio duration probe failed (None) → length check is advisory only,
+        # only the empty-check remains. Short text should pass.
+        guardrails.check_whisper_response("brief text", audio_duration_sec=None)  # no raise
+
+    def test_no_duration_still_fires_on_empty(self):
+        with pytest.raises(guardrails.GuardrailViolation):
+            guardrails.check_whisper_response("", audio_duration_sec=None)
+
+
+class TestOllamaGuardrail:
+    """Ollama empty + thinking-prose guardrail."""
+
+    def test_normal_response_passes(self):
+        guardrails.check_chat_response(
+            "This is a valid summary of the episode.", service="ollama"
+        )  # no raise
+
+    def test_empty_content_fires(self):
+        with pytest.raises(guardrails.GuardrailViolation) as exc_info:
+            guardrails.check_chat_response("", service="ollama")
+        assert exc_info.value.reason == guardrails.REASON_CHAT_EMPTY
+
+    def test_none_content_fires_as_empty(self):
+        with pytest.raises(guardrails.GuardrailViolation) as exc_info:
+            guardrails.check_chat_response(None, service="ollama")
+        assert exc_info.value.reason == guardrails.REASON_CHAT_EMPTY
+
+    def test_think_tag_fires(self):
+        with pytest.raises(guardrails.GuardrailViolation) as exc_info:
+            guardrails.check_chat_response("<think>let me reason</think>", service="ollama")
+        assert exc_info.value.reason == guardrails.REASON_CHAT_THINKING_PROSE
+
+    def test_okay_so_i_need_fires(self):
+        with pytest.raises(guardrails.GuardrailViolation):
+            guardrails.check_chat_response(
+                "Okay, so I need to summarize this podcast.", service="ollama"
+            )
+
+    def test_let_me_think_fires(self):
+        with pytest.raises(guardrails.GuardrailViolation):
+            guardrails.check_chat_response(
+                "Let me think about the main themes here.", service="ollama"
+            )
+
+    def test_thinking_marker_only_at_head(self):
+        # Marker buried at char 500 should NOT fire — we check only the
+        # first 200 chars (the "head") to avoid false-positives on
+        # transcripts that legitimately quote a thinking-prose phrase.
+        # (The actual cutoff is 200 chars per _OLLAMA_THINKING_MARKERS impl.)
+        long_prefix = "x" * 250 + " Let me think about it."
+        guardrails.check_chat_response(long_prefix, service="ollama")  # no raise
+
+
+class TestVllmGuardrail:
+    """vLLM JSON + finish_reason guardrail."""
+
+    def test_normal_passes(self):
+        guardrails.check_chat_response(
+            "hello world", finish_reason="stop", service="vllm"
+        )  # no raise
+
+    def test_finish_reason_length_fires(self):
+        with pytest.raises(guardrails.GuardrailViolation) as exc_info:
+            guardrails.check_chat_response("truncated mid", finish_reason="length", service="vllm")
+        assert exc_info.value.reason == guardrails.REASON_CHAT_FINISH_LENGTH
+
+    def test_expect_json_empty_fires(self):
+        with pytest.raises(guardrails.GuardrailViolation) as exc_info:
+            guardrails.check_chat_response("", expect_json=True, service="vllm")
+        assert exc_info.value.reason == guardrails.REASON_CHAT_EMPTY
+
+    def test_expect_json_bad_parse_fires(self):
+        with pytest.raises(guardrails.GuardrailViolation) as exc_info:
+            guardrails.check_chat_response("not { valid json", expect_json=True, service="vllm")
+        assert exc_info.value.reason == guardrails.REASON_CHAT_BAD_JSON
+
+    def test_expect_json_valid_passes(self):
+        guardrails.check_chat_response(
+            '{"key": "value"}', expect_json=True, service="vllm"
+        )  # no raise
+
+    def test_no_json_check_when_not_requested(self):
+        # Non-JSON content without expect_json=True should NOT fire.
+        guardrails.check_chat_response(
+            "plain text response", expect_json=False, service="vllm"
+        )  # no raise
+
+
+class TestPyannoteGuardrail:
+    """Pyannote empty-segments guardrail."""
+
+    def test_normal_segments_pass(self):
+        segments = [object(), object()]  # any non-empty list
+        guardrails.check_pyannote_response(segments, audio_duration_sec=60.0)  # no raise
+
+    def test_empty_segments_for_long_audio_fires(self):
+        with pytest.raises(guardrails.GuardrailViolation) as exc_info:
+            guardrails.check_pyannote_response([], audio_duration_sec=60.0)
+        assert exc_info.value.reason == guardrails.REASON_DIARIZATION_EMPTY_SEGMENTS
+
+    def test_empty_segments_for_short_audio_skipped(self):
+        # 3-second audio legitimately diarizes as empty in some configs;
+        # guardrail is skipped below the 5-second threshold.
+        guardrails.check_pyannote_response([], audio_duration_sec=3.0)  # no raise
+
+    def test_empty_segments_no_duration_skipped(self):
+        # When duration probe fails (None), the empty check is also skipped
+        # — we can't tell whether the audio was non-trivial.
+        guardrails.check_pyannote_response([], audio_duration_sec=None)  # no raise
+
+
+class TestGuardrailViolationException:
+    """The exception itself carries enough context for downstream logging."""
+
+    def test_attributes_set(self):
+        exc = guardrails.GuardrailViolation("whisper", "length_floor_violated", "word_count=5")
+        assert exc.service == "whisper"
+        assert exc.reason == "length_floor_violated"
+        assert exc.response_summary == "word_count=5"
+
+    def test_summary_truncated_to_200_chars(self):
+        exc = guardrails.GuardrailViolation("ollama", "empty_content", "x" * 500)
+        assert len(exc.response_summary) == 200
+
+    def test_repr_contains_service_and_reason(self):
+        exc = guardrails.GuardrailViolation("vllm", "json_parse_failed", "summary")
+        msg = str(exc)
+        assert "vllm" in msg
+        assert "json_parse_failed" in msg

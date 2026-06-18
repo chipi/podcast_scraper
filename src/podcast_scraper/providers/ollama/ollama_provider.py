@@ -55,6 +55,7 @@ from ...utils.log_redaction import format_exception_for_log
 from ...utils.provider_metadata import warn_if_truncated
 from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
+from .. import guardrails as _guardrails
 
 logger = logging.getLogger(__name__)
 
@@ -1114,23 +1115,13 @@ class OllamaProvider:
             )
 
             summary = response.choices[0].message.content
-            if not summary:
-                logger.warning("Ollama API returned empty summary")
-                summary = ""
 
-            logger.debug(
-                "Ollama summarization completed: %d characters",
-                len(summary),
-            )
-
-            # Extract token counts and populate call_metrics (Ollama may not report usage)
+            # Token + cost capture up-front so cost emits in both branches.
             input_tokens = None
             output_tokens = None
             if hasattr(response, "usage") and response.usage:
                 prompt_tokens_val = getattr(response.usage, "prompt_tokens", None)
                 completion_tokens_val = getattr(response.usage, "completion_tokens", None)
-                # Convert to int if they're actual numbers, otherwise use 0
-                # Handle Mock objects from tests by checking type
                 input_tokens = (
                     int(prompt_tokens_val) if isinstance(prompt_tokens_val, (int, float)) else 0
                 )
@@ -1142,8 +1133,6 @@ class OllamaProvider:
                 if input_tokens > 0 or output_tokens > 0:
                     call_metrics.set_tokens(input_tokens, output_tokens)
 
-            # Calculate cost first (Ollama is free, but track for consistency)
-            # so the value flows into both call_metrics and pipeline_metrics.
             cost: Optional[float] = None
             if input_tokens is not None:
                 from ...workflow.helpers import calculate_provider_cost
@@ -1156,6 +1145,10 @@ class OllamaProvider:
                     prompt_tokens=input_tokens,
                     completion_tokens=output_tokens,
                 )
+
+            def _record_cost(*, triggered_guardrail: bool = False) -> None:
+                if input_tokens is None:
+                    return
                 from ...utils.provider_metrics import record_provider_call_cost
 
                 record_provider_call_cost(
@@ -1167,7 +1160,24 @@ class OllamaProvider:
                     model=self.summary_model,
                     prompt_tokens=input_tokens,
                     completion_tokens=output_tokens,
+                    triggered_guardrail=triggered_guardrail,
                 )
+
+            # Response-shape guardrail (ADR-099/100). Cost emitted in BOTH
+            # branches (Ollama is free locally but the field still flows so
+            # cost-rollup pivots work consistently across providers).
+            try:
+                _guardrails.check_chat_response(summary, service="ollama")
+            except _guardrails.GuardrailViolation:
+                _record_cost(triggered_guardrail=True)
+                raise
+
+            logger.debug(
+                "Ollama summarization completed: %d characters",
+                len(summary),
+            )
+
+            _record_cost()
 
             # Track LLM call metrics if available (aggregate tracking)
             if (
@@ -1214,6 +1224,11 @@ class OllamaProvider:
                 },
             }
 
+        except _guardrails.GuardrailViolation:
+            # ADR-100: propagate the raw violation so FallbackAwareSummarizationProvider
+            # can route to the degradation policy's fallback. Wrapping into
+            # ProviderRuntimeError would hide the type from the fallback layer.
+            raise
         except Exception as exc:
             logger.error("Ollama API error in summarization: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderRuntimeError
@@ -1303,8 +1318,57 @@ class OllamaProvider:
             "summarize_bundled",
         )
         raw = (response.choices[0].message.content or "").strip()
-        if not raw:
-            raise ValueError("Ollama bundled call returned empty content")
+
+        # Token + cost capture up-front so cost emits in both branches (ADR-100).
+        input_tokens = None
+        output_tokens = None
+        if hasattr(response, "usage") and response.usage:
+            pt = getattr(response.usage, "prompt_tokens", None)
+            ct = getattr(response.usage, "completion_tokens", None)
+            input_tokens = int(pt) if isinstance(pt, (int, float)) else 0
+            output_tokens = int(ct) if isinstance(ct, (int, float)) else 0
+            if input_tokens > 0 or output_tokens > 0:
+                call_metrics.set_tokens(input_tokens, output_tokens)
+
+        cost: Optional[float] = None
+        if input_tokens is not None:
+            from ...workflow.helpers import calculate_provider_cost
+
+            cost = calculate_provider_cost(
+                cfg=self.cfg,
+                provider_type="ollama",
+                capability="summarization",
+                model=self.summary_model,
+                prompt_tokens=input_tokens,
+                completion_tokens=output_tokens,
+            )
+
+        def _record_cost(*, triggered_guardrail: bool = False) -> None:
+            if input_tokens is None:
+                return
+            from ...utils.provider_metrics import record_provider_call_cost
+
+            record_provider_call_cost(
+                call_metrics,
+                cost,
+                cfg=self.cfg,
+                provider_type="ollama",
+                capability="summarization",
+                model=self.summary_model,
+                prompt_tokens=input_tokens,
+                completion_tokens=output_tokens,
+                triggered_guardrail=triggered_guardrail,
+            )
+
+        if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
+            pipeline_metrics.record_llm_bundled_clean_summary_call(input_tokens, output_tokens)
+
+        # Response-shape guardrail (ADR-099/100, #999/#1003).
+        try:
+            _guardrails.check_chat_response(raw, service="ollama")
+        except _guardrails.GuardrailViolation:
+            _record_cost(triggered_guardrail=True)
+            raise
 
         try:
             data = json.loads(raw, strict=False)
@@ -1320,42 +1384,7 @@ class OllamaProvider:
         if not isinstance(bullets, list) or not bullets:
             raise ValueError("Bundled JSON missing non-empty bullets list")
 
-        input_tokens = None
-        output_tokens = None
-        if hasattr(response, "usage") and response.usage:
-            pt = getattr(response.usage, "prompt_tokens", None)
-            ct = getattr(response.usage, "completion_tokens", None)
-            input_tokens = int(pt) if isinstance(pt, (int, float)) else 0
-            output_tokens = int(ct) if isinstance(ct, (int, float)) else 0
-            if input_tokens > 0 or output_tokens > 0:
-                call_metrics.set_tokens(input_tokens, output_tokens)
-
-        if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
-            pipeline_metrics.record_llm_bundled_clean_summary_call(input_tokens, output_tokens)
-
-        if input_tokens is not None:
-            from ...workflow.helpers import calculate_provider_cost
-
-            cost = calculate_provider_cost(
-                cfg=self.cfg,
-                provider_type="ollama",
-                capability="summarization",
-                model=self.summary_model,
-                prompt_tokens=input_tokens,
-                completion_tokens=output_tokens,
-            )
-            from ...utils.provider_metrics import record_provider_call_cost
-
-            record_provider_call_cost(
-                call_metrics,
-                cost,
-                cfg=self.cfg,
-                provider_type="ollama",
-                capability="summarization",
-                model=self.summary_model,
-                prompt_tokens=input_tokens,
-                completion_tokens=output_tokens,
-            )
+        _record_cost()
 
         prompt_metadata = {
             "system": get_prompt_metadata(
@@ -1541,13 +1570,73 @@ class OllamaProvider:
             call_metrics.finalize()
 
             cleaned = response.choices[0].message.content
+
+            # Cost capture up-front (ADR-100 cost-attribution in both branches).
+            in_tok_cl = None
+            out_tok_cl = None
+            if hasattr(response, "usage") and response.usage:
+                pt = getattr(response.usage, "prompt_tokens", None)
+                ct = getattr(response.usage, "completion_tokens", None)
+                in_tok_cl = int(pt) if isinstance(pt, (int, float)) else None
+                out_tok_cl = int(ct) if isinstance(ct, (int, float)) else None
+            cleaning_cost: Optional[float] = None
+            if in_tok_cl is not None and out_tok_cl is not None:
+                from ...workflow.helpers import calculate_provider_cost
+
+                cleaning_cost = calculate_provider_cost(
+                    cfg=self.cfg,
+                    provider_type="ollama",
+                    capability="cleaning",
+                    model=self.cleaning_model,
+                    prompt_tokens=in_tok_cl,
+                    completion_tokens=out_tok_cl,
+                )
+
+            def _emit_cleaning_cost(*, triggered_guardrail: bool = False) -> None:
+                if in_tok_cl is None or out_tok_cl is None:
+                    return
+                try:
+                    from ...workflow.cost_monitoring import emit_llm_cost_event
+
+                    emit_llm_cost_event(
+                        self.cfg,
+                        provider="ollama",
+                        stage="cleaning",
+                        model=self.cleaning_model,
+                        estimated_cost_usd=float(cleaning_cost or 0.0),
+                        prompt_tokens=in_tok_cl,
+                        completion_tokens=out_tok_cl,
+                        triggered_guardrail=triggered_guardrail,
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
+
             if not cleaned:
                 logger.warning("Ollama API returned empty cleaned text, using original")
+                _emit_cleaning_cost()
+                return text
+            # ADR-100: cleaning catch-and-degrade; cost emitted in both branches.
+            try:
+                _guardrails.check_chat_response(cleaned, service="ollama")
+            except _guardrails.GuardrailViolation:
+                _emit_cleaning_cost(triggered_guardrail=True)
+                logger.warning(
+                    "Ollama cleaning output failed guardrail; " "returning original transcript text"
+                )
                 return text
 
+            _emit_cleaning_cost()
             logger.debug("Ollama cleaning completed: %d -> %d chars", len(text), len(cleaned))
             return cast(str, cleaned)
 
+        except _guardrails.GuardrailViolation:
+            # Defensive outer catch — preserve contract if a future change
+            # adds a guardrail call outside the inline block.
+            logger.warning(
+                "Ollama cleaning output failed guardrail (outer); "
+                "returning original transcript text"
+            )
+            return text
         except Exception as exc:
             logger.error("Ollama API error in cleaning: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderRuntimeError
@@ -1612,6 +1701,54 @@ class OllamaProvider:
                 **_ollama_openai_chat_extra_kwargs(self.summary_model),
             )
             content = (response.choices[0].message.content or "").strip()
+
+            # ADR-100 cost-attribution: emit llm_cost in both branches.
+            in_tok_gi = None
+            out_tok_gi = None
+            if hasattr(response, "usage") and response.usage:
+                pt = getattr(response.usage, "prompt_tokens", None)
+                ct = getattr(response.usage, "completion_tokens", None)
+                in_tok_gi = int(pt) if isinstance(pt, (int, float)) else None
+                out_tok_gi = int(ct) if isinstance(ct, (int, float)) else None
+            gi_cost: Optional[float] = None
+            if in_tok_gi is not None and out_tok_gi is not None:
+                from ...workflow.helpers import calculate_provider_cost
+
+                gi_cost = calculate_provider_cost(
+                    cfg=self.cfg,
+                    provider_type="ollama",
+                    capability="gi",
+                    model=self.summary_model,
+                    prompt_tokens=in_tok_gi,
+                    completion_tokens=out_tok_gi,
+                )
+
+            def _emit_gi_cost(*, triggered_guardrail: bool = False) -> None:
+                if in_tok_gi is None or out_tok_gi is None:
+                    return
+                try:
+                    from ...workflow.cost_monitoring import emit_llm_cost_event
+
+                    emit_llm_cost_event(
+                        self.cfg,
+                        provider="ollama",
+                        stage="gi",
+                        model=self.summary_model,
+                        estimated_cost_usd=float(gi_cost or 0.0),
+                        prompt_tokens=in_tok_gi,
+                        completion_tokens=out_tok_gi,
+                        triggered_guardrail=triggered_guardrail,
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
+
+            # ADR-100: GI is fail-up. Cost emitted in BOTH branches.
+            try:
+                _guardrails.check_chat_response(content, service="ollama")
+            except _guardrails.GuardrailViolation:
+                _emit_gi_cost(triggered_guardrail=True)
+                raise
+            _emit_gi_cost()
             lines = [
                 line.strip()
                 for line in content.splitlines()
@@ -1629,6 +1766,9 @@ class OllamaProvider:
                 if s:
                     cleaned.append(s)
             return cleaned[:max_insights]
+        except _guardrails.GuardrailViolation:
+            # ADR-100: GI is fail-up. Propagate so FallbackAware routes.
+            raise
         except Exception as e:
             logger.debug("Ollama generate_insights failed: %s", e, exc_info=True)
             return []

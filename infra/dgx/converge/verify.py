@@ -97,6 +97,23 @@ server.shell(
     ],
 )
 
+# 5a. #920 — assert the compose-level healthcheck is reporting healthy.
+# Distinct from "container is up" (above) and "API responds" (below) —
+# this catches the middle state where the container is up and the API
+# returns but the healthcheck has flagged repeated failures. ``starting``
+# is treated as a soft pass because the pre-warm step is generous; if
+# we're still ``starting`` after the assert above + the API curl below
+# succeed, the model is being loaded and we'll be ``healthy`` shortly.
+server.shell(
+    name="assert: faster-whisper compose healthcheck not in unhealthy state (#920)",
+    commands=[
+        "state=$(docker inspect --format '{{.State.Health.Status}}' "
+        "faster-whisper 2>/dev/null || echo none); "
+        'echo "healthcheck state: $state"; '
+        '[ "$state" = "healthy" ] || [ "$state" = "starting" ] || [ "$state" = "none" ]',
+    ],
+)
+
 # 6. Speaches API responsive on the loopback port. Provider client from laptop
 # reaches this via the tailnet ACL on tag:dgx-llm-host:8000; verify runs
 # locally on the DGX, so it hits 127.0.0.1.
@@ -120,6 +137,28 @@ server.shell(
         "docker exec faster-whisper /home/ubuntu/speaches/.venv/bin/python -c "
         '"import ctranslate2 as c; n=c.get_cuda_device_count(); '
         "print('cuda_device_count=', n); assert n >= 1, 'no CUDA device — see #948'\"",
+    ],
+)
+
+# 6b. Per #948 — assert the runtime compute type matches the deploy.py pin.
+# Catches the case where someone edited the container's env via ``docker
+# update`` or a hand-edit to /opt/faster-whisper/docker-compose.yml without
+# re-running ``make dgx-deploy``. The pin is empirically benchmark-justified
+# (see infra/dgx/speaches/decisions/2026-06-15-compute-type-int8.md); drift
+# silently flips the transcription path to a 2-4× slower variant.
+server.shell(
+    name="assert: WHISPER__COMPUTE_TYPE=int8 in running container (#948 pin)",
+    commands=[
+        # Read the env directly from the container's process table to avoid
+        # the host shell expanding $WHISPER__COMPUTE_TYPE before docker exec
+        # sees it. ``docker inspect`` returns the env list verbatim from the
+        # container's compose config.
+        "ct=$(docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "
+        "faster-whisper 2>/dev/null | awk -F= '/^WHISPER__COMPUTE_TYPE=/{print $2; exit}'); "
+        'echo "runtime compute type: $ct"; '
+        '[ "$ct" = "int8" ] '
+        '|| { echo "ERR: WHISPER__COMPUTE_TYPE=$ct, expected int8 — see '
+        'infra/dgx/speaches/decisions/2026-06-15-compute-type-int8.md" >&2; exit 1; }',
     ],
 )
 

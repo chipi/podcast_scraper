@@ -53,12 +53,20 @@ INSTALL_ROOT = "/opt/faster-whisper"
 COMPOSE_FILE = f"{INSTALL_ROOT}/docker-compose.yml"
 BUILD_CTX = f"{INSTALL_ROOT}/build"
 # Derived image built locally on the DGX from
-# ``infra/dgx/faster-whisper-server/Dockerfile`` (FROM
-# ``ghcr.io/speaches-ai/speaches:latest-cuda``, plus the #968 Thread B
-# temperature-fallback patch baked in at build time). Upstream tag kept
-# below for reference only.
+# ``infra/dgx/faster-whisper-server/Dockerfile`` (FROM the pinned
+# upstream Speaches image below, plus the #968 Thread B
+# temperature-fallback patch baked in at build time).
+#
+# Pinned to ``v0.9.0-rc.3-cuda`` (2025-12-27, marked non-prerelease
+# upstream) per #920. Upgrade procedure:
+# 1. Drop a new entry under ``infra/dgx/speaches/decisions/`` with
+#    bench results from the candidate version (mirror the homelab
+#    autoresearch vLLM pattern).
+# 2. Edit BASE_IMAGE below to the new tag.
+# 3. ``make dgx-deploy`` — pre-warm + healthcheck below will fail
+#    loudly if the new image is broken.
 IMAGE = "podcast-speaches:0.1.0"
-BASE_IMAGE = "ghcr.io/speaches-ai/speaches:latest-cuda"
+BASE_IMAGE = "ghcr.io/speaches-ai/speaches:v0.9.0-rc.3-cuda"
 PORT = 8000
 MODEL = "Systran/faster-whisper-large-v3"
 
@@ -129,24 +137,20 @@ services:
       # Compose-specific (NOT in ~/.env): Speaches-only knobs.
       - WHISPER__MODEL={MODEL}
       - WHISPER__DEVICE=cuda
-      # Pinned to int8 per #957. The story:
-      #   - ``default`` produced empty output on 4/5 v2 fixture episodes
-      #     — ctranslate2's auto-pick on this speaches:latest-cuda image
-      #     resolved to a broken variant that destroyed the model's output
-      #     distribution on GB10.
-      #   - ``float16``, ``bfloat16``, and ``int8_bfloat16`` all error
-      #     with "target device or backend do not support efficient
-      #     <type> computation". CTranslate2's Blackwell support for those
-      #     compute types is missing in the bundled image. (openai-whisper
-      #     happily uses bf16 on the same card via torch — different stack.)
-      #   - ``float32`` works but is too slow (0.8× realtime) and quality
-      #     is degraded (WER 0.345 — worse than the empty case for any
-      #     downstream use).
-      #   - ``int8`` (pure int8 weights + int8 compute) is the working
-      #     path: WER 0.0534 on v2 p01_e01 (better than openai-whisper's
-      #     0.0775 baseline) at 1.6× realtime. Still slower than
-      #     openai-whisper's ~4.6×, but quality-competitive and unblocks
-      #     #952.
+      # Pinned to int8 per #957, empirically re-confirmed in #948 against
+      # the v0.9.0-rc.3-cuda image (CTranslate2 4.8.0).
+      # See: infra/dgx/speaches/decisions/2026-06-15-compute-type-int8.md
+      # for the full benchmark table. Headline (33-min episode, idle box):
+      #   - int8:        407s  (4.89× realtime) ← chosen
+      #   - int8_float16:423s  (4.71× realtime) — ties int8 within noise
+      #   - float32:     735s  (2.71× realtime)
+      #   - float16:    1178s  (1.69× realtime) — slower than fp32
+      #   - bfloat16:   1506s  (1.32× realtime) — slowest
+      # All compute types now LOAD and produce coherent output on this
+      # image (the historical "fp16/bf16 hard-error" claim was specific
+      # to the pre-#920 :latest-cuda image, which has since been pinned).
+      # fp16/bf16 kernels exist in CTranslate2 4.8.0 for Blackwell sm_120
+      # but are sub-optimal — int8 is the fastest path by a wide margin.
       - WHISPER__COMPUTE_TYPE=int8
       - LOG_LEVEL=INFO
       - ENABLE_UI=false
@@ -164,7 +168,20 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-"""
+    # Healthcheck (#920): without this, ``docker ps`` says "running" even
+    # if Speaches is dead inside or still loading the model. The
+    # ``/v1/models`` endpoint is what verify.py already curls, so reusing
+    # it keeps the health signal aligned. ``start_period`` is generous
+    # because cold-start with model download can take minutes; the
+    # pre-warm step run after ``compose up -d`` makes the post-deploy
+    # health-converge much faster on subsequent restarts.
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:{PORT}/v1/models"]
+      interval: 30s
+      timeout: 5s
+      retries: 6
+      start_period: 600s
+""".replace("{PORT}", str(PORT))
 
 server.shell(
     name="compose: write /opt/faster-whisper/docker-compose.yml",
@@ -214,6 +231,43 @@ server.shell(
 server.shell(
     name="compose: up -d (start / restart on config change)",
     commands=[f"cd {INSTALL_ROOT} && docker compose up -d"],
+    _sudo=True,
+)
+
+# #920 — pre-warm the Whisper model so the first real
+# ``/v1/audio/transcriptions`` call doesn't pay the ~3 GB HF download
+# cost interactively. The model lives in the shared HF cache
+# (``/opt/llm-models/huggingface``, bind-mounted into the container)
+# so this is at most a one-time cost on a fresh DGX. We:
+#
+# 1. Wait until ``/v1/models`` responds (or the healthcheck's
+#    start_period expires — same threshold).
+# 2. Trigger an instantiation of ``Systran/faster-whisper-large-v3``
+#    inside the container via the bundled ``faster_whisper`` package.
+#    Successful load pulls the weights into the cache and confirms
+#    GB10 + the pinned int8 compute type are working together
+#    end-to-end.
+#
+# Wrapped in ``|| true`` so a one-time pre-warm failure doesn't fail
+# the whole deploy — the healthcheck below will still surface the
+# problem and the next call will trigger the download anyway. Logs
+# stay visible via ``docker logs faster-whisper``.
+server.shell(
+    name="compose: pre-warm whisper-large-v3 in the model cache (#920)",
+    commands=[
+        # Wait for /v1/models to respond, up to ~90s, then attempt prewarm.
+        f"for i in $(seq 1 30); do "
+        f"  if curl -fsS --max-time 3 http://127.0.0.1:{PORT}/v1/models "
+        f">/dev/null 2>&1; then break; fi; "
+        f"  sleep 3; "
+        f"done; "
+        f"docker exec {SERVICE_NAME} python3 -c "
+        f'"from faster_whisper import WhisperModel; '
+        f"WhisperModel('{MODEL}', device='cuda', compute_type='int8'); "
+        f'print(\\"prewarmed\\")" '
+        f'|| echo "::warning::prewarm step did not complete; '
+        f'first transcribe call will pull the model"',
+    ],
     _sudo=True,
 )
 

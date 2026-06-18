@@ -291,11 +291,12 @@ queueing.
   for a confident rate; would need N≥100 against a fixed stack.
 - Whisper-container side instrumentation. Would benefit any future
   catastrophic-tail follow-up; out of scope here.
-- Resilience-layer hardening: the watchdog catches "hang" and
-  "connection reset" cases but not the WER=1.0 case. Hardening to
-  catch the third mode (e.g. a sanity-check on returned text length
-  vs expected) is a separate ticket worth filing if the WER=1.0 mode
-  reproduces in any future sample.
+- Resilience-layer hardening for the WER=1.0 case: now covered by
+  ADR-099 response-shape guardrails (#999, `b0ee6c58`). The new
+  `check_whisper_response()` catches both the empty case and the
+  WER=1.0 garbage-content case via a duration-vs-output sanity ratio
+  (see `providers/guardrails/transcription.py`). No further ticket
+  needed.
 
 ## Reproduction
 
@@ -342,3 +343,47 @@ gpu-mode-swap.sh idle
 - Profile that's gated on this rule: `config/profiles/prod_dgx_full_with_fallback.yaml` (#923)
 - Resilience layer that catches hang + connection-reset modes: #956
 - Cross-repo profile-side observations: #927 / #931 synthesis
+
+## Footer — homelab stack state changes after this sweep (2026-06-15 evening)
+
+The three homelab tickets cited in "Image / model attribution still
+imperfect" above all closed later the same day. The body of this report
+is preserved as the historical record of the sweep against the 25.11
+stack with the untuned-MoE warning in place; the rules and per-episode
+catastrophic-rate findings are unaffected. What changed downstream:
+
+- **homelab #2 (image bump 25.11 → 26.05) — promoted.** Side-by-side
+  bench on live GB10 showed equal-or-better on every dimension (steady
+  state −4%, tok/s +3%, cold-cache spike −34%, 5-min @ 4-concurrent =
+  256 reqs / 0 errors / p99 4.67 s / 96% GPU sat; only minor regression
+  was +7% cold boot 451 s → 481 s). No regressions surfaced.
+- **homelab #1 (static MoE JSON for GB10) — obsoleted by #2.** 26.05
+  ships a flashinfer + trtllm runtime autotuner. The
+  `fused_moe.py:798 WARNING Using default MoE config` log line that
+  filed the ticket does not appear on 26.05 at all. The static-JSON
+  lookup code path was replaced; no `E=128,N=768,device_name=NVIDIA_GB10.json`
+  file ships, and benchmark_moe.py output is no longer relevant. The
+  autotuner does log `Skipped 2 unsupported tactic(s)` on GB10 — not
+  blocking, but the gap to investigate if a future #996 measurement
+  surfaces sub-optimal throughput attributable to autoresearch. File
+  a NEW scoped ticket targeting kernel choices in that case; do not
+  reopen the static-JSON path.
+- **homelab #3 (30 B vs 35 B pin drift) — closed via README "vendor
+  watch" note.** Pin stays `Qwen/Qwen3-30B-A3B-Instruct-2507`. No
+  re-pin candidate ships in the right size class today. The 5 B drift
+  vs the original eval baseline is unchanged; podcast_scraper still
+  owns the #928 Cell C re-baseline.
+
+Other 26.05 behaviour changes worth recording for future sweeps:
+
+- `VLLM_DISABLE_TORCH_COMPILE` is no longer set on autoresearch (env
+  dropped upstream; Blackwell `torch.compile` fix landed). coder-next
+  still has it (still on 25.11).
+- 26.05 picks up `generation_config.json` defaults at request time
+  (`temperature=0.7`, `top_k=20`, `top_p=0.8` for this model). 25.11
+  did not. Future sweeps that need determinism must override at the
+  request level — this report's load generator already passed
+  `temperature=0.0`, so the body numbers are unaffected.
+
+Durable record of the bump:
+`~/Projects/agentic-ai-homelab/infra/vllm/autoresearch/decisions/2026-06-15-image-bump-25.11-to-26.05.md`.

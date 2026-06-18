@@ -495,5 +495,169 @@ class TestGilEvidenceCallMetrics(unittest.TestCase):
         self.assertEqual(m.retries, 0)
 
 
+class TestCanonicalStage(unittest.TestCase):
+    """#988: provider-specific stage tags → canonical pipeline stages."""
+
+    def test_canonical_stages_pass_through(self):
+        from podcast_scraper.utils.provider_metrics import canonical_stage
+
+        self.assertEqual(canonical_stage("summarization"), "summarization")
+        self.assertEqual(canonical_stage("gi"), "gi")
+        self.assertEqual(canonical_stage("kg"), "kg")
+        self.assertEqual(canonical_stage("cleaning"), "cleaning")
+        self.assertEqual(canonical_stage("speaker_detection"), "speaker_detection")
+        self.assertEqual(canonical_stage("transcription"), "transcription")
+        self.assertEqual(canonical_stage("diarization"), "diarization")
+
+    def test_provider_tags_map_to_summarization(self):
+        from podcast_scraper.utils.provider_metrics import canonical_stage
+
+        for tag in (
+            "gemini_summarize",
+            "gemini_megabundle",
+            "gemini_bundled_clean_summary",
+            "gemini_extraction_bundle",
+            "deepseek_summarize",
+        ):
+            self.assertEqual(canonical_stage(tag), "summarization", tag)
+
+    def test_gil_tags_map_to_gi(self):
+        from podcast_scraper.utils.provider_metrics import canonical_stage
+
+        for tag in (
+            "gemini_gil_extract_quotes",
+            "gemini_gil_extract_quotes_bundled",
+            "gemini_gil_score_entailment",
+            "gemini_gil_score_entailment_bundled",
+        ):
+            self.assertEqual(canonical_stage(tag), "gi", tag)
+
+    def test_kg_clean_speaker_transcribe_diarize_tags(self):
+        from podcast_scraper.utils.provider_metrics import canonical_stage
+
+        self.assertEqual(canonical_stage("gemini_kg_transcript"), "kg")
+        self.assertEqual(canonical_stage("gemini_kg_bullets"), "kg")
+        self.assertEqual(canonical_stage("extract_kg_graph"), "kg")
+        self.assertEqual(canonical_stage("gemini_clean_transcript"), "cleaning")
+        self.assertEqual(canonical_stage("gemini_speaker"), "speaker_detection")
+        self.assertEqual(canonical_stage("gemini_transcribe_outer"), "transcription")
+        self.assertEqual(canonical_stage("deepgram_transcribe"), "transcription")
+        self.assertEqual(canonical_stage("gemini_diarize"), "diarization")
+
+    def test_unknown_and_empty_fall_through_to_other(self):
+        from podcast_scraper.utils.provider_metrics import canonical_stage
+
+        self.assertEqual(canonical_stage(None), "other")
+        self.assertEqual(canonical_stage(""), "other")
+        self.assertEqual(canonical_stage("totally_unrelated_blob"), "other")
+
+
+class TestRetryWithMetricsPerStageAttribution(unittest.TestCase):
+    """#988: ``retry_with_metrics`` forwards retry attributions to ``pipeline_metrics``."""
+
+    def _make_pipeline_metrics(self):
+        from podcast_scraper.workflow.metrics import Metrics
+
+        return Metrics()
+
+    def test_attribution_fires_when_pipeline_metrics_and_stage_present(self):
+        pm = self._make_pipeline_metrics()
+        cm = ProviderCallMetrics()
+        cm.set_provider_name("gemini")
+        attempts = {"n": 0}
+
+        def call():
+            attempts["n"] += 1
+            if attempts["n"] < 3:
+                raise RuntimeError("503 Service Unavailable")
+            return "ok"
+
+        result = retry_with_metrics(
+            call,
+            max_retries=3,
+            initial_delay=0.001,
+            max_delay=0.005,
+            retryable_exceptions=(RuntimeError,),
+            metrics=cm,
+            jitter=False,
+            pipeline_metrics=pm,
+            retry_context={"stage": "gemini_megabundle"},
+        )
+        self.assertEqual(result, "ok")
+        cm.finalize()
+        self.assertEqual(cm.retries, 2)
+        self.assertEqual(pm.llm_retry_reasons, {"summarization": {"503": 2}})
+
+    def test_no_attribution_without_pipeline_metrics(self):
+        cm = ProviderCallMetrics()
+        attempts = {"n": 0}
+
+        def call():
+            attempts["n"] += 1
+            if attempts["n"] < 2:
+                raise RuntimeError("503")
+            return "ok"
+
+        retry_with_metrics(
+            call,
+            max_retries=2,
+            initial_delay=0.001,
+            retryable_exceptions=(RuntimeError,),
+            metrics=cm,
+            jitter=False,
+            retry_context={"stage": "gemini_megabundle"},
+        )
+        cm.finalize()
+        self.assertEqual(cm.retries, 1)
+
+    def test_no_attribution_without_stage_in_retry_context(self):
+        pm = self._make_pipeline_metrics()
+        cm = ProviderCallMetrics()
+        attempts = {"n": 0}
+
+        def call():
+            attempts["n"] += 1
+            if attempts["n"] < 2:
+                raise RuntimeError("503")
+            return "ok"
+
+        retry_with_metrics(
+            call,
+            max_retries=2,
+            initial_delay=0.001,
+            retryable_exceptions=(RuntimeError,),
+            metrics=cm,
+            jitter=False,
+            pipeline_metrics=pm,
+            retry_context={"episode_title": "EP1"},  # stage missing
+        )
+        cm.finalize()
+        self.assertEqual(pm.llm_retry_reasons, {})
+
+    def test_unknown_stage_lands_in_other_bucket(self):
+        pm = self._make_pipeline_metrics()
+        cm = ProviderCallMetrics()
+        attempts = {"n": 0}
+
+        def call():
+            attempts["n"] += 1
+            if attempts["n"] < 2:
+                raise RuntimeError("connection reset")
+            return "ok"
+
+        retry_with_metrics(
+            call,
+            max_retries=2,
+            initial_delay=0.001,
+            retryable_exceptions=(RuntimeError,),
+            metrics=cm,
+            jitter=False,
+            pipeline_metrics=pm,
+            retry_context={"stage": "completely_unknown_call_site"},
+        )
+        cm.finalize()
+        self.assertIn("other", pm.llm_retry_reasons)
+
+
 if __name__ == "__main__":
     unittest.main()

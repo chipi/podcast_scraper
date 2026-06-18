@@ -85,8 +85,12 @@ class TestGeminiProviderStandalone(unittest.TestCase):
         provider = GeminiProvider(self.cfg)
         self.assertIsNotNone(provider)
         self.assertEqual(provider.__class__.__name__, "GeminiProvider")
-        # Verify genai.Client was called
-        mock_genai.Client.assert_called_once_with(api_key="test-api-key-123")
+        # Verify genai.Client was called with the api_key.
+        # ADR-100: client may also receive http_options=HttpOptions(timeout=...)
+        # kwarg per the timeout-plumbing contract; we don't pin its exact
+        # value here, just verify api_key wiring.
+        mock_genai.Client.assert_called_once()
+        self.assertEqual(mock_genai.Client.call_args.kwargs.get("api_key"), "test-api-key-123")
 
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
     def test_provider_creation_requires_api_key(self, mock_genai):

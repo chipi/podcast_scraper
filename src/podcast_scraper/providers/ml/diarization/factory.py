@@ -92,4 +92,21 @@ def create_diarization_provider(cfg: config.Config) -> DiarizationProvider:
             model_name=getattr(cfg, "gemini_diarization_model", "gemini-2.5-flash"),
             temperature=getattr(cfg, "gemini_temperature", 0.0),
         )
+    if backend == "deepgram":
+        from .deepgram_provider import DeepgramDiarizationProvider
+
+        api_key = getattr(cfg, "deepgram_api_key", None) or os.getenv("DEEPGRAM_API_KEY")
+        if not api_key:
+            raise ValueError(
+                "DEEPGRAM_API_KEY required for diarization_provider=deepgram. "
+                "Set deepgram_api_key in config or the DEEPGRAM_API_KEY env var."
+            )
+        dg_provider: DiarizationProvider = DeepgramDiarizationProvider(
+            api_key=api_key,
+            model=getattr(cfg, "deepgram_diarization_model", "nova-3-general"),
+            api_base=getattr(cfg, "deepgram_api_base", None),
+        )
+        if hasattr(dg_provider, "initialize"):
+            dg_provider.initialize()
+        return dg_provider
     return create_local_pyannote_provider(cfg)

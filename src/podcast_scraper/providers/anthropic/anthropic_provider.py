@@ -43,6 +43,7 @@ from ...utils.cleaning_max_tokens import (
 from ...utils.log_redaction import format_exception_for_log
 from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
+from .. import guardrails as _guardrails
 from ..capabilities import ProviderCapabilities
 
 logger = logging.getLogger(__name__)
@@ -51,6 +52,22 @@ logger = logging.getLogger(__name__)
 from ..ml.speaker_detection import DEFAULT_SPEAKER_NAMES
 
 # Pricing for Anthropic models lives in ``config/pricing_assumptions.yaml`` (#651).
+
+
+def _anthropic_finish_reason(response: Any) -> Optional[str]:
+    """Normalize Anthropic's ``stop_reason`` to the guardrail's vocabulary.
+
+    Anthropic emits ``"max_tokens"`` for the over-budget condition; the
+    chat guardrail trips on the canonical ``"length"`` value (OpenAI /
+    DeepSeek convention). Map at the per-SDK boundary so the helper stays
+    service-neutral. Returns None when the field isn't present (the
+    guardrail then skips the finish-reason check, which is the safe
+    default).
+    """
+    raw = getattr(response, "stop_reason", None)
+    if raw == "max_tokens":
+        return "length"
+    return raw
 
 
 def _record_anthropic_llm_call(
@@ -715,6 +732,7 @@ class AnthropicProvider:
             if call_metrics is None:
                 call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("anthropic")
+            call_metrics.set_breaker_config_from_cfg(self.cfg)
 
             # Wrap API call with retry tracking
             def _make_api_call():
@@ -754,20 +772,14 @@ class AnthropicProvider:
                     summary = first_block.text
                 elif isinstance(first_block, str):
                     summary = first_block
-            if not summary:
-                logger.warning("Anthropic API returned empty summary")
-                summary = ""
-
-            logger.debug("Anthropic summarization completed: %d characters", len(summary))
-
-            # Extract token counts and populate call_metrics
+            # Extract token counts up-front so the cost event can fire on
+            # both the happy path and the GuardrailViolation path
+            # (ADR-100 paid-but-rejected cost-attribution).
             input_tokens = None
             output_tokens = None
             if hasattr(response, "usage") and response.usage:
                 input_tokens_val = getattr(response.usage, "input_tokens", None)
                 output_tokens_val = getattr(response.usage, "output_tokens", None)
-                # Convert to int if they're actual numbers, otherwise use 0
-                # Handle Mock objects from tests by checking type
                 input_tokens = (
                     int(input_tokens_val) if isinstance(input_tokens_val, (int, float)) else 0
                 )
@@ -777,8 +789,6 @@ class AnthropicProvider:
                 if input_tokens > 0 or output_tokens > 0:
                     call_metrics.set_tokens(input_tokens, output_tokens)
 
-            # Calculate cost first so the value flows into both call_metrics and
-            # pipeline_metrics.record_llm_summarization_call(cost_usd=...).
             cost: Optional[float] = None
             if input_tokens is not None:
                 from ...workflow.helpers import calculate_provider_cost
@@ -791,6 +801,10 @@ class AnthropicProvider:
                     prompt_tokens=input_tokens,
                     completion_tokens=output_tokens,
                 )
+
+            def _record_cost(*, triggered_guardrail: bool = False) -> None:
+                if input_tokens is None:
+                    return
                 from ...utils.provider_metrics import record_provider_call_cost
 
                 record_provider_call_cost(
@@ -802,7 +816,27 @@ class AnthropicProvider:
                     model=self.summary_model,
                     prompt_tokens=input_tokens,
                     completion_tokens=output_tokens,
+                    triggered_guardrail=triggered_guardrail,
                 )
+
+            # Response-shape guardrail (ADR-100, #1003): empty / thinking-prose /
+            # finish_reason=length. Cost event fires in BOTH branches so the
+            # operator can pivot on paid-but-rejected spend; the raw
+            # GuardrailViolation propagates so FallbackAware can route the
+            # configured degradation_policy.fallback_provider_on_failure.
+            try:
+                _guardrails.check_chat_response(
+                    summary,
+                    service="anthropic",
+                    finish_reason=_anthropic_finish_reason(response),
+                )
+            except _guardrails.GuardrailViolation:
+                _record_cost(triggered_guardrail=True)
+                raise
+
+            logger.debug("Anthropic summarization completed: %d characters", len(summary))
+
+            _record_cost()
 
             # Track LLM call metrics if available (aggregate tracking)
             if (
@@ -841,6 +875,11 @@ class AnthropicProvider:
                 },
             }
 
+        except _guardrails.GuardrailViolation:
+            # ADR-100: propagate the raw violation so FallbackAwareSummarizationProvider
+            # can route to the degradation policy's fallback. Wrapping into
+            # ProviderRuntimeError would hide the type from the fallback layer.
+            raise
         except Exception as exc:
             logger.error("Anthropic API error in summarization: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import (
@@ -939,6 +978,7 @@ class AnthropicProvider:
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("anthropic")
+        call_metrics.set_breaker_config_from_cfg(self.cfg)
 
         def _make_api_call() -> Any:
             return self.client.messages.create(
@@ -1024,6 +1064,7 @@ class AnthropicProvider:
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("anthropic")
+        call_metrics.set_breaker_config_from_cfg(self.cfg)
 
         def _make_api_call() -> Any:
             return self.client.messages.create(
@@ -1105,6 +1146,7 @@ class AnthropicProvider:
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("anthropic")
+        call_metrics.set_breaker_config_from_cfg(self.cfg)
 
         def _make_api_call() -> Any:
             return self.client.messages.create(
@@ -1141,24 +1183,9 @@ class AnthropicProvider:
             elif isinstance(first_block, str):
                 summary = first_block
         raw = (summary or "").strip()
-        if not raw:
-            raise ValueError("Anthropic bundled call returned empty content")
-        raw = "{" + raw if not raw.startswith("{") else raw
 
-        try:
-            data = json.loads(raw)
-        except json.JSONDecodeError as exc:
-            raise ValueError(f"Bundled response is not valid JSON: {exc}") from exc
-
-        if not isinstance(data, dict):
-            raise ValueError("Bundled JSON must be an object")
-        summary_prose = data.get("summary")
-        bullets = data.get("bullets")
-        if not isinstance(summary_prose, str) or not summary_prose.strip():
-            raise ValueError("Bundled JSON missing non-empty summary string")
-        if not isinstance(bullets, list) or not bullets:
-            raise ValueError("Bundled JSON missing non-empty bullets list")
-
+        # Token + cost capture up-front so the cost event can fire on both
+        # the happy path and the GuardrailViolation path (ADR-100).
         input_tokens = None
         output_tokens = None
         if hasattr(response, "usage") and response.usage:
@@ -1181,6 +1208,10 @@ class AnthropicProvider:
                 prompt_tokens=input_tokens,
                 completion_tokens=output_tokens,
             )
+
+        def _record_cost(*, triggered_guardrail: bool = False) -> None:
+            if input_tokens is None:
+                return
             from ...utils.provider_metrics import record_provider_call_cost
 
             record_provider_call_cost(
@@ -1192,7 +1223,37 @@ class AnthropicProvider:
                 model=self.summary_model,
                 prompt_tokens=input_tokens,
                 completion_tokens=output_tokens,
+                triggered_guardrail=triggered_guardrail,
             )
+
+        # Response-shape guardrail (ADR-100, #1003): cost emitted in BOTH
+        # branches for paid-but-rejected attribution; raw GuardrailViolation
+        # propagates so FallbackAware can route the fallback.
+        try:
+            _guardrails.check_chat_response(
+                raw, service="anthropic", finish_reason=_anthropic_finish_reason(response)
+            )
+        except _guardrails.GuardrailViolation:
+            _record_cost(triggered_guardrail=True)
+            raise
+
+        raw = "{" + raw if not raw.startswith("{") else raw
+
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Bundled response is not valid JSON: {exc}") from exc
+
+        if not isinstance(data, dict):
+            raise ValueError("Bundled JSON must be an object")
+        summary_prose = data.get("summary")
+        bullets = data.get("bullets")
+        if not isinstance(summary_prose, str) or not summary_prose.strip():
+            raise ValueError("Bundled JSON missing non-empty summary string")
+        if not isinstance(bullets, list) or not bullets:
+            raise ValueError("Bundled JSON missing non-empty bullets list")
+
+        _record_cost()
 
         if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
             pipeline_metrics.record_llm_bundled_clean_summary_call(
@@ -1339,6 +1400,7 @@ class AnthropicProvider:
 
             call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("anthropic")
+            call_metrics.set_breaker_config_from_cfg(self.cfg)
 
             # Wrap API call with retry tracking
             def _make_api_call():
@@ -1390,13 +1452,79 @@ class AnthropicProvider:
                 elif isinstance(first_block, str):
                     cleaned = first_block
 
+            # Cost capture up-front so cost emits on both happy path and the
+            # GuardrailViolation catch-and-degrade path (ADR-100).
+            in_tok_cl = None
+            out_tok_cl = None
+            if hasattr(response, "usage") and response.usage:
+                ir = getattr(response.usage, "input_tokens", None)
+                or_ = getattr(response.usage, "output_tokens", None)
+                in_tok_cl = int(ir) if isinstance(ir, (int, float)) else None
+                out_tok_cl = int(or_) if isinstance(or_, (int, float)) else None
+            cleaning_cost: Optional[float] = None
+            if in_tok_cl is not None and out_tok_cl is not None:
+                from ...workflow.helpers import calculate_provider_cost
+
+                cleaning_cost = calculate_provider_cost(
+                    cfg=self.cfg,
+                    provider_type="anthropic",
+                    capability="cleaning",
+                    model=self.cleaning_model,
+                    prompt_tokens=in_tok_cl,
+                    completion_tokens=out_tok_cl,
+                )
+
+            def _emit_cleaning_cost(*, triggered_guardrail: bool = False) -> None:
+                if in_tok_cl is None or out_tok_cl is None:
+                    return
+                try:
+                    from ...workflow.cost_monitoring import emit_llm_cost_event
+
+                    emit_llm_cost_event(
+                        self.cfg,
+                        provider="anthropic",
+                        stage="cleaning",
+                        model=self.cleaning_model,
+                        estimated_cost_usd=float(cleaning_cost or 0.0),
+                        prompt_tokens=in_tok_cl,
+                        completion_tokens=out_tok_cl,
+                        triggered_guardrail=triggered_guardrail,
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
+
             if not cleaned:
                 logger.warning("Anthropic API returned empty cleaned text, using original")
+                _emit_cleaning_cost()
+                return text
+            # ADR-100: cleaning catch-and-degrade. Cost emitted in both branches.
+            try:
+                _guardrails.check_chat_response(
+                    cleaned,
+                    service="anthropic",
+                    finish_reason=_anthropic_finish_reason(response),
+                )
+            except _guardrails.GuardrailViolation:
+                _emit_cleaning_cost(triggered_guardrail=True)
+                logger.warning(
+                    "Anthropic cleaning output failed guardrail; "
+                    "returning original transcript text"
+                )
                 return text
 
+            _emit_cleaning_cost()
             logger.debug("Anthropic cleaning completed: %d -> %d chars", len(text), len(cleaned))
             return cast(str, cleaned)
 
+        except _guardrails.GuardrailViolation:
+            # Defensive: outer catch in case a future change adds a guardrail
+            # call outside the inline-handled if/else. Re-affirms the
+            # catch-and-degrade contract.
+            logger.warning(
+                "Anthropic cleaning output failed guardrail (outer); "
+                "returning original transcript text"
+            )
+            return text
         except Exception as exc:
             logger.error("Anthropic API error in cleaning: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError
@@ -1481,6 +1609,62 @@ class AnthropicProvider:
                 raw = getattr(first, "text", None)
                 content = raw if isinstance(raw, str) else ""
             content = (content or "").strip()
+
+            # ADR-100 cost-attribution: emit llm_cost event for GI in both
+            # happy-path and guardrail-violation branches (GI was previously
+            # missing from the llm_cost log stream entirely).
+            in_tok_gi = None
+            out_tok_gi = None
+            if hasattr(response, "usage") and response.usage:
+                in_raw = getattr(response.usage, "input_tokens", None)
+                out_raw = getattr(response.usage, "output_tokens", None)
+                in_tok_gi = int(in_raw) if isinstance(in_raw, (int, float)) else None
+                out_tok_gi = int(out_raw) if isinstance(out_raw, (int, float)) else None
+            gi_cost: Optional[float] = None
+            if in_tok_gi is not None and out_tok_gi is not None:
+                from ...workflow.helpers import calculate_provider_cost
+
+                gi_cost = calculate_provider_cost(
+                    cfg=self.cfg,
+                    provider_type="anthropic",
+                    capability="gi",
+                    model=self.summary_model,
+                    prompt_tokens=in_tok_gi,
+                    completion_tokens=out_tok_gi,
+                )
+
+            def _emit_gi_cost(*, triggered_guardrail: bool = False) -> None:
+                if in_tok_gi is None or out_tok_gi is None:
+                    return
+                try:
+                    from ...workflow.cost_monitoring import emit_llm_cost_event
+
+                    emit_llm_cost_event(
+                        self.cfg,
+                        provider="anthropic",
+                        stage="gi",
+                        model=self.summary_model,
+                        estimated_cost_usd=float(gi_cost or 0.0),
+                        prompt_tokens=in_tok_gi,
+                        completion_tokens=out_tok_gi,
+                        triggered_guardrail=triggered_guardrail,
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
+
+            # ADR-100: GI is fail-up. Cost emitted in BOTH branches; raw
+            # GuardrailViolation re-raised so the outer broad except does
+            # NOT swallow it.
+            try:
+                _guardrails.check_chat_response(
+                    content,
+                    service="anthropic",
+                    finish_reason=_anthropic_finish_reason(response),
+                )
+            except _guardrails.GuardrailViolation:
+                _emit_gi_cost(triggered_guardrail=True)
+                raise
+            _emit_gi_cost()
             lines = [
                 line.strip()
                 for line in content.splitlines()
@@ -1498,6 +1682,9 @@ class AnthropicProvider:
                 if s:
                     cleaned.append(s)
             return cleaned[:max_insights]
+        except _guardrails.GuardrailViolation:
+            # ADR-100: GI is fail-up. Propagate so FallbackAware routes.
+            raise
         except Exception as e:
             logger.debug("Anthropic generate_insights failed: %s", e, exc_info=True)
             return []
@@ -1688,6 +1875,7 @@ class AnthropicProvider:
 
             call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("anthropic")
+            call_metrics.set_breaker_config_from_cfg(self.cfg)
             pm = kwargs.get("pipeline_metrics")
 
             def _make_api_call():
@@ -1795,6 +1983,7 @@ class AnthropicProvider:
 
             call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("anthropic")
+            call_metrics.set_breaker_config_from_cfg(self.cfg)
             pm = kwargs.get("pipeline_metrics")
 
             def _make_api_call():
@@ -1883,6 +2072,7 @@ class AnthropicProvider:
 
         call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("anthropic")
+        call_metrics.set_breaker_config_from_cfg(self.cfg)
         pm = kwargs.get("pipeline_metrics")
         max_out = extract_quotes_bundled_max_tokens(len(insight_texts))
 
@@ -2009,6 +2199,7 @@ class AnthropicProvider:
 
         call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("anthropic")
+        call_metrics.set_breaker_config_from_cfg(self.cfg)
         max_out = score_entailment_bundled_max_tokens(len(chunk_pairs))
 
         def _make_api_call() -> Any:

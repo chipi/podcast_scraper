@@ -55,12 +55,44 @@ from ...utils.cleaning_max_tokens import (
 )
 from ...utils.log_redaction import format_exception_for_log, redact_for_log
 from ...workflow import metrics
+from .. import guardrails as _guardrails
 from ..capabilities import ProviderCapabilities
 
 logger = logging.getLogger(__name__)
 
 # Default speaker names when detection fails
 from ..ml.speaker_detection import DEFAULT_SPEAKER_NAMES
+
+
+def _gemini_finish_reason(response: Any) -> Optional[str]:
+    """Best-effort extraction of Gemini's finish_reason for guardrail purposes.
+
+    Gemini's response shape varies by SDK version; ``candidates[0].finish_reason``
+    is the canonical path but the value is sometimes an enum and sometimes a
+    string. Normalises to a lowercase string ("length", "stop", etc.) so the
+    chat-guardrail's ``finish_reason == "length"`` comparison works.
+    Returns None when the field isn't present (the guardrail then skips the
+    finish-reason check, which is the safe default).
+    """
+    try:
+        candidates = getattr(response, "candidates", None) or []
+        if not candidates:
+            return None
+        reason = getattr(candidates[0], "finish_reason", None)
+        if reason is None:
+            return None
+        name = getattr(reason, "name", None)
+        raw = str(name).lower() if name else str(reason).lower()
+        # ADR-100 normalization: Gemini emits ``MAX_TOKENS`` for the
+        # over-budget condition; the guardrail trips on the canonical
+        # ``"length"`` value (OpenAI/DeepSeek convention). Map at the
+        # per-SDK boundary so the helper stays service-neutral.
+        if raw == "max_tokens":
+            return "length"
+        return raw
+    except Exception:  # noqa: BLE001 - defensive; never break the caller
+        return None
+
 
 # Pricing for Gemini models lives in ``config/pricing_assumptions.yaml`` (#651).
 
@@ -214,17 +246,37 @@ class GeminiProvider:
         # New API uses Client instead of configure() + GenerativeModel
         client_kwargs: Dict[str, Any] = {"api_key": cfg.gemini_api_key}
         gemini_api_base = getattr(cfg, "gemini_api_base", None)
-        if gemini_api_base:
-            # E2E testing: route requests to mock server via http_options.base_url
-            if genai_types is not None:
-                client_kwargs["http_options"] = genai_types.HttpOptions(
-                    base_url=gemini_api_base.rstrip("/")
-                )
-            else:
-                logger.warning(
-                    "gemini_api_base is set but google.genai.types not available; "
-                    "requests will use default API."
-                )
+        if genai_types is not None:
+            # google-genai ``HttpOptions.timeout`` is documented in milliseconds.
+            # ADR-100: honour ``summarization_timeout`` (read_timeout in our
+            # shared helper) so a tight client-timeout config plumbs through
+            # to the SDK — matches the contract on the other 3 cloud providers
+            # (OpenAI / Anthropic / DeepSeek).
+            from ...utils.timeout_config import get_http_timeout
+
+            timeout_config = get_http_timeout(cfg)
+            timeout_ms: Optional[int] = None
+            try:
+                read_t = getattr(timeout_config, "read", None) if timeout_config else None
+                if read_t is None and isinstance(timeout_config, (int, float)):
+                    read_t = float(timeout_config)
+                if read_t is not None:
+                    timeout_ms = int(float(read_t) * 1000)
+            except Exception:  # noqa: BLE001 - defensive; never break client construction
+                timeout_ms = None
+
+            http_options_kwargs: Dict[str, Any] = {}
+            if gemini_api_base:
+                http_options_kwargs["base_url"] = gemini_api_base.rstrip("/")
+            if timeout_ms is not None and timeout_ms > 0:
+                http_options_kwargs["timeout"] = timeout_ms
+            if http_options_kwargs:
+                client_kwargs["http_options"] = genai_types.HttpOptions(**http_options_kwargs)
+        elif gemini_api_base:
+            logger.warning(
+                "gemini_api_base is set but google.genai.types not available; "
+                "requests will use default API."
+            )
         self.client = genai.Client(**client_kwargs)
 
         # Log non-sensitive provider metadata (for debugging)
@@ -238,11 +290,6 @@ class GeminiProvider:
             project=project,
             region=region,
         )
-
-        # Note: HTTP timeout configuration
-        # Gemini SDK uses global configure() and may not support per-client timeout configuration.
-        # Timeout behavior is controlled by the SDK's default settings.
-        # If timeout configuration is needed, it may require SDK version update or workaround.
 
         # Transcription settings
         # Model validation happens at API call time - invalid models will raise clear errors
@@ -322,8 +369,19 @@ class GeminiProvider:
         self._summarization_initialized = True
         logger.debug("Gemini summarization initialized successfully")
 
-    def _gemini_retry_params(self, ctx: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Kwargs for ``retry_with_metrics`` on Gemini HTTP/SDK calls (configurable)."""
+    def _gemini_retry_params(
+        self,
+        ctx: Optional[Dict[str, Any]] = None,
+        pipeline_metrics: Optional[Any] = None,
+    ) -> Dict[str, Any]:
+        """Kwargs for ``retry_with_metrics`` on Gemini HTTP/SDK calls (configurable).
+
+        Passes ``pipeline_metrics`` through so #988 per-stage retry-reason
+        attribution fires from inside the retry loop. The ``ctx["stage"]``
+        already carries a per-call-site tag (e.g. ``gemini_megabundle``,
+        ``gemini_gil_extract_quotes``) which the canonical-stage normalizer
+        maps onto pipeline buckets (summarization, gi, …).
+        """
         out: Dict[str, Any] = {
             "max_retries": self.cfg.gemini_retry_max_retries,
             "initial_delay": self.cfg.gemini_retry_initial_delay_seconds,
@@ -331,6 +389,8 @@ class GeminiProvider:
         }
         if ctx:
             out["retry_context"] = ctx
+        if pipeline_metrics is not None:
+            out["pipeline_metrics"] = pipeline_metrics
         return out
 
     # ============================================================================
@@ -602,6 +662,7 @@ class GeminiProvider:
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("gemini")
+        call_metrics.set_breaker_config_from_cfg(self.cfg)
 
         from ...utils.provider_metrics import (
             _safe_gemini_retryable,
@@ -612,7 +673,10 @@ class GeminiProvider:
         try:
             text = retry_with_metrics(
                 lambda: self.transcribe(audio_path, language),
-                **self._gemini_retry_params({"stage": "gemini_transcribe_outer"}),
+                **self._gemini_retry_params(
+                    {"stage": "gemini_transcribe_outer"},
+                    pipeline_metrics=pipeline_metrics,
+                ),
                 retryable_exceptions=_safe_gemini_retryable(),
                 metrics=call_metrics,
             )
@@ -790,7 +854,10 @@ class GeminiProvider:
                     contents=user_prompt,
                     config=cast(Any, generation_config),
                 ),
-                **self._gemini_retry_params({"stage": "gemini_speaker"}),
+                **self._gemini_retry_params(
+                    {"stage": "gemini_speaker"},
+                    pipeline_metrics=pipeline_metrics,
+                ),
                 retryable_exceptions=_safe_gemini_retryable(),
             )
 
@@ -942,7 +1009,7 @@ class GeminiProvider:
     # SummarizationProvider Protocol Implementation
     # ============================================================================
 
-    def summarize(
+    def summarize(  # noqa: C901
         self,
         text: str,
         episode_title: Optional[str] = None,
@@ -1024,6 +1091,7 @@ class GeminiProvider:
             if call_metrics is None:
                 call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("gemini")
+            call_metrics.set_breaker_config_from_cfg(self.cfg)
 
             from ...utils.provider_metrics import (
                 _safe_gemini_retryable,
@@ -1053,7 +1121,8 @@ class GeminiProvider:
                         {
                             "stage": "gemini_summarize",
                             "episode_title": (episode_title or "")[:200],
-                        }
+                        },
+                        pipeline_metrics=pipeline_metrics,
                     ),
                     retryable_exceptions=_safe_gemini_retryable(),
                     metrics=call_metrics,
@@ -1065,13 +1134,9 @@ class GeminiProvider:
             call_metrics.finalize()
 
             summary = response.text if hasattr(response, "text") else str(response)
-            if not summary:
-                logger.warning("Gemini API returned empty summary")
-                summary = ""
-
-            logger.debug("Gemini summarization completed: %d characters", len(summary))
-
-            # Extract token counts and populate call_metrics
+            # Extract token counts up-front so the cost event can fire on
+            # both the happy path and the GuardrailViolation path
+            # (ADR-100 paid-but-rejected cost-attribution).
             input_tokens = None
             output_tokens = None
             if hasattr(response, "usage_metadata") and response.usage_metadata:
@@ -1117,8 +1182,6 @@ class GeminiProvider:
             except Exception:
                 pass
 
-            # Calculate cost first so the value flows into both call_metrics and
-            # pipeline_metrics.record_llm_summarization_call(cost_usd=...).
             cost: Optional[float] = None
             if input_tokens is not None:
                 from ...workflow.helpers import calculate_provider_cost
@@ -1131,6 +1194,10 @@ class GeminiProvider:
                     prompt_tokens=input_tokens,
                     completion_tokens=output_tokens,
                 )
+
+            def _record_cost(*, triggered_guardrail: bool = False) -> None:
+                if input_tokens is None:
+                    return
                 from ...utils.provider_metrics import record_provider_call_cost
 
                 record_provider_call_cost(
@@ -1142,7 +1209,27 @@ class GeminiProvider:
                     model=self.summary_model,
                     prompt_tokens=input_tokens,
                     completion_tokens=output_tokens,
+                    triggered_guardrail=triggered_guardrail,
                 )
+
+            # Response-shape guardrail (ADR-100, #1003): empty / thinking-prose /
+            # finish_reason=length. Gemini "thinking" models (2.5-flash w/o
+            # explicit budget=0) can burn output budget on hidden reasoning
+            # and return empty/short content — caught here. Cost event fires
+            # in BOTH branches so the operator can pivot on paid-but-rejected
+            # spend; raw GuardrailViolation propagates so FallbackAware
+            # routes the configured fallback.
+            try:
+                _guardrails.check_chat_response(
+                    summary, service="gemini", finish_reason=_gemini_finish_reason(response)
+                )
+            except _guardrails.GuardrailViolation:
+                _record_cost(triggered_guardrail=True)
+                raise
+
+            logger.debug("Gemini summarization completed: %d characters", len(summary))
+
+            _record_cost()
 
             # Track LLM call metrics if available (aggregate tracking)
             if (
@@ -1181,6 +1268,11 @@ class GeminiProvider:
                 },
             }
 
+        except _guardrails.GuardrailViolation:
+            # ADR-100: propagate the raw violation so FallbackAwareSummarizationProvider
+            # can route to the degradation policy's fallback. Wrapping into
+            # ProviderRuntimeError would hide the type from the fallback layer.
+            raise
         except Exception as exc:
             logger.error("Gemini API error in summarization: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import (
@@ -1259,6 +1351,7 @@ class GeminiProvider:
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("gemini")
+        call_metrics.set_breaker_config_from_cfg(self.cfg)
 
         def _make_api_call() -> Any:
             generation_config = _merge_generate_content_config(
@@ -1279,7 +1372,10 @@ class GeminiProvider:
         try:
             resp = retry_with_metrics(
                 _make_api_call,
-                **self._gemini_retry_params({"stage": "gemini_megabundle"}),
+                **self._gemini_retry_params(
+                    {"stage": "gemini_megabundle"},
+                    pipeline_metrics=pipeline_metrics,
+                ),
                 retryable_exceptions=_safe_gemini_retryable(),
                 metrics=call_metrics,
             )
@@ -1347,6 +1443,7 @@ class GeminiProvider:
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("gemini")
+        call_metrics.set_breaker_config_from_cfg(self.cfg)
 
         def _make_api_call() -> Any:
             generation_config = _merge_generate_content_config(
@@ -1371,7 +1468,8 @@ class GeminiProvider:
                     {
                         "stage": "gemini_extraction_bundle",
                         "episode_title": (episode_title or "")[:200],
-                    }
+                    },
+                    pipeline_metrics=pipeline_metrics,
                 ),
                 retryable_exceptions=_safe_gemini_retryable(),
                 metrics=call_metrics,
@@ -1438,6 +1536,7 @@ class GeminiProvider:
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("gemini")
+        call_metrics.set_breaker_config_from_cfg(self.cfg)
 
         def _make_api_call() -> Any:
             generation_config = _merge_generate_content_config(
@@ -1462,7 +1561,8 @@ class GeminiProvider:
                     {
                         "stage": "gemini_bundled_clean_summary",
                         "episode_title": (episode_title or "")[:200],
-                    }
+                    },
+                    pipeline_metrics=pipeline_metrics,
                 ),
                 retryable_exceptions=_safe_gemini_retryable(),
                 metrics=call_metrics,
@@ -1474,23 +1574,8 @@ class GeminiProvider:
         call_metrics.finalize()
 
         raw = (response.text if hasattr(response, "text") else str(response) or "").strip()
-        if not raw:
-            raise ValueError("Gemini bundled call returned empty content")
 
-        try:
-            data = json.loads(raw, strict=False)
-        except json.JSONDecodeError as exc:
-            raise ValueError(f"Bundled response is not valid JSON: {exc}") from exc
-
-        if not isinstance(data, dict):
-            raise ValueError("Bundled JSON must be an object")
-        summary_prose = data.get("summary")
-        bullets = data.get("bullets")
-        if not isinstance(summary_prose, str) or not summary_prose.strip():
-            raise ValueError("Bundled JSON missing non-empty summary string")
-        if not isinstance(bullets, list) or not bullets:
-            raise ValueError("Bundled JSON missing non-empty bullets list")
-
+        # Token + cost capture up-front so cost emits in both branches (ADR-100).
         input_tokens = None
         output_tokens = None
         if hasattr(response, "usage_metadata") and response.usage_metadata:
@@ -1520,6 +1605,10 @@ class GeminiProvider:
                 prompt_tokens=input_tokens,
                 completion_tokens=output_tokens,
             )
+
+        def _record_cost(*, triggered_guardrail: bool = False) -> None:
+            if input_tokens is None:
+                return
             from ...utils.provider_metrics import record_provider_call_cost
 
             record_provider_call_cost(
@@ -1531,7 +1620,33 @@ class GeminiProvider:
                 model=self.summary_model,
                 prompt_tokens=input_tokens,
                 completion_tokens=output_tokens,
+                triggered_guardrail=triggered_guardrail,
             )
+
+        # Response-shape guardrail (ADR-100, #1003) on bundled output.
+        try:
+            _guardrails.check_chat_response(
+                raw, service="gemini", finish_reason=_gemini_finish_reason(response)
+            )
+        except _guardrails.GuardrailViolation:
+            _record_cost(triggered_guardrail=True)
+            raise
+
+        try:
+            data = json.loads(raw, strict=False)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Bundled response is not valid JSON: {exc}") from exc
+
+        if not isinstance(data, dict):
+            raise ValueError("Bundled JSON must be an object")
+        summary_prose = data.get("summary")
+        bullets = data.get("bullets")
+        if not isinstance(summary_prose, str) or not summary_prose.strip():
+            raise ValueError("Bundled JSON missing non-empty summary string")
+        if not isinstance(bullets, list) or not bullets:
+            raise ValueError("Bundled JSON missing non-empty bullets list")
+
+        _record_cost()
 
         if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
             pipeline_metrics.record_llm_bundled_clean_summary_call(
@@ -1690,6 +1805,63 @@ class GeminiProvider:
             )
             content = response.text if hasattr(response, "text") else str(response)
             content = (content or "").strip()
+
+            # ADR-100 cost-attribution: emit llm_cost in both branches.
+            in_tok_gi = None
+            out_tok_gi = None
+            if hasattr(response, "usage_metadata") and response.usage_metadata:
+                usage_gi = response.usage_metadata
+                in_raw = getattr(usage_gi, "prompt_token_count", 0)
+                out_raw = getattr(usage_gi, "candidates_token_count", 0)
+                try:
+                    in_tok_gi = int(in_raw) if in_raw is not None else None
+                except (TypeError, ValueError):
+                    in_tok_gi = None
+                try:
+                    out_tok_gi = int(out_raw) if out_raw is not None else None
+                except (TypeError, ValueError):
+                    out_tok_gi = None
+            gi_cost: Optional[float] = None
+            if in_tok_gi is not None and out_tok_gi is not None:
+                from ...workflow.helpers import calculate_provider_cost
+
+                gi_cost = calculate_provider_cost(
+                    cfg=self.cfg,
+                    provider_type="gemini",
+                    capability="gi",
+                    model=self.summary_model,
+                    prompt_tokens=in_tok_gi,
+                    completion_tokens=out_tok_gi,
+                )
+
+            def _emit_gi_cost(*, triggered_guardrail: bool = False) -> None:
+                if in_tok_gi is None or out_tok_gi is None:
+                    return
+                try:
+                    from ...workflow.cost_monitoring import emit_llm_cost_event
+
+                    emit_llm_cost_event(
+                        self.cfg,
+                        provider="gemini",
+                        stage="gi",
+                        model=self.summary_model,
+                        estimated_cost_usd=float(gi_cost or 0.0),
+                        prompt_tokens=in_tok_gi,
+                        completion_tokens=out_tok_gi,
+                        triggered_guardrail=triggered_guardrail,
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
+
+            # ADR-100: GI is fail-up. Cost emitted in BOTH branches.
+            try:
+                _guardrails.check_chat_response(
+                    content, service="gemini", finish_reason=_gemini_finish_reason(response)
+                )
+            except _guardrails.GuardrailViolation:
+                _emit_gi_cost(triggered_guardrail=True)
+                raise
+            _emit_gi_cost()
             lines = [
                 line.strip()
                 for line in content.splitlines()
@@ -1707,6 +1879,9 @@ class GeminiProvider:
                 if s:
                     cleaned.append(s)
             return cleaned[:max_insights]
+        except _guardrails.GuardrailViolation:
+            # ADR-100: GI is fail-up. Propagate so FallbackAware routes.
+            raise
         except Exception as e:
             logger.debug("Gemini generate_insights failed: %s", e, exc_info=True)
             return []
@@ -1767,7 +1942,11 @@ class GeminiProvider:
             response = retry_with_metrics(
                 _make_api_call,
                 **self._gemini_retry_params(
-                    {"stage": "gemini_kg_transcript", "episode_title": (episode_title or "")[:200]}
+                    {
+                        "stage": "gemini_kg_transcript",
+                        "episode_title": (episode_title or "")[:200],
+                    },
+                    pipeline_metrics=pipeline_metrics,
                 ),
                 retryable_exceptions=_safe_gemini_retryable(),
             )
@@ -1846,7 +2025,11 @@ class GeminiProvider:
             response = retry_with_metrics(
                 _make_api_call,
                 **self._gemini_retry_params(
-                    {"stage": "gemini_kg_bullets", "episode_title": (episode_title or "")[:200]}
+                    {
+                        "stage": "gemini_kg_bullets",
+                        "episode_title": (episode_title or "")[:200],
+                    },
+                    pipeline_metrics=pipeline_metrics,
                 ),
                 retryable_exceptions=_safe_gemini_retryable(),
             )
@@ -1906,6 +2089,7 @@ class GeminiProvider:
 
             call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("gemini")
+            call_metrics.set_breaker_config_from_cfg(self.cfg)
             pm = kwargs.get("pipeline_metrics")
 
             generation_config = _merge_generate_content_config(
@@ -1927,7 +2111,10 @@ class GeminiProvider:
             try:
                 response = retry_with_metrics(
                     _make_api_call,
-                    **self._gemini_retry_params({"stage": "gemini_gil_extract_quotes"}),
+                    **self._gemini_retry_params(
+                        {"stage": "gemini_gil_extract_quotes"},
+                        pipeline_metrics=pm,
+                    ),
                     retryable_exceptions=_safe_gemini_retryable(),
                     metrics=call_metrics,
                 )
@@ -2041,6 +2228,7 @@ class GeminiProvider:
 
         call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("gemini")
+        call_metrics.set_breaker_config_from_cfg(self.cfg)
         pm = kwargs.get("pipeline_metrics")
 
         # Bundled call may need a larger output budget than the per-insight call.
@@ -2064,7 +2252,10 @@ class GeminiProvider:
         try:
             response = retry_with_metrics(
                 _make_api_call,
-                **self._gemini_retry_params({"stage": "gemini_gil_extract_quotes_bundled"}),
+                **self._gemini_retry_params(
+                    {"stage": "gemini_gil_extract_quotes_bundled"},
+                    pipeline_metrics=pm,
+                ),
                 retryable_exceptions=_safe_gemini_retryable(),
                 metrics=call_metrics,
             )
@@ -2144,6 +2335,7 @@ class GeminiProvider:
 
             call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("gemini")
+            call_metrics.set_breaker_config_from_cfg(self.cfg)
             pm = kwargs.get("pipeline_metrics")
 
             generation_config = _merge_generate_content_config(
@@ -2165,7 +2357,10 @@ class GeminiProvider:
             try:
                 response = retry_with_metrics(
                     _make_api_call,
-                    **self._gemini_retry_params({"stage": "gemini_gil_score_entailment"}),
+                    **self._gemini_retry_params(
+                        {"stage": "gemini_gil_score_entailment"},
+                        pipeline_metrics=pm,
+                    ),
                     retryable_exceptions=_safe_gemini_retryable(),
                     metrics=call_metrics,
                 )
@@ -2268,6 +2463,7 @@ class GeminiProvider:
 
         call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("gemini")
+        call_metrics.set_breaker_config_from_cfg(self.cfg)
 
         max_out = score_entailment_bundled_max_tokens(len(chunk_pairs))
         generation_config = _merge_generate_content_config(
@@ -2289,7 +2485,10 @@ class GeminiProvider:
         try:
             response = retry_with_metrics(
                 _make_api_call,
-                **self._gemini_retry_params({"stage": "gemini_gil_score_entailment_bundled"}),
+                **self._gemini_retry_params(
+                    {"stage": "gemini_gil_score_entailment_bundled"},
+                    pipeline_metrics=pipeline_metrics,
+                ),
                 retryable_exceptions=_safe_gemini_retryable(),
                 metrics=call_metrics,
             )
@@ -2359,6 +2558,7 @@ class GeminiProvider:
 
             call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("gemini")
+            call_metrics.set_breaker_config_from_cfg(self.cfg)
 
             def _make_api_call():
                 generation_config = _merge_generate_content_config(
@@ -2382,7 +2582,10 @@ class GeminiProvider:
             try:
                 response = retry_with_metrics(
                     _make_api_call,
-                    **self._gemini_retry_params({"stage": "gemini_clean_transcript"}),
+                    **self._gemini_retry_params(
+                        {"stage": "gemini_clean_transcript"},
+                        pipeline_metrics=pipeline_metrics,
+                    ),
                     retryable_exceptions=_safe_gemini_retryable(),
                     metrics=call_metrics,
                 )
@@ -2401,13 +2604,82 @@ class GeminiProvider:
             )
 
             cleaned = response.text if hasattr(response, "text") else str(response)
+
+            # Cost capture up-front (ADR-100 cost-attribution in both branches).
+            in_tok_cl = None
+            out_tok_cl = None
+            if hasattr(response, "usage_metadata") and response.usage_metadata:
+                u = response.usage_metadata
+                ir = getattr(u, "prompt_token_count", 0)
+                or_ = getattr(u, "candidates_token_count", 0)
+                try:
+                    in_tok_cl = int(ir) if ir is not None else None
+                except (TypeError, ValueError):
+                    in_tok_cl = None
+                try:
+                    out_tok_cl = int(or_) if or_ is not None else None
+                except (TypeError, ValueError):
+                    out_tok_cl = None
+            cleaning_cost: Optional[float] = None
+            if in_tok_cl is not None and out_tok_cl is not None:
+                from ...workflow.helpers import calculate_provider_cost
+
+                cleaning_cost = calculate_provider_cost(
+                    cfg=self.cfg,
+                    provider_type="gemini",
+                    capability="cleaning",
+                    model=self.cleaning_model,
+                    prompt_tokens=in_tok_cl,
+                    completion_tokens=out_tok_cl,
+                )
+
+            def _emit_cleaning_cost(*, triggered_guardrail: bool = False) -> None:
+                if in_tok_cl is None or out_tok_cl is None:
+                    return
+                try:
+                    from ...workflow.cost_monitoring import emit_llm_cost_event
+
+                    emit_llm_cost_event(
+                        self.cfg,
+                        provider="gemini",
+                        stage="cleaning",
+                        model=self.cleaning_model,
+                        estimated_cost_usd=float(cleaning_cost or 0.0),
+                        prompt_tokens=in_tok_cl,
+                        completion_tokens=out_tok_cl,
+                        triggered_guardrail=triggered_guardrail,
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
+
             if not cleaned:
                 logger.warning("Gemini API returned empty cleaned text, using original")
+                _emit_cleaning_cost()
+                return text
+            # ADR-100: cleaning catch-and-degrade; cost emitted in both branches.
+            try:
+                _guardrails.check_chat_response(
+                    cleaned, service="gemini", finish_reason=_gemini_finish_reason(response)
+                )
+            except _guardrails.GuardrailViolation:
+                _emit_cleaning_cost(triggered_guardrail=True)
+                logger.warning(
+                    "Gemini cleaning output failed guardrail; " "returning original transcript text"
+                )
                 return text
 
+            _emit_cleaning_cost()
             logger.debug("Gemini cleaning completed: %d -> %d chars", len(text), len(cleaned))
             return cast(str, cleaned)
 
+        except _guardrails.GuardrailViolation:
+            # Defensive outer catch — preserve the catch-and-degrade contract
+            # if a future change adds a guardrail call outside the inline block.
+            logger.warning(
+                "Gemini cleaning output failed guardrail (outer); "
+                "returning original transcript text"
+            )
+            return text
         except Exception as exc:
             logger.error("Gemini API error in cleaning: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError
