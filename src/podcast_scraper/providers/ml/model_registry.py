@@ -1045,15 +1045,20 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         tier="primary",
         resident_memory_gb=32.0,
     ),
-    # vLLM-served Qwen3-30B-A3B-NVFP4 — #1022 Cell F daily-driver champion.
+    # vLLM-served Qwen3-30B-A3B-NVFP4 — #1022 Cell F daily-driver champion
+    # (corrected-pipeline rankings per #1033, 2026-06-19).
     # NVFP4 quantization of Qwen3-30B-A3B-Instruct-2507 (NVIDIA Model
     # Optimizer team's official quant — `NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4`).
-    # 1.7× faster end-to-end than Qwen3.5-35B-A3B (38 s/ep vs 64.9), at -4.7%
-    # quality sum. **Wins GI stage outright** (cov 0.4250 vs Qwen3.5-35B-A3B
-    # 0.3625, +17%). Same architecture + sampling as Qwen3-30B-A3B-Instruct-2507
-    # baseline — drop-in replacement at the homelab compose level. Held-out
-    # validated on benchmark_v2 (Sonnet 4.6 silver) — quality holds cross-
-    # dataset + cross-vendor.
+    # On the corrected `provider`-source pipeline: GI avg_sim 0.595 (cohort
+    # #2 behind Qwen3.5-35B-A3B 0.618), KG topic cov 45% (cohort #2 behind
+    # Qwen3.5-35B-A3B 50%). 16% faster end-to-end on the GI+KG path (440s
+    # vs Qwen3.5-35B-A3B 526s) at a bounded -4% GI / -5pp KG quality gap.
+    # Same architecture + sampling as Qwen3-30B-A3B-Instruct-2507 baseline —
+    # drop-in replacement at the homelab compose level. Held-out validated
+    # on benchmark_v2 (Sonnet 4.6 silver) — quality holds cross-dataset +
+    # cross-vendor. For one-shot highest-stakes evals, operator can
+    # manually swap the compose to Qwen3.5-35B-A3B for the cohort top-quality
+    # candidate.
     "vllm_qwen3_30b_a3b_nvfp4": StageOption(
         stage="summary",
         option_id="vllm_qwen3_30b_a3b_nvfp4",
@@ -1071,12 +1076,14 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
                 "presence_penalty": 1.5,
             },
         },
-        research_ref="docs/wip/VLLM_GB10_TUNING_VALIDATION_2026-06-18.md",
+        research_ref="docs/wip/EVAL_1033_COHORT_RERUN_2026-06-19.md",
         headline_metric=(
-            "Summary rouge1_f1 vs Opus 0.5407 (cohort rank 5), GI cov_rate "
-            "0.4250 (cohort #1 WINNER, +17% over Qwen3.5-35B-A3B), KG topic "
-            "cov 0.4078 (cohort rank 3). End-to-end 38 s/ep — cohort speed "
-            "leader. 18 GB weight footprint (3.7× smaller than Qwen3.5-35B-A3B)."
+            "Corrected-pipeline (#1033) cohort: GI avg_sim 0.595 (rank 2), "
+            "KG topic cov 45% (rank 2), summary rouge1_f1 vs Opus 0.5407 "
+            "(rank 5). End-to-end GI+KG 440s — 16% faster than #1 "
+            "Qwen3.5-35B-A3B at -4% GI / -5pp KG quality gap. 18 GB weight "
+            "footprint (3.7× smaller). Best speed-quality trade-off; "
+            "Qwen3.5-35B-A3B is the top-quality reserve for one-shot evals."
         ),
         measured_at="2026-06-19",
         tier="primary",
