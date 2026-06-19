@@ -18,12 +18,16 @@ c16856ff feat(eval): #912 validation — 140 trials, 2 hosts, 0 parse failures (
 ## Closed this session
 
 **GH issues**: 3 closed (#912, #1022, #1023)
-**Tasks**: #95, #102, #114, #115 closed (plus #113 created for future
-small-model standoff)
-**Local commits**: 6 ahead of `origin/main`, none pushed (per
+**Tasks**: #95, #102, #108, #109, #111, #114, #115 closed (plus #113
+created for the future small-model standoff)
+**Local commits**: 10 ahead of `origin/main`, none pushed (per
 `feedback_never_push_early.md`).
 
 ```text
+d0b78933 feat(providers): #109 — add HF SYSTEM_PROMPT.txt fetch + cache helper for Mistral family
+f56849da feat(providers): #108 — add top_p / response_format typed fields to SummarizationParams
+dac4c91c fix(eval): #111 — apply eval postprocessor to GIL/KG node text fields (DSV2 0% bug)
+8dba5693 docs(wip): briefing update — Path D + #115 revert shipped
 8c6c438d feat(eval): #912 Path D — bundled JSON parse-failure counter + revert #915 workaround
 708c5a84 docs(wip): correct DGX compose state in session briefing
 978ebbc1 docs(wip): session briefing 2026-06-18/19
@@ -127,11 +131,24 @@ not draft.
 
 | Task | Why parked | Effort estimate |
 |---|---|---|
-| #108 | Add top_p / response_format to SummarizationParams — small but touches all 6 providers + needs operator alignment on API surface | ~1-2h |
-| #109 | Wire mistral tokenizer flags + load SYSTEM_PROMPT.txt — needs operator's mistral spec validation | ~1-2h |
-| #111 | Fix BPE postprocessor for GI/KG node labels (DSV2 0% bug) — concrete bug; needs DSV2 re-run after fix | ~1h fix + GPU time |
 | #112 | Entity-focused KG re-experiment — operator-driven GPU time | ~2h GPU |
 | #113 | Small-model standoff — large task, NVFP4 variants don't exist for Moonlight/Qwen3.5-35B-A3B (verified this session) | ~3-4h |
+
+## Tasks completed this session (autonomous)
+
+- **#108** — top_p / response_format typed on SummarizationParams (commit f56849da).
+  Provider-side wiring DEFERRED to whoever next runs a candidate that needs them.
+- **#109** — load_hf_system_prompt helper for Mistral family (commit d0b78933).
+  Provider-side wiring DEFERRED to whoever next runs a Mistral candidate.
+- **#111** — BPE postprocessor applied to GIL/KG node text fields (commit dac4c91c).
+  Fixes the DSV2 0% bug at the harness layer; the rerun is operator-driven GPU
+  time.
+- **#114** — Path D bundled-parse-failure counter in autoresearch eval framework
+  (commit 8c6c438d). Surfaces in metrics_report.md so future flaky bundled
+  candidates can't silently win.
+- **#115** — Reverted local_dgx_balanced workaround back to bundled mode
+  (commit 8c6c438d). Path D shipped first as the safety net per operator
+  decision C.
 
 ## Tasks blocked
 
