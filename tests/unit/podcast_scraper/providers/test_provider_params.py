@@ -66,6 +66,71 @@ class TestProviderParamsModels(unittest.TestCase):
         with self.assertRaises(ValueError):
             SummarizationParams(model_name="test", temperature=3.0)
 
+    def test_summarization_params_top_p_default_is_none(self):
+        """#108 — top_p is opt-in; default None means 'use provider default'."""
+        params = SummarizationParams(model_name="test")
+        self.assertIsNone(params.top_p)
+
+    def test_summarization_params_top_p_valid_range(self):
+        """#108 — top_p accepts the [0.0, 1.0] nucleus-sampling range."""
+        for valid in (0.0, 0.5, 0.8, 1.0):
+            params = SummarizationParams(model_name="test", top_p=valid)
+            self.assertEqual(params.top_p, valid)
+
+    def test_summarization_params_top_p_rejects_out_of_range(self):
+        """#108 — top_p < 0 or > 1 fails Pydantic validation."""
+        with self.assertRaises(ValueError):
+            SummarizationParams(model_name="test", top_p=-0.1)
+        with self.assertRaises(ValueError):
+            SummarizationParams(model_name="test", top_p=1.5)
+
+    def test_summarization_params_response_format_default_is_none(self):
+        """#108 — response_format default None means plain text."""
+        params = SummarizationParams(model_name="test")
+        self.assertIsNone(params.response_format)
+
+    def test_summarization_params_response_format_accepts_json_object(self):
+        """#108 — common OpenAI structured-JSON spec round-trips."""
+        spec = {"type": "json_object"}
+        params = SummarizationParams(model_name="test", response_format=spec)
+        self.assertEqual(params.response_format, spec)
+
+    def test_summarization_params_response_format_accepts_json_schema(self):
+        """#108 — full JSON schema spec round-trips (Kimi-Linear v3_json shape)."""
+        spec = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "summary",
+                "schema": {
+                    "type": "object",
+                    "properties": {"summary": {"type": "string"}},
+                    "required": ["summary"],
+                },
+            },
+        }
+        params = SummarizationParams(model_name="test", response_format=spec)
+        self.assertEqual(params.response_format, spec)
+
+    def test_summarization_params_model_dump_omits_none_top_p_and_response_format(self):
+        """#108 — model_dump (overridden in params.py) strips None values, so
+        configs that don't set top_p / response_format don't materialize them
+        in serialized payloads. Important for provider-side compat."""
+        params = SummarizationParams(model_name="test")
+        dumped = params.model_dump()
+        self.assertNotIn("top_p", dumped)
+        self.assertNotIn("response_format", dumped)
+        self.assertEqual(dumped["model_name"], "test")
+
+    def test_summarization_params_model_dump_includes_set_top_p(self):
+        """#108 — when top_p is set, it surfaces in model_dump for downstream
+        providers (or extra_body wiring) to pick up."""
+        params = SummarizationParams(
+            model_name="test", top_p=0.8, response_format={"type": "json_object"}
+        )
+        dumped = params.model_dump()
+        self.assertEqual(dumped["top_p"], 0.8)
+        self.assertEqual(dumped["response_format"], {"type": "json_object"})
+
     def test_transcription_params_creation(self):
         """Test TranscriptionParams can be created."""
         params = TranscriptionParams(model_name="base.en")
