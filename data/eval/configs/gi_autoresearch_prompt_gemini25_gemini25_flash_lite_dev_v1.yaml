@@ -12,6 +12,6 @@ params:
   max_length: 800
   min_length: 200
   temperature: 0.0
-  gi_insight_src: summary_bullets
+  gi_insight_src: provider
   gi_max_insights: 12
 preprocessing_profile: cleaning_v4

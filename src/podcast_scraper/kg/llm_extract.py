@@ -22,7 +22,14 @@ def strip_known_ml_bullet_prefixes(text: str) -> str:
 
 
 def build_kg_transcript_system_prompt(max_topics: int, max_entities: int) -> str:
-    """System message for transcript-based KG extraction with explicit array caps."""
+    """System message for transcript-based KG extraction with explicit array caps.
+
+    #1033 — the entity/topic boundary is enforced via worked examples + a
+    common-mistakes warning. Empirically (see #112 / EVAL_112) models given
+    a "person | organization" rule alone happily emit conceptual nouns
+    ("error budgets", "RFCs", "security practices") as orgs. The
+    "ONLY proper-noun named entities" rule + the contrast table fix this.
+    """
     mt = max(1, min(int(max_topics), 20))
     me = max(1, min(int(max_entities), 50))
     return (
@@ -32,8 +39,29 @@ def build_kg_transcript_system_prompt(max_topics: int, max_entities: int) -> str
         'why this topic matters in this episode"}],"entities":[{"name":"Full Name",'
         '"entity_kind":"person","description":"optional 1-3 sentences on their role '
         'or relevance here"}]}\n'
-        "Omit description keys when not useful. "
-        'entity_kind must be "person" or "organization" only. '
+        "Omit description keys when not useful.\n\n"
+        "ENTITY vs TOPIC — CRITICAL DISTINCTION:\n"
+        'entity_kind must be "person" or "organization" only. An ENTITY is a '
+        "specific, named, proper-noun referent — a real-world individual, "
+        "company, brand, podcast, product, or institution that has a name. "
+        "If you cannot capitalize it as a proper noun and point to one specific "
+        "real-world thing, it is NOT an entity — put it in topics instead.\n\n"
+        "Correct entity examples (extract these into entities):\n"
+        '  - {"name":"Maya","entity_kind":"person"}\n'
+        '  - {"name":"Cascadia Alliance","entity_kind":"organization"}\n'
+        '  - {"name":"Strava","entity_kind":"organization"}\n'
+        '  - {"name":"Singletrack Sessions","entity_kind":"organization"}\n\n'
+        "Common mistakes — these are TOPICS not ENTITIES (do NOT put them in entities):\n"
+        '  - "error budgets" → topic (concept), not entity\n'
+        '  - "security practices" → topic (concept), not entity\n'
+        '  - "RFCs" → topic (concept), not entity\n'
+        '  - "trail building" → topic (concept), not entity\n'
+        '  - "the host" → not an entity at all (no name)\n'
+        '  - "a trail builder" → not an entity at all (no name)\n\n'
+        "Quantity guidance: most episodes have 2-8 named entities. If you find "
+        "yourself emitting 15+ entities, you are almost certainly labeling topics "
+        "or concepts as entities — re-check the distinction above. It is BETTER "
+        "to emit 0 entities than to fill the array with conceptual nouns.\n\n"
         "Use one canonical spelling per entity: if a name is spelled inconsistently "
         "in the transcript, pick the single most likely correct spelling and emit it "
         "once — do not also emit the variant as a separate entity. Keep genuinely "

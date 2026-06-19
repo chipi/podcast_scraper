@@ -13,7 +13,7 @@
 #              0.325, implied Final ≈ 0.484. No regression within eval noise.
 #              SummLlama is summary-only (no chat/JSON mode), so the airgapped
 #              pipeline reuses these bullets as the source for downstream GI/KG
-#              (gi_insight_source: summary_bullets) — there is no separate
+#              (gi_insight_source: provider) — there is no separate
 #              "bundled" variant. Weakest paragraph model of the 4 profiles on
 #              pure ROUGE-L + cosine, traded for offline capability.
 #   GI:        summary_bullets source (SummLlama is summary-only, not chat)
@@ -49,14 +49,14 @@ summary_provider: summllama
 # n=12 matches the autoresearch sweet spot (applies regardless of insight source;
 # the old n=8 was a bart-led carry-over).
 generate_gi: true
-gi_insight_source: summary_bullets
+gi_insight_source: provider
 gi_max_insights: 12
 gi_require_grounding: true
 
 # Knowledge Graph — from summary bullets.
 # n=10 matches autoresearch sweet spot; kg_max_entities=15 matches other profiles.
 generate_kg: true
-kg_extraction_source: summary_bullets
+kg_extraction_source: provider
 kg_max_topics: 10
 kg_max_entities: 15
 

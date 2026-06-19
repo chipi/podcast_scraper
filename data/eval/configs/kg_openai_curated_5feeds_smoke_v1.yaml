@@ -21,4 +21,4 @@ params:
   max_length: 800
   min_length: 200
   temperature: 0.0
-  kg_extraction_source: summary_bullets
+  kg_extraction_source: provider

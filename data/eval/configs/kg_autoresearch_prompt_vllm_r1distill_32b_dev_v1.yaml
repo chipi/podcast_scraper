@@ -16,5 +16,5 @@ params:
   min_length: 200
   temperature: 0.6
   top_p: 0.95
-  kg_extraction_src: summary_bullets
+  kg_extraction_src: provider
 preprocessing_profile: cleaning_v4
