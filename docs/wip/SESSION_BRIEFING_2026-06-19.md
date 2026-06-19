@@ -15,7 +15,24 @@ what's parked, and what's blocking.
 c16856ff feat(eval): #912 validation — 140 trials, 2 hosts, 0 parse failures (closing as no-repro)
 ```
 
-## Closed this session (3 GH issues)
+## Closed this session
+
+**GH issues**: 3 closed (#912, #1022, #1023)
+**Tasks**: #95, #102, #114, #115 closed (plus #113 created for future
+small-model standoff)
+**Local commits**: 6 ahead of `origin/main`, none pushed (per
+`feedback_never_push_early.md`).
+
+```text
+8c6c438d feat(eval): #912 Path D — bundled JSON parse-failure counter + revert #915 workaround
+708c5a84 docs(wip): correct DGX compose state in session briefing
+978ebbc1 docs(wip): session briefing 2026-06-18/19
+6d92d14b fix(providers): #1023 — bypass cloud_structured floor in plain-text summarize() for 5 cloud providers
+5427587f feat(autoresearch): #1022 Cell F NVFP4 daily-driver champion + cells A-D negative result
+c16856ff feat(eval): #912 validation — 140 trials, 2 hosts, 0 parse failures
+```
+
+## Closed this session — detail (3 GH issues)
 
 ### #912 — qwen3.5:9b bundled JSON reliability
 
@@ -87,12 +104,10 @@ gpu-mode-swap.sh idle && gpu-mode-swap.sh research
 
 NVFP4 boots in ~2 min (4 shards × ~30 s) vs ~6 min for bf16 (16 shards).
 
-### 2. Decide on Task #115 — local_dgx_balanced workaround revert
+### 2. Push this branch + open PR
 
-`config/profiles/local_dgx_balanced.yaml` still on
-`llm_pipeline_mode: staged` from commit c6a8982b (#912 workaround). With
-#912 closed as no-repro, the workaround is no longer required. Flip
-back to `bundled` or keep `staged` — operator config decision.
+Was #2, now bumped — Task #115 (workaround revert) shipped in commit
+8c6c438d after Path D landed as the safety net.
 
 ### 3. Push this branch + open PR
 
@@ -117,8 +132,6 @@ not draft.
 | #111 | Fix BPE postprocessor for GI/KG node labels (DSV2 0% bug) — concrete bug; needs DSV2 re-run after fix | ~1h fix + GPU time |
 | #112 | Entity-focused KG re-experiment — operator-driven GPU time | ~2h GPU |
 | #113 | Small-model standoff — large task, NVFP4 variants don't exist for Moonlight/Qwen3.5-35B-A3B (verified this session) | ~3-4h |
-| #114 | Path D — bundled parse-failure counter in autoresearch eval framework | ~3-4h, touches run_experiment.py |
-| #115 | Revert local_dgx_balanced workaround — config decision (above) | 1-line + operator decision |
 
 ## Tasks blocked
 
