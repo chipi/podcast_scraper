@@ -548,10 +548,14 @@ class DeepSeekProvider:
             or self.cfg.summary_reduce_params.get("max_new_tokens")
             or 800
         )
-        # Enforce cloud-LLM structured-JSON output floor (Flightcast 2026-04-20).
+        # Plain-text summary path — bypass the structured-JSON floor that
+        # was silently clamping max_tokens up to 4096 even for plain text
+        # (#1023 follow-up to #1016 Phase 2b). Bundled / structured-JSON
+        # callsites (summarize_mega_bundled below) keep the default
+        # ``structured=True`` and the floor still applies.
         from ..common.output_tokens import cloud_structured_max_output_tokens
 
-        max_length = cloud_structured_max_output_tokens(self.cfg, max_length)
+        max_length = cloud_structured_max_output_tokens(self.cfg, max_length, structured=False)
         min_length = (
             (params.get("min_length") if params else None)
             or self.cfg.summary_reduce_params.get("min_new_tokens")
