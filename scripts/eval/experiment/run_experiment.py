@@ -1687,6 +1687,20 @@ def run_experiment(  # noqa: C901
                                 topic_labels=bullets or None,
                             )
                             _cleanup_gil_evidence_extras(gil_extra)
+                        # #111 — apply the configured postprocessor to GIL
+                        # node labels too (fixes DSV2-Lite 0% coverage bug;
+                        # see EVAL_1016_FINAL_REPORT § 6a). The summary
+                        # path applies the postprocessor to summary text
+                        # via get_postprocessor below; without this the
+                        # GI/KG paths leave byte-level BPE artifacts in
+                        # node properties.label and the scorer can't match.
+                        from podcast_scraper.evaluation.output_postprocess import (
+                            apply_postprocessor_to_gil_payload as _apply_gil_post,
+                            get_postprocessor as _get_post,
+                        )
+
+                        _post_name = getattr(cfg.prompts, "postprocessor", None)
+                        gil_payload = _apply_gil_post(gil_payload, _get_post(_post_name))
                         dt = time.time() - t0
                         out_text = json.dumps(gil_payload, ensure_ascii=False, sort_keys=True)
                         total_chars_out += len(out_text)
@@ -1764,6 +1778,15 @@ def run_experiment(  # noqa: C901
                                 kg_extraction_provider=provider,
                                 pipeline_metrics=None,
                             )
+                        # #111 — same DSV2-Lite postprocessor fix as the
+                        # GI branch above (see EVAL_1016_FINAL_REPORT § 6a).
+                        from podcast_scraper.evaluation.output_postprocess import (
+                            apply_postprocessor_to_gil_payload as _apply_kg_post,
+                            get_postprocessor as _get_kg_post,
+                        )
+
+                        _kg_post_name = getattr(cfg.prompts, "postprocessor", None)
+                        kg_payload = _apply_kg_post(kg_payload, _get_kg_post(_kg_post_name))
                         dt = time.time() - t0
                         out_text = json.dumps(kg_payload, ensure_ascii=False, sort_keys=True)
                         total_chars_out += len(out_text)
