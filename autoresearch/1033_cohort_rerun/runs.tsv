@@ -4,3 +4,16 @@ cell_f	kg	154	kg_topic_entity_cov	topic=45% entity=0%	/Users/markodragoljevic/Pr
 deepseek_v2_lite	gi	104	gi_avg_max_sim	0.405	/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/1033_rerun/deepseek_v2_lite/gi	ok
 deepseek_v2_lite	kg	179	kg_topic_entity_cov	topic=4% entity=0%	/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/1033_rerun/deepseek_v2_lite/kg	ok
 gemma_4_26b_a4b	all	0	n/a	n/a	n/a	boot_fail
+gemma_4_26b_a4b	all	0	n/a	n/a	n/a	boot_fail
+llama_3_3_70b_nvfp4	gi	1031	gi_avg_max_sim	0.509	/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/1033_rerun/llama_3_3_70b_nvfp4/gi	ok
+llama_3_3_70b_nvfp4	kg	638	kg_topic_entity_cov	topic=24% entity=0%	/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/1033_rerun/llama_3_3_70b_nvfp4/kg	ok
+qwen3_5_35b_a3b	gi	311	gi_avg_max_sim	0.618	/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/1033_rerun/qwen3_5_35b_a3b/gi	ok
+qwen3_5_35b_a3b	kg	215	kg_topic_entity_cov	topic=50% entity=0%	/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/1033_rerun/qwen3_5_35b_a3b/kg	ok
+moonlight_16b_a3b	gi	169	gi_avg_max_sim	0.581	/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/1033_rerun/moonlight_16b_a3b/gi	ok
+moonlight_16b_a3b	kg	140	kg_topic_entity_cov	topic=40% entity=0%	/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/1033_rerun/moonlight_16b_a3b/kg	ok
+ministral_3_14b	all	0	n/a	n/a	n/a	boot_fail
+gemma_4_26b_a4b	gi	349	gi_avg_max_sim	0.593	/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/1033_rerun/gemma_4_26b_a4b/gi	ok
+gemma_4_26b_a4b	kg	204	kg_topic_entity_cov	topic=35% entity=0%	/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/1033_rerun/gemma_4_26b_a4b/kg	ok
+ministral_3_14b	gi	874	gi_avg_max_sim		/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/1033_rerun/ministral_3_14b/gi	ok
+ministral_3_14b	gi	874	gi_avg_max_sim	0.574	/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/1033_rerun/ministral_3_14b/gi	ok
+ministral_3_14b	kg	576	kg_topic_entity_cov	topic=50% entity=0%	/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/1033_rerun/ministral_3_14b/kg	ok
