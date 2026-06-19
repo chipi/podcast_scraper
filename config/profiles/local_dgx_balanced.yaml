@@ -43,12 +43,19 @@ summary_provider: ollama
 # laptop-fit option for local.yaml.
 #
 # llm_pipeline_mode: 35b handles bundled mode cleanly per the operator's
-# 2026-06-07 investigation (the 9b-was-fragile note). Keeping `staged` for now
-# to minimize risk in this profile-update PR — flip to `bundled` separately
-# after one validation run if desired. Memory: 35b at Q4_K_M is ~23 GB, well
-# under the 80 GB total resident-model bar from DGX_RUNBOOK.
+# 2026-06-07 investigation (the 9b-was-fragile note). Memory: 35b at Q4_K_M
+# is ~23 GB, well under the 80 GB total resident-model bar from DGX_RUNBOOK.
+#
+# 2026-06-19 UPDATE (#915 + #912 Path D): flipped back from `staged` to
+# `bundled` after #912 closed as no-longer-reproducible (140 A/B trials
+# across two hosts + two Ollama versions, 0 parse failures). Path D
+# (#114 — bundled_response_parse_failures counter in eval framework) was
+# shipped first as the safety net: any future regression will surface in
+# autoresearch metrics_report.md as a non-zero "Bundled JSON Parse
+# Failures" block instead of being silently swallowed by retries.
+# Expected wall-clock saving: ~1.5× per episode (DGX_RUNBOOK §P2).
 ollama_summary_model: qwen3.5:35b
-llm_pipeline_mode: staged
+llm_pipeline_mode: bundled
 
 generate_gi: true
 gi_insight_source: provider

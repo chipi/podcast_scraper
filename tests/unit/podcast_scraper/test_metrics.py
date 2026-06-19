@@ -585,6 +585,9 @@ class TestFinish(unittest.TestCase):
             "episode_statuses",
             # #988 — per-stage retry-reason attribution
             "llm_retry_reasons",
+            # #912 Path D — bundled JSON-parse failure counter
+            "llm_bundled_parse_failures_total",
+            "llm_bundled_parse_failures_by_kind",
         }
         self.assertEqual(set(result.keys()), expected_keys)
 

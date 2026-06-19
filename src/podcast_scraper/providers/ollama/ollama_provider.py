@@ -1364,24 +1364,46 @@ class OllamaProvider:
             pipeline_metrics.record_llm_bundled_clean_summary_call(input_tokens, output_tokens)
 
         # Response-shape guardrail (ADR-099/100, #999/#1003).
+        # Note: this fires BEFORE the JSON-parse block below; record the
+        # guardrail violation as a Path D parse-failure kind so a sweep that
+        # trips the guardrail still surfaces in metrics_report.md.
         try:
             _guardrails.check_chat_response(raw, service="ollama")
         except _guardrails.GuardrailViolation:
+            if pipeline_metrics is not None and hasattr(
+                pipeline_metrics, "record_llm_bundled_parse_failure"
+            ):
+                pipeline_metrics.record_llm_bundled_parse_failure("guardrail_violation")
             _record_cost(triggered_guardrail=True)
             raise
+
+        # #912 Path D: bump the bundled-parse-failure counter on every parse
+        # failure (per-kind) so future autoresearch sweeps can't silently
+        # crown a flaky bundled candidate. Guards with hasattr/getattr so
+        # production callers without an eval-side ``pipeline_metrics`` are
+        # unaffected (Metrics only flows in from the autoresearch harness).
+        def _record_parse_failure(kind: str) -> None:
+            if pipeline_metrics is not None and hasattr(
+                pipeline_metrics, "record_llm_bundled_parse_failure"
+            ):
+                pipeline_metrics.record_llm_bundled_parse_failure(kind)
 
         try:
             data = json.loads(raw, strict=False)
         except json.JSONDecodeError as exc:
+            _record_parse_failure("not_valid_json")
             raise ValueError(f"Bundled response is not valid JSON: {exc}") from exc
 
         if not isinstance(data, dict):
+            _record_parse_failure("not_an_object")
             raise ValueError("Bundled JSON must be an object")
         summary_prose = data.get("summary")
         bullets = data.get("bullets")
         if not isinstance(summary_prose, str) or not summary_prose.strip():
+            _record_parse_failure("missing_summary")
             raise ValueError("Bundled JSON missing non-empty summary string")
         if not isinstance(bullets, list) or not bullets:
+            _record_parse_failure("missing_bullets")
             raise ValueError("Bundled JSON missing non-empty bullets list")
 
         _record_cost()

@@ -2110,6 +2110,26 @@ def run_experiment(  # noqa: C901
     except Exception as e:
         logger.warning(f"Metrics validation skipped (schema validator unavailable): {e}")
 
+    # #912 Path D — inject bundled-parse-failure counters into the metrics
+    # report so autoresearch sweeps surface flaky bundled candidates
+    # instead of hiding them in eval_pipeline_metrics.json. eval_llm_metrics
+    # is the workflow.metrics.Metrics instance accumulated during the run;
+    # its finish()-derived totals already include the Path D counter the
+    # provider bumped on every parse failure. No-op when the run wasn't
+    # bundled or no failures were observed.
+    if eval_llm_metrics is not None:
+        try:
+            bd_total = int(getattr(eval_llm_metrics, "llm_bundled_parse_failures_total", 0))
+            bd_by_kind = getattr(eval_llm_metrics, "llm_bundled_parse_failures_by_kind", {}) or {}
+            if bd_total > 0:
+                metrics.setdefault("intrinsic", {})
+                metrics["intrinsic"]["bundled_parse_failures"] = {
+                    "total": bd_total,
+                    "by_kind": dict(bd_by_kind),
+                }
+        except Exception as exc:
+            logger.warning("Failed to surface Path D bundled-parse-failures: %s", exc)
+
     # Generate and save human-readable metrics report
     metrics_report = generate_metrics_report(metrics)
     metrics_report_path = results_dir / "metrics_report.md"

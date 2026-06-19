@@ -220,6 +220,14 @@ class Metrics:
     llm_bundled_clean_summary_output_tokens: int = 0
     llm_bundled_clean_summary_cost_usd: float = 0.0  # Accumulated bundle-mode cost
     llm_bundled_fallback_to_staged_count: int = 0
+    # #912 Path D — per-run JSON-parse failure counter for the bundled clean+summary
+    # pipeline. Surfaced in metrics_report.md so future autoresearch sweeps can't
+    # silently crown a flaky bundled candidate (#912 was originally hidden because
+    # the eval framework retried failures internally without counting them). Total
+    # is the sum across all failure kinds; the per-kind breakdown helps diagnose
+    # whether failures are JSON-shape (parse) vs schema (missing fields).
+    llm_bundled_parse_failures_total: int = 0
+    llm_bundled_parse_failures_by_kind: Dict[str, int] = field(default_factory=dict)
     # RFC-089 #5: summarization provider-swap fallback (e.g. DGX Ollama → Gemini).
     # Per-run signal: True/non-empty if the run had to fall back at least once.
     llm_summary_fallback_active_count: int = 0
@@ -662,6 +670,27 @@ class Metrics:
     def record_llm_bundled_fallback_to_staged(self) -> None:
         """Increment count when bundled clean+summary fails and staged path is used."""
         self.llm_bundled_fallback_to_staged_count += 1
+
+    def record_llm_bundled_parse_failure(self, kind: str) -> None:
+        """Increment the #912 Path D counter for one bundled JSON parse failure.
+
+        ``kind`` is one of:
+        - ``"not_valid_json"`` — initial ``json.loads`` failed
+        - ``"not_an_object"`` — parsed JSON wasn't a dict
+        - ``"missing_summary"`` — ``summary`` field absent or empty
+        - ``"missing_bullets"`` — ``bullets`` field absent or empty
+        - ``"guardrail_violation"`` — ADR-100 guardrail rejected the response
+
+        Counts both the per-kind breakdown and the running total. Independent
+        of retries — every parse failure observed bumps the counter, so a
+        run that retried 3× and still failed counts 4 separate failures (3
+        retries + the final raise), which is the right signal for surfacing
+        instability in metrics_report.md.
+        """
+        self.llm_bundled_parse_failures_total += 1
+        self.llm_bundled_parse_failures_by_kind[kind] = (
+            self.llm_bundled_parse_failures_by_kind.get(kind, 0) + 1
+        )
 
     def record_provider_retry(self, stage: str, reason: str) -> None:
         """Attribute one provider-call retry to a canonical pipeline stage (#988).
@@ -1368,6 +1397,11 @@ class Metrics:
             "llm_bundled_clean_summary_avg_output_tokens_per_call": bd_out_avg,
             "llm_bundled_clean_summary_cost_usd": round(self.llm_bundled_clean_summary_cost_usd, 6),
             "llm_bundled_fallback_to_staged_count": self.llm_bundled_fallback_to_staged_count,
+            # #912 Path D — surfaces bundled JSON parse-failure count to
+            # eval_pipeline_metrics.json so autoresearch sweeps catch flaky
+            # bundled candidates instead of silently re-trying internally.
+            "llm_bundled_parse_failures_total": self.llm_bundled_parse_failures_total,
+            "llm_bundled_parse_failures_by_kind": dict(self.llm_bundled_parse_failures_by_kind),
             "llm_summary_fallback_active_count": self.llm_summary_fallback_active_count,
             "llm_summary_fallback_provider": self.llm_summary_fallback_provider,
             # #652 Part C — post-extraction filter counters.
