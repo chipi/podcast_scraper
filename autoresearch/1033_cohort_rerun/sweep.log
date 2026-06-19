@@ -1,0 +1,15 @@
+[15:08:06] Sweep start — vLLM reachable. Cohort: 7 candidates.
+[15:08:06] [candidate cell_f] model=NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 max_len=32768 extras=_
+[15:13:06]   gi ok (286s)  gi_avg_max_sim=0.595
+[15:15:50]   kg ok (154s)  kg_topic_entity_cov=topic=45% entity=0%
+[15:15:50] [candidate deepseek_v2_lite] model=deepseek-ai/DeepSeek-V2-Lite-Chat max_len=32768 extras=--trust-remote-code
+[15:15:50]   swapping compose + restarting vLLM...
+[15:20:44]   vLLM ready.
+[15:22:39]   gi ok (104s)  gi_avg_max_sim=0.405
+[15:25:48]   kg ok (179s)  kg_topic_entity_cov=topic=4% entity=0%
+[15:25:48] [candidate gemma_4_26b_a4b] model=google/gemma-4-26B-A4B-it max_len=32768 extras=_
+[15:25:48]   swapping compose + restarting vLLM...
+[15:43:09]   vLLM didn't become ready within 15 min
+[15:43:09] [candidate llama_3_3_70b_nvfp4] model=RedHatAI/Llama-3.3-70B-Instruct-NVFP4 max_len=32768 extras=_
+[15:43:09]   swapping compose + restarting vLLM...
+[15:49:20]   vLLM ready.

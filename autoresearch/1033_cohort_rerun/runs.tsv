@@ -1,0 +1,6 @@
+candidate	stage	wall_clock_s	score_metric	score_value	run_dir	status
+cell_f	gi	286	gi_avg_max_sim	0.595	/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/1033_rerun/cell_f/gi	ok
+cell_f	kg	154	kg_topic_entity_cov	topic=45% entity=0%	/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/1033_rerun/cell_f/kg	ok
+deepseek_v2_lite	gi	104	gi_avg_max_sim	0.405	/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/1033_rerun/deepseek_v2_lite/gi	ok
+deepseek_v2_lite	kg	179	kg_topic_entity_cov	topic=4% entity=0%	/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/1033_rerun/deepseek_v2_lite/kg	ok
+gemma_4_26b_a4b	all	0	n/a	n/a	n/a	boot_fail
