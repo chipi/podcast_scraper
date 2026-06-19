@@ -127,19 +127,36 @@ not draft.
 | #970 | Qwen3.6 bf16 — Ollama MoE bf16 + HF symlink + Modelfile sandboxing all gap | Wait for Ollama 0.31+ or operator approval to fork |
 | #1002 | Guardrail thresholds — measurement-driven, needs 2–4 weeks production data | Wait for prod metrics |
 
-## State of the DGX
+## State of the DGX (verified at session end)
 
-After #1022 close-out:
+- `~/agentic-ai-homelab/infra/vllm/autoresearch/docker-compose.yml`
+  has the **NVFP4 model swap APPLIED but UNCOMMITTED**. This is
+  exactly the homelab-PR change described above — it's already on the
+  DGX filesystem, just not committed/pushed to `chipi/agentic-ai-homelab`.
+  `git status` on the DGX shows the file as modified with this diff:
 
-- `autoresearch` compose REVERTED to committed `main` state (no
-  uncommitted diff). Previous session's DeepSeek-V2-Lite-Chat config
-  is preserved in `git stash` as `wip_pre_1022_baseline_deepseek_v2_lite`.
-- `.env` has `VLLM_GPU_MEM_UTIL=0.65` (unchanged — Cell A's 0.85
-  override was reverted).
-- `autoresearch` slot **currently up serving Qwen3-30B-A3B-NVFP4**
-  (from the Cell F validation runs). When the homelab PR ships, the
-  compose will officially adopt this model; until then, this is the
-  "ad-hoc" state from validation.
+  ```diff
+  -      - Qwen/Qwen3-30B-A3B-Instruct-2507
+  +      - NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
+  ```
+
+  Two clean ways to close this out:
+  - **Convenient**: SSH to DGX → `cd ~/agentic-ai-homelab` →
+    branch + commit the existing diff → push → open PR. The DGX is
+    already serving the new model, no restart needed after merge.
+  - **Strict-CI**: revert the DGX compose to committed state, recreate
+    the change via a fresh PR from anywhere, merge, then `git pull`
+    on DGX + restart vLLM.
+
+- `.env` on DGX has `VLLM_GPU_MEM_UTIL=0.65` (unchanged — Cell A's
+  0.85 override was reverted as part of #1022 close-out).
+- `autoresearch` slot **is currently up serving NVFP4/Qwen3-30B-A3B-
+  Instruct-2507-FP4** (the Cell F champion). All eval predictions used
+  to score the new champion came from this exact configuration.
+- Previous session's DeepSeek-V2-Lite-Chat experiment is still
+  preserved in `git stash` on the DGX as
+  `wip_pre_1022_baseline_deepseek_v2_lite` — restore with
+  `git stash pop` if you need that config back.
 
 ## Reference: files changed across the 3 closed issues
 
