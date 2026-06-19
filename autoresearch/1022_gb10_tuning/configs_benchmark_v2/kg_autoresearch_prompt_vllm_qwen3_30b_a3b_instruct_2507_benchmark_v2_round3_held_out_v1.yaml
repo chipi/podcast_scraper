@@ -1,0 +1,26 @@
+# Phase 2c Round 3 v1 — Qwen3-30B-A3B-Instruct-2507 Knowledge Graph.
+id: autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_benchmark_v2_knowledge_graph_round3_held_out_v1
+task: knowledge_graph
+backend:
+  type: openai
+  model: autoresearch
+  base_url: http://localhost:8003/v1
+  api_key_env: VLLM_API_KEY
+  extra_body:
+    chat_template_kwargs:
+      enable_thinking: false
+    top_p: 0.8
+    top_k: 20
+    min_p: 0.0
+    presence_penalty: 1.5
+prompts:
+  system: ollama/qwen3.5_35b/summarization/system_v1
+  user: ollama/qwen3.5_35b/summarization/long_v1
+data:
+  dataset_id: curated_5feeds_benchmark_v2
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.7
+  kg_extraction_src: summary_bullets
+preprocessing_profile: cleaning_v4

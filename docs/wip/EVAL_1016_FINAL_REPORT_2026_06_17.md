@@ -263,3 +263,86 @@ Using a simple unweighted mean of (Sum-R1-vs-Opus, GI-vs-Opus, KG-vs-Opus) for t
 - `docs/wip/EVAL_1016_ROUND3_REVIEW.md` — Phase 2c outcome section added; the queue-of-7 decisions stamped as final.
 - `docs/wip/EVAL_1016_metrics/PER_MODEL_OPTIMAL_PARAMS.md` — KV/TTFT/TPOT/throughput per candidate filled in.
 - `docs/wip/EVAL_1016_metrics/vllm_metrics_*_phase2c.log` — 7 raw metric polls for reuse in #1022.
+
+---
+
+## 10. ADDENDUM — Cell F NVFP4 enters cohort + supersedes safe pick (2026-06-19)
+
+Filed during the #1022 vLLM-on-GB10 tuning effort. After cells A–D
+(runtime knobs: gpu-memory-utilization, max-num-seqs, max-model-len,
+warmup) all produced no signal, Cell F (model swap to
+`NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4`) delivered ~2× speedup with
+no measurable quality regression vs the bf16 baseline. Held-out
+validation on `curated_5feeds_benchmark_v2` (5 ep, e03, Sonnet 4.6
+silver) confirmed cross-dataset + cross-vendor robustness.
+
+### Cell F entered into Round 3 scoreboard (apples-to-apples)
+
+Using the same scorers / silvers / metrics as the #1016 report:
+
+**Summary (rouge1_f1 vs Opus 4.7 silver)** — Cell F lands #5:
+
+| # | Candidate | rouge1_f1 | s/ep |
+|---|---|---:|---:|
+| 1 | Qwen3.5-35B-A3B | 0.5936 | 13.58 |
+| 2 | Moonlight-16B-A3B | 0.5745 | 8.96 |
+| ... |
+| 5 | **Qwen3-30B-A3B-NVFP4 (Cell F)** | **0.5407** | **7.20** ⚡ (fastest) |
+
+**GI (coverage_rate vs Opus 4.7 silver)** — **Cell F is the new winner**:
+
+| # | Candidate | cov_rate | s/ep |
+|---|---|---:|---:|
+| **1** | **Qwen3-30B-A3B-NVFP4 (Cell F)** | **0.4250** | 17.00 |
+| 2 | Gemma-4-26B-A4B (prior GI leader) | 0.4125 | 34.91 |
+| 3 | Qwen3.5-35B-A3B | 0.3625 | 30.14 |
+| 5 | Moonlight | 0.1625 | 15.10 |
+
+**KG (topic coverage_rate vs Opus 4.7 silver)** — Cell F #3:
+
+| # | Candidate | topic_cov | s/ep |
+|---|---|---:|---:|
+| 1 | Qwen3.5-35B-A3B | 0.4854 | 21.18 |
+| 2 | Ministral-3-14B | 0.4175 | 56.93 |
+| **3** | **Qwen3-30B-A3B-NVFP4 (Cell F)** | **0.4078** | **13.80** ⚡ |
+| 5 | Moonlight | 0.2816 | 16.17 |
+
+**End-to-end per-episode (3 stages summed)**:
+
+| Candidate | total s/ep |
+|---|---:|
+| **Qwen3-30B-A3B-NVFP4 (Cell F)** | **38.0** ⚡ |
+| Moonlight-16B-A3B | 40.23 |
+| Qwen3.5-35B-A3B | 64.90 |
+| Gemma-4-26B-A4B | 69.80 |
+
+Cell F is the cohort end-to-end speed leader **and** the GI quality
+leader simultaneously.
+
+### Updated single-model daily-driver verdict
+
+**Qwen3-30B-A3B-NVFP4 (Cell F) replaces Moonlight as the autoresearch
+safe pick / daily driver.** It dominates Moonlight in 4 of 5
+dimensions (loses summary by 6%, wins GI +161% / KG +45% / end-to-end
+speed -5% / weight footprint -44%).
+
+Qwen3.5-35B-A3B retains the **top-dog crown for highest-stakes
+one-shot evals** where summary or KG quality matters more than time
+(operator can manually swap the homelab compose for that specific run).
+
+### Operational change
+
+- **Homelab compose model swap**: `Qwen/Qwen3-30B-A3B-Instruct-2507` →
+  `NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4` in
+  `infra/vllm/autoresearch/docker-compose.yml`. Operator merges.
+- **No profile YAML changes needed** — all profiles use the
+  `autoresearch` served-model-name alias.
+- **Registry docstrings** updated to note Cell F as the autoresearch
+  slot model (cosmetic only; no functional change).
+
+### Cross-references
+
+- Full Cell F validation evidence: `docs/wip/VLLM_GB10_TUNING_VALIDATION_2026-06-18.md`
+- Validation script + runs.tsv: `autoresearch/1022_gb10_tuning/`
+- #1022 closeout: GH issue #1022.
+

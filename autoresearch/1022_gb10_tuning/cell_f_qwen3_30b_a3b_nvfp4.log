@@ -1,0 +1,443 @@
+[snap] capturing compose snapshot → /Users/markodragoljevic/Projects/podcast_scraper-FUTURE/autoresearch/1022_gb10_tuning/compose_snapshots/cell_f_qwen3_30b_a3b_nvfp4.yaml
+[probe] vLLM /health + /v1/models
+  vLLM ready, served-model-name = autoresearch
+[warmup] 3 throwaway calls (max_tokens=4)
+
+[stage:summary] config=autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_paragraph_round3_v1
+2026-06-18 23:23:38,518 INFO __main__: ================================================================================
+2026-06-18 23:23:38,518 INFO __main__: Starting experiment run: autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_paragraph_round3_v1
+2026-06-18 23:23:38,518 INFO __main__: Results directory: data/eval/runs/autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_paragraph_round3_v1
+2026-06-18 23:23:38,518 INFO __main__: Execution log: data/eval/runs/autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_paragraph_round3_v1/run.log
+2026-06-18 23:23:38,518 INFO __main__: Dataset: curated_5feeds_dev_v1
+2026-06-18 23:23:38,518 INFO __main__: ================================================================================
+2026-06-18 23:23:38,518 INFO __main__: Creating summarization provider...
+2026-06-18 23:23:38,784 WARNING podcast_scraper.providers.openai.openai_provider: OpenAI API key validation failed (missing, too short, or wrong prefix); credentials are never logged.
+2026-06-18 23:23:39,003 INFO __main__: Found 10 episode(s) to process
+2026-06-18 23:23:39,003 INFO __main__: Phase 1: Running inference...
+2026-06-18 23:23:39,004 INFO __main__: Processing episode: p01_e01
+2026-06-18 23:23:39,018 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 56 → 50 (6 removed), chars: 11,049 → 10,793 (256 removed, 2.3%)
+2026-06-18 23:23:45,379 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:23:45,391 INFO __main__: Episode p01_e01 completed in 6.4s, summary length=2361 chars
+2026-06-18 23:23:45,391 INFO __main__: Processing episode: p01_e02
+2026-06-18 23:23:45,398 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 57 → 51 (6 removed), chars: 11,059 → 10,749 (310 removed, 2.8%)
+2026-06-18 23:23:51,777 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:23:51,778 INFO __main__: Episode p01_e02 completed in 6.4s, summary length=2382 chars
+2026-06-18 23:23:51,778 INFO __main__: Processing episode: p02_e01
+2026-06-18 23:23:51,787 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 58 → 52 (6 removed), chars: 11,537 → 11,225 (312 removed, 2.7%)
+2026-06-18 23:23:58,103 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:23:58,104 INFO __main__: Episode p02_e01 completed in 6.3s, summary length=2505 chars
+2026-06-18 23:23:58,104 INFO __main__: Processing episode: p02_e02
+2026-06-18 23:23:58,112 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 59 → 53 (6 removed), chars: 11,265 → 10,942 (323 removed, 2.9%)
+2026-06-18 23:24:05,479 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:24:05,480 INFO __main__: Episode p02_e02 completed in 7.4s, summary length=2870 chars
+2026-06-18 23:24:05,480 INFO __main__: Processing episode: p03_e01
+2026-06-18 23:24:05,489 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 58 → 52 (6 removed), chars: 10,679 → 10,395 (284 removed, 2.7%)
+2026-06-18 23:24:12,127 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:24:12,127 INFO __main__: Episode p03_e01 completed in 6.6s, summary length=2579 chars
+2026-06-18 23:24:12,128 INFO __main__: Processing episode: p03_e02
+2026-06-18 23:24:12,137 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 62 → 56 (6 removed), chars: 11,172 → 10,874 (298 removed, 2.7%)
+2026-06-18 23:24:19,501 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:24:19,502 INFO __main__: Episode p03_e02 completed in 7.4s, summary length=2792 chars
+2026-06-18 23:24:19,502 INFO __main__: Processing episode: p04_e01
+2026-06-18 23:24:19,510 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 57 → 51 (6 removed), chars: 10,723 → 10,518 (205 removed, 1.9%)
+2026-06-18 23:24:26,199 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:24:26,199 INFO __main__: Episode p04_e01 completed in 6.7s, summary length=2620 chars
+2026-06-18 23:24:26,200 INFO __main__: Processing episode: p04_e02
+2026-06-18 23:24:26,208 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 60 → 54 (6 removed), chars: 10,913 → 10,645 (268 removed, 2.5%)
+2026-06-18 23:24:32,978 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:24:32,979 INFO __main__: Episode p04_e02 completed in 6.8s, summary length=2681 chars
+2026-06-18 23:24:32,979 INFO __main__: Processing episode: p05_e01
+2026-06-18 23:24:32,988 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 62 → 56 (6 removed), chars: 11,190 → 10,862 (328 removed, 2.9%)
+2026-06-18 23:24:39,902 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:24:39,902 INFO __main__: Episode p05_e01 completed in 6.9s, summary length=2762 chars
+2026-06-18 23:24:39,903 INFO __main__: Processing episode: p05_e02
+2026-06-18 23:24:39,911 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 66 → 60 (6 removed), chars: 11,679 → 11,324 (355 removed, 3.0%)
+2026-06-18 23:24:46,250 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:24:46,251 INFO __main__: Episode p05_e02 completed in 6.3s, summary length=2435 chars
+2026-06-18 23:24:46,251 INFO __main__: Phase 1 completed in 67.2s
+2026-06-18 23:24:46,251 INFO __main__: Total input: 108,327 chars, output: 25,987 chars
+2026-06-18 23:24:46,251 INFO __main__: Average compression: 4.2x
+2026-06-18 23:24:46,251 INFO __main__: Predictions: data/eval/runs/autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_paragraph_round3_v1/predictions.jsonl
+2026-06-18 23:24:46,252 INFO __main__: Metadata: data/eval/runs/autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_paragraph_round3_v1/baseline.json
+2026-06-18 23:24:46,252 INFO __main__: Fingerprint: data/eval/runs/autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_paragraph_round3_v1/fingerprint.json
+2026-06-18 23:24:46,253 INFO __main__: Created README.md: data/eval/runs/autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_paragraph_round3_v1/README.md
+2026-06-18 23:24:46,253 INFO __main__: Skipping metrics computation (dry-run or smoke-inference-only mode)
+2026-06-18 23:24:46,253 INFO __main__: Run completed with predictions only. Use full experiment-run for metrics.
+  moved /Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_paragraph_round3_v1 → /Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/1022/cell_f_qwen3_30b_a3b_nvfp4/summary
+
+[stage:gi] config=autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_grounded_insights_round3_v1
+2026-06-18 23:24:49,724 INFO __main__: ================================================================================
+2026-06-18 23:24:49,724 INFO __main__: Starting experiment run: autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_grounded_insights_round3_v1
+2026-06-18 23:24:49,724 INFO __main__: Results directory: data/eval/runs/autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_grounded_insights_round3_v1
+2026-06-18 23:24:49,724 INFO __main__: Execution log: data/eval/runs/autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_grounded_insights_round3_v1/run.log
+2026-06-18 23:24:49,724 INFO __main__: Dataset: curated_5feeds_dev_v1
+2026-06-18 23:24:49,724 INFO __main__: ================================================================================
+2026-06-18 23:24:49,932 WARNING podcast_scraper.providers.openai.openai_provider: OpenAI API key validation failed (missing, too short, or wrong prefix); credentials are never logged.
+2026-06-18 23:24:50,012 INFO __main__: GI/KG eval: per-episode summary regeneration and artifact build use the same summarization provider (override gi_* / kg_* in params as needed).
+2026-06-18 23:24:50,098 INFO __main__: Found 10 episode(s) to process
+2026-06-18 23:24:50,099 INFO __main__: Phase 1: Running inference...
+2026-06-18 23:24:50,099 INFO __main__: Processing episode: p01_e01
+2026-06-18 23:24:50,111 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 56 → 50 (6 removed), chars: 11,049 → 10,793 (256 removed, 2.3%)
+2026-06-18 23:24:56,669 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:24:58,561 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:24:58,670 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:24:58,803 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:24:58,952 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:24:59,094 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:01,020 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:01,159 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:01,265 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:01,367 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:01,464 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:01,597 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:03,302 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:03,405 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:03,501 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:03,624 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:03,753 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:03,854 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:06,107 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:06,249 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:06,348 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:06,476 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:06,605 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:06,733 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:06,736 INFO sentence_transformers.base.model: No device provided, using mps
+2026-06-18 23:25:07,018 INFO sentence_transformers.base.model: Loading SentenceTransformer model from sentence-transformers/all-MiniLM-L6-v2.
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  5.29it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  5.28it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 32.84it/s]
+2026-06-18 23:25:09,492 INFO __main__: Processing episode: p01_e02
+2026-06-18 23:25:09,501 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 57 → 51 (6 removed), chars: 11,059 → 10,749 (310 removed, 2.8%)
+2026-06-18 23:25:16,135 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:18,223 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:18,324 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:18,422 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:18,551 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:18,653 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:18,780 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:20,167 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:20,265 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:20,368 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:20,492 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:20,622 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:22,599 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:22,730 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:22,860 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:22,984 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:23,114 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:23,210 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:25,377 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:25,532 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:25,661 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:25,760 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:25,890 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:26,019 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 17.29it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 36.15it/s]
+2026-06-18 23:25:26,108 INFO __main__: Processing episode: p02_e01
+2026-06-18 23:25:26,118 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 58 → 52 (6 removed), chars: 11,537 → 11,225 (312 removed, 2.7%)
+2026-06-18 23:25:31,989 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:33,735 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:33,848 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:33,946 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:34,046 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:34,172 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:34,957 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:35,065 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:35,166 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:36,473 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:36,573 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:36,667 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:36,791 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:36,917 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:38,595 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:38,703 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:38,835 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:38,957 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:39,078 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:39,210 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 26.37it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 101.30it/s]
+2026-06-18 23:25:39,261 INFO __main__: Processing episode: p02_e02
+2026-06-18 23:25:39,271 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 59 → 53 (6 removed), chars: 11,265 → 10,942 (323 removed, 2.9%)
+2026-06-18 23:25:46,716 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:50,182 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:50,292 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:50,393 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:50,520 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:50,618 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:50,715 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:50,817 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:50,912 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:51,014 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:51,118 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:52,910 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:53,014 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:53,140 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:53,235 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:53,359 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:53,484 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:54,331 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:54,468 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:54,596 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:55,826 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:55,934 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:56,036 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:56,157 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:59,418 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:59,528 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:59,648 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:59,750 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:59,840 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:25:59,972 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:00,094 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:00,220 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:00,348 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:00,450 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:00,576 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:00,678 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 16.38it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 35.60it/s]
+2026-06-18 23:26:00,771 INFO __main__: Processing episode: p03_e01
+2026-06-18 23:26:00,780 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 58 → 52 (6 removed), chars: 10,679 → 10,395 (284 removed, 2.7%)
+2026-06-18 23:26:07,491 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:10,252 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:10,381 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:10,510 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:10,637 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:10,746 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:10,878 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:11,011 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:11,117 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:11,215 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:12,888 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:12,992 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:13,084 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:13,181 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:13,305 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:13,406 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:14,570 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:14,712 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:14,815 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:14,950 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:16,871 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:16,975 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:17,105 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:17,243 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:17,340 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:17,445 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 15.69it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 39.41it/s]
+2026-06-18 23:26:17,537 INFO __main__: Processing episode: p03_e02
+2026-06-18 23:26:17,545 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 62 → 56 (6 removed), chars: 11,172 → 10,874 (298 removed, 2.7%)
+2026-06-18 23:26:24,922 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:27,008 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:27,108 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:27,240 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:27,343 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:27,472 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:27,605 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:29,415 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:29,516 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:29,648 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:29,779 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:29,906 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:30,041 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:30,867 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:30,966 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:31,098 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:33,127 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:33,230 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:33,327 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:33,454 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:33,577 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:33,680 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 17.88it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 36.52it/s]
+2026-06-18 23:26:33,767 INFO __main__: Processing episode: p04_e01
+2026-06-18 23:26:33,774 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 57 → 51 (6 removed), chars: 10,723 → 10,518 (205 removed, 1.9%)
+2026-06-18 23:26:40,369 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:41,975 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:42,080 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:42,207 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:42,311 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:42,439 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:43,871 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:44,015 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:44,118 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:44,262 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:44,385 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:45,975 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:46,072 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:46,173 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:46,270 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:46,362 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:46,462 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:48,073 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:48,179 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:48,305 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:48,432 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:48,559 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:48,663 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 17.04it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 101.14it/s]
+2026-06-18 23:26:48,735 INFO __main__: Processing episode: p04_e02
+2026-06-18 23:26:48,744 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 60 → 54 (6 removed), chars: 10,913 → 10,645 (268 removed, 2.5%)
+2026-06-18 23:26:55,523 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:57,429 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:57,558 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:57,659 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:57,786 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:57,920 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:58,017 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:59,182 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:59,283 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:59,381 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:26:59,508 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:00,601 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:00,704 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:00,832 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:00,963 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:01,093 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:02,817 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:02,919 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:03,016 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:03,146 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:03,277 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:03,408 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:03,509 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 19.07it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 37.96it/s]
+2026-06-18 23:27:03,591 INFO __main__: Processing episode: p05_e01
+2026-06-18 23:27:03,600 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 62 → 56 (6 removed), chars: 11,190 → 10,862 (328 removed, 2.9%)
+2026-06-18 23:27:10,729 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:12,763 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:12,866 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:12,997 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:13,129 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:13,261 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:13,398 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:15,384 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:15,490 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:15,622 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:15,752 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:15,879 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:16,005 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:16,139 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:17,679 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:17,777 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:17,873 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:19,625 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:19,731 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:19,834 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:19,962 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:20,088 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 16.44it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 45.97it/s]
+2026-06-18 23:27:20,173 INFO __main__: Processing episode: p05_e02
+2026-06-18 23:27:20,181 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 66 → 60 (6 removed), chars: 11,679 → 11,324 (355 removed, 3.0%)
+2026-06-18 23:27:25,876 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:28,667 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:28,765 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:28,897 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:29,027 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:29,152 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:29,279 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:29,375 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:29,502 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:29,630 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:31,326 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:31,454 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:31,554 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:31,676 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:31,816 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:31,943 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:33,128 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:33,256 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:33,348 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:33,450 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:35,434 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:35,539 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:35,667 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:35,789 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:35,916 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:36,044 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:36,172 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 18.05it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 118.41it/s]
+2026-06-18 23:27:36,238 INFO __main__: Phase 1 completed in 166.1s
+2026-06-18 23:27:36,238 INFO __main__: Total input: 108,327 chars, output: 130,314 chars
+2026-06-18 23:27:36,238 INFO __main__: Predictions: data/eval/runs/autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_grounded_insights_round3_v1/predictions.jsonl
+2026-06-18 23:27:36,239 INFO __main__: Metadata: data/eval/runs/autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_grounded_insights_round3_v1/baseline.json
+2026-06-18 23:27:36,239 INFO __main__: Fingerprint: data/eval/runs/autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_grounded_insights_round3_v1/fingerprint.json
+2026-06-18 23:27:36,239 INFO __main__: Created README.md: data/eval/runs/autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_grounded_insights_round3_v1/README.md
+2026-06-18 23:27:36,239 INFO __main__: Skipping metrics computation (dry-run or smoke-inference-only mode)
+2026-06-18 23:27:36,239 INFO __main__: Run completed with predictions only. Use full experiment-run for metrics.
+  moved /Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_grounded_insights_round3_v1 → /Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/1022/cell_f_qwen3_30b_a3b_nvfp4/gi
+
+[stage:kg] config=autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_knowledge_graph_round3_v1
+2026-06-18 23:27:40,457 INFO __main__: ================================================================================
+2026-06-18 23:27:40,457 INFO __main__: Starting experiment run: autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_knowledge_graph_round3_v1
+2026-06-18 23:27:40,457 INFO __main__: Results directory: data/eval/runs/autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_knowledge_graph_round3_v1
+2026-06-18 23:27:40,457 INFO __main__: Execution log: data/eval/runs/autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_knowledge_graph_round3_v1/run.log
+2026-06-18 23:27:40,457 INFO __main__: Dataset: curated_5feeds_dev_v1
+2026-06-18 23:27:40,457 INFO __main__: ================================================================================
+2026-06-18 23:27:40,706 WARNING podcast_scraper.providers.openai.openai_provider: OpenAI API key validation failed (missing, too short, or wrong prefix); credentials are never logged.
+2026-06-18 23:27:40,815 INFO __main__: GI/KG eval: per-episode summary regeneration and artifact build use the same summarization provider (override gi_* / kg_* in params as needed).
+2026-06-18 23:27:40,911 INFO __main__: Found 10 episode(s) to process
+2026-06-18 23:27:40,911 INFO __main__: Phase 1: Running inference...
+2026-06-18 23:27:40,911 INFO __main__: Processing episode: p01_e01
+2026-06-18 23:27:40,925 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 56 → 50 (6 removed), chars: 11,049 → 10,793 (256 removed, 2.3%)
+2026-06-18 23:27:47,912 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:52,445 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:27:52,448 INFO __main__: Processing episode: p01_e02
+2026-06-18 23:27:52,457 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 57 → 51 (6 removed), chars: 11,059 → 10,749 (310 removed, 2.8%)
+2026-06-18 23:27:58,679 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:28:05,445 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:28:05,446 INFO __main__: Processing episode: p02_e01
+2026-06-18 23:28:05,455 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 58 → 52 (6 removed), chars: 11,537 → 11,225 (312 removed, 2.7%)
+2026-06-18 23:28:11,708 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:28:16,054 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:28:16,055 INFO __main__: Processing episode: p02_e02
+2026-06-18 23:28:16,063 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 59 → 53 (6 removed), chars: 11,265 → 10,942 (323 removed, 2.9%)
+2026-06-18 23:28:22,203 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:28:26,422 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:28:26,423 INFO __main__: Processing episode: p03_e01
+2026-06-18 23:28:26,431 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 58 → 52 (6 removed), chars: 10,679 → 10,395 (284 removed, 2.7%)
+2026-06-18 23:28:34,081 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:28:44,352 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:28:44,354 INFO __main__: Processing episode: p03_e02
+2026-06-18 23:28:44,362 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 62 → 56 (6 removed), chars: 11,172 → 10,874 (298 removed, 2.7%)
+2026-06-18 23:28:50,451 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:28:57,436 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:28:57,436 INFO __main__: Processing episode: p04_e01
+2026-06-18 23:28:57,445 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 57 → 51 (6 removed), chars: 10,723 → 10,518 (205 removed, 1.9%)
+2026-06-18 23:29:03,558 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:29:10,706 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:29:10,707 INFO __main__: Processing episode: p04_e02
+2026-06-18 23:29:10,715 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 60 → 54 (6 removed), chars: 10,913 → 10,645 (268 removed, 2.5%)
+2026-06-18 23:29:17,086 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:29:25,232 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:29:25,233 INFO __main__: Processing episode: p05_e01
+2026-06-18 23:29:25,241 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 62 → 56 (6 removed), chars: 11,190 → 10,862 (328 removed, 2.9%)
+2026-06-18 23:29:31,726 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:29:43,435 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:29:43,437 INFO __main__: Processing episode: p05_e02
+2026-06-18 23:29:43,446 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 66 → 60 (6 removed), chars: 11,679 → 11,324 (355 removed, 3.0%)
+2026-06-18 23:29:51,064 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:29:53,788 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-18 23:29:53,789 INFO __main__: Phase 1 completed in 132.9s
+2026-06-18 23:29:53,789 INFO __main__: Total input: 108,327 chars, output: 66,496 chars
+2026-06-18 23:29:53,789 INFO __main__: Predictions: data/eval/runs/autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_knowledge_graph_round3_v1/predictions.jsonl
+2026-06-18 23:29:53,789 INFO __main__: Metadata: data/eval/runs/autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_knowledge_graph_round3_v1/baseline.json
+2026-06-18 23:29:53,789 INFO __main__: Fingerprint: data/eval/runs/autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_knowledge_graph_round3_v1/fingerprint.json
+2026-06-18 23:29:53,789 INFO __main__: Created README.md: data/eval/runs/autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_knowledge_graph_round3_v1/README.md
+2026-06-18 23:29:53,789 INFO __main__: Skipping metrics computation (dry-run or smoke-inference-only mode)
+2026-06-18 23:29:53,789 INFO __main__: Run completed with predictions only. Use full experiment-run for metrics.
+  moved /Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_knowledge_graph_round3_v1 → /Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/1022/cell_f_qwen3_30b_a3b_nvfp4/kg
+
+=== cell_f_qwen3_30b_a3b_nvfp4 complete ===
+cell_d_aggressive_warmup    kg       autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_knowledge_graph_round3_v1    299           2026-06-18T19:12:48Z  2026-06-18T19:17:47Z  http://dgx-llm-1:8003/v1  0
+cell_f_qwen3_30b_a3b_nvfp4  summary  autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_paragraph_round3_v1          72            2026-06-18T21:23:34Z  2026-06-18T21:24:46Z  http://dgx-llm-1:8003/v1  0
+cell_f_qwen3_30b_a3b_nvfp4  gi       autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_grounded_insights_round3_v1  170           2026-06-18T21:24:46Z  2026-06-18T21:27:36Z  http://dgx-llm-1:8003/v1  0
+cell_f_qwen3_30b_a3b_nvfp4  kg       autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_knowledge_graph_round3_v1    138           2026-06-18T21:27:36Z  2026-06-18T21:29:54Z  http://dgx-llm-1:8003/v1  0
