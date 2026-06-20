@@ -24,15 +24,18 @@ summary_provider: transformers
 summary_model: bart-small
 summary_reduce_model: long-fast
 
-# Grounded Insights — summary_bullets (transformers is summary-only, not chat)
+# Grounded Insights — stub (transformers is summary-only, not chat; the
+# legacy `summary_bullets` route was removed in #1034 per #1033 audit).
+# Freeze artifacts will need regeneration when this profile is exercised.
 generate_gi: true
-gi_insight_source: summary_bullets
+gi_insight_source: stub
 gi_max_insights: 12
 gi_require_grounding: true
 
-# Knowledge Graph — summary_bullets (same rationale)
+# Knowledge Graph — stub (same rationale; KG output is pipeline-derived
+# host/guest entities only, no LLM topics).
 generate_kg: true
-kg_extraction_source: summary_bullets
+kg_extraction_source: stub
 kg_max_topics: 10
 kg_max_entities: 15
 

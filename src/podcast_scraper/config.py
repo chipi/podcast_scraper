@@ -2377,23 +2377,19 @@ class Config(BaseModel):
             "NLI with an API summary (advanced)."
         ),
     )
-    gi_insight_source: Literal["provider", "summary_bullets", "stub"] = Field(
+    gi_insight_source: Literal["provider", "stub"] = Field(
         default="stub",
         alias="gi_insight_source",
         description=(
             "Source of insight texts for GIL. "
             "'provider' = call generate_insights() on the summarization provider "
-            "(LLM only; ML providers return empty) — **THIS IS THE RIGHT CHOICE** "
-            "for real usage and eval. Reads the cleaned transcript directly. "
+            "(LLM only; ML providers return empty). Reads the cleaned transcript "
+            "directly. This is the production code path. "
             "'stub' = placeholder; no LLM calls. "
-            "'summary_bullets' = DEPRECATED per #1033. Derives insights from "
-            "the already-distilled summary bullets, which are produced by a "
-            "summary prompt that strips speaker names and quotes for narrative "
-            "quality. This routes structured extraction through name-suppressed "
-            "input → lossy. Production profiles use 'provider'; only legacy / "
-            "early-experiment configs still reference 'summary_bullets'. New "
-            "code MUST use 'provider'. See GROUNDED_INSIGHTS_GUIDE.md and "
-            "docs/wip/EVAL_112_ENTITY_FOCUSED_KG_2026-06-19.md for details."
+            "See GROUNDED_INSIGHTS_GUIDE.md for details. "
+            "The legacy 'summary_bullets' option was removed in #1034 (per the "
+            "#1033 audit) — it routed extraction through name-stripped summary "
+            "bullets and was empirically lossy."
         ),
     )
     gi_max_insights: int = Field(
@@ -2402,7 +2398,7 @@ class Config(BaseModel):
         le=50,
         alias="gi_max_insights",
         description=(
-            "Max insights when gi_insight_source is provider or summary_bullets. "
+            "Max insights when gi_insight_source is 'provider'. "
             "Default matches DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX (avoid truncating long lists)."
         ),
     )
@@ -2550,53 +2546,21 @@ class Config(BaseModel):
         ),
     )
 
-    @field_validator("gi_insight_source", "kg_extraction_source", mode="after")
-    @classmethod
-    def _warn_on_summary_bullets_source(cls, value: str, info) -> str:  # noqa: D401
-        """#1033 — emit a deprecation-style warning when ``summary_bullets`` is used.
-
-        Surfaces at runtime even if the CI test gets skipped or someone
-        constructs ``Config`` programmatically. Doesn't refuse the value
-        (backwards-compat — older eval scripts still construct configs
-        manually with bullets). Tightening to a hard error can come in a
-        later pass once the cohort rerun is published.
-        """
-        if value == "summary_bullets":
-            import warnings
-
-            warnings.warn(
-                f"{info.field_name}='summary_bullets' is deprecated per #1033 "
-                "and produces lossy structured extraction. The summary prompt "
-                "strips speaker names + quotes, so bullets-derived KG/GI loses "
-                "entity signal. Use 'provider' instead (reads cleaned transcript "
-                "directly). Production profiles already do this. "
-                "See docs/wip/EVAL_112_ENTITY_FOCUSED_KG_2026-06-19.md. "
-                "CI guard: tests/integration/eval/test_autoresearch_config_source_audit.py",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        return value
-
-    kg_extraction_source: Literal["stub", "summary_bullets", "provider"] = Field(
-        default="summary_bullets",
+    kg_extraction_source: Literal["stub", "provider"] = Field(
+        default="provider",
         alias="kg_extraction_source",
         description=(
             "KG topics/entities source. "
             "'provider' = LLM JSON extraction via extract_kg_graph on the cleaned "
             "transcript directly (see kg_extraction_provider; default uses "
-            "summary_provider; ML providers no-op). "
-            "**THIS IS THE RIGHT CHOICE** for real usage and eval. "
+            "summary_provider; ML providers no-op). This is the production code "
+            "path. "
             "'stub' = episode + pipeline hosts/guests only (no summary topics). "
-            "'summary_bullets' = DEPRECATED per #1033. When an API summarization "
-            "provider is available, derives topics/entities from bullets via "
-            "extract_kg_from_summary_bullets; otherwise topic labels mirror "
-            "bullet text. The bullets are produced by a summary prompt that "
-            "strips speaker names and quotes — so entity coverage starves and "
-            "topics get diluted. Production profiles use 'provider'; the "
-            "Pydantic default is 'summary_bullets' for backwards-compat only "
-            "(many older eval YAMLs predate the audit). New code MUST use "
-            "'provider'. CI guard: tests/integration/eval/test_autoresearch_config_source_audit.py "
-            "blocks regressions. See docs/wip/EVAL_112_ENTITY_FOCUSED_KG_2026-06-19.md."
+            "The legacy 'summary_bullets' option was removed in #1034 (per the "
+            "#1033 audit) — it routed extraction through name-stripped summary "
+            "bullets and was empirically lossy. CI guard: "
+            "tests/integration/eval/test_autoresearch_config_source_audit.py "
+            "blocks any regression."
         ),
     )
     kg_extraction_provider: Optional[
@@ -2615,10 +2579,8 @@ class Config(BaseModel):
         default=None,
         alias="kg_extraction_provider",
         description=(
-            "When kg_extraction_source is 'provider', which backend runs extract_kg_graph; "
-            "when 'summary_bullets', which backend runs extract_kg_from_summary_bullets "
-            "(bullet-derived topics). None means use summary_provider (same instance). "
-            "Same names as summary_provider."
+            "When kg_extraction_source is 'provider', which backend runs extract_kg_graph. "
+            "None means use summary_provider (same instance). Same names as summary_provider."
         ),
     )
     kg_max_topics: int = Field(
@@ -2627,7 +2589,7 @@ class Config(BaseModel):
         le=20,
         alias="kg_max_topics",
         description=(
-            "Max topic nodes for summary_bullets or provider KG extraction. "
+            "Max topic nodes for provider KG extraction. "
             "Default matches DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX (schema max 20)."
         ),
     )

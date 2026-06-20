@@ -1264,10 +1264,10 @@ def _add_metadata_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--gi-insight-source",
-        choices=["provider", "summary_bullets", "stub"],
+        choices=["provider", "stub"],
         default=None,
         dest="gi_insight_source",
-        help="Source of insight texts: provider (LLM), summary_bullets, or stub (default: stub). "
+        help="Source of insight texts: provider (LLM) or stub (default: stub). "
         "See docs/guides/GROUNDED_INSIGHTS_GUIDE.md.",
     )
     parser.add_argument(
@@ -1276,7 +1276,7 @@ def _add_metadata_arguments(parser: argparse.ArgumentParser) -> None:
         default=None,
         metavar="N",
         dest="gi_max_insights",
-        help="Max number of insights when using provider or summary_bullets (default: 5).",
+        help="Max number of insights when using provider (default: 5).",
     )
     parser.add_argument(
         "--generate-kg",
@@ -1287,11 +1287,11 @@ def _add_metadata_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--kg-extraction-source",
-        choices=["stub", "summary_bullets", "provider"],
+        choices=["stub", "provider"],
         default=None,
         dest="kg_extraction_source",
-        help="KG extraction source: provider (LLM JSON), summary_bullets, or stub. "
-        "Default: summary_bullets. See KNOWLEDGE_GRAPH_GUIDE.md.",
+        help="KG extraction source: provider (LLM JSON) or stub. "
+        "Default: provider. See KNOWLEDGE_GRAPH_GUIDE.md.",
     )
     parser.add_argument(
         "--kg-max-topics",
@@ -1299,7 +1299,7 @@ def _add_metadata_arguments(parser: argparse.ArgumentParser) -> None:
         default=None,
         metavar="N",
         dest="kg_max_topics",
-        help="Max topic nodes (summary bullets or provider extraction). Default: 5.",
+        help="Max topic nodes (provider extraction). Default: 5.",
     )
     parser.add_argument(
         "--kg-max-entities",
@@ -3877,7 +3877,7 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "metadata_subdirectory": args.metadata_subdirectory,
         "generate_gi": getattr(args, "generate_gi", False),
         "generate_kg": getattr(args, "generate_kg", False),
-        "kg_extraction_source": getattr(args, "kg_extraction_source", None) or "summary_bullets",
+        "kg_extraction_source": getattr(args, "kg_extraction_source", None) or "provider",
         "single_feed_uses_corpus_layout": getattr(args, "single_feed_uses_corpus_layout", False),
         "kg_max_topics": (
             config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX
@@ -4317,8 +4317,7 @@ def _log_configuration_runtime_warnings(cfg: config.Config, logger: logging.Logg
     ):
         logger.warning(
             "GIL: gi_insight_source is 'stub' — insight text is a placeholder. "
-            "For real wording use gi_insight_source: summary_bullets (with "
-            "generate_summaries and summary bullets) or provider with an LLM "
+            "For real wording use gi_insight_source: provider with an LLM "
             "summary_provider. ML providers (transformers, hybrid_ml) do not "
             "implement generate_insights. See docs/guides/GROUNDED_INSIGHTS_GUIDE.md."
         )
@@ -4347,15 +4346,15 @@ def _log_configuration_runtime_warnings(cfg: config.Config, logger: logging.Logg
     _kg_eff = getattr(cfg, "kg_extraction_provider", None) or getattr(cfg, "summary_provider", "")
     if (
         getattr(cfg, "generate_kg", False)
-        and getattr(cfg, "kg_extraction_source", "summary_bullets") == "provider"
+        and getattr(cfg, "kg_extraction_source", "provider") == "provider"
         and _kg_eff in ("transformers", "hybrid_ml")
         and not config._is_test_environment()
     ):
         logger.warning(
             "KG: kg_extraction_source is 'provider' but the effective KG backend "
             "(kg_extraction_provider or summary_provider) is ML — "
-            "extract_kg_graph is a no-op; pipeline falls back to summary bullets "
-            "when available, else episode + hosts/guests only."
+            "extract_kg_graph is a no-op; pipeline falls back to episode + "
+            "hosts/guests only."
         )
 
 
@@ -4513,12 +4512,12 @@ def _log_configuration_detail(cfg: config.Config, logger: logging.Logger) -> Non
     if getattr(cfg, "generate_kg", False):
         d(
             "  KG extraction source: %s",
-            getattr(cfg, "kg_extraction_source", "summary_bullets"),
+            getattr(cfg, "kg_extraction_source", "provider"),
         )
         _kep = getattr(cfg, "kg_extraction_provider", None)
         if _kep:
             d("  KG extraction provider: %s", _kep)
-        elif getattr(cfg, "kg_extraction_source", "summary_bullets") == "provider":
+        elif getattr(cfg, "kg_extraction_source", "provider") == "provider":
             d("  KG extraction provider: (same as summary_provider)")
         d(
             "  KG max topics: %s",
