@@ -1633,15 +1633,11 @@ def run_experiment(  # noqa: C901
                             if not bullets and summary.strip():
                                 bullets = [summary.strip()[:2000]]
                             gil_extra: List[Any] = []
-                            gi_src = getattr(cfg_obj, "gi_insight_source", "summary_bullets")
-                            if gi_src == "summary_bullets":
-                                ins_texts: Optional[List[str]] = bullets
-                                ins_prov = None
-                            elif gi_src == "provider":
-                                ins_texts = None
+                            gi_src = getattr(cfg_obj, "gi_insight_source", "provider")
+                            ins_texts: Optional[List[str]] = None
+                            if gi_src == "provider":
                                 ins_prov = provider
                             else:
-                                ins_texts = None
                                 ins_prov = None
 
                             # Create evidence providers (QA + NLI) for

@@ -1503,8 +1503,8 @@ class MLProvider:
     ) -> List[str]:
         """Generate insight statements (GIL). ML provider does not implement this.
 
-        Returns empty list so GIL falls back to stub or summary_bullets when
-        gi_insight_source=provider.
+        Returns empty list; GIL falls back to stub when gi_insight_source=provider
+        and the configured summary_provider is ML-only.
         """
         return []
 

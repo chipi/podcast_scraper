@@ -1622,43 +1622,12 @@ class TestGenerateLLMCallSummary(unittest.TestCase):
 class TestKgLlmCostHeadline(unittest.TestCase):
     """_kg_llm_cost_headline for CLI KG cost line."""
 
-    def test_headline_all_bullet_derived(self):
+    def test_headline_provider_artifacts(self):
         from podcast_scraper.workflow import helpers
 
         self.assertEqual(
-            helpers._kg_llm_cost_headline(
-                {
-                    "kg_extractions_provider": 3,
-                    "kg_extractions_provider_summary_bullets": 3,
-                }
-            ),
-            "summary bullets → topics",
-        )
-
-    def test_headline_all_transcript(self):
-        from podcast_scraper.workflow import helpers
-
-        self.assertEqual(
-            helpers._kg_llm_cost_headline(
-                {
-                    "kg_extractions_provider": 2,
-                    "kg_extractions_provider_summary_bullets": 0,
-                }
-            ),
+            helpers._kg_llm_cost_headline({"kg_extractions_provider": 2}),
             "transcript",
-        )
-
-    def test_headline_mixed(self):
-        from podcast_scraper.workflow import helpers
-
-        self.assertEqual(
-            helpers._kg_llm_cost_headline(
-                {
-                    "kg_extractions_provider": 3,
-                    "kg_extractions_provider_summary_bullets": 1,
-                }
-            ),
-            "mixed (2 transcript, 1 bullet-derived)",
         )
 
     def test_headline_no_provider_artifacts(self):

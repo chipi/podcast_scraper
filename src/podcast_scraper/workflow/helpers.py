@@ -615,17 +615,10 @@ def _llm_cost_gil_section(
 
 def _kg_llm_cost_headline(metrics_dict: Dict[str, Any]) -> str:
     """Human-readable KG LLM mode for CLI summary (uses finished metrics rollups)."""
-    k_sb = int(metrics_dict.get("kg_extractions_provider_summary_bullets", 0) or 0)
     k_pv = int(metrics_dict.get("kg_extractions_provider", 0) or 0)
     if k_pv <= 0:
         return "LLM extraction"
-    k_sb = min(k_sb, k_pv)
-    k_tx = k_pv - k_sb
-    if k_sb == k_pv:
-        return "summary bullets → topics"
-    if k_tx == k_pv:
-        return "transcript"
-    return f"mixed ({k_tx} transcript, {k_sb} bullet-derived)"
+    return "transcript"
 
 
 def _llm_cost_kg_section(

@@ -1220,53 +1220,6 @@ class TestGeminiProviderKG(unittest.TestCase):
         self.assertEqual(call_kw["model"], "gemini-2.5-flash")
         self.assertEqual(call_kw["config"]["thinking_config"]["thinking_budget"], 0)
 
-    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
-    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
-    def test_extract_kg_from_summary_bullets_25_flash_params_merges_thinking(
-        self, mock_genai, mock_retry
-    ):
-        mock_retry.side_effect = lambda fn, **kwargs: fn()
-        mock_resp = Mock()
-        mock_resp.text = self._KG_JSON
-        mock_client = Mock()
-        mock_client.models.generate_content.return_value = mock_resp
-        mock_genai.Client.return_value = mock_client
-        provider = GeminiProvider(self.cfg)
-        provider.initialize()
-        provider.extract_kg_from_summary_bullets(
-            ["Point"],
-            params={"kg_extraction_model": "gemini-2.5-flash"},
-        )
-        call_kw = mock_client.models.generate_content.call_args[1]
-        self.assertEqual(call_kw["config"]["thinking_config"]["thinking_budget"], 0)
-
-    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
-    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
-    def test_extract_kg_from_summary_bullets_success(self, mock_genai, mock_retry):
-        mock_retry.side_effect = lambda fn, **kwargs: fn()
-        mock_resp = Mock()
-        mock_resp.text = self._KG_JSON
-        mock_client = Mock()
-        mock_client.models.generate_content.return_value = mock_resp
-        mock_genai.Client.return_value = mock_client
-        provider = GeminiProvider(self.cfg)
-        provider.initialize()
-        out = provider.extract_kg_from_summary_bullets(["Point"], episode_title="Ep")
-        self.assertIsNotNone(out)
-
-    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
-    def test_extract_kg_from_summary_bullets_not_initialized(self, mock_genai):
-        mock_genai.Client.return_value = Mock()
-        provider = GeminiProvider(self.cfg)
-        self.assertIsNone(provider.extract_kg_from_summary_bullets(["a"]))
-
-    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
-    def test_extract_kg_from_summary_bullets_empty(self, mock_genai):
-        mock_genai.Client.return_value = Mock()
-        provider = GeminiProvider(self.cfg)
-        provider._summarization_initialized = True
-        self.assertIsNone(provider.extract_kg_from_summary_bullets([]))
-
 
 @pytest.mark.integration
 class TestGeminiProviderPricing(unittest.TestCase):

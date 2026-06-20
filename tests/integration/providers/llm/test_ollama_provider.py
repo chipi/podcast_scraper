@@ -1174,39 +1174,6 @@ class TestOllamaProviderKG(unittest.TestCase):
             "llama3.1:custom",
         )
 
-    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
-    @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
-    @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
-    def test_extract_kg_from_summary_bullets_success(self, mock_openai, mock_httpx, mock_retry):
-        mock_retry.side_effect = lambda fn, **kwargs: fn()
-        self._mock_ollama_http(mock_httpx)
-        mock_client = Mock()
-        mock_resp = Mock()
-        mock_resp.choices = [Mock(message=Mock(content=self._KG_JSON))]
-        mock_client.chat.completions.create.return_value = mock_resp
-        mock_openai.return_value = mock_client
-        provider = OllamaProvider(self.cfg)
-        provider.initialize()
-        out = provider.extract_kg_from_summary_bullets(["Bullet"], episode_title="E")
-        self.assertIsNotNone(out)
-
-    @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
-    @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
-    def test_extract_kg_from_summary_bullets_not_initialized(self, mock_openai, mock_httpx):
-        self._mock_ollama_http(mock_httpx)
-        mock_openai.return_value = Mock()
-        provider = OllamaProvider(self.cfg)
-        self.assertIsNone(provider.extract_kg_from_summary_bullets(["a"]))
-
-    @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
-    @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
-    def test_extract_kg_from_summary_bullets_empty(self, mock_openai, mock_httpx):
-        self._mock_ollama_http(mock_httpx)
-        mock_openai.return_value = Mock()
-        provider = OllamaProvider(self.cfg)
-        provider._summarization_initialized = True
-        self.assertIsNone(provider.extract_kg_from_summary_bullets([]))
-
 
 @pytest.mark.integration
 class TestOllamaProviderErrorHandling(unittest.TestCase):

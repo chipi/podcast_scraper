@@ -79,10 +79,7 @@ class Metrics:
     kg_entity_nodes_total: int = 0  # Sum of Entity nodes across kg.json
     kg_episode_nodes_total: int = 0  # Sum of Episode nodes (typically == kg_artifacts_generated)
     kg_extractions_stub: int = 0  # Artifacts whose extraction.model_version is stub-like
-    kg_extractions_summary_bullets: int = 0  # model_version == summary_bullets
     kg_extractions_provider: int = 0  # model_version startswith provider:
-    # Subset: LLM JSON from summary bullets (not transcript extract_kg_graph)
-    kg_extractions_provider_summary_bullets: int = 0
     gi_evidence_stack_completed: int = 0  # GIL artifacts that completed evidence QA+NLI path
     gi_evidence_extract_quotes_calls: int = 0  # extract_quotes calls on provider path
     # Candidates that passed QA threshold and were sent to NLI (may exceed completed NLI calls).
@@ -473,10 +470,6 @@ class Metrics:
         mv = str((payload.get("extraction") or {}).get("model_version", "") or "")
         if mv.startswith("provider:"):
             self.kg_extractions_provider += 1
-            if mv.startswith("provider:summary_bullets:"):
-                self.kg_extractions_provider_summary_bullets += 1
-        elif mv == "summary_bullets":
-            self.kg_extractions_summary_bullets += 1
         else:
             self.kg_extractions_stub += 1
         for n in payload.get("nodes") or []:
@@ -1217,11 +1210,7 @@ class Metrics:
             "kg_entity_nodes_total": self.kg_entity_nodes_total,
             "kg_episode_nodes_total": self.kg_episode_nodes_total,
             "kg_extractions_stub": self.kg_extractions_stub,
-            "kg_extractions_summary_bullets": self.kg_extractions_summary_bullets,
             "kg_extractions_provider": self.kg_extractions_provider,
-            "kg_extractions_provider_summary_bullets": (
-                self.kg_extractions_provider_summary_bullets
-            ),
             "kg_avg_topics_per_artifact": (
                 round(self.kg_topic_nodes_total / self.kg_artifacts_generated, 2)
                 if self.kg_artifacts_generated

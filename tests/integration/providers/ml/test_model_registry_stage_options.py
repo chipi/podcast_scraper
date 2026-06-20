@@ -105,7 +105,7 @@ class TestPipelineStageRegistries:
     def test_kg_registry_has_provider_default(self) -> None:
         opts = get_kg_options()
         assert "provider_n10_15" in opts
-        assert "summary_bullets_n10_15" in opts
+        assert "summary_bullets_n10_15" not in opts  # removed in #1034
 
     def test_ner_registry_covers_cloud_and_local(self) -> None:
         opts = get_ner_options()

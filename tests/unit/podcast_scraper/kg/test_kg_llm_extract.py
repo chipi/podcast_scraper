@@ -4,9 +4,7 @@ import unittest
 from unittest.mock import Mock
 
 from podcast_scraper.kg.llm_extract import (
-    build_kg_from_bullets_system_prompt,
     build_kg_transcript_system_prompt,
-    normalize_bullet_labels_for_kg,
     parse_kg_graph_response,
     resolve_kg_model_id,
     strip_known_ml_bullet_prefixes,
@@ -75,29 +73,17 @@ class TestKgLlmExtract(unittest.TestCase):
         )
         self.assertEqual(strip_known_ml_bullet_prefixes("  Exting- Smoke  "), "Smoke")
 
-    def test_normalize_bullet_labels_strips_ml_prefixes(self) -> None:
-        out = normalize_bullet_labels_for_kg(["Unden- topic one", "plain"])
-        self.assertEqual(out, ["topic one", "plain"])
-
     def test_transcript_system_prompt_nudges_short_stable_topic_labels(self) -> None:
         s = build_kg_transcript_system_prompt(5, 10)
         self.assertIn("2–8 words", s)
         self.assertIn("noun-phrase", s)
         self.assertIn("description", s)
 
-    def test_bullets_system_prompt_nudges_short_stable_topic_labels(self) -> None:
-        s = build_kg_from_bullets_system_prompt(5, 10)
-        self.assertIn("2–8 words", s)
-        self.assertIn("noun-phrase", s)
-
-    def test_system_prompts_request_one_canonical_spelling_per_entity(self) -> None:
-        """#851 — both extraction system prompts must ask for canonical entity
+    def test_system_prompt_requests_one_canonical_spelling_per_entity(self) -> None:
+        """#851 — extraction system prompt must ask for canonical entity
         spelling (one node per real entity), the primary same-episode dedup lever."""
-        for s in (
-            build_kg_transcript_system_prompt(5, 10),
-            build_kg_from_bullets_system_prompt(5, 10),
-        ):
-            self.assertIn("canonical spelling", s)
+        s = build_kg_transcript_system_prompt(5, 10)
+        self.assertIn("canonical spelling", s)
 
     def test_transcript_system_prompt_keeps_distinct_entities_separate(self) -> None:
         # The prompt must also guard against over-merging (UPS vs USPS).

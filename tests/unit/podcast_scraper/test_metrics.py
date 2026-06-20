@@ -133,21 +133,9 @@ class TestRecordStage(unittest.TestCase):
         }
         m.record_kg_artifact_stats(payload)
         self.assertEqual(m.kg_extractions_provider, 1)
-        self.assertEqual(m.kg_extractions_provider_summary_bullets, 0)
         self.assertEqual(m.kg_episode_nodes_total, 1)
         self.assertEqual(m.kg_topic_nodes_total, 1)
         self.assertEqual(m.kg_entity_nodes_total, 2)
-
-    def test_record_kg_artifact_stats_summary_bullet_llm_prefix(self):
-        """provider:summary_bullets:* increments both provider counters."""
-        m = metrics.Metrics()
-        payload = {
-            "extraction": {"model_version": "provider:summary_bullets:gpt-4o-mini"},
-            "nodes": [{"type": "Episode"}, {"type": "Topic"}],
-        }
-        m.record_kg_artifact_stats(payload)
-        self.assertEqual(m.kg_extractions_provider, 1)
-        self.assertEqual(m.kg_extractions_provider_summary_bullets, 1)
 
 
 class TestRecordDownloadMediaTime(unittest.TestCase):
@@ -458,9 +446,7 @@ class TestFinish(unittest.TestCase):
             "kg_entity_nodes_total",
             "kg_episode_nodes_total",
             "kg_extractions_stub",
-            "kg_extractions_summary_bullets",
             "kg_extractions_provider",
-            "kg_extractions_provider_summary_bullets",
             "kg_avg_topics_per_artifact",
             "kg_avg_entities_per_artifact",
             "gi_evidence_stack_completed",

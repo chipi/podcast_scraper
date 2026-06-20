@@ -1,7 +1,7 @@
 """#652 Part B — deterministic post-extraction validators for KG topics + entities.
 
 Two filters that run on the final topic/entity lists regardless of source
-(``provider``, ``summary_bullets``, prefilled from mega/extraction bundle):
+(``provider``, prefilled from mega/extraction bundle):
 
 1. Topic normalizer — lowercases-strips, trims to ≤ 4 tokens, drops leading
    and medial stopwords, dedupes near-matches within an episode via

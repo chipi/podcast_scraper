@@ -20,7 +20,6 @@ SHARED_TEMPLATES_REQUIRE_TRANSCRIPT: Final[tuple[str, ...]] = (
 SHARED_TEMPLATES_FORBID_TRANSCRIPT: Final[tuple[str, ...]] = (
     "shared/summarization/bundled_clean_summary_system_v1",
     "shared/summarization/system_bullets_v1",
-    "shared/kg_graph_extraction/from_summary_bullets_v1",
 )
 
 _TRANSCRIPT_SNIP: Final[str] = "{{ transcript }}"

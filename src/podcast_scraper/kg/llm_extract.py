@@ -77,33 +77,6 @@ def build_kg_transcript_system_prompt(max_topics: int, max_entities: int) -> str
     )
 
 
-def build_kg_from_bullets_system_prompt(max_topics: int, max_entities: int) -> str:
-    """System message for summary-bullet-derived KG with explicit array caps."""
-    mt = max(1, min(int(max_topics), 20))
-    me = max(1, min(int(max_entities), 50))
-    return (
-        "You derive a small knowledge-graph fragment from episode summary bullets only "
-        "(there is no full transcript). "
-        "Return ONLY valid JSON (no markdown fences, no commentary) with this shape:\n"
-        '{"topics":[{"label":"short topic phrase","description":"optional context"}],'
-        '"entities":[{"name":"Full Name","entity_kind":"person",'
-        '"description":"optional context"}]}\n'
-        "Omit description when not useful. "
-        'entity_kind must be "person" or "organization" only. '
-        "Use one canonical spelling per entity — never list the same person or "
-        "organization twice under variant spellings; keep genuinely different "
-        "entities separate. "
-        "Topic labels must be short thematic headings: about 2–8 words, "
-        "noun-phrase style — never a full bullet sentence pasted as one label. "
-        "Prefer one stable phrase per theme so the same subject reads similarly "
-        "across episodes; use description for extra nuance. "
-        f"Hard limits: at most {mt} topic objects and at most {me} entity objects — "
-        "never exceed these array lengths. Order topics by importance (strongest first). "
-        "Prefer fewer, broader themes that still cover the bullets over many "
-        "overlapping micro-topics."
-    )
-
-
 _MAX_TOPIC_LABEL_CHARS = 50
 
 
@@ -154,37 +127,6 @@ def build_kg_user_prompt(
     return render_prompt(
         f"shared/kg_graph_extraction/{prompt_version}",
         transcript=transcript,
-        title=title or "",
-        max_topics=max_topics,
-        max_entities=max_entities,
-    )
-
-
-def normalize_bullet_labels_for_kg(labels: List[str], max_bullets: int = 30) -> List[str]:
-    """Trim empty entries and cap count for LLM prompts."""
-    out: List[str] = []
-    for raw in labels or []:
-        s = strip_known_ml_bullet_prefixes(str(raw))
-        if s:
-            out.append(s[:2000])
-        if len(out) >= max_bullets:
-            break
-    return out
-
-
-def build_kg_from_bullets_user_prompt(
-    bullet_labels: List[str],
-    title: str,
-    max_topics: int,
-    max_entities: int,
-) -> str:
-    """Render Jinja prompt for KG extraction from summary bullets only."""
-    from ..prompts.store import render_prompt
-
-    bullets = normalize_bullet_labels_for_kg(bullet_labels)
-    return render_prompt(
-        "shared/kg_graph_extraction/from_summary_bullets_v1",
-        bullets=bullets,
         title=title or "",
         max_topics=max_topics,
         max_entities=max_entities,

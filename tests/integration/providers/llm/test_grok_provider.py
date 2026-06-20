@@ -648,34 +648,6 @@ class TestGrokProviderKG(unittest.TestCase):
             "grok-2-custom",
         )
 
-    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
-    @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
-    def test_extract_kg_from_summary_bullets_success(self, mock_openai, mock_retry):
-        mock_retry.side_effect = lambda fn, **kwargs: fn()
-        mock_client = Mock()
-        mock_openai.return_value = mock_client
-        mock_resp = Mock()
-        mock_resp.choices = [Mock(message=Mock(content=self._KG_JSON))]
-        mock_client.chat.completions.create.return_value = mock_resp
-        provider = GrokProvider(self.cfg)
-        provider.initialize()
-        out = provider.extract_kg_from_summary_bullets(["A", "B"], episode_title="Ep")
-        self.assertIsNotNone(out)
-        self.assertEqual(out["topics"][0]["label"], "Macro")
-
-    @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
-    def test_extract_kg_from_summary_bullets_not_initialized(self, mock_openai):
-        mock_openai.return_value = Mock()
-        provider = GrokProvider(self.cfg)
-        self.assertIsNone(provider.extract_kg_from_summary_bullets(["x"]))
-
-    @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
-    def test_extract_kg_from_summary_bullets_empty_bullets(self, mock_openai):
-        mock_openai.return_value = Mock()
-        provider = GrokProvider(self.cfg)
-        provider._summarization_initialized = True
-        self.assertIsNone(provider.extract_kg_from_summary_bullets([]))
-
 
 @pytest.mark.integration
 class TestGrokProviderPricing(unittest.TestCase):

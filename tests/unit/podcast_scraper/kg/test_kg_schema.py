@@ -46,7 +46,7 @@ class TestKgSchema(unittest.TestCase):
         validate_artifact(data, strict=True)
 
     def test_strict_rejects_noncanonical_model_version(self) -> None:
-        """extraction.model_version must be stub, summary_bullets, or provider:*."""
+        """extraction.model_version must be stub or provider:*."""
         base = {
             "schema_version": "1.0",
             "episode_id": "e:1",

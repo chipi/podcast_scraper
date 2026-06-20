@@ -1135,18 +1135,16 @@ _GI_OPTIONS: Dict[str, StageOption] = {
 }
 
 
-# KG — extraction source + max_topics / max_entities defaults.
+# KG — max_topics / max_entities defaults.
 #
-# Source choice (provider vs summary_bullets) is currently a profile-level
-# operational decision, not a measured comparison. Per-provider extraction
-# uses the configured summary provider's KG-extraction endpoint;
-# summary_bullets is the airgapped/offline fallback that walks summary text
-# instead of running a fresh extraction.
-#
-# The (max_topics, max_entities) = (10, 15) tuple is the universal default
-# across every YAML — these are caps, not sweeps, so a "winner" doesn't
-# meaningfully apply. The canonicalization thresholds 0.65 / 0.70 baked into
-# ``entity_clusters.py`` ARE measured (see #853 report).
+# Per-provider extraction reads the cleaned transcript directly via the
+# configured summary provider's KG-extraction endpoint. The legacy
+# `summary_bullets` source was removed in #1034 (per the #1033 audit) —
+# its option entry here is gone. The (max_topics, max_entities) = (10, 15)
+# tuple is the universal default across every YAML — these are caps, not
+# sweeps, so a "winner" doesn't meaningfully apply. The canonicalization
+# thresholds 0.65 / 0.70 baked into ``entity_clusters.py`` ARE measured
+# (see #853 report).
 _KG_OPTIONS: Dict[str, StageOption] = {
     "provider_n10_15": StageOption(
         stage="kg",
@@ -1160,19 +1158,6 @@ _KG_OPTIONS: Dict[str, StageOption] = {
         ),
         measured_at="2026-06-08",
         tier="primary",
-    ),
-    "summary_bullets_n10_15": StageOption(
-        stage="kg",
-        option_id="summary_bullets_n10_15",
-        provider="summary_bullets",
-        extra_settings={"max_topics": 10, "max_entities": 15},
-        research_ref="docs/guides/eval-reports/EVAL_ENTITY_CANON_2026_06_08.md",
-        headline_metric=(
-            "summary-bullets KG source for airgapped/offline profiles; same canon "
-            "thresholds (0.65/0.70) from #853 apply downstream"
-        ),
-        measured_at="2026-06-08",
-        tier="fallback",
     ),
 }
 
