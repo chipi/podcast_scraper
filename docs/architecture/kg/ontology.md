@@ -1,5 +1,13 @@
 # KG Ontology (v1)
 
+> **Superseded for v2.0+ by [`docs/architecture/corpus/ontology.md`](../corpus/ontology.md).**
+> The unified corpus ontology is the source of truth for KG schema v2.0+
+> ([RFC-097](../../rfc/RFC-097-unified-kg-gi-ontology-v2.md), 2026-06-20):
+> `Entity(kind=...)` is replaced by first-class `Person` / `Organization` /
+> `Podcast` nodes; `HAS_EPISODE` edge ships; `edge_class` metadata declares
+> evidentiary / descriptive / discovery / structural / attribution per edge.
+> This doc is retained as v1 archaeology.
+
 **Status:** **v1 frozen** (GitHub #464) — matches the shipped `build_artifact` pipeline and **`docs/architecture/kg/kg.schema.json`**. For design history see [PRD-019](../../prd/PRD-019-knowledge-graph-layer.md), [RFC-055](../../rfc/RFC-055-knowledge-graph-layer-core.md), and [RFC-056](../../rfc/RFC-056-knowledge-graph-layer-use-cases.md).
 
 **Shipping note:** The pipeline emits **Episode**, **Topic**, and **Entity** nodes plus **MENTIONS** edges (Topic or Entity → Episode) for extraction modes `stub`, `summary_bullets`, and `provider`. **`RELATED_TO`** is defined in the schema for forward compatibility but is **not** emitted by the v1 builder. **`extraction.model_version`** is `stub`, verbatim `summary_bullets`, `provider:<model>` (transcript `extract_kg_graph`), or `provider:summary_bullets:<model>` (LLM topics derived from summary bullets); ML-only summarization falls back to verbatim bullets when no API provider is available (see [Knowledge Graph Guide](../../guides/KNOWLEDGE_GRAPH_GUIDE.md)). Sibling pattern for GIL: Issue #460 in `docs/architecture/gi/ontology.md`.

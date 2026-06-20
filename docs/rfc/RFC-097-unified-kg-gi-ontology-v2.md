@@ -138,9 +138,9 @@ that never made it into a release.
    silver/judge vendor — #939 lesson).
 7. **Preserve the grounding contract bit-for-bit.** `Insight.grounded
    ⇔ ≥1 SUPPORTED_BY → Quote` invariant is non-negotiable. Viewer
-   dashed-border styling at `web/gi-kg-viewer/src/utils/cyGraphStylesheet.ts:402`
-   is the visible manifestation; `hideUngroundedInsights` is the
-   user-facing filter.
+   dashed-border styling at `web/gi-kg-viewer/src/utils/cyGraphStylesheet.ts:407`
+   (selector `node[type = "Insight"].insight-ungrounded`) is the visible
+   manifestation; `hideUngroundedInsights` is the user-facing filter.
 
 ## Constraints & Assumptions
 

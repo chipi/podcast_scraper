@@ -41,8 +41,16 @@ This architecture document is the central hub for understanding the system. For 
   Documents
 - **[RFCs](../rfc/index.md)** — Request for Comments
   (design decisions)
+- **[Unified Corpus Ontology (v2)](corpus/ontology.md)** —
+  single source of truth for KG v2.0+ and GI v3.0+
+  (RFC-097, 2026-06-20); two-tier edge contract,
+  `Person`/`Organization`/`Podcast` first-class,
+  `ABOUT`/`MENTIONS_PERSON`/`MENTIONS_ORG`,
+  `insight_type`+`position_hint`
 - **[GIL Ontology](gi/ontology.md)** — Grounded
   Insight Layer node/edge types and grounding contract
+  (**superseded by `corpus/ontology.md` for v3.0+**;
+  retained for archaeology)
 - **[GIL Schema](gi/gi.schema.json)** — Machine-
   readable JSON schema for `gi.json` validation
 - **[GIL / KG / CIL cross-layer](../guides/GIL_KG_CIL_CROSS_LAYER.md)** — `bridge.json`, CIL HTTP queries, search lift, offset verification (RFC-072)

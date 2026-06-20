@@ -29,8 +29,9 @@ vision for where the system is heading.
 
 | Folder | Contents |
 | --- | --- |
-| [gi/](gi/ontology.md) | Grounded Insight Layer (GIL) ontology — node/edge types, grounding contract, `gi.schema.json` |
-| [kg/](kg/README.md) | Knowledge Graph (KG) ontology — entities, topics, relationships, `kg.schema.json` |
+| [**corpus/**](corpus/ontology.md) | **Unified corpus ontology (v2)** — single source of truth for KG v2.0+ and GI v3.0+. Two-tier edge contract, `Person`/`Organization`/`Podcast` first-class, ABOUT/MENTIONS_PERSON/MENTIONS_ORG, `insight_type`+`position_hint`. ([RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md)) |
+| [gi/](gi/ontology.md) | Grounded Insight Layer (GIL) ontology — **superseded by `corpus/ontology.md` for v3.0+**; retained for v1/v2 archaeology |
+| [kg/](kg/README.md) | Knowledge Graph (KG) ontology — **superseded by `corpus/ontology.md` for v2.0+**; retained for v1 archaeology |
 
 ## Diagrams
 
