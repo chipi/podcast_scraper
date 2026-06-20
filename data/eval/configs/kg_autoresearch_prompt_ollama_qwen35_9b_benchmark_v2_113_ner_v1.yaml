@@ -1,0 +1,23 @@
+# #113 follow-up — Qwen3.5:9b Ollama held-out validation on benchmark_v2.
+# Mirrors the dev_v1 config (kg_autoresearch_prompt_ollama_qwen35_9b_dev_113_ner_v1)
+# but targets the held-out curated_5feeds_benchmark_v2 dataset against the
+# Sonnet 4.6 silver — cross-dataset + cross-vendor sanity check before
+# proposing 9B as the default for `airgapped_thin` / `local_dgx_balanced`.
+id: autoresearch_prompt_ollama_qwen35_9b_benchmark_v2_113_ner_v1
+task: knowledge_graph
+backend:
+  type: ollama
+  model: qwen3.5:9b
+  base_url: http://localhost:11434
+prompts:
+  system: ollama/qwen3.5_35b/summarization/system_v1
+  user: ollama/qwen3.5_35b/summarization/long_v1
+data:
+  dataset_id: curated_5feeds_benchmark_v2
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.7
+  kg_extraction_source: provider
+  kg_extraction_use_ner_prepass: true
+preprocessing_profile: cleaning_v4

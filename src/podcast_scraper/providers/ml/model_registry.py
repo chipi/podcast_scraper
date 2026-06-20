@@ -935,6 +935,13 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         resident_memory_gb=19.0,
     ),
     # Smaller local for laptop / dev profiles.
+    # #113 small-model standoff (2026-06-20): under #1035 NER pre-pass, this
+    # 9B Q4 model rides spaCy PERSON+ORG hints to 97% entity coverage (29/30
+    # on silver_opus47_kg_dev_v1) — within 3pp of Cell F NVFP4's 100%, at
+    # 73% smaller weight footprint. Topic coverage 66% essentially ties Cell
+    # F (65%). NER pre-pass effectively closes the model-size gap for KG /
+    # entity extraction. Candidate for `airgapped_thin` / `local_dgx_balanced`
+    # default after benchmark_v2 held-out validation lands.
     "ollama_qwen35_9b": StageOption(
         stage="summary",
         option_id="ollama_qwen35_9b",
@@ -942,9 +949,13 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         model="qwen3.5:9b",
         endpoint="http://{dgx_tailnet_host}:11434/v1",
         extra_settings={"think": False, "bundled_mode_caveat": "fragile in bundled mode"},
-        research_ref="docs/guides/eval-reports/EVAL_HELDOUT_V2_2026_04.md",
-        headline_metric="0.529 bullets / 0.509 para — local DGX entry-level",
-        measured_at="2026-04-16",
+        research_ref="docs/wip/EVAL_113_SMALL_MODEL_STANDOFF.md",
+        headline_metric=(
+            "Summary 0.529 bullets / 0.509 para (#928). #113 small-model "
+            "standoff under #1035 NER pre-pass: KG topic 66% / entity 97% — "
+            "within 3pp of Cell F NVFP4 at 6.6 GB footprint."
+        ),
+        measured_at="2026-06-20",
         tier="fallback",
         resident_memory_gb=6.6,
     ),
@@ -1014,14 +1025,19 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         tier="primary",
         resident_memory_gb=67.0,
     ),
-    # vLLM-served Moonlight-16B-A3B-Instruct — #1016 Round 3 safe pick.
-    # As of #1022 (2026-06-19), supplanted by Qwen3-30B-A3B-NVFP4 (Cell F)
-    # which dominates Moonlight in 4 of 5 dimensions (loses summary -6%,
-    # wins GI +161% / KG +45% / speed -5% / weight footprint -44%). The
-    # Moonlight option is retained here in case style-neutrality (Δ S−O =
-    # 0.0 across all 3 stages) is required for a specific cross-vendor
-    # judging context — but the daily-driver autoresearch slot is now
-    # Qwen3-30B-A3B-NVFP4 per the #1022 cohort comparison.
+    # vLLM-served Moonlight-16B-A3B-Instruct — #1016 Round 3 included it as the
+    # style-neutral "safe pick" (Δ S−O = 0.0 across all 3 stages). That role
+    # has since compressed to "speed-only choice when entity quality is not a
+    # gate":
+    #   - #1022 (2026-06-19): supplanted on autoresearch tier by Cell F NVFP4
+    #     (Cell F wins GI +161% / KG +45% / speed -5% / footprint -44%)
+    #   - #113 (2026-06-20) under #1035 NER pre-pass: lowest topic coverage
+    #     in the cohort (54%, vs Cell F 65% / Qwen3.5:9b 66%) AND the only
+    #     candidate emitting NER false-positive entities (+4 extras). MoE
+    #     small active-params (~3B/token) trade discrimination for speed —
+    #     under NER hints, denser models filter the candidate list better.
+    # Retained here only as a speed-priority option when KG entity quality
+    # isn't gating.
     # Requires `--max-model-len=8192` (model's max_position_embeddings).
     "vllm_moonlight_16b_a3b": StageOption(
         stage="summary",
@@ -1034,14 +1050,14 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
             "compose_flag_required": "--trust-remote-code --max-model-len=8192",
             "vendor_sampling": "greedy (no vendor recommendation)",
         },
-        research_ref="docs/wip/EVAL_1016_FINAL_REPORT_2026_06_17.md",
+        research_ref="docs/wip/EVAL_113_SMALL_MODEL_STANDOFF.md",
         headline_metric=(
-            "ROUGE-1 vs Opus 57.5%, cosine 78.6%. GI 16% (cohort floor — small "
-            "MoE active params hurt extraction). KG 29% (stable vs R1/2). "
-            "9.0s/ep (cohort speed leader after DSV2-Lite). Δ S−O = 0.0 across "
-            "all 3 stages — truly style-neutral."
+            "Summary ROUGE-1 vs Opus 57.5%, cosine 78.6% (#1016 R3). "
+            "#113 under #1035 NER pre-pass: KG topic 54% (cohort floor), "
+            "entity 93% (4 false positives — only candidate with extras). "
+            "Speed-priority choice only; not for entity-quality-gated work."
         ),
-        measured_at="2026-06-17",
+        measured_at="2026-06-20",
         tier="primary",
         resident_memory_gb=32.0,
     ),
