@@ -59,17 +59,19 @@ def runtime_config_for_knowledge_graph_eval(params: Optional[Dict[str, Any]]) ->
     if raw not in ("stub", "provider"):
         raw = "stub"
     source = cast(Literal["stub", "provider"], raw)
-    return Config.model_validate(
-        {
-            "rss": "",
-            "generate_metadata": True,
-            "generate_summaries": False,
-            "generate_gi": False,
-            "generate_kg": True,
-            "kg_extraction_source": source,
-            "transcribe_missing": False,
-        }
-    )
+    payload: Dict[str, Any] = {
+        "rss": "",
+        "generate_metadata": True,
+        "generate_summaries": False,
+        "generate_gi": False,
+        "generate_kg": True,
+        "kg_extraction_source": source,
+        "transcribe_missing": False,
+    }
+    # #1035 — NER pre-pass opt-in for KG eval cells
+    if p.get("kg_extraction_use_ner_prepass") is not None:
+        payload["kg_extraction_use_ner_prepass"] = bool(p["kg_extraction_use_ner_prepass"])
+    return Config.model_validate(payload)
 
 
 def merge_eval_task_into_summarizer_config(
@@ -146,5 +148,8 @@ def merge_eval_task_into_summarizer_config(
             updates_kg["kg_max_topics"] = int(p["kg_max_topics"])
         if p.get("kg_max_entities") is not None:
             updates_kg["kg_max_entities"] = int(p["kg_max_entities"])
+        # #1035 — NER pre-pass opt-in for KG eval cells
+        if p.get("kg_extraction_use_ner_prepass") is not None:
+            updates_kg["kg_extraction_use_ner_prepass"] = bool(p["kg_extraction_use_ner_prepass"])
         return base.model_copy(update=updates_kg)
     raise ValueError(f"merge_eval_task_into_summarizer_config: unsupported task {task!r}")
