@@ -12,9 +12,12 @@ this module applies graph-specific fallbacks (``topic``, ``unknown``) and length
 from __future__ import annotations
 
 import hashlib
-from typing import Any
+from typing import Any, Dict
 
 from podcast_scraper.identity.slugify import slugify as canonical_slugify
+
+#: v2.0 (RFC-097) plus legacy: node types treated as Person/Org "entity-like".
+PERSON_ORG_NODE_TYPES = frozenset({"Entity", "Person", "Organization"})
 
 
 def slugify_label(label: str, max_len: int = 80) -> str:
@@ -86,3 +89,36 @@ def gil_quote_node_id(
     payload = f"{episode_id}\0{quote_index}\0{text_key}\0{char_start}\0{char_end}".encode("utf-8")
     h = hashlib.sha256(payload).hexdigest()[:16]
     return f"quote:{h}"
+
+
+def is_person_or_org_node(node_type: Any) -> bool:
+    """True for both legacy ``Entity`` and v2.0 ``Person`` / ``Organization`` (RFC-097)."""
+    return isinstance(node_type, str) and node_type in PERSON_ORG_NODE_TYPES
+
+
+def normalized_entity_kind_from_node(node: Dict[str, Any]) -> str:
+    """Return ``"person"`` | ``"organization"`` regardless of v1.x or v2.0 shape.
+
+    v1.x: ``Entity`` node with ``properties.kind`` = ``"person"`` / ``"org"`` (v1.2)
+    or ``properties.entity_kind`` = ``"person"`` / ``"organization"`` (legacy).
+    v2.0 (RFC-097): ``Person`` or ``Organization`` node (kind encoded in node type).
+    """
+    nt = node.get("type") if isinstance(node, dict) else None
+    if nt == "Person":
+        return "person"
+    if nt == "Organization":
+        return "organization"
+    props = node.get("properties") if isinstance(node, dict) else None
+    if not isinstance(props, dict):
+        return "person"
+    raw = props.get("kind")
+    if raw == "org":
+        return "organization"
+    if raw == "person":
+        return "person"
+    raw_ek = props.get("entity_kind")
+    if raw_ek == "organization":
+        return "organization"
+    if raw_ek == "person":
+        return "person"
+    return "person"

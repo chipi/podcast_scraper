@@ -50,7 +50,10 @@ class TestKGPrefilled:
 
         topic_labels = [n["properties"]["label"] for n in out["nodes"] if n["type"] == "Topic"]
         assert topic_labels == ["blockchain governance", "roman empire", "algorithmic trading"]
-        entity_names = [n["properties"]["name"] for n in out["nodes"] if n["type"] == "Entity"]
+        # RFC-097 v2.0: typed Person + Organization replace Entity discriminator.
+        entity_names = [
+            n["properties"]["name"] for n in out["nodes"] if n["type"] in ("Person", "Organization")
+        ]
         assert "Alice" in entity_names
         assert "Acme Corp" in entity_names
 

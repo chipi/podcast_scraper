@@ -80,12 +80,19 @@ def add_episode_show_edges(artifact: Dict, show_title: str) -> int:
 
 
 def kg_entity_names(kg_artifact: Dict) -> Dict[str, str]:
-    """Extract ``{entity_id: surface_name}`` from a KG artifact (the match source)."""
+    """Extract ``{entity_id: surface_name}`` from a KG artifact (the match source).
+
+    Permissive over v1.x ``Entity`` and v2.0 ``Person`` / ``Organization``
+    node types (RFC-097).
+    """
+    from ..graph_id_utils import is_person_or_org_node
+
     out: Dict[str, str] = {}
     for node in kg_artifact.get("nodes") or []:
-        if node.get("type") == "Entity":
-            eid = node.get("id")
-            name = (node.get("properties") or {}).get("name")
-            if isinstance(eid, str) and isinstance(name, str) and name.strip():
-                out[eid] = name.strip()
+        if not is_person_or_org_node(node.get("type")):
+            continue
+        eid = node.get("id")
+        name = (node.get("properties") or {}).get("name")
+        if isinstance(eid, str) and isinstance(name, str) and name.strip():
+            out[eid] = name.strip()
     return out

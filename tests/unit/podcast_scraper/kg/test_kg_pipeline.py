@@ -12,7 +12,7 @@ class TestKgPipeline(unittest.TestCase):
     """Tests for build_artifact."""
 
     def test_build_artifact_minimal_passes_strict_schema(self) -> None:
-        """Episode-only graph validates against kg.schema.json."""
+        """v2.0 (RFC-097): minimal graph emits Episode + Podcast + HAS_EPISODE."""
         art = build_artifact(
             "episode:test-1",
             "Hello transcript.",
@@ -21,11 +21,17 @@ class TestKgPipeline(unittest.TestCase):
             publish_date="2024-01-15T12:00:00Z",
             transcript_ref="transcripts/ep.txt",
         )
-        self.assertEqual(art["schema_version"], "1.2")
+        self.assertEqual(art["schema_version"], "2.0")
         self.assertEqual(art["episode_id"], "episode:test-1")
-        self.assertEqual(len(art["nodes"]), 1)
-        self.assertEqual(art["nodes"][0]["type"], "Episode")
-        self.assertEqual(art["nodes"][0]["id"], "episode:episode:test-1")
+        types = {n["type"] for n in art["nodes"]}
+        self.assertEqual(types, {"Episode", "Podcast"})
+        ep_node = next(n for n in art["nodes"] if n["type"] == "Episode")
+        self.assertEqual(ep_node["id"], "episode:episode:test-1")
+        # HAS_EPISODE edge from Podcast → Episode (RFC-097 chunk 3)
+        has_episode_edges = [e for e in art["edges"] if e["type"] == "HAS_EPISODE"]
+        self.assertEqual(len(has_episode_edges), 1)
+        self.assertEqual(has_episode_edges[0]["from"], "podcast:abc")
+        self.assertEqual(has_episode_edges[0]["to"], "episode:episode:test-1")
         validate_artifact(art, strict=True)
 
     def test_build_artifact_feed_id_lands_on_episode_properties(self) -> None:
@@ -54,11 +60,11 @@ class TestKgPipeline(unittest.TestCase):
         self.assertNotIn("feed_id", ep_nodes[0]["properties"])
 
     def test_build_artifact_topic_and_hosts(self) -> None:
-        """Topic + host entities produce MENTIONS edges to Episode."""
+        """v2.0: topic + host Person nodes produce MENTIONS edges to Episode."""
         art = build_artifact(
             "ep:x",
             "x",
-            podcast_id="p:1",
+            podcast_id="podcast:p1",
             episode_title="T",
             topic_label="Inflation outlook",
             detected_hosts=["Alice"],
@@ -68,16 +74,16 @@ class TestKgPipeline(unittest.TestCase):
         types = {n["type"] for n in art["nodes"]}
         self.assertIn("Episode", types)
         self.assertIn("Topic", types)
-        self.assertIn("Entity", types)
+        self.assertIn("Person", types)  # RFC-097: hosts/guests emit as Person
         self.assertTrue(any(e["type"] == "MENTIONS" for e in art["edges"]))
 
     def test_stub_source_skips_summary_topics(self) -> None:
-        """stub + cfg: topic hints do not create Topic nodes."""
+        """stub + cfg: topic hints do not create Topic nodes; v2.0 Person for host."""
         cfg = SimpleNamespace(kg_extraction_source="stub")
         art = build_artifact(
             "ep:stub",
             "transcript",
-            podcast_id="p:1",
+            podcast_id="podcast:p1",
             episode_title="T",
             cfg=cfg,
             topic_label="Should not appear",
@@ -86,7 +92,7 @@ class TestKgPipeline(unittest.TestCase):
         validate_artifact(art, strict=True)
         types = {n["type"] for n in art["nodes"]}
         self.assertIn("Episode", types)
-        self.assertIn("Entity", types)
+        self.assertIn("Person", types)  # RFC-097: host emits as Person
         self.assertNotIn("Topic", types)
         self.assertEqual(art["extraction"]["model_version"], "stub")
 
@@ -230,7 +236,8 @@ class TestKgPipeline(unittest.TestCase):
         self.assertEqual(metrics.kg_provider_extractions, 1)
         types = {n["type"] for n in art["nodes"]}
         self.assertIn("Topic", types)
-        self.assertIn("Entity", types)
+        # RFC-097 v2.0: typed Person / Organization replace Entity discriminator.
+        self.assertTrue(types & {"Person", "Organization"})
         self.assertTrue(art["extraction"]["model_version"].startswith("provider:"))
 
     def test_provider_entities_dedup_by_kind_and_name(self) -> None:
@@ -260,11 +267,12 @@ class TestKgPipeline(unittest.TestCase):
             kg_extraction_provider=prov,
         )
         validate_artifact(art, strict=True)
-        entities = [n for n in art["nodes"] if n["type"] == "Entity"]
-        kinds = sorted((n["properties"]["kind"], n["properties"]["name"]) for n in entities)
+        # RFC-097 v2.0: typed Person + Organization nodes (was Entity(kind=...)).
+        entities = [n for n in art["nodes"] if n["type"] in ("Person", "Organization")]
+        kinds = sorted((n["type"], n["properties"]["name"]) for n in entities)
         self.assertEqual(
             kinds,
-            [("org", "Mercury"), ("person", "Mercury")],
+            [("Organization", "Mercury"), ("Person", "Mercury")],
         )
         self.assertEqual(len(entities), 2)
 
@@ -292,10 +300,11 @@ class TestKgPipeline(unittest.TestCase):
             detected_hosts=["ACME"],
         )
         validate_artifact(art, strict=True)
-        entities = [n for n in art["nodes"] if n["type"] == "Entity"]
-        kinds = {(n["properties"]["kind"], n["properties"]["name"]) for n in entities}
-        self.assertIn(("org", "ACME"), kinds)
-        self.assertIn(("person", "ACME"), kinds)
+        # RFC-097 v2.0: typed Person + Organization (host emits Person; LLM emits Organization).
+        entities = [n for n in art["nodes"] if n["type"] in ("Person", "Organization")]
+        kinds = {(n["type"], n["properties"]["name"]) for n in entities}
+        self.assertIn(("Organization", "ACME"), kinds)
+        self.assertIn(("Person", "ACME"), kinds)
         self.assertEqual(len(entities), 2)
 
     def test_provider_path_propagates_llm_descriptions(self) -> None:
@@ -325,5 +334,88 @@ class TestKgPipeline(unittest.TestCase):
         validate_artifact(art, strict=True)
         topics = [n for n in art["nodes"] if n["type"] == "Topic"]
         self.assertEqual(topics[0]["properties"].get("description"), "Why X matters.")
-        ents = [n for n in art["nodes"] if n["type"] == "Entity"]
+        # RFC-097 v2.0: description landed on the typed Person node.
+        ents = [n for n in art["nodes"] if n["type"] in ("Person", "Organization")]
         self.assertEqual(ents[0]["properties"].get("description"), "Guest expert.")
+
+    # ─── RFC-097 chunk 3 — explicit v2.0 emission contracts ───
+
+    def test_v2_emission_drops_legacy_kind_property(self) -> None:
+        """v2.0: Person / Organization nodes drop the legacy `kind` discriminator
+        (node type is the discriminator now)."""
+        prov = MagicMock()
+        prov.summary_model = "m"
+        prov.extract_kg_graph.return_value = {
+            "topics": [],
+            "entities": [
+                {"name": "Pat", "entity_kind": "person"},
+                {"name": "ACME", "entity_kind": "organization"},
+            ],
+        }
+        cfg = SimpleNamespace(
+            kg_extraction_source="provider",
+            kg_max_topics=5,
+            kg_max_entities=10,
+            kg_merge_pipeline_entities=False,
+        )
+        art = build_artifact(
+            "ep:v2-shape",
+            "t",
+            podcast_id="podcast:p",
+            episode_title="E",
+            cfg=cfg,
+            kg_extraction_provider=prov,
+        )
+        validate_artifact(art, strict=True)
+        ents = [n for n in art["nodes"] if n["type"] in ("Person", "Organization")]
+        for n in ents:
+            self.assertNotIn(
+                "kind",
+                n["properties"],
+                f"Legacy `kind` discriminator must not be emitted on v2 {n['type']} node",
+            )
+
+    def test_v2_emission_podcast_node_and_has_episode_edge(self) -> None:
+        """v2.0: Podcast node + HAS_EPISODE edge land alongside Episode."""
+        art = build_artifact(
+            "ep:show",
+            "t",
+            podcast_id="podcast:the-journal",
+            episode_title="Ep",
+        )
+        validate_artifact(art, strict=True)
+        podcasts = [n for n in art["nodes"] if n["type"] == "Podcast"]
+        self.assertEqual(len(podcasts), 1)
+        self.assertEqual(podcasts[0]["id"], "podcast:the-journal")
+        self.assertEqual(podcasts[0]["properties"]["title"], "The Journal")
+        has_ep = [e for e in art["edges"] if e["type"] == "HAS_EPISODE"]
+        self.assertEqual(len(has_ep), 1)
+        self.assertEqual(has_ep[0]["from"], "podcast:the-journal")
+        self.assertEqual(has_ep[0]["to"], "episode:ep:show")
+
+    def test_v2_emission_skips_podcast_unknown_placeholder(self) -> None:
+        """v2.0: skip Podcast node + HAS_EPISODE for the `podcast:unknown` placeholder."""
+        art = build_artifact(
+            "ep:nopod",
+            "t",
+            podcast_id="",  # build_artifact substitutes "podcast:unknown"
+            episode_title="Ep",
+        )
+        validate_artifact(art, strict=True)
+        podcasts = [n for n in art["nodes"] if n["type"] == "Podcast"]
+        has_ep = [e for e in art["edges"] if e["type"] == "HAS_EPISODE"]
+        self.assertEqual(podcasts, [])
+        self.assertEqual(has_ep, [])
+
+    def test_v2_emission_normalizes_unprefixed_podcast_id(self) -> None:
+        """v2.0: bare `podcast_id` (no 'podcast:' prefix) is normalized for the node."""
+        art = build_artifact(
+            "ep:bare",
+            "t",
+            podcast_id="my-show",
+            episode_title="Ep",
+        )
+        validate_artifact(art, strict=True)
+        podcasts = [n for n in art["nodes"] if n["type"] == "Podcast"]
+        self.assertEqual(len(podcasts), 1)
+        self.assertEqual(podcasts[0]["id"], "podcast:my-show")

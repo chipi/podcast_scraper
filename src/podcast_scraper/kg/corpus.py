@@ -115,12 +115,19 @@ def inspect_summary(
             if isinstance(td, str) and td.strip():
                 trow["description"] = td.strip()
             topics.append(trow)
-        elif nt == "Entity":
+        elif nt in ("Entity", "Person", "Organization"):
+            # RFC-097: v1.x Entity + v2.0 Person/Organization roll up together.
             ed = props.get("description")
+            if nt == "Person":
+                ek_disp: Optional[str] = "person"
+            elif nt == "Organization":
+                ek_disp = "organization"
+            else:
+                ek_disp = _kg_entity_kind_display(props)
             erow: Dict[str, Any] = {
                 "id": str(n.get("id", "")),
                 "name": str(props.get("name", "")),
-                "entity_kind": _kg_entity_kind_display(props),
+                "entity_kind": ek_disp,
                 "role": props.get("role"),
             }
             if isinstance(ed, str) and ed.strip():
@@ -173,16 +180,22 @@ def build_embedding_document_for_kg_node(
         desc = props.get("description")
         if isinstance(desc, str) and desc.strip():
             parts.append(desc.strip())
-    elif nt == "Entity":
+    elif nt in ("Entity", "Person", "Organization"):
+        # RFC-097: v1.x Entity + v2.0 Person/Organization embed the same fields.
         name = props.get("name")
         if name:
             parts.append(str(name).strip())
         label = props.get("label")
         if label and str(label).strip() != str(name or "").strip():
             parts.append(str(label).strip())
-        ek_disp = _kg_entity_kind_display(props)
-        if ek_disp:
-            parts.append(f"kind:{ek_disp}")
+        if nt == "Person":
+            ek_disp2: Optional[str] = "person"
+        elif nt == "Organization":
+            ek_disp2 = "organization"
+        else:
+            ek_disp2 = _kg_entity_kind_display(props)
+        if ek_disp2:
+            parts.append(f"kind:{ek_disp2}")
         role = props.get("role")
         if role:
             parts.append(f"role:{role}")
@@ -222,13 +235,20 @@ def entity_rollup(
                 pass
         edges = art.get("edges") or []
         for n in art.get("nodes", []):
-            if n.get("type") != "Entity":
+            nt = n.get("type")
+            # RFC-097: rollup covers v1.x Entity + v2.0 Person/Organization.
+            if nt not in ("Entity", "Person", "Organization"):
                 continue
             props = n.get("properties") or {}
             name = str(props.get("name", "")).strip()
             if not name:
                 continue
-            kind = _kg_entity_kind_display(props)
+            if nt == "Person":
+                kind: Optional[str] = "person"
+            elif nt == "Organization":
+                kind = "organization"
+            else:
+                kind = _kg_entity_kind_display(props)
             key = f"{kind}:{name.lower()}"
             if key not in agg:
                 agg[key] = {
