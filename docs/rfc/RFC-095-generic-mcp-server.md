@@ -2,6 +2,7 @@
 
 - **Status**: Implemented (v1 — stdio); HTTP/SSE transport + RFC-093 tool deferred
 - **Updated**: 2026-06-20 (reconciled with shipped code; search layer is now LanceDB-first)
+- **v2 cross-reference (RFC-097, 2026-06-20)**: prerequisite — stable CIL IDs (RFC-072 + RFC-097) needed for stable tool schemas. MCP server design itself unchanged by v2; HTTP/SSE transport, MCP resources, QueryEnricher tool remain open. See [RFC-097](RFC-097-unified-kg-gi-ontology-v2.md).
 - **Authors**: Marko
 - **Stakeholders**: Core team
 - **Related PRDs**:

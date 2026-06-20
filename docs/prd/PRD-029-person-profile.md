@@ -1,6 +1,7 @@
 # PRD-029: Person Profile
 
 - **Status**: Draft
+- **v2 closure (RFC-097, 2026-06-20)**: Person Profile data foundation + viewer surface delivered by RFC-097 v2 (chunk 8). `person_profile` query pattern (RFC-072 §5B) closes. Analytical ranking/curation (analysis layer) + multi-corpus aggregation remain open. See [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md).
 - **Authors**: Marko
 - **Target Release**: TBD
 - **Related RFCs**:

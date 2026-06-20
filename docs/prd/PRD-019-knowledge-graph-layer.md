@@ -1,6 +1,7 @@
 # PRD-019: Knowledge Graph Layer (KG)
 
 - **Status**: Partially implemented (v2.6.0)
+- **v2 closure (RFC-097, 2026-06-20)**: FR3.1 (documented entity node types — Person/Org/Podcast first-class), entity identity fragmentation closed via CIL (`entity:person:` → `person:`), KG schema v2.0 ships. Non-Goal "merging KG into gi.json" clarified: v2 unifies the **ontology**, not the file layout. RFC-056 use-case spec + RFC-051 DB projection + perfect entity resolution remain open. See [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md).
 - **Authors**: Podcast Scraper Team
 - **Related RFCs** (RFCs whose **Related PRD** is PRD-019 in [RFC index](../rfc/index.md); they specify or ship this feature):
   - [RFC-055](../rfc/RFC-055-knowledge-graph-layer-core.md) — KG core & artifacts (**complete**)

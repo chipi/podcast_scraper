@@ -1,6 +1,7 @@
 # PRD-017: Grounded Insight Layer (GIL)
 
 - **Status**: Partially implemented (v2.6.0)
+- **v2 closure (RFC-097, 2026-06-20)**: FR1.3 (Insight → Topic via ABOUT), FR1.4 (`insight_type` marking), entity v1.1 deferral retired (Person/Org first-class via MENTIONS_PERSON/MENTIONS_ORG attribution per Insight), GI schema v3.0 ships. RFC-050 Insight Explorer + RFC-051 DB projection remain open. See [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md).
 - **Authors**: Podcast Scraper Team
 - **Related RFCs** (RFCs whose **Related PRD** is PRD-017 in [RFC index](../rfc/index.md); they specify or ship this feature):
   - [RFC-049](../rfc/RFC-049-grounded-insight-layer-core.md) — GIL core & artifacts (**complete**)

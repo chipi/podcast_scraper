@@ -1,6 +1,7 @@
 # PRD-028: Position Tracker
 
 - **Status**: Draft
+- **v2 closure (RFC-097, 2026-06-20)**: Position Tracker data foundation + viewer surface delivered by RFC-097 v2 (chunk 8). `position_arc` query pattern (RFC-072 §5A), `insight_type` filtering (claim vs. recommendation), `position_hint` temporal ordering all close. Position-change detection (analysis layer, v3) + multi-corpus cross-show view remain open. See [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md).
 - **Authors**: Marko
 - **Target Release**: TBD
 - **Related RFCs**:

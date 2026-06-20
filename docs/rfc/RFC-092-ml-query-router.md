@@ -1,6 +1,7 @@
 # RFC-092: ML Query Router
 
 - **Status**: Draft
+- **v2 cross-reference (RFC-097, 2026-06-20)**: orthogonal to RFC-097 v2; rules-router design unchanged. Intent taxonomy may extend post-v2 if new node types (Person/Org/Podcast) enable new intent classes (e.g., position-tracking vs. semantic search). See [RFC-097](RFC-097-unified-kg-gi-ontology-v2.md).
 - **Authors**: Marko
 - **Stakeholders**: Core team
 - **Related PRDs**:

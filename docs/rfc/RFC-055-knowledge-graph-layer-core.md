@@ -1,6 +1,7 @@
 # RFC-055: Knowledge Graph Layer — Core Concepts & Data Model
 
 - **Status**: Completed (KG artifact **v1** ontology + JSON Schema **frozen** per GitHub #464)
+- **v2 closure (RFC-097, 2026-06-20)**: `Entity(kind=...)` discriminator replaced by typed `Person` + `Organization` + `Podcast` nodes; KG ontology v2.0 ships with `edge_class` metadata + new `HAS_EPISODE` edge. Migration: `scripts/migrate_kg_entity_to_person_org.py`. Topic semantic dedup remains v3. See [RFC-097](RFC-097-unified-kg-gi-ontology-v2.md).
 - **Authors**: Podcast Scraper Team
 - **Stakeholders**: Core team, downstream consumers
 - **Related PRDs**:

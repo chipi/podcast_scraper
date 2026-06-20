@@ -1,6 +1,7 @@
 # RFC-093: LITM-Aware MCP Context Packs
 
 - **Status**: Draft
+- **v2 cross-reference (RFC-097, 2026-06-20)**: `CorpusBriefingPack` builder gains richer inputs from RFC-097 v2 — `insight_type` for filtering (claim/recommendation/observation/question), `position_hint` for temporal sorting. MCP tool wrapper (RFC-095 prerequisite), `top_contradiction` content (CONTRADICTS edges v3), and `coverage_gaps` surface (corpus-impact TBD) remain open. See [RFC-097](RFC-097-unified-kg-gi-ontology-v2.md).
 - **Authors**: Marko
 - **Stakeholders**: Core team
 - **Related PRDs**:
