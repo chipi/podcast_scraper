@@ -764,7 +764,10 @@ class TestGILPipeline:
         ins = next(n for n in out["nodes"] if n["type"] == "Insight")
         assert ins["properties"]["position_hint"] == pytest.approx(0.5)
 
-    def test_artifact_position_hint_fallback_uses_nonzero_starts(self):
+    def test_artifact_position_hint_fallback_uses_segments_end(self):
+        """RFC-097 chunk 5: when ``episode_duration_ms`` is missing, the waterfall's
+        step 2 uses the last segment's ``end`` as the duration before falling through
+        to step 3 (max Quote timestamp_end_ms)."""
         transcript = "ab"
         segments = [
             {"start": 5.0, "end": 6.0, "text": "a"},
@@ -786,8 +789,9 @@ class TestGILPipeline:
             episode_duration_ms=None,
         )
         ins = next(n for n in out["nodes"] if n["type"] == "Insight")
-        # Quote "a" in first segment: 5000-6000 ms; fallback dur = max end = 6000 for one quote
-        assert ins["properties"]["position_hint"] == pytest.approx(round(5000 / 6000.0, 2))
+        # Quote "a" starts at 5000 ms; step-2 duration = last segment end (20 s × 1000)
+        # = 20000 ms ⇒ 5000 / 20000 = 0.25 (rounded).
+        assert ins["properties"]["position_hint"] == pytest.approx(round(5000 / 20000.0, 2))
 
     def test_build_artifact_with_insight_texts_produces_multiple_insights(self):
         """build_artifact(..., insight_texts=[...]) produces one Insight per text."""

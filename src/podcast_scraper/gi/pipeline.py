@@ -783,22 +783,31 @@ def _position_hint_from_timestamp_starts(
     episode_duration_ms: Optional[int],
     *,
     duration_fallback_ms: Optional[int] = None,
+    transcript_segments: Optional[List[Any]] = None,
 ) -> Optional[float]:
-    """Mean quote start ms / episode duration, rounded (or None).
+    """Mean quote start ms / episode duration, via RFC-097 4-step waterfall.
 
-    When ``episode_duration_ms`` is missing, ``duration_fallback_ms`` may be set to a
-    positive value (e.g. max quote ``timestamp_end_ms`` for the insight) so arcs still get
-    a weak ordering signal instead of omitting ``position_hint`` entirely.
+    Delegates to :func:`gi.position_hint.compute_position_hint`. Step ordering:
+
+    1. ``episode_duration_ms`` from RSS ``<itunes:duration>``
+    2. Last segment's ``end × 1000`` from ``transcript_segments`` (NEW, RFC-097
+       chunk 5)
+    3. ``duration_fallback_ms`` (typically ``max(Quote.timestamp_end_ms)``)
+    4. Skip emission (returns ``None``)
+
+    ``transcript_segments`` is optional; when omitted the function falls
+    through to step 3 (preserves pre-RFC-097 behavior at call sites that
+    don't yet thread segments).
     """
-    dur: Optional[int] = None
-    if episode_duration_ms and episode_duration_ms > 0:
-        dur = episode_duration_ms
-    elif duration_fallback_ms and duration_fallback_ms > 0:
-        dur = duration_fallback_ms
-    if not dur or not timestamp_starts_ms:
-        return None
-    mean_start = sum(timestamp_starts_ms) / len(timestamp_starts_ms)
-    return round(min(mean_start / float(dur), 1.0), 2)
+    from .position_hint import compute_position_hint
+
+    value, _step = compute_position_hint(
+        timestamp_starts_ms,
+        episode_duration_ms,
+        transcript_segments=transcript_segments,
+        quote_end_fallback_ms=duration_fallback_ms,
+    )
+    return value
 
 
 def _build_stub_artifact(
@@ -897,12 +906,25 @@ def _build_stub_artifact(
     }
 
 
+#: RFC-097/gi.schema.json v3.0: legal Insight.insight_type values.
+_INSIGHT_TYPE_ALLOWED = frozenset({"claim", "recommendation", "observation", "question", "unknown"})
+
+#: Legacy upstream synonyms (megabundle/extraction-bundled prompts pre-RFC-097
+#: emitted ``claim | fact | opinion`` per ``prompting/megabundle.py``). Mapped
+#: to the schema-valid vocab so prefilled artifacts stay queryable post-v3.0.
+_INSIGHT_TYPE_LEGACY_SYNONYMS = {
+    "fact": "claim",
+    "opinion": "observation",
+}
+
+
 def _normalize_insight_type(raw: Any) -> str:
-    allowed = frozenset({"claim", "recommendation", "observation", "question", "unknown"})
     if isinstance(raw, str):
         k = raw.strip().lower()
-        if k in allowed:
+        if k in _INSIGHT_TYPE_ALLOWED:
             return k
+        if k in _INSIGHT_TYPE_LEGACY_SYNONYMS:
+            return _INSIGHT_TYPE_LEGACY_SYNONYMS[k]
     return "unknown"
 
 
@@ -1063,9 +1085,12 @@ def build_artifact(
             text = str(item.get("text") or "").strip()
             if not text:
                 continue
-            itype = str(item.get("insight_type") or "claim").strip().lower()
-            if itype not in {"claim", "fact", "opinion"}:
-                itype = "claim"
+            # RFC-097 v3.0 + gi.schema.json: vocab is
+            # {claim, recommendation, observation, question, unknown}.
+            # Falls back to "claim" when the prefilled item carries no type
+            # (matches the legacy default for prefilled insights).
+            raw_itype = item.get("insight_type")
+            itype = _normalize_insight_type(raw_itype) if raw_itype else "claim"
             insight_specs.append((text, itype))
             if len(insight_specs) >= max_insights_pref:
                 break
@@ -1386,6 +1411,7 @@ def _artifact_from_multi_insight(
             timestamp_starts_ms,
             episode_duration_ms,
             duration_fallback_ms=duration_fb,
+            transcript_segments=transcript_segments,
         )
         if ph is not None:
             insight_props["position_hint"] = ph
