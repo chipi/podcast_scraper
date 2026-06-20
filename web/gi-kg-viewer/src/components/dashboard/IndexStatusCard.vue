@@ -1,13 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useIndexStatsStore } from '../../stores/indexStats'
-import { useShellStore } from '../../stores/shell'
 
-const emit = defineEmits<{
-  'rebuild-index': []
-}>()
-
-const shell = useShellStore()
 const indexStats = useIndexStatsStore()
 
 const indexedLabel = computed(() => {
@@ -41,6 +35,11 @@ const lastRebuild = computed(() => {
 </script>
 
 <template>
+  <!--
+    Status-only card. Rebuild *actions* live in the Configuration "Vector index"
+    dialog (single canonical place per concern — UXS-001 consolidation). The
+    button below routes there rather than triggering a rebuild inline.
+  -->
   <div
     class="rounded border border-border bg-surface p-3 text-surface-foreground"
     data-testid="index-status-card"
@@ -64,38 +63,14 @@ const lastRebuild = computed(() => {
     >
       Last rebuild error: {{ indexStats.indexEnvelope.rebuild_last_error }}
     </p>
-    <div class="mt-2 flex flex-wrap gap-2">
+    <div class="mt-2">
       <button
         type="button"
-        class="rounded border border-border px-2 py-1 text-xs hover:bg-overlay disabled:opacity-40"
-        data-testid="index-status-update"
-        :disabled="
-          !shell.healthStatus
-            || !shell.hasCorpusPath
-            || indexStats.rebuildActionsDisabled
-            || indexStats.indexEnvelope?.rebuild_in_progress
-        "
-        @click="indexStats.requestIndexRebuild(false)"
+        class="rounded border border-border px-2 py-1 text-xs hover:bg-overlay"
+        data-testid="index-status-manage"
+        @click="indexStats.requestOpenIndexDialog()"
       >
-        {{ indexStats.rebuildSubmitting ? 'Queueing…' : 'Update index' }}
-      </button>
-      <button
-        type="button"
-        class="rounded border border-border px-2 py-1 text-xs hover:bg-overlay disabled:opacity-40"
-        data-testid="index-status-full-rebuild"
-        :disabled="
-          !shell.healthStatus
-            || !shell.hasCorpusPath
-            || indexStats.rebuildActionsDisabled
-            || indexStats.indexEnvelope?.rebuild_in_progress
-        "
-        @click="emit('rebuild-index')"
-      >
-        {{
-          indexStats.indexEnvelope?.rebuild_in_progress
-            ? 'Rebuilding…'
-            : 'Full rebuild'
-        }}
+        Manage in Configuration →
       </button>
     </div>
   </div>

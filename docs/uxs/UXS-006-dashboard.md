@@ -39,7 +39,7 @@ shared Tufte-style defaults from `chartRegister.ts`.
 
 1. **Briefing card** (`data-testid="briefing-card"`) — last run / health / short actions; always above tabs.
 2. **Tablist** `aria-label="Dashboard tabs"` — **Coverage** | **Intelligence** | **Pipeline**.
-3. **Coverage** — coverage by month, feed coverage table, artifact activity (from listed artifacts), **Index status** (`data-testid="index-status-card"`) with **Update index** and **Full rebuild** (`index-status-update`, `index-status-full-rebuild`).
+3. **Coverage** — coverage by month, feed coverage table, artifact activity (from listed artifacts), **Index status** (`data-testid="index-status-card"`) — status-only; index facts + rebuild actions moved to the Configuration dialog's **Index** section, reached via **Manage in Configuration** (`index-status-manage`).
 4. **Intelligence** — digest snapshot, **Topic briefings** (`topic-briefing-cards`, PRD-033 FR6.1 #888 — retrieval-grounded `topic-briefing-card` per top topic, see §5), **Topic clusters** status (`topic-clusters-status-block`), topic landscape, top voices (when API available). Topic momentum / emerging connections **omitted** until RFC-073 data ships (no placeholder UI). **Search activity** (`query-activity-chart`, PRD-033 FR6.2 — daily search-volume bar chart, see §5). Topic momentum stays omitted.
 5. **Pipeline** — run history strip, duration trend, stage timings, numeric outcomes, episodes per run; optional per-feed run heatmap only when server exposes stable per-feed fields.
 
@@ -324,14 +324,16 @@ Action item rules:
 | Last run has failures | "N episodes failed in last run" | [View failures] → Library |
 | Last run failed entirely | "Last run failed — no episodes processed" | [View in Pipeline] |
 | GI coverage < 50% | "N episodes have no GI artifacts" | [View in Library] |
-| Index not built | "Vector index has not been built" | [Build index] |
-| Index stale > 7 days | "Index last rebuilt N days ago" | [Rebuild now] |
+| Index not built | "Vector index has not been built" | [Open index controls] |
+| Index stale > 7 days | "Index last rebuilt N days ago" | [Open index controls] |
 | Feed not indexed | "Feed X is not in the vector index" | [View coverage] |
 | No runs in > 7 days | "No pipeline runs in N days" | [View in Pipeline] |
 | Topic clusters missing | "Topic clusters not built" | [View in Coverage] |
 
-"Rebuild now" and "Build index" trigger `POST /api/index/rebuild`
-directly (existing endpoint). All others are navigation links.
+"Open index controls" routes to the Configuration dialog's **Index**
+section (`sources-dialog-index-panel`), where the rebuild is triggered —
+the rebuild action no longer fires inline from the Briefing card
+(config consolidation). All other actions are navigation links.
 
 **All-clear state:** When no items qualify: a single line —
 `● Everything looks good` — using `success` token dot. This positive
@@ -476,14 +478,18 @@ Feeds in index: 3 of 3
 - "⚠ Rebuild recommended" appears when index staleness heuristic
   from `index/stats` is true. Uses `warning` token.
 
-- "Rebuild now" button when stale (triggers existing endpoint).
 - "Last rebuild error: [message]" in `danger` token when
   `rebuild_last_error` is present.
 
-- Disabled while `rebuild_in_progress` is true (shows "Rebuilding…"
-  spinner inline).
+- **Status-only.** The index facts + rebuild *action* live in the
+  Configuration dialog's **Index** section (`sources-dialog-index-panel`) —
+  the single canonical place per concern (config consolidation). The card has a
+  **Manage in Configuration →** button (`data-testid="index-status-manage"`)
+  that opens Configuration → Index rather than triggering a rebuild inline. The
+  Briefing **Open index controls** action and the status-bar rebuild
+  bolt route to the same dialog.
 
-No Chart.js involved. Pure card with MetricsPanel pattern.
+No Chart.js involved. Pure key-value status card.
 
 **Source:** `GET /api/index/stats` (existing).
 

@@ -1,12 +1,9 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue'
 import type { PipelineJobRow } from '../../api/jobsApi'
-import {
-  fetchPipelineJobLogTail,
-  formatJobHttpErrorMessage,
-  pipelineJobLogUrl,
-} from '../../api/jobsApi'
+import { fetchPipelineJobLogTail, formatJobHttpErrorMessage } from '../../api/jobsApi'
 import { useShellStore } from '../../stores/shell'
+import { usePipelineJobLogStore } from '../../stores/pipelineJobLog'
 import { pipelineJobRunDetailsText } from '../../utils/pipelineJobRunDetailsText'
 import { extractStructuredSummariesFromLogTail } from '../../utils/pipelineJobLogSummary'
 import {
@@ -23,6 +20,7 @@ const props = defineProps<{
 type ExploreTab = 'metrics' | 'details'
 
 const shell = useShellStore()
+const jobLog = usePipelineJobLogStore()
 const { pageVisible } = usePageVisible()
 const tab = ref<ExploreTab>('metrics')
 const loading = ref(false)
@@ -416,13 +414,12 @@ onUnmounted(() => {
             {{ tailErr }}
           </p>
           <p v-if="job.log_relpath" class="mt-1.5">
-            <a
+            <button
+              type="button"
               class="font-medium text-primary underline decoration-dotted underline-offset-2 hover:decoration-solid"
-              :href="pipelineJobLogUrl(corpusPath, job.job_id)"
-              target="_blank"
-              rel="noopener noreferrer"
               data-testid="pipeline-job-explore-metrics-full-log-fallback"
-            >Open full log (new tab)</a>
+              @click="jobLog.viewLogForRow(corpusPath, job)"
+            >View full log</button>
           </p>
         </div>
 
@@ -447,13 +444,12 @@ onUnmounted(() => {
       role="tabpanel"
     >
       <p v-if="job.log_relpath">
-        <a
+        <button
+          type="button"
           class="break-all font-mono text-surface-foreground underline decoration-dotted underline-offset-2 hover:decoration-solid"
-          :href="pipelineJobLogUrl(corpusPath, job.job_id)"
-          target="_blank"
-          rel="noopener noreferrer"
           data-testid="pipeline-job-explore-full-log-link"
-        >Open full log (new tab)</a>
+          @click="jobLog.viewLogForRow(corpusPath, job)"
+        >View full log</button>
       </p>
       <pre
         class="w-full max-w-full overflow-x-auto whitespace-pre-wrap break-all rounded border border-border bg-canvas p-2 text-left font-mono text-[8px] leading-snug text-canvas-foreground"

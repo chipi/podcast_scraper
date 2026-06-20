@@ -81,9 +81,9 @@ function buttonShapeClasses(): string {
         buttonShapeClasses(),
         p.in_topic_cluster
           ? clusterMemberAppearance === 'kg'
-            ? 'border border-kg bg-kg/15 font-semibold text-surface-foreground'
+            ? 'border-2 border-kg bg-kg/30 font-semibold text-surface-foreground shadow-sm hover:bg-kg/40'
             : 'border-2 border-transparent font-semibold text-surface-foreground shadow-sm'
-          : 'border border-border bg-canvas text-surface-foreground hover:bg-overlay',
+          : 'border border-border bg-canvas font-normal text-muted hover:bg-overlay',
       ]"
       :style="
         p.in_topic_cluster && clusterMemberAppearance === 'quote'

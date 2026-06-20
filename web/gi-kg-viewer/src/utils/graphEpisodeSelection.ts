@@ -13,14 +13,19 @@ import type { ParsedArtifact } from '../types/artifact'
  * (spectral seed): the same ~2.9k nodes lay out in <1s, so layout is no longer the limit.
  *
  * The remaining cost at scale is canvas *interaction* (pan/zoom repaint + hit-testing), already
- * softened by degree-visibility + label-tier culling. A live devtools trace (docs/wip/
- * 967-interaction-cost-trace.md) measured pan/zoom FPS vs node count on a 14-core / DPR-1 laptop:
- * ~1.5k nodes ≈ 37 fps (good), ~2.1k ≈ 25 fps (sluggish), ~2.9k ≈ 20 fps (laggy) — degrading
- * ~linearly, and worse on retina / low-end devices. 50 ep (≈ 1.4k nodes at prod density) is the
- * empirically smooth ceiling. Do NOT raise the default toward the full corpus (100+ ep) without
- * interaction mitigations first (LOD-during-gesture, edge culling, or an opt-in "load all") — #967.
+ * softened by degree-visibility + label-tier culling. A live devtools trace measured pan/zoom
+ * FPS vs node count on a 14-core / DPR-1 laptop: ~1.5k nodes ≈ 37 fps (good), ~2.1k ≈ 25 fps
+ * (sluggish), ~2.9k ≈ 20 fps (laggy) — degrading ~linearly, and worse on retina / low-end devices.
+ *
+ * That DPR-1 trace called 50 ep (≈ 1.4k nodes at prod density) the smooth ceiling, but on a
+ * retina / DPR-2 display the same node count repaints ~4× the pixels and the first paint felt
+ * stuck. The default is therefore tuned for the worst common case (retina laptop): ~22 ep
+ * (≈ 600–700 nodes) keeps first paint + pan/zoom responsive there. The full corpus is still one
+ * step away via the time-lens widening / status-bar "List" load-more path — the cap only bounds
+ * the *auto-load*, not what the user can opt into. Do NOT raise this toward the full corpus
+ * (100+ ep) without interaction mitigations first (LOD-during-gesture, edge culling) — #967.
  */
-export const GRAPH_DEFAULT_EPISODE_CAP = 50
+export const GRAPH_DEFAULT_EPISODE_CAP = 22
 
 /** Tunable: recency component for the oldest episode in a dated lens window (linear floor). */
 export const GRAPH_SCORE_RECENCY_MIN = 0.2

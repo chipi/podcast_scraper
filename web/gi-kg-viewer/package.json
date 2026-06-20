@@ -19,6 +19,7 @@
   "dependencies": {
     "@sentry/vue": "^8.55.1",
     "chart.js": "^4.5.1",
+    "cron-parser": "^5.5.0",
     "cytoscape": "^3.33.1",
     "cytoscape-fcose": "^2.2.0",
     "cytoscape-navigator": "^2.0.2",

@@ -133,6 +133,12 @@ test.describe('Status bar — feeds & operator YAML (mocked API)', () => {
     await expect(page.getByTestId('status-bar-sources-trigger')).toBeVisible({ timeout: 15_000 })
     await page.getByTestId('status-bar-sources-trigger').click()
     await expect(page.getByTestId('status-bar-sources-dialog')).toBeVisible()
+    // IA: sections live in a left sub-nav rail (restructured from a top tab-strip).
+    await expect(
+      page.getByTestId('status-bar-sources-dialog').getByRole('navigation', {
+        name: 'Configuration sections',
+      }),
+    ).toBeVisible()
     await expect(page.getByTestId('sources-dialog-feeds-list')).toBeVisible()
     await expect(page.getByTestId('sources-dialog-feeds-row-0')).toContainText('https://seed.example/rss')
     await page.getByTestId('sources-dialog-feeds-panel-json').click()
@@ -319,6 +325,7 @@ test.describe('Status bar — feeds & operator YAML (mocked API)', () => {
     })
     await page.getByTestId('status-bar-sources-trigger').click()
     await page.getByTestId('sources-dialog-tab-operator').click()
+    await page.getByTestId('sources-dialog-operator-subtab-config').click()
     await expect(page.getByTestId('sources-dialog-operator-textarea')).toBeVisible()
     await expect(page.getByTestId('sources-dialog-operator-textarea')).toHaveValue('keep: true')
     await page.getByTestId('sources-dialog-operator-textarea').fill('keep: true\nextra: 2\n')

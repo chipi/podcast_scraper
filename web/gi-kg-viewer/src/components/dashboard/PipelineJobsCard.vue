@@ -3,13 +3,13 @@ import { computed, onUnmounted, ref, watch } from 'vue'
 import {
   cancelPipelineJob,
   listPipelineJobs,
-  pipelineJobLogUrl,
   reconcilePipelineJobs,
   submitPipelineJob,
   type PipelineJobRow,
 } from '../../api/jobsApi'
 import { usePageVisible } from '../../composables/usePageVisible'
 import { useShellStore } from '../../stores/shell'
+import { usePipelineJobLogStore } from '../../stores/pipelineJobLog'
 import PipelineJobExplorePanel from './PipelineJobExplorePanel.vue'
 
 const props = withDefaults(
@@ -28,6 +28,7 @@ const emit = defineEmits<{
 }>()
 
 const shell = useShellStore()
+const jobLog = usePipelineJobLogStore()
 const { pageVisible } = usePageVisible()
 
 const jobs = ref<PipelineJobRow[]>([])
@@ -310,10 +311,6 @@ function truncate(s: string, max: number): string {
   return `${t.slice(0, max - 1)}…`
 }
 
-function jobLogUrl(jobId: string): string {
-  return pipelineJobLogUrl(root.value, jobId)
-}
-
 watch(
   () => [root.value, shell.healthStatus, shell.jobsApiAvailable] as const,
   () => {
@@ -512,16 +509,15 @@ onUnmounted(() => {
           <p v-else-if="j.status === 'queued'">
             {{ elapsedLabel(j, nowTick) }}
           </p>
-          <p v-if="j.log_relpath" class="break-all font-mono text-[8px] opacity-90">
-            <span class="text-muted">Log:</span>
-            <a
-              class="ml-1 text-surface-foreground underline decoration-dotted underline-offset-2 hover:decoration-solid"
-              :href="jobLogUrl(j.job_id)"
-              target="_blank"
-              rel="noopener noreferrer"
+          <p v-if="j.log_relpath" class="flex items-center gap-1.5 text-[8px] opacity-90">
+            <button
+              type="button"
+              class="rounded border border-border px-1.5 py-0.5 text-[9px] text-surface-foreground hover:bg-overlay"
               data-testid="pipeline-job-log-link"
-              :title="`Open log in new tab (${j.log_relpath})`"
-            >{{ j.log_relpath }}</a>
+              :title="`View log (${j.log_relpath})`"
+              @click="jobLog.viewLogForRow(root, j)"
+            >View log</button>
+            <span class="min-w-0 truncate font-mono text-muted">{{ j.log_relpath }}</span>
           </p>
           <p v-if="j.error_reason" class="text-danger">
             {{ truncate(j.error_reason, 160) }}

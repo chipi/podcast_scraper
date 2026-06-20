@@ -18,9 +18,12 @@ from podcast_scraper import config_constants
 from podcast_scraper.search.lance_index_stats import LanceIndexStats
 from podcast_scraper.server.app import create_app
 
-pytestmark = [pytest.mark.integration]
+# critical_path so the index-stats + timeseries routes run in
+# ``test-integration-fast`` on PRs and stay covered in PR codecov.
+pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 _READ_STATS = "podcast_scraper.search.lance_index_stats.read_lance_index_stats"
+_READ_BY_MONTH = "podcast_scraper.search.lance_index_stats.read_lance_doc_type_by_month"
 
 
 def test_index_stats_no_corpus_when_no_path_and_no_state(tmp_path: Path) -> None:
@@ -137,3 +140,43 @@ def test_index_stats_feeds_indexed_normalized_and_deduped(tmp_path: Path) -> Non
     assert response.status_code == 200
     stats = response.json()["stats"]
     assert stats["feeds_indexed"] == ["f1", "f2"]
+
+
+def test_index_timeseries_no_corpus_when_no_path_and_no_state() -> None:
+    app = create_app(None, static_dir=False)
+    client = TestClient(app)
+    response = client.get("/api/index/timeseries")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["available"] is False
+    assert body["by_month"] == []
+    assert body["doc_types"] == []
+
+
+def test_index_timeseries_sorts_months_and_collects_doc_types(tmp_path: Path) -> None:
+    """Route shapes the aggregator output into sorted months + a stable doc_type roster."""
+    fake = {
+        "2026-02": {"transcript": 1},
+        "2026-01": {"transcript": 2, "insight": 1},
+    }
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    with patch(_READ_BY_MONTH, return_value=fake):
+        response = client.get("/api/index/timeseries", params={"path": str(tmp_path)})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["available"] is True
+    assert [m["month"] for m in body["by_month"]] == ["2026-01", "2026-02"]
+    assert body["by_month"][0]["doc_types"] == {"transcript": 2, "insight": 1}
+    assert body["doc_types"] == ["insight", "transcript"]
+
+
+def test_index_timeseries_empty_when_no_index(tmp_path: Path) -> None:
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    with patch(_READ_BY_MONTH, return_value={}):
+        response = client.get("/api/index/timeseries", params={"path": str(tmp_path)})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["available"] is False
+    assert body["by_month"] == []

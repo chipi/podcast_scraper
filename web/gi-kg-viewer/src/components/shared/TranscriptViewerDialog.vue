@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, ref } from 'vue'
+import { nextTick, ref, watch } from 'vue'
 import { fetchWithTimeout } from '../../api/httpClient'
 import {
   audioRelpathFromTranscriptRelpath,
@@ -19,6 +19,7 @@ import {
   type TranscriptSegment,
 } from '../../utils/transcriptViewerModel'
 import { StaleGeneration } from '../../utils/staleGeneration'
+import AppDialog from './AppDialog.vue'
 
 export type TranscriptViewerOpenPayload = {
   corpusRoot: string
@@ -43,7 +44,7 @@ export type TranscriptViewerOpenPayload = {
   maxBytes?: number
 }
 
-const dialogRef = ref<HTMLDialogElement | null>(null)
+const dialogOpen = ref(false)
 const loading = ref(false)
 const errorText = ref<string | null>(null)
 const oversized = ref(false)
@@ -79,18 +80,15 @@ function resetState(): void {
   openMaxBytes.value = DEFAULT_TRANSCRIPT_VIEWER_MAX_BYTES
 }
 
-function onBackdropClick(e: MouseEvent): void {
-  const el = dialogRef.value
-  if (el && e.target === el) {
-    el.close()
-  }
-}
-
 function close(): void {
-  dialogRef.value?.close()
+  dialogOpen.value = false
 }
 
-function handleDialogClose(): void {
+function onDialogOpenChange(next: boolean): void {
+  dialogOpen.value = next
+}
+
+function releaseAudioOnClose(): void {
   // Stop playback and release the media resource when the dialog closes; otherwise
   // audio keeps playing in the background and the <audio> element lingers.
   const el = audioEl.value
@@ -103,6 +101,10 @@ function handleDialogClose(): void {
   }
   audioUrl.value = null
 }
+
+watch(dialogOpen, (open) => {
+  if (!open) releaseAudioOnClose()
+})
 
 async function scrollFirstHighlightIntoView(): Promise<void> {
   await nextTick()
@@ -213,7 +215,7 @@ async function open(payload: TranscriptViewerOpenPayload): Promise<void> {
   void probeAndSetAudio(corpusMediaFileViewUrl(payload.corpusRoot, mediaRel), seq)
   loading.value = true
   errorText.value = null
-  dialogRef.value?.showModal()
+  dialogOpen.value = true
 
   const url = corpusTextFileViewUrl(payload.corpusRoot, payload.transcriptRelpath)
   let res: Response
@@ -308,173 +310,157 @@ defineExpose({ open, close, seekToMs })
 </script>
 
 <template>
-  <dialog
-    ref="dialogRef"
-    data-testid="transcript-viewer-dialog"
-    class="w-[min(100%,42rem)] max-h-[min(92vh,48rem)] overflow-hidden rounded-lg border border-border bg-surface text-surface-foreground shadow-xl [&::backdrop]:bg-black/40"
-    aria-labelledby="transcript-viewer-title"
-    @click="onBackdropClick"
-    @close="handleDialogClose"
+  <AppDialog
+    :open="dialogOpen"
+    title="Transcript"
+    testid="transcript-viewer-dialog"
+    close-testid="transcript-viewer-close"
+    width-class="w-[min(100%,42rem)]"
+    max-height-class="max-h-[min(92vh,48rem)]"
+    @update:open="onDialogOpenChange"
   >
-    <div class="flex max-h-[min(92vh,48rem)] flex-col">
-      <div class="flex shrink-0 items-start justify-between gap-3 border-b border-border px-4 py-3">
-        <div class="min-w-0 flex-1 pr-2">
-          <h2
-            id="transcript-viewer-title"
-            class="text-sm font-semibold text-surface-foreground"
-          >
-            Transcript
-          </h2>
-          <p
-            v-if="subtitle"
-            class="mt-0.5 truncate text-[11px] text-muted"
-          >
-            {{ subtitle }}
-          </p>
-          <p
-            v-if="audioTimingLabel"
-            class="mt-1 text-[11px] text-surface-foreground"
-          >
-            <span class="font-medium text-muted">Audio: </span>{{ audioTimingLabel }}
-          </p>
-          <p
-            v-if="charPositionLabel"
-            class="mt-1 text-[11px] text-surface-foreground"
-            data-testid="transcript-viewer-char-range"
-          >
-            <span class="font-medium text-muted">Passage: </span>{{ charPositionLabel }}
-          </p>
-          <p
-            v-if="rawTabUrl"
-            class="mt-1"
-          >
-            <a
-              class="text-[11px] font-medium text-primary underline decoration-primary/40 underline-offset-2"
-              :href="rawTabUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-              data-testid="transcript-viewer-open-raw"
-            >Open raw transcript in new tab</a>
-          </p>
-          <p class="mt-1 text-[10px] leading-snug text-muted">
-            Highlight position is approximate if the server serves a different transcript variant than GI indexed (e.g. cleaned vs raw).
-          </p>
-          <audio
-            v-if="audioUrl"
-            ref="audioEl"
-            data-testid="transcript-viewer-audio"
-            class="mt-2 w-full"
-            controls
-            preload="metadata"
-            aria-label="Episode audio"
-            :src="audioUrl"
-            @loadedmetadata="applyPendingSeek"
-          />
-        </div>
-        <button
-          type="button"
-          class="shrink-0 rounded border border-border px-2 py-1 text-xs hover:bg-overlay"
-          @click="close"
-        >
-          Close
-        </button>
-      </div>
+    <template #header>
+      <p
+        v-if="subtitle"
+        class="mt-0.5 truncate text-[11px] text-muted"
+      >
+        {{ subtitle }}
+      </p>
+      <p
+        v-if="audioTimingLabel"
+        class="mt-1 text-[11px] text-surface-foreground"
+      >
+        <span class="font-medium text-muted">Audio: </span>{{ audioTimingLabel }}
+      </p>
+      <p
+        v-if="charPositionLabel"
+        class="mt-1 text-[11px] text-surface-foreground"
+        data-testid="transcript-viewer-char-range"
+      >
+        <span class="font-medium text-muted">Passage: </span>{{ charPositionLabel }}
+      </p>
+      <p
+        v-if="rawTabUrl"
+        class="mt-1"
+      >
+        <a
+          class="text-[11px] font-medium text-primary underline decoration-primary/40 underline-offset-2"
+          :href="rawTabUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          data-testid="transcript-viewer-open-raw"
+        >Open raw transcript in new tab</a>
+      </p>
+      <p class="mt-1 text-[10px] leading-snug text-muted">
+        Highlight position is approximate if the server serves a different transcript variant than GI indexed (e.g. cleaned vs raw).
+      </p>
+      <audio
+        v-if="audioUrl"
+        ref="audioEl"
+        data-testid="transcript-viewer-audio"
+        class="mt-2 w-full"
+        controls
+        preload="metadata"
+        aria-label="Episode audio"
+        :src="audioUrl"
+        @loadedmetadata="applyPendingSeek"
+      />
+    </template>
 
-      <div class="min-h-0 flex-1 overflow-y-auto px-4 py-3 text-xs leading-relaxed">
-        <p
-          v-if="loading"
-          class="text-muted"
-        >
-          Loading…
+    <div class="px-4 py-3 text-xs leading-relaxed">
+      <p
+        v-if="loading"
+        class="text-muted"
+      >
+        Loading…
+      </p>
+      <p
+        v-else-if="errorText"
+        class="text-destructive"
+      >
+        {{ errorText }}
+      </p>
+      <div
+        v-else-if="oversized"
+        class="space-y-2 text-muted"
+      >
+        <p>
+          This transcript is too large to load in the viewer (over
+          {{ Math.round(openMaxBytes / (1024 * 1024)) }} MiB). Use the link in the header to open the raw file.
         </p>
-        <p
-          v-else-if="errorText"
-          class="text-destructive"
-        >
-          {{ errorText }}
-        </p>
+      </div>
+      <template v-else>
         <div
-          v-else-if="oversized"
-          class="space-y-2 text-muted"
+          v-if="highlightSegments"
+          data-testid="transcript-viewer-body"
+          class="select-text whitespace-pre-wrap break-words rounded border border-border bg-canvas/80 p-2 font-mono text-[11px] text-surface-foreground"
         >
-          <p>
-            This transcript is too large to load in the viewer (over
-            {{ Math.round(openMaxBytes / (1024 * 1024)) }} MiB). Use the link in the header to open the raw file.
-          </p>
-        </div>
-        <template v-else>
-          <div
-            v-if="highlightSegments"
-            data-testid="transcript-viewer-body"
-            class="select-text whitespace-pre-wrap break-words rounded border border-border bg-canvas/80 p-2 font-mono text-[11px] text-surface-foreground"
-          >
-            <template v-for="(seg, si) in highlightSegments" :key="si">
-              <mark
-                v-if="seg.type === 'mark' && seg.text"
-                data-testid="transcript-viewer-highlight"
-                class="rounded-sm bg-primary/25 px-0.5 text-surface-foreground"
-              >{{ seg.text }}</mark>
-              <span v-else-if="seg.type === 'text' && seg.text">{{ seg.text }}</span>
-            </template>
-          </div>
-          <div
-            v-else-if="highlightParts"
-            data-testid="transcript-viewer-body"
-            class="select-text whitespace-pre-wrap break-words rounded border border-border bg-canvas/80 p-2 font-mono text-[11px] text-surface-foreground"
-          >
-            <span>{{ highlightParts.before }}</span>
+          <template v-for="(seg, si) in highlightSegments" :key="si">
             <mark
-              v-if="highlightParts.highlight"
+              v-if="seg.type === 'mark' && seg.text"
               data-testid="transcript-viewer-highlight"
               class="rounded-sm bg-primary/25 px-0.5 text-surface-foreground"
-            >{{ highlightParts.highlight }}</mark>
-            <span>{{ highlightParts.after }}</span>
-          </div>
-          <div
-            v-else
-            data-testid="transcript-viewer-body"
-            class="select-text whitespace-pre-wrap break-words rounded border border-border bg-canvas/80 p-2 font-mono text-[11px] text-surface-foreground"
-          >
-            {{ plainFullText }}
-          </div>
+            >{{ seg.text }}</mark>
+            <span v-else-if="seg.type === 'text' && seg.text">{{ seg.text }}</span>
+          </template>
+        </div>
+        <div
+          v-else-if="highlightParts"
+          data-testid="transcript-viewer-body"
+          class="select-text whitespace-pre-wrap break-words rounded border border-border bg-canvas/80 p-2 font-mono text-[11px] text-surface-foreground"
+        >
+          <span>{{ highlightParts.before }}</span>
+          <mark
+            v-if="highlightParts.highlight"
+            data-testid="transcript-viewer-highlight"
+            class="rounded-sm bg-primary/25 px-0.5 text-surface-foreground"
+          >{{ highlightParts.highlight }}</mark>
+          <span>{{ highlightParts.after }}</span>
+        </div>
+        <div
+          v-else
+          data-testid="transcript-viewer-body"
+          class="select-text whitespace-pre-wrap break-words rounded border border-border bg-canvas/80 p-2 font-mono text-[11px] text-surface-foreground"
+        >
+          {{ plainFullText }}
+        </div>
 
-          <details
-            v-if="segments && segments.length > 0"
-            class="mt-3 rounded border border-border bg-elevated/40 p-2"
+        <details
+          v-if="segments && segments.length > 0"
+          class="mt-3 rounded border border-border bg-elevated/40 p-2"
+        >
+          <summary class="cursor-pointer text-[11px] font-medium text-surface-foreground">
+            Timeline ({{ segments.length }} segments)
+          </summary>
+          <ol
+            class="mt-2 max-h-48 list-decimal space-y-1.5 overflow-y-auto pl-4 text-[11px] text-muted"
+            data-testid="transcript-viewer-timeline"
           >
-            <summary class="cursor-pointer text-[11px] font-medium text-surface-foreground">
-              Timeline ({{ segments.length }} segments)
-            </summary>
-            <ol
-              class="mt-2 max-h-48 list-decimal space-y-1.5 overflow-y-auto pl-4 text-[11px] text-muted"
-              data-testid="transcript-viewer-timeline"
+            <li
+              v-for="(seg, i) in segments"
+              :key="i"
+              class="pl-0.5"
             >
-              <li
-                v-for="(seg, i) in segments"
-                :key="i"
-                class="pl-0.5"
+              <!-- I5: when audio is loaded, each row seeks the player to its start. -->
+              <button
+                v-if="audioUrl"
+                type="button"
+                class="group w-full cursor-pointer rounded px-0.5 text-left hover:bg-primary/10 focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary"
+                :data-testid="`transcript-viewer-timeline-seek-${i}`"
+                :aria-label="`Play from ${formatSegmentTimeRange(seg)}`"
+                @click="seekToMs(Math.round(seg.startSec * 1000))"
               >
-                <!-- I5: when audio is loaded, each row seeks the player to its start. -->
-                <button
-                  v-if="audioUrl"
-                  type="button"
-                  class="group w-full cursor-pointer rounded px-0.5 text-left hover:bg-primary/10 focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary"
-                  :data-testid="`transcript-viewer-timeline-seek-${i}`"
-                  :aria-label="`Play from ${formatSegmentTimeRange(seg)}`"
-                  @click="seekToMs(Math.round(seg.startSec * 1000))"
-                >
-                  <span class="font-mono text-[10px] text-primary group-hover:underline">{{ formatSegmentTimeRange(seg) }}</span>
-                  <span class="text-surface-foreground"> — {{ seg.text.trim() || '—' }}</span>
-                </button>
-                <template v-else>
-                  <span class="font-mono text-[10px] text-primary">{{ formatSegmentTimeRange(seg) }}</span>
-                  <span class="text-surface-foreground"> — {{ seg.text.trim() || '—' }}</span>
-                </template>
-              </li>
-            </ol>
-          </details>
-        </template>
-      </div>
+                <span class="font-mono text-[10px] text-primary group-hover:underline">{{ formatSegmentTimeRange(seg) }}</span>
+                <span class="text-surface-foreground"> — {{ seg.text.trim() || '—' }}</span>
+              </button>
+              <template v-else>
+                <span class="font-mono text-[10px] text-primary">{{ formatSegmentTimeRange(seg) }}</span>
+                <span class="text-surface-foreground"> — {{ seg.text.trim() || '—' }}</span>
+              </template>
+            </li>
+          </ol>
+        </details>
+      </template>
     </div>
-  </dialog>
+  </AppDialog>
 </template>

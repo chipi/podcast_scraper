@@ -19,6 +19,26 @@ def test_list_packaged_profile_names_includes_repo_profiles() -> None:
     assert "profile_freeze" not in names  # profile_freeze.example stem ends with .example
 
 
+def test_packaged_profile_contents_returns_bodies_for_listed_profiles() -> None:
+    from podcast_scraper.server import profile_presets
+
+    contents = profile_presets.packaged_profile_contents()
+    names = profile_presets.list_packaged_profile_names()
+    assert set(contents) == set(names)
+    assert contents["cloud_balanced"].strip()
+    assert "profile: cloud_balanced" in contents["cloud_balanced"]
+
+
+def test_packaged_profile_contents_respects_allowlist(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from podcast_scraper.server import profile_presets
+
+    monkeypatch.setenv("PODCAST_AVAILABLE_PROFILES", "cloud_balanced")
+    contents = profile_presets.packaged_profile_contents()
+    assert list(contents) == ["cloud_balanced"]
+
+
 def test_profile_directories_prefers_cwd_then_repo(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

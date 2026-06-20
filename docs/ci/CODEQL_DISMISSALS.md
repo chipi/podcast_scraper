@@ -268,6 +268,8 @@ number, file, line, date, and a short comment.
 | 1 | #375 | search/lance_index_stats.py | 41 | 2026-06-15 | Type 1: os.path.getsize under a validated lance_dir. #995, PR #1010 |
 | 1 | #376 | search/lance_index_stats.py | 50 | 2026-06-15 | Type 1: ``read_lance_index_stats`` is_dir on a validated lance_dir. #995, PR #1010 |
 | 1 | #377 | search/lance_index_stats.py | 82 | 2026-06-15 | Type 1: LanceDB open on a validated lance_dir; sanitised upstream. #995, PR #1010 |
+| 1 | #382 | server/routes/index_stats.py | 145 | 2026-06-20 | Type 1: ``GET /index/timeseries`` builds ``search/lance_index`` (constant suffix) on a corpus path sanitised by ``resolve_corpus_path_param`` (normpath + startswith-anchor). Mirrors #166. PR #1038 |
+| 1 | #383 | search/lance_index_stats.py | 102 | 2026-06-20 | Type 1: ``read_lance_doc_type_by_month`` is_dir/LanceDB open on a validated lance_dir; sanitised upstream. Mirrors #376/#377. PR #1038 |
 
 ## Still open (not yet dismissed)
 

@@ -79,9 +79,11 @@ describe('selectRelPathsForGraphLoad', () => {
   })
 
   it('uses default cap constant', () => {
-    // #967 raised this 25→50 once fcose removed the O(n²) cose layout wall; the cap now
-    // tracks interaction cost, not layout time. See the constant's doc for the ceiling rationale.
-    expect(GRAPH_DEFAULT_EPISODE_CAP).toBe(50)
+    // #967 raised this 25→50 once fcose removed the O(n²) cose layout wall; later lowered to 22
+    // because the 50-ep ceiling was measured on DPR-1 and felt stuck on retina (DPR-2) where the
+    // same node count repaints ~4× the pixels. The cap tracks interaction cost, not layout time;
+    // see the constant's doc for the rationale.
+    expect(GRAPH_DEFAULT_EPISODE_CAP).toBe(22)
   })
 })
 

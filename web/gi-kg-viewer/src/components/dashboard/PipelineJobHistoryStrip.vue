@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { listPipelineJobs, pipelineJobLogUrl, type PipelineJobRow } from '../../api/jobsApi'
+import { listPipelineJobs, type PipelineJobRow } from '../../api/jobsApi'
 import { useShellStore } from '../../stores/shell'
+import { usePipelineJobLogStore } from '../../stores/pipelineJobLog'
 import PipelineJobExplorePanel from './PipelineJobExplorePanel.vue'
 
 withDefaults(
@@ -14,6 +15,7 @@ withDefaults(
 const TERMINAL = new Set(['succeeded', 'failed', 'cancelled', 'stale'])
 
 const shell = useShellStore()
+const jobLog = usePipelineJobLogStore()
 const rows = ref<PipelineJobRow[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -408,14 +410,13 @@ watch(
             <span aria-hidden="true">·</span>
             <span>wall {{ jobDurationLabel(selectedJob) }}</span>
             <span aria-hidden="true">·</span>
-            <a
+            <button
+              type="button"
               class="shrink-0 font-medium text-primary underline decoration-dotted underline-offset-2 hover:decoration-solid"
-              :href="pipelineJobLogUrl(root, selectedJob.job_id)"
-              target="_blank"
-              rel="noopener noreferrer"
               data-testid="pipeline-job-history-log-link"
-              :title="selectedJob.log_relpath ? `Open log (${selectedJob.log_relpath})` : 'Open job log in new tab'"
-            >Log</a>
+              :title="selectedJob.log_relpath ? `View log (${selectedJob.log_relpath})` : 'View job log'"
+              @click="jobLog.viewLogForRow(root, selectedJob)"
+            >Log</button>
           </p>
           <p
             v-else-if="insight"

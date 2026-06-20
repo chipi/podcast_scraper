@@ -31,6 +31,36 @@ export interface IndexRebuildAccepted {
   rebuild: boolean
 }
 
+export interface IndexTimeseriesMonth {
+  month: string
+  /** doc_type -> count of indexed documents published that month. */
+  doc_types: Record<string, number>
+}
+
+export interface IndexTimeseriesResponse {
+  available: boolean
+  by_month: IndexTimeseriesMonth[]
+  /** All doc_type keys across buckets, sorted — stable series order. */
+  doc_types: string[]
+}
+
+export async function fetchIndexTimeseries(
+  corpusPath?: string,
+): Promise<IndexTimeseriesResponse> {
+  const p = corpusPath?.trim()
+  const url = p
+    ? `/api/index/timeseries?${new URLSearchParams({ path: p })}`
+    : '/api/index/timeseries'
+  return dedupeInFlight(`GET|${url}`, async () => {
+    const res = await fetchWithTimeout(url)
+    if (!res.ok) {
+      const t = await res.text()
+      throw new Error(t || `HTTP ${res.status}`)
+    }
+    return (await res.json()) as IndexTimeseriesResponse
+  })
+}
+
 export async function fetchIndexStats(corpusPath?: string): Promise<IndexStatsEnvelope> {
   const p = corpusPath?.trim()
   const url = p

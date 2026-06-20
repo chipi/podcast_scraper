@@ -28,6 +28,26 @@ export async function getOperatorConfig(corpusPath: string): Promise<OperatorCon
   return (await res.json()) as OperatorConfigPayload
 }
 
+/** One packaged profile + its YAML body (for the Profile tab "what it brings"). */
+export interface PackagedProfile {
+  name: string
+  content: string
+}
+
+export interface OperatorProfilesPayload {
+  profiles: PackagedProfile[]
+}
+
+export async function getOperatorProfiles(): Promise<OperatorProfilesPayload> {
+  const res = await fetchWithTimeout('/api/operator-config/profiles', undefined, {
+    timeoutDetail: 'operator-config',
+  })
+  if (!res.ok) {
+    throw new Error(await readApiErrorMessage(res))
+  }
+  return (await res.json()) as OperatorProfilesPayload
+}
+
 export async function putOperatorConfig(
   corpusPath: string,
   content: string,

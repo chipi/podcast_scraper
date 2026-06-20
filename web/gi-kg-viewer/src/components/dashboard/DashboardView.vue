@@ -22,6 +22,7 @@ import TopicClustersStatusBlock from './TopicClustersStatusBlock.vue'
 import PipelineAdExcisionMetrics from './PipelineAdExcisionMetrics.vue'
 import PipelineCleanupMetrics from './PipelineCleanupMetrics.vue'
 import PipelineJobHistoryStrip from './PipelineJobHistoryStrip.vue'
+import PipelineJobLogDialog from './PipelineJobLogDialog.vue'
 import PipelineJobsCard from './PipelineJobsCard.vue'
 import PipelineRunHistoryStrip from './PipelineRunHistoryStrip.vue'
 import PipelineStageChart from './PipelineStageChart.vue'
@@ -297,7 +298,7 @@ function openLibraryFailures(): void {
       @select-tab="selectTab"
       @open-pipeline-job-history="void openPipelineJobHistory()"
       @open-pipeline-run-history="void openPipelineRunHistory()"
-      @rebuild-index="indexStats.requestIndexRebuild(true)"
+      @open-index-controls="indexStats.requestOpenIndexDialog()"
       @open-library="emit('open-library')"
     />
 
@@ -370,7 +371,7 @@ function openLibraryFailures(): void {
         @select-feed="onSelectFeed"
       />
       <ArtifactActivityChart :artifact-items="shell.artifactList" />
-      <IndexStatusCard @rebuild-index="indexStats.requestIndexRebuild(true)" />
+      <IndexStatusCard />
     </div>
 
     <div
@@ -521,5 +522,8 @@ function openLibraryFailures(): void {
         insight-text="Episodes scraped per run from run.json summaries."
       />
     </div>
+
+    <!-- Single in-app log viewer instance; opened from any pipeline surface (#695). -->
+    <PipelineJobLogDialog />
   </div>
 </template>

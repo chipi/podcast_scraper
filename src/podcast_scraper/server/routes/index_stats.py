@@ -11,7 +11,12 @@ from podcast_scraper.search.corpus_scope import normalize_feed_id
 from podcast_scraper.server.index_rebuild import rebuild_status_snapshot
 from podcast_scraper.server.index_staleness import compute_index_staleness
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
-from podcast_scraper.server.schemas import IndexStatsBody, IndexStatsEnvelope
+from podcast_scraper.server.schemas import (
+    IndexStatsBody,
+    IndexStatsEnvelope,
+    IndexTimeseriesMonth,
+    IndexTimeseriesResponse,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -115,4 +120,35 @@ async def index_stats(
         search_root_hints=st.search_root_hints,
         rebuild_in_progress=rb_prog,
         rebuild_last_error=rb_err,
+    )
+
+
+@router.get("/index/timeseries", response_model=IndexTimeseriesResponse)
+async def index_timeseries(
+    request: Request,
+    path: str | None = Query(
+        default=None,
+        description="Corpus output dir (contains search/). Omit to use server default output_dir.",
+    ),
+) -> IndexTimeseriesResponse:
+    """Return indexed-document counts by publish month × doc_type.
+
+    Reads each index row's ``publish_date`` + ``doc_type`` so the Index section
+    can chart what the index covers over time, broken down by document type.
+    Always 200; empty ``by_month`` when no corpus/index is loadable.
+    """
+    fallback = getattr(request.app.state, "output_dir", None)
+    root = _resolve_corpus_root(path, fallback)
+    if root is None:
+        return IndexTimeseriesResponse(available=False)
+
+    lance_dir = (root / "search").resolve() / "lance_index"
+    from podcast_scraper.search.lance_index_stats import read_lance_doc_type_by_month
+
+    by_month = read_lance_doc_type_by_month(lance_dir)
+    doc_types = sorted({dt for bucket in by_month.values() for dt in bucket})
+    return IndexTimeseriesResponse(
+        available=bool(by_month),
+        by_month=[IndexTimeseriesMonth(month=m, doc_types=by_month[m]) for m in sorted(by_month)],
+        doc_types=doc_types,
     )

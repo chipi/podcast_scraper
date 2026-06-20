@@ -1,8 +1,9 @@
 # PRD-034: Generic MCP Server — Platform Capabilities as Agent Tools
 
-- **Status**: Draft
+- **Status**: Implemented (v1, stdio) — slices 1–3 shipped; HTTP/SSE + RFC-093 tool deferred
 - **Author**: Marko
 - **Created**: 2026-06-05
+- **Updated**: 2026-06-20 (reconciled with shipped code)
 - **Target**: v2.7+ (additive, opt-in)
 - **Related PRDs**:
   - `docs/prd/PRD-031-search.md`, `docs/prd/PRD-032-hybrid-corpus-search.md` — the retrieval backend exposed here
@@ -18,6 +19,37 @@
 > substrate**: expose the platform's existing read capabilities as composable agent tools. The
 > briefing pack becomes *one more tool* registered on this server, later, without changing this
 > contract.
+
+---
+
+## Implementation status & handoff (2026-06-20)
+
+**Shipped (v1, stdio).** Slices 1–3 are done; the generic MCP server runs and has
+unit tests. Run it with **`podcast mcp --corpus <dir>`** (stdio). Code lives in
+`src/podcast_scraper/mcp/` (see RFC-095 → *Implementation status & handoff* for
+the file-by-file map and shared-callable details). **16 tools** are registered:
+`resolve_entity`, `search_corpus`, the 7 relational tools, 3 CIL tools
+(`person_profile`, `topic_timeline`, `position_arc`), and 4 catalog tools
+(`list_feeds`, `list_episodes`, `episode_detail`, `top_people`). Tests:
+`tests/unit/mcp/`.
+
+**FR status:** FR1 (server+context), FR2 (resolve), FR3 (retrieve), FR4
+(relational ×7), FR5 (catalog + CIL — minus `corpus_digest`, see below), FR6
+(provenance/honesty), FR7 (typed descriptions) — **all met for v1**.
+
+**Next-agent backlog (the worktree this is being prepped for):**
+
+1. **HTTP/SSE transport + auth** (OQ-1) — remote/prod-VPS access; today stdio-only.
+2. **MCP resources** (OQ-2) — expose artifacts as uri-readable resources.
+3. **RFC-093 `corpus_briefing_pack` tool** (#861) — register the synthesized tool
+   on this server (the §"RFC-093 seam").
+4. **`corpus_digest` tool** — in the catalogue below but **not shipped**; wrap the
+   existing digest capability if wanted.
+5. **Agent-loop eval** — the success-metric held-out question set is not yet
+   automated.
+
+The capability surface, FRs, and metrics below describe the **product intent**;
+where they read as future tense, treat slices 1–3 as done per the above.
 
 ---
 
@@ -107,7 +139,7 @@ Grouped by intent. Exact names/schemas are RFC-095's concern; this is the *what*
 | **Resolve** | `resolve_entity` (name → canonical `person:`/`org:`/`topic:` id; the keystone for everything below) | RFC-072 identity / entity resolver |
 | **Retrieve** | `search_corpus` (hybrid two-tier; returns tier, intent, grounded evidence; optional tier/grounded/feed/date filters) | RFC-090 `/api/search` path |
 | **Relational** | `person_positions`, `who_said_about_topic`, `cross_show_synthesis`, `insights_about_entity`, `topic_entities`, `related_insights`, `show_episodes` | RFC-094 relational-query layer |
-| **Catalog / navigate** | `list_episodes`, `episode_detail`, `corpus_digest`, `top_people`, `list_feeds` | `/api/corpus/*` catalog |
+| **Catalog / navigate** | `list_episodes`, `episode_detail`, `top_people`, `list_feeds` (shipped); `corpus_digest` (planned, not yet shipped) | `/api/corpus/*` catalog |
 | **Intelligence (CIL)** | `person_profile`, `topic_timeline`, `position_arc` | cross-layer CIL queries (RFC-072 bridge) |
 
 All tools are **read-only** and return structured JSON with provenance (canonical ids, episode/show
@@ -163,23 +195,23 @@ attribution, grounding flags, scores).
 
 ## Open questions
 
-- **OQ-1 Transport.** Stdio-first (local agent clients) is the v1; do we want HTTP/SSE (remote, prod
-  VPS) in the same epic or as a follow-up? *(Leaning follow-up.)*
-- **OQ-2 Resource exposure.** Should artifacts (GI/KG JSON, transcripts) also be MCP *resources*
-  (readable by uri), or is tool-returned structured data enough for v1? *(Leaning tools-only v1.)*
-- **OQ-3 Multi-corpus.** One server = one corpus context, or a `corpus` argument per call to serve
-  several? *(Leaning single-context server; multiple servers for multiple corpora.)*
-- **OQ-4 Result size / budgeting.** Generic tools return raw structured results; token-budget shaping
-  is RFC-093's job. Confirm generic tools stay un-shaped (caps + pagination only).
+- **OQ-1 Transport.** — **deferred to a follow-up.** v1 is stdio-only; HTTP/SSE +
+  auth is the top backlog item.
+- **OQ-2 Resource exposure.** — **deferred (tools-only v1).** Resources are a
+  possible follow-on.
+- **OQ-3 Multi-corpus.** — **resolved: single-context** (one server = one corpus;
+  run multiple servers for multiple corpora).
+- **OQ-4 Result size / budgeting.** — **resolved: generic tools stay un-shaped**
+  (caps + pagination only); token-budget shaping remains RFC-093's job.
 
 ---
 
 ## Rollout
 
-1. **Substrate** — server skeleton + `resolve_entity` + `search_corpus` (the minimum useful agent loop).
-2. **Relational tools** — the seven RFC-094 traversals.
-3. **Catalog + CIL tools.**
-4. **(Later) HTTP/SSE transport + auth**, and **RFC-093 briefing-pack tool** registration.
+1. ✅ **Substrate** — server skeleton + `resolve_entity` + `search_corpus`.
+2. ✅ **Relational tools** — the seven RFC-094 traversals.
+3. ✅ **Catalog + CIL tools** (minus `corpus_digest`).
+4. ⏳ **(Later) HTTP/SSE transport + auth**, and **RFC-093 briefing-pack tool** registration.
 
 Sequencing favors the smallest end-to-end agent loop first (resolve + search), proving the transport
 and tool-description ergonomics before breadth.

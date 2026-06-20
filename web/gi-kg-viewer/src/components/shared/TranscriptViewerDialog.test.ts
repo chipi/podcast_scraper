@@ -115,7 +115,8 @@ describe('TranscriptViewerDialog', () => {
   it('renders a closed dialog with the static title before open()', () => {
     const w = mountDialog()
     expect(dialogEl(w).open).toBe(false)
-    expect(w.get('#transcript-viewer-title').text()).toBe('Transcript')
+    // Title now rendered by the shared AppDialog (its own generated id).
+    expect(w.get('[data-testid="transcript-viewer-dialog"] h2').text()).toBe('Transcript')
   })
 
   it('opens the modal and shows loading then the transcript body', async () => {
@@ -376,7 +377,7 @@ describe('TranscriptViewerDialog', () => {
     await exposed(w).open(basePayload())
     await settle(w)
     // Click the title (a child) — target !== dialog element → stays open.
-    await w.get('#transcript-viewer-title').trigger('click')
+    await w.get('[data-testid="transcript-viewer-dialog"] h2').trigger('click')
     expect(dialogEl(w).open).toBe(true)
   })
 

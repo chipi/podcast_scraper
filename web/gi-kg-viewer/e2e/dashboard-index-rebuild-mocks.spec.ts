@@ -27,7 +27,13 @@ const INDEX_STATS_ENVELOPE = {
   rebuild_last_error: null as string | null,
 }
 
-test.describe('Index rebuild from Dashboard Index status card (mocked API)', () => {
+/**
+ * Config consolidation: the Dashboard **Index status** card is status-only. The
+ * rebuild *action* lives in the Configuration "Vector index" dialog (single
+ * canonical place per concern). The card's **Manage in Configuration** button
+ * routes there; the dialog then issues `POST /api/index/rebuild`.
+ */
+test.describe('Index rebuild via Configuration Vector index dialog (mocked API)', () => {
   test.beforeEach(async ({ page }) => {
     await page.route('**/api/health', async (route) => {
       await route.fulfill({
@@ -57,7 +63,9 @@ test.describe('Index rebuild from Dashboard Index status card (mocked API)', () 
     await setupCorpusDashboardDataRoutes(page)
   })
 
-  test('Update index sends POST /api/index/rebuild (202, incremental)', async ({ page }) => {
+  test('Index status card is status-only and routes rebuild to Configuration (incremental)', async ({
+    page,
+  }) => {
     await page.route('**/api/index/rebuild**', async (route) => {
       if (route.request().method() !== 'POST') {
         await route.continue()
@@ -66,11 +74,7 @@ test.describe('Index rebuild from Dashboard Index status card (mocked API)', () 
       await route.fulfill({
         status: 202,
         contentType: 'application/json',
-        body: JSON.stringify({
-          accepted: true,
-          corpus_path: '/mock/corpus',
-          rebuild: false,
-        }),
+        body: JSON.stringify({ accepted: true, corpus_path: '/mock/corpus', rebuild: false }),
       })
     })
 
@@ -78,21 +82,27 @@ test.describe('Index rebuild from Dashboard Index status card (mocked API)', () 
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await openCorpusDataWorkspace(page)
-    await expect(page.getByTestId('index-status-card')).toBeVisible()
 
-    const updateBtn = page.getByTestId('index-status-update')
-    await expect(updateBtn).toBeEnabled()
+    const card = page.getByTestId('index-status-card')
+    await expect(card).toBeVisible()
+    // The inline rebuild buttons have moved out of the dashboard card.
+    await expect(page.getByTestId('index-status-update')).toHaveCount(0)
+    await expect(page.getByTestId('index-status-full-rebuild')).toHaveCount(0)
+
+    // Manage opens the Configuration dialog at its Index section (the rebuild home).
+    await card.getByTestId('index-status-manage').click()
+    await expect(page.getByTestId('status-bar-sources-dialog')).toBeVisible()
+    await expect(page.getByTestId('sources-dialog-index-panel')).toBeVisible()
 
     const reqPromise = page.waitForRequest(
       (req) => req.url().includes('/api/index/rebuild') && req.method() === 'POST',
     )
-    await updateBtn.click()
+    await page.getByTestId('index-dialog-update').click()
     const req = await reqPromise
-    const u = new URL(req.url())
-    expect(u.searchParams.get('rebuild')).not.toBe('true')
+    expect(new URL(req.url()).searchParams.get('rebuild')).not.toBe('true')
   })
 
-  test('Full rebuild sends POST with rebuild=true', async ({ page }) => {
+  test('Full rebuild from the Configuration dialog sends rebuild=true', async ({ page }) => {
     await page.route('**/api/index/rebuild**', async (route) => {
       if (route.request().method() !== 'POST') {
         await route.continue()
@@ -101,11 +111,7 @@ test.describe('Index rebuild from Dashboard Index status card (mocked API)', () 
       await route.fulfill({
         status: 202,
         contentType: 'application/json',
-        body: JSON.stringify({
-          accepted: true,
-          corpus_path: '/mock/corpus',
-          rebuild: true,
-        }),
+        body: JSON.stringify({ accepted: true, corpus_path: '/mock/corpus', rebuild: true }),
       })
     })
 
@@ -113,15 +119,15 @@ test.describe('Index rebuild from Dashboard Index status card (mocked API)', () 
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await openCorpusDataWorkspace(page)
-    await expect(page.getByTestId('index-status-card')).toBeVisible()
 
-    const fullBtn = page.getByTestId('index-status-full-rebuild')
-    await expect(fullBtn).toBeEnabled()
+    await page.getByTestId('index-status-card').getByTestId('index-status-manage').click()
+    await expect(page.getByTestId('status-bar-sources-dialog')).toBeVisible()
+    await expect(page.getByTestId('sources-dialog-index-panel')).toBeVisible()
 
     const reqPromise = page.waitForRequest(
       (req) => req.url().includes('/api/index/rebuild') && req.method() === 'POST',
     )
-    await fullBtn.click()
+    await page.getByTestId('index-dialog-full-rebuild').click()
     const req = await reqPromise
     expect(new URL(req.url()).searchParams.get('rebuild')).toBe('true')
   })

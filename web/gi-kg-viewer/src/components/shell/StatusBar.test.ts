@@ -19,9 +19,11 @@ vi.mock('../../api/feedsApi', () => ({
 
 const getOperatorConfig = vi.fn()
 const putOperatorConfig = vi.fn()
+const getOperatorProfiles = vi.fn(() => Promise.resolve({ profiles: [] }))
 vi.mock('../../api/operatorConfigApi', () => ({
   getOperatorConfig: (...a: unknown[]) => getOperatorConfig(...a),
   putOperatorConfig: (...a: unknown[]) => putOperatorConfig(...a),
+  getOperatorProfiles: (...a: unknown[]) => getOperatorProfiles(...a),
 }))
 
 // indexStats store calls fetchIndexStats on its corpusPath/health watcher.
@@ -29,9 +31,13 @@ vi.mock('../../api/operatorConfigApi', () => ({
 // never hits fetch.
 const fetchIndexStats = vi.fn()
 const postIndexRebuild = vi.fn()
+// StatusBar's Index section calls fetchIndexTimeseries when activated; stub it so
+// the mocked module exposes the export (else accessing it throws an unhandled error).
+const fetchIndexTimeseries = vi.fn()
 vi.mock('../../api/indexStatsApi', () => ({
   fetchIndexStats: (...a: unknown[]) => fetchIndexStats(...a),
   postIndexRebuild: (...a: unknown[]) => postIndexRebuild(...a),
+  fetchIndexTimeseries: (...a: unknown[]) => fetchIndexTimeseries(...a),
 }))
 
 import StatusBar from './StatusBar.vue'
@@ -62,6 +68,7 @@ describe('StatusBar', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     fetchIndexStats.mockResolvedValue(null)
+    fetchIndexTimeseries.mockResolvedValue({ available: false, by_month: [], doc_types: [] })
   })
   afterEach(() => {
     vi.clearAllMocks()
@@ -420,7 +427,7 @@ describe('StatusBar', () => {
 
   // ── Sources dialog tab switching ────────────────────────────────────────────
 
-  it('switching to the Job Profile tab loads operator config and lists presets', async () => {
+  it('opening Job Configuration loads operator config and lists profile presets', async () => {
     getFeeds.mockResolvedValue({ path: '/corpus', file_relpath: 'feeds.spec.yaml', feeds: [] })
     getOperatorConfig.mockResolvedValue({
       corpus_path: '/corpus',
@@ -438,7 +445,7 @@ describe('StatusBar', () => {
     await w.get(SOURCES_TRIGGER).trigger('click')
     await w.vm.$nextTick()
     await w.vm.$nextTick()
-    await w.get('[data-testid="sources-dialog-tab-profile"]').trigger('click')
+    await w.get('[data-testid="sources-dialog-tab-operator"]').trigger('click')
     await w.vm.$nextTick()
     await w.vm.$nextTick()
     expect(getOperatorConfig).toHaveBeenCalledTimes(1)
@@ -480,17 +487,17 @@ describe('StatusBar', () => {
 
   // ── Rebuild indicator opens the index dialog ───────────────────────────────
 
-  it('rebuild indicator opens the vector-index dialog', async () => {
+  it('rebuild indicator opens the Configuration dialog at the Index section', async () => {
     const w = mountBar()
     const index = useIndexStatsStore()
     index.indexEnvelope = { reindex_recommended: true } as unknown as IndexStatsEnvelope
     await w.vm.$nextTick()
     await w.get(REBUILD_BTN).trigger('click')
     await w.vm.$nextTick()
-    const indexDialog = w
-      .findAll('dialog')
-      .find((d) => d.text().includes('Vector index'))
-    expect(indexDialog).toBeTruthy()
-    expect((indexDialog!.element as HTMLDialogElement).open).toBe(true)
+    await w.vm.$nextTick()
+    const dialog = w.get('[data-testid="status-bar-sources-dialog"]')
+    expect((dialog.element as HTMLDialogElement).open).toBe(true)
+    // The Index section is the active one (rebuild controls live there now).
+    expect(w.get('[data-testid="sources-dialog-index-panel"]').isVisible()).toBe(true)
   })
 })

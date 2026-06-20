@@ -22,7 +22,8 @@ const emit = defineEmits<{
   'open-pipeline-job-history': []
   /** Open Pipeline tab + corpus Run history (e.g. stale-run action). */
   'open-pipeline-run-history': []
-  'rebuild-index': []
+  /** Route to the Configuration "Vector index" dialog (rebuild lives there). */
+  'open-index-controls': []
   'open-library': []
 }>()
 
@@ -188,16 +189,16 @@ const actionItems = computed(() => {
   if (!props.indexEnv?.available) {
     out.push({
       text: 'Vector index has not been built',
-      primary: 'Build index',
-      onPrimary: () => emit('rebuild-index'),
+      primary: 'Open index controls',
+      onPrimary: () => emit('open-index-controls'),
     })
   } else {
     const days = indexDaysSince.value
     if (days != null && days > 7 && props.indexEnv.reindex_recommended) {
       out.push({
         text: `Index last rebuilt ${days} day${days === 1 ? '' : 's'} ago`,
-        primary: 'Rebuild now',
-        onPrimary: () => emit('rebuild-index'),
+        primary: 'Open index controls',
+        onPrimary: () => emit('open-index-controls'),
       })
     }
   }
