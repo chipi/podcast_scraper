@@ -1633,15 +1633,11 @@ def run_experiment(  # noqa: C901
                             if not bullets and summary.strip():
                                 bullets = [summary.strip()[:2000]]
                             gil_extra: List[Any] = []
-                            gi_src = getattr(cfg_obj, "gi_insight_source", "summary_bullets")
-                            if gi_src == "summary_bullets":
-                                ins_texts: Optional[List[str]] = bullets
-                                ins_prov = None
-                            elif gi_src == "provider":
-                                ins_texts = None
+                            gi_src = getattr(cfg_obj, "gi_insight_source", "provider")
+                            ins_texts: Optional[List[str]] = None
+                            if gi_src == "provider":
                                 ins_prov = provider
                             else:
-                                ins_texts = None
                                 ins_prov = None
 
                             # Create evidence providers (QA + NLI) for
@@ -1687,6 +1683,20 @@ def run_experiment(  # noqa: C901
                                 topic_labels=bullets or None,
                             )
                             _cleanup_gil_evidence_extras(gil_extra)
+                        # #111 — apply the configured postprocessor to GIL
+                        # node labels too (fixes DSV2-Lite 0% coverage bug;
+                        # see EVAL_1016_FINAL_REPORT § 6a). The summary
+                        # path applies the postprocessor to summary text
+                        # via get_postprocessor below; without this the
+                        # GI/KG paths leave byte-level BPE artifacts in
+                        # node properties.label and the scorer can't match.
+                        from podcast_scraper.evaluation.output_postprocess import (
+                            apply_postprocessor_to_gil_payload as _apply_gil_post,
+                            get_postprocessor as _get_post,
+                        )
+
+                        _post_name = getattr(cfg.prompts, "postprocessor", None)
+                        gil_payload = _apply_gil_post(gil_payload, _get_post(_post_name))
                         dt = time.time() - t0
                         out_text = json.dumps(gil_payload, ensure_ascii=False, sort_keys=True)
                         total_chars_out += len(out_text)
@@ -1764,6 +1774,15 @@ def run_experiment(  # noqa: C901
                                 kg_extraction_provider=provider,
                                 pipeline_metrics=None,
                             )
+                        # #111 — same DSV2-Lite postprocessor fix as the
+                        # GI branch above (see EVAL_1016_FINAL_REPORT § 6a).
+                        from podcast_scraper.evaluation.output_postprocess import (
+                            apply_postprocessor_to_gil_payload as _apply_kg_post,
+                            get_postprocessor as _get_kg_post,
+                        )
+
+                        _kg_post_name = getattr(cfg.prompts, "postprocessor", None)
+                        kg_payload = _apply_kg_post(kg_payload, _get_kg_post(_kg_post_name))
                         dt = time.time() - t0
                         out_text = json.dumps(kg_payload, ensure_ascii=False, sort_keys=True)
                         total_chars_out += len(out_text)
@@ -2109,6 +2128,26 @@ def run_experiment(  # noqa: C901
         logger.warning(f"Metrics validation issue (non-fatal): {e}")
     except Exception as e:
         logger.warning(f"Metrics validation skipped (schema validator unavailable): {e}")
+
+    # #912 Path D — inject bundled-parse-failure counters into the metrics
+    # report so autoresearch sweeps surface flaky bundled candidates
+    # instead of hiding them in eval_pipeline_metrics.json. eval_llm_metrics
+    # is the workflow.metrics.Metrics instance accumulated during the run;
+    # its finish()-derived totals already include the Path D counter the
+    # provider bumped on every parse failure. No-op when the run wasn't
+    # bundled or no failures were observed.
+    if eval_llm_metrics is not None:
+        try:
+            bd_total = int(getattr(eval_llm_metrics, "llm_bundled_parse_failures_total", 0))
+            bd_by_kind = getattr(eval_llm_metrics, "llm_bundled_parse_failures_by_kind", {}) or {}
+            if bd_total > 0:
+                metrics.setdefault("intrinsic", {})
+                metrics["intrinsic"]["bundled_parse_failures"] = {
+                    "total": bd_total,
+                    "by_kind": dict(bd_by_kind),
+                }
+        except Exception as exc:
+            logger.warning("Failed to surface Path D bundled-parse-failures: %s", exc)
 
     # Generate and save human-readable metrics report
     metrics_report = generate_metrics_report(metrics)

@@ -297,6 +297,14 @@ operator repeatedly. Adherence beats every other rule.
 - If scope or intent is unclear, ask first. Do not add unrequested steps.
 - Non-negotiable safety: never commit secrets; never push unless asked;
   never combine a hotfix push with unrelated work.
+- Known secret-leak vector: `docker compose config` resolves and inlines
+  every `${...}` env var (including `HF_TOKEN`, `VLLM_API_KEY`, etc.) into
+  literal values. Never `git add` its output without scrubbing first — the
+  `autoresearch/1022_gb10_tuning/run_labeled.sh` scrubber is the canonical
+  pattern. Same hazard applies to any `*.env` snapshot, `printenv` dump,
+  or `terraform state show` output. Locally the pre-commit hook's secret
+  scan will catch these; do not bypass with `--no-verify` without
+  explicit operator approval.
 
 ## Autonomous execution
 

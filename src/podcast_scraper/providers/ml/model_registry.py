@@ -935,6 +935,13 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         resident_memory_gb=19.0,
     ),
     # Smaller local for laptop / dev profiles.
+    # #113 small-model standoff (2026-06-20): under #1035 NER pre-pass, this
+    # 9B Q4 model rides spaCy PERSON+ORG hints to 97% entity coverage (29/30
+    # on silver_opus47_kg_dev_v1) — within 3pp of Cell F NVFP4's 100%, at
+    # 73% smaller weight footprint. Topic coverage 66% essentially ties Cell
+    # F (65%). NER pre-pass effectively closes the model-size gap for KG /
+    # entity extraction. Candidate for `airgapped_thin` / `local_dgx_balanced`
+    # default after benchmark_v2 held-out validation lands.
     "ollama_qwen35_9b": StageOption(
         stage="summary",
         option_id="ollama_qwen35_9b",
@@ -942,9 +949,13 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         model="qwen3.5:9b",
         endpoint="http://{dgx_tailnet_host}:11434/v1",
         extra_settings={"think": False, "bundled_mode_caveat": "fragile in bundled mode"},
-        research_ref="docs/guides/eval-reports/EVAL_HELDOUT_V2_2026_04.md",
-        headline_metric="0.529 bullets / 0.509 para — local DGX entry-level",
-        measured_at="2026-04-16",
+        research_ref="docs/wip/EVAL_113_SMALL_MODEL_STANDOFF.md",
+        headline_metric=(
+            "Summary 0.529 bullets / 0.509 para (#928). #113 small-model "
+            "standoff under #1035 NER pre-pass: KG topic 66% / entity 97% — "
+            "within 3pp of Cell F NVFP4 at 6.6 GB footprint."
+        ),
+        measured_at="2026-06-20",
         tier="fallback",
         resident_memory_gb=6.6,
     ),
@@ -978,10 +989,15 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         tier="primary",
         resident_memory_gb=6.0,
     ),
-    # vLLM-served Qwen3.5-35B-A3B — #1016 Round 3 top-dog (2 of 3 stages won).
-    # Requires `--reasoning-parser=qwen3` server flag. Highest absolute quality
-    # but +3.6 Sonnet-mimicry on summary — cross-vendor judge panel required to
-    # validate top-dog claim ([[silver_judge_vendor_bias]]).
+    # vLLM-served Qwen3.5-35B-A3B — #1016 Round 3 top-dog on summary + KG.
+    # As of #1022 (2026-06-19), supplanted by Qwen3-30B-A3B-NVFP4 for
+    # **daily-driver use** (Cell F: 1.7× faster end-to-end at -4.7% quality
+    # sum). Retain this option for **highest-stakes one-shot evals** where
+    # summary or KG quality matters more than wall-clock — operator manually
+    # swaps the homelab compose for those runs. Requires
+    # `--reasoning-parser=qwen3` server flag. +3.6 Sonnet-mimicry on summary —
+    # cross-vendor judge panel required to validate top-dog claim
+    # ([[silver_judge_vendor_bias]]).
     "vllm_qwen3_5_35b_a3b": StageOption(
         stage="summary",
         option_id="vllm_qwen3_5_35b_a3b",
@@ -1009,12 +1025,20 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         tier="primary",
         resident_memory_gb=67.0,
     ),
-    # vLLM-served Moonlight-16B-A3B-Instruct — #1016 Round 3 safe pick.
-    # Style-neutral (Δ S−O = 0.0 across all 3 stages) — no judge-vendor caveat.
-    # Lower absolute quality than Qwen3.5 but half the memory + 33% faster.
-    # Right pick when (a) DGX is contended, (b) downstream judge vendor is
-    # unknown / Sonnet-heavy, (c) audit-clean rankings matter more than peak
-    # quality. Requires `--max-model-len=8192` (model's max_position_embeddings).
+    # vLLM-served Moonlight-16B-A3B-Instruct — #1016 Round 3 included it as the
+    # style-neutral "safe pick" (Δ S−O = 0.0 across all 3 stages). That role
+    # has since compressed to "speed-only choice when entity quality is not a
+    # gate":
+    #   - #1022 (2026-06-19): supplanted on autoresearch tier by Cell F NVFP4
+    #     (Cell F wins GI +161% / KG +45% / speed -5% / footprint -44%)
+    #   - #113 (2026-06-20) under #1035 NER pre-pass: lowest topic coverage
+    #     in the cohort (54%, vs Cell F 65% / Qwen3.5:9b 66%) AND the only
+    #     candidate emitting NER false-positive entities (+4 extras). MoE
+    #     small active-params (~3B/token) trade discrimination for speed —
+    #     under NER hints, denser models filter the candidate list better.
+    # Retained here only as a speed-priority option when KG entity quality
+    # isn't gating.
+    # Requires `--max-model-len=8192` (model's max_position_embeddings).
     "vllm_moonlight_16b_a3b": StageOption(
         stage="summary",
         option_id="vllm_moonlight_16b_a3b",
@@ -1026,16 +1050,60 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
             "compose_flag_required": "--trust-remote-code --max-model-len=8192",
             "vendor_sampling": "greedy (no vendor recommendation)",
         },
-        research_ref="docs/wip/EVAL_1016_FINAL_REPORT_2026_06_17.md",
+        research_ref="docs/wip/EVAL_113_SMALL_MODEL_STANDOFF.md",
         headline_metric=(
-            "ROUGE-1 vs Opus 57.5%, cosine 78.6%. GI 16% (cohort floor — small "
-            "MoE active params hurt extraction). KG 29% (stable vs R1/2). "
-            "9.0s/ep (cohort speed leader after DSV2-Lite). Δ S−O = 0.0 across "
-            "all 3 stages — truly style-neutral."
+            "Summary ROUGE-1 vs Opus 57.5%, cosine 78.6% (#1016 R3). "
+            "#113 under #1035 NER pre-pass: KG topic 54% (cohort floor), "
+            "entity 93% (4 false positives — only candidate with extras). "
+            "Speed-priority choice only; not for entity-quality-gated work."
         ),
-        measured_at="2026-06-17",
+        measured_at="2026-06-20",
         tier="primary",
         resident_memory_gb=32.0,
+    ),
+    # vLLM-served Qwen3-30B-A3B-NVFP4 — #1022 Cell F daily-driver champion
+    # (corrected-pipeline rankings per #1033, 2026-06-19).
+    # NVFP4 quantization of Qwen3-30B-A3B-Instruct-2507 (NVIDIA Model
+    # Optimizer team's official quant — `NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4`).
+    # On the corrected `provider`-source pipeline: GI avg_sim 0.595 (cohort
+    # #2 behind Qwen3.5-35B-A3B 0.618), KG topic cov 45% (cohort #2 behind
+    # Qwen3.5-35B-A3B 50%). 16% faster end-to-end on the GI+KG path (440s
+    # vs Qwen3.5-35B-A3B 526s) at a bounded -4% GI / -5pp KG quality gap.
+    # Same architecture + sampling as Qwen3-30B-A3B-Instruct-2507 baseline —
+    # drop-in replacement at the homelab compose level. Held-out validated
+    # on benchmark_v2 (Sonnet 4.6 silver) — quality holds cross-dataset +
+    # cross-vendor. For one-shot highest-stakes evals, operator can
+    # manually swap the compose to Qwen3.5-35B-A3B for the cohort top-quality
+    # candidate.
+    "vllm_qwen3_30b_a3b_nvfp4": StageOption(
+        stage="summary",
+        option_id="vllm_qwen3_30b_a3b_nvfp4",
+        provider="openai",
+        model="autoresearch",  # served-model-name on the autoresearch slot
+        endpoint="http://{dgx_tailnet_host}:8003/v1",
+        extra_settings={
+            "api_key_env": "VLLM_API_KEY",
+            "underlying_hf_model": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4",
+            "chat_template_kwargs": {"enable_thinking": False},
+            "vendor_sampling": {
+                "temperature": 0.7,
+                "top_p": 0.8,
+                "top_k": 20,
+                "presence_penalty": 1.5,
+            },
+        },
+        research_ref="docs/wip/EVAL_1033_COHORT_RERUN_2026-06-19.md",
+        headline_metric=(
+            "Corrected-pipeline (#1033) cohort: GI avg_sim 0.595 (rank 2), "
+            "KG topic cov 45% (rank 2), summary rouge1_f1 vs Opus 0.5407 "
+            "(rank 5). End-to-end GI+KG 440s — 16% faster than #1 "
+            "Qwen3.5-35B-A3B at -4% GI / -5pp KG quality gap. 18 GB weight "
+            "footprint (3.7× smaller). Best speed-quality trade-off; "
+            "Qwen3.5-35B-A3B is the top-quality reserve for one-shot evals."
+        ),
+        measured_at="2026-06-19",
+        tier="primary",
+        resident_memory_gb=18.0,
     ),
 }
 
@@ -1083,18 +1151,16 @@ _GI_OPTIONS: Dict[str, StageOption] = {
 }
 
 
-# KG — extraction source + max_topics / max_entities defaults.
+# KG — max_topics / max_entities defaults.
 #
-# Source choice (provider vs summary_bullets) is currently a profile-level
-# operational decision, not a measured comparison. Per-provider extraction
-# uses the configured summary provider's KG-extraction endpoint;
-# summary_bullets is the airgapped/offline fallback that walks summary text
-# instead of running a fresh extraction.
-#
-# The (max_topics, max_entities) = (10, 15) tuple is the universal default
-# across every YAML — these are caps, not sweeps, so a "winner" doesn't
-# meaningfully apply. The canonicalization thresholds 0.65 / 0.70 baked into
-# ``entity_clusters.py`` ARE measured (see #853 report).
+# Per-provider extraction reads the cleaned transcript directly via the
+# configured summary provider's KG-extraction endpoint. The legacy
+# `summary_bullets` source was removed in #1034 (per the #1033 audit) —
+# its option entry here is gone. The (max_topics, max_entities) = (10, 15)
+# tuple is the universal default across every YAML — these are caps, not
+# sweeps, so a "winner" doesn't meaningfully apply. The canonicalization
+# thresholds 0.65 / 0.70 baked into ``entity_clusters.py`` ARE measured
+# (see #853 report).
 _KG_OPTIONS: Dict[str, StageOption] = {
     "provider_n10_15": StageOption(
         stage="kg",
@@ -1108,19 +1174,6 @@ _KG_OPTIONS: Dict[str, StageOption] = {
         ),
         measured_at="2026-06-08",
         tier="primary",
-    ),
-    "summary_bullets_n10_15": StageOption(
-        stage="kg",
-        option_id="summary_bullets_n10_15",
-        provider="summary_bullets",
-        extra_settings={"max_topics": 10, "max_entities": 15},
-        research_ref="docs/guides/eval-reports/EVAL_ENTITY_CANON_2026_06_08.md",
-        headline_metric=(
-            "summary-bullets KG source for airgapped/offline profiles; same canon "
-            "thresholds (0.65/0.70) from #853 apply downstream"
-        ),
-        measured_at="2026-06-08",
-        tier="fallback",
     ),
 }
 
@@ -1283,7 +1336,8 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     "prod_dgx_full_with_fallback": ProfilePreset(
         name="prod_dgx_full_with_fallback",
         transcription="tailnet_dgx_whisper_openai",  # #929 winner + cloud Whisper fallback
-        summary="vllm_qwen3_5_35b_a3b",  # #1016 R3 top dog (was: ollama_qwen35_35b #928 Cell C)
+        # #1022 Cell F daily-driver champion (supersedes Qwen3.5-35B-A3B top dog for routine prod)
+        summary="vllm_qwen3_30b_a3b_nvfp4",
         kg="provider_n10_15",
         ner="gemini_speaker_detector",  # sub-cent, better than spacy on names
         clustering="topic_clusters_default_0_75",
@@ -1306,13 +1360,20 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
             "do not run autoresearch sweeps on coder-next vLLM concurrent with a "
             "pipeline run on this profile. The transcription and summary stages "
             "are sequential per-episode so on-profile they don't overlap, but "
-            "external vLLM sweeps will."
+            "external vLLM sweeps will. "
+            "2026-06-19 UPDATE (#1022 Cell F): the autoresearch-slot model has "
+            "been swapped from Qwen3.5-35B-A3B (bf16) to "
+            "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 — 1.7× faster end-to-end at "
+            "-4.7% quality sum, wins GI stage outright. The "
+            "vllm_qwen3_5_35b_a3b StageOption is retained for highest-stakes "
+            "one-shot evals (manual compose swap)."
         ),
     ),
     "prod_dgx_balanced": ProfilePreset(
         name="prod_dgx_balanced",
         transcription="tailnet_dgx_whisper_openai",
-        summary="vllm_moonlight_16b_a3b",  # #1016 Round 3 safe pick
+        # #1022 Cell F (supersedes Moonlight safe pick: same speed, +161% GI, +45% KG, -44% mem)
+        summary="vllm_qwen3_30b_a3b_nvfp4",
         kg="provider_n10_15",
         ner="gemini_speaker_detector",
         clustering="topic_clusters_default_0_75",
@@ -1328,13 +1389,23 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
             "Pick this profile when (a) DGX is shared with other workloads, "
             "(b) downstream judge vendor is unknown/Sonnet-heavy, or (c) "
             "audit-clean ranking matters more than peak quality. Otherwise "
-            "use prod_dgx_full_with_fallback."
+            "use prod_dgx_full_with_fallback. "
+            "2026-06-19 UPDATE (#1022 Cell F): the autoresearch-slot model "
+            "behind this profile's summary stage has been swapped from "
+            "Moonlight-16B-A3B (bf16, 32 GB) to "
+            "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 (18 GB). Cell F dominates "
+            "Moonlight in 4 of 5 dimensions: loses summary rouge1 by 6% but "
+            "wins GI by 161%, KG by 45%, end-to-end speed by 5%, weight "
+            "footprint by 44%. Style-neutrality note: Cell F has not been "
+            "Δ S−O measured; if strict bias-clean ranking is essential, "
+            "manually swap to Moonlight via homelab compose for that run."
         ),
     ),
     "eval_default": ProfilePreset(
         name="eval_default",
         transcription="tailnet_dgx_whisper_openai",
-        summary="vllm_moonlight_16b_a3b",  # style-neutral for self-comparison
+        # #1022 Cell F (supersedes Moonlight; same architecture + faster + GI winner)
+        summary="vllm_qwen3_30b_a3b_nvfp4",
         kg="provider_n10_15",
         ner="gemini_speaker_detector",
         clustering="topic_clusters_default_0_75",
@@ -1349,7 +1420,12 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
             "~/agentic-ai-homelab/infra/vllm/autoresearch/docker-compose.yml has "
             "had --max-num-seqs=4 + --enforce-eager defaults applied since "
             "2026-06-17 (lever A + C from #1016 §5) — these are right for the "
-            "eval-loop iteration cadence."
+            "eval-loop iteration cadence. "
+            "2026-06-19 UPDATE (#1022 Cell F): summary stage swapped from "
+            "Moonlight-16B-A3B to NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 "
+            "after Cell F entered the cohort. Same speed as Moonlight, "
+            "significantly better GI/KG, half the memory. Style-neutrality "
+            "caveat (above) applies."
         ),
     ),
     "cloud_quality": ProfilePreset(

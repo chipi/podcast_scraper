@@ -1,0 +1,51 @@
+name: autoresearch
+services:
+  vllm-autoresearch:
+    command:
+      - vllm
+      - serve
+      - NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
+      - --host=0.0.0.0
+      - --port=8003
+      - --api-key=${VLLM_API_KEY}
+      - --gpu-memory-utilization=0.65
+      - --max-model-len=32768
+      - --served-model-name=autoresearch
+    container_name: vllm-autoresearch
+    environment:
+      HF_HOME: /opt/llm-models/huggingface
+      HF_TOKEN: ${HF_TOKEN}
+      VLLM_API_KEY: ${VLLM_API_KEY}
+      VLLM_CACHE_PATH: /opt/llm-models/vllm-cache
+      VLLM_CACHE_ROOT: /opt/llm-models/vllm-cache
+      VLLM_GPU_MEM_UTIL: "0.65"
+      VLLM_PORT: "8003"
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -fsS
+        - http://127.0.0.1:8003/health
+      timeout: 5s
+      interval: 30s
+      retries: 3
+      start_period: 30m0s
+    image: nvcr.io/nvidia/vllm:26.05-py3
+    ipc: host
+    logging:
+      driver: json-file
+      options:
+        max-file: "3"
+        max-size: 50m
+    network_mode: host
+    restart: unless-stopped
+    runtime: nvidia
+    volumes:
+      - type: bind
+        source: /opt/llm-models/huggingface
+        target: /opt/llm-models/huggingface
+        bind: {}
+      - type: bind
+        source: /opt/llm-models/vllm-cache
+        target: /opt/llm-models/vllm-cache
+        bind: {}

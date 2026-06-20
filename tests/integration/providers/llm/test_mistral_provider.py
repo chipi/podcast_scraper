@@ -1107,33 +1107,6 @@ class TestMistralProviderKG(unittest.TestCase):
             "mistral-large-x",
         )
 
-    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
-    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
-    def test_extract_kg_from_summary_bullets_success(self, mock_mistral_class, mock_retry):
-        mock_retry.side_effect = lambda fn, **kwargs: fn()
-        mock_client = Mock()
-        mock_mistral_class.return_value = mock_client
-        mock_resp = Mock()
-        mock_resp.choices = [Mock(message=Mock(content=self._KG_JSON))]
-        mock_client.chat.complete.return_value = mock_resp
-        provider = MistralProvider(self.cfg)
-        provider.initialize()
-        out = provider.extract_kg_from_summary_bullets(["B1"], episode_title="T")
-        self.assertIsNotNone(out)
-
-    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
-    def test_extract_kg_from_summary_bullets_not_initialized(self, mock_mistral_class):
-        mock_mistral_class.return_value = Mock()
-        provider = MistralProvider(self.cfg)
-        self.assertIsNone(provider.extract_kg_from_summary_bullets(["a"]))
-
-    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
-    def test_extract_kg_from_summary_bullets_empty(self, mock_mistral_class):
-        mock_mistral_class.return_value = Mock()
-        provider = MistralProvider(self.cfg)
-        provider._summarization_initialized = True
-        self.assertIsNone(provider.extract_kg_from_summary_bullets([]))
-
 
 @pytest.mark.integration
 class TestMistralSdkPathResolution(unittest.TestCase):

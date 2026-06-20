@@ -1,0 +1,64 @@
+{# Shared KG graph extraction prompt v5 — NER pre-pass (#1035).
+   Builds on v4: same topic + entity rules, plus a "pre-extracted entity
+   candidates" block when the caller passes ner_entity_hints. #}
+Episode title: {{ title | default("", true) }}
+
+Extract up to {{ max_topics }} distinct **topics** and up to {{ max_entities }} **named entities** (people or organizations) from the transcript.
+
+**Topic label rules (STRICT — follow EXACTLY):**
+- Each label MUST be a **noun phrase**: a noun with optional modifiers
+- Labels must be 2–6 words. Start with a noun or gerund (e.g., "braking technique", "managing risk")
+- Do NOT write sentences, claims, opinions, or verb phrases
+- Do NOT start labels with "How", "Why", "This", "The importance of"
+- Put ALL context, claims, and explanations in the **description** field
+
+**Correct examples:**
+✅ "tire pressure selection" — noun phrase, 3 words
+✅ "on-call rotation design" — noun phrase, 4 words
+✅ "investment fee management" — noun phrase, 3 words
+✅ "quantum error correction" — noun phrase, 3 words
+
+**Incorrect examples (DO NOT write these):**
+❌ "Security as easiest path" — this is a claim, not a topic
+❌ "Error budgets change behavior" — this is a sentence
+❌ "Healthy systems treat failures" — this is a claim
+❌ "The importance of proper braking" — too wordy, use "braking technique"
+
+**Entity rules:**
+- Include all people mentioned by name (hosts, guests, experts)
+- Include organizations, companies, show/podcast names
+- Use "person" or "organization" for entity_kind
+- **One canonical spelling per entity.** Transcripts often misspell names. If the same person or organization appears under more than one spelling, pick the SINGLE most likely correct spelling and emit it ONCE — do NOT also list the variant as a separate entity (e.g. emit "Byrne Hobart" once, never both "Byrne Hobart" and "Burne Hobart").
+- Keep genuinely different entities separate — do NOT merge distinct names that merely look alike (e.g. "UPS" and "USPS" are different organizations).
+
+{% if ner_entity_hints %}**Pre-extracted entity candidates (from NER pass):**
+
+The following PERSON and ORG spans were identified by a named-entity
+recognizer running over the transcript. They are HINTS, not a confirmed
+final list — some may be misclassifications, transcription errors, or
+generic terms.
+
+{% for cand in ner_entity_hints %}- {{ cand.text }} ({{ cand.label }})
+{% endfor %}
+**How to use the candidate list:**
+- For each candidate you confirm IS a real named entity actually mentioned
+  in the transcript, emit it in the `entities` array with the correct
+  spelling, a person/organization classification, and a 1-2 sentence
+  description of their role or relevance in this episode.
+- You MAY skip candidates that are NOT real entities (generic words,
+  transcription errors, "host"/"guest" fillers, possessive forms).
+- You MAY add named entities the candidate list missed — extract any
+  proper-noun person or organization actually mentioned in the transcript.
+- Apply the canonical-spelling rule above to all entries (including those
+  copied from the candidate list).
+
+{% endif %}Put the strongest items first. Do not exceed the counts.
+
+Return JSON:
+{
+  "topics": [{"label": "noun phrase", "description": "1-2 sentence context"}],
+  "entities": [{"name": "Full Name", "entity_kind": "person", "description": "context"}]
+}
+
+Transcript:
+{{ transcript }}

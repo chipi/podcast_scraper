@@ -1,0 +1,58 @@
+2026-06-19 12:53:09,800 INFO __main__: ================================================================================
+2026-06-19 12:53:09,800 INFO __main__: Starting experiment run: kg_autoresearch_prompt_vllm_moonlight_16b_a3b_dev_round3_entity_focused_v1
+2026-06-19 12:53:09,800 INFO __main__: Results directory: data/eval/runs/kg_autoresearch_prompt_vllm_moonlight_16b_a3b_dev_round3_entity_focused_v1
+2026-06-19 12:53:09,800 INFO __main__: Execution log: data/eval/runs/kg_autoresearch_prompt_vllm_moonlight_16b_a3b_dev_round3_entity_focused_v1/run.log
+2026-06-19 12:53:09,800 INFO __main__: Dataset: curated_5feeds_dev_v1
+2026-06-19 12:53:09,800 INFO __main__: ================================================================================
+2026-06-19 12:53:10,102 WARNING podcast_scraper.providers.openai.openai_provider: OpenAI API key validation failed (missing, too short, or wrong prefix); credentials are never logged.
+2026-06-19 12:53:10,121 INFO __main__: GI/KG eval: per-episode summary regeneration and artifact build use the same summarization provider (override gi_* / kg_* in params as needed).
+2026-06-19 12:53:10,221 INFO __main__: Found 10 episode(s) to process
+2026-06-19 12:53:10,221 INFO __main__: Phase 1: Running inference...
+2026-06-19 12:53:10,222 INFO __main__: Processing episode: p01_e01
+2026-06-19 12:53:10,238 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 56 → 50 (6 removed), chars: 11,049 → 10,793 (256 removed, 2.3%)
+2026-06-19 12:53:22,021 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-19 12:53:28,271 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-19 12:53:28,274 INFO __main__: Processing episode: p01_e02
+2026-06-19 12:53:28,283 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 57 → 51 (6 removed), chars: 11,059 → 10,749 (310 removed, 2.8%)
+2026-06-19 12:53:38,460 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-19 12:53:43,948 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-19 12:53:43,949 INFO __main__: Processing episode: p02_e01
+2026-06-19 12:53:43,958 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 58 → 52 (6 removed), chars: 11,537 → 11,225 (312 removed, 2.7%)
+2026-06-19 12:53:52,486 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-19 12:53:56,060 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-19 12:53:56,062 INFO __main__: Processing episode: p02_e02
+2026-06-19 12:53:56,070 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 59 → 53 (6 removed), chars: 11,265 → 10,942 (323 removed, 2.9%)
+2026-06-19 12:54:04,693 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-19 12:54:13,275 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-19 12:54:13,276 INFO __main__: Processing episode: p03_e01
+2026-06-19 12:54:13,284 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 58 → 52 (6 removed), chars: 10,679 → 10,395 (284 removed, 2.7%)
+2026-06-19 12:54:21,932 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-19 12:54:31,567 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-19 12:54:31,568 INFO __main__: Processing episode: p03_e02
+2026-06-19 12:54:31,576 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 62 → 56 (6 removed), chars: 11,172 → 10,874 (298 removed, 2.7%)
+2026-06-19 12:54:39,278 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-19 12:54:45,190 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-19 12:54:45,191 INFO __main__: Processing episode: p04_e01
+2026-06-19 12:54:45,200 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 57 → 51 (6 removed), chars: 10,723 → 10,518 (205 removed, 1.9%)
+2026-06-19 12:54:55,286 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-19 12:55:03,689 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-19 12:55:03,690 INFO __main__: Processing episode: p04_e02
+2026-06-19 12:55:03,699 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 60 → 54 (6 removed), chars: 10,913 → 10,645 (268 removed, 2.5%)
+2026-06-19 12:55:13,093 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-19 12:55:21,688 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-19 12:55:21,690 INFO __main__: Processing episode: p05_e01
+2026-06-19 12:55:21,699 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 62 → 56 (6 removed), chars: 11,190 → 10,862 (328 removed, 2.9%)
+2026-06-19 12:55:28,597 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-19 12:55:35,061 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-19 12:55:35,062 INFO __main__: Processing episode: p05_e02
+2026-06-19 12:55:35,070 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 66 → 60 (6 removed), chars: 11,679 → 11,324 (355 removed, 3.0%)
+2026-06-19 12:55:44,673 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-19 12:55:50,832 INFO httpx: HTTP Request: POST http://dgx-llm-1:8003/v1/chat/completions "HTTP/1.1 200 OK"
+2026-06-19 12:55:50,833 INFO __main__: Phase 1 completed in 160.6s
+2026-06-19 12:55:50,833 INFO __main__: Total input: 108,327 chars, output: 38,641 chars
+2026-06-19 12:55:50,833 INFO __main__: Predictions: data/eval/runs/kg_autoresearch_prompt_vllm_moonlight_16b_a3b_dev_round3_entity_focused_v1/predictions.jsonl
+2026-06-19 12:55:50,833 INFO __main__: Metadata: data/eval/runs/kg_autoresearch_prompt_vllm_moonlight_16b_a3b_dev_round3_entity_focused_v1/baseline.json
+2026-06-19 12:55:50,833 INFO __main__: Fingerprint: data/eval/runs/kg_autoresearch_prompt_vllm_moonlight_16b_a3b_dev_round3_entity_focused_v1/fingerprint.json
+2026-06-19 12:55:50,834 INFO __main__: Created README.md: data/eval/runs/kg_autoresearch_prompt_vllm_moonlight_16b_a3b_dev_round3_entity_focused_v1/README.md
+2026-06-19 12:55:50,834 INFO __main__: Skipping metrics computation (dry-run or smoke-inference-only mode)
+2026-06-19 12:55:50,834 INFO __main__: Run completed with predictions only. Use full experiment-run for metrics.

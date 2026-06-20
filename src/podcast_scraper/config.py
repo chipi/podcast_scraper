@@ -2377,14 +2377,19 @@ class Config(BaseModel):
             "NLI with an API summary (advanced)."
         ),
     )
-    gi_insight_source: Literal["provider", "summary_bullets", "stub"] = Field(
+    gi_insight_source: Literal["provider", "stub"] = Field(
         default="stub",
         alias="gi_insight_source",
         description=(
-            "Source of insight texts for GIL: 'provider' = call generate_insights() on "
-            "the summarization provider (LLM only; ML providers return empty), "
-            "'summary_bullets' = first N summary bullets (needs generate_summaries + bullets), "
-            "or 'stub' (default placeholder). See GROUNDED_INSIGHTS_GUIDE.md."
+            "Source of insight texts for GIL. "
+            "'provider' = call generate_insights() on the summarization provider "
+            "(LLM only; ML providers return empty). Reads the cleaned transcript "
+            "directly. This is the production code path. "
+            "'stub' = placeholder; no LLM calls. "
+            "See GROUNDED_INSIGHTS_GUIDE.md for details. "
+            "The legacy 'summary_bullets' option was removed in #1034 (per the "
+            "#1033 audit) — it routed extraction through name-stripped summary "
+            "bullets and was empirically lossy."
         ),
     )
     gi_max_insights: int = Field(
@@ -2393,7 +2398,7 @@ class Config(BaseModel):
         le=50,
         alias="gi_max_insights",
         description=(
-            "Max insights when gi_insight_source is provider or summary_bullets. "
+            "Max insights when gi_insight_source is 'provider'. "
             "Default matches DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX (avoid truncating long lists)."
         ),
     )
@@ -2540,17 +2545,22 @@ class Config(BaseModel):
             "Enable Knowledge Graph extraction; writes kg.json per episode " "(separate from GIL)."
         ),
     )
-    kg_extraction_source: Literal["stub", "summary_bullets", "provider"] = Field(
-        default="summary_bullets",
+
+    kg_extraction_source: Literal["stub", "provider"] = Field(
+        default="provider",
         alias="kg_extraction_source",
         description=(
-            "KG topics/entities source: 'provider' = LLM JSON extraction via "
-            "extract_kg_graph on the transcript (see kg_extraction_provider; "
-            "default uses summary_provider; ML providers no-op); "
-            "'summary_bullets' = when an API summarization provider is available, "
-            "derive short topics/entities from bullets via extract_kg_from_summary_bullets; "
-            "otherwise topic labels mirror bullet text; "
-            "'stub' = episode + pipeline hosts/guests only (no summary topics)."
+            "KG topics/entities source. "
+            "'provider' = LLM JSON extraction via extract_kg_graph on the cleaned "
+            "transcript directly (see kg_extraction_provider; default uses "
+            "summary_provider; ML providers no-op). This is the production code "
+            "path. "
+            "'stub' = episode + pipeline hosts/guests only (no summary topics). "
+            "The legacy 'summary_bullets' option was removed in #1034 (per the "
+            "#1033 audit) — it routed extraction through name-stripped summary "
+            "bullets and was empirically lossy. CI guard: "
+            "tests/integration/eval/test_autoresearch_config_source_audit.py "
+            "blocks any regression."
         ),
     )
     kg_extraction_provider: Optional[
@@ -2569,10 +2579,8 @@ class Config(BaseModel):
         default=None,
         alias="kg_extraction_provider",
         description=(
-            "When kg_extraction_source is 'provider', which backend runs extract_kg_graph; "
-            "when 'summary_bullets', which backend runs extract_kg_from_summary_bullets "
-            "(bullet-derived topics). None means use summary_provider (same instance). "
-            "Same names as summary_provider."
+            "When kg_extraction_source is 'provider', which backend runs extract_kg_graph. "
+            "None means use summary_provider (same instance). Same names as summary_provider."
         ),
     )
     kg_max_topics: int = Field(
@@ -2581,7 +2589,7 @@ class Config(BaseModel):
         le=20,
         alias="kg_max_topics",
         description=(
-            "Max topic nodes for summary_bullets or provider KG extraction. "
+            "Max topic nodes for provider KG extraction. "
             "Default matches DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX (schema max 20)."
         ),
     )
@@ -2607,6 +2615,23 @@ class Config(BaseModel):
             "When True, merge detected hosts/guests into kg.json after provider extraction "
             "(deduped by entity_kind + name, same as LLM entities). When False, only LLM "
             "entities (plus Episode)."
+        ),
+    )
+    kg_extraction_use_ner_prepass: bool = Field(
+        default=True,
+        alias="kg_extraction_use_ner_prepass",
+        description=(
+            "When True (default), run spaCy NER on the cleaned transcript before "
+            "LLM KG extraction and seed the prompt with PERSON+ORG candidate "
+            "spans. The LLM still owns the final entities[] decision — it may "
+            "reject misclassifications, fix spellings, and add missed entities. "
+            "Closes the 0% entity-coverage gap surfaced by #1033 (see "
+            "docs/wip/EVAL_1035_NER_PREPASS_VERDICT.md — phase 3 validation "
+            "showed Cell F NVFP4 + Qwen3.5-35B-A3B both jump from 0% to 100% "
+            "entity coverage with zero false positives). Requires cfg.ner_model "
+            "+ cfg.speaker_detector_provider=spacy (both default-on in prod "
+            "profiles). When False, prompt v4 is used and the NER pass is "
+            "skipped entirely — entity recall reverts to the pre-#1035 baseline."
         ),
     )
     metrics_output: Optional[str] = Field(

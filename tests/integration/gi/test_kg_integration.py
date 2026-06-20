@@ -43,32 +43,6 @@ class TestKGArtifactIntegration:
         assert any(n.get("type") == "Episode" for n in read_back["nodes"])
         assert any(n.get("type") == "Topic" for n in read_back["nodes"])
 
-    def test_build_artifact_with_summary_bullets(self):
-        """summary_bullets source with topic_labels → Topic nodes derived from bullets."""
-        cfg = MagicMock()
-        cfg.kg_extraction_source = "summary_bullets"
-        cfg.kg_max_topics = 10
-        cfg.kg_max_entities = 15
-        cfg.kg_merge_pipeline_entities = True
-        cfg.kg_extraction_model = None
-
-        payload = build_artifact(
-            "episode:bullets-1",
-            "Some transcript text about markets.",
-            podcast_id="podcast:test",
-            episode_title="Bullets Episode",
-            publish_date="2025-03-01T00:00:00Z",
-            topic_labels=["Topic A discussed", "Topic B mentioned"],
-            detected_hosts=["Host One"],
-            cfg=cfg,
-        )
-        validate_artifact(payload, strict=False)
-        topic_nodes = [n for n in payload["nodes"] if n.get("type") == "Topic"]
-        assert len(topic_nodes) == 2
-        topic_labels = {n["properties"]["label"] for n in topic_nodes}
-        assert "Topic A discussed" in topic_labels
-        assert "Topic B mentioned" in topic_labels
-
     def test_validate_artifact_strict_mode(self):
         """build_artifact → validate_artifact(strict=True) passes without error."""
         payload = build_artifact(

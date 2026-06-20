@@ -93,6 +93,27 @@ class SummarizationParams(BaseModel):
         le=2.0,
         description="Temperature for generation (OpenAI/Gemini only, 0.0-2.0)",
     )
+    top_p: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Optional nucleus-sampling top_p (OpenAI / vLLM / Anthropic / Gemini). "
+            "Combined with temperature to control output diversity. None = use "
+            "provider default (#1016 Round 3 used vendor-recommended top_p=0.8 "
+            "for Qwen via extra_body — this field formalizes it as a typed param)."
+        ),
+    )
+    response_format: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Optional response_format spec passed through to OpenAI-compatible "
+            "providers (e.g. {'type': 'json_object'} for structured JSON mode "
+            "or {'type': 'json_schema', 'json_schema': {...}}). None = plain "
+            "text. Providers that don't support response_format ignore this "
+            "field. Used by the #912 Path A investigation + bundled prompts."
+        ),
+    )
     seed: Optional[int] = Field(
         default=None,
         description=(

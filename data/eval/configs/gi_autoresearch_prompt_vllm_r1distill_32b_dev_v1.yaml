@@ -16,6 +16,6 @@ params:
   min_length: 200
   temperature: 0.6
   top_p: 0.95
-  gi_insight_src: summary_bullets
+  gi_insight_src: provider
   gi_max_insights: 12
 preprocessing_profile: cleaning_v4

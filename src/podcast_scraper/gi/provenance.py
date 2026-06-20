@@ -61,10 +61,9 @@ def resolve_gil_artifact_model_version(
 
     Args:
         cfg: Resolved ``Config``.
-        lineage_provider: Summarization provider instance when available (preferred for
-            ``summary_bullets``); same instance is used for ``provider`` when insights
-            come from ``generate_insights``.
-        gi_insight_source: ``stub`` | ``summary_bullets`` | ``provider``.
+        lineage_provider: Summarization provider instance, used for ``provider``
+            source when insights come from ``generate_insights``.
+        gi_insight_source: ``stub`` | ``provider``.
 
     Returns:
         Non-empty model identifier string for artifact provenance.
@@ -72,9 +71,6 @@ def resolve_gil_artifact_model_version(
     source = (gi_insight_source or "stub").strip().lower()
     if source == "stub":
         return "stub"
-    if source == "summary_bullets":
-        mid = _insight_lineage_model_id(cfg, lineage_provider)
-        return mid if mid and mid != "unknown" else "unknown"
     if source == "provider":
         mid = _provider_insight_lineage_model_id(cfg, lineage_provider)
         return mid if mid and mid != "unknown" else "unknown"

@@ -1,0 +1,30 @@
+# #1035 phase 3 validation — Cell F NVFP4 + NER pre-pass.
+# Mirrors kg_autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_round3_v1.yaml
+# (used in #1033 cohort rerun) but flips kg_extraction_use_ner_prepass to True.
+# Goal: measure entity coverage delta vs the 0% baseline from #1033 step 2.
+id: autoresearch_prompt_vllm_qwen3_5_35b_a3b_dev_1035_ner_v1
+task: knowledge_graph
+backend:
+  type: openai
+  model: autoresearch
+  base_url: http://localhost:8003/v1
+  api_key_env: VLLM_API_KEY
+  extra_body:
+    chat_template_kwargs:
+      enable_thinking: false
+    top_p: 0.8
+    top_k: 20
+    min_p: 0.0
+    presence_penalty: 1.5
+prompts:
+  system: ollama/qwen3.5_35b/summarization/system_v1
+  user: ollama/qwen3.5_35b/summarization/long_v1
+data:
+  dataset_id: curated_5feeds_dev_v1
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.7
+  kg_extraction_source: provider
+  kg_extraction_use_ner_prepass: true
+preprocessing_profile: cleaning_v4

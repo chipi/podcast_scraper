@@ -4,7 +4,7 @@ Templates here are **reused across providers** when no provider-specific file ex
 
 ## Summarization (`shared/summarization/`)
 
-**Why shared defaults:** API summarization often targets one **stable output shape** (e.g. JSON bullet arrays) so parsers, GI, and KG (`summary_bullets`) do not fork per vendor. Maintaining identical instructions in `openai/`, `gemini/`, `anthropic/`, … tends to drift.
+**Why shared defaults:** API summarization often targets one **stable output shape** (e.g. JSON bullet arrays) so parsers and downstream consumers do not fork per vendor. Maintaining identical instructions in `openai/`, `gemini/`, `anthropic/`, … tends to drift.
 
 **How loading works:** For a logical name like `gemini/summarization/bullets_json_v1`, the prompt store loads:
 

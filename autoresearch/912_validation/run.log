@@ -1,0 +1,33 @@
+[setup] sys=2990 chars, user=2989 chars, model=qwen3.5:9b
+[setup] fixture=p01_e01_fast.txt (1483 bytes)
+[setup] trials/arm=10, output=/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/autoresearch/912_validation/trials.jsonl
+
+[baseline] running 10 trials...
+  [baseline #00] ✓ 24.756s (2475 chars)
+  [baseline #01] ✓ 21.946s (2917 chars)
+  [baseline #02] ✓ 19.759s (2443 chars)
+  [baseline #03] ✓ 19.665s (2318 chars)
+  [baseline #04] ✓ 23.045s (2549 chars)
+  [baseline #05] ✓ 23.32s (2184 chars)
+  [baseline #06] ✓ 26.797s (2677 chars)
+  [baseline #07] ✓ 22.363s (2292 chars)
+  [baseline #08] ✓ 24.496s (2733 chars)
+  [baseline #09] ✓ 23.789s (2690 chars)
+
+[path_a] running 10 trials...
+  [path_a #00] ✓ 23.763s (2640 chars)
+  [path_a #01] ✓ 24.299s (2564 chars)
+  [path_a #02] ✓ 24.881s (2780 chars)
+  [path_a #03] ✓ 25.514s (2777 chars)
+  [path_a #04] ✓ 24.896s (2639 chars)
+  [path_a #05] ✓ 25.709s (2553 chars)
+  [path_a #06] ✓ 28.483s (3048 chars)
+  [path_a #07] ✓ 26.795s (3065 chars)
+  [path_a #08] ✓ 21.533s (2332 chars)
+  [path_a #09] ✓ 22.146s (2372 chars)
+
+=== SUMMARY ===
+  {'arm': 'baseline', 'n': 10, 'parse_ok': 10, 'parse_rate': 1.0, 'has_summary': 10, 'median_latency_s': 23.18, 'p95_latency_s': None, 'max_latency_s': 26.8, 'median_completion_tokens': 440.0}
+  {'arm': 'path_a', 'n': 10, 'parse_ok': 10, 'parse_rate': 1.0, 'has_summary': 10, 'median_latency_s': 24.89, 'p95_latency_s': None, 'max_latency_s': 28.48, 'median_completion_tokens': 466.0}
+
+[done] trials written to /Users/markodragoljevic/Projects/podcast_scraper-FUTURE/autoresearch/912_validation/trials.jsonl

@@ -76,12 +76,12 @@ def test_merge_eval_task_sets_gi_and_kg_flags() -> None:
     )
     assert gi_cfg.generate_gi is True
     assert gi_cfg.generate_kg is False
-    assert gi_cfg.gi_insight_source == "summary_bullets"
+    assert gi_cfg.gi_insight_source == "provider"
     assert gi_cfg.gi_require_grounding is False
     kg_cfg = merge_eval_task_into_summarizer_config(base, "knowledge_graph", None)
     assert kg_cfg.generate_kg is True
     assert kg_cfg.generate_gi is False
-    assert kg_cfg.kg_extraction_source == "summary_bullets"
+    assert kg_cfg.kg_extraction_source == "provider"
 
 
 def test_merge_eval_task_unsupported_task_raises() -> None:
@@ -117,7 +117,7 @@ def test_merge_eval_task_coerces_invalid_gi_insight_source() -> None:
         "grounded_insights",
         {"gi_insight_source": "not_valid"},
     )
-    assert gi_cfg.gi_insight_source == "summary_bullets"
+    assert gi_cfg.gi_insight_source == "provider"
 
 
 def test_merge_eval_task_coerces_invalid_kg_extraction_source() -> None:
@@ -137,7 +137,7 @@ def test_merge_eval_task_coerces_invalid_kg_extraction_source() -> None:
         "knowledge_graph",
         {"kg_extraction_source": "invalid"},
     )
-    assert kg_cfg.kg_extraction_source == "summary_bullets"
+    assert kg_cfg.kg_extraction_source == "provider"
 
 
 def test_merge_eval_task_applies_numeric_params() -> None:

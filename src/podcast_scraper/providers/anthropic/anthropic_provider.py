@@ -692,10 +692,14 @@ class AnthropicProvider:
             or self.cfg.summary_reduce_params.get("max_new_tokens")
             or 800
         )
-        # Enforce cloud-LLM structured-JSON output floor (Flightcast 2026-04-20).
+        # Plain-text summary path — bypass the structured-JSON floor that
+        # was silently clamping max_tokens up to 4096 even for plain text
+        # (#1023 follow-up to #1016 Phase 2b). Bundled / structured-JSON
+        # callsites (summarize_mega_bundled / summarize_bundled below)
+        # keep the default ``structured=True`` and the floor still applies.
         from ..common.output_tokens import cloud_structured_max_output_tokens
 
-        max_length = cloud_structured_max_output_tokens(self.cfg, max_length)
+        max_length = cloud_structured_max_output_tokens(self.cfg, max_length, structured=False)
         min_length = (
             (params.get("min_length") if params else None)
             or self.cfg.summary_reduce_params.get("min_new_tokens")
@@ -1717,7 +1721,12 @@ class AnthropicProvider:
             return None
         model = resolve_kg_model_id(self, params)
         user_prompt = build_kg_user_prompt(
-            text_slice, episode_title or "", max_topics, max_entities
+            text_slice,
+            episode_title or "",
+            max_topics,
+            max_entities,
+            prompt_version=(params or {}).get("kg_prompt_version", "v4"),
+            ner_entity_hints=(params or {}).get("ner_entity_hints"),
         )
         system_msg = build_kg_transcript_system_prompt(max_topics, max_entities)
         try:
@@ -1761,82 +1770,6 @@ class AnthropicProvider:
             )
         except Exception as e:
             logger.debug("Anthropic extract_kg_graph failed: %s", e, exc_info=True)
-            return None
-
-    def extract_kg_from_summary_bullets(
-        self,
-        bullet_labels: List[str],
-        episode_title: Optional[str] = None,
-        max_topics: int = 5,
-        max_entities: int = 15,
-        params: Optional[Dict[str, Any]] = None,
-        pipeline_metrics: Optional[Any] = None,
-    ) -> Optional[Dict[str, Any]]:
-        """Derive KG topics/entities from summary bullets (no transcript)."""
-        if not self._summarization_initialized:
-            logger.warning(
-                "Anthropic summarization not initialized for " "extract_kg_from_summary_bullets"
-            )
-            return None
-        from ...kg.llm_extract import (
-            build_kg_from_bullets_system_prompt,
-            build_kg_from_bullets_user_prompt,
-            normalize_bullet_labels_for_kg,
-            parse_kg_graph_response,
-            resolve_kg_model_id,
-        )
-
-        max_topics = min(max(1, max_topics), 20)
-        max_entities = min(max(1, max_entities), 50)
-        bullets = normalize_bullet_labels_for_kg(bullet_labels)
-        if not bullets:
-            return None
-        model = resolve_kg_model_id(self, params)
-        user_prompt = build_kg_from_bullets_user_prompt(
-            bullets, episode_title or "", max_topics, max_entities
-        )
-        system_msg = build_kg_from_bullets_system_prompt(max_topics, max_entities)
-        try:
-            from ...utils.provider_metrics import (
-                _safe_anthropic_retryable,
-                retry_with_metrics,
-            )
-
-            def _make_api_call():
-                return self.client.messages.create(
-                    model=model,
-                    max_tokens=2048,
-                    temperature=0.1,
-                    system=system_msg,
-                    messages=[{"role": "user", "content": user_prompt}],
-                )
-
-            response = retry_with_metrics(
-                _make_api_call,
-                max_retries=3,
-                initial_delay=1.0,
-                max_delay=30.0,
-                retryable_exceptions=_safe_anthropic_retryable(),
-            )
-            _record_anthropic_llm_call(
-                response,
-                pipeline_metrics,
-                recorder_name="record_llm_kg_call",
-                cfg=self.cfg,
-                model=model,
-            )
-            content = ""
-            if response.content and len(response.content) > 0:
-                first = response.content[0]
-                raw = getattr(first, "text", None)
-                content = raw if isinstance(raw, str) else ""
-            return parse_kg_graph_response(
-                (content or "").strip(),
-                max_topics=max_topics,
-                max_entities=max_entities,
-            )
-        except Exception as e:
-            logger.debug("Anthropic extract_kg_from_summary_bullets failed: %s", e, exc_info=True)
             return None
 
     def extract_quotes(

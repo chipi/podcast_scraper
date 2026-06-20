@@ -1364,24 +1364,46 @@ class OllamaProvider:
             pipeline_metrics.record_llm_bundled_clean_summary_call(input_tokens, output_tokens)
 
         # Response-shape guardrail (ADR-099/100, #999/#1003).
+        # Note: this fires BEFORE the JSON-parse block below; record the
+        # guardrail violation as a Path D parse-failure kind so a sweep that
+        # trips the guardrail still surfaces in metrics_report.md.
         try:
             _guardrails.check_chat_response(raw, service="ollama")
         except _guardrails.GuardrailViolation:
+            if pipeline_metrics is not None and hasattr(
+                pipeline_metrics, "record_llm_bundled_parse_failure"
+            ):
+                pipeline_metrics.record_llm_bundled_parse_failure("guardrail_violation")
             _record_cost(triggered_guardrail=True)
             raise
+
+        # #912 Path D: bump the bundled-parse-failure counter on every parse
+        # failure (per-kind) so future autoresearch sweeps can't silently
+        # crown a flaky bundled candidate. Guards with hasattr/getattr so
+        # production callers without an eval-side ``pipeline_metrics`` are
+        # unaffected (Metrics only flows in from the autoresearch harness).
+        def _record_parse_failure(kind: str) -> None:
+            if pipeline_metrics is not None and hasattr(
+                pipeline_metrics, "record_llm_bundled_parse_failure"
+            ):
+                pipeline_metrics.record_llm_bundled_parse_failure(kind)
 
         try:
             data = json.loads(raw, strict=False)
         except json.JSONDecodeError as exc:
+            _record_parse_failure("not_valid_json")
             raise ValueError(f"Bundled response is not valid JSON: {exc}") from exc
 
         if not isinstance(data, dict):
+            _record_parse_failure("not_an_object")
             raise ValueError("Bundled JSON must be an object")
         summary_prose = data.get("summary")
         bullets = data.get("bullets")
         if not isinstance(summary_prose, str) or not summary_prose.strip():
+            _record_parse_failure("missing_summary")
             raise ValueError("Bundled JSON missing non-empty summary string")
         if not isinstance(bullets, list) or not bullets:
+            _record_parse_failure("missing_bullets")
             raise ValueError("Bundled JSON missing non-empty bullets list")
 
         _record_cost()
@@ -1801,7 +1823,12 @@ class OllamaProvider:
             return None
         model = resolve_kg_model_id(self, params)
         user_prompt = build_kg_user_prompt(
-            text_slice, episode_title or "", max_topics, max_entities
+            text_slice,
+            episode_title or "",
+            max_topics,
+            max_entities,
+            prompt_version=(params or {}).get("kg_prompt_version", "v4"),
+            ner_entity_hints=(params or {}).get("ner_entity_hints"),
         )
         system_msg = build_kg_transcript_system_prompt(max_topics, max_entities)
         try:
@@ -1834,71 +1861,6 @@ class OllamaProvider:
             return parse_kg_graph_response(raw, max_topics=max_topics, max_entities=max_entities)
         except Exception as e:
             logger.debug("Ollama extract_kg_graph failed: %s", e, exc_info=True)
-            return None
-
-    def extract_kg_from_summary_bullets(
-        self,
-        bullet_labels: List[str],
-        episode_title: Optional[str] = None,
-        max_topics: int = 5,
-        max_entities: int = 15,
-        params: Optional[Dict[str, Any]] = None,
-        pipeline_metrics: Optional[Any] = None,
-    ) -> Optional[Dict[str, Any]]:
-        """Derive KG topics/entities from summary bullets (no transcript)."""
-        if not self._summarization_initialized:
-            logger.warning(
-                "Ollama summarization not initialized for extract_kg_from_summary_bullets"
-            )
-            return None
-        from ...kg.llm_extract import (
-            build_kg_from_bullets_system_prompt,
-            build_kg_from_bullets_user_prompt,
-            normalize_bullet_labels_for_kg,
-            parse_kg_graph_response,
-            resolve_kg_model_id,
-        )
-
-        max_topics = min(max(1, max_topics), 20)
-        max_entities = min(max(1, max_entities), 50)
-        bullets = normalize_bullet_labels_for_kg(bullet_labels)
-        if not bullets:
-            return None
-        model = resolve_kg_model_id(self, params)
-        user_prompt = build_kg_from_bullets_user_prompt(
-            bullets, episode_title or "", max_topics, max_entities
-        )
-        system_msg = build_kg_from_bullets_system_prompt(max_topics, max_entities)
-        try:
-            from ...utils.provider_metrics import (
-                _safe_openai_retryable,
-                retry_with_metrics,
-            )
-
-            def _make_api_call():
-                return self.client.chat.completions.create(
-                    model=model,
-                    messages=[
-                        {"role": "system", "content": system_msg},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    temperature=0.1,
-                    max_tokens=2048,
-                    **_ollama_openai_chat_extra_kwargs(model),
-                )
-
-            response = retry_with_metrics(
-                _make_api_call,
-                max_retries=3,
-                initial_delay=1.0,
-                max_delay=30.0,
-                retryable_exceptions=_safe_openai_retryable(),
-                error_context="ollama_local",
-            )
-            raw = (response.choices[0].message.content or "").strip()
-            return parse_kg_graph_response(raw, max_topics=max_topics, max_entities=max_entities)
-        except Exception as e:
-            logger.debug("Ollama extract_kg_from_summary_bullets failed: %s", e, exc_info=True)
             return None
 
     def extract_quotes(

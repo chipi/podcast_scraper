@@ -26,20 +26,21 @@ speaker_detector_provider: spacy
 ner_model: en_core_web_sm
 auto_speakers: true
 
-# Summarization — local transformers (summary-only; GI reads ``summary_bullets``)
+# Summarization — local transformers (summary-only)
 summary_provider: transformers
 summary_model: bart-small
 summary_reduce_model: long-fast
 
-# Grounded Insights — from summary bullets (same as ``airgapped``)
+# Grounded Insights — provider source (#1033/#1034). Transformers is summary-only
+# so generate_insights is a no-op here; GI requires an LLM summary_provider to fire.
 generate_gi: true
-gi_insight_source: summary_bullets
+gi_insight_source: provider
 gi_max_insights: 12
 gi_require_grounding: true
 
-# Knowledge Graph — from summary bullets
+# Knowledge Graph — provider source (#1033/#1034). Same transformers no-op caveat.
 generate_kg: true
-kg_extraction_source: summary_bullets
+kg_extraction_source: provider
 kg_max_topics: 10
 kg_max_entities: 15
 

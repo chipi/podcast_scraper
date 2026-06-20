@@ -412,7 +412,7 @@ def _apply_gi_insight_filters(
 ) -> List[Tuple[str, str]]:
     """#652 Part B — run ad + dialogue filters on (text, type) specs.
 
-    Source-agnostic (prefilled / provider / summary_bullets / stub).
+    Source-agnostic (prefilled / provider / stub).
     Conservative thresholds live in ``gi.filters``. Extracted helper so
     ``build_artifact`` stays under the cyclomatic-complexity budget.
     """

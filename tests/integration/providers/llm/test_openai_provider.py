@@ -1214,36 +1214,6 @@ class TestOpenAIProviderPricing(unittest.TestCase):
             "gpt-4o-custom",
         )
 
-    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
-    def test_extract_kg_from_summary_bullets_success(self, mock_retry):
-        mock_retry.side_effect = lambda fn, **kwargs: fn()
-        mock_response = Mock()
-        mock_response.choices = [Mock()]
-        mock_response.choices[0].message.content = (
-            '{"topics": [{"label": "Trade"}], "entities": []}'
-        )
-        mock_client = Mock()
-        mock_client.chat.completions.create.return_value = mock_response
-        provider = OpenAIProvider(self.cfg)
-        provider.client = mock_client
-        provider._summarization_initialized = True
-        out = provider.extract_kg_from_summary_bullets(
-            ["Bullet one", "Bullet two"],
-            episode_title="Show",
-        )
-        self.assertIsNotNone(out)
-        self.assertEqual(out["topics"][0]["label"], "Trade")
-
-    def test_extract_kg_from_summary_bullets_not_initialized_returns_none(self):
-        provider = OpenAIProvider(self.cfg)
-        provider._summarization_initialized = False
-        self.assertIsNone(provider.extract_kg_from_summary_bullets(["a"]))
-
-    def test_extract_kg_from_summary_bullets_empty_labels_returns_none(self):
-        provider = OpenAIProvider(self.cfg)
-        provider._summarization_initialized = True
-        self.assertIsNone(provider.extract_kg_from_summary_bullets([]))
-
     @patch("podcast_scraper.prompts.store.render_prompt")
     def test_generate_insights_records_llm_gi_metrics(self, mock_render):
         mock_render.return_value = "u"

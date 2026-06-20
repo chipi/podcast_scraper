@@ -157,6 +157,27 @@ def generate_metrics_report(metrics: Dict[str, Any]) -> str:  # noqa: C901
                 )
             lines.append("")
 
+        # #912 Path D — Bundled JSON-parse failure breakdown. Only
+        # rendered when the run touched bundled mode and observed at
+        # least one parse failure. The "kinds" map distinguishes
+        # JSON-shape failures (not_valid_json, not_an_object) from
+        # schema failures (missing_summary, missing_bullets) from
+        # guardrail rejections (guardrail_violation). Independent of
+        # retries — each observed failure bumps the counter.
+        bd_parse = intrinsic.get("bundled_parse_failures")
+        if isinstance(bd_parse, dict) and int(bd_parse.get("total", 0)) > 0:
+            lines.append("### Bundled JSON Parse Failures (#912 Path D)")
+            lines.append("")
+            total = int(bd_parse.get("total", 0))
+            lines.append(f"- **Total Parse Failures:** {total}")
+            kinds = bd_parse.get("by_kind") or {}
+            if isinstance(kinds, dict) and kinds:
+                lines.append("- **By Kind:**")
+                for kind_name in sorted(kinds.keys()):
+                    count = int(kinds[kind_name])
+                    lines.append(f"  - {kind_name}: {count}")
+            lines.append("")
+
         # Cost Metrics (only for OpenAI runs - ML models skip this section)
         cost = intrinsic.get("cost")
         if cost:

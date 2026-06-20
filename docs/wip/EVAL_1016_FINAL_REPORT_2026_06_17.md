@@ -263,3 +263,184 @@ Using a simple unweighted mean of (Sum-R1-vs-Opus, GI-vs-Opus, KG-vs-Opus) for t
 - `docs/wip/EVAL_1016_ROUND3_REVIEW.md` — Phase 2c outcome section added; the queue-of-7 decisions stamped as final.
 - `docs/wip/EVAL_1016_metrics/PER_MODEL_OPTIMAL_PARAMS.md` — KV/TTFT/TPOT/throughput per candidate filled in.
 - `docs/wip/EVAL_1016_metrics/vllm_metrics_*_phase2c.log` — 7 raw metric polls for reuse in #1022.
+
+---
+
+## 10. ADDENDUM — Cell F NVFP4 enters cohort + supersedes safe pick (2026-06-18)
+
+> ⚠️ **Superseded for GI rankings by § 11 below.** § 10 was measured
+> under the broken `summary_bullets` pipeline. The #1033 corrected
+> pipeline rerun re-orders GI (Cell F #1 ⟶ #2) and adjusts KG
+> deltas. The daily-driver verdict in § 10 (Cell F as the
+> speed-quality trade-off pick) is unchanged. See § 11 for details.
+
+
+Filed during the #1022 vLLM-on-GB10 tuning effort. After cells A–D
+(runtime knobs: gpu-memory-utilization, max-num-seqs, max-model-len,
+warmup) all produced no signal, Cell F (model swap to
+`NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4`) delivered ~2× speedup with
+no measurable quality regression vs the bf16 baseline. Held-out
+validation on `curated_5feeds_benchmark_v2` (5 ep, e03, Sonnet 4.6
+silver) confirmed cross-dataset + cross-vendor robustness.
+
+### Cell F entered into Round 3 scoreboard (apples-to-apples)
+
+Using the same scorers / silvers / metrics as the #1016 report:
+
+**Summary (rouge1_f1 vs Opus 4.7 silver)** — Cell F lands #5:
+
+| # | Candidate | rouge1_f1 | s/ep |
+|---|---|---:|---:|
+| 1 | Qwen3.5-35B-A3B | 0.5936 | 13.58 |
+| 2 | Moonlight-16B-A3B | 0.5745 | 8.96 |
+| ... |
+| 5 | **Qwen3-30B-A3B-NVFP4 (Cell F)** | **0.5407** | **7.20** ⚡ (fastest) |
+
+**GI (coverage_rate vs Opus 4.7 silver)** — **Cell F is the new winner**:
+
+| # | Candidate | cov_rate | s/ep |
+|---|---|---:|---:|
+| **1** | **Qwen3-30B-A3B-NVFP4 (Cell F)** | **0.4250** | 17.00 |
+| 2 | Gemma-4-26B-A4B (prior GI leader) | 0.4125 | 34.91 |
+| 3 | Qwen3.5-35B-A3B | 0.3625 | 30.14 |
+| 5 | Moonlight | 0.1625 | 15.10 |
+
+**KG (topic coverage_rate vs Opus 4.7 silver)** — Cell F #3:
+
+| # | Candidate | topic_cov | s/ep |
+|---|---|---:|---:|
+| 1 | Qwen3.5-35B-A3B | 0.4854 | 21.18 |
+| 2 | Ministral-3-14B | 0.4175 | 56.93 |
+| **3** | **Qwen3-30B-A3B-NVFP4 (Cell F)** | **0.4078** | **13.80** ⚡ |
+| 5 | Moonlight | 0.2816 | 16.17 |
+
+**End-to-end per-episode (3 stages summed)**:
+
+| Candidate | total s/ep |
+|---|---:|
+| **Qwen3-30B-A3B-NVFP4 (Cell F)** | **38.0** ⚡ |
+| Moonlight-16B-A3B | 40.23 |
+| Qwen3.5-35B-A3B | 64.90 |
+| Gemma-4-26B-A4B | 69.80 |
+
+Cell F is the cohort end-to-end speed leader **and** the GI quality
+leader simultaneously.
+
+### Updated single-model daily-driver verdict
+
+**Qwen3-30B-A3B-NVFP4 (Cell F) replaces Moonlight as the autoresearch
+safe pick / daily driver.** It dominates Moonlight in 4 of 5
+dimensions (loses summary by 6%, wins GI +161% / KG +45% / end-to-end
+speed -5% / weight footprint -44%).
+
+Qwen3.5-35B-A3B retains the **top-dog crown for highest-stakes
+one-shot evals** where summary or KG quality matters more than time
+(operator can manually swap the homelab compose for that specific run).
+
+### Operational change
+
+- **Homelab compose model swap**: `Qwen/Qwen3-30B-A3B-Instruct-2507` →
+  `NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4` in
+  `infra/vllm/autoresearch/docker-compose.yml`. Operator merges.
+- **No profile YAML changes needed** — all profiles use the
+  `autoresearch` served-model-name alias.
+- **Registry docstrings** updated to note Cell F as the autoresearch
+  slot model (cosmetic only; no functional change).
+
+### Cross-references
+
+- Full Cell F validation evidence: `docs/wip/VLLM_GB10_TUNING_VALIDATION_2026-06-18.md`
+- Validation script + runs.tsv: `autoresearch/1022_gb10_tuning/`
+- #1022 closeout: GH issue #1022.
+
+---
+
+## 11. ADDENDUM — #1033 corrected-pipeline cohort rerun (2026-06-19)
+
+The §10 addendum was measured under the broken pipeline
+(`kg_extraction_src: summary_bullets` — lossy, name-stripping). The #1033
+audit surfaced the eval/prod code-path divergence; step 2 reran the full
+7-candidate cohort GI + KG stages under the corrected pipeline
+(`provider` source + tightened entity-vs-topic prompt).
+
+**The corrected-pipeline rankings supersede the §10 Cell F numbers.**
+
+Full evidence: `docs/wip/EVAL_1033_COHORT_RERUN_2026-06-19.md`.
+
+### Corrected GI + KG scoreboard (silver_opus47_*_dev_v1, 10 ep dev set)
+
+| # | Candidate | GI avg_sim | KG topic cov | KG entity | GI s/run | KG s/run |
+|---|---|---:|---:|---:|---:|---:|
+| 1 | **Qwen3.5-35B-A3B** | **0.618** | **50%** | 0% | 311 | 215 |
+| 2 | **Cell F NVFP4** (Qwen3-30B-A3B-NVFP4) | **0.595** | 45% | 0% | **286** | **154** |
+| 3 | Gemma-4-26B-A4B-it | 0.593 | 35% | 0% | 349 | 204 |
+| 4 | Moonlight-16B-A3B | 0.581 | 40% | 0% | **169** | **140** |
+| 5 | Ministral-3-14B-Instruct-2512 | 0.574 | **50%** | 0% | 874 | 576 |
+| 6 | Llama-3.3-70B-Instruct-NVFP4 | 0.509 | 24% | 0% | 1031 | 638 |
+| 7 | DeepSeek-V2-Lite-Chat | 0.405 | 4% | 0% | 104 | 179 |
+
+### Re-ranking vs §10
+
+- **GI winner**: Cell F NVFP4 ⟶ **Qwen3.5-35B-A3B**.
+  Cell F drops from §10's "GI cohort #1" to #2 by 0.023 GI avg_sim.
+- **KG topic winner**: Qwen3.5-35B-A3B retains #1 (50% vs Cell F 45%).
+- **Daily-driver verdict**: **unchanged** — Cell F is still the
+  speed-quality trade-off pick (16% faster end-to-end + 73% smaller
+  footprint vs Qwen3.5-35B-A3B). The narrative shifts from "wins
+  outright on quality" to "best speed-quality trade-off; Qwen3.5-35B-A3B
+  is the top-quality reserve for highest-stakes one-shot evals."
+
+### Why the picture changed
+
+The original `summary_bullets` source path routed KG/GI extraction
+through summary text that had been generated by a prompt with an
+explicit "no speaker names" rule (`ollama/qwen3.5_35b/summarization/system_v1.j2`).
+Under that pipeline:
+
+- Bullets were anonymized → KG and GI had no names to extract from.
+- The Sonnet-mimicry artifact compressed candidate quality gaps —
+  every candidate's extraction reflected the upstream summary's
+  prompt-driven style.
+- The "best summarizer" (whichever model followed the bullet-style
+  prompt most rigorously) inadvertently became the "best
+  downstream extractor."
+
+Under the corrected `provider` pipeline, candidates read the
+transcript directly. The result:
+
+- Qwen3.5-35B-A3B's stronger prompt adherence pays off in both
+  stages — it produces cleaner topic boundaries.
+- Cell F NVFP4 still extracts well but the bf16-vs-NVFP4 quality
+  gap is visible (~0.02 GI, ~5pp KG topic).
+- Topic coverage improved across the board (+1pp to +4pp).
+
+### Updated § 6b entity-coverage attribution
+
+The §10 hypothesis ("prompt doesn't request entities") is **falsified**.
+Under the tightened entity-vs-topic prompt (with 4 worked correct
+examples + 6 worked common-mistake examples + a quantity guidance
+rule), all 7 candidates produce **0% entity coverage** against the
+silver. False-positive emission dropped (Cell F p02_e02: 7 false
+orgs → 3) but no candidate finds the named persons/orgs the silver
+expects.
+
+**Conclusion**: this is a fundamental LLM extraction gap, not a
+per-model capability dimension. Pattern B confirmed across the
+strongest models in the cohort. Filed as follow-up #1035 — add
+a deterministic NER pre-pass before LLM classification.
+
+### Updated per-stage routing top-dog
+
+- Summary → Qwen3.5-35B-A3B (unchanged)
+- GI → **Qwen3.5-35B-A3B** (Cell F dropped from #1; Gemma-4 dropped to #3)
+- KG → Qwen3.5-35B-A3B (unchanged)
+- **3-of-3 stages led by Qwen3.5-35B-A3B** → single-model deploy is
+  even more clearly viable than the §7 verdict implied.
+
+### Daily-driver verdict — unchanged
+
+The `prod_dgx_full_with_fallback` registry entry continues to default
+to Cell F NVFP4 with a documented manual swap to Qwen3.5-35B-A3B for
+one-shot high-stakes evals — both the default and the swap note remain
+correct.
+

@@ -22,9 +22,9 @@ def runtime_config_for_grounded_insights_eval(params: Optional[Dict[str, Any]]) 
     """
     p = params or {}
     raw = p.get("gi_insight_source", "stub")
-    if raw not in ("stub", "provider", "summary_bullets"):
+    if raw not in ("stub", "provider"):
         raw = "stub"
-    source = cast(Literal["stub", "provider", "summary_bullets"], raw)
+    source = cast(Literal["stub", "provider"], raw)
     require_grounding = bool(p.get("gi_require_grounding", False))
     max_insights = int(
         p.get("gi_max_insights", config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX)
@@ -56,20 +56,22 @@ def runtime_config_for_knowledge_graph_eval(params: Optional[Dict[str, Any]]) ->
     """
     p = params or {}
     raw = p.get("kg_extraction_source", "stub")
-    if raw not in ("stub", "provider", "summary_bullets"):
+    if raw not in ("stub", "provider"):
         raw = "stub"
-    source = cast(Literal["stub", "provider", "summary_bullets"], raw)
-    return Config.model_validate(
-        {
-            "rss": "",
-            "generate_metadata": True,
-            "generate_summaries": False,
-            "generate_gi": False,
-            "generate_kg": True,
-            "kg_extraction_source": source,
-            "transcribe_missing": False,
-        }
-    )
+    source = cast(Literal["stub", "provider"], raw)
+    payload: Dict[str, Any] = {
+        "rss": "",
+        "generate_metadata": True,
+        "generate_summaries": False,
+        "generate_gi": False,
+        "generate_kg": True,
+        "kg_extraction_source": source,
+        "transcribe_missing": False,
+    }
+    # #1035 — NER pre-pass opt-in for KG eval cells
+    if p.get("kg_extraction_use_ner_prepass") is not None:
+        payload["kg_extraction_use_ner_prepass"] = bool(p["kg_extraction_use_ner_prepass"])
+    return Config.model_validate(payload)
 
 
 def merge_eval_task_into_summarizer_config(
@@ -95,10 +97,10 @@ def merge_eval_task_into_summarizer_config(
     """
     p = params or {}
     if task == _TASK_GI:
-        raw_src = p.get("gi_insight_source", "summary_bullets")
-        if raw_src not in ("stub", "provider", "summary_bullets"):
-            raw_src = "summary_bullets"
-        gi_src = cast(Literal["stub", "provider", "summary_bullets"], raw_src)
+        raw_src = p.get("gi_insight_source", "provider")
+        if raw_src not in ("stub", "provider"):
+            raw_src = "provider"
+        gi_src = cast(Literal["stub", "provider"], raw_src)
         require = p.get("gi_require_grounding", True)
         max_insights = p.get("gi_max_insights")
         updates: Dict[str, Any] = {
@@ -133,10 +135,10 @@ def merge_eval_task_into_summarizer_config(
             updates["entailment_provider"] = entail_prov
         return base.model_copy(update=updates)
     if task == _TASK_KG:
-        raw_kg = p.get("kg_extraction_source", "summary_bullets")
-        if raw_kg not in ("stub", "provider", "summary_bullets"):
-            raw_kg = "summary_bullets"
-        kg_src = cast(Literal["stub", "provider", "summary_bullets"], raw_kg)
+        raw_kg = p.get("kg_extraction_source", "provider")
+        if raw_kg not in ("stub", "provider"):
+            raw_kg = "provider"
+        kg_src = cast(Literal["stub", "provider"], raw_kg)
         updates_kg: Dict[str, Any] = {
             "generate_kg": True,
             "generate_gi": False,
@@ -146,5 +148,8 @@ def merge_eval_task_into_summarizer_config(
             updates_kg["kg_max_topics"] = int(p["kg_max_topics"])
         if p.get("kg_max_entities") is not None:
             updates_kg["kg_max_entities"] = int(p["kg_max_entities"])
+        # #1035 — NER pre-pass opt-in for KG eval cells
+        if p.get("kg_extraction_use_ner_prepass") is not None:
+            updates_kg["kg_extraction_use_ner_prepass"] = bool(p["kg_extraction_use_ner_prepass"])
         return base.model_copy(update=updates_kg)
     raise ValueError(f"merge_eval_task_into_summarizer_config: unsupported task {task!r}")

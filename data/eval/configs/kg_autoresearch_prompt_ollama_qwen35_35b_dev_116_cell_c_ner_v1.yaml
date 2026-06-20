@@ -1,0 +1,26 @@
+# #116 Cell C re-baseline — Ollama qwen3.5:35b + NER pre-pass.
+# Mirrors the #1035 phase 3 KG configs but targets Ollama (port 11434)
+# instead of vLLM (port 8003). NER pre-pass is on by default per
+# #1035 phase 4, kept explicit for audit clarity.
+#
+# Goal: directly compare Cell C (Ollama Qwen3.5-35b, #928 local DGX
+# winner) vs Cell F NVFP4 (vLLM Qwen3-30B-A3B-NVFP4, #1022 daily-driver)
+# on the corrected provider pipeline with NER pre-pass enabled.
+id: autoresearch_prompt_ollama_qwen35_35b_dev_116_cell_c_ner_v1
+task: knowledge_graph
+backend:
+  type: ollama
+  model: qwen3.5:35b
+  base_url: http://localhost:11434
+prompts:
+  system: ollama/qwen3.5_35b/summarization/system_v1
+  user: ollama/qwen3.5_35b/summarization/long_v1
+data:
+  dataset_id: curated_5feeds_dev_v1
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.7
+  kg_extraction_source: provider
+  kg_extraction_use_ner_prepass: true
+preprocessing_profile: cleaning_v4

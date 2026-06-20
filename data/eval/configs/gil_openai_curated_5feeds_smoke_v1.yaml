@@ -21,5 +21,5 @@ params:
   max_length: 800
   min_length: 200
   temperature: 0.0
-  gi_insight_source: summary_bullets
+  gi_insight_source: provider
   gi_require_grounding: true

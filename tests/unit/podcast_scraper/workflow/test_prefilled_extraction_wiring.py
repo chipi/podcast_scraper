@@ -47,7 +47,6 @@ class TestKGPrefilled:
         )
 
         provider.extract_kg_graph.assert_not_called()
-        provider.extract_kg_from_summary_bullets.assert_not_called()
 
         topic_labels = [n["properties"]["label"] for n in out["nodes"] if n["type"] == "Topic"]
         assert topic_labels == ["blockchain governance", "roman empire", "algorithmic trading"]

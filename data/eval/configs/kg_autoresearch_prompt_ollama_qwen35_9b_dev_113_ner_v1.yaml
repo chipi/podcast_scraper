@@ -1,0 +1,22 @@
+# #113 Small-model standoff — Ollama qwen3.5:9b + NER pre-pass (9B-class slot).
+# Goal: 9B-class quality vs the top dog (Cell F NVFP4) and safe pick
+# (Moonlight-16B-A3B). Tests whether a 9B model can ride the NER
+# pre-pass's recall lift to acceptable quality.
+id: autoresearch_prompt_ollama_qwen35_9b_dev_113_ner_v1
+task: knowledge_graph
+backend:
+  type: ollama
+  model: qwen3.5:9b
+  base_url: http://localhost:11434
+prompts:
+  system: ollama/qwen3.5_35b/summarization/system_v1
+  user: ollama/qwen3.5_35b/summarization/long_v1
+data:
+  dataset_id: curated_5feeds_dev_v1
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.7
+  kg_extraction_source: provider
+  kg_extraction_use_ner_prepass: true
+preprocessing_profile: cleaning_v4

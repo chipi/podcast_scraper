@@ -65,10 +65,36 @@ def extract_topics_from_prediction(pred: dict) -> list[str]:
 
 
 def extract_entities_from_prediction(pred: dict) -> list[dict]:
-    """Extract entity dicts from a KG prediction."""
+    """Extract entity dicts from a KG prediction.
+
+    Handles two prediction shapes:
+    1. Flat: ``output.entities = [{"name": ..., "entity_kind": ...}, ...]`` —
+       the historic shape (used by some earlier sweeps).
+    2. KG artifact: ``output.kg.nodes = [{"type": "Entity", "properties":
+       {"name": ..., "kind": ...}}, ...]`` — current production shape from
+       ``kg.build_artifact``. Used by #1033 cohort rerun and #1035 NER
+       pre-pass validation. The scorer previously only read shape (1)
+       which caused all KG-artifact-shape runs to report 0% entity
+       coverage even when the LLM emitted matching entities.
+    """
     output = pred.get("output", {})
     entities = output.get("entities", [])
-    return [e for e in entities if isinstance(e, dict) and e.get("name")]
+    if entities:
+        return [e for e in entities if isinstance(e, dict) and e.get("name")]
+    kg = output.get("kg", {})
+    nodes = kg.get("nodes", []) if isinstance(kg, dict) else []
+    out = []
+    for n in nodes:
+        if not isinstance(n, dict) or n.get("type") != "Entity":
+            continue
+        props = n.get("properties", {}) or {}
+        name = props.get("name")
+        if isinstance(name, str) and name.strip():
+            # Normalize kind→entity_kind for downstream uniformity.
+            kind = props.get("kind") or props.get("entity_kind")
+            ek = "organization" if kind == "org" else (kind or "person")
+            out.append({"name": name, "entity_kind": ek})
+    return out
 
 
 def compute_topic_coverage(

@@ -128,7 +128,6 @@ def _instrument(provider: Any) -> Tuple[Dict[str, int], Dict[str, int]]:
         "summarize_extraction_bundled": 0,
         "generate_insights": 0,
         "extract_kg_graph": 0,
-        "extract_kg_from_summary_bullets": 0,
         "total": 0,
     }
     tokens = {"input": 0, "output": 0}
@@ -394,15 +393,10 @@ def _check_gates(results: List[RunResult]) -> Tuple[bool, List[str]]:
                     f"{tag}: extraction_bundled GIL should skip provider, "
                     f"got {r.call_counts.get('generate_insights', 0)} generate_insights calls"
                 )
-            if (
-                r.call_counts.get("extract_kg_graph", 0)
-                + r.call_counts.get("extract_kg_from_summary_bullets", 0)
-                != 0
-            ):
+            if r.call_counts.get("extract_kg_graph", 0) != 0:
                 failures.append(
                     f"{tag}: extraction_bundled KG should skip provider, got "
-                    f"{r.call_counts.get('extract_kg_graph', 0)} extract_kg_graph + "
-                    f"{r.call_counts.get('extract_kg_from_summary_bullets', 0)} bullet-derived"
+                    f"{r.call_counts.get('extract_kg_graph', 0)} extract_kg_graph"
                 )
             if not r.prefilled_present:
                 failures.append(f"{tag}: extraction_bundled missing prefilled_extraction")
@@ -418,15 +412,10 @@ def _check_gates(results: List[RunResult]) -> Tuple[bool, List[str]]:
                     f"{tag}: mega_bundled GIL should skip provider, "
                     f"got {r.call_counts.get('generate_insights', 0)} generate_insights calls"
                 )
-            if (
-                r.call_counts.get("extract_kg_graph", 0)
-                + r.call_counts.get("extract_kg_from_summary_bullets", 0)
-                != 0
-            ):
+            if r.call_counts.get("extract_kg_graph", 0) != 0:
                 failures.append(
                     f"{tag}: mega_bundled KG should skip provider, got "
-                    f"{r.call_counts.get('extract_kg_graph', 0)} extract_kg_graph + "
-                    f"{r.call_counts.get('extract_kg_from_summary_bullets', 0)} bullet-derived"
+                    f"{r.call_counts.get('extract_kg_graph', 0)} extract_kg_graph"
                 )
             if not r.prefilled_present:
                 failures.append(f"{tag}: mega_bundled missing prefilled_extraction")

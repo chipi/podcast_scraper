@@ -3650,22 +3650,7 @@ def generate_episode_metadata(  # noqa: C901
                 gi_source = getattr(cfg, "gi_insight_source", "stub")
                 insight_texts_arg: Optional[List[str]] = None
                 insight_provider_arg = None
-                if (
-                    gi_source == "summary_bullets"
-                    and summary_metadata
-                    and getattr(summary_metadata, "bullets", None)
-                ):
-                    max_gi = getattr(
-                        cfg,
-                        "gi_max_insights",
-                        config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX,
-                    )
-                    insight_texts_arg = []
-                    for _b in summary_metadata.bullets[:max_gi]:
-                        _s = strip_known_ml_bullet_prefixes(str(_b))
-                        if _s:
-                            insight_texts_arg.append(_s)
-                elif gi_source == "provider" and summary_provider is not None:
+                if gi_source == "provider" and summary_provider is not None:
                     insight_provider_arg = summary_provider
 
                 gil_evidence_cleanup: list = []
@@ -3885,10 +3870,10 @@ def generate_episode_metadata(  # noqa: C901
             topic_hint_kg = str(topic_labels_kg[0])[:200]
         elif summary_text:
             topic_hint_kg = str(summary_text)[:200]
-        kg_source = getattr(cfg, "kg_extraction_source", "summary_bullets")
+        kg_source = getattr(cfg, "kg_extraction_source", "provider")
         kg_provider_arg: Optional[Any] = None
         kg_provider_extra: Optional[Any] = None
-        if kg_source == "provider" or (kg_source == "summary_bullets" and topic_labels_kg):
+        if kg_source == "provider":
             from ..summarization.factory import create_summarization_provider
 
             desired_backend = getattr(cfg, "kg_extraction_provider", None)

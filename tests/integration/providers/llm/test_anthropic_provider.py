@@ -842,34 +842,6 @@ class TestAnthropicProviderGIL(unittest.TestCase):
 
     @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
     @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
-    def test_extract_kg_from_summary_bullets_success(self, mock_anthropic, mock_retry):
-        mock_retry.side_effect = lambda fn, **kwargs: fn()
-        mock_client = Mock()
-        mock_anthropic.return_value = mock_client
-        mock_resp = Mock()
-        mock_resp.content = [Mock(text='{"topics": [{"label": "GDP"}], "entities": []}')]
-        mock_client.messages.create.return_value = mock_resp
-        provider = AnthropicProvider(self.cfg)
-        provider.initialize()
-        out = provider.extract_kg_from_summary_bullets(["Summary point one"], episode_title="Ep")
-        self.assertIsNotNone(out)
-        self.assertEqual(out["topics"][0]["label"], "GDP")
-
-    @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
-    def test_extract_kg_from_summary_bullets_not_initialized(self, mock_anthropic):
-        mock_anthropic.return_value = Mock()
-        provider = AnthropicProvider(self.cfg)
-        self.assertIsNone(provider.extract_kg_from_summary_bullets(["a"]))
-
-    @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
-    def test_extract_kg_from_summary_bullets_empty_bullets(self, mock_anthropic):
-        mock_anthropic.return_value = Mock()
-        provider = AnthropicProvider(self.cfg)
-        provider._summarization_initialized = True
-        self.assertIsNone(provider.extract_kg_from_summary_bullets([]))
-
-    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
-    @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
     def test_extract_kg_graph_uses_params_model_override(self, mock_anthropic, mock_retry):
         mock_retry.side_effect = lambda fn, **kwargs: fn()
         mock_client = Mock()

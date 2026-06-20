@@ -1,0 +1,73 @@
+[15:08:06] Sweep start — vLLM reachable. Cohort: 7 candidates.
+[15:08:06] [candidate cell_f] model=NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 max_len=32768 extras=_
+[15:13:06]   gi ok (286s)  gi_avg_max_sim=0.595
+[15:15:50]   kg ok (154s)  kg_topic_entity_cov=topic=45% entity=0%
+[15:15:50] [candidate deepseek_v2_lite] model=deepseek-ai/DeepSeek-V2-Lite-Chat max_len=32768 extras=--trust-remote-code
+[15:15:50]   swapping compose + restarting vLLM...
+[15:20:44]   vLLM ready.
+[15:22:39]   gi ok (104s)  gi_avg_max_sim=0.405
+[15:25:48]   kg ok (179s)  kg_topic_entity_cov=topic=4% entity=0%
+[15:25:48] [candidate gemma_4_26b_a4b] model=google/gemma-4-26B-A4B-it max_len=32768 extras=_
+[15:25:48]   swapping compose + restarting vLLM...
+[15:43:09]   vLLM didn't become ready within 15 min
+[15:43:09] [candidate llama_3_3_70b_nvfp4] model=RedHatAI/Llama-3.3-70B-Instruct-NVFP4 max_len=32768 extras=_
+[15:43:09]   swapping compose + restarting vLLM...
+[15:49:20]   vLLM ready.
+[16:37:07] Sweep start — vLLM reachable. Cohort: 7 candidates.
+[16:37:07] [skip cell_f] requested via --skip
+[16:37:07] [skip deepseek_v2_lite] requested via --skip
+[16:37:07] [candidate gemma_4_26b_a4b] model=google/gemma-4-26B-A4B-it max_len=32768 extras=_
+[16:37:07]   swapping compose + restarting vLLM...
+[16:54:21]   vLLM didn't become ready within 15 min
+[16:54:21] [candidate llama_3_3_70b_nvfp4] model=RedHatAI/Llama-3.3-70B-Instruct-NVFP4 max_len=32768 extras=_
+[16:54:21]   swapping compose + restarting vLLM...
+[17:00:51]   vLLM ready.
+[17:18:09]   gi ok (1031s)  gi_avg_max_sim=0.509
+[17:28:54]   kg ok (638s)  kg_topic_entity_cov=topic=24% entity=0%
+[17:28:54] [candidate qwen3_5_35b_a3b] model=Qwen/Qwen3.5-35B-A3B max_len=32768 extras=--reasoning-parser=qwen3
+[17:28:54]   swapping compose + restarting vLLM...
+[17:32:53]   vLLM ready.
+[17:38:11]   gi ok (311s)  gi_avg_max_sim=0.618
+[17:41:53]   kg ok (215s)  kg_topic_entity_cov=topic=50% entity=0%
+[17:41:53] [candidate moonlight_16b_a3b] model=moonshotai/Moonlight-16B-A3B-Instruct max_len=8192 extras=--trust-remote-code
+[17:41:53]   swapping compose + restarting vLLM...
+[17:45:54]   vLLM ready.
+[17:48:50]   gi ok (169s)  gi_avg_max_sim=0.581
+[17:51:17]   kg ok (140s)  kg_topic_entity_cov=topic=40% entity=0%
+[17:51:17] [candidate ministral_3_14b] model=mistralai/Ministral-3-14B-Instruct-2512 max_len=32768 extras=--tokenizer_mode=mistral|--config_format=mistral|--load_format=mistral
+[17:51:17]   swapping compose + restarting vLLM...
+[17:53:27]   vLLM boot error detected
+(EngineCore pid=249) [rank0]:W0619 17:53:26.920000 249 torch/_inductor/triton_bundler.py:242]   File "/usr/local/lib/python3.12/dist-packages/torch/_inductor/triton_bundler.py", line 240, in load_autotuners
+(EngineCore pid=249) [rank0]:W0619 17:53:26.920000 249 torch/_inductor/triton_bundler.py:242]     compile_result.reload_cubin_path()
+(EngineCore pid=249) [rank0]:W0619 17:53:26.920000 249 torch/_inductor/triton_bundler.py:242]   File "/usr/local/lib/python3.12/dist-packages/torch/_inductor/runtime/triton_heuristics.py", line 2044, in reload_cubin_path
+(EngineCore pid=249) [rank0]:W0619 17:53:26.920000 249 torch/_inductor/triton_bundler.py:242]     raise RuntimeError(
+(EngineCore pid=249) [rank0]:W0619 17:53:26.920000 249 torch/_inductor/triton_bundler.py:242] RuntimeError: ('Cubin file saved by TritonBundler not found at %s', '/tmp/torchinductor_root/triton/0/2VPXRT37RPG5I2TJFNXCCGY7AW47HKGVC6SUX2DQUP4ZA4SAZWUA/triton_poi_fused_4.cubin')
+(EngineCore pid=249) [rank0]:W0619 17:53:26.920000 249 torch/_inductor/triton_bundler.py:242] Failed to reload cubin file statically launchable autotuner triton_poi_fused_4
+(EngineCore pid=249) [rank0]:W0619 17:53:26.920000 249 torch/_inductor/triton_bundler.py:242] Traceback (most recent call last):
+(EngineCore pid=249) [rank0]:W0619 17:53:26.920000 249 torch/_inductor/triton_bundler.py:242]   File "/usr/local/lib/python3.12/dist-packages/torch/_inductor/triton_bundler.py", line 240, in load_autotuners
+(EngineCore pid=249) [rank0]:W0619 17:53:26.920000 249 torch/_inductor/triton_bundler.py:242]     compile_result.reload_cubin_path()
+(EngineCore pid=249) [rank0]:W0619 17:53:26.920000 249 torch/_inductor/triton_bundler.py:242]   File "/usr/local/lib/python3.12/dist-packages/torch/_inductor/runtime/triton_heuristics.py", line 2044, in reload_cubin_path
+(EngineCore pid=249) [rank0]:W0619 17:53:26.920000 249 torch/_inductor/triton_bundler.py:242]     raise RuntimeError(
+(EngineCore pid=249) [rank0]:W0619 17:53:26.920000 249 torch/_inductor/triton_bundler.py:242] RuntimeError: ('Cubin file saved by TritonBundler not found at %s', '/tmp/torchinductor_root/triton/0/2VPXRT37RPG5I2TJFNXCCGY7AW47HKGVC6SUX2DQUP4ZA4SAZWUA/triton_poi_fused_4.cubin')
+(EngineCore pid=249) INFO 06-19 17:53:27 [caching.py:333] reconstructed serializable fn from standalone compile artifacts. num_artifacts=4 num_submods=41
+(EngineCore pid=249) INFO 06-19 17:53:27 [decorators.py:305] Directly load AOT compilation from path /opt/llm-models/vllm-cache/torch_compile_cache/torch_aot_compile/4f6f44625f9c2e018bfb1d54baab68ef38f4c182b672efec321935c322133580/rank_0_0/model
+(EngineCore pid=249) INFO 06-19 17:53:27 [monitor.py:53] torch.compile took 0.49 s in total
+[17:53:27] [restore] swapping back to Cell F...
+[17:56:13]   Cell F restored + healthy.
+[17:56:13] Sweep complete.
+
+=== runs.tsv ===
+candidate            stage  wall_clock_s  score_metric         score_value          run_dir                                                                                                   status
+cell_f               gi     286           gi_avg_max_sim       0.595                /Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/1033_rerun/cell_f/gi               ok
+cell_f               kg     154           kg_topic_entity_cov  topic=45% entity=0%  /Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/1033_rerun/cell_f/kg               ok
+deepseek_v2_lite     gi     104           gi_avg_max_sim       0.405                /Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/1033_rerun/deepseek_v2_lite/gi     ok
+deepseek_v2_lite     kg     179           kg_topic_entity_cov  topic=4% entity=0%   /Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/1033_rerun/deepseek_v2_lite/kg     ok
+gemma_4_26b_a4b      all    0             n/a                  n/a                  n/a                                                                                                       boot_fail
+gemma_4_26b_a4b      all    0             n/a                  n/a                  n/a                                                                                                       boot_fail
+llama_3_3_70b_nvfp4  gi     1031          gi_avg_max_sim       0.509                /Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/1033_rerun/llama_3_3_70b_nvfp4/gi  ok
+llama_3_3_70b_nvfp4  kg     638           kg_topic_entity_cov  topic=24% entity=0%  /Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/1033_rerun/llama_3_3_70b_nvfp4/kg  ok
+qwen3_5_35b_a3b      gi     311           gi_avg_max_sim       0.618                /Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/1033_rerun/qwen3_5_35b_a3b/gi      ok
+qwen3_5_35b_a3b      kg     215           kg_topic_entity_cov  topic=50% entity=0%  /Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/1033_rerun/qwen3_5_35b_a3b/kg      ok
+moonlight_16b_a3b    gi     169           gi_avg_max_sim       0.581                /Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/1033_rerun/moonlight_16b_a3b/gi    ok
+moonlight_16b_a3b    kg     140           kg_topic_entity_cov  topic=40% entity=0%  /Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/runs/1033_rerun/moonlight_16b_a3b/kg    ok
+ministral_3_14b      all    0             n/a                  n/a                  n/a                                                                                                       boot_fail

@@ -37,7 +37,7 @@ Currently registered:
 
 from __future__ import annotations
 
-from typing import Callable, Dict
+from typing import Any, Callable, Dict
 
 from podcast_scraper.evaluation.r1_postprocess import strip_r1_reasoning
 
@@ -133,6 +133,64 @@ REGISTRY: Dict[str, Callable[[str], str]] = {
 }
 
 
+# Text fields on GIL / KG nodes that the eval scorer reads. Listed
+# explicitly so the GI/KG postprocessor walker only touches actual prose
+# content and doesn't accidentally rewrite IDs, types, or numeric scores.
+# Matches the schema in ``gi/contracts.py`` (Insight/Quote/Entity/Topic
+# nodes all use ``properties.label`` for the human-readable text; some
+# nodes additionally carry ``properties.name`` and ``properties.description``).
+_GIL_TEXT_PROPERTY_KEYS: tuple[str, ...] = ("label", "name", "description", "desc", "text")
+
+
+def apply_postprocessor_to_gil_payload(
+    payload: Any,
+    postprocessor: Callable[[str], str],
+) -> Any:
+    """Apply a text postprocessor to every text field on every GIL/KG node.
+
+    Originally needed to fix the #1016 DSV2-Lite GI/KG zero-coverage bug
+    (#111): the configured ``decode_r1_byte_level`` postprocessor was being
+    applied to summary text via the run_experiment.py summary path but
+    NOT to ``gil.nodes[].properties.{label,name,description}`` on the GI
+    and KG task paths, leaving byte-level BPE artifacts in the node labels
+    and making them unrecognizable to the silver-comparison scorer.
+
+    Walks ``payload["nodes"]`` (a list) and applies ``postprocessor`` to
+    each text field listed in ``_GIL_TEXT_PROPERTY_KEYS`` (label, name,
+    description, desc, text — the union across GIL/KG node types). No-op
+    when ``postprocessor`` is the identity (:func:`noop`) — short-circuits
+    to avoid a no-op walk of every node.
+
+    The mutation is in-place; the input dict is returned for convenience.
+    Non-dict node entries and non-string property values are skipped silently
+    (defensive against legacy schemas / partial payloads).
+    """
+    if postprocessor is noop:
+        return payload
+    if not isinstance(payload, dict):
+        return payload
+    nodes = payload.get("nodes")
+    if not isinstance(nodes, list):
+        return payload
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        # Top-level label/text on a node (some legacy shapes carry it here
+        # instead of inside .properties).
+        for key in _GIL_TEXT_PROPERTY_KEYS:
+            val = node.get(key)
+            if isinstance(val, str) and val:
+                node[key] = postprocessor(val)
+        # Standard GIL/KG shape — properties dict carries the text fields.
+        props = node.get("properties")
+        if isinstance(props, dict):
+            for key in _GIL_TEXT_PROPERTY_KEYS:
+                val = props.get(key)
+                if isinstance(val, str) and val:
+                    props[key] = postprocessor(val)
+    return payload
+
+
 def get_postprocessor(name: str | None) -> Callable[[str], str]:
     """Look up a post-processor by name.
 
@@ -152,4 +210,9 @@ def get_postprocessor(name: str | None) -> Callable[[str], str]:
     return REGISTRY[name]
 
 
-__all__ = ["REGISTRY", "get_postprocessor", "noop"]
+__all__ = [
+    "REGISTRY",
+    "apply_postprocessor_to_gil_payload",
+    "get_postprocessor",
+    "noop",
+]
