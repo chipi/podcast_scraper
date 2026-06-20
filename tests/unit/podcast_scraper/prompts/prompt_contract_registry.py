@@ -14,6 +14,7 @@ SHARED_TEMPLATES_REQUIRE_TRANSCRIPT: Final[tuple[str, ...]] = (
     "shared/summarization/bundled_clean_summary_user_v1",
     "shared/kg_graph_extraction/v1",
     "shared/kg_graph_extraction/v2",
+    "shared/kg_graph_extraction/v5",
 )
 
 # Instruction-only or bullet-input prompts: must not silently gain ``transcript``.
@@ -83,6 +84,14 @@ def shared_render_kwargs(logical_name: str) -> dict[str, object]:
             "max_topics": 3,
             "max_entities": 5,
             "transcript": marker,
+        }
+    if logical_name == "shared/kg_graph_extraction/v5":
+        return {
+            "title": "Contract Title",
+            "max_topics": 3,
+            "max_entities": 5,
+            "transcript": marker,
+            "ner_entity_hints": [],
         }
     raise ValueError(f"No render kwargs registered for {logical_name!r}")
 

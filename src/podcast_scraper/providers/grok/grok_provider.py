@@ -1418,7 +1418,12 @@ class GrokProvider:
             return None
         model = resolve_kg_model_id(self, params)
         user_prompt = build_kg_user_prompt(
-            text_slice, episode_title or "", max_topics, max_entities
+            text_slice,
+            episode_title or "",
+            max_topics,
+            max_entities,
+            prompt_version=(params or {}).get("kg_prompt_version", "v4"),
+            ner_entity_hints=(params or {}).get("ner_entity_hints"),
         )
         system_msg = build_kg_transcript_system_prompt(max_topics, max_entities)
         try:

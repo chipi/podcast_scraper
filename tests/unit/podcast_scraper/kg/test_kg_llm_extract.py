@@ -97,3 +97,58 @@ class TestKgLlmExtract(unittest.TestCase):
         rendered = build_kg_user_prompt("some transcript", "Title", 5, 10)
         self.assertIn("One canonical spelling per entity", rendered)
         self.assertIn("USPS", rendered)  # do-not-over-merge guard present
+
+    def test_kg_user_prompt_v5_renders_ner_hints_block(self) -> None:
+        """#1035 — v5 renders the pre-extracted entity candidates block."""
+        from podcast_scraper.kg.llm_extract import build_kg_user_prompt
+
+        rendered = build_kg_user_prompt(
+            "some transcript",
+            "Title",
+            5,
+            10,
+            prompt_version="v5",
+            ner_entity_hints=[
+                {"text": "Maya", "label": "PERSON"},
+                {"text": "Strava", "label": "ORG"},
+            ],
+        )
+        self.assertIn("Pre-extracted entity candidates", rendered)
+        self.assertIn("Maya (PERSON)", rendered)
+        self.assertIn("Strava (ORG)", rendered)
+        # v4 entity rules also preserved
+        self.assertIn("One canonical spelling per entity", rendered)
+
+    def test_kg_user_prompt_v5_with_empty_hints_omits_block(self) -> None:
+        """#1035 — v5 with empty hints renders without the candidate block,
+        equivalent in shape to v4 (LLM falls back to from-scratch discovery)."""
+        from podcast_scraper.kg.llm_extract import build_kg_user_prompt
+
+        rendered = build_kg_user_prompt(
+            "some transcript",
+            "Title",
+            5,
+            10,
+            prompt_version="v5",
+            ner_entity_hints=[],
+        )
+        self.assertNotIn("Pre-extracted entity candidates", rendered)
+        self.assertNotIn("How to use the candidate list", rendered)
+        # Other rules still present
+        self.assertIn("One canonical spelling per entity", rendered)
+        self.assertIn("Transcript:", rendered)
+
+    def test_kg_user_prompt_v4_ignores_hints_kwarg(self) -> None:
+        """#1035 — v4 doesn't reference ner_entity_hints; passing it is a no-op."""
+        from podcast_scraper.kg.llm_extract import build_kg_user_prompt
+
+        rendered = build_kg_user_prompt(
+            "some transcript",
+            "Title",
+            5,
+            10,
+            prompt_version="v4",
+            ner_entity_hints=[{"text": "Maya", "label": "PERSON"}],
+        )
+        self.assertNotIn("Pre-extracted entity candidates", rendered)
+        self.assertNotIn("Maya (PERSON)", rendered)

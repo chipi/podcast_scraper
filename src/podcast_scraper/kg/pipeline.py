@@ -135,6 +135,50 @@ def _topic_labels_from_args(
     return labels[:max_t]
 
 
+def _resolve_ner_prepass(
+    transcript_text: str,
+    cfg: Optional[Any],
+    kg_extraction_provider: Any,
+    max_entities: int,
+) -> tuple[List[Dict[str, str]], str]:
+    """#1035 — NER pre-pass: returns (hints, prompt_version).
+
+    When ``cfg.kg_extraction_use_ner_prepass`` is False (default) or the
+    NER pipeline isn't available, returns ``([], "v4")`` — caller renders
+    the v4 prompt with no hints. When enabled and the spaCy model resolves,
+    returns the deduped + capped PERSON+ORG candidate list and prompt
+    ``"v5"``.
+
+    Reuses ``kg_extraction_provider._spacy_nlp`` when cached (Issue #387)
+    or falls back to a fresh ``get_ner_model(cfg)`` load. Any failure
+    silently downgrades to v4 — entity recall stays at the pre-#1035
+    baseline, never worse.
+    """
+    if cfg is None or not getattr(cfg, "kg_extraction_use_ner_prepass", False):
+        return [], "v4"
+    nlp = getattr(kg_extraction_provider, "_spacy_nlp", None)
+    if nlp is None:
+        try:
+            from ..providers.ml.speaker_detection import get_ner_model
+
+            nlp = get_ner_model(cfg)
+        except Exception as exc:
+            logger.warning(
+                "#1035 NER pre-pass: could not load spaCy model (%s); falling back to v4 prompt",
+                exc,
+            )
+            return [], "v4"
+    if nlp is None:
+        logger.debug("#1035 NER pre-pass: cfg.ner_model not set; falling back to v4 prompt")
+        return [], "v4"
+
+    from .ner_prepass import extract_kg_ner_hints
+
+    cap = max(1, min(int(max_entities) * 3, 40))
+    hints = extract_kg_ner_hints(transcript_text, nlp, max_candidates=cap)
+    return hints, "v5"
+
+
 def _try_provider_extraction(
     transcript_text: str,
     episode_title: str,
@@ -152,6 +196,13 @@ def _try_provider_extraction(
     params: Dict[str, Any] = {}
     if cfg is not None and getattr(cfg, "kg_extraction_model", None):
         params["kg_extraction_model"] = cfg.kg_extraction_model
+    ner_hints, prompt_version = _resolve_ner_prepass(
+        transcript_text, cfg, kg_extraction_provider, max_e
+    )
+    if ner_hints:
+        params["ner_entity_hints"] = ner_hints
+    if prompt_version != "v4":
+        params["kg_prompt_version"] = prompt_version
     try:
         partial = extract_fn(
             transcript_text,

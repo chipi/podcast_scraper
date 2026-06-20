@@ -119,9 +119,28 @@ def build_kg_user_prompt(
     title: str,
     max_topics: int,
     max_entities: int,
-    prompt_version: str = "v4",  # v4: entity canonicalization (#851); v3 noun-phrase (#590)
+    prompt_version: str = "v4",
+    # v5: #1035 NER pre-pass (extends v4 with optional candidate-spans block).
+    # v4: entity canonicalization (#851). v3: noun-phrase (#590).
+    ner_entity_hints: Optional[List[Dict[str, str]]] = None,
 ) -> str:
-    """Render shared Jinja prompt for KG extraction."""
+    """Render shared Jinja prompt for KG extraction.
+
+    Args:
+        transcript: Cleaned transcript text (the LLM sees this verbatim).
+        title: Episode title (rendered as ``Episode title:`` header).
+        max_topics: Hard cap for the topics array.
+        max_entities: Hard cap for the entities array.
+        prompt_version: Template version to render (``v4`` or ``v5``).
+            ``v5`` opts into the #1035 NER pre-pass — when chosen, the
+            caller MUST also pass ``ner_entity_hints``.
+        ner_entity_hints: Optional list of ``{"text": str, "label": "PERSON"
+            | "ORG"}`` dicts produced by ``kg.ner_prepass.extract_kg_ner_hints``.
+            Ignored by ``v4`` (which doesn't reference the variable).
+            Rendered as a candidate-list block by ``v5``. ``None`` or empty
+            list under ``v5`` renders the template without the block —
+            falls back to LLM-from-scratch extraction.
+    """
     from ..prompts.store import render_prompt
 
     return render_prompt(
@@ -130,6 +149,7 @@ def build_kg_user_prompt(
         title=title or "",
         max_topics=max_topics,
         max_entities=max_entities,
+        ner_entity_hints=ner_entity_hints or [],
     )
 
 
