@@ -276,6 +276,19 @@ that never shipped. v2 lands them.
 - `question` — interrogative ("but is X really true?")
 - `unknown` — classifier couldn't decide
 
+**Implementation status (post-chunk-5 retroactive sweep, 2026-06-20)**:
+chunk 5 shipped insight_type via the **megabundle / extraction-bundled
+prompt path** (`prompting/megabundle.py`) — provider responses there
+include `insight_type` and the parser threads it through to the GI
+pipeline. The legacy per-provider `prompts/{anthropic,gemini,openai,
+deepseek,grok,mistral,ollama}/insight_extraction/v1.j2` prompts emit
+plain-text insights only; their outputs degrade to `insight_type:
+"unknown"` via `_normalize_insight_type`'s default. Updating each
+per-provider prompt to emit structured `{text, insight_type}` JSON is a
+**parked v2.1 follow-up** — additive (default stays valid), no schema
+change required, but each provider needs re-tuning and an accuracy
+sweep before flipping over.
+
 Implemented as a single prompt extension in the GI extraction prompt
 (across all provider shards in `prompts/{anthropic,gemini,openai,
 deepseek,grok,mistral,ollama,vllm}/gi/*`). Classification accuracy

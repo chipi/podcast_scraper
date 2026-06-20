@@ -39,8 +39,14 @@ def add_insight_entity_edges(artifact: Dict, entity_index: Mapping[str, Tuple[st
     kind=organization). Permissive over the legacy generic ``MENTIONS`` edges —
     deduplication considers all three types so repeated calls don't double up.
 
-    When at least one typed edge is added, the artifact's ``schema_version`` is
-    bumped to ``3.0`` (RFC-097); earlier versions otherwise pass through.
+    RFC-097 chunk-4 retroactive sweep: when an edge points to a Person /
+    Organization id that does NOT already exist as a node in the artifact,
+    the function adds a minimal ``{name, label}`` Person / Organization
+    node so the edge resolves locally and the viewer doesn't have to
+    join across kg.json to render the relationship.
+
+    When at least one typed edge is added, the artifact's ``schema_version``
+    is bumped to ``3.0`` (RFC-097); earlier versions otherwise pass through.
 
     Idempotent. Returns the number of edges added.
     """
@@ -52,7 +58,7 @@ def add_insight_entity_edges(artifact: Dict, entity_index: Mapping[str, Tuple[st
         if n.get("type") == "Insight" and isinstance(n.get("id"), str)
     ]
     patterns = [
-        (eid, kind, re.compile(r"\b" + re.escape(name) + r"\b"))
+        (eid, kind, name, re.compile(r"\b" + re.escape(name) + r"\b"))
         for eid, (name, kind) in entity_index.items()
         if name and len(name) >= 2
     ]
@@ -61,9 +67,10 @@ def add_insight_entity_edges(artifact: Dict, entity_index: Mapping[str, Tuple[st
         for e in edges
         if e.get("type") in ("MENTIONS", "MENTIONS_PERSON", "MENTIONS_ORG")
     }
+    existing_node_ids = {n.get("id") for n in nodes if isinstance(n.get("id"), str)}
     added = 0
     for insight_id, text in insights:
-        for entity_id, kind, pattern in patterns:
+        for entity_id, kind, surface_name, pattern in patterns:
             edge_type = "MENTIONS_ORG" if kind == "organization" else "MENTIONS_PERSON"
             # Skip if EITHER the legacy generic MENTIONS or the typed edge is already present.
             keys = {
@@ -74,6 +81,18 @@ def add_insight_entity_edges(artifact: Dict, entity_index: Mapping[str, Tuple[st
             if keys & existing:
                 continue
             if pattern.search(text):
+                # Add the missing Person / Organization node so the edge target
+                # resolves within gi.json (no cross-layer join required).
+                if entity_id not in existing_node_ids:
+                    node_type = "Organization" if kind == "organization" else "Person"
+                    nodes.append(
+                        {
+                            "id": entity_id,
+                            "type": node_type,
+                            "properties": {"name": surface_name},
+                        }
+                    )
+                    existing_node_ids.add(entity_id)
                 edges.append({"type": edge_type, "from": insight_id, "to": entity_id})
                 existing.add((insight_id, entity_id, edge_type))
                 added += 1
@@ -89,6 +108,11 @@ def add_episode_show_edges(artifact: Dict, show_title: str) -> int:
 
     The canonical show node is ``podcast:{slug(show_title)}`` so it unifies across
     episodes of the same show (cross-show navigation). Idempotent. Returns edges added.
+
+    RFC-097 chunk-4 retroactive sweep: Podcast node carries ``title`` (not ``name``)
+    to match ``gi.schema.json`` ``podcast_node.properties`` which requires ``title``.
+    ``rss_url`` is unknowable from ``show_title`` alone and stays absent — see the
+    schema's optional ``rss_url`` annotation.
     """
     if not show_title:
         return 0
@@ -101,7 +125,7 @@ def add_episode_show_edges(artifact: Dict, show_title: str) -> int:
     node_ids = {n.get("id") for n in nodes}
     existing = {(e.get("from"), e.get("to")) for e in edges if e.get("type") == "HAS_EPISODE"}
     if podcast_id not in node_ids:
-        nodes.append({"id": podcast_id, "type": "Podcast", "properties": {"name": show_title}})
+        nodes.append({"id": podcast_id, "type": "Podcast", "properties": {"title": show_title}})
     added = 0
     for episode_id in episode_ids:
         if (podcast_id, episode_id) not in existing:

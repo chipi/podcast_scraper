@@ -467,3 +467,100 @@ def test_compute_position_hints_for_document_skips_when_no_quote_starts() -> Non
     out = compute_position_hints_for_document(data)
     ins = next(n for n in out["nodes"] if n["id"] == "insight:i1")
     assert "position_hint" not in ins["properties"]
+
+
+# ─── RFC-097 retroactive sweep: end-to-end migration → strict validation ───
+
+
+def test_migrate_kg_v2_output_passes_strict_schema() -> None:
+    """A v1.2 KG artifact migrated via migrate_kg_document_v2 passes strict validation."""
+    from podcast_scraper.kg.schema import validate_artifact as validate_kg
+
+    data = {
+        "schema_version": "1.2",
+        "episode_id": "e1",
+        "extraction": {
+            "model_version": "stub",
+            "extracted_at": "2024-01-01T00:00:00Z",
+            "transcript_ref": "t.txt",
+        },
+        "nodes": [
+            {
+                "id": "episode:e1",
+                "type": "Episode",
+                "properties": {
+                    "podcast_id": "podcast:p",
+                    "title": "T",
+                    "publish_date": "2024-01-01T00:00:00Z",
+                },
+            },
+            {
+                "id": "person:alice",
+                "type": "Entity",
+                "properties": {"name": "Alice", "kind": "person", "role": "host"},
+            },
+            {
+                "id": "org:acme",
+                "type": "Entity",
+                "properties": {"name": "ACME", "kind": "org"},
+            },
+        ],
+        "edges": [
+            {"type": "MENTIONS", "from": "person:alice", "to": "episode:e1", "properties": {}},
+        ],
+    }
+    out = migrate_kg_document_v2(data)
+    # Must validate against the v2.0 schema in strict mode.
+    validate_kg(out, strict=True)
+
+
+def test_migrate_gi_v3_output_passes_strict_schema() -> None:
+    """A v2.0 GI artifact migrated via migrate_gi_document_v3 passes strict validation."""
+    from podcast_scraper.gi.schema import validate_artifact as validate_gi
+
+    data = {
+        "schema_version": "2.0",
+        "episode_id": "e1",
+        "model_version": "stub",
+        "prompt_version": "v1",
+        "nodes": [
+            {
+                "id": "episode:e1",
+                "type": "Episode",
+                "properties": {
+                    "podcast_id": "podcast:p",
+                    "title": "T",
+                    "publish_date": "2024-01-01T00:00:00Z",
+                },
+            },
+            {
+                "id": "insight:i1",
+                "type": "Insight",
+                "properties": {
+                    "text": "Some claim.",
+                    "episode_id": "e1",
+                    "grounded": False,
+                    "insight_type": "fact",  # legacy vocab — migration must normalise
+                },
+            },
+            # NB: target Person node MUST be present pre-migration for strict
+            # validation, otherwise the rewritten MENTIONS_PERSON edge would
+            # dangle (schema allows but consumers complain).
+            {
+                "id": "person:alice",
+                "type": "Person",
+                "properties": {"name": "Alice"},
+            },
+        ],
+        "edges": [
+            {"type": "MENTIONS", "from": "insight:i1", "to": "person:alice"},
+        ],
+    }
+    out = migrate_gi_document_v3(data)
+    validate_gi(out, strict=True)
+    # Confirm legacy "fact" → "claim" landed.
+    ins = next(n for n in out["nodes"] if n["id"] == "insight:i1")
+    assert ins["properties"]["insight_type"] == "claim"
+    # Confirm typed edge replaced generic MENTIONS.
+    assert any(e["type"] == "MENTIONS_PERSON" for e in out["edges"])
+    assert not any(e["type"] == "MENTIONS" for e in out["edges"])

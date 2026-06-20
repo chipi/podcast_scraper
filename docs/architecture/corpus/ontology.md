@@ -260,6 +260,27 @@ viewer's dashed-border styling.
 
 ---
 
+## Known limitations carried over (parked for v3)
+
+- **Cross-layer Podcast id derivation**: the KG pipeline derives
+  `podcast:{slug(feed_id)}` from the workflow's `feed_id` (e.g.
+  `rss_example_com_abc123`), while the GI post-pass
+  `add_episode_show_edges` derives `podcast:{slug(show_title)}` from the
+  feed's `title` (e.g. `the-journal`). These may produce different
+  canonical IDs for the same show. v2 ships both because each layer is
+  the cheaper source-of-truth for its own emission; v3 should converge
+  both on `podcast:{slug(title)}` once feed title is threaded through
+  the workflow's KG call. Workaround today: keep the KG `MENTIONS`
+  edges + GI `HAS_EPISODE` edges independent and rely on the bridge
+  artifact for cross-layer joins.
+- **Per-provider insight_extraction prompts** (`prompts/{anthropic,
+  gemini,openai,deepseek,grok,mistral,ollama}/insight_extraction/v1.j2`)
+  still emit plain-text insights with no structured `insight_type`.
+  Outputs degrade to `insight_type: "unknown"` via the pipeline's
+  default normalizer. The megabundle / extraction-bundled path (updated
+  in chunk 5) does emit structured `insight_type`. Updating each
+  per-provider prompt is a v2.1 follow-up (additive, schema-safe).
+
 ## Versioning + supersession
 
 | Schema family | v1.x | v2.x | v3.x |

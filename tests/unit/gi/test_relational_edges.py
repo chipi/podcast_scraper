@@ -87,9 +87,47 @@ def test_episode_show_adds_podcast_node_and_edge():
     added = add_episode_show_edges(art, "Odd Lots")
     assert added == 1
     assert {"type": "HAS_EPISODE", "from": "podcast:odd-lots", "to": "episode:e1"} in art["edges"]
-    assert any(n["id"] == "podcast:odd-lots" and n["type"] == "Podcast" for n in art["nodes"])
+    pod = next(n for n in art["nodes"] if n["id"] == "podcast:odd-lots" and n["type"] == "Podcast")
+    # RFC-097 chunk-4 retroactive sweep: schema requires "title" (not "name").
+    assert pod["properties"] == {"title": "Odd Lots"}
     # idempotent
     assert add_episode_show_edges(art, "Odd Lots") == 0
+
+
+def test_insight_entity_edges_add_missing_target_nodes():
+    """RFC-097 chunk-4 retroactive: target Person/Organization nodes are added
+    when they don't already exist in the artifact (otherwise the edge would
+    dangle and the viewer would have to cross-join with kg.json)."""
+    art = _artifact()
+    assert not any(n["type"] in ("Person", "Organization") for n in art["nodes"])
+    added = add_insight_entity_edges(
+        art,
+        {
+            "person:elon-musk": ("Elon Musk", "person"),
+            "org:spacex": ("SpaceX", "organization"),
+        },
+    )
+    assert added == 2
+    persons = [n for n in art["nodes"] if n["type"] == "Person"]
+    orgs = [n for n in art["nodes"] if n["type"] == "Organization"]
+    assert len(persons) == 1 and persons[0]["id"] == "person:elon-musk"
+    assert persons[0]["properties"] == {"name": "Elon Musk"}
+    assert len(orgs) == 1 and orgs[0]["id"] == "org:spacex"
+    assert orgs[0]["properties"] == {"name": "SpaceX"}
+
+
+def test_insight_entity_edges_do_not_duplicate_existing_target_nodes():
+    """If the target Person already exists in the artifact (e.g. from
+    SPOKEN_BY emission), the helper does NOT add a duplicate."""
+    art = _artifact()
+    art["nodes"].append(
+        {"id": "person:elon-musk", "type": "Person", "properties": {"name": "Elon Musk"}}
+    )
+    pre_count = sum(1 for n in art["nodes"] if n["id"] == "person:elon-musk")
+    added = add_insight_entity_edges(art, {"person:elon-musk": ("Elon Musk", "person")})
+    assert added == 1  # edge added
+    post_count = sum(1 for n in art["nodes"] if n["id"] == "person:elon-musk")
+    assert post_count == pre_count  # node count unchanged
 
 
 def test_episode_show_empty_title_noop():
