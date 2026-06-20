@@ -2,15 +2,15 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://podcast-scraper.dev/schemas/kg.schema.json",
   "title": "Knowledge Graph Layer Episode Artifact (kg.json)",
-  "description": "Per-episode KG: entities, topics, and typed edges (separate from gi.json). v1.2: entity `kind` person|org, ids `person:`/`org:`; v1.1 optional descriptions; v1.0 legacy `entity_kind`. See docs/architecture/kg/ontology.md.",
+  "description": "Per-episode KG: nodes (Podcast/Episode/Person/Organization/Topic — Entity retained as legacy), topics, and typed edges (separate from gi.json). v2.0 (RFC-097): Person/Organization/Podcast first-class + HAS_EPISODE + edge_class metadata; v1.2: entity `kind` person|org; v1.1: optional descriptions; v1.0: legacy `entity_kind`. See docs/architecture/corpus/ontology.md (v2 source of truth).",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "episode_id", "extraction", "nodes", "edges"],
   "properties": {
     "schema_version": {
       "type": "string",
-      "pattern": "^1\\.(0|1|2)$",
-      "description": "KG artifact schema version (1.0 legacy, 1.1 descriptions, 1.2 canonical kind + person:/org: ids)"
+      "pattern": "^(1\\.(0|1|2)|2\\.0)$",
+      "description": "KG artifact schema version (1.0 legacy, 1.1 descriptions, 1.2 canonical kind + person:/org: ids, 2.0 RFC-097 unified ontology — Person/Org/Podcast first-class + HAS_EPISODE + edge_class)"
     },
     "episode_id": {
       "type": "string",
@@ -23,7 +23,7 @@
       "required": ["model_version", "extracted_at", "transcript_ref"],
       "properties": {
         "model_version": {
-          "description": "Extraction tier: `stub`, verbatim `summary_bullets`, `provider:<model>` (transcript LLM), or `provider:summary_bullets:<model>` (LLM from summary bullets only); see docs/architecture/kg/ontology.md § Provenance.",
+          "description": "Extraction tier: `stub`, verbatim `summary_bullets`, `provider:<model>` (transcript LLM), or `provider:summary_bullets:<model>` (LLM from summary bullets only); see docs/architecture/corpus/ontology.md § Provenance.",
           "oneOf": [
             { "const": "stub" },
             { "const": "summary_bullets" },
@@ -56,10 +56,96 @@
   "$defs": {
     "node": {
       "oneOf": [
+        { "$ref": "#/$defs/podcast_node" },
         { "$ref": "#/$defs/episode_node" },
         { "$ref": "#/$defs/entity_node" },
+        { "$ref": "#/$defs/person_node" },
+        { "$ref": "#/$defs/organization_node" },
         { "$ref": "#/$defs/topic_node" }
       ]
+    },
+    "podcast_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "properties"],
+      "description": "v2.0 (RFC-097): first-class Podcast node. Source of HAS_EPISODE edges to Episode nodes.",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "description": "podcast:{slug}" },
+        "type": { "const": "Podcast" },
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["title"],
+          "properties": {
+            "title": { "type": "string", "minLength": 1 },
+            "rss_url": { "type": "string" },
+            "publisher": { "type": "string" }
+          }
+        },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "person_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "properties"],
+      "description": "v2.0 (RFC-097): first-class Person node replacing legacy Entity(kind=person). Id: person:{slug}.",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "description": "person:{slug}" },
+        "type": { "const": "Person" },
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name"],
+          "properties": {
+            "name": { "type": "string", "minLength": 1 },
+            "label": { "type": "string", "minLength": 1 },
+            "aliases": { "type": "array", "items": { "type": "string" } },
+            "role": {
+              "type": "string",
+              "enum": ["host", "guest", "mentioned"],
+              "description": "Pipeline role for this Person (hosts/guests from speaker pipeline, or `mentioned` for LLM-extracted)."
+            },
+            "description": {
+              "type": "string",
+              "maxLength": 4000,
+              "description": "Optional 1-3 sentence episode-specific context."
+            }
+          }
+        },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "organization_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "properties"],
+      "description": "v2.0 (RFC-097): first-class Organization node replacing legacy Entity(kind=org). Id: org:{slug}.",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "description": "org:{slug}" },
+        "type": { "const": "Organization" },
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name"],
+          "properties": {
+            "name": { "type": "string", "minLength": 1 },
+            "label": { "type": "string", "minLength": 1 },
+            "aliases": { "type": "array", "items": { "type": "string" } },
+            "role": {
+              "type": "string",
+              "enum": ["mentioned"],
+              "description": "Pipeline role for this Organization (typically `mentioned`)."
+            },
+            "description": {
+              "type": "string",
+              "maxLength": 4000,
+              "description": "Optional 1-3 sentence episode-specific context."
+            }
+          }
+        },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
     },
     "episode_node": {
       "type": "object",
@@ -165,8 +251,8 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["MENTIONS", "RELATED_TO"],
-          "description": "Edge type. v1 builder emits **MENTIONS** only (Topic|Entity → Episode). **RELATED_TO** is reserved for future use (see docs/architecture/kg/ontology.md)."
+          "enum": ["MENTIONS", "RELATED_TO", "HAS_EPISODE"],
+          "description": "Edge type. v1 builder emits **MENTIONS** (Topic|Entity → Episode). **HAS_EPISODE** (Podcast → Episode) lands in v2.0 (RFC-097). **RELATED_TO** is reserved for future use (see docs/architecture/corpus/ontology.md)."
         },
         "from": { "type": "string", "minLength": 1 },
         "to": { "type": "string", "minLength": 1 },
@@ -175,6 +261,14 @@
           "additionalProperties": true,
           "description": "Optional edge metadata"
         }
+      }
+    },
+    "edge_class_metadata": {
+      "description": "Non-validating schema metadata: maps each edge type to its edge_class per RFC-097 two-tier edge contract. Source of truth: docs/architecture/corpus/ontology.md. Consumed by viewer stylesheet + relational query layer + ontology contributors; never written to per-edge instances.",
+      "classes": {
+        "MENTIONS": "discovery",
+        "RELATED_TO": "discovery",
+        "HAS_EPISODE": "structural"
       }
     }
   }
