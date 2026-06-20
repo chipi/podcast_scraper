@@ -50,7 +50,7 @@ Branch `feat/autoresearch-followups-2026-06-18` — 5 unpushed commits:
 - Operator starts Ollama on DGX with Qwen3.5:35b cached
 - Operator picks: stop vLLM during Cell C sweep, or run Cell C on a separate port
 - I write a #116-specific runner script under `autoresearch/116_cell_c_rebaseline/`
-- Re-use the #1033 rerun harness (`autoresearch/1033_cohort_rerun/run_sweep.sh`) with a Cell-C-specific candidate entry
+- Reuse the #1033 rerun harness (`autoresearch/1033_cohort_rerun/run_sweep.sh`) with a Cell-C-specific candidate entry
 - Score against the same `silver_opus47_*_dev_v1` silvers used for cohort
 - Land verdict in `docs/wip/EVAL_116_CELL_C_VS_CELL_F.md`
 

@@ -21,3 +21,10 @@ KGProximitySearch = None  # search/retrieval.py (added 2026-06-09 — was failin
 assert (
     rich is None and Pipeline is None and KGProximitySearch is None
 )  # use so vulture does not report in this file
+
+# Protocol method parameters — part of the interface contract, "unused" only
+# because Protocol bodies are `...`. Added 2026-06-20 (was failing CI on #1037).
+_.doc_ids  # search/protocol.py — VectorStore.batch_upsert + .delete  # noqa: B018
+_.metadata_list  # search/protocol.py — VectorStore.batch_upsert  # noqa: B018
+_.query_embedding  # search/protocol.py — VectorStore.search  # noqa: B018
+_.overfetch_factor  # search/protocol.py — VectorStore.search  # noqa: B018

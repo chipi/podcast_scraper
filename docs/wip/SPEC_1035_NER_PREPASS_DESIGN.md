@@ -18,7 +18,7 @@ rendered as a candidate-list block in the new prompt v5 template.
 
 **Why pipeline-level (not 7 provider edits)**:
 - Single edit point, every provider gets it for free
-- Re-uses the cached `_spacy_nlp` model on `summary_provider`
+- Reuses the cached `_spacy_nlp` model on `summary_provider`
   (Issue #387 caching pattern already in place)
 - Works on the SAME transcript text the LLM sees → no alignment skew
 - Provider methods stay thin — only need to forward `ner_entity_hints`
@@ -179,7 +179,7 @@ After phase 2 implementation lands:
 1. Set `kg_extraction_use_ner_prepass: true` in
    `data/eval/configs/kg_autoresearch_*.yaml` for the cohort
 2. Re-run the 7-candidate cohort via
-   `autoresearch/1033_cohort_rerun/run_sweep.sh` (re-uses the
+   `autoresearch/1033_cohort_rerun/run_sweep.sh` (reuses the
    harness from #1033 step 2)
 3. Score each candidate's KG output vs `silver_opus47_kg_dev_v1`
 4. Compare entity coverage delta vs the 0% baseline

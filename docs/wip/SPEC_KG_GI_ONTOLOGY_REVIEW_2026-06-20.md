@@ -343,9 +343,9 @@ call once we agree on the gap list.
 
 ### Direction A — "minimal bridge" (low risk)
 
-- Ship `Insight.MENTIONS.Entity` edge in GI by re-using KG entities
+- Ship `Insight.MENTIONS.Entity` edge in GI by reusing KG entities
   via shared id space (`person:{slug}` already canonical per RFC-072)
-- Ship `Insight.ABOUT.Topic` edge in GI by re-using KG topics
+- Ship `Insight.ABOUT.Topic` edge in GI by reusing KG topics
 - Keep schemas otherwise unchanged
 - Adds the cross-layer retrieval RFC-091 wanted, without ontology surgery
 
