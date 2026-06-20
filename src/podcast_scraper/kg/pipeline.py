@@ -27,8 +27,8 @@ def _safe_iso_date(s: Optional[str]) -> str:
 
 def _resolve_source(cfg: Optional[Any]) -> str:
     if cfg is not None:
-        return str(getattr(cfg, "kg_extraction_source", "summary_bullets") or "summary_bullets")
-    return "summary_bullets"
+        return str(getattr(cfg, "kg_extraction_source", "provider") or "provider")
+    return "provider"
 
 
 def _max_topics(cfg: Optional[Any]) -> int:
@@ -175,47 +175,6 @@ def _try_provider_extraction(
     return cast(Dict[str, Any], partial)
 
 
-def _try_bullet_derived_extraction(
-    bullet_labels: List[str],
-    episode_title: str,
-    cfg: Optional[Any],
-    kg_extraction_provider: Any,
-    pipeline_metrics: Optional[Any],
-) -> Optional[Dict[str, Any]]:
-    """Call ``extract_kg_from_summary_bullets`` when the provider implements it."""
-    if not bullet_labels or kg_extraction_provider is None:
-        return None
-    extract_fn = getattr(kg_extraction_provider, "extract_kg_from_summary_bullets", None)
-    if not callable(extract_fn):
-        return None
-    max_t = _max_topics(cfg)
-    max_e = _max_entities(cfg)
-    params: Dict[str, Any] = {}
-    if cfg is not None and getattr(cfg, "kg_extraction_model", None):
-        params["kg_extraction_model"] = cfg.kg_extraction_model
-    try:
-        partial = extract_fn(
-            bullet_labels,
-            episode_title=episode_title,
-            max_topics=max_t,
-            max_entities=max_e,
-            params=params or None,
-            pipeline_metrics=pipeline_metrics,
-        )
-    except Exception as exc:
-        logger.debug("KG provider extract_kg_from_summary_bullets failed: %s", exc, exc_info=True)
-        return None
-    if not partial or not isinstance(partial, dict):
-        return None
-    topics = partial.get("topics") or []
-    entities = partial.get("entities") or []
-    if not topics and not entities:
-        return None
-    if pipeline_metrics is not None:
-        pipeline_metrics.kg_provider_extractions += 1
-    return cast(Dict[str, Any], partial)
-
-
 def build_artifact(
     episode_id: str,
     transcript_text: str,
@@ -237,11 +196,11 @@ def build_artifact(
 ) -> Dict[str, Any]:
     """Build a KG artifact dict for one episode.
 
-    ``kg_extraction_source`` (from ``cfg``): ``stub`` | ``summary_bullets`` | ``provider``.
-    When ``provider`` is set, calls ``extract_kg_graph`` on the summarization provider when
-    available. When ``summary_bullets`` and ``kg_extraction_provider`` implements
-    ``extract_kg_from_summary_bullets``, topics/entities are derived from bullets via LLM;
-    otherwise topic nodes use bullet text as labels (legacy). Stub skips topic hints.
+    ``kg_extraction_source`` (from ``cfg``): ``stub`` | ``provider``.
+    When ``provider`` is set, calls ``extract_kg_graph`` on the summarization
+    provider on the cleaned transcript directly. ``stub`` skips topic hints
+    entirely. The legacy ``summary_bullets`` route was removed in #1034 per
+    the #1033 audit (lossy: routed extraction through name-stripped bullets).
 
     Args:
         episode_id: Stable episode key (RSS GUID family). Do not prefix with ``episode:``;
@@ -257,8 +216,7 @@ def build_artifact(
         detected_hosts: Optional host names from speaker pipeline.
         detected_guests: Optional guest names from speaker pipeline.
         cfg: Optional Config (KG extraction source, limits, merge flag).
-        kg_extraction_provider: Summarization provider for ``provider`` source or optional
-            bullet-derived KG when ``summary_bullets`` (if caller passes an API provider).
+        kg_extraction_provider: Summarization provider for ``provider`` source extraction.
         pipeline_metrics: Optional metrics collector (increments kg_provider_extractions).
 
     Returns:
@@ -287,9 +245,7 @@ def build_artifact(
     edges: List[Dict[str, Any]] = []
 
     bullet_labels = _topic_labels_from_args(topic_labels, topic_label, cfg)
-    used_provider = False
     llm_partial: Optional[Dict[str, Any]] = None
-    llm_from_summary_bullets = False
     resolved_model = model_version
 
     # #643: prefilled from mega_bundled / extraction_bundled short-circuits
@@ -312,7 +268,6 @@ def build_artifact(
             kind = e.get("kind") or e.get("entity_kind") or "person"
             norm_entities.append({"name": name.strip(), "entity_kind": str(kind).strip().lower()})
         llm_partial = {"topics": norm_topics, "entities": norm_entities}
-        used_provider = True
     elif source == "provider":
         llm_partial = _try_provider_extraction(
             transcript_text,
@@ -321,17 +276,6 @@ def build_artifact(
             kg_extraction_provider,
             pipeline_metrics,
         )
-        used_provider = llm_partial is not None
-    elif source == "summary_bullets" and bullet_labels:
-        llm_partial = _try_bullet_derived_extraction(
-            bullet_labels,
-            episode_title or "",
-            cfg,
-            kg_extraction_provider,
-            pipeline_metrics,
-        )
-        used_provider = llm_partial is not None
-        llm_from_summary_bullets = llm_partial is not None
 
     if llm_partial:
         # #652 Part B — deterministic topic + entity filters (extracted helper
@@ -353,18 +297,15 @@ def build_artifact(
             if cfg is not None and getattr(cfg, "kg_extraction_model", None):
                 mid = cfg.kg_extraction_model
             mid_s = mid or "unknown"
-            if llm_from_summary_bullets:
-                resolved_model = f"provider:summary_bullets:{mid_s}"
-            else:
-                resolved_model = f"provider:{mid_s}"
+            resolved_model = f"provider:{mid_s}"
     elif source != "stub" and bullet_labels:
+        # No LLM partial — emit caller-supplied topic_labels verbatim as Topic
+        # nodes. Used by tests / legacy callers that pass a `topic_label` hint
+        # without a `kg_extraction_provider`. Independent of the deleted
+        # bullet-derived LLM path.
         _append_topics_from_labels(ep_node_id, bullet_labels, nodes, edges)
         if resolved_model is None:
-            # Legacy: callers without cfg keep "stub" label (tests / old metadata).
-            resolved_model = "summary_bullets" if cfg is not None else "stub"
-    elif source == "summary_bullets" and not bullet_labels and not used_provider:
-        if resolved_model is None and cfg is not None:
-            resolved_model = "summary_bullets"
+            resolved_model = "topic_labels" if cfg is not None else "stub"
 
     if source == "stub" and resolved_model is None:
         resolved_model = "stub"

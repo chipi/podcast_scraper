@@ -1,7 +1,7 @@
 """#652 Part B — deterministic post-extraction validators for GI insights.
 
 Two filters that run on the final insight list regardless of source
-(``provider``, ``summary_bullets``, transcript chunks, prefilled):
+(``provider``, transcript chunks, prefilled):
 
 1. Ad filter — drops insights that sit inside a transcript window that
    matches ≥ 2 sponsor-ad regex patterns. Threshold tuned conservatively
