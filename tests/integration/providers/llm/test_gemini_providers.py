@@ -44,8 +44,12 @@ class TestGeminiTranscriptionProvider(unittest.TestCase):
         provider = create_transcription_provider(self.cfg)
         provider.initialize()
 
-        # Verify Client was created with API key
-        mock_genai.Client.assert_called_once_with(api_key="test-api-key-123")
+        # Verify Client was created with API key. Don't assert on the full
+        # kwarg set — the provider also passes http_options=HttpOptions(timeout=...)
+        # which would break strict equality every time the transport-layer
+        # config gets touched.
+        mock_genai.Client.assert_called_once()
+        self.assertEqual(mock_genai.Client.call_args.kwargs.get("api_key"), "test-api-key-123")
         self.assertTrue(provider._transcription_initialized)
 
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
