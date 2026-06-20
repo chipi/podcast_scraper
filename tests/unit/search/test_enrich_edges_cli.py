@@ -100,7 +100,8 @@ def test_run_persists_relational_edges(tmp_path):
     art = json.loads((tmp_path / "ep1.gi.json").read_text())
     edge_types = {e["type"] for e in art["edges"]}
     assert "HAS_EPISODE" in edge_types  # Podcast→Episode (from feed title)
-    assert "MENTIONS" in edge_types  # Insight→Entity (Elon Musk matched)
+    # RFC-097 v3.0: typed MENTIONS_PERSON / MENTIONS_ORG replace generic MENTIONS.
+    assert edge_types & {"MENTIONS_PERSON", "MENTIONS_ORG"}  # Insight→Person/Org
     assert any(n["id"] == "podcast:test-show" and n["type"] == "Podcast" for n in art["nodes"])
     # idempotent: a second pass adds nothing new
     rc2 = run_enrich_edges_cli(parse_enrich_edges_argv(["--output-dir", str(tmp_path)]), _LOG)
@@ -116,7 +117,10 @@ def test_run_no_speaker_skips_transcript(tmp_path):
     assert rc == 0
     art = json.loads((tmp_path / "ep1.gi.json").read_text())
     # show + entity edges still emitted; SPOKEN_BY path skipped
-    assert {"HAS_EPISODE", "MENTIONS"} <= {e["type"] for e in art["edges"]}
+    edge_types = {e["type"] for e in art["edges"]}
+    assert "HAS_EPISODE" in edge_types
+    # RFC-097 v3.0: typed MENTIONS_PERSON / MENTIONS_ORG replace generic MENTIONS.
+    assert edge_types & {"MENTIONS_PERSON", "MENTIONS_ORG"}
 
 
 def test_run_skips_unreadable_gi(tmp_path):
@@ -143,7 +147,9 @@ def test_run_without_kg_or_transcript(tmp_path):
     rc = run_enrich_edges_cli(parse_enrich_edges_argv(["--output-dir", str(tmp_path)]), _LOG)
     assert rc == 0
     edge_types = {e["type"] for e in json.loads((tmp_path / "ep1.gi.json").read_text())["edges"]}
-    assert "HAS_EPISODE" in edge_types and "MENTIONS" not in edge_types
+    # RFC-097 v3.0: typed MENTIONS_PERSON / MENTIONS_ORG also absent (kg.json gone).
+    assert "HAS_EPISODE" in edge_types
+    assert not (edge_types & {"MENTIONS", "MENTIONS_PERSON", "MENTIONS_ORG"})
 
 
 # === #876: corpus-wide SPOKEN_BY for re-diarized whisper episodes (named transcript) ===

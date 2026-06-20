@@ -3,30 +3,45 @@
 Two derivable, no-ML, no-diarization edges that the search-powered surfaces (PRD-033)
 need from the foundation:
 
-- ``Insight ─MENTIONS→ Entity`` — an insight concerns a person/org. Cross-layer: the
-  target is a KG ``person:``/``org:`` id (unified in the cross-layer graph). Matched by
-  the entity's surface name appearing verbatim in the insight text. Grounds FR4 entity
-  views / Topic Entity View.
+- ``Insight ─MENTIONS_PERSON→ Person`` / ``Insight ─MENTIONS_ORG→ Organization``
+  — an insight concerns a person/org. Cross-layer: the target is a KG
+  ``person:``/``org:`` id (unified in the cross-layer graph). Matched by the
+  entity's surface name appearing verbatim in the insight text. Grounds FR4
+  entity views / Topic Entity View.
 - ``Podcast ─HAS_EPISODE→ Episode`` — ties an episode to its canonical show node so
   show-name navigation (FR3.4) and show-scoped views have a real edge, not hashed ids.
 
-Both are persisted into the gi.json artifact (``MENTIONS`` was added to the GIL edge
-schema; ``Podcast``/``HAS_EPISODE`` already exist). Conservative + idempotent.
+RFC-097 v3.0 split the generic ``MENTIONS`` into the typed ``MENTIONS_PERSON`` /
+``MENTIONS_ORG`` so the viewer + relational query layer (RFC-094) can style/filter
+descriptive edges without re-reading node types. Schema-permissive: artifacts with
+the legacy generic ``MENTIONS`` still read; the post-pass here emits typed edges
+and bumps ``schema_version`` to ``3.0``.
+
+Both are persisted into the gi.json artifact. Conservative + idempotent.
 """
 
 from __future__ import annotations
 
 import re
-from typing import Dict, Mapping
+from typing import Dict, Mapping, Tuple
 
 from ..identity.slugify import slugify
 
 
-def add_insight_entity_edges(artifact: Dict, entity_names: Mapping[str, str]) -> int:
-    """Add ``Insight ─MENTIONS→ Entity`` edges to *artifact* in place.
+def add_insight_entity_edges(artifact: Dict, entity_index: Mapping[str, Tuple[str, str]]) -> int:
+    """Add typed ``Insight ─MENTIONS_PERSON/ORG→`` edges to *artifact* in place.
 
-    *entity_names* maps ``entity_id`` (``person:``/``org:`` slug) → surface name. An
-    edge is added when the name appears as a whole-word phrase in an insight's text.
+    *entity_index* maps ``entity_id`` (``person:``/``org:`` slug) → ``(name, kind)``
+    where ``kind`` is ``"person"`` or ``"organization"``. An edge is added when
+    the name appears as a whole-word phrase in an insight's text.
+
+    Edge types: ``MENTIONS_PERSON`` (when kind=person) or ``MENTIONS_ORG`` (when
+    kind=organization). Permissive over the legacy generic ``MENTIONS`` edges —
+    deduplication considers all three types so repeated calls don't double up.
+
+    When at least one typed edge is added, the artifact's ``schema_version`` is
+    bumped to ``3.0`` (RFC-097); earlier versions otherwise pass through.
+
     Idempotent. Returns the number of edges added.
     """
     nodes = artifact.setdefault("nodes", [])
@@ -37,18 +52,35 @@ def add_insight_entity_edges(artifact: Dict, entity_names: Mapping[str, str]) ->
         if n.get("type") == "Insight" and isinstance(n.get("id"), str)
     ]
     patterns = [
-        (eid, re.compile(r"\b" + re.escape(name) + r"\b"))
-        for eid, name in entity_names.items()
+        (eid, kind, re.compile(r"\b" + re.escape(name) + r"\b"))
+        for eid, (name, kind) in entity_index.items()
         if name and len(name) >= 2
     ]
-    existing = {(e.get("from"), e.get("to")) for e in edges if e.get("type") == "MENTIONS"}
+    existing = {
+        (e.get("from"), e.get("to"), e.get("type"))
+        for e in edges
+        if e.get("type") in ("MENTIONS", "MENTIONS_PERSON", "MENTIONS_ORG")
+    }
     added = 0
     for insight_id, text in insights:
-        for entity_id, pattern in patterns:
-            if (insight_id, entity_id) not in existing and pattern.search(text):
-                edges.append({"type": "MENTIONS", "from": insight_id, "to": entity_id})
-                existing.add((insight_id, entity_id))
+        for entity_id, kind, pattern in patterns:
+            edge_type = "MENTIONS_ORG" if kind == "organization" else "MENTIONS_PERSON"
+            # Skip if EITHER the legacy generic MENTIONS or the typed edge is already present.
+            keys = {
+                (insight_id, entity_id, "MENTIONS"),
+                (insight_id, entity_id, "MENTIONS_PERSON"),
+                (insight_id, entity_id, "MENTIONS_ORG"),
+            }
+            if keys & existing:
+                continue
+            if pattern.search(text):
+                edges.append({"type": edge_type, "from": insight_id, "to": entity_id})
+                existing.add((insight_id, entity_id, edge_type))
                 added += 1
+    if added and isinstance(artifact.get("schema_version"), str):
+        # Bump to v3.0 (RFC-097) on first typed-edge addition; preserves existing higher versions.
+        if artifact["schema_version"] in ("1.0", "2.0"):
+            artifact["schema_version"] = "3.0"
     return added
 
 
@@ -80,10 +112,11 @@ def add_episode_show_edges(artifact: Dict, show_title: str) -> int:
 
 
 def kg_entity_names(kg_artifact: Dict) -> Dict[str, str]:
-    """Extract ``{entity_id: surface_name}`` from a KG artifact (the match source).
+    """Extract ``{entity_id: surface_name}`` from a KG artifact.
 
     Permissive over v1.x ``Entity`` and v2.0 ``Person`` / ``Organization``
-    node types (RFC-097).
+    node types (RFC-097). Kept for backward compatibility with consumers
+    that only need names; for typed-MENTIONS edges use :func:`kg_entity_index`.
     """
     from ..graph_id_utils import is_person_or_org_node
 
@@ -95,4 +128,26 @@ def kg_entity_names(kg_artifact: Dict) -> Dict[str, str]:
         name = (node.get("properties") or {}).get("name")
         if isinstance(eid, str) and isinstance(name, str) and name.strip():
             out[eid] = name.strip()
+    return out
+
+
+def kg_entity_index(kg_artifact: Dict) -> Dict[str, Tuple[str, str]]:
+    """Extract ``{entity_id: (surface_name, kind)}`` from a KG artifact.
+
+    ``kind`` is ``"person"`` or ``"organization"``, derived from the node type
+    (v2.0 ``Person`` / ``Organization``) or properties (v1.x ``Entity`` with
+    ``kind`` / ``entity_kind``). Required input for typed-MENTIONS emission
+    via :func:`add_insight_entity_edges` (RFC-097 v3.0).
+    """
+    from ..graph_id_utils import is_person_or_org_node, normalized_entity_kind_from_node
+
+    out: Dict[str, Tuple[str, str]] = {}
+    for node in kg_artifact.get("nodes") or []:
+        if not is_person_or_org_node(node.get("type")):
+            continue
+        eid = node.get("id")
+        name = (node.get("properties") or {}).get("name")
+        if isinstance(eid, str) and isinstance(name, str) and name.strip():
+            kind = normalized_entity_kind_from_node(node)
+            out[eid] = (name.strip(), kind)
     return out
