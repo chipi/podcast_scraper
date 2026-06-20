@@ -2618,19 +2618,20 @@ class Config(BaseModel):
         ),
     )
     kg_extraction_use_ner_prepass: bool = Field(
-        default=False,
+        default=True,
         alias="kg_extraction_use_ner_prepass",
         description=(
-            "When True, run spaCy NER on the cleaned transcript before LLM KG "
-            "extraction and seed the prompt with PERSON+ORG candidate spans. "
-            "The LLM still owns the final entities[] decision — it may reject "
-            "misclassifications, fix spellings, and add missed entities. Closes "
-            "the 0% entity-coverage gap surfaced by #1033 (see "
-            "docs/wip/EVAL_1033_COHORT_RERUN_2026-06-19.md). Requires "
-            "cfg.ner_model + cfg.speaker_detector_provider=spacy (both default-on "
-            "in prod profiles). When False, prompt v4 is used and the NER pass "
-            "is skipped entirely. Default off pending the #1035 validation sweep; "
-            "flipped to default-on after material-win confirmation."
+            "When True (default), run spaCy NER on the cleaned transcript before "
+            "LLM KG extraction and seed the prompt with PERSON+ORG candidate "
+            "spans. The LLM still owns the final entities[] decision — it may "
+            "reject misclassifications, fix spellings, and add missed entities. "
+            "Closes the 0% entity-coverage gap surfaced by #1033 (see "
+            "docs/wip/EVAL_1035_NER_PREPASS_VERDICT.md — phase 3 validation "
+            "showed Cell F NVFP4 + Qwen3.5-35B-A3B both jump from 0% to 100% "
+            "entity coverage with zero false positives). Requires cfg.ner_model "
+            "+ cfg.speaker_detector_provider=spacy (both default-on in prod "
+            "profiles). When False, prompt v4 is used and the NER pass is "
+            "skipped entirely — entity recall reverts to the pre-#1035 baseline."
         ),
     )
     metrics_output: Optional[str] = Field(
