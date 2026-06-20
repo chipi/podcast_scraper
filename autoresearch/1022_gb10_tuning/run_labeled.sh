@@ -54,12 +54,28 @@ config_for() {
   esac
 }
 
-# Pre-flight: snapshot compose state on DGX for audit trail
+# Pre-flight: snapshot compose state on DGX for audit trail.
+#
+# `docker compose config` resolves and inlines every ${...} env var — including
+# secrets like HF_TOKEN and VLLM_API_KEY. The post-snapshot scrub below restores
+# the placeholder form before the file ever touches git so the audit-trail file
+# can be committed safely. This was added after a 2026-06-20 push-protection
+# block on the prior #1022 snapshots (a literal HF token was captured in
+# compose_snapshots/*.yaml; cleaned via filter-branch + this scrubber).
 SNAP_FILE="${SNAP_DIR}/${LABEL}.yaml"
 echo "[snap] capturing compose snapshot → ${SNAP_FILE}"
 ssh dgx-llm-1 'cd ~/agentic-ai-homelab/infra/vllm/autoresearch && docker compose config 2>/dev/null' > "${SNAP_FILE}" || {
   echo "  WARN: compose snapshot failed (continuing)" >&2
 }
+# Scrub: replace known secret env values with their placeholder form so the
+# snapshot file never carries a live secret. Add new patterns here when new
+# secret-bearing env vars enter the compose file.
+if [[ -s "${SNAP_FILE}" ]]; then
+  sed -i.bak \
+    -e 's|HF_TOKEN: hf_[A-Za-z0-9]*|HF_TOKEN: ${HF_TOKEN}|g' \
+    -e 's|VLLM_API_KEY: [^[:space:]]*|VLLM_API_KEY: ${VLLM_API_KEY}|g' \
+    "${SNAP_FILE}" && rm -f "${SNAP_FILE}.bak"
+fi
 
 # Pre-flight: confirm vLLM is healthy + served-model-name = autoresearch.
 # /health is unauthenticated; /v1/models requires the bearer token.

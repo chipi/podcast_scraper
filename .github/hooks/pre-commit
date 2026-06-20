@@ -413,6 +413,75 @@ if [ -n "$STAGED_PYPROJECT" ] || [ -n "$STAGED_TEST_FILES" ]; then
     fi
 fi
 
+# --------------------------------------------------------------------------
+# Secret-pattern scan (runs on every staged file, not just YAML).
+#
+# Catches the cases GitHub push-protection blocks server-side — but locally,
+# BEFORE the commit lands. Targets the patterns that have leaked in this repo
+# before:
+#   - HuggingFace tokens (hf_[A-Za-z0-9]{20,})
+#   - vLLM API key literal that's our local dev convention
+#   - Generic AWS / GitHub PAT / OpenAI / Anthropic / Gemini token shapes
+#
+# False-positive escape hatch: append # noqa: secret-scan to the line OR add
+# the path to SECRET_SCAN_IGNORE_PATHS below. Never bypass without a reason.
+#
+# Pattern source / addable: keep regex strings tight. If a check is too noisy,
+# tune the pattern, don't disable the whole hook.
+# --------------------------------------------------------------------------
+STAGED_ALL=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null)
+SECRET_SCAN_IGNORE_PATHS=(
+    "docs/wip/"          # WIP notes describe tokens by name without holding live values
+    "tests/fixtures/"    # synthetic fixtures
+)
+if [ -n "$STAGED_ALL" ]; then
+    echo "→ Scanning staged files for secret patterns..."
+    SECRET_HITS=0
+    SECRET_LOG="${LOG_PREFIX}_secret.log"
+    : > "$SECRET_LOG"
+    for f in $STAGED_ALL; do
+        # Skip if path is in the ignore list
+        skip=0
+        for ignore_prefix in "${SECRET_SCAN_IGNORE_PATHS[@]}"; do
+            case "$f" in
+                "$ignore_prefix"*) skip=1; break ;;
+            esac
+        done
+        [ "$skip" = "1" ] && continue
+        [ ! -f "$f" ] && continue
+        # Skip binary
+        case "$f" in
+            *.png|*.jpg|*.jpeg|*.gif|*.pdf|*.zip|*.tar|*.gz|*.bz2|*.xz|*.7z|*.mp3|*.mp4|*.wav|*.bin|*.parquet|*.lance|*.faiss|*.lzma|*.so|*.dylib|*.pyc|*.whl|*.jar|*.class|*.npy|*.npz|*.pkl|*.safetensors|*.gguf) continue ;;
+        esac
+        # Patterns that have leaked or are textbook-shape secrets.
+        if grep -EnH \
+            -e 'hf_[A-Za-z0-9]{20,}' \
+            -e 'sk-[A-Za-z0-9]{20,}' \
+            -e 'sk-ant-[A-Za-z0-9-]{20,}' \
+            -e 'ghp_[A-Za-z0-9]{30,}' \
+            -e 'AKIA[0-9A-Z]{16}' \
+            -e 'AIza[0-9A-Za-z_-]{30,}' \
+            -e 'VLLM_API_KEY:[[:space:]]*[a-zA-Z][a-zA-Z0-9-]{6,}' \
+            "$f" 2>/dev/null | grep -v 'noqa: secret-scan' >> "$SECRET_LOG"; then
+            SECRET_HITS=$((SECRET_HITS + 1))
+        fi
+    done
+    if [ "$SECRET_HITS" -gt 0 ]; then
+        echo -e "  ${RED}✗${NC} Secret-shape patterns found in $SECRET_HITS file(s):"
+        head -20 "$SECRET_LOG"
+        echo
+        echo "  Bypass strategies (use sparingly):"
+        echo "  - Replace the literal value with a \${ENV_VAR} placeholder, then re-stage"
+        echo "  - Append '# noqa: secret-scan' to the line if it's a documented false positive"
+        echo "  - Add a path prefix to SECRET_SCAN_IGNORE_PATHS in .github/hooks/pre-commit"
+        ERRORS=$((ERRORS + 1))
+    else
+        echo -e "${GREEN}✓${NC} Secret-pattern scan passed"
+    fi
+    rm -f "$SECRET_LOG"
+    echo ""
+fi
+
 # Check YAML syntax validation (required when YAML files are staged)
 if [ -n "$STAGED_YAML" ]; then
     echo "→ Running YAML syntax validation..."
