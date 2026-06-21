@@ -13,6 +13,7 @@ nav:
       - Quick Reference: guides/QUICK_REFERENCE.md
       - Development Guide: guides/DEVELOPMENT_GUIDE.md
       - Release Playbook: guides/RELEASE_PLAYBOOK.md
+      - Bootstrap prerequisites (accounts + credentials): guides/BOOTSTRAP_PREREQUISITES.md
       - Prod Runbook (always-on VPS): guides/PROD_RUNBOOK.md
       - DGX Spark runbook (RFC-089): guides/DGX_RUNBOOK.md
       - Prod compat validation (#796/#797): guides/PROD_COMPAT_VALIDATION.md

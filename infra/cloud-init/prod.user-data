@@ -187,10 +187,12 @@ runcmd:
   - tailscale up --auth-key='${tailscale_auth_key}' --hostname='${tailnet_hostname}' --advertise-tags='${tailscale_advertise_tags_cli}' --ssh=false
 
   # === Repo checkout to /srv/podcast-scraper ===
-  # ``write_files`` may already have created ``.bootstrap-needs-env`` under this
-  # directory, so ``git clone`` directly into ``/srv/podcast-scraper`` fails
-  # (non-empty destination) and the tree never appears — deploy workflows then
-  # see ``deploy.sh: No such file or directory`` while SSH auth still works.
+  # Clone-to-tmp + ``cp -a`` (not a direct ``git clone`` into ``/srv/podcast-scraper``)
+  # so a non-empty destination can't make the clone fail and leave the tree absent —
+  # deploy workflows would then see ``deploy.sh: No such file or directory`` while SSH
+  # auth still works. Kept defensively against any future ``write_files`` entry under
+  # ``/srv/podcast-scraper`` (the old ``.bootstrap-needs-env`` sentinel that originally
+  # motivated this was removed in #844).
   - install -d -o deploy -g deploy -m 0755 /srv/podcast-scraper
   - sudo -u deploy bash -c 'set -euo pipefail; t=/tmp/podcast-scraper-clone; rm -rf "$t"; git clone --branch main --depth 50 https://github.com/chipi/podcast_scraper.git "$t"; cp -a "$t"/. /srv/podcast-scraper/; rm -rf "$t"'
   - chown -R deploy:deploy /srv/podcast-scraper
@@ -237,7 +239,7 @@ runcmd:
   - systemctl daemon-reload
   - systemctl enable --now alloy
 %{ endif ~}
-  # === Enable systemd unit (will block on .bootstrap-needs-env) ===
+  # === Enable systemd unit (won't start until .env exists — ExecStartPre, #844) ===
   - systemctl enable podcast-scraper.service
   - systemctl start podcast-scraper.service || true
 
@@ -245,5 +247,8 @@ runcmd:
 
 final_message: |
   podcast-scraper-prod cloud-init complete after $UPTIME seconds.
-  Next step (operator): SSH in via Tailscale, stage /srv/podcast-scraper/.env,
-  then `sudo rm /srv/podcast-scraper/.bootstrap-needs-env && sudo systemctl restart podcast-scraper.service`.
+  The stack is intentionally DOWN: podcast-scraper.service refuses to start until
+  /srv/podcast-scraper/.env exists (ExecStartPre, #844).
+  Next step (operator): stage the PROD_* secrets in repo settings, then run
+  deploy-prod.yml — it renders /srv/podcast-scraper/.env from GH Secrets (#841)
+  and brings the stack up. No manual .env editing or SSH required.
