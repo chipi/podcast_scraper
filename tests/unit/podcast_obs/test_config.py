@@ -82,3 +82,58 @@ def test_from_yaml_without_targets_raises(tmp_path) -> None:
     config_path.write_text("unrelated: true\n", encoding="utf-8")
     with pytest.raises(ObservabilityConfigError):
         ObservabilityConfig.from_yaml(config_path)
+
+
+def test_from_yaml_default_target_not_in_targets_raises(tmp_path) -> None:
+    config_path = tmp_path / "obs.yaml"
+    config_path.write_text(
+        textwrap.dedent("""
+            default_target: ghost
+            targets:
+              local:
+                api_base: http://localhost:8080
+            """),
+        encoding="utf-8",
+    )
+    with pytest.raises(ObservabilityConfigError):
+        ObservabilityConfig.from_yaml(config_path)
+
+
+def test_from_env_external_source_vars(monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_obs_env(monkeypatch)
+    monkeypatch.setenv("PODCAST_OBS_TIMEOUT", "2.5")
+    monkeypatch.setenv("PODCAST_OBS_LOKI_TOKEN", "lt")
+    monkeypatch.setenv("PODCAST_OBS_SENTRY_PROJECTS", "a, b ,c")
+    monkeypatch.setenv("PODCAST_OBS_ENV_LABEL", "drill")
+    target = ObservabilityConfig.from_env().target()
+    assert target.timeout == 2.5
+    assert target.loki_token == "lt"
+    assert target.sentry_projects == ("a", "b", "c")  # CSV split + trimmed
+    assert target.env_label == "drill"
+
+
+def test_from_env_bad_timeout_falls_back(monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_obs_env(monkeypatch)
+    monkeypatch.setenv("PODCAST_OBS_TIMEOUT", "notanumber")
+    assert ObservabilityConfig.from_env().target().timeout == 10.0  # DEFAULT_TIMEOUT
+
+
+def test_from_yaml_inline_token_and_csv_projects(tmp_path) -> None:
+    config_path = tmp_path / "obs.yaml"
+    config_path.write_text(
+        textwrap.dedent("""
+            default_target: prod
+            targets:
+              prod:
+                api_base: https://prod.example
+                github:
+                  token: inline-gh-token
+                sentry:
+                  org: acme
+                  projects: "x,y,z"
+            """),
+        encoding="utf-8",
+    )
+    target = ObservabilityConfig.from_yaml(config_path).target("prod")
+    assert target.github_token == "inline-gh-token"  # literal (not _env) path
+    assert target.sentry_projects == ("x", "y", "z")  # string-form projects split

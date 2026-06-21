@@ -197,3 +197,110 @@ def test_errors_all_projects_failing_is_not_ok(monkeypatch: pytest.MonkeyPatch) 
     assert result["ok"] is False  # not a healthy zero — all projects failed
     assert result["configured"] is True
     assert "all configured" in result["error"]
+
+
+# --- loki helpers: window parsing, URL base, malformed payloads (regression guards) -----
+
+
+@pytest.mark.parametrize(
+    ("window", "expected"),
+    [
+        ("30m", 1800),
+        ("2h", 7200),
+        ("1d", 86400),
+        ("45s", 45),
+        ("", 3600),
+        ("abc", 3600),
+        ("10x", 3600),
+    ],
+)
+def test_parse_window_seconds(window: str, expected: int) -> None:
+    assert loki._parse_window_seconds(window) == expected
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://x.net/loki/api/v1/push",
+        "https://x.net/loki/api/v1/query",
+        "https://x.net/loki/api/v1/query_range",
+        "https://x.net/",
+        "https://x.net",
+    ],
+)
+def test_query_base_normalises_to_host(url: str) -> None:
+    assert loki._query_base(url) == "https://x.net"
+
+
+def test_query_base_none() -> None:
+    assert loki._query_base(None) is None
+
+
+def test_cost_malformed_payload_is_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(loki, "get_json", lambda url, **_: {"unexpected": True})
+    assert loki.cost_today(_loki_target())["data"]["estimated_cost_usd"] is None
+
+
+def test_logs_malformed_payload_is_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(loki, "get_json", lambda url, **_: {})
+    assert loki.recent_logs(_loki_target())["data"]["lines"] == []
+
+
+def test_logs_query_construction(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict = {}
+    monkeypatch.setattr(
+        loki,
+        "get_json",
+        lambda url, **kw: captured.update(params=kw.get("params")) or {"data": {"result": []}},
+    )
+    loki.recent_logs(_loki_target(), level="error", service="api", contains='a"b\\c')
+    query = captured["params"]["query"]
+    assert 'service="api"' in query  # service label injected
+    assert "(error|critical|exception|traceback|fatal)" in query  # error filter present
+    assert r'|= "a\"b\\c"' in query  # quote AND backslash escaped (C2 regression guard)
+
+
+def test_logs_level_all_skips_error_filter(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict = {}
+    monkeypatch.setattr(
+        loki,
+        "get_json",
+        lambda url, **kw: captured.update(params=kw.get("params")) or {"data": {"result": []}},
+    )
+    loki.recent_logs(_loki_target(), level="all")
+    assert "exception" not in captured["params"]["query"]  # no error filter when level != error
+
+
+def test_deploys_duration_none_for_in_progress(monkeypatch: pytest.MonkeyPatch) -> None:
+    payload = {
+        "workflow_runs": [
+            {
+                "run_number": 9,
+                "status": "in_progress",
+                "conclusion": None,  # not concluded -> duration_s must be None
+                "head_sha": "abc1234",
+                "run_started_at": "2026-06-01T00:00:00Z",
+                "updated_at": "2026-06-01T00:05:00Z",
+            }
+        ]
+    }
+    monkeypatch.setattr(github, "get_json", lambda url, **_: payload)
+    data = github.recent_deploys(_t(github_token="x"))["data"]
+    assert data["deploys"][0]["duration_s"] is None  # C3 regression guard
+    assert data["failure_rate"] is None  # nothing concluded
+
+
+def test_deploys_duration_bad_iso_is_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    payload = {
+        "workflow_runs": [
+            {
+                "run_number": 8,
+                "conclusion": "success",
+                "head_sha": "abc1234",
+                "run_started_at": "garbage",
+                "updated_at": "2026-06-01T00:05:00Z",
+            }
+        ]
+    }
+    monkeypatch.setattr(github, "get_json", lambda url, **_: payload)
+    assert github.recent_deploys(_t(github_token="x"))["data"]["deploys"][0]["duration_s"] is None

@@ -60,7 +60,13 @@ def recent_deploys(target: TargetConfig, limit: int = 10) -> dict:
             "actor": (run.get("actor") or {}).get("login"),
             "event": run.get("event"),
             "created_at": run.get("created_at"),
-            "duration_s": _duration_s(run.get("run_started_at"), run.get("updated_at")),
+            # Only meaningful once the run has concluded — updated_at moves on re-runs/annotations,
+            # and is "started → now-ish" for in-progress runs.
+            "duration_s": (
+                _duration_s(run.get("run_started_at"), run.get("updated_at"))
+                if run.get("conclusion")
+                else None
+            ),
             "url": run.get("html_url"),
         }
         for run in runs[: max(limit, 0)]

@@ -67,4 +67,17 @@ def test_ops_summary_defaults_target_to_local_server(monkeypatch: pytest.MonkeyP
     resp = _client().get("/api/ops/summary")
     assert resp.status_code == 200
     assert captured["api_base"] == "http://127.0.0.1:8000"  # defaulted to this server
-    assert captured["timeout"] == 6.0  # responsive web timeout override
+    assert captured["timeout"] == 4.0  # responsive web timeout override
+
+
+def test_ops_summary_real_fanout_degrades(monkeypatch: pytest.MonkeyPatch) -> None:
+    # No mock of summary: the real route -> podcast_obs fan-out runs. api_base defaults to the
+    # local server (nothing listening) -> prod_api probes fail; external sources unconfigured.
+    # Validates the route never 500s/hangs and returns the partitioned buckets.
+    _clear_obs_env(monkeypatch)
+    resp = _client().get("/api/ops/summary")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert {"target", "live", "unconfigured", "failed", "sources"} <= body.keys()
+    assert "deploys" in body["unconfigured"]  # no github token -> not configured
+    assert "health" not in body["unconfigured"]  # api_base defaulted -> configured (live or failed)

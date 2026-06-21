@@ -18,11 +18,14 @@ router = APIRouter(tags=["ops"])
 # The api container serves /api on 8000 (GH-745); observe ourselves when no target is configured.
 _LOCAL_API_BASE = "http://127.0.0.1:8000"
 # Keep the endpoint responsive: a configured-but-unreachable source shouldn't hang the dashboard.
-_WEB_TIMEOUT = 6.0
+# summary() fans out to several backends sequentially, so keep the per-probe timeout tight.
+_WEB_TIMEOUT = 4.0
 
 
+# Deliberately a SYNC ``def`` (not ``async``): ``summary()`` makes blocking ``httpx`` calls, so
+# Starlette runs this handler in a threadpool — it must not block the event loop.
 @router.get("/ops/summary")
-async def ops_summary() -> dict:
+def ops_summary() -> dict:
     """Cross-source prod-state summary (live / unconfigured / failed + per-source envelopes)."""
     from podcast_obs.aggregate import summary as obs_summary
     from podcast_obs.config import ObservabilityConfig

@@ -62,7 +62,7 @@ targets:
       token_env: PODCAST_OBS_GH_TOKEN
     sentry:
       org: your-org
-      projects: [api, pipeline]
+      projects: [api, pipeline, viewer]   # real slugs (Settings → Projects), not DSN names
       token_env: PODCAST_OBS_SENTRY_TOKEN
     grafana:
       url: https://your-stack.grafana.net
@@ -78,7 +78,7 @@ targets:
 | --- | --- | --- |
 | `prod_api` | none | Reachability only (tailnet-gated in prod). |
 | `github` | fine-grained PAT, or the `gh` CLI | **Actions: read**. |
-| `sentry` | a Sentry **auth token** | `project:read` / `event:read`. **NOT the DSN** — the staged `PROD_SENTRY_DSN_*` cannot query the API. |
+| `sentry` | a Sentry **auth token** | **Issue & Event: Read** (`event:read`) — `project:read` alone is not enough. **NOT the DSN** (the staged `PROD_SENTRY_DSN_*` can't query the API). `prod_recent_errors`/D2 also want **Release: Admin**. Note: project **slugs** ≠ DSN names (check Settings → Projects; e.g. `podcast-scraper-api`). |
 | `grafana` (alerts) | a Grafana **service-account** token (`glsa_`) | alerting read. Grafana-API only. |
 | `loki` (cost/logs) | `loki_user` + a Cloud **access-policy** token (`glc_`) | **`logs:read`**. A *different token type* from the alerting one — Grafana Cloud splits the data plane (Loki, `glc_`) from the Grafana API (`glsa_`). The agent's `GRAFANA_CLOUD_API_KEY` is `logs:write` and 401s. (Falls back to the grafana token for self-hosted setups where one token serves both.) |
 

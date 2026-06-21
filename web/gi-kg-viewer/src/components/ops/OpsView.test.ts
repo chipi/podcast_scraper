@@ -42,4 +42,46 @@ describe('OpsView', () => {
     await flushPromises()
     expect(w.get('[data-testid="ops-error"]').text()).toContain('Network error')
   })
+
+  it('shows a loading state before data arrives', async () => {
+    fetchOpsSummary.mockImplementation(() => new Promise(() => {})) // never resolves
+    const w = mount(OpsView)
+    await flushPromises() // let onMounted's refresh() flip loading=true and re-render
+    expect(w.find('[data-testid="ops-loading"]').exists()).toBe(true)
+  })
+
+  it('formats per-source summary lines', async () => {
+    fetchOpsSummary.mockResolvedValue({
+      target: 'prod',
+      live: ['deploys', 'cost', 'errors', 'alerts'],
+      unconfigured: [],
+      failed: [],
+      sources: {
+        deploys: { ok: true, source: 'github.deploys', data: { count: 2, failure_rate: 0.5 } },
+        cost: { ok: true, source: 'loki.cost', data: { estimated_cost_usd: 0.5142 } },
+        errors: { ok: true, source: 'sentry.errors', data: { total_issues: 3 } },
+        alerts: { ok: true, source: 'grafana.alerts', data: { firing: 1, count: 4 } },
+      },
+    })
+    const w = mount(OpsView)
+    await flushPromises()
+    const text = w.text()
+    expect(text).toContain('2 deploys · 50% fail')
+    expect(text).toContain('$0.5142 (24h)')
+    expect(text).toContain('3 unresolved')
+    expect(text).toContain('1 firing / 4')
+  })
+
+  it("renders 'n/a' when cost is null", async () => {
+    fetchOpsSummary.mockResolvedValue({
+      target: 'prod',
+      live: ['cost'],
+      unconfigured: [],
+      failed: [],
+      sources: { cost: { ok: true, source: 'loki.cost', data: { estimated_cost_usd: null } } },
+    })
+    const w = mount(OpsView)
+    await flushPromises()
+    expect(w.get('[data-testid="ops-source-cost"]').text()).toContain('n/a')
+  })
 })

@@ -121,7 +121,9 @@ def recent_logs(
         labels.append(f'service="{service}"')
     pipeline = _ERROR_FILTER if level and level.lower() == "error" else ""
     if contains:
-        pipeline += f' |= "{contains.replace(chr(34), chr(92) + chr(34))}"'
+        # Escape backslashes BEFORE quotes so a trailing "\" can't break out of the LogQL string.
+        escaped = contains.replace(chr(92), chr(92) + chr(92)).replace(chr(34), chr(92) + chr(34))
+        pipeline += f' |= "{escaped}"'
     query = "{" + ", ".join(labels) + "}" + pipeline
     end_ns = time.time_ns()
     start_ns = end_ns - _parse_window_seconds(window) * 1_000_000_000

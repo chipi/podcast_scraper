@@ -20,7 +20,7 @@ targets:
     #   token_env: PODCAST_OBS_GH_TOKEN        # a read-only Actions:read token
     # sentry:
     #   org: your-org
-    #   projects: [api, pipeline]
+    #   projects: [api, pipeline, viewer]   # real slugs (Settings → Projects), not DSN names
     #   environment: prod
     #   token_env: PODCAST_OBS_SENTRY_TOKEN
     # grafana:
