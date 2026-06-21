@@ -63,6 +63,15 @@ def _build_parser() -> argparse.ArgumentParser:
     alerts = sub.add_parser("alerts", help="Current Grafana alerts.")
     alerts.add_argument("--limit", type=int, default=20, help="Max alerts (default 20).")
     sub.add_parser("summary", help="Control-plane glance: every source for the target.")
+    serve = sub.add_parser("serve", help="Run the MCP server (agent-facing) over the core.")
+    serve.add_argument(
+        "--transport",
+        choices=["stdio", "sse", "http"],
+        default="stdio",
+        help="stdio (local), or sse/http for a networked control plane (default stdio).",
+    )
+    serve.add_argument("--host", default="127.0.0.1", help="Bind host for sse/http.")
+    serve.add_argument("--port", type=int, default=8848, help="Bind port for sse/http.")
     return parser
 
 
@@ -102,6 +111,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         result = grafana.recent_alerts(target, limit=args.limit)
     elif args.command == "summary":
         result = _summary(target)
+    elif args.command == "serve":
+        from .mcp_server import run_server
+
+        transport = "streamable-http" if args.transport == "http" else args.transport
+        run_server(config, transport=transport, host=args.host, port=args.port)
+        return 0
     else:  # pragma: no cover — argparse enforces the choices
         parser.error(f"unknown command {args.command!r}")
         return 2

@@ -50,11 +50,11 @@ dependencies = [
 #   observability — standalone prod control plane (#803, ``podcast_obs``). LIGHT by design.
 # Standalone prod observability control plane (#803). Intentionally LIGHT so it runs as a small
 # container anywhere on the tailnet — no torch/spaCy/pipeline deps. (httpx + PyYAML are already
-# base deps; listed here so a future slim ``podcast_obs``-only install is self-describing. The MCP
-# transport dep is added with the MCP slice.)
+# base deps; listed here so a future slim ``podcast_obs``-only install is self-describing.)
 observability = [
   "httpx>=0.28.1,<1.0.0",
   "PyYAML>=6.0.3,<7.0.0",
+  "mcp>=1.2.0,<2.0.0",  # FastMCP server for the agent-facing layer (stdio + sse/http)
 ]
 
 # Heavy ML dependencies - only install when needed
