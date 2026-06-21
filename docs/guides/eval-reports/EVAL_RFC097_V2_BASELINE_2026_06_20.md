@@ -13,14 +13,32 @@ through the current pipeline produces silver-grade entity coverage:
 
 | Candidate | KG entities (was → now) | KG overall (was → now) | GI coverage (was → now) |
 | --- | --- | --- | --- |
-| `vllm_qwen3_30b_a3b_instruct_2507` | 0% → **100%** | 32.8% → **71.6%** (+38.8) | 37.5% → **91.2%** (+53.7) |
+| `vllm_mistral_small_3_2_24b` | 0% → **100%** | 39.6% → **82.8%** (+43.2) | 25.0% → **91.2%** (+66.2) |
 | `vllm_qwen3_5_35b_a3b` | 0% → **100%** | 48.5% → **82.1%** (+33.6) | 37.5% → **85.0%** (+47.5) |
+| `vllm_ministral_3_14b` | 0% → **100%** | 33.6% → **79.9%** (+46.3) | 25.0% → **83.8%** (+58.8) |
 | `gemini_gemini25_flash_lite` | 26.7% → **100%** | 52.2% → **76.1%** (+23.9) | 72.5% → **96.2%** (+23.7) |
+| `vllm_gemma_4_26b_a4b` | 0% → **100%** | 30.6% → **74.6%** (+44.0) | 42.5% → **90.0%** (+47.5) |
+| `vllm_magistral_small_2509` | 0% → **100%** | 40.3% → **72.4%** (+32.1) | 25.0% → **90.0%** (+65.0) |
+| `vllm_qwen3_30b_a3b_instruct_2507` | 0% → **100%** | 32.8% → **71.6%** (+38.8) | 37.5% → **91.2%** (+53.7) |
+| `vllm_moonlight_16b_a3b` | 30.0% → **83.3%** | 31.3% → **61.2%** (+29.9) | 16.2% → **63.7%** (+47.5) |
 
-The fix wasn't a prompt change — it was the chunks 3-5 v2 emit pipeline (Person/Organization
-typed nodes, edge_class metadata, position_hint waterfall, insight_type vocab alignment).
-Old cohort runs scored against new silvers under-represented because the emission shapes
-mismatched the silver schema. Re-running through today's pipeline aligns both sides.
+The fix had two components:
+
+1. **v2 emit pipeline** (chunks 3-5): Person/Organization typed nodes,
+   edge_class metadata, position_hint waterfall, insight_type vocab
+   alignment. Old cohort runs scored against new silvers
+   under-represented because the emission shapes mismatched the silver
+   schema. Re-running through today's pipeline aligns both sides.
+2. **Per-model vLLM:26.05-py3 flags** (chunk-7 workaround sweep,
+   2026-06-21): 5 of 8 models needed specific flags to boot/run
+   cleanly on the new image — `--tokenizer-mode mistral
+   --config-format mistral --load-format mistral` for Mistral3
+   multimodal arch, `--reasoning-parser mistral` + max_tokens 4096
+   for Magistral, `--language-model-only` to skip Pixtral vision
+   tower on text-only workload, corrected HF id
+   `Ministral-3-14B-Instruct-2512` for Ministral. All 5 succeeded
+   after the workarounds. See
+   `EVAL_RFC097_CHUNK7_VLLM_WORKAROUNDS_2026_06_21.md`.
 
 ## Silver regen results (2026-06-20)
 
@@ -36,26 +54,42 @@ Stats (n_episodes always 10):
 
 ## Updated v2-pipeline scoreboard
 
-Three candidates re-run through the current pipeline (Qwen3-30B = pack leader,
-Qwen3.5-35B = second pack leader, Gemini = cloud control). Llama-3.3-70B-NVFP4
+All 9 candidates re-run through the current pipeline. Llama-3.3-70B-NVFP4
 dropped from the cohort per operator decision (deprecated weeks ago — not
-re-run despite weights being on DGX).
+re-run despite weights being on DGX). The 5 candidates that failed the
+initial sweep (Gemma, Mistral-3.2, Magistral, Moonlight, Ministral) were
+re-run after applying per-model flags from
+`autoresearch/PER_MODEL_OPTIMAL_PARAMS.md` — see
+`EVAL_RFC097_CHUNK7_VLLM_WORKAROUNDS_2026_06_21.md` for the per-model
+fix log.
 
-### KG — overall weighted coverage / topic% / entity%
+### KG — overall weighted coverage / topic% / entity% (sorted by opus47 overall)
 
 | Candidate | vs silver_opus47 | vs silver_sonnet46 |
 | --- | ---: | ---: |
+| `vllm_mistral_small_3_2_24b` | **82.8%** (T:78%, E:**100%**) | **81.9%** (T:76%, E:**100%**) |
 | `vllm_qwen3_5_35b_a3b` | **82.1%** (T:77%, E:**100%**) | **79.5%** (T:73%, E:**100%**) |
+| `vllm_ministral_3_14b` | **79.9%** (T:74%, E:**100%**) | **81.9%** (T:76%, E:**100%**) |
 | `gemini_gemini25_flash_lite` | **76.1%** (T:69%, E:**100%**) | **73.2%** (T:65%, E:**100%**) |
+| `vllm_gemma_4_26b_a4b` | **74.6%** (T:67%, E:**100%**) | **74.8%** (T:67%, E:**100%**) |
+| `vllm_magistral_small_2509` | **72.4%** (T:64%, E:**100%**) | **72.4%** (T:64%, E:**100%**) |
 | `vllm_qwen3_30b_a3b_instruct_2507` | **71.6%** (T:64%, E:**100%**) | **74.0%** (T:66%, E:**100%**) |
+| `vllm_moonlight_16b_a3b` | **61.2%** (T:55%, E:83%) | **57.5%** (T:50%, E:83%) |
+| `vllm_deepseek_v2_lite_chat` | **1.5%** (T:2%, E:0%) | **0.8%** (T:1%, E:0%) |
 
-### GI — insight-to-insight coverage @ 0.65 cosine
+### GI — insight-to-insight coverage @ 0.65 cosine (sorted by opus47)
 
 | Candidate | vs silver_opus47 | vs silver_sonnet46 |
 | --- | ---: | ---: |
 | `gemini_gemini25_flash_lite` | **96.2%** | **92.5%** |
 | `vllm_qwen3_30b_a3b_instruct_2507` | **91.2%** | **90.0%** |
+| `vllm_mistral_small_3_2_24b` | **91.2%** | **85.0%** |
+| `vllm_gemma_4_26b_a4b` | **90.0%** | **92.5%** |
+| `vllm_magistral_small_2509` | **90.0%** | **87.5%** |
 | `vllm_qwen3_5_35b_a3b` | **85.0%** | **87.5%** |
+| `vllm_ministral_3_14b` | **83.8%** | **85.0%** |
+| `vllm_moonlight_16b_a3b` | **63.7%** | **56.2%** |
+| `vllm_deepseek_v2_lite_chat` | **3.8%** | **1.2%** |
 
 ## Stale-cohort scoreboard (2026-06-17 runs, pre-chunk-3 pipeline)
 
@@ -97,80 +131,99 @@ shape-mismatch artifact, not candidate quality:
 candidate-prompt or model-quality issue. The chunks 3-5 v2 emit pipeline
 is the fix; no new prompt was needed.
 
-## Sweep outcomes — remaining candidates (2026-06-21)
+## Sweep outcomes — all candidates (2026-06-21)
 
-Sequential autonomous sweep across the 8 remaining candidates completed.
-Three succeeded (Qwen3.5-35B + DeepSeek-V2-Lite-Chat from earlier rerun
+Two rounds:
 
-+ implicit Qwen3-30B/Gemini pack leaders). Five failed to load or run on
-`vllm:26.05-py3`. Llama-3.3-70B dropped per operator decision.
+1. **Initial sweep** (2026-06-21 ~06:00–10:00): 5 of 8 models failed to
+   load/run cleanly on `vllm:26.05-py3` — see failure-mode notes below.
+2. **Workaround retry sweep** (2026-06-21 ~12:46–17:00, per
+   `EVAL_RFC097_CHUNK7_VLLM_WORKAROUNDS_2026_06_21.md`): per-model
+   flags from `autoresearch/PER_MODEL_OPTIMAL_PARAMS.md` applied to
+   the 5 failures. All 5 succeeded.
 
-| Candidate | Outcome | Failure mode |
+| Candidate | Outcome | Notes |
 | --- | --- | --- |
-| `Qwen3.5-35B-A3B` | ✅ ran | — |
+| `Qwen3-30B-A3B-Instruct-2507` | ✅ ran | pack leader; default flags |
+| `Qwen3.5-35B-A3B` | ✅ ran | default flags |
+| `Gemini 2.5 Flash Lite` | ✅ ran | cloud anchor |
 | `DeepSeek-V2-Lite-Chat` | ✅ ran (weak: 1.5% KG / 3.8% GI) | model genuinely weak; not a load failure |
+| `Gemma-4-26B-A4B-it` | ✅ ran (workaround) | `--max-num-batched-tokens 4096 --max-num-seqs 4 --enforce-eager` (Phase 2c flags) |
+| `Mistral-Small-3.2-24B-Instruct-2506` | ✅ ran (workaround) | + `--tokenizer-mode mistral --config-format mistral --load-format mistral --language-model-only` |
+| `Magistral-Small-2509` | ✅ ran (workaround) | + `--reasoning-parser mistral --tool-call-parser mistral` + config max_length 800 → 4096 |
+| `Moonlight-16B-A3B-Instruct` | ✅ ran (workaround) | `--max-model-len 8192` (model max_position_embeddings hard cap) |
+| `Ministral-3-14B-Instruct-2512` | ✅ ran (workaround) | corrected HF id (chunk7 used non-existent `Ministral-3-14B`) + mistral tokenizer trio + `--language-model-only` |
 | `Llama-3.3-70B-NVFP4` | 🚫 dropped | operator deprecated weeks ago — excluded from cohort |
-| `Mistral-Small-3.2-24B` | ✗ killed at 5 tok/s | Pixtral multimodal arch — generation throughput unusable on a single GB10 |
-| `Gemma-4-26B-A4B` | ✗ container died at 20s | `max_tokens_per_mm_item (2496) > max_num_batched_tokens (2048)` — multimodal config rejected |
-| `Magistral-Small-2509` | ✗ container died at 10s | startup fault (no log captured before death) |
-| `Moonlight-16B-A3B` | ✗ container died at 20s | `max_model_len` mismatch: derived 8192 < requested 32768; corrected to 8192 but still hung loading MoE shards |
-| `Ministral-3-14B` | ✗ container died at sweep start | MoE init fault on `vllm:26.05-py3` |
 
-**Pattern**: every failing model is **multimodal (Pixtral/Gemma)** or **MoE
-on the new `vllm:26.05-py3` image**. These same models worked on the
-previous `vllm:25.11-py3` image (per 2026-06-17 cohort logs that DID produce
-output — even if at low scores against then-current silvers). The 26.05
-upgrade landed 2026-06-15 with the autoresearch slot move; the chunk 7
-sweep is the first time we exercised the new image against the full
-candidate matrix.
+**Root cause of initial failures**: chunk-7 sweep scripts
+(`/tmp/sequential_runs.sh`, `/tmp/swap_run.sh`) bypassed the
+`autoresearch/PER_MODEL_OPTIMAL_PARAMS.md` per-model flag compendium
+and ran plain `docker run` with default flags. The compendium
+(populated by Phase 2c on 2026-06-17) had already documented exactly
+the flags each model needs. New AGENTS.md rule:
+> Before dispatching any multi-model vLLM sweep on the DGX-GB10
+> autoresearch slot, read `autoresearch/PER_MODEL_OPTIMAL_PARAMS.md`.
+> Never default-flag a model with a documented row.
 
-**Next-step options to discuss**:
-
-1. Pin a `26.05` workaround per-model (longer wait + correct `--max-model-len`
-   + `--max-num-batched-tokens` overrides for multimodal). Some failures
-   look like vLLM config gates rather than architecture incompatibilities.
-2. Stand up a fallback `25.11-py3` slot for the multimodal/MoE cohort and
-   route their experiments there.
-3. Drop the failing models from the candidate matrix entirely.
-
-See `## Failure-mode notes` below for per-model detail.
+### Failure-mode notes (raw, retained for archaeology)
 
 ### Failure-mode notes (raw)
 
 + **Gemma-4-26B-A4B**: `vllm/v1/core/encoder_cache_manager.py:302` raises
   `ValueError: Chunked MM input disabled but max_tokens_per_mm_item (2496)
   is larger than max_num_batched_tokens (2048). Please increase
-  max_num_batched_tokens.` Pure config-knob issue — solvable with
-  `--max-num-batched-tokens 4096` (probably).
+  max_num_batched_tokens.` Pure config-knob issue.
+  **FIXED**: `--max-num-batched-tokens 4096` + the rest of Phase 2c flags.
+  Final result: KG 74.6% / 74.8%, GI 90.0% / 92.5%.
 + **Moonlight-16B-A3B**: first attempt failed with `User-specified
   max_model_len (32768) > derived max_model_len (max_position_embeddings=8192)`.
   Retried with `--max-model-len 8192`; container then hung loading MoE
   shards on `vllm:26.05-py3`. MoE backend selection (`FLASHINFER_CUTLASS`)
   may not handle this checkpoint cleanly.
+  **FIXED**: `--max-model-len 8192` (model's hard cap) + Phase 2c flags.
+  Final result: KG 61.2% / 57.5%, GI 63.7% / 56.2% (KG entities 83% — only
+  cohort model below 100%, likely context cap).
 + **Ministral-3-14B**: container died before any model-loading log lines
-  reached stdout. MoE init suspected by analogy.
+  reached stdout. **Root cause**: sweep used HF id `mistralai/Ministral-3-14B`
+  which doesn't exist; cache has `mistralai/Ministral-3-14B-Instruct-2512`.
+  **FIXED**: corrected HF id + `--tokenizer-mode mistral --config-format
+  mistral --load-format mistral --language-model-only`.
+  Final result: KG 79.9% / 81.9%, GI 83.8% / 85.0%.
 + **Magistral-Small-2509**: container died at 10s with no captured error.
-  Same image and base flags as Ministral/Moonlight — likely same MoE class
-  of fault.
+  **Root cause**: vendor REQUIRES the mistral tokenizer trio +
+  `--reasoning-parser=mistral`; chunk-7 sweep ran with HF tokenizer
+  and no parser flag. Additionally a reasoning model that emits
+  `[THINK]/[/THINK]` and would have burned through `max_tokens=800`
+  even on a successful boot.
+  **FIXED**: `--reasoning-parser mistral --tokenizer-mode mistral
+  --config-format mistral --tool-call-parser mistral --language-model-only`
+  + eval config `max_length: 800 → 4096`. Final result: KG 72.4% / 72.4%,
+  GI 90.0% / 87.5%.
 + **Mistral-Small-3.2-24B**: vLLM came up fine and KG run started.
   Generation ran at **~5 tok/s** vs ~50 tok/s for Qwen3-30B and ~80 tok/s
-  for Qwen3.5-35B-A3B. Multimodal Pixtral architecture overhead is the
-  suspect — Mistral-Small-3.2 is a vision-capable model and vLLM probably
-  loaded the vision tower despite our text-only workload.
+  for Qwen3.5-35B-A3B. **Root cause**: Mistral-3.2 is a vision-capable
+  Pixtral model; vLLM loaded the vision tower despite our text-only
+  workload, throttling inference.
+  **FIXED**: `--language-model-only` (skips vision tower init) + the
+  mistral tokenizer trio. Final result: **KG 82.8% / 81.9% (best in
+  cohort)**, GI 91.2% / 85.0%.
 + **Llama-3.3-70B-NVFP4**: weights downloaded (~13min) + 9 shards loaded
   successfully + vLLM reached READY at 360s; KG completed 10 episodes in
   ~23min; GI was on episode 9/10 when operator stopped the run because
   Llama 70B has been deprecated for weeks. NOT a vLLM failure — operator
-  decision.
+  decision. Dropped from cohort.
 
 ## Acceptance against RFC-097 §Success Criteria
 
-1. **Full silver rebuild scoreboards published**: ✓ (this file)
+1. **Full silver rebuild scoreboards published**: ✓ (this file) — all 9 in-cohort
+   candidates re-run through v2 pipeline + per-model vLLM:26.05 workarounds;
+   Llama-3.3-70B-NVFP4 dropped per operator decision.
 2. **Migration scripts dry-run** — separate; chunk 6 ships the scripts.
 3. **Grounding contract preserved**: ✓ — silvers report 99% (Opus) / 91%
-   (Sonnet) quote verification; Qwen3-30B + Gemini both emit 100%-grounded
-   insights post-rerun.
-4. **Schemas reject legacy** — chunk 9 gate (ADR-101, post bake).
+   (Sonnet) quote verification; all 9 candidates (except DeepSeek
+   genuinely-too-weak) emit 100%-grounded insights post-rerun.
+4. **Schemas reject legacy** — deferred to chunk 9 follow-up PR (ADR-101,
+   post 2-4-week bake window per RFC-097 §161).
 
 ## DGX operating-mode trail
 
@@ -184,5 +237,10 @@ untouched).
 + `data/eval/references/silver/silver_{opus47,sonnet46}_{kg,gi}_dev_v1/` — regenerated
 + `data/eval/runs/autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_*` — re-run
 + `data/eval/runs/autoresearch_prompt_vllm_qwen3_5_35b_a3b_dev_*` — re-run
++ `data/eval/runs/autoresearch_prompt_vllm_mistral_small_3_2_24b_dev_*` — re-run (workaround)
++ `data/eval/runs/autoresearch_prompt_vllm_ministral_3_14b_dev_*` — re-run (workaround)
++ `data/eval/runs/autoresearch_prompt_vllm_magistral_small_2509_dev_*` — re-run (workaround)
++ `data/eval/runs/autoresearch_prompt_vllm_gemma_4_26b_a4b_dev_*` — re-run (workaround)
++ `data/eval/runs/autoresearch_prompt_vllm_moonlight_16b_a3b_dev_*` — re-run (workaround)
 + `data/eval/runs/autoresearch_prompt_gemini_gemini25_flash_lite_dev_*` — re-run
 + `data/eval/runs/chunk7_silver_regen/*.log` — full run logs (incl. failure logs for Gemma/Moonlight/Ministral/Magistral/Mistral-3.2/Llama-70B)

@@ -101,3 +101,90 @@ in the original Round 2 table at top of this file):
 - **KV % obs**: all candidates 0.2-2.5% during single-stream eval, peak 2.5%
 - **Boot wall-clock** (cached): see § "Boot times" in EVAL_1016_FINAL_REPORT_2026_06_17.md
 - **Gen TPS**: 5-33 tok/s, mostly clustered around 20-30 except Llama 70B at 5
+
+## RFC-097 chunk-7 workaround sweep — new findings (2026-06-21)
+
+The chunk-7 silver rebuild sweep (2026-06-21) exercised every candidate
+under the v2-emitting KG+GI pipeline. The initial sweep bypassed this
+compendium (`docker run` with default flags) and 5 of 8 candidates
+failed. The retry sweep used per-model flags from this compendium plus
+two new findings, captured here so future sweeps don't repeat the work:
+
+### Finding 1: `--language-model-only` for Mistral3 + Pixtral models
+
+Mistral-Small-3.2-24B, Magistral-Small-2509, and Ministral-3-14B-Instruct-2512
+all use the `Mistral3ForConditionalGeneration` architecture, which embeds
+a Pixtral vision tower in the same checkpoint as the text model. Our
+autoresearch workload is text-only; the vision tower otherwise loads
+into GPU memory and throttles text-generation throughput (Mistral-3.2
+ran at 5 tok/s without this flag vs 50+ tok/s with).
+
+**Add `--language-model-only` to vLLM serve flags for any
+Mistral3-family text-only workload.** Source in
+`vllm/config/multimodal.py`: *"If True, disables all multimodal inputs
+by setting all modality limits to 0. Equivalent to setting
+`--limit-mm-per-prompt` to 0 for every modality."* In
+`encoder_cache_manager.compute_mm_encoder_budget`, the empty-modalities
+branch returns `(0, 0)` and skips the
+`disable_chunked_mm_input + max_tokens_per_mm_item` check that bit
+Gemma-4-26B-A4B too (also confirmed compatible with the existing Gemma
+fix `--max-num-batched-tokens 4096`).
+
+### Finding 2: Magistral reasoning model needs `max_length ≥ 4096` in eval config
+
+Magistral-Small-2509 is an explicit reasoning model that emits
+`[THINK]…[/THINK]` blocks before its real response. Vendor sets
+`max_tokens=131072`; our autoresearch KG/GI configs default to
+`max_length: 800`. The THINK block consumes the budget before the
+JSON extraction can fit. `--reasoning-parser=mistral` strips the
+THINK trace from the chat response, but the trace **still counts
+against `max_tokens`** during generation, so the parser alone is not
+sufficient.
+
+**Bump `params.max_length: 800 → 4096`** in any KG/GI config
+targeting a reasoning model (Magistral, future R1-family). Already
+applied to:
+
+- `data/eval/configs/kg_autoresearch_prompt_vllm_magistral_small_2509_dev_v1.yaml`
+- `data/eval/configs/gi_autoresearch_prompt_vllm_magistral_small_2509_dev_v1.yaml`
+
+### Finding 3: Verify HF model id against the DGX cache before swapping
+
+Ministral-3-14B's chunk-7 first-attempt failure was mis-attributed to
+"MoE init fault" — actually we'd used HF id `mistralai/Ministral-3-14B`,
+which **does not exist in HF**. The DGX cache only has
+`mistralai/Ministral-3-14B-Instruct-2512`. The container died at HF
+resolver instantly. A `ssh dgx-llm-1 'ls /opt/llm-models/huggingface/hub/'`
+check before the swap would have caught this.
+
+### Finding 4: 5 of 8 candidates failed when sweep bypassed this doc
+
+`/tmp/sequential_runs.sh` (chunk-7 first sweep) issued `docker run`
+with `--gpu-memory-utilization 0.60 --max-model-len 32768
+--max-num-seqs 128` for every model — the homelab compose defaults
+at the time, NOT the per-model flags this compendium records. Result:
+Gemma, Mistral-3.2, Magistral, Moonlight, Ministral all failed in
+ways the compendium's Phase 2c rows had already documented as
+"working with these specific flags". Lesson is now an AGENTS.md hard
+rule: *Read this doc before any multi-model sweep; never default-flag
+a model with a documented row.*
+
+### Updated final scoreboard (2026-06-21 v2 pipeline + workarounds)
+
+Best candidates after the chunk-7 retries:
+
+| Candidate | KG opus47 / sonnet46 | GI opus47 / sonnet46 |
+| --- | ---: | ---: |
+| `mistral_small_3_2_24b` | **82.8% / 81.9%** (KG leader) | 91.2% / 85.0% |
+| `qwen3_5_35b_a3b` | 82.1% / 79.5% | 85.0% / 87.5% |
+| `ministral_3_14b` | 79.9% / 81.9% | 83.8% / 85.0% |
+| `gemini25_flash_lite` | 76.1% / 73.2% | **96.2% / 92.5%** (GI leader) |
+| `gemma_4_26b_a4b` | 74.6% / 74.8% | 90.0% / 92.5% |
+| `magistral_small_2509` | 72.4% / 72.4% | 90.0% / 87.5% |
+| `qwen3_30b_a3b_instruct_2507` | 71.6% / 74.0% | 91.2% / 90.0% |
+| `moonlight_16b_a3b` | 61.2% / 57.5% | 63.7% / 56.2% |
+| `deepseek_v2_lite_chat` | 1.5% / 0.8% | 3.8% / 1.2% |
+
+Full scoreboard + per-model fix details:
+`docs/guides/eval-reports/EVAL_RFC097_V2_BASELINE_2026_06_20.md`,
+`docs/guides/eval-reports/EVAL_RFC097_CHUNK7_VLLM_WORKAROUNDS_2026_06_21.md`.
