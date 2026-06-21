@@ -21,7 +21,7 @@ _COST = "loki.cost"
 _LOGS = "loki.logs"
 _ERROR_FILTER = r'|~ "(?i)(error|critical|exception|traceback|fatal)"'
 _PATH_SUFFIXES = ("/loki/api/v1/push", "/loki/api/v1/query_range", "/loki/api/v1/query")
-_NOT_CONFIGURED = "loki not configured (loki_url + loki_user + grafana_token)"
+_NOT_CONFIGURED = "loki not configured (loki_url + loki_user + loki_token [logs:read])"
 
 
 def _query_base(loki_url: Optional[str]) -> Optional[str]:
@@ -37,10 +37,14 @@ def _query_base(loki_url: Optional[str]) -> Optional[str]:
 
 
 def _creds(target: TargetConfig) -> Optional[tuple[str, str, str]]:
+    # Loki's data endpoint wants a Cloud access-policy token (logs:read), distinct from the
+    # Grafana service-account token used for the alerting API. Fall back to grafana_token for
+    # self-hosted setups where one token serves both.
     base = _query_base(target.loki_url)
-    if not base or not target.loki_user or not target.grafana_token:
+    token = target.loki_token or target.grafana_token
+    if not base or not target.loki_user or not token:
         return None
-    return base, target.loki_user, target.grafana_token
+    return base, target.loki_user, token
 
 
 def _parse_window_seconds(window: str, default: int = 3600) -> int:

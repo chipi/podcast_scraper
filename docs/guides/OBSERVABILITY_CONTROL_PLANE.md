@@ -66,9 +66,10 @@ targets:
       token_env: PODCAST_OBS_SENTRY_TOKEN
     grafana:
       url: https://your-stack.grafana.net
-      token_env: PODCAST_OBS_GRAFANA_TOKEN
+      token_env: PODCAST_OBS_GRAFANA_TOKEN      # service-account token (glsa_) for alerting
       loki_url: https://logs-prod-xxx.grafana.net
       loki_user: "123456"
+      loki_token_env: PODCAST_OBS_LOKI_TOKEN    # access-policy token (glc_), logs:read
 ```
 
 ### Tokens and scopes (read-only — the control plane never mutates)
@@ -78,8 +79,8 @@ targets:
 | `prod_api` | none | Reachability only (tailnet-gated in prod). |
 | `github` | fine-grained PAT, or the `gh` CLI | **Actions: read**. |
 | `sentry` | a Sentry **auth token** | `project:read` / `event:read`. **NOT the DSN** — the staged `PROD_SENTRY_DSN_*` cannot query the API. |
-| `grafana` (alerts) | Grafana service-account token | alerting read. |
-| `loki` (cost/logs) | `loki_user` + a Grafana token as the basic-auth password | **`logs:read`** — the agent's `GRAFANA_CLOUD_API_KEY` is `logs:write`; querying needs a read-scoped token. |
+| `grafana` (alerts) | a Grafana **service-account** token (`glsa_`) | alerting read. Grafana-API only. |
+| `loki` (cost/logs) | `loki_user` + a Cloud **access-policy** token (`glc_`) | **`logs:read`**. A *different token type* from the alerting one — Grafana Cloud splits the data plane (Loki, `glc_`) from the Grafana API (`glsa_`). The agent's `GRAFANA_CLOUD_API_KEY` is `logs:write` and 401s. (Falls back to the grafana token for self-hosted setups where one token serves both.) |
 
 ## CLI (the basics)
 

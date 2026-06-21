@@ -25,6 +25,7 @@ targets:
     #   token_env: PODCAST_OBS_SENTRY_TOKEN
     # grafana:
     #   url: https://your-stack.grafana.net
-    #   token_env: PODCAST_OBS_GRAFANA_TOKEN
+    #   token_env: PODCAST_OBS_GRAFANA_TOKEN     # service-account token (glsa_) for alerting
     #   loki_url: https://logs-prod-xxx.grafana.net
     #   loki_user: "123456"
+    #   loki_token_env: PODCAST_OBS_LOKI_TOKEN   # access-policy token (glc_), logs:read

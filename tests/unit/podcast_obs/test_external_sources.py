@@ -65,6 +65,38 @@ def test_cost_not_configured() -> None:
     assert loki.cost_today(_t())["configured"] is False
 
 
+def test_loki_prefers_loki_token_over_grafana(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict = {}
+    monkeypatch.setattr(
+        loki,
+        "get_json",
+        lambda url, **kw: captured.update(auth=kw.get("auth")) or {"data": {"result": []}},
+    )
+    target = _t(
+        loki_url="https://x.net/loki/api/v1/push",
+        loki_user="u",
+        loki_token="READ",
+        grafana_token="WRITE",
+    )
+    loki.cost_today(target)
+    assert captured["auth"] == (
+        "u",
+        "READ",
+    )  # access-policy token wins over the service-account one
+
+
+def test_loki_falls_back_to_grafana_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict = {}
+    monkeypatch.setattr(
+        loki,
+        "get_json",
+        lambda url, **kw: captured.update(auth=kw.get("auth")) or {"data": {"result": []}},
+    )
+    target = _t(loki_url="https://x.net/loki/api/v1/push", loki_user="u", grafana_token="ONLY")
+    loki.cost_today(target)
+    assert captured["auth"] == ("u", "ONLY")
+
+
 def test_cost_value(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         loki, "get_json", lambda url, **_: {"data": {"result": [{"value": [0, "0.5142"]}]}}

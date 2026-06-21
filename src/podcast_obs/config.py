@@ -41,9 +41,12 @@ class TargetConfig:
     sentry_token: Optional[str] = None
     sentry_environment: str = "prod"
     grafana_url: Optional[str] = None
-    grafana_token: Optional[str] = None
+    grafana_token: Optional[str] = None  # Grafana service-account token (alerting API)
     loki_url: Optional[str] = None
     loki_user: Optional[str] = None
+    loki_token: Optional[str] = (
+        None  # Loki access-policy token (logs:read); falls back to grafana_token
+    )
     env_label: str = "prod"  # the deploy's Loki/metrics ``env`` label (PODCAST_ENV)
     timeout: float = DEFAULT_TIMEOUT
 
@@ -96,6 +99,7 @@ class ObservabilityConfig:
             grafana_token=_env("GRAFANA_TOKEN"),
             loki_url=_env("LOKI_URL"),
             loki_user=_env("LOKI_USER"),
+            loki_token=_env("LOKI_TOKEN"),
             env_label=_env("ENV_LABEL") or "prod",
             timeout=_as_float(_env("TIMEOUT"), DEFAULT_TIMEOUT),
         )
@@ -169,6 +173,7 @@ def _target_from_yaml(name: str, spec: dict) -> TargetConfig:
         grafana_token=_secret(grafana, "token"),
         loki_url=grafana.get("loki_url"),
         loki_user=grafana.get("loki_user"),
+        loki_token=_secret(grafana, "loki_token"),
         env_label=spec.get("env_label") or "prod",
         timeout=timeout,
     )
