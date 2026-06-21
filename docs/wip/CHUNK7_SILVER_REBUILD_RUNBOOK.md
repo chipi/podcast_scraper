@@ -111,10 +111,11 @@ silver, etc.). Documented in `autoresearch/JUDGING.md` per memory.
 ### Phase D — Publish scoreboards
 
 ```bash
-make autoresearch-report COHORT=v2-baseline OUT=docs/wip/EVAL_RFC097_V2_BASELINE_$(date +%Y-%m-%d).md
+make autoresearch-report COHORT=v2-baseline OUT=docs/guides/eval-reports/EVAL_RFC097_V2_BASELINE_$(date +%Y_%m_%d).md
 ```
 
-Operator-readable report goes into `docs/wip/`; the scorer-level JSON
+Operator-readable report goes into `docs/guides/eval-reports/` (canonical
+home alongside the 50+ other promoted eval reports); the scorer-level JSON
 artifacts persist under `data/eval/runs/`.
 
 ### Phase E — Acceptance criteria (per RFC-097 §Success Criteria)

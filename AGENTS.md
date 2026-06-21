@@ -641,6 +641,46 @@ See:
 - `docs/rfc/RFC-044-model-registry.md` — registry RFC
 - `src/podcast_scraper/providers/ml/model_registry.py` — canonical code
 
+### vLLM-on-GB10 model sweeps — consult & maintain `PER_MODEL_OPTIMAL_PARAMS.md`
+
+Before dispatching any multi-model vLLM sweep on the DGX-GB10 autoresearch
+slot, **read `autoresearch/PER_MODEL_OPTIMAL_PARAMS.md`** (lives next to
+`autoresearch/README.md` and `autoresearch/MODEL_PLAYBOOK.md` — the
+three-doc pair that describes *how to run autoresearch*).
+It is the canonical per-model flag compendium — every model that has
+ever booted on `nvcr.io/nvidia/vllm:26.05-py3` has a row recording the
+`--gpu-memory-utilization`, `--max-model-len`, `--max-num-batched-tokens`,
+`--max-num-seqs`, `--enforce-eager`, `--trust-remote-code`,
+`--reasoning-parser`, and any other arch-specific flag that was needed.
+
+Sweep scripts must adopt those flags per model — **never default-flag
+a model that has a documented row**. The chunk 7 silver rebuild
+(2026-06-21) burned an evening when `/tmp/sequential_runs.sh` issued
+plain `docker run` with default flags and 5 of 8 models failed in
+ways the compendium had already solved. The Phase 2c table proves
+each of those 5 produced output at 22-30 tok/s with the documented
+flags; the sweep just bypassed them.
+
+After every sweep, **update the compendium**: add new flag discoveries
+(e.g. `--language-model-only` as a cleaner alternative for Gemma4),
+record fresh boot wall-clock + KV peak observations, and mark anything
+that stopped working. Stale rows are worse than missing ones —
+follow-up sweeps will trust them. Bump the date in the section header
+when you change a row.
+
+The compendium pairs with the homelab compose
+(`/opt/vllm-autoresearch/docker-compose.yml`, generated from
+`infra/dgx/converge/deploy.py` in the agentic-ai-homelab repo) which
+holds the *default* per-slot flags. When the compose's defaults are
+outdated relative to the compendium, the compendium wins for sweep
+scripts — but flag a follow-up to push the compendium values back into
+the compose.
+
+The compendium lives at `autoresearch/PER_MODEL_OPTIMAL_PARAMS.md`.
+Raw metric captures that feed it sit under `docs/wip/EVAL_1016_metrics/`
+(`vllm_metrics_<candidate>_phase2c.log`) — those are inputs, not
+authoritative documents.
+
 ### Keep the laptop awake during long sweeps — `caffeinate`
 
 When dispatching a sweep / eval that's expected to run >15 min while

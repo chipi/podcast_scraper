@@ -17,7 +17,7 @@ Live notes collected while Round 2 runs the harness fixes. Used as input to #102
 - **Failure modes if any**
 
 | Model | UTIL | max-model-len | max-num-batched | trust-remote | Load mem | Boot | KV % obs | s/ep | chars/ep | Prompt adapt | Failure mode |
-|-------|-----:|--------------:|----------------:|:------------:|---------:|-----:|---------:|-----:|---------:|:-------------|-------------|
+| ----- | ---: | ------------: | --------------: | :----------: | -------: | ---: | -------: | ---: | -------: | :----------- | ----------- |
 | Qwen3-30B-A3B-Instruct-2507 | 0.65 | 32768 | default 2048 | no | ~60 GB | ~12 min | tbd | 25.6 | 4472 (over-spec) | tight prompts | floor bug |
 | Qwen3.5-35B-A3B | 0.65 | 32768 | default 2048 | no | 65.5 GB | ~15 min | tbd | 21.7 | 3779 (over-spec) | tight prompts | floor bug |
 | Mistral-Small-3.2-24B-Instruct-2506 | 0.55 | 32768 | default 2048 | no | tbd | ~10 min | tbd | 72.6 | 2057 | none | none |
@@ -40,7 +40,7 @@ Replaces the speculative `tbd` columns above with real polling data. Source:
 `vllm_metrics_*_phase2c.log` files in this directory (one per candidate).
 
 | Candidate | Samples | **KV peak** | TTFT p50 | TPOT p50 | Gen TPS avg | Notes |
-|---|---:|---:|---:|---:|---:|---|
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
 | Qwen3.5-35B-A3B | 77 | 1.1% | 250ms | 50ms | 29 tok/s | `--reasoning-parser=qwen3` flag wired |
 | Gemma-4-26B-A4B-it | 120 | 0.9% | 250ms | 50ms | 22 tok/s | `--max-num-batched-tokens=4096` retained |
 | Moonlight-16B-A3B-Instruct | 72 | 0.2% | 250ms | 50ms | 30 tok/s | `--max-model-len=8192` (hard floor) |

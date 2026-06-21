@@ -3,6 +3,26 @@
 Thin automation layer on top of `scripts/eval/run_experiment.py` and
 `src/podcast_scraper/evaluation/`.
 
+## How to run autoresearch — three-doc pair (read in order)
+
+1. **`README.md`** (this file) — overall workflow, scoring conventions,
+   commit rules, eval-report links.
+2. **[`MODEL_PLAYBOOK.md`](MODEL_PLAYBOOK.md)** — per-candidate notes
+   (Phase 2c verdicts, prompt adaptations, postprocessor needs).
+3. **[`PER_MODEL_OPTIMAL_PARAMS.md`](PER_MODEL_OPTIMAL_PARAMS.md)** —
+   the per-model vLLM-on-GB10 flag compendium. **Required reading
+   before any multi-model sweep** (every model has a row recording
+   the `--max-model-len`, `--max-num-batched-tokens`, `--max-num-seqs`,
+   `--enforce-eager`, `--reasoning-parser`, etc. that boot it cleanly).
+   **Update after every sweep** with new findings.
+
+Bypassing `PER_MODEL_OPTIMAL_PARAMS.md` is what burned chunk 7 of
+RFC-097 on 2026-06-21 — 5 of 8 candidates failed in ways the
+compendium had already solved. See `AGENTS.md` "vLLM-on-GB10 model
+sweeps" for the hard rules.
+
+---
+
 **Current framework: v2** — see [RFC-073](../docs/rfc/RFC-073-autoresearch-v2-framework.md).
 **Original framework: v1** — see [RFC-057](../docs/rfc/RFC-057-autoresearch-optimization-loop.md)
 (closed via [ADR-073](../docs/adr/ADR-073-rfc057-autoresearch-closure.md); Track B still v1).

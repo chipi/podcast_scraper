@@ -183,7 +183,7 @@
 | B. Investigate `--enable-prefix-caching` for Llama 70B | May fix the 5 tok/s vs 30 tok/s discrepancy | Llama TPOT 4× cohort average | Open — diagnostic experiment for #1022 |
 | Larger `--max-num-batched-tokens` (16384) for NVFP4 | NVFP4 kernels may need wider batches | Llama TPOT degenerate | Open — pair with lever B |
 | Drop `--max-num-batched-tokens=4096` for Gemma 4 once vision is no-op | We added it for Gemma multimodal; KG/GI don't need it | Gemma KV peak 0.9% | Open — minor optimization |
-| D. Boot-time phase breakdown logging | Capture exact phase timings to PER_MODEL_OPTIMAL_PARAMS.md | We have wall-clock but not per-phase decomposition | Open — backlog |
+| D. Boot-time phase breakdown logging | Capture exact phase timings to `autoresearch/PER_MODEL_OPTIMAL_PARAMS.md` | We have wall-clock but not per-phase decomposition | Open — backlog |
 
 ---
 
@@ -261,7 +261,7 @@ Using a simple unweighted mean of (Sum-R1-vs-Opus, GI-vs-Opus, KG-vs-Opus) for t
 
 - `autoresearch/MODEL_PLAYBOOK.md` — per-model Phase 2c verdicts appended to each candidate's section.
 - `docs/wip/EVAL_1016_ROUND3_REVIEW.md` — Phase 2c outcome section added; the queue-of-7 decisions stamped as final.
-- `docs/wip/EVAL_1016_metrics/PER_MODEL_OPTIMAL_PARAMS.md` — KV/TTFT/TPOT/throughput per candidate filled in.
+- `autoresearch/PER_MODEL_OPTIMAL_PARAMS.md` — KV/TTFT/TPOT/throughput per candidate filled in. (Promoted from `docs/wip/EVAL_1016_metrics/` to `autoresearch/` on 2026-06-21, next to README.md / MODEL_PLAYBOOK.md.)
 - `docs/wip/EVAL_1016_metrics/vllm_metrics_*_phase2c.log` — 7 raw metric polls for reuse in #1022.
 
 ---

@@ -177,7 +177,7 @@ with Sonnet-mimicry caveat on summary requiring cross-vendor judge panel.
 - G-Eval batch judging on Round 3 predictions (cloud judges, no DGX needed)
 - BPE postprocessor fix + DSV2-Lite rerun (#111)
 - Entity-focused KG re-experiment
-- #1022 vLLM tuning workstream (data collected in `PER_MODEL_OPTIMAL_PARAMS.md`)
+- #1022 vLLM tuning workstream (data collected in `autoresearch/PER_MODEL_OPTIMAL_PARAMS.md`)
 
 ---
 

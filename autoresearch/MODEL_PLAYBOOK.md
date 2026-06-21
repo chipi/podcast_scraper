@@ -335,8 +335,8 @@ issue 1022 systematic-tuning workstream.
 - `--enable-prefix-caching` (currently enabled by default, but verify behavior
   on the autoresearch swap dance)
 
-See `EVAL_1016_metrics/PER_MODEL_OPTIMAL_PARAMS.md` for the per-model param
-exploration table that informs #1022.
+See `PER_MODEL_OPTIMAL_PARAMS.md` (same directory) for the per-model
+param exploration table that informs #1022.
 
 ---
 
