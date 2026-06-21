@@ -5,10 +5,15 @@ from __future__ import annotations
 import os
 
 import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
 
-from podcast_scraper.server.routes import ops
+pytest.importorskip("fastapi")
+
+from fastapi import FastAPI  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+
+from podcast_scraper.server.routes import ops  # noqa: E402
+
+pytestmark = [pytest.mark.integration]
 
 
 def _client() -> TestClient:
