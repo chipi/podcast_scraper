@@ -554,6 +554,64 @@ export function buildGiKgCyStylesheet(options?: {
         'line-opacity': 0.6,
       },
     },
+    // RFC-097 v2 two-tier edge contract — visual classes (chunk 8):
+    //   evidentiary  → SUPPORTED_BY        (dashed, muted; the grounding contract)
+    //   descriptive  → ABOUT / MENTIONS_*  (solid gi-color; confidence-mapped opacity)
+    //   discovery    → MENTIONS            (dotted, muted; co-occurrence only)
+    //   structural   → HAS_INSIGHT / SPOKE_IN / HAS_EPISODE / HAS_MEMBER  (solid primary, arrow)
+    //   attribution  → SPOKEN_BY           (solid warning-tone accent, arrow)
+    // ABOUT, SUPPORTED_BY, MENTIONS, HAS_INSIGHT, SPOKE_IN, HAS_MEMBER predate v2;
+    // the new selectors below add MENTIONS_PERSON, MENTIONS_ORG, HAS_EPISODE, SPOKEN_BY.
+    {
+      // descriptive: same visual class as ABOUT (gi color, confidence opacity).
+      // Insight → Person edge, so add an arrow to make the direction explicit.
+      selector: 'edge[edgeType = "MENTIONS_PERSON"]',
+      style: {
+        width: aboutConfidenceWidth(compact ? 1.5 : 2),
+        'line-color': psGi,
+        'line-style': 'solid',
+        'line-opacity': aboutConfidenceOpacity(),
+        'target-arrow-shape': 'triangle',
+        'target-arrow-color': psGi,
+      },
+    },
+    {
+      // descriptive: same visual class as ABOUT / MENTIONS_PERSON.
+      selector: 'edge[edgeType = "MENTIONS_ORG"]',
+      style: {
+        width: aboutConfidenceWidth(compact ? 1.5 : 2),
+        'line-color': psGi,
+        'line-style': 'solid',
+        'line-opacity': aboutConfidenceOpacity(),
+        'target-arrow-shape': 'triangle',
+        'target-arrow-color': psGi,
+      },
+    },
+    {
+      // structural: Podcast → Episode, same visual class as HAS_INSIGHT.
+      selector: 'edge[edgeType = "HAS_EPISODE"]',
+      style: {
+        width: compact ? 1.5 : 2,
+        'line-color': psPrimary,
+        'line-style': 'solid',
+        'target-arrow-shape': 'triangle',
+        'target-arrow-color': psPrimary,
+      },
+    },
+    {
+      // attribution: Quote → Person. Distinctive warning-tone accent to set apart
+      // from structural primary-tone edges; carries an arrow because direction
+      // matters (the Quote is spoken BY the Person).
+      selector: 'edge[edgeType = "SPOKEN_BY"]',
+      style: {
+        width: compact ? 1 : 1.25,
+        'line-color': psWarning,
+        'line-style': 'solid',
+        'target-arrow-shape': 'triangle',
+        'target-arrow-color': psWarning,
+        'line-opacity': 0.85,
+      },
+    },
   ]
   for (const r of edgeStrokes) {
     style.push(r)

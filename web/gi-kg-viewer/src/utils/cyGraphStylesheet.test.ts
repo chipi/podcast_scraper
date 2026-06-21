@@ -258,3 +258,51 @@ describe('buildGiKgCyStylesheet', () => {
     expect(rule.style['target-arrow-shape']).toBe('triangle')
   })
 })
+
+describe('RFC-097 v2 two-tier edge contract selectors', () => {
+  function edgeRule(selector: string) {
+    const sheet = buildGiKgCyStylesheet({ compact: false })
+    return sheet.find((r) => (r as { selector?: string }).selector === selector) as
+      | { style: Record<string, unknown> }
+      | undefined
+  }
+
+  it('descriptive MENTIONS_PERSON renders with gi color + arrow', () => {
+    const rule = edgeRule('edge[edgeType = "MENTIONS_PERSON"]')
+    expect(rule).toBeTruthy()
+    expect(rule!.style['line-color']).toBe('#7dd3a0')
+    expect(rule!.style['line-style']).toBe('solid')
+    expect(rule!.style['target-arrow-shape']).toBe('triangle')
+  })
+
+  it('descriptive MENTIONS_ORG renders with gi color + arrow', () => {
+    const rule = edgeRule('edge[edgeType = "MENTIONS_ORG"]')
+    expect(rule).toBeTruthy()
+    expect(rule!.style['line-color']).toBe('#7dd3a0')
+    expect(rule!.style['line-style']).toBe('solid')
+    expect(rule!.style['target-arrow-shape']).toBe('triangle')
+  })
+
+  it('structural HAS_EPISODE renders with primary color + arrow', () => {
+    const rule = edgeRule('edge[edgeType = "HAS_EPISODE"]')
+    expect(rule).toBeTruthy()
+    expect(rule!.style['line-color']).toBe('#4c90f0')
+    expect(rule!.style['line-style']).toBe('solid')
+    expect(rule!.style['target-arrow-shape']).toBe('triangle')
+  })
+
+  it('attribution SPOKEN_BY renders with warning-tone color + arrow', () => {
+    const rule = edgeRule('edge[edgeType = "SPOKEN_BY"]')
+    expect(rule).toBeTruthy()
+    expect(rule!.style['line-color']).toBe('#ec9a3c')
+    expect(rule!.style['line-style']).toBe('solid')
+    expect(rule!.style['target-arrow-shape']).toBe('triangle')
+  })
+
+  it('descriptive ABOUT (predates v2) is visually consistent with MENTIONS_PERSON/MENTIONS_ORG (gi color, solid)', () => {
+    const rule = edgeRule('edge[edgeType = "ABOUT"]')
+    expect(rule).toBeTruthy()
+    expect(rule!.style['line-color']).toBe('#7dd3a0')
+    expect(rule!.style['line-style']).toBe('solid')
+  })
+})

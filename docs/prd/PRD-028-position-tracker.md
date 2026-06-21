@@ -1,7 +1,7 @@
 # PRD-028: Position Tracker
 
 - **Status**: Draft
-- **v2 closure (RFC-097, 2026-06-20)**: Position Tracker data foundation + viewer surface delivered by RFC-097 v2 (chunk 8). `position_arc` query pattern (RFC-072 §5A), `insight_type` filtering (claim vs. recommendation), `position_hint` temporal ordering all close. Position-change detection (analysis layer, v3) + multi-corpus cross-show view remain open. See [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md).
+- **v2 closure (RFC-097, 2026-06-20; chunk-8 scope-cut 2026-06-21)**: Position Tracker **data foundation** delivered by RFC-097 v2 (chunks 1–7) — typed Person/Topic nodes, `ABOUT` + `MENTIONS_PERSON` descriptive edges, `insight_type` LLM classification, `position_hint` 4-step waterfall arithmetic. **Viewer surface deferred** to RFC-097 chunk-8 follow-up Ticket B, drafted in `docs/wip/RFC097_CHUNK8_FOLLOWUP_TICKETS.md` (replace this line with the ticket number once opened). `position_arc` query pattern (RFC-072 §5A), `insight_type` filtering, `position_hint` temporal ordering all queryable today; the UI consuming them ships in Ticket B. Position-change detection (analysis layer, v3) + multi-corpus cross-show view remain open. See [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md).
 - **Authors**: Marko
 - **Target Release**: TBD
 - **Related RFCs**:

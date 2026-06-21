@@ -1,7 +1,7 @@
 # PRD-029: Person Profile
 
 - **Status**: Draft
-- **v2 closure (RFC-097, 2026-06-20)**: Person Profile data foundation + viewer surface delivered by RFC-097 v2 (chunk 8). `person_profile` query pattern (RFC-072 §5B) closes. Analytical ranking/curation (analysis layer) + multi-corpus aggregation remain open. See [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md).
+- **v2 closure (RFC-097, 2026-06-20; chunk-8 scope-cut 2026-06-21)**: Person Profile **data foundation** delivered by RFC-097 v2 (chunks 1–7) — typed Person/Organization nodes, `MENTIONS_PERSON` + `MENTIONS_ORG` descriptive edges, `insight_type` LLM classification, `SPOKE_IN`/`SPOKEN_BY` already shipped. **Viewer surface deferred** to RFC-097 chunk-8 follow-up Tickets A (Person Landing shared component) + C (Person Profile view), drafted in `docs/wip/RFC097_CHUNK8_FOLLOWUP_TICKETS.md` (replace this line with the ticket numbers once opened). `person_profile` query pattern (RFC-072 §5B) queryable today; the UI consuming it ships in Tickets A + C. Analytical ranking/curation (analysis layer) + multi-corpus aggregation remain open. See [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md).
 - **Authors**: Marko
 - **Target Release**: TBD
 - **Related RFCs**:

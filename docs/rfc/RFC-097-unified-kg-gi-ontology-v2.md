@@ -8,8 +8,8 @@
   - `docs/prd/PRD-019-knowledge-graph-layer.md` (Entity → Person/Org/Podcast first-class)
   - `docs/prd/PRD-026-topic-entity-view.md` (CIL enablement)
   - `docs/prd/PRD-027-enriched-search.md` (chunk-to-Insight lift foundation)
-  - `docs/prd/PRD-028-position-tracker.md` (data foundation delivered)
-  - `docs/prd/PRD-029-person-profile.md` (data foundation delivered)
+  - `docs/prd/PRD-028-position-tracker.md` (data foundation delivered; viewer surface deferred to follow-up ticket — see chunk 8 scope-cut)
+  - `docs/prd/PRD-029-person-profile.md` (data foundation delivered; viewer surface + Person Landing deferred to follow-up tickets — see chunk 8 scope-cut)
   - `docs/prd/PRD-031-search.md` (entity-aware retrieval foundation)
 - **Related ADRs**:
   - `docs/adr/ADR-095-viewer-test-pyramid.md` (real-bug-to-matrix-row discipline)
@@ -130,8 +130,12 @@ that never made it into a release.
    (speaker). Future contributors can see at a glance which edges
    are grounding-load-bearing and which are not.
 5. **Ship the two flagship viewer surfaces.** Position Tracker and
-   Person Profile. The data foundation is delivered by v2; the UI
-   is delivered alongside (chunk 8).
+   Person Profile. The data foundation is delivered by v2 (chunk 7).
+   **Scope-cut 2026-06-21**: the viewer UI for both surfaces is split
+   into follow-up tickets (A/B/C in
+   `docs/wip/RFC097_CHUNK8_FOLLOWUP_TICKETS.md`); revised chunk 8
+   ships only the two-tier edge contract visual styling so the v2
+   foundation PR closes without a multi-week UI build.
 6. **Re-baseline measurement.** Full silver rebuild (`silver_opus47_*`
    + `silver_sonnet46_*_benchmark_v2`) on the new shape, with the
    silver/judge vendor-bias rule honored (no candidate vendor matches
@@ -555,11 +559,25 @@ one PR at the end):**
 - **Chunk 7** — Full silver rebuild + scoreboard re-baseline.
   Risk: medium-high. Days: 2–4 (half-day LLM time + candidate
   sweep + vendor-bias check).
-- **Chunk 8** — Viewer Position Tracker + Person Profile + edge
-  styling. Risk: medium-high. Days: 4–6.
-- **Chunk 9 (bake-gated)** — Drop legacy schema support;
-  ADR-101 records the decision. Gate: 2–4 weeks of production
-  operation under v2. Risk: low (code-wise). Days: 1.
+- **Chunk 8 (scope-cut 2026-06-21)** — Two-tier edge contract visual
+  styling only. The three flagship-view items originally bundled
+  (Person Landing shared component, Position Tracker view, Person
+  Profile view) are split into follow-up tickets so the v2 foundation
+  PR closes cleanly without a multi-week UI build.
+  Risk: low. Days: 0.5–1.
+  Follow-up tickets (drafted in
+  `docs/wip/RFC097_CHUNK8_FOLLOWUP_TICKETS.md`):
+  - **Ticket A** — Person Landing shared component (PRD-029 spec)
+  - **Ticket B** — Position Tracker view (PRD-028 spec, UXS-009)
+  - **Ticket C** — Person Profile view (PRD-029 spec, UXS-010)
+  Both PRD-028 and PRD-029 v2-closure stanzas updated to reflect the
+  split (data foundation = chunk 7; viewer surface = follow-ups).
+- **Chunk 9 (deferred to follow-up PR, bake-gated)** — Drop legacy
+  schema support; ADR-101 records the decision. Gate: 2–4 weeks of
+  production operation under v2. Risk: low (code-wise). Days: 1.
+  **Not in this PR**: with the flagship-view items split out of
+  chunk 8, the v2 foundation PR closes after revised chunk 8.
+  Chunk 9 lands in a follow-up PR after the bake window.
 
 **Monitoring:**
 
