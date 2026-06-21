@@ -1,0 +1,30 @@
+# podcast_obs — observability control plane config (#803). Copy, edit, then:
+#   PODCAST_OBS_CONFIG=config/observability.yaml python -m podcast_obs summary --target local
+#
+# Target-agnostic: define every deploy you want to observe. Probes that need a source
+# this target doesn't wire (Sentry/Grafana on a local stack) simply report "not configured".
+# Secrets never live in this file — use `<field>_env: ENV_VAR_NAME` indirection.
+
+default_target: local
+
+targets:
+  # Your local `make serve` stack — the credential-free basics (health/version/runs) work here.
+  local:
+    api_base: http://localhost:8080
+
+  # Prod over Tailscale. Fill in the rest as you wire each source (later slices).
+  prod:
+    api_base: https://prod-podcast.tail-xxxxx.ts.net
+    # github:
+    #   repo: chipi/podcast_scraper
+    #   token_env: PODCAST_OBS_GH_TOKEN        # a read-only Actions:read token
+    # sentry:
+    #   org: your-org
+    #   projects: [api, pipeline]
+    #   environment: prod
+    #   token_env: PODCAST_OBS_SENTRY_TOKEN
+    # grafana:
+    #   url: https://your-stack.grafana.net
+    #   token_env: PODCAST_OBS_GRAFANA_TOKEN
+    #   loki_url: https://logs-prod-xxx.grafana.net
+    #   loki_user: "123456"

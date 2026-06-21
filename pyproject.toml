@@ -47,6 +47,16 @@ dependencies = [
 #   compare   — Streamlit compare UI (RFC-047)
 #   monitor   — py-spy + memray optional profiling (RFC-065; `--monitor` needs no extra)
 #   (FastAPI / uvicorn / metrics / scheduler for ``podcast serve`` live in [dev], not a separate extra.)
+#   observability — standalone prod control plane (#803, ``podcast_obs``). LIGHT by design.
+# Standalone prod observability control plane (#803). Intentionally LIGHT so it runs as a small
+# container anywhere on the tailnet — no torch/spaCy/pipeline deps. (httpx + PyYAML are already
+# base deps; listed here so a future slim ``podcast_obs``-only install is self-describing. The MCP
+# transport dep is added with the MCP slice.)
+observability = [
+  "httpx>=0.28.1,<1.0.0",
+  "PyYAML>=6.0.3,<7.0.0",
+]
+
 # Heavy ML dependencies - only install when needed
 ml = [
   "openai-whisper>=20231117",
