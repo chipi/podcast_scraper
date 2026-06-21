@@ -2323,6 +2323,24 @@ docker-clean:
 	docker rmi podcast-scraper:test podcast-scraper:test-llm podcast-scraper:test-fast podcast-scraper:multi-model 2>/dev/null || true
 	@echo "Cleaned up Docker test images"
 
+# --- Observability control plane (podcast_obs, #803) ---
+.PHONY: obs-test obs-e2e obs-docker-build obs-summary obs-serve
+
+obs-test: ## Unit tests for the observability control plane (podcast_obs). Fast, no network.
+	$(PYTHON) -m pytest tests/unit/podcast_obs/ -q --no-cov --disable-socket --allow-hosts=127.0.0.1,localhost
+
+obs-e2e: ## Live E2E — hits real APIs, self-skips unconfigured sources. Source .env / set PODCAST_OBS_* first.
+	$(PYTHON) -m pytest tests/e2e_observability/ -v --no-cov -p no:cacheprovider
+
+obs-docker-build: ## Build the standalone control-plane image (podcast-obs:latest); tiny context via Dockerfile.dockerignore.
+	docker build -f docker/observability/Dockerfile -t podcast-obs:latest .
+
+obs-summary: ## Control-plane glance for the configured target. Needs PODCAST_OBS_* in env (source .env).
+	$(PYTHON) -m podcast_obs summary
+
+obs-serve: ## Run the observability MCP server. Usage: make obs-serve OBS_ARGS="--transport http --port 8848"
+	$(PYTHON) -m podcast_obs serve $(OBS_ARGS)
+
 install-hooks:
 	@if [ ! -d .git ]; then echo "Error: Not a git repository"; exit 1; fi
 	@echo "Installing git pre-commit hook..."

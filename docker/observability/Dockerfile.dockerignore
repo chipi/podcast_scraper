@@ -1,0 +1,7 @@
+# Minimal build context for the observability image (BuildKit uses this file for
+# `-f docker/observability/Dockerfile`). The image only COPYs src/podcast_obs, so ship just that
+# — keeps the context tiny and avoids the repo's heavy dirs (.test_outputs 16G, .venv, node_modules).
+*
+!src
+src/*
+!src/podcast_obs
