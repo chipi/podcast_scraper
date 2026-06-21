@@ -14,6 +14,7 @@ through the current pipeline produces silver-grade entity coverage:
 | Candidate | KG entities (was → now) | KG overall (was → now) | GI coverage (was → now) |
 |---|---|---|---|
 | `vllm_qwen3_30b_a3b_instruct_2507` | 0% → **100%** | 32.8% → **71.6%** (+38.8) | 37.5% → **91.2%** (+53.7) |
+| `vllm_qwen3_5_35b_a3b` | 0% → **100%** | 48.5% → **82.1%** (+33.6) | 37.5% → **85.0%** (+47.5) |
 | `gemini_gemini25_flash_lite` | 26.7% → **100%** | 52.2% → **76.1%** (+23.9) | 72.5% → **96.2%** (+23.7) |
 
 The fix wasn't a prompt change — it was the chunks 3-5 v2 emit pipeline (Person/Organization
@@ -35,12 +36,16 @@ Stats (n_episodes always 10):
 
 ## Updated v2-pipeline scoreboard
 
-Two candidates re-run through the current pipeline (Qwen3-30B = pack leader, Gemini = cloud control):
+Three candidates re-run through the current pipeline (Qwen3-30B = pack leader,
+Qwen3.5-35B = second pack leader, Gemini = cloud control). Llama-3.3-70B-NVFP4
+dropped from the cohort per operator decision (deprecated weeks ago — not
+re-run despite weights being on DGX).
 
 ### KG — overall weighted coverage / topic% / entity%
 
 | Candidate | vs silver_opus47 | vs silver_sonnet46 |
 |---|---:|---:|
+| `vllm_qwen3_5_35b_a3b` | **82.1%** (T:77%, E:**100%**) | **79.5%** (T:73%, E:**100%**) |
 | `gemini_gemini25_flash_lite` | **76.1%** (T:69%, E:**100%**) | **73.2%** (T:65%, E:**100%**) |
 | `vllm_qwen3_30b_a3b_instruct_2507` | **71.6%** (T:64%, E:**100%**) | **74.0%** (T:66%, E:**100%**) |
 
@@ -50,6 +55,7 @@ Two candidates re-run through the current pipeline (Qwen3-30B = pack leader, Gem
 |---|---:|---:|
 | `gemini_gemini25_flash_lite` | **96.2%** | **92.5%** |
 | `vllm_qwen3_30b_a3b_instruct_2507` | **91.2%** | **90.0%** |
+| `vllm_qwen3_5_35b_a3b` | **85.0%** | **87.5%** |
 
 ## Stale-cohort scoreboard (2026-06-17 runs, pre-chunk-3 pipeline)
 
@@ -91,28 +97,69 @@ shape-mismatch artifact, not candidate quality:
 candidate-prompt or model-quality issue. The chunks 3-5 v2 emit pipeline
 is the fix; no new prompt was needed.
 
-## Replication plan for remaining 8 candidates
+## Sweep outcomes — remaining candidates (2026-06-21)
 
-Status: **operator-attended** (requires DGX model swaps).
+Sequential autonomous sweep across the 8 remaining candidates completed.
+Three succeeded (Qwen3.5-35B + DeepSeek-V2-Lite-Chat from earlier rerun
++ implicit Qwen3-30B/Gemini pack leaders). Five failed to load or run on
+`vllm:26.05-py3`. Llama-3.3-70B dropped per operator decision.
 
-The other 8 candidate models aren't currently loaded on DGX (Qwen3-30B-A3B-Instruct-2507
-is the live autoresearch slot). Re-running each requires:
+| Candidate | Outcome | Failure mode |
+|---|---|---|
+| `Qwen3.5-35B-A3B` | ✅ ran | — |
+| `DeepSeek-V2-Lite-Chat` | ✅ ran (weak: 1.5% KG / 3.8% GI) | model genuinely weak; not a load failure |
+| `Llama-3.3-70B-NVFP4` | 🚫 dropped | operator deprecated weeks ago — excluded from cohort |
+| `Mistral-Small-3.2-24B` | ✗ killed at 5 tok/s | Pixtral multimodal arch — generation throughput unusable on a single GB10 |
+| `Gemma-4-26B-A4B` | ✗ container died at 20s | `max_tokens_per_mm_item (2496) > max_num_batched_tokens (2048)` — multimodal config rejected |
+| `Magistral-Small-2509` | ✗ container died at 10s | startup fault (no log captured before death) |
+| `Moonlight-16B-A3B` | ✗ container died at 20s | `max_model_len` mismatch: derived 8192 < requested 32768; corrected to 8192 but still hung loading MoE shards |
+| `Ministral-3-14B` | ✗ container died at sweep start | MoE init fault on `vllm:26.05-py3` |
 
-1. `ssh dgx-llm-1 "~/bin/gpu-mode-swap.sh idle"` (release Qwen3-30B)
-2. Update `/opt/vllm-autoresearch/docker-compose.yml` to point at the next model
-   (`Qwen3.5-35B`, `Gemma-4-26B`, `Llama-3.3-70B-nvfp4`, `Magistral-Small-2509`,
-   `Ministral-3-14B`, `Mistral-Small-3.2-24B`, `Moonlight-16B-a3b`, `DeepSeek-V2-Lite-Chat`)
-3. Restart the container
-4. Run: `VLLM_API_KEY=buddy-is-the-king PYTHONPATH=. .venv/bin/python -u
-   scripts/eval/experiment/run_experiment.py
-   data/eval/configs/kg_autoresearch_prompt_vllm_<model>_dev_v1.yaml
-   --force --dry-run --vllm-base-url http://dgx-llm-1.tail6d0ed4.ts.net:8003/v1`
-5. Re-score with `scripts/eval/score/score_kg_node_to_node.py` and
-   `scripts/eval/score/score_gi_insight_to_insight.py`
-6. Repeat for KG + GI configs of each model
+**Pattern**: every failing model is **multimodal (Pixtral/Gemma)** or **MoE
+on the new `vllm:26.05-py3` image**. These same models worked on the
+previous `vllm:25.11-py3` image (per 2026-06-17 cohort logs that DID produce
+output — even if at low scores against then-current silvers). The 26.05
+upgrade landed 2026-06-15 with the autoresearch slot move; the chunk 7
+sweep is the first time we exercised the new image against the full
+candidate matrix.
 
-Expected per-model wall clock: ~5 min (KG + GI). For 8 models = ~40 min plus
-docker-restart overhead per swap.
+**Next-step options to discuss**:
+1. Pin a `26.05` workaround per-model (longer wait + correct `--max-model-len`
+   + `--max-num-batched-tokens` overrides for multimodal). Some failures
+   look like vLLM config gates rather than architecture incompatibilities.
+2. Stand up a fallback `25.11-py3` slot for the multimodal/MoE cohort and
+   route their experiments there.
+3. Drop the failing models from the candidate matrix entirely.
+
+See `## Failure-mode notes` below for per-model detail.
+
+### Failure-mode notes (raw)
+
+- **Gemma-4-26B-A4B**: `vllm/v1/core/encoder_cache_manager.py:302` raises
+  `ValueError: Chunked MM input disabled but max_tokens_per_mm_item (2496)
+  is larger than max_num_batched_tokens (2048). Please increase
+  max_num_batched_tokens.` Pure config-knob issue — solvable with
+  `--max-num-batched-tokens 4096` (probably).
+- **Moonlight-16B-A3B**: first attempt failed with `User-specified
+  max_model_len (32768) > derived max_model_len (max_position_embeddings=8192)`.
+  Retried with `--max-model-len 8192`; container then hung loading MoE
+  shards on `vllm:26.05-py3`. MoE backend selection (`FLASHINFER_CUTLASS`)
+  may not handle this checkpoint cleanly.
+- **Ministral-3-14B**: container died before any model-loading log lines
+  reached stdout. MoE init suspected by analogy.
+- **Magistral-Small-2509**: container died at 10s with no captured error.
+  Same image and base flags as Ministral/Moonlight — likely same MoE class
+  of fault.
+- **Mistral-Small-3.2-24B**: vLLM came up fine and KG run started.
+  Generation ran at **~5 tok/s** vs ~50 tok/s for Qwen3-30B and ~80 tok/s
+  for Qwen3.5-35B-A3B. Multimodal Pixtral architecture overhead is the
+  suspect — Mistral-Small-3.2 is a vision-capable model and vLLM probably
+  loaded the vision tower despite our text-only workload.
+- **Llama-3.3-70B-NVFP4**: weights downloaded (~13min) + 9 shards loaded
+  successfully + vLLM reached READY at 360s; KG completed 10 episodes in
+  ~23min; GI was on episode 9/10 when operator stopped the run because
+  Llama 70B has been deprecated for weeks. NOT a vLLM failure — operator
+  decision.
 
 ## Acceptance against RFC-097 §Success Criteria
 
@@ -134,5 +181,6 @@ untouched).
 
 - `data/eval/references/silver/silver_{opus47,sonnet46}_{kg,gi}_dev_v1/` — regenerated
 - `data/eval/runs/autoresearch_prompt_vllm_qwen3_30b_a3b_instruct_2507_dev_*` — re-run
+- `data/eval/runs/autoresearch_prompt_vllm_qwen3_5_35b_a3b_dev_*` — re-run
 - `data/eval/runs/autoresearch_prompt_gemini_gemini25_flash_lite_dev_*` — re-run
-- `data/eval/runs/chunk7_silver_regen/*.log` — full run logs
+- `data/eval/runs/chunk7_silver_regen/*.log` — full run logs (incl. failure logs for Gemma/Moonlight/Ministral/Magistral/Mistral-3.2/Llama-70B)
