@@ -259,6 +259,11 @@ jobs:
             echo "- Container \`PODCAST_DEFAULT_CORPUS_PATH\` (smoke \`path=\`): \`$CONTAINER_CORPUS\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Record deploy start time (#803 D1)
+        id: deploy_t0
+        if: steps.preflight.outputs.skip != 'true'
+        run: echo "ms=$(date +%s%3N)" >> "$GITHUB_OUTPUT"
+
       - name: Deploy (git reset + compose pull + compose up + VPS-local /api/health)
         # deploy.sh on the VPS exits 0 only on healthy stack — failures here
         # surface red within the SSH session. VPS-local probe is
@@ -340,3 +345,47 @@ jobs:
             echo "- Smoke probe \`path=\`: \`$CONTAINER_CORPUS\`"
           } >> "$GITHUB_STEP_SUMMARY"
           bash scripts/ops/post_deploy_smoke.sh "$PROBE_FQDN" --corpus-path "$CONTAINER_CORPUS"
+
+      - name: Emit deploy event to Loki (#803 D1)
+        # Pushed directly to Loki: the GHA runner's logs don't reach it. Fires on success AND
+        # failure (feeds the failure-rate / MTTR panels). Non-fatal — never turns a deploy red.
+        if: always() && steps.preflight.outputs.skip != 'true'
+        env:
+          LOKI_PUSH_URL: ${{ secrets.PROD_GRAFANA_CLOUD_LOKI_URL }}
+          LOKI_USER: ${{ secrets.PROD_GRAFANA_CLOUD_LOKI_USER }}
+          LOKI_TOKEN: ${{ secrets.PROD_GRAFANA_CLOUD_API_KEY }}
+          START_MS: ${{ steps.deploy_t0.outputs.ms }}
+          JOB_STATUS: ${{ job.status }}
+          SHA_SHORT: ${{ steps.sha.outputs.short }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          if [ -z "${LOKI_PUSH_URL:-}" ] || [ -z "${LOKI_TOKEN:-}" ]; then
+            echo "::warning::Grafana Loki creds absent; skipping deploy-event emission"
+            exit 0
+          fi
+          duration_ms=$(( $(date +%s%3N) - ${START_MS:-$(date +%s%3N)} ))
+          bash scripts/ops/emit_deploy_event.sh \
+            --status "$JOB_STATUS" --sha "$SHA_SHORT" \
+            --duration-ms "$duration_ms" --triggered-by "$ACTOR" \
+            || echo "::warning::deploy-event emission failed (non-fatal)"
+
+      - name: Mark Sentry release boundary (#803 D2)
+        # Draws the release boundary on the Sentry error timeline. Only on a fully green deploy.
+        # Needs secrets.SENTRY_AUTH_TOKEN (Internal Integration, Release: Admin) + vars.SENTRY_ORG.
+        if: success() && steps.preflight.outputs.skip != 'true'
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SENTRY_PROJECTS: ${{ vars.SENTRY_PROJECTS }}
+          SHA_SHORT: ${{ steps.sha.outputs.short }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SENTRY_AUTH_TOKEN:-}" ] || [ -z "${SENTRY_ORG:-}" ] || [ -z "${SENTRY_PROJECTS:-}" ]; then
+            echo "::warning::SENTRY_AUTH_TOKEN/SENTRY_ORG/SENTRY_PROJECTS absent; skipping Sentry release boundary"
+            exit 0
+          fi
+          bash scripts/ops/mark_sentry_release.sh \
+            --org "$SENTRY_ORG" --version "sha-$SHA_SHORT" \
+            --environment prod --projects "$SENTRY_PROJECTS" \
+            || echo "::warning::Sentry release boundary failed (non-fatal)"

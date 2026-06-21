@@ -48,12 +48,14 @@ def recent_errors(target: TargetConfig, window: str = "24h", limit: int = 10) ->
         ]
         total += len(items)
         projects.append({"project": project, "ok": True, "issues": items})
-    return ok(
-        _SOURCE,
-        {
-            "window": window,
-            "environment": target.sentry_environment,
-            "total_issues": total,
-            "projects": projects,
-        },
-    )
+    data = {
+        "window": window,
+        "environment": target.sentry_environment,
+        "total_issues": total,
+        "projects": projects,
+    }
+    # Don't report "live" when every configured project failed (e.g. wrong slugs / missing
+    # scope) — that's a misconfiguration, not a healthy zero.
+    if projects and not any(p["ok"] for p in projects):
+        return err(_SOURCE, "all configured Sentry projects failed (check slugs / token scopes)")
+    return ok(_SOURCE, data)

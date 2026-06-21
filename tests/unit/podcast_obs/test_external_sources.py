@@ -185,3 +185,15 @@ def test_errors_parsing(monkeypatch: pytest.MonkeyPatch) -> None:
     data = sentry.recent_errors(target)["data"]
     assert data["total_issues"] == 1
     assert data["projects"][0]["issues"][0]["title"] == "KeyError: x"
+
+
+def test_errors_all_projects_failing_is_not_ok(monkeypatch: pytest.MonkeyPatch) -> None:
+    def boom(url, **_):
+        raise RuntimeError("404 not found")
+
+    monkeypatch.setattr(sentry, "get_json", boom)
+    target = _t(sentry_token="x", sentry_org="acme", sentry_projects=("nope", "alsonope"))
+    result = sentry.recent_errors(target)
+    assert result["ok"] is False  # not a healthy zero — all projects failed
+    assert result["configured"] is True
+    assert "all configured" in result["error"]
