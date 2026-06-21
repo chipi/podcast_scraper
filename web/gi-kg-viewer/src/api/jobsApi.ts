@@ -21,6 +21,12 @@ export interface PipelineJobsList {
   jobs: PipelineJobRow[]
 }
 
+/** True while a job is still producing output (so log tails are worth polling). */
+export function isLivePipelineJobStatus(status: string | null | undefined): boolean {
+  const s = String(status ?? '').toLowerCase()
+  return s === 'running' || s === 'queued'
+}
+
 /** Open raw job log in a new tab (same origin as the viewer). */
 export function pipelineJobLogUrl(corpusPath: string, jobId: string): string {
   const q = new URLSearchParams({ path: corpusPath.trim(), job_id: jobId.trim() })

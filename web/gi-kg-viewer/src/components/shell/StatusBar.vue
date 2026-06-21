@@ -1,8 +1,26 @@
 <script setup lang="ts">
-import { computed, ref, useTemplateRef } from 'vue'
+import { computed, ref, useTemplateRef, watch } from 'vue'
 import { getFeeds, putFeeds, type FeedApiEntry } from '../../api/feedsApi'
-import { getOperatorConfig, putOperatorConfig } from '../../api/operatorConfigApi'
+import { fetchCorpusFeeds } from '../../api/corpusLibraryApi'
+import { fetchCorpusCoverage, type CoverageByMonthItem } from '../../api/corpusCoverageApi'
+import {
+  fetchIndexTimeseries,
+  type IndexTimeseriesResponse,
+} from '../../api/indexStatsApi'
+import {
+  getOperatorConfig,
+  getOperatorProfiles,
+  putOperatorConfig,
+  type PackagedProfile,
+} from '../../api/operatorConfigApi'
 import { mergeOperatorYamlProfile, splitOperatorYamlProfile } from '../../utils/operatorYamlProfile'
+import { toggleScheduledJobEnabled } from '../../utils/scheduledJobsYaml'
+import AppDialog from '../shared/AppDialog.vue'
+import CronSchedulePreview from './CronSchedulePreview.vue'
+import IndexTimeseriesChart from './IndexTimeseriesChart.vue'
+import type { TimeseriesSeries } from './timeseriesChart'
+import FeedOverrideEditor from './FeedOverrideEditor.vue'
+import ScheduledJobsSection from './ScheduledJobsSection.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useIndexStatsStore } from '../../stores/indexStats'
 import { useShellStore } from '../../stores/shell'
@@ -12,11 +30,10 @@ const artifacts = useArtifactsStore()
 const indexStats = useIndexStatsStore()
 
 const localFileInputRef = useTemplateRef<HTMLInputElement>('localFileInputRef')
-const indexDialogRef = useTemplateRef<HTMLDialogElement>('indexDialogRef')
-const artifactListDialogRef = useTemplateRef<HTMLDialogElement>('artifactListDialogRef')
-const sourcesDialogRef = useTemplateRef<HTMLDialogElement>('sourcesDialogRef')
+const artifactListDialogOpen = ref(false)
+const sourcesDialogOpen = ref(false)
 
-type SourcesDialogTab = 'feeds' | 'profile' | 'operator' | 'health'
+type SourcesDialogTab = 'feeds' | 'operator' | 'scheduled' | 'index' | 'health'
 
 const sourcesTab = ref<SourcesDialogTab>('feeds')
 /** In-memory feed list (mirrors ``GET/PUT /api/feeds``); last write wins. */
@@ -25,17 +42,122 @@ const feedsSpecRelPath = ref('feeds.spec.yaml')
 const feedsNewUrl = ref('')
 const feedsEditingIndex = ref<number | null>(null)
 const feedsEditingDraft = ref('')
+/** When set, the Feeds Manage panel shows the per-feed override editor (#694). */
+const feedsDetailIndex = ref<number | null>(null)
 const feedsEditorText = ref('')
 type FeedsPanelTab = 'list' | 'json'
 const feedsPanelTab = ref<FeedsPanelTab>('list')
 const operatorYamlBody = ref('')
 const operatorProfileSelected = ref('')
 const availableProfiles = ref<string[]>([])
+/** Packaged profile bodies (name → content) for the Profile sub-tab "what it brings". */
+const profileContents = ref<PackagedProfile[]>([])
+/** Sub-tab inside the Job Configuration page: profile picker vs YAML overrides. */
+const operatorPanelTab = ref<'profile' | 'config'>('profile')
 const operatorFileHint = ref('')
 /** Corpus path (trimmed) we last GET for operator YAML; skip re-fetch when switching Job Profile ↔ Job Configuration. */
 const operatorSourcesLoadedForPath = ref('')
 const sourcesBusy = ref(false)
 const sourcesError = ref<string | null>(null)
+
+/** feed_id (sha) → display title, for naming feeds in the Index section. */
+const indexFeedNameMap = ref<Record<string, string>>({})
+/** Corpus coverage by month — supplies the chart's "Episodes" series. */
+const indexCoverageByMonth = ref<CoverageByMonthItem[]>([])
+/** Indexed docs by publish month × doc_type — the chart's per-type series. */
+const indexTimeseries = ref<IndexTimeseriesResponse | null>(null)
+
+/** Title-cased doc_type for series legends ("with_gi" → "With gi", "insight" → "Insight"). */
+function prettyDocType(dt: string): string {
+  const s = dt.replace(/_/g, ' ').trim()
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : dt
+}
+
+/** Shared month axis = union of coverage + index-timeseries months, sorted. */
+const indexChartLabels = computed<string[]>(() => {
+  const set = new Set<string>()
+  for (const m of indexCoverageByMonth.value) set.add(m.month)
+  for (const m of indexTimeseries.value?.by_month ?? []) set.add(m.month)
+  return [...set].sort()
+})
+
+/** Episodes (coverage) + one line per indexed doc_type, aligned to the axis. */
+const indexChartSeries = computed<TimeseriesSeries[]>(() => {
+  const labels = indexChartLabels.value
+  if (!labels.length) return []
+  const covByMonth = new Map(indexCoverageByMonth.value.map((m) => [m.month, m.total]))
+  const series: TimeseriesSeries[] = [
+    {
+      key: 'episodes',
+      label: 'Episodes',
+      data: labels.map((m) => covByMonth.get(m) ?? 0),
+      defaultEnabled: true,
+    },
+  ]
+  const ts = indexTimeseries.value
+  if (ts) {
+    const byMonth = new Map(ts.by_month.map((m) => [m.month, m.doc_types]))
+    for (const dt of ts.doc_types) {
+      series.push({
+        key: `doc:${dt}`,
+        label: prettyDocType(dt),
+        data: labels.map((m) => byMonth.get(m)?.[dt] ?? 0),
+        defaultEnabled: true,
+      })
+    }
+  }
+  return series
+})
+
+/** Index facts minus the raw-hash "Feeds indexed" row (shown by name below). */
+const indexFactRows = computed(() =>
+  indexStats.indexRows.filter((r) => r.k !== 'Feeds indexed'),
+)
+
+/** Indexed feeds shown by display title (falls back to a short id when unknown). */
+const indexedFeedNames = computed(() => {
+  const ids = indexStats.indexEnvelope?.stats?.feeds_indexed ?? []
+  return ids.map((id) => {
+    const name = indexFeedNameMap.value[id]
+    if (name) return name
+    return id.startsWith('sha256:') ? `${id.slice(0, 14)}…` : id
+  })
+})
+
+/** Per-doc-type counts for the Index "Documents by type" bars (with bar %). */
+const indexDocTypeBars = computed(() => {
+  const counts = indexStats.indexEnvelope?.stats?.doc_type_counts
+  if (!counts) return [] as { k: string; n: number; pct: number }[]
+  const entries = Object.entries(counts)
+    .filter(([, n]) => typeof n === 'number')
+    .map(([k, n]) => ({ k, n: Number(n) }))
+    .sort((a, b) => b.n - a.n)
+  const max = entries.reduce((m, e) => Math.max(m, e.n), 0) || 1
+  return entries.map((e) => ({ ...e, pct: Math.max(2, Math.round((e.n / max) * 100)) }))
+})
+
+
+/** Raw YAML of the currently-selected profile (empty when None or not loaded). */
+const selectedProfileContent = computed(() => {
+  const name = operatorProfileSelected.value.trim()
+  if (!name) return ''
+  return profileContents.value.find((p) => p.name === name)?.content ?? ''
+})
+
+/** Top-level `key: value` settings from the selected profile — the at-a-glance
+ *  "what this profile brings" (skips comments / nested / the profile: line). */
+const selectedProfileSettings = computed(() => {
+  const out: { key: string; value: string }[] = []
+  for (const raw of selectedProfileContent.value.split('\n')) {
+    const line = raw.trimEnd()
+    if (!line || line.startsWith('#') || line.startsWith(' ') || line.startsWith('-')) continue
+    const m = /^([A-Za-z0-9_]+) *: *(.*)$/.exec(line)
+    if (!m || m[1] === 'profile') continue
+    const value = (m[2] ?? '').replace(/\s+#.*$/, '').trim()
+    if (value) out.push({ key: m[1]!, value })
+  }
+  return out
+})
 
 /** Advertised in GET /api/health but often off in minimal server builds. */
 const optionalHealthCapsLimited = computed(
@@ -174,12 +296,24 @@ function healthApiProbeUrl(
 
 function openSourcesDialogHealth(): void {
   sourcesTab.value = 'health'
-  sourcesDialogRef.value?.showModal()
+  sourcesDialogOpen.value = true
 }
 
-function openIndexDialog(): void {
-  indexDialogRef.value?.showModal()
+// Dashboard surfaces (Index status card, Briefing recommendations) and the
+// status-bar bolt all open the Configuration dialog at its **Index** section —
+// the single home for index info + rebuild controls.
+function openIndexSection(): void {
+  void openSourcesDialog('index')
 }
+
+watch(
+  () => indexStats.dialogOpenNonce,
+  (n, prev) => {
+    if (n !== prev) {
+      openIndexSection()
+    }
+  },
+)
 
 function triggerLocalFilePick(): void {
   localFileInputRef.value?.click()
@@ -192,14 +326,14 @@ const emit = defineEmits<{
 
 async function onListArtifactsClick(): Promise<void> {
   await shell.fetchArtifactList()
-  artifactListDialogRef.value?.showModal()
+  artifactListDialogOpen.value = true
 }
 
 async function onLoadIntoGraphFromDialog(): Promise<void> {
   await artifacts.loadSelected()
   if (artifacts.displayArtifact) {
     emit('go-graph')
-    artifactListDialogRef.value?.close()
+    artifactListDialogOpen.value = false
   }
 }
 
@@ -212,7 +346,44 @@ async function onLocalFilesChange(ev: Event): Promise<void> {
 
 /** Load only the active tab so a broken operator file does not block the Feeds editor. */
 async function loadSourcesTab(tab: SourcesDialogTab): Promise<void> {
-  if (tab === 'health') {
+  if (tab === 'health' || tab === 'scheduled') {
+    // Health is static; the Scheduled section fetches its own data on activation.
+    return
+  }
+  if (tab === 'index') {
+    // Refresh index stats so the Index section shows current vectors / status.
+    void indexStats.refreshIndexStats()
+    // Map feed_id (sha) → display title so "Feeds indexed" reads as names.
+    const ip = shell.corpusPath.trim()
+    if (ip) {
+      void fetchCorpusFeeds(ip)
+        .then((r) => {
+          const m: Record<string, string> = {}
+          for (const f of r.feeds) {
+            if (f.display_title) m[f.feed_id] = f.display_title
+          }
+          indexFeedNameMap.value = m
+        })
+        .catch(() => {
+          /* names are best-effort; fall back to short ids */
+        })
+      // Coverage by month → the chart's "Episodes" series.
+      void fetchCorpusCoverage(ip)
+        .then((r) => {
+          indexCoverageByMonth.value = r.by_month
+        })
+        .catch(() => {
+          /* chart is best-effort */
+        })
+      // Indexed docs by publish month × doc_type → the chart's per-type series.
+      void fetchIndexTimeseries(ip)
+        .then((r) => {
+          indexTimeseries.value = r
+        })
+        .catch(() => {
+          indexTimeseries.value = null
+        })
+    }
     return
   }
   const p = shell.corpusPath.trim()
@@ -226,11 +397,18 @@ async function loadSourcesTab(tab: SourcesDialogTab): Promise<void> {
       syncFeedsEditorFromCrud()
       feedsNewUrl.value = ''
       cancelFeedEdit()
+      feedsDetailIndex.value = null
       feedsPanelTab.value = 'list'
-    } else if (
-      (tab === 'profile' || tab === 'operator') &&
-      shell.operatorConfigApiAvailable
-    ) {
+    } else if (tab === 'operator' && shell.operatorConfigApiAvailable) {
+      // The Profile sub-tab needs packaged profile bodies ("what it brings");
+      // fetch once and cache.
+      if (profileContents.value.length === 0) {
+        try {
+          profileContents.value = (await getOperatorProfiles()).profiles
+        } catch {
+          /* picker still works without bodies; viewer shows a hint */
+        }
+      }
       if (operatorSourcesLoadedForPath.value === p) {
         return
       }
@@ -261,7 +439,7 @@ async function openSourcesDialog(tab: SourcesDialogTab): Promise<void> {
   if (tab !== 'health') {
     await loadSourcesTab(tab)
   }
-  sourcesDialogRef.value?.showModal()
+  sourcesDialogOpen.value = true
 }
 
 /** Open configuration dialog: Feeds tab if feeds API is on, else job configuration (YAML) tab. */
@@ -271,9 +449,11 @@ async function openSourcesDialogDefault(): Promise<void> {
   await openSourcesDialog(tab)
 }
 
-function closeSourcesDialog(): void {
-  operatorSourcesLoadedForPath.value = ''
-  sourcesDialogRef.value?.close()
+function onSourcesDialogOpenChange(next: boolean): void {
+  sourcesDialogOpen.value = next
+  if (!next) {
+    operatorSourcesLoadedForPath.value = ''
+  }
 }
 
 async function selectSourcesTab(tab: SourcesDialogTab): Promise<void> {
@@ -501,6 +681,72 @@ async function addFeedFromInput(): Promise<void> {
   feedsNewUrl.value = ''
   await persistFeedsFromCrud()
 }
+
+function openFeedDetail(index: number): void {
+  if (index < 0 || index >= feedsCrudList.value.length) {
+    return
+  }
+  cancelFeedEdit()
+  feedsDetailIndex.value = index
+}
+
+async function onFeedDetailSave(entry: FeedApiEntry): Promise<void> {
+  const idx = feedsDetailIndex.value
+  if (idx == null || idx < 0 || idx >= feedsCrudList.value.length) {
+    return
+  }
+  const next = feedsCrudList.value.slice()
+  next[idx] = entry
+  feedsCrudList.value = next
+  await persistFeedsFromCrud()
+  // persist clears editing state; close the drill-in only when the save stuck.
+  if (!sourcesError.value) {
+    feedsDetailIndex.value = null
+  }
+}
+
+/** Best-effort global ``max_episodes`` (explicit in the operator YAML body) for
+ *  the per-feed override hint chip. Preset-derived defaults aren't parsed here. */
+const globalMaxEpisodes = computed<number | null>(() => {
+  const m = /^\s*max_episodes:\s*(\d+)\s*$/m.exec(operatorYamlBody.value || '')
+  return m ? Number(m[1]) : null
+})
+
+/** Bumped after a successful scheduled-job toggle so the section re-fetches. */
+const scheduledReloadNonce = ref(0)
+
+/**
+ * Enable/disable a scheduled job by rewriting only its ``enabled:`` line in the
+ * operator YAML (comments preserved) and PUTting it back — the PUT triggers a
+ * server-side ``scheduler.reload()`` so ``next_run_at`` refreshes (#709).
+ */
+async function onScheduledToggle(name: string, enabled: boolean): Promise<void> {
+  const p = shell.corpusPath.trim()
+  sourcesBusy.value = true
+  sourcesError.value = null
+  try {
+    const cur = await getOperatorConfig(p)
+    const next = toggleScheduledJobEnabled(cur.content, name, enabled)
+    if (next == null) {
+      sourcesError.value =
+        `Couldn't update "${name}" automatically — edit scheduled_jobs in Job Configuration.`
+      return
+    }
+    await putOperatorConfig(p, next)
+    // Mirror the just-persisted content into the Job Profile / Configuration tabs
+    // so they stay consistent (rather than forcing a re-fetch that could surprise
+    // an operator mid-edit). The toggle only changed one `enabled:` line.
+    const sp = splitOperatorYamlProfile(next)
+    operatorProfileSelected.value = sp.profile.trim() || operatorProfileSelected.value
+    operatorYamlBody.value = sp.body
+    operatorSourcesLoadedForPath.value = p
+    scheduledReloadNonce.value += 1
+  } catch (e) {
+    sourcesError.value = e instanceof Error ? e.message : String(e)
+  } finally {
+    sourcesBusy.value = false
+  }
+}
 </script>
 
 <template>
@@ -562,7 +808,7 @@ async function addFeedFromInput(): Promise<void> {
         class="shrink-0 rounded border border-warning/50 px-1.5 py-0.5 text-[10px] text-warning hover:bg-warning/10"
         data-testid="status-bar-rebuild-indicator"
         title="Index refresh recommended"
-        @click="openIndexDialog"
+        @click="openIndexSection"
       >
         Index
       </button>
@@ -605,42 +851,36 @@ async function addFeedFromInput(): Promise<void> {
   </footer>
   </div>
 
-  <dialog
-    ref="sourcesDialogRef"
-    class="box-border h-[min(28rem,82vh)] w-[min(32rem,96vw)] max-h-[82vh] overflow-hidden rounded-lg border border-border bg-surface p-0 text-xs text-surface-foreground shadow-lg backdrop:bg-black/40"
-    aria-labelledby="status-bar-settings-dialog-title"
-    data-testid="status-bar-sources-dialog"
+  <AppDialog
+    :open="sourcesDialogOpen"
+    title="Configuration"
+    testid="status-bar-sources-dialog"
+    close-testid="sources-dialog-close"
+    width-class="w-[min(60rem,96vw)]"
+    max-height-class="h-[min(40rem,88vh)]"
+    body-class="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-3 pt-3"
+    @update:open="onSourcesDialogOpenChange"
   >
-    <!-- Inner flex wrapper: avoid ``display:flex`` on ``<dialog>`` — it overrides UA ``display:none`` when closed. -->
-    <div class="flex h-full min-h-0 flex-col gap-2 p-3">
-    <div class="shrink-0 space-y-2 border-b border-border pb-2">
-      <div class="flex items-start justify-between gap-2">
-        <div class="min-w-0">
-          <h2 id="status-bar-settings-dialog-title" class="text-sm font-semibold">
-            Corpus & API
-          </h2>
-          <p
-            class="mt-0.5 max-w-full truncate font-mono text-[10px] text-muted"
-            :title="viewerBuildHint"
-            data-testid="sources-dialog-build-label"
-          >
-            {{ viewerBuildHint }}
-          </p>
-        </div>
-        <button
-          type="button"
-          class="shrink-0 rounded border border-border px-2 py-0.5 text-[10px] hover:bg-overlay"
-          data-testid="sources-dialog-close"
-          @click="closeSourcesDialog"
-        >
-          Close
-        </button>
-      </div>
-      <div class="flex w-full min-w-0 gap-1">
+    <template #header>
+      <p
+        class="mt-0.5 max-w-full truncate font-mono text-[10px] text-muted"
+        :title="viewerBuildHint"
+        data-testid="sources-dialog-build-label"
+      >
+        {{ viewerBuildHint }}
+      </p>
+    </template>
+    <!-- Left sub-nav rail + content column (widened modal). Rail replaces the old
+         top tab-strip so per-feed editors / future sections get vertical room. -->
+    <div class="flex min-h-0 flex-1 gap-3 overflow-hidden">
+      <nav
+        class="flex w-44 shrink-0 flex-col gap-0.5 overflow-y-auto pr-1"
+        aria-label="Configuration sections"
+      >
         <button
           v-if="shell.feedsApiAvailable"
           type="button"
-          class="min-w-0 flex-1 basis-0 truncate rounded px-2 py-0.5 text-center text-[10px] hover:bg-overlay"
+          class="w-full truncate rounded px-2 py-1 text-left text-[11px] hover:bg-overlay"
           :class="sourcesTab === 'feeds' ? 'bg-overlay font-medium' : 'text-muted'"
           data-testid="sources-dialog-tab-feeds"
           @click="void selectSourcesTab('feeds')"
@@ -650,17 +890,7 @@ async function addFeedFromInput(): Promise<void> {
         <button
           v-if="shell.operatorConfigApiAvailable"
           type="button"
-          class="min-w-0 flex-1 basis-0 truncate rounded px-2 py-0.5 text-center text-[10px] hover:bg-overlay"
-          :class="sourcesTab === 'profile' ? 'bg-overlay font-medium' : 'text-muted'"
-          data-testid="sources-dialog-tab-profile"
-          @click="void selectSourcesTab('profile')"
-        >
-          Job Profile
-        </button>
-        <button
-          v-if="shell.operatorConfigApiAvailable"
-          type="button"
-          class="min-w-0 flex-1 basis-0 truncate rounded px-2 py-0.5 text-center text-[10px] hover:bg-overlay"
+          class="w-full truncate rounded px-2 py-1 text-left text-[11px] hover:bg-overlay"
           :class="sourcesTab === 'operator' ? 'bg-overlay font-medium' : 'text-muted'"
           data-testid="sources-dialog-tab-operator"
           @click="void selectSourcesTab('operator')"
@@ -668,16 +898,36 @@ async function addFeedFromInput(): Promise<void> {
           Job Configuration
         </button>
         <button
+          v-if="shell.operatorConfigApiAvailable"
           type="button"
-          class="min-w-0 flex-1 basis-0 truncate rounded px-2 py-0.5 text-center text-[10px] hover:bg-overlay"
+          class="w-full truncate rounded px-2 py-1 text-left text-[11px] hover:bg-overlay"
+          :class="sourcesTab === 'scheduled' ? 'bg-overlay font-medium' : 'text-muted'"
+          data-testid="sources-dialog-tab-scheduled"
+          @click="void selectSourcesTab('scheduled')"
+        >
+          Scheduled
+        </button>
+        <button
+          type="button"
+          class="w-full truncate rounded px-2 py-1 text-left text-[11px] hover:bg-overlay"
+          :class="sourcesTab === 'index' ? 'bg-overlay font-medium' : 'text-muted'"
+          data-testid="sources-dialog-tab-index"
+          @click="void selectSourcesTab('index')"
+        >
+          Index
+        </button>
+        <button
+          type="button"
+          class="w-full truncate rounded px-2 py-1 text-left text-[11px] hover:bg-overlay"
           :class="sourcesTab === 'health' ? 'bg-overlay font-medium' : 'text-muted'"
           data-testid="sources-dialog-tab-health"
           @click="void selectSourcesTab('health')"
         >
           Health
         </button>
-      </div>
-    </div>
+      </nav>
+      <!-- Content column: loading / error banners pinned above the active section. -->
+      <div class="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden border-l border-border pl-3">
     <p v-if="sourcesBusy" class="shrink-0 text-[10px] text-muted">
       Loading…
     </p>
@@ -695,17 +945,7 @@ async function addFeedFromInput(): Promise<void> {
           v-if="shell.operatorConfigApiAvailable"
           class="shrink-0 text-[10px] text-muted leading-snug"
         >
-          Pipeline preset + YAML (<code class="rounded bg-overlay px-0.5 font-mono text-[9px]">GET /api/operator-config</code>):
-          <button
-            type="button"
-            class="font-medium text-surface-foreground underline decoration-dotted underline-offset-2 hover:decoration-solid"
-            data-testid="sources-dialog-jump-to-profile"
-            @click="void selectSourcesTab('profile')"
-          >
-            Job Profile
-          </button>
-          (packaged <code class="font-mono text-[9px]">profile:</code>)
-          or
+          Pipeline preset + YAML (<code class="rounded bg-overlay px-0.5 font-mono text-[9px]">GET /api/operator-config</code>) live in
           <button
             type="button"
             class="font-medium text-surface-foreground underline decoration-dotted underline-offset-2 hover:decoration-solid"
@@ -714,7 +954,7 @@ async function addFeedFromInput(): Promise<void> {
           >
             Job Configuration
           </button>
-          (YAML without top-level <code class="font-mono text-[9px]">profile:</code>).
+          (packaged <code class="font-mono text-[9px]">profile:</code> preset + YAML overrides).
         </p>
         <div class="flex w-full min-w-0 shrink-0 gap-1 border-b border-border pb-1.5">
           <button
@@ -741,6 +981,15 @@ async function addFeedFromInput(): Promise<void> {
             v-if="feedsPanelTab === 'list'"
             class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain"
           >
+            <FeedOverrideEditor
+              v-if="feedsDetailIndex != null && feedsCrudList[feedsDetailIndex] != null"
+              :entry="feedsCrudList[feedsDetailIndex]!"
+              :global-max-episodes="globalMaxEpisodes"
+              :busy="sourcesBusy"
+              @save="onFeedDetailSave"
+              @back="feedsDetailIndex = null"
+            />
+            <template v-else>
             <p class="shrink-0 text-[10px] text-muted leading-snug">
               Structured <code class="rounded bg-overlay px-0.5 font-mono text-[9px]">{{ feedsSpecRelPath }}</code> under the corpus root. Each row is one feed (URL string or object with <code class="font-mono text-[9px]">url</code>); edits save immediately. Do not duplicate feeds in operator config.
             </p>
@@ -812,7 +1061,7 @@ async function addFeedFromInput(): Promise<void> {
                       v-if="feedEntryHasExtraKeys(entry)"
                       class="mt-0.5 text-[9px] text-muted"
                     >
-                      Has extra fields (edit URL only; save keeps other options)
+                      Overrides set — use Configure to edit
                     </div>
                   </template>
                 </div>
@@ -848,6 +1097,15 @@ async function addFeedFromInput(): Promise<void> {
                     </button>
                     <button
                       type="button"
+                      class="rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-overlay disabled:opacity-40"
+                      :disabled="sourcesBusy"
+                      :data-testid="`sources-dialog-feeds-row-configure-${idx}`"
+                      @click="openFeedDetail(idx)"
+                    >
+                      Configure
+                    </button>
+                    <button
+                      type="button"
                       class="rounded border border-border px-1.5 py-0.5 text-[10px] text-danger hover:bg-danger/10 disabled:opacity-40"
                       :disabled="sourcesBusy"
                       :data-testid="`sources-dialog-feeds-row-delete-${idx}`"
@@ -859,6 +1117,7 @@ async function addFeedFromInput(): Promise<void> {
                 </div>
               </li>
             </ul>
+            </template>
           </div>
           <div
             v-else
@@ -901,78 +1160,133 @@ async function addFeedFromInput(): Promise<void> {
       </div>
     </div>
     <div
-      v-show="sourcesTab === 'profile' && shell.operatorConfigApiAvailable"
-      class="flex min-h-0 flex-1 flex-col gap-2"
-    >
-      <div class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain">
-        <p v-if="operatorFileHint" class="shrink-0 break-all text-[9px] text-muted leading-snug">
-          {{ operatorFileHint }}
-        </p>
-        <p class="shrink-0 text-[10px] text-muted leading-snug">
-          Packaged preset <code class="rounded bg-overlay px-0.5 font-mono text-[9px]">profile:</code> merges first; keys in <strong class="text-surface-foreground">Job Configuration</strong> win — same idea as CLI <code class="font-mono text-[9px]">--profile</code> plus <code class="font-mono text-[9px]">--config</code>. This menu is the source of truth for top-level <code class="font-mono text-[9px]">profile:</code>: <strong>None</strong> removes it even if a stale line exists on disk. If the menu is empty, no packaged presets were found (check <code class="font-mono text-[9px]">config/profiles</code>). Do not put API keys in YAML — use environment variables. RSS / feeds belong in <strong class="text-surface-foreground">Feeds</strong>; the server rejects feed keys and secrets on save.
-        </p>
-        <div class="flex shrink-0 flex-wrap items-center gap-2">
-          <label
-            for="sources-dialog-profile-select"
-            class="text-[10px] text-muted shrink-0"
-          >Preset</label>
-          <select
-            id="sources-dialog-profile-select"
-            v-model="operatorProfileSelected"
-            data-testid="sources-dialog-profile-select"
-            class="max-w-[min(100%,16rem)] rounded border border-border bg-elevated px-2 py-1 text-[11px] text-elevated-foreground"
-            aria-label="Pipeline profile preset"
-          >
-            <option value="">
-              None
-            </option>
-            <option
-              v-if="operatorProfileSelected && !availableProfiles.includes(operatorProfileSelected)"
-              :value="operatorProfileSelected"
-            >
-              {{ operatorProfileSelected }} (custom)
-            </option>
-            <option
-              v-for="n in availableProfiles"
-              :key="n"
-              :value="n"
-            >
-              {{ n }}
-            </option>
-          </select>
-        </div>
-      </div>
-      <div class="shrink-0 border-t border-border pt-2">
-        <button
-          type="button"
-          class="rounded border border-border px-2 py-1 text-[10px] hover:bg-overlay disabled:opacity-40"
-          :disabled="sourcesBusy"
-          data-testid="sources-dialog-save-profile"
-          @click="void saveOperatorFromDialog()"
-        >
-          Save (applies preset + overrides on disk)
-        </button>
-      </div>
-    </div>
-    <div
       v-show="sourcesTab === 'operator' && shell.operatorConfigApiAvailable"
       class="flex min-h-0 flex-1 flex-col gap-2"
     >
-      <div class="shrink-0 space-y-2">
-        <p v-if="operatorFileHint" class="break-all text-[9px] text-muted leading-snug">
-          {{ operatorFileHint }}
-        </p>
-        <p class="text-[10px] text-muted leading-snug">
-          YAML overrides only (no top-level <code class="font-mono text-[9px]">profile:</code> — use the <strong class="text-surface-foreground">Job Profile</strong> tab for the preset line). Same file as the API response; saving merges with the current preset from the Job Profile tab.
-        </p>
+      <!-- One page, two sub-tabs: Profile (pick + what it brings) | Configuration (YAML). -->
+      <div class="flex w-full min-w-0 shrink-0 gap-1 border-b border-border pb-1.5">
+        <button
+          type="button"
+          class="min-w-0 flex-1 basis-0 truncate rounded px-2 py-0.5 text-center text-[10px] hover:bg-overlay"
+          :class="operatorPanelTab === 'profile' ? 'bg-overlay font-medium' : 'text-muted'"
+          data-testid="sources-dialog-operator-subtab-profile"
+          @click="operatorPanelTab = 'profile'"
+        >
+          Profile
+        </button>
+        <button
+          type="button"
+          class="min-w-0 flex-1 basis-0 truncate rounded px-2 py-0.5 text-center text-[10px] hover:bg-overlay"
+          :class="operatorPanelTab === 'config' ? 'bg-overlay font-medium' : 'text-muted'"
+          data-testid="sources-dialog-operator-subtab-config"
+          @click="operatorPanelTab = 'config'"
+        >
+          Configuration
+        </button>
       </div>
-      <textarea
-        v-model="operatorYamlBody"
-        data-testid="sources-dialog-operator-textarea"
-        class="min-h-0 w-full flex-1 resize-none rounded border border-border bg-elevated p-2 font-mono text-[11px] text-elevated-foreground"
-        spellcheck="false"
-        aria-label="Job configuration (YAML)"
-      />
+
+      <!-- Profile sub-panel: picker + "what this profile brings" -->
+      <div
+        v-show="operatorPanelTab === 'profile'"
+        class="flex min-h-0 flex-1 flex-col gap-2"
+      >
+        <div class="shrink-0 space-y-2">
+          <div class="flex flex-wrap items-center gap-2">
+            <label
+              for="sources-dialog-profile-select"
+              class="text-[10px] text-muted shrink-0"
+            >Profile</label>
+            <select
+              id="sources-dialog-profile-select"
+              v-model="operatorProfileSelected"
+              data-testid="sources-dialog-profile-select"
+              class="max-w-[min(100%,16rem)] rounded border border-border bg-elevated px-2 py-1 text-[11px] text-elevated-foreground"
+              aria-label="Pipeline profile"
+            >
+              <option value="">
+                None
+              </option>
+              <option
+                v-if="operatorProfileSelected && !availableProfiles.includes(operatorProfileSelected)"
+                :value="operatorProfileSelected"
+              >
+                {{ operatorProfileSelected }} (custom)
+              </option>
+              <option
+                v-for="n in availableProfiles"
+                :key="n"
+                :value="n"
+              >
+                {{ n }}
+              </option>
+            </select>
+          </div>
+          <p class="text-[10px] text-muted leading-snug">
+            A <strong class="text-surface-foreground">profile</strong> is a packaged preset of pipeline settings (providers, models, …). It merges first; explicit keys in <strong class="text-surface-foreground">Configuration</strong> override it. <strong>None</strong> = no preset.
+          </p>
+        </div>
+        <div
+          class="min-h-0 flex-1 overflow-y-auto rounded border border-border bg-elevated/40 p-2"
+          data-testid="sources-dialog-profile-content"
+        >
+          <p v-if="!operatorProfileSelected" class="text-[10px] text-muted">
+            Select a profile to see what it configures.
+          </p>
+          <template v-else>
+            <p class="mb-1 text-[10px] font-medium text-surface-foreground">
+              What “{{ operatorProfileSelected }}” brings
+            </p>
+            <ul
+              v-if="selectedProfileSettings.length"
+              class="mb-2 space-y-0.5"
+              data-testid="sources-dialog-profile-settings"
+            >
+              <li
+                v-for="s in selectedProfileSettings"
+                :key="s.key"
+                class="flex gap-1 text-[10px]"
+              >
+                <span class="shrink-0 font-mono text-muted">{{ s.key }}:</span>
+                <span class="break-all font-mono text-surface-foreground">{{ s.value }}</span>
+              </li>
+            </ul>
+            <p v-else class="mb-2 text-[10px] text-muted">
+              No structured settings found (or profile bodies unavailable).
+            </p>
+            <details v-if="selectedProfileContent">
+              <summary class="cursor-pointer text-[10px] font-medium text-muted hover:text-surface-foreground">
+                Full profile YAML
+              </summary>
+              <pre class="mt-1 max-h-60 overflow-auto whitespace-pre-wrap break-words rounded border border-border bg-canvas/70 p-2 font-mono text-[10px] text-surface-foreground">{{ selectedProfileContent }}</pre>
+            </details>
+          </template>
+        </div>
+      </div>
+
+      <!-- Configuration sub-panel: YAML overrides + cron preview -->
+      <div
+        v-show="operatorPanelTab === 'config'"
+        class="flex min-h-0 flex-1 flex-col gap-2"
+      >
+        <div class="shrink-0 space-y-2">
+          <p v-if="operatorFileHint" class="break-all text-[9px] text-muted leading-snug">
+            {{ operatorFileHint }}
+          </p>
+          <p class="text-[10px] text-muted leading-snug">
+            YAML overrides (no top-level <code class="font-mono text-[9px]">profile:</code> — set that in the <strong class="text-surface-foreground">Profile</strong> sub-tab). Keys here override the profile; secrets via environment only; RSS / feeds belong in <strong class="text-surface-foreground">Feeds</strong>.
+          </p>
+        </div>
+        <textarea
+          v-model="operatorYamlBody"
+          data-testid="sources-dialog-operator-textarea"
+          class="min-h-0 w-full flex-1 resize-none rounded border border-border bg-elevated p-2 font-mono text-[11px] text-elevated-foreground"
+          spellcheck="false"
+          aria-label="Job configuration (YAML)"
+        />
+        <CronSchedulePreview :yaml="operatorYamlBody" />
+      </div>
+
+      <!-- Shared Save: persists the profile preset + YAML overrides together. -->
       <div class="shrink-0 border-t border-border pt-2">
         <button
           type="button"
@@ -981,7 +1295,159 @@ async function addFeedFromInput(): Promise<void> {
           data-testid="sources-dialog-save-overrides"
           @click="void saveOperatorFromDialog()"
         >
-          Save YAML
+          Save
+        </button>
+      </div>
+    </div>
+    <div
+      v-show="sourcesTab === 'scheduled' && shell.operatorConfigApiAvailable"
+      class="flex min-h-0 flex-1 flex-col gap-2"
+    >
+      <ScheduledJobsSection
+        :corpus-path="shell.corpusPath"
+        :active="sourcesTab === 'scheduled'"
+        :reload-nonce="scheduledReloadNonce"
+        :busy="sourcesBusy"
+        @toggle="onScheduledToggle"
+      />
+    </div>
+    <div
+      v-show="sourcesTab === 'index'"
+      class="flex min-h-0 flex-1 flex-col gap-2"
+      data-testid="sources-dialog-index-panel"
+    >
+      <div class="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain">
+        <p class="text-[10px] text-muted leading-snug">
+          The vector search index (LanceDB) powers Search and the relational
+          surfaces. Rebuild after adding episodes or changing the embedding model.
+        </p>
+        <!-- Reindex reasons / health banner -->
+        <div
+          v-if="indexStats.indexHealthBanner"
+          class="rounded border px-2 py-1.5 text-[10px] leading-snug"
+          :class="indexStats.indexHealthBanner.kind === 'warn'
+            ? 'border-warning/40 bg-warning/10 text-surface-foreground'
+            : 'border-border bg-elevated/40 text-muted'"
+          data-testid="sources-dialog-index-banner"
+        >
+          <p
+            v-for="(line, i) in indexStats.indexHealthBanner.lines"
+            :key="i"
+          >
+            {{ line }}
+          </p>
+        </div>
+        <p
+          v-if="indexStats.indexError"
+          class="rounded border border-danger/40 bg-danger/10 px-2 py-1 text-[10px] text-danger"
+        >
+          {{ indexStats.indexError }}
+        </p>
+        <!-- Index facts -->
+        <div
+          v-if="indexStats.indexRows.length"
+          class="rounded border border-border bg-elevated/40 p-2"
+          data-testid="sources-dialog-index-stats"
+        >
+          <ul class="space-y-0.5">
+            <li
+              v-for="row in indexFactRows"
+              :key="row.k"
+              class="flex gap-2 text-[10px]"
+            >
+              <span class="w-28 shrink-0 text-muted">{{ row.k }}</span>
+              <span class="break-all font-mono text-surface-foreground">{{ row.v }}</span>
+            </li>
+          </ul>
+          <div
+            v-if="indexedFeedNames.length"
+            class="mt-1.5 border-t border-border pt-1.5"
+          >
+            <p class="mb-0.5 text-[10px] text-muted">Feeds indexed ({{ indexedFeedNames.length }})</p>
+            <ul class="space-y-0.5">
+              <li
+                v-for="(name, i) in indexedFeedNames"
+                :key="i"
+                class="truncate text-[10px] text-surface-foreground"
+                :title="name"
+              >
+                {{ name }}
+              </li>
+            </ul>
+          </div>
+          <div
+            v-if="indexDocTypeBars.length"
+            class="mt-1.5 border-t border-border pt-1.5"
+            data-testid="sources-dialog-index-doctypes"
+          >
+            <p class="mb-1 text-[10px] text-muted">Documents by type</p>
+            <ul class="space-y-1">
+              <li
+                v-for="d in indexDocTypeBars"
+                :key="d.k"
+                class="text-[10px]"
+              >
+                <div class="flex items-baseline justify-between gap-2">
+                  <span class="truncate text-surface-foreground">{{ d.k }}</span>
+                  <span class="shrink-0 font-mono text-muted">{{ d.n.toLocaleString() }}</span>
+                </div>
+                <div class="mt-0.5 h-1.5 w-full overflow-hidden rounded bg-overlay">
+                  <div class="h-full rounded bg-primary" :style="{ width: d.pct + '%' }" />
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <p
+          v-else
+          class="rounded border border-border/60 bg-overlay/40 px-2 py-2 text-[10px] text-muted"
+        >
+          No index built yet — run <strong class="text-surface-foreground">Full rebuild</strong> below.
+        </p>
+        <p
+          v-if="indexStats.indexEnvelope?.rebuild_in_progress"
+          class="text-[10px] text-muted leading-snug"
+        >
+          Background index job running — stats refresh automatically.
+        </p>
+        <p
+          v-if="indexStats.indexEnvelope?.rebuild_last_error"
+          class="text-[10px] text-danger leading-snug"
+        >
+          Last rebuild error: {{ indexStats.indexEnvelope.rebuild_last_error }}
+        </p>
+        <IndexTimeseriesChart
+          v-if="indexChartLabels.length"
+          :labels="indexChartLabels"
+          :series="indexChartSeries"
+        />
+      </div>
+      <div class="shrink-0 flex flex-wrap gap-1 border-t border-border pt-2">
+        <button
+          type="button"
+          class="rounded border border-border px-2 py-1 text-[10px] hover:bg-overlay disabled:opacity-40"
+          :disabled="!shell.healthStatus || indexStats.indexLoading"
+          @click="indexStats.refreshIndexStats()"
+        >
+          {{ indexStats.indexLoading ? 'Loading…' : 'Refresh' }}
+        </button>
+        <button
+          type="button"
+          class="rounded border border-border px-2 py-1 text-[10px] hover:bg-overlay disabled:opacity-40"
+          data-testid="index-dialog-update"
+          :disabled="indexStats.rebuildActionsDisabled"
+          @click="indexStats.requestIndexRebuild(false)"
+        >
+          {{ indexStats.rebuildSubmitting ? 'Queueing…' : 'Update index' }}
+        </button>
+        <button
+          type="button"
+          class="rounded border border-border px-2 py-1 text-[10px] hover:bg-overlay disabled:opacity-40"
+          data-testid="index-dialog-full-rebuild"
+          :disabled="indexStats.rebuildActionsDisabled"
+          @click="indexStats.requestIndexRebuild(true)"
+        >
+          Full rebuild
         </button>
       </div>
     </div>
@@ -1167,83 +1633,20 @@ async function addFeedFromInput(): Promise<void> {
     </div>
     </div>
     </div>
-  </dialog>
+    </div>
+  </AppDialog>
 
-  <dialog
-    ref="indexDialogRef"
-    class="max-w-md rounded-lg border border-border bg-surface p-4 text-xs text-surface-foreground shadow-lg backdrop:bg-black/40"
-    aria-labelledby="status-bar-index-dialog-title"
-  >
-    <div class="mb-2 flex items-center justify-between gap-2">
-      <h2 id="status-bar-index-dialog-title" class="text-sm font-semibold">
-        Vector index
-      </h2>
-      <button
-        type="button"
-        class="rounded border border-border px-2 py-0.5 text-[10px] hover:bg-overlay"
-        @click="indexDialogRef?.close()"
-      >
-        Close
-      </button>
-    </div>
-    <p
-      v-if="indexStats.indexEnvelope?.rebuild_in_progress"
-      class="mb-1 text-[10px] text-muted leading-snug"
-    >
-      Background index job running — stats refresh automatically.
-    </p>
-    <p
-      v-if="indexStats.indexEnvelope?.rebuild_last_error"
-      class="mb-1 text-[10px] text-danger leading-snug"
-    >
-      Last rebuild error: {{ indexStats.indexEnvelope.rebuild_last_error }}
-    </p>
-    <div class="mt-2 flex flex-wrap gap-1">
-      <button
-        type="button"
-        class="rounded border border-border px-2 py-0.5 text-[10px] hover:bg-overlay disabled:opacity-40"
-        :disabled="!shell.healthStatus || indexStats.indexLoading"
-        @click="indexStats.refreshIndexStats()"
-      >
-        {{ indexStats.indexLoading ? 'Loading…' : 'Refresh' }}
-      </button>
-      <button
-        type="button"
-        class="rounded border border-border px-2 py-0.5 text-[10px] hover:bg-overlay disabled:opacity-40"
-        :disabled="indexStats.rebuildActionsDisabled"
-        @click="indexStats.requestIndexRebuild(false)"
-      >
-        {{ indexStats.rebuildSubmitting ? 'Queueing…' : 'Update index' }}
-      </button>
-      <button
-        type="button"
-        class="rounded border border-border px-2 py-0.5 text-[10px] hover:bg-overlay disabled:opacity-40"
-        :disabled="indexStats.rebuildActionsDisabled"
-        @click="indexStats.requestIndexRebuild(true)"
-      >
-        Full rebuild
-      </button>
-    </div>
-  </dialog>
 
-  <dialog
-    ref="artifactListDialogRef"
-    class="max-h-[min(80vh,32rem)] max-w-lg overflow-y-auto rounded-lg border border-border bg-surface p-4 text-xs text-surface-foreground shadow-lg backdrop:bg-black/40"
-    aria-labelledby="status-bar-artifact-list-title"
-    data-testid="artifact-list-dialog"
+  <AppDialog
+    :open="artifactListDialogOpen"
+    title="Corpus artifacts"
+    testid="artifact-list-dialog"
+    close-testid="artifact-list-close"
+    width-class="w-[min(100%,32rem)]"
+    max-height-class="max-h-[min(80vh,32rem)]"
+    @update:open="artifactListDialogOpen = $event"
   >
-    <div class="mb-2 flex items-center justify-between gap-2">
-      <h2 id="status-bar-artifact-list-title" class="text-sm font-semibold">
-        Corpus artifacts
-      </h2>
-      <button
-        type="button"
-        class="rounded border border-border px-2 py-0.5 text-[10px] hover:bg-overlay"
-        @click="artifactListDialogRef?.close()"
-      >
-        Close
-      </button>
-    </div>
+    <div class="px-4 py-3 text-xs">
     <p v-if="shell.artifactsLoading" class="mt-1 text-[10px] text-muted">
       Loading…
     </p>
@@ -1322,5 +1725,6 @@ async function addFeedFromInput(): Promise<void> {
     <p v-if="artifacts.loadError" class="mt-1 text-[10px] text-danger">
       {{ artifacts.loadError }}
     </p>
-  </dialog>
+    </div>
+  </AppDialog>
 </template>

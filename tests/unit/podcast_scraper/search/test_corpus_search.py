@@ -127,6 +127,21 @@ def test_run_corpus_search_no_index_when_hybrid_none(mock_hybrid: object, tmp_pa
 
 
 @patch(_HYBRID)
+def test_run_corpus_search_embed_failed_when_query_embedding_error(
+    mock_hybrid: object, tmp_path: Path
+) -> None:
+    # A query-embedding failure (model missing/offline) is reported as embed_failed, NOT
+    # no_index — re-indexing wouldn't help. Regression guard for the LanceDB-migration
+    # taxonomy collapse (the index is fine; the query couldn't be embedded).
+    from podcast_scraper.search.hybrid_search import QueryEmbeddingError
+
+    mock_hybrid.side_effect = QueryEmbeddingError("model offline")
+    out = run_corpus_search(tmp_path, "q")
+    assert out.error == "embed_failed"
+    assert "offline" in (out.detail or "")
+
+
+@patch(_HYBRID)
 def test_run_corpus_search_multi_doc_type_filter(mock_hybrid: object, tmp_path: Path) -> None:
     mock_hybrid.return_value = [
         SearchResult("a", 0.9, {"doc_type": "insight", "episode_id": "e"}),

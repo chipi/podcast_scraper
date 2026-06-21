@@ -1,6 +1,7 @@
 # RFC-095: Generic MCP Server — Platform Capabilities as Agent Tools
 
-- **Status**: Draft
+- **Status**: Implemented (v1 — stdio); HTTP/SSE transport + RFC-093 tool deferred
+- **Updated**: 2026-06-20 (reconciled with shipped code; search layer is now LanceDB-first)
 - **Authors**: Marko
 - **Stakeholders**: Core team
 - **Related PRDs**:
@@ -12,6 +13,69 @@
   - `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md` — canonical ids + the entity resolver behind `resolve_entity`
 - **Related ADRs**:
   - `docs/adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md` — feature-flagged, additive surfaces (precedent for an opt-in server)
+
+---
+
+## Implementation status & handoff (2026-06-20)
+
+**v1 is shipped.** The generic MCP server exists, is wired into the CLI, and has
+unit tests. This section is the ground-truth map + the starting point for the
+next agent; the design sections below are preserved for rationale but their
+"future tense" should be read as **done** unless called out as deferred.
+
+**Where the code lives**
+
+- `src/podcast_scraper/mcp/server.py` — `FastMCP("podcast-scraper")` factory +
+  tool registration; `run_stdio(corpus_dir)` runs the stdio server.
+- `src/podcast_scraper/mcp/cli_handlers.py` — `parse_mcp_argv` / `run_mcp`;
+  dispatched from `src/podcast_scraper/cli.py` on `podcast mcp`.
+- `src/podcast_scraper/mcp/context.py` — `CorpusContext` (single resolved corpus
+  dir = read boundary; OQ-3 decided: single-context server).
+- `src/podcast_scraper/mcp/tools/` — `search.py` (1), `resolve.py` (1),
+  `relational.py` (7), `cil.py` (3), `catalog.py` (4). Plain functions;
+  `server.py` wraps them as FastMCP tools (**16 tools total**): `resolve_entity`,
+  `search_corpus`, `person_positions`, `who_said_about_topic`,
+  `cross_show_synthesis`, `insights_about_entity`, `topic_entities`,
+  `related_insights`, `show_episodes`, `person_profile`, `topic_timeline`,
+  `position_arc`, `list_feeds`, `list_episodes`, `episode_detail`, `top_people`.
+- Tests: `tests/unit/mcp/` — `test_protocol.py` (construct + list + invoke via
+  in-memory transport), `test_relational_tools.py`, `test_cil_tools.py`,
+  `test_catalog_tools.py`, `test_server.py`, `test_tools.py`.
+
+**Shared capability core (the §3 refactor — DONE).** Both the HTTP routes and the
+MCP tools call the same functions; nothing is duplicated:
+
+- `search/capability.py:structured_corpus_search(...)` — the shared search entry
+  (assembles hybrid retrieval + lifting). HTTP `routes/search.py` and the
+  `search_corpus` tool both call it. (`run_corpus_search` in
+  `search/corpus_search.py` is the layer beneath it.)
+- `search/relational_capability.py:rerank_relational_insights(...)` — the lifted
+  hybrid re-rank shared by `routes/relational.py` and the relational tools.
+- `search/corpus_graph.py:get_corpus_graph(root, derive_speaker_links=True)` —
+  process-cached cross-layer graph (RFC-094).
+- `identity/` resolver behind `resolve_entity`.
+
+**Resolved open questions** (see updated Open Questions): **OQ-3** single-corpus
+context — decided (`CorpusContext`). **OQ-4** SDK — decided: the official
+**`mcp`** SDK (`mcp>=1.2.0,<2.0.0`, `[dev]` extra), using its bundled `FastMCP`.
+
+**Search-layer note (the recent change this doc was stale on).** Retrieval is now
+**LanceDB-first; FAISS is retired** (BM25 + dense vectors fused via RRF over a
+two-tier segment/insight index at `<corpus>/search/lance_index/`). The MCP search
+tool inherits this for free because it calls `structured_corpus_search`.
+
+**What's NOT done (next-agent backlog)**
+
+- **OQ-1 — HTTP/SSE transport + auth** (remote / prod VPS). Still stdio-only.
+  The tool layer is transport-agnostic, so this is an adapter in `server.py`
+  plus auth, not a rewrite.
+- **OQ-2 — MCP resources** (uri-readable artifacts) in addition to tools. Not
+  started.
+- **RFC-093 `corpus_briefing_pack` tool** — not yet registered (the §7 seam).
+  Tracked separately (#861 / RFC-093); it plugs in as one more tool.
+- **`corpus_digest` tool** — listed in the §5 catalogue but **not shipped**
+  (catalog tools shipped: `list_feeds`, `list_episodes`, `episode_detail`,
+  `top_people`). Easy add if wanted (wrap the existing digest capability).
 
 ---
 
@@ -51,12 +115,18 @@ is a thin adapter, not a rewrite.
 The server **imports and calls the same functions** the HTTP routes do, against a resolved corpus
 directory:
 
-- `search_corpus` → `search.corpus_search.run_corpus_search(...)` (+ `router.classify_query` /
-  `tier_for_doc_type` for intent/tier, mirroring `routes/search.py`).
-- relational tools → `search.relational_queries.*` over a `get_corpus_graph(corpus_dir,
-  derive_speaker_links=True)` (the RFC-094 layer, including the hybrid re-rank already wired at the
-  route helper — extracted to a shared callable so both the route and the tool reuse it).
-- `resolve_entity` → the RFC-072 entity resolver (`identity/resolver.py`).
+- `search_corpus` → **`search/capability.py:structured_corpus_search(...)`** — the
+  shared search entry that assembles hybrid retrieval + lifting (it calls
+  `search/corpus_search.py:run_corpus_search`, with `router.classify_query` /
+  tier mapping underneath). The same function backs HTTP `routes/search.py`.
+  Retrieval is **LanceDB-first (FAISS retired)**: BM25 + dense vectors fused via
+  RRF over a two-tier segment/insight index.
+- relational tools → `search/relational_queries.py` over
+  `search/corpus_graph.py:get_corpus_graph(corpus_dir, derive_speaker_links=True)`
+  (the RFC-094 layer), with the hybrid re-rank lifted to
+  **`search/relational_capability.py:rerank_relational_insights(...)`** so both the
+  route and the tool reuse it.
+- `resolve_entity` → the RFC-072 entity resolver (`identity/`).
 - catalog/CIL → the existing `gi/corpus`, catalog, and `cil_queries` functions.
 
 **Why library-wrap (not proxy the HTTP API):** no second process to run/depend on; reuses the exact,
@@ -76,12 +146,13 @@ small refactor (below).
                   entity resolver · catalog · cil_queries
 ```
 
-### 3. Capability core extraction (small, enabling refactor)
+### 3. Capability core extraction (small, enabling refactor) — ✅ DONE
 
-Some logic currently lives **inside** route handlers (e.g. the relational hybrid re-rank helper,
-the search tier/intent assembly). To avoid duplicating it in tools, lift the route-internal glue into
-plain functions in the `search` / capability modules that **both** the route and the MCP tool call.
-This is a pure refactor (no behavior change, covered by existing route tests) and is the first slice.
+Route-internal glue was lifted into shared functions that **both** the route and
+the MCP tool call: `search/capability.py:structured_corpus_search` (search +
+lifting) and `search/relational_capability.py:rerank_relational_insights`
+(relational hybrid re-rank). Behavior-preserving; covered by existing route tests
+plus direct tests on the lifted functions.
 
 ### 4. Packaging & entry point
 
@@ -161,19 +232,21 @@ on it; it is the canonical example of a synthesized tool composing the primitive
 
 ## Rollout & sequencing
 
-1. **Core refactor + server skeleton + `resolve_entity` + `search_corpus`** — smallest end-to-end
-   agent loop; proves transport + tool ergonomics.
-2. **Relational tools** (seven RFC-094 traversals).
-3. **Catalog + CIL tools.**
-4. **(Deferred)** HTTP/SSE transport + auth; **RFC-093 briefing-pack tool**.
+1. ✅ **Core refactor + server skeleton + `resolve_entity` + `search_corpus`**.
+2. ✅ **Relational tools** (seven RFC-094 traversals).
+3. ✅ **Catalog + CIL tools.**
+4. ⏳ **(Deferred)** HTTP/SSE transport + auth; **RFC-093 briefing-pack tool**.
 
 ## Open questions
 
-- **OQ-1** HTTP/SSE transport in this epic or a follow-up? (Leaning follow-up; tool layer is
-  transport-agnostic.)
-- **OQ-2** Expose artifacts as MCP **resources** (uri-readable) in addition to tools? (Leaning v2.)
-- **OQ-3** Single-corpus server vs `corpus` arg per call. (Leaning single-context.)
-- **OQ-4** MCP SDK choice (`mcp` official vs `fastmcp`) — decide at slice 1.
+- **OQ-1** HTTP/SSE transport in this epic or a follow-up? — **deferred** (still
+  stdio-only; tool layer is transport-agnostic, so it's an adapter + auth).
+- **OQ-2** Expose artifacts as MCP **resources** (uri-readable) in addition to
+  tools? — **deferred** (tools-only v1).
+- **OQ-3** Single-corpus server vs `corpus` arg per call. — **resolved:
+  single-context** (`mcp/context.py:CorpusContext`; one server = one corpus).
+- **OQ-4** MCP SDK choice (`mcp` official vs `fastmcp`) — **resolved: official
+  `mcp`** SDK (`mcp>=1.2.0,<2.0.0`, `[dev]` extra), using its bundled `FastMCP`.
 
 ## Migration
 

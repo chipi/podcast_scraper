@@ -11,6 +11,20 @@ import { useActiveSearchContextStore } from './activeSearchContext'
 import { normalizeFeedIdForViewer } from '../utils/feedId'
 import { StaleGeneration } from '../utils/staleGeneration'
 
+/** Friendly text for server search error codes (mirrors the similar-episodes panel). */
+function mapSearchError(code: string, detail: string | null | undefined): string {
+  if (code === 'no_index') {
+    return 'No vector index for this corpus yet. Run indexing to enable search.'
+  }
+  if (code === 'embed_failed') {
+    return 'Embedding failed (model missing or offline) — the index is fine, but the query could not be embedded.'
+  }
+  if (code === 'empty_query') {
+    return 'Enter a search query.'
+  }
+  return detail ? `${code}: ${detail}` : code
+}
+
 export const useSearchStore = defineStore('search', () => {
   const query = ref('')
   const loading = ref(false)
@@ -118,9 +132,7 @@ export const useSearchStore = defineStore('search', () => {
         return
       }
       if (body.error) {
-        apiError.value = body.detail
-          ? `${body.error}: ${body.detail}`
-          : body.error
+        apiError.value = mapSearchError(body.error, body.detail)
         results.value = []
         liftStats.value = null
         return

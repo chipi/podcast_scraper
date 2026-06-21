@@ -10,6 +10,7 @@ import {
   type CorpusFeedItem,
   type CorpusSimilarEpisodeItem,
 } from '../../api/corpusLibraryApi'
+import { copyTextToClipboard } from '../../utils/clipboard'
 import CilTopicPillsRow from '../shared/CilTopicPillsRow.vue'
 import DiagnosticRow from '../shared/DiagnosticRow.vue'
 import EpisodeBridgePartition from './EpisodeBridgePartition.vue'
@@ -246,30 +247,6 @@ watch(
     resetEpisodeTitleCopyUi()
   },
 )
-
-async function copyTextToClipboard(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text)
-    return true
-  } catch {
-    try {
-      const ta = document.createElement('textarea')
-      ta.value = text
-      ta.setAttribute('readonly', '')
-      ta.style.position = 'fixed'
-      ta.style.opacity = '0'
-      ta.style.left = '-9999px'
-      document.body.appendChild(ta)
-      ta.focus()
-      ta.select()
-      const ok = document.execCommand('copy')
-      document.body.removeChild(ta)
-      return ok
-    } catch {
-      return false
-    }
-  }
-}
 
 async function copyEpisodeTitle(): Promise<void> {
   const text = episodeTitleForCopy.value
@@ -817,6 +794,7 @@ watch(
           :max-pill-chars="40"
           truncation="wrap"
           max-width-class="auto"
+          cluster-member-appearance="kg"
           data-testid="episode-detail-cil-pills"
           @pill-click="(i) => void openDetailCilTopicInGraph(i)"
         />

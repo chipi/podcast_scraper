@@ -87,3 +87,41 @@ def read_lance_index_stats(lance_dir: Path | str) -> Optional[LanceIndexStats]:
         pass
     st.index_size_bytes = _dir_size(p)
     return st
+
+
+def read_lance_doc_type_by_month(lance_dir: Path | str) -> Dict[str, Dict[str, int]]:
+    """Aggregate index rows into ``month (YYYY-MM) -> {doc_type: count}``.
+
+    Buckets every indexed document by its ``publish_date`` month and ``doc_type``
+    (segment/insight rows fall back to the tier's implicit type). Rows without a
+    parseable ``publish_date`` are skipped. Powers the Index section's
+    document-types-over-time chart (publish month — the only per-row date the
+    index carries). Returns ``{}`` when the index is absent/unreadable.
+    """
+    p = Path(lance_dir)
+    if not p.is_dir():
+        return {}
+    try:
+        be = LanceDBBackend(str(p))
+    except Exception:
+        return {}
+    out: Dict[str, Dict[str, int]] = {}
+    for tier in ("segment", "insight", "aux"):
+        tbl = be._open_if_exists(tier)
+        if tbl is None:
+            continue
+        n = tbl.count_rows()
+        if n <= 0 or "publish_date" not in tbl.schema.names:
+            continue
+        cols = [c for c in ("doc_type", "publish_date") if c in tbl.schema.names]
+        for r in tbl.search().limit(n).select(cols).to_list():
+            pd = r.get("publish_date")
+            if not isinstance(pd, str) or len(pd) < 7:
+                continue
+            month = pd[:7]
+            if not (month[:4].isdigit() and month[4] == "-" and month[5:7].isdigit()):
+                continue
+            dt = r.get("doc_type") or _TIER_DEFAULT_DOC_TYPE.get(tier, tier)
+            bucket = out.setdefault(month, {})
+            bucket[dt] = bucket.get(dt, 0) + 1
+    return out

@@ -90,6 +90,21 @@ def test_operator_config_roundtrip(corpus: Path) -> None:
     assert "local" in g2.json()["available_profiles"]
 
 
+def test_operator_config_profiles_returns_bodies(corpus: Path) -> None:
+    """GET /api/operator-config/profiles returns packaged profiles + YAML bodies
+    so the viewer's Profile tab can show what each profile brings."""
+    app = create_app(corpus, static_dir=False, enable_operator_config_api=True)
+    client = TestClient(app)
+    r = client.get("/api/operator-config/profiles")
+    assert r.status_code == 200
+    profiles = r.json()["profiles"]
+    assert isinstance(profiles, list) and len(profiles) >= 1
+    names = {p["name"] for p in profiles}
+    assert "cloud_balanced" in names
+    cb = next(p for p in profiles if p["name"] == "cloud_balanced")
+    assert "profile: cloud_balanced" in cb["content"]
+
+
 def test_operator_config_get_auto_creates_missing_subdir(corpus: Path) -> None:
     """First-run UX (#693): GET /api/operator-config against a fresh subdir of
     the configured corpus root must auto-create the directory and seed

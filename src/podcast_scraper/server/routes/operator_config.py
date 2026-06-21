@@ -21,8 +21,17 @@ from podcast_scraper.server.operator_yaml_profile import (
     merge_operator_yaml_profile,
 )
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
-from podcast_scraper.server.profile_presets import env_default_profile, list_packaged_profile_names
-from podcast_scraper.server.schemas import OperatorConfigGetResponse, OperatorConfigPutBody
+from podcast_scraper.server.profile_presets import (
+    env_default_profile,
+    list_packaged_profile_names,
+    packaged_profile_contents,
+)
+from podcast_scraper.server.schemas import (
+    OperatorConfigGetResponse,
+    OperatorConfigPutBody,
+    OperatorProfilesResponse,
+    PackagedProfile,
+)
 from podcast_scraper.utils.path_validation import normpath_if_under_root
 
 router = APIRouter(tags=["operator-config"])
@@ -173,6 +182,18 @@ async def get_operator_config(
         content=content,
         available_profiles=profiles,
         default_profile=default,
+    )
+
+
+@router.get("/operator-config/profiles", response_model=OperatorProfilesResponse)
+async def get_operator_profiles() -> OperatorProfilesResponse:
+    """Packaged pipeline profiles + their YAML bodies (so the viewer's Profile
+    tab can show *what each profile brings*). Profiles are packaged assets, not
+    corpus-specific, so no ``path`` is required; the same allowlist as
+    ``available_profiles`` applies."""
+    contents = packaged_profile_contents()
+    return OperatorProfilesResponse(
+        profiles=[PackagedProfile(name=n, content=c) for n, c in contents.items()]
     )
 
 

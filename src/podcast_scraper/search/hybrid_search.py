@@ -142,6 +142,15 @@ def _flatten(result: object) -> List[ScoredResult]:
     return []
 
 
+class QueryEmbeddingError(Exception):
+    """The query could not be embedded (model missing/offline or empty vector).
+
+    Distinct from "no index": re-indexing won't help — the index is fine, the
+    *query*-side embedding failed. Callers map this to ``embed_failed`` so the UI
+    can say "model missing or offline" instead of the misleading "run indexing".
+    """
+
+
 def hybrid_candidates(
     output_dir: Path,
     query: str,
@@ -233,11 +242,12 @@ def hybrid_candidates(
             remote_endpoint=_cfg.vector_embedding_endpoint,
             provider=_cfg.vector_embedding_provider,
         )
-    except Exception as exc:  # noqa: BLE001 - any embed failure → report no_index
-        logger.warning("hybrid_search embed failed (%s); reporting no_index", exc)
-        return None
+    except Exception as exc:  # noqa: BLE001 - any embed failure → embed_failed (not no_index)
+        logger.warning("hybrid_search embed failed (%s); reporting embed_failed", exc)
+        raise QueryEmbeddingError(str(exc)) from exc
     if not (isinstance(qvec, list) and qvec and isinstance(qvec[0], float)):
-        return None
+        logger.warning("hybrid_search produced an empty/invalid query vector; embed_failed")
+        raise QueryEmbeddingError("query embedding returned an empty or invalid vector")
     qemb = cast(List[float], qvec)
 
     expected_dim = meta.get("embed_dim")

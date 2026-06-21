@@ -47,6 +47,12 @@ export const useIndexStatsStore = defineStore('indexStats', () => {
   const indexLoading = ref(false)
   const indexError = ref<string | null>(null)
   const rebuildSubmitting = ref(false)
+  /**
+   * Bumped to ask the shell to open the Configuration "Vector index" dialog —
+   * the single canonical place to trigger a rebuild. Dashboard surfaces route
+   * here instead of firing rebuilds inline (config consolidation, #538-adjacent).
+   */
+  const dialogOpenNonce = ref(0)
   let rebuildPollTimer: ReturnType<typeof setTimeout> | null = null
   let rebuildPollCount = 0
   let rebuildPollStableTicks = 0
@@ -172,6 +178,11 @@ export const useIndexStatsStore = defineStore('indexStats', () => {
       indexEnvelope.value?.rebuild_in_progress === true,
   )
 
+  /** Ask the shell to open the Configuration "Vector index" dialog. */
+  function requestOpenIndexDialog(): void {
+    dialogOpenNonce.value += 1
+  }
+
   async function requestIndexRebuild(full: boolean): Promise<void> {
     const seq = indexRebuildGate.bump()
     indexError.value = null
@@ -255,5 +266,7 @@ export const useIndexStatsStore = defineStore('indexStats', () => {
     rebuildActionsDisabled,
     refreshIndexStats,
     requestIndexRebuild,
+    dialogOpenNonce,
+    requestOpenIndexDialog,
   }
 })

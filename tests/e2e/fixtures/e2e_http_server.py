@@ -1123,12 +1123,17 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 # Parsing is best-effort for E2E; fall back to defaults.
                 pass
 
-            # Generate a realistic transcription response
-            # filename is now sanitized and safe to use in string formatting
-            transcript = (
-                f"This is a test transcription of {filename}. "
-                "The audio contains spoken content that has been transcribed."
-            )
+            # Generate a realistic transcription response. A real minutes-long
+            # episode yields hundreds of words, and the DGX whisper length-floor
+            # guardrail (#1031, ~1.25 words/sec) rejects implausibly short
+            # transcripts as truncation. The happy-path mock must therefore
+            # clear the floor for the test-fixture audio (the DGX e2e suite uses
+            # p01_e01.mp3, ~709 s -> ~886-word floor); repeat a sentence to a
+            # comfortably-realistic length. filename is sanitized above and safe
+            # to format. Consumers assert on the "test transcription" substring,
+            # so the padding does not change any expectation.
+            _body_sentence = "The audio contains spoken content that has been transcribed. "
+            transcript = f"This is a test transcription of {filename}. " + _body_sentence * 200
 
             # Answer in the requested type. ``json``/``verbose_json`` (what the
             # OpenAI SDK and the DGX faster-whisper client both send) get a proper

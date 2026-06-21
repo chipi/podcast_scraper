@@ -16,7 +16,7 @@ from podcast_scraper.search.cli_handlers import (
     _parse_since,
     merged_episode_gi_paths,
 )
-from podcast_scraper.search.hybrid_search import hybrid_candidates
+from podcast_scraper.search.hybrid_search import hybrid_candidates, QueryEmbeddingError
 from podcast_scraper.search.protocol import SearchResult
 from podcast_scraper.search.topic_clusters import load_topic_cluster_enrichment_map
 from podcast_scraper.search.transcript_chunk_lift import (
@@ -206,15 +206,23 @@ def run_corpus_search(
             types_norm = None
 
     # ADR-099 / #995: the LanceDB two-tier index is the single search path — no FAISS
-    # fallback. ``hybrid_candidates`` returns None when there is no usable index (or a
-    # query-embedding failure); surface that as ``no_index`` rather than a second path.
-    candidates = hybrid_candidates(
-        output_dir,
-        q,
-        top_k=top_k,
-        doc_types=doc_types,
-        embedding_model=embedding_model,
-    )
+    # fallback. ``hybrid_candidates`` returns None when there is no usable index, and
+    # raises ``QueryEmbeddingError`` when the index is fine but the query couldn't be
+    # embedded (model missing/offline). These are distinct: re-indexing fixes the first,
+    # not the second — so surface them as different error codes.
+    try:
+        candidates = hybrid_candidates(
+            output_dir,
+            q,
+            top_k=top_k,
+            doc_types=doc_types,
+            embedding_model=embedding_model,
+        )
+    except QueryEmbeddingError as exc:
+        return CorpusSearchOutcome(
+            error="embed_failed",
+            detail=f"query embedding failed (model missing or offline): {exc}",
+        )
     if candidates is None:
         return CorpusSearchOutcome(error="no_index", detail="no LanceDB index (run `cli index`)")
     return _filter_and_enrich(

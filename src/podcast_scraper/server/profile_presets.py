@@ -149,3 +149,25 @@ def list_packaged_profile_names() -> list[str]:
     if allowed is not None:
         names = names & allowed
     return sorted(names)
+
+
+def packaged_profile_contents() -> dict[str, str]:
+    """Map of profile name → raw YAML content, for the viewer's Profile tab.
+
+    Same discovery roots + allowlist as :func:`list_packaged_profile_names`; reads
+    each profile file once (first directory that has it wins, mirroring the
+    ``Config._resolve_profile`` lookup order). Lets the operator see *what each
+    profile brings* (providers / models / rationale) without leaving the viewer.
+    """
+    dirs = _profile_directories()
+    out: dict[str, str] = {}
+    for name in list_packaged_profile_names():
+        for d in dirs:
+            p = d / f"{name}.yaml"
+            if p.is_file():
+                try:
+                    out[name] = p.read_text(encoding="utf-8", errors="replace")
+                except OSError:
+                    out[name] = ""
+                break
+    return out

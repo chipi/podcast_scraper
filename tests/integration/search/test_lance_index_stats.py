@@ -12,7 +12,10 @@ import pytest
 
 from podcast_scraper.search.backend import InsightDocument, SegmentDocument
 
-pytestmark = pytest.mark.integration
+# critical_path so these run in ``test-integration-fast`` on PRs (which installs
+# the ``search`` extra → lancedb), keeping the LanceDB stats readers — including
+# ``read_lance_doc_type_by_month`` — covered in PR codecov, not just nightly.
+pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 lancedb = pytest.importorskip("lancedb")
 
@@ -20,13 +23,21 @@ from podcast_scraper.search import lance_index_stats as lis  # noqa: E402
 from podcast_scraper.search.backends.lancedb_backend import LanceDBBackend  # noqa: E402
 from podcast_scraper.search.lance_index_stats import (  # noqa: E402
     _dir_size,
+    read_lance_doc_type_by_month,
     read_lance_index_stats,
 )
 
 
-def _seg(i, text, show, emb):
+def _seg(i, text, show, emb, publish_date=None):
     return SegmentDocument(
-        id=i, text=text, show_id=show, episode_id="ep1", start_time=0.0, end_time=1.0, embedding=emb
+        id=i,
+        text=text,
+        show_id=show,
+        episode_id="ep1",
+        start_time=0.0,
+        end_time=1.0,
+        embedding=emb,
+        publish_date=publish_date,
     )
 
 
@@ -234,3 +245,57 @@ def test_schema_light_unknown_tier_falls_back_to_tier_name(tmp_path, monkeypatch
     assert st is not None
     # aux is not in _TIER_DEFAULT_DOC_TYPE -> falls back to the literal tier name "aux".
     assert st.doc_type_counts == {"aux": 3}
+
+
+@pytest.fixture
+def lance_dir_dated(tmp_path):
+    """Two-tier index whose rows carry publish_date across two months."""
+    d = tmp_path / "lance-dated"
+    b = LanceDBBackend(str(d), embed_dim=4)
+    b.upsert_segment(_seg("s1", "Jan one", "feed-A", [0.1, 0.2, 0.3, 0.4], "2026-01-15"))
+    b.upsert_segment(_seg("s2", "Jan two", "feed-B", [0.9, 0.1, 0.0, 0.1], "2026-01-20"))
+    b.upsert_segment(_seg("s3", "Feb one", "feed-A", [0.2, 0.2, 0.2, 0.2], "2026-02-03"))
+    b.upsert_insight(
+        InsightDocument(
+            id="insight:1",
+            text="Jan insight",
+            show_id="feed-A",
+            episode_id="ep1",
+            entity_type="claim",
+            confidence=0.9,
+            derived=False,
+            embedding=[0.1, 0.2, 0.3, 0.45],
+            publish_date="2026-01-15",
+        )
+    )
+    b.create_indices()
+    return d
+
+
+def test_doc_type_by_month_buckets_by_publish_month(lance_dir_dated):
+    out = read_lance_doc_type_by_month(lance_dir_dated)
+    # Jan: 2 transcripts + 1 insight; Feb: 1 transcript.
+    assert out == {
+        "2026-01": {"transcript": 2, "insight": 1},
+        "2026-02": {"transcript": 1},
+    }
+
+
+def test_doc_type_by_month_skips_rows_without_publish_date(tmp_path):
+    d = tmp_path / "lance-mixed"
+    b = LanceDBBackend(str(d), embed_dim=4)
+    b.upsert_segment(_seg("s1", "dated", "feed-A", [0.1, 0.2, 0.3, 0.4], "2026-03-01"))
+    b.upsert_segment(_seg("s2", "undated", "feed-A", [0.2, 0.2, 0.2, 0.2], None))
+    b.create_indices()
+    out = read_lance_doc_type_by_month(d)
+    # The undated row is dropped (no month to bucket into); only the dated one survives.
+    assert out == {"2026-03": {"transcript": 1}}
+
+
+def test_doc_type_by_month_returns_empty_for_absent_dir(tmp_path):
+    assert read_lance_doc_type_by_month(tmp_path / "nope") == {}
+
+
+def test_doc_type_by_month_accepts_str_path(lance_dir_dated):
+    out = read_lance_doc_type_by_month(str(lance_dir_dated))
+    assert out["2026-02"] == {"transcript": 1}

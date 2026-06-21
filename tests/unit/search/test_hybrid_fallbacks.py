@@ -1,8 +1,11 @@
 """Unit tests for hybrid_candidates failure branches (RFC-090 Phase 2; FAISS retired #995).
 
-These are the non-regression guarantees the module sells — every failure must return
-None so the caller reports ``no_index`` (there is no FAISS fallback anymore). Faked
-backend + encode keep this off a real LanceDB index.
+These are the non-regression guarantees the module sells. Index-side failures (missing
+dir, open error, dim mismatch, retrieve error) return None so the caller reports
+``no_index`` (there is no FAISS fallback anymore). Query-embedding failures (model
+missing/offline, empty vector) raise ``QueryEmbeddingError`` so the caller can report
+``embed_failed`` instead of the misleading "run indexing". Faked backend + encode keep
+this off a real LanceDB index.
 """
 
 from __future__ import annotations
@@ -47,20 +50,25 @@ def test_open_failure_falls_back(tmp_path, monkeypatch):
     assert hs.hybrid_candidates(_index(tmp_path), "q", top_k=5) is None
 
 
-def test_embed_failure_falls_back(tmp_path, monkeypatch):
+def test_embed_failure_raises_query_embedding_error(tmp_path, monkeypatch):
+    # A query-embedding failure (model missing/offline) is NOT no_index — the index is
+    # fine. Raise QueryEmbeddingError so the caller reports embed_failed.
     _patch_backend(monkeypatch)
 
     def _raise(*a, **k):
         raise RuntimeError("embed boom")
 
     monkeypatch.setattr(hs.embedding_loader, "encode", _raise)
-    assert hs.hybrid_candidates(_index(tmp_path), "q", top_k=5) is None
+    with pytest.raises(hs.QueryEmbeddingError):
+        hs.hybrid_candidates(_index(tmp_path), "q", top_k=5)
 
 
-def test_malformed_embedding_falls_back(tmp_path, monkeypatch):
+def test_malformed_embedding_raises_query_embedding_error(tmp_path, monkeypatch):
+    # An empty/invalid query vector is also an embed failure, not a missing index.
     _patch_backend(monkeypatch)
     monkeypatch.setattr(hs.embedding_loader, "encode", lambda *a, **k: [])  # empty
-    assert hs.hybrid_candidates(_index(tmp_path), "q", top_k=5) is None
+    with pytest.raises(hs.QueryEmbeddingError):
+        hs.hybrid_candidates(_index(tmp_path), "q", top_k=5)
 
 
 def test_dim_mismatch_falls_back(tmp_path, monkeypatch):

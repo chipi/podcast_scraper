@@ -129,6 +129,19 @@ async function stubOperatorConfig(
       }),
     })
   })
+  // Profile tab also fetches packaged profile bodies ("what it brings").
+  await page.route(matchExactApiPath('/api/operator-config/profiles'), async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        profiles: payload.available_profiles.map((name) => ({
+          name,
+          content: `profile: ${name}\nsummary_provider: gemini\n`,
+        })),
+      }),
+    })
+  })
 }
 
 async function openProfileTab(page: Page): Promise<void> {
@@ -140,10 +153,11 @@ async function openProfileTab(page: Page): Promise<void> {
   // Status bar's "Configuration" button opens the sources dialog;
   // ``status-bar-sources-trigger`` is the actual testid (the testid
   // ``status-bar-sources-button`` doesn't exist — verified against
-  // StatusBar.vue:547). Click the Profile tab so the dropdown renders.
+  // StatusBar.vue:547). Open Job Configuration; its default sub-tab is Profile,
+  // so the dropdown renders without an extra click.
   await page.getByTestId('status-bar-sources-trigger').click()
   await page.getByTestId(SOURCES_DIALOG).waitFor({ state: 'visible' })
-  await page.getByTestId('sources-dialog-tab-profile').click()
+  await page.getByTestId('sources-dialog-tab-operator').click()
 }
 
 test.describe('Operator profile dropdown — filter + default preselect (#692)', () => {

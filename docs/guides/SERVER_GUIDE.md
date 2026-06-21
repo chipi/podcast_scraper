@@ -352,10 +352,11 @@ the `[dev]` extra).
 - Per-schedule overrides (profile / feeds / max_episodes) are not wired —
   use multiple schedules with different operator YAMLs if you need them.
 - No calendar-aware schedules (`every 3rd Tuesday`); standard cron only.
-- No Scheduled tab in the viewer — operators edit `scheduled_jobs:` via
-  the existing Configuration YAML editor. The `GET /api/scheduled-jobs`
-  endpoint exists so a future viewer tab can list schedules + next-run
-  previews; that UI is a follow-up of #708.
+- The viewer's **Configuration → Scheduled** section (#709) lists schedules
+  with next-run previews and an enable/disable toggle (writes back via
+  `PUT /api/operator-config`, which reloads the scheduler). Adding or editing
+  schedules still happens in the **Job Configuration** YAML editor
+  (`scheduled_jobs:`).
 
 ## Development workflow
 

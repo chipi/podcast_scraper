@@ -193,6 +193,22 @@ class OperatorConfigPutBody(BaseModel):
     content: str = Field(default="", description="Full YAML file contents (UTF-8).")
 
 
+class PackagedProfile(BaseModel):
+    """One packaged pipeline profile and its YAML body."""
+
+    name: str = Field(description="Profile name (no .yaml).")
+    content: str = Field(description="Raw profile YAML (providers / models / rationale).")
+
+
+class OperatorProfilesResponse(BaseModel):
+    """Response for GET /api/operator-config/profiles — packaged profiles + bodies."""
+
+    profiles: list[PackagedProfile] = Field(
+        default_factory=list,
+        description="Packaged profiles (same allowlist as available_profiles) with content.",
+    )
+
+
 class PipelineJobRecord(BaseModel):
     """One row from the JSONL job registry (GET list/detail, cancel response)."""
 
@@ -322,6 +338,24 @@ class IndexStatsEnvelope(BaseModel):
     rebuild_last_error: str | None = Field(
         default=None,
         description="Last background rebuild error message, if any.",
+    )
+
+
+class IndexTimeseriesMonth(BaseModel):
+    """One month bucket of indexed documents, keyed by doc_type."""
+
+    month: str = Field(description="Publish month, YYYY-MM.")
+    doc_types: dict[str, int] = Field(default_factory=dict)
+
+
+class IndexTimeseriesResponse(BaseModel):
+    """Response for GET /api/index/timeseries — indexed docs by publish month × doc_type."""
+
+    available: bool = True
+    by_month: list[IndexTimeseriesMonth] = Field(default_factory=list)
+    doc_types: list[str] = Field(
+        default_factory=list,
+        description="All doc_type keys present across buckets, sorted (stable series order).",
     )
 
 
