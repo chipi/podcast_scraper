@@ -248,7 +248,15 @@ class TestGILPipeline:
         assert quote_nodes[0]["properties"]["text"] == "the proof"
 
     def test_resolve_insight_specs_non_empty_stripped_and_capped(self):
-        """When insight_texts is non-empty, return stripped and capped by gi_max_insights."""
+        """When insight_texts is non-empty, return stripped and capped by gi_max_insights.
+
+        Insight types are assigned by the rule-based classifier (RFC-097 v3.0
+        chunk-5). Single-letter inputs have no classification signal, so
+        each falls into the conservative ``observation`` default. The
+        stripping (``" B "`` → ``"B"``) and cap behavior are what this
+        test guards; the classifier coverage lives in
+        ``test_insight_type_classifier.py``.
+        """
         cfg = MagicMock()
         cfg.gi_max_insights = 3
         out = _resolve_insight_specs(
@@ -256,7 +264,7 @@ class TestGILPipeline:
             cfg=cfg,
             insight_texts=["A", " B ", "C", "D", "E"],
         )
-        assert out == [("A", "unknown"), ("B", "unknown"), ("C", "unknown")]
+        assert out == [("A", "observation"), ("B", "observation"), ("C", "observation")]
 
     def test_resolve_insight_specs_empty_insight_texts_ignored(self):
         """When insight_texts is empty or all blank, fall back to stub."""
@@ -272,7 +280,14 @@ class TestGILPipeline:
         assert "stub" in out2[0][0].lower()
 
     def test_resolve_insight_specs_provider_called_when_source_provider(self):
-        """When gi_insight_source=provider and provider has generate_insights, use it."""
+        """When gi_insight_source=provider and provider has generate_insights, use it.
+
+        ``generate_insights`` returns ``List[str]`` (today every provider does);
+        the rule-based classifier (RFC-097 v3.0 chunk-5) assigns each spec
+        a type. ``"I1"`` / ``"I2"`` have no classification signal so each
+        defaults to ``observation``. Classifier coverage lives in
+        ``test_insight_type_classifier.py``.
+        """
         cfg = MagicMock()
         cfg.gi_insight_source = "provider"
         cfg.gi_max_insights = 5
@@ -285,7 +300,7 @@ class TestGILPipeline:
             insight_provider=provider,
             episode_title="Ep",
         )
-        assert out == [("I1", "unknown"), ("I2", "unknown")]
+        assert out == [("I1", "observation"), ("I2", "observation")]
         provider.generate_insights.assert_called_once()
         call_kw = provider.generate_insights.call_args[1]
         assert call_kw["text"] == "transcript here"
