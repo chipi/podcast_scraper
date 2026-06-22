@@ -3,7 +3,7 @@
 # Generates comprehensive metrics, reports, and trend tracking
 # See docs/ci/METRICS.md — test metrics and health tracking (Layer 3)
 #
-# Note: Linter warnings about "Unable to resolve action" for actions/checkout@v6
+# Note: Linter warnings about "Unable to resolve action" for actions/checkout@v7
 # and actions/cache@v5 are false positives - these are standard GitHub Actions
 # that exist in the marketplace but the linter cannot resolve them offline.
 #
@@ -67,7 +67,7 @@ jobs:
       # Gated pyannote diarization models download only with a terms-accepted token.
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - name: Free disk space
       run: |
@@ -143,7 +143,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10  # Fast checks: format, lint, markdown, type
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
@@ -179,7 +179,7 @@ jobs:
     timeout-minutes: 20  # Slower checks: security, complexity, deadcode, docstrings, spelling
     needs: [nightly-lint, nightly-build]  # Wait for lint, build to pass (docs removed - doesn't gate security)
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
@@ -213,7 +213,7 @@ jobs:
     timeout-minutes: 15
     needs: [nightly-metrics]  # Very last step - validates docs after all tests and metrics pass
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - name: Free disk space
       run: |
@@ -254,7 +254,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
@@ -279,7 +279,7 @@ jobs:
     timeout-minutes: 15
     needs: [nightly-lint, nightly-build]  # Wait for lint, build to pass (docs removed - doesn't gate unit tests)
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - name: Free disk space
       run: |
@@ -359,7 +359,7 @@ jobs:
     timeout-minutes: 5
     needs: [nightly-lint, nightly-build]
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - uses: actions/setup-node@v6
       with:
         node-version: "22"
@@ -386,7 +386,7 @@ jobs:
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
       ML_MODELS_VALIDATED: "true"
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - name: Free disk space
       run: |
@@ -475,7 +475,7 @@ jobs:
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
       HF_HUB_OFFLINE: "1"
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - name: Free disk space
       run: |
@@ -555,7 +555,7 @@ jobs:
       needs.nightly-build.result == 'success' &&
       needs.nightly-test-e2e.result == 'success'
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - uses: actions/setup-node@v6
       with:
         node-version: "22"
@@ -596,7 +596,7 @@ jobs:
       contents: read
       issues: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v6
@@ -833,7 +833,7 @@ jobs:
       # Nightly mode uses p01-p05 podcasts with production models
       E2E_TEST_MODE: "nightly"
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - name: Free disk space
       run: |
@@ -930,7 +930,7 @@ jobs:
       - nightly-only-tests
     if: always()
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         fetch-depth: 0
 

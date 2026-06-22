@@ -74,7 +74,7 @@ jobs:
       DOCKER_BUILDKIT: 1
       COMPOSE_DOCKER_CLI_BUILD: 1
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           # workflow_run runs against the default branch by default; pin to
           # the upstream's SHA so a subsequent push doesn't shift this run
@@ -217,7 +217,7 @@ jobs:
       REGISTRY: ghcr.io
       OWNER: chipi
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.ref }}
 

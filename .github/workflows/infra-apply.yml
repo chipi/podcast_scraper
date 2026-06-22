@@ -87,7 +87,7 @@ jobs:
           esac
           echo "mode=$MODE confirmed"
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         # Don't persist GITHUB_TOKEN as a git credential — the Auto-commit
         # step below uses ``INFRA_STATE_COMMIT_TOKEN`` (a PAT in the prod
         # environment) for its push, and a persisted GITHUB_TOKEN
