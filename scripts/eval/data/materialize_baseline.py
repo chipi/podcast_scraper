@@ -730,6 +730,52 @@ def get_preprocessing_profile_version(profile_id: str) -> str:
     return "1.0"
 
 
+def _probe_vllm_backing_model_id(base_url: Optional[str]) -> Optional[str]:
+    """RFC-097 fingerprint gap-closure #2: resolve the vLLM served-model-name
+    alias (always ``"autoresearch"`` on our box) to the actual backing HF model
+    id by probing the live container.
+
+    vLLM's ``GET /v1/models`` returns ``data[0].root`` set to the HF repo id
+    the container was started with. Two fingerprints labeled
+    ``model_name: autoresearch`` may be against entirely different LLMs (chunk-7
+    sweep swapped between Qwen3-30B, Magistral, Ministral, Gemma, Mistral-3.2,
+    Moonlight at the same alias) — this resolves the ambiguity.
+
+    Returns None on any failure (server unreachable, HTTP error, unexpected
+    payload). Short timeout so fingerprint generation isn't blocked by a slow
+    or down server. ``None`` lands in the fingerprint as ``null`` JSON.
+    """
+    if not base_url:
+        return None
+    try:
+        import os
+
+        import requests  # type: ignore[import-not-found]
+    except ImportError:
+        return None
+    # Probe with short timeout — fingerprint generation shouldn't hang on a
+    # down or unreachable vLLM.
+    url = base_url.rstrip("/") + "/models"
+    api_key = os.getenv("VLLM_API_KEY", "")
+    headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+    try:
+        resp = requests.get(url, headers=headers, timeout=3.0)
+        if not resp.ok:
+            return None
+        data = resp.json()
+    except Exception:
+        return None
+    items = data.get("data") if isinstance(data, dict) else None
+    if not isinstance(items, list) or not items:
+        return None
+    first = items[0]
+    if isinstance(first, dict):
+        root = first.get("root")
+        if isinstance(root, str) and root.strip():
+            return root.strip()
+    return None
+
+
 def generate_enhanced_fingerprint(  # noqa: C901
     baseline_id: str,
     dataset_id: str,
@@ -1101,6 +1147,14 @@ def generate_enhanced_fingerprint(  # noqa: C901
             "gemini",
             "ollama",
         )
+        # RFC-097 fingerprint gap-closure #2: capture base_url + backing_model_id.
+        # base_url disambiguates which server answered (different DGX boxes may
+        # serve different models). backing_model_id resolves the vLLM
+        # served-model-name alias (always "autoresearch" on our box) to the
+        # actual HF repo id loaded — two runs labeled "autoresearch" can be
+        # against entirely different LLMs.
+        base_url = getattr(experiment_config.backend, "base_url", None)
+        backing_model_id = _probe_vllm_backing_model_id(base_url)
         pipeline = {
             "type": "single_stage",
             "stages": {
@@ -1116,6 +1170,8 @@ def generate_enhanced_fingerprint(  # noqa: C901
                         "tokenizer_name": model_details.get("tokenizer_name"),
                         "tokenizer_revision": model_details.get("tokenizer_revision"),
                         "endpoint": endpoint,  # Only for OpenAI
+                        "base_url": base_url,
+                        "backing_model_id": backing_model_id,
                     },
                     "generation_params": generation_params,
                 },
