@@ -140,3 +140,21 @@ def test_emit_never_raises_on_sdk_error(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(langfuse, "Langfuse", _Boom)
     # A misbehaving SDK must never propagate into the pipeline.
     lt.emit_langfuse_span(provider="openai", capability="gi", model="gpt", cost=0.5, run_seed="r")
+
+
+def test_noop_when_sdk_unimportable(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keys set but the langfuse SDK not installed -> graceful no-op.
+
+    Core treats Langfuse as a fully optional extension: with the SDK absent the
+    client is None and emit is silent (mirrors sentry_init's absence handling).
+    """
+    import sys
+
+    monkeypatch.setenv(_PUB, "pk-test")
+    monkeypatch.setenv(_SEC, "sk-test")
+    # ``None`` entry makes ``from langfuse import Langfuse`` raise ImportError
+    # without uninstalling the real package.
+    monkeypatch.setitem(sys.modules, "langfuse", None)
+
+    assert lt.get_langfuse_client() is None
+    lt.emit_langfuse_span(provider="x", capability="y", model="m", cost=0.01)  # no raise

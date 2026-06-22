@@ -1,0 +1,92 @@
+# Observability extensions (optional 3rd-party o11y)
+
+Every 3rd-party observability integration (error reporting, LLM tracing, …) is a
+**fully optional, opt-in extension**. The core package carries **zero** o11y-SaaS
+dependencies and runs identically whether or not any of them are installed. You opt
+them into the **images you deploy** — not into the library everyone installs.
+
+## The model
+
+There are two distinct kinds of o11y dependency, kept separate on purpose:
+
+| Kind | What | Dependency | Lives in |
+| --- | --- | --- | --- |
+| **Read** | The control plane *queries* o11y backends (Grafana / Loki / Sentry API / Langfuse API) | `httpx` only — no vendor SDK | `[observability]` (the light `podcast_obs` control plane) |
+| **Emit** | The app *sends* data to an o11y service (Sentry exceptions, Langfuse spans) | the service's vendor SDK | one **per-service extra** — see below |
+
+### Per-service emit extras
+
+| Extra | Service | Used by | Secret gate (no-op until set) |
+| --- | --- | --- | --- |
+| `[sentry]` | Sentry error reporting | api (FastAPI) + pipeline (cli) | `PODCAST_SENTRY_DSN_API` / `PODCAST_SENTRY_DSN_PIPELINE` |
+| `[langfuse]` | Langfuse LLM tracing | pipeline (every LLM call) | `LANGFUSE_PUBLIC_KEY` + `LANGFUSE_SECRET_KEY` |
+
+- **Core** (`[project.dependencies]`): none of these. The package imports and runs
+  without any of them.
+- **`[dev]`**: self-references *all* emit extras (`podcast-scraper[sentry]`,
+  `podcast-scraper[langfuse]`) so tests/CI/`make install` exercise both the
+  present-path (mocked SDK) and the absent-path (simulated).
+- **Deployed images** opt in only what they use:
+  - `docker/api` → `.[search,sentry]` (inits Sentry; makes no LLM calls)
+  - `docker/pipeline` → `.[<ml|llm>,search,sentry,langfuse]` (errors + LLM tracing)
+  - `docker/observability` (control plane) → **neither** — it only *reads*.
+
+## The three contracts every extension obeys
+
+1. **Lazy, guarded import** — never a top-level `import <sdk>`. Import inside the
+   function that needs it, wrapped in `try/except ImportError` → no-op. So an install
+   *without* the extra never breaks.
+2. **Config-gated** — even when the SDK is installed, the integration is a true no-op
+   until its secret(s) are present (Sentry DSN, Langfuse keys). Default boots stay silent.
+3. **Never breaks the app** — any failure inside the integration is caught and logged at
+   debug; the pipeline/api keeps running. The worst case is a missing span, never a crash.
+
+These three are what make an o11y dep safe to keep out of core.
+
+## Enable one
+
+```bash
+# install the service you want (or bake it into your deployed image)
+pip install -e '.[sentry]'      # or .[langfuse], or .[sentry,langfuse]
+# then set its secret(s) — until then it stays a no-op even when installed
+export PODCAST_SENTRY_DSN_PIPELINE=...     # Sentry
+export LANGFUSE_PUBLIC_KEY=... LANGFUSE_SECRET_KEY=...   # Langfuse
+```
+
+Don't want any of it? Install nothing — the core no-ops.
+
+## How to add a new o11y extension
+
+Say you want to add `[honeycomb]` (or any o11y SaaS). Five steps, mirroring `[sentry]` /
+`[langfuse]`:
+
+1. **Extra** — add a per-service block in `pyproject.toml`
+   `[project.optional-dependencies]`:
+
+   ```toml
+   honeycomb = [
+     "libhoney>=2.4,<3.0",  # no-op without HONEYCOMB_API_KEY
+   ]
+   ```
+
+2. **`[dev]` self-ref** — add `"podcast-scraper[honeycomb]"` to `[dev]` so tests/CI get it.
+3. **Integration module** — a small `utils/<service>_*.py` that obeys the three contracts:
+   lazy guarded import, config-gated (`os.environ.get("HONEYCOMB_API_KEY")`), wrapped so it
+   can never raise into the caller. Call it from the right hook (e.g. the provider cost
+   choke point `record_provider_call_cost`, or `init_*` at app startup).
+4. **Tests** — cover both paths:
+   - present + configured → emits the right shape (mock the SDK);
+   - **absent** → no-op (`monkeypatch.setitem(sys.modules, "libhoney", None)`), like
+     `test_noop_when_sdk_unimportable` / `test_returns_false_when_sentry_sdk_unimportable`.
+5. **Compose** — add `,honeycomb` to the install line of each **deployed image** that should
+   emit it (`docker/api`, `docker/pipeline`), and document the secret in
+   `config/examples/.env.example` + this table.
+
+That's it — core stays clean, library users can decline, and your deployed images carry
+exactly the o11y you chose.
+
+## Why this shape
+
+You deploy your own images, so that's where 3rd-party o11y belongs — opted in per image.
+Anyone consuming the library (or running the light control-plane container) gets none of
+it by default and can add only what they want. One principle, no special cases.
