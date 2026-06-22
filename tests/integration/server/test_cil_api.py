@@ -30,6 +30,12 @@ def _bundle(
     metadata_episode_number: int | None = None,
     metadata_episode_image_url: str | None = None,
     metadata_feed_image_url: str | None = None,
+    # RFC-097 v3.0 vocabulary opt-ins (caller passes when the test
+    # asserts on the typed-MENTIONS family or first-class Org/Podcast).
+    # Defaults preserve existing tests' fixtures unchanged.
+    mention_person_typed: str | None = None,
+    mention_org: str | None = None,
+    podcast_id: str | None = None,
 ) -> None:
     directory.mkdir(parents=True, exist_ok=True)
     bridge = {
@@ -52,7 +58,21 @@ def _bundle(
             },
         ],
     }
+    gi_edges: list = [
+        {"type": "SPOKEN_BY", "from": "quote-1", "to": person},
+        {"type": "SUPPORTED_BY", "from": "insight-1", "to": "quote-1"},
+        {"type": "ABOUT", "from": "insight-1", "to": topic},
+    ]
+    # RFC-097 v3.0 typed MENTIONS family — opt-in.
+    if mention_person_typed is not None:
+        gi_edges.append(
+            {"type": "MENTIONS_PERSON", "from": "insight-1", "to": mention_person_typed}
+        )
+    if mention_org is not None:
+        gi_edges.append({"type": "MENTIONS_ORG", "from": "insight-1", "to": mention_org})
+
     gi = {
+        "schema_version": "3.0",
         "episode_id": episode_id,
         "nodes": [
             {
@@ -62,22 +82,36 @@ def _bundle(
             },
             {"id": "quote-1", "type": "Quote", "properties": {"text": "said"}},
         ],
-        "edges": [
-            {"type": "SPOKEN_BY", "from": "quote-1", "to": person},
-            {"type": "SUPPORTED_BY", "from": "insight-1", "to": "quote-1"},
-            {"type": "ABOUT", "from": "insight-1", "to": topic},
-        ],
+        "edges": gi_edges,
     }
-    kg = {
-        "nodes": [
+    kg_nodes: list = [
+        {
+            "id": "ep1",
+            "type": "Episode",
+            "properties": {"publish_date": publish_date},
+        }
+    ]
+    kg_edges: list = []
+    if mention_person_typed is not None:
+        kg_nodes.append(
             {
-                "id": "ep1",
-                "type": "Episode",
-                "properties": {"publish_date": publish_date},
+                "id": mention_person_typed,
+                "type": "Person",
+                "properties": {"name": "Mentioned Person"},
             }
-        ],
-        "edges": [],
-    }
+        )
+    if mention_org is not None:
+        kg_nodes.append(
+            {
+                "id": mention_org,
+                "type": "Organization",
+                "properties": {"name": "Mentioned Org"},
+            }
+        )
+    if podcast_id is not None:
+        kg_nodes.append({"id": podcast_id, "type": "Podcast", "properties": {"title": "Test Show"}})
+        kg_edges.append({"type": "HAS_EPISODE", "from": podcast_id, "to": "ep1"})
+    kg = {"schema_version": "2.0", "nodes": kg_nodes, "edges": kg_edges}
     (directory / f"{stem}.bridge.json").write_text(json.dumps(bridge), encoding="utf-8")
     (directory / f"{stem}.gi.json").write_text(json.dumps(gi), encoding="utf-8")
     (directory / f"{stem}.kg.json").write_text(json.dumps(kg), encoding="utf-8")
@@ -354,3 +388,88 @@ class TestCilApi:
         )
         assert resp.status_code == 400
         assert "path" in resp.json()["detail"].lower()
+
+    # ---------------------------------------------------------------------
+    # RFC-097 v3.0 vocabulary surfacing through the CIL HTTP layer.
+    # The corpus contains typed MENTIONS_PERSON + MENTIONS_ORG edges,
+    # Person + Organization + Podcast KG nodes, and Insights with
+    # insight_type + position_hint. The API must propagate every data
+    # point end-to-end into its response shape.
+    # ---------------------------------------------------------------------
+
+    def test_brief_propagates_insight_type_and_position_hint_for_typed_corpus(
+        self, tmp_path: Path
+    ) -> None:
+        """``/api/persons/{id}/brief`` must surface insight_type + position_hint
+        on every Insight row when the underlying gi.json provides them.
+        """
+        meta = tmp_path / "metadata"
+        _bundle(
+            meta,
+            "ep1",
+            episode_id="episode:v3",
+            publish_date="2026-04-01",
+            person="person:pat",
+            topic="topic:science",
+            mention_person_typed="person:guest",
+            mention_org="org:acme",
+            podcast_id="podcast:show",
+        )
+        client_v3 = TestClient(create_app(tmp_path, static_dir=False))
+        pid = quote("person:pat", safe="")
+        resp = client_v3.get(f"/api/persons/{pid}/brief", params={"path": str(tmp_path)})
+        assert resp.status_code == 200
+        body = resp.json()
+        # The brief carries one (topic, insight) row — assert the v3.0
+        # vocabulary made it through the API serialization.
+        all_rows = []
+        for _t, rows in (body.get("topics") or {}).items():
+            all_rows.extend(rows)
+        assert len(all_rows) == 1, body
+        row = all_rows[0]
+        assert row["insight_type"] == "claim"
+        assert row["position_hint"] == pytest.approx(0.1)
+
+    def test_positions_filters_by_insight_type_enum(self, tmp_path: Path) -> None:
+        """The ``insight_types`` query param must filter by the v3.0 enum
+        (``claim`` / ``recommendation`` / ``observation`` / ``question`` /
+        ``unknown``). With one ``claim`` insight in the corpus, asking for
+        ``observation`` returns no episodes; asking for ``claim`` returns one.
+        """
+        meta = tmp_path / "metadata"
+        _bundle(
+            meta,
+            "ep1",
+            episode_id="episode:v3",
+            publish_date="2026-04-01",
+            person="person:pat",
+            topic="topic:science",
+            mention_person_typed="person:guest",
+            mention_org="org:acme",
+        )
+        client_v3 = TestClient(create_app(tmp_path, static_dir=False))
+        pid = quote("person:pat", safe="")
+        for itype in ("observation", "recommendation", "question"):
+            resp = client_v3.get(
+                f"/api/persons/{pid}/positions",
+                params={
+                    "topic": "topic:science",
+                    "path": str(tmp_path),
+                    "insight_types": itype,
+                },
+            )
+            assert resp.status_code == 200
+            assert resp.json()["episodes"] == [], (
+                f"insight_type={itype} should return 0 episodes " f"(fixture only has claim)"
+            )
+        # claim returns 1
+        resp = client_v3.get(
+            f"/api/persons/{pid}/positions",
+            params={
+                "topic": "topic:science",
+                "path": str(tmp_path),
+                "insight_types": "claim",
+            },
+        )
+        assert resp.status_code == 200
+        assert len(resp.json()["episodes"]) == 1
