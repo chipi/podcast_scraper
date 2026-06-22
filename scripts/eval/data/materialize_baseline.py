@@ -1216,6 +1216,27 @@ def generate_enhanced_fingerprint(  # noqa: C901
             if _v is not None:
                 task_pipeline[_k] = _v
 
+        # RFC-097 fingerprint gap-closure #5 (operator case #3, 2026-06-22):
+        # capture podcast_scraper.Config fields that materially affect output
+        # but used to be invisible in the fingerprint. Includes:
+        #   - llm_pipeline_mode (staged vs bundled — different chat shapes)
+        #   - transcript_cleaning_strategy (parallel to preprocessing.profile_id
+        #     but covers Config-side overrides)
+        #   - backend.extra_body (chat_template_kwargs like
+        #     {"enable_thinking": false} on Qwen-thinking models)
+        # Values pulled from experiment_config (the source of truth at run time);
+        # None-valued fields drop out to keep the fingerprint shape stable.
+        podcast_scraper_cfg: Dict[str, Any] = {}
+        _llm_mode = getattr(experiment_config, "llm_pipeline_mode", None)
+        if _llm_mode is not None:
+            podcast_scraper_cfg["llm_pipeline_mode"] = _llm_mode
+        _tcs = getattr(experiment_config, "transcript_cleaning_strategy", None)
+        if _tcs is not None:
+            podcast_scraper_cfg["transcript_cleaning_strategy"] = _tcs
+        _eb = getattr(experiment_config.backend, "extra_body", None)
+        if _eb is not None:
+            podcast_scraper_cfg["openai_extra_body"] = _eb
+
         # Inference args + image (operator-supplied via env). Sweep runbooks
         # populate these by running:
         #   VLLM_INFERENCE_ARGS="$(ssh dgx 'docker inspect vllm-autoresearch \
@@ -1248,6 +1269,7 @@ def generate_enhanced_fingerprint(  # noqa: C901
                     "task_pipeline": task_pipeline,
                     "inference_args": inference_args,
                     "inference_image": inference_image,
+                    "podcast_scraper_config": podcast_scraper_cfg,
                 },
             },
         }
