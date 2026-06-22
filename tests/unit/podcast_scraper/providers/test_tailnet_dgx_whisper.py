@@ -415,7 +415,8 @@ def test_transcribe_with_segments_threads_model_override_through(
 ) -> None:
     """Public ``transcribe_with_segments`` propagates ``model_override`` to
     the lower-level ``_transcribe_dgx`` call AND records the effective
-    model in the returned dict's ``model_used`` provenance field.
+    model in the returned dict's ``model_requested`` / ``model_used``
+    provenance fields. On the DGX-success path both equal the override.
     """
     audio = tmp_path / "clip.mp3"
     audio.write_bytes(b"abc")
@@ -431,8 +432,8 @@ def test_transcribe_with_segments_threads_model_override_through(
     # The override threaded all the way down to _transcribe_dgx.
     call_kwargs = mock_transcribe_dgx.call_args.kwargs
     assert call_kwargs.get("model_override") == "Systran/faster-whisper-small.en"
-    # And the returned dict carries the provenance — downstream artifact
-    # writers can record which model produced this transcript.
+    # Provenance on DGX-success: requested == used == the override.
+    assert result["model_requested"] == "Systran/faster-whisper-small.en"
     assert result["model_used"] == "Systran/faster-whisper-small.en"
 
 
@@ -443,14 +444,86 @@ def test_transcribe_with_segments_default_path_records_default_model(
     mock_transcribe_dgx: MagicMock,
     tmp_path,
 ) -> None:
-    """No override → ``model_used`` provenance is the configured default."""
+    """No override → both provenance fields are the configured default."""
     audio = tmp_path / "clip.mp3"
     audio.write_bytes(b"abc")
     mock_transcribe_dgx.return_value = ("text", [], 1.0)
 
     provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
     result, _dur = provider.transcribe_with_segments(str(audio), language="en")
+    assert result["model_requested"] == "Systran/faster-whisper-large-v3"
     assert result["model_used"] == "Systran/faster-whisper-large-v3"
+
+
+@patch("podcast_scraper.providers.tailnet_dgx.whisper_provider.emit_dgx_fallback_breadcrumb")
+@patch.object(wp, "check_faster_whisper_health", return_value=False)
+def test_transcribe_with_segments_fallback_records_cloud_model_used(
+    mock_health: MagicMock,
+    mock_breadcrumb: MagicMock,
+    tmp_path,
+) -> None:
+    """When DGX is unhealthy and we fall back to cloud Whisper, ``model_used``
+    must attribute the transcript to the cloud provider — NOT the DGX model
+    that didn't run. ``model_requested`` still records what was asked for.
+    Pre-fix the provider lied: it reported the DGX model on fallback.
+    """
+    audio = tmp_path / "clip.mp3"
+    audio.write_bytes(b"abc")
+
+    provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
+    fallback = MagicMock()
+    fallback.transcribe_with_segments.return_value = (
+        {
+            "text": "cloud transcript",
+            "segments": [],
+            "language": "en",
+            "model_used": "whisper-1",
+        },
+        2.5,
+    )
+    provider._fallback = fallback
+    provider._initialized = True
+
+    result, _dur = provider.transcribe_with_segments(
+        str(audio),
+        language="en",
+        model_override="Systran/faster-whisper-small.en",
+    )
+
+    # We REQUESTED the DGX small.en model.
+    assert result["model_requested"] == "Systran/faster-whisper-small.en"
+    # But what actually RAN was the cloud fallback. Attribution must say so.
+    assert result["model_used"] == "openai:whisper-1"
+    assert result["text"] == "cloud transcript"
+
+
+@patch("podcast_scraper.providers.tailnet_dgx.whisper_provider.emit_dgx_fallback_breadcrumb")
+@patch.object(wp, "check_faster_whisper_health", return_value=False)
+def test_transcribe_with_segments_fallback_without_cloud_model_marks_default(
+    mock_health: MagicMock,
+    mock_breadcrumb: MagicMock,
+    tmp_path,
+) -> None:
+    """When the cloud fallback doesn't expose ``model_used`` (older provider
+    shape), provenance still attributes to the fallback PROVIDER and marks
+    the model slot as ``default`` — never as the DGX model.
+    """
+    audio = tmp_path / "clip.mp3"
+    audio.write_bytes(b"abc")
+
+    provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
+    fallback = MagicMock()
+    fallback.transcribe_with_segments.return_value = (
+        {"text": "x", "segments": [], "language": "en"},  # no model_used key
+        1.0,
+    )
+    provider._fallback = fallback
+    provider._initialized = True
+
+    result, _dur = provider.transcribe_with_segments(str(audio), language="en")
+
+    assert result["model_requested"] == "Systran/faster-whisper-large-v3"
+    assert result["model_used"] == "openai:default"
 
 
 def test_transcribe_dgx_requires_httpx(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:

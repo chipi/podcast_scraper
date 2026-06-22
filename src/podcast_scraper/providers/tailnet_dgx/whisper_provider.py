@@ -106,7 +106,7 @@ class TailnetDgxWhisperTranscriptionProvider:
     def transcribe(self, audio_path: str, language: str | None = None) -> str:
         """Return transcript text, using DGX or fallback provider."""
         self._ensure_init()
-        text, _segments, _dur = self._transcribe_with_fallback(audio_path, language)
+        text, _segments, _dur, _actual = self._transcribe_with_fallback(audio_path, language)
         return text
 
     def transcribe_with_segments(
@@ -135,7 +135,7 @@ class TailnetDgxWhisperTranscriptionProvider:
     ) -> tuple[dict[str, object], float]:
         """Return transcript dict with segments and elapsed seconds."""
         self._ensure_init()
-        text, segments, duration = self._transcribe_with_fallback(
+        text, segments, duration, actual_model = self._transcribe_with_fallback(
             audio_path,
             language,
             pipeline_metrics=pipeline_metrics,
@@ -143,15 +143,17 @@ class TailnetDgxWhisperTranscriptionProvider:
             call_metrics=call_metrics,
             model_override=model_override,
         )
+        # #1046 provenance: record what was REQUESTED (the override or default,
+        # for the gate orchestrator's bookkeeping) AND what actually ran
+        # (post-fallback). Pre-fix these were conflated, so a fallback call
+        # falsely reported the DGX model in ``model_used`` (#1046 deep-review).
         return (
             {
                 "text": text,
                 "segments": segments,
                 "language": language or "en",
-                # #1046 provenance: record which model produced this
-                # transcript so downstream metadata (and the gate
-                # orchestrator) can attribute outputs correctly.
-                "model_used": (model_override or self._model),
+                "model_requested": (model_override or self._model),
+                "model_used": actual_model,
             },
             duration,
         )
@@ -169,7 +171,7 @@ class TailnetDgxWhisperTranscriptionProvider:
         # DGX-side model for this call only. None (default) keeps
         # ``self._model`` (the prod default).
         model_override: str | None = None,
-    ) -> tuple[str, list[dict[str, object]], float]:
+    ) -> tuple[str, list[dict[str, object]], float, str]:
         assert self._fallback is not None
         last_err: Optional[Exception] = None
         timed_out = False
@@ -212,7 +214,10 @@ class TailnetDgxWhisperTranscriptionProvider:
                                 label="dgx-whisper",
                             )
                             _whisper_breaker.record_success()
-                            return result_dgx
+                            # DGX path won: the model that actually ran IS
+                            # the effective_model (override-or-default).
+                            text_dgx, segments_dgx, duration_dgx = result_dgx
+                            return (text_dgx, segments_dgx, duration_dgx, effective_model)
                     except TimeoutLike as exc:
                         # The GPU is busy/contended and the (generous, duration-scaled)
                         # budget elapsed. Retrying would pile a duplicate request onto the
@@ -280,10 +285,21 @@ class TailnetDgxWhisperTranscriptionProvider:
         )
         raw_segments = result[0].get("segments") or []
         segments = cast(List[dict[str, object]], raw_segments)
+        # Fallback path won: attribute the actual model to the cloud provider.
+        # If the cloud provider populated ``model_used`` in its own dict we
+        # surface it; otherwise we mark the model as the fallback provider's
+        # default. Either way the answer is NOT the DGX model that wasn't used.
+        cloud_model = result[0].get("model_used")
+        actual_model = (
+            f"{self._fallback_name}:{cloud_model}"
+            if cloud_model
+            else f"{self._fallback_name}:default"
+        )
         return (
             str(result[0].get("text", "")),
             segments,
             float(result[1]),
+            actual_model,
         )
 
     def cleanup(self) -> None:
