@@ -13,7 +13,11 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from podcast_scraper.server.routes import ops  # noqa: E402
 
-pytestmark = [pytest.mark.integration]
+# critical_path so this viewer API route runs in the PR fast subset
+# (test-integration-fast = "integration and critical_path"), matching the
+# other test_viewer_*/test_server_* route tests — gives /api/ops/summary
+# PR-time regression + patch coverage.
+pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 
 def _client() -> TestClient:
