@@ -345,7 +345,63 @@ Estimated effort post-greenlight:
 
 ## 10. What this doc explicitly does NOT do
 
-- Ship code in this branch. Per acceptance criteria.
+- Ship gate ORCHESTRATION code in this branch. Per acceptance criteria
+  the orchestrator (call sniff → run gate → conditionally call deep)
+  waits for measurements.
 - Predict whether the gate will pay off. The empirical measurements
   are the answer; this doc just specifies how to collect them.
 - Pre-commit to a specific gate criterion (Q1 above is open).
+
+## 11. What HAS shipped — provider plumbing (2026-06-22)
+
+The PROVIDER-side knobs landed so the orchestrator drops in cleanly
+once measurements come back. Behaviour is unchanged today
+(``dgx_whisper_sniff_model`` defaults to ``""`` which disables the
+sniff path entirely; single-model behaviour preserved).
+
+### Config knobs (off by default)
+
+- ``cfg.dgx_whisper_sniff_model: str`` — empty string disables; set
+  to e.g. ``Systran/faster-whisper-small.en`` to make the override
+  available.
+- ``cfg.dgx_whisper_sniff_gate_min_entities: int`` — default 5
+  (placeholder until measurement-pass pins the optimal value).
+
+### Provider — per-call model override
+
+``TailnetDgxWhisperTranscriptionProvider.transcribe_with_segments``
+now accepts an optional ``model_override: str | None`` parameter.
+When set, the multipart form's ``model`` field carries the override
+(not the configured default). Threaded through
+``_transcribe_with_fallback`` → ``_transcribe_dgx`` so the
+health-check substring also matches the effective model.
+
+### Provenance
+
+The returned dict now includes a ``model_used`` field with the
+effective model id. Downstream artifact writers can record which
+model produced each transcript for ``gate_path`` accounting
+(``sniff_only`` vs ``deep`` once the orchestrator lands).
+
+### Tests
+
+Five new cases in
+``tests/unit/podcast_scraper/providers/test_tailnet_dgx_whisper.py``:
+
+- override propagates to the multipart form's ``model`` field
+- None override falls back to ``cfg.dgx_whisper_model``
+- empty-string override (the disabled-sniff default) falls back too
+- public ``transcribe_with_segments`` threads override end-to-end +
+  records ``model_used`` provenance
+- default path records the default model in ``model_used``
+
+### What's still missing for #1046 acceptance
+
+- The 3 measurement passes from section 3 (operator-attended ~1h on
+  DGX).
+- Operator decisions on the 3 open questions in section 8.
+- The gate orchestrator itself (workflow-level helper) — wires the
+  Config knobs to the provider's ``model_override`` parameter.
+- The compose change on DGX to preload both Whisper models (so the
+  first sniff call doesn't pay ~1s cold-load).
+- Operator runbook section (when the gate ships).

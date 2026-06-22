@@ -123,6 +123,15 @@ class TailnetDgxWhisperTranscriptionProvider:
         pipeline_metrics: Any | None = None,
         episode_duration_seconds: int | None = None,
         call_metrics: Any | None = None,
+        # #1046 — per-call model override. When set, this overrides
+        # ``cfg.dgx_whisper_model`` for THIS call only. Used by the
+        # sniff-pass orchestrator (when it lands) to transcribe with a
+        # cheap model first, then re-call with the deep model only when
+        # the gate fires. Passing None (the default) preserves single-
+        # model behaviour. The faster-whisper-server container must have
+        # the override model loaded in its cache (preload via env or
+        # warm via a no-op call before the first real transcription).
+        model_override: str | None = None,
     ) -> tuple[dict[str, object], float]:
         """Return transcript dict with segments and elapsed seconds."""
         self._ensure_init()
@@ -132,12 +141,17 @@ class TailnetDgxWhisperTranscriptionProvider:
             pipeline_metrics=pipeline_metrics,
             episode_duration_seconds=episode_duration_seconds,
             call_metrics=call_metrics,
+            model_override=model_override,
         )
         return (
             {
                 "text": text,
                 "segments": segments,
                 "language": language or "en",
+                # #1046 provenance: record which model produced this
+                # transcript so downstream metadata (and the gate
+                # orchestrator) can attribute outputs correctly.
+                "model_used": (model_override or self._model),
             },
             duration,
         )
@@ -151,13 +165,22 @@ class TailnetDgxWhisperTranscriptionProvider:
         pipeline_metrics: Any | None = None,
         episode_duration_seconds: int | None = None,
         call_metrics: Any | None = None,
+        # #1046 — propagated to _transcribe_dgx. When set, overrides the
+        # DGX-side model for this call only. None (default) keeps
+        # ``self._model`` (the prod default).
+        model_override: str | None = None,
     ) -> tuple[str, list[dict[str, object]], float]:
         assert self._fallback is not None
         last_err: Optional[Exception] = None
         timed_out = False
+        # Effective model for THIS call — the override wins when present, else
+        # the provider's configured default. The health-check substring is
+        # derived from the effective model so we probe for the right loaded
+        # variant when the sniff-pass workflow uses a different repo id.
+        effective_model = (model_override or self._model).strip() or self._model
         # Health-check substring matches the model's slug portion (after the
         # ``Systran/`` namespace) so we don't fail on small repo-id variations.
-        health_substring = self._model.rsplit("/", 1)[-1]
+        health_substring = effective_model.rsplit("/", 1)[-1]
         timeout_sec = self._effective_timeout_sec(episode_duration_seconds)
         # Circuit breaker: if DGX Whisper is in its cooldown, skip it entirely and
         # go straight to the cloud fallback — a wedged batch isn't paced by timeouts.
@@ -179,7 +202,12 @@ class TailnetDgxWhisperTranscriptionProvider:
                             # httpx's own timeout doesn't fire (a co-tenant GPU stall can
                             # make the multipart upload trickle indefinitely, #954).
                             result_dgx = resilience.run_with_watchdog(
-                                lambda: self._transcribe_dgx(audio_path, language, timeout_sec),
+                                lambda: self._transcribe_dgx(
+                                    audio_path,
+                                    language,
+                                    timeout_sec,
+                                    model_override=model_override,
+                                ),
                                 timeout_sec + resilience.WATCHDOG_GRACE_SEC,
                                 label="dgx-whisper",
                             )
@@ -268,6 +296,9 @@ class TailnetDgxWhisperTranscriptionProvider:
         audio_path: str,
         language: str | None,
         timeout_sec: Optional[float] = None,
+        # #1046 — per-call model override (e.g. sniff-pass uses ``small.en``).
+        # None preserves the configured default.
+        model_override: str | None = None,
     ) -> tuple[str, list[dict[str, object]], float]:
         """Call faster-whisper-server's OpenAI-compatible transcribe endpoint.
 
@@ -285,8 +316,10 @@ class TailnetDgxWhisperTranscriptionProvider:
         started = time.perf_counter()
         with path.open("rb") as audio_file:
             files = {"file": (path.name, audio_file, "application/octet-stream")}
+            # #1046 — use the per-call override when set, otherwise default.
+            effective_model = (model_override or self._model).strip() or self._model
             data: dict[str, Any] = {
-                "model": self._model,
+                "model": effective_model,
                 "response_format": "verbose_json",
             }
             if language:

@@ -304,6 +304,155 @@ def test_transcribe_dgx_missing_file() -> None:
         provider._transcribe_dgx("/no/such/audio.mp3", None)
 
 
+# ---------------------------------------------------------------------------
+# #1046 — Per-call model override (sniff-pass plumbing).
+# ---------------------------------------------------------------------------
+
+
+@patch("httpx.Client")
+def test_transcribe_dgx_uses_model_override_when_provided(
+    mock_client_cls: MagicMock, tmp_path
+) -> None:
+    """When ``model_override`` is passed, the multipart form's ``model``
+    field carries the override (NOT ``cfg.dgx_whisper_model``). This is the
+    foundational wire for the #1046 sniff-pass — the sniff orchestrator
+    invokes the provider with ``small.en`` for the first pass and
+    ``large-v3`` (the default) only if the gate fires.
+    """
+    audio = tmp_path / "clip.mp3"
+    audio.write_bytes(b"abc")
+
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {
+        "text": " hello ",
+        "segments": [{"start": 0.0, "end": 1.0, "text": "hello"}],
+    }
+    mock_client = MagicMock()
+    mock_client.__enter__.return_value = mock_client
+    mock_client.post.return_value = mock_resp
+    mock_client_cls.return_value = mock_client
+
+    provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
+    provider._transcribe_dgx(str(audio), "en", model_override="Systran/faster-whisper-small.en")
+
+    # The multipart form data submitted to the server carries the override.
+    _args, kwargs = mock_client.post.call_args
+    assert kwargs["data"]["model"] == "Systran/faster-whisper-small.en", (
+        "model override didn't propagate to the multipart form — the "
+        "sniff-pass would silently re-call the default model. Wire from "
+        "_transcribe_dgx must use ``model_override or self._model``."
+    )
+
+
+@patch("httpx.Client")
+def test_transcribe_dgx_falls_back_to_default_when_override_none(
+    mock_client_cls: MagicMock, tmp_path
+) -> None:
+    """When ``model_override`` is None (the default path), the provider's
+    configured ``cfg.dgx_whisper_model`` flows to the server. Regression
+    guard against accidentally inverting the override semantics.
+    """
+    audio = tmp_path / "clip.mp3"
+    audio.write_bytes(b"abc")
+
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {
+        "text": " hello ",
+        "segments": [{"start": 0.0, "end": 1.0, "text": "hello"}],
+    }
+    mock_client = MagicMock()
+    mock_client.__enter__.return_value = mock_client
+    mock_client.post.return_value = mock_resp
+    mock_client_cls.return_value = mock_client
+
+    provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
+    provider._transcribe_dgx(str(audio), "en")  # no override
+
+    _args, kwargs = mock_client.post.call_args
+    assert kwargs["data"]["model"] == "Systran/faster-whisper-large-v3", (
+        f"default-model path regression: expected the cfg default "
+        f"'Systran/faster-whisper-large-v3', got "
+        f"{kwargs['data']['model']!r}"
+    )
+
+
+@patch("httpx.Client")
+def test_transcribe_dgx_empty_override_string_falls_back_to_default(
+    mock_client_cls: MagicMock, tmp_path
+) -> None:
+    """An empty-string ``model_override`` (the disabled-sniff-pass default
+    that the Config field carries) is treated as None — the provider uses
+    its configured default. This guards the orchestrator's likely
+    code path of unconditionally passing ``cfg.dgx_whisper_sniff_model``
+    (which is ``""`` when the operator hasn't opted into the gate).
+    """
+    audio = tmp_path / "clip.mp3"
+    audio.write_bytes(b"abc")
+
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {
+        "text": " hello ",
+        "segments": [{"start": 0.0, "end": 1.0, "text": "hello"}],
+    }
+    mock_client = MagicMock()
+    mock_client.__enter__.return_value = mock_client
+    mock_client.post.return_value = mock_resp
+    mock_client_cls.return_value = mock_client
+
+    provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
+    provider._transcribe_dgx(str(audio), "en", model_override="")
+
+    _args, kwargs = mock_client.post.call_args
+    assert kwargs["data"]["model"] == "Systran/faster-whisper-large-v3"
+
+
+@patch.object(TailnetDgxWhisperTranscriptionProvider, "_transcribe_dgx")
+@patch.object(wp, "check_faster_whisper_health", return_value=True)
+def test_transcribe_with_segments_threads_model_override_through(
+    mock_health: MagicMock,
+    mock_transcribe_dgx: MagicMock,
+    tmp_path,
+) -> None:
+    """Public ``transcribe_with_segments`` propagates ``model_override`` to
+    the lower-level ``_transcribe_dgx`` call AND records the effective
+    model in the returned dict's ``model_used`` provenance field.
+    """
+    audio = tmp_path / "clip.mp3"
+    audio.write_bytes(b"abc")
+    mock_transcribe_dgx.return_value = ("text", [], 1.0)
+
+    provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
+    result, _dur = provider.transcribe_with_segments(
+        str(audio),
+        language="en",
+        model_override="Systran/faster-whisper-small.en",
+    )
+
+    # The override threaded all the way down to _transcribe_dgx.
+    call_kwargs = mock_transcribe_dgx.call_args.kwargs
+    assert call_kwargs.get("model_override") == "Systran/faster-whisper-small.en"
+    # And the returned dict carries the provenance — downstream artifact
+    # writers can record which model produced this transcript.
+    assert result["model_used"] == "Systran/faster-whisper-small.en"
+
+
+@patch.object(TailnetDgxWhisperTranscriptionProvider, "_transcribe_dgx")
+@patch.object(wp, "check_faster_whisper_health", return_value=True)
+def test_transcribe_with_segments_default_path_records_default_model(
+    mock_health: MagicMock,
+    mock_transcribe_dgx: MagicMock,
+    tmp_path,
+) -> None:
+    """No override → ``model_used`` provenance is the configured default."""
+    audio = tmp_path / "clip.mp3"
+    audio.write_bytes(b"abc")
+    mock_transcribe_dgx.return_value = ("text", [], 1.0)
+
+    provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
+    result, _dur = provider.transcribe_with_segments(str(audio), language="en")
+    assert result["model_used"] == "Systran/faster-whisper-large-v3"
+
+
 def test_transcribe_dgx_requires_httpx(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
     import builtins
 

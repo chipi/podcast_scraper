@@ -1376,6 +1376,32 @@ class Config(BaseModel):
             "faster-whisper-server which takes HF repo IDs."
         ),
     )
+    dgx_whisper_sniff_model: str = Field(
+        default="",
+        alias="dgx_whisper_sniff_model",
+        description=(
+            "#1046 — Whisper sniff-pass model for the gated two-model workflow. "
+            "When non-empty, the pipeline can transcribe with this cheap model "
+            "first, decide whether the episode is worth deep-transcribing, and "
+            "only then call dgx_whisper_model. Empty (the default) disables the "
+            "sniff pass entirely — single-model behaviour. See "
+            "docs/wip/1046-WHISPER-MULTI-MODEL-DESIGN.md for the gate criterion "
+            "+ cost model. Typical value: ``Systran/faster-whisper-small.en``. "
+            "Gate orchestration is operator-attended once measurement-pass "
+            "lands the (r, accuracy) numbers — until then the knob exists but "
+            "the gate logic does not."
+        ),
+    )
+    dgx_whisper_sniff_gate_min_entities: int = Field(
+        default=5,
+        alias="dgx_whisper_sniff_gate_min_entities",
+        description=(
+            "#1046 — spaCy NER entity count required on the sniff-pass transcript "
+            "to trigger the deep-transcription pass. Below this → keep the sniff "
+            "transcript and skip deep. Operator-tunable; default 5 is a placeholder "
+            "until the measurement pass on prod-v2 corpus pins the optimal value."
+        ),
+    )
     diarization_provider: Literal["local", "tailnet_dgx", "gemini", "deepgram"] = Field(
         default="local",
         alias="diarization_provider",
