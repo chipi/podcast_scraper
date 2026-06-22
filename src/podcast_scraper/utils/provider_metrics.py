@@ -187,6 +187,12 @@ def record_provider_call_cost(
     final = call_metrics.estimated_cost
     if final is None or final <= 0:
         return
+    # #1053: the correlation join key for every signal emitted for this LLM call.
+    from podcast_scraper.utils import correlation
+
+    run_id = correlation.get_run_id()
+    episode_id = correlation.get_episode_id()
+
     try:
         from podcast_scraper.workflow.cost_monitoring import emit_llm_cost_event
 
@@ -198,13 +204,15 @@ def record_provider_call_cost(
             estimated_cost_usd=float(final),
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
+            run_id=run_id,
             triggered_guardrail=triggered_guardrail,
         )
     except Exception as exc:
         logger.debug("llm_cost_event emission skipped: %s", exc)
 
     # Langfuse AI-quality lens (#1052): same choke point, no-op unless keys set.
-    # Group a run's calls under one trace via the output dir as the trace seed.
+    # Group a run's calls under one trace seeded by the run_id correlation key (#1053),
+    # so the trace is directly addressable as create_trace_id(seed=run_id).
     try:
         from podcast_scraper.utils.langfuse_tracing import emit_langfuse_span
 
@@ -215,7 +223,8 @@ def record_provider_call_cost(
             cost=float(final),
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
-            run_seed=getattr(cfg, "output_dir", None),
+            run_seed=run_id or getattr(cfg, "output_dir", None),
+            episode_id=episode_id,
             feed_id=getattr(cfg, "rss_url", None),
             triggered_guardrail=triggered_guardrail,
             env=os.environ.get("PODCAST_ENV"),

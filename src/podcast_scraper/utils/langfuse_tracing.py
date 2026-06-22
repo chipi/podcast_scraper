@@ -114,15 +114,17 @@ def emit_langfuse_span(
     prompt_tokens: Optional[int] = None,
     completion_tokens: Optional[int] = None,
     run_seed: Optional[str] = None,
+    episode_id: Optional[str] = None,
     feed_id: Optional[str] = None,
     triggered_guardrail: bool = False,
     env: Optional[str] = None,
 ) -> None:
     """Emit one ``generation`` observation for a single LLM call.
 
-    Silent no-op when tracing is disabled. ``run_seed`` (e.g. the run's output
-    dir) deterministically groups all of a run's calls under one Langfuse trace;
-    omit it and each call lands in its own trace. Never raises.
+    Silent no-op when tracing is disabled. ``run_seed`` (the run_id correlation key,
+    #1053) deterministically groups all of a run's calls under one Langfuse trace —
+    so the trace is addressable as ``create_trace_id(seed=run_seed)`` — and is stamped
+    into the span metadata alongside ``episode_id`` so the signals join. Never raises.
     """
     client = get_langfuse_client()
     if client is None:
@@ -146,6 +148,8 @@ def emit_langfuse_span(
             metadata={
                 "provider": provider,
                 "stage": capability,
+                "run_id": run_seed,
+                "episode_id": episode_id,
                 "feed_id": feed_id,
                 "triggered_guardrail": bool(triggered_guardrail),
                 "env": env,

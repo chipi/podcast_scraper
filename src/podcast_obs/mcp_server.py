@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Optional
 
-from .aggregate import summary as _summary
+from .aggregate import correlate as _correlate, summary as _summary
 from .config import ObservabilityConfig, ObservabilityConfigError, TargetConfig
 from .result import err
 from .sources import github, grafana, langfuse, loki, prod_api, sentry
@@ -111,6 +111,11 @@ def _build_tools(config: ObservabilityConfig) -> list[Callable[..., dict]]:
         """One-call control-plane glance: every source for a deploy (live/unconfigured/failed)."""
         return _run(config, target, _summary)
 
+    def prod_correlate(run_id: str, target: Optional[str] = None) -> dict:
+        """Every signal for ONE run_id, joined: Langfuse trace (per-call model/cost/tokens) +
+        Loki llm_cost events + Sentry errors. The cross-layer view for a single run (#1053)."""
+        return _run(config, target, lambda t: _correlate(t, run_id))
+
     return [
         prod_health,
         prod_version,
@@ -122,6 +127,7 @@ def _build_tools(config: ObservabilityConfig) -> list[Callable[..., dict]]:
         prod_recent_alerts,
         prod_recent_traces,
         prod_summary,
+        prod_correlate,
     ]
 
 
