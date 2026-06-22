@@ -426,7 +426,7 @@ class TestExploreCollectAndOutput:
 
 def _minimal_gi_insight_only(episode_id: str, insight_text: str) -> dict:
     return {
-        "schema_version": "2.0",
+        "schema_version": "3.0",
         "model_version": "stub",
         "prompt_version": "v1",
         "episode_id": episode_id,

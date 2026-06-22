@@ -73,7 +73,7 @@ class TestKgCorpus(unittest.TestCase):
     def test_topic_cooccurrence_single_episode(self) -> None:
         """Two topics in one episode produce one unordered pair."""
         art = {
-            "schema_version": "1.0",
+            "schema_version": "2.0",
             "episode_id": "episode:x",
             "extraction": {
                 "model_version": "stub",

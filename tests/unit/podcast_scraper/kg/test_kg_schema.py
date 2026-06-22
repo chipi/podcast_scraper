@@ -19,7 +19,7 @@ class TestKgSchema(unittest.TestCase):
     def test_minimal_validate_missing_key(self) -> None:
         """Minimal validation rejects missing top-level keys."""
         with self.assertRaises(ValueError) as ctx:
-            validate_artifact({"schema_version": "1.0"}, strict=False)
+            validate_artifact({"schema_version": "2.0"}, strict=False)
         self.assertIn("missing required key", str(ctx.exception).lower())
 
     def test_minimal_validate_bad_schema_version(self) -> None:
@@ -65,7 +65,7 @@ class TestKgSchema(unittest.TestCase):
     def test_strict_rejects_noncanonical_model_version(self) -> None:
         """extraction.model_version must be stub or provider:*."""
         base = {
-            "schema_version": "1.0",
+            "schema_version": "2.0",
             "episode_id": "e:1",
             "extraction": {
                 "model_version": "legacy-tier",
@@ -92,7 +92,7 @@ class TestKgSchema(unittest.TestCase):
     def test_strict_rejects_invalid_entity_role(self) -> None:
         """Entity.properties.role is host | guest | mentioned when present."""
         art = {
-            "schema_version": "1.0",
+            "schema_version": "2.0",
             "episode_id": "e:1",
             "extraction": {
                 "model_version": "stub",
@@ -128,7 +128,7 @@ class TestKgSchema(unittest.TestCase):
     def test_strict_accepts_1_2_kind_and_person_prefix_id(self) -> None:
         """v1.2 Entity uses ``kind`` and ``person:`` ids."""
         art = {
-            "schema_version": "1.2",
+            "schema_version": "2.0",
             "episode_id": "e:1",
             "extraction": {
                 "model_version": "stub",
@@ -163,7 +163,7 @@ class TestKgSchema(unittest.TestCase):
     def test_strict_accepts_reserved_related_to_edge(self) -> None:
         """RELATED_TO is allowed by schema though v1 builder does not emit it."""
         art = {
-            "schema_version": "1.0",
+            "schema_version": "2.0",
             "episode_id": "e:1",
             "extraction": {
                 "model_version": "stub",
@@ -205,7 +205,7 @@ class TestKgSchema(unittest.TestCase):
     def test_strict_accepts_1_1_topic_and_entity_descriptions(self) -> None:
         """Optional description on Topic/Entity validates (GitHub #487)."""
         art = {
-            "schema_version": "1.1",
+            "schema_version": "2.0",
             "episode_id": "e:1",
             "extraction": {
                 "model_version": "stub",

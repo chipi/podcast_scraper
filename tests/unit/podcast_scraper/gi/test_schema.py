@@ -13,7 +13,7 @@ class TestGILSchema:
     def test_validate_artifact_minimal_valid(self):
         """Valid minimal artifact passes."""
         data = {
-            "schema_version": "1.0",
+            "schema_version": "3.0",
             "model_version": "stub",
             "prompt_version": "v1",
             "episode_id": "episode:1",
@@ -25,7 +25,7 @@ class TestGILSchema:
     def test_validate_artifact_missing_required_key(self):
         """Missing required key raises ValueError."""
         data = {
-            "schema_version": "1.0",
+            "schema_version": "3.0",
             "model_version": "stub",
             "episode_id": "episode:1",
             "nodes": [],
@@ -50,7 +50,7 @@ class TestGILSchema:
     def test_validate_artifact_minimal_2_0_valid(self):
         """schema_version 2.0 passes minimal validation."""
         data = {
-            "schema_version": "2.0",
+            "schema_version": "3.0",
             "model_version": "stub",
             "prompt_version": "v1",
             "episode_id": "episode:1",
@@ -62,7 +62,7 @@ class TestGILSchema:
     def test_validate_artifact_nodes_not_array(self):
         """nodes must be an array."""
         data = {
-            "schema_version": "1.0",
+            "schema_version": "3.0",
             "model_version": "stub",
             "prompt_version": "v1",
             "episode_id": "episode:1",
@@ -75,7 +75,7 @@ class TestGILSchema:
     def test_validate_artifact_edges_not_array(self):
         """edges must be an array."""
         data = {
-            "schema_version": "1.0",
+            "schema_version": "3.0",
             "model_version": "stub",
             "prompt_version": "v1",
             "episode_id": "episode:1",
@@ -101,7 +101,7 @@ class TestGILSchema:
     def test_validate_artifact_strict_rejects_extra_top_level_key(self):
         """Minimal valid artifact passes non-strict; with extra key fails strict."""
         data = {
-            "schema_version": "1.0",
+            "schema_version": "3.0",
             "model_version": "stub",
             "prompt_version": "v1",
             "episode_id": "episode:1",

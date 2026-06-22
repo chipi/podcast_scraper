@@ -50,8 +50,16 @@ def _minimal_validate(data: Dict[str, Any]) -> None:
     if not isinstance(data.get("schema_version"), str):
         raise ValueError("GIL artifact 'schema_version' must be a string")
     sv = data.get("schema_version")
-    if sv not in ("1.0", "2.0", "3.0"):
-        raise ValueError("GIL artifact 'schema_version' must be '1.0', '2.0', or '3.0'")
+    # RFC-097 chunk 9 (ADR-101, 2026-06-22): legacy 1.0/2.0 shape rejected.
+    # Migration scripts read input as raw JSON (json.load), not via
+    # validate_artifact, so this strict version gate does not block migration
+    # of legacy corpora.
+    if sv != "3.0":
+        raise ValueError(
+            "GIL artifact 'schema_version' must be '3.0' (RFC-097 v3). Legacy "
+            "1.0/2.0 shape is no longer accepted; migrate via "
+            "scripts/migrate_gi_to_v3.py + scripts/compute_gi_position_hints.py."
+        )
     if not isinstance(data.get("nodes"), list):
         raise ValueError("GIL artifact 'nodes' must be an array")
     if not isinstance(data.get("edges"), list):

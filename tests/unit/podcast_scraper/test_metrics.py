@@ -1125,7 +1125,7 @@ class TestMetricsHygiene(unittest.TestCase):
             "time_thread_sync_seconds": 0.0,
             "time_queue_wait_seconds": 0.0,
             "vector_index_seconds": 0.0,
-            "schema_version": "1.0",
+            "schema_version": "3.0",
         }
         # Create a metrics dict with a None value to test validation
         invalid_metrics_with_none = invalid_metrics.copy()

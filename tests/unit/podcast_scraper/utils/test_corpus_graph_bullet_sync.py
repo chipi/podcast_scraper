@@ -22,7 +22,7 @@ class TestBulletLabels(unittest.TestCase):
 class TestPatchGi(unittest.TestCase):
     def test_insight_text_and_topics(self):
         gi = {
-            "schema_version": "1.0",
+            "schema_version": "3.0",
             "episode_id": "e1",
             "model_version": "test",
             "nodes": [
@@ -63,7 +63,7 @@ class TestPatchGi(unittest.TestCase):
 class TestPatchKg(unittest.TestCase):
     def test_skips_provider_kg(self):
         kg = {
-            "schema_version": "1.2",
+            "schema_version": "2.0",
             "episode_id": "e1",
             "extraction": {"model_version": "provider:gpt-4"},
             "nodes": [
@@ -78,7 +78,7 @@ class TestPatchKg(unittest.TestCase):
 
     def test_replaces_summary_bullets_kg(self):
         kg = {
-            "schema_version": "1.2",
+            "schema_version": "2.0",
             "episode_id": "e1",
             "extraction": {"model_version": "summary_bullets"},
             "nodes": [
@@ -120,7 +120,7 @@ class TestKgHeuristic(unittest.TestCase):
 class TestJsonStable(unittest.TestCase):
     def test_patch_gi_roundtrip_json(self):
         gi = {
-            "schema_version": "1.0",
+            "schema_version": "3.0",
             "episode_id": "e1",
             "nodes": [
                 {"id": "episode:e1", "type": "Episode", "properties": {}},

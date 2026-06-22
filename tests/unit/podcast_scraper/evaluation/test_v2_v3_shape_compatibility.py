@@ -72,7 +72,7 @@ def test_kg_scorer_handles_v2_shape_unchanged():
 def test_kg_scorer_v1_and_v2_payloads_aggregate_consistently():
     """Mixed corpus (legacy Entity + new Person/Org) aggregates uniformly."""
     legacy = {
-        "schema_version": "1.2",
+        "schema_version": "2.0",
         "episode_id": "e_legacy",
         "extraction": {
             "model_version": "stub",

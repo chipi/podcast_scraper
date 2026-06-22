@@ -33,7 +33,7 @@ def _bundle(
 ) -> None:
     directory.mkdir(parents=True, exist_ok=True)
     bridge = {
-        "schema_version": "1.0",
+        "schema_version": "3.0",
         "episode_id": episode_id,
         "identities": [
             {
@@ -115,7 +115,7 @@ def _bundle_two_topics_same_episode(
     """One episode with two topics and two insights (merged cluster timeline)."""
     directory.mkdir(parents=True, exist_ok=True)
     bridge = {
-        "schema_version": "1.0",
+        "schema_version": "3.0",
         "episode_id": episode_id,
         "identities": [
             {

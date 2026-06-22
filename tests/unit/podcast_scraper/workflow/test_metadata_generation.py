@@ -1424,7 +1424,7 @@ class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):
         metadata_path = os.path.join(self.temp_dir, "test.metadata.json")
         mock_determine.return_value = metadata_path
         mock_build_artifact.return_value = {
-            "schema_version": "1.0",
+            "schema_version": "3.0",
             "model_version": "stub",
             "prompt_version": "v1",
             "episode_id": "ep:1",
@@ -1476,7 +1476,7 @@ class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):
         )
         mock_gen_sum.return_value = (mock_summary, 0.0, None)
         mock_build_artifact.return_value = {
-            "schema_version": "1.0",
+            "schema_version": "3.0",
             "model_version": "stub",
             "prompt_version": "v1",
             "episode_id": "ep:1",
@@ -1514,7 +1514,7 @@ class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):
         metadata_path = os.path.join(self.temp_dir, "test.metadata.json")
         mock_determine.return_value = metadata_path
         mock_build_artifact.return_value = {
-            "schema_version": "1.0",
+            "schema_version": "3.0",
             "model_version": "stub",
             "prompt_version": "v1",
             "episode_id": "ep:1",
@@ -1573,7 +1573,7 @@ class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):
         metadata_path = os.path.join(self.temp_dir, "test.metadata.json")
         mock_determine.return_value = metadata_path
         mock_kg_build.return_value = {
-            "schema_version": "1.0",
+            "schema_version": "2.0",
             "episode_id": "ep:1",
             "extraction": {
                 "model_version": "stub",
@@ -1627,7 +1627,7 @@ class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):
         metadata_path = os.path.join(self.temp_dir, "test.metadata.json")
         mock_determine.return_value = metadata_path
         mock_kg_build.return_value = {
-            "schema_version": "1.0",
+            "schema_version": "2.0",
             "episode_id": "ep:1",
             "extraction": {
                 "model_version": "stub",

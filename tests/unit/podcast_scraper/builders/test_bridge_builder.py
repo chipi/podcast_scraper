@@ -23,7 +23,7 @@ def test_build_bridge_identities_superset_of_gi_kg_cil_ids(tmp_path: Path) -> No
         "edges": [],
     }
     kg = {
-        "schema_version": "1.2",
+        "schema_version": "2.0",
         "episode_id": "ep:int",
         "extraction": {"model_version": "stub"},
         "nodes": [

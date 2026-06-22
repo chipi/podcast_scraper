@@ -15,7 +15,7 @@ _FIXTURE_MINIMAL = Path(__file__).resolve().parents[3] / "fixtures" / "kg" / "mi
 
 def _minimal_valid_payload() -> dict:
     return {
-        "schema_version": "1.0",
+        "schema_version": "2.0",
         "episode_id": "e:test",
         "extraction": {
             "model_version": "stub",
@@ -61,7 +61,7 @@ class TestKgIoWriteRead(unittest.TestCase):
     def test_write_validate_true_rejects_invalid_payload(self) -> None:
         import tempfile
 
-        bad = {"schema_version": "1.0"}  # missing required keys
+        bad = {"schema_version": "2.0"}  # missing required keys
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "bad.kg.json"
             with self.assertRaises(ValueError):

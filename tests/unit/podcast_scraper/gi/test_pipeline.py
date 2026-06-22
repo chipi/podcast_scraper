@@ -25,7 +25,7 @@ class TestGILPipeline:
     def test_build_artifact_has_required_keys(self):
         """Output has schema_version, model_version, prompt_version, episode_id, nodes, edges."""
         out = build_artifact("episode:1", "Some transcript.")
-        assert out["schema_version"] == "2.0"
+        assert out["schema_version"] == "3.0"
         assert out["model_version"] == "stub"
         assert out["prompt_version"] == "v1"
         assert out["episode_id"] == "episode:1"
@@ -344,7 +344,7 @@ class TestGILPipeline:
             transcript_ref="transcript.txt",
         )
         assert out["episode_id"] == "ep:1"
-        assert out["schema_version"] == "2.0"
+        assert out["schema_version"] == "3.0"
         insight_nodes = [n for n in out["nodes"] if n["type"] == "Insight"]
         quote_nodes = [n for n in out["nodes"] if n["type"] == "Quote"]
         assert len(insight_nodes) == 2

@@ -36,7 +36,7 @@ def _write_bundle(
 ) -> None:
     directory.mkdir(parents=True, exist_ok=True)
     bridge = {
-        "schema_version": "1.0",
+        "schema_version": "3.0",
         "episode_id": episode_id,
         "identities": [
             {
@@ -322,7 +322,7 @@ def test_skips_incomplete_triple(tmp_path: Path) -> None:
     meta = tmp_path / "metadata"
     meta.mkdir(parents=True)
     (meta / "orphan.bridge.json").write_text(
-        '{"schema_version":"1.0","identities":[]}', encoding="utf-8"
+        '{"schema_version": "3.0","identities":[]}', encoding="utf-8"
     )
     root = str(tmp_path)
     assert cil_queries.position_arc(root, root, "person:x", "topic:y") == []
@@ -465,7 +465,7 @@ def test_topic_person_ids_skips_non_person_spoken_by(tmp_path: Path) -> None:
     directory.mkdir(parents=True, exist_ok=True)
     episode_id = "episode:sp"
     bridge = {
-        "schema_version": "1.0",
+        "schema_version": "3.0",
         "episode_id": episode_id,
         "identities": [
             {
@@ -520,7 +520,7 @@ def test_position_arc_skips_empty_episode_id(tmp_path: Path) -> None:
     directory = meta
     directory.mkdir(parents=True, exist_ok=True)
     bridge = {
-        "schema_version": "1.0",
+        "schema_version": "3.0",
         "episode_id": "",
         "identities": [
             {
@@ -578,7 +578,7 @@ def test_topic_timeline_kg_only_topic_finds_gi_insights_via_bridge(
     meta = tmp_path / "metadata"
     meta.mkdir(parents=True, exist_ok=True)
     bridge = {
-        "schema_version": "1.0",
+        "schema_version": "3.0",
         "episode_id": "ep:iran",
         "identities": [
             {
@@ -657,7 +657,7 @@ def test_skips_when_kg_missing(tmp_path: Path) -> None:
     meta = tmp_path / "metadata"
     meta.mkdir(parents=True)
     bridge = {
-        "schema_version": "1.0",
+        "schema_version": "3.0",
         "episode_id": "e",
         "identities": [
             {

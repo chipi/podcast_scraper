@@ -16,7 +16,7 @@ pytestmark = pytest.mark.unit
 
 def _artifact():
     return {
-        "schema_version": "2.0",
+        "schema_version": "3.0",
         "nodes": [
             {"id": "episode:e1", "type": "Episode", "properties": {}},
             {
@@ -60,7 +60,7 @@ def test_insight_entity_no_substring_false_positive():
     added = add_insight_entity_edges(art, {"person:cathie-wood": ("Cathie Wood", "person")})
     assert added == 0
     # No typed edges added -> schema_version unchanged.
-    assert art["schema_version"] == "2.0"
+    assert art["schema_version"] == "3.0"
 
 
 def test_insight_entity_idempotent():
@@ -79,7 +79,7 @@ def test_insight_entity_skips_when_legacy_mentions_already_present():
     added = add_insight_entity_edges(art, {"person:elon-musk": ("Elon Musk", "person")})
     assert added == 0  # legacy edge dedup-blocks the typed one
     # schema_version not bumped because no new edge landed
-    assert art["schema_version"] == "2.0"
+    assert art["schema_version"] == "3.0"
 
 
 def test_episode_show_adds_podcast_node_and_edge():

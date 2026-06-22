@@ -897,7 +897,7 @@ def _build_stub_artifact(
         {"type": "SUPPORTED_BY", "from": insight_id, "to": quote_id},
     ]
     return {
-        "schema_version": "2.0",
+        "schema_version": "3.0",  # RFC-097 chunk 9: v3.0 GI emit
         "model_version": model_version,
         "prompt_version": prompt_version,
         "episode_id": episode_id,
@@ -1492,7 +1492,7 @@ def _artifact_from_multi_insight(
             )
 
     return {
-        "schema_version": "2.0",
+        "schema_version": "3.0",  # RFC-097 chunk 9: v3.0 GI emit
         "model_version": model_version,
         "prompt_version": prompt_version,
         "episode_id": episode_id,
