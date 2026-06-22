@@ -1,0 +1,59 @@
+{
+  "title": "Podcast Scraper — Deploys (#803)",
+  "uid": "podcast-scraper-deploys",
+  "tags": ["podcast-scraper", "deploys", "observability"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "description": "Import into Grafana Cloud podcast-scraper folder. Requires deploy_event log lines pushed by deploy-prod.yml (#803 D1): {app=\"podcast_scraper\", event_type=\"deploy_event\"} with JSON {status, sha, duration_ms, triggered_by}. MTTR (failed→next-success) is deferred — it needs correlation a single LogQL panel can't express.",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Deploys per week (12w)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(count_over_time({app=\"podcast_scraper\", event_type=\"deploy_event\"} [1w]))",
+          "legendFormat": "deploys/week"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Failure rate (4w)",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(count_over_time({app=\"podcast_scraper\", event_type=\"deploy_event\"} | json | status != \"success\" [4w])) / sum(count_over_time({app=\"podcast_scraper\", event_type=\"deploy_event\"} [4w]))",
+          "legendFormat": "failed / total"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "p95 deploy duration (4w, ms)",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "quantile_over_time(0.95, {app=\"podcast_scraper\", event_type=\"deploy_event\"} | json | unwrap duration_ms [4w])",
+          "legendFormat": "p95 ms"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Deploys by status over time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum by (status) (count_over_time({app=\"podcast_scraper\", event_type=\"deploy_event\"} | json [1d]))",
+          "legendFormat": "{{status}}"
+        }
+      ]
+    }
+  ]
+}

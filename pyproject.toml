@@ -47,6 +47,16 @@ dependencies = [
 #   compare   — Streamlit compare UI (RFC-047)
 #   monitor   — py-spy + memray optional profiling (RFC-065; `--monitor` needs no extra)
 #   (FastAPI / uvicorn / metrics / scheduler for ``podcast serve`` live in [dev], not a separate extra.)
+#   observability — standalone prod control plane (#803, ``podcast_obs``). LIGHT by design.
+# Standalone prod observability control plane (#803). Intentionally LIGHT so it runs as a small
+# container anywhere on the tailnet — no torch/spaCy/pipeline deps. (httpx + PyYAML are already
+# base deps; listed here so a future slim ``podcast_obs``-only install is self-describing.)
+observability = [
+  "httpx>=0.28.1,<1.0.0",
+  "PyYAML>=6.0.3,<7.0.0",
+  "mcp>=1.2.0,<2.0.0",  # FastMCP server for the agent-facing layer (stdio + sse/http)
+]
+
 # Heavy ML dependencies - only install when needed
 ml = [
   "openai-whisper>=20231117",
@@ -77,7 +87,7 @@ ml = [
   # extractive QA: transformers 5 removed the ``question-answering`` pipeline task (CI preload).
   # CVE-2026-1839 (Trainer rng_state / torch.load): fixed in 5.0.0rc3+ only; pip-audit ignore in Makefile until 5.x stable.
   "transformers>=4.57.6,<5.0.0",
-  "sentencepiece>=0.1.99,<1.0.0",
+  "sentencepiece>=0.2.1,<1.0.0",
   # GIL evidence stack: SentenceTransformer + CrossEncoder (NLI); Docker .[ml] preload
   # v3+ CrossEncoder: pass local_files_only on constructor, not inside tokenizer/automodel kwargs
   "sentence-transformers>=5.4.1,<6.0.0",
@@ -111,7 +121,7 @@ llm = [
   # 1.x: ThinkingConfig.thinking_budget for gemini-2.5-flash (Issue #572); 0.x lacked the field
   "google-genai>=1.0.0,<2.0.0",
   "google-api-core>=2.30.3,<3.0.0",  # Required by google-genai for some operations
-  "anthropic>=0.101.0,<1.0.0",  # Anthropic API provider (Issue #106)
+  "anthropic>=0.111.0,<1.0.0",  # Anthropic API provider (Issue #106)
   # Mistral API provider (Issue #106). PyPI ``mistralai`` is quarantined (no installable
   # files on https://pypi.org/simple/mistralai/ as of 2026-05). Pin the official v2.4.5
   # tree (commit matches tag v2.4.5) until PyPI restores the project.
@@ -126,7 +136,7 @@ search = [
   "torch>=2.11.0,<3.0.0",
   # Pinned compatible with sentence-transformers 5.x — see [ml] for rationale.
   "transformers>=4.57.6,<5.0.0",
-  "sentencepiece>=0.1.99,<1.0.0",
+  "sentencepiece>=0.2.1,<1.0.0",
   "sentence-transformers>=5.4.1,<6.0.0",
   # RFC-090 two-tier hybrid backend: embedded vector + native FTS (BM25) in one store.
   "lancedb>=0.33.0,<1.0.0",
@@ -154,7 +164,7 @@ dev = [
   # Starlette TestClient (tests/conftest.py preload) requires httpx; not always
   # pulled as a transitive install in minimal CI venvs.
   "httpx>=0.28.1,<1.0.0",
-  "uvicorn[standard]>=0.48.0,<1.0.0",
+  "uvicorn[standard]>=0.49.0,<1.0.0",
   # Prometheus exporter for /metrics (gated on PODCAST_METRICS_ENABLED in app.py).
   "prometheus-fastapi-instrumentator>=8.0.0,<9.0.0",
   # In-process feed-sweep scheduler (#708); no-op unless ``scheduled_jobs:`` in viewer_operator.yaml.
@@ -180,12 +190,12 @@ dev = [
   # near-vestigial (CI/dashboard read radon directly; only local make complexity-track used it).
   "radon>=6.0.1,<6.1",
   "vulture>=2.16,<3.0.0",  # Dead code detection (RFC-031)
-  "interrogate>=1.5.0,<2.0.0",  # Docstring coverage (RFC-031)
+  "interrogate>=1.7.0,<2.0.0",  # Docstring coverage (RFC-031)
   "codespell>=2.4.2,<3.0.0",  # Spell checking (RFC-031)
   "jsonschema>=4.17.0,<5.0.0",  # Full JSON Schema validation for eval/GI/KG artifacts
   "pydeps>=3.0.2,<4.0.0",  # Module dependency visualization (RFC-038, #170)
   "pyan3==2.4.0",  # Call graph generation (Issue #425); 1.2.0 has CallGraphVisitor root bug
-  "code2flow>=2.5.0,<3.0.0",  # Flowcharts from code (Issue #425)
+  "code2flow>=2.5.1,<3.0.0",  # Flowcharts from code (Issue #425)
   # Diarization stack pins (RFC-058) — lazy-imported; keeps CI/dev venv aligned with [ml].
   # Must mirror the [ml] pin: pyannote 3.x is import-broken under torchaudio>=2.9
   # (AudioMetaData removed), which is exactly why [ml] moved to 4.x (#901).

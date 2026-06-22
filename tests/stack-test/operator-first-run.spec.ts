@@ -175,7 +175,10 @@ test.describe('Operator first-run UX from an empty corpus subdir (#693)', () => 
     // Open Configuration → Job Profile.
     await page.getByTestId('status-bar-sources-trigger').click()
     await expect(page.getByTestId('status-bar-sources-dialog')).toBeVisible()
-    await page.getByTestId('sources-dialog-tab-profile').click()
+    // Config dialog restructure (#1038): the old "profile" tab is now the
+    // "operator" tab with a "profile" sub-panel.
+    await page.getByTestId('sources-dialog-tab-operator').click()
+    await page.getByTestId('sources-dialog-operator-subtab-profile').click()
 
     const profileSelect = page.getByTestId('sources-dialog-profile-select')
     await expect(profileSelect).toBeVisible({ timeout: 30_000 })
@@ -194,7 +197,7 @@ test.describe('Operator first-run UX from an empty corpus subdir (#693)', () => 
         new URL(r.url()).pathname.endsWith('/api/operator-config'),
       { timeout: 60_000 },
     )
-    await page.getByTestId('sources-dialog-save-profile').click()
+    await page.getByTestId('sources-dialog-save-overrides').click()
     const put = await putPromise
     expect(put.ok(), `PUT status=${put.status()}`).toBeTruthy()
 

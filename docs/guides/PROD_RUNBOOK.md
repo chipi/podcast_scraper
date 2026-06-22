@@ -25,11 +25,14 @@ For day-to-day prod (not DR drill, not manual corpus restore): **preflight** (se
 `snapshot.tgz` is **not** part of this path; see [Disaster recovery](#disaster-recovery) and
 [STACK_CONTRACT.md](STACK_CONTRACT.md).
 
-> **For the prerequisites checklist** (Hetzner account + Tailscale credentials —
-> auth key + API access token on Free plan, see "Tailscale credentials" below
-> for the why — sops/age + GHA secrets), see
-> [#714](https://github.com/chipi/podcast_scraper/issues/714).
-> All commands below assume those are done.
+> **For the prerequisites checklist** (Hetzner account, Tailscale Free-plan credentials —
+> `TS_AUTHKEY` + `TS_API_KEY`, see "Tailscale credentials" below for the why — sops/age, runtime
+> service accounts, and GHA secrets), see
+> [Bootstrap prerequisites](BOOTSTRAP_PREREQUISITES.md). All commands below assume those are done.
+>
+> Historical: [#714](https://github.com/chipi/podcast_scraper/issues/714) was the original
+> prerequisites issue; it is **superseded** (it describes the Tailscale OAuth model, which the
+> Free-plan auth-key + API-key model replaced).
 
 ## Sections
 
@@ -55,6 +58,18 @@ For day-to-day prod (not DR drill, not manual corpus restore): **preflight** (se
 
 One-shot setup that takes prod from "nothing" to "viewer reachable on the
 tailnet". ~30–45 min wall.
+
+**Bootstrap sequence at a glance.** The subsections below are grouped by topic, not strict
+order — follow this sequence (each step links its section):
+
+1. Complete the [Bootstrap prerequisites](BOOTSTRAP_PREREQUISITES.md) (accounts + credentials).
+2. [Pre-bootstrap on your laptop](#pre-bootstrap-one-time-on-operators-laptop) — tools, age key, stage infra GHA secrets.
+3. [First `tofu apply`](#first-tofu-apply-operators-laptop) — provision the VPS; set `PROD_TAILNET_FQDN`.
+4. [Wait for cloud-init](#first-tofu-apply-operators-laptop) (a few minutes — see the note after apply) until the VPS is reachable on the tailnet.
+5. [Set up the CI deploy SSH key](#github-actions-ssh-to-prod-prod_ssh_private_key) (`PROD_SSH_PRIVATE_KEY`) — needs the VPS live.
+6. [Stage the runtime `PROD_*` secrets](#stage-env-workflow-staged-from-gh-secrets-841) in repo settings.
+7. [Trigger the first deploy](#trigger-the-first-deploy) — `deploy-prod.yml` renders `.env` and brings the stack up.
+8. [Smoke-validate](#smoke-validation).
 
 ### Pre-bootstrap (one-time, on operator's laptop)
 
@@ -155,7 +170,7 @@ so the workflow uses **`$SSH_DRILL_IDENTITY`** (prod workflows keep the default 
 
 1. SSH to the drill VPS with your **operator** key (only that key is present from cloud-init until you extend **`authorized_keys`**).
 2. Append **exactly one line** (contents of **`gha-prod-deploy.pub`**, or a drill-only CI public key) to **`deploy@`** **`~/.ssh/authorized_keys`** (modes **`700`** / **`600`**).
-3. Stage **`/srv/podcast-scraper/.env`**, then **`sudo rm /srv/podcast-scraper/.bootstrap-needs-env`** so Docker Compose can start (see cloud-init **`final_message`** on first boot).
+3. Ensure **`/srv/podcast-scraper/.env`** exists (drill workflows stage it, or restore it per the [Drill host `.env` checklist](DR_DRILL_RUNBOOK.md#drill-host-env-checklist-after-first-boot-or-restore)). The `podcast-scraper.service` unit's `ExecStartPre` refuses to start until `.env` is present (#844 positive check — the older `.bootstrap-needs-env` sentinel was removed).
 
 **GitHub secret** (can reuse the same PEM file as prod if the same public key is on drill **`deploy@`**):
 
@@ -185,9 +200,11 @@ ssh -o IdentitiesOnly=yes deploy@<your-drill-magicdns-host> 'echo ok'
 
 ```bash
 cd infra
-export HCLOUD_TOKEN=$(op read 'op://Personal/Hetzner Cloud/podcast-scraper-prod/api-token')
+# Retrieve the Hetzner token + Tailscale API key from your secrets store (pass,
+# an offline .env, `op read …` if you use 1Password — no specific manager required).
+export HCLOUD_TOKEN='<your Hetzner R/W API token>'
 export TF_VAR_hcloud_token="$HCLOUD_TOKEN"
-export TF_VAR_tailscale_api_key=$(op read 'op://Personal/Tailscale/podcast-scraper/api-key')
+export TF_VAR_tailscale_api_key='<your Tailscale Personal API access token>'
 export TF_VAR_tailscale_tailnet="tail-xxxxx.ts.net"   # your tailnet
 export TF_VAR_ssh_public_key="$(cat ~/.ssh/id_ed25519.pub)"
 
@@ -207,6 +224,18 @@ After apply, set the GHA variable:
 gh variable set PROD_TAILNET_FQDN --repo chipi/podcast_scraper \
   --body "prod-podcast.tail-xxxxx.ts.net"
 ```
+
+**Wait for cloud-init before the next step.** `tofu apply` returns once Hetzner creates the
+server, but the VPS then runs cloud-init for a few minutes (installs Docker + Tailscale, joins the
+tailnet, clones the repo, enables the systemd unit). Check readiness one of two ways:
+
+- the new machine shows **online** in the [Tailscale admin](https://login.tailscale.com/admin/machines), or
+- `ssh deploy@prod-podcast.<tailnet> 'echo ok'` succeeds (after you've added the CI key below; the
+  operator key from `tofu apply` works immediately).
+
+The stack itself stays **down** until the first `deploy-prod.yml` run stages `/srv/podcast-scraper/.env`
+— the `podcast-scraper.service` unit's `ExecStartPre` refuses to start without it (#844). That is
+**by design**, not a failure: provisioning a VPS does not bring up the app; the first deploy does.
 
 ### When the live hostname has a numeric suffix (`-1`, `-2`, …) {#tailscale-suffix-drift}
 
@@ -754,7 +783,7 @@ gh workflow run "Deploy to prod VPS" \
 
 ### Recovering `.env` after destroy
 
-`.env` is workflow-staged from GH Secrets (#841), so it auto-rebuilds on the next `deploy-prod.yml` or `prod-restore-corpus.yml` run. No manual step. If you've never staged the secrets before, follow [Stage `.env` (workflow-staged from GH Secrets)](#stage-env-workflow-staged-from-gh-secrets--841) one-time.
+`.env` is workflow-staged from GH Secrets (#841), so it auto-rebuilds on the next `deploy-prod.yml` or `prod-restore-corpus.yml` run. No manual step. If you've never staged the secrets before, follow [Stage `.env` (workflow-staged from GH Secrets)](#stage-env-workflow-staged-from-gh-secrets-841) one-time.
 
 ### State drift gotchas
 

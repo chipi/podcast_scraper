@@ -45,9 +45,9 @@ const STACK_TEST_LIBRARY_TITLE_MARKERS = ['Building Trails', 'E2E Selection']
  *    (named volume). Seed lists ``STACK_TEST_SEED_FIRST_FEED_URL``;
  *    Playwright adds ``MOCK_FEED_EXTRA`` (asserted distinct).
  *
- * **Job profile (same dialog)** — **Job Profile** tab +
+ * **Job profile (same dialog)** — **Operator** tab → **Profile** sub-panel +
  * ``sources-dialog-profile-select`` + **Save (applies preset +
- * overrides on disk)** (``sources-dialog-save-profile``) →
+ * overrides on disk)** (``sources-dialog-save-overrides``) →
  * ``PUT /api/operator-config`` so ``<corpus>/viewer_operator.yaml``
  * gains merged ``profile:`` + overrides before **Run pipeline job**.
  * Preset: ``STACK_TEST_OPERATOR_PROFILE`` or default
@@ -653,7 +653,9 @@ test.describe('stack test — feeds UI + job + data', () => {
     stackTestProgress(
       `browser: Job Profile tab — select "${operatorProfile}" then Save (PUT /api/operator-config)`,
     )
-    await page.getByTestId('sources-dialog-tab-profile').click()
+    // Config dialog restructure (#1038): profile lives under the "operator" tab's profile sub-panel.
+    await page.getByTestId('sources-dialog-tab-operator').click()
+    await page.getByTestId('sources-dialog-operator-subtab-profile').click()
     const profileSelect = page.getByTestId('sources-dialog-profile-select')
     await expect(profileSelect).toBeVisible({ timeout: 30_000 })
     await profileSelect
@@ -676,7 +678,7 @@ test.describe('stack test — feeds UI + job + data', () => {
       },
       { timeout: 120_000 },
     )
-    await page.getByTestId('sources-dialog-save-profile').click()
+    await page.getByTestId('sources-dialog-save-overrides').click()
     const operatorPut = await operatorPutPromise
     expect(
       operatorPut.ok(),

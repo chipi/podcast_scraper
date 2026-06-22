@@ -1,0 +1,27 @@
+# Example: run the #803 observability control plane as a container on a tailnet host.
+#
+# 1. cp ../../config/observability.example.yaml ./observability.yaml  (edit targets)
+# 2. export the read-scoped tokens referenced by the YAML's `<field>_env:` keys
+# 3. docker compose -f docker-compose.example.yml up -d
+#
+# Reaching prod over Tailscale (and being reachable by agents on other boxes) requires this
+# container to be on the tailnet: run it on a tailnet host with host networking, or add a
+# tailscale sidecar. See docs/guides/OBSERVABILITY_CONTROL_PLANE.md.
+
+services:
+  podcast-obs:
+    build:
+      context: ../..
+      dockerfile: docker/observability/Dockerfile
+    # image: ghcr.io/chipi/podcast-obs:latest   # once published
+    environment:
+      PODCAST_OBS_CONFIG: /config/observability.yaml
+      # Secrets stay out of the YAML (via `<field>_env:` indirection) — provide them here:
+      PODCAST_OBS_GH_TOKEN: ${PODCAST_OBS_GH_TOKEN:-}
+      PODCAST_OBS_SENTRY_TOKEN: ${PODCAST_OBS_SENTRY_TOKEN:-}
+      PODCAST_OBS_GRAFANA_TOKEN: ${PODCAST_OBS_GRAFANA_TOKEN:-}
+    volumes:
+      - ./observability.yaml:/config/observability.yaml:ro
+    ports:
+      - "8848:8848"
+    restart: unless-stopped

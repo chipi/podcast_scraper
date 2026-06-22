@@ -111,7 +111,7 @@ jobs:
       stack-profiles: ${{ steps.filter.outputs.stack-profiles }}
       stack-compose: ${{ steps.filter.outputs.stack-compose }}
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - uses: dorny/paths-filter@v4
       id: filter
       with:
@@ -182,7 +182,7 @@ jobs:
       needs.build.result == 'success' &&
       needs.viewer-unit.result == 'success'
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - uses: actions/setup-node@v6
       with:
         node-version: "22"
@@ -203,7 +203,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10  # Fast checks: format, lint, markdown, type
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:
@@ -261,7 +261,7 @@ jobs:
     # sources, so viewer-only PRs (web/gi-kg-viewer/**) can skip this.
     if: needs.detect-changes.outputs.python == 'true'
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:
@@ -333,7 +333,7 @@ jobs:
     # instead; pytest doesn't apply to web/gi-kg-viewer/**.
     if: needs.detect-changes.outputs.python == 'true'
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:
@@ -487,7 +487,7 @@ jobs:
     needs: [detect-changes, test-unit]
     if: needs.detect-changes.outputs.python == 'true'
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:
@@ -510,7 +510,7 @@ jobs:
     timeout-minutes: 5
     needs: [lint, build]
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - uses: actions/setup-node@v6
       with:
         # Vite 8 requires ^20.19 || >=22.12; bare "20" on the runner can be older and breaks Vite
@@ -548,7 +548,7 @@ jobs:
       # it the preload skips diarization gracefully (build still green). Optional secret.
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     # Restore is ~9GB compressed; without cleanup, cache-hit runs can run out of disk mid-tar
     # ("Wrote only N of M bytes"). Always free space before restore, not only on cache miss.
     - name: Free disk space (before ML cache restore or download)
@@ -631,7 +631,7 @@ jobs:
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5' || github.ref == 'refs/heads/release/2.6') &&
       needs.detect-changes.outputs.python == 'true'
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Free disk space
       run: |
         sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /home/linuxbrew/.linuxbrew
@@ -759,7 +759,7 @@ jobs:
       !contains(github.event.pull_request.head.ref, 'docs/') &&
       needs.detect-changes.outputs.python == 'true'
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Free disk space
       run: |
         sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /home/linuxbrew/.linuxbrew
@@ -879,7 +879,7 @@ jobs:
       !contains(github.event.pull_request.head.ref, 'docs/') &&
       needs.detect-changes.outputs.python == 'true'
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Free disk space
       run: |
         sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /home/linuxbrew/.linuxbrew
@@ -1006,7 +1006,7 @@ jobs:
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5' || github.ref == 'refs/heads/release/2.6') &&
       needs.detect-changes.outputs.python == 'true'
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Free disk space
       run: |
         sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /home/linuxbrew/.linuxbrew
@@ -1134,7 +1134,7 @@ jobs:
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5' || github.ref == 'refs/heads/release/2.6') &&
       needs.detect-changes.outputs.python == 'true'
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Free disk space
       run: |
         sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /home/linuxbrew/.linuxbrew
@@ -1191,7 +1191,7 @@ jobs:
       needs.viewer-e2e.result == 'success' &&
       (needs.coverage-unified.result == 'success' || needs.coverage-unified.result == 'skipped')
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:
@@ -1222,7 +1222,7 @@ jobs:
     needs: [detect-changes, security-quality, test-unit, test-integration, test-integration-fast, test-e2e, test-e2e-fast, viewer-e2e]  # Python tests + Playwright before merge report
     if: always() && needs.detect-changes.outputs.python == 'true'
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         # Full history required for wily (code quality trends) on main/release
         fetch-depth: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5' || github.ref == 'refs/heads/release/2.6') && 0 || 1 }}
@@ -1239,7 +1239,7 @@ jobs:
         pip install -e .
         # Same tools as nightly metrics + Makefile quality: not in base install — without these,
         # `radon` is missing, metrics fall back to complexity 0 / empty MI (flat code-quality chart).
-        pip install "radon>=5.1.0,<5.2" "interrogate>=1.5.0,<2.0.0" "vulture>=2.10,<3.0.0" "codespell>=2.2.0,<3.0.0"
+        pip install "radon>=5.1.0,<5.2" "interrogate>=1.7.0,<2.0.0" "vulture>=2.10,<3.0.0" "codespell>=2.2.0,<3.0.0"
     - name: Download coverage artifacts
       uses: actions/download-artifact@v8
       with:
@@ -1544,7 +1544,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:

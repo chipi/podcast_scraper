@@ -35,6 +35,7 @@ from podcast_scraper.server.routes import (
     index_stats,
     jobs,
     operator_config,
+    ops,
     query_activity,
     relational,
     scheduled_jobs as scheduled_jobs_route,
@@ -192,6 +193,7 @@ def create_app(
     app.include_router(corpus_digest.router, prefix="/api")
     app.include_router(corpus_topic_clusters.router, prefix="/api")
     app.include_router(cil.router, prefix="/api")
+    app.include_router(ops.router, prefix="/api")
 
     resolved_output = Path(output_dir).expanduser().resolve() if output_dir is not None else None
     app.state.output_dir = resolved_output

@@ -816,13 +816,13 @@ class TestFullPipelineE2E:
             kg = json.load(f)
         kg_nodes = kg.get("nodes", [])
         topic_nodes = [n for n in kg_nodes if n.get("type") == "Topic"]
-        entity_nodes = [n for n in kg_nodes if n.get("type") == "Entity"]
         assert len(topic_nodes) > 0, "KG should have Topic nodes"
 
-        # 4. KG Person entities: host "Maya" with role=host
-        person_entities = [
-            n for n in entity_nodes if n.get("properties", {}).get("entity_kind") == "person"
-        ]
+        # 4. KG Person entities: host "Maya" with role=host.
+        # RFC-097 v2.0: persons emit typed ``Person`` nodes (was legacy ``Entity``
+        # + ``entity_kind=person``, both dropped by the v2 migration — the old
+        # filter silently matched nothing, making this a no-op).
+        person_entities = [n for n in kg_nodes if n.get("type") == "Person"]
         if person_entities:
             host_persons = [n for n in person_entities if n["properties"].get("role") == "host"]
             assert len(host_persons) > 0, (
@@ -881,10 +881,10 @@ class TestFullPipelineE2E:
         with open(kg_files[0], "r", encoding="utf-8") as f:
             kg = json.load(f)
 
-        entity_nodes = [n for n in kg.get("nodes", []) if n.get("type") == "Entity"]
-        person_entities = [
-            n for n in entity_nodes if n.get("properties", {}).get("entity_kind") == "person"
-        ]
+        # RFC-097 v2.0: persons emit typed ``Person`` nodes (was legacy ``Entity``
+        # + ``entity_kind=person``, both dropped by the v2 migration — the old
+        # filter silently matched nothing, making this a no-op).
+        person_entities = [n for n in kg.get("nodes", []) if n.get("type") == "Person"]
 
         guest_persons = [
             n for n in person_entities if n.get("properties", {}).get("role") == "guest"

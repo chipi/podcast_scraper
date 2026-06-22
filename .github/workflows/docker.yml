@@ -42,7 +42,7 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - name: Free disk space
       # #703: cold pipeline (ml) builds tip over the runner's free-disk
@@ -124,7 +124,7 @@ jobs:
             tag: podcast-scraper:test
             build_args: "INSTALL_EXTRAS=ml\nPRELOAD_ML_MODELS=true"
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - name: Free disk space
       # #703: cold pipeline (ml) builds tip over the runner's free-disk

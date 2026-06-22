@@ -11,6 +11,8 @@
 #   1  pull failed
 #   2  compose up failed
 #   3  /api/health did not return 200 within the timeout
+#   4  DEPLOY_GIT_SHA / DEPLOY_IMAGE_SHA validation failed (format mismatch or
+#      git/image SHA disagree on the 7-char prefix)
 set -euo pipefail
 
 REPO_DIR=/srv/podcast-scraper

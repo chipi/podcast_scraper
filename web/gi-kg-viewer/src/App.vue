@@ -7,6 +7,7 @@ import DashboardView from './components/dashboard/DashboardView.vue'
 import DigestView from './components/digest/DigestView.vue'
 import GraphTabPanel from './components/graph/GraphTabPanel.vue'
 import LibraryView from './components/library/LibraryView.vue'
+import OpsView from './components/ops/OpsView.vue'
 import LeftPanel from './components/shell/LeftPanel.vue'
 import StatusBar from './components/shell/StatusBar.vue'
 import SubjectRail from './components/shell/SubjectRail.vue'
@@ -68,7 +69,7 @@ const graphExpansion = useGraphExpansionStore()
 const graphHandoff = useGraphHandoffStore()
 const graphNav = useGraphNavigationStore()
 
-const mainTab = ref<'digest' | 'library' | 'graph' | 'dashboard'>('digest')
+const mainTab = ref<'digest' | 'library' | 'graph' | 'dashboard' | 'ops'>('digest')
 const leftPanelRef = ref<{ focusQuery: () => void } | null>(null)
 const graphCanvasRef = ref<{
   clearInteractionState: (opts?: { skipRedraw?: boolean }) => void
@@ -607,6 +608,19 @@ watch(
             >
               Dashboard
             </button>
+            <button
+              type="button"
+              class="rounded px-3 py-1"
+              :class="
+                mainTab === 'ops'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-elevated-foreground hover:bg-overlay'
+              "
+              data-testid="main-tab-ops"
+              @click="mainTab = 'ops'"
+            >
+              Ops
+            </button>
           </nav>
           <button
             type="button"
@@ -770,6 +784,12 @@ watch(
               @open-library="mainTab = 'library'"
               @open-digest="mainTab = 'digest'"
             />
+          </div>
+          <div
+            v-if="mainTab === 'ops'"
+            class="h-full min-h-0 max-w-full flex-1 overflow-x-hidden overflow-y-auto p-3"
+          >
+            <OpsView />
           </div>
           <keep-alive>
             <GraphTabPanel
