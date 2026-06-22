@@ -25,8 +25,10 @@ from podcast_scraper.search.relational_queries import (
     node_label,
     positions_of,
     related_insights,
+    related_topics,
     RelatedNode,
     rerank_by_relevance,
+    shared_topics,
     topics_of,
     topics_of_insight,
     who_said,
@@ -271,3 +273,29 @@ def test_co_speakers_finds_people_on_shared_topics(graph: FakeGraph) -> None:
 
 def test_topics_of_insight(graph: FakeGraph) -> None:
     assert [t.id for t in topics_of_insight(graph, "insight:1")] == ["topic:ai"]
+
+
+def test_shared_topics_is_the_intersection(graph: FakeGraph) -> None:
+    # alice + bob both engage topic:ai → it's their shared topic.
+    assert [t.id for t in shared_topics(graph, "person:alice", "person:bob")] == ["topic:ai"]
+
+
+def test_related_topics_via_shared_insight() -> None:
+    # one insight is ABOUT both topic:a and topic:b → they're related.
+    nodes: Dict[str, Tuple[str, Dict[str, object]]] = {
+        "topic:a": ("topic", {"label": "A"}),
+        "topic:b": ("topic", {"label": "B"}),
+        "topic:c": ("topic", {"label": "C"}),
+        "insight:1": ("insight", {}),
+        "insight:2": ("insight", {}),
+    }
+    edges = [
+        ("insight:1", "topic:a", "ABOUT"),
+        ("insight:1", "topic:b", "ABOUT"),
+        ("insight:2", "topic:a", "ABOUT"),
+        ("insight:2", "topic:c", "ABOUT"),
+    ]
+    g = FakeGraph(nodes, edges)
+    # a co-occurs with b (insight:1) and c (insight:2); self excluded.
+    assert sorted(t.id for t in related_topics(g, "topic:a")) == ["topic:b", "topic:c"]
+    assert "topic:a" not in [t.id for t in related_topics(g, "topic:a")]

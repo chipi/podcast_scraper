@@ -33,6 +33,8 @@ def test_build_server_registers_tools(tmp_path) -> None:
         "entity_neighborhood",
         "person_topics",
         "co_occurring_entities",
+        "bridge",
+        "related_topics",
         # slice 3 — catalog / navigation
         "list_feeds",
         "list_episodes",

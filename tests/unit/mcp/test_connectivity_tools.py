@@ -129,3 +129,33 @@ def test_co_occurring_entities_rejects_non_person(ctx) -> None:
     out = conn.co_occurring_entities(ctx, "topic:ai")
     assert out["ok"] is False
     assert "person:" in out["note"]
+
+
+# ── bridge / related_topics (#1054 connectivity iteration) ──────────────────
+
+
+def test_bridge_two_people_shows_shared_topics(ctx) -> None:
+    out = conn.bridge(ctx, "person:alice", "person:bob")
+    assert out["ok"] is True and out["kind"] == "bridge"
+    assert out["subject"]["a"]["label"] == "Alice"
+    assert [t["id"] for t in out["data"]["shared_topics"]] == ["topic:ai"]
+    assert out["data"]["co_occur"] is True
+
+
+def test_bridge_rejects_non_person(ctx) -> None:
+    out = conn.bridge(ctx, "topic:ai", "person:alice")
+    assert out["ok"] is False
+    assert "person:" in out["note"]
+
+
+def test_related_topics_rejects_non_topic(ctx) -> None:
+    out = conn.related_topics(ctx, "person:alice")
+    assert out["ok"] is False
+
+
+def test_related_topics_empty_has_note(ctx) -> None:
+    # the fixture has a single topic → no co-occurring topics; note explains.
+    out = conn.related_topics(ctx, "topic:ai")
+    assert out["ok"] is True
+    assert out["data"]["related_topics"] == []
+    assert out["note"]

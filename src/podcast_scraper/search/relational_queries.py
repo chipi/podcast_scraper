@@ -316,3 +316,27 @@ def co_speakers(graph: GraphLike, person_id: str, *, k: int = 20) -> List[Relate
 def topics_of_insight(graph: GraphLike, insight_id: str) -> List[RelatedNode]:
     """Topics an insight is `ABOUT` — lets results surface their topic links (#1054)."""
     return [_project(n) for n in _via(graph, insight_id, _ABOUT, _TOPIC)]
+
+
+def related_topics(graph: GraphLike, topic_id: str, *, k: int = 20) -> List[RelatedNode]:
+    """Topics that share insights with *topic_id* — topic↔topic connectivity (#1054).
+
+    topic→`ABOUT`→insight→`ABOUT`→other-topic, ranked by how many insights they co-occur in.
+    """
+    counts: Dict[str, int] = {}
+    nodes: Dict[str, Node] = {}
+    for insight in _via(graph, topic_id, _ABOUT, _INSIGHT):
+        for topic in _via(graph, insight.id, _ABOUT, _TOPIC):
+            if topic.id == topic_id:
+                continue
+            counts[topic.id] = counts.get(topic.id, 0) + 1
+            nodes[topic.id] = topic
+    ranked = sorted(counts, key=lambda tid: (-counts[tid], tid))[:k]
+    return [_project(nodes[tid]) for tid in ranked]
+
+
+def shared_topics(graph: GraphLike, person_a: str, person_b: str) -> List[RelatedNode]:
+    """Topics BOTH people engage — the bridge between two voices (#1054)."""
+    a_topics = {n.id: n for n in topics_of(graph, person_a, k=10_000)}
+    b_ids = {n.id for n in topics_of(graph, person_b, k=10_000)}
+    return [a_topics[tid] for tid in a_topics if tid in b_ids]

@@ -177,6 +177,24 @@ def build_server(corpus_dir: Path | str) -> Any:
         """
         return _connectivity.co_occurring_entities(ctx, entity_id, k=k)
 
+    @server.tool()
+    def bridge(entity_a: str, entity_b: str) -> dict:
+        """How two entities connect — *"how are X and Y related?"* in one call.
+
+        Two ``person:`` ids → the topics they BOTH engage + whether they directly co-occur.
+        Use after resolving two names to see what links two voices.
+        """
+        return _connectivity.bridge(ctx, entity_a, entity_b)
+
+    @server.tool()
+    def related_topics(topic_id: str, k: int = 20) -> dict:
+        """Topics that co-occur with a topic (share insights) — topic↔topic connectivity.
+
+        ``topic_id`` is a canonical ``topic:`` id. Use to widen from one theme to adjacent
+        ones the corpus discusses together.
+        """
+        return _connectivity.related_topics(ctx, topic_id, k=k)
+
     # --- catalog / navigation tools (RFC-095 slice 3) ---
 
     @server.tool()

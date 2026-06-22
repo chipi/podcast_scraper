@@ -53,6 +53,8 @@ shapes or confusing *no data* with *feature off*.
 | *"What topics does she engage?"* | `person_topics(person_id)` (or the `topics` facet above) |
 | *"How has her position on AI regulation evolved?"* | `resolve_entity` ×2 → `position_arc(person_id, topic_id)` |
 | *"Who else is in this conversation?"* | `co_occurring_entities(person_id)` — people on shared topics |
+| *"How are two people related?"* | `bridge(person_a, person_b)` — shared topics + do they co-occur |
+| *"What themes sit next to this one?"* | `related_topics(topic_id)` — topics that share insights |
 | *"What do different shows say about AI safety?"* | `resolve_entity` → `cross_show_synthesis(topic_id)` (the corpus differentiator) |
 | *"Who said what about a topic?"* | `who_said_about_topic(topic_id)` — grouped by speaker |
 | *"Find the exact quotes / the claims around X."* | `search_corpus(query, tier="segment"` or `"insight")` → `related_insights` |

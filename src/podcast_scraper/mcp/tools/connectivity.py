@@ -117,6 +117,47 @@ def person_topics(ctx: CorpusContext, person_id: str, k: int = 20) -> Dict[str, 
     )
 
 
+def bridge(ctx: CorpusContext, entity_a: str, entity_b: str) -> Dict[str, Any]:
+    """How two entities connect — the relationship between them (#1054).
+
+    For two ``person:`` ids: the topics they BOTH engage, and whether they directly
+    co-occur (speak on a shared topic). Answers "how are X and Y related?" in one call.
+    """
+    from ...search import relational_queries as rq
+
+    if _kind_of(entity_a) != "person" or _kind_of(entity_b) != "person":
+        return _err("bridge", f"{entity_a}|{entity_b}", "bridge currently connects two person: ids")
+    graph = _graph(ctx)
+    if graph.get_node(entity_a) is None or graph.get_node(entity_b) is None:
+        return _err("bridge", f"{entity_a}|{entity_b}", "one or both entities not in corpus")
+    shared = rq.shared_topics(graph, entity_a, entity_b)
+    co = entity_b in {p.id for p in rq.co_speakers(graph, entity_a, k=10_000)}
+    subject = {
+        "a": {"id": entity_a, "label": rq.node_label(graph, entity_a)},
+        "b": {"id": entity_b, "label": rq.node_label(graph, entity_b)},
+    }
+    data = {"shared_topics": [_rel(t) for t in shared], "co_occur": co}
+    note = "" if shared else "no shared topics — these two voices don't overlap in the corpus"
+    return {"ok": True, "kind": "bridge", "subject": subject, "data": data, "note": note}
+
+
+def related_topics(ctx: CorpusContext, topic_id: str, k: int = 20) -> Dict[str, Any]:
+    """Topics that co-occur with *topic_id* (share insights) — topic↔topic connectivity (#1054)."""
+    from ...search import relational_queries as rq
+
+    if _kind_of(topic_id) != "topic":
+        return _err(_kind_of(topic_id), topic_id, "related_topics needs a topic: id")
+    graph = _graph(ctx)
+    topics = rq.related_topics(graph, topic_id, k=k)
+    note = "" if topics else "no co-occurring topics — this topic stands alone in the corpus"
+    return _ok(
+        "topic",
+        {"id": topic_id, "label": rq.node_label(graph, topic_id)},
+        {"related_topics": [_rel(t) for t in topics]},
+        note,
+    )
+
+
 def co_occurring_entities(ctx: CorpusContext, entity_id: str, k: int = 20) -> Dict[str, Any]:
     """Who is discussed *alongside* an entity — the social graph (#1054).
 
