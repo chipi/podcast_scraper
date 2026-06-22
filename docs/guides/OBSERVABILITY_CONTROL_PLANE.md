@@ -200,7 +200,8 @@ optional, unset = Cloud — these are the Langfuse SDK's own env names):
 1. **Pipeline emits** — a hook at the provider cost choke point
    (`record_provider_call_cost`) emits one generation span per LLM call across all 8 providers.
    Enable-when-secret-present (Sentry pattern): a **true no-op** unless both keys are set, so dev /
-   CI / offline runs stay silent. Needs the SDK: `pip install -e '.[langfuse]'`.
+   CI / offline runs stay silent. The SDK ships in `[dev]`; a runtime-only install adds the
+   `[tracing]` extra (`pip install -e '.[tracing]'`) — and the prod pipeline image bakes it.
 2. **Control plane reads** — the `traces` probe / `prod_recent_traces` MCP tool / Ops-view card
    query the same account back (Basic auth, `httpx` only — no SDK in the light control plane).
 

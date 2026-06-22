@@ -100,8 +100,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
         pip install torch torchaudio torchcodec --index-url https://download.pytorch.org/whl/cpu && \
         # Install core + ML deps, plus [search] (lancedb): the pipeline image runs corpus
         # upgrade/migrations which build the LanceDB index, and lancedb is search-only (#1019).
-        # [langfuse] bakes the optional LLM-tracing SDK (#1052) — no-op unless LANGFUSE_* keys set.
-        pip install '.[ml,search,langfuse]' && \
+        # [tracing] bakes the optional LLM-tracing SDK (langfuse, #1052) — no-op unless LANGFUSE_* set.
+        pip install '.[ml,search,tracing]' && \
         pip uninstall -y podcast-scraper && \
         # `.[ml]` pulls CUDA-linked torch/torchaudio/torchcodec from PyPI; force the whole stack back
         # to the CPU builds so torchcodec loads against the system FFmpeg (not CUDA/libnvrtc). Installing
@@ -111,7 +111,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
         # cloud-API pipeline image. Includes [search] (lancedb + sentence-transformers + torch CPU)
         # so cloud_balanced can build its LanceDB vector index without [ml]'s spaCy/Whisper/Pegasus.
         pip install torch --index-url https://download.pytorch.org/whl/cpu && \
-        pip install '.[llm,search,langfuse]' && \
+        pip install '.[llm,search,tracing]' && \
         pip uninstall -y podcast-scraper && \
         pip install --force-reinstall --no-deps torch --index-url https://download.pytorch.org/whl/cpu; \
     else \
