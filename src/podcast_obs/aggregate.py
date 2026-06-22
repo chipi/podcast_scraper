@@ -11,7 +11,7 @@ from typing import Callable
 
 from .config import TargetConfig
 from .result import err, ok
-from .sources import github, grafana, loki, prod_api, sentry
+from .sources import github, grafana, langfuse, loki, prod_api, sentry
 
 # (label, probe) — each probe takes a TargetConfig and returns a result envelope.
 # Sources whose credentials aren't set for a target return ``configured=False`` and land in the
@@ -25,6 +25,7 @@ _PROBES: list[tuple[str, Callable[[TargetConfig], dict]]] = [
     ("logs", lambda target: loki.recent_logs(target, limit=5)),  # compact for the glance
     ("errors", sentry.recent_errors),
     ("alerts", grafana.recent_alerts),
+    ("traces", lambda target: langfuse.recent_traces(target, limit=5)),  # compact for the glance
 ]
 
 

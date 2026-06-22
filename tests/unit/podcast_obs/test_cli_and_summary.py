@@ -31,6 +31,7 @@ def test_summary_all_unconfigured_when_no_api_base() -> None:
         "logs",
         "errors",
         "alerts",
+        "traces",
     }
     assert data["failed"] == []
 
@@ -42,7 +43,7 @@ def test_summary_prod_api_live_externals_unconfigured(monkeypatch: pytest.Monkey
     )
     data = aggregate.summary(TargetConfig(name="t", api_base="http://x"))["data"]
     assert set(data["live"]) == {"health", "version", "runs"}
-    assert set(data["unconfigured"]) == {"deploys", "cost", "logs", "errors", "alerts"}
+    assert set(data["unconfigured"]) == {"deploys", "cost", "logs", "errors", "alerts", "traces"}
     assert data["failed"] == []
 
 

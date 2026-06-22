@@ -11,15 +11,15 @@ import pytest
 
 from podcast_scraper.utils import langfuse_tracing as lt
 
-_PUB = "PODCAST_LANGFUSE_PUBLIC_KEY"
-_SEC = "PODCAST_LANGFUSE_SECRET_KEY"
-_URL = "PODCAST_LANGFUSE_BASE_URL"
+_PUB = "LANGFUSE_PUBLIC_KEY"
+_SEC = "LANGFUSE_SECRET_KEY"
+_URL = "LANGFUSE_BASE_URL"
 
 
 @pytest.fixture(autouse=True)
 def _reset(monkeypatch: pytest.MonkeyPatch):
     # Clear any ambient creds + drop the cached client so each test re-inits.
-    for key in (_PUB, _SEC, _URL):
+    for key in (_PUB, _SEC, _URL, "LANGFUSE_HOST"):
         monkeypatch.delenv(key, raising=False)
     lt._reset_for_tests()
     yield

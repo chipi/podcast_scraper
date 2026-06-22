@@ -81,6 +81,7 @@ targets:
 | `sentry` | a Sentry **auth token** | **Issue & Event: Read** (`event:read`) — `project:read` alone is not enough. **NOT the DSN** (the staged `PROD_SENTRY_DSN_*` can't query the API). `prod_recent_errors`/D2 also want **Release: Admin**. Note: project **slugs** ≠ DSN names (check Settings → Projects; e.g. `podcast-scraper-api`). |
 | `grafana` (alerts) | a Grafana **service-account** token (`glsa_`) | alerting read. Grafana-API only. |
 | `loki` (cost/logs) | `loki_user` + a Cloud **access-policy** token (`glc_`) | **`logs:read`**. A *different token type* from the alerting one — Grafana Cloud splits the data plane (Loki, `glc_`) from the Grafana API (`glsa_`). The agent's `GRAFANA_CLOUD_API_KEY` is `logs:write` and 401s. (Falls back to the grafana token for self-hosted setups where one token serves both.) |
+| `langfuse` (traces) | a Langfuse **public + secret key** pair (Basic auth) | Read-only public API. **SDK-native bare env names** `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` (not `PODCAST_OBS_*`) — the *same* pair the pipeline traces with, so one set drives both emit + probe. `LANGFUSE_BASE_URL` optional (unset = Cloud). |
 
 ## CLI (the basics)
 
@@ -94,6 +95,7 @@ python -m podcast_obs cost-today                     # 24h LLM spend (Loki)
 python -m podcast_obs logs --service pipeline --window 6h --contains OOM
 python -m podcast_obs errors --window 24h            # Sentry issues
 python -m podcast_obs alerts                          # Grafana alerts
+python -m podcast_obs traces --limit 10              # recent Langfuse LLM traces
 ```
 
 Every command prints a uniform JSON envelope — `{ok, source, data | error, configured}`. Exit code
@@ -107,9 +109,9 @@ lines the Sentry SDK never wrapped.
 
 ## MCP server (agent-facing)
 
-Same probes, exposed as 9 tools (`prod_health`, `prod_version`, `prod_recent_runs`,
+Same probes, exposed as 10 tools (`prod_health`, `prod_version`, `prod_recent_runs`,
 `prod_recent_deploys`, `prod_cost_today`, `prod_recent_logs`, `prod_recent_errors`,
-`prod_recent_alerts`, `prod_summary`) — each takes an optional `target`.
+`prod_recent_alerts`, `prod_recent_traces`, `prod_summary`) — each takes an optional `target`.
 
 ```bash
 python -m podcast_obs serve --transport stdio                       # local agent
@@ -181,6 +183,28 @@ Example you can hand an agent:
 
 The agent gets a cheap, structured first look from `podcast_obs` and escalates to Grafana only when
 something needs investigation — no operator `ssh` or dashboard-clicking.
+
+## Langfuse LLM tracing (#1052)
+
+Langfuse is the **AI-quality lens** the cost/ops sources don't give: where `cost-today` answers
+*"how much did we spend"*, Langfuse answers *"what did each LLM call do"* — a `generation` span per
+call (model / tokens / latency / cost / stage), grouped per run. It **coexists** with the own
+solution (Loki `llm_cost` + `corpus_manifest.cost_rollup` + Sentry stay the source of truth for
+cost/ops); Langfuse is additive, not a replacement.
+
+**Two surfaces, one key pair** (`LANGFUSE_PUBLIC_KEY` + `LANGFUSE_SECRET_KEY`; `LANGFUSE_BASE_URL`
+optional, unset = Cloud — these are the Langfuse SDK's own env names):
+
+1. **Pipeline emits** — a hook at the provider cost choke point
+   (`record_provider_call_cost`) emits one generation span per LLM call across all 8 providers.
+   Enable-when-secret-present (Sentry pattern): a **true no-op** unless both keys are set, so dev /
+   CI / offline runs stay silent. Needs the SDK: `pip install -e '.[langfuse]'`.
+2. **Control plane reads** — the `traces` probe / `prod_recent_traces` MCP tool / Ops-view card
+   query the same account back (Basic auth, `httpx` only — no SDK in the light control plane).
+
+Hosting is **decided at enable-time**: point `LANGFUSE_BASE_URL` at Langfuse Cloud or a self-hosted
+instance. Spans never block a run — every tracing entrypoint is wrapped, so a tracing failure is at
+most a missing span plus a debug log.
 
 ## Validation
 

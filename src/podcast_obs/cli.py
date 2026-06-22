@@ -19,7 +19,7 @@ from typing import Optional, Sequence
 
 from .aggregate import summary as _summary
 from .config import ObservabilityConfig, ObservabilityConfigError
-from .sources import github, grafana, loki, prod_api, sentry
+from .sources import github, grafana, langfuse, loki, prod_api, sentry
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -62,6 +62,8 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     alerts = sub.add_parser("alerts", help="Current Grafana alerts.")
     alerts.add_argument("--limit", type=int, default=20, help="Max alerts (default 20).")
+    traces = sub.add_parser("traces", help="Recent Langfuse LLM traces for the deploy.")
+    traces.add_argument("--limit", type=int, default=10, help="Max traces (default 10).")
     sub.add_parser("summary", help="Control-plane glance: every source for the target.")
     serve = sub.add_parser("serve", help="Run the MCP server (agent-facing) over the core.")
     serve.add_argument(
@@ -109,6 +111,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         result = sentry.recent_errors(target, window=args.window, limit=args.limit)
     elif args.command == "alerts":
         result = grafana.recent_alerts(target, limit=args.limit)
+    elif args.command == "traces":
+        result = langfuse.recent_traces(target, limit=args.limit)
     elif args.command == "summary":
         result = _summary(target)
     elif args.command == "serve":

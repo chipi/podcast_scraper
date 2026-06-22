@@ -8,11 +8,12 @@ own cost/ops solution (Loki ``llm_cost`` events + ``corpus_manifest.cost_rollup`
 adding tracing touched one place rather than all 8 providers.
 
 Enable-when-secret-present (mirrors :mod:`podcast_scraper.utils.sentry_init`):
-a **true no-op** unless both ``PODCAST_LANGFUSE_PUBLIC_KEY`` and
-``PODCAST_LANGFUSE_SECRET_KEY`` are set, so dev / CI / offline boots stay silent
-and the pipeline never pays an import cost or a network hop it didn't ask for.
-Host-agnostic: ``PODCAST_LANGFUSE_BASE_URL`` points at Langfuse Cloud or a
-self-hosted instance; unset uses the SDK default (cloud).
+a **true no-op** unless both ``LANGFUSE_PUBLIC_KEY`` and ``LANGFUSE_SECRET_KEY``
+are set, so dev / CI / offline boots stay silent and the pipeline never pays an
+import cost or a network hop it didn't ask for. These are the Langfuse SDK's
+own env-var names, so the same keys work for any langfuse tooling. Host-agnostic:
+``LANGFUSE_BASE_URL`` (or the SDK's ``LANGFUSE_HOST``) points at Langfuse Cloud or
+a self-hosted instance; unset uses the SDK default (cloud).
 
 Every public entrypoint is wrapped so a tracing failure can **never** break a
 pipeline run — the worst case is a missing span plus a debug log.
@@ -27,9 +28,10 @@ from typing import Any, Optional
 
 _LOGGER = logging.getLogger(__name__)
 
-_PUBLIC_KEY_ENV = "PODCAST_LANGFUSE_PUBLIC_KEY"
-_SECRET_KEY_ENV = "PODCAST_LANGFUSE_SECRET_KEY"
-_BASE_URL_ENV = "PODCAST_LANGFUSE_BASE_URL"
+# Langfuse SDK-native env-var names (so the same keys drive any langfuse tooling).
+_PUBLIC_KEY_ENV = "LANGFUSE_PUBLIC_KEY"
+_SECRET_KEY_ENV = "LANGFUSE_SECRET_KEY"
+_BASE_URL_ENVS = ("LANGFUSE_BASE_URL", "LANGFUSE_HOST")
 
 # Lazily-initialised singleton client. ``_init_attempted`` distinguishes
 # "not tried yet" from "tried and got None" so a missing SDK / bad keys don't
@@ -72,7 +74,10 @@ def get_langfuse_client() -> Optional[Any]:
             "public_key": os.environ[_PUBLIC_KEY_ENV].strip(),
             "secret_key": os.environ[_SECRET_KEY_ENV].strip(),
         }
-        base_url = os.environ.get(_BASE_URL_ENV, "").strip()
+        base_url = next(
+            (os.environ[k].strip() for k in _BASE_URL_ENVS if os.environ.get(k, "").strip()),
+            "",
+        )
         if base_url:
             kwargs["base_url"] = base_url
         _client = Langfuse(**kwargs)

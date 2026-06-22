@@ -47,6 +47,11 @@ class TargetConfig:
     loki_token: Optional[str] = (
         None  # Loki access-policy token (logs:read); falls back to grafana_token
     )
+    # Langfuse public API (#1052) — same key pair the pipeline traces with
+    # (SDK-native LANGFUSE_*); the probe only *reads* recent traces (Basic auth).
+    langfuse_public_key: Optional[str] = None
+    langfuse_secret_key: Optional[str] = None
+    langfuse_base_url: Optional[str] = None  # unset → Langfuse Cloud
     env_label: str = "prod"  # the deploy's Loki/metrics ``env`` label (PODCAST_ENV)
     timeout: float = DEFAULT_TIMEOUT
 
@@ -100,6 +105,11 @@ class ObservabilityConfig:
             loki_url=_env("LOKI_URL"),
             loki_user=_env("LOKI_USER"),
             loki_token=_env("LOKI_TOKEN"),
+            # Langfuse uses its SDK-native bare names (not the PODCAST_OBS_ prefix) so the
+            # same keys the pipeline traces with drive the probe — no duplicate config.
+            langfuse_public_key=_bare("LANGFUSE_PUBLIC_KEY"),
+            langfuse_secret_key=_bare("LANGFUSE_SECRET_KEY"),
+            langfuse_base_url=_bare("LANGFUSE_BASE_URL") or _bare("LANGFUSE_HOST"),
             env_label=_env("ENV_LABEL") or "prod",
             timeout=_as_float(_env("TIMEOUT"), DEFAULT_TIMEOUT),
         )
@@ -125,6 +135,12 @@ class ObservabilityConfig:
 
 def _env(suffix: str) -> Optional[str]:
     value = os.environ.get(f"{ENV_PREFIX}{suffix}")
+    return value if value else None
+
+
+def _bare(name: str) -> Optional[str]:
+    """Read an un-prefixed env var (for third-party SDK-native names like LANGFUSE_*)."""
+    value = os.environ.get(name)
     return value if value else None
 
 
@@ -155,6 +171,7 @@ def _target_from_yaml(name: str, spec: dict) -> TargetConfig:
     github = spec.get("github") or {}
     sentry = spec.get("sentry") or {}
     grafana = spec.get("grafana") or {}
+    langfuse = spec.get("langfuse") or {}
     projects = sentry.get("projects") or []
     if isinstance(projects, str):
         projects = _split_csv(projects)
@@ -174,6 +191,9 @@ def _target_from_yaml(name: str, spec: dict) -> TargetConfig:
         loki_url=grafana.get("loki_url"),
         loki_user=grafana.get("loki_user"),
         loki_token=_secret(grafana, "loki_token"),
+        langfuse_public_key=_secret(langfuse, "public_key"),
+        langfuse_secret_key=_secret(langfuse, "secret_key"),
+        langfuse_base_url=langfuse.get("base_url"),
         env_label=spec.get("env_label") or "prod",
         timeout=timeout,
     )
