@@ -397,11 +397,115 @@ Five new cases in
 
 ### What's still missing for #1046 acceptance
 
-- The 3 measurement passes from section 3 (operator-attended ~1h on
-  DGX).
+- ~~The 3 measurement passes from section 3~~ — **section 12 below**
+  captures the first measurement pass (T_small / T_large + memory).
+  The remaining two passes (``r`` on prod-v2; gate accuracy) still
+  need operator-attended time on real corpus.
 - Operator decisions on the 3 open questions in section 8.
 - The gate orchestrator itself (workflow-level helper) — wires the
   Config knobs to the provider's ``model_override`` parameter.
-- The compose change on DGX to preload both Whisper models (so the
-  first sniff call doesn't pay ~1s cold-load).
+- The compose change on DGX to preload both Whisper models OR keep
+  the on-demand install path (section 12 found speaches downloads
+  on-demand without preload — works fine).
 - Operator runbook section (when the gate ships).
+
+## 12. Measurement pass 1 — latency + memory (2026-06-22 on DGX Spark)
+
+End-to-end validation of the provider plumbing against the real
+speaches container. One test audio: ``tests/fixtures/audio/v1/p01_e01_fast.mp3``
+(~733 KB / ~60s synthetic mountain-bike dialogue between Maya + Liam).
+
+### Latency
+
+Warm runs (both models already loaded in container):
+
+| Model | Wall-clock | Server-reported | × real-time |
+| --- | ---: | ---: | --- |
+| ``Systran/faster-whisper-small.en`` | **3.45 s** | 3.39 s | ~17× faster than RT |
+| ``Systran/faster-whisper-large-v3`` | **8.84 s** | 8.77 s | ~7× faster than RT |
+| Ratio | **0.39×** (i.e. small is 2.6× faster) | | |
+
+These numbers REVISE the design-doc estimate (section 2 predicted
+small ~0.05× RT, large ~0.5× RT, ratio ~10×). The real ratio is
+**~2.7×**, much lower. Updated break-even:
+
+```text
+r* = 1 − T_small / T_large = 1 − 1 / 2.7 = 0.63
+```
+
+So the gate now needs **<63%** of episodes to pass it to save time,
+not the more pessimistic 0.9 from the design doc. Lower bar; easier
+to clear.
+
+### Quality (qualitative)
+
+Same audio, both models:
+
+- ``small.en``: ``"Welcome back to single track sessions ... a lot of
+  speed comes from breaking earlier ... On a burn, you want your eyes
+  through the exit"``. Comprehensible. Misses: ``"single track"``
+  (vs ``"Singletrack"``), ``"burn"`` (vs ``"berm"``), ``"breaking"``
+  (vs ``"braking"``). Critically: speaker names ``"Maya"`` and
+  ``"Liam"`` correctly transcribed in BOTH — the gate criterion's
+  NER-density signal is intact.
+- ``large-v3``: ``"Welcome back to Singletrack Sessions ... a lot of
+  speed comes from braking earlier ... On a berm, you want your eyes
+  through the exit"``. Clean.
+
+### Memory budget
+
+Both models resident simultaneously:
+
+```text
+speaches container: 3.263 GiB / 121.7 GiB (2.68%)
+```
+
+Well within the GB10 budget (section 4 estimate: ~3.5 GiB total —
+real is 3.26 GiB; estimate was conservative). Coexistence with
+autoresearch / pyannote remains comfortable.
+
+### Permission gotcha (worth documenting)
+
+The HF cache at ``/opt/llm-models/huggingface/`` was root-owned by
+the original pyinfra deploy. Speaches running as ``uid 1000``
+couldn't download new models on demand (``POST /v1/models/<id>``
+returned 500 with ``PermissionError: Permission denied: '/opt/...'``).
+
+Fix that landed (2026-06-22): ``sudo chown -R 1000:1000
+/opt/llm-models/huggingface``. After chown, the API install path
+works (``POST /v1/models/Systran/faster-whisper-small.en`` →
+HTTP 200 in ~9.5 s).
+
+**Action for the pyinfra deploy.py** (out of scope here but worth a
+ticket): make the cache chown to uid 1000 part of the convergent
+install, so a fresh deploy doesn't trip the same wall.
+
+### Provider plumbing end-to-end
+
+The ``TailnetDgxWhisperTranscriptionProvider.transcribe_with_segments``
+new ``model_override`` parameter was tested against the real
+container:
+
+```text
+DEFAULT model: model_used=Systran/faster-whisper-large-v3 (8.84s)
+SNIFF override: model_used=Systran/faster-whisper-small.en (3.45s)
+both models used correctly: True
+```
+
+Provenance flows through (each call records the actual model in
+``result["model_used"]``), latency matches the direct-curl numbers,
+no fallback misfires.
+
+### What measurement pass 1 does NOT cover
+
+- ``r`` on the prod-v2 corpus (99 episodes) — needs the gate
+  criterion locked first (operator-attended).
+- Gate accuracy / agreement between small + large on the topic
+  classifier — depends on which criterion is chosen.
+- Cold-start latency (these were warm runs; first call after a
+  container restart adds ~1-3 s model-load on top).
+- Steady-state under concurrent transcription load.
+
+The cost-model math + memory budget + plumbing wire are all
+confirmed. The remaining unknown is gate criterion (open question
+Q1 in section 8) and corpus-level ``r``.
