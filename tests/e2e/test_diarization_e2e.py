@@ -193,7 +193,8 @@ def test_default_path_transcribe_diarize_screenplay_into_graph() -> None:
     kg_entities = {
         (n.get("properties", {}).get("name") or n.get("label"))
         for n in kg.get("nodes", [])
-        if n.get("type") == "Entity"
+        # RFC-097 v2.0: speakers emit typed ``Person`` nodes (was legacy ``Entity``).
+        if n.get("type") == "Person"
     }
     # The diarized host + guest become graph entities.
     assert {"Maya", "Liam"}.issubset(kg_entities), f"KG entities missing Maya/Liam: {kg_entities}"

@@ -110,7 +110,8 @@ def test_kg_person_injection_host_guest() -> None:
         existing_entity_keys=set(),
     )
 
-    persons = {n["id"]: n for n in nodes if n.get("type") == "Entity"}
+    # RFC-097 v2.0: persons emit typed ``Person`` nodes (was legacy ``Entity``).
+    persons = {n["id"]: n for n in nodes if n.get("type") == "Person"}
     assert "person:nora" in persons
     assert "person:daniel" in persons
     assert persons["person:nora"]["properties"]["role"] == "host"
@@ -137,7 +138,8 @@ def test_kg_person_injection_host_only() -> None:
         existing_entity_keys=set(),
     )
 
-    persons = [n for n in nodes if n.get("type") == "Entity"]
+    # RFC-097 v2.0: persons emit typed ``Person`` nodes (was legacy ``Entity``).
+    persons = [n for n in nodes if n.get("type") == "Person"]
     assert len(persons) == 1
     assert persons[0]["properties"]["name"] == "Alex Morgan"
     assert persons[0]["properties"]["role"] == "host"
