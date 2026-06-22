@@ -832,7 +832,23 @@ def generate_enhanced_fingerprint(  # noqa: C901
             map_generation_params = {}
             reduce_generation_params = {}
         elif experiment_config.task in ("grounded_insights", "knowledge_graph"):
-            generation_params = {}
+            # RFC-097 fingerprint gap-closure (FINGERPRINT_GAPS_ANALYSIS_2026-06-22.md):
+            # GI / KG fingerprints had hardcoded {} here — every Magistral (temp 0.7
+            # max_length 4096) / Qwen3.5 (temp 0.0 max_length 800) run produced
+            # an identical-looking generation_params block. Now mirror the
+            # (anthropic, mistral, grok, deepseek, gemini, ollama) branch so the
+            # actual sampling lands in the fingerprint.
+            params_dict = experiment_config.params or {}
+            generation_params = {
+                "temperature": params_dict.get("temperature", 0.0),
+                "top_p": params_dict.get("top_p"),
+                "max_tokens": params_dict.get("max_length", 800),
+                "min_tokens": params_dict.get("min_length"),
+                "seed": params_dict.get("seed"),
+            }
+            # Drop any None values so the fingerprint stays a hash-stable shape
+            # against runs that don't specify optional fields.
+            generation_params = {k: v for k, v in generation_params.items() if v is not None}
             map_generation_params = {}
             reduce_generation_params = {}
         elif experiment_config.backend.type == "eval_stub":
