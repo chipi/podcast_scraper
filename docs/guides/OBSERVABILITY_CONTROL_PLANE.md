@@ -188,7 +188,9 @@ something needs investigation — no operator `ssh` or dashboard-clicking.
 
 Langfuse is the **AI-quality lens** the cost/ops sources don't give: where `cost-today` answers
 *"how much did we spend"*, Langfuse answers *"what did each LLM call do"* — a `generation` span per
-call (model / tokens / latency / cost / stage), grouped per run. It **coexists** with the own
+call (model / token usage in·out·total / cost / stage), grouped per run. (Per-call **latency** is a
+phase-2 item — the span is emitted at the post-call cost choke point, which carries no timing yet.)
+It **coexists** with the own
 solution (Loki `llm_cost` + `corpus_manifest.cost_rollup` + Sentry stay the source of truth for
 cost/ops); Langfuse is additive, not a replacement.
 

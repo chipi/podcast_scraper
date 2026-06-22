@@ -61,7 +61,7 @@ observability = [
 # the provider cost choke point. Its own extra (NOT folded into the light [observability]
 # control plane): the podcast_obs probe only needs httpx to *query* the Langfuse API,
 # whereas *emitting* spans needs the SDK (pulls OTEL). Pipeline tracing is no-op unless
-# PODCAST_LANGFUSE_PUBLIC_KEY + PODCAST_LANGFUSE_SECRET_KEY are set, so this stays optional.
+# LANGFUSE_PUBLIC_KEY + LANGFUSE_SECRET_KEY are set, so this stays optional.
 langfuse = [
   "langfuse>=4.9.0,<5.0.0",
 ]

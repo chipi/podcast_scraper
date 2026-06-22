@@ -1,7 +1,9 @@
 """Optional Langfuse LLM tracing (#1052).
 
 The AI-quality lens over the pipeline's LLM calls — per-call generation spans
-(model / tokens / cost / latency / stage), grouped per run. Coexists with the
+(model / token usage / cost / stage), grouped per run. (No latency yet: the span
+is emitted post-call at the cost choke point, which carries no per-call timing —
+a phase-2 item once duration is threaded onto ProviderCallMetrics.) Coexists with the
 own cost/ops solution (Loki ``llm_cost`` events + ``corpus_manifest.cost_rollup``
 + Sentry); both emit at the same provider cost choke point
 (:func:`podcast_scraper.utils.provider_metrics.record_provider_call_cost`), so
