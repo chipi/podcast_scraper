@@ -67,7 +67,7 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: "DR drill — tofu: restore drill state from earlier apply (same run)"
         env:

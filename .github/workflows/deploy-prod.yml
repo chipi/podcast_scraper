@@ -79,7 +79,7 @@ jobs:
 
       - name: Checkout (resolver script; GH-744)
         if: steps.preflight.outputs.skip != 'true'
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 

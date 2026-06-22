@@ -96,7 +96,7 @@ jobs:
           fi
 
       - name: "DR drill — checkout: shallow (resolver scripts + prod-ssh-key action)"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 

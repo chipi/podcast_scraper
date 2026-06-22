@@ -68,7 +68,7 @@ jobs:
           fi
 
       - name: Checkout (resolver script + prod-ssh-key action)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 

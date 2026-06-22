@@ -47,7 +47,7 @@ jobs:
     timeout-minutes: 10
     environment: drill
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: "DR drill — pre-flight: secrets and tokens (OpenTofu provider)"
         id: preflight
