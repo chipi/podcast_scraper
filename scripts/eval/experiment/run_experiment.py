@@ -1351,9 +1351,19 @@ def run_experiment(  # noqa: C901
 
             eval_llm_metrics = _eval_pipeline_metrics.Metrics()
 
+        # RFC-097 v3.0 chunk-5: thread dataset duration_minutes into the GI
+        # build so ``Insight.position_hint`` step-1 of the waterfall fires.
+        # Without this map the eval harness called build_artifact with
+        # ``episode_duration_ms=None`` and every eval-emitted insight had
+        # ``position_hint: None`` (the observed chunk-7 floor).
+        from podcast_scraper.evaluation.experiment_config import episode_duration_ms_map
+
+        _episode_duration_ms_by_id = episode_duration_ms_map(getattr(cfg.data, "dataset_id", None))
+
         with open(predictions_path, "w", encoding="utf-8") as pred_f:
             for path in input_files:
                 episode_id = episode_id_from_path(path, cfg.data)
+                _episode_duration_ms = _episode_duration_ms_by_id.get(episode_id)
                 logger.info(f"Processing episode: {episode_id}")
 
                 # Read transcript
@@ -1631,6 +1641,7 @@ def run_experiment(  # noqa: C901
                                 transcript_ref=path.name,
                                 cfg=rt_cfg,
                                 pipeline_metrics=None,
+                                episode_duration_ms=_episode_duration_ms,
                             )
                         else:
                             if cfg_obj is None or provider is None:
@@ -1704,6 +1715,7 @@ def run_experiment(  # noqa: C901
                                 pipeline_metrics=None,
                                 gil_created_evidence_providers=gil_extra,
                                 topic_labels=bullets or None,
+                                episode_duration_ms=_episode_duration_ms,
                             )
                             _cleanup_gil_evidence_extras(gil_extra)
                         # #111 — apply the configured postprocessor to GIL

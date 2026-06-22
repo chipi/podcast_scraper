@@ -77,6 +77,21 @@ def test_run_experiment_gil_stub_dry_run_writes_predictions(tmp_path: Path) -> N
         first = pred.read_text(encoding="utf-8").strip().splitlines()[0]
         rec = json.loads(first)
         assert "gil" in rec.get("output", {})
+        # RFC-097 v3.0 chunk-5 regression: the eval harness now threads the
+        # dataset's per-episode ``duration_minutes`` to ``gi.build_artifact``
+        # as ``episode_duration_ms``. End-to-end check: Episode.duration_ms
+        # must be present in the artifact and match the fixture's
+        # ``duration_minutes: 0.1`` (6 seconds → 6000 ms).
+        gil = rec["output"]["gil"]
+        episode_nodes = [n for n in gil.get("nodes", []) if n.get("type") == "Episode"]
+        assert episode_nodes, "no Episode node in stub GI artifact"
+        ep_props = episode_nodes[0].get("properties") or {}
+        assert ep_props.get("duration_ms") == 6000, (
+            f"Episode.duration_ms regression: expected 6000 (from dataset "
+            f"duration_minutes=0.1), got {ep_props.get('duration_ms')!r}. "
+            f"Indicates the eval harness lost the duration-threading wired "
+            f"in RFC-097 chunk-5."
+        )
     finally:
         if runs_dir.exists():
             shutil.rmtree(runs_dir, ignore_errors=True)
