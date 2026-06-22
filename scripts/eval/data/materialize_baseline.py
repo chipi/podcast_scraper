@@ -730,6 +730,41 @@ def get_preprocessing_profile_version(profile_id: str) -> str:
     return "1.0"
 
 
+def _compute_dataset_content_hash(dataset_id: str) -> Optional[str]:
+    """RFC-097 fingerprint gap-closure #6 (operator case #4): compute a content
+    hash over the materialized dataset directory.
+
+    Two runs with the same ``dataset_id: "curated_5feeds_dev_v1"`` but different
+    file CONTENTS (a transcript was edited, an episode swapped, etc.) used to
+    look identical. The dataset hash makes that distinct.
+
+    Hash is sha256 over a deterministic listing of (relative_path,
+    sha256(file_content)) tuples across the materialized directory. Returns
+    None if the directory doesn't exist (e.g. dataset materialization hasn't
+    happened yet, or test environments without the materialized fixtures).
+    """
+    import hashlib as _hashlib
+    from pathlib import Path as _Path
+
+    root = _Path("data/eval/materialized") / dataset_id
+    if not root.is_dir():
+        return None
+    digests: list[tuple[str, str]] = []
+    try:
+        for f in sorted(root.rglob("*")):
+            if not f.is_file():
+                continue
+            rel = str(f.relative_to(root))
+            file_hash = _hashlib.sha256(f.read_bytes()).hexdigest()
+            digests.append((rel, file_hash))
+    except Exception:
+        return None
+    if not digests:
+        return None
+    combined = "\n".join(f"{rel}\t{h}" for rel, h in digests).encode("utf-8")
+    return _hashlib.sha256(combined).hexdigest()
+
+
 def _classify_inference_target(base_url: Optional[str], backend_type: Optional[str]) -> str:
     """RFC-097 fingerprint gap-closure #4: classify WHERE inference happens.
 
@@ -1281,6 +1316,13 @@ def generate_enhanced_fingerprint(  # noqa: C901
             "run_id": run_id,
             "baseline_id": baseline_id,
             "dataset_id": dataset_id,
+            # RFC-097 fingerprint gap-closure #6 (operator case #4): content
+            # hash over the materialized dataset directory. Two runs with the
+            # same dataset_id but different file contents (transcript edited,
+            # episode swapped, etc.) used to look identical — this makes them
+            # distinct. None if the directory doesn't exist (test env, dataset
+            # not materialized yet).
+            "dataset_content_hash": _compute_dataset_content_hash(dataset_id),
             "git": {
                 "commit": git_info.get("commit_sha"),
                 "branch": git_info.get("branch"),
