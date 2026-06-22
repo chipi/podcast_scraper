@@ -730,6 +730,49 @@ def get_preprocessing_profile_version(profile_id: str) -> str:
     return "1.0"
 
 
+def _classify_inference_target(base_url: Optional[str], backend_type: Optional[str]) -> str:
+    """RFC-097 fingerprint gap-closure #4: classify WHERE inference happens.
+
+    Today's runtime.device records the ORCHESTRATOR's device (e.g. laptop
+    "mps") regardless of where inference actually ran. For OpenAI-compatible
+    providers behind a base_url, the actual inference could be local Ollama,
+    DGX vLLM, or a cloud API — and two fingerprints with the same
+    `provider_type: openai` could be against entirely different targets.
+
+    Returns one of:
+      - ``"local-ollama"`` (localhost / 127.0.0.1 / 0.0.0.0, or :11434)
+      - ``"local-vllm"`` (localhost / 127.0.0.1 / 0.0.0.0 with non-11434)
+      - ``"dgx-vllm"`` (Tailscale .ts.net / dgx-* hostnames)
+      - ``"local-hf"`` (backend.type == hf_local, in-process transformers)
+      - ``"cloud-<provider>"`` (no base_url + known cloud provider name)
+      - ``"unknown"`` (anything we don't recognize)
+    """
+    bt = (backend_type or "").lower()
+    if bt == "hf_local":
+        return "local-hf"
+    url = (base_url or "").lower()
+    if url:
+        is_local_host = "localhost" in url or "127.0.0.1" in url or "0.0.0.0" in url
+        if is_local_host:
+            if ":11434" in url or "ollama" in url:
+                return "local-ollama"
+            return "local-vllm"
+        # Tailscale / DGX hostname patterns
+        if ".ts.net" in url or url.startswith("http://dgx-") or "dgx-llm" in url:
+            return "dgx-vllm"
+        # Ollama remote
+        if bt == "ollama" or ":11434" in url:
+            return "local-ollama"
+        # Otherwise treat as remote-vllm (custom endpoint, not in known patterns)
+        return "remote-vllm"
+    # No base_url → cloud API
+    if bt in ("openai", "anthropic", "gemini", "deepseek", "mistral", "grok"):
+        return f"cloud-{bt}"
+    if bt == "ollama":
+        return "local-ollama"
+    return "unknown"
+
+
 def _probe_vllm_backing_model_id(base_url: Optional[str]) -> Optional[str]:
     """RFC-097 fingerprint gap-closure #2: resolve the vLLM served-model-name
     alias (always ``"autoresearch"`` on our box) to the actual backing HF model
@@ -1253,6 +1296,16 @@ def generate_enhanced_fingerprint(  # noqa: C901
         },
         "runtime": get_runtime_info(provider),
     }
+
+    # RFC-097 fingerprint gap-closure #4: distinguish WHERE inference happened.
+    # runtime.device records the orchestrator's device (laptop "mps") regardless
+    # of where inference actually ran (local Ollama, DGX vLLM, cloud API). Add
+    # an explicit inference_target classification so two "openai+mps" runs that
+    # were actually against different targets (local Ollama vs DGX vLLM) get
+    # distinct fingerprints.
+    _bt = getattr(experiment_config.backend, "type", None) if experiment_config else None
+    _base_url = getattr(experiment_config.backend, "base_url", None) if experiment_config else None
+    fingerprint["runtime"]["inference_target"] = _classify_inference_target(_base_url, _bt)
 
     # Conditionally add prompts section (for any backend with experiment_config.prompts)
     prompt_info = get_prompt_info(experiment_config)
