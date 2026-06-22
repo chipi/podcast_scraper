@@ -1,6 +1,7 @@
 # PRD-031: Search
 
 - **Status**: Draft
+- **v2 enablement (RFC-097, 2026-06-20)**: named-entity recall foundation (stable `person:` / `org:` IDs via CIL) + relational context (bridge + RFC-094 over v2-materialized edges) shipped via RFC-097 v2. Full Search UI (FR1–FR6) + discriminating eval for FAISS removal (RFC-090 Phase 3 gate) remain open. See [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md).
 - **Author**: Marko
 - **Created**: 2026-05-24
 - **Target**: v2.7 (retrieval foundation) + Media Alpha (full Search UI)

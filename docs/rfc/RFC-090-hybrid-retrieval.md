@@ -1,6 +1,7 @@
 # RFC-090: Hybrid Retrieval Pipeline
 
 - **Status**: Draft
+- **v2 cross-reference (RFC-097, 2026-06-20)**: orthogonal to retrieval pipeline; LanceDB-first ranking unchanged. Typed-node precision (Person/Org/Podcast) may improve segment document `insight_document.entity_type` post-v2 — informational only, not blocking. See [RFC-097](RFC-097-unified-kg-gi-ontology-v2.md).
 - **Authors**: Marko
 - **Stakeholders**: Core team
 - **Related PRDs**:

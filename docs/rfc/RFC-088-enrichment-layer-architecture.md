@@ -1,6 +1,7 @@
 # RFC-088: Enrichment Layer Architecture
 
 - **Status**: Draft
+- **v2 cross-reference (RFC-097, 2026-06-20)**: enricher input data (`bridge.json` + typed Person/Org/Podcast nodes + descriptive ABOUT/MENTIONS_* edges) shipped per-artifact via RFC-097 v2. QueryEnricher protocol (Phase 4), typed contradiction enricher output (needs CONTRADICTS edges, v3), and LLM tier enrichers remain open. See [RFC-097](RFC-097-unified-kg-gi-ontology-v2.md).
 - **Authors**: Marko
 - **Stakeholders**: Core team
 - **Target Release**: TBD

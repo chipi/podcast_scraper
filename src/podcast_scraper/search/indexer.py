@@ -200,10 +200,16 @@ def _kg_vector_rows_from_path(
                         },
                     )
                 )
-        elif nt == "Entity":
+        elif nt in ("Entity", "Person", "Organization"):
+            # RFC-097: v1.x Entity + v2.0 Person/Organization all index as kg_entity.
             ktext = _kg_embed_text_entity(props)
             if ktext:
-                ek = _kg_entity_kind_for_meta(props)
+                if nt == "Person":
+                    ek: Optional[str] = "person"
+                elif nt == "Organization":
+                    ek = "organization"
+                else:
+                    ek = _kg_entity_kind_for_meta(props)
                 rows.append(
                     (
                         f"kg_entity:{scope_tag}:{nid}",

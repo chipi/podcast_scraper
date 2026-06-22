@@ -3,6 +3,7 @@
 - **Status**: Completed — single-layer consumption patterns retained; cross-layer use
   cases (opinion tracking, guest intelligence, controversy detection) moved to
   [RFC-072](RFC-072-canonical-identity-layer-cross-layer-bridge.md)
+- **v2 closure (RFC-097, 2026-06-20)**: cross-layer use cases (now owned by RFC-072) get shipped viewer surfaces via Position Tracker + Person Profile (RFC-097 chunk 8 + PRDs-028/029). NL query layer remains deferred. See [RFC-097](RFC-097-unified-kg-gi-ontology-v2.md).
 - **Authors**: Podcast Scraper Team
 - **Stakeholders**: Core team, downstream consumers,
   API users

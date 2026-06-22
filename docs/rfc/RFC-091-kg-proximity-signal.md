@@ -1,6 +1,7 @@
 # RFC-091: KG Proximity Signal
 
 - **Status**: Rejected as a retrieval signal (2026-06-03) — see Decision Record below; superseded for KG value by meaning-bearing relational edges (#874).
+- **v2 confirmation (RFC-097, 2026-06-20)**: RFC-097 v2 **confirms** the 2026-06-03 rejection; v2 explicitly does NOT propose proximity-based ranking. Relational structure (RFC-094) over the v2-materialized edges (ABOUT, MENTIONS_PERSON, MENTIONS_ORG) is the value path. See [RFC-097](RFC-097-unified-kg-gi-ontology-v2.md) §Key Decision 3.
 - **Authors**: Marko
 - **Stakeholders**: Core team
 - **Related PRDs**:

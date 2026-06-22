@@ -12,7 +12,7 @@ prompts:
 data:
   dataset_id: curated_5feeds_dev_v1
 params:
-  max_length: 800
+  max_length: 4096  # reasoning model emits [THINK]/[/THINK]; budget must cover think block + JSON output (MODEL_PLAYBOOK)
   min_length: 200
   temperature: 0.7
   top_p: 0.95

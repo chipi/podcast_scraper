@@ -50,7 +50,10 @@ class TestKGPrefilled:
 
         topic_labels = [n["properties"]["label"] for n in out["nodes"] if n["type"] == "Topic"]
         assert topic_labels == ["blockchain governance", "roman empire", "algorithmic trading"]
-        entity_names = [n["properties"]["name"] for n in out["nodes"] if n["type"] == "Entity"]
+        # RFC-097 v2.0: typed Person + Organization replace Entity discriminator.
+        entity_names = [
+            n["properties"]["name"] for n in out["nodes"] if n["type"] in ("Person", "Organization")
+        ]
         assert "Alice" in entity_names
         assert "Acme Corp" in entity_names
 
@@ -88,8 +91,10 @@ class TestGIPrefilled:
         insights = [n for n in out["nodes"] if n["type"] == "Insight"]
         assert len(insights) == 2
         types = {n["properties"].get("insight_type") for n in insights}
-        assert "claim" in types
-        assert "fact" in types
+        # RFC-097 v3.0 vocab: legacy "fact" maps to "claim" via the legacy
+        # synonym layer (megabundle prompt pre-update emitted claim|fact|opinion).
+        # Both bundle insights ("claim", "fact") normalise to "claim".
+        assert types == {"claim"}
 
     def test_empty_prefilled_falls_back_to_stub(self):
         out = gi_build_artifact(
@@ -119,7 +124,13 @@ class TestGIPrefilled:
         assert "Valid one." in texts
         assert "" not in texts
 
-    def test_prefilled_unknown_type_normalized_to_claim(self):
+    def test_prefilled_unknown_type_normalized_to_unknown(self):
+        """RFC-097 v3.0: out-of-vocab insight types fall to "unknown" (schema valid).
+
+        Pre-RFC-097 the fallback was "claim" because the prefilled-only path
+        used a different vocab ({claim, fact, opinion}). Aligned with
+        _normalize_insight_type for consistency across all entry points.
+        """
         out = gi_build_artifact(
             "ep1",
             "transcript " * 20,
@@ -128,7 +139,7 @@ class TestGIPrefilled:
             prefilled_insights=[{"text": "X", "insight_type": "weird"}],
         )
         insights = [n for n in out["nodes"] if n["type"] == "Insight"]
-        assert insights[0]["properties"].get("insight_type") == "claim"
+        assert insights[0]["properties"].get("insight_type") == "unknown"
 
 
 class TestMegaBundleHelpers:

@@ -1,6 +1,7 @@
 # RFC-049: Grounded Insight Layer – Core Concepts & Data Model
 
 - **Status**: Completed
+- **v2 closure (RFC-097, 2026-06-20)**: v1.1 entity-extraction deferral retired (Person + Organization first-class); `ABOUT` + `MENTIONS_PERSON` + `MENTIONS_ORG` edges emitted per-artifact; `insight_type` + `position_hint` additive Insight fields ship. `CONTRADICTS` edges + Topic semantic dedup + chunk-to-Insight lift (KL1) remain v3. See [RFC-097](RFC-097-unified-kg-gi-ontology-v2.md).
 - **Authors**: Podcast Scraper Team
 - **Stakeholders**: Core team, ML engineers, downstream consumers
 - **Execution Timing**: **Phase 3 of 3** — Implement after

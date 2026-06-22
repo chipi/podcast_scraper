@@ -1,6 +1,7 @@
 # PRD-027: Enriched Search
 
 - **Status**: Draft
+- **v2 enablement (RFC-097, 2026-06-20)**: chunk-to-Insight lift foundation (RFC-072 Phase 5 prereq) + synthesis quality inputs (`insight_type` + `position_hint`) ship per-artifact via RFC-097 v2. QueryEnricher protocol (RFC-088 Phase 4), Enriched Search UI, and char-offset alignment verification (RFC-072 KL1) remain open. See [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md).
 - **Authors**: Marko
 - **Target Release**: TBD
 - **Related RFCs**:

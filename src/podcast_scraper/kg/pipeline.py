@@ -10,6 +10,8 @@ from .. import config_constants
 from ..graph_id_utils import (
     entity_node_id,
     episode_node_id,
+    is_person_or_org_node,
+    normalized_entity_kind_from_node,
     slugify_label,
     topic_node_id_from_slug,
 )
@@ -294,6 +296,8 @@ def build_artifact(
         }
     ]
     edges: List[Dict[str, Any]] = []
+    # RFC-097 v2.0: emit Podcast node + HAS_EPISODE edge alongside Episode.
+    _append_podcast_and_has_episode(ep_props["podcast_id"], ep_node_id, nodes, edges)
 
     bullet_labels = _topic_labels_from_args(topic_labels, topic_label, cfg)
     llm_partial: Optional[Dict[str, Any]] = None
@@ -381,7 +385,8 @@ def build_artifact(
     )
 
     return {
-        "schema_version": "1.2",
+        # RFC-097 v2.0: typed Person / Organization / Podcast nodes + HAS_EPISODE.
+        "schema_version": "2.0",
         "episode_id": episode_id,
         "extraction": {
             "model_version": resolved_model,
@@ -400,7 +405,7 @@ def _entity_dedup_key(*, name: str, entity_kind: Optional[str]) -> str:
 
 
 def _normalized_kind_from_props(props: Dict[str, Any]) -> str:
-    """Map stored ``kind`` or legacy ``entity_kind`` to person/organization."""
+    """Map stored ``kind`` or legacy ``entity_kind`` to person/organization (legacy Entity)."""
     raw = props.get("kind")
     if raw == "org":
         return "organization"
@@ -410,10 +415,16 @@ def _normalized_kind_from_props(props: Dict[str, Any]) -> str:
 
 
 def _entity_identity_keys(nodes: List[Dict[str, Any]]) -> Set[str]:
-    """Keys for existing Entity nodes: kind + lowercased name (matches node id semantics)."""
+    """Keys for existing person/org nodes: kind + lowercased name.
+
+    Scans both v2.0 (Person/Organization) and legacy (Entity) nodes so
+    pipeline-side merges deduplicate across both shapes during the
+    permissive bake window (RFC-097 chunk 3).
+    """
     out: Set[str] = set()
     for n in nodes:
-        if n.get("type") != "Entity":
+        nt = n.get("type")
+        if not is_person_or_org_node(nt):
             continue
         props = n.get("properties") or {}
         name = props.get("name")
@@ -421,32 +432,79 @@ def _entity_identity_keys(nodes: List[Dict[str, Any]]) -> Set[str]:
             out.add(
                 _entity_dedup_key(
                     name=name,
-                    entity_kind=_normalized_kind_from_props(props),
+                    entity_kind=normalized_entity_kind_from_node(n),
                 )
             )
     return out
 
 
-def _entity_properties(
+def _typed_person_org_node(
     *,
     name: str,
     entity_kind: str,
     role: str,
     description: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Entity node properties: name, label, ``kind`` (person|org), role."""
+    """RFC-097 v2.0 emission: typed ``Person`` / ``Organization`` node.
+
+    Replaces legacy ``Entity(kind=...)``: node type encodes the discriminator,
+    so ``kind`` is no longer a property. Id format ``person:{slug}`` /
+    ``org:{slug}`` stays identical (preserves cross-layer canonical ids).
+    """
     name_s = (name or "").strip()[:500]
     ek = _normalize_entity_kind(entity_kind)
-    kind_out = "org" if ek == "organization" else "person"
+    node_type = "Organization" if ek == "organization" else "Person"
     props: Dict[str, Any] = {
         "name": name_s,
         "label": name_s[:200],
-        "kind": kind_out,
         "role": role,
     }
     if description and str(description).strip():
         props["description"] = str(description).strip()[:2000]
-    return props
+    return {
+        "id": entity_node_id(ek, name_s),
+        "type": node_type,
+        "properties": props,
+    }
+
+
+def _append_podcast_and_has_episode(
+    raw_podcast_id: str,
+    ep_node_id: str,
+    nodes: List[Dict[str, Any]],
+    edges: List[Dict[str, Any]],
+) -> None:
+    """RFC-097 v2.0: emit a Podcast node + HAS_EPISODE edge.
+
+    Skipped for the ``podcast:unknown`` placeholder (no real podcast metadata
+    available, so a synthetic node would be noise). Otherwise the Podcast
+    node id is normalised to ``podcast:{slug}`` and the title is derived
+    from the slug as a readable default; downstream code can refine via
+    feed metadata if/when needed.
+    """
+    raw = (raw_podcast_id or "").strip()
+    if not raw or raw == "podcast:unknown":
+        return
+    pid = raw if raw.startswith("podcast:") else f"podcast:{slugify_label(raw)}"
+    if pid == "podcast:" or pid == "podcast:unknown":
+        return
+    slug = pid[len("podcast:") :]
+    title = slug.replace("-", " ").replace("_", " ").strip().title() or pid
+    nodes.append(
+        {
+            "id": pid,
+            "type": "Podcast",
+            "properties": {"title": title[:500]},
+        }
+    )
+    edges.append(
+        {
+            "type": "HAS_EPISODE",
+            "from": pid,
+            "to": ep_node_id,
+            "properties": {},
+        }
+    )
 
 
 def _append_topics_from_labels(
@@ -534,21 +592,22 @@ def _append_topics_and_entities_from_partial(
             if key in seen_entity_keys:
                 continue
             seen_entity_keys.add(key)
-            eid = entity_node_id(ek, name_s)
             ent_desc = item.get("description") if isinstance(item.get("description"), str) else None
-            nodes.append(
+            v2_node = _typed_person_org_node(
+                name=name_s,
+                entity_kind=ek,
+                role="mentioned",
+                description=ent_desc,
+            )
+            nodes.append(v2_node)
+            edges.append(
                 {
-                    "id": eid,
-                    "type": "Entity",
-                    "properties": _entity_properties(
-                        name=name_s,
-                        entity_kind=ek,
-                        role="mentioned",
-                        description=ent_desc,
-                    ),
+                    "from": v2_node["id"],
+                    "to": ep_node_id,
+                    "type": "MENTIONS",
+                    "properties": {},
                 }
             )
-            edges.append({"from": eid, "to": ep_node_id, "type": "MENTIONS", "properties": {}})
             e_count += 1
 
 
@@ -569,17 +628,15 @@ def _append_pipeline_entities(
             if key in existing_entity_keys:
                 continue
             existing_entity_keys.add(key)
-            eid = entity_node_id(kind, n)
-            nodes.append(
-                {
-                    "id": eid,
-                    "type": "Entity",
-                    "properties": _entity_properties(name=n[:500], entity_kind=kind, role=role),
-                }
+            v2_node = _typed_person_org_node(
+                name=n[:500],
+                entity_kind=kind,
+                role=role,
             )
+            nodes.append(v2_node)
             edges.append(
                 {
-                    "from": eid,
+                    "from": v2_node["id"],
                     "to": ep_node_id,
                     "type": "MENTIONS",
                     "properties": {},

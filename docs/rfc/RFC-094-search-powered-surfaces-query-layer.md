@@ -1,6 +1,7 @@
 # RFC-094: Search-Powered Surfaces — Relational-Query Layer + Front-End Retrieval State
 
 - **Status**: Draft
+- **v2 closure (RFC-097, 2026-06-20)**: stable `person:` / `topic:` / `org:` IDs formalized via CIL (RFC-072 + RFC-097); v2-materialized ABOUT + MENTIONS_PERSON + MENTIONS_ORG edges enable `who_said_what_about(topic)`, `insights_about(person)`, `mentions_of_person(org)` queries against per-artifact data (no CorpusGraph composition required). MCP exposure (RFC-095), panel caching (OQ-1), and coverage-aware filtering remain open. See [RFC-097](RFC-097-unified-kg-gi-ontology-v2.md).
 - **Authors**: Marko
 - **Stakeholders**: Core team
 - **Related PRDs**:

@@ -1,6 +1,7 @@
 # RFC-072: Canonical Identity Layer & Cross-Layer Bridge
 
 - **Status**: Draft
+- **v2 closure (RFC-097, 2026-06-20)**: §2a/§2b v1.1 additive fields (`insight_type`, `position_hint`) ship per-artifact (chunk 5); cross-layer descriptive edges (ABOUT, MENTIONS_PERSON, MENTIONS_ORG) materialize in per-artifact JSON (chunk 4) instead of in-memory CorpusGraph composition only. KL1 (chunk-to-Insight lift, char-offset), KL2 (cross-episode Person merge / alias registry), KL3 (Topic dedup), KL5 (CONTRADICTS) remain open as designed. See [RFC-097](RFC-097-unified-kg-gi-ontology-v2.md).
 - **Authors**: Marko
 - **Stakeholders**: Core team
 - **Related PRDs**:

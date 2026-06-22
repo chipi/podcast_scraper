@@ -1,5 +1,16 @@
 # Grounded Insight Layer Ontology (v1)
 
+> **Superseded for v3.0+ by [`docs/architecture/corpus/ontology.md`](../corpus/ontology.md).**
+> The unified corpus ontology is the source of truth for GI schema v3.0+
+> ([RFC-097](../../rfc/RFC-097-unified-kg-gi-ontology-v2.md), 2026-06-20):
+> `Organization` is a first-class node; `ABOUT` / `MENTIONS_PERSON` /
+> `MENTIONS_ORG` edges materialize per-artifact; `insight_type` and
+> `position_hint` (RFC-072 v1.1 additive fields) ship; `edge_class`
+> metadata declares evidentiary / descriptive / discovery / structural /
+> attribution per edge. **The grounding contract (`SUPPORTED_BY`,
+> `Insight.grounded`) is preserved bit-for-bit.** This doc is retained
+> as v1/v2 archaeology.
+
 ## Status
 
 v1 (implementation-ready)

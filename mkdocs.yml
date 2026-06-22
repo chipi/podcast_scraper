@@ -87,6 +87,7 @@ nav:
       - Viewer Frontend: architecture/VIEWER_FRONTEND_ARCHITECTURE.md
       - Viewer graph (implementation): architecture/VIEWER_GRAPH_SPEC.md
       - Viewer async stability: architecture/VIEWER_ASYNC_STABILITY.md
+      - Corpus Ontology (v2, unified): architecture/corpus/ontology.md
       - GI Ontology: architecture/gi/ontology.md
       - KG Ontology:
           - architecture/kg/README.md
@@ -347,6 +348,8 @@ nav:
       - RFC-093 LITM-Aware MCP Context Packs: rfc/RFC-093-litm-context-packs.md
       - RFC-094 Search-Powered Surfaces Query Layer: rfc/RFC-094-search-powered-surfaces-query-layer.md
       - RFC-095 Generic MCP Server: rfc/RFC-095-generic-mcp-server.md
+      - RFC-096 Audio Pipeline Separation and Viewer Media: rfc/RFC-096-audio-pipeline-separation-and-viewer-media.md
+      - RFC-097 Unified KG + GI Ontology v2: rfc/RFC-097-unified-kg-gi-ontology-v2.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md

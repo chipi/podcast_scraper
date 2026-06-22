@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://podcast-scraper.dev/schemas/gi.schema.json",
   "title": "Grounded Insight Layer Episode Artifact (gi.json)",
-  "description": "Schema for per-episode GIL data with Insights, Quotes, and grounding relationships",
+  "description": "Schema for per-episode GIL data with Insights, Quotes, and grounding relationships. v3.0 (RFC-097): adds Organization node + MENTIONS_PERSON + MENTIONS_ORG edges + edge_class metadata. v2.0 (RFC-072): Person + insight_type + position_hint. See docs/architecture/corpus/ontology.md (v3 source of truth). Grounding contract preserved bit-for-bit.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -16,8 +16,8 @@
   "properties": {
     "schema_version": {
       "type": "string",
-      "pattern": "^(1\\.0|2\\.0)$",
-      "description": "Schema version: 1.0 legacy; 2.0 RFC-072 (Person, person: ids, insight_type, position_hint)"
+      "pattern": "^(1\\.0|2\\.0|3\\.0)$",
+      "description": "Schema version: 1.0 legacy; 2.0 RFC-072 (Person, person: ids, insight_type, position_hint); 3.0 RFC-097 unified ontology (+ Organization node, + MENTIONS_PERSON / MENTIONS_ORG edges, + edge_class metadata)"
     },
     "model_version": {
       "type": "string",
@@ -52,6 +52,7 @@
         { "$ref": "#/$defs/episode_node" },
         { "$ref": "#/$defs/speaker_node" },
         { "$ref": "#/$defs/person_node" },
+        { "$ref": "#/$defs/organization_node" },
         { "$ref": "#/$defs/topic_node" },
         { "$ref": "#/$defs/insight_node" },
         { "$ref": "#/$defs/quote_node" }
@@ -62,7 +63,7 @@
       "required": ["id", "type", "properties"],
       "properties": {
         "id": { "type": "string", "minLength": 1, "description": "Unique node identifier" },
-        "type": { "type": "string", "enum": ["Podcast", "Episode", "Speaker", "Person", "Topic", "Insight", "Quote"], "description": "Node type" },
+        "type": { "type": "string", "enum": ["Podcast", "Episode", "Speaker", "Person", "Organization", "Topic", "Insight", "Quote"], "description": "Node type" },
         "properties": { "type": "object", "description": "Type-specific properties" },
         "confidence": { "type": "number", "minimum": 0, "maximum": 1, "description": "Extraction confidence (optional, for ML-derived nodes)" }
       }
@@ -77,7 +78,8 @@
         "properties": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["title", "rss_url"],
+          "required": ["title"],
+          "description": "RFC-097 chunk-4 sweep: rss_url is OPTIONAL — the enrich-edges post-pass (add_episode_show_edges) only has show_title and cannot synthesise an rss_url. Workflow-driven emissions that DO have rss_url should still set it.",
           "properties": { "title": { "type": "string", "minLength": 1 }, "rss_url": { "type": "string", "minLength": 1 }, "publisher": { "type": "string" } }
         }
       }
@@ -129,6 +131,22 @@
       "properties": {
         "id": { "type": "string", "minLength": 1, "description": "RFC-072: person:{slug}" },
         "type": { "const": "Person" },
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name"],
+          "properties": { "name": { "type": "string", "minLength": 1 }, "aliases": { "type": "array", "items": { "type": "string" } } }
+        }
+      }
+    },
+    "organization_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "properties"],
+      "description": "v3.0 (RFC-097): first-class Organization node. Id: org:{slug}.",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "description": "org:{slug}" },
+        "type": { "const": "Organization" },
         "properties": {
           "type": "object",
           "additionalProperties": false,
@@ -214,17 +232,32 @@
       "additionalProperties": false,
       "required": ["type", "from", "to"],
       "properties": {
-        "type": { "type": "string", "enum": ["HAS_EPISODE", "SPOKE_IN", "HAS_INSIGHT", "SUPPORTED_BY", "SPOKEN_BY", "ABOUT", "MENTIONS", "RELATED_TO"], "description": "Edge type" },
+        "type": { "type": "string", "enum": ["HAS_EPISODE", "SPOKE_IN", "HAS_INSIGHT", "SUPPORTED_BY", "SPOKEN_BY", "ABOUT", "MENTIONS", "MENTIONS_PERSON", "MENTIONS_ORG", "RELATED_TO"], "description": "Edge type. v3.0 (RFC-097) adds MENTIONS_PERSON (Insight → Person) and MENTIONS_ORG (Insight → Organization) as descriptive edges; replaces deferred v1.1 generic MENTIONS → Entity. See docs/architecture/corpus/ontology.md two-tier contract." },
         "from": { "type": "string", "minLength": 1, "description": "Source node ID" },
         "to": { "type": "string", "minLength": 1, "description": "Target node ID" },
         "properties": { "type": "object", "additionalProperties": true, "description": "Optional edge properties" }
       },
       "allOf": [
         {
-          "if": { "properties": { "type": { "enum": ["ABOUT", "RELATED_TO"] } } },
-          "then": { "properties": { "properties": { "type": "object", "additionalProperties": true, "properties": { "confidence": { "type": "number", "minimum": 0, "maximum": 1, "description": "Edge confidence (optional)" } } } } }
+          "if": { "properties": { "type": { "enum": ["ABOUT", "MENTIONS_PERSON", "MENTIONS_ORG", "RELATED_TO"] } } },
+          "then": { "properties": { "properties": { "type": "object", "additionalProperties": true, "properties": { "confidence": { "type": "number", "minimum": 0, "maximum": 1, "description": "Edge confidence (optional, from semantic-match post-pass)" } } } } }
         }
       ]
+    },
+    "edge_class_metadata": {
+      "description": "Non-validating schema metadata: maps each edge type to its edge_class per RFC-097 two-tier edge contract. Source of truth: docs/architecture/corpus/ontology.md. Consumed by viewer stylesheet + relational query layer + ontology contributors; never written to per-edge instances. SUPPORTED_BY is the only evidentiary edge — only it promotes Insight.grounded=true.",
+      "classes": {
+        "SUPPORTED_BY": "evidentiary",
+        "HAS_EPISODE": "structural",
+        "SPOKE_IN": "attribution",
+        "HAS_INSIGHT": "structural",
+        "SPOKEN_BY": "attribution",
+        "ABOUT": "descriptive",
+        "MENTIONS_PERSON": "descriptive",
+        "MENTIONS_ORG": "descriptive",
+        "MENTIONS": "discovery",
+        "RELATED_TO": "discovery"
+      }
     }
   }
 }

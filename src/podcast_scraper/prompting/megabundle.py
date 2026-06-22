@@ -106,7 +106,8 @@ def build_megabundle_prompt(
         "arguments, guests, and conclusions.\n"
         '  "bullets": array of 4-6 strings — key takeaways as standalone sentences.\n'
         f'  "insights": array of EXACTLY {num_insights} objects, each '
-        '{"text": string, "insight_type": "claim"|"fact"|"opinion"}. '
+        '{"text": string, "insight_type": '
+        '"claim"|"recommendation"|"observation"|"question"|"unknown"}. '
         "See rule 2 — third-person paraphrased claims, not verbatim dialogue.\n"
         f'  "topics": array of EXACTLY {num_topics} strings — see rule 3 '
         "(2–3 word canonical noun phrases).\n"
@@ -158,7 +159,8 @@ def build_extraction_bundle_prompt(
         "From the transcript below, extract the following structured fields "
         "into one JSON object:\n\n"
         f'  "insights": array of EXACTLY {num_insights} objects, each '
-        '{"text": string, "insight_type": "claim"|"fact"|"opinion"}. '
+        '{"text": string, "insight_type": '
+        '"claim"|"recommendation"|"observation"|"question"|"unknown"}. '
         "See rule 2 — third-person paraphrased claims.\n"
         f'  "topics": array of EXACTLY {num_topics} strings — see rule 3 '
         "(2–3 word canonical noun phrases).\n"

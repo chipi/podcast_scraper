@@ -1440,7 +1440,7 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
     from podcast_scraper.gi.relational_edges import (
         add_episode_show_edges,
         add_insight_entity_edges,
-        kg_entity_names,
+        kg_entity_index,
     )
     from podcast_scraper.gi.speakers import add_spoken_by_edges
     from podcast_scraper.search.corpus_scope import episode_root_from_metadata_path
@@ -1469,7 +1469,7 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
             try:
                 kg_artifact = json.loads(kg_path.read_text(encoding="utf-8"))
                 totals["mentions"] += add_insight_entity_edges(
-                    artifact, kg_entity_names(kg_artifact)
+                    artifact, kg_entity_index(kg_artifact)
                 )
             except (OSError, ValueError):
                 pass
