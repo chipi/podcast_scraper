@@ -15,6 +15,7 @@ import pytest
 
 from podcast_scraper.search.corpus_graph import Node
 from podcast_scraper.search.relational_queries import (
+    co_speakers,
     cross_show_synthesis,
     entities_in,
     entities_in_topic,
@@ -26,6 +27,8 @@ from podcast_scraper.search.relational_queries import (
     related_insights,
     RelatedNode,
     rerank_by_relevance,
+    topics_of,
+    topics_of_insight,
     who_said,
 )
 
@@ -246,3 +249,25 @@ def test_k_limit_caps_positions(graph: FakeGraph) -> None:
     edges = [("person:p", f"insight:{i}", "STATES") for i in range(5)]
     g = FakeGraph(nodes, edges)
     assert len(positions_of(g, "person:p", k=3)) == 3
+
+
+# --- connectivity helpers (#1054) ---
+
+
+def test_topics_of_walks_person_to_topics(graph: FakeGraph) -> None:
+    # alice STATES insight:1 ABOUT topic:ai -> her topics include ai (closes the dead-end).
+    assert [t.id for t in topics_of(graph, "person:alice")] == ["topic:ai"]
+
+
+def test_topics_of_empty_for_unknown_person(graph: FakeGraph) -> None:
+    assert topics_of(graph, "person:nobody") == []
+
+
+def test_co_speakers_finds_people_on_shared_topics(graph: FakeGraph) -> None:
+    # alice + bob both speak ABOUT topic:ai -> each is the other's co-speaker; self excluded.
+    assert [p.id for p in co_speakers(graph, "person:alice")] == ["person:bob"]
+    assert "person:alice" not in [p.id for p in co_speakers(graph, "person:alice")]
+
+
+def test_topics_of_insight(graph: FakeGraph) -> None:
+    assert [t.id for t in topics_of_insight(graph, "insight:1")] == ["topic:ai"]

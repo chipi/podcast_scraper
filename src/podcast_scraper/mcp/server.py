@@ -11,7 +11,12 @@ from pathlib import Path
 from typing import Any, Optional
 
 from .context import CorpusContext
-from .tools import catalog as _catalog, cil as _cil, relational as _relational
+from .tools import (
+    catalog as _catalog,
+    cil as _cil,
+    connectivity as _connectivity,
+    relational as _relational,
+)
 from .tools.resolve import resolve_entity as _resolve_entity
 from .tools.search import search_corpus as _search_corpus
 
@@ -138,6 +143,39 @@ def build_server(corpus_dir: Path | str) -> Any:
     def position_arc(person_id: str, topic_id: str) -> dict:
         """How a person's position on a topic evolves over time (``person:`` + ``topic:`` ids)."""
         return _cil.position_arc(ctx, person_id, topic_id)
+
+    # --- connectivity / neighborhood tools (#1054): one-call multi-faceted exploration ---
+
+    @server.tool()
+    def entity_neighborhood(entity_id: str, k: int = 8) -> dict:
+        """Everything connected to an entity, in ONE call — the exploration keystone.
+
+        Pass a canonical id (``resolve_entity`` first). person → what they stated, what's
+        said about them, their topics, co-speakers, shows; topic → entities, speakers,
+        cross-show synthesis; org → mentioned-in; podcast → episodes. Uniform envelope
+        ``{ok, kind, subject, data, note}`` — ``note`` explains empty/sparse results. Use
+        this to understand an entity before drilling in with the focused tools.
+        """
+        return _connectivity.entity_neighborhood(ctx, entity_id, k=k)
+
+    @server.tool()
+    def person_topics(person_id: str, k: int = 20) -> dict:
+        """The topics a person engages, ranked by how much of their output touches each.
+
+        ``person_id`` is a canonical ``person:`` id. Closes the person→topic traversal
+        (person → stated insights → their topics) — pair with ``cross_show_synthesis`` /
+        ``who_said_about_topic`` to jump from a person to the wider conversation.
+        """
+        return _connectivity.person_topics(ctx, person_id, k=k)
+
+    @server.tool()
+    def co_occurring_entities(entity_id: str, k: int = 20) -> dict:
+        """Who is discussed *alongside* an entity — the social graph (the connectivity link).
+
+        For a ``person:`` id: people who speak on the same topics, ranked by shared-topic
+        count. Use to fan out from one voice to the others in the same conversation.
+        """
+        return _connectivity.co_occurring_entities(ctx, entity_id, k=k)
 
     # --- catalog / navigation tools (RFC-095 slice 3) ---
 
