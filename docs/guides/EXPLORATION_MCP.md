@@ -69,10 +69,20 @@ the land) → drill in with a focused tool (`position_arc`, `cross_show_synthesi
 `search_corpus`) → fan out via **`co_occurring_entities`** to the next voice. Address by id,
 let the graph carry you across shows — that's the intelligence the corpus exists to provide.
 
+## Also in the viewer (same brain)
+
+These traversals aren't MCP-only. The viewer's `/api/relational/*` routes wrap the **same**
+`relational_queries` layer, so the human surfaces share the agent's logic: the **Person**
+view shows a person's *topics* + *co-speakers* ("in the same conversation"), the **Topic**
+view shows *related topics*, and `who-said` / `cross-show` ground the Topic view. One layer,
+two front-ends — an agent over MCP and a human in the viewer see the same connectivity.
+
 ## Notes
 
 - **Speaker attribution is diarization-gated.** If a corpus shows `SPEAKER_03`-style voices,
   diarization ran but speaker→name attribution didn't land — exploration still works, but by
-  anonymous speaker id. (A data-quality concern, not an MCP one.)
+  anonymous speaker id. A *structural* lens (`/relational/topics`, `topics_of`) and a
+  *grounded* lens (`/cil/persons/{id}/topics`, quote-backed) coexist; pick by intent. (Naming
+  for recurring hosts of network-authored feeds is tracked as a separate bug.)
 - The server is **read-only** and binds to one corpus; point `--corpus` at the built corpus
   you want to explore.
