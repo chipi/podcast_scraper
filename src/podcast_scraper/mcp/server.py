@@ -7,8 +7,37 @@ without it installed (the SDK rides in the ``[dev]`` extra).
 
 from __future__ import annotations
 
+import functools
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Callable, Optional
+
+
+def _safe(call: Callable[[], Any]) -> dict:
+    """Normalise any tool result to a uniform ``{ok, data, note}`` envelope (#1054).
+
+    A result that already carries ``ok`` (the connectivity tools) passes through; any other
+    payload is wrapped under ``data``; an exception becomes ``ok=False`` with the reason. So
+    an agent can ALWAYS check ``ok`` and read ``data`` — no per-tool special-casing, no
+    confusing "no data" with a crash.
+    """
+    try:
+        result = call()
+    except Exception as exc:  # noqa: BLE001 — a tool error must reach the agent as ok=False
+        return {"ok": False, "data": {}, "note": f"{type(exc).__name__}: {exc}"}
+    if isinstance(result, dict) and "ok" in result:
+        return result
+    return {"ok": True, "data": result, "note": ""}
+
+
+def _enveloped(fn: Callable[..., Any]) -> Callable[..., dict]:
+    """Wrap a tool fn so it returns the uniform envelope; keeps its signature for FastMCP."""
+
+    @functools.wraps(fn)
+    def wrapper(*args: Any, **kwargs: Any) -> dict:
+        return _safe(lambda: fn(*args, **kwargs))
+
+    return wrapper
+
 
 from .context import CorpusContext
 from .tools import (
@@ -29,6 +58,7 @@ def build_server(corpus_dir: Path | str) -> Any:
     server = FastMCP("podcast-scraper")
 
     @server.tool()
+    @_enveloped
     def resolve_entity(name: str, kind: Optional[str] = None) -> dict:
         """Resolve a freeform name to a canonical corpus entity id.
 
@@ -40,6 +70,7 @@ def build_server(corpus_dir: Path | str) -> Any:
         return _resolve_entity(ctx, name, kind)
 
     @server.tool()
+    @_enveloped
     def search_corpus(
         query: str,
         tier: str = "both",
@@ -70,6 +101,7 @@ def build_server(corpus_dir: Path | str) -> Any:
     # --- relational tools (RFC-095 slice 2): all take canonical ids (resolve first) ---
 
     @server.tool()
+    @_enveloped
     def person_positions(person_id: str, k: int = 20) -> dict:
         """Insights a person has stated — their positions (the Person→STATES→Insight edge).
 
@@ -79,6 +111,7 @@ def build_server(corpus_dir: Path | str) -> Any:
         return _relational.person_positions(ctx, person_id, k=k)
 
     @server.tool()
+    @_enveloped
     def who_said_about_topic(topic_id: str, k: int = 20) -> dict:
         """Who said what about a topic — insights grouped by the person who stated them.
 
@@ -88,6 +121,7 @@ def build_server(corpus_dir: Path | str) -> Any:
         return _relational.who_said_about_topic(ctx, topic_id, k=k)
 
     @server.tool()
+    @_enveloped
     def cross_show_synthesis(topic_id: str, per_show: int = 1) -> dict:
         """Cross-show synthesis — the top insight from each distinct show covering a topic.
 
@@ -97,6 +131,7 @@ def build_server(corpus_dir: Path | str) -> Any:
         return _relational.cross_show_synthesis(ctx, topic_id, per_show=per_show)
 
     @server.tool()
+    @_enveloped
     def insights_about_entity(entity_id: str, k: int = 20) -> dict:
         """Insights that mention a person or organization (``person:`` / ``org:`` id).
 
@@ -106,6 +141,7 @@ def build_server(corpus_dir: Path | str) -> Any:
         return _relational.insights_about_entity(ctx, entity_id, k=k)
 
     @server.tool()
+    @_enveloped
     def topic_entities(topic_id: str, k: int = 20) -> dict:
         """The people and organizations a topic's insights mention, ranked by mention frequency.
 
@@ -114,6 +150,7 @@ def build_server(corpus_dir: Path | str) -> Any:
         return _relational.topic_entities(ctx, topic_id, k=k)
 
     @server.tool()
+    @_enveloped
     def related_insights(insight_id: str, k: int = 20) -> dict:
         """Insights related to a given insight — siblings sharing a topic or mentioned entity.
 
@@ -123,6 +160,7 @@ def build_server(corpus_dir: Path | str) -> Any:
         return _relational.related_insights(ctx, insight_id, k=k)
 
     @server.tool()
+    @_enveloped
     def show_episodes(podcast_id: str, k: int = 20) -> dict:
         """A show's episodes (``podcast:`` id; the HAS_EPISODE relationship)."""
         return _relational.show_episodes(ctx, podcast_id, k=k)
@@ -130,16 +168,19 @@ def build_server(corpus_dir: Path | str) -> Any:
     # --- CIL intelligence tools (RFC-095 slice 3): canonical ids (resolve first) ---
 
     @server.tool()
+    @_enveloped
     def person_profile(person_id: str) -> dict:
         """A person's CIL profile — their grounded insights across episodes (``person:`` id)."""
         return _cil.person_profile(ctx, person_id)
 
     @server.tool()
+    @_enveloped
     def topic_timeline(topic_id: str) -> dict:
         """A topic's timeline — insights about it across episodes, over time (``topic:`` id)."""
         return _cil.topic_timeline(ctx, topic_id)
 
     @server.tool()
+    @_enveloped
     def position_arc(person_id: str, topic_id: str) -> dict:
         """How a person's position on a topic evolves over time (``person:`` + ``topic:`` ids)."""
         return _cil.position_arc(ctx, person_id, topic_id)
@@ -147,6 +188,7 @@ def build_server(corpus_dir: Path | str) -> Any:
     # --- connectivity / neighborhood tools (#1054): one-call multi-faceted exploration ---
 
     @server.tool()
+    @_enveloped
     def entity_neighborhood(entity_id: str, k: int = 8) -> dict:
         """Everything connected to an entity, in ONE call — the exploration keystone.
 
@@ -159,6 +201,7 @@ def build_server(corpus_dir: Path | str) -> Any:
         return _connectivity.entity_neighborhood(ctx, entity_id, k=k)
 
     @server.tool()
+    @_enveloped
     def person_topics(person_id: str, k: int = 20) -> dict:
         """The topics a person engages, ranked by how much of their output touches each.
 
@@ -169,6 +212,7 @@ def build_server(corpus_dir: Path | str) -> Any:
         return _connectivity.person_topics(ctx, person_id, k=k)
 
     @server.tool()
+    @_enveloped
     def co_occurring_entities(entity_id: str, k: int = 20) -> dict:
         """Who is discussed *alongside* an entity — the social graph (the connectivity link).
 
@@ -178,6 +222,7 @@ def build_server(corpus_dir: Path | str) -> Any:
         return _connectivity.co_occurring_entities(ctx, entity_id, k=k)
 
     @server.tool()
+    @_enveloped
     def bridge(entity_a: str, entity_b: str) -> dict:
         """How two entities connect — *"how are X and Y related?"* in one call.
 
@@ -187,6 +232,7 @@ def build_server(corpus_dir: Path | str) -> Any:
         return _connectivity.bridge(ctx, entity_a, entity_b)
 
     @server.tool()
+    @_enveloped
     def related_topics(topic_id: str, k: int = 20) -> dict:
         """Topics that co-occur with a topic (share insights) — topic↔topic connectivity.
 
@@ -198,11 +244,13 @@ def build_server(corpus_dir: Path | str) -> Any:
     # --- catalog / navigation tools (RFC-095 slice 3) ---
 
     @server.tool()
+    @_enveloped
     def list_feeds() -> dict:
         """List the shows (feeds) in the corpus, with display titles and episode counts."""
         return _catalog.list_feeds(ctx)
 
     @server.tool()
+    @_enveloped
     def list_episodes(
         feed: Optional[str] = None, since: Optional[str] = None, limit: int = 50
     ) -> dict:
@@ -214,11 +262,13 @@ def build_server(corpus_dir: Path | str) -> Any:
         return _catalog.list_episodes(ctx, feed=feed, since=since, limit=limit)
 
     @server.tool()
+    @_enveloped
     def episode_detail(metadata_path: str) -> dict:
         """Full detail for one episode by its ``metadata_path`` (from a list or search result)."""
         return _catalog.episode_detail(ctx, metadata_path)
 
     @server.tool()
+    @_enveloped
     def top_people(limit: int = 10) -> dict:
         """The corpus's top voices — people ranked by grounded (quote-backed) insight count."""
         return _catalog.top_people(ctx, limit=limit)

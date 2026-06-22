@@ -41,9 +41,11 @@ For a **topic** it returns the entities, the speakers, and the **cross-show synt
 insight per distinct show). For an **org**, what mentions it; for a **podcast**, its episodes.
 One call replaces 4–5 chained ones — and it doesn't dead-end on topics or co-people.
 
-Every tool returns the same envelope — `{ok, kind, subject, data, note}` — so an agent checks
-`ok` and reads `note` ("no insights — likely an unnamed speaker") instead of guessing per-tool
-shapes or confusing *no data* with *feature off*.
+**Every tool returns the same envelope — `{ok, data, note}`.** Check `ok` (a tool that errors
+comes back `ok: false` with the reason in `note`, never a crash), read the payload from `data`,
+and use `note` to learn *why* a result is empty ("no insights — likely an unnamed speaker")
+instead of guessing per-tool shapes or confusing *no data* with *feature off*. The connectivity
+tools additionally carry `kind` + `subject` at the top level.
 
 ## Use cases (what an agent can now answer fluidly)
 
