@@ -197,8 +197,13 @@ const isInsightNode = computed(() => nodeType.value.trim().toLowerCase() === 'in
 
 /** GI ``Person`` / legacy ``Speaker`` / KG ``Entity`` (person or organization). */
 const isPersonEntityRailNode = computed(() => {
+  // RFC-097 v3.0: Organization is a first-class node type and shares the
+  // Person/Entity rail UI — the rail handles both speaker-like (Person /
+  // Speaker) and brand-like (Entity / Organization) nodes. The button copy
+  // adapts via the ``['person', 'speaker'].includes(...)`` check at the
+  // render site (Person profile vs Entity profile).
   const t = nodeType.value.trim().toLowerCase()
-  return t === 'person' || t === 'entity' || t === 'speaker'
+  return t === 'person' || t === 'entity' || t === 'speaker' || t === 'organization'
 })
 
 const isTopicClusterNode = computed(

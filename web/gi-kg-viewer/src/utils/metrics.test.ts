@@ -116,4 +116,101 @@ describe('computeArtifactMetrics', () => {
     const keys = result.rows.map((r) => r.k)
     expect(keys.slice(0, 5)).toEqual(['File', 'Layer', 'Episode', 'Nodes', 'Edges'])
   })
+
+  // ---------------------------------------------------------------------------
+  // RFC-097 v3.0 typed-entity counts — Person + Organization show up as
+  // distinct rows in the visual node counts (and the rendered metric rows).
+  // ---------------------------------------------------------------------------
+
+  function v3KgArtifact(): ParsedArtifact {
+    return {
+      name: 'ep1.kg.json',
+      kind: 'kg',
+      episodeId: 'ep1',
+      nodes: 5,
+      edges: 3,
+      nodeTypes: { Episode: 1, Topic: 1, Person: 2, Organization: 1 },
+      data: {
+        episode_id: 'ep1',
+        extraction: { model_version: 'gpt-4o', extracted_at: '2026-06-22' },
+        nodes: [
+          { id: 'episode:ep1', type: 'Episode' },
+          { id: 't1', type: 'Topic', properties: { label: 'AI' } },
+          { id: 'p1', type: 'Person', properties: { name: 'Ada' } },
+          { id: 'p2', type: 'Person', properties: { name: 'Bob' } },
+          { id: 'o1', type: 'Organization', properties: { name: 'Acme' } },
+        ],
+        edges: [
+          { type: 'MENTIONS', from: 'p1', to: 'episode:ep1' },
+          { type: 'MENTIONS', from: 'o1', to: 'episode:ep1' },
+          { type: 'HAS_EPISODE', from: 'podcast:show', to: 'episode:ep1' },
+        ],
+      },
+    }
+  }
+
+  it('typed Person nodes count under Entity_person (RFC-097 v3.0)', () => {
+    const result = computeArtifactMetrics(v3KgArtifact())
+    expect(result.visualNodeTypeCounts).toHaveProperty('Entity_person', 2)
+  })
+
+  it('typed Organization nodes count under Entity_organization (RFC-097 v3.0)', () => {
+    const result = computeArtifactMetrics(v3KgArtifact())
+    expect(result.visualNodeTypeCounts).toHaveProperty('Entity_organization', 1)
+  })
+
+  it('v3.0 KG metrics rows surface both Person and Organization counts when present', () => {
+    const result = computeArtifactMetrics(v3KgArtifact())
+    const valuesByKey = new Map(result.rows.map((r) => [r.k, r.v]))
+    // Both counts surface as their own row when both > 0.
+    const personRow = Array.from(valuesByKey.entries()).find(([, v]) => v === '2')
+    const orgRow = Array.from(valuesByKey.entries()).find(([, v]) => v === '1' && true)
+    expect(personRow, `rows: ${[...valuesByKey].map(([k, v]) => `${k}=${v}`).join(', ')}`).toBeDefined()
+    expect(orgRow).toBeDefined()
+  })
+
+  it('v3.0 KG edge counts include HAS_EPISODE and MENTIONS', () => {
+    const result = computeArtifactMetrics(v3KgArtifact())
+    expect(result.edgeTypeCounts).toHaveProperty('MENTIONS', 2)
+    expect(result.edgeTypeCounts).toHaveProperty('HAS_EPISODE', 1)
+  })
+
+  it('v3.0 GI artifact: typed MENTIONS edges count distinctly from legacy MENTIONS', () => {
+    /** Mid-migration corpus: one typed MENTIONS_PERSON + one typed MENTIONS_ORG
+     * + one legacy MENTIONS. The edge counter must surface all three distinctly.
+     */
+    const v3Gi: ParsedArtifact = {
+      name: 'ep1.gi.json',
+      kind: 'gi',
+      episodeId: 'ep1',
+      nodes: 1,
+      edges: 3,
+      nodeTypes: { Insight: 1 },
+      data: {
+        episode_id: 'ep1',
+        model_version: 'stub',
+        prompt_version: 'v1',
+        nodes: [
+          {
+            id: 'i1',
+            type: 'Insight',
+            properties: {
+              grounded: true,
+              insight_type: 'claim',
+              position_hint: 0.3,
+            },
+          },
+        ],
+        edges: [
+          { type: 'MENTIONS_PERSON', from: 'i1', to: 'p:1' },
+          { type: 'MENTIONS_ORG', from: 'i1', to: 'o:1' },
+          { type: 'MENTIONS', from: 'i1', to: 'legacy:1' },
+        ],
+      },
+    }
+    const result = computeArtifactMetrics(v3Gi)
+    expect(result.edgeTypeCounts).toHaveProperty('MENTIONS_PERSON', 1)
+    expect(result.edgeTypeCounts).toHaveProperty('MENTIONS_ORG', 1)
+    expect(result.edgeTypeCounts).toHaveProperty('MENTIONS', 1)
+  })
 })
