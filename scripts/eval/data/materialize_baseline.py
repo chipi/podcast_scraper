@@ -1155,6 +1155,34 @@ def generate_enhanced_fingerprint(  # noqa: C901
         # against entirely different LLMs.
         base_url = getattr(experiment_config.backend, "base_url", None)
         backing_model_id = _probe_vllm_backing_model_id(base_url)
+        # RFC-097 fingerprint gap-closure #3-#5: capture task-pipeline knobs that
+        # materially affect output but were invisible in the fingerprint —
+        # postprocessor, *_extraction_src, gi_max_insights — plus optional
+        # operator-supplied vLLM serve flags + image (VLLM_INFERENCE_ARGS /
+        # VLLM_INFERENCE_IMAGE env vars, populated by sweep runbooks).
+        import os as _os
+
+        _params = experiment_config.params or {}
+        task_pipeline: Dict[str, Any] = {}
+        if experiment_config.prompts is not None:
+            _pp = getattr(experiment_config.prompts, "postprocessor", None)
+            if _pp is not None:
+                task_pipeline["postprocessor"] = _pp
+        for _k in ("kg_extraction_src", "gi_insight_src", "gi_max_insights"):
+            _v = _params.get(_k)
+            if _v is not None:
+                task_pipeline[_k] = _v
+
+        # Inference args + image (operator-supplied via env). Sweep runbooks
+        # populate these by running:
+        #   VLLM_INFERENCE_ARGS="$(ssh dgx 'docker inspect vllm-autoresearch \
+        #     --format {{.Config.Cmd}}')"
+        #   VLLM_INFERENCE_IMAGE="$(ssh dgx 'docker inspect vllm-autoresearch \
+        #     --format {{.Config.Image}}')"
+        # before invoking run_experiment.py. Captured here as opaque strings.
+        inference_args = _os.getenv("VLLM_INFERENCE_ARGS") or None
+        inference_image = _os.getenv("VLLM_INFERENCE_IMAGE") or None
+
         pipeline = {
             "type": "single_stage",
             "stages": {
@@ -1174,6 +1202,9 @@ def generate_enhanced_fingerprint(  # noqa: C901
                         "backing_model_id": backing_model_id,
                     },
                     "generation_params": generation_params,
+                    "task_pipeline": task_pipeline,
+                    "inference_args": inference_args,
+                    "inference_image": inference_image,
                 },
             },
         }
