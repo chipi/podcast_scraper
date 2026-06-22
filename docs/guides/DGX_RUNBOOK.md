@@ -571,7 +571,7 @@ DGX service's lifespan.
 
 | Service | Sentry init | Notes |
 | --- | --- | --- |
-| `pyannote-server` (`:8001`) | ✓ planned via #942 | Cross-repo apply in `docs/wip/942-PYANNOTE-SENTRY-APPLY.md`. |
+| `pyannote-server` (`:8001`) | ✓ shipped (#942, commit 42a17b53) | Code in `infra/dgx/pyannote-server/{app.py,Dockerfile}`. Deployed + validated 2026-06-22 — see `docs/wip/942-PYANNOTE-SENTRY-APPLY.md`. Awaits operator-supplied `SENTRY_DSN`. |
 | `vllm-prod` (future) | ✓ planned | Same pattern lands when service ships. |
 | `speaches` (faster-whisper, `:8000`) | ✗ scope-cut | Client-side breadcrumbs sufficient; we don't control its source. |
 | `ollama` (`:11434`) | ✗ N/A | Go-based; separate logging surface. |

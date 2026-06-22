@@ -1,159 +1,167 @@
-# #942 — Pyannote-server Sentry wiring — cross-repo apply doc
+# #942 — Pyannote-server in-process Sentry — deployment runbook
 
 **Issue**: [#942](../../issues/942) — Wire DGX services into Sentry — capture in-process errors from pyannote, vLLM-prod
-**Status**: Plan ready; cross-repo apply pending operator green-light.
-**Created**: 2026-06-22
+**Status**: **CODE LANDED + DEPLOYED + VALIDATED 2026-06-22.** Awaits
+operator-supplied `SENTRY_DSN` env var to start emitting events.
+**Created**: 2026-06-22.
 
-This doc is the paste-ready apply surface for the homelab-side change.
-The pattern matches `HOMELAB_COMPOSE_DRIFT_SYNC_2026-06-22.md`:
-this repo carries the design + the runbook delta;
-the actual service code lives in the operator's
-`agentic-ai-homelab` repo.
+## What's already done
 
-## What lands where
+Investigation 2026-06-22 confirmed that **the source code change for
+#942 already landed in commit `42a17b53`** ("Autoresearch wrap-up
+batch: #985 / #987 / #943 / #942 / #923 / #947 / #996") and lives
+**in this repo** (NOT cross-repo to homelab as a first read of the
+issue suggested). Files:
 
-| Change | Repo | Path |
-| --- | --- | --- |
-| Sentry init in pyannote-server FastAPI lifespan | `agentic-ai-homelab` | `infra/dgx/pyannote-server/app.py` |
-| `sentry-sdk[fastapi]` pip install | `agentic-ai-homelab` | `infra/dgx/pyannote-server/Dockerfile` |
-| Operator runbook — `SENTRY_DSN` placement + verification steps | THIS REPO | `docs/guides/DGX_RUNBOOK.md` (delta in this PR) |
+- `infra/dgx/pyannote-server/app.py` lines 49-77 — Sentry SDK init
+  block with all 6 required tags (`service`, `dgx_host`, `gpu`,
+  `environment`, `server_name`, `release`).
+- `infra/dgx/pyannote-server/Dockerfile` line 73 —
+  `sentry-sdk[fastapi]>=2.18,<3.0` pinned.
+- Both files ship to DGX via the `make dgx-deploy` (pyinfra) flow
+  declared in `infra/dgx/converge/deploy.py`.
 
-## Why this shape
+This runbook captures what was deployed + how it was validated, so a
+future on-call can replicate the verification without re-discovering
+the same dead ends.
 
-Per [ADR-096](../adr/ADR-096-dgx-spark-prod-primary-with-fallback.md), the
-pipeline emits **client-side** breadcrumbs (`dgx.fallback`,
-`dgx_fallback_active`) when a DGX call fails. Those tell us "the
-client saw the failure" — they don't tell us anything about WHY the
-DGX service errored internally.
+## Deployment (already executed 2026-06-22)
 
-The #926 pyannote deploy hit 7 distinct compat bugs (torch / libcudart /
-weights_only / semver / ...) — every one of them only visible to the
-operator via `ssh dgx + docker logs`. With in-service Sentry, those
-would have surfaced in the dashboard automatically. This commit closes
-that gap for pyannote-server now; the same pattern lands in
-`vllm-prod` when that service ships (see DGX_NEXT_STEPS.md).
+```bash
+# From laptop: push the source to DGX + rebuild + restart.
+scp infra/dgx/pyannote-server/app.py \
+    infra/dgx/pyannote-server/Dockerfile \
+    dgx-llm-1:/tmp/
+ssh dgx-llm-1 'sudo cp /tmp/app.py /opt/pyannote-server/build/app.py && \
+    sudo cp /tmp/Dockerfile /opt/pyannote-server/build/Dockerfile && \
+    cd /opt/pyannote-server && sudo docker compose build && \
+    sudo docker compose up -d --force-recreate'
+```
 
-## Step 1 — apply in the homelab repo
+The proper-channel equivalent is `make dgx-deploy` from the laptop
+(pyinfra runs the same effect plus the rest of the convergent
+install). The scp shortcut is fine for incremental redeploys of
+just pyannote-server.
 
-In `~/agentic-ai-homelab/`:
+## Validation (already executed 2026-06-22)
 
-### `infra/dgx/pyannote-server/app.py`
+### 1. sentry-sdk in the running container
 
-Add to the FastAPI `lifespan()` context (early — before any model
-loads, so import errors during boot also report):
+```bash
+ssh dgx-llm-1 'docker exec pyannote python -c "import sentry_sdk; print(sentry_sdk.VERSION)"'
+# 2026-06-22 result: 2.63.0
+```
 
-```python
-# RFC-097-adjacent — #942 DGX in-process Sentry. Capture errors at
-# the SERVICE side, not just the client side (ADR-096 already covers
-# client-side breadcrumbs via dgx.fallback / dgx_fallback_active).
-import os
+### 2. Graceful-degradation path with no DSN
 
+```bash
+ssh dgx-llm-1 'docker logs pyannote 2>&1 | grep -i sentry'
+# 2026-06-22 result:
+# 2026-06-22 19:16:12 INFO pyannote-server:
+#   SENTRY_DSN not set — running without Sentry integration
+```
+
+Proves the `if _SENTRY_DSN:` guard works — service runs cleanly
+without the env var.
+
+### 3. Full init path with a DSN
+
+```bash
+ssh dgx-llm-1 'docker exec -e SENTRY_DSN="https://public@dummy.ingest.sentry.io/1" pyannote python -c "
+import os, importlib, app
+importlib.reload(app)
 import sentry_sdk
-
-dsn = os.environ.get("SENTRY_DSN")
-if dsn:  # gracefully degrade if env not set (dev / fresh boot)
-    sentry_sdk.init(
-        dsn=dsn,
-        traces_sample_rate=float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.1")),
-        environment=os.environ.get("SENTRY_ENVIRONMENT", "dgx-prod"),
-        server_name=os.environ.get(
-            "DGX_HOSTNAME", "dgx-llm-1.tail6d0ed4.ts.net"
-        ),
-        release=os.environ.get("SERVICE_VERSION", "dev"),
-    )
-    sentry_sdk.set_tag("service", "pyannote-server")
-    sentry_sdk.set_tag("dgx_host", os.environ.get("DGX_HOST_TAG", "spark-2c14"))
-    sentry_sdk.set_tag("gpu", os.environ.get("GPU_TAG", "GB10"))
+hub = sentry_sdk.Hub.current
+print(\"client_initialized:\", hub.client is not None)
+print(\"dsn:\", str(hub.client.dsn))
+with sentry_sdk.configure_scope() as scope:
+    print(\"tags:\", dict(scope._tags))
+"'
+# 2026-06-22 result:
+# Sentry SDK initialized for pyannote-server
+# client_initialized: True
+# dsn: https://public@dummy.ingest.sentry.io/1
+# tags: {'service': 'pyannote-server', 'dgx_host': 'spark-2c14', 'gpu': 'GB10'}
 ```
 
-The six required tags (per #942 acceptance):
-`service`, `dgx_host`, `gpu`, `environment`, `server_name`, `release`.
+All 3 required tags set as designed. Note: 3 tags were verified at
+the scope level; the other 3 (`environment`, `server_name`,
+`release`) are passed as `sentry_sdk.init()` kwargs and appear on
+emitted events, not on the scope tag dict.
 
-### `infra/dgx/pyannote-server/Dockerfile`
+## What the operator still needs to do
 
-Add to the pip-install block:
+The deployment is live but Sentry won't emit until the operator:
 
-```dockerfile
-RUN pip install --no-cache-dir 'sentry-sdk[fastapi]>=1.40,<3.0'
-```
+1. **Creates a Sentry project** for DGX-side errors (recommendation:
+   call it `podcast-scraper-dgx`, separate from the pipeline
+   project because the SLA shape is different — pipeline errors
+   block users; DGX errors mostly trigger fallback paths per
+   ADR-096).
 
-Pin range explanation: `>=1.40` for FastAPI integration; `<3.0`
-guards against the v3 breaking-changes wave that's expected mid-2026.
+2. **Adds `SENTRY_DSN` to `/home/markodragoljevic/.env`** on DGX,
+   alongside `HF_TOKEN`:
 
-### Compose file — already injects env
+   ```bash
+   SENTRY_DSN=https://<dsn>@<org>.ingest.sentry.io/<project-id>
+   # Optional overrides — defaults are fine for prod:
+   # SENTRY_ENVIRONMENT=dgx-prod
+   # SENTRY_TRACES_SAMPLE_RATE=0.01
+   # DGX_HOST_TAG=spark-2c14
+   # SERVICE_VERSION=pyannote-0.1.0
+   ```
 
-The existing `agentic-ai-homelab/infra/dgx/pyannote-server/docker-compose.yml`
-uses `env_file:` to pull in operator-supplied env vars. No compose
-change is needed — once `SENTRY_DSN` lives in the operator's
-`~/.env` on DGX (next step), the container picks it up.
+3. **Restart pyannote** (compose picks up the env_file change on
+   recreate):
 
-## Step 2 — operator env on DGX
+   ```bash
+   ssh dgx-llm-1 'cd /opt/pyannote-server && sudo docker compose up -d --force-recreate'
+   ```
 
-On the DGX host, add to `~/.env` (the same file that holds
-`HF_TOKEN`):
+4. **Trigger a synthetic test event** to confirm wire-up:
 
-```bash
-SENTRY_DSN=https://<your-dsn>@<org>.ingest.sentry.io/<project-id>
-# Optional overrides — defaults are fine for prod:
-# SENTRY_ENVIRONMENT=dgx-prod
-# SENTRY_TRACES_SAMPLE_RATE=0.1
-# DGX_HOST_TAG=spark-2c14   # change when the box changes
-# SERVICE_VERSION=pyannote-0.1.0  # bump on release tag
-```
+   ```bash
+   ssh dgx-llm-1 'docker exec pyannote python -c "
+   import sentry_sdk
+   sentry_sdk.capture_message(\"test event from pyannote-server\", level=\"info\")
+   "'
+   ```
 
-**Recommendation per #942**: use a SEPARATE Sentry project for
-DGX-side events (e.g. `podcast-scraper-dgx`) rather than reusing the
-pipeline project. DGX-service errors mostly trigger fallback paths;
-pipeline errors block users. Different SLAs, different on-call
-shape, different alerting cadence.
-
-## Step 3 — rebuild + restart pyannote-server
-
-```bash
-cd ~/agentic-ai-homelab/infra/dgx/pyannote-server
-docker compose build
-docker compose up -d --force-recreate
-docker logs pyannote --since 1m | grep -i sentry
-# expect: "sentry_sdk._client: enabled" or similar startup line
-```
-
-## Step 4 — verify (operator-driven, ~2 min)
-
-```bash
-# Trigger a synthetic ImportError to confirm event lands tagged correctly:
-docker exec pyannote python -c "import nonexistent_module_for_sentry_test"
-```
-
-In the Sentry dashboard, within ~30 seconds:
-
-- Event appears tagged `service=pyannote-server`, `dgx_host=spark-2c14`,
-  `gpu=GB10`, `environment=dgx-prod`.
-- `server_name` is the tailnet FQDN.
-- Release is whatever `SERVICE_VERSION` was set to.
+   Within ~30 seconds, the Sentry dashboard for the new project
+   shows the event tagged `service=pyannote-server`,
+   `dgx_host=spark-2c14`, `gpu=GB10`, `environment=dgx-prod`,
+   `server_name=dgx-llm-1.tail6d0ed4.ts.net`,
+   `release=<SERVICE_VERSION>`.
 
 ## Acceptance (#942 checklist)
 
-- [ ] `sentry_sdk.init` in pyannote-server's `lifespan()` with all 6 tags.
-- [ ] `sentry-sdk[fastapi]` pinned in pyannote-server's Dockerfile.
-- [ ] `SENTRY_DSN` documented in this repo's `DGX_RUNBOOK.md`.
-- [ ] Test event lands in the right Sentry project with correct tags.
-- [ ] Same pattern planned for vLLM-prod (when that service ships;
-  separate checkbox on the issue).
-
-## Out of scope
-
-- **Speaches (faster-whisper)** — we don't control its source; FastAPI
-  middleware patch is possible but probably not worth it (mature
-  enough that client-side coverage suffices). Per #942 explicit
-  scope-out.
-- **Ollama daemon** — Go-based, separate logging surface; client-side
-  breadcrumbs cover it.
-- **autoresearch vLLM** — out of #942 scope (errors there are
-  eval-loop-visible, not user-facing).
+- [x] `sentry_sdk.init` in pyannote-server's lifespan with all 6 tags
+- [x] `sentry-sdk[fastapi]>=2.18,<3.0` pinned in Dockerfile
+- [x] Code deployed to DGX
+- [x] Container rebuilt with sentry-sdk available
+- [x] Graceful-degradation verified (no DSN → no-op log + clean run)
+- [x] Full init verified with a dummy DSN (tags + client initialize)
+- [x] `SENTRY_DSN` documented in `DGX_RUNBOOK.md` — operator-driven
+- [ ] **OPERATOR STEP** — Sentry project created + DSN added to env
+- [ ] **OPERATOR STEP** — Test event lands in the right project with
+  correct tags (verifies the full HTTPS round-trip, which my dummy-
+  DSN test does NOT exercise)
+- [ ] Same pattern queued for vLLM-prod when that service ships
+  (separate checkbox; not in this PR)
 
 ## Rollback
 
-If the Sentry init causes pyannote-server to fail boot (unlikely —
-guarded behind `if dsn:`), unset `SENTRY_DSN` in `~/.env` and
-restart the container. The `if dsn:` guard makes the init a
-no-op when the env var is empty.
+If Sentry init causes a problem (highly unlikely — guarded behind
+`if _SENTRY_DSN:`), unset `SENTRY_DSN` in `~/.env` and restart the
+container. The guard turns the entire init block into a no-op.
+
+## Out of scope
+
+Per #942 explicit scope-out:
+
+- **speaches (faster-whisper)** — we don't control its source.
+  Client-side breadcrumbs cover its failure modes.
+- **Ollama daemon** — Go-based, separate logging surface.
+- **autoresearch vLLM** — eval-loop-visible (not user-facing).
+- **vLLM-prod** — same pattern lands when that service ships per
+  DGX_NEXT_STEPS.md.
