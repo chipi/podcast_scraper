@@ -206,3 +206,49 @@ def test_no_corpus_path_returns_error() -> None:
 
 def test_missing_required_param_is_422(client: TestClient) -> None:
     assert client.get("/api/relational/positions").status_code == 422
+
+
+# --- connectivity routes (#1055): topics / co-speakers / related-topics ---
+
+
+def test_topics_returns_person_topics(client: TestClient) -> None:
+    body = client.get("/api/relational/topics", params={"person": "person:alice"}).json()
+    assert body["subject"] == "person:alice"
+    assert [r["id"] for r in body["results"]] == ["topic:ai"]
+
+
+def test_co_speakers_returns_people_on_shared_topics(client: TestClient) -> None:
+    body = client.get("/api/relational/co-speakers", params={"person": "person:alice"}).json()
+    assert [r["id"] for r in body["results"]] == ["person:bob"]
+
+
+def test_related_topics_empty_for_lone_topic(client: TestClient) -> None:
+    # the fixture has a single topic → no co-occurring topics.
+    body = client.get("/api/relational/related-topics", params={"topic": "topic:ai"}).json()
+    assert body["subject"] == "topic:ai"
+    assert body["results"] == []
+
+
+def test_related_topics_via_shared_insight(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    graph = _FakeGraph(
+        {
+            "topic:a": ("topic", {"label": "A"}),
+            "topic:b": ("topic", {"label": "B"}),
+            "insight:1": ("insight", {}),
+        },
+        [("insight:1", "topic:a", "ABOUT"), ("insight:1", "topic:b", "ABOUT")],
+    )
+    monkeypatch.setattr(
+        "podcast_scraper.server.routes.relational.get_corpus_graph",
+        lambda *a, **k: graph,
+    )
+    client = TestClient(create_app(tmp_path, static_dir=False))
+    body = client.get("/api/relational/related-topics", params={"topic": "topic:a"}).json()
+    assert [r["id"] for r in body["results"]] == ["topic:b"]
+
+
+def test_co_speakers_no_corpus_path_errors(tmp_path: Path) -> None:
+    # create_app with no output_dir → graph unresolved → uniform error envelope.
+    client = TestClient(create_app(None, static_dir=False))
+    body = client.get("/api/relational/co-speakers", params={"person": "person:alice"}).json()
+    assert body["error"] == "no_corpus_path"
