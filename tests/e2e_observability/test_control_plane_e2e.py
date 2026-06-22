@@ -30,11 +30,21 @@ import pytest
 
 from podcast_obs import aggregate
 from podcast_obs.config import ObservabilityConfig, TargetConfig
-from podcast_obs.sources import github, grafana, loki, prod_api, sentry
+from podcast_obs.sources import github, grafana, langfuse, loki, prod_api, sentry
 
 pytestmark = pytest.mark.e2e
 
-_ALL_LABELS = {"health", "version", "runs", "deploys", "cost", "logs", "errors", "alerts"}
+_ALL_LABELS = {
+    "health",
+    "version",
+    "runs",
+    "deploys",
+    "cost",
+    "logs",
+    "errors",
+    "alerts",
+    "traces",
+}
 
 
 def _gh_cli_token() -> str | None:
@@ -115,6 +125,13 @@ def test_sentry_errors_live() -> None:
     )
     assert isinstance(data["projects"], list)
     assert data["total_issues"] >= 0
+
+
+def test_langfuse_traces_live() -> None:
+    data = _live_or_skip(langfuse.recent_traces(_live_target(), limit=5), "langfuse.traces")
+    assert isinstance(data["traces"], list)
+    assert isinstance(data["count"], int)
+    assert data["base_url"].startswith("http")
 
 
 def test_summary_structure_live() -> None:

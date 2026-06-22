@@ -141,3 +141,61 @@ def test_record_provider_call_cost_backfills_when_cost_none() -> None:
     )
     assert call.estimated_cost is not None
     assert call.estimated_cost > 0
+
+
+@pytest.mark.unit
+def test_record_provider_call_cost_emits_langfuse_span(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The cost choke point forwards every billable call to Langfuse tracing (#1052).
+
+    Validates the *wiring* (record_provider_call_cost -> emit_langfuse_span), which the
+    langfuse_tracing unit tests can't see. Langfuse is mocked, so no SDK/network is touched.
+    """
+    import podcast_scraper.utils.langfuse_tracing as lt
+
+    captured: list[dict] = []
+    monkeypatch.setattr(lt, "emit_langfuse_span", lambda **kw: captured.append(kw))
+
+    cfg = create_test_config(output_dir="/tmp/run-x", rss_url="https://feeds/x.xml")
+    record_provider_call_cost(
+        ProviderCallMetrics(),
+        0.02,  # explicit cost > 0 so the emit path is reached
+        cfg=cfg,
+        provider_type="anthropic",
+        capability="summarization",
+        model="claude-opus",
+        prompt_tokens=100,
+        completion_tokens=20,
+        triggered_guardrail=True,
+    )
+
+    assert len(captured) == 1
+    span = captured[0]
+    assert span["provider"] == "anthropic"
+    assert span["capability"] == "summarization"
+    assert span["model"] == "claude-opus"
+    assert span["cost"] == 0.02
+    assert span["prompt_tokens"] == 100
+    assert span["completion_tokens"] == 20
+    assert span["run_seed"] == "/tmp/run-x"  # output dir groups the run's trace
+    assert span["feed_id"] == "https://feeds/x.xml"
+    assert span["triggered_guardrail"] is True
+
+
+@pytest.mark.unit
+def test_record_provider_call_cost_no_span_when_cost_zero(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No cost -> no cost event and no Langfuse span (the early return covers both)."""
+    import podcast_scraper.utils.langfuse_tracing as lt
+
+    captured: list[dict] = []
+    monkeypatch.setattr(lt, "emit_langfuse_span", lambda **kw: captured.append(kw))
+
+    cfg = create_test_config()
+    record_provider_call_cost(
+        ProviderCallMetrics(),
+        0.0,
+        cfg=cfg,
+        provider_type="ollama",
+        capability="summarization",
+        model="llama",
+    )
+    assert captured == []
