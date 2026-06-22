@@ -15,10 +15,12 @@ import type { ParsedArtifact, RawGraphEdge, RawGraphNode } from '../../types/art
 const fetchCrossShow = vi.fn()
 const fetchWhoSaid = vi.fn()
 const fetchTopicEntities = vi.fn()
+const fetchRelatedTopics = vi.fn()
 vi.mock('../../api/relationalApi', () => ({
   fetchCrossShow: (...a: unknown[]) => fetchCrossShow(...a),
   fetchWhoSaid: (...a: unknown[]) => fetchWhoSaid(...a),
   fetchTopicEntities: (...a: unknown[]) => fetchTopicEntities(...a),
+  fetchRelatedTopics: (...a: unknown[]) => fetchRelatedTopics(...a),
 }))
 
 // SubjectTimelineChart wraps Chart.js (canvas) — stub to a passthrough.
@@ -94,6 +96,7 @@ describe('TopicEntityView.vue', () => {
     fetchCrossShow.mockResolvedValue({ subject: 'topic:ai', groups: {} })
     fetchWhoSaid.mockResolvedValue({ subject: 'topic:ai', groups: {} })
     fetchTopicEntities.mockResolvedValue({ subject: 'topic:ai', results: [] })
+    fetchRelatedTopics.mockResolvedValue({ subject: 'topic:ai', results: [] })
   })
 
   it('renders the topic kind label, name, aliases and description', async () => {
@@ -217,5 +220,25 @@ describe('TopicEntityView.vue', () => {
     expect(fetchCrossShow).not.toHaveBeenCalled()
     expect(fetchWhoSaid).not.toHaveBeenCalled()
     expect(fetchTopicEntities).not.toHaveBeenCalled()
+    expect(fetchRelatedTopics).not.toHaveBeenCalled()
+  })
+
+  it('renders related topics as chips (#1055)', async () => {
+    fetchRelatedTopics.mockResolvedValue({
+      subject: 'topic:ai',
+      results: [
+        { id: 'topic:ml', type: 'topic', text: 'Machine Learning', show_id: '', episode_id: '' },
+        { id: 'topic:safety', type: 'topic', text: 'AI safety', show_id: '', episode_id: '' },
+      ],
+    })
+    const { w } = await mountTopic(topicWithMentions())
+    const chips = w.findAll('[data-testid="tev-related-topic-chip"]')
+    expect(chips.map((c) => c.text())).toEqual(['Machine Learning', 'AI safety'])
+    expect(fetchRelatedTopics).toHaveBeenCalledWith('/corpus', 'topic:ai')
+  })
+
+  it('hides the related-topics section when empty', async () => {
+    const { w } = await mountTopic(topicWithMentions())
+    expect(w.find('[data-testid="tev-related-topics"]').exists()).toBe(false)
   })
 })

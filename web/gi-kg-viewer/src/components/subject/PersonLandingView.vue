@@ -15,7 +15,12 @@ import type { RawGraphNode } from '../../types/artifact'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
-import { fetchPositions, type RelatedNode } from '../../api/relationalApi'
+import {
+  fetchCoSpeakers,
+  fetchPersonTopics,
+  fetchPositions,
+  type RelatedNode,
+} from '../../api/relationalApi'
 import { fetchPersonProfile } from '../../api/cilApi'
 import { StaleGeneration } from '../../utils/staleGeneration'
 import {
@@ -111,6 +116,39 @@ watch(
   (id) => void loadStatedPositions(id ?? ''),
   { immediate: true },
 )
+
+/**
+ * #1055 — connections: the person's topics (structural graph lens) + co-speakers (people
+ * who engage the same topics). Both from the relational layer; skeleton-first, stale-gated.
+ */
+const topicsRows = ref<RelatedNode[]>([])
+const coSpeakersRows = ref<RelatedNode[]>([])
+const connectionsGate = new StaleGeneration()
+
+async function loadConnections(rawId: string): Promise<void> {
+  const id = rawId.trim()
+  const root = shell.corpusPath?.trim()
+  if (!id || !root || !shell.healthStatus) {
+    topicsRows.value = []
+    coSpeakersRows.value = []
+    return
+  }
+  const seq = connectionsGate.bump()
+  topicsRows.value = []
+  coSpeakersRows.value = []
+  try {
+    const [t, c] = await Promise.all([fetchPersonTopics(root, id), fetchCoSpeakers(root, id)])
+    if (connectionsGate.isStale(seq)) return
+    topicsRows.value = t.results ?? []
+    coSpeakersRows.value = c.results ?? []
+  } catch {
+    if (connectionsGate.isStale(seq)) return
+    topicsRows.value = []
+    coSpeakersRows.value = []
+  }
+}
+
+watch(personGraphNodeId, (id) => void loadConnections(id ?? ''), { immediate: true })
 
 /**
  * #909 — corpus-wide quotes this person spoke across ALL episodes, from the CIL
@@ -383,6 +421,44 @@ function onPrefillSearch(): void {
           :timeline="timeline"
           aria-label="Mentions by month for this person"
         />
+      </section>
+      <section aria-label="Connections" data-testid="person-landing-connections">
+        <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+          Topics
+        </h3>
+        <div
+          v-if="topicsRows.length"
+          class="flex flex-wrap gap-1"
+          data-testid="person-landing-topics"
+        >
+          <span
+            v-for="t in topicsRows"
+            :key="t.id"
+            class="rounded bg-overlay px-1.5 py-0.5 text-[10px] text-surface-foreground"
+            data-testid="person-landing-topic-chip"
+          >{{ t.text }}</span>
+        </div>
+        <p v-else class="text-[10px] text-muted" data-testid="person-landing-topics-empty">
+          No topics for this voice yet.
+        </p>
+        <h3 class="mb-1 mt-2 text-[10px] font-semibold uppercase tracking-wider text-muted">
+          In the same conversation
+        </h3>
+        <div
+          v-if="coSpeakersRows.length"
+          class="flex flex-wrap gap-1"
+          data-testid="person-landing-co-speakers"
+        >
+          <span
+            v-for="p in coSpeakersRows"
+            :key="p.id"
+            class="rounded bg-overlay px-1.5 py-0.5 text-[10px] text-surface-foreground"
+            data-testid="person-landing-co-speaker-chip"
+          >{{ p.text }}</span>
+        </div>
+        <p v-else class="text-[10px] text-muted" data-testid="person-landing-co-speakers-empty">
+          No co-speakers share a topic with this voice yet.
+        </p>
       </section>
       <div class="flex shrink-0 flex-wrap gap-2 pt-2">
         <button
