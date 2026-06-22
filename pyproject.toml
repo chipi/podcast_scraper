@@ -154,7 +154,7 @@ dev = [
   # Starlette TestClient (tests/conftest.py preload) requires httpx; not always
   # pulled as a transitive install in minimal CI venvs.
   "httpx>=0.28.1,<1.0.0",
-  "uvicorn[standard]>=0.48.0,<1.0.0",
+  "uvicorn[standard]>=0.49.0,<1.0.0",
   # Prometheus exporter for /metrics (gated on PODCAST_METRICS_ENABLED in app.py).
   "prometheus-fastapi-instrumentator>=8.0.0,<9.0.0",
   # In-process feed-sweep scheduler (#708); no-op unless ``scheduled_jobs:`` in viewer_operator.yaml.
