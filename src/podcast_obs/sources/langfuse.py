@@ -1,7 +1,7 @@
 """Recent Langfuse traces for the deploy — the AI-quality lens in the control plane (#1052).
 
 Complements the cost/error sources: where ``loki.cost_today`` answers "how much did we
-spend", Langfuse answers "what did each LLM call *do*" (model / tokens / latency / cost per
+spend", Langfuse answers "what did each LLM call *do*" (model / token usage / cost per
 generation, grouped per run). The probe only **reads** the Langfuse public API (HTTP Basic
 auth with the same public/secret key pair the pipeline traces with), so the control plane
 stays light — no ``langfuse`` SDK here, just ``httpx``.
