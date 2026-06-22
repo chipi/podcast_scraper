@@ -57,6 +57,15 @@ observability = [
   "mcp>=1.2.0,<2.0.0",  # FastMCP server for the agent-facing layer (stdio + sse/http)
 ]
 
+# Optional LLM tracing (#1052). Langfuse SDK for per-call generation spans emitted at
+# the provider cost choke point. Its own extra (NOT folded into the light [observability]
+# control plane): the podcast_obs probe only needs httpx to *query* the Langfuse API,
+# whereas *emitting* spans needs the SDK (pulls OTEL). Pipeline tracing is no-op unless
+# PODCAST_LANGFUSE_PUBLIC_KEY + PODCAST_LANGFUSE_SECRET_KEY are set, so this stays optional.
+langfuse = [
+  "langfuse>=4.9.0,<5.0.0",
+]
+
 # Heavy ML dependencies - only install when needed
 ml = [
   "openai-whisper>=20231117",

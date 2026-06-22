@@ -9,6 +9,7 @@ from __future__ import annotations
 import importlib
 import json
 import logging
+import os
 import random
 import time
 from dataclasses import dataclass, field
@@ -201,6 +202,26 @@ def record_provider_call_cost(
         )
     except Exception as exc:
         logger.debug("llm_cost_event emission skipped: %s", exc)
+
+    # Langfuse AI-quality lens (#1052): same choke point, no-op unless keys set.
+    # Group a run's calls under one trace via the output dir as the trace seed.
+    try:
+        from podcast_scraper.utils.langfuse_tracing import emit_langfuse_span
+
+        emit_langfuse_span(
+            provider=provider_type,
+            capability=capability,
+            model=model,
+            cost=float(final),
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            run_seed=getattr(cfg, "output_dir", None),
+            feed_id=getattr(cfg, "rss_url", None),
+            triggered_guardrail=triggered_guardrail,
+            env=os.environ.get("PODCAST_ENV"),
+        )
+    except Exception as exc:
+        logger.debug("langfuse span emission skipped: %s", exc)
 
 
 def transcription_model_for_cfg(cfg: Any) -> str:
