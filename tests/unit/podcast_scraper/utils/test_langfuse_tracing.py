@@ -52,10 +52,16 @@ class _FakeLangfuse:
         _FakeLangfuse.last["flushed"] = True
 
 
-def _install_fake_sdk(monkeypatch: pytest.MonkeyPatch) -> None:
-    import langfuse
+def _install_fake_sdk(monkeypatch: pytest.MonkeyPatch, klass: type = _FakeLangfuse) -> None:
+    """Inject a fake ``langfuse`` module so the code under test never imports the real
+    SDK (which pulls OpenTelemetry/protobuf — heavy, and namespace-fragile in the full
+    suite). ``from langfuse import Langfuse`` then resolves to *klass*."""
+    import sys
+    import types
 
-    monkeypatch.setattr(langfuse, "Langfuse", _FakeLangfuse)
+    fake = types.ModuleType("langfuse")
+    fake.Langfuse = klass  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "langfuse", fake)
 
 
 # ── no-op path ────────────────────────────────────────────────────────────
@@ -135,9 +141,7 @@ def test_emit_never_raises_on_sdk_error(monkeypatch: pytest.MonkeyPatch):
         def flush(self):
             pass
 
-    import langfuse
-
-    monkeypatch.setattr(langfuse, "Langfuse", _Boom)
+    _install_fake_sdk(monkeypatch, _Boom)
     # A misbehaving SDK must never propagate into the pipeline.
     lt.emit_langfuse_span(provider="openai", capability="gi", model="gpt", cost=0.5, run_seed="r")
 
