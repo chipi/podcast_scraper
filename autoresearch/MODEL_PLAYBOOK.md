@@ -856,36 +856,67 @@ already documented for that vendor family.
 
 ## DeepSeek
 
-### DeepSeek-V2-Lite-Chat (16B / 2.4B-active MoE, mid-2024)
+### DeepSeek-V2-Lite-Chat (16B / 2.4B-active MoE, mid-2024) — **DROPPED 2026-06-22**
 
-- HF: `deepseek-ai/DeepSeek-V2-Lite-Chat` — 31.4 GB BF16
-- vLLM flags: none non-default (`VLLM_GPU_MEM_UTIL=0.55` works comfortably)
-- Sampling: `temperature=0.0`, no top_p override
-- Prompt convention: use `vllm/strict_summarization/*` family. Without anti-echo
-  prompting, the model reverts to transcribing the source verbatim instead of
-  summarizing (observed 2026-06-17).
-- **Postprocessor REQUIRED**: `decode_r1_byte_level` — vLLM 26.05-py3 emits raw
-  byte-level BPE artifacts (`Ġ` for space, `Ċ` for newline) in the API response
-  for this model. Same tokenizer-decode bug observed with R1-Distill family.
-- Known failure modes:
-  - Round 1: byte-level BPE artifacts + transcript echoing → guardrail
-  - Round 2: with strict prompt + postprocessor → 4.8s/episode mean, 983 char
-    output. Fastest DGX-served candidate in the cohort.
-- **Round 3 v1 result** (2026-06-17, vendor sampling temp=0.3 + top_p=0.95
-  via extra_body): gate **PASS** (mean=4.8s, p99=6.3s, cv=0.27, chars 475-1201
-  mean=919). vs Opus 4.7: ROUGE-1=39.2%, ROUGE-L=22.4%, cos=72.5%, BLEU=4.9%.
-  vs Sonnet 4.6: ROUGE-1=39.9%, ROUGE-L=20.4%, cos=70.6%, BLEU=4.8%.
-- **Cohort role**: REPRESENTS DEEPSEEK in the final landscape (R1-0528-Qwen3-8B
-  dropped — see § DeepSeek-R1-0528-Qwen3-8B above). **Cohort speed leader at
-  4.8s/ep** (vs Moonlight 9.0s, Llama-3.3 42.9s) but quality floor: bottom on
-  every silver metric. Right candidate when GPU minute cost dominates summary
-  quality.
-- **Phase 2c result** (2026-06-17): **GI/KG = 0% INVALID** due to harness
-  bug (task #111). Configured `postprocessor: decode_r1_byte_level` is
-  applied to summary text but NOT to GI/KG `node.label` fields. DSV2-Lite's
-  GI/KG node labels contain undecoded `Ġ` (space) and `Ċ` (newline) tokens,
-  collapsing embedding cosine similarity to ~0.09 (near-random). **Summary
-  path is fine — only GI/KG affected.** Fix + rerun is ~40 min total.
+**Status**: DROPPED from the autoresearch cohort. Eval YAMLs deleted in
+the same commit. DeepSeek dropped as a vendor at <35B (no other DeepSeek
+architecture viable in that size class — V2 family is the only pure-DeepSeek
+sub-35B arch; R1-Distill-* models are Qwen/Llama with DeepSeek-style
+post-training, not DeepSeek architecture).
+
+**Why dropped — cohort-comparison evidence (2026-06-22)**:
+
+Two re-runs done on DGX (vllm:26.05-py3) against `curated_5feeds_dev_v1`:
+
+1. greedy + `EVAL_VLLM_GUIDED_JSON=1` (xgrammar shape constraint)
+2. vendor sampling per HF card (temp=0.7) + no guided_json
+
+Both produced essentially identical structural failure: 1 mega-topic per
+episode (the model writes the episode summary into the Topic.label slot)
+and 0 typed Persons / 0 typed Organizations. KG vs Opus-4.7 silver: 2%
+weighted coverage in both runs. GI: 1% in both. Cohort-wide tally on the
+same 10 dev episodes, same prompt, same harness:
+
+| Candidate | Total Topics | Persons | Orgs |
+| --- | ---: | ---: | ---: |
+| Ministral-3-14B (dense) | 200 | 20 | 10 |
+| Mistral-Small-3.2-24B | 175 | 20 | 10 |
+| Qwen3-30B-A3B-Instruct | 149 | 20 | 10 |
+| Magistral-Small-2509 | 121 | 20 | 10 |
+| Moonlight-16B-A3B (Kimi, **same architecture class**) | 114 | 20 | 5 |
+| Qwen3.5-35B-A3B | 105 | 20 | 10 |
+| Gemma-4-26B-A4B | 88 | 20 | 10 |
+| **DSV2-Lite-Chat** | **10** | **0** | **0** |
+
+Moonlight-16B-A3B (Kimi family, same 16B / 3B-active MoE class) produces
+114 typed topics + 20 named persons on the same harness. The failure is
+not architecture, not size, not sampling — it's DSV2-Lite's mid-2024
+training, which predates the structured-output / tool-use RLHF wave the
+rest of the cohort benefits from. The model **names** orgs (`Singletrack
+Sessions`, `Practical Systems`, `Long Horizon Notes`) IN the prose blob
+but cannot emit them as separate structured nodes.
+
+**Historical context kept** (for the record, not the cohort):
+
+- Round 2 round: with strict prompt + `decode_r1_byte_level` postprocessor,
+  summary path scored 4.8s/episode mean, 983 char output — cohort speed
+  leader at the time.
+- Round 3 v1 (2026-06-17): summary gate PASS (vs Opus-4.7 ROUGE-1=39.2%,
+  cos=72.5%). The summary path WAS the speed-quality floor candidate.
+- Phase 2c (2026-06-17): GI/KG 0% INVALID — initially blamed on harness
+  bug #111 (postprocessor not applied to node.label). Retro audit
+  2026-06-22 confirmed #111 was fixed pre-chunk-7 in commit `0295e617`;
+  the residual KG/GI floor was the model's structured-extraction ceiling,
+  not the postprocessor.
+
+**Replacement?** No <35B DeepSeek architecture fits. R1-Distill family
+(Qwen-32B, Qwen3-8B) is speed-disqualified by reasoning-grade token
+budgets (see sections below). DeepSeek-Coder-V2-Lite-Instruct is the only
+remaining untested same-arch variant; not tested because the operator
+decided 2026-06-22 to drop DeepSeek vendor representation at this tier
+rather than continue searching. Re-introduce if/when DeepSeek ships a
+V3-Lite or chat-tuned <35B model.
+
 - Cite: `https://huggingface.co/deepseek-ai/DeepSeek-V2-Lite-Chat`
 
 ### DeepSeek-R1-Distill-Qwen-32B (Jan 2025, reasoning)

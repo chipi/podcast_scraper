@@ -47,24 +47,20 @@ see `FINGERPRINT_GAPS_ANALYSIS_2026-06-22.md`).
 - **Magistral max_tokens = 4096** (reasoning model needs headroom for the
   THINK block; bumped from 800 in commit `1d17d19d`). Every other
   candidate is at 800.
-- **DeepSeek-V2-Lite-Chat is the ONLY candidate with a non-default
-  postprocessor in KG.** The KG row shows
-  `postprocessor: decode_r1_byte_level` while every other vLLM KG run
-  shows `—` (no postprocessor or the default `strip_r1_reasoning`).
-  This is the same postprocessor `EVAL_1016_FINAL_REPORT_2026_06_17.md`
-  flagged as a HARNESS BUG:
-  > *"Postprocessor `decode_r1_byte_level` is applied to summary text
-  > but NOT to GI/KG `node.label` fields. Tasks GitHub issue to fix;
-  > rerun is fast."*
-  The retro fingerprint surfaces the config divergence; the historical
-  report explains its failure mode. **This is the load-bearing piece of
-  evidence for the DeepSeek-V2-Lite-Chat decision** — the 1.5% / 3.8%
-  scores partly reflect a known harness wiring gap on a model that
-  REQUIRES that postprocessor (vs models that don't carry one).
-  Before judging DeepSeek's model quality, fix the wiring (apply
-  `decode_r1_byte_level` to node.label fields in GI/KG pipeline output)
-  and re-run. If scores remain at the floor after the fix, then it's
-  genuinely a too-weak model.
+- **DeepSeek-V2-Lite-Chat — DROPPED from cohort 2026-06-22**. The KG row
+  shows `postprocessor: decode_r1_byte_level` while every other vLLM KG
+  run shows `—`. This was originally flagged by
+  `EVAL_1016_FINAL_REPORT_2026_06_17.md` as a HARNESS BUG (task #111).
+  Retro audit 2026-06-22 confirmed #111 was fixed pre-chunk-7 in commit
+  `0295e617` (label fields ARE clean across 10 episodes). Two re-runs
+  on 2026-06-22 (greedy + guided_json; vendor sampling per HF temp=0.7
+  alone, no guided_json) BOTH produced essentially the same structural
+  failure — 1 mega-Topic + 0 typed entities per episode. Cohort
+  comparison nailed it: Moonlight-16B-A3B (same architecture class)
+  produces 114 topics + 20 persons on the SAME harness. The gap is
+  the model's mid-2024 training (predates structured-output RLHF wave),
+  not anything fixable at the harness layer. Vendor dropped from cohort
+  — see autoresearch/MODEL_PLAYBOOK.md § DeepSeek-V2-Lite-Chat.
 - **All `_retro_audit.unknown_fields` lists are empty for vLLM candidates**
   (chunk-7 recovery table filled inference_args + image). Gemini KG/GI
   list `backing_model_id` / `inference_args` / `inference_image` as
