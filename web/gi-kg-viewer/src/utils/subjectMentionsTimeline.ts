@@ -17,11 +17,19 @@ import {
 } from './parsing'
 import { logicalEpisodeIdFromGraphNodeId } from './graphEpisodeMetadata'
 
-/** Edge types that link a subject node to an Insight or Quote item. */
+/** Edge types that link a subject node to an Insight or Quote item.
+ *
+ * RFC-097 v3.0 split the legacy generic ``MENTIONS`` into typed
+ * ``MENTIONS_PERSON`` / ``MENTIONS_ORG``. The timeline treats the family
+ * as one semantic unit — both typed variants AND the legacy generic
+ * (for pre-v3 corpora still on disk) feed the mentions count.
+ */
 const SUBJECT_INCIDENT_EDGE_TYPES = new Set([
   'about',
   'related_to',
   'mentions',
+  'mentions_person',
+  'mentions_org',
   'spoken_by',
 ])
 

@@ -209,6 +209,15 @@ describe('giKgCoseIdealEdgeLength', () => {
     expect(giKgCoseIdealEdgeLength(mockEdge(null, null, ''), 'main')).toBe(96)
   })
 
+  it('typed MENTIONS family (RFC-097 v3.0) inherits the legacy MENTIONS length', () => {
+    // MENTIONS_PERSON / MENTIONS_ORG must layout identically to the legacy
+    // generic MENTIONS so the typed split doesn't visually rearrange graphs.
+    expect(giKgCoseIdealEdgeLength(mockEdge(null, null, 'MENTIONS_PERSON'), 'main')).toBe(150)
+    expect(giKgCoseIdealEdgeLength(mockEdge(null, null, 'MENTIONS_ORG'), 'main')).toBe(150)
+    expect(giKgCoseIdealEdgeLength(mockEdge(null, null, 'MENTIONS_PERSON'), 'compact')).toBe(81)
+    expect(giKgCoseIdealEdgeLength(mockEdge(null, null, 'MENTIONS_ORG'), 'compact')).toBe(81)
+  })
+
   it('scales semantic lengths for the compact profile (52/96 factor, rounded)', () => {
     expect(giKgCoseIdealEdgeLength(mockEdge(null, null, 'HAS_INSIGHT'), 'compact')).toBe(33)
     expect(giKgCoseIdealEdgeLength(mockEdge(null, null, 'ABOUT'), 'compact')).toBe(43)
@@ -259,6 +268,13 @@ describe('giKgCoseEdgeElasticity', () => {
   it('uses the base elasticity for unknown / empty edge types (main)', () => {
     expect(giKgCoseEdgeElasticity(mockEdge(null, null, 'UNKNOWN'), 'main')).toBe(100)
     expect(giKgCoseEdgeElasticity(mockEdge(null, null, ''), 'main')).toBe(100)
+  })
+
+  it('typed MENTIONS family (RFC-097 v3.0) inherits the legacy MENTIONS elasticity', () => {
+    expect(giKgCoseEdgeElasticity(mockEdge(null, null, 'MENTIONS_PERSON'), 'main')).toBe(60)
+    expect(giKgCoseEdgeElasticity(mockEdge(null, null, 'MENTIONS_ORG'), 'main')).toBe(60)
+    expect(giKgCoseEdgeElasticity(mockEdge(null, null, 'MENTIONS_PERSON'), 'compact')).toBe(48)
+    expect(giKgCoseEdgeElasticity(mockEdge(null, null, 'MENTIONS_ORG'), 'compact')).toBe(48)
   })
 
   it('scales semantic elasticity for the compact profile (×0.8, rounded, ≥40 floor)', () => {

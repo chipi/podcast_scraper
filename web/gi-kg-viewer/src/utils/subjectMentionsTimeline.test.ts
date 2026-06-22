@@ -197,4 +197,64 @@ describe('buildSubjectMentionsTimeline', () => {
     expect(t.total).toBe(2)
     expect(t.insightIds.sort()).toEqual(['i:1', 'i:2'])
   })
+
+  it('counts MENTIONS_PERSON typed edges for a Person subject (RFC-097 v3.0)', () => {
+    const a = art(
+      [
+        { id: 'person:ada', type: 'Person', properties: { name: 'Ada' } },
+        { id: 'i:1', type: 'Insight', properties: { episode_id: 'ep-a' } },
+        {
+          id: 'episode:ep-a',
+          type: 'Episode',
+          properties: { publish_date: '2024-02-15' },
+        },
+      ],
+      [{ type: 'MENTIONS_PERSON', from: 'i:1', to: 'person:ada' }],
+    )
+    const t = buildSubjectMentionsTimeline(a, 'person:ada')
+    expect(t.months).toEqual([{ ymd: '2024-02', count: 1 }])
+    expect(t.total).toBe(1)
+  })
+
+  it('counts MENTIONS_ORG typed edges for an Organization subject (RFC-097 v3.0)', () => {
+    const a = art(
+      [
+        { id: 'org:acme', type: 'Organization', properties: { name: 'Acme' } },
+        { id: 'i:1', type: 'Insight', properties: { episode_id: 'ep-a' } },
+        {
+          id: 'episode:ep-a',
+          type: 'Episode',
+          properties: { publish_date: '2024-03-15' },
+        },
+      ],
+      [{ type: 'MENTIONS_ORG', from: 'i:1', to: 'org:acme' }],
+    )
+    const t = buildSubjectMentionsTimeline(a, 'org:acme')
+    expect(t.months).toEqual([{ ymd: '2024-03', count: 1 }])
+    expect(t.total).toBe(1)
+  })
+
+  it('counts the full MENTIONS family across typed + legacy edges on the same subject', () => {
+    // Mid-migration corpus: same Person has one typed + one legacy MENTIONS
+    // edge. Timeline must count both (not dedupe by type or skip legacy).
+    const a = art(
+      [
+        { id: 'person:ada', type: 'Person', properties: { name: 'Ada' } },
+        { id: 'i:1', type: 'Insight', properties: { episode_id: 'ep-a' } },
+        { id: 'i:2', type: 'Insight', properties: { episode_id: 'ep-a' } },
+        {
+          id: 'episode:ep-a',
+          type: 'Episode',
+          properties: { publish_date: '2024-04-15' },
+        },
+      ],
+      [
+        { type: 'MENTIONS_PERSON', from: 'i:1', to: 'person:ada' },
+        { type: 'MENTIONS', from: 'i:2', to: 'person:ada' },
+      ],
+    )
+    const t = buildSubjectMentionsTimeline(a, 'person:ada')
+    expect(t.total).toBe(2)
+    expect(t.insightIds.sort()).toEqual(['i:1', 'i:2'])
+  })
 })
