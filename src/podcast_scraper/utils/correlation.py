@@ -83,6 +83,7 @@ class CorrelationFormatter(logging.Formatter):
     """
 
     def format(self, record: logging.LogRecord) -> str:
+        """Stamp ``run_id`` / ``episode_id`` onto the record, then format as usual."""
         record.run_id = _RUN_ID or "-"
         record.episode_id = _EPISODE_ID.get() or "-"
         return super().format(record)

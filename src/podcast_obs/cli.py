@@ -82,6 +82,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
+    """Entry point: parse args, run the chosen probe/serve, print the JSON envelope."""
     parser = _build_parser()
     args = parser.parse_args(argv)
 

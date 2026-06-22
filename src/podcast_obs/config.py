@@ -71,6 +71,7 @@ class ObservabilityConfig:
     default_target: str
 
     def target(self, name: Optional[str] = None) -> TargetConfig:
+        """The named target (or the default); raises if the name isn't configured."""
         key = name or self.default_target
         if key not in self.targets:
             have = ", ".join(sorted(self.targets)) or "none"
@@ -89,6 +90,7 @@ class ObservabilityConfig:
 
     @classmethod
     def from_env(cls) -> "ObservabilityConfig":
+        """Build a single-target config from ``PODCAST_OBS_*`` (+ bare ``LANGFUSE_*``) env vars."""
         name = os.environ.get(f"{ENV_PREFIX}TARGET", "default")
         projects = _split_csv(_env("SENTRY_PROJECTS"))
         target = TargetConfig(
@@ -117,6 +119,7 @@ class ObservabilityConfig:
 
     @classmethod
     def from_yaml(cls, path: str | os.PathLike[str]) -> "ObservabilityConfig":
+        """Build a multi-target config from a YAML file with a ``targets`` mapping."""
         import yaml
 
         raw = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
