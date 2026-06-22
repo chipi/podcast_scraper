@@ -3591,6 +3591,10 @@ def generate_episode_metadata(  # noqa: C901
     # Payloads reused for bridge.json when GI and/or KG run in this invocation.
     bridge_gi_payload: Optional[Dict[str, Any]] = None
     bridge_kg_payload: Optional[Dict[str, Any]] = None
+    # Path needed by the RFC-097 chunk-4 typed-MENTIONS post-pass below.
+    # Hoisted out of the GI block so the joint GI+KG post-pass can re-write
+    # the on-disk artifact after typed edges land.
+    gi_artifact_path: Optional[str] = None
 
     # Run GIL when enabled; produce grounded_insights for metadata model (consistent meta model)
     gi_meta: Optional[GroundedInsightsMetadata] = None
@@ -3738,6 +3742,7 @@ def generate_episode_metadata(  # noqa: C901
                 )
                 write_artifact(Path(gi_path), payload, validate=True)
                 bridge_gi_payload = payload
+                gi_artifact_path = gi_path
                 gi_elapsed = time.time() - gi_start
                 logger.debug("[%s] Generated GIL artifact: %s", episode.idx, gi_path)
                 # Index for metadata model: provenance only (full graph stays in gi.json)
@@ -3978,6 +3983,37 @@ def generate_episode_metadata(  # noqa: C901
                 "[%s] KG artifact generation failed (non-fatal): %s",
                 episode.idx,
                 kg_exc,
+                exc_info=True,
+            )
+
+    # RFC-097 v3.0 chunk-4 — typed-MENTIONS post-pass. The live GI emit
+    # path doesn't materialize MENTIONS_PERSON / MENTIONS_ORG cross-layer
+    # edges (it lacks the KG entity index at build time). Here, with both
+    # payloads available, run the post-pass and re-write gi.json so the
+    # disk artifact carries the typed descriptive edges that the viewer
+    # graph + search relational queries expect.
+    if (
+        bridge_gi_payload is not None
+        and bridge_kg_payload is not None
+        and gi_artifact_path is not None
+    ):
+        try:
+            from ..gi.relational_edges import apply_typed_mentions_and_rewrite_gi
+
+            added_typed = apply_typed_mentions_and_rewrite_gi(
+                bridge_gi_payload, bridge_kg_payload, gi_artifact_path
+            )
+            if added_typed > 0:
+                logger.info(
+                    "[%s] Added %d typed MENTIONS_PERSON/MENTIONS_ORG edges to GI artifact",
+                    episode.idx if hasattr(episode, "idx") else episode_id,
+                    added_typed,
+                )
+        except Exception as typed_mentions_exc:
+            logger.warning(
+                "[%s] Typed MENTIONS post-pass failed (non-fatal): %s",
+                episode.idx if hasattr(episode, "idx") else episode_id,
+                typed_mentions_exc,
                 exc_info=True,
             )
 

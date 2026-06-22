@@ -175,3 +175,70 @@ def kg_entity_index(kg_artifact: Dict) -> Dict[str, Tuple[str, str]]:
             kind = normalized_entity_kind_from_node(node)
             out[eid] = (name.strip(), kind)
     return out
+
+
+def apply_typed_mentions_to_gi_artifact(
+    gi_payload: Dict,
+    kg_payload: Dict,
+) -> int:
+    """Apply the RFC-097 v3.0 typed-MENTIONS post-pass to a GI artifact.
+
+    The live GI emit path (``gi/pipeline.py::build_artifact``) does not
+    materialize typed ``MENTIONS_PERSON`` / ``MENTIONS_ORG`` cross-layer
+    edges — they need a KG entity index that isn't available inside the
+    GI build alone. This helper plugs the gap: caller passes in the
+    finished KG payload, helper extracts the entity index and calls the
+    in-place mutator.
+
+    Mutates *gi_payload* in place. Caller owns any I/O (e.g. re-writing
+    the updated artifact back to disk). Returns the number of typed edges
+    added. Idempotent — calling repeatedly with the same payloads is a
+    no-op after the first call.
+
+    Args:
+        gi_payload: GI artifact dict (mutated in place when edges are added).
+        kg_payload: KG artifact dict (read-only).
+
+    Returns:
+        Count of typed edges added (0 if KG had no Person/Org entities, or
+        if every match was already typed).
+    """
+    entity_index = kg_entity_index(kg_payload)
+    if not entity_index:
+        return 0
+    return add_insight_entity_edges(gi_payload, entity_index)
+
+
+def apply_typed_mentions_and_rewrite_gi(
+    gi_payload: Dict,
+    kg_payload: Dict,
+    gi_path: str,
+) -> int:
+    """Apply the typed-MENTIONS post-pass and re-write the GI artifact on disk.
+
+    Composes :func:`apply_typed_mentions_to_gi_artifact` with a guarded
+    disk re-write — re-writes only when edges are actually added so the
+    on-disk artifact's mtime stays stable for the zero-op case (no KG
+    entities matched, or every match was already typed).
+
+    Used by the production orchestrator
+    (:mod:`podcast_scraper.workflow.metadata_generation`). Caller must
+    have validated that both payloads exist and the path is non-empty.
+
+    Args:
+        gi_payload: GI artifact dict (mutated in place when edges added).
+        kg_payload: KG artifact dict (read-only).
+        gi_path: Filesystem path to re-write when edges are added.
+
+    Returns:
+        Count of typed edges added. ``0`` means the on-disk artifact was
+        left untouched.
+    """
+    from pathlib import Path
+
+    from .io import write_artifact
+
+    added = apply_typed_mentions_to_gi_artifact(gi_payload, kg_payload)
+    if added > 0:
+        write_artifact(Path(gi_path), gi_payload, validate=True)
+    return added
