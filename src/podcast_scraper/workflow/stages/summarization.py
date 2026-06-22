@@ -197,6 +197,18 @@ def summarize_single_episode(
         detected_names: Detected guest names for this episode (optional)
         pipeline_metrics: Metrics collector
     """
+    # #1053: set the episode correlation id for THIS worker context so the summary's
+    # LLM calls (via the provider cost choke point) stamp episode_id onto the Langfuse
+    # span. A ContextVar (not a global) because episodes summarise in parallel workers.
+    try:
+        from podcast_scraper.utils import correlation
+        from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+        _corr_episode_id, _ = get_episode_id_from_episode(episode, cfg.rss_url or "")
+        correlation.set_episode_id(_corr_episode_id)
+    except Exception:  # pragma: no cover - never block summarisation on correlation
+        pass
+
     # Use provided detected names or None
     detected_names_for_ep = detected_names
 

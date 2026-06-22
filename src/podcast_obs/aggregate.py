@@ -65,6 +65,13 @@ _CORRELATORS: list[tuple[str, Callable[[TargetConfig, str], dict]]] = [
     ("trace", langfuse.trace_by_run),  # Langfuse: per-call model/cost/tokens for the run
     ("cost", loki.cost_for_run),  # Loki: the run's llm_cost events + total
     ("errors", lambda target, run_id: sentry.recent_errors(target, run_id=run_id)),  # Sentry
+    # Loki: the run's log lines (CorrelationFormatter stamps ``[run=<id>]`` onto each).
+    (
+        "logs",
+        lambda target, run_id: loki.recent_logs(
+            target, level="", contains=f"run={run_id}", window="24h", limit=100
+        ),
+    ),
 ]
 
 

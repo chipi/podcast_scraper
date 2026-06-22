@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import threading
 
 import pytest
@@ -79,3 +80,23 @@ def test_correlation_fields_includes_both() -> None:
     corr.set_run_id("run-9")
     corr.set_episode_id("ep:9")
     assert corr.correlation_fields() == {"run_id": "run-9", "episode_id": "ep:9"}
+
+
+# ── CorrelationFormatter ────────────────────────────────────────────────────
+
+
+def _record(msg: str = "hello") -> logging.LogRecord:
+    return logging.LogRecord("n", logging.INFO, "p", 1, msg, None, None)
+
+
+def test_formatter_stamps_run_id_when_set() -> None:
+    corr.set_run_id("run-LOG")
+    fmt = corr.CorrelationFormatter("%(levelname)s [run=%(run_id)s]: %(message)s")
+    out = fmt.format(_record("boom"))
+    assert out == "INFO [run=run-LOG]: boom"  # Loki can `|= \"run=run-LOG\"`
+
+
+def test_formatter_defaults_to_dash_outside_a_run() -> None:
+    # never KeyErrors on %(run_id)s even when no run is active.
+    fmt = corr.CorrelationFormatter("[run=%(run_id)s ep=%(episode_id)s] %(message)s")
+    assert fmt.format(_record("x")) == "[run=- ep=-] x"

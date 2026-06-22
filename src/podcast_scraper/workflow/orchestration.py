@@ -2166,7 +2166,13 @@ def apply_log_level(level: str, log_file: Optional[str] = None, json_logs: bool 
 
         formatter = JSONFormatter()
     else:
-        formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
+        # #1053: CorrelationFormatter stamps the run_id join key onto every line, so the
+        # run's logs are correlatable in Loki alongside its cost events / Langfuse trace.
+        from ..utils.correlation import CorrelationFormatter
+
+        formatter = CorrelationFormatter(
+            "%(asctime)s %(levelname)s %(name)s [run=%(run_id)s]: %(message)s"
+        )
 
     # Remove existing handlers if we're setting up fresh
     if not root_logger.handlers:

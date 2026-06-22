@@ -150,9 +150,9 @@ def test_correlate_joins_and_degrades_per_source(monkeypatch: pytest.MonkeyPatch
     assert res["ok"] is True
     d = res["data"]
     assert d["run_id"] == "run-1"
-    assert set(d["signals"].keys()) == {"trace", "cost", "errors"}
+    assert set(d["signals"].keys()) == {"trace", "cost", "errors", "logs"}
     assert "trace" in d["live"]  # langfuse answered
-    assert {"cost", "errors"} <= set(d["unconfigured"])  # degraded independently
+    assert {"cost", "errors", "logs"} <= set(d["unconfigured"])  # degraded independently
 
 
 def test_correlate_one_bad_source_does_not_break_the_join(monkeypatch: pytest.MonkeyPatch) -> None:

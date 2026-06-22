@@ -17,6 +17,7 @@ All getters are cheap and side-effect free; nothing here imports a 3rd-party SDK
 from __future__ import annotations
 
 import contextvars
+import logging
 from datetime import datetime, timezone
 from typing import Dict, Optional
 
@@ -72,6 +73,19 @@ def correlation_fields() -> Dict[str, str]:
     if episode_id:
         fields["episode_id"] = episode_id
     return fields
+
+
+class CorrelationFormatter(logging.Formatter):
+    """A ``logging.Formatter`` that injects ``run_id`` / ``episode_id`` onto every record
+    at format time (#1053), so a format string can reference ``%(run_id)s`` without any
+    record ever raising ``KeyError`` — and every pipeline log line carries the join key,
+    queryable in Loki (``|= "run=<id>"``). Outside a run both default to ``"-"``.
+    """
+
+    def format(self, record: logging.LogRecord) -> str:
+        record.run_id = _RUN_ID or "-"
+        record.episode_id = _EPISODE_ID.get() or "-"
+        return super().format(record)
 
 
 def _reset_for_tests() -> None:

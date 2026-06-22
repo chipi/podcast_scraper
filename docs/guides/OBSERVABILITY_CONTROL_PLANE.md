@@ -96,6 +96,7 @@ python -m podcast_obs logs --service pipeline --window 6h --contains OOM
 python -m podcast_obs errors --window 24h            # Sentry issues
 python -m podcast_obs alerts                          # Grafana alerts
 python -m podcast_obs traces --limit 10              # recent Langfuse LLM traces
+python -m podcast_obs correlate <run_id>            # EVERY signal for one run, joined
 ```
 
 Every command prints a uniform JSON envelope — `{ok, source, data | error, configured}`. Exit code
@@ -109,9 +110,10 @@ lines the Sentry SDK never wrapped.
 
 ## MCP server (agent-facing)
 
-Same probes, exposed as 10 tools (`prod_health`, `prod_version`, `prod_recent_runs`,
+Same probes, exposed as 11 tools (`prod_health`, `prod_version`, `prod_recent_runs`,
 `prod_recent_deploys`, `prod_cost_today`, `prod_recent_logs`, `prod_recent_errors`,
-`prod_recent_alerts`, `prod_recent_traces`, `prod_summary`) — each takes an optional `target`.
+`prod_recent_alerts`, `prod_recent_traces`, `prod_summary`, `prod_correlate`) — each takes an
+optional `target`.
 
 ```bash
 python -m podcast_obs serve --transport stdio                       # local agent
@@ -210,6 +212,33 @@ optional, unset = Cloud — these are the Langfuse SDK's own env names):
 Hosting is **decided at enable-time**: point `LANGFUSE_BASE_URL` at Langfuse Cloud or a self-hosted
 instance. Spans never block a run — every tracing entrypoint is wrapped, so a tracing failure is at
 most a missing span plus a debug log.
+
+## Correlation — one run, every signal (#1053)
+
+The signals above are individually useful, but the real power is **joining** them. Every
+signal a run emits is stamped with the same **`run_id`** join key:
+
+- the **Loki cost event** carries `run_id` (and the run's **log lines** are prefixed
+  `[run=<id>]` by the pipeline's `CorrelationFormatter`);
+- the **Langfuse trace** is *seeded* by `run_id` — its id is `sha256(run_id)[:16]`, so the
+  control plane addresses it directly, no search;
+- the **Sentry scope** is tagged `run_id` (and `episode_id`).
+
+`prod_correlate(run_id)` / `python -m podcast_obs correlate <run_id>` fans out the run-scoped
+probes and returns them under one envelope:
+
+```text
+{ run_id, live: [...], unconfigured: [...], signals: {
+    trace:  { observations: [{stage, episode_id, model, cost, usage}, ...] },  # Langfuse
+    cost:   { total_cost_usd, events: [...] },                                 # Loki
+    errors: { projects: [...] },                                               # Sentry
+    logs:   { lines: [...] } } }                                               # Loki
+```
+
+So an agent (or you) can take a `run_id` and answer *"what did this run do, what did it cost
+per episode, and did it error?"* in one call — each source degrading independently
+(`configured=false`) when its backend isn't wired. `episode_id` is set per episode during
+summarisation, so the trace's observations attribute cost to the right episode.
 
 ## Validation
 
