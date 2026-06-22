@@ -11,6 +11,7 @@ nav:
   - Guides:
       - guides/index.md
       - Quick Reference: guides/QUICK_REFERENCE.md
+      - Exploring the corpus through MCP: guides/EXPLORATION_MCP.md
       - Development Guide: guides/DEVELOPMENT_GUIDE.md
       - Release Playbook: guides/RELEASE_PLAYBOOK.md
       - Bootstrap prerequisites (accounts + credentials): guides/BOOTSTRAP_PREREQUISITES.md
