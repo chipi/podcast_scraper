@@ -147,3 +147,39 @@ export async function fetchRelatedInsights(
   withK(q, k)
   return getList(`/api/relational/related-insights?${q.toString()}`)
 }
+
+/**
+ * #1055 — a person's topics (the *structural* graph lens; person→stated→topic).
+ * Distinct from the grounded /api/cil/persons/{id}/topics lens.
+ */
+export async function fetchPersonTopics(
+  corpusPath: string,
+  person: string,
+  k?: number,
+): Promise<RelationalListResponse> {
+  const q = new URLSearchParams({ path: corpusPath.trim(), person: person.trim() })
+  withK(q, k)
+  return getList(`/api/relational/topics?${q.toString()}`)
+}
+
+/** #1055 — people who speak on the same topics as a person (the social graph). */
+export async function fetchCoSpeakers(
+  corpusPath: string,
+  person: string,
+  k?: number,
+): Promise<RelationalListResponse> {
+  const q = new URLSearchParams({ path: corpusPath.trim(), person: person.trim() })
+  withK(q, k)
+  return getList(`/api/relational/co-speakers?${q.toString()}`)
+}
+
+/** #1055 — topics that share insights with a topic (topic↔topic connectivity). */
+export async function fetchRelatedTopics(
+  corpusPath: string,
+  topic: string,
+  k?: number,
+): Promise<RelationalListResponse> {
+  const q = new URLSearchParams({ path: corpusPath.trim(), topic: topic.trim() })
+  withK(q, k)
+  return getList(`/api/relational/related-topics?${q.toString()}`)
+}

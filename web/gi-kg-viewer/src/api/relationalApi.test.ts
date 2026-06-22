@@ -1,10 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  fetchCoSpeakers,
   fetchCrossShow,
   fetchEpisodeRelatedInsights,
   fetchInsightsAbout,
+  fetchPersonTopics,
   fetchPositions,
   fetchRelatedInsights,
+  fetchRelatedTopics,
   fetchShowEpisodes,
   fetchTopicEntities,
   fetchWhoSaid,
@@ -60,6 +63,25 @@ describe('relationalApi', () => {
     mockFetchJson(true, payload)
     await expect(fetchPositions('/c', 'person:x')).resolves.toEqual(payload)
     expectFetchUrl('/api/relational/positions?path=%2Fc&person=person%3Ax')
+  })
+
+  it('fetchPersonTopics GETs the structural person-topics list (#1055)', async () => {
+    const payload = { subject: 'person:x', results: [], error: null }
+    mockFetchJson(true, payload)
+    await expect(fetchPersonTopics('  /c  ', '  person:x  ')).resolves.toEqual(payload)
+    expectFetchUrl('/api/relational/topics?path=%2Fc&person=person%3Ax')
+  })
+
+  it('fetchCoSpeakers GETs the co-speakers list (#1055)', async () => {
+    mockFetchJson(true, { subject: 'person:x', results: [] })
+    await fetchCoSpeakers('/c', 'person:x', 5)
+    expectFetchUrl('/api/relational/co-speakers?path=%2Fc&person=person%3Ax&k=5')
+  })
+
+  it('fetchRelatedTopics GETs the related-topics list (#1055)', async () => {
+    mockFetchJson(true, { subject: 'topic:ai', results: [] })
+    await fetchRelatedTopics('/c', 'topic:ai')
+    expectFetchUrl('/api/relational/related-topics?path=%2Fc&topic=topic%3Aai')
   })
 
   it('fetchShowEpisodes GETs the podcast episodes list', async () => {
