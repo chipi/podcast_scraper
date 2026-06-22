@@ -118,3 +118,93 @@ class TestKgCorpus(unittest.TestCase):
         s = inspect_summary(art)
         self.assertEqual(s["episode_id"], "e:9")
         self.assertIn("Episode", s["nodes_by_type"])
+
+    # RFC-097 v2.0: typed Person + Organization branches in inspect_summary,
+    # build_embedding_document_for_kg_node, and entity_rollup.
+    def test_build_embedding_document_person_node_v2(self) -> None:
+        person = {
+            "type": "Person",
+            "properties": {
+                "name": "Maya",
+                "label": "Maya Singletrack",
+                "role": "guest",
+                "description": "Trail builder.",
+            },
+        }
+        doc = build_embedding_document_for_kg_node(person)
+        self.assertIn("Maya", doc)
+        self.assertIn("Maya Singletrack", doc)
+        self.assertIn("kind:person", doc)
+        self.assertIn("role:guest", doc)
+        self.assertIn("Trail builder", doc)
+
+    def test_build_embedding_document_organization_node_v2(self) -> None:
+        org = {
+            "type": "Organization",
+            "properties": {"name": "Singletrack Sessions"},
+        }
+        doc = build_embedding_document_for_kg_node(org)
+        self.assertIn("Singletrack Sessions", doc)
+        self.assertIn("kind:organization", doc)
+
+    def test_inspect_summary_v2_typed_entity_rows(self) -> None:
+        art = {
+            "schema_version": "2.0",
+            "episode_id": "e:9",
+            "extraction": {
+                "model_version": "stub",
+                "extracted_at": "2026-01-01T00:00:00Z",
+                "transcript_ref": "t.txt",
+            },
+            "nodes": [
+                {
+                    "id": "person:maya",
+                    "type": "Person",
+                    "properties": {"name": "Maya", "role": "guest"},
+                },
+                {
+                    "id": "org:singletrack",
+                    "type": "Organization",
+                    "properties": {"name": "Singletrack Sessions"},
+                },
+                {
+                    "id": "entity:legacy",
+                    "type": "Entity",
+                    "properties": {"name": "Legacy Person", "kind": "person"},
+                },
+            ],
+            "edges": [],
+        }
+        s = inspect_summary(art)
+        ent_kinds = sorted(e["entity_kind"] for e in s["entities"])
+        self.assertEqual(ent_kinds, ["organization", "person", "person"])
+        ent_names = sorted(e["name"] for e in s["entities"])
+        self.assertEqual(ent_names, ["Legacy Person", "Maya", "Singletrack Sessions"])
+
+    def test_entity_rollup_includes_v2_typed_nodes(self) -> None:
+        art = {
+            "schema_version": "2.0",
+            "episode_id": "episode:9",
+            "extraction": {
+                "model_version": "stub",
+                "extracted_at": "2026-01-01T00:00:00Z",
+                "transcript_ref": "t.txt",
+            },
+            "nodes": [
+                {
+                    "id": "person:maya",
+                    "type": "Person",
+                    "properties": {"name": "Maya"},
+                },
+                {
+                    "id": "org:ssn",
+                    "type": "Organization",
+                    "properties": {"name": "Singletrack Sessions"},
+                },
+            ],
+            "edges": [],
+        }
+        rows = entity_rollup([(Path("e.kg.json"), art)], min_episodes=1, output_dir=None)
+        kinds_by_name = {r["name"]: r["entity_kind"] for r in rows}
+        self.assertEqual(kinds_by_name.get("Maya"), "person")
+        self.assertEqual(kinds_by_name.get("Singletrack Sessions"), "organization")
