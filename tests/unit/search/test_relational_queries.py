@@ -313,3 +313,115 @@ def test_related_topics_via_shared_insight() -> None:
     # a co-occurs with b (insight:1) and c (insight:2); self excluded.
     assert sorted(t.id for t in related_topics(g, "topic:a")) == ["topic:b", "topic:c"]
     assert "topic:a" not in [t.id for t in related_topics(g, "topic:a")]
+
+
+
+# ---------------------------------------------------------------------------
+# RFC-097 v3.0 typed MENTIONS family — queries traverse all three variants.
+# ---------------------------------------------------------------------------
+
+
+class TestTypedMentionsFamilyQueries:
+    """Queries treat ``MENTIONS`` + ``MENTIONS_PERSON`` + ``MENTIONS_ORG`` as
+    one semantic family (RFC-097 v3.0). New corpora emit only the typed
+    variants; legacy / mid-migration corpora may still carry the generic
+    ``MENTIONS``. The query layer must surface results from all three.
+    """
+
+    def _typed_graph(self) -> FakeGraph:
+        nodes: Dict[str, Tuple[str, Dict[str, object]]] = {
+            "person:alice": ("person", {"name": "Alice"}),
+            "person:bob": ("person", {"name": "Bob"}),
+            "org:acme": ("org", {"name": "Acme"}),
+            "topic:ai": ("topic", {"label": "AI"}),
+            "insight:1": ("insight", {"text": "i1"}),
+            "insight:2": ("insight", {"text": "i2"}),
+            "insight:3": ("insight", {"text": "i3"}),
+        }
+        # i1 mentions alice (typed PERSON) + acme (typed ORG)
+        # i2 mentions bob (typed PERSON)
+        # i3 mentions alice (LEGACY generic — mid-migration corpus)
+        edges: List[Tuple[str, str, str]] = [
+            ("insight:1", "person:alice", "MENTIONS_PERSON"),
+            ("insight:1", "org:acme", "MENTIONS_ORG"),
+            ("insight:2", "person:bob", "MENTIONS_PERSON"),
+            ("insight:3", "person:alice", "MENTIONS"),  # legacy form
+            ("insight:1", "topic:ai", "ABOUT"),
+            ("insight:2", "topic:ai", "ABOUT"),
+            ("insight:3", "topic:ai", "ABOUT"),
+        ]
+        return FakeGraph(nodes, edges)
+
+    def test_insights_about_traverses_typed_person_edges(self) -> None:
+        """insights_about(person) returns insights via MENTIONS_PERSON."""
+        from podcast_scraper.search.relational_queries import insights_about
+
+        g = self._typed_graph()
+        result = insights_about(g, "person:alice")
+        result_ids = {r.id for r in result}
+        # both insight:1 (MENTIONS_PERSON) and insight:3 (legacy MENTIONS) match
+        assert result_ids == {"insight:1", "insight:3"}
+
+    def test_insights_about_traverses_typed_org_edges(self) -> None:
+        """insights_about(org) returns insights via MENTIONS_ORG."""
+        from podcast_scraper.search.relational_queries import insights_about
+
+        g = self._typed_graph()
+        assert [r.id for r in insights_about(g, "org:acme")] == ["insight:1"]
+
+    def test_entities_in_returns_both_typed_variants(self) -> None:
+        """entities_in(insight) returns mentioned entities regardless of typed variant."""
+        from podcast_scraper.search.relational_queries import entities_in
+
+        g = self._typed_graph()
+        result = entities_in(g, "insight:1")
+        result_ids = {r.id for r in result}
+        assert result_ids == {"person:alice", "org:acme"}
+
+    def test_entities_in_topic_ranks_across_typed_family(self) -> None:
+        """entities_in_topic counts mentions across the full MENTIONS family.
+
+        Alice is mentioned twice (one typed PERSON via insight:1, one legacy via
+        insight:3); Acme + Bob once each. Most-mentioned first.
+        """
+        from podcast_scraper.search.relational_queries import entities_in_topic
+
+        g = self._typed_graph()
+        result = entities_in_topic(g, "topic:ai")
+        assert [r.id for r in result] == [
+            "person:alice",  # 2 mentions (one typed + one legacy)
+            "org:acme",  # 1
+            "person:bob",  # 1
+        ]
+
+    def test_typed_family_dedupes_same_neighbor_in_multiple_variants(self) -> None:
+        """Defensive: if a graph somehow lists the same edge under both legacy
+        ``MENTIONS`` AND typed ``MENTIONS_PERSON`` (e.g. mid-migration data),
+        the result still includes the neighbor exactly once.
+        """
+        from podcast_scraper.search.relational_queries import entities_in
+
+        nodes: Dict[str, Tuple[str, Dict[str, object]]] = {
+            "person:alice": ("person", {"name": "Alice"}),
+            "insight:1": ("insight", {"text": "i1"}),
+        }
+        edges: List[Tuple[str, str, str]] = [
+            ("insight:1", "person:alice", "MENTIONS"),
+            ("insight:1", "person:alice", "MENTIONS_PERSON"),
+        ]
+        g = FakeGraph(nodes, edges)
+        result = entities_in(g, "insight:1")
+        assert [r.id for r in result] == ["person:alice"]
+        assert len(result) == 1  # not duplicated
+
+    def test_related_insights_walks_typed_mentions(self) -> None:
+        """related_insights walks shared-entity siblings via typed MENTIONS too."""
+        from podcast_scraper.search.relational_queries import related_insights
+
+        # i1 mentions alice (typed); i3 mentions alice (legacy).
+        # related_insights(i1) should surface i3 as a typed-vs-legacy sibling.
+        g = self._typed_graph()
+        result = related_insights(g, "insight:1")
+        result_ids = {r.id for r in result}
+        # Both i2 (shared ABOUT topic) and i3 (shared alice mention) are siblings
+        assert "insight:3" in result_ids

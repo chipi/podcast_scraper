@@ -28,13 +28,18 @@ The functions accept any object exposing ``get_node(id) -> Node | None`` and
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Protocol, Sequence
+from typing import Dict, List, Optional, Protocol, Sequence, Union
 
 from .corpus_graph import Node
 
 # Edge types in the cross-layer graph (RFC-094 / #874).
 _STATES = "STATES"  # Person -> Insight (derived; the person stated it)
-_MENTIONS = "MENTIONS"  # Insight -> Entity (the insight concerns a person/org)
+# Insight -> Entity (person/org). RFC-097 v3.0 split the legacy generic
+# ``MENTIONS`` into typed ``MENTIONS_PERSON`` / ``MENTIONS_ORG`` so the
+# viewer and queries can style/filter descriptive edges without re-reading
+# node types. Queries traverse the full family — new artifacts emit only
+# the typed variants, but pre-v3 corpora may still carry the legacy generic.
+_MENTIONS_FAMILY: tuple = ("MENTIONS", "MENTIONS_PERSON", "MENTIONS_ORG")
 _ABOUT = "ABOUT"  # Insight -> Topic
 _HAS_INSIGHT = "HAS_INSIGHT"  # Episode -> Insight
 _HAS_EPISODE = "HAS_EPISODE"  # Podcast -> Episode
@@ -123,21 +128,34 @@ def rerank_by_relevance(
 def _via(
     graph: GraphLike,
     node_id: Optional[str],
-    edge_type: str,
+    edge_type: Union[str, Sequence[str]],
     node_types: Sequence[str],
     *,
     limit: Optional[int] = None,
 ) -> List[Node]:
-    """Neighbors of *node_id* via *edge_type* whose node type is in *node_types*."""
+    """Neighbors of *node_id* via *edge_type* whose node type is in *node_types*.
+
+    *edge_type* accepts a single string (legacy) or a sequence of strings
+    that represent the same semantic family (e.g. the MENTIONS family —
+    ``MENTIONS`` + ``MENTIONS_PERSON`` + ``MENTIONS_ORG`` per RFC-097 v3.0).
+    Results from multiple edge types are deduplicated by node id with
+    graph order preserved.
+    """
     if not node_id:
         return []
+    edge_types: Sequence[str] = (edge_type,) if isinstance(edge_type, str) else edge_type
+    seen_ids: set = set()
     out: List[Node] = []
-    for neighbor_id in graph.typed_neighbors(node_id, edge_type):
-        node = graph.get_node(neighbor_id)
-        if node is not None and node.type in node_types:
-            out.append(node)
-            if limit is not None and len(out) >= limit:
-                break
+    for et in edge_types:
+        for neighbor_id in graph.typed_neighbors(node_id, et):
+            if neighbor_id in seen_ids:
+                continue
+            node = graph.get_node(neighbor_id)
+            if node is not None and node.type in node_types:
+                seen_ids.add(neighbor_id)
+                out.append(node)
+                if limit is not None and len(out) >= limit:
+                    return out
     return out
 
 
@@ -148,12 +166,12 @@ def positions_of(graph: GraphLike, person_id: str, *, k: int = 20) -> List[Relat
 
 def insights_about(graph: GraphLike, entity_id: str, *, k: int = 20) -> List[RelatedNode]:
     """Insights that *mention* a person/org — `MENTIONS` (Insight→Entity, #874)."""
-    return [_project(n) for n in _via(graph, entity_id, _MENTIONS, _INSIGHT, limit=k)]
+    return [_project(n) for n in _via(graph, entity_id, _MENTIONS_FAMILY, _INSIGHT, limit=k)]
 
 
 def entities_in(graph: GraphLike, insight_id: str) -> List[RelatedNode]:
     """People/orgs an insight mentions — `MENTIONS` (not the speaker, which is `STATES`)."""
-    return [_project(n) for n in _via(graph, insight_id, _MENTIONS, _ENTITY)]
+    return [_project(n) for n in _via(graph, insight_id, _MENTIONS_FAMILY, _ENTITY)]
 
 
 def entities_in_topic(graph: GraphLike, topic_id: str, *, k: int = 20) -> List[RelatedNode]:
@@ -166,7 +184,7 @@ def entities_in_topic(graph: GraphLike, topic_id: str, *, k: int = 20) -> List[R
     counts: Dict[str, int] = {}
     nodes: Dict[str, Node] = {}
     for insight in _via(graph, topic_id, _ABOUT, _INSIGHT):
-        for entity in _via(graph, insight.id, _MENTIONS, _ENTITY):
+        for entity in _via(graph, insight.id, _MENTIONS_FAMILY, _ENTITY):
             counts[entity.id] = counts.get(entity.id, 0) + 1
             nodes[entity.id] = entity
     ranked = sorted(counts, key=lambda eid: (-counts[eid], eid))[:k]
@@ -217,7 +235,7 @@ def related_insights(graph: GraphLike, insight_id: str, *, k: int = 20) -> List[
         return []
     out: List[RelatedNode] = []
     seen = {insight_id}
-    for edge_type, hub_types in ((_ABOUT, ("topic",)), (_MENTIONS, _ENTITY)):
+    for edge_type, hub_types in ((_ABOUT, ("topic",)), (_MENTIONS_FAMILY, _ENTITY)):
         for hub in _via(graph, insight_id, edge_type, hub_types):
             for sibling in _via(graph, hub.id, edge_type, _INSIGHT):
                 if sibling.id in seen:
