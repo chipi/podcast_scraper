@@ -559,3 +559,69 @@ time):
 - Add per-handler latency labels to pyannote-server temporarily.
 - Revert after the investigation — sustained traffic at higher
   fidelity will eventually exceed the free tier.
+
+### In-process Sentry on DGX services (#942)
+
+The metrics exporters above tell us the SHAPE of DGX behaviour
+(CPU/GPU/memory). They don't catch Python exceptions inside
+FastAPI services. For that we wire `sentry-sdk[fastapi]` into each
+DGX service's lifespan.
+
+**Service inventory** (in-process Sentry status):
+
+| Service | Sentry init | Notes |
+| --- | --- | --- |
+| `pyannote-server` (`:8001`) | ✓ planned via #942 | Cross-repo apply in `docs/wip/942-PYANNOTE-SENTRY-APPLY.md`. |
+| `vllm-prod` (future) | ✓ planned | Same pattern lands when service ships. |
+| `speaches` (faster-whisper, `:8000`) | ✗ scope-cut | Client-side breadcrumbs sufficient; we don't control its source. |
+| `ollama` (`:11434`) | ✗ N/A | Go-based; separate logging surface. |
+| autoresearch `vllm` (`:8003`) | ✗ N/A | Eval-loop-visible; not user-facing. |
+
+**Required env on DGX** (`~/.env` alongside `HF_TOKEN`):
+
+```bash
+SENTRY_DSN=https://<dsn>@<org>.ingest.sentry.io/<project-id>
+# Optional:
+# SENTRY_ENVIRONMENT=dgx-prod
+# SENTRY_TRACES_SAMPLE_RATE=0.1
+# DGX_HOST_TAG=spark-2c14
+# SERVICE_VERSION=pyannote-0.1.0
+```
+
+**Sentry project recommendation**: use a SEPARATE project for
+DGX-side events (`podcast-scraper-dgx`) — different SLAs than the
+pipeline project. Pipeline errors block users; DGX errors mostly
+trigger fallback paths (per ADR-096). Different alert cadence.
+
+**Per-service tags** (every DGX service emits all six):
+
+- `service` — `pyannote-server` / `vllm-prod` / ...
+- `dgx_host` — `spark-2c14` (the GB10 host tag)
+- `gpu` — `GB10`
+- `environment` — `dgx-prod`
+- `server_name` — tailnet FQDN
+- `release` — service version
+
+**Verification** (when adding a new DGX service or after a deploy):
+
+```bash
+# Trigger a synthetic error:
+docker exec <service> python -c "import nonexistent_module_test"
+# Within 30s, the Sentry dashboard for podcast-scraper-dgx shows:
+#   - the event tagged service=<service> + dgx_host + gpu + environment
+#   - server_name = tailnet FQDN
+#   - the ImportError stacktrace
+```
+
+**Search recipe** — finding a DGX service 5xx in the log stack
+(via alloy → Grafana Cloud Loki):
+
+```logql
+{job="dgx-services", service="pyannote-server"} |~ "5\\d{2}"
+```
+
+The label `service` is populated by alloy's `relabel_configs`
+from the container's compose service name. If the search yields
+no results despite a known 5xx, alloy's docker discovery may not
+include the container — check `~/agentic-ai-homelab/infra/dgx/alloy/config.alloy`
+for the `docker_sd_configs` glob.
