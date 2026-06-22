@@ -115,22 +115,36 @@ test.describe("Stack smoke test", () => {
     expect(run.errors_total).toBe(0)
   })
 
-  test("v3.0 vocabulary lands in pipeline-emitted artifacts (typed MENTIONS, insight_type, position_hint)", async ({
+  test("airgapped_thin v3.0 capability set lands in pipeline-emitted artifacts", async ({
     request,
   }) => {
-    // RFC-097 v3.0 phase-3 (3.4 UI layer) Tier-3 verification: the real
-    // pipeline run that seeded /app/output is the production code path
-    // for the typed-MENTIONS post-pass (workflow/metadata_generation.py),
-    // the insight_type classifier (gi/insight_type_classifier.py), and
-    // the position_hint waterfall (workflow → gi.build_artifact →
-    // gi/position_hint.py). This test asserts those data points actually
-    // land in the artifacts the viewer/queries consume.
+    // RFC-097 v3.0 phase-3 Tier-3 verification. This stack-test runs the
+    // pipeline in airgapped_thin mode (transformers BART summarization,
+    // spaCy NER, NO cloud LLM, NO Ollama). The profile's **capability
+    // set** is a strict subset of the full v3.0 vocabulary — see the
+    // capability block in ``config/profiles/airgapped_thin.yaml``.
     //
-    // Defensive: the stack-test pipeline runs in airgapped_thin mode so
-    // some insight emission paths may produce stub artifacts (no LLM).
-    // Assertions are formulated as "if X is present THEN it must be in
-    // v3.0 shape" — they fail loudly on drift but tolerate the thin
-    // profile's reduced output volume.
+    // What airgapped_thin DOES produce (asserted strictly here):
+    //   - schema_version: "3.0" on every GI artifact
+    //   - Insight nodes with text from BART summary bullets
+    //   - Insight.insight_type ≠ "unknown" via the rule-based classifier
+    //   - Insight.position_hint numeric via waterfall step 1 (RSS duration)
+    //   - KG Person nodes from speaker detection (hosts + guests)
+    //   - KG Podcast node + HAS_EPISODE edges from feed metadata
+    //   - Migration safety: ZERO legacy MENTIONS edges pointing at typed
+    //     KG nodes (the typed-MENTIONS post-pass rewrites them all)
+    //
+    // What airgapped_thin does NOT produce (asserted elsewhere):
+    //   - KG Organization nodes — requires LLM entity extraction. Lives
+    //     in cloud_thin / cloud_balanced / local_dgx_* profiles. The
+    //     Organization contract is asserted in the Python integration
+    //     surface (tests/integration/server/test_cil_queries.py::
+    //     test_v3_vocabulary_full_loop_*) against a hand-crafted fixture.
+    //   - MENTIONS_ORG edges — depend on Organization nodes.
+    //
+    // This split keeps Tier-3 assertions strict on what the profile
+    // genuinely produces, with no faked data and no soft assertions.
+    // Profiles with richer capability sets get their own Tier-3 specs.
 
     interface Artifact { relative_path: string; kind: string }
     interface ArtifactsResponse { artifacts?: Artifact[] }
@@ -244,13 +258,18 @@ test.describe("Stack smoke test", () => {
     //    have rewritten its type to MENTIONS_PERSON / MENTIONS_ORG. A
     //    legacy generic "MENTIONS" pointing at a typed node would mean
     //    the post-pass didn't fire — a precise migration regression. --
-    const kgPersonOrgIds = new Set<string>()
+    // KG capability assertions (airgapped_thin's subset):
+    // - Person nodes from speaker detection — strictly required.
+    // - Organization nodes — out of scope (no LLM). Asserted in the
+    //   Python integration surface (test_cil_queries.py).
+    // - Podcast node + HAS_EPISODE edge — required (feed metadata path).
+    const kgPersonIds = new Set<string>()
     let podcastNodeCount = 0
     let hasEpisodeEdgeCount = 0
     for (const kg of kgContents) {
       for (const n of kg.nodes ?? []) {
-        if (n.type === "Person" || n.type === "Organization") {
-          if (typeof n.id === "string") kgPersonOrgIds.add(n.id)
+        if (n.type === "Person") {
+          if (typeof n.id === "string") kgPersonIds.add(n.id)
         }
         if (n.type === "Podcast") podcastNodeCount += 1
       }
@@ -258,41 +277,36 @@ test.describe("Stack smoke test", () => {
         if (e.type === "HAS_EPISODE") hasEpisodeEdgeCount += 1
       }
     }
-    // KG must materialize the typed node types (chunk 3 deliverable).
     expect(
-      kgPersonOrgIds.size,
-      "KG must emit at least one Person or Organization node",
+      kgPersonIds.size,
+      "airgapped_thin: KG must emit at least one Person node from speaker detection",
     ).toBeGreaterThan(0)
-    // Podcast + HAS_EPISODE (chunk 3 deliverable).
-    expect(podcastNodeCount, "KG must emit at least one Podcast node").toBeGreaterThan(0)
+    expect(
+      podcastNodeCount,
+      "airgapped_thin: KG must emit at least one Podcast node from feed metadata",
+    ).toBeGreaterThan(0)
     expect(
       hasEpisodeEdgeCount,
-      "KG must emit at least one HAS_EPISODE edge",
+      "airgapped_thin: KG must emit at least one HAS_EPISODE edge",
     ).toBeGreaterThan(0)
 
-    // Now the cross-layer assertion: GI MENTIONS family edge targeting a
-    // KG person/org must use the typed variant.
-    let typedMentionsCount = 0
+    // Migration safety: any GI MENTIONS family edge targeting a typed KG
+    // node must be the typed variant — the post-pass rewrites legacy
+    // MENTIONS → MENTIONS_PERSON. A legacy MENTIONS pointing at a Person
+    // KG node would mean the post-pass didn't fire. Vacuously true if no
+    // legacy edges exist; meaningful as a regression guard.
     let legacyMentionsToTypedNode = 0
     for (const gi of giContents) {
       for (const e of gi.edges ?? []) {
         const to = typeof e.to === "string" ? e.to : ""
-        if (!kgPersonOrgIds.has(to)) continue
-        if (e.type === "MENTIONS_PERSON" || e.type === "MENTIONS_ORG") {
-          typedMentionsCount += 1
-        } else if (e.type === "MENTIONS") {
-          legacyMentionsToTypedNode += 1
-        }
+        if (!kgPersonIds.has(to)) continue
+        if (e.type === "MENTIONS") legacyMentionsToTypedNode += 1
       }
     }
-    // Strict: legacy MENTIONS edges pointing at typed nodes must NOT exist
-    // (the post-pass rewrites them). If this fails, the post-pass didn't
-    // fire — exact failure mode the 3.1 wiring closed.
     expect(
       legacyMentionsToTypedNode,
-      "typed-MENTIONS post-pass must have rewritten legacy MENTIONS → typed " +
-        "(any legacy MENTIONS pointing at a Person/Organization KG node " +
-        "indicates the post-pass did not fire)",
+      "typed-MENTIONS post-pass must have rewritten legacy MENTIONS → MENTIONS_PERSON " +
+        "(any legacy MENTIONS pointing at a Person KG node indicates the post-pass did not fire)",
     ).toBe(0)
   })
 })

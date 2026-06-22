@@ -9,6 +9,36 @@
 # - ``transformers`` BART-small + ``long-fast`` REDUCE instead of SummLlama-3B (~7GB peak)
 #
 # For maximum local quality, use ``airgapped`` instead.
+#
+# -----------------------------------------------------------------------------
+# RFC-097 v3.0 capability set (profile contract)
+# -----------------------------------------------------------------------------
+# Profiles WITHOUT an LLM cannot produce the full v3.0 vocabulary. The
+# Tier-3 stack-test asserts STRICTLY against this subset; the
+# Organization contract is asserted at the Python integration layer
+# (tests/integration/server/test_cil_queries.py) against a hand-crafted
+# v3.0 corpus fixture.
+#
+# PRODUCED by airgapped_thin (strict — Tier-3 fails if these are missing):
+#   - schema_version: "3.0" on GI artifacts
+#   - Insight nodes (BART bullets feed the insight_texts path)
+#   - Insight.insight_type via rule-based classifier (no LLM needed)
+#   - Insight.position_hint numeric via the waterfall step 1 (RSS
+#     itunes:duration) or step 2 (last transcript segment)
+#   - KG Person nodes from speaker detection (hosts + guests)
+#   - KG Podcast node + HAS_EPISODE edges from feed metadata
+#   - KG Topic nodes from bullet labels
+#   - GI ABOUT + SPOKEN_BY + SUPPORTED_BY + HAS_INSIGHT edges
+#   - GI MENTIONS_PERSON edges (post-pass: speaker names matched in
+#     bullet-derived insight text)
+#   - Migration safety: ZERO legacy MENTIONS pointing at typed KG nodes
+#
+# NOT PRODUCED by airgapped_thin (requires LLM — use cloud_thin /
+# cloud_balanced / local_dgx_* profiles to exercise these):
+#   - KG Organization nodes (no LLM entity-class extraction)
+#   - GI MENTIONS_ORG edges (depend on Organization nodes)
+#   - Higher-recall Person extraction (LLM beats spaCy_sm)
+#   - Rich insight_type accuracy (rule-based vs LLM classifier)
 
 # Transcription — smallest local Whisper (stack-test / dev friendly)
 transcription_provider: whisper
