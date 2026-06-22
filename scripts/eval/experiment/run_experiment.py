@@ -140,12 +140,35 @@ def hash_text(text: str) -> str:
 
 
 def _eval_podcast_scraper_config_overrides(experiment_cfg: ExperimentConfig) -> Dict[str, Any]:
-    """Optional :class:`~podcast_scraper.config.Config` fields set from experiment YAML."""
+    """Optional :class:`~podcast_scraper.config.Config` fields set from experiment YAML.
+
+    Also threads two fail-fast HTTP timeouts that default tighter than the
+    production-pipeline defaults (1200s / 1800s). Tighter defaults make eval
+    runs surface client-side hangs in minutes rather than tens of minutes —
+    the Gemma GI 47-minute Tailscale-drop hang on 2026-06-21 was the burn
+    that motivated this. Operator can override per-run with environment
+    variables; the production pipeline path is unaffected.
+    """
     out: Dict[str, Any] = {}
     if experiment_cfg.transcript_cleaning_strategy is not None:
         out["transcript_cleaning_strategy"] = experiment_cfg.transcript_cleaning_strategy
     if experiment_cfg.llm_pipeline_mode is not None:
         out["llm_pipeline_mode"] = experiment_cfg.llm_pipeline_mode
+
+    # Fail-fast eval HTTP timeouts (env-overridable, tighter than prod defaults).
+    # Default 600s (10 min) is 2x the longest legitimate single-call observed
+    # on chunk-7 (Llama 70B NVFP4 at 5 tok/s × ~800 tokens). Past 600s on a
+    # single call is almost always a hung TCP socket, not slow generation.
+    try:
+        summ_to = int(os.getenv("EVAL_OPENAI_TIMEOUT_SECONDS", "600"))
+    except (TypeError, ValueError):
+        summ_to = 600
+    try:
+        trans_to = int(os.getenv("EVAL_TRANSCRIPTION_TIMEOUT_SECONDS", "600"))
+    except (TypeError, ValueError):
+        trans_to = 600
+    out["summarization_timeout"] = summ_to
+    out["transcription_timeout"] = trans_to
     return out
 
 
