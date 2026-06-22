@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+import sys
 import threading
 import warnings
 from datetime import date
@@ -145,16 +146,24 @@ else:
 # SKIP .env loading in test environments - tests should use Config objects and
 # environment variables directly, never rely on .env files
 def _is_test_environment() -> bool:
-    """Check if we're running in a test environment."""
-    import sys
+    """Check if we're running in a test environment.
 
-    # Check for pytest (most common test runner)
+    Why this guard is narrow: ``unittest`` ends up in ``sys.modules`` as a
+    transitive import of ``numpy.testing`` (numpy's package convention loads
+    it eagerly). Treating that as "we're in a test run" is a false positive
+    for every eval / production code path that imports numpy — which is
+    every code path that imports sentence-transformers, scorers, embeddings,
+    or torch. That false positive silently downgraded eval runs from
+    ``en_core_web_trf`` to the test-tier ``en_core_web_sm`` NER model
+    (+13pp worse PERSON recall — see ``providers/ml/model_registry.py``).
+
+    Only explicit pytest / TESTING signals are valid here. The "unittest"
+    sys.modules check is intentionally removed.
+    """
+    # pytest sets both — module is loaded AND env var is set per test.
     if "pytest" in sys.modules or "PYTEST_CURRENT_TEST" in os.environ:
         return True
-    # Check for unittest
-    if "unittest" in sys.modules:
-        return True
-    # Check for explicit test environment variable
+    # Explicit human-set opt-in (e.g. for non-pytest harnesses).
     if os.environ.get("TESTING", "").lower() in ("1", "true", "yes"):
         return True
     return False
