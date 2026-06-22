@@ -1386,6 +1386,38 @@ def generate_enhanced_fingerprint(  # noqa: C901
             "instruction_builder": "hybrid_ml_provider._build_reduce_instruction",
         }
 
+    # RFC-097 fingerprint gap-closure #7 (FINGERPRINT_GAPS_ANALYSIS_2026-06-22.md §7):
+    # walk the FULL fingerprint dict (sorted JSON) into a top-level
+    # fingerprint_hash, and bump fingerprint_version to "2.0" so consumers can
+    # distinguish v1.0 (model_name + a few fields) hashes from v2.0
+    # (full-dict) hashes.
+    #
+    # v1.0 (the old ProviderFingerprint.compute_hash) only walked
+    # model_name + version + hash + device + package + commit — missing
+    # generation_params, prompts, preprocessing, chunking, postprocessor,
+    # vLLM flags, backing_model_id, inference_target, dataset_content_hash.
+    # Two runs differing only in those fields had IDENTICAL hashes despite
+    # producing genuinely different outputs. v2.0 closes that gap.
+    fingerprint["fingerprint_version"] = "2.0"
+    import copy as _copy
+    import hashlib as _hashlib
+    import json as _json
+
+    # Compute hash over the fingerprint dict EXCLUDING the hash field itself
+    # AND the run_id (which is a per-call timestamp — would make every hash
+    # unique by construction, defeating the "two runs of the same config
+    # produce the same hash" property the operator wants for cross-run
+    # comparison).
+    #
+    # ``sort_keys=True + default=str`` makes the canonicalization deterministic
+    # and tolerant of non-JSON-native types (e.g. tuples, sets) that might
+    # slip in from third-party data.
+    _for_hash = _copy.deepcopy(fingerprint)
+    if "run_context" in _for_hash and isinstance(_for_hash["run_context"], dict):
+        _for_hash["run_context"].pop("run_id", None)
+    _canonical = _json.dumps(_for_hash, sort_keys=True, default=str).encode("utf-8")
+    fingerprint["fingerprint_hash"] = _hashlib.sha256(_canonical).hexdigest()
+
     return fingerprint
 
 
