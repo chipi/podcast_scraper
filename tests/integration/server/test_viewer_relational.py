@@ -337,6 +337,13 @@ def test_topic_entities_ranks_across_typed_family(typed_client: TestClient) -> N
     """
     body = typed_client.get("/api/relational/topic-entities", params={"topic": "topic:ai"}).json()
     ids = [r["id"] for r in body["results"]]
-    # Most-mentioned first (Ada twice across the typed+legacy family).
-    assert ids[0] == "person:ada"
+    # Most-mentioned first (Ada twice across the typed+legacy family). The
+    # ranking is what proves the family count actually CROSSED the
+    # typed+legacy boundary — without family awareness Ada would tie with
+    # Acme + Bob (one mention each).
+    assert len(ids) == 3, f"expected 3 entity rows, got {ids}"
+    assert ids[0] == "person:ada", (
+        f"family-count traversal regression — Ada (2 mentions across "
+        f"typed+legacy) must rank first; got {ids}"
+    )
     assert set(ids[1:]) == {"org:acme", "person:bob"}

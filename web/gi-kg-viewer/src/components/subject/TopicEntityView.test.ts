@@ -125,6 +125,20 @@ describe('TopicEntityView.vue', () => {
     expect(w.get('[data-testid="topic-entity-view-name"]').text()).toBe('Ada Lovelace')
   })
 
+  it('labels an Organization node as "Entity" (RFC-097 v3.0 typed node)', async () => {
+    /** Organization is a first-class node type per RFC-097 v3.0. The shared
+     * Person/Entity rail handles both — the kind chip should say "Entity"
+     * (not the default "Subject" fallback). Regression guard against the
+     * subjectKindLabel computed property dropping Organization.
+     */
+    const art = artifactOf([
+      { id: 'org:acme', type: 'Organization', properties: { name: 'Acme Corp' } },
+    ])
+    const { w } = await mountTopic(art, 'org:acme')
+    expect(w.get('[data-testid="topic-entity-view-kind"]').text()).toBe('Entity')
+    expect(w.get('[data-testid="topic-entity-view-name"]').text()).toBe('Acme Corp')
+  })
+
   it('computes the mentions stats line from the linked insight + quote', async () => {
     const { w } = await mountTopic(topicWithMentions())
     const stats = w.get('[data-testid="topic-entity-view-stats"]').text()

@@ -160,13 +160,22 @@ describe('computeArtifactMetrics', () => {
   })
 
   it('v3.0 KG metrics rows surface both Person and Organization counts when present', () => {
+    /** Strict: the Person row must have key containing "person" / "people"
+     * AND value = 2 (the fixture has 2 Person nodes). The Organization row
+     * must have key containing "organi[sz]ation" AND value = 1. Without
+     * the explicit key constraints, the assertion could pass on any row
+     * with matching value.
+     */
     const result = computeArtifactMetrics(v3KgArtifact())
-    const valuesByKey = new Map(result.rows.map((r) => [r.k, r.v]))
-    // Both counts surface as their own row when both > 0.
-    const personRow = Array.from(valuesByKey.entries()).find(([, v]) => v === '2')
-    const orgRow = Array.from(valuesByKey.entries()).find(([, v]) => v === '1' && true)
-    expect(personRow, `rows: ${[...valuesByKey].map(([k, v]) => `${k}=${v}`).join(', ')}`).toBeDefined()
-    expect(orgRow).toBeDefined()
+    const personRow = result.rows.find(
+      (r) => /person|people/i.test(r.k) && r.v === '2',
+    )
+    const orgRow = result.rows.find(
+      (r) => /organi[sz]ation/i.test(r.k) && r.v === '1',
+    )
+    const debugRows = result.rows.map((r) => `${r.k}=${r.v}`).join(', ')
+    expect(personRow, `Person count row missing or wrong value. Rows: ${debugRows}`).toBeDefined()
+    expect(orgRow, `Organization count row missing or wrong value. Rows: ${debugRows}`).toBeDefined()
   })
 
   it('v3.0 KG edge counts include HAS_EPISODE and MENTIONS', () => {

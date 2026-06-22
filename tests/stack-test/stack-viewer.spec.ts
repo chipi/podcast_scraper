@@ -209,6 +209,7 @@ test.describe("Stack smoke test", () => {
     ])
     let totalInsights = 0
     let nonUnknownInsights = 0
+    const insightTypesSeen = new Set<string>()
     for (const gi of giContents) {
       for (const n of gi.nodes ?? []) {
         if (n.type !== "Insight") continue
@@ -218,16 +219,31 @@ test.describe("Stack smoke test", () => {
         ] as string | undefined
         expect(it, `Insight ${n.id} insight_type`).toBeDefined()
         expect(allowedInsightTypes.has(String(it))).toBe(true)
-        if (it !== "unknown") nonUnknownInsights += 1
+        if (it !== "unknown") {
+          nonUnknownInsights += 1
+          insightTypesSeen.add(String(it))
+        }
       }
     }
     expect(totalInsights, "at least one Insight produced by pipeline").toBeGreaterThan(0)
     // The classifier ran — at least one insight has a non-"unknown" type.
-    // (Tolerates a stub-fallback episode but fails if every insight is stub.)
     expect(
       nonUnknownInsights,
       "insight_type classifier must produce ≥1 non-unknown type in the corpus",
     ).toBeGreaterThan(0)
+    // Stricter: if the pipeline produced ≥3 non-unknown insights, the
+    // classifier must produce ≥2 distinct buckets across them (catches
+    // the classifier collapsing to a single default). Below 3 we don't
+    // assert diversity — too few datapoints for a meaningful claim.
+    if (nonUnknownInsights >= 3) {
+      expect(
+        insightTypesSeen.size,
+        `classifier collapse: ${nonUnknownInsights} non-unknown insights ` +
+          `but only ${insightTypesSeen.size} distinct buckets seen: ` +
+          `${[...insightTypesSeen].join(", ")}. Classifier may have ` +
+          "defaulted everything to one type.",
+      ).toBeGreaterThanOrEqual(2)
+    }
 
     // -- position_hint waterfall (3.3): with RSS itunes:duration set
     //    (60s in the fixture), step 1 of the waterfall fires for every

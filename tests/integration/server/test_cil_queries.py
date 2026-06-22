@@ -922,6 +922,25 @@ def test_v3_vocabulary_full_loop_fixture_shape(tmp_path: Path) -> None:
     assert len(position_hints) == 3, "expected one position_hint per insight"
     for ph in position_hints:
         assert 0.0 <= ph <= 1.0, f"position_hint {ph} out of schema range"
+    # Strict: the three position_hints should be DISTINCT (the fixture sets
+    # 0.25 / 0.5 / 0.8 per episode). A waterfall that defaulted everything
+    # to a single value would pass the range check above; this catches that.
+    assert sorted(position_hints) == [0.25, 0.5, 0.8], (
+        f"position_hint values diverged from the fixture spec "
+        f"(0.25 / 0.5 / 0.8). Got: {sorted(position_hints)}. "
+        f"Indicates a regression where the fixture writer or the artifact "
+        f"shape stopped preserving per-insight position_hint values."
+    )
+    # The classifier must produce more than ONE bucket across the corpus
+    # (a single bucket would mean classifier collapsed). The fixture
+    # exercises claim / recommendation / question; assert ≥3 distinct
+    # non-"unknown" buckets actually landed.
+    non_unknown = insight_types - {"unknown"}
+    assert len(non_unknown) >= 3, (
+        f"insight_type classifier collapsed to <3 distinct buckets: "
+        f"{sorted(insight_types)}. Indicates classifier broke or the "
+        f"fixture writer stopped diversifying."
+    )
 
 
 def test_v3_vocabulary_full_loop_query_layer(tmp_path: Path) -> None:

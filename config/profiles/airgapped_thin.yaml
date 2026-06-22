@@ -29,9 +29,17 @@
 #   - KG Podcast node + HAS_EPISODE edges from feed metadata
 #   - KG Topic nodes from bullet labels
 #   - GI ABOUT + SPOKEN_BY + SUPPORTED_BY + HAS_INSIGHT edges
-#   - GI MENTIONS_PERSON edges (post-pass: speaker names matched in
-#     bullet-derived insight text)
 #   - Migration safety: ZERO legacy MENTIONS pointing at typed KG nodes
+#     (the typed-MENTIONS post-pass rewrites any legacy edges it finds)
+#
+# CONDITIONAL (best-effort — Tier-3 does NOT require these because BART
+# summarization may paraphrase speaker names out of bullets, so the
+# typed-MENTIONS post-pass has nothing to match):
+#   - GI MENTIONS_PERSON edges (post-pass needs the KG Person name to
+#     appear as a whole-word substring in the Insight text. Fires when
+#     BART preserves the host/guest name in the bullet; misses when
+#     BART paraphrases to "the host"/"the guest". Common enough in
+#     dialogue-heavy episodes; not guaranteed.)
 #
 # NOT PRODUCED by airgapped_thin (requires LLM — use cloud_thin /
 # cloud_balanced / local_dgx_* profiles to exercise these):

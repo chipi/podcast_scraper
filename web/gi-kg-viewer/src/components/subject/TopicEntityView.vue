@@ -150,7 +150,11 @@ const subjectGraphNodeId = computed<string | null>(() => {
 const subjectKindLabel = computed(() => {
   const t = subjectNode.value?.type
   if (t === 'Topic') return 'Topic'
-  if (t === 'Entity' || t === 'Person') return 'Entity'
+  // RFC-097 v3.0: Organization is a first-class typed node — render under
+  // the shared "Entity" label alongside Person / legacy Entity. Without
+  // this branch, Organization subjects fall through to the generic
+  // "Subject" label.
+  if (t === 'Entity' || t === 'Person' || t === 'Organization') return 'Entity'
   return 'Subject'
 })
 
