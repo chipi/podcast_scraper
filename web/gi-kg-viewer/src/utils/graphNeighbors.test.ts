@@ -66,3 +66,95 @@ describe('graphNeighborsForMemberGraphIds', () => {
     expect(graphNeighborsForNode(null, 'x')).toEqual([])
   })
 })
+
+describe('graphNeighborsForNode — RFC-097 v3.0 typed MENTIONS family', () => {
+  /**
+   * The neighbor walk preserves the raw artifact edge type on the
+   * resulting row. The details panel (``GraphConnectionsSection.vue``)
+   * shows ``row.edgeType`` directly to the user, so typed variants
+   * surface as their precise type ("MENTIONS_PERSON" not "MENTIONS").
+   */
+
+  function artWith(edges: { from: string; to: string; type: string }[]): ParsedArtifact {
+    return {
+      name: 'x',
+      kind: 'gi',
+      episodeId: null,
+      nodes: 4,
+      edges: edges.length,
+      nodeTypes: {},
+      data: {
+        nodes: [
+          { id: 'insight:1', type: 'Insight', properties: { text: 'i1' } },
+          { id: 'person:alice', type: 'Person', properties: { name: 'Alice' } },
+          { id: 'org:acme', type: 'Organization', properties: { name: 'Acme' } },
+          { id: 'topic:ai', type: 'Topic', properties: { label: 'AI' } },
+        ],
+        edges,
+      },
+    }
+  }
+
+  it('emits MENTIONS_PERSON edgeType verbatim on the neighbor row', () => {
+    const art = artWith([
+      { from: 'insight:1', to: 'person:alice', type: 'MENTIONS_PERSON' },
+    ])
+    const rows = graphNeighborsForNode(art, 'insight:1')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.id).toBe('person:alice')
+    expect(rows[0]!.edgeType).toBe('MENTIONS_PERSON')
+  })
+
+  it('emits MENTIONS_ORG edgeType verbatim on the neighbor row', () => {
+    const art = artWith([{ from: 'insight:1', to: 'org:acme', type: 'MENTIONS_ORG' }])
+    const rows = graphNeighborsForNode(art, 'insight:1')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.id).toBe('org:acme')
+    expect(rows[0]!.edgeType).toBe('MENTIONS_ORG')
+  })
+
+  it('returns BOTH typed mentions when an insight references person + org', () => {
+    /** The most common real-world shape: one insight mentions a person AND an org. */
+    const art = artWith([
+      { from: 'insight:1', to: 'person:alice', type: 'MENTIONS_PERSON' },
+      { from: 'insight:1', to: 'org:acme', type: 'MENTIONS_ORG' },
+    ])
+    const rows = graphNeighborsForNode(art, 'insight:1')
+    const byId = new Map(rows.map((r) => [r.id, r.edgeType]))
+    expect(byId.get('person:alice')).toBe('MENTIONS_PERSON')
+    expect(byId.get('org:acme')).toBe('MENTIONS_ORG')
+  })
+
+  it('preserves the typed edgeType when the subject is the target (incoming direction)', () => {
+    /**
+     * Asking for a Person's neighbors: the insight→person edge surfaces
+     * with direction "in" and the typed variant intact. The details panel
+     * uses both fields to label the relationship correctly.
+     */
+    const art = artWith([
+      { from: 'insight:1', to: 'person:alice', type: 'MENTIONS_PERSON' },
+    ])
+    const rows = graphNeighborsForNode(art, 'person:alice')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.id).toBe('insight:1')
+    expect(rows[0]!.edgeType).toBe('MENTIONS_PERSON')
+    expect(rows[0]!.direction).toBe('in')
+  })
+
+  it('mixed legacy + typed MENTIONS on one center node both surface', () => {
+    /**
+     * Mid-migration corpus: a Person might be linked both by a legacy
+     * generic ``MENTIONS`` edge AND a typed ``MENTIONS_PERSON`` edge from
+     * different insights. The neighbor walk surfaces both rows with
+     * their precise edge types so the user / debugger can see the
+     * migration state.
+     */
+    const art = artWith([
+      { from: 'insight:1', to: 'person:alice', type: 'MENTIONS' },
+      { from: 'topic:ai', to: 'person:alice', type: 'MENTIONS_PERSON' },
+    ])
+    const rows = graphNeighborsForNode(art, 'person:alice')
+    const edgeTypes = rows.map((r) => r.edgeType).sort()
+    expect(edgeTypes).toEqual(['MENTIONS', 'MENTIONS_PERSON'])
+  })
+})

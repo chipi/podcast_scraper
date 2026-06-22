@@ -114,4 +114,185 @@ test.describe("Stack smoke test", () => {
     expect(run.kg_artifacts_generated).toBeGreaterThan(0)
     expect(run.errors_total).toBe(0)
   })
+
+  test("v3.0 vocabulary lands in pipeline-emitted artifacts (typed MENTIONS, insight_type, position_hint)", async ({
+    request,
+  }) => {
+    // RFC-097 v3.0 phase-3 (3.4 UI layer) Tier-3 verification: the real
+    // pipeline run that seeded /app/output is the production code path
+    // for the typed-MENTIONS post-pass (workflow/metadata_generation.py),
+    // the insight_type classifier (gi/insight_type_classifier.py), and
+    // the position_hint waterfall (workflow → gi.build_artifact →
+    // gi/position_hint.py). This test asserts those data points actually
+    // land in the artifacts the viewer/queries consume.
+    //
+    // Defensive: the stack-test pipeline runs in airgapped_thin mode so
+    // some insight emission paths may produce stub artifacts (no LLM).
+    // Assertions are formulated as "if X is present THEN it must be in
+    // v3.0 shape" — they fail loudly on drift but tolerate the thin
+    // profile's reduced output volume.
+
+    interface Artifact { relative_path: string; kind: string }
+    interface ArtifactsResponse { artifacts?: Artifact[] }
+    interface GiNode {
+      id?: string
+      type?: string
+      properties?: Record<string, unknown>
+    }
+    interface GiEdge { from?: string; to?: string; type?: string }
+    interface GiArtifact {
+      schema_version?: string
+      nodes?: GiNode[]
+      edges?: GiEdge[]
+    }
+    interface KgNode { id?: string; type?: string }
+    interface KgArtifact { nodes?: KgNode[]; edges?: GiEdge[] }
+
+    const listRes = await request.get(
+      `/api/artifacts?path=${encodeURIComponent(STACK_TEST_CORPUS_PATH)}`,
+    )
+    expect(listRes.status()).toBe(200)
+    const list = (await listRes.json()) as ArtifactsResponse
+    const giArtifacts = (list.artifacts ?? []).filter((a) => a.kind === "gi")
+    const kgArtifacts = (list.artifacts ?? []).filter((a) => a.kind === "kg")
+    expect(giArtifacts.length, "expected at least one gi.json").toBeGreaterThan(0)
+    expect(kgArtifacts.length, "expected at least one kg.json").toBeGreaterThan(0)
+
+    // -- Schema versions across all GI artifacts must be 3.0 (post-chunk-9) --
+    const giContents: GiArtifact[] = []
+    for (const a of giArtifacts) {
+      const r = await request.get(
+        `/api/artifacts/${encodeURIComponent(a.relative_path)}?path=${encodeURIComponent(
+          STACK_TEST_CORPUS_PATH,
+        )}`,
+      )
+      expect(r.status()).toBe(200)
+      const body = (await r.json()) as GiArtifact
+      giContents.push(body)
+      expect(body.schema_version, `${a.relative_path} schema_version`).toBe("3.0")
+    }
+    const kgContents: KgArtifact[] = []
+    for (const a of kgArtifacts) {
+      const r = await request.get(
+        `/api/artifacts/${encodeURIComponent(a.relative_path)}?path=${encodeURIComponent(
+          STACK_TEST_CORPUS_PATH,
+        )}`,
+      )
+      expect(r.status()).toBe(200)
+      kgContents.push((await r.json()) as KgArtifact)
+    }
+
+    // -- insight_type classifier (3.2): every Insight node must carry a
+    //    non-empty insight_type from the enum. ``unknown`` is allowed
+    //    only when the upstream insight text is empty/stub; production
+    //    insights MUST have a real classified type. --
+    const allowedInsightTypes = new Set([
+      "claim",
+      "recommendation",
+      "observation",
+      "question",
+      "unknown",
+    ])
+    let totalInsights = 0
+    let nonUnknownInsights = 0
+    for (const gi of giContents) {
+      for (const n of gi.nodes ?? []) {
+        if (n.type !== "Insight") continue
+        totalInsights += 1
+        const it = (n.properties as Record<string, unknown> | undefined)?.[
+          "insight_type"
+        ] as string | undefined
+        expect(it, `Insight ${n.id} insight_type`).toBeDefined()
+        expect(allowedInsightTypes.has(String(it))).toBe(true)
+        if (it !== "unknown") nonUnknownInsights += 1
+      }
+    }
+    expect(totalInsights, "at least one Insight produced by pipeline").toBeGreaterThan(0)
+    // The classifier ran — at least one insight has a non-"unknown" type.
+    // (Tolerates a stub-fallback episode but fails if every insight is stub.)
+    expect(
+      nonUnknownInsights,
+      "insight_type classifier must produce ≥1 non-unknown type in the corpus",
+    ).toBeGreaterThan(0)
+
+    // -- position_hint waterfall (3.3): with RSS itunes:duration set
+    //    (60s in the fixture), step 1 of the waterfall fires for every
+    //    insight that has a supporting Quote with a timestamp. Assert
+    //    that AT LEAST one insight in the corpus has a numeric
+    //    position_hint within [0, 1]. --
+    let numericPositionHints = 0
+    for (const gi of giContents) {
+      for (const n of gi.nodes ?? []) {
+        if (n.type !== "Insight") continue
+        const ph = (n.properties as Record<string, unknown> | undefined)?.[
+          "position_hint"
+        ]
+        if (typeof ph === "number") {
+          expect(ph).toBeGreaterThanOrEqual(0)
+          expect(ph).toBeLessThanOrEqual(1)
+          numericPositionHints += 1
+        }
+      }
+    }
+    expect(
+      numericPositionHints,
+      "position_hint waterfall must produce ≥1 numeric value (step 1 from RSS itunes:duration)",
+    ).toBeGreaterThan(0)
+
+    // -- Typed MENTIONS family (3.1): when a GI MENTIONS edge points at a
+    //    Person/Organization KG node, the typed-MENTIONS post-pass MUST
+    //    have rewritten its type to MENTIONS_PERSON / MENTIONS_ORG. A
+    //    legacy generic "MENTIONS" pointing at a typed node would mean
+    //    the post-pass didn't fire — a precise migration regression. --
+    const kgPersonOrgIds = new Set<string>()
+    let podcastNodeCount = 0
+    let hasEpisodeEdgeCount = 0
+    for (const kg of kgContents) {
+      for (const n of kg.nodes ?? []) {
+        if (n.type === "Person" || n.type === "Organization") {
+          if (typeof n.id === "string") kgPersonOrgIds.add(n.id)
+        }
+        if (n.type === "Podcast") podcastNodeCount += 1
+      }
+      for (const e of kg.edges ?? []) {
+        if (e.type === "HAS_EPISODE") hasEpisodeEdgeCount += 1
+      }
+    }
+    // KG must materialize the typed node types (chunk 3 deliverable).
+    expect(
+      kgPersonOrgIds.size,
+      "KG must emit at least one Person or Organization node",
+    ).toBeGreaterThan(0)
+    // Podcast + HAS_EPISODE (chunk 3 deliverable).
+    expect(podcastNodeCount, "KG must emit at least one Podcast node").toBeGreaterThan(0)
+    expect(
+      hasEpisodeEdgeCount,
+      "KG must emit at least one HAS_EPISODE edge",
+    ).toBeGreaterThan(0)
+
+    // Now the cross-layer assertion: GI MENTIONS family edge targeting a
+    // KG person/org must use the typed variant.
+    let typedMentionsCount = 0
+    let legacyMentionsToTypedNode = 0
+    for (const gi of giContents) {
+      for (const e of gi.edges ?? []) {
+        const to = typeof e.to === "string" ? e.to : ""
+        if (!kgPersonOrgIds.has(to)) continue
+        if (e.type === "MENTIONS_PERSON" || e.type === "MENTIONS_ORG") {
+          typedMentionsCount += 1
+        } else if (e.type === "MENTIONS") {
+          legacyMentionsToTypedNode += 1
+        }
+      }
+    }
+    // Strict: legacy MENTIONS edges pointing at typed nodes must NOT exist
+    // (the post-pass rewrites them). If this fails, the post-pass didn't
+    // fire — exact failure mode the 3.1 wiring closed.
+    expect(
+      legacyMentionsToTypedNode,
+      "typed-MENTIONS post-pass must have rewritten legacy MENTIONS → typed " +
+        "(any legacy MENTIONS pointing at a Person/Organization KG node " +
+        "indicates the post-pass did not fire)",
+    ).toBe(0)
+  })
 })
