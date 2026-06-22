@@ -886,13 +886,20 @@ class TestFullPipelineE2E:
         # filter silently matched nothing, making this a no-op).
         person_entities = [n for n in kg.get("nodes", []) if n.get("type") == "Person"]
 
-        guest_persons = [
-            n for n in person_entities if n.get("properties", {}).get("role") == "guest"
+        # p01 "Singletrack Sessions" (tests/fixtures/FIXTURES_SPEC.md): host **Maya**,
+        # e01 "Building Trails That Last" has **guest Liam** — this is NOT a solo show.
+        # The test's purpose (docstring) is that the RSS author carries role=host; a
+        # guest is expected, not an error. (The prior ``len(guest_persons) == 0``
+        # assertion was wrong and only ever "passed" while the v2-stale filter above
+        # matched nothing — un-vacuuming it surfaced the contradiction.)
+        host_persons = [n for n in person_entities if n.get("properties", {}).get("role") == "host"]
+        roster = [
+            (n["properties"].get("name"), n["properties"].get("role")) for n in person_entities
         ]
-        assert len(guest_persons) == 0, (
-            f"Solo show should have NO guest Person entities, got: "
-            f"{[n['properties']['name'] for n in guest_persons]}"
-        )
+        assert host_persons, f"expected a host Person for RSS author Maya, got: {roster}"
+        assert any(
+            "maya" in (n["properties"].get("name") or "").lower() for n in host_persons
+        ), f"RSS author Maya should be the host, got roster: {roster}"
 
     @pytest.mark.critical_path
     def test_pipeline_handles_rss_feed_404(self):
