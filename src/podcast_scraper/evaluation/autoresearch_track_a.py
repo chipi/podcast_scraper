@@ -23,9 +23,16 @@ logger = logging.getLogger(__name__)
 
 
 def _is_test_environment() -> bool:
+    # See `config.py::_is_test_environment` (commit ce029849) for the same
+    # narrowed-detection rationale. ``"unittest" in sys.modules`` was a
+    # false-positive trap: numpy lazy-imports ``numpy.testing`` which pulls
+    # stdlib unittest into sys.modules, so every production run that
+    # imported numpy looked like a test environment to the old check. Here
+    # the consequence was that ``.env.autoresearch`` silently failed to
+    # load in production autoresearch runs — operator-only env keys
+    # (``AUTORESEARCH_*``) didn't override ``.env``. Detection is now
+    # explicit pytest / TESTING signals only.
     if "pytest" in sys.modules or "PYTEST_CURRENT_TEST" in os.environ:
-        return True
-    if "unittest" in sys.modules:
         return True
     if os.environ.get("TESTING", "").lower() in ("1", "true", "yes"):
         return True
