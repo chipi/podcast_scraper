@@ -333,4 +333,58 @@ test.describe('Topic / Entity rail panel (TEV)', () => {
     await voices.getByTestId('tev-voice-link').first().click()
     await expect(page.getByTestId('person-landing-view')).toBeVisible()
   })
+
+  test('#1055: TEV renders related topics (adjacent themes) from the relational layer', async ({
+    page,
+  }) => {
+    // The other relational routes return empty so the view renders cleanly; the new
+    // related-topics route carries the data under test (viewer wiring; graph traversal
+    // is covered by the Python relational tests).
+    const emptyGrouped = { subject: GRAPH_TOPIC_ID, groups: {}, error: null }
+    const emptyList = { subject: GRAPH_TOPIC_ID, results: [], error: null }
+    await page.route('**/api/relational/cross-show**', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(emptyGrouped) })
+    })
+    await page.route('**/api/relational/who-said**', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(emptyGrouped) })
+    })
+    await page.route('**/api/relational/topic-entities**', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(emptyList) })
+    })
+    await page.route('**/api/relational/related-topics**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          subject: GRAPH_TOPIC_ID,
+          results: [
+            { id: 'topic:inflation', type: 'topic', text: 'Inflation', show_id: '', episode_id: '' },
+            { id: 'topic:bonds', type: 'topic', text: 'Bond markets', show_id: '', episode_id: '' },
+          ],
+          error: null,
+        }),
+      })
+    })
+
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await expect(page.getByTestId('digest-root')).toBeVisible()
+    await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
+    await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
+    await page.evaluate((id) => {
+      const subj = (window as unknown as { __GIKG_SUBJECT__?: { focusTopic: (i: string) => void } })
+        .__GIKG_SUBJECT__
+      if (!subj?.focusTopic) throw new Error('__GIKG_SUBJECT__.focusTopic not exposed')
+      subj.focusTopic(id)
+    }, GRAPH_TOPIC_ID)
+
+    const view = page.getByTestId('topic-entity-view')
+    await expect(view).toBeVisible({ timeout: 10_000 })
+
+    const related = view.getByTestId('tev-related-topics')
+    await expect(related).toBeVisible()
+    await expect(related.getByTestId('tev-related-topic-chip')).toHaveCount(2)
+    await expect(related).toContainText('Bond markets')
+  })
 })

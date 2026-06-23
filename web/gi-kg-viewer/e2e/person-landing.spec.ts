@@ -215,4 +215,80 @@ test.describe('Person Landing rail panel', () => {
     await expect(stated.getByTestId('person-landing-stated-row')).toHaveCount(2)
     await expect(stated).toContainText('A stated position on policy.')
   })
+
+  // #1055: the Profile tab's "Connections" section consumes the new relational
+  // routes (/relational/topics + /relational/co-speakers). These assert the viewer
+  // wiring end-to-end (the real graph traversal is covered by the Python tests).
+  async function gotoPersonLanding(page: import('@playwright/test').Page): Promise<void> {
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
+    await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
+    await page.getByTestId('left-panel-enter-explore').click()
+    await page.getByRole('heading', { name: /Explore & query/i }).waitFor({ state: 'visible' })
+    await page.getByTestId('explore-filtered-submit').click()
+    await page.getByText(SPEAKER_NAME, { exact: false }).first().waitFor({ timeout: 10_000 })
+    await page.getByTestId('explore-top-speaker-link').first().click()
+    await expect(page.getByTestId('person-landing-view')).toBeVisible({ timeout: 10_000 })
+  }
+
+  test('#1055: Connections section renders topics + co-speakers chips', async ({ page }) => {
+    await page.route('**/api/relational/topics**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          subject: SPEAKER_ID,
+          results: [
+            { id: 'topic:markets', type: 'topic', text: 'Markets', show_id: '', episode_id: '' },
+            { id: 'topic:rates', type: 'topic', text: 'Interest rates', show_id: '', episode_id: '' },
+          ],
+          error: null,
+        }),
+      })
+    })
+    await page.route('**/api/relational/co-speakers**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          subject: SPEAKER_ID,
+          results: [
+            { id: 'person:rob', type: 'person', text: 'Rob Armstrong', show_id: '', episode_id: '' },
+          ],
+          error: null,
+        }),
+      })
+    })
+
+    await gotoPersonLanding(page)
+
+    const topics = page.getByTestId('person-landing-topics')
+    await expect(topics).toBeVisible()
+    await expect(topics.getByTestId('person-landing-topic-chip')).toHaveCount(2)
+    await expect(topics).toContainText('Interest rates')
+
+    const coSpeakers = page.getByTestId('person-landing-co-speakers')
+    await expect(coSpeakers).toBeVisible()
+    await expect(coSpeakers.getByTestId('person-landing-co-speaker-chip')).toHaveCount(1)
+    await expect(coSpeakers).toContainText('Rob Armstrong')
+  })
+
+  test('#1055: Connections section shows honest empty states when no connectivity', async ({
+    page,
+  }) => {
+    const empty = { subject: SPEAKER_ID, results: [], error: null }
+    await page.route('**/api/relational/topics**', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(empty) })
+    })
+    await page.route('**/api/relational/co-speakers**', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(empty) })
+    })
+
+    await gotoPersonLanding(page)
+
+    await expect(page.getByTestId('person-landing-topics-empty')).toBeVisible()
+    await expect(page.getByTestId('person-landing-co-speakers-empty')).toBeVisible()
+  })
 })

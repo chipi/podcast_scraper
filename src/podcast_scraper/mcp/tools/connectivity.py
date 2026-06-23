@@ -29,19 +29,25 @@ def _kind_of(entity_id: str) -> str:
 
 
 def _rel(node: Any) -> Dict[str, Any]:
-    return {
+    out = {
         "id": node.id,
         "type": node.type,
         "text": node.text,
         "show_id": node.show_id,
         "episode_id": node.episode_id,
     }
+    note = getattr(node, "note", "")
+    if note:  # #1056: recurring-but-unnamed host — let the agent see why
+        out["note"] = note
+    return out
 
 
 def _graph(ctx: CorpusContext) -> Any:
     from ...search.corpus_graph import get_corpus_graph
 
-    return get_corpus_graph(ctx.corpus_dir, derive_speaker_links=True)
+    # reconcile_hosts (#1056): name recurring network-feed hosts across a show so
+    # exploration doesn't dead-end on bare SPEAKER_03 voices.
+    return get_corpus_graph(ctx.corpus_dir, derive_speaker_links=True, reconcile_hosts=True)
 
 
 def entity_neighborhood(ctx: CorpusContext, entity_id: str, k: int = 8) -> Dict[str, Any]:

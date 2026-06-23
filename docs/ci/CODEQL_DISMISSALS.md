@@ -270,6 +270,7 @@ number, file, line, date, and a short comment.
 | 1 | #377 | search/lance_index_stats.py | 82 | 2026-06-15 | Type 1: LanceDB open on a validated lance_dir; sanitised upstream. #995, PR #1010 |
 | 1 | #382 | server/routes/index_stats.py | 145 | 2026-06-20 | Type 1: ``GET /index/timeseries`` builds ``search/lance_index`` (constant suffix) on a corpus path sanitised by ``resolve_corpus_path_param`` (normpath + startswith-anchor). Mirrors #166. PR #1038 |
 | 1 | #383 | search/lance_index_stats.py | 102 | 2026-06-20 | Type 1: ``read_lance_doc_type_by_month`` is_dir/LanceDB open on a validated lance_dir; sanitised upstream. Mirrors #376/#377. PR #1038 |
+| 1 | #384 | search/corpus_graph.py | 414 | 2026-06-23 | Type 1: re-fire of #347 — ``get_corpus_graph`` cache/build on the route-confined corpus root (``resolve_corpus_path_param`` raises on anchor escape); reads only ``<corpus>`` artifacts. The ``reconcile_hosts`` (#1056) cache-key addition shifted the sink line 277→414, so CodeQL re-attributed the already-dismissed false positive to the PR. Sanitiser chain unchanged. Dismissed ``gh api`` (PR #1059) |
 
 ## Still open (not yet dismissed)
 

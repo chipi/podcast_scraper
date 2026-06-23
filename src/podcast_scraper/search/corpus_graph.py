@@ -26,8 +26,9 @@ Consumer: RFC-091 `KGProximitySearch` (separate module, builds on `bfs()`).
 from __future__ import annotations
 
 import logging
+import re
 import threading
-from collections import deque
+from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -35,6 +36,17 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 from ..builders.bridge_builder import strip_layer_prefixes
 
 logger = logging.getLogger(__name__)
+
+# A raw diarization label that never got a real name (#1056): "SPEAKER_03",
+# "Speaker 3", "speaker-12". Used to tell an unnamed host *voice* from a real
+# person when reconciling network-feed hosts across a show's episodes.
+_SPEAKER_LABEL_RE = re.compile(r"^\s*speaker[\s_\-]*\d+\s*$", re.IGNORECASE)
+
+
+def _looks_like_speaker_label(name: Optional[str]) -> bool:
+    """True when *name* is a bare diarization id (``SPEAKER_03``), not a real name."""
+    return bool(name and _SPEAKER_LABEL_RE.match(str(name)))
+
 
 # Canonical id prefix → normalized node type. Keeps GIL `Person` and KG
 # `Entity(kind=person)` as one `person` node, etc.
@@ -156,6 +168,119 @@ class CorpusGraph:
                     if ins is not None and ins.type == "insight":
                         self._add_edge(nid, insight_id, "STATES")
 
+    # --- feed-anchored host reconciliation (#1056) -----------------------------
+
+    def _episode_podcast(self, episode_id: str) -> Optional[str]:
+        """The podcast a given episode belongs to (via ``HAS_EPISODE``), or None."""
+        for nbr in self.typed_neighbors(episode_id, "HAS_EPISODE"):
+            node = self._nodes.get(nbr)
+            if node is not None and node.type == "podcast":
+                return nbr
+        return None
+
+    def _person_episodes(self, person_id: str) -> List[str]:
+        """Episodes a person is attached to (Person→``MENTIONS``→Episode, #1056)."""
+        return [
+            nbr
+            for nbr in self.typed_neighbors(person_id, "MENTIONS")
+            if (n := self._nodes.get(nbr)) is not None and n.type == "episode"
+        ]
+
+    def _reconcile_feed_hosts(self) -> None:
+        """Name recurring hosts of network-authored feeds across a show (#1056).
+
+        Each episode is diarized independently, so a recurring host whose name the
+        per-episode roster never resolves (network feed: author is the org, no
+        self-intro) surfaces as a bare ``SPEAKER_03`` Person — even when a *sibling*
+        episode of the same show *did* name that host. We anchor cross-episode
+        identity on **(feed, host role)** rather than voice fingerprints (no ML):
+        when a show has exactly one *recurring* named host (host in ≥2 episodes), its
+        unnamed host voices are merged into that person. Ambiguous shows (co-hosts,
+        no recurring named host) are left unnamed but **tagged** so the surface can
+        say "recurring host — not auto-named" instead of a bare ``SPEAKER_03``.
+
+        Guards (deliberately conservative — a wrong name is worse than none):
+        - only ``role == "host"`` voices are ever touched (never guests);
+        - an unnamed voice is merged only if it is *feed-exclusive* (its episodes sit
+          under a single podcast — a shared ``person:speaker-00`` node spanning shows
+          is ambiguous and skipped);
+        - the target must recur as host in ≥2 episodes of that feed;
+        - exactly one such recurring named host per feed (else it's a co-host show).
+        """
+        # Group host Person nodes per podcast into named vs. unnamed voices, with the
+        # episode set each owns under that podcast.
+        named: Dict[str, Dict[str, Set[str]]] = defaultdict(lambda: defaultdict(set))
+        unnamed_pods: Dict[str, Set[str]] = defaultdict(set)  # voice id -> podcasts it spans
+        unnamed_eps: Dict[str, Set[str]] = defaultdict(set)  # voice id -> all its episodes
+        for pid, node in self._nodes.items():
+            if node.type != "person":
+                continue
+            if str(node.payload.get("role") or "").lower() != "host":
+                continue
+            episodes = self._person_episodes(pid)
+            if not episodes:
+                continue
+            is_unnamed = _looks_like_speaker_label(
+                node.payload.get("name") or node.payload.get("label")
+            )
+            for ep in episodes:
+                pod = self._episode_podcast(ep)
+                if pod is None:
+                    continue
+                if is_unnamed:
+                    unnamed_pods[pid].add(pod)
+                    unnamed_eps[pid].add(ep)
+                else:
+                    named[pod][pid].add(ep)
+
+        merge_map: Dict[str, str] = {}
+        for voice_id, pods in unnamed_pods.items():
+            if len(pods) != 1:
+                continue  # ambiguous: a SPEAKER_00 node shared across shows
+            pod = next(iter(pods))
+            recurring = {h for h, eps in named.get(pod, {}).items() if len(eps) >= 2}
+            if len(recurring) == 1:
+                merge_map[voice_id] = next(iter(recurring))
+            elif len(unnamed_eps[voice_id]) >= 2:
+                # Opt1: can't name it, but it's a recurring voice — say so honestly.
+                show = self._nodes.get(pod)
+                show_title = (show.payload.get("title") if show else None) or "this show"
+                self._nodes[voice_id].payload[
+                    "recurring_host_note"
+                ] = f"recurring host of {show_title} — not auto-named"
+
+        if merge_map:
+            self._apply_identity_map(merge_map)
+
+    def _apply_identity_map(self, extra_map: Dict[str, str]) -> None:
+        """Collapse nodes per ``extra_map`` (variant→canonical), rebuilding adjacency.
+
+        Generalises the ingest-time ``identity_map`` to a post-build merge: a remapped
+        node's edges move onto its canonical target and the node disappears. A merged-away
+        node never overrides the target's ``name``/``label`` (the target is the real
+        person; the voice id is not), so a ``SPEAKER_03`` merge can't un-name a host.
+        """
+        self._id_map.update(extra_map)
+        old_nodes, old_typed = self._nodes, self._typed_adj
+        self._nodes, self._adj, self._typed_adj = {}, {}, {}
+        for nid, node in old_nodes.items():
+            cid = self._canon(nid)
+            payload = node.payload
+            if cid != nid:  # merged away — drop identity keys so it can't rename the target
+                payload = {k: v for k, v in node.payload.items() if k not in ("name", "label")}
+            self._upsert_node(cid, node.type, payload, next(iter(node.layers), "kg"))
+        seen_edges: Set[Tuple[str, str, str]] = set()
+        for frm, neighbors in old_typed.items():
+            for to, etype in neighbors:
+                cf, ct = self._canon(frm), self._canon(to)
+                if cf == ct:
+                    continue  # self-loop created by the merge
+                key = (cf, ct, etype) if cf <= ct else (ct, cf, etype)
+                if key in seen_edges:
+                    continue
+                seen_edges.add(key)
+                self._add_edge(cf, ct, etype)
+
     @classmethod
     def build(
         cls,
@@ -163,6 +288,7 @@ class CorpusGraph:
         *,
         validate: bool = False,
         derive_speaker_links: bool = False,
+        reconcile_hosts: bool = False,
         identity_map: Optional[Dict[str, str]] = None,
     ) -> "CorpusGraph":
         """Build the unified graph from all GI + KG artifacts under *corpus_dir*.
@@ -170,6 +296,10 @@ class CorpusGraph:
         When ``derive_speaker_links`` is True, add 1-hop ``person ↔ insight``
         shortcuts (see ``_derive_speaker_links``). Off by default so the graph is
         a faithful union of the artifacts; RFC-091's proximity layer opts in.
+
+        When ``reconcile_hosts`` is True, name recurring network-feed hosts across a
+        show's episodes (see ``_reconcile_feed_hosts``, #1056). Off by default; the
+        exploration/relational surfaces opt in.
 
         ``identity_map`` (#852) is an optional ``variant_id → canonical_id`` map
         (e.g. from entity canonicalization) applied at ingest so cross-episode
@@ -188,6 +318,8 @@ class CorpusGraph:
             graph._ingest(data, "gi")
         if derive_speaker_links:
             graph._derive_speaker_links()
+        if reconcile_hosts:
+            graph._reconcile_feed_hosts()
         logger.debug(
             "Built corpus graph: %d nodes, %d adjacency entries",
             len(graph._nodes),
@@ -255,7 +387,7 @@ class CorpusGraph:
 
 # Process-level cache (mirrors providers/ml/embedding_loader.py): graphs are
 # expensive to build and reused across searches. Keyed by resolved corpus path.
-_corpus_graphs: Dict[tuple[str, bool, bool], CorpusGraph] = {}
+_corpus_graphs: Dict[tuple[str, bool, bool, bool], CorpusGraph] = {}
 _corpus_graphs_lock = threading.Lock()
 
 
@@ -264,6 +396,7 @@ def get_corpus_graph(
     *,
     validate: bool = False,
     derive_speaker_links: bool = False,
+    reconcile_hosts: bool = False,
     canonicalize_entities: bool = True,
 ) -> CorpusGraph:
     """Return the cached cross-layer graph for *corpus_dir*, building it once.
@@ -273,8 +406,16 @@ def get_corpus_graph(
     spelling variants (`Tracy`/`Tracey Alloway`) collapse to one node. The map is
     derived deterministically from ``corpus_dir``, so it stays out of the cache key.
     Pass False for a faithful artifact union.
+
+    ``reconcile_hosts`` (#1056) names recurring network-feed hosts across a show's
+    episodes; the exploration/relational surfaces opt in.
     """
-    key = (str(Path(corpus_dir).resolve()), derive_speaker_links, canonicalize_entities)
+    key = (
+        str(Path(corpus_dir).resolve()),
+        derive_speaker_links,
+        reconcile_hosts,
+        canonicalize_entities,
+    )
     with _corpus_graphs_lock:
         if key not in _corpus_graphs:
             identity_map: Optional[Dict[str, str]] = None
@@ -286,6 +427,7 @@ def get_corpus_graph(
                 corpus_dir,
                 validate=validate,
                 derive_speaker_links=derive_speaker_links,
+                reconcile_hosts=reconcile_hosts,
                 identity_map=identity_map,
             )
         return _corpus_graphs[key]

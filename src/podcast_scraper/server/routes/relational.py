@@ -44,7 +44,9 @@ def _graph_or_none(request: Request, path: str | None):
     root = _root_or_none(request, path)
     if root is None:
         return None
-    return get_corpus_graph(root, derive_speaker_links=True)
+    # reconcile_hosts (#1056): names recurring network-feed hosts across a show so the
+    # viewer's connectivity surfaces match the MCP's (one relational layer, two front-ends).
+    return get_corpus_graph(root, derive_speaker_links=True, reconcile_hosts=True)
 
 
 def _maybe_rerank(

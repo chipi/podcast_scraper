@@ -289,3 +289,175 @@ def test_get_corpus_graph_canonicalizes_entities_by_default(tmp_path):
     clear_corpus_graph_cache()
     g_off = get_corpus_graph(corpus, canonicalize_entities=False)
     assert g_off.get_node("org:cargil") is not None  # faithful union when off
+
+
+# --- #1056: feed-anchored host reconciliation ----------------------------------
+
+
+def _kg_episode(
+    podcast_id: str,
+    episode_id: str,
+    *,
+    host_id: str,
+    host_name: str,
+    role: str = "host",
+    title: str = "A Show",
+):
+    """A minimal KG artifact: one episode of *podcast_id* with one host voice."""
+    return {
+        "episode_id": episode_id,
+        "nodes": [
+            {"id": podcast_id, "type": "Podcast", "properties": {"title": title}},
+            {"id": episode_id, "type": "Episode", "properties": {}},
+            {"id": host_id, "type": "Person", "properties": {"name": host_name, "role": role}},
+        ],
+        "edges": [
+            {"type": "HAS_EPISODE", "from": podcast_id, "to": episode_id},
+            {"type": "MENTIONS", "from": host_id, "to": episode_id},
+        ],
+    }
+
+
+def _graph_from(*artifacts) -> CorpusGraph:
+    g = CorpusGraph()
+    for art in artifacts:
+        g._ingest(art, "kg")
+    return g
+
+
+def test_reconcile_names_unnamed_host_from_sibling_episode():
+    # Network feed: host named "Katie Martin" in 2 episodes, a bare SPEAKER_03 in a third.
+    g = _graph_from(
+        _kg_episode(
+            "podcast:unhedged",
+            "episode:u1",
+            host_id="person:katie-martin",
+            host_name="Katie Martin",
+        ),
+        _kg_episode(
+            "podcast:unhedged",
+            "episode:u2",
+            host_id="person:katie-martin",
+            host_name="Katie Martin",
+        ),
+        _kg_episode(
+            "podcast:unhedged", "episode:u3", host_id="person:speaker-03", host_name="SPEAKER_03"
+        ),
+    )
+    g._reconcile_feed_hosts()
+    # The unnamed voice is gone, merged into the recurring named host…
+    assert g.get_node("person:speaker-03") is None
+    katie = g.get_node("person:katie-martin")
+    assert katie is not None and katie.payload["name"] == "Katie Martin"
+    # …and it now reaches the previously-orphaned third episode.
+    assert "episode:u3" in g.neighbors("person:katie-martin")
+
+
+def test_reconcile_is_noop_without_flag(tmp_path):
+    corpus = tmp_path
+    (corpus / "u1.kg.json").write_text(
+        json.dumps(
+            _kg_episode(
+                "podcast:unhedged",
+                "episode:u1",
+                host_id="person:katie-martin",
+                host_name="Katie Martin",
+            )
+        )
+    )
+    (corpus / "u2.kg.json").write_text(
+        json.dumps(
+            _kg_episode(
+                "podcast:unhedged",
+                "episode:u2",
+                host_id="person:katie-martin",
+                host_name="Katie Martin",
+            )
+        )
+    )
+    (corpus / "u3.kg.json").write_text(
+        json.dumps(
+            _kg_episode(
+                "podcast:unhedged",
+                "episode:u3",
+                host_id="person:speaker-03",
+                host_name="SPEAKER_03",
+            )
+        )
+    )
+    plain = CorpusGraph.build(corpus)
+    assert plain.get_node("person:speaker-03") is not None  # untouched by default
+    reconciled = CorpusGraph.build(corpus, reconcile_hosts=True)
+    assert reconciled.get_node("person:speaker-03") is None  # opt-in merges
+
+
+def test_reconcile_skips_cohost_show_but_tags_recurring_voice():
+    # Two recurring named hosts → ambiguous, so the unnamed voice is NOT merged,
+    # but (recurring across 2 episodes) it gets an honest "recurring host" note.
+    g = _graph_from(
+        _kg_episode(
+            "podcast:fx", "episode:f1", host_id="person:katie", host_name="Katie", title="FX Show"
+        ),
+        _kg_episode("podcast:fx", "episode:f2", host_id="person:katie", host_name="Katie"),
+        _kg_episode("podcast:fx", "episode:f3", host_id="person:rob", host_name="Rob"),
+        _kg_episode("podcast:fx", "episode:f4", host_id="person:rob", host_name="Rob"),
+        _kg_episode(
+            "podcast:fx", "episode:f5", host_id="person:speaker-07", host_name="SPEAKER_07"
+        ),
+        _kg_episode(
+            "podcast:fx", "episode:f6", host_id="person:speaker-07", host_name="SPEAKER_07"
+        ),
+    )
+    g._reconcile_feed_hosts()
+    voice = g.get_node("person:speaker-07")
+    assert voice is not None  # not merged (co-host ambiguity)
+    note = voice.payload.get("recurring_host_note", "")
+    assert note.startswith("recurring host of") and "not auto-named" in note
+
+
+def test_reconcile_skips_voice_shared_across_feeds():
+    # A bare person:speaker-00 node MENTIONS episodes in TWO different shows — it's not
+    # feed-exclusive, so merging it into one show's host would wrongly absorb the other.
+    g = _graph_from(
+        _kg_episode("podcast:a", "episode:a1", host_id="person:amy", host_name="Amy"),
+        _kg_episode("podcast:a", "episode:a2", host_id="person:amy", host_name="Amy"),
+        _kg_episode("podcast:b", "episode:b1", host_id="person:ben", host_name="Ben"),
+        _kg_episode("podcast:b", "episode:b2", host_id="person:ben", host_name="Ben"),
+        _kg_episode("podcast:a", "episode:a3", host_id="person:speaker-00", host_name="SPEAKER_00"),
+        _kg_episode("podcast:b", "episode:b3", host_id="person:speaker-00", host_name="SPEAKER_00"),
+    )
+    g._reconcile_feed_hosts()
+    assert g.get_node("person:speaker-00") is not None  # ambiguous → left alone
+
+
+def test_reconcile_requires_recurring_named_host():
+    # The named host appears in only ONE episode → not "recurring", so no merge target.
+    g = _graph_from(
+        _kg_episode("podcast:solo", "episode:s1", host_id="person:dana", host_name="Dana"),
+        _kg_episode(
+            "podcast:solo", "episode:s2", host_id="person:speaker-02", host_name="SPEAKER_02"
+        ),
+    )
+    g._reconcile_feed_hosts()
+    assert g.get_node("person:speaker-02") is not None  # nothing trustworthy to merge into
+
+
+def test_reconcile_never_touches_guests():
+    # An unnamed GUEST voice is never reassigned a host's name.
+    g = _graph_from(
+        _kg_episode(
+            "podcast:show", "episode:e1", host_id="person:host-name", host_name="Real Host"
+        ),
+        _kg_episode(
+            "podcast:show", "episode:e2", host_id="person:host-name", host_name="Real Host"
+        ),
+        _kg_episode(
+            "podcast:show",
+            "episode:e3",
+            host_id="person:speaker-09",
+            host_name="SPEAKER_09",
+            role="guest",
+        ),
+    )
+    g._reconcile_feed_hosts()
+    assert g.get_node("person:speaker-09") is not None  # guest left as-is
