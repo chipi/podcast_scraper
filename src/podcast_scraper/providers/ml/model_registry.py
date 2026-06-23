@@ -1606,6 +1606,29 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
             "fields, not the on/off toggles."
         ),
     ),
+    # ── Pre-prod / dress-rehearsal tier (#1060 follow-up FU1, 2026-06-23) ──
+    "preprod_local_whisper": ProfilePreset(
+        name="preprod_local_whisper",
+        transcription="local_whisper_small_en",
+        summary="gemini_flash_lite",
+        kg="provider_n10_15",
+        ner="gemini_speaker_detector",
+        clustering="topic_clusters_default_0_75",
+        gi="provider_n12_grounded_bundled",
+        notes=(
+            "Stage-A dress rehearsal for cloud_with_dgx_primary: mirrors "
+            "every stage choice EXCEPT transcription, which runs on the "
+            "laptop's small.en Whisper (~10× realtime on MPS) instead of "
+            "the DGX whisper-openai container. Validates the full prod "
+            "pipeline shape (cloud Gemini LLM + screenplay + diarize + GI "
+            "evidence + KG + vectors) from a laptop before the DGX Whisper "
+            "service exists. For the FINAL dress rehearsal the operator "
+            "overrides whisper_model to large-v3 to match the DGX service "
+            "(~0.6× realtime on M-series) — that override is a YAML edit "
+            "or CLI flag, not a preset change. See DGX_RUNBOOK § Pre-prod "
+            "laptop validation."
+        ),
+    ),
 }
 
 
