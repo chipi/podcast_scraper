@@ -177,7 +177,7 @@ class OpenAIProvider:
 
         # Cleaning model settings (config default: gpt-4o-mini; override for cheaper tiers)
         self.cleaning_model = getattr(
-            cfg, "openai_cleaning_model", config.PROD_DEFAULT_OPENAI_CLEANING_MODEL
+            cfg, "openai_cleaning_model", config.DEFAULT_OPENAI_CLEANING_MODEL
         )
         self.cleaning_temperature = getattr(cfg, "openai_cleaning_temperature", 0.2)
 

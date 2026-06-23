@@ -273,7 +273,7 @@ class TestOpenAICleaningModelDefaults(unittest.TestCase):
         """Under the test_default profile, openai_cleaning_model is the
         test-tier value pinned by ``config/profiles/test_default.yaml``."""
         cfg = Config(rss_url="https://example.com/feed.xml")
-        self.assertEqual(cfg.openai_cleaning_model, config.TEST_DEFAULT_OPENAI_CLEANING_MODEL)
+        self.assertEqual(cfg.openai_cleaning_model, config.DEFAULT_OPENAI_CLEANING_MODEL)
 
 
 class TestSummaryValidation(unittest.TestCase):

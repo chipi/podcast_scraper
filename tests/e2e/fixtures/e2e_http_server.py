@@ -866,7 +866,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     "id": "chatcmpl-test-speaker",
                     "object": "chat.completion",
                     "created": int(time.time()),
-                    "model": request_data.get("model", config.TEST_DEFAULT_OPENAI_SPEAKER_MODEL),
+                    "model": request_data.get("model", config.DEFAULT_OPENAI_SPEAKER_MODEL),
                     "choices": [
                         {
                             "index": 0,

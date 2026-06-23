@@ -255,7 +255,7 @@ class TestExperimentConfig(unittest.TestCase):
             id="test_ner",
             task="ner_guest_host",
             backend=experiment_config.OpenAIBackendConfig(
-                model=config.TEST_DEFAULT_OPENAI_SPEAKER_MODEL
+                model=config.DEFAULT_OPENAI_SPEAKER_MODEL
             ),
             prompts=experiment_config.PromptConfig(user="ner/guest_host_v1"),
             data=experiment_config.DataConfig(episodes_glob="*.txt"),

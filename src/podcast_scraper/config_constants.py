@@ -214,28 +214,20 @@ def is_sha_revision(revision: str) -> bool:
 # Production defaults: best quality/cost balance
 #
 # For current pricing, see: https://openai.com/pricing
-TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL = "whisper-1"  # Only OpenAI option
-TEST_DEFAULT_OPENAI_SPEAKER_MODEL = "gpt-4o-mini"  # Cheap, fast for dev/testing
+DEFAULT_OPENAI_TRANSCRIPTION_MODEL = "whisper-1"
+DEFAULT_OPENAI_SPEAKER_MODEL = "gpt-4o-mini"
 TEST_DEFAULT_OPENAI_SUMMARY_MODEL = "gpt-4o-mini"  # Cheap, fast for dev/testing
 # Hybrid/LLM transcript cleaning (separate from summarization); align with test summary tier
-TEST_DEFAULT_OPENAI_CLEANING_MODEL = "gpt-4o-mini"
-PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL = "whisper-1"  # Only OpenAI option
-PROD_DEFAULT_OPENAI_SPEAKER_MODEL = "gpt-4o-mini"  # Cost-effective for production
+DEFAULT_OPENAI_CLEANING_MODEL = "gpt-4o-mini"
 PROD_DEFAULT_OPENAI_SUMMARY_MODEL = "gpt-4o"  # Higher quality for production
 # Cleaning: cheaper than prod gpt-4o summary; same family as speaker / test summary
-PROD_DEFAULT_OPENAI_CLEANING_MODEL = "gpt-4o-mini"
-
-# Gemini model defaults (Issue #194)
 # Test defaults: free tier models for dev/testing (gemini-2.0-flash)
 # Production defaults: best quality models (gemini-1.5-pro with 2M context)
 #
 # For current pricing, see: https://ai.google.dev/pricing
-TEST_DEFAULT_GEMINI_TRANSCRIPTION_MODEL = "gemini-2.5-flash-lite"  # Free tier, fast
-TEST_DEFAULT_GEMINI_SPEAKER_MODEL = "gemini-2.5-flash-lite"  # Free tier, fast
-TEST_DEFAULT_GEMINI_SUMMARY_MODEL = "gemini-2.5-flash-lite"  # Free tier, fast
-PROD_DEFAULT_GEMINI_TRANSCRIPTION_MODEL = "gemini-2.5-flash-lite"  # Default GA flash-tier
-PROD_DEFAULT_GEMINI_SPEAKER_MODEL = "gemini-2.5-flash-lite"  # Default GA flash-tier
-PROD_DEFAULT_GEMINI_SUMMARY_MODEL = "gemini-2.5-flash-lite"  # Default GA flash-tier
+DEFAULT_GEMINI_TRANSCRIPTION_MODEL = "gemini-2.5-flash-lite"
+DEFAULT_GEMINI_SPEAKER_MODEL = "gemini-2.5-flash-lite"
+DEFAULT_GEMINI_SUMMARY_MODEL = "gemini-2.5-flash-lite"
 
 # Anthropic model defaults (Issue #106)
 # Test defaults: cheaper models for dev/testing
@@ -244,14 +236,11 @@ PROD_DEFAULT_GEMINI_SUMMARY_MODEL = "gemini-2.5-flash-lite"  # Default GA flash-
 # For current pricing, see: https://www.anthropic.com/pricing
 # Note: Anthropic does NOT support native audio transcription (no audio API)
 # Haiku: use Anthropic alias claude-haiku-4-5 (tracks Claude Haiku 4.5)
-TEST_DEFAULT_ANTHROPIC_TRANSCRIPTION_MODEL = (
+DEFAULT_ANTHROPIC_TRANSCRIPTION_MODEL = (
     "claude-3-5-sonnet-20241022"  # Placeholder (not used - no audio support)
 )
 TEST_DEFAULT_ANTHROPIC_SPEAKER_MODEL = "claude-haiku-4-5"  # Fast/cheap for dev/test
 TEST_DEFAULT_ANTHROPIC_SUMMARY_MODEL = "claude-haiku-4-5"  # Fast/cheap for dev/test
-PROD_DEFAULT_ANTHROPIC_TRANSCRIPTION_MODEL = (
-    "claude-3-5-sonnet-20241022"  # Placeholder (not used - no audio support)
-)
 PROD_DEFAULT_ANTHROPIC_SPEAKER_MODEL = "claude-3-5-sonnet-20241022"  # Best quality
 PROD_DEFAULT_ANTHROPIC_SUMMARY_MODEL = "claude-3-5-sonnet-20241022"  # Best quality, 200K context
 
@@ -260,8 +249,7 @@ PROD_DEFAULT_ANTHROPIC_SUMMARY_MODEL = "claude-3-5-sonnet-20241022"  # Best qual
 # Production defaults: best quality/cost balance
 #
 # For current pricing, see: https://docs.mistral.ai/pricing/
-TEST_DEFAULT_MISTRAL_TRANSCRIPTION_MODEL = "voxtral-mini-latest"  # Only option
-PROD_DEFAULT_MISTRAL_TRANSCRIPTION_MODEL = "voxtral-mini-latest"  # Only option
+DEFAULT_MISTRAL_TRANSCRIPTION_MODEL = "voxtral-mini-latest"
 TEST_DEFAULT_MISTRAL_SPEAKER_MODEL = "mistral-small-latest"  # Cheapest text
 PROD_DEFAULT_MISTRAL_SPEAKER_MODEL = "mistral-large-latest"  # Best quality
 TEST_DEFAULT_MISTRAL_SUMMARY_MODEL = "mistral-small-latest"  # Cheapest text
@@ -275,10 +263,8 @@ PROD_DEFAULT_MISTRAL_SUMMARY_MODEL = "mistral-large-latest"  # Best quality, 256
 # For current pricing, see: https://platform.deepseek.com/pricing
 # Key advantage: 95% cheaper than OpenAI for text processing
 # Note: DeepSeek does NOT support transcription (no audio API)
-TEST_DEFAULT_DEEPSEEK_SPEAKER_MODEL = "deepseek-chat"  # Extremely cheap, same for test/prod
-TEST_DEFAULT_DEEPSEEK_SUMMARY_MODEL = "deepseek-chat"  # Extremely cheap, same for test/prod
-PROD_DEFAULT_DEEPSEEK_SPEAKER_MODEL = "deepseek-chat"  # Same model, still very cheap
-PROD_DEFAULT_DEEPSEEK_SUMMARY_MODEL = "deepseek-chat"  # Same model, still very cheap
+DEFAULT_DEEPSEEK_SPEAKER_MODEL = "deepseek-chat"
+DEFAULT_DEEPSEEK_SUMMARY_MODEL = "deepseek-chat"
 
 # Ollama model defaults (Issue #196)
 # Test defaults: smaller, faster models for dev/testing (llama3.1:8b)
@@ -289,10 +275,8 @@ PROD_DEFAULT_DEEPSEEK_SUMMARY_MODEL = "deepseek-chat"  # Same model, still very 
 # Models must be pulled before use: ollama pull llama3.1:8b
 # Note: We use specific tags (e.g., :8b) instead of :latest to avoid
 #       unexpected model size resolution (e.g., :latest might point to 70B)
-TEST_DEFAULT_OLLAMA_SPEAKER_MODEL = "llama3.1:8b"  # Smaller, faster for testing
-PROD_DEFAULT_OLLAMA_SPEAKER_MODEL = "llama3.1:8b"  # Good quality, specific tag (not :latest)
-TEST_DEFAULT_OLLAMA_SUMMARY_MODEL = "llama3.1:8b"  # Smaller, faster for testing
-PROD_DEFAULT_OLLAMA_SUMMARY_MODEL = "llama3.1:8b"  # Smaller model, good quality
+DEFAULT_OLLAMA_SPEAKER_MODEL = "llama3.1:8b"
+DEFAULT_OLLAMA_SUMMARY_MODEL = "llama3.1:8b"
 
 # Grok (xAI) model defaults (Issue #1095)
 # Test defaults: beta model for dev/testing (grok-beta)

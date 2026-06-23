@@ -213,14 +213,14 @@ PROD_DEFAULT_SUMMARY_MODEL = config_constants.PROD_DEFAULT_SUMMARY_MODEL
 PROD_DEFAULT_SUMMARY_REDUCE_MODEL = config_constants.PROD_DEFAULT_SUMMARY_REDUCE_MODEL
 
 # OpenAI model defaults
-TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL = config_constants.TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL
-TEST_DEFAULT_OPENAI_SPEAKER_MODEL = config_constants.TEST_DEFAULT_OPENAI_SPEAKER_MODEL
+DEFAULT_OPENAI_TRANSCRIPTION_MODEL = config_constants.DEFAULT_OPENAI_TRANSCRIPTION_MODEL
+DEFAULT_OPENAI_SPEAKER_MODEL = config_constants.DEFAULT_OPENAI_SPEAKER_MODEL
 TEST_DEFAULT_OPENAI_SUMMARY_MODEL = config_constants.TEST_DEFAULT_OPENAI_SUMMARY_MODEL
-TEST_DEFAULT_OPENAI_CLEANING_MODEL = config_constants.TEST_DEFAULT_OPENAI_CLEANING_MODEL
-PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL = config_constants.PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL
-PROD_DEFAULT_OPENAI_SPEAKER_MODEL = config_constants.PROD_DEFAULT_OPENAI_SPEAKER_MODEL
+DEFAULT_OPENAI_CLEANING_MODEL = config_constants.DEFAULT_OPENAI_CLEANING_MODEL
+DEFAULT_OPENAI_TRANSCRIPTION_MODEL = config_constants.DEFAULT_OPENAI_TRANSCRIPTION_MODEL
+DEFAULT_OPENAI_SPEAKER_MODEL = config_constants.DEFAULT_OPENAI_SPEAKER_MODEL
 PROD_DEFAULT_OPENAI_SUMMARY_MODEL = config_constants.PROD_DEFAULT_OPENAI_SUMMARY_MODEL
-PROD_DEFAULT_OPENAI_CLEANING_MODEL = config_constants.PROD_DEFAULT_OPENAI_CLEANING_MODEL
+DEFAULT_OPENAI_CLEANING_MODEL = config_constants.DEFAULT_OPENAI_CLEANING_MODEL
 
 # Validation constants
 VALID_WHISPER_MODELS = config_constants.VALID_WHISPER_MODELS
@@ -1252,12 +1252,12 @@ class Config(BaseModel):
         "``{chat_template_kwargs: {enable_thinking: false}}`` (#960).",
     )
     openai_transcription_model: str = Field(
-        default=PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL,
+        default=DEFAULT_OPENAI_TRANSCRIPTION_MODEL,
         alias="openai_transcription_model",
         description="OpenAI Whisper API model version (default: environment-based)",
     )
     openai_speaker_model: str = Field(
-        default=PROD_DEFAULT_OPENAI_SPEAKER_MODEL,
+        default=DEFAULT_OPENAI_SPEAKER_MODEL,
         alias="openai_speaker_model",
         description="OpenAI model for speaker detection (default: environment-based)",
     )
@@ -1290,7 +1290,7 @@ class Config(BaseModel):
         ),
     )
     openai_cleaning_model: str = Field(
-        default=PROD_DEFAULT_OPENAI_CLEANING_MODEL,
+        default=DEFAULT_OPENAI_CLEANING_MODEL,
         alias="openai_cleaning_model",
         description=(
             "OpenAI model for hybrid/LLM transcript cleaning before summarization "
@@ -1364,17 +1364,17 @@ class Config(BaseModel):
         "Can be set via GEMINI_API_BASE environment variable.",
     )
     gemini_transcription_model: str = Field(
-        default=config_constants.PROD_DEFAULT_GEMINI_TRANSCRIPTION_MODEL,
+        default=config_constants.DEFAULT_GEMINI_TRANSCRIPTION_MODEL,
         alias="gemini_transcription_model",
         description="Gemini model for transcription (default: environment-based)",
     )
     gemini_speaker_model: str = Field(
-        default=config_constants.PROD_DEFAULT_GEMINI_SPEAKER_MODEL,
+        default=config_constants.DEFAULT_GEMINI_SPEAKER_MODEL,
         alias="gemini_speaker_model",
         description="Gemini model for speaker detection (default: environment-based)",
     )
     gemini_summary_model: str = Field(
-        default=config_constants.PROD_DEFAULT_GEMINI_SUMMARY_MODEL,
+        default=config_constants.DEFAULT_GEMINI_SUMMARY_MODEL,
         alias="gemini_summary_model",
         description="Gemini model for summarization (default: environment-based)",
     )
@@ -1467,7 +1467,7 @@ class Config(BaseModel):
         "Can be set via ANTHROPIC_API_BASE environment variable.",
     )
     anthropic_transcription_model: str = Field(
-        default=config_constants.PROD_DEFAULT_ANTHROPIC_TRANSCRIPTION_MODEL,
+        default=config_constants.DEFAULT_ANTHROPIC_TRANSCRIPTION_MODEL,
         alias="anthropic_transcription_model",
         description="Anthropic model for transcription (default: environment-based). "
         "Note: Anthropic doesn't support native audio transcription.",
@@ -1538,12 +1538,12 @@ class Config(BaseModel):
         "Can be set via OLLAMA_API_BASE environment variable.",
     )
     ollama_speaker_model: str = Field(
-        default=config_constants.PROD_DEFAULT_OLLAMA_SPEAKER_MODEL,
+        default=config_constants.DEFAULT_OLLAMA_SPEAKER_MODEL,
         alias="ollama_speaker_model",
         description="Ollama model for speaker detection (default: environment-based)",
     )
     ollama_summary_model: str = Field(
-        default=config_constants.PROD_DEFAULT_OLLAMA_SUMMARY_MODEL,
+        default=config_constants.DEFAULT_OLLAMA_SUMMARY_MODEL,
         alias="ollama_summary_model",
         description="Ollama model for summarization (default: environment-based)",
     )
@@ -1644,12 +1644,12 @@ class Config(BaseModel):
         "Can be set via DEEPSEEK_API_BASE environment variable.",
     )
     deepseek_speaker_model: str = Field(
-        default=config_constants.PROD_DEFAULT_DEEPSEEK_SPEAKER_MODEL,
+        default=config_constants.DEFAULT_DEEPSEEK_SPEAKER_MODEL,
         alias="deepseek_speaker_model",
         description="DeepSeek model for speaker detection (default: environment-based)",
     )
     deepseek_summary_model: str = Field(
-        default=config_constants.PROD_DEFAULT_DEEPSEEK_SUMMARY_MODEL,
+        default=config_constants.DEFAULT_DEEPSEEK_SUMMARY_MODEL,
         alias="deepseek_summary_model",
         description="DeepSeek model for summarization (default: environment-based)",
     )
@@ -1836,7 +1836,7 @@ class Config(BaseModel):
         "Can be set via MISTRAL_API_BASE environment variable.",
     )
     mistral_transcription_model: str = Field(
-        default=config_constants.PROD_DEFAULT_MISTRAL_TRANSCRIPTION_MODEL,
+        default=config_constants.DEFAULT_MISTRAL_TRANSCRIPTION_MODEL,
         alias="mistral_transcription_model",
         description="Mistral Voxtral model for transcription (default: environment-based)",
     )

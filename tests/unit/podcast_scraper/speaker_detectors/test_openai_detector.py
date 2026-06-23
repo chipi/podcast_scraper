@@ -91,7 +91,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         detector = create_speaker_detector(self.cfg)
         self.assertEqual(detector.cfg, self.cfg)
         self.assertIsNotNone(detector.client)
-        self.assertEqual(detector.speaker_model, config.TEST_DEFAULT_OPENAI_SPEAKER_MODEL)
+        self.assertEqual(detector.speaker_model, config.DEFAULT_OPENAI_SPEAKER_MODEL)
         self.assertEqual(detector.speaker_temperature, 0.3)
         self.assertFalse(detector._speaker_detection_initialized)
 
