@@ -216,3 +216,43 @@ When operator greenlights:
 
 If operator wants to defer either: keep open, just leave the plan
 in place.
+
+## 2026-06-23 update — #942 closing with pyannote-only scope
+
+The post-RFC-097-improvements PR closes #942 with pyannote-server
+Sentry shipped + deployed + validated end-to-end on DGX (Sentry
+dashboard captured both manual and FastAPI-handler events; runbook
+delta in `docs/guides/DGX_RUNBOOK.md` § "In-process Sentry on DGX
+services (#942)").
+
+What's NOT done in this PR (the rest of #942's original scope):
+
+- **vLLM-prod Sentry wiring** — gated on the vLLM-prod container
+  actually shipping (per `docs/wip/DGX_NEXT_STEPS.md`, that container
+  is itself not yet deployed; autoresearch's vLLM is operator-owned
+  and out of scope).
+- **whisper-server / speaches Sentry wiring** — same Sentry-init
+  pattern would apply (`infra/dgx/speaches-gb10/`); not done because
+  there's no #942 priority on it yet. Whisper failures already
+  surface via the in-pipeline `dgx_fallback_active` breadcrumb path
+  (ADR-096), so coverage is partial-but-existing today.
+
+**Operator decision (2026-06-23)**: close #942 with pyannote-only
+scope; don't open follow-up issues for vLLM-prod or speaches.
+Re-open when either service is in active deployment and Sentry
+wiring becomes a real ask.
+
+The shipping pattern is documented in `docs/guides/DGX_RUNBOOK.md`
+(env vars, tag conventions, LogQL search recipe), so adding Sentry
+to a new DGX service is a copy-paste of:
+
+1. `sentry-sdk[fastapi]>=2.18,<3.0` to the service's Dockerfile.
+2. `sentry_sdk.init(...)` block at the top of the FastAPI app
+   (mirroring `infra/dgx/pyannote-server/app.py:49-77`), with
+   `service`, `dgx_host`, `gpu` scope tags.
+3. `SENTRY_DSN` + `SERVICE_VERSION` + `RUN_PROFILE` exposed to the
+   container's environment.
+4. Verify with a one-shot `sentry_sdk.capture_message(...)` test.
+
+This is small enough to inline-deploy when a service ships;
+shouldn't need a tracking ticket.
