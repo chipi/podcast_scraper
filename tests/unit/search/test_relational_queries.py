@@ -70,6 +70,20 @@ def test_node_label_returns_display_text() -> None:
     assert node_label(g, "missing") == ""
 
 
+def test_unnamed_recurring_host_shows_note_not_raw_speaker_id() -> None:
+    # #1056 Opt1: a host the roster couldn't name keeps a bare "SPEAKER_07" name but
+    # carries a reconciliation note — the projection must surface the note as display
+    # text (and structurally) so the agent/viewer never sees raw "SPEAKER_07".
+    note = "recurring host of FX Show — not auto-named"
+    nodes: Dict[str, Tuple[str, Dict[str, object]]] = {
+        "person:speaker-07": ("person", {"name": "SPEAKER_07", "recurring_host_note": note}),
+        "person:named": ("person", {"name": "Katie Martin", "recurring_host_note": ""}),
+    }
+    g = FakeGraph(nodes, [])
+    assert node_label(g, "person:speaker-07") == note  # not "SPEAKER_07"
+    assert node_label(g, "person:named") == "Katie Martin"  # real names untouched
+
+
 class FakeGraph:
     """Minimal ``GraphLike``: typed undirected edges over hand-declared nodes."""
 

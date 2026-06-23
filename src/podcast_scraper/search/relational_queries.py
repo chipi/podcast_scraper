@@ -67,17 +67,27 @@ class RelatedNode:
     text: str = ""
     show_id: str = ""
     episode_id: str = ""
+    note: str = ""  # #1056: e.g. "recurring host of <show> — not auto-named"
 
 
 def _project(node: Node) -> RelatedNode:
+    from .corpus_graph import _looks_like_speaker_label
+
     props = node.payload or {}
-    text = props.get("text") or props.get("label") or props.get("name") or ""
+    text = str(props.get("text") or props.get("label") or props.get("name") or "")[:500]
+    # #1056 Opt1: a recurring host the roster couldn't name surfaces as a bare
+    # "SPEAKER_03". When reconciliation tagged it, show the honest note instead of the
+    # raw diarization id so the surface reads "recurring host of <show>", not noise.
+    note = str(props.get("recurring_host_note") or "")
+    if note and _looks_like_speaker_label(text):
+        text = note
     return RelatedNode(
         id=node.id,
         type=node.type,
-        text=str(text)[:500],
+        text=text,
         show_id=str(props.get("show_id") or props.get("podcast_id") or props.get("feed_id") or ""),
         episode_id=str(props.get("episode_id") or ""),
+        note=note,
     )
 
 

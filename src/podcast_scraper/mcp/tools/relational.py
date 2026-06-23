@@ -17,7 +17,8 @@ from ..context import CorpusContext
 def _graph(ctx: CorpusContext) -> Any:
     from ...search.corpus_graph import get_corpus_graph
 
-    return get_corpus_graph(ctx.corpus_dir, derive_speaker_links=True)
+    # reconcile_hosts (#1056): names recurring network-feed hosts across a show.
+    return get_corpus_graph(ctx.corpus_dir, derive_speaker_links=True, reconcile_hosts=True)
 
 
 def _node(node: Any) -> Dict[str, Any]:
