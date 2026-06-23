@@ -6,26 +6,39 @@ landing zone for the 4 GH issues #1061 deliberately left open.
 
 ## Status (2026-06-23 PM)
 
-- **#1060 — DONE on this branch** (see commits after `738b801a`).
-  Operator picked D1=B, D2=A, D3=A. Doc-only resolution for D1; fresh
-  smoke_v2 benchmarks for D2 + D3 produced four new `StageOption`
-  entries (`local_whisper_tiny_en`, `local_whisper_medium_en`,
-  `summllama_3_2_3b_paragraph`,
+- **#1060 — DONE** (commit `36ed9274`). Operator picked D1=B, D2=A, D3=A.
+  Doc-only resolution for D1; fresh smoke_v2 benchmarks for D2 + D3
+  produced four new `StageOption` entries (`local_whisper_tiny_en`,
+  `local_whisper_medium_en`, `summllama_3_2_3b_paragraph`,
   `transformers_bart_small_long_fast_authority`) plus three new
   `ProfilePreset`s (`airgapped`, `airgapped_thin`, `dev`). Drift test
   17/17 green. Eval report:
   `docs/guides/eval-reports/EVAL_DEV_TIER_REGISTRY_2026_06_23.md`.
-- **#1048 / #1049 / #1050 — STILL OPEN.** Viewer chain unchanged from
-  the original plan below.
+- **#1048 — DONE** (commit `ceeb0485`, Option 3 path). Person Landing
+  rail panel is now the PRD-029 shared shell: "Person Profile" +
+  "Position Tracker" tab pair (the latter is a placeholder pointing at
+  #1049), identity-header role/episode-count/organization-chips, and an
+  `ABOUT∩MENTIONS_PERSON` ranked-topic overview. All previously-shipped
+  rail content moved into the Person Profile tab. New parsing helpers:
+  `rankedPersonTopicMentions`, `rankedPersonOrganizations`,
+  `personRoleFromNode`. Vitest 2227/2227 green; viewer build (vue-tsc
+  strict) green. PRD-028 / PRD-029 / RFC-097 closure stanzas now cite
+  the actual ticket numbers; surface map + e2e spec updated.
+- **#1049 — STILL OPEN.** Per-(Person, Topic) position-arc timeline UI
+  fills the Position Tracker placeholder. PRD-028 § FR /
+  `docs/uxs/UXS-009-position-tracker.md` is the spec.
+- **#1050 — STILL OPEN.** Deepens the Person Profile tab content per
+  PRD-029 § FR / `docs/uxs/UXS-010-person-profile.md` (analytical
+  ranking, richer topic-group cross-link UX).
 
 ## Issues to close on this branch
 
 | # | Title | Suggested order | Dependencies |
 |---|---|---|---|
-| ~~**#1060**~~ | ~~Promote YAML-only profiles to ProfilePreset~~ | ~~First~~ | **DONE 2026-06-23** |
-| **#1048** | viewer: Person Landing shared component (RFC-097 chunk 8) | **Next** | Foundation primitive — start of the 3-issue viewer chain |
-| **#1049** | viewer: Position Tracker (Person × Topic over time) | Then | Consumes #1048 |
-| **#1050** | viewer: Person Profile (everything about a Person) | Last | Consumes #1048 + composes #1049 |
+| ~~**#1060**~~ | ~~Promote YAML-only profiles to ProfilePreset~~ | ~~First~~ | **DONE 2026-06-23 — commit `36ed9274`** |
+| ~~**#1048**~~ | ~~viewer: Person Landing shared component~~ | ~~Second~~ | **DONE 2026-06-23 — commit `ceeb0485`** |
+| **#1049** | viewer: Position Tracker (Person × Topic over time) | **Next** | Fills the #1048 Position Tracker placeholder |
+| **#1050** | viewer: Person Profile (everything about a Person) | Last | Composes #1048 + #1049 |
 
 ## #1060 — Open decisions BEFORE code
 
