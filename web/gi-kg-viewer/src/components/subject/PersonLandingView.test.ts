@@ -204,3 +204,152 @@ describe('PersonLandingView — #1048 shell (Person Profile + Position Tracker)'
     expect(w.find('[data-testid="position-tracker-topic-name"]').text()).toBe('AI ethics')
   })
 })
+
+// #1050 — UXS-010 Person Profile aggregate sections.
+function makeArtifactForPersonProfile(): ParsedArtifact {
+  return {
+    id: 'a1',
+    kind: 'gi',
+    data: {
+      nodes: [
+        { id: 'person:alice', type: 'Person', properties: { name: 'Alice' } },
+        { id: 'topic:ai', type: 'Topic', properties: { name: 'AI ethics' } },
+        { id: 'topic:reg', type: 'Topic', properties: { name: 'AI regulation' } },
+        {
+          id: 'insight:i1',
+          type: 'Insight',
+          properties: { text: 'first', insight_type: 'claim' },
+        },
+        {
+          id: 'insight:i2',
+          type: 'Insight',
+          properties: { text: 'second', insight_type: 'observation' },
+        },
+        {
+          id: 'insight:i3',
+          type: 'Insight',
+          properties: { text: 'third', insight_type: 'recommendation' },
+        },
+        {
+          id: 'ep:1',
+          type: 'Episode',
+          properties: { episode_title: 'Pilot', publish_date: '2026-02-15' },
+        },
+        {
+          id: 'ep:2',
+          type: 'Episode',
+          properties: { episode_title: 'Sequel', publish_date: '2026-03-10' },
+        },
+      ],
+      edges: [
+        { type: 'MENTIONS_PERSON', from: 'insight:i1', to: 'person:alice' },
+        { type: 'MENTIONS_PERSON', from: 'insight:i2', to: 'person:alice' },
+        { type: 'MENTIONS_PERSON', from: 'insight:i3', to: 'person:alice' },
+        { type: 'ABOUT', from: 'insight:i1', to: 'topic:ai' },
+        { type: 'ABOUT', from: 'insight:i2', to: 'topic:ai' },
+        { type: 'ABOUT', from: 'insight:i3', to: 'topic:reg' },
+        { type: 'SPOKE_IN', from: 'person:alice', to: 'ep:1' },
+        { type: 'SPOKE_IN', from: 'person:alice', to: 'ep:2' },
+      ],
+    },
+  } as unknown as ParsedArtifact
+}
+
+describe('PersonLandingView — #1050 Person Profile aggregate (PRD-029 / UXS-010)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    fetchPositions.mockResolvedValue({ subject: 'person:alice', results: [] })
+    fetchPersonProfile.mockResolvedValue({ subject: 'person:alice', profile: {} })
+    fetchPersonTopics.mockResolvedValue({ subject: 'person:alice', results: [] })
+    fetchCoSpeakers.mockResolvedValue({ subject: 'person:alice', results: [] })
+  })
+
+  async function mountWithProfileArt(): Promise<ReturnType<typeof mount>> {
+    const w = mount(PersonLandingView, { attachTo: document.body, global: { stubs: STUBS } })
+    const shell = useShellStore()
+    shell.corpusPath = '/corpus'
+    shell.healthStatus = 'ok'
+    useArtifactsStore().parsedList = [makeArtifactForPersonProfile()]
+    useSubjectStore().focusPerson('person:alice')
+    await flushPromises()
+    await flushPromises()
+    return w
+  }
+
+  it('renames the Top Topics heading to "Topics discussed" (UXS-010)', async () => {
+    const w = await mountWithProfileArt()
+    const heading = w
+      .get('[data-testid="person-landing-ranked-topics"]')
+      .get('h3')
+    expect(heading.text()).toBe('Topics discussed')
+  })
+
+  it('renders "Insights voiced" grouped by Topic with one group per Topic', async () => {
+    const w = await mountWithProfileArt()
+    const groups = w.findAll('[data-testid="person-landing-insights-voiced-group"]')
+    expect(groups.length).toBe(2)
+    // Order: count desc (AI ethics 2 > AI regulation 1), alphabetic tiebreak.
+    const topicNames = groups.map((g) =>
+      g.get('[data-testid="person-landing-insights-voiced-topic-button"]').text().split('\n')[0].trim(),
+    )
+    expect(topicNames[0]).toContain('AI ethics')
+    expect(topicNames[1]).toContain('AI regulation')
+    // Counts on each header.
+    const counts = groups.map((g) =>
+      g.get('[data-testid="person-landing-insights-voiced-topic-count"]').text(),
+    )
+    expect(counts).toEqual(['2', '1'])
+  })
+
+  it('Topic group header click pivots to Position Tracker for that pair', async () => {
+    const w = await mountWithProfileArt()
+    const headers = w.findAll('[data-testid="person-landing-insights-voiced-topic-button"]')
+    await headers[1].trigger('click')
+    expect(useSubjectStore().positionTrackerTopicId).toBe('topic:reg')
+    expect(
+      w.get('[data-testid="position-tracker-topic-name"]').text(),
+    ).toBe('AI regulation')
+  })
+
+  it('insights under a group are collapsed by default and reveal on toggle', async () => {
+    const w = await mountWithProfileArt()
+    const group = w.findAll('[data-testid="person-landing-insights-voiced-group"]')[0]
+    expect(group.find('[data-testid="person-landing-insights-voiced-rows"]').exists()).toBe(false)
+    await group.get('[data-testid="person-landing-insights-voiced-toggle"]').trigger('click')
+    const rows = group.findAll('[data-testid="person-landing-insights-voiced-row"]')
+    expect(rows.length).toBe(2)
+    expect(rows[0].get('[data-testid="person-landing-insights-voiced-row-text"]').text()).toBe('first')
+  })
+
+  it('renders "Episodes appeared in" list, newest-first, with titles + dates', async () => {
+    const w = await mountWithProfileArt()
+    const rows = w.findAll('[data-testid="person-landing-episodes-appeared-row"]')
+    expect(rows.length).toBe(2)
+    expect(rows[0].attributes('data-episode-id')).toBe('ep:2')
+    expect(rows[0].text()).toContain('Sequel')
+    expect(rows[0].text()).toContain('2026-03-10')
+    expect(rows[1].text()).toContain('Pilot')
+    expect(rows[1].text()).toContain('2026-02-15')
+  })
+
+  it('Episodes section is omitted when no SPOKE_IN edges exist', async () => {
+    const w = mount(PersonLandingView, { attachTo: document.body, global: { stubs: STUBS } })
+    const shell = useShellStore()
+    shell.corpusPath = '/corpus'
+    shell.healthStatus = 'ok'
+    useArtifactsStore().parsedList = [
+      {
+        id: 'empty',
+        kind: 'gi',
+        data: {
+          nodes: [{ id: 'person:bob', type: 'Person', properties: { name: 'Bob' } }],
+          edges: [],
+        },
+      } as unknown as ParsedArtifact,
+    ]
+    useSubjectStore().focusPerson('person:bob')
+    await flushPromises()
+    await flushPromises()
+    expect(w.find('[data-testid="person-landing-episodes-appeared"]').exists()).toBe(false)
+  })
+})

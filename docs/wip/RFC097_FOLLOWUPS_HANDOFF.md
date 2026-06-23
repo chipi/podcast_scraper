@@ -24,21 +24,26 @@ landing zone for the 4 GH issues #1061 deliberately left open.
   `personRoleFromNode`. Vitest 2227/2227 green; viewer build (vue-tsc
   strict) green. PRD-028 / PRD-029 / RFC-097 closure stanzas now cite
   the actual ticket numbers; surface map + e2e spec updated.
-- **#1049 — STILL OPEN.** Per-(Person, Topic) position-arc timeline UI
-  fills the Position Tracker placeholder. PRD-028 § FR /
-  `docs/uxs/UXS-009-position-tracker.md` is the spec.
-- **#1050 — STILL OPEN.** Deepens the Person Profile tab content per
-  PRD-029 § FR / `docs/uxs/UXS-010-person-profile.md` (analytical
-  ranking, richer topic-group cross-link UX).
+- **#1049 — DONE** (commit `25ab4db9`). Per-(Person, Topic) position arc
+  inside the Position Tracker tab: `MENTIONS_PERSON ∩ ABOUT` join, sort
+  by `publish_date` then `position_hint`, multi-select `insight_type`
+  filter chips, three UXS-009 states. Entry from ranked-Topic rows on
+  the Person Profile tab.
+- **#1050 — DONE.** Person Profile tab now renders the UXS-010
+  sections: Topics discussed / Insights voiced (grouped by Topic) /
+  Episodes appeared in (SPOKE_IN list) / Organizations affiliated /
+  the existing PRD-033 corpus + stated-positions + attributed-quotes
+  blocks. Each Topic-group header reuses #1049's
+  `selectTopicForPositionTracker` entry point.
 
 ## Issues to close on this branch
 
-| # | Title | Suggested order | Dependencies |
-|---|---|---|---|
-| ~~**#1060**~~ | ~~Promote YAML-only profiles to ProfilePreset~~ | ~~First~~ | **DONE 2026-06-23 — commit `36ed9274`** |
-| ~~**#1048**~~ | ~~viewer: Person Landing shared component~~ | ~~Second~~ | **DONE 2026-06-23 — commit `ceeb0485`** |
-| **#1049** | viewer: Position Tracker (Person × Topic over time) | **Next** | Fills the #1048 Position Tracker placeholder |
-| **#1050** | viewer: Person Profile (everything about a Person) | Last | Composes #1048 + #1049 |
+| # | Title | Status |
+|---|---|---|
+| ~~**#1060**~~ | ~~Promote YAML-only profiles to ProfilePreset~~ | **DONE — commit `36ed9274`** + 4 FU commits |
+| ~~**#1048**~~ | ~~viewer: Person Landing shared component~~ | **DONE — commit `ceeb0485`** |
+| ~~**#1049**~~ | ~~viewer: Position Tracker (Person × Topic over time)~~ | **DONE — commit `25ab4db9`** |
+| ~~**#1050**~~ | ~~viewer: Person Profile (everything about a Person)~~ | **DONE — this commit** |
 
 ## #1060 — Open decisions BEFORE code
 
