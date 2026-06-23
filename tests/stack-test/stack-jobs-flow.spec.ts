@@ -480,6 +480,31 @@ async function validateCorpusDataLoadedAfterJob(
   await page.getByTestId('main-tab-graph').click()
   await dismissGraphGestureOverlayIfPresent(page)
   await expect(page.locator('.graph-canvas')).toBeVisible({ timeout: 120_000 })
+
+  // #1055: the relational connectivity routes (person→topics / co-speakers,
+  // topic→related-topics) are wired into the real server image and reachable over
+  // the synthesized corpus. CI runs airgapped_thin (no GI → no insights), so these
+  // return a well-formed empty payload (200, not 5xx) — this guards route
+  // registration / serving end-to-end WITHOUT any LLM call. The actual connectivity
+  // DATA is validated deterministically elsewhere (no LLM): the pre-seeded fixture
+  // (tests/integration/search/test_connectivity_preseeded.py) and the grounded repro
+  // (test_host_reconciliation_repro.py); viewer rendering via the mocked Playwright
+  // e2e (person-landing / topic-entity-view specs).
+  stackTestProgress('post-job: connectivity (#1055) — relational routes reachable + well-formed')
+  const relProbe = async (route: string, key: 'person' | 'topic', id: string) => {
+    const res = await request.get(`/api/relational/${route}`, {
+      params: { [key]: id, path: CORPUS },
+    })
+    expect(res.ok(), `GET /api/relational/${route} status ${res.status()} (must not 5xx)`).toBeTruthy()
+    const body = (await res.json()) as { results?: unknown[] }
+    expect(
+      Array.isArray(body.results),
+      `relational/${route} should return a results array`,
+    ).toBeTruthy()
+  }
+  await relProbe('topics', 'person', 'person:none')
+  await relProbe('co-speakers', 'person', 'person:none')
+  await relProbe('related-topics', 'topic', 'topic:none')
 }
 
 type JobRow = {
