@@ -48,6 +48,17 @@ class AudioSourceResponse(BaseModel):
         description="'direct' = client streams the origin URL; 'proxy' (future) = "
         "no-store pass-through when a host blocks direct play.",
     )
+    resolved_url: str | None = Field(
+        default=None,
+        description="Final URL after following redirects (only set when validate=true).",
+    )
+    verified: bool | None = Field(
+        default=None,
+        description="HEAD reachability when validate=true; null when not validated.",
+    )
+    content_length: int | None = Field(
+        default=None, ge=0, description="Content-Length from validation when available."
+    )
 
 
 class AppEpisodeDetail(BaseModel):

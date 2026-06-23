@@ -16,6 +16,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from podcast_scraper.search.capability import structured_corpus_search
+from podcast_scraper.server.app_audio_bridge import resolve_audio
 from podcast_scraper.server.app_gi_view import insights_from_gi
 from podcast_scraper.server.app_kg_view import entities_from_kg
 from podcast_scraper.server.app_search_view import build_search_response, filter_outcome_to_episode
@@ -160,27 +161,52 @@ async def episode_segments(request: Request, slug: str) -> SegmentsResponse:
 
 
 @router.get("/episodes/{slug}/audio-source", response_model=AudioSourceResponse)
-async def episode_audio_source(request: Request, slug: str) -> AudioSourceResponse:
+async def episode_audio_source(
+    request: Request,
+    slug: str,
+    validate: bool = Query(
+        default=False,
+        description="HEAD-validate the origin URL and resolve redirects (adds a network call).",
+    ),
+) -> AudioSourceResponse:
     """Resolve the origin enclosure URL the client plays directly (bridge, never rehost).
 
-    Reads the already-persisted ``content.media_url`` (RFC-100; G5 resolved). Freshness
-    re-resolution and the optional no-store proxy are deferred follow-ups on #1070.
+    Reads the already-persisted ``content.media_url`` (RFC-100; G5 resolved); ``strategy``
+    is always ``direct``. With ``validate=true`` a HEAD follows redirects and reports the
+    resolved final URL + reachability + content-length. The no-store proxy stays deferred.
     """
     root, row = _resolve(request, slug)
     content = _content_block(root, row.metadata_relative_path)
     media_url = content.get("media_url")
     if not isinstance(media_url, str) or not media_url.strip():
         raise HTTPException(status_code=404, detail="No origin audio URL for this episode.")
+    url = media_url.strip()
 
-    mime = content.get("media_type")
+    mime_raw = content.get("media_type")
+    mime = mime_raw if isinstance(mime_raw, str) and mime_raw.strip() else None
     media_id = content.get("media_id")
+
+    resolved_url: str | None = None
+    verified: bool | None = None
+    content_length: int | None = None
+    if validate:
+        resolution = resolve_audio(url)
+        verified = resolution.verified
+        resolved_url = resolution.final_url
+        content_length = resolution.content_length
+        if mime is None and resolution.content_type:
+            mime = resolution.content_type
+
     return AudioSourceResponse(
         episode_slug=slug,
-        url=media_url.strip(),
-        mime=mime if isinstance(mime, str) and mime.strip() else None,
+        url=url,
+        mime=mime,
         duration_seconds=row.duration_seconds,
         media_id=media_id if isinstance(media_id, str) and media_id.strip() else None,
         strategy="direct",
+        resolved_url=resolved_url,
+        verified=verified,
+        content_length=content_length,
     )
 
 

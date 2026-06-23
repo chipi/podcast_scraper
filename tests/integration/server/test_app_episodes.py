@@ -143,6 +143,9 @@ def test_audio_source_returns_origin_url(tmp_path: Path) -> None:
         "duration_seconds": 4823,
         "media_id": "sha256:abc",
         "strategy": "direct",
+        "resolved_url": None,
+        "verified": None,
+        "content_length": None,
     }
 
 
@@ -224,6 +227,38 @@ def test_entities_empty_when_no_kg(tmp_path: Path) -> None:
 def test_detail_unknown_slug_404(tmp_path: Path) -> None:
     _write_corpus(tmp_path)
     assert _client(tmp_path).get("/api/app/episodes/does-not-exist").status_code == 404
+
+
+def test_audio_source_validate_resolves(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from podcast_scraper.server import app_audio_bridge
+
+    _write_corpus(tmp_path)
+    slug = _only_slug(tmp_path)
+    monkeypatch.setattr(
+        app_audio_bridge,
+        "_head_request",
+        lambda url, timeout: (
+            200,
+            "https://cdn.example/final.mp3",
+            {"content-type": "audio/mpeg", "content-length": "999"},
+        ),
+    )
+    body = (
+        _client(tmp_path)
+        .get(f"/api/app/episodes/{slug}/audio-source", params={"validate": "true"})
+        .json()
+    )
+    assert body["verified"] is True
+    assert body["resolved_url"] == "https://cdn.example/final.mp3"
+    assert body["content_length"] == 999
+
+
+def test_audio_source_default_skips_validation(tmp_path: Path) -> None:
+    _write_corpus(tmp_path)
+    slug = _only_slug(tmp_path)
+    body = _client(tmp_path).get(f"/api/app/episodes/{slug}/audio-source").json()
+    assert body["verified"] is None
+    assert body["resolved_url"] is None
 
 
 def test_episode_search_filters_to_episode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
