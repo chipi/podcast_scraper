@@ -204,7 +204,9 @@ class TestArtifacts:
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert data.get("schema_version") == "1.0"
+        # RFC-097 v3.0 bridge schema (was "1.0" pre-chunk-7; the test fixture
+        # at line 73 emits "3.0" — the assertion got missed during the bump).
+        assert data.get("schema_version") == "3.0"
         assert data.get("episode_id") == "ep1"
 
     def test_traversal_blocked(self, client: TestClient, corpus: Path) -> None:
