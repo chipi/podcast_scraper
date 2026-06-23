@@ -125,41 +125,6 @@ class TestKgSchema(unittest.TestCase):
             validate_artifact(art, strict=True)
         self.assertIn("validation failed", str(ctx.exception).lower())
 
-    def test_strict_accepts_1_2_kind_and_person_prefix_id(self) -> None:
-        """v1.2 Entity uses ``kind`` and ``person:`` ids."""
-        art = {
-            "schema_version": "2.0",
-            "episode_id": "e:1",
-            "extraction": {
-                "model_version": "stub",
-                "extracted_at": "2024-01-01T00:00:00Z",
-                "transcript_ref": "t.txt",
-            },
-            "nodes": [
-                {
-                    "id": "episode:e:1",
-                    "type": "Episode",
-                    "properties": {
-                        "podcast_id": "p",
-                        "title": "T",
-                        "publish_date": "2024-01-01T00:00:00Z",
-                    },
-                },
-                {
-                    "id": "person:pat",
-                    "type": "Entity",
-                    "properties": {
-                        "name": "Pat",
-                        "label": "Pat",
-                        "kind": "person",
-                        "role": "host",
-                    },
-                },
-            ],
-            "edges": [],
-        }
-        validate_artifact(art, strict=True)
-
     def test_strict_accepts_reserved_related_to_edge(self) -> None:
         """RELATED_TO is allowed by schema though v1 builder does not emit it."""
         art = {
@@ -202,8 +167,13 @@ class TestKgSchema(unittest.TestCase):
         }
         validate_artifact(art, strict=True)
 
-    def test_strict_accepts_1_1_topic_and_entity_descriptions(self) -> None:
-        """Optional description on Topic/Entity validates (GitHub #487)."""
+    def test_strict_accepts_topic_descriptions(self) -> None:
+        """Optional description on Topic validates (GitHub #487).
+
+        v1.1/v1.2 also documented an Entity.description field; chunk 9
+        (ADR-101) dropped the legacy Entity node type — Person /
+        Organization carry their own description fields under v2.
+        """
         art = {
             "schema_version": "2.0",
             "episode_id": "e:1",
@@ -229,17 +199,6 @@ class TestKgSchema(unittest.TestCase):
                         "label": "AI policy",
                         "slug": "ai-policy",
                         "description": "Discussion of regulation timelines.",
-                    },
-                },
-                {
-                    "id": "entity:person:alice",
-                    "type": "Entity",
-                    "properties": {
-                        "name": "Alice",
-                        "label": "Alice",
-                        "entity_kind": "person",
-                        "role": "host",
-                        "description": "Lead interviewer on this episode.",
                     },
                 },
             ],
@@ -300,8 +259,16 @@ class TestKgSchema(unittest.TestCase):
         }
         validate_artifact(art, strict=True)
 
-    def test_strict_permissive_legacy_entity_coexists_with_v2(self) -> None:
-        """v2.0 permissive: legacy Entity nodes still validate (chunk 9 drops them)."""
+    def test_strict_rejects_legacy_entity_node_under_v2(self) -> None:
+        """v2.0 strict (chunk 9 / ADR-101): legacy ``Entity`` type rejected.
+
+        The Entity node type was split into Person + Organization in
+        RFC-097 chunk 3; ADR-101 removed Entity from the JSON Schema's
+        node ``oneOf`` so strict validation rejects any artifact that
+        still emits it. Replaces the prior
+        ``test_strict_permissive_legacy_entity_coexists_with_v2`` test
+        (which asserted the opposite under the deferred chunk 9 plan).
+        """
         art = {
             "schema_version": "2.0",
             "episode_id": "e:1",
@@ -332,4 +299,5 @@ class TestKgSchema(unittest.TestCase):
             ],
             "edges": [],
         }
-        validate_artifact(art, strict=True)
+        with pytest.raises(ValueError, match=r"schema validation failed"):
+            validate_artifact(art, strict=True)

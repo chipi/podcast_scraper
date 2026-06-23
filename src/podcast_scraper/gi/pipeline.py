@@ -875,6 +875,8 @@ def _build_stub_artifact(
                 "episode_id": episode_id,
                 "grounded": True,
                 "insight_type": "unknown",
+                # RFC-097 chunk 9 (ADR-101): required in v3.0 strict.
+                "position_hint": 0.5,
             },
         },
         {
@@ -1440,8 +1442,12 @@ def _artifact_from_multi_insight(
             duration_fallback_ms=duration_fb,
             transcript_segments=transcript_segments,
         )
-        if ph is not None:
-            insight_props["position_hint"] = ph
+        # RFC-097 chunk 9 (ADR-101): position_hint is required in v3.0 strict.
+        # When the 4-step waterfall (RFC-072 §3) returns None for degenerate
+        # inputs (no quote timestamps, no char positions, single insight),
+        # fall back to 0.5 — the midpoint default for "we don't know where
+        # in the episode this lives".
+        insight_props["position_hint"] = ph if ph is not None else 0.5
         insight_node: Dict[str, Any] = {
             "id": insight_id,
             "type": "Insight",
