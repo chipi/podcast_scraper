@@ -77,6 +77,11 @@ export const useSubjectStore = defineStore('subject', () => {
       graphNodeCyId.value = null
       topicId.value = null
       personId.value = null
+      // #1049 — orphan-state leak: re-opening the same episode after a
+      // Person was focused must not carry the prior Position Tracker
+      // topic across (the Person rail is gone but the store state survives
+      // and would leak back into the next Person focus).
+      positionTrackerTopicId.value = null
     }
     kind.value = 'episode'
     episodeMetadataPath.value = t

@@ -760,9 +760,12 @@ export interface PersonTopicPositionRow {
  *      episode_id (via ``IN_EPISODE`` or the Insight's
  *      ``properties.episode_id``), publish_date (via the Episode node),
  *      and the supporting Quote texts (via ``SUPPORTED_BY → Quote``).
- *   4. Sort by (publish_date asc, position_hint asc, insightId asc) so
- *      undated insights cluster at the top (oldest-to-newest reads
- *      left-to-right in the UI; undated = "we don't know yet").
+ *   4. Sort by (publish_date asc, position_hint asc, insightId asc).
+ *      Undated insights sink to the TAIL (treating "no date" as "we don't
+ *      know when" is more honest than "treat as oldest"; this matches the
+ *      sibling helpers ``personEpisodeAppearances`` and the existing
+ *      attributed-quotes ``positionRows`` in PersonLandingView, so all
+ *      person-scoped lists agree on the missing-date convention).
  *
  * Insights with no episode_id / publish_date still surface — they group
  * at the head of the timeline with a "date unknown" UX affordance.
@@ -871,10 +874,15 @@ export function personTopicPositionArc(
   }
 
   rows.sort((a, b) => {
-    // Undated insights cluster at the head (treated as "earliest unknown").
-    const aDate = a.publishDate ?? ''
-    const bDate = b.publishDate ?? ''
-    if (aDate !== bDate) return aDate < bDate ? -1 : 1
+    // Undated insights sink to the tail; among dated rows, asc by
+    // (publish_date, position_hint, insightId).
+    if (a.publishDate && b.publishDate) {
+      if (a.publishDate !== b.publishDate) return a.publishDate < b.publishDate ? -1 : 1
+    } else if (a.publishDate) {
+      return -1
+    } else if (b.publishDate) {
+      return 1
+    }
     const aPos = a.positionHint ?? Number.POSITIVE_INFINITY
     const bPos = b.positionHint ?? Number.POSITIVE_INFINITY
     if (aPos !== bPos) return aPos - bPos

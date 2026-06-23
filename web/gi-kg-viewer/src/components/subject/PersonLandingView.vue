@@ -441,14 +441,17 @@ function onPickTopicForPositionTracker(topicId: string): void {
           {{ personRoleLabel }}
         </span>
       </div>
-      <!-- #1048 — episode-count signal (uses existing SPOKE_IN edge tally) -->
+      <!-- #1048 / #1050 — episode-count signal. Derives from the same
+           personEpisodeAppearances list rendered below so the at-a-glance
+           count cannot disagree with the section (raw SPOKE_IN edge tallies
+           are not deduplicated by target episode; the list helper is). -->
       <p
-        v-if="edgeCounts.spokeInEpisodes > 0"
+        v-if="episodeAppearances.length > 0"
         class="mt-1 text-[10px] text-muted"
         data-testid="person-landing-episode-count"
       >
-        {{ edgeCounts.spokeInEpisodes }}
-        episode{{ edgeCounts.spokeInEpisodes === 1 ? '' : 's' }}
+        {{ episodeAppearances.length }}
+        episode{{ episodeAppearances.length === 1 ? '' : 's' }}
       </p>
       <!-- #1048 — co-mentioned Organizations (PRD-029 FR1 affiliations) -->
       <div
@@ -605,7 +608,6 @@ function onPickTopicForPositionTracker(topicId: string): void {
             <button
               type="button"
               class="flex w-full items-baseline justify-between gap-2 text-left text-[11px] font-semibold text-surface-foreground hover:text-primary focus-visible:text-primary focus-visible:outline-none"
-              :aria-expanded="expandedTopicGroups.has(group.topicId)"
               :aria-label="`${group.topicName} — ${group.count} insight${group.count === 1 ? '' : 's'}. Open Position Tracker.`"
               data-testid="person-landing-insights-voiced-topic-button"
               @click="onPickTopicForPositionTracker(group.topicId)"

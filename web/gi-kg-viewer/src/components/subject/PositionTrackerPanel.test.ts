@@ -156,4 +156,42 @@ describe('PositionTrackerPanel (#1049)', () => {
     expect(quotes.length).toBe(1)
     expect(quotes[0].text()).toBe('we should write the rules now')
   })
+
+  it('insight_type filter matches case-insensitively (defensive vs capitalized artifact values)', async () => {
+    // Override the default artifact: same shape but insight_type capitalized.
+    setActivePinia(createPinia())
+    const w = mount(PositionTrackerPanel, { attachTo: document.body })
+    useArtifactsStore().parsedList = [
+      {
+        id: 'caps',
+        kind: 'gi',
+        data: {
+          nodes: [
+            { id: 'person:a', type: 'Person', properties: { name: 'A' } },
+            { id: 'topic:t', type: 'Topic', properties: { name: 'T' } },
+            {
+              id: 'i_caps',
+              type: 'Insight',
+              properties: { text: 'caps', insight_type: 'Claim', position_hint: 0.1 },
+            },
+            { id: 'ep', type: 'Episode', properties: { publish_date: '2026-04-01' } },
+          ],
+          edges: [
+            { type: 'MENTIONS_PERSON', from: 'i_caps', to: 'person:a' },
+            { type: 'ABOUT', from: 'i_caps', to: 'topic:t' },
+            { type: 'IN_EPISODE', from: 'i_caps', to: 'ep' },
+          ],
+        },
+      } as unknown as ParsedArtifact,
+    ]
+    const subject = useSubjectStore()
+    subject.focusPerson('person:a')
+    subject.selectTopicForPositionTracker('topic:t')
+    await flushPromises()
+    // Row visible by default.
+    expect(w.findAll('[data-testid="position-tracker-row"]').length).toBe(1)
+    // Click the (lowercase-labelled) claim chip — capitalized row still matches.
+    await w.get('[data-testid="position-tracker-filter-claim"]').trigger('click')
+    expect(w.findAll('[data-testid="position-tracker-row"]').length).toBe(1)
+  })
 })

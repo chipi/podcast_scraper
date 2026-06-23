@@ -332,6 +332,38 @@ describe('PersonLandingView — #1050 Person Profile aggregate (PRD-029 / UXS-01
     expect(rows[1].text()).toContain('2026-02-15')
   })
 
+  it('episode-count line agrees with the Episodes-appeared-in list count (post-review fix)', async () => {
+    // Two SPOKE_IN edges from this Person, both pointing at the SAME
+    // episode. Pre-fix the header count used a raw edge tally and would
+    // say "2 episodes" while the list (Set-deduped) shows 1. Both surfaces
+    // now derive from the same personEpisodeAppearances helper.
+    const w = mount(PersonLandingView, { attachTo: document.body, global: { stubs: STUBS } })
+    const shell = useShellStore()
+    shell.corpusPath = '/corpus'
+    shell.healthStatus = 'ok'
+    useArtifactsStore().parsedList = [
+      {
+        id: 'dup',
+        kind: 'gi',
+        data: {
+          nodes: [
+            { id: 'person:a', type: 'Person', properties: { name: 'A' } },
+            { id: 'ep:1', type: 'Episode', properties: { publish_date: '2026-05-01' } },
+          ],
+          edges: [
+            { type: 'SPOKE_IN', from: 'person:a', to: 'ep:1' },
+            { type: 'SPOKE_IN', from: 'person:a', to: 'ep:1' },
+          ],
+        },
+      } as unknown as ParsedArtifact,
+    ]
+    useSubjectStore().focusPerson('person:a')
+    await flushPromises()
+    await flushPromises()
+    expect(w.get('[data-testid="person-landing-episode-count"]').text()).toBe('1 episode')
+    expect(w.findAll('[data-testid="person-landing-episodes-appeared-row"]').length).toBe(1)
+  })
+
   it('Episodes section is omitted when no SPOKE_IN edges exist', async () => {
     const w = mount(PersonLandingView, { attachTo: document.body, global: { stubs: STUBS } })
     const shell = useShellStore()

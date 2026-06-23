@@ -509,4 +509,18 @@ describe('useSubjectStore — positionTrackerTopicId (#1049)', () => {
     expect(s.positionTrackerTopicId).toBeNull()
     expect(s.kind).toBeNull()
   })
+
+  it('focusEpisode (re-open same episode) does not leak a prior Position Tracker topic', () => {
+    const s = useSubjectStore()
+    // Land on an episode first so the "sameEpisode" branch is exercised below.
+    s.focusEpisode('metadata/a.json')
+    // Now focus a Person, select a Topic for Position Tracker.
+    s.focusPerson('person:alice')
+    s.selectTopicForPositionTracker('topic:ai')
+    // Re-open the same episode. The else-branch in focusEpisode used to skip
+    // positionTrackerTopicId — fix #1049-FU-review verifies it clears now.
+    s.focusEpisode('metadata/a.json')
+    expect(s.positionTrackerTopicId).toBeNull()
+    expect(s.kind).toBe('episode')
+  })
 })

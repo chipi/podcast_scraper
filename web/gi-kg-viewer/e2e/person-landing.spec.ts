@@ -178,12 +178,12 @@ test.describe('Person Landing rail panel', () => {
     await expect(page.getByTestId('person-landing-go-graph')).toBeVisible()
     await expect(page.getByTestId('person-landing-prefill-search')).toBeVisible()
 
-    // Switching to Position Tracker reveals the placeholder panel.
+    // Switching to Position Tracker reveals the panel; no Topic is selected
+    // yet so we see the #1049 UXS-009 "no-topic" state.
     await page.getByTestId('person-landing-tab-position-tracker').click()
     await expect(page.getByTestId('person-landing-panel-position-tracker')).toBeVisible()
-    await expect(
-      page.getByTestId('person-landing-position-tracker-placeholder'),
-    ).toBeVisible()
+    await expect(page.getByTestId('position-tracker-panel')).toBeVisible()
+    await expect(page.getByTestId('position-tracker-no-topic')).toBeVisible()
 
     // Back-navigation: returning to Person Profile re-shows the action buttons.
     await page.getByTestId('person-landing-tab-profile').click()

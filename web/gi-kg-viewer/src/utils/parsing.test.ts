@@ -1143,7 +1143,7 @@ describe('personTopicPositionArc (#1049)', () => {
     expect(arc[0].supportingQuoteTexts).toEqual(['i think X is true', 'X matters because Y'])
   })
 
-  it('handles undated insights by clustering them at the head', () => {
+  it('sinks undated insights to the tail (consistent with sibling helpers)', () => {
     const art = parseArtifact('x.gi.json', {
       nodes: [
         { id: 'i_dated', type: 'Insight', properties: { text: 'dated', position_hint: 0.5 } },
@@ -1159,10 +1159,9 @@ describe('personTopicPositionArc (#1049)', () => {
       ],
     })
     const arc = personTopicPositionArc(art, 'p:a', 't:x')
-    // Undated comes first (sorted as empty-string date < any real date).
-    expect(arc.map((r) => r.insightId)).toEqual(['i_undated', 'i_dated'])
-    expect(arc[0].publishDate).toBeNull()
-    expect(arc[1].publishDate).toBe('2026-03-01')
+    expect(arc.map((r) => r.insightId)).toEqual(['i_dated', 'i_undated'])
+    expect(arc[0].publishDate).toBe('2026-03-01')
+    expect(arc[1].publishDate).toBeNull()
   })
 })
 
