@@ -82,7 +82,15 @@ two front-ends — an agent over MCP and a human in the viewer see the same conn
 - **Speaker attribution is diarization-gated.** If a corpus shows `SPEAKER_03`-style voices,
   diarization ran but speaker→name attribution didn't land — exploration still works, but by
   anonymous speaker id. A *structural* lens (`/relational/topics`, `topics_of`) and a
-  *grounded* lens (`/cil/persons/{id}/topics`, quote-backed) coexist; pick by intent. (Naming
-  for recurring hosts of network-authored feeds is tracked as a separate bug.)
+  *grounded* lens (`/cil/persons/{id}/topics`, quote-backed) coexist; pick by intent.
+- **Recurring network-feed hosts are reconciled across a show (#1056).** A network-authored
+  feed (author = the company, not a person) often leaves the host unnamed in some episodes.
+  The exploration/relational surfaces build the graph with feed-anchored host reconciliation:
+  when a show has exactly one recurring named host, its unnamed `SPEAKER_03` voices in sibling
+  episodes are folded into that person — so `entity_neighborhood` / `co_speakers` connect the
+  whole show, not just the named episodes. Ambiguous shows (co-hosts) keep the voice unnamed
+  but surface an honest note (`recurring host of <show> — not auto-named`) instead of a bare
+  `SPEAKER_03`. It's deterministic and conservative (host role only, ≥2-episode recurrence,
+  feed-exclusive voices) — a wrong name is worse than none.
 - The server is **read-only** and binds to one corpus; point `--corpus` at the built corpus
   you want to explore.
