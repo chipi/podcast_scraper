@@ -40,10 +40,12 @@ landing zone for the 4 GH issues #1061 deliberately left open.
 
 | # | Title | Status |
 |---|---|---|
-| ~~**#1060**~~ | ~~Promote YAML-only profiles to ProfilePreset~~ | **DONE — commit `36ed9274`** + 4 FU commits |
+| ~~**#1060**~~ | ~~Promote YAML-only profiles to ProfilePreset~~ | **DONE — commit `36ed9274`** + 5 FU commits |
 | ~~**#1048**~~ | ~~viewer: Person Landing shared component~~ | **DONE — commit `ceeb0485`** |
 | ~~**#1049**~~ | ~~viewer: Position Tracker (Person × Topic over time)~~ | **DONE — commit `25ab4db9`** |
-| ~~**#1050**~~ | ~~viewer: Person Profile (everything about a Person)~~ | **DONE — this commit** |
+| ~~**#1050**~~ | ~~viewer: Person Profile (everything about a Person)~~ | **DONE — commit `279d9569`** |
+| ~~**#1073**~~ | ~~RFC-097 chunk 9 — strict KG v2.0 + GI v3.0 + ADR-101~~ | **DONE — commit `691d72c4`** (most already in PR #1039; JSON schema + code-site fallouts closed here) |
+| ~~**#1074**~~ | ~~Close 8 fingerprint.json reproducibility gaps~~ | **DONE — pre-merged via PR #1036** (commits `b1ef7046..a31b4e9a`, all 7 gap-closure commits). Filed prematurely because the WIP audit doc was not updated to reflect closure. |
 
 ## #1060 — Open decisions BEFORE code
 

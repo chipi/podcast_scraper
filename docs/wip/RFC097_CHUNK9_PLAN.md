@@ -1,5 +1,14 @@
 # RFC-097 chunk 9 — strict schemas + drop legacy support (plan, 2026-06-22)
 
+> **STATUS: CLOSED.** Tracked as #1073, closed by commit `691d72c4` on
+> `feat/rfc097-followups`. Most of the chunk-9 work (KG validator strict,
+> GI validator strict, ADR-101, fixture migration) already shipped
+> silently inside PR #1039; the closing commit landed the deferred JSON
+> schema tightening (`entity_node` removed from KG; `insight_type` +
+> `position_hint` promoted to required on GI Insight) and the small
+> number of code-site fallouts that emitted v3 artifacts missing the
+> newly-required fields.
+
 Chunk 9 lands in a follow-up PR after PR #1039 (RFC-097 chunks 0–8)
 merges. The original RFC §161 bake gate (2–4 weeks of v2 production
 operation) is **dropped** per operator 2026-06-22: this project has no
