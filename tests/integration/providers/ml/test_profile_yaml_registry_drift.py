@@ -243,3 +243,90 @@ def test_every_yaml_only_profile_documents_its_status() -> None:
         "why they aren't in `_PROFILE_PRESETS`. Add a comment containing one of "
         f"{list(_YAML_ONLY_DOC_MARKERS)} to: {[p.name for p in undocumented]}"
     )
+
+
+# Vendor-specific summary-model keys that the test_default profile pins. The
+# "pins MODEL across vendors without pinning PROVIDER" property — which makes
+# the 6-tuple ProfilePreset shape structurally inapplicable — is asserted by
+# requiring the YAML to set at least three of these so a future edit can't
+# accidentally collapse the profile into the regular preset shape and
+# then silently look like an orphan candidate.
+_TEST_DEFAULT_VENDOR_SUMMARY_MODEL_KEYS = (
+    "openai_summary_model",
+    "anthropic_summary_model",
+    "mistral_summary_model",
+    "gemini_summary_model",
+    "deepseek_summary_model",
+    "grok_summary_model",
+    "ollama_summary_model",
+)
+
+
+def test_test_default_is_intentionally_yaml_only_not_a_drift_bug() -> None:
+    """`test_default` is YAML-only by design (#1060 D1 = path B): it pins
+    MODEL across vendors without pinning PROVIDER, which is structurally
+    incompatible with the 6-tuple `ProfilePreset` shape (every Preset entry
+    names exactly one StageOption per stage = one PROVIDER per stage).
+
+    This test makes that intent structural rather than implicit:
+
+    1. `test_default` MUST NOT appear in `_PROFILE_PRESETS`. Promoting it
+       would force test-tier StageOption coverage for every provider, with
+       no product driver to justify the registry surface expansion.
+    2. `test_default.yaml` MUST NOT carry a `profile:` opt-in. The drift
+       test must continue to skip it.
+    3. The YAML MUST carry one of the "YAML-only" documentation markers
+       (the documented-status check already enforces this; we re-assert
+       here so a future change to that test surfaces in one place).
+    4. The YAML MUST pin at least three vendor-specific
+       `<vendor>_summary_model` keys. That's the structural fingerprint
+       of "pin MODEL across vendors". If a future edit collapses
+       test_default down to a single-vendor preset shape, this assertion
+       fires and the operator either promotes it to `_PROFILE_PRESETS` or
+       restores the multi-vendor pins.
+
+    Removing or relaxing this test is allowed ONLY if Decision 1 (B) is
+    revisited. See `config/profiles/README.md` § "Registry status — two
+    first-class shapes" and the 2026-06-23 amendment in
+    `src/podcast_scraper/providers/ml/model_registry.py`.
+    """
+    yaml_path = _PROFILE_DIR / "test_default.yaml"
+    assert yaml_path.is_file(), "test_default.yaml is missing — promotion or rename?"
+
+    # (1) Not in _PROFILE_PRESETS.
+    assert "test_default" not in _PROFILE_PRESETS, (
+        "`test_default` was added to `_PROFILE_PRESETS`. If that promotion is "
+        "intentional (Decision 1 = A path), delete this test with a written "
+        "rationale; otherwise revert the registry addition."
+    )
+
+    # (2) No `profile:` opt-in.
+    data = yaml.safe_load(yaml_path.read_text(encoding="utf-8")) or {}
+    assert isinstance(data, dict), "test_default.yaml did not parse as a dict"
+    assert "profile" not in data, (
+        "test_default.yaml gained a `profile:` field; the drift check would "
+        "now compare it against `_PROFILE_PRESETS['test_default']`. Either "
+        "delete this test (path A) or remove the `profile:` field (path B)."
+    )
+
+    # (3) Documentation marker present (re-asserted, kept narrow).
+    _YAML_ONLY_DOC_MARKERS = (
+        "yaml-only",
+        "no entry in `_profile_presets`",
+        "registry status: yaml-only",
+    )
+    raw_lower = yaml_path.read_text(encoding="utf-8").lower()
+    assert any(m in raw_lower for m in _YAML_ONLY_DOC_MARKERS), (
+        "test_default.yaml is missing the YAML-only documentation marker. "
+        f"Add one of {list(_YAML_ONLY_DOC_MARKERS)}."
+    )
+
+    # (4) Structural fingerprint — pins MODEL across multiple vendors.
+    pinned_vendor_models = [k for k in _TEST_DEFAULT_VENDOR_SUMMARY_MODEL_KEYS if k in data]
+    assert len(pinned_vendor_models) >= 3, (
+        f"test_default.yaml pins only {pinned_vendor_models!r} vendor summary "
+        "models. The 'pin MODEL across vendors' property requires at least 3 "
+        f"of {list(_TEST_DEFAULT_VENDOR_SUMMARY_MODEL_KEYS)}. If the test_default "
+        "profile collapsed to a single vendor, promote it to `_PROFILE_PRESETS` "
+        "and delete this test."
+    )
