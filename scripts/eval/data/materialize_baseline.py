@@ -730,6 +730,139 @@ def get_preprocessing_profile_version(profile_id: str) -> str:
     return "1.0"
 
 
+def _compute_dataset_content_hash(dataset_id: str) -> Optional[str]:
+    """RFC-097 fingerprint gap-closure #6 (operator case #4): compute a content
+    hash over the materialized dataset directory.
+
+    Two runs with the same ``dataset_id: "curated_5feeds_dev_v1"`` but different
+    file CONTENTS (a transcript was edited, an episode swapped, etc.) used to
+    look identical. The dataset hash makes that distinct.
+
+    Hash is sha256 over a deterministic listing of (relative_path,
+    sha256(file_content)) tuples across the materialized directory. Returns
+    None if the directory doesn't exist (e.g. dataset materialization hasn't
+    happened yet, or test environments without the materialized fixtures).
+    """
+    import hashlib as _hashlib
+    from pathlib import Path as _Path
+
+    root = _Path("data/eval/materialized") / dataset_id
+    if not root.is_dir():
+        return None
+    digests: list[tuple[str, str]] = []
+    try:
+        for f in sorted(root.rglob("*")):
+            if not f.is_file():
+                continue
+            rel = str(f.relative_to(root))
+            file_hash = _hashlib.sha256(f.read_bytes()).hexdigest()
+            digests.append((rel, file_hash))
+    except Exception:
+        return None
+    if not digests:
+        return None
+    combined = "\n".join(f"{rel}\t{h}" for rel, h in digests).encode("utf-8")
+    return _hashlib.sha256(combined).hexdigest()
+
+
+def _classify_inference_target(base_url: Optional[str], backend_type: Optional[str]) -> str:
+    """RFC-097 fingerprint gap-closure #4: classify WHERE inference happens.
+
+    Today's runtime.device records the ORCHESTRATOR's device (e.g. laptop
+    "mps") regardless of where inference actually ran. For OpenAI-compatible
+    providers behind a base_url, the actual inference could be local Ollama,
+    DGX vLLM, or a cloud API — and two fingerprints with the same
+    `provider_type: openai` could be against entirely different targets.
+
+    Returns one of:
+      - ``"local-ollama"`` (localhost / 127.0.0.1 / 0.0.0.0, or :11434)
+      - ``"local-vllm"`` (localhost / 127.0.0.1 / 0.0.0.0 with non-11434)
+      - ``"dgx-vllm"`` (Tailscale .ts.net / dgx-* hostnames)
+      - ``"local-hf"`` (backend.type == hf_local, in-process transformers)
+      - ``"cloud-<provider>"`` (no base_url + known cloud provider name)
+      - ``"unknown"`` (anything we don't recognize)
+    """
+    from urllib.parse import urlparse
+
+    bt = (backend_type or "").lower()
+    if bt == "hf_local":
+        return "local-hf"
+    url = (base_url or "").lower()
+    if url:
+        # Parse hostname properly so substring checks happen on the host, not
+        # the URL path/query (CodeQL py/incomplete-url-substring-sanitization
+        # — a path-embedded ".ts.net" or "dgx-" mustn't be classified as DGX).
+        parsed = urlparse(url if "://" in url else f"http://{url}")
+        host = (parsed.hostname or "").lower()
+        port = parsed.port
+        is_local_host = host in ("localhost", "127.0.0.1", "0.0.0.0")  # nosec B104
+        if is_local_host:
+            if port == 11434 or "ollama" in host:
+                return "local-ollama"
+            return "local-vllm"
+        # Tailscale / DGX hostname patterns — anchored to the host suffix
+        # / prefix specifically; URL path can't smuggle these in.
+        if host.endswith(".ts.net") or host.startswith("dgx-") or "dgx-llm" in host:
+            return "dgx-vllm"
+        # Ollama remote
+        if bt == "ollama" or port == 11434:
+            return "local-ollama"
+        # Otherwise treat as remote-vllm (custom endpoint, not in known patterns)
+        return "remote-vllm"
+    # No base_url → cloud API
+    if bt in ("openai", "anthropic", "gemini", "deepseek", "mistral", "grok"):
+        return f"cloud-{bt}"
+    if bt == "ollama":
+        return "local-ollama"
+    return "unknown"
+
+
+def _probe_vllm_backing_model_id(base_url: Optional[str]) -> Optional[str]:
+    """RFC-097 fingerprint gap-closure #2: resolve the vLLM served-model-name
+    alias (always ``"autoresearch"`` on our box) to the actual backing HF model
+    id by probing the live container.
+
+    vLLM's ``GET /v1/models`` returns ``data[0].root`` set to the HF repo id
+    the container was started with. Two fingerprints labeled
+    ``model_name: autoresearch`` may be against entirely different LLMs (chunk-7
+    sweep swapped between Qwen3-30B, Magistral, Ministral, Gemma, Mistral-3.2,
+    Moonlight at the same alias) — this resolves the ambiguity.
+
+    Returns None on any failure (server unreachable, HTTP error, unexpected
+    payload). Short timeout so fingerprint generation isn't blocked by a slow
+    or down server. ``None`` lands in the fingerprint as ``null`` JSON.
+    """
+    if not base_url:
+        return None
+    try:
+        import os
+
+        import requests  # type: ignore[import-not-found]
+    except ImportError:
+        return None
+    # Probe with short timeout — fingerprint generation shouldn't hang on a
+    # down or unreachable vLLM.
+    url = base_url.rstrip("/") + "/models"
+    api_key = os.getenv("VLLM_API_KEY", "")
+    headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+    try:
+        resp = requests.get(url, headers=headers, timeout=3.0)
+        if not resp.ok:
+            return None
+        data = resp.json()
+    except Exception:
+        return None
+    items = data.get("data") if isinstance(data, dict) else None
+    if not isinstance(items, list) or not items:
+        return None
+    first = items[0]
+    if isinstance(first, dict):
+        root = first.get("root")
+        if isinstance(root, str) and root.strip():
+            return root.strip()
+    return None
+
+
 def generate_enhanced_fingerprint(  # noqa: C901
     baseline_id: str,
     dataset_id: str,
@@ -832,7 +965,23 @@ def generate_enhanced_fingerprint(  # noqa: C901
             map_generation_params = {}
             reduce_generation_params = {}
         elif experiment_config.task in ("grounded_insights", "knowledge_graph"):
-            generation_params = {}
+            # RFC-097 fingerprint gap-closure (FINGERPRINT_GAPS_ANALYSIS_2026-06-22.md):
+            # GI / KG fingerprints had hardcoded {} here — every Magistral (temp 0.7
+            # max_length 4096) / Qwen3.5 (temp 0.0 max_length 800) run produced
+            # an identical-looking generation_params block. Now mirror the
+            # (anthropic, mistral, grok, deepseek, gemini, ollama) branch so the
+            # actual sampling lands in the fingerprint.
+            params_dict = experiment_config.params or {}
+            generation_params = {
+                "temperature": params_dict.get("temperature", 0.0),
+                "top_p": params_dict.get("top_p"),
+                "max_tokens": params_dict.get("max_length", 800),
+                "min_tokens": params_dict.get("min_length"),
+                "seed": params_dict.get("seed"),
+            }
+            # Drop any None values so the fingerprint stays a hash-stable shape
+            # against runs that don't specify optional fields.
+            generation_params = {k: v for k, v in generation_params.items() if v is not None}
             map_generation_params = {}
             reduce_generation_params = {}
         elif experiment_config.backend.type == "eval_stub":
@@ -1085,6 +1234,63 @@ def generate_enhanced_fingerprint(  # noqa: C901
             "gemini",
             "ollama",
         )
+        # RFC-097 fingerprint gap-closure #2: capture base_url + backing_model_id.
+        # base_url disambiguates which server answered (different DGX boxes may
+        # serve different models). backing_model_id resolves the vLLM
+        # served-model-name alias (always "autoresearch" on our box) to the
+        # actual HF repo id loaded — two runs labeled "autoresearch" can be
+        # against entirely different LLMs.
+        base_url = getattr(experiment_config.backend, "base_url", None)
+        backing_model_id = _probe_vllm_backing_model_id(base_url)
+        # RFC-097 fingerprint gap-closure #3-#5: capture task-pipeline knobs that
+        # materially affect output but were invisible in the fingerprint —
+        # postprocessor, *_extraction_src, gi_max_insights — plus optional
+        # operator-supplied vLLM serve flags + image (VLLM_INFERENCE_ARGS /
+        # VLLM_INFERENCE_IMAGE env vars, populated by sweep runbooks).
+        import os as _os
+
+        _params = experiment_config.params or {}
+        task_pipeline: Dict[str, Any] = {}
+        if experiment_config.prompts is not None:
+            _pp = getattr(experiment_config.prompts, "postprocessor", None)
+            if _pp is not None:
+                task_pipeline["postprocessor"] = _pp
+        for _k in ("kg_extraction_src", "gi_insight_src", "gi_max_insights"):
+            _v = _params.get(_k)
+            if _v is not None:
+                task_pipeline[_k] = _v
+
+        # RFC-097 fingerprint gap-closure #5 (operator case #3, 2026-06-22):
+        # capture podcast_scraper.Config fields that materially affect output
+        # but used to be invisible in the fingerprint. Includes:
+        #   - llm_pipeline_mode (staged vs bundled — different chat shapes)
+        #   - transcript_cleaning_strategy (parallel to preprocessing.profile_id
+        #     but covers Config-side overrides)
+        #   - backend.extra_body (chat_template_kwargs like
+        #     {"enable_thinking": false} on Qwen-thinking models)
+        # Values pulled from experiment_config (the source of truth at run time);
+        # None-valued fields drop out to keep the fingerprint shape stable.
+        podcast_scraper_cfg: Dict[str, Any] = {}
+        _llm_mode = getattr(experiment_config, "llm_pipeline_mode", None)
+        if _llm_mode is not None:
+            podcast_scraper_cfg["llm_pipeline_mode"] = _llm_mode
+        _tcs = getattr(experiment_config, "transcript_cleaning_strategy", None)
+        if _tcs is not None:
+            podcast_scraper_cfg["transcript_cleaning_strategy"] = _tcs
+        _eb = getattr(experiment_config.backend, "extra_body", None)
+        if _eb is not None:
+            podcast_scraper_cfg["openai_extra_body"] = _eb
+
+        # Inference args + image (operator-supplied via env). Sweep runbooks
+        # populate these by running:
+        #   VLLM_INFERENCE_ARGS="$(ssh dgx 'docker inspect vllm-autoresearch \
+        #     --format {{.Config.Cmd}}')"
+        #   VLLM_INFERENCE_IMAGE="$(ssh dgx 'docker inspect vllm-autoresearch \
+        #     --format {{.Config.Image}}')"
+        # before invoking run_experiment.py. Captured here as opaque strings.
+        inference_args = _os.getenv("VLLM_INFERENCE_ARGS") or None
+        inference_image = _os.getenv("VLLM_INFERENCE_IMAGE") or None
+
         pipeline = {
             "type": "single_stage",
             "stages": {
@@ -1100,8 +1306,14 @@ def generate_enhanced_fingerprint(  # noqa: C901
                         "tokenizer_name": model_details.get("tokenizer_name"),
                         "tokenizer_revision": model_details.get("tokenizer_revision"),
                         "endpoint": endpoint,  # Only for OpenAI
+                        "base_url": base_url,
+                        "backing_model_id": backing_model_id,
                     },
                     "generation_params": generation_params,
+                    "task_pipeline": task_pipeline,
+                    "inference_args": inference_args,
+                    "inference_image": inference_image,
+                    "podcast_scraper_config": podcast_scraper_cfg,
                 },
             },
         }
@@ -1113,6 +1325,13 @@ def generate_enhanced_fingerprint(  # noqa: C901
             "run_id": run_id,
             "baseline_id": baseline_id,
             "dataset_id": dataset_id,
+            # RFC-097 fingerprint gap-closure #6 (operator case #4): content
+            # hash over the materialized dataset directory. Two runs with the
+            # same dataset_id but different file contents (transcript edited,
+            # episode swapped, etc.) used to look identical — this makes them
+            # distinct. None if the directory doesn't exist (test env, dataset
+            # not materialized yet).
+            "dataset_content_hash": _compute_dataset_content_hash(dataset_id),
             "git": {
                 "commit": git_info.get("commit_sha"),
                 "branch": git_info.get("branch"),
@@ -1151,6 +1370,16 @@ def generate_enhanced_fingerprint(  # noqa: C901
         "runtime": get_runtime_info(provider),
     }
 
+    # RFC-097 fingerprint gap-closure #4: distinguish WHERE inference happened.
+    # runtime.device records the orchestrator's device (laptop "mps") regardless
+    # of where inference actually ran (local Ollama, DGX vLLM, cloud API). Add
+    # an explicit inference_target classification so two "openai+mps" runs that
+    # were actually against different targets (local Ollama vs DGX vLLM) get
+    # distinct fingerprints.
+    _bt = getattr(experiment_config.backend, "type", None) if experiment_config else None
+    _base_url = getattr(experiment_config.backend, "base_url", None) if experiment_config else None
+    fingerprint["runtime"]["inference_target"] = _classify_inference_target(_base_url, _bt)
+
     # Conditionally add prompts section (for any backend with experiment_config.prompts)
     prompt_info = get_prompt_info(experiment_config)
     if prompt_info is not None:
@@ -1165,6 +1394,38 @@ def generate_enhanced_fingerprint(  # noqa: C901
             ),
             "instruction_builder": "hybrid_ml_provider._build_reduce_instruction",
         }
+
+    # RFC-097 fingerprint gap-closure #7 (FINGERPRINT_GAPS_ANALYSIS_2026-06-22.md §7):
+    # walk the FULL fingerprint dict (sorted JSON) into a top-level
+    # fingerprint_hash, and bump fingerprint_version to "2.0" so consumers can
+    # distinguish v1.0 (model_name + a few fields) hashes from v2.0
+    # (full-dict) hashes.
+    #
+    # v1.0 (the old ProviderFingerprint.compute_hash) only walked
+    # model_name + version + hash + device + package + commit — missing
+    # generation_params, prompts, preprocessing, chunking, postprocessor,
+    # vLLM flags, backing_model_id, inference_target, dataset_content_hash.
+    # Two runs differing only in those fields had IDENTICAL hashes despite
+    # producing genuinely different outputs. v2.0 closes that gap.
+    fingerprint["fingerprint_version"] = "2.0"
+    import copy as _copy
+    import hashlib as _hashlib
+    import json as _json
+
+    # Compute hash over the fingerprint dict EXCLUDING the hash field itself
+    # AND the run_id (which is a per-call timestamp — would make every hash
+    # unique by construction, defeating the "two runs of the same config
+    # produce the same hash" property the operator wants for cross-run
+    # comparison).
+    #
+    # ``sort_keys=True + default=str`` makes the canonicalization deterministic
+    # and tolerant of non-JSON-native types (e.g. tuples, sets) that might
+    # slip in from third-party data.
+    _for_hash = _copy.deepcopy(fingerprint)
+    if "run_context" in _for_hash and isinstance(_for_hash["run_context"], dict):
+        _for_hash["run_context"].pop("run_id", None)
+    _canonical = _json.dumps(_for_hash, sort_keys=True, default=str).encode("utf-8")
+    fingerprint["fingerprint_hash"] = _hashlib.sha256(_canonical).hexdigest()
 
     return fingerprint
 

@@ -77,6 +77,38 @@ def test_run_experiment_gil_stub_dry_run_writes_predictions(tmp_path: Path) -> N
         first = pred.read_text(encoding="utf-8").strip().splitlines()[0]
         rec = json.loads(first)
         assert "gil" in rec.get("output", {})
+        # RFC-097 v3.0 chunk-5 regression: the eval harness now threads the
+        # dataset's per-episode ``duration_minutes`` to ``gi.build_artifact``
+        # as ``episode_duration_ms``. End-to-end check: Episode.duration_ms
+        # must be present in the artifact and equal the expected value
+        # computed from the fixture's duration_minutes (NOT hardcoded so
+        # this test breaks loudly if the fixture's duration changes).
+        gil = rec["output"]["gil"]
+        episode_nodes = [n for n in gil.get("nodes", []) if n.get("type") == "Episode"]
+        assert episode_nodes, "no Episode node in stub GI artifact"
+        ep_props = episode_nodes[0].get("properties") or {}
+        # Pull the fixture's declared duration_minutes and compute expected ms.
+        # If this lookup ever fails the assertion message explains why.
+        fixture_path = repo / "data/eval/datasets/integration_gi_kg_stub_v1.json"
+        fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
+        ep_descriptor = next(
+            (e for e in fixture.get("episodes", []) if e.get("episode_id") == "stub_ep_01"),
+            None,
+        )
+        assert (
+            ep_descriptor is not None
+        ), f"fixture {fixture_path} no longer has stub_ep_01 — test needs update"
+        fixture_minutes = ep_descriptor.get("duration_minutes")
+        assert (
+            isinstance(fixture_minutes, (int, float)) and fixture_minutes > 0
+        ), f"fixture stub_ep_01.duration_minutes invalid: {fixture_minutes!r}"
+        expected_ms = int(round(float(fixture_minutes) * 60.0 * 1000.0))
+        assert ep_props.get("duration_ms") == expected_ms, (
+            f"Episode.duration_ms regression: expected {expected_ms} "
+            f"(from dataset duration_minutes={fixture_minutes}), got "
+            f"{ep_props.get('duration_ms')!r}. Indicates the eval harness "
+            f"lost the duration-threading wired in RFC-097 chunk-5."
+        )
     finally:
         if runs_dir.exists():
             shutil.rmtree(runs_dir, ignore_errors=True)

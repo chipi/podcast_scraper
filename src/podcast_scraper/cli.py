@@ -4313,7 +4313,7 @@ def _log_configuration_runtime_warnings(cfg: config.Config, logger: logging.Logg
     if (
         cfg.generate_gi
         and getattr(cfg, "gi_insight_source", "stub") == "stub"
-        and not config._is_test_environment()
+        and not config._is_pytest_run()
     ):
         logger.warning(
             "GIL: gi_insight_source is 'stub' — insight text is a placeholder. "
@@ -4330,7 +4330,7 @@ def _log_configuration_runtime_warnings(cfg: config.Config, logger: logging.Logg
         and getattr(cfg, "gi_require_grounding", True)
         and _sp in config.GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS
         and (_qe in _local_gil or _en in _local_gil)
-        and not config._is_test_environment()
+        and not config._is_pytest_run()
     ):
         logger.warning(
             "GIL: summary_provider=%s uses an API or hybrid stack, but "
@@ -4348,7 +4348,7 @@ def _log_configuration_runtime_warnings(cfg: config.Config, logger: logging.Logg
         getattr(cfg, "generate_kg", False)
         and getattr(cfg, "kg_extraction_source", "provider") == "provider"
         and _kg_eff in ("transformers", "hybrid_ml")
-        and not config._is_test_environment()
+        and not config._is_pytest_run()
     ):
         logger.warning(
             "KG: kg_extraction_source is 'provider' but the effective KG backend "

@@ -91,9 +91,7 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         provider = create_transcription_provider(self.cfg)
         self.assertEqual(provider.cfg, self.cfg)
         self.assertIsNotNone(provider.client)
-        self.assertEqual(
-            provider.transcription_model, config.TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL
-        )
+        self.assertEqual(provider.transcription_model, config.DEFAULT_OPENAI_TRANSCRIPTION_MODEL)
         self.assertFalse(provider._transcription_initialized)
 
     def test_init_missing_api_key(self):

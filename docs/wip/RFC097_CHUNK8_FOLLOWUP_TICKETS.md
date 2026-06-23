@@ -1,16 +1,19 @@
-# RFC-097 chunk 8 follow-up tickets (drafted 2026-06-21)
+# RFC-097 chunk 8 follow-up tickets (drafted 2026-06-21, OPENED 2026-06-22)
 
 The original chunk-8 scope ("viewer Position Tracker + Person Profile + edge
 styling") was scope-cut on 2026-06-21 so the v2 foundation PR closes without
 a multi-week UI build. The three flagship-view items are queued here as
 follow-up tickets. The edge styling work stays in chunk 8 (in-scope).
 
-These are **draft ticket bodies** — operator alone opens GH issues
-(`feedback_never_open_gh_issues`). To open: copy each block into
-`gh issue create --title "..." --body "..."`.
+**Issues opened 2026-06-22** under operator authorisation as part of the
+RFC-097-improvements PR closure:
+
+- Ticket A → **#1048** — `viewer: Person Landing shared component`
+- Ticket B → **#1049** — `viewer: Position Tracker (Person × Topic over time)`
+- Ticket C → **#1050** — `viewer: Person Profile (everything about a Person)`
 
 Order: A is shared infra; B and C depend on A and can ship in parallel
-once A is in.
+once A is in. Work itself comes later — basic surface stabilises first.
 
 ---
 

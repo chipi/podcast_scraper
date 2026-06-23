@@ -136,6 +136,62 @@ def test_load_local_dotenv_files_no_crash_under_pytest(tmp_path: Path) -> None:
 
 
 @pytest.mark.unit
+def test_is_pytest_run_unittest_alone_is_not_test_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Regression for the 2026-06-22 fix (sibling of `config.py::ce029849`).
+
+    Previously ``"unittest" in sys.modules`` was treated as a test-env
+    signal. numpy lazy-imports ``numpy.testing`` which pulls stdlib
+    unittest into sys.modules, so every production autoresearch run
+    looked like a test run to the old check → ``.env.autoresearch``
+    silently failed to load. Detection must require an EXPLICIT pytest
+    or TESTING signal.
+    """
+    import sys as _sys
+
+    from podcast_scraper.evaluation import autoresearch_track_a as _track_a
+
+    # Simulate a prod scenario: unittest IS in sys.modules (numpy loaded
+    # it transitively) but pytest is NOT, and TESTING env is unset.
+    monkeypatch.setitem(_sys.modules, "unittest", _sys.modules.get("unittest"))
+    monkeypatch.delitem(_sys.modules, "pytest", raising=False)
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.delenv("TESTING", raising=False)
+
+    assert _track_a._is_pytest_run() is False
+
+
+@pytest.mark.unit
+def test_is_pytest_run_explicit_signals_still_detected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Explicit signals — pytest in sys.modules, PYTEST_CURRENT_TEST, or
+    TESTING env — still flip _is_pytest_run to True."""
+    import sys as _sys
+
+    from podcast_scraper.evaluation import autoresearch_track_a as _track_a
+
+    monkeypatch.delitem(_sys.modules, "pytest", raising=False)
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.delenv("TESTING", raising=False)
+
+    # 1. pytest in sys.modules
+    monkeypatch.setitem(_sys.modules, "pytest", object())
+    assert _track_a._is_pytest_run() is True
+    monkeypatch.delitem(_sys.modules, "pytest")
+
+    # 2. PYTEST_CURRENT_TEST env
+    monkeypatch.setenv("PYTEST_CURRENT_TEST", "test_x")
+    assert _track_a._is_pytest_run() is True
+    monkeypatch.delenv("PYTEST_CURRENT_TEST")
+
+    # 3. TESTING env
+    monkeypatch.setenv("TESTING", "1")
+    assert _track_a._is_pytest_run() is True
+
+
+@pytest.mark.unit
 def test_metrics_json_fixture_roundtrip() -> None:
     """Sanity: metrics shape used by score.py parsing."""
     blob = {

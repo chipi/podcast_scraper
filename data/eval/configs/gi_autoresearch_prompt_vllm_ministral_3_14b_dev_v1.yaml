@@ -13,7 +13,7 @@ data:
 params:
   max_length: 800
   min_length: 200
-  temperature: 0.0
+  temperature: 0.05  # vendor recommendation (autoresearch/MODEL_PLAYBOOK.md, RFC-097 chunk-7 #17 follow-up)
   gi_insight_src: provider
   gi_max_insights: 12
 preprocessing_profile: cleaning_v4

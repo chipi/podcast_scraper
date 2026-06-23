@@ -897,7 +897,7 @@ def _build_stub_artifact(
         {"type": "SUPPORTED_BY", "from": insight_id, "to": quote_id},
     ]
     return {
-        "schema_version": "2.0",
+        "schema_version": "3.0",  # RFC-097 chunk 9: v3.0 GI emit
         "model_version": model_version,
         "prompt_version": prompt_version,
         "episode_id": episode_id,
@@ -926,6 +926,24 @@ def _normalize_insight_type(raw: Any) -> str:
         if k in _INSIGHT_TYPE_LEGACY_SYNONYMS:
             return _INSIGHT_TYPE_LEGACY_SYNONYMS[k]
     return "unknown"
+
+
+def _classify_when_unknown(text: str, itype: str) -> str:
+    """Rule-classify *text* when *itype* is ``"unknown"``; pass through otherwise.
+
+    Provider-supplied :func:`generate_insights` returns of ``List[str]`` flow
+    in as ``(text, "unknown")``. The classifier inspects the text and assigns
+    one of ``claim | recommendation | observation | question | unknown``
+    (RFC-072 §2a / RFC-097 v3.0). When the provider already supplied a
+    valid type (dict return), the existing type is preserved.
+
+    Defensive: never returns a value outside :data:`_INSIGHT_TYPE_ALLOWED`.
+    """
+    if itype != "unknown":
+        return itype
+    from .insight_type_classifier import classify_insight_type
+
+    return classify_insight_type(text)
 
 
 def _parse_insight_item(item: Any) -> Optional[Tuple[str, str]]:
@@ -963,7 +981,11 @@ def _resolve_insight_specs(
             :max_insights
         ]
         if resolved:
-            return resolved
+            # RFC-097 v3.0 chunk-5: classify the bullet-derived strings — they
+            # arrive as ``"unknown"`` (the input layer has no type signal) so
+            # the rule-based classifier is the only opportunity to assign a
+            # meaningful type before the Insight node is built.
+            return [(t, _classify_when_unknown(t, k)) for t, k in resolved]
 
     source = "stub"
     if cfg is not None:
@@ -988,7 +1010,11 @@ def _resolve_insight_specs(
                             resolved_specs.append(p)
                     resolved_specs = resolved_specs[:max_insights]
                     if resolved_specs:
-                        return resolved_specs
+                        # RFC-097 v3.0 chunk-5: classify any unknown-typed
+                        # specs (providers returning ``List[str]`` flow in
+                        # as ``"unknown"``; structured dict items keep their
+                        # provider-supplied type).
+                        return [(t, _classify_when_unknown(t, k)) for t, k in resolved_specs]
             except Exception as e:
                 logger.debug(
                     "generate_insights failed, falling back to stub: %s",
@@ -996,6 +1022,7 @@ def _resolve_insight_specs(
                     exc_info=True,
                 )
 
+    # Stub fallback — genuinely no signal; ``"unknown"`` is correct here.
     return [(_STUB_INSIGHT_TEXT, "unknown")]
 
 
@@ -1492,7 +1519,7 @@ def _artifact_from_multi_insight(
             )
 
     return {
-        "schema_version": "2.0",
+        "schema_version": "3.0",  # RFC-097 chunk 9: v3.0 GI emit
         "model_version": model_version,
         "prompt_version": prompt_version,
         "episode_id": episode_id,

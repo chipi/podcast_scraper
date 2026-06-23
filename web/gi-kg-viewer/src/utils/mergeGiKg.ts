@@ -29,12 +29,18 @@ function deepClone<T>(x: T): T {
   return JSON.parse(JSON.stringify(x)) as T
 }
 
-const DEDUP_TYPES = new Set(['Entity', 'Topic', 'Person'])
+// RFC-097 v3.0: Organization is a first-class typed node alongside Person —
+// both dedupe by lowercased name when the same brand / individual recurs
+// across episodes. Without Organization here, the same "Acme" referenced
+// in 50 episodes would render as 50 separate nodes in the merged graph
+// instead of one canonical Organization with 50 incident MENTIONS_ORG edges.
+const DEDUP_TYPES = new Set(['Entity', 'Topic', 'Person', 'Organization'])
 
 /**
  * Canonical identity key for a node that should be deduplicated across episodes.
- * Entity / Person → lowercased `name` (or `label` / `title` when present), Topic → lowercased `label`.
- * Returns null for types we don't dedup (Episode, Insight, Quote, etc.).
+ * Entity / Person / Organization → lowercased `name` (or `label` / `title` when
+ * present), Topic → lowercased `label`. Returns null for types we don't dedup
+ * (Episode, Insight, Quote, Podcast, etc.).
  */
 function entityCanonicalKey(node: RawGraphNode): string | null {
   const t = node.type

@@ -91,6 +91,29 @@ files.directory(
     _sudo=True,
 )
 
+# 1a. HF cache ownership (#1046 — multi-model on-demand install).
+#
+# The cache dir was originally created root-owned (vLLM compose runs as root
+# in its container). Speaches runs as uid 1000 inside its container, so when
+# we POST /v1/models/<id> on-demand the speaches process must be able to
+# write under HF_HUB_CACHE. Without this chown the install fails with
+# PermissionError: [Errno 13] Permission denied: '/opt/llm-models/huggingface/.locks/...'.
+#
+# Idempotent: if already 1000:1000, this no-ops at the recursive layer
+# (pyinfra's `user`/`group` ops detect drift). Pre-existing models inside
+# the cache (large-v3 baked in at first deploy) keep working — uid 1000 +
+# root group means both speaches (uid 1000) and root-owned containers
+# retain read access.
+files.directory(
+    name=f"chown 1000:1000 {HF_CACHE_HOST} (#1046 — speaches on-demand install)",
+    path=HF_CACHE_HOST,
+    user="1000",
+    group="1000",
+    recursive=True,
+    present=True,
+    _sudo=True,
+)
+
 # 1b. Build context for the derived image (mirrors whisper-server / pyannote
 # pattern). Holds the Dockerfile that applies the #968 Thread B patch on top
 # of the upstream speaches:latest-cuda base.

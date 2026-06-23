@@ -19,7 +19,7 @@ pytestmark = pytest.mark.unit
 # A GI artifact and a KG artifact for the SAME episode, sharing person:alice,
 # topic:ai, and episode:e1 — the cross-layer join surface.
 _GI = {
-    "schema_version": "1.0",
+    "schema_version": "3.0",
     "episode_id": "e1",
     "nodes": [
         {"id": "podcast:show1", "type": "Podcast", "properties": {"title": "Show One"}},
@@ -51,7 +51,7 @@ _GI = {
 }
 
 _KG = {
-    "schema_version": "1.2",
+    "schema_version": "3.0",
     "episode_id": "e1",
     "nodes": [
         {"id": "episode:e1", "type": "Episode", "properties": {"title": "Ep 1"}},

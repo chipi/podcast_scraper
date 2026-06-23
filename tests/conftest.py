@@ -32,6 +32,17 @@ if _project_hf_hub.is_dir():
 os.environ["HF_HUB_OFFLINE"] = "1"
 os.environ["TRANSFORMERS_OFFLINE"] = "1"
 
+# Tests default to the `test_default` profile so model defaults stay cheap/fast.
+# Replaces the old `_is_pytest_run()` + 24 `_get_default_*` env-detect
+# machinery removed 2026-06-23 (see commit history + docs/wip/POST_RFC097_DEV_PROD_REMOVAL.md).
+#
+# Profiles are now the source of truth: `config/profiles/test_default.yaml`
+# pins all the test-tier cheap models that the old TEST_DEFAULT_* constants
+# used to provide via runtime env-detection. Individual tests can still
+# override per-field by passing explicit kwargs to Config(...), or override
+# the profile itself by setting profile=... in their data dict.
+os.environ.setdefault("PODCAST_SCRAPER_PROFILE", "test_default")
+
 # Ollama unit tests replace sys.modules["httpx"] with a MagicMock at import time.
 # Starlette's testclient defines WebSocketDenialResponse(httpx.Response, ...) at import;
 # if that runs after httpx is mocked, Python raises a metaclass conflict. Preload once
@@ -74,6 +85,27 @@ TEST_TRANSCRIPT_TYPE_VTT = "text/vtt"
 TEST_TRANSCRIPT_TYPE_SRT = "text/srt"
 TEST_CONTENT_TYPE_VTT = "text/vtt"
 TEST_CONTENT_TYPE_SRT = "text/srt"
+
+
+@pytest.fixture(autouse=True)
+def _restore_podcast_scraper_profile_env():
+    """Snapshot + restore ``PODCAST_SCRAPER_PROFILE`` around every test.
+
+    Conftest sets this to ``test_default`` at module import so tests pick
+    up the test_default profile by default (replaces the old env-detect
+    machinery — see ``docs/wip/POST_RFC097_DEV_PROD_REMOVAL.md``). Some
+    tests (e.g. ``test_config.py::TestSummaryModeProfileDefaults``)
+    intentionally mutate or pop this var to exercise other profile
+    branches; without this fixture their teardown leaks state into the
+    rest of the suite, silently flipping later tests off the
+    test_default profile.
+    """
+    _prev = os.environ.get("PODCAST_SCRAPER_PROFILE")
+    yield
+    if _prev is None:
+        os.environ.pop("PODCAST_SCRAPER_PROFILE", None)
+    else:
+        os.environ["PODCAST_SCRAPER_PROFILE"] = _prev
 
 
 @pytest.fixture(autouse=True)

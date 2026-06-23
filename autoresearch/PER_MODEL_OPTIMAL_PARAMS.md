@@ -27,7 +27,7 @@ Live notes collected while Round 2 runs the harness fixes. Used as input to #102
 | Moonlight-16B-A3B-Instruct | 0.55 | **8192 (max_position_embeddings limit)** | 4096 | no | tbd | ~12 min | tbd | 8.8 | 1674 | none | needs max-model-len reduce |
 | Mistral-Small-4-119B-NVFP4 | 0.80 | 32768 | 4096 | no | ~67 GB | ~32 min | OOM | n/a | n/a | n/a | OOM on inference — needs max-num-seqs=4 + max-model-len=8192 |
 | Llama-3.3-70B-Instruct-NVFP4 | 0.70 | 32768 | 4096 | no | tbd | ~18 min | tbd | 85 (3 eps) | 2283-2595 | strict prompt | verbosity at 800 cap |
-| DeepSeek-V2-Lite-Chat | 0.55 | 32768 | 4096 | no | tbd | ~9 min | tbd | **4.8 (decoded)** | **983 (decoded)** | strict prompt + decode_r1_byte_level postprocessor | round 1: BPE + verbosity |
+| ~~DeepSeek-V2-Lite-Chat~~ **DROPPED 2026-06-22** | 0.55 | 32768 | 4096 | no | tbd | ~9 min | tbd | 4.8 (decoded) | 983 (decoded) | strict prompt + decode_r1_byte_level postprocessor | DROPPED — structured-extraction floor: 1 mega-Topic + 0 typed entities per ep across temp 0.0/0.7 + guided_json on/off; see MODEL_PLAYBOOK § DeepSeek-V2-Lite-Chat |
 | DeepSeek-R1-0528-Qwen3-8B | 0.55 | 32768 | 4096 | no | tbd | ~5 min | tbd | n/a | n/a | strict + reasoning-off prompt (TBD) | round 1: reasoning consumed budget |
 | Kimi-Linear-48B-A3B-Instruct | 0.80 | 32768 | 4096 | **YES** (tokenization_kimi.py) | tbd | ~38 min | tbd | 10 (2 eps) | 1318 | strict prompt | round 1: verbosity at 800 cap |
 | Nemotron-Super-49B-v1_5-FP8 | 0.65 | 32768 | 4096 | no | tbd | ~22 min | tbd | n/a | n/a | "/no_think" or "detailed thinking off" system msg | round 1: reasoning consumed budget |

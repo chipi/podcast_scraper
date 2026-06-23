@@ -69,7 +69,7 @@ def corpus(tmp_path: Path) -> Path:
     (meta / "ep1.kg.json").write_text(json.dumps(kg_payload), encoding="utf-8")
 
     bridge_payload = {
-        "schema_version": "1.0",
+        "schema_version": "3.0",
         "episode_id": "ep1",
         "emitted_at": "2026-04-13T00:00:00Z",
         "identities": [],
@@ -87,7 +87,7 @@ def client(corpus: Path) -> TestClient:
 def _cil_bundle(directory: Path, stem: str, *, episode_id: str, person: str, topic: str) -> None:
     directory.mkdir(parents=True, exist_ok=True)
     bridge = {
-        "schema_version": "1.0",
+        "schema_version": "3.0",
         "episode_id": episode_id,
         "identities": [
             {

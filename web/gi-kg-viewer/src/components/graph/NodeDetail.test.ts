@@ -350,4 +350,106 @@ describe('NodeDetail', () => {
     // Not in view and no full artifact loaded -> panel hidden.
     expect(w.find('aside').exists()).toBe(false)
   })
+
+  // --- RFC-097 v3.0 typed entity branch -------------------------------------
+  // Organization is a first-class KG node type. NodeDetail's Person/Entity
+  // branch handles both — the button copy adapts (Person profile vs Entity
+  // profile) and the connections section (stubbed here, tested separately in
+  // GraphConnectionsSection.test.ts) renders typed MENTIONS_PERSON /
+  // MENTIONS_ORG rows.
+
+  it('Organization node uses the Entity-profile rail copy (not Person)', async () => {
+    const art = artifactOf(
+      [
+        { id: 'org:acme', type: 'Organization', properties: { name: 'Acme' } },
+        {
+          id: 'insight:1',
+          type: 'Insight',
+          properties: {
+            text: 'Acme launched a new product.',
+            grounded: true,
+            insight_type: 'claim',
+          },
+        },
+      ],
+      [{ from: 'insight:1', to: 'org:acme', type: 'MENTIONS_ORG' }],
+    )
+    const w = mountDetail({ viewArtifact: art, nodeId: 'org:acme' })
+    const shell = useShellStore()
+    shell.healthStatus = 'ok'
+    await w.vm.$nextTick()
+
+    expect(w.text()).toContain('Acme')
+    // The shared Person/Entity rail handles Organization too; the profile
+    // button copy switches from "Person profile" to "Entity profile".
+    const btn = w.find('[data-testid="node-detail-open-person-profile"]')
+    expect(btn.exists()).toBe(true)
+    expect(btn.text()).toContain('Entity profile')
+    expect(btn.text()).not.toContain('Person profile')
+  })
+
+  it('Organization node still invokes the GraphConnectionsSection with the right artifact + nodeId', async () => {
+    /** The connections panel for an Organization surfaces MENTIONS_ORG
+     * inbound edges via the stubbed GraphConnectionsSection. We assert
+     * the wiring (props), not the rendering (covered separately in
+     * GraphConnectionsSection.test.ts).
+     */
+    const art = artifactOf(
+      [
+        { id: 'org:acme', type: 'Organization', properties: { name: 'Acme' } },
+        {
+          id: 'insight:1',
+          type: 'Insight',
+          properties: { text: 'About Acme.', grounded: true, insight_type: 'observation' },
+        },
+      ],
+      [{ from: 'insight:1', to: 'org:acme', type: 'MENTIONS_ORG' }],
+    )
+    const w = mountDetail({ viewArtifact: art, nodeId: 'org:acme' })
+    const stub = w.findComponent({ name: 'GraphConnectionsSection' })
+    expect(stub.exists()).toBe(true)
+    expect(stub.props('nodeId')).toBe('org:acme')
+    // Edge type pass-through is asserted in GraphConnectionsSection.test.ts.
+  })
+
+  it('Insight node passes typed-MENTIONS-rich artifact to the GraphConnectionsSection', async () => {
+    /** Wiring assertion: when an Insight has both MENTIONS_PERSON and
+     * MENTIONS_ORG outgoing, the connections section receives the
+     * artifact intact. Rendering details (precise edge-type text) are
+     * asserted in GraphConnectionsSection.test.ts.
+     */
+    const art = artifactOf(
+      [
+        {
+          id: 'insight:1',
+          type: 'Insight',
+          properties: {
+            text: 'Ada from Acme launched a product.',
+            grounded: true,
+            insight_type: 'claim',
+            position_hint: 0.42,
+          },
+        },
+        { id: 'person:ada', type: 'Person', properties: { name: 'Ada' } },
+        { id: 'org:acme', type: 'Organization', properties: { name: 'Acme' } },
+        { id: 'topic:tech', type: 'Topic', properties: { label: 'Tech' } },
+        { id: 'quote:1', type: 'Quote', properties: { text: 'Quote.' } },
+      ],
+      [
+        { from: 'insight:1', to: 'topic:tech', type: 'ABOUT' },
+        { from: 'insight:1', to: 'quote:1', type: 'SUPPORTED_BY' },
+        { from: 'insight:1', to: 'person:ada', type: 'MENTIONS_PERSON' },
+        { from: 'insight:1', to: 'org:acme', type: 'MENTIONS_ORG' },
+      ],
+    )
+    const w = mountDetail({ viewArtifact: art, nodeId: 'insight:1' })
+    const stub = w.findComponent({ name: 'GraphConnectionsSection' })
+    expect(stub.exists()).toBe(true)
+    expect(stub.props('nodeId')).toBe('insight:1')
+
+    // insight_type chip / label visible directly in the Insight panel
+    // (rendered by NodeDetail itself, not the connections stub).
+    const text = w.text()
+    expect(text.toLowerCase()).toContain('claim')
+  })
 })

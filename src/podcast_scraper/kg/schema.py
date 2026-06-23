@@ -46,8 +46,16 @@ def _minimal_validate(data: Dict[str, Any]) -> None:
     if not isinstance(data.get("schema_version"), str):
         raise ValueError("KG artifact 'schema_version' must be a string")
     sv = data.get("schema_version")
-    if sv not in ("1.0", "1.1", "1.2", "2.0"):
-        raise ValueError("KG artifact 'schema_version' must be '1.0', '1.1', '1.2', or '2.0'")
+    # RFC-097 chunk 9 (ADR-101, 2026-06-22): legacy 1.0/1.1/1.2 shape rejected.
+    # Migration scripts read input as raw JSON (json.load), not via
+    # validate_artifact, so this strict version gate does not block migration
+    # of legacy corpora.
+    if sv != "2.0":
+        raise ValueError(
+            "KG artifact 'schema_version' must be '2.0' (RFC-097 v2). Legacy "
+            "1.0/1.1/1.2 shape is no longer accepted; migrate via "
+            "scripts/migrate_kg_entity_to_person_org.py."
+        )
     ext = data.get("extraction")
     if not isinstance(ext, dict):
         raise ValueError("KG artifact 'extraction' must be an object")

@@ -297,7 +297,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
         ensure_ml_models_cached(cfg)
         mock_should_preload.assert_called_once_with(cfg)
 
-    @patch("podcast_scraper.workflow.stages.setup.config._is_test_environment")
+    @patch("podcast_scraper.workflow.stages.setup.config._is_pytest_run")
     @patch("podcast_scraper.workflow.stages.setup.should_preload_ml_models")
     def test_skips_in_test_environment(self, mock_should_preload, mock_is_test):
         """Test that function returns early in test environment."""
@@ -310,7 +310,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
         ensure_ml_models_cached(cfg)
         mock_is_test.assert_called_once()
 
-    @patch("podcast_scraper.config._is_test_environment")
+    @patch("podcast_scraper.config._is_pytest_run")
     @patch("podcast_scraper.workflow.stages.setup.should_preload_ml_models")
     @patch("podcast_scraper.cache.get_whisper_cache_dir")
     def test_checks_whisper_model_cache(self, mock_get_whisper, mock_should_preload, mock_is_test):
@@ -339,7 +339,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
         # Should check if model file exists
         mock_model_file.exists.assert_called()
 
-    @patch("podcast_scraper.config._is_test_environment")
+    @patch("podcast_scraper.config._is_pytest_run")
     @patch("podcast_scraper.workflow.stages.setup.should_preload_ml_models")
     @patch("podcast_scraper.providers.ml.model_loader.preload_whisper_models")
     @patch("podcast_scraper.cache.get_whisper_cache_dir")
@@ -371,7 +371,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
         # Should call preload_whisper_models
         mock_preload_whisper.assert_called_once_with(["tiny.en"])
 
-    @patch("podcast_scraper.config._is_test_environment")
+    @patch("podcast_scraper.config._is_pytest_run")
     @patch("podcast_scraper.workflow.stages.setup.should_preload_ml_models")
     @patch("podcast_scraper.providers.ml.summarizer.select_reduce_model")
     @patch("podcast_scraper.providers.ml.summarizer.select_summary_model")
@@ -414,7 +414,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
         # Should check model selection
         mock_select_summary.assert_called_once_with(cfg)
 
-    @patch("podcast_scraper.config._is_test_environment")
+    @patch("podcast_scraper.config._is_pytest_run")
     @patch("podcast_scraper.workflow.stages.setup.should_preload_ml_models")
     @patch("podcast_scraper.providers.ml.model_loader.preload_transformers_models")
     @patch("podcast_scraper.providers.ml.summarizer.select_reduce_model")
@@ -459,7 +459,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
         # Should call preload_transformers_models
         mock_preload_transformers.assert_called_once_with(["bart-small"])
 
-    @patch("podcast_scraper.config._is_test_environment")
+    @patch("podcast_scraper.config._is_pytest_run")
     @patch("podcast_scraper.workflow.stages.setup.should_preload_ml_models")
     @patch("podcast_scraper.workflow.stages.setup.logger")
     def test_handles_import_error_gracefully(self, mock_logger, mock_should_preload, mock_is_test):
@@ -481,7 +481,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
             # Should not raise
             ensure_ml_models_cached(cfg)
 
-    @patch("podcast_scraper.config._is_test_environment")
+    @patch("podcast_scraper.config._is_pytest_run")
     @patch("podcast_scraper.workflow.stages.setup.should_preload_ml_models")
     @patch("podcast_scraper.workflow.stages.setup.logger")
     def test_handles_general_exception_gracefully(

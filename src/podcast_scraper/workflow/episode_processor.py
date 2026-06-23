@@ -1399,8 +1399,25 @@ def _transcribe_with_segments_maybe_chunked(
     )
     from ..utils.timeout import timeout_context, TimeoutError
 
+    # #1046 — when the operator has wired up the sniff-pass gate, run the
+    # sniff (cheap) model first and only call the deep (large) model on
+    # episodes whose NER density meets the gate threshold. Disabled by
+    # default; activation gated on cfg.dgx_whisper_sniff_model being set
+    # AND the active provider being tailnet_dgx_whisper. See
+    # src/podcast_scraper/workflow/sniff_gate.py + docs/wip/1046-WHISPER-MULTI-MODEL-DESIGN.md.
+    from . import sniff_gate as _sniff_gate
+
     def _transcribe_one(path: str) -> Tuple[Dict[str, Any], float]:
         with timeout_context(cfg.transcription_timeout, f"transcription for episode {job.idx}"):
+            if _sniff_gate.is_enabled(cfg):
+                return _sniff_gate.transcribe_with_sniff_gate(
+                    media_path=path,
+                    cfg=cfg,
+                    provider=transcription_provider,
+                    pipeline_metrics=pipeline_metrics,
+                    episode_duration_seconds=episode_duration_seconds,
+                    call_metrics=call_metrics,
+                )
             result, elapsed = transcription_provider.transcribe_with_segments(
                 path,
                 language=cfg.language,

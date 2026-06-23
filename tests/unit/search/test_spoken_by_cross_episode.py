@@ -74,7 +74,7 @@ def _write_episode(
     (corpus / f"{stem}.gi.json").write_text(
         json.dumps(
             {
-                "schema_version": "2.0",
+                "schema_version": "3.0",
                 "model_version": "t",
                 "prompt_version": "t",
                 "episode_id": episode_id,

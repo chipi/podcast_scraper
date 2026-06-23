@@ -179,8 +179,12 @@ data/results-old/
 # Evaluation materialized outputs
 data/eval/materialized/
 
-# Evaluation runs
-data/eval/runs/
+# Evaluation runs (ignore contents, but the marker note IS tracked).
+# The marker warns future-you about the pre-fix scoreboards captured during
+# the 2026-02-06 → 2026-06-22 silent-test-defaults regression window
+# (see docs/wip/POST_RFC097_DEV_PROD_REMOVAL.md).
+data/eval/runs/*
+!data/eval/runs/_PRE_FIX_NOTE.md
 
 # Generated eval configs (scripts/eval/pipeline_validate.py auto-writes here)
 data/eval/configs/_pipeline_validate/

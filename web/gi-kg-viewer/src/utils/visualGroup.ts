@@ -7,7 +7,11 @@ export function visualGroupForNode(n: RawGraphNode | null | undefined): string {
   if (!n || typeof n !== 'object') return '?'
   const t = typeof n.type === 'string' ? n.type : '?'
   if (t === 'TopicCluster') return 'TopicCluster'
+  // RFC-097 v3.0: Person + Organization are first-class typed nodes; both
+  // map to their existing visual groups so legend / metrics / stylesheet
+  // surfaces treat them uniformly with legacy v1.x Entity(kind=...) shapes.
   if (t === 'Person') return 'Entity_person'
+  if (t === 'Organization') return 'Entity_organization'
   if (t !== 'Entity') return t
   const p = n.properties || {}
   const kindRaw = typeof p.kind === 'string' ? p.kind.trim().toLowerCase() : ''

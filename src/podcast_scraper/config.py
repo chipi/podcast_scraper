@@ -141,28 +141,16 @@ else:
 
 # Load .env file if it exists (OpenAI API key management)
 # Check for .env in project root
-# Use get_project_root() for robust path resolution
-# SKIP .env loading in test environments - tests should use Config objects and
-# environment variables directly, never rely on .env files
-def _is_test_environment() -> bool:
-    """Check if we're running in a test environment."""
-    import sys
+# Pytest-run detection lives in ``utils/runtime_env`` (single source of truth;
+# duplicated previously in ``evaluation/autoresearch_track_a.py``). It's used
+# ONLY to gate .env loading — NOT for any kind of default-flipping. See
+# ``docs/wip/POST_RFC097_DEV_PROD_REMOVAL.md`` for the chapter.
+from .utils.runtime_env import is_pytest_run as _is_pytest_run  # noqa: E402
 
-    # Check for pytest (most common test runner)
-    if "pytest" in sys.modules or "PYTEST_CURRENT_TEST" in os.environ:
-        return True
-    # Check for unittest
-    if "unittest" in sys.modules:
-        return True
-    # Check for explicit test environment variable
-    if os.environ.get("TESTING", "").lower() in ("1", "true", "yes"):
-        return True
-    return False
-
-
-# Only load .env file if NOT in test environment
-# Tests should use Config objects with explicit values or environment variables
-if not _is_test_environment():
+# Skip .env loading under pytest — tests must be hermetic to shell secrets.
+# Tests should use Config objects with explicit values or pin via the
+# test_default profile.
+if not _is_pytest_run():
     try:
         from .cache import get_project_root
 
@@ -225,14 +213,14 @@ PROD_DEFAULT_SUMMARY_MODEL = config_constants.PROD_DEFAULT_SUMMARY_MODEL
 PROD_DEFAULT_SUMMARY_REDUCE_MODEL = config_constants.PROD_DEFAULT_SUMMARY_REDUCE_MODEL
 
 # OpenAI model defaults
-TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL = config_constants.TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL
-TEST_DEFAULT_OPENAI_SPEAKER_MODEL = config_constants.TEST_DEFAULT_OPENAI_SPEAKER_MODEL
+DEFAULT_OPENAI_TRANSCRIPTION_MODEL = config_constants.DEFAULT_OPENAI_TRANSCRIPTION_MODEL
+DEFAULT_OPENAI_SPEAKER_MODEL = config_constants.DEFAULT_OPENAI_SPEAKER_MODEL
 TEST_DEFAULT_OPENAI_SUMMARY_MODEL = config_constants.TEST_DEFAULT_OPENAI_SUMMARY_MODEL
-TEST_DEFAULT_OPENAI_CLEANING_MODEL = config_constants.TEST_DEFAULT_OPENAI_CLEANING_MODEL
-PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL = config_constants.PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL
-PROD_DEFAULT_OPENAI_SPEAKER_MODEL = config_constants.PROD_DEFAULT_OPENAI_SPEAKER_MODEL
+DEFAULT_OPENAI_CLEANING_MODEL = config_constants.DEFAULT_OPENAI_CLEANING_MODEL
+DEFAULT_OPENAI_TRANSCRIPTION_MODEL = config_constants.DEFAULT_OPENAI_TRANSCRIPTION_MODEL
+DEFAULT_OPENAI_SPEAKER_MODEL = config_constants.DEFAULT_OPENAI_SPEAKER_MODEL
 PROD_DEFAULT_OPENAI_SUMMARY_MODEL = config_constants.PROD_DEFAULT_OPENAI_SUMMARY_MODEL
-PROD_DEFAULT_OPENAI_CLEANING_MODEL = config_constants.PROD_DEFAULT_OPENAI_CLEANING_MODEL
+DEFAULT_OPENAI_CLEANING_MODEL = config_constants.DEFAULT_OPENAI_CLEANING_MODEL
 
 # Validation constants
 VALID_WHISPER_MODELS = config_constants.VALID_WHISPER_MODELS
@@ -252,308 +240,27 @@ DEFAULT_SUMMARY_WORD_OVERLAP = config_constants.DEFAULT_SUMMARY_WORD_OVERLAP
 
 
 def _get_default_summary_mode_id() -> Optional[str]:
-    """Get default summarization mode ID based on environment.
+    """Default summarization mode ID — always the PROD mode.
 
-    Returns:
-        None in test environments (to avoid altering unit test defaults),
-        dev or production mode ID otherwise.
+    The env-var-reading "switch between DEV and PROD by reading
+    ``PODCAST_SCRAPER_PROFILE``" logic was removed 2026-06-23. Profile
+    YAMLs now pin ``summary_mode_id`` explicitly where they want
+    something other than the PROD default:
+
+    - ``config/profiles/dev.yaml`` pins ``ml_small_authority``
+    - ``config/profiles/test_default.yaml`` pins ``null`` (no mode →
+      explicit ``summary_model`` / ``summary_reduce_model`` per test)
+    - Other profiles inherit this PROD default
+
+    Closes the loop on operator's directive ("profiles are source of
+    truth; no separate set of controls"). See
+    ``docs/wip/POST_RFC097_DEV_PROD_REMOVAL.md``.
     """
-    if _is_test_environment():
-        return None
-    profile = (os.environ.get("PODCAST_SCRAPER_PROFILE") or "").strip().lower()
-    if profile in ("dev", "development", "local"):
-        return getattr(config_constants, "DEV_DEFAULT_SUMMARY_MODE_ID", None) or getattr(
-            config_constants, "PROD_DEFAULT_SUMMARY_MODE_ID", None
-        )
-    if profile and profile not in ("prod", "production"):
-        warnings.warn(
-            f"Unknown PODCAST_SCRAPER_PROFILE={profile!r}; defaulting to production defaults",
-            RuntimeWarning,
-        )
     return getattr(config_constants, "PROD_DEFAULT_SUMMARY_MODE_ID", None)
 
 
-def _get_default_openai_transcription_model() -> str:
-    """Get default OpenAI transcription model based on environment.
-
-    Returns:
-        Test default if in test environment, production default otherwise.
-    """
-    if _is_test_environment():
-        return TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL
-    return PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL
-
-
-def _get_default_openai_speaker_model() -> str:
-    """Get default OpenAI speaker detection model based on environment.
-
-    Returns:
-        Test default if in test environment, production default otherwise.
-    """
-    if _is_test_environment():
-        return TEST_DEFAULT_OPENAI_SPEAKER_MODEL
-    return PROD_DEFAULT_OPENAI_SPEAKER_MODEL
-
-
-def _get_default_openai_summary_model() -> str:
-    """Get default OpenAI summarization model based on environment.
-
-    Returns:
-        Test default if in test environment, production default otherwise.
-    """
-    if _is_test_environment():
-        return TEST_DEFAULT_OPENAI_SUMMARY_MODEL
-    return PROD_DEFAULT_OPENAI_SUMMARY_MODEL
-
-
-def _get_default_gemini_transcription_model() -> str:
-    """Get default Gemini transcription model based on environment.
-
-    Returns:
-        Test default if in test environment, production default otherwise.
-    """
-    if _is_test_environment():
-        return config_constants.TEST_DEFAULT_GEMINI_TRANSCRIPTION_MODEL
-    return config_constants.PROD_DEFAULT_GEMINI_TRANSCRIPTION_MODEL
-
-
-def _get_default_gemini_speaker_model() -> str:
-    """Get default Gemini speaker detection model based on environment.
-
-    Returns:
-        Test default if in test environment, production default otherwise.
-    """
-    if _is_test_environment():
-        return config_constants.TEST_DEFAULT_GEMINI_SPEAKER_MODEL
-    return config_constants.PROD_DEFAULT_GEMINI_SPEAKER_MODEL
-
-
-def _get_default_gemini_summary_model() -> str:
-    """Get default Gemini summarization model based on environment.
-
-    Returns:
-        Test default if in test environment, production default otherwise.
-    """
-    if _is_test_environment():
-        return config_constants.TEST_DEFAULT_GEMINI_SUMMARY_MODEL
-    return config_constants.PROD_DEFAULT_GEMINI_SUMMARY_MODEL
-
-
-def _get_default_anthropic_transcription_model() -> str:
-    """Get default Anthropic transcription model based on environment.
-
-    Note: Anthropic doesn't support native audio transcription.
-    This is a placeholder for API compatibility.
-
-    Returns:
-        Test default if in test environment, production default otherwise.
-    """
-    if _is_test_environment():
-        return config_constants.TEST_DEFAULT_ANTHROPIC_TRANSCRIPTION_MODEL
-    return config_constants.PROD_DEFAULT_ANTHROPIC_TRANSCRIPTION_MODEL
-
-
-def _get_default_anthropic_speaker_model() -> str:
-    """Get default Anthropic speaker detection model based on environment.
-
-    Returns:
-        Test default if in test environment, production default otherwise.
-    """
-    if _is_test_environment():
-        return config_constants.TEST_DEFAULT_ANTHROPIC_SPEAKER_MODEL
-    return config_constants.PROD_DEFAULT_ANTHROPIC_SPEAKER_MODEL
-
-
-def _get_default_anthropic_summary_model() -> str:
-    """Get default Anthropic summarization model based on environment.
-
-    Returns:
-        Test default if in test environment, production default otherwise.
-    """
-    if _is_test_environment():
-        return config_constants.TEST_DEFAULT_ANTHROPIC_SUMMARY_MODEL
-    return config_constants.PROD_DEFAULT_ANTHROPIC_SUMMARY_MODEL
-
-
-def _get_default_deepseek_speaker_model() -> str:
-    """Get default DeepSeek speaker detection model based on environment.
-
-    Returns:
-        Test default if in test environment, production default otherwise.
-    """
-    if _is_test_environment():
-        return config_constants.TEST_DEFAULT_DEEPSEEK_SPEAKER_MODEL
-    return config_constants.PROD_DEFAULT_DEEPSEEK_SPEAKER_MODEL
-
-
-def _get_default_deepseek_summary_model() -> str:
-    """Get default DeepSeek summarization model based on environment.
-
-    Returns:
-        Test default if in test environment, production default otherwise.
-    """
-    if _is_test_environment():
-        return config_constants.TEST_DEFAULT_DEEPSEEK_SUMMARY_MODEL
-    return config_constants.PROD_DEFAULT_DEEPSEEK_SUMMARY_MODEL
-
-
-def _get_default_grok_speaker_model() -> str:
-    """Get default Grok speaker detection model based on environment.
-
-    Returns:
-        Test default if in test environment, production default otherwise.
-    """
-    if _is_test_environment():
-        return config_constants.TEST_DEFAULT_GROK_SPEAKER_MODEL
-    return config_constants.PROD_DEFAULT_GROK_SPEAKER_MODEL
-
-
-def _get_default_grok_summary_model() -> str:
-    """Get default Grok summarization model based on environment.
-
-    Returns:
-        Test default if in test environment, production default otherwise.
-    """
-    if _is_test_environment():
-        return config_constants.TEST_DEFAULT_GROK_SUMMARY_MODEL
-    return config_constants.PROD_DEFAULT_GROK_SUMMARY_MODEL
-
-
-def _get_default_ollama_speaker_model() -> str:
-    """Get default Ollama speaker detection model based on environment.
-
-    Returns:
-        Test default if in test environment, production default otherwise.
-    """
-    if _is_test_environment():
-        return config_constants.TEST_DEFAULT_OLLAMA_SPEAKER_MODEL
-    return config_constants.PROD_DEFAULT_OLLAMA_SPEAKER_MODEL
-
-
-def _get_default_ollama_summary_model() -> str:
-    """Get default Ollama summarization model based on environment.
-
-    Returns:
-        Test default if in test environment, production default otherwise.
-    """
-    if _is_test_environment():
-        return config_constants.TEST_DEFAULT_OLLAMA_SUMMARY_MODEL
-    return config_constants.PROD_DEFAULT_OLLAMA_SUMMARY_MODEL
-
-
-def _get_default_mistral_transcription_model() -> str:
-    """Get default Mistral transcription model based on environment.
-
-    Returns:
-        Test default if in test environment, production default otherwise.
-    """
-    if _is_test_environment():
-        return config_constants.TEST_DEFAULT_MISTRAL_TRANSCRIPTION_MODEL
-    return config_constants.PROD_DEFAULT_MISTRAL_TRANSCRIPTION_MODEL
-
-
-def _get_default_mistral_speaker_model() -> str:
-    """Get default Mistral speaker detection model based on environment.
-
-    Returns:
-        Test default if in test environment, production default otherwise.
-    """
-    if _is_test_environment():
-        return config_constants.TEST_DEFAULT_MISTRAL_SPEAKER_MODEL
-    return config_constants.PROD_DEFAULT_MISTRAL_SPEAKER_MODEL
-
-
-def _get_default_mistral_summary_model() -> str:
-    """Get default Mistral summarization model based on environment.
-
-    Returns:
-        Test default if in test environment, production default otherwise.
-    """
-    if _is_test_environment():
-        return config_constants.TEST_DEFAULT_MISTRAL_SUMMARY_MODEL
-    return config_constants.PROD_DEFAULT_MISTRAL_SUMMARY_MODEL
-
-
-def _get_default_openai_cleaning_model() -> str:
-    """Get default OpenAI transcript-cleaning model based on environment.
-
-    Returns:
-        Test default in test/CI environments; production default otherwise.
-        Override with ``openai_cleaning_model`` (e.g. ``gpt-3.5-turbo``) to reduce cost.
-    """
-    if _is_test_environment():
-        return TEST_DEFAULT_OPENAI_CLEANING_MODEL
-    return PROD_DEFAULT_OPENAI_CLEANING_MODEL
-
-
-def _get_default_anthropic_cleaning_model() -> str:
-    """Get default Anthropic cleaning model (cheaper than summary model).
-
-    Returns:
-        ``claude-haiku-4-5`` (Anthropic alias for Claude Haiku 4.5)
-    """
-    return "claude-haiku-4-5"
-
-
-def _get_default_gemini_cleaning_model() -> str:
-    """Get default Gemini cleaning model (cheaper than summary model).
-
-    Returns:
-        ``gemini-2.5-flash-lite`` (``gemini-1.5-flash`` is not available on current Generative API)
-    """
-    return "gemini-2.5-flash-lite"
-
-
-def _get_default_mistral_cleaning_model() -> str:
-    """Get default Mistral cleaning model (cheaper than summary model).
-
-    Returns:
-        'mistral-small' (cheaper model for cleaning)
-    """
-    return "mistral-small"
-
-
-def _get_default_deepseek_cleaning_model() -> str:
-    """Get default DeepSeek cleaning model (cheaper than summary model).
-
-    Returns:
-        'deepseek-chat' (same as summary, but can be overridden)
-    """
-    return "deepseek-chat"
-
-
-def _get_default_ollama_cleaning_model() -> str:
-    """Get default Ollama cleaning model (smaller than summary model).
-
-    Returns:
-        'llama3.1:8b' (smaller model for cleaning)
-    """
-    return "llama3.1:8b"
-
-
-def _get_default_grok_cleaning_model() -> str:
-    """Get default Grok cleaning model (cheaper than summary model).
-
-    Returns:
-        'grok-beta' (same as summary, but can be overridden)
-    """
-    return "grok-beta"
-
-
-def _get_default_ner_model() -> str:
-    """Get default spaCy NER model based on environment.
-
-    Returns:
-        Test default (en_core_web_sm) if in test environment,
-        production default (en_core_web_trf) otherwise.
-    """
-    if _is_test_environment():
-        return TEST_DEFAULT_NER_MODEL
-    return PROD_DEFAULT_NER_MODEL
-
-
 # Set DEFAULT_NER_MODEL to use the environment-aware function
-DEFAULT_NER_MODEL = _get_default_ner_model()
+DEFAULT_NER_MODEL = PROD_DEFAULT_NER_MODEL
 
 
 # Default generation parameters (aligned with baseline_ml_prod_authority_v1)
@@ -584,29 +291,27 @@ DEFAULT_REDUCE_REPETITION_PENALTY = 1.12  # Production baseline: 1.12 (LED-base 
 
 # Default tokenization limits (moved from model defaults)
 def _get_default_summary_tokenize() -> Dict[str, Any]:
-    """Get default tokenization settings for local transformers summarization.
+    """Default tokenization settings for local transformers summarization.
 
-    In production, defaults are sourced from the promoted production mode
-    registry to ensure baseline == app behavior.
+    Sources tokenize knobs from the PROD mode by default. Profile YAMLs
+    pin ``summary_tokenize: {...}`` (or ``summary_mode_id``) directly
+    where they need different values. The env-var-reading "switch by
+    profile name" logic was removed 2026-06-23 — closes the loop on
+    operator's "profiles are source of truth" directive.
 
-    In tests, use safe defaults to keep unit tests stable and independent of
-    production mode registry contents.
+    Tests opt out via the ``test_default`` profile (which pins
+    ``summary_mode_id: null`` and explicit ``summary_model`` /
+    ``summary_reduce_model``).
     """
-    if not _is_test_environment():
-        profile = (os.environ.get("PODCAST_SCRAPER_PROFILE") or "").strip().lower()
-        mode_id = (
-            getattr(config_constants, "DEV_DEFAULT_SUMMARY_MODE_ID", None)
-            if profile in ("dev", "development", "local")
-            else getattr(config_constants, "PROD_DEFAULT_SUMMARY_MODE_ID", None)
-        )
-        if mode_id:
-            try:
-                from podcast_scraper.providers.ml.model_registry import ModelRegistry
+    mode_id = getattr(config_constants, "PROD_DEFAULT_SUMMARY_MODE_ID", None)
+    if mode_id:
+        try:
+            from podcast_scraper.providers.ml.model_registry import ModelRegistry
 
-                return dict(ModelRegistry.get_mode_configuration(mode_id).tokenize)
-            except Exception:
-                # Fall back to safe defaults if registry is unavailable or missing mode.
-                pass
+            return dict(ModelRegistry.get_mode_configuration(mode_id).tokenize)
+        except Exception:
+            # Fall back to safe defaults if registry is unavailable or missing mode.
+            pass
     return {
         "map_max_input_tokens": 1024,
         "reduce_max_input_tokens": 4096,
@@ -1288,7 +993,7 @@ class Config(BaseModel):
     )
     language: str = Field(default=DEFAULT_LANGUAGE, alias="language")
     ner_model: Optional[str] = Field(
-        default_factory=_get_default_ner_model,
+        default=PROD_DEFAULT_NER_MODEL,
         alias="ner_model",
         description=(
             "spaCy NER model name for speaker detection. "
@@ -1365,6 +1070,32 @@ class Config(BaseModel):
             "loads on DGX. Pre-#814 default was the Ollama-style 'whisper-large-v3' "
             "tag, but Ollama doesn't serve Whisper; the prod path is now "
             "faster-whisper-server which takes HF repo IDs."
+        ),
+    )
+    dgx_whisper_sniff_model: str = Field(
+        default="",
+        alias="dgx_whisper_sniff_model",
+        description=(
+            "#1046 — Whisper sniff-pass model for the gated two-model workflow. "
+            "When non-empty, the pipeline can transcribe with this cheap model "
+            "first, decide whether the episode is worth deep-transcribing, and "
+            "only then call dgx_whisper_model. Empty (the default) disables the "
+            "sniff pass entirely — single-model behaviour. See "
+            "docs/wip/1046-WHISPER-MULTI-MODEL-DESIGN.md for the gate criterion "
+            "+ cost model. Typical value: ``Systran/faster-whisper-small.en``. "
+            "Gate orchestration is operator-attended once measurement-pass "
+            "lands the (r, accuracy) numbers — until then the knob exists but "
+            "the gate logic does not."
+        ),
+    )
+    dgx_whisper_sniff_gate_min_entities: int = Field(
+        default=5,
+        alias="dgx_whisper_sniff_gate_min_entities",
+        description=(
+            "#1046 — spaCy NER entity count required on the sniff-pass transcript "
+            "to trigger the deep-transcription pass. Below this → keep the sniff "
+            "transcript and skip deep. Operator-tunable; default 5 is a placeholder "
+            "until the measurement pass on prod-v2 corpus pins the optimal value."
         ),
     )
     diarization_provider: Literal["local", "tailnet_dgx", "gemini", "deepgram"] = Field(
@@ -1521,17 +1252,17 @@ class Config(BaseModel):
         "``{chat_template_kwargs: {enable_thinking: false}}`` (#960).",
     )
     openai_transcription_model: str = Field(
-        default_factory=_get_default_openai_transcription_model,
+        default=DEFAULT_OPENAI_TRANSCRIPTION_MODEL,
         alias="openai_transcription_model",
         description="OpenAI Whisper API model version (default: environment-based)",
     )
     openai_speaker_model: str = Field(
-        default_factory=_get_default_openai_speaker_model,
+        default=DEFAULT_OPENAI_SPEAKER_MODEL,
         alias="openai_speaker_model",
         description="OpenAI model for speaker detection (default: environment-based)",
     )
     openai_summary_model: str = Field(
-        default_factory=_get_default_openai_summary_model,
+        default=PROD_DEFAULT_OPENAI_SUMMARY_MODEL,
         alias="openai_summary_model",
         description="OpenAI model for summarization (default: environment-based)",
     )
@@ -1559,7 +1290,7 @@ class Config(BaseModel):
         ),
     )
     openai_cleaning_model: str = Field(
-        default_factory=_get_default_openai_cleaning_model,
+        default=DEFAULT_OPENAI_CLEANING_MODEL,
         alias="openai_cleaning_model",
         description=(
             "OpenAI model for hybrid/LLM transcript cleaning before summarization "
@@ -1633,17 +1364,17 @@ class Config(BaseModel):
         "Can be set via GEMINI_API_BASE environment variable.",
     )
     gemini_transcription_model: str = Field(
-        default_factory=_get_default_gemini_transcription_model,
+        default=config_constants.DEFAULT_GEMINI_TRANSCRIPTION_MODEL,
         alias="gemini_transcription_model",
         description="Gemini model for transcription (default: environment-based)",
     )
     gemini_speaker_model: str = Field(
-        default_factory=_get_default_gemini_speaker_model,
+        default=config_constants.DEFAULT_GEMINI_SPEAKER_MODEL,
         alias="gemini_speaker_model",
         description="Gemini model for speaker detection (default: environment-based)",
     )
     gemini_summary_model: str = Field(
-        default_factory=_get_default_gemini_summary_model,
+        default=config_constants.DEFAULT_GEMINI_SUMMARY_MODEL,
         alias="gemini_summary_model",
         description="Gemini model for summarization (default: environment-based)",
     )
@@ -1653,7 +1384,7 @@ class Config(BaseModel):
         description="Temperature for Gemini generation (0.0-2.0, lower = more deterministic)",
     )
     gemini_cleaning_model: str = Field(
-        default_factory=_get_default_gemini_cleaning_model,
+        default="gemini-2.5-flash-lite",
         alias="gemini_cleaning_model",
         description=(
             "Gemini model for transcript cleaning "
@@ -1736,18 +1467,18 @@ class Config(BaseModel):
         "Can be set via ANTHROPIC_API_BASE environment variable.",
     )
     anthropic_transcription_model: str = Field(
-        default_factory=_get_default_anthropic_transcription_model,
+        default=config_constants.DEFAULT_ANTHROPIC_TRANSCRIPTION_MODEL,
         alias="anthropic_transcription_model",
         description="Anthropic model for transcription (default: environment-based). "
         "Note: Anthropic doesn't support native audio transcription.",
     )
     anthropic_speaker_model: str = Field(
-        default_factory=_get_default_anthropic_speaker_model,
+        default=config_constants.PROD_DEFAULT_ANTHROPIC_SPEAKER_MODEL,
         alias="anthropic_speaker_model",
         description="Anthropic model for speaker detection (default: environment-based)",
     )
     anthropic_summary_model: str = Field(
-        default_factory=_get_default_anthropic_summary_model,
+        default=config_constants.PROD_DEFAULT_ANTHROPIC_SUMMARY_MODEL,
         alias="anthropic_summary_model",
         description="Anthropic model for summarization (default: environment-based)",
     )
@@ -1757,7 +1488,7 @@ class Config(BaseModel):
         description="Temperature for Anthropic generation (0.0-1.0, lower = more deterministic)",
     )
     anthropic_cleaning_model: str = Field(
-        default_factory=_get_default_anthropic_cleaning_model,
+        default="claude-haiku-4-5",
         alias="anthropic_cleaning_model",
         description="Anthropic model for transcript cleaning (default: claude-haiku-4-5, cheaper than summary model)",  # noqa: E501
     )
@@ -1807,12 +1538,12 @@ class Config(BaseModel):
         "Can be set via OLLAMA_API_BASE environment variable.",
     )
     ollama_speaker_model: str = Field(
-        default_factory=_get_default_ollama_speaker_model,
+        default=config_constants.DEFAULT_OLLAMA_SPEAKER_MODEL,
         alias="ollama_speaker_model",
         description="Ollama model for speaker detection (default: environment-based)",
     )
     ollama_summary_model: str = Field(
-        default_factory=_get_default_ollama_summary_model,
+        default=config_constants.DEFAULT_OLLAMA_SUMMARY_MODEL,
         alias="ollama_summary_model",
         description="Ollama model for summarization (default: environment-based)",
     )
@@ -1854,7 +1585,7 @@ class Config(BaseModel):
         description="Frequency penalty for Ollama reduce stage. When None, uses 0.0.",
     )
     ollama_cleaning_model: str = Field(
-        default_factory=_get_default_ollama_cleaning_model,
+        default="llama3.1:8b",
         alias="ollama_cleaning_model",
         description="Ollama model for transcript cleaning (default: llama3.1:8b, smaller than summary model)",  # noqa: E501
     )
@@ -1913,12 +1644,12 @@ class Config(BaseModel):
         "Can be set via DEEPSEEK_API_BASE environment variable.",
     )
     deepseek_speaker_model: str = Field(
-        default_factory=_get_default_deepseek_speaker_model,
+        default=config_constants.DEFAULT_DEEPSEEK_SPEAKER_MODEL,
         alias="deepseek_speaker_model",
         description="DeepSeek model for speaker detection (default: environment-based)",
     )
     deepseek_summary_model: str = Field(
-        default_factory=_get_default_deepseek_summary_model,
+        default=config_constants.DEFAULT_DEEPSEEK_SUMMARY_MODEL,
         alias="deepseek_summary_model",
         description="DeepSeek model for summarization (default: environment-based)",
     )
@@ -1928,7 +1659,7 @@ class Config(BaseModel):
         description="Temperature for DeepSeek generation (0.0-2.0, lower = more deterministic)",
     )
     deepseek_cleaning_model: str = Field(
-        default_factory=_get_default_deepseek_cleaning_model,
+        default="deepseek-chat",
         alias="deepseek_cleaning_model",
         description="DeepSeek model for transcript cleaning (default: deepseek-chat)",
     )
@@ -1996,12 +1727,12 @@ class Config(BaseModel):
         ),
     )
     grok_speaker_model: str = Field(
-        default_factory=_get_default_grok_speaker_model,
+        default=config_constants.PROD_DEFAULT_GROK_SPEAKER_MODEL,
         alias="grok_speaker_model",
         description="Grok model for speaker detection (default: environment-based)",
     )
     grok_summary_model: str = Field(
-        default_factory=_get_default_grok_summary_model,
+        default=config_constants.PROD_DEFAULT_GROK_SUMMARY_MODEL,
         alias="grok_summary_model",
         description="Grok model for summarization (default: environment-based)",
     )
@@ -2011,7 +1742,7 @@ class Config(BaseModel):
         description="Temperature for Grok generation (0.0-2.0, lower = more deterministic)",
     )
     grok_cleaning_model: str = Field(
-        default_factory=_get_default_grok_cleaning_model,
+        default="grok-beta",
         alias="grok_cleaning_model",
         description="Grok model for transcript cleaning (default: grok-beta)",
     )
@@ -2105,17 +1836,17 @@ class Config(BaseModel):
         "Can be set via MISTRAL_API_BASE environment variable.",
     )
     mistral_transcription_model: str = Field(
-        default_factory=_get_default_mistral_transcription_model,
+        default=config_constants.DEFAULT_MISTRAL_TRANSCRIPTION_MODEL,
         alias="mistral_transcription_model",
         description="Mistral Voxtral model for transcription (default: environment-based)",
     )
     mistral_speaker_model: str = Field(
-        default_factory=_get_default_mistral_speaker_model,
+        default=config_constants.PROD_DEFAULT_MISTRAL_SPEAKER_MODEL,
         alias="mistral_speaker_model",
         description="Mistral model for speaker detection (default: environment-based)",
     )
     mistral_summary_model: str = Field(
-        default_factory=_get_default_mistral_summary_model,
+        default=config_constants.PROD_DEFAULT_MISTRAL_SUMMARY_MODEL,
         alias="mistral_summary_model",
         description="Mistral model for summarization (default: environment-based)",
     )
@@ -2125,7 +1856,7 @@ class Config(BaseModel):
         description="Temperature for Mistral generation (0.0-1.0, lower = more deterministic)",
     )
     mistral_cleaning_model: str = Field(
-        default_factory=_get_default_mistral_cleaning_model,
+        default="mistral-small",
         alias="mistral_cleaning_model",
         description="Mistral model for transcript cleaning (default: mistral-small, cheaper than summary model)",  # noqa: E501
     )
@@ -3225,6 +2956,18 @@ class Config(BaseModel):
         if not isinstance(data, dict):
             return data
         profile_name = data.pop("profile", None)
+        if not profile_name:
+            # Fallback: PODCAST_SCRAPER_PROFILE env var. This is how
+            # tests/conftest.py wires the test_default profile across the
+            # whole pytest run without each test having to pass
+            # ``profile="test_default"`` explicitly. Operators can also use
+            # this in prod / staging to set a default profile per
+            # deployment without changing call sites. Explicit ``profile=``
+            # in ``data`` always wins (this fallback only fires when
+            # neither was passed).
+            env_profile = (os.environ.get("PODCAST_SCRAPER_PROFILE") or "").strip()
+            if env_profile:
+                profile_name = env_profile
         if not profile_name:
             # Still resolve audio preprocessing preset if user set it directly,
             # without a deployment profile.

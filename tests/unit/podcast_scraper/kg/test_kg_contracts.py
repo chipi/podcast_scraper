@@ -41,7 +41,7 @@ class TestKgContracts(unittest.TestCase):
         """Inspect rows carry optional description when present on Topic/Entity nodes."""
         art = {
             "episode_id": "ep:desc-1",
-            "schema_version": "1.1",
+            "schema_version": "2.0",
             "nodes": [
                 {
                     "id": "topic:lag",

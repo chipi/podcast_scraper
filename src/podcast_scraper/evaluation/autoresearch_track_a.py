@@ -10,7 +10,6 @@ import json
 import logging
 import os
 import re
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -22,14 +21,7 @@ from podcast_scraper.utils.log_redaction import format_exception_for_log
 logger = logging.getLogger(__name__)
 
 
-def _is_test_environment() -> bool:
-    if "pytest" in sys.modules or "PYTEST_CURRENT_TEST" in os.environ:
-        return True
-    if "unittest" in sys.modules:
-        return True
-    if os.environ.get("TESTING", "").lower() in ("1", "true", "yes"):
-        return True
-    return False
+from podcast_scraper.utils.runtime_env import is_pytest_run as _is_pytest_run  # noqa: E402
 
 
 def load_local_dotenv_files(repo_root: Path) -> None:
@@ -46,7 +38,7 @@ def load_local_dotenv_files(repo_root: Path) -> None:
     You can put ``AUTORESEARCH_*`` (and optional ``AUTORESEARCH_ALLOW_PRODUCTION_KEYS``)
     in the main ``.env`` or split them into ``.env.autoresearch``; both are gitignored.
     """
-    if _is_test_environment():
+    if _is_pytest_run():
         return
     try:
         from dotenv import load_dotenv

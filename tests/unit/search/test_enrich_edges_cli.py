@@ -57,7 +57,7 @@ def _build_corpus(tmp_path):
     (tmp_path / "ep1.gi.json").write_text(
         json.dumps(
             {
-                "schema_version": "2.0",
+                "schema_version": "3.0",
                 "model_version": "t",
                 "prompt_version": "t",
                 "episode_id": "ep1",
@@ -181,7 +181,7 @@ def _build_diarized_corpus(tmp_path):
     (tmp_path / "ep1.gi.json").write_text(
         json.dumps(
             {
-                "schema_version": "2.0",
+                "schema_version": "3.0",
                 "model_version": "t",
                 "prompt_version": "t",
                 "episode_id": "ep1",

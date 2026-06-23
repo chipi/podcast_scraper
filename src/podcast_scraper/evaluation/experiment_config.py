@@ -722,6 +722,53 @@ def load_dataset_json(dataset_id: str) -> Dict[str, Any]:
     return dict(json.loads(dataset_path.read_text(encoding="utf-8")))  # type: ignore[no-any-return]
 
 
+def episode_duration_ms_map(dataset_id: Optional[str]) -> Dict[str, int]:
+    """Build ``{episode_id: duration_ms}`` from a dataset JSON's per-episode metadata.
+
+    The dataset JSON's ``episodes[].duration_minutes`` field
+    (populated by ``scripts/eval/data/create_dataset_json.py``) is the
+    canonical input to RFC-097 v3.0 step 1 of the ``position_hint``
+    waterfall when the eval harness builds the GI artifact. Without this
+    map, ``gi.build_artifact`` is called with ``episode_duration_ms=None``
+    and waterfall step 1 is unreachable — every eval-built insight has
+    ``position_hint: None`` (the observed chunk-7 floor).
+
+    Args:
+        dataset_id: Dataset identifier. ``None`` / empty string returns ``{}``
+            (allows ``cfg.data.dataset_id is None`` paths to no-op cleanly).
+
+    Returns:
+        Mapping of episode_id → duration in milliseconds. Episodes missing
+        ``duration_minutes``, or carrying a non-positive value, are
+        omitted (caller passes ``None`` for those — waterfall step 2 / 3
+        / 4 then handle).
+    """
+    if not dataset_id:
+        return {}
+    try:
+        d = load_dataset_json(dataset_id)
+    except FileNotFoundError:
+        return {}
+    out: Dict[str, int] = {}
+    for ep in d.get("episodes") or []:
+        if not isinstance(ep, dict):
+            continue
+        eid = ep.get("episode_id")
+        if not isinstance(eid, str):
+            continue
+        raw = ep.get("duration_minutes")
+        if raw is None:
+            continue
+        try:
+            mins = float(raw)
+        except (TypeError, ValueError):
+            continue
+        if mins <= 0:
+            continue
+        out[eid] = int(round(mins * 60.0 * 1000.0))
+    return out
+
+
 def load_experiment_config(path: str | Path) -> ExperimentConfig:
     """Load a YAML experiment config into a typed ExperimentConfig.
 

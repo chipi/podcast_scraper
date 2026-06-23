@@ -471,3 +471,141 @@ describe('buildDisplayArtifact', () => {
     expect(result.kind).toBe('both')
   })
 })
+
+// ── RFC-097 v3.0 typed Organization + MENTIONS family preservation ──
+
+describe('RFC-097 v3.0 typed Organization dedup + MENTIONS family preservation', () => {
+  it('deduplicates Organization nodes with the same name across episodes (KG merge)', () => {
+    /** Parallel of the Person dedup test for v3.0 Organization (the first-
+     * class typed node introduced in chunk 3). Without explicit handling
+     * in ``DEDUP_TYPES``, the same Org referenced in N episodes would
+     * surface as N nodes in the merged graph instead of one canonical
+     * Organization with N MENTIONS_ORG edges.
+     */
+    const kg1 = parseArtifact('ep1.kg.json', {
+      episode_id: 'ep1',
+      extraction: { model_version: 'v1' },
+      nodes: [
+        { id: 'kg:episode:aaa', type: 'Episode', properties: { title: 'Ep1' } },
+        { id: 'kg:org:aaa:acme', type: 'Organization', properties: { name: 'Acme Corp' } },
+      ],
+      edges: [{ type: 'MENTIONS_ORG', from: 'kg:org:aaa:acme', to: 'kg:episode:aaa' }],
+    })
+    const kg2 = parseArtifact('ep2.kg.json', {
+      episode_id: 'ep2',
+      extraction: { model_version: 'v1' },
+      nodes: [
+        { id: 'kg:episode:bbb', type: 'Episode', properties: { title: 'Ep2' } },
+        { id: 'kg:org:bbb:acme', type: 'Organization', properties: { name: 'Acme Corp' } },
+      ],
+      edges: [{ type: 'MENTIONS_ORG', from: 'kg:org:bbb:acme', to: 'kg:episode:bbb' }],
+    })
+    const merged = mergeParsedArtifacts([kg1, kg2])!
+    expect(merged).not.toBeNull()
+
+    const acmeNodes = (merged.data.nodes ?? []).filter(
+      (n) =>
+        n.type === 'Organization' &&
+        (n.properties as Record<string, unknown>)?.name === 'Acme Corp',
+    )
+    expect(acmeNodes).toHaveLength(1)
+
+    // Both episodes' MENTIONS_ORG edges now point at the single canonical
+    // Organization id (the typed-edge family is preserved through merge).
+    const winnerId = String(acmeNodes[0].id)
+    const orgEdges = (merged.data.edges ?? []).filter(
+      (e) => e.type === 'MENTIONS_ORG' && String(e.from) === winnerId,
+    )
+    expect(orgEdges).toHaveLength(2)
+  })
+
+  it('preserves typed MENTIONS_PERSON edges through the merge', () => {
+    const gi1 = parseArtifact('ep1.gi.json', {
+      episode_id: 'ep1',
+      nodes: [
+        { id: 'episode:ep1', type: 'Episode', properties: { title: 'Ep1' } },
+        { id: 'person:ada', type: 'Person', properties: { name: 'Ada Lovelace' } },
+        {
+          id: 'insight:1',
+          type: 'Insight',
+          properties: {
+            text: 'About Ada',
+            insight_type: 'claim',
+            position_hint: 0.25,
+          },
+        },
+      ],
+      edges: [{ type: 'MENTIONS_PERSON', from: 'insight:1', to: 'person:ada' }],
+    })
+    const gi2 = parseArtifact('ep2.gi.json', {
+      episode_id: 'ep2',
+      nodes: [
+        { id: 'episode:ep2', type: 'Episode', properties: { title: 'Ep2' } },
+        { id: 'person:ada-2', type: 'Person', properties: { name: 'Ada Lovelace' } },
+        {
+          id: 'insight:2',
+          type: 'Insight',
+          properties: {
+            text: 'More about Ada',
+            insight_type: 'observation',
+            position_hint: 0.7,
+          },
+        },
+      ],
+      edges: [{ type: 'MENTIONS_PERSON', from: 'insight:2', to: 'person:ada-2' }],
+    })
+    const merged = mergeParsedArtifacts([gi1, gi2])!
+    expect(merged).not.toBeNull()
+
+    // Person deduped to one canonical node.
+    const people = (merged.data.nodes ?? []).filter(
+      (n) =>
+        n.type === 'Person' &&
+        (n.properties as Record<string, unknown>)?.name === 'Ada Lovelace',
+    )
+    expect(people).toHaveLength(1)
+    const winnerId = String(people[0].id)
+
+    // Both typed MENTIONS_PERSON edges point at the canonical Person.
+    const typedMentions = (merged.data.edges ?? []).filter(
+      (e) => e.type === 'MENTIONS_PERSON' && String(e.to) === winnerId,
+    )
+    expect(typedMentions).toHaveLength(2)
+
+    // insight_type + position_hint properties pass through unchanged.
+    const insights = (merged.data.nodes ?? []).filter((n) => n.type === 'Insight')
+    expect(insights).toHaveLength(2)
+    const itypes = insights.map(
+      (n) => (n.properties as Record<string, unknown>)?.insight_type,
+    )
+    expect(itypes.sort()).toEqual(['claim', 'observation'])
+  })
+
+  it('mid-migration corpus: typed MENTIONS_PERSON + legacy MENTIONS coexist after merge', () => {
+    const gi1 = parseArtifact('ep1.gi.json', {
+      episode_id: 'ep1',
+      nodes: [
+        { id: 'episode:ep1', type: 'Episode', properties: { title: 'Ep1' } },
+        { id: 'person:linus', type: 'Person', properties: { name: 'Linus' } },
+        { id: 'insight:typed', type: 'Insight', properties: { text: 'typed' } },
+      ],
+      edges: [{ type: 'MENTIONS_PERSON', from: 'insight:typed', to: 'person:linus' }],
+    })
+    const gi2 = parseArtifact('ep2.gi.json', {
+      episode_id: 'ep2',
+      nodes: [
+        { id: 'episode:ep2', type: 'Episode', properties: { title: 'Ep2' } },
+        { id: 'person:linus-2', type: 'Person', properties: { name: 'Linus' } },
+        { id: 'insight:legacy', type: 'Insight', properties: { text: 'legacy' } },
+      ],
+      edges: [{ type: 'MENTIONS', from: 'insight:legacy', to: 'person:linus-2' }],
+    })
+    const merged = mergeParsedArtifacts([gi1, gi2])!
+    expect(merged).not.toBeNull()
+
+    // Both edge types coexist post-merge — no silent collapse.
+    const types = (merged.data.edges ?? []).map((e) => e.type).sort()
+    expect(types).toContain('MENTIONS_PERSON')
+    expect(types).toContain('MENTIONS')
+  })
+})

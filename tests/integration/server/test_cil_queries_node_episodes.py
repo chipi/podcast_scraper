@@ -17,7 +17,7 @@ pytestmark = [pytest.mark.integration]
 def _write_bundle(meta: Path, stem: str, episode_id: str, topic: str) -> None:
     meta.mkdir(parents=True, exist_ok=True)
     bridge = {
-        "schema_version": "1.0",
+        "schema_version": "3.0",
         "episode_id": episode_id,
         "identities": [
             {

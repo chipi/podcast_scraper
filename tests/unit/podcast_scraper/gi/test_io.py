@@ -40,7 +40,7 @@ class TestReadWriteArtifact:
 
     def test_round_trip_minimal_payload(self, tmp_path):
         payload = {
-            "schema_version": "1.0",
+            "schema_version": "3.0",
             "model_version": "m",
             "prompt_version": "p",
             "episode_id": "e1",

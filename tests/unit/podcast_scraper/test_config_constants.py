@@ -110,3 +110,103 @@ class TestRevisionConstantsAreShas:
                 f"{attr}={rev!r} is not a 40-char SHA; "
                 "pin with HfApi().model_info(..., revision='main').sha"
             )
+
+
+class TestIsTestEnvironment:
+    """Regression tests for ``_is_pytest_run()`` (2026-06-22).
+
+    Numpy loads ``numpy.testing`` eagerly (package convention), which
+    imports stdlib ``unittest`` as a side effect. Treating ``unittest in
+    sys.modules`` as proof of "running tests" was a false positive for
+    every eval / production code path that imports numpy — silently
+    downgrading the spaCy NER model from ``en_core_web_trf`` to
+    ``en_core_web_sm`` (+13pp worse PERSON recall per
+    ``providers/ml/model_registry.py``).
+    """
+
+    def test_unittest_alone_is_not_test_env(self, monkeypatch):
+        """numpy → numpy.testing → unittest does NOT flag as test env."""
+        import sys as _sys
+
+        from podcast_scraper.config import _is_pytest_run
+
+        modules_without_pytest = {
+            k: v for k, v in _sys.modules.items() if not k.startswith("pytest")
+        }
+        modules_without_pytest["unittest"] = _sys.modules.get("unittest")
+        monkeypatch.setattr(_sys, "modules", modules_without_pytest)
+        monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+        monkeypatch.delenv("TESTING", raising=False)
+        assert _is_pytest_run() is False
+
+    def test_pytest_in_modules_still_detected(self):
+        """pytest in sys.modules → still detected as test env."""
+        import sys as _sys
+
+        from podcast_scraper.config import _is_pytest_run
+
+        assert "pytest" in _sys.modules
+        assert _is_pytest_run() is True
+
+    def test_pytest_current_test_env_detected(self, monkeypatch):
+        """PYTEST_CURRENT_TEST env var → still detected as test env."""
+        import sys as _sys
+
+        from podcast_scraper.config import _is_pytest_run
+
+        modules_without_pytest = {
+            k: v for k, v in _sys.modules.items() if not k.startswith("pytest")
+        }
+        monkeypatch.setattr(_sys, "modules", modules_without_pytest)
+        monkeypatch.setenv("PYTEST_CURRENT_TEST", "test_x (call)")
+        monkeypatch.delenv("TESTING", raising=False)
+        assert _is_pytest_run() is True
+
+    def test_testing_env_var_detected(self, monkeypatch):
+        """TESTING=1 env var → still detected as test env (non-pytest harnesses)."""
+        import sys as _sys
+
+        from podcast_scraper.config import _is_pytest_run
+
+        modules_without_pytest = {
+            k: v for k, v in _sys.modules.items() if not k.startswith("pytest")
+        }
+        monkeypatch.setattr(_sys, "modules", modules_without_pytest)
+        monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+        monkeypatch.setenv("TESTING", "1")
+        assert _is_pytest_run() is True
+
+    def test_default_ner_model_is_prod_when_numpy_imported(self):
+        """End-to-end: importing numpy must not flip the NER default.
+
+        Spawns a fresh Python subprocess so sys.modules is clean (the host
+        pytest run has pytest loaded, which legitimately flips the gate
+        — irrelevant to this bug). Subprocess imports numpy first
+        (triggering numpy.testing → unittest transitive import), then
+        imports our config and asserts the prod default.
+        """
+        import subprocess
+        import sys as _sys
+        from pathlib import Path
+
+        repo_root = Path(__file__).resolve().parents[3]
+        script = (
+            "import os; "
+            "os.environ.pop('PYTEST_CURRENT_TEST', None); "
+            "os.environ.pop('TESTING', None); "
+            "import numpy; "
+            "from podcast_scraper import config; "
+            "assert config.DEFAULT_NER_MODEL == 'en_core_web_trf', config.DEFAULT_NER_MODEL"
+        )
+        result = subprocess.run(
+            [_sys.executable, "-c", script],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        assert result.returncode == 0, (
+            f"DEFAULT_NER_MODEL regression: rc={result.returncode}\n"
+            f"stdout={result.stdout}\nstderr={result.stderr}"
+        )

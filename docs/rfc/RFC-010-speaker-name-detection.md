@@ -23,7 +23,7 @@ Automating speaker name extraction improves UX, increases transcript quality, an
 
 ## Constraints & Assumptions
 
-- Primary language controlled by configuration (default `"en"`). spaCy model selection is driven by the language setting with `en_core_web_sm` as the default.
+- Primary language controlled by configuration (default `"en"`). spaCy model selection is driven by the language setting with `en_core_web_trf` as the default for production/cloud profiles and `en_core_web_sm` for the `dev` / `test_default` profiles. Both wheels are pinned in `pyproject.toml`; the profile YAML determines which one a given run loads.
 - spaCy is a required dependency for speaker detection functionality.
 - Manual speaker names (`--speaker-names`) are ONLY used as fallback when automatic detection fails (not as override).
 - Manual names format: first item = host, second item = guest (e.g., `["Lenny", "Guest"]`).
@@ -38,7 +38,7 @@ Automating speaker name extraction improves UX, increases transcript quality, an
 
 ```python
      - `cfg.language` (default `"en"`) governing both Whisper transcription language and NER pipeline.
-     - `cfg.ner_model` optional override; default model derived from language (e.g., `"en_core_web_sm"`).
+     - `cfg.ner_model` optional override; default model pinned by the active profile (prod profiles: `"en_core_web_trf"`; `dev` / `test_default`: `"en_core_web_sm"`).
 ```
 
 - CLI gains `--language` (reused by Whisper) and `--ner-model` flags; config supports `language`, `ner_model`, and `auto_speakers` toggle (default `true`).
