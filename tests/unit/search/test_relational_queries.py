@@ -315,7 +315,6 @@ def test_related_topics_via_shared_insight() -> None:
     assert "topic:a" not in [t.id for t in related_topics(g, "topic:a")]
 
 
-
 # ---------------------------------------------------------------------------
 # RFC-097 v3.0 typed MENTIONS family — queries traverse all three variants.
 # ---------------------------------------------------------------------------
