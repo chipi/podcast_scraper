@@ -22,8 +22,8 @@ from podcast_scraper.utils.log_redaction import format_exception_for_log
 logger = logging.getLogger(__name__)
 
 
-def _is_test_environment() -> bool:
-    # See `config.py::_is_test_environment` (commit ce029849) for the same
+def _is_pytest_run() -> bool:
+    # See `config.py::_is_pytest_run` (commit ce029849) for the same
     # narrowed-detection rationale. ``"unittest" in sys.modules`` was a
     # false-positive trap: numpy lazy-imports ``numpy.testing`` which pulls
     # stdlib unittest into sys.modules, so every production run that
@@ -53,7 +53,7 @@ def load_local_dotenv_files(repo_root: Path) -> None:
     You can put ``AUTORESEARCH_*`` (and optional ``AUTORESEARCH_ALLOW_PRODUCTION_KEYS``)
     in the main ``.env`` or split them into ``.env.autoresearch``; both are gitignored.
     """
-    if _is_test_environment():
+    if _is_pytest_run():
         return
     try:
         from dotenv import load_dotenv

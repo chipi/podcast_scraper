@@ -3279,7 +3279,7 @@ class TestLogConfigurationGilHybridWarning(unittest.TestCase):
 
     def test_warns_when_api_summary_and_local_evidence(self):
         log = logging.getLogger("test_gil_hybrid_warn")
-        with patch("podcast_scraper.config._is_test_environment", return_value=False):
+        with patch("podcast_scraper.config._is_pytest_run", return_value=False):
             with self.assertLogs(log, level="WARNING") as cm:
                 cfg = config.Config(
                     rss_url="https://example.com/feed.xml",
@@ -3301,7 +3301,7 @@ class TestLogConfigurationGilHybridWarning(unittest.TestCase):
     def test_warns_when_hybrid_ml_summary_and_local_evidence(self):
         """Same GIL hybrid warning when summary stack is hybrid_ml (in API-align set)."""
         log = logging.getLogger("test_gil_hybrid_hybrid_ml")
-        with patch("podcast_scraper.config._is_test_environment", return_value=False):
+        with patch("podcast_scraper.config._is_pytest_run", return_value=False):
             with self.assertLogs(log, level="WARNING") as cm:
                 cfg = config.Config(
                     rss_url="https://example.com/feed.xml",
@@ -3321,7 +3321,7 @@ class TestLogConfigurationGilHybridWarning(unittest.TestCase):
 
     def test_no_hybrid_warning_when_evidence_matches_openai(self):
         log = logging.getLogger("test_gil_hybrid_aligned")
-        with patch("podcast_scraper.config._is_test_environment", return_value=False):
+        with patch("podcast_scraper.config._is_pytest_run", return_value=False):
             with patch.object(log, "warning") as mock_warn:
                 cfg = config.Config(
                     rss_url="https://example.com/feed.xml",
@@ -3346,7 +3346,7 @@ class TestLogConfigurationGiStubWarning(unittest.TestCase):
 
     def test_warns_when_generate_gi_stub_and_not_test_env(self):
         log = logging.getLogger("test_gil_stub_warn")
-        with patch("podcast_scraper.config._is_test_environment", return_value=False):
+        with patch("podcast_scraper.config._is_pytest_run", return_value=False):
             with self.assertLogs(log, level="WARNING") as cm:
                 cfg = config.Config(
                     rss_url="https://example.com/feed.xml",
@@ -3361,7 +3361,7 @@ class TestLogConfigurationGiStubWarning(unittest.TestCase):
 
     def test_no_stub_warning_when_test_environment(self):
         log = logging.getLogger("test_gil_stub_no_warn")
-        with patch("podcast_scraper.config._is_test_environment", return_value=True):
+        with patch("podcast_scraper.config._is_pytest_run", return_value=True):
             with patch.object(log, "warning") as mock_warn:
                 cfg = config.Config(
                     rss_url="https://example.com/feed.xml",

@@ -225,21 +225,21 @@ class TestSummaryModeProfileDefaults(unittest.TestCase):
 
     def test_default_summary_mode_id_is_prod_when_profile_unset(self):
         """When profile is unset (and not testing), default mode should be production."""
-        with patch("podcast_scraper.config._is_test_environment", return_value=False):
+        with patch("podcast_scraper.config._is_pytest_run", return_value=False):
             os.environ.pop("PODCAST_SCRAPER_PROFILE", None)
             mode_id = config._get_default_summary_mode_id()
             self.assertEqual(mode_id, config.config_constants.PROD_DEFAULT_SUMMARY_MODE_ID)
 
     def test_default_summary_mode_id_is_dev_when_profile_dev(self):
         """When profile is dev (and not testing), default mode should be dev baseline."""
-        with patch("podcast_scraper.config._is_test_environment", return_value=False):
+        with patch("podcast_scraper.config._is_pytest_run", return_value=False):
             os.environ["PODCAST_SCRAPER_PROFILE"] = "dev"
             mode_id = config._get_default_summary_mode_id()
             self.assertEqual(mode_id, config.config_constants.DEV_DEFAULT_SUMMARY_MODE_ID)
 
     def test_default_summary_tokenize_uses_selected_mode_id(self):
         """Tokenize defaults should be sourced from the selected promoted mode."""
-        with patch("podcast_scraper.config._is_test_environment", return_value=False):
+        with patch("podcast_scraper.config._is_pytest_run", return_value=False):
             os.environ["PODCAST_SCRAPER_PROFILE"] = "dev"
             expected = {
                 "map_max_input_tokens": 111,
@@ -262,7 +262,7 @@ class TestOpenAICleaningModelDefaults(unittest.TestCase):
 
     def test_get_default_openai_cleaning_model_test_environment(self):
         """Test/CI uses TEST_DEFAULT_OPENAI_CLEANING_MODEL."""
-        with patch("podcast_scraper.config._is_test_environment", return_value=True):
+        with patch("podcast_scraper.config._is_pytest_run", return_value=True):
             self.assertEqual(
                 config._get_default_openai_cleaning_model(),
                 config.TEST_DEFAULT_OPENAI_CLEANING_MODEL,
@@ -274,7 +274,7 @@ class TestOpenAICleaningModelDefaults(unittest.TestCase):
 
     def test_get_default_openai_cleaning_model_production_environment(self):
         """Non-test uses PROD_DEFAULT_OPENAI_CLEANING_MODEL."""
-        with patch("podcast_scraper.config._is_test_environment", return_value=False):
+        with patch("podcast_scraper.config._is_pytest_run", return_value=False):
             self.assertEqual(
                 config._get_default_openai_cleaning_model(),
                 config.PROD_DEFAULT_OPENAI_CLEANING_MODEL,

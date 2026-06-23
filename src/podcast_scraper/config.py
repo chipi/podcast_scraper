@@ -145,33 +145,34 @@ else:
 # Use get_project_root() for robust path resolution
 # SKIP .env loading in test environments - tests should use Config objects and
 # environment variables directly, never rely on .env files
-def _is_test_environment() -> bool:
-    """Check if we're running in a test environment.
+def _is_pytest_run() -> bool:
+    """True iff we're under pytest right now — used ONLY to gate .env loading.
 
-    Why this guard is narrow: ``unittest`` ends up in ``sys.modules`` as a
-    transitive import of ``numpy.testing`` (numpy's package convention loads
-    it eagerly). Treating that as "we're in a test run" is a false positive
-    for every eval / production code path that imports numpy — which is
-    every code path that imports sentence-transformers, scorers, embeddings,
-    or torch. That false positive silently downgraded eval runs from
-    ``en_core_web_trf`` to the test-tier ``en_core_web_sm`` NER model
-    (+13pp worse PERSON recall — see ``providers/ml/model_registry.py``).
+    The broader test/prod default-flipping mechanism that used to live
+    here was removed (commit history around 2026-06-22 / 2026-06-23): the
+    operator's stated direction is that PROFILES are the source of truth
+    for "what defaults apply here", not a runtime environment heuristic.
+    Tests load ``config/profiles/test_default.yaml`` via the
+    ``PODCAST_SCRAPER_PROFILE`` env var (set by ``tests/conftest.py``);
+    prod loads its own profile. No per-knob auto-flip.
 
-    Only explicit pytest / TESTING signals are valid here. The "unittest"
-    sys.modules check is intentionally removed.
+    The ONE remaining narrow use: don't read the operator's ``.env`` file
+    into the process during pytest, because pytest tests should be
+    hermetic w.r.t. shell-exported secrets. Detection requires an
+    EXPLICIT pytest / TESTING signal — never ``"unittest" in sys.modules``
+    (the false-positive that bit us for 5 months; see commit ce029849).
     """
-    # pytest sets both — module is loaded AND env var is set per test.
     if "pytest" in sys.modules or "PYTEST_CURRENT_TEST" in os.environ:
         return True
-    # Explicit human-set opt-in (e.g. for non-pytest harnesses).
     if os.environ.get("TESTING", "").lower() in ("1", "true", "yes"):
         return True
     return False
 
 
-# Only load .env file if NOT in test environment
-# Tests should use Config objects with explicit values or environment variables
-if not _is_test_environment():
+# Skip .env loading under pytest — tests must be hermetic to shell secrets.
+# Tests should use Config objects with explicit values or pin via the
+# test_default profile.
+if not _is_pytest_run():
     try:
         from .cache import get_project_root
 
@@ -261,22 +262,35 @@ DEFAULT_SUMMARY_WORD_OVERLAP = config_constants.DEFAULT_SUMMARY_WORD_OVERLAP
 
 
 def _get_default_summary_mode_id() -> Optional[str]:
-    """Get default summarization mode ID based on environment.
+    """Default summarization mode ID — profile-aware (NOT env-detect).
 
-    Returns:
-        None in test environments (to avoid altering unit test defaults),
-        dev or production mode ID otherwise.
+    Returns DEV mode under ``dev`` / ``development`` / ``local`` profiles,
+    PROD mode otherwise. The test/prod env-detect-of-pytest auto-flip
+    that USED to also live here was removed 2026-06-23 — tests now load
+    ``test_default`` profile which pins ``summary_mode_id`` explicitly
+    (currently null, matching the pre-refactor test default).
+
+    Profile selection reads ``PODCAST_SCRAPER_PROFILE`` env var; this is
+    the same env var that ``Config._merge_profile_into_data`` consults
+    when no explicit ``profile=`` was passed.
     """
-    if _is_test_environment():
-        return None
     profile = (os.environ.get("PODCAST_SCRAPER_PROFILE") or "").strip().lower()
     if profile in ("dev", "development", "local"):
         return getattr(config_constants, "DEV_DEFAULT_SUMMARY_MODE_ID", None) or getattr(
             config_constants, "PROD_DEFAULT_SUMMARY_MODE_ID", None
         )
-    if profile and profile not in ("prod", "production"):
+    if (
+        profile
+        and profile
+        not in (
+            "prod",
+            "production",
+            "test_default",
+        )
+        and not profile.startswith(("cloud_", "local_", "prod_", "airgapped", "eval_", "preprod_"))
+    ):
         warnings.warn(
-            f"Unknown PODCAST_SCRAPER_PROFILE={profile!r}; defaulting to production defaults",
+            f"Unknown PODCAST_SCRAPER_PROFILE={profile!r}; defaulting to production summary mode",
             RuntimeWarning,
         )
     return getattr(config_constants, "PROD_DEFAULT_SUMMARY_MODE_ID", None)
@@ -288,8 +302,6 @@ def _get_default_openai_transcription_model() -> str:
     Returns:
         Test default if in test environment, production default otherwise.
     """
-    if _is_test_environment():
-        return TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL
     return PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL
 
 
@@ -299,8 +311,6 @@ def _get_default_openai_speaker_model() -> str:
     Returns:
         Test default if in test environment, production default otherwise.
     """
-    if _is_test_environment():
-        return TEST_DEFAULT_OPENAI_SPEAKER_MODEL
     return PROD_DEFAULT_OPENAI_SPEAKER_MODEL
 
 
@@ -310,8 +320,6 @@ def _get_default_openai_summary_model() -> str:
     Returns:
         Test default if in test environment, production default otherwise.
     """
-    if _is_test_environment():
-        return TEST_DEFAULT_OPENAI_SUMMARY_MODEL
     return PROD_DEFAULT_OPENAI_SUMMARY_MODEL
 
 
@@ -321,8 +329,6 @@ def _get_default_gemini_transcription_model() -> str:
     Returns:
         Test default if in test environment, production default otherwise.
     """
-    if _is_test_environment():
-        return config_constants.TEST_DEFAULT_GEMINI_TRANSCRIPTION_MODEL
     return config_constants.PROD_DEFAULT_GEMINI_TRANSCRIPTION_MODEL
 
 
@@ -332,8 +338,6 @@ def _get_default_gemini_speaker_model() -> str:
     Returns:
         Test default if in test environment, production default otherwise.
     """
-    if _is_test_environment():
-        return config_constants.TEST_DEFAULT_GEMINI_SPEAKER_MODEL
     return config_constants.PROD_DEFAULT_GEMINI_SPEAKER_MODEL
 
 
@@ -343,8 +347,6 @@ def _get_default_gemini_summary_model() -> str:
     Returns:
         Test default if in test environment, production default otherwise.
     """
-    if _is_test_environment():
-        return config_constants.TEST_DEFAULT_GEMINI_SUMMARY_MODEL
     return config_constants.PROD_DEFAULT_GEMINI_SUMMARY_MODEL
 
 
@@ -357,8 +359,6 @@ def _get_default_anthropic_transcription_model() -> str:
     Returns:
         Test default if in test environment, production default otherwise.
     """
-    if _is_test_environment():
-        return config_constants.TEST_DEFAULT_ANTHROPIC_TRANSCRIPTION_MODEL
     return config_constants.PROD_DEFAULT_ANTHROPIC_TRANSCRIPTION_MODEL
 
 
@@ -368,8 +368,6 @@ def _get_default_anthropic_speaker_model() -> str:
     Returns:
         Test default if in test environment, production default otherwise.
     """
-    if _is_test_environment():
-        return config_constants.TEST_DEFAULT_ANTHROPIC_SPEAKER_MODEL
     return config_constants.PROD_DEFAULT_ANTHROPIC_SPEAKER_MODEL
 
 
@@ -379,8 +377,6 @@ def _get_default_anthropic_summary_model() -> str:
     Returns:
         Test default if in test environment, production default otherwise.
     """
-    if _is_test_environment():
-        return config_constants.TEST_DEFAULT_ANTHROPIC_SUMMARY_MODEL
     return config_constants.PROD_DEFAULT_ANTHROPIC_SUMMARY_MODEL
 
 
@@ -390,8 +386,6 @@ def _get_default_deepseek_speaker_model() -> str:
     Returns:
         Test default if in test environment, production default otherwise.
     """
-    if _is_test_environment():
-        return config_constants.TEST_DEFAULT_DEEPSEEK_SPEAKER_MODEL
     return config_constants.PROD_DEFAULT_DEEPSEEK_SPEAKER_MODEL
 
 
@@ -401,8 +395,6 @@ def _get_default_deepseek_summary_model() -> str:
     Returns:
         Test default if in test environment, production default otherwise.
     """
-    if _is_test_environment():
-        return config_constants.TEST_DEFAULT_DEEPSEEK_SUMMARY_MODEL
     return config_constants.PROD_DEFAULT_DEEPSEEK_SUMMARY_MODEL
 
 
@@ -412,8 +404,6 @@ def _get_default_grok_speaker_model() -> str:
     Returns:
         Test default if in test environment, production default otherwise.
     """
-    if _is_test_environment():
-        return config_constants.TEST_DEFAULT_GROK_SPEAKER_MODEL
     return config_constants.PROD_DEFAULT_GROK_SPEAKER_MODEL
 
 
@@ -423,8 +413,6 @@ def _get_default_grok_summary_model() -> str:
     Returns:
         Test default if in test environment, production default otherwise.
     """
-    if _is_test_environment():
-        return config_constants.TEST_DEFAULT_GROK_SUMMARY_MODEL
     return config_constants.PROD_DEFAULT_GROK_SUMMARY_MODEL
 
 
@@ -434,8 +422,6 @@ def _get_default_ollama_speaker_model() -> str:
     Returns:
         Test default if in test environment, production default otherwise.
     """
-    if _is_test_environment():
-        return config_constants.TEST_DEFAULT_OLLAMA_SPEAKER_MODEL
     return config_constants.PROD_DEFAULT_OLLAMA_SPEAKER_MODEL
 
 
@@ -445,8 +431,6 @@ def _get_default_ollama_summary_model() -> str:
     Returns:
         Test default if in test environment, production default otherwise.
     """
-    if _is_test_environment():
-        return config_constants.TEST_DEFAULT_OLLAMA_SUMMARY_MODEL
     return config_constants.PROD_DEFAULT_OLLAMA_SUMMARY_MODEL
 
 
@@ -456,8 +440,6 @@ def _get_default_mistral_transcription_model() -> str:
     Returns:
         Test default if in test environment, production default otherwise.
     """
-    if _is_test_environment():
-        return config_constants.TEST_DEFAULT_MISTRAL_TRANSCRIPTION_MODEL
     return config_constants.PROD_DEFAULT_MISTRAL_TRANSCRIPTION_MODEL
 
 
@@ -467,8 +449,6 @@ def _get_default_mistral_speaker_model() -> str:
     Returns:
         Test default if in test environment, production default otherwise.
     """
-    if _is_test_environment():
-        return config_constants.TEST_DEFAULT_MISTRAL_SPEAKER_MODEL
     return config_constants.PROD_DEFAULT_MISTRAL_SPEAKER_MODEL
 
 
@@ -478,8 +458,6 @@ def _get_default_mistral_summary_model() -> str:
     Returns:
         Test default if in test environment, production default otherwise.
     """
-    if _is_test_environment():
-        return config_constants.TEST_DEFAULT_MISTRAL_SUMMARY_MODEL
     return config_constants.PROD_DEFAULT_MISTRAL_SUMMARY_MODEL
 
 
@@ -490,8 +468,6 @@ def _get_default_openai_cleaning_model() -> str:
         Test default in test/CI environments; production default otherwise.
         Override with ``openai_cleaning_model`` (e.g. ``gpt-3.5-turbo``) to reduce cost.
     """
-    if _is_test_environment():
-        return TEST_DEFAULT_OPENAI_CLEANING_MODEL
     return PROD_DEFAULT_OPENAI_CLEANING_MODEL
 
 
@@ -556,8 +532,6 @@ def _get_default_ner_model() -> str:
         Test default (en_core_web_sm) if in test environment,
         production default (en_core_web_trf) otherwise.
     """
-    if _is_test_environment():
-        return TEST_DEFAULT_NER_MODEL
     return PROD_DEFAULT_NER_MODEL
 
 
@@ -593,29 +567,31 @@ DEFAULT_REDUCE_REPETITION_PENALTY = 1.12  # Production baseline: 1.12 (LED-base 
 
 # Default tokenization limits (moved from model defaults)
 def _get_default_summary_tokenize() -> Dict[str, Any]:
-    """Get default tokenization settings for local transformers summarization.
+    """Default tokenization settings for local transformers summarization.
 
-    In production, defaults are sourced from the promoted production mode
-    registry to ensure baseline == app behavior.
+    Profile-aware (NOT env-detect-of-test): sources tokenize knobs from
+    the promoted DEV mode under ``dev`` / ``development`` / ``local``
+    profiles, and the promoted PROD mode otherwise. Tests opt out by
+    loading ``test_default`` profile (or by passing
+    ``summary_tokenize=...`` explicitly).
 
-    In tests, use safe defaults to keep unit tests stable and independent of
-    production mode registry contents.
+    The env-detect-based auto-flip-to-safe-defaults that USED to also
+    live here was removed 2026-06-23.
     """
-    if not _is_test_environment():
-        profile = (os.environ.get("PODCAST_SCRAPER_PROFILE") or "").strip().lower()
-        mode_id = (
-            getattr(config_constants, "DEV_DEFAULT_SUMMARY_MODE_ID", None)
-            if profile in ("dev", "development", "local")
-            else getattr(config_constants, "PROD_DEFAULT_SUMMARY_MODE_ID", None)
-        )
-        if mode_id:
-            try:
-                from podcast_scraper.providers.ml.model_registry import ModelRegistry
+    profile = (os.environ.get("PODCAST_SCRAPER_PROFILE") or "").strip().lower()
+    mode_id = (
+        getattr(config_constants, "DEV_DEFAULT_SUMMARY_MODE_ID", None)
+        if profile in ("dev", "development", "local")
+        else getattr(config_constants, "PROD_DEFAULT_SUMMARY_MODE_ID", None)
+    )
+    if mode_id:
+        try:
+            from podcast_scraper.providers.ml.model_registry import ModelRegistry
 
-                return dict(ModelRegistry.get_mode_configuration(mode_id).tokenize)
-            except Exception:
-                # Fall back to safe defaults if registry is unavailable or missing mode.
-                pass
+            return dict(ModelRegistry.get_mode_configuration(mode_id).tokenize)
+        except Exception:
+            # Fall back to safe defaults if registry is unavailable or missing mode.
+            pass
     return {
         "map_max_input_tokens": 1024,
         "reduce_max_input_tokens": 4096,
@@ -3260,6 +3236,18 @@ class Config(BaseModel):
         if not isinstance(data, dict):
             return data
         profile_name = data.pop("profile", None)
+        if not profile_name:
+            # Fallback: PODCAST_SCRAPER_PROFILE env var. This is how
+            # tests/conftest.py wires the test_default profile across the
+            # whole pytest run without each test having to pass
+            # ``profile="test_default"`` explicitly. Operators can also use
+            # this in prod / staging to set a default profile per
+            # deployment without changing call sites. Explicit ``profile=``
+            # in ``data`` always wins (this fallback only fires when
+            # neither was passed).
+            env_profile = (os.environ.get("PODCAST_SCRAPER_PROFILE") or "").strip()
+            if env_profile:
+                profile_name = env_profile
         if not profile_name:
             # Still resolve audio preprocessing preset if user set it directly,
             # without a deployment profile.

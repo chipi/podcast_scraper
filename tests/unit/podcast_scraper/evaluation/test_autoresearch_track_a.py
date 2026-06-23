@@ -136,7 +136,7 @@ def test_load_local_dotenv_files_no_crash_under_pytest(tmp_path: Path) -> None:
 
 
 @pytest.mark.unit
-def test_is_test_environment_unittest_alone_is_not_test_env(
+def test_is_pytest_run_unittest_alone_is_not_test_env(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Regression for the 2026-06-22 fix (sibling of `config.py::ce029849`).
@@ -159,15 +159,15 @@ def test_is_test_environment_unittest_alone_is_not_test_env(
     monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
     monkeypatch.delenv("TESTING", raising=False)
 
-    assert _track_a._is_test_environment() is False
+    assert _track_a._is_pytest_run() is False
 
 
 @pytest.mark.unit
-def test_is_test_environment_explicit_signals_still_detected(
+def test_is_pytest_run_explicit_signals_still_detected(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Explicit signals — pytest in sys.modules, PYTEST_CURRENT_TEST, or
-    TESTING env — still flip _is_test_environment to True."""
+    TESTING env — still flip _is_pytest_run to True."""
     import sys as _sys
 
     from podcast_scraper.evaluation import autoresearch_track_a as _track_a
@@ -178,17 +178,17 @@ def test_is_test_environment_explicit_signals_still_detected(
 
     # 1. pytest in sys.modules
     monkeypatch.setitem(_sys.modules, "pytest", object())
-    assert _track_a._is_test_environment() is True
+    assert _track_a._is_pytest_run() is True
     monkeypatch.delitem(_sys.modules, "pytest")
 
     # 2. PYTEST_CURRENT_TEST env
     monkeypatch.setenv("PYTEST_CURRENT_TEST", "test_x")
-    assert _track_a._is_test_environment() is True
+    assert _track_a._is_pytest_run() is True
     monkeypatch.delenv("PYTEST_CURRENT_TEST")
 
     # 3. TESTING env
     monkeypatch.setenv("TESTING", "1")
-    assert _track_a._is_test_environment() is True
+    assert _track_a._is_pytest_run() is True
 
 
 @pytest.mark.unit

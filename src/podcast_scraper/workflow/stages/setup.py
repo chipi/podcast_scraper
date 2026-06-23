@@ -268,7 +268,7 @@ def ensure_ml_models_cached(cfg: config.Config) -> None:
         return
 
     # Skip in test environments (tests should use pre-cached models)
-    if config._is_test_environment():
+    if config._is_pytest_run():
         return
 
     try:

@@ -146,7 +146,7 @@ class TestSetupStage(unittest.TestCase):
         result = setup.should_preload_ml_models(cfg)
         self.assertFalse(result)
 
-    @patch("podcast_scraper.config._is_test_environment")
+    @patch("podcast_scraper.config._is_pytest_run")
     def test_ensure_ml_models_cached_skips_in_test(self, mock_is_test):
         """Test ensure_ml_models_cached skips in test environment."""
         mock_is_test.return_value = True
@@ -154,7 +154,7 @@ class TestSetupStage(unittest.TestCase):
         # Should not raise
         setup.ensure_ml_models_cached(cfg)
 
-    @patch("podcast_scraper.config._is_test_environment")
+    @patch("podcast_scraper.config._is_pytest_run")
     def test_ensure_ml_models_cached_skips_when_disabled(self, mock_is_test):
         """Test ensure_ml_models_cached skips when preload_models=False."""
         mock_is_test.return_value = False
@@ -162,7 +162,7 @@ class TestSetupStage(unittest.TestCase):
         # Should not raise
         setup.ensure_ml_models_cached(cfg)
 
-    @patch("podcast_scraper.config._is_test_environment")
+    @patch("podcast_scraper.config._is_pytest_run")
     def test_ensure_ml_models_cached_skips_when_dry_run(self, mock_is_test):
         """Test ensure_ml_models_cached skips in dry run."""
         mock_is_test.return_value = False

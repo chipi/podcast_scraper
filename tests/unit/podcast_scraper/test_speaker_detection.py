@@ -91,13 +91,23 @@ class TestSpeakerDetection(unittest.TestCase):
 
     @patch.object(speaker_detection, "_load_spacy_model")
     def test_get_ner_model_enabled(self, mock_load):
-        """Test getting NER model when auto_speakers is enabled."""
+        """Test that NER model loading uses ``cfg.ner_model``.
+
+        Pre-refactor (2026-06-23) this asserted against
+        ``config.DEFAULT_NER_MODEL`` because the env-detect-based
+        ``_get_default_ner_model`` returned ``TEST_DEFAULT_NER_MODEL``
+        under pytest, so cfg.ner_model and config.DEFAULT_NER_MODEL
+        happened to be equal. Post-refactor ``DEFAULT_NER_MODEL`` is
+        always the PROD value (en_core_web_trf); tests pin ner_model via
+        the ``test_default`` profile. Asserting against ``cfg.ner_model``
+        is the semantically correct check either way.
+        """
         mock_nlp = unittest.mock.MagicMock()
         mock_load.return_value = mock_nlp
 
         nlp = speaker_detection.get_ner_model(self.cfg)
         self.assertEqual(nlp, mock_nlp)
-        mock_load.assert_called_once_with(config.DEFAULT_NER_MODEL)
+        mock_load.assert_called_once_with(self.cfg.ner_model)
 
         # Second call should load again (no caching)
         mock_load.reset_mock()
@@ -105,7 +115,7 @@ class TestSpeakerDetection(unittest.TestCase):
         self.assertEqual(nlp2, mock_nlp)
         # Verify it was called again (no caching)
         self.assertEqual(mock_load.call_count, 1)
-        mock_load.assert_called_with(config.DEFAULT_NER_MODEL)
+        mock_load.assert_called_with(self.cfg.ner_model)
 
     def test_get_ner_model_disabled(self):
         """Test getting NER model when auto_speakers is disabled."""

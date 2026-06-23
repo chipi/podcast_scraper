@@ -603,7 +603,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
             mock_preload.assert_called_once()
             self.assertIsNone(result)
 
-    @patch("podcast_scraper.config._is_test_environment")
+    @patch("podcast_scraper.config._is_pytest_run")
     def test_ensure_ml_models_cached_skips_when_disabled(self, mock_is_test):
         """Test that ensure_ml_models_cached skips when preload_models=False."""
         mock_is_test.return_value = False
@@ -617,7 +617,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
             # Should return early without checking cache
             mock_whisper_cache.assert_not_called()
 
-    @patch("podcast_scraper.config._is_test_environment")
+    @patch("podcast_scraper.config._is_pytest_run")
     def test_ensure_ml_models_cached_skips_when_dry_run(self, mock_is_test):
         """Test that ensure_ml_models_cached skips when dry_run=True."""
         mock_is_test.return_value = False
@@ -632,7 +632,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
             # Should return early without checking cache
             mock_whisper_cache.assert_not_called()
 
-    @patch("podcast_scraper.config._is_test_environment")
+    @patch("podcast_scraper.config._is_pytest_run")
     @patch("podcast_scraper.cache.get_whisper_cache_dir")
     def test_ensure_ml_models_cached_whisper_model_cached(self, mock_get_cache, mock_is_test):
         """Test that ensure_ml_models_cached skips download when model is cached."""
@@ -667,7 +667,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
 
         shutil.rmtree(temp_dir, ignore_errors=True)
 
-    @patch("podcast_scraper.config._is_test_environment")
+    @patch("podcast_scraper.config._is_pytest_run")
     @patch("podcast_scraper.cache.get_transformers_cache_dir")
     @patch("podcast_scraper.cache.get_whisper_cache_dir")
     def test_ensure_ml_models_cached_whisper_model_missing(
@@ -705,7 +705,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
 
         shutil.rmtree(temp_dir, ignore_errors=True)
 
-    @patch("podcast_scraper.config._is_test_environment")
+    @patch("podcast_scraper.config._is_pytest_run")
     @patch("podcast_scraper.cache.get_transformers_cache_dir")
     def test_ensure_ml_models_cached_transformers_model_missing(self, mock_get_cache, mock_is_test):
         """Test that ensure_ml_models_cached downloads when Transformers model is missing."""
@@ -748,7 +748,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
 
         shutil.rmtree(temp_dir, ignore_errors=True)
 
-    @patch("podcast_scraper.config._is_test_environment")
+    @patch("podcast_scraper.config._is_pytest_run")
     @patch("podcast_scraper.providers.ml.model_loader.preload_whisper_models")
     def test_ensure_ml_models_cached_handles_import_error(self, mock_preload, mock_is_test):
         """Test that ensure_ml_models_cached handles ImportError gracefully."""
@@ -780,7 +780,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
 
             shutil.rmtree(temp_dir, ignore_errors=True)
 
-    @patch("podcast_scraper.config._is_test_environment")
+    @patch("podcast_scraper.config._is_pytest_run")
     @patch("podcast_scraper.cache.get_transformers_cache_dir")
     @patch("podcast_scraper.providers.ml.summarizer.select_summary_model")
     @patch("podcast_scraper.providers.ml.summarizer.select_reduce_model")
@@ -823,7 +823,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
 
         shutil.rmtree(temp_dir, ignore_errors=True)
 
-    @patch("podcast_scraper.config._is_test_environment")
+    @patch("podcast_scraper.config._is_pytest_run")
     @patch("podcast_scraper.providers.ml.model_loader.preload_whisper_models")
     def test_ensure_ml_models_cached_handles_general_exception(
         self, mock_preload_whisper, mock_is_test
@@ -866,7 +866,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
 
             shutil.rmtree(temp_dir, ignore_errors=True)
 
-    @patch("podcast_scraper.config._is_test_environment")
+    @patch("podcast_scraper.config._is_pytest_run")
     def test_ensure_ml_models_cached_handles_outer_import_error(self, mock_is_test):
         """Test that ensure_ml_models_cached handles ImportError in outer try block."""
         mock_is_test.return_value = False
@@ -891,7 +891,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
             if original_cache is not None:
                 sys.modules["podcast_scraper.cache"] = original_cache
 
-    @patch("podcast_scraper.config._is_test_environment")
+    @patch("podcast_scraper.config._is_pytest_run")
     def test_ensure_ml_models_cached_handles_outer_exception(self, mock_is_test):
         """Test that ensure_ml_models_cached handles general exceptions in outer try block."""
         mock_is_test.return_value = False
