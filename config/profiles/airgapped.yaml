@@ -1,9 +1,11 @@
 # Profile: airgapped — no network, no Ollama daemon
 #
-# Registry status: YAML-only (no entry in `_PROFILE_PRESETS`). The
-# `summllama` summary provider has no matching StageOption today;
-# promotion is gated on either adding one or migrating to an existing
-# StageOption. Drift-checked by SKIP (no `profile:` opt-in).
+# Registry status: ProfilePreset-backed (promoted 2026-06-23 in #1060).
+# Routing maps to the `airgapped` preset in `_PROFILE_PRESETS`:
+# medium.en Whisper + SummLlama 3.2-3B paragraph + spaCy trf.
+# Drift-checked by `test_profile_yaml_registry_drift.py`.
+#
+profile: airgapped
 #
 # Maximum isolation: no API calls, no Ollama server, no network.
 # Uses only bundled ML models (SummLlama / transformers, spaCy, local Whisper).

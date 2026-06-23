@@ -14,6 +14,16 @@ provider/model choice for a stage (transcription, summary, etc.) with
 profile YAMLs in ``config/profiles/`` are downstream views — they should
 match the registry preset they claim to derive from. Drift = bug.
 
+**2026-06-23 amendment (#1060)**: YAML-only profiles are first-class. A
+profile YAML may legitimately have no ``ProfilePreset`` when it pins only
+MODEL across vendors (not PROVIDER, e.g. ``test_default``), or when its
+shape is otherwise incompatible with the rigid 6-tuple preset model. Such
+profiles MUST carry a "Registry status: YAML-only" comment with the
+gating reason; the drift test
+(``tests/integration/providers/ml/test_profile_yaml_registry_drift.py``)
+enforces this. See ``config/profiles/README.md`` § "Registry status — two
+first-class shapes" for the operator-facing rule.
+
 The flow for any autoresearch finding that changes a default:
 
     run experiment → score → write eval report → MATERIALIZE here →
@@ -864,6 +874,40 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
         measured_at="2026-06-13",
         tier="primary",
     ),
+    # Dev / airgapped_thin floor — fastest local Whisper. WER inflated by
+    # speaker labels + markdown headers in the smoke_v2 reference (see eval
+    # report § "Caveat — WER absolute level"). Relative ranking holds.
+    "local_whisper_tiny_en": StageOption(
+        stage="transcription",
+        option_id="local_whisper_tiny_en",
+        provider="whisper",
+        model="tiny.en",
+        research_ref="docs/guides/eval-reports/EVAL_DEV_TIER_REGISTRY_2026_06_23.md",
+        headline_metric=(
+            "mean WER 21.7% on smoke_v2 (M4 Pro CPU); 8.7 s/ep "
+            "(~63× realtime). Dev/CI floor — speed over accuracy."
+        ),
+        measured_at="2026-06-23",
+        tier="primary",
+        resident_memory_gb=0.1,
+    ),
+    # Airgapped quality default — Whisper medium.en. Quality upgrade over
+    # tiny.en at ~10× the wallclock; preferred when the airgapped pipeline
+    # has CPU headroom and quality matters.
+    "local_whisper_medium_en": StageOption(
+        stage="transcription",
+        option_id="local_whisper_medium_en",
+        provider="whisper",
+        model="medium.en",
+        research_ref="docs/guides/eval-reports/EVAL_DEV_TIER_REGISTRY_2026_06_23.md",
+        headline_metric=(
+            "mean WER 13.2% on smoke_v2 (M4 Pro CPU); 83.9 s/ep "
+            "(~6.6× realtime). -39% relative WER vs tiny.en at ~10× latency."
+        ),
+        measured_at="2026-06-23",
+        tier="primary",
+        resident_memory_gb=1.5,
+    ),
 }
 
 
@@ -1104,6 +1148,53 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         measured_at="2026-06-19",
         tier="primary",
         resident_memory_gb=18.0,
+    ),
+    # Airgapped summary default — SummLlama 3.2-3B paragraph. Local MPS,
+    # no cloud, no Ollama. #571 / #652 / #653 history continues in the
+    # 2026-06-23 smoke_v2 measurement.
+    "summllama_3_2_3b_paragraph": StageOption(
+        stage="summary",
+        option_id="summllama_3_2_3b_paragraph",
+        provider="summllama",
+        model="DISLab/SummLlama3.2-3B",
+        extra_settings={
+            "summllama_summary_style": "paragraph",
+            "summllama_device": "mps",
+            "summllama_max_tokens": 600,
+        },
+        research_ref="docs/guides/eval-reports/EVAL_DEV_TIER_REGISTRY_2026_06_23.md",
+        headline_metric=(
+            "ROUGE-L 0.251 / ROUGE-1 0.499 / cosine 0.823 on smoke_v2 "
+            "paragraph vs silver_sonnet46_smoke_v2; 53.3 s/ep on MPS. "
+            "Airgapped paragraph quality default — beats bart-small+long-fast "
+            "by +67% ROUGE-L and +25% cosine at 2.9× the latency."
+        ),
+        measured_at="2026-06-23",
+        tier="primary",
+        resident_memory_gb=7.0,
+    ),
+    # Dev / airgapped_thin summary default — pure-transformers map-reduce,
+    # no GPU required, no external model server. Backs the
+    # `ml_small_authority` ModeConfiguration above.
+    "transformers_bart_small_long_fast_authority": StageOption(
+        stage="summary",
+        option_id="transformers_bart_small_long_fast_authority",
+        provider="transformers",
+        model="bart-small",
+        extra_settings={
+            "summary_reduce_model": "long-fast",
+            "summary_mode_id": "ml_small_authority",
+        },
+        research_ref="docs/guides/eval-reports/EVAL_DEV_TIER_REGISTRY_2026_06_23.md",
+        headline_metric=(
+            "ROUGE-L 0.150 / ROUGE-1 0.311 / cosine 0.655 on smoke_v2 "
+            "paragraph vs silver_sonnet46_smoke_v2; 18.3 s/ep on MPS. "
+            "Dev/airgapped-thin floor — 8.1× compression, no GPU or "
+            "external model server required."
+        ),
+        measured_at="2026-06-23",
+        tier="primary",
+        resident_memory_gb=1.5,
     ),
 }
 
@@ -1454,6 +1545,65 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         notes=(
             "Laptop-only profile: small.en whisper (quality upgrade over base.en) + "
             "Ollama hermes3:8b summary. No DGX, no cloud."
+        ),
+    ),
+    # ── Dev / airgapped tier (#1060 — promoted 2026-06-23) ─────────────
+    # All three profiles below ship the same NER + clustering + GI/KG
+    # caveat: provider-source GI/KG is a no-op when summary_provider is
+    # not an LLM (summllama / transformers are summary-only). Same shape
+    # as the cloud/DGX presets so the drift test treats them uniformly.
+    "airgapped": ProfilePreset(
+        name="airgapped",
+        transcription="local_whisper_medium_en",
+        summary="summllama_3_2_3b_paragraph",
+        kg="provider_n10_15",
+        ner="spacy_trf",
+        clustering="topic_clusters_default_0_75",
+        gi="provider_n12_grounded_bundled",
+        notes=(
+            "Airgapped quality default: medium.en Whisper + SummLlama 3.2-3B "
+            "paragraph + spaCy trf. No network, no Ollama. SummLlama is "
+            "summary-only, so the provider-side GI/KG paths are no-ops on "
+            "this profile (KG/GI are effectively disabled until an LLM "
+            "summary_provider replaces summllama). #571 / #652 / #653 — "
+            "EVAL_DEV_TIER_REGISTRY_2026_06_23.md re-measured on smoke_v2."
+        ),
+    ),
+    "airgapped_thin": ProfilePreset(
+        name="airgapped_thin",
+        transcription="local_whisper_tiny_en",
+        summary="transformers_bart_small_long_fast_authority",
+        kg="provider_n10_15",
+        ner="spacy_sm",
+        clustering="topic_clusters_default_0_75",
+        gi="provider_n12_grounded_bundled",
+        notes=(
+            "Airgapped thin: tiny.en Whisper + bart-small+long-fast "
+            "(ml_small_authority mode) + spaCy sm. Lowest RAM / startup "
+            "cost in the registry — matches Docker stack-test constraints. "
+            "transformers is summary-only so provider-side GI/KG paths "
+            "are no-ops here too. Tier-3 stack-test asserts the strict "
+            "no-LLM v3.0 capability subset (Insight + Person + Topic + "
+            "ABOUT/SPOKEN_BY/SUPPORTED_BY/HAS_INSIGHT edges) per the YAML's "
+            "capability-set documentation."
+        ),
+    ),
+    "dev": ProfilePreset(
+        name="dev",
+        transcription="local_whisper_tiny_en",
+        summary="transformers_bart_small_long_fast_authority",
+        kg="provider_n10_15",
+        ner="spacy_sm",
+        clustering="topic_clusters_default_0_75",
+        gi="provider_n12_grounded_bundled",
+        notes=(
+            "Dev / CI: same shape as airgapped_thin (tiny.en + "
+            "bart-small+long-fast + spaCy sm) but the YAML disables GI / "
+            "KG / vector_search via generate_gi=false etc. — the registry "
+            "preset captures the COMPOSITIONAL choice; the YAML's "
+            "boolean toggles still apply on top via Field defaults / "
+            "explicit overrides. The drift test only checks routing "
+            "fields, not the on/off toggles."
         ),
     ),
 }

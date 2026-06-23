@@ -1,9 +1,14 @@
 # Profile: dev — fastest, cheapest, CI-friendly
 #
-# Registry status: YAML-only (no entry in `_PROFILE_PRESETS`). Promotion
-# is gated on a dev/test-tier StageOption fleet (tiny.en transcription +
-# transformers summary with ml_small_authority mode) the registry doesn't
-# yet carry. Drift-checked by SKIP (no `profile:` opt-in).
+# Registry status: ProfilePreset-backed (promoted 2026-06-23 in #1060).
+# Routing maps to the `dev` preset in `_PROFILE_PRESETS`: same
+# compositional choice as airgapped_thin (tiny.en + bart-small+long-fast
+# + spaCy sm), but this YAML's boolean toggles
+# (generate_gi=false / generate_kg=false / vector_search=false) layer
+# on top of the registry preset via Field defaults. The drift test only
+# checks routing fields, not the on/off toggles.
+#
+profile: dev
 #
 # Minimum viable pipeline for development and testing.
 # No API calls, no Ollama, minimal quality — speed only.

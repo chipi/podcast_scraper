@@ -1,9 +1,11 @@
 # Profile: airgapped_thin — same isolation as ``airgapped``, lower RAM / startup cost
 #
-# Registry status: YAML-only (no entry in `_PROFILE_PRESETS`). Promotion
-# is gated on a test/thin-tier StageOption fleet (bart-small summary,
-# tiny.en Whisper) that the registry doesn't carry today. Drift-checked
-# by SKIP (no `profile:` opt-in).
+# Registry status: ProfilePreset-backed (promoted 2026-06-23 in #1060).
+# Routing maps to the `airgapped_thin` preset in `_PROFILE_PRESETS`:
+# tiny.en Whisper + bart-small+long-fast (ml_small_authority mode) +
+# spaCy sm. Drift-checked by `test_profile_yaml_registry_drift.py`.
+#
+profile: airgapped_thin
 #
 # No cloud APIs, no Ollama. Tuned for Docker stack tests and smaller machines while keeping the
 # same **GI / KG / search-index** shape as packaged ``airgapped`` (summary bullets → GI/KG, grounded GIL).

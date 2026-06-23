@@ -21,6 +21,31 @@ operational fields. Supply those via CLI flags.
 | [`airgapped_thin.yaml`](airgapped_thin.yaml) | Minimal airgapped | Whisper tiny.en + spaCy sm |
 | [`dev.yaml`](dev.yaml) | Fastest/cheapest, CI-friendly, no GI/KG | Whisper tiny.en + spaCy sm + bart-led |
 
+### Registry status — two first-class shapes
+
+Profile YAMLs come in two flavours; both are valid, neither is a smell.
+
+1. **Preset-backed** — the YAML declares `profile: <name>` and matches a
+   `ProfilePreset` in
+   [`src/podcast_scraper/providers/ml/model_registry.py`](../../src/podcast_scraper/providers/ml/model_registry.py).
+   Use this when every stage choice has a research-backed `StageOption` and the
+   profile pins both PROVIDER and MODEL for every stage. Drift between the YAML
+   and the preset is caught by
+   [`test_profile_yaml_registry_drift.py`](../../tests/integration/providers/ml/test_profile_yaml_registry_drift.py).
+2. **YAML-only** — the YAML carries no `profile:` field. The drift test
+   skips it. Two legitimate reasons:
+   - **Structural** — the profile only pins MODEL across vendors, not PROVIDER
+     (e.g. `test_default` lets Field defaults pick the provider per code path).
+     The 6-tuple `ProfilePreset` shape doesn't represent that.
+   - **Tactical** — the profile is a transient mirror or pre-promotion stub
+     (e.g. `preprod_local_whisper` mirrors `cloud_with_dgx_primary` with one
+     stage swap).
+
+   YAML-only profiles MUST carry a `Registry status: YAML-only` comment
+   explaining why; the drift test asserts this. Closure as YAML-only is the
+   resolution path when the structural mismatch is the right answer
+   (#1060 Decision 1).
+
 ### Screenplay and diarization (Audio Wave 2)
 
 Profiles that use **local Whisper** (`transcription_provider: whisper` or
