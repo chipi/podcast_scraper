@@ -1,5 +1,12 @@
 # Profile: preprod_local_whisper — Stage A dress rehearsal for the prod profile.
 #
+# Registry status: YAML-only (no entry in `_PROFILE_PRESETS`). Reason: this
+# profile is a tactical mirror of cloud_with_dgx_primary with one
+# substitution (local-Whisper transcription instead of DGX). Promoting it
+# would require a `local_mps_*` transcription StageOption variant that
+# matches the small.en/Apple MPS path. Drift-checked by SKIP (no
+# `profile:` opt-in).
+#
 # Mirrors cloud_with_dgx_primary.yaml exactly, EXCEPT:
 #   - transcription runs on laptop-local Whisper (openai-whisper + Apple MPS / CUDA)
 #   - DGX-specific fields removed (no tailnet_dgx_whisper, no dgx_tailnet_host)

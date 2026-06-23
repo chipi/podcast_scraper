@@ -1,6 +1,10 @@
 # LEGACY stub (pre-2.6) — superseded by config/profiles/freeze/*.yaml.
 # Kept for one release cycle while older docs/links migrate.
 #
+# Registry status: YAML-only. This is a legacy example stub, not a
+# runtime profile — intentionally not in `_PROFILE_PRESETS`. Will be
+# deleted once the docs link cleanup completes (post-v2.7).
+#
 # Preferred workflow:
 #   make profile-freeze VERSION=vX.Y.Z \
 #     PIPELINE_CONFIG=config/profiles/freeze/<provider>.yaml

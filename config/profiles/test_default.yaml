@@ -1,5 +1,15 @@
 # Profile: test_default — what tests load when no other profile is specified.
 #
+# Registry status: YAML-only (no entry in `_PROFILE_PRESETS`). Reason:
+# `ProfilePreset` pins both PROVIDER and MODEL per stage; this profile only
+# pins MODEL choices (cheap tier across vendors) and lets Field defaults
+# decide PROVIDER. Adding a Preset would force test-tier StageOption
+# coverage for every provider — meaningful registry surface expansion
+# without a clear product driver. Drift-checked by SKIPPING the
+# `test_profile_yaml_registry_drift.py` test (no `profile: test_default`
+# top-level field → opted-out by design).
+#
+#
 # Replaces the old `_is_test_environment()` + 24 `_get_default_*` env-detect
 # machinery (commit ce029849 / 2026-06-22 narrowing + the structural refactor
 # that followed). The mechanism was:

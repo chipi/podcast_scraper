@@ -108,3 +108,138 @@ def test_no_opted_in_yamls_is_self_documenting() -> None:
         )
     # When at least one YAML opts in, this test passes trivially.
     assert _OPTED_IN
+
+
+def test_every_registry_preset_has_a_matching_yaml() -> None:
+    """Orphan-preset detector: every `_PROFILE_PRESETS` entry must have a
+    corresponding YAML under `config/profiles/` declaring `profile: <name>`.
+
+    Adding a new preset to the registry without shipping a YAML for it is a
+    smell — the preset is then load-bearing only via
+    ``resolve_profile_to_settings`` from code, with no operator-facing
+    profile YAML to look at. This test catches that asymmetry as a
+    regression.
+
+    To exempt a preset (e.g. for transient experimentation), add its name
+    to ``_PRESET_WITHOUT_YAML_ALLOWLIST`` below WITH a rationale.
+    """
+    _PRESET_WITHOUT_YAML_ALLOWLIST: set[str] = set()  # empty today; documented exemptions go here
+
+    opted_in_names = {data["profile"] for _, data in _OPTED_IN}
+    presets = set(_PROFILE_PRESETS)
+    orphans = presets - opted_in_names - _PRESET_WITHOUT_YAML_ALLOWLIST
+    assert not orphans, (
+        f"Registry presets without a matching YAML opt-in: {sorted(orphans)}. "
+        "Either ship a YAML at config/profiles/<name>.yaml declaring "
+        "`profile: <name>` at the top, OR add the preset to "
+        "_PRESET_WITHOUT_YAML_ALLOWLIST in this test with a rationale comment."
+    )
+
+
+_PROVIDER_TO_MODEL_KEY = {
+    "openai": "openai_summary_model",
+    "anthropic": "anthropic_summary_model",
+    "gemini": "gemini_summary_model",
+    "mistral": "mistral_summary_model",
+    "deepseek": "deepseek_summary_model",
+    "grok": "grok_summary_model",
+    "ollama": "ollama_summary_model",
+}
+
+
+def test_every_profile_pins_model_for_its_summary_provider() -> None:
+    """Profile YAMLs that pin a non-default summary provider should ALSO pin
+    that provider's specific summary model — or accept the Field default
+    explicitly via documentation.
+
+    Catches the class of "profile half-set" mistake: e.g. setting
+    ``summary_provider: anthropic`` without pinning
+    ``anthropic_summary_model`` means the run silently uses the Field
+    default (PROD = claude-3-5-sonnet-20241022), which might or might not
+    be what the profile author intended. The drift bug we just fixed
+    (2026-06-23) was a structural example of this class — defaults
+    silently varying.
+
+    Enforces operator's "profiles are source of truth" framing.
+
+    Test/legacy profiles are exempted (test_default, profile_freeze.example)
+    — their model pins live in non-profile-name keys.
+    """
+    _EXEMPT_FROM_CHECK: set[str] = {
+        # test_default pins MODELS across vendors; provider is chosen by Field
+        # default for the path that runs. Hence summary_provider unset.
+        "test_default",
+        # profile_freeze.example is a legacy stub; skip.
+        "profile_freeze.example",
+        # transformers + summllama profiles: model controlled by summary_model
+        # (alias-based), not provider-specific *_summary_model knob.
+        "airgapped",
+        "airgapped_thin",
+        "dev",
+    }
+
+    if not _PROFILE_DIR.is_dir():
+        pytest.skip("profile dir absent")
+
+    violations: List[str] = []
+    for path in sorted(_PROFILE_DIR.glob("*.yaml")):
+        try:
+            data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        except yaml.YAMLError:
+            continue
+        if not isinstance(data, dict):
+            continue
+        stem = path.stem
+        if stem in _EXEMPT_FROM_CHECK:
+            continue
+        provider = data.get("summary_provider")
+        if not provider or provider == "transformers":
+            continue  # transformers path uses summary_model alias, not vendor-specific knob
+        expected_key = _PROVIDER_TO_MODEL_KEY.get(provider)
+        if expected_key and expected_key not in data:
+            violations.append(
+                f"{path.name}: pins `summary_provider: {provider}` but not "
+                f"`{expected_key}`. Pin it explicitly (or add stem to the "
+                f"exempt list with a rationale)."
+            )
+
+    assert not violations, "\n".join(violations)
+
+
+def test_every_yaml_only_profile_documents_its_status() -> None:
+    """YAML-only profiles (no `profile:` top-level field) MUST carry a
+    comment explaining why they don't have a `ProfilePreset` — otherwise
+    they look like accidental orphans.
+
+    Catches "added a YAML, forgot to opt into the registry" mistakes by
+    requiring the operator to document the design choice on every
+    YAML-only profile.
+    """
+    _YAML_ONLY_DOC_MARKERS = (
+        "yaml-only",
+        "no entry in `_profile_presets`",
+        "registry status: yaml-only",
+    )
+    if not _PROFILE_DIR.is_dir():
+        pytest.skip("profile dir absent")
+
+    yaml_only: List[Path] = []
+    for path in sorted(_PROFILE_DIR.glob("*.yaml")):
+        try:
+            data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        except yaml.YAMLError:
+            continue
+        if not (isinstance(data, dict) and "profile" in data):
+            yaml_only.append(path)
+
+    undocumented: List[Path] = []
+    for path in yaml_only:
+        raw = path.read_text(encoding="utf-8").lower()
+        if not any(m in raw for m in _YAML_ONLY_DOC_MARKERS):
+            undocumented.append(path)
+
+    assert not undocumented, (
+        "YAML-only profiles (no `profile:` opt-in) must carry a comment explaining "
+        "why they aren't in `_PROFILE_PRESETS`. Add a comment containing one of "
+        f"{list(_YAML_ONLY_DOC_MARKERS)} to: {[p.name for p in undocumented]}"
+    )

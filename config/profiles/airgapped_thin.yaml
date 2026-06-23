@@ -1,5 +1,10 @@
 # Profile: airgapped_thin — same isolation as ``airgapped``, lower RAM / startup cost
 #
+# Registry status: YAML-only (no entry in `_PROFILE_PRESETS`). Promotion
+# is gated on a test/thin-tier StageOption fleet (bart-small summary,
+# tiny.en Whisper) that the registry doesn't carry today. Drift-checked
+# by SKIP (no `profile:` opt-in).
+#
 # No cloud APIs, no Ollama. Tuned for Docker stack tests and smaller machines while keeping the
 # same **GI / KG / search-index** shape as packaged ``airgapped`` (summary bullets → GI/KG, grounded GIL).
 #
