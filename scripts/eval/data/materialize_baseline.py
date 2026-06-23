@@ -782,21 +782,30 @@ def _classify_inference_target(base_url: Optional[str], backend_type: Optional[s
       - ``"cloud-<provider>"`` (no base_url + known cloud provider name)
       - ``"unknown"`` (anything we don't recognize)
     """
+    from urllib.parse import urlparse
+
     bt = (backend_type or "").lower()
     if bt == "hf_local":
         return "local-hf"
     url = (base_url or "").lower()
     if url:
-        is_local_host = "localhost" in url or "127.0.0.1" in url or "0.0.0.0" in url  # nosec B104
+        # Parse hostname properly so substring checks happen on the host, not
+        # the URL path/query (CodeQL py/incomplete-url-substring-sanitization
+        # — a path-embedded ".ts.net" or "dgx-" mustn't be classified as DGX).
+        parsed = urlparse(url if "://" in url else f"http://{url}")
+        host = (parsed.hostname or "").lower()
+        port = parsed.port
+        is_local_host = host in ("localhost", "127.0.0.1", "0.0.0.0")  # nosec B104
         if is_local_host:
-            if ":11434" in url or "ollama" in url:
+            if port == 11434 or "ollama" in host:
                 return "local-ollama"
             return "local-vllm"
-        # Tailscale / DGX hostname patterns
-        if ".ts.net" in url or url.startswith("http://dgx-") or "dgx-llm" in url:
+        # Tailscale / DGX hostname patterns — anchored to the host suffix
+        # / prefix specifically; URL path can't smuggle these in.
+        if host.endswith(".ts.net") or host.startswith("dgx-") or "dgx-llm" in host:
             return "dgx-vllm"
         # Ollama remote
-        if bt == "ollama" or ":11434" in url:
+        if bt == "ollama" or port == 11434:
             return "local-ollama"
         # Otherwise treat as remote-vllm (custom endpoint, not in known patterns)
         return "remote-vllm"
