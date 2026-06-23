@@ -13,10 +13,12 @@ import json
 import logging
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 
+from podcast_scraper.search.capability import structured_corpus_search
 from podcast_scraper.server.app_gi_view import insights_from_gi
 from podcast_scraper.server.app_kg_view import entities_from_kg
+from podcast_scraper.server.app_search_view import build_search_response, filter_outcome_to_episode
 from podcast_scraper.server.app_slugs import resolve_slug
 from podcast_scraper.server.corpus_catalog import _load_metadata_doc, CatalogEpisodeRow
 from podcast_scraper.server.schemas import (
@@ -24,6 +26,7 @@ from podcast_scraper.server.schemas import (
     AppEpisodeDetail,
     AppInsightsResponse,
     AudioSourceResponse,
+    CorpusSearchApiResponse,
     SegmentsResponse,
 )
 from podcast_scraper.server.segments_view import (
@@ -179,3 +182,22 @@ async def episode_audio_source(request: Request, slug: str) -> AudioSourceRespon
         media_id=media_id if isinstance(media_id, str) and media_id.strip() else None,
         strategy="direct",
     )
+
+
+@router.get("/episodes/{slug}/search", response_model=CorpusSearchApiResponse)
+async def episode_search(
+    request: Request,
+    slug: str,
+    q: str = Query(min_length=1, description="Natural-language query."),
+    top_k: int = Query(default=10, ge=1, le=100),
+) -> CorpusSearchApiResponse:
+    """Grounded search within one episode (extractive grounded passages; no LLM, D6).
+
+    Over-fetches by feed, then narrows to this episode — the retrieval layer has no
+    episode filter yet, so we scope ``metadata.episode_id`` client-side.
+    """
+    root, row = _resolve(request, slug)
+    internal_k = min(100, max(top_k, top_k * 5))
+    outcome = structured_corpus_search(root, q, feed=row.feed_id or None, top_k=internal_k)
+    scoped = filter_outcome_to_episode(outcome, row.episode_id, top_k)
+    return build_search_response(q, scoped)

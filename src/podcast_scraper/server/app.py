@@ -18,6 +18,7 @@ from podcast_scraper import __version__
 from podcast_scraper.server.pathutil import CorpusPathRequestError
 from podcast_scraper.server.routes import (
     app_episodes,
+    app_search,
     artifacts,
     cil,
     corpus_binary,
@@ -199,6 +200,7 @@ def create_app(
     # own /api/app namespace, separate from the operator routes. Read-only over the
     # shared corpus; access becomes auth-gated in later Epic-1 tasks (#1063/#1066).
     app.include_router(app_episodes.router, prefix="/api/app")
+    app.include_router(app_search.router, prefix="/api/app")
 
     resolved_output = Path(output_dir).expanduser().resolve() if output_dir is not None else None
     app.state.output_dir = resolved_output

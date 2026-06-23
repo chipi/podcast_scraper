@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -15,6 +16,7 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
 
+from podcast_scraper.search.corpus_search import CorpusSearchOutcome
 from podcast_scraper.server.app import create_app
 from podcast_scraper.server.app_slugs import slug_for_row
 from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
@@ -222,3 +224,33 @@ def test_entities_empty_when_no_kg(tmp_path: Path) -> None:
 def test_detail_unknown_slug_404(tmp_path: Path) -> None:
     _write_corpus(tmp_path)
     assert _client(tmp_path).get("/api/app/episodes/does-not-exist").status_code == 404
+
+
+def test_episode_search_filters_to_episode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _write_corpus(tmp_path)  # feed "myfeed", episode "ep1"
+    slug = _only_slug(tmp_path)
+    captured: dict[str, Any] = {}
+
+    def fake_run(output_dir: Path, query: str, **kwargs: Any) -> CorpusSearchOutcome:
+        captured["feed"] = kwargs.get("feed")
+        return CorpusSearchOutcome(
+            results=[
+                {
+                    "doc_id": "a",
+                    "score": 0.9,
+                    "metadata": {"doc_type": "insight", "episode_id": "ep1"},
+                    "text": "mine",
+                },
+                {
+                    "doc_id": "b",
+                    "score": 0.8,
+                    "metadata": {"doc_type": "insight", "episode_id": "other"},
+                    "text": "theirs",
+                },
+            ]
+        )
+
+    monkeypatch.setattr("podcast_scraper.search.capability.run_corpus_search", fake_run)
+    body = _client(tmp_path).get(f"/api/app/episodes/{slug}/search", params={"q": "foo"}).json()
+    assert captured["feed"] == "myfeed"  # over-fetched scoped by feed
+    assert [r["doc_id"] for r in body["results"]] == ["a"]  # narrowed to this episode
