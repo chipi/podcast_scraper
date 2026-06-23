@@ -53,14 +53,18 @@ Primary: **casual listener** (find a show fast) and **active learner** (add the 
 ## Functional Requirements
 
 ### FR1: Search
+
 - **FR1.1**: A prominent search input calls the active `DiscoverySource.search()`.
 - **FR1.2**: Results show artwork, name, publisher, episode count, short description, and an
   "Add to Library" action.
 - **FR1.3**: Shows already in the user's library render "In Library" + a link to their Catalog view.
+- **FR1.3a**: Results may surface **related topics** from topic clustering (RFC-075) so users discover
+  adjacent shows/episodes by theme. This is discovery, not personalisation (which stays in PRD-041).
 - **FR1.4**: Results paginate via "Load more" (no full reload).
 - **FR1.5–1.7**: Empty, no-results, and error states are non-blocking; the existing library stays usable.
 
 ### FR2: Library
+
 - **FR2.1**: The user's library lists added podcasts with artwork, name, and availability summary
   (e.g. "12 ready, 3 pending").
 - **FR2.2**: Each row links to the podcast's Catalog view (PRD-038).
@@ -68,12 +72,14 @@ Primary: **casual listener** (find a show fast) and **active learner** (add the 
 - **FR2.4**: Empty-library state guides the user to search.
 
 ### FR3: Adding a podcast
+
 - **FR3.1**: "Add to Library" subscribes the user and triggers an initial feed scan to populate episodes.
 - **FR3.2**: After adding, the user sees the podcast's Catalog view; already-scraped episodes show Ready,
   others show Request.
 - **FR3.3**: Adding a show already in the shared catalog adds only the subscription — no new scrape.
 
 ### FR4: Scrape-on-demand
+
 - **FR4.1**: "Request" on an unprocessed episode submits `POST /api/scrape` (PRD-036 FR5).
 - **FR4.2**: Requests are globally deduped — an in-progress job is shown rather than re-queued.
 - **FR4.3**: "Request all" queues all unprocessed episodes of a podcast.
@@ -96,7 +102,7 @@ A source selector appears only when >1 source is configured. v2.7 ships Podcast 
 ## API summary
 
 | Method | Path | Description |
-|---|---|---|
+| --- | --- | --- |
 | `GET` | `/api/discovery/search` | Proxy to active source (`q`, `page`); API key stays server-side |
 | `GET` | `/api/user/library` | User's library + availability counts |
 | `POST` | `/api/user/library` | Add podcast by feed URL |
@@ -126,5 +132,5 @@ A source selector appears only when >1 source is configured. v2.7 ships Podcast 
 ## References
 
 - `docs/prd/PRD-035-learning-platform.md`, `PRD-036-foundation-identity.md`, `PRD-038-catalog.md`
-- https://podcastindex.org/ , https://podcastindex-org.github.io/docs-api/
+- <https://podcastindex.org/> , <https://podcastindex-org.github.io/docs-api/>
 - `docs/rfc/RFC-065-agent-observable-instrumentation.md`

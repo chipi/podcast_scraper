@@ -37,6 +37,9 @@ of evaporating after each episode.
   jump-to-moment citations.
 - Surface cross-episode connections (a guest across shows, a topic across episodes) within the user's corpus.
 - Resurface past highlights on a spaced schedule with reflection prompts.
+- Surface enrichment-powered signals (RFC-088, built in parallel): trending topics, contradictions, and a
+  grounding-rate credibility cue; a "Your Week" digest (RFC-068/023); clustered topic threads (RFC-075).
+- (North-star) expose the personal corpus via MCP (RFC-095) so the user's own agent can synthesise.
 - Maintain a personal topic/interest profile that can personalise ordering in Catalog/Discovery.
 
 ## Non-Goals
@@ -63,6 +66,7 @@ consumed, with citations).
 ## Functional Requirements
 
 ### FR1: Personal knowledge corpus
+
 - **FR1.1**: A per-user graph projection composed of the user's highlights, saved insights, notes, and the
   entities/topics they touch — built over the canonical identity layer (RFC-072) so a person/topic is the
   same node across episodes.
@@ -70,6 +74,7 @@ consumed, with citations).
 - **FR1.3**: Every corpus node retains grounding (episode slug + timestamp + quote) for citation/replay.
 
 ### FR2: Grounded recall (retrieval, no request-time LLM)
+
 - **FR2.1**: "What have I learned about <topic/person>" runs hybrid retrieval (RFC-090) + relational
   traversal (RFC-072) over the user's corpus and returns the matching grounded items — insights, quotes, and
   the user's own highlights — grouped (by episode/guest) and ranked, each linking to its captured/heard
@@ -80,18 +85,21 @@ consumed, with citations).
   drawing from the global corpus.
 
 ### FR3: Cross-episode connections
+
 - **FR3.1**: Person view: a guest's positions/insights across the episodes the user has heard (reuses
   RFC-072 relational traversal, scoped to the user's set).
 - **FR3.2**: Topic view: a topic's threads across the user's heard episodes.
 - **FR3.3**: Connections surface as suggestions ("you also heard <guest> discuss this in …").
 
 ### FR4: Spaced resurfacing & reflection
+
 - **FR4.1**: A periodic surface (digest or in-app) resurfaces past highlights on a spaced schedule
   (simple intervals in v2.7; tunable SRS later).
 - **FR4.2**: Resurfaced items carry a reflection prompt and a one-tap jump-to-moment to re-listen.
 - **FR4.3**: Resurfacing respects user pacing controls (frequency, pause, dismiss).
 
 ### FR5: Interest profile
+
 - **FR5.1**: A personal topic/interest profile is derived from captures + listening history.
 - **FR5.2**: The profile can personalise ordering in Catalog/Home (PRD-038) and surface related episodes —
   drawn from the shared corpus but ranked by personal relevance. (Personalised ordering is opt-in.)
@@ -99,7 +107,7 @@ consumed, with citations).
 ## API summary
 
 | Method | Path | Description |
-|---|---|---|
+| --- | --- | --- |
 | `GET` | `/api/user/corpus/graph` | Personal knowledge graph projection |
 | `POST` | `/api/user/corpus/recall` | Grounded recall query over the user's corpus |
 | `GET` | `/api/user/corpus/person/{id}` | A person across the user's heard episodes |

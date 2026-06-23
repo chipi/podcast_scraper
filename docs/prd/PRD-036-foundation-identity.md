@@ -66,6 +66,7 @@ second device and finding their state intact, and by the **researcher** hitting 
 ## Functional Requirements
 
 ### FR1: Identity & sessions
+
 - **FR1.1**: OAuth sign-in via a single configured provider (Google to start). Provider is swappable
   by config.
 - **FR1.2**: Authenticated sessions gate all per-user routes (`/api/user/*`). Anonymous users may read
@@ -74,6 +75,7 @@ second device and finding their state intact, and by the **researcher** hitting 
   (not shared artifacts).
 
 ### FR2: Per-user data model
+
 - **FR2.1**: Entities — `user`, `library_subscription` (user→podcast), `playback_position`
   (user→episode→seconds+updated_at), `queue_item` (user→episode→order), `highlight`, `note`,
   `interest_topic` (user→topic canonical id). Highlights/notes detailed in PRD-040.
@@ -81,6 +83,7 @@ second device and finding their state intact, and by the **researcher** hitting 
 - **FR2.3**: Shared corpus artifacts are read-only via the API; no per-user route mutates them.
 
 ### FR3: Consumer read API (slug-addressed)
+
 - **FR3.1**: `GET /api/episodes` — paginated episode list across the user's library, with artifact flags
   and status (ready/pending/not-scraped).
 - **FR3.2**: `GET /api/episodes/{slug}` — episode detail + artifact availability flags + enclosure ref.
@@ -90,17 +93,20 @@ second device and finding their state intact, and by the **researcher** hitting 
 - **FR3.6**: Search + relational routes (RFC-090, RFC-072) are exposed read-only to the consumer client.
 
 ### FR4: Audio bridge / enclosure resolution
+
 - **FR4.1**: `GET /api/episodes/{slug}/audio-source` returns the original enclosure URL (+ metadata),
   not audio bytes. The client plays from the host.
 - **FR4.2**: Internal pipeline audio is never reachable from any `/api/episodes/**` route.
 
 ### FR5: Scrape-on-demand
+
 - **FR5.1**: `POST /api/scrape` enqueues processing for an episode/feed; globally deduped (RFC-065
   status.json), so concurrent requests for the same episode share one job.
 - **FR5.2**: `GET /api/scrape/status/{job_id}` reports pipeline stage + progress.
 - **FR5.3**: A per-user quota hook exists (enforcement policy decided at RFC stage; see PRD-035 OQ4).
 
 ### FR6: Reference player (contract proof)
+
 - **FR6.1**: A minimal client: sign in → list episodes → load segments → resolve enclosure → play with
   segment highlight + tap-to-seek + resume. No design polish; correctness only.
 
@@ -124,7 +130,7 @@ label. Breaking this shape requires amending PRD-035 FR1.
 ## API summary
 
 | Method | Path | Description |
-|---|---|---|
+| --- | --- | --- |
 | `GET` | `/api/auth/login` / `/callback` / `/logout` | OAuth flow |
 | `GET` | `/api/me` | Current user |
 | `GET` | `/api/episodes` | Library episode list + status + artifact flags |

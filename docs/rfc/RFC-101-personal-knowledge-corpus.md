@@ -12,6 +12,10 @@
   - `docs/rfc/RFC-090-hybrid-retrieval.md` (retrieval engine, scoped here)
   - `docs/rfc/RFC-094-search-powered-surfaces-query-layer.md` (relational traversal, scoped here)
   - `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md` (canonical identity)
+  - `docs/rfc/RFC-075-corpus-topic-clustering.md` (clustered topic threads + interest profile)
+  - `docs/rfc/RFC-088-enrichment-layer-architecture.md` (enrichment signals — **built in parallel; consume + stay in sync**)
+  - `docs/rfc/RFC-095-generic-mcp-server.md` (bring-your-own-agent north-star over the personal corpus)
+  - RFC-068 / RFC-023 (digest engine → "Your Week"); RFC-069 (optional consumer graph browser, via RFC-099)
 
 ## Abstract
 
@@ -65,8 +69,9 @@ user's experience.
 
 ### 1. The user's episode set
 
-A derived set = episodes with playback history above a threshold ∪ episodes the user has captured from.
-Maintained by reading the user's per-user files (RFC-098); no duplication of artifacts.
+A derived set = episodes the user has **heard** (**≥30% played**, default/tunable) ∪ episodes the user has
+**captured** from (any highlight/note). Maintained by reading the user's per-user files (RFC-098); no
+duplication of artifacts.
 
 ### 2. Corpus projection (read-time, not a rebuilt graph)
 
@@ -108,6 +113,22 @@ POST /api/app/corpus/recall { "q": "transformers" }
 - Aggregate topic/person frequencies from captures + history into `interest_topics`. Opt-in personalised
   ordering of Catalog/Home re-ranks shared-corpus results by personal relevance (off by default until
   validated).
+
+### FR6: Harvested surfaces (build-on, 2026-06-23)
+
+- **FR6.1 Enrichment-powered reflection (consumes RFC-088 — built in parallel, stay in sync):**
+  `temporal_velocity` → "trending in your corpus"; contradictions → "you've heard opposing takes on X";
+  `grounding_rate` → flag/filter low-confidence items. The platform consumes RFC-088 outputs; it does not
+  re-implement them. If RFC-088's field/artifact contract shifts, update these consumption points.
+- **FR6.2 "Your Week" personal digest:** reuse the digest engine (RFC-068 / RFC-023) scoped to the user's
+  library + interests — new episodes in followed shows, topics trending in *their* corpus, and a recap of
+  what they captured. Computed on read; no new pipeline.
+- **FR6.3 Clustered topic threads (RFC-075):** cross-episode connections and the interest profile use topic
+  clusters so variants collapse to one canonical thread.
+- **FR6.4 Bring-your-own-agent north-star (RFC-095):** expose the user's *personal* corpus through the MCP
+  server so the user's **own** agent/LLM performs generative synthesis ("ask Claude about your learning").
+  This is the D6-safe path to generative answers — the model is the user's, never our server. North-star,
+  not v2.7.
 
 ## Key Decisions
 
@@ -153,7 +174,7 @@ no LLM/network calls.
 ## Open Questions
 
 1. Read-time projection latency at large personal corpora — when to materialise a per-user summary.
-2. Episode-set threshold (how much playback counts as "heard").
+2. ~~Episode-set threshold~~ **Resolved (2026-06-23):** "heard" = ≥30% played or any capture (default, tunable).
 3. Whether interest-driven ordering can be validated without a multi-user feedback loop yet.
 
 ## References

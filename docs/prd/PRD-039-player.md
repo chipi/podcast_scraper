@@ -65,12 +65,14 @@ so it's ready by the time it's reached.
 ## Functional Requirements
 
 ### FR1: Layout
+
 - **FR1.1**: Full-viewport on mobile; two-column on desktop (transcript main + collapsible Knowledge Panel).
 - **FR1.2**: Episode title + podcast name at the top.
 - **FR1.3**: Back navigation returns to Catalog; playback continues where technically feasible
   (pause-on-navigate acceptable for v2.7).
 
 ### FR2: Queue & playback controls
+
 - **FR2.1**: Standard controls: play/pause, scrub with elapsed/total, skip-back 15s, skip-forward 30s.
 - **FR2.2**: Speed selector: 0.75× / 1× / 1.25× / 1.5× / 2×.
 - **FR2.3**: **Queue**: add/remove/reorder episodes; auto-advance to the next on completion; "play next"
@@ -82,6 +84,7 @@ so it's ready by the time it's reached.
 - **FR2.6**: A "Resume from X:XX" prompt appears for episodes with a saved position.
 
 ### FR3: Transcript panel
+
 - **FR3.1**: Full transcript as a scrollable list of `segments.json` segments.
 - **FR3.2**: The playing segment is highlighted and auto-scrolled into view; auto-scroll pauses on manual
   scroll and re-enables after ~5s idle.
@@ -92,6 +95,7 @@ so it's ready by the time it's reached.
 - **FR3.6**: No transcript → panel offers "Request processing" (audio-only mode still plays).
 
 ### FR4: Knowledge Panel (collapsible; collapsed on mobile, open on wide desktop)
+
 - **FR4.1 Summary**: 2–4 sentence episode summary, shown first when available.
 - **FR4.2 Topics**: KG topic chips, ordered by mention count. (Tap → Topic view: post-v2.7.)
 - **FR4.3 Insights**: grounded GIL insights as cards — insight text, supporting quote (verbatim),
@@ -107,13 +111,14 @@ so it's ready by the time it's reached.
   panel explains intelligence requires GIL/KG processing.
 
 ### FR5: Capture entry points (→ PRD-040)
+
 - **FR5.1**: A one-tap "highlight current moment" control during playback, and a highlight action on any
   transcript segment and any insight card. (Storage/behaviour defined in PRD-040.)
 
 ## Data sources
 
 | Panel section | Source | Required |
-|---|---|---|
+| --- | --- | --- |
 | Transcript | `segments.json` (PRD-036 FR3.3) | Yes |
 | Audio | original enclosure URL (PRD-036 FR4) | Yes |
 | Summary | summary artifact / metadata | No |
@@ -124,7 +129,7 @@ so it's ready by the time it's reached.
 ## API summary
 
 | Method | Path | Description |
-|---|---|---|
+| --- | --- | --- |
 | `GET` | `/api/episodes/{slug}/segments` | Transcript sync (PRD-036) |
 | `GET` | `/api/episodes/{slug}/insights` | Knowledge Panel insights |
 | `GET` | `/api/episodes/{slug}/entities` | Knowledge Panel entities |

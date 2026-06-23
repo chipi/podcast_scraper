@@ -52,6 +52,7 @@ and the **global catalog** (all episodes across the user's library, newest first
 ## Functional Requirements
 
 ### FR1: Global catalog view
+
 - **FR1.1**: A Home / All-Episodes view across all library podcasts, publish-date descending.
 - **FR1.2**: Each card: artwork, podcast name, episode title, publish date, duration, status badge.
 - **FR1.3**: Ready → links to Player; Not-scraped → inline "Request"; Pending → inline progress.
@@ -59,22 +60,26 @@ and the **global catalog** (all episodes across the user's library, newest first
 - **FR1.5**: Paginated / infinite scroll, 20 per page.
 
 ### FR2: Podcast view
+
 - **FR2.1**: Tapping a library podcast shows its header (artwork, name, publisher, description) + episode list.
 - **FR2.2**: Episodes sorted publish-date descending, same card format as FR1.2.
 - **FR2.3**: "Request all" queues all unprocessed episodes (PRD-037 FR4.3).
 - **FR2.4**: Header shows totals (e.g. "48 episodes · 12 ready · 2 pending").
 
 ### FR3: Episode card — enriched state
+
 - **FR3.1**: 1–2 sentence summary preview from the summary artifact.
 - **FR3.2**: Up to 5 topic chips (KG), truncated with "+N more".
 - **FR3.3**: Speaker count when diarization present (e.g. "2 speakers").
 - **FR3.4**: GIL insight count when present (e.g. "7 insights") as a depth signal.
 
 ### FR4: Episode card — degraded state
+
 - **FR4.1**: Core-only cards (title, date, duration, status) omit absent fields — no broken/empty panels.
 - **FR4.2**: Audio-available-but-no-transcript shows "Transcript pending"; still playable (audio-only).
 
 ### FR5: Navigation
+
 - **FR5.1**: Ready card → Player (PRD-039), passing the episode slug.
 - **FR5.2**: Breadcrumbs: Player → Catalog (podcast) → Discovery (library); back always available.
 - **FR5.3**: From global view, tapping podcast name/artwork → that podcast's Catalog view.
@@ -82,7 +87,7 @@ and the **global catalog** (all episodes across the user's library, newest first
 ## API summary
 
 | Method | Path | Description |
-|---|---|---|
+| --- | --- | --- |
 | `GET` | `/api/episodes` | Episodes across library (`page`, `status`) — PRD-036 FR3.1 |
 | `GET` | `/api/podcasts/{id}/episodes` | One podcast's episodes (`page`) |
 | `GET` | `/api/episodes/{slug}` | Detail + artifact flags — PRD-036 FR3.2 |

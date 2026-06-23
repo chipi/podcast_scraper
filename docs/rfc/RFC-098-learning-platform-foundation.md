@@ -143,6 +143,27 @@ server/
   per-user **concurrent-scrape cap** + **token-bucket rate limit** (in-process, config-driven). `GET
   /api/app/scrape/{job_id}` proxies RFC-065 status. No new queue.
 
+### 7. P0 contract details (added per landscape review)
+
+- **Scrape-completion notification (gap 1):** v2.7 uses **client polling** of `GET /api/app/scrape/{job_id}`;
+  the catalog/queue flips to Ready on terminal status without a manual refresh. SSE / browser push is a
+  deferred enhancement (Open Questions) — no new server-push infrastructure now.
+- **Library-wide search (gap 3):** `GET /api/app/search?q=…` runs hybrid retrieval (RFC-090) filtered to the
+  **user's episode set** (library ∪ heard) — the tier between episode-scoped search (§5) and personal recall
+  (RFC-101). Same grounded-passage shape; no LLM.
+- **Routing & auth topology (gap 4):** `/api/app/*` mounts as its own `APIRouter`/sub-app with the auth
+  dependency applied at the prefix; operator routers (`/api/corpus/*`, `/api/relational/*`, RFC-077 ops) keep
+  their existing chain unchanged. One process, two prefixes, two middleware chains. `/api/corpus/media` is
+  **never** mounted under `/api/app`.
+- **Rate-limit defaults (gap 5):** initial, config-tunable — scrape **≤2 concurrent/user, ≤20/day**; read API
+  **token bucket ≈60 req/min/user**; on limit → **HTTP 429 + `Retry-After`** (reject, not queue). Global
+  scrape dedup still applies underneath.
+- **Highlight grounding & re-transcription (gap 2):** highlights store
+  `episode_slug + segment_id + char_start/char_end + [start_ms,end_ms] + quote_text` (PRD-040 FR3.1).
+  **Timestamps are the stable anchor** across re-transcription; `segment_id`/offsets may shift on re-scrape,
+  so a highlight re-anchors by timestamp on read (re-locating the nearest segment), keeping `quote_text` for
+  display + drift verification. A re-scrape never silently drops a highlight.
+
 ## Key Decisions
 
 1. **Separate `/api/app/*` sub-app, not new routes on the operator API**

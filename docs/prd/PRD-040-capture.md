@@ -56,6 +56,7 @@ offsets, so it can be replayed, cited, and later woven into the user's personal 
 ## Functional Requirements
 
 ### FR1: Highlighting
+
 - **FR1.1**: During playback, a single control captures the current moment as a highlight anchored to the
   active segment (slug + timestamp + segment id + offsets).
 - **FR1.2**: In the transcript, selecting a span (one or more segments) creates a highlight over the exact
@@ -65,17 +66,24 @@ offsets, so it can be replayed, cited, and later woven into the user's personal 
 - **FR1.4**: Highlights have an optional colour/label (small fixed palette) for lightweight categorisation.
 
 ### FR2: Notes
+
 - **FR2.1**: A note (plain text) can attach to a highlight, an insight, or the episode as a whole.
 - **FR2.2**: Notes are editable and deletable by their owner.
 
 ### FR3: Grounding & data model
-- **FR3.1**: `highlight` rows: `id, user, episode_slug, kind(span|moment|insight), start_ms, end_ms,
+
+- **FR3.1**: `highlight` records: `id, user, episode_slug, kind(span|moment|insight), start_ms, end_ms,
   char_start, char_end, segment_ids[], quote_text, speaker?, source_insight_id?, color?, created_at`.
+- **FR3.1a — Survive re-transcription:** timestamps (`start_ms/end_ms`) are the stable anchor;
+  `segment_ids` and char offsets may shift on re-scrape, so a highlight re-anchors by timestamp on read
+  (re-locating the nearest segment), retaining `quote_text` for display + drift verification. A re-scrape
+  never silently drops a highlight (see RFC-098 §7).
 - **FR3.2**: `note` rows: `id, user, target(highlight|insight|episode), target_id, text, created_at,
   updated_at`.
 - **FR3.3**: Both are per-user overlay rows (PRD-036 FR2); authz on every access.
 
 ### FR4: Review & management
+
 - **FR4.1**: Per-episode highlights list, each with a jump-to-moment link (seeks the player).
 - **FR4.2**: A global "My highlights" view across all episodes, filterable by podcast/topic/colour and
   sortable by recency.
@@ -85,7 +93,7 @@ offsets, so it can be replayed, cited, and later woven into the user's personal 
 ## API summary
 
 | Method | Path | Description |
-|---|---|---|
+| --- | --- | --- |
 | `GET` | `/api/user/highlights` | All highlights (filter: `podcast`, `topic`, `color`) |
 | `GET` | `/api/episodes/{slug}/highlights` | Highlights for one episode |
 | `POST` | `/api/episodes/{slug}/highlights` | Create a highlight |

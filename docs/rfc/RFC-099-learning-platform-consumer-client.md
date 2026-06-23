@@ -99,6 +99,10 @@ app/                      # new top-level project (sibling of web/)
 - Collapsible panel: Summary, Topics, Insights (grounded cards with timestamp jump), Persons.
 - "Ask / find in this episode" → `GET /api/app/episodes/{slug}/search` → ranked grounded passages with
   jump-to-moment. No generation, no disclaimer (results are verbatim).
+- **Relational context** uses the RFC-094 queries by name: Insights via `who_said` + `cross_show_synthesis`,
+  Persons via `positions_of` — scoped to this episode.
+- **Enrichment signals (consumes RFC-088, built in parallel — stay in sync):** related-topic chips from
+  `topic_cooccurrence` and a credibility badge from `grounding_rate` ("N% grounded"), shown when present.
 
 ### 5. Capture
 
@@ -111,6 +115,23 @@ app/                      # new top-level project (sibling of web/)
   segment; visible focus; reduced-motion respect for autoscroll; target WCAG 2.1 AA.
 - **i18n**: all copy via `vue-i18n`; no hard-coded strings; locale-aware dates/numbers; layout RTL-ready.
   (Content/transcript translation is out — a future pipeline feature.)
+
+### 7. Observability & analytics (consumer)
+
+- **Errors/crashes** → Sentry (client). **Web-vitals** (LCP/INP/TTI, main-thread block measured on the worst
+  common device — retina/DPR-2, throttled) → a metrics endpoint.
+- **Event taxonomy** (privacy-light: no PII, no transcript text — in the spirit of the existing
+  `query_log`): play, pause, seek, segment-jump, search, recall, capture-highlight, add-note, queue-add,
+  resurface-shown/acted.
+- **Backend** `/api/app/*` latency/errors → Prometheus (reuse the existing `PODCAST_METRICS_ENABLED` hook) →
+  Grafana, aligning the consumer layer with the operator's existing observability.
+- **GDPR-light:** per-user analytics are deletable with the account (RFC-098).
+
+### 8. Optional consumer knowledge-graph browser (P2+)
+
+- A read-only visual explorer reusing the RFC-069 graph toolkit (zoom/minimap/filters) + RFC-094 queries,
+  scoped to the user's episode set. Distinct from the operator viewer; off the critical path — ships only
+  after the core listen→capture flow.
 
 ## Key Decisions
 
