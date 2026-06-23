@@ -1,6 +1,18 @@
 # UXS-009: Position Tracker
 
 - **Status**: Draft
+- **v2 closure (RFC-097, 2026-06-20; chunk-8 scope-cut 2026-06-21)**: viewer
+  surface delivered by **#1048** (Person Landing shared shell) + **#1049**
+  (Position Tracker panel, 2026-06-23). Implementation lives at
+  `web/gi-kg-viewer/src/components/subject/PositionTrackerPanel.vue`; entry
+  point is the ranked-Topic rows on the Person Profile tab; helper
+  `personTopicPositionArc` in `web/gi-kg-viewer/src/utils/parsing.ts` owns
+  the `MENTIONS_PERSON ∩ ABOUT` join + date / position_hint sort + Quote
+  attachment via `SUPPORTED_BY`. The three degradation states defined in
+  this spec are wired as the `position-tracker-no-topic` /
+  `position-tracker-empty` / `position-tracker-arc` testids. See
+  `e2e/E2E_SURFACE_MAP.md` § "Person Landing rail panel" for the full
+  testid map.
 - **Authors**: Marko
 - **Parent UXS**: [UXS-001: GI/KG Viewer](UXS-001-gi-kg-viewer.md) -- shared tokens,
   typography, layout, states

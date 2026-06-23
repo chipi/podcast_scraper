@@ -181,12 +181,26 @@ describe('PersonLandingView — #1048 shell (Person Profile + Position Tracker)'
     expect(rows[1].text()).toContain('1')
   })
 
-  it('Position Tracker tab renders the #1049 placeholder when active', async () => {
+  it('Position Tracker tab renders the panel with no-topic state when no topic selected', async () => {
     const w = await mountWithArtifact()
     await w.get('[data-testid="person-landing-tab-position-tracker"]').trigger('click')
-    expect(
-      w.find('[data-testid="person-landing-position-tracker-placeholder"]').exists(),
-    ).toBe(true)
     expect(w.find('[data-testid="person-landing-panel-position-tracker"]').isVisible()).toBe(true)
+    expect(w.find('[data-testid="position-tracker-panel"]').exists()).toBe(true)
+    // #1049 state 1 — no Topic selected.
+    expect(w.find('[data-testid="position-tracker-no-topic"]').exists()).toBe(true)
+  })
+
+  it('clicking a Top Topic row pivots to Position Tracker for that (Person, Topic) pair', async () => {
+    const w = await mountWithArtifact()
+    // Click the first ranked-topic button (AI ethics, alphabetic tiebreak first).
+    const buttons = w.findAll('[data-testid="person-landing-ranked-topic-button"]')
+    expect(buttons.length).toBeGreaterThan(0)
+    await buttons[0].trigger('click')
+    // Tab switched + subject store carries the topic id.
+    expect(useSubjectStore().positionTrackerTopicId).toBe('topic:ai')
+    expect(w.find('[data-testid="person-landing-panel-position-tracker"]').isVisible()).toBe(true)
+    // No-topic placeholder gone; arc state visible (the fixture has matching insights).
+    expect(w.find('[data-testid="position-tracker-no-topic"]').exists()).toBe(false)
+    expect(w.find('[data-testid="position-tracker-topic-name"]').text()).toBe('AI ethics')
   })
 })

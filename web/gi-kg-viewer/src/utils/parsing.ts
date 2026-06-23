@@ -580,6 +580,160 @@ export function rankedPersonOrganizations(
 }
 
 /**
+ * One row of the Person × Topic position arc per RFC-072 §5A / PRD-028.
+ *
+ * Each row is one Insight that both ``MENTIONS_PERSON → personId`` AND
+ * ``ABOUT → topicId``, with its temporal placement (``publish_date`` from
+ * the parent Episode, ``position_hint`` from the Insight itself) and the
+ * supporting Quote excerpts so the UI can render quote cards without a
+ * second pass through the artifact.
+ */
+export interface PersonTopicPositionRow {
+  insightId: string
+  text: string
+  insightType: string | null
+  positionHint: number | null
+  episodeId: string | null
+  publishDate: string | null
+  supportingQuoteTexts: string[]
+}
+
+/**
+ * Ordered position-arc rows for a (Person, Topic) pair, joined off the
+ * loaded graph slice.
+ *
+ * Algorithm:
+ *   1. Insights that ``MENTIONS_PERSON → personGraphId``.
+ *   2. Intersected with Insights that ``ABOUT → topicGraphId``.
+ *   3. For each surviving Insight, attach: insight_type, position_hint,
+ *      episode_id (via ``IN_EPISODE`` or the Insight's
+ *      ``properties.episode_id``), publish_date (via the Episode node),
+ *      and the supporting Quote texts (via ``SUPPORTED_BY → Quote``).
+ *   4. Sort by (publish_date asc, position_hint asc, insightId asc) so
+ *      undated insights cluster at the top (oldest-to-newest reads
+ *      left-to-right in the UI; undated = "we don't know yet").
+ *
+ * Insights with no episode_id / publish_date still surface — they group
+ * at the head of the timeline with a "date unknown" UX affordance.
+ */
+export function personTopicPositionArc(
+  art: ParsedArtifact | null,
+  personGraphId: string | null,
+  topicGraphId: string | null,
+): PersonTopicPositionRow[] {
+  if (!art?.data?.edges || personGraphId == null || topicGraphId == null) return []
+  const pid = String(personGraphId).trim()
+  const tid = String(topicGraphId).trim()
+  if (!pid || !tid) return []
+
+  const mentioningPerson = new Set<string>()
+  const aboutTopic = new Set<string>()
+  // From-insight → list of supporting quote node ids (preserves order).
+  const supportingByInsight = new Map<string, string[]>()
+  // insight → episode id (from explicit IN_EPISODE edges).
+  const insightToEpisode = new Map<string, string>()
+  for (const e of art.data.edges) {
+    if (!e) continue
+    const ty = normalizeGiEdgeType(e.type)
+    const from = String(e.from ?? '').trim()
+    const to = String(e.to ?? '').trim()
+    if (!from || !to) continue
+    if (ty === 'mentions_person' && to === pid) {
+      mentioningPerson.add(from)
+    } else if (ty === 'about' && to === tid) {
+      aboutTopic.add(from)
+    } else if (ty === 'supported_by') {
+      const arr = supportingByInsight.get(from)
+      if (arr) arr.push(to)
+      else supportingByInsight.set(from, [to])
+    } else if (ty === 'in_episode') {
+      insightToEpisode.set(from, to)
+    }
+  }
+  if (mentioningPerson.size === 0 || aboutTopic.size === 0) return []
+
+  // Build Episode → publish_date lookup for the slice. Pull both the
+  // graph-node id form and the logical episode id form to handle the
+  // unified-merge graph (where Insight.properties.episode_id often carries
+  // the logical id while Episode nodes carry the prefixed graph id).
+  const episodeByGraphId = new Map<string, RawGraphNode>()
+  const episodeByLogicalId = new Map<string, RawGraphNode>()
+  for (const n of art.data.nodes ?? []) {
+    if (!n || String(n.type) !== 'Episode') continue
+    const gid = n.id != null ? String(n.id).trim() : ''
+    if (gid) episodeByGraphId.set(gid, n)
+    const lid = logicalEpisodeIdFromGraphNodeId(gid)
+    if (lid) episodeByLogicalId.set(lid, n)
+  }
+
+  function episodeFor(epId: string | null): RawGraphNode | null {
+    if (!epId) return null
+    return episodeByGraphId.get(epId) || episodeByLogicalId.get(epId) || null
+  }
+
+  const insightIds: string[] = []
+  for (const id of mentioningPerson) if (aboutTopic.has(id)) insightIds.push(id)
+  if (insightIds.length === 0) return []
+
+  const rows: PersonTopicPositionRow[] = []
+  for (const insightId of insightIds) {
+    const n = findRawNodeInArtifact(art, insightId)
+    if (!n || String(n.type) !== 'Insight') continue
+    const p = n.properties as Record<string, unknown> | undefined
+    const text = typeof p?.text === 'string' ? p.text.trim() : ''
+    const insightType = typeof p?.insight_type === 'string' ? p.insight_type.trim() : ''
+    const positionHintRaw = p?.position_hint
+    const positionHint =
+      typeof positionHintRaw === 'number' && Number.isFinite(positionHintRaw)
+        ? positionHintRaw
+        : null
+    const explicitEp = insightToEpisode.get(insightId)
+    const propsEp = typeof p?.episode_id === 'string' ? p.episode_id.trim() : ''
+    const episodeId = (explicitEp || propsEp || '').trim() || null
+    const epNode = episodeFor(episodeId)
+    const epP = epNode?.properties as Record<string, unknown> | undefined
+    const publishDate =
+      typeof epP?.publish_date === 'string' && epP.publish_date.trim()
+        ? epP.publish_date.trim().slice(0, 10)
+        : null
+    const supportingIds = supportingByInsight.get(insightId) ?? []
+    const supportingTexts: string[] = []
+    const seenQuoteId = new Set<string>()
+    for (const qid of supportingIds) {
+      if (seenQuoteId.has(qid)) continue
+      seenQuoteId.add(qid)
+      const qn = findRawNodeInArtifact(art, qid)
+      if (!qn || String(qn.type) !== 'Quote') continue
+      const qp = qn.properties as Record<string, unknown> | undefined
+      const qt = typeof qp?.text === 'string' ? qp.text.trim() : ''
+      if (qt) supportingTexts.push(qt)
+    }
+    rows.push({
+      insightId,
+      text,
+      insightType: insightType || null,
+      positionHint,
+      episodeId,
+      publishDate,
+      supportingQuoteTexts: supportingTexts,
+    })
+  }
+
+  rows.sort((a, b) => {
+    // Undated insights cluster at the head (treated as "earliest unknown").
+    const aDate = a.publishDate ?? ''
+    const bDate = b.publishDate ?? ''
+    if (aDate !== bDate) return aDate < bDate ? -1 : 1
+    const aPos = a.positionHint ?? Number.POSITIVE_INFINITY
+    const bPos = b.positionHint ?? Number.POSITIVE_INFINITY
+    if (aPos !== bPos) return aPos - bPos
+    return a.insightId < b.insightId ? -1 : a.insightId > b.insightId ? 1 : 0
+  })
+
+  return rows
+}
+
+/**
  * Read Person.role from the node's ``properties.role`` when present and
  * normalize to lowercase trimmed text. Returns null for unknown / missing.
  * The role value is one of ``"host" | "guest" | "mention"`` by RFC-097

@@ -8,7 +8,7 @@
   - `docs/prd/PRD-019-knowledge-graph-layer.md` (Entity → Person/Org/Podcast first-class)
   - `docs/prd/PRD-026-topic-entity-view.md` (CIL enablement)
   - `docs/prd/PRD-027-enriched-search.md` (chunk-to-Insight lift foundation)
-  - `docs/prd/PRD-028-position-tracker.md` (data foundation delivered; viewer surface delivered by #1048 shared-shell scaffolding — per-(Person, Topic) timeline body pending #1049)
+  - `docs/prd/PRD-028-position-tracker.md` (data foundation delivered; viewer surface delivered by #1048 shared shell + #1049 Position Tracker panel — per-(Person, Topic) timeline now live)
   - `docs/prd/PRD-029-person-profile.md` (data foundation delivered; viewer surface delivered by #1048 shared shell — aggregate Person Profile body deepens via #1050)
   - `docs/prd/PRD-031-search.md` (entity-aware retrieval foundation)
 - **Related ADRs**:

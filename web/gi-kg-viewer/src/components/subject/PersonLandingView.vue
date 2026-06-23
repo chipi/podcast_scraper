@@ -42,6 +42,7 @@ import {
 } from '../../utils/parsing'
 import { logicalEpisodeIdFromGraphNodeId } from '../../utils/graphEpisodeMetadata'
 import { buildSubjectMentionsTimeline } from '../../utils/subjectMentionsTimeline'
+import PositionTrackerPanel from './PositionTrackerPanel.vue'
 import SubjectTimelineChart from './SubjectTimelineChart.vue'
 
 /** Positions list cap — Persons accumulate more attributed quotes than a
@@ -367,6 +368,15 @@ function onPrefillSearch(): void {
   if (!q) return
   emit('prefillSemanticSearch', { query: q })
 }
+
+// #1049 — clicking a ranked-Topic row pivots the Position Tracker tab
+// onto that (Person, Topic) pair and switches tabs. The same handler is
+// the entry point #1050 will eventually use from Topic group headers.
+function onPickTopicForPositionTracker(topicId: string): void {
+  if (!topicId.trim()) return
+  subject.selectTopicForPositionTracker(topicId)
+  activeTab.value = 'position_tracker'
+}
 </script>
 
 <template>
@@ -503,7 +513,8 @@ function onPrefillSearch(): void {
           aria-label="Mentions by month for this person"
         />
       </section>
-      <!-- #1048 — top topics by ABOUT(Insight→Topic) ∩ MENTIONS_PERSON(Insight→this Person) -->
+      <!-- #1048 — top topics by ABOUT(Insight→Topic) ∩ MENTIONS_PERSON(Insight→this Person)
+           #1049 — each row is a button that pivots the Position Tracker tab to (this Person, that Topic) -->
       <section
         v-if="rankedTopics.length"
         aria-label="Top topics by insight count"
@@ -517,13 +528,21 @@ function onPrefillSearch(): void {
             v-for="t in rankedTopics"
             :key="t.id"
             data-testid="person-landing-ranked-topic-row"
-            class="flex items-baseline justify-between gap-2 text-[11px] text-surface-foreground"
           >
-            <span class="min-w-0 truncate" :title="t.name">{{ t.name }}</span>
-            <span
-              class="shrink-0 rounded bg-overlay px-1.5 py-0.5 text-[10px] text-muted"
-              data-testid="person-landing-ranked-topic-count"
-            >{{ t.count }}</span>
+            <button
+              type="button"
+              class="flex w-full items-baseline justify-between gap-2 rounded px-1 py-0.5 text-left text-[11px] text-surface-foreground hover:bg-overlay/60 focus-visible:bg-overlay/60 focus-visible:outline-none"
+              data-testid="person-landing-ranked-topic-button"
+              :title="`Open Position Tracker for ${t.name}`"
+              :aria-label="`Open Position Tracker for ${t.name}`"
+              @click="onPickTopicForPositionTracker(t.id)"
+            >
+              <span class="min-w-0 truncate">{{ t.name }}</span>
+              <span
+                class="shrink-0 rounded bg-overlay px-1.5 py-0.5 text-[10px] text-muted"
+                data-testid="person-landing-ranked-topic-count"
+              >{{ t.count }}</span>
+            </button>
           </li>
         </ul>
       </section>
@@ -721,31 +740,16 @@ function onPrefillSearch(): void {
         </button>
       </div>
     </div>
-    <!-- #1048 — Position Tracker placeholder; the per-topic position-arc drill-in
-         lives behind #1049 (PRD-028). Until that ticket lands, the tab surfaces
-         intent without faking the timeline. -->
+    <!-- #1049 — Position Tracker per PRD-028 / RFC-072 §5A. -->
     <div
       v-show="activeTab === 'position_tracker'"
       id="person-landing-panel-position-tracker"
       role="tabpanel"
       aria-labelledby="person-landing-tab-position-tracker"
       data-testid="person-landing-panel-position-tracker"
-      class="min-h-0 flex-1 space-y-2 overflow-y-auto px-1 py-2"
+      class="flex min-h-0 flex-1 flex-col"
     >
-      <p class="text-[11px] text-muted" data-testid="person-landing-position-tracker-placeholder">
-        Position Tracker — see how this person's stated positions on a Topic evolved across
-        episodes. Coming in
-        <a
-          href="https://github.com/chipi/podcast_scraper/issues/1049"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="underline hover:text-surface-foreground"
-        >#1049</a>.
-      </p>
-      <p class="text-[10px] text-muted">
-        For now, the Person Profile tab shows this person's quotes and stated positions
-        across the corpus (without per-topic faceting).
-      </p>
+      <PositionTrackerPanel />
     </div>
   </div>
 </template>

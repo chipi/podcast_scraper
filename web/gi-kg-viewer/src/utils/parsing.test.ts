@@ -23,6 +23,7 @@ import {
   insightSupportingTranscriptAggregate,
   nodeLabel,
   personRoleFromNode,
+  personTopicPositionArc,
   primaryTextFromLooseGiNode,
   parseArtifact,
   rankedPersonOrganizations,
@@ -1048,6 +1049,118 @@ describe('rankedPersonOrganizations', () => {
       { id: 'org:openai', name: 'OpenAI', count: 2 },
       { id: 'org:google', name: 'Google', count: 1 },
     ])
+  })
+})
+
+describe('personTopicPositionArc (#1049)', () => {
+  it('returns [] for missing inputs', () => {
+    expect(personTopicPositionArc(null, 'p1', 't1')).toEqual([])
+    const art = parseArtifact('x.gi.json', { nodes: [], edges: [] })
+    expect(personTopicPositionArc(art, null, 't1')).toEqual([])
+    expect(personTopicPositionArc(art, 'p1', null)).toEqual([])
+  })
+
+  it('intersects MENTIONS_PERSON ∩ ABOUT and sorts by date then position_hint', () => {
+    const art = parseArtifact('x.gi.json', {
+      nodes: [
+        {
+          id: 'i_old',
+          type: 'Insight',
+          properties: { text: 'older claim', insight_type: 'claim', position_hint: 0.4 },
+        },
+        {
+          id: 'i_new_early',
+          type: 'Insight',
+          properties: { text: 'newer early', insight_type: 'observation', position_hint: 0.2 },
+        },
+        {
+          id: 'i_new_late',
+          type: 'Insight',
+          properties: { text: 'newer late', insight_type: 'recommendation', position_hint: 0.8 },
+        },
+        // Distractor — wrong topic
+        {
+          id: 'i_wrong_topic',
+          type: 'Insight',
+          properties: { text: 'wrong topic', insight_type: 'claim', position_hint: 0.1 },
+        },
+        // Distractor — wrong person
+        {
+          id: 'i_wrong_person',
+          type: 'Insight',
+          properties: { text: 'wrong person', insight_type: 'claim', position_hint: 0.1 },
+        },
+        { id: 'ep:old', type: 'Episode', properties: { publish_date: '2026-01-10' } },
+        { id: 'ep:new', type: 'Episode', properties: { publish_date: '2026-02-15' } },
+      ],
+      edges: [
+        { type: 'MENTIONS_PERSON', from: 'i_old', to: 'p:alice' },
+        { type: 'MENTIONS_PERSON', from: 'i_new_early', to: 'p:alice' },
+        { type: 'MENTIONS_PERSON', from: 'i_new_late', to: 'p:alice' },
+        { type: 'MENTIONS_PERSON', from: 'i_wrong_topic', to: 'p:alice' },
+        { type: 'MENTIONS_PERSON', from: 'i_wrong_person', to: 'p:bob' },
+        { type: 'ABOUT', from: 'i_old', to: 't:ai' },
+        { type: 'ABOUT', from: 'i_new_early', to: 't:ai' },
+        { type: 'ABOUT', from: 'i_new_late', to: 't:ai' },
+        { type: 'ABOUT', from: 'i_wrong_topic', to: 't:other' },
+        { type: 'ABOUT', from: 'i_wrong_person', to: 't:ai' },
+        { type: 'IN_EPISODE', from: 'i_old', to: 'ep:old' },
+        { type: 'IN_EPISODE', from: 'i_new_early', to: 'ep:new' },
+        { type: 'IN_EPISODE', from: 'i_new_late', to: 'ep:new' },
+      ],
+    })
+    const arc = personTopicPositionArc(art, 'p:alice', 't:ai')
+    expect(arc.map((r) => r.insightId)).toEqual(['i_old', 'i_new_early', 'i_new_late'])
+    expect(arc[0].publishDate).toBe('2026-01-10')
+    expect(arc[1].publishDate).toBe('2026-02-15')
+    expect(arc[1].positionHint).toBe(0.2)
+    expect(arc[2].positionHint).toBe(0.8)
+    expect(arc[0].insightType).toBe('claim')
+    expect(arc[1].text).toBe('newer early')
+  })
+
+  it('attaches supporting quote texts via SUPPORTED_BY', () => {
+    const art = parseArtifact('x.gi.json', {
+      nodes: [
+        { id: 'i1', type: 'Insight', properties: { text: 'argued for X', insight_type: 'claim' } },
+        { id: 'q1', type: 'Quote', properties: { text: 'i think X is true' } },
+        { id: 'q2', type: 'Quote', properties: { text: 'X matters because Y' } },
+        // Not a Quote (Insight self-reference) — should be ignored.
+        { id: 'q3', type: 'Insight', properties: { text: 'not a quote' } },
+      ],
+      edges: [
+        { type: 'MENTIONS_PERSON', from: 'i1', to: 'p:a' },
+        { type: 'ABOUT', from: 'i1', to: 't:x' },
+        { type: 'SUPPORTED_BY', from: 'i1', to: 'q1' },
+        { type: 'SUPPORTED_BY', from: 'i1', to: 'q2' },
+        { type: 'SUPPORTED_BY', from: 'i1', to: 'q3' },
+      ],
+    })
+    const arc = personTopicPositionArc(art, 'p:a', 't:x')
+    expect(arc.length).toBe(1)
+    expect(arc[0].supportingQuoteTexts).toEqual(['i think X is true', 'X matters because Y'])
+  })
+
+  it('handles undated insights by clustering them at the head', () => {
+    const art = parseArtifact('x.gi.json', {
+      nodes: [
+        { id: 'i_dated', type: 'Insight', properties: { text: 'dated', position_hint: 0.5 } },
+        { id: 'i_undated', type: 'Insight', properties: { text: 'no date', position_hint: 0.5 } },
+        { id: 'ep:1', type: 'Episode', properties: { publish_date: '2026-03-01' } },
+      ],
+      edges: [
+        { type: 'MENTIONS_PERSON', from: 'i_dated', to: 'p:a' },
+        { type: 'MENTIONS_PERSON', from: 'i_undated', to: 'p:a' },
+        { type: 'ABOUT', from: 'i_dated', to: 't:x' },
+        { type: 'ABOUT', from: 'i_undated', to: 't:x' },
+        { type: 'IN_EPISODE', from: 'i_dated', to: 'ep:1' },
+      ],
+    })
+    const arc = personTopicPositionArc(art, 'p:a', 't:x')
+    // Undated comes first (sorted as empty-string date < any real date).
+    expect(arc.map((r) => r.insightId)).toEqual(['i_undated', 'i_dated'])
+    expect(arc[0].publishDate).toBeNull()
+    expect(arc[1].publishDate).toBe('2026-03-01')
   })
 })
 
