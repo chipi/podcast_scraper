@@ -1,6 +1,6 @@
 [codespell]
 skip = *.pyc,*.json,*.xml,*.lock,*.mp3,*.whl,./.venv,./.build,./.git
-ignore-words-list = rouge,fo,Exting,AKS,UE,patter,Speaches,speaches,retuned,sting,summar
+ignore-words-list = rouge,fo,Exting,AKS,UE,patter,Speaches,speaches,retuned,sting,summar,isnt,arent,wasnt,werent,dont,doesnt,didnt,hasnt,havent,cant,couldnt,wouldnt,wont,shouldnt
 # fo: placeholder; rouge: metric name; Exting: transcript artifact pattern in preprocessing (literal, not typo of "Existing")
 # UE: macOS kernel uninterruptible wait process state (RFC-074)
 # patter: rapid/glib speech (podcast host patter); not a typo of "pattern"
@@ -8,3 +8,6 @@ ignore-words-list = rouge,fo,Exting,AKS,UE,patter,Speaches,speaches,retuned,stin
 # retuned: past tense of "re-tune" (e.g. "the model was retuned with a Gemma-native prompt"); not a typo of "returned"
 # sting: a real word (the musician Sting / a bee sting) — used as a mononym example in the speaker roster (#876); not a typo of "string"
 # summar: intentional prefix in provider_metrics.py operation-name matching (catches "summary", "summarize", "summarization") — not a typo of "summary"
+# isnt/arent/wasnt/werent/dont/doesnt/didnt/hasnt/havent: intentional patterns in
+# gi/insight_type_classifier.py — apostrophe-stripped contractions that match
+# transcript artifacts where the transcriber dropped the apostrophe. Not typos.
