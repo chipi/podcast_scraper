@@ -95,11 +95,13 @@ score_run(
 )
 ```
 
-ROUGE-L + cosine reported; judges intentionally not run (judge calls
-would hit paid LLMs — violates the rule that benchmark-grade numbers go
-through the structured score path, not ad-hoc judge passes). The
-relative ranking from ROUGE+cosine is sufficient to back the
-`headline_metric` field for these dev-tier options.
+ROUGE-L + cosine reported. FU3 (2026-06-23 PM) also added cross-vendor
+judge scores via the `scripts/eval/score/score_summllama.py` Track-A
+harness (pinned judges from `autoresearch/bundled_prompt_tuning/eval/judge_config.yaml`:
+gpt-4o-mini + claude-haiku-4-5). Per
+[[silver_judge_vendor_bias]] the candidates (DISLab SummLlama, Facebook
+bart-small + AllenAI LED) are disjoint from the judge vendors, so
+no same-vendor style boost.
 
 ## Results — transcription
 
@@ -166,23 +168,38 @@ artificial. The M4 Pro MPS numbers stand as their portability anchor.
 
 ## Results — summarization
 
-| Model | ROUGE-L | ROUGE-1 | Cosine | Coverage | Mean time/ep | Run artifact |
-| --- | --- | --- | --- | --- | --- | --- |
-| SummLlama 3.2-3B (paragraph) | 0.2505 | 0.4985 | 0.8226 | 1.072 | 53.3 s | `data/eval/runs/summllama32_smoke_v2_paragraph_2026_06_23/` |
-| bart-small + long-fast (ml_small_authority) | 0.1500 | 0.3112 | 0.6548 | 0.385 | 18.3 s | `data/eval/runs/baseline_ml_small_authority_smoke_v2/` |
+| Model | ROUGE-L | ROUGE-1 | Cosine | Coverage | Judge mean | Track-A scalar | Mean time/ep | Run artifact |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| SummLlama 3.2-3B (paragraph) | 0.2505 | 0.4985 | 0.8226 | 1.072 | 0.7350 (contested) | 0.2505 | 53.3 s | `data/eval/runs/summllama32_smoke_v2_paragraph_2026_06_23/` |
+| bart-small + long-fast (ml_small_authority) | 0.1500 | 0.3112 | 0.6548 | 0.385 | 0.3703 (contested) | 0.1500 | 18.3 s | `data/eval/runs/baseline_ml_small_authority_smoke_v2/` |
 
 **Trade observed**: SummLlama wins ROUGE-L by +67%, cosine by +25%,
-coverage by +179%, at 2.9× the latency of bart-small+long-fast. SummLlama
-is the right floor for `airgapped` (paragraph summary as the user-visible
-artifact); bart-small+long-fast is the right floor for `airgapped_thin`
-and `dev` (summary feeds downstream extraction, latency budget tighter).
+coverage by +179%, and judge mean by +0.36 at 2.9× the latency of
+bart-small+long-fast. SummLlama is the right floor for `airgapped`
+(paragraph summary as the user-visible artifact); bart-small+long-fast
+is the right floor for `airgapped_thin` and `dev` (summary feeds
+downstream extraction, latency budget tighter).
+
+**On the "contested" flag**: both runs have judges that diverge by more
+than `DIVERGENCE_THRESHOLD` on at least one episode (per
+`autoresearch_track_a.JudgeOutcome`). When contested, the Track-A scalar
+collapses to ROUGE-L only (judge contribution dropped). Practical
+read: the judge means above are informative for headline framing but
+the scalar that ranks these options against future cohorts is
+ROUGE-L-only at this corpus size. Smoke_v2's 5-episode bar gives any
+single-episode disagreement a 20% weight; a benchmark_v2 re-run
+(22 episodes) would likely de-contest, but the *relative ordering*
+(SummLlama ≫ bart-small) is robust under both metrics here.
 
 ## What this report does NOT establish
 
-- Judge-graded quality (subjective rubric). The numbers above are
+- ~~Judge-graded quality (subjective rubric). The numbers above are
   rouge/cosine only — sufficient for `headline_metric` framing but not
   for "best paragraph summary on smoke_v2 overall" rankings against
-  judge-evaluated cohorts in `EVAL_HELDOUT_V2` or `EVAL_1016_*`.
+  judge-evaluated cohorts in `EVAL_HELDOUT_V2` or `EVAL_1016_*`.~~
+  Addressed by FU3 (the cross-vendor judge run). Note both candidates
+  contested on smoke_v2; benchmark_v2 (22 ep) would likely de-contest if
+  a sharper cohort ranking is needed later.
 - ~~Absolute transcription WER under typical pipeline cleaning (markdown +
   speaker-label stripping not applied here).~~ Addressed by FU4 (the
   `--clean-reference` flag); the clean-reference numbers in the table are

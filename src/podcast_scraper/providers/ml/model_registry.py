@@ -1172,10 +1172,12 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         research_ref="docs/guides/eval-reports/EVAL_DEV_TIER_REGISTRY_2026_06_23.md",
         headline_metric=(
             "ROUGE-L 0.251 / ROUGE-1 0.499 / cosine 0.823 on smoke_v2 "
-            "paragraph vs silver_sonnet46_smoke_v2; 53.3 s/ep on M4 Pro MPS "
+            "paragraph vs silver_sonnet46_smoke_v2; cross-vendor judge mean "
+            "0.735 (gpt-4o-mini + claude-haiku-4-5; contested on individual "
+            "episodes so Track-A scalar = ROUGE-L). 53.3 s/ep on M4 Pro MPS "
             "(laptop-class scope — not DGX-benched). Airgapped paragraph "
-            "quality default — beats bart-small+long-fast by +67% ROUGE-L "
-            "and +25% cosine at 2.9× the latency."
+            "quality default — beats bart-small+long-fast by +67% ROUGE-L, "
+            "+25% cosine, and +0.36 judge at 2.9× the latency."
         ),
         measured_at="2026-06-23",
         tier="primary",
@@ -1196,9 +1198,11 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         research_ref="docs/guides/eval-reports/EVAL_DEV_TIER_REGISTRY_2026_06_23.md",
         headline_metric=(
             "ROUGE-L 0.150 / ROUGE-1 0.311 / cosine 0.655 on smoke_v2 "
-            "paragraph vs silver_sonnet46_smoke_v2; 18.3 s/ep on M4 Pro MPS "
-            "(laptop / stack-test scope — not DGX-benched). Dev/airgapped-thin "
-            "floor — 8.1× compression, no GPU or external model server required."
+            "paragraph vs silver_sonnet46_smoke_v2; cross-vendor judge mean "
+            "0.370 (gpt-4o-mini + claude-haiku-4-5; contested so Track-A "
+            "scalar = ROUGE-L). 18.3 s/ep on M4 Pro MPS (laptop / stack-test "
+            "scope — not DGX-benched). Dev/airgapped-thin floor — 8.1× "
+            "compression, no GPU or external model server required."
         ),
         measured_at="2026-06-23",
         tier="primary",
