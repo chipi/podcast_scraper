@@ -15,8 +15,10 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from podcast_scraper import __version__
+from podcast_scraper.server.app_oauth import provider_from_env
 from podcast_scraper.server.pathutil import CorpusPathRequestError
 from podcast_scraper.server.routes import (
+    app_auth,
     app_episodes,
     app_search,
     artifacts,
@@ -61,6 +63,25 @@ def serve_feature_kwargs_from_environ() -> dict[str, bool | str | None]:
         "enable_jobs_api": _env_truthy("PODCAST_SERVE_ENABLE_JOBS_API"),
         "operator_config_file": raw_cfg or None,
     }
+
+
+def _configure_platform_auth(app: FastAPI, resolved_output: Path | None) -> None:
+    """Set consumer-platform auth/session state from env (RFC-098 §2; #1063).
+
+    Auth stays inert until a session secret + OAuth creds are configured — the routes
+    return 401/503 otherwise. Per-user data lives under ``APP_DATA_DIR`` (or
+    ``<corpus>/.app``), kept outside the shared corpus tree.
+    """
+    app.state.session_secret = os.environ.get("APP_SESSION_SECRET", "")
+    app.state.session_cookie_secure = _env_truthy("APP_SESSION_COOKIE_SECURE")
+    raw = os.environ.get("APP_DATA_DIR", "").strip()
+    if raw:
+        app.state.app_data_dir = Path(raw).expanduser().resolve()
+    elif resolved_output is not None:
+        app.state.app_data_dir = resolved_output / ".app"
+    else:
+        app.state.app_data_dir = None
+    app.state.oauth_provider = provider_from_env()
 
 
 def _default_static_dir() -> Path | None:
@@ -199,11 +220,13 @@ def create_app(
     # Consumer Learning Platform API (RFC-098): slug-addressed read routes under their
     # own /api/app namespace, separate from the operator routes. Read-only over the
     # shared corpus; access becomes auth-gated in later Epic-1 tasks (#1063/#1066).
+    app.include_router(app_auth.router, prefix="/api/app")
     app.include_router(app_episodes.router, prefix="/api/app")
     app.include_router(app_search.router, prefix="/api/app")
 
     resolved_output = Path(output_dir).expanduser().resolve() if output_dir is not None else None
     app.state.output_dir = resolved_output
+    _configure_platform_auth(app, resolved_output)
 
     app.state.feeds_api_enabled = bool(enable_feeds_api)
     app.state.operator_config_api_enabled = bool(enable_operator_config_api)
