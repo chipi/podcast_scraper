@@ -9,6 +9,14 @@
  * person's quotes across ALL episodes (from the CIL ``person_profile`` endpoint),
  * not just the episodes currently merged into the loaded graph. This is the
  * corpus-wide "what X said across episodes" payoff of the #875/#876 diarization work.
+ *
+ * #1048 — restructured to be the shared Person Landing shell per PRD-029.
+ * Tabs are now "Person Profile" (the aggregate person view; inherits all
+ * shipped #672 / #909 / #1055 content) and "Position Tracker" (placeholder
+ * for #1049 / PRD-028 Person × Topic over-time drill-in). Identity header
+ * gains role + episode count + organization chips. New ranked topic-overview
+ * list under Person Profile counts ``ABOUT(Insight→Topic)`` edges whose
+ * Insight ``MENTIONS_PERSON`` this Person.
  */
 import { computed, ref, watch } from 'vue'
 import type { RawGraphNode } from '../../types/artifact'
@@ -28,6 +36,9 @@ import {
   findRawNodeInArtifact,
   findRawNodeInArtifactByIdOrPrefixed,
   normalizeGiEdgeType,
+  personRoleFromNode,
+  rankedPersonOrganizations,
+  rankedPersonTopicMentions,
 } from '../../utils/parsing'
 import { logicalEpisodeIdFromGraphNodeId } from '../../utils/graphEpisodeMetadata'
 import { buildSubjectMentionsTimeline } from '../../utils/subjectMentionsTimeline'
@@ -48,7 +59,10 @@ const artifacts = useArtifactsStore()
 const shell = useShellStore()
 const subject = useSubjectStore()
 
-type PersonTab = 'profile' | 'positions'
+// #1048 — tab vocabulary aligned with PRD-028 / PRD-029. ``profile`` is the
+// aggregate Person Profile view (PRD-029); ``position_tracker`` is the
+// per-topic drill-in (PRD-028, filled by follow-up #1049).
+type PersonTab = 'profile' | 'position_tracker'
 const activeTab = ref<PersonTab>('profile')
 
 watch(
@@ -245,6 +259,38 @@ const timeline = computed(() =>
   buildSubjectMentionsTimeline(artifacts.displayArtifact, personGraphNodeId.value),
 )
 
+// #1048 — identity header additions per PRD-029.
+const personRole = computed(() => personRoleFromNode(personNode.value))
+const personRoleLabel = computed(() => {
+  const r = personRole.value
+  if (!r) return ''
+  return r.charAt(0).toUpperCase() + r.slice(1)
+})
+
+// #1048 — ranked topic overview via ABOUT(Insight→Topic) chains whose Insight
+// MENTIONS_PERSON this person. Distinct from the relational
+// fetchPersonTopics() chips above (which use the structural person→topic lens).
+const TOPIC_OVERVIEW_CAP = 10
+const rankedTopics = computed(() =>
+  rankedPersonTopicMentions(
+    artifacts.displayArtifact,
+    personGraphNodeId.value,
+    TOPIC_OVERVIEW_CAP,
+  ),
+)
+
+// #1048 — co-mentioned Organizations via MENTIONS_PERSON ⨯ MENTIONS_ORG join
+// on the same Insight. Empty until KG fixtures contain MENTIONS_ORG edges
+// (RFC-097 v2 strict subset; cloud profiles only).
+const ORG_CHIPS_CAP = 10
+const rankedOrgs = computed(() =>
+  rankedPersonOrganizations(
+    artifacts.displayArtifact,
+    personGraphNodeId.value,
+    ORG_CHIPS_CAP,
+  ),
+)
+
 interface PositionRow {
   id: string
   text: string
@@ -330,17 +376,52 @@ function onPrefillSearch(): void {
     aria-label="Person"
     data-testid="person-landing-view"
   >
-    <div class="mt-1 flex shrink-0 items-baseline gap-2 border-b border-border pb-2">
-      <span
-        class="text-[10px] font-semibold uppercase tracking-wider text-muted"
-      >Person</span>
-      <h2
-        class="min-w-0 flex-1 truncate text-xs font-semibold text-surface-foreground"
-        data-testid="person-landing-view-name"
-        :title="personName"
+    <div class="mt-1 shrink-0 border-b border-border pb-2">
+      <div class="flex items-baseline gap-2">
+        <span
+          class="text-[10px] font-semibold uppercase tracking-wider text-muted"
+        >Person</span>
+        <h2
+          class="min-w-0 flex-1 truncate text-xs font-semibold text-surface-foreground"
+          data-testid="person-landing-view-name"
+          :title="personName"
+        >
+          {{ personName }}
+        </h2>
+        <!-- #1048 — role badge (host / guest / mention) per PRD-029 FR1 -->
+        <span
+          v-if="personRoleLabel"
+          class="rounded bg-overlay px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-surface-foreground"
+          data-testid="person-landing-role"
+          :data-role="personRole"
+          :title="`Role: ${personRoleLabel}`"
+        >
+          {{ personRoleLabel }}
+        </span>
+      </div>
+      <!-- #1048 — episode-count signal (uses existing SPOKE_IN edge tally) -->
+      <p
+        v-if="edgeCounts.spokeInEpisodes > 0"
+        class="mt-1 text-[10px] text-muted"
+        data-testid="person-landing-episode-count"
       >
-        {{ personName }}
-      </h2>
+        {{ edgeCounts.spokeInEpisodes }}
+        episode{{ edgeCounts.spokeInEpisodes === 1 ? '' : 's' }}
+      </p>
+      <!-- #1048 — co-mentioned Organizations (PRD-029 FR1 affiliations) -->
+      <div
+        v-if="rankedOrgs.length"
+        class="mt-1 flex flex-wrap gap-1"
+        data-testid="person-landing-organizations"
+      >
+        <span
+          v-for="org in rankedOrgs"
+          :key="org.id"
+          class="rounded bg-overlay px-1.5 py-0.5 text-[10px] text-surface-foreground"
+          data-testid="person-landing-organization-chip"
+          :title="`${org.name} · ${org.count} insight${org.count === 1 ? '' : 's'}`"
+        >{{ org.name }}</span>
+      </div>
     </div>
     <nav
       class="flex shrink-0 gap-1 border-b border-border bg-elevated/50 px-2 py-1.5"
@@ -358,20 +439,20 @@ function onPrefillSearch(): void {
         data-testid="person-landing-tab-profile"
         @click="activeTab = 'profile'"
       >
-        Profile
+        Person Profile
       </button>
       <button
-        id="person-landing-tab-positions"
+        id="person-landing-tab-position-tracker"
         type="button"
         role="tab"
-        :class="tabClass(activeTab === 'positions')"
-        :aria-selected="activeTab === 'positions'"
-        aria-controls="person-landing-panel-positions"
-        :tabindex="activeTab === 'positions' ? 0 : -1"
-        data-testid="person-landing-tab-positions"
-        @click="activeTab = 'positions'"
+        :class="tabClass(activeTab === 'position_tracker')"
+        :aria-selected="activeTab === 'position_tracker'"
+        aria-controls="person-landing-panel-position-tracker"
+        :tabindex="activeTab === 'position_tracker' ? 0 : -1"
+        data-testid="person-landing-tab-position-tracker"
+        @click="activeTab = 'position_tracker'"
       >
-        Positions
+        Position Tracker
       </button>
     </nav>
     <div
@@ -422,6 +503,30 @@ function onPrefillSearch(): void {
           aria-label="Mentions by month for this person"
         />
       </section>
+      <!-- #1048 — top topics by ABOUT(Insight→Topic) ∩ MENTIONS_PERSON(Insight→this Person) -->
+      <section
+        v-if="rankedTopics.length"
+        aria-label="Top topics by insight count"
+        data-testid="person-landing-ranked-topics"
+      >
+        <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+          Top topics
+        </h3>
+        <ul class="space-y-0.5" data-testid="person-landing-ranked-topics-list">
+          <li
+            v-for="t in rankedTopics"
+            :key="t.id"
+            data-testid="person-landing-ranked-topic-row"
+            class="flex items-baseline justify-between gap-2 text-[11px] text-surface-foreground"
+          >
+            <span class="min-w-0 truncate" :title="t.name">{{ t.name }}</span>
+            <span
+              class="shrink-0 rounded bg-overlay px-1.5 py-0.5 text-[10px] text-muted"
+              data-testid="person-landing-ranked-topic-count"
+            >{{ t.count }}</span>
+          </li>
+        </ul>
+      </section>
       <section aria-label="Connections" data-testid="person-landing-connections">
         <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
           Topics
@@ -460,34 +565,7 @@ function onPrefillSearch(): void {
           No co-speakers share a topic with this voice yet.
         </p>
       </section>
-      <div class="flex shrink-0 flex-wrap gap-2 pt-2">
-        <button
-          type="button"
-          class="rounded border border-border px-2 py-1 text-[11px] font-medium hover:bg-overlay"
-          data-testid="person-landing-go-graph"
-          @click="emit('goGraph')"
-        >
-          Open in graph
-        </button>
-        <button
-          type="button"
-          class="rounded border border-border px-2 py-1 text-[11px] font-medium hover:bg-overlay"
-          data-testid="person-landing-prefill-search"
-          @click="onPrefillSearch"
-        >
-          Prefill semantic search
-        </button>
-      </div>
-    </div>
-    <div
-      v-show="activeTab === 'positions'"
-      id="person-landing-panel-positions"
-      role="tabpanel"
-      aria-labelledby="person-landing-tab-positions"
-      data-testid="person-landing-panel-positions"
-      class="min-h-0 flex-1 space-y-2 overflow-y-auto px-1 py-2"
-    >
-      <!-- #909 — corpus-wide quotes this person spoke across ALL episodes (CIL person_profile). -->
+      <!-- #909 / #1048 — corpus-wide quotes this person spoke across ALL episodes (CIL person_profile). -->
       <section
         v-if="corpusLoading || corpusError || corpusQuotes.length"
         aria-label="Across the corpus"
@@ -623,6 +701,50 @@ function onPrefillSearch(): void {
         data-testid="person-landing-positions-overflow"
       >
         + {{ positionRows.length - PERSON_LANDING_POSITIONS_CAP }} more
+      </p>
+      <div class="flex shrink-0 flex-wrap gap-2 pt-2">
+        <button
+          type="button"
+          class="rounded border border-border px-2 py-1 text-[11px] font-medium hover:bg-overlay"
+          data-testid="person-landing-go-graph"
+          @click="emit('goGraph')"
+        >
+          Open in graph
+        </button>
+        <button
+          type="button"
+          class="rounded border border-border px-2 py-1 text-[11px] font-medium hover:bg-overlay"
+          data-testid="person-landing-prefill-search"
+          @click="onPrefillSearch"
+        >
+          Prefill semantic search
+        </button>
+      </div>
+    </div>
+    <!-- #1048 — Position Tracker placeholder; the per-topic position-arc drill-in
+         lives behind #1049 (PRD-028). Until that ticket lands, the tab surfaces
+         intent without faking the timeline. -->
+    <div
+      v-show="activeTab === 'position_tracker'"
+      id="person-landing-panel-position-tracker"
+      role="tabpanel"
+      aria-labelledby="person-landing-tab-position-tracker"
+      data-testid="person-landing-panel-position-tracker"
+      class="min-h-0 flex-1 space-y-2 overflow-y-auto px-1 py-2"
+    >
+      <p class="text-[11px] text-muted" data-testid="person-landing-position-tracker-placeholder">
+        Position Tracker — see how this person's stated positions on a Topic evolved across
+        episodes. Coming in
+        <a
+          href="https://github.com/chipi/podcast_scraper/issues/1049"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="underline hover:text-surface-foreground"
+        >#1049</a>.
+      </p>
+      <p class="text-[10px] text-muted">
+        For now, the Person Profile tab shows this person's quotes and stated positions
+        across the corpus (without per-topic faceting).
       </p>
     </div>
   </div>

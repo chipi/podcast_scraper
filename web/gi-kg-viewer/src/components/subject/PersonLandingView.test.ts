@@ -4,8 +4,10 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import PersonLandingView from './PersonLandingView.vue'
+import { useArtifactsStore } from '../../stores/artifacts'
 import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
+import type { ParsedArtifact } from '../../types/artifact'
 
 // #1055 — the relational connections fetches (topics + co-speakers) are mocked; we assert
 // the Connections section renders what they return.
@@ -81,5 +83,110 @@ describe('PersonLandingView — connections (#1055)', () => {
     await mountWith()
     expect(fetchPersonTopics).toHaveBeenCalledWith('/corpus', 'person:alice')
     expect(fetchCoSpeakers).toHaveBeenCalledWith('/corpus', 'person:alice')
+  })
+})
+
+// #1048 — Person Landing shell tab restructure: Person Profile + Position
+// Tracker pair (placeholder), identity-header additions (role + episode count
+// + organization chips), and ABOUT∩MENTIONS_PERSON ranked-topic overview.
+function makeArtifactWithPersonAndTopics(): ParsedArtifact {
+  // person:alice mentioned in two insights, one ABOUT topic:ai (twice via
+  // two ABOUT edges from the same insight → collapses to 1 pair), the other
+  // ABOUT topic:reg. Also one MENTIONS_ORG to org:openai paired with the
+  // ai-insight. SPOKE_IN edge to one episode for the episode-count signal.
+  return {
+    id: 'a1',
+    kind: 'gi',
+    data: {
+      nodes: [
+        { id: 'person:alice', type: 'Person', properties: { name: 'Alice', role: 'host' } },
+        { id: 'insight:i1', type: 'Insight', properties: {} },
+        { id: 'insight:i2', type: 'Insight', properties: {} },
+        { id: 'topic:ai', type: 'Topic', properties: { name: 'AI ethics' } },
+        { id: 'topic:reg', type: 'Topic', properties: { name: 'AI regulation' } },
+        { id: 'org:openai', type: 'Organization', properties: { name: 'OpenAI' } },
+        { id: 'ep:001', type: 'Episode', properties: {} },
+      ],
+      edges: [
+        { from: 'insight:i1', to: 'person:alice', type: 'MENTIONS_PERSON' },
+        { from: 'insight:i2', to: 'person:alice', type: 'MENTIONS_PERSON' },
+        { from: 'insight:i1', to: 'topic:ai', type: 'ABOUT' },
+        { from: 'insight:i1', to: 'topic:ai', type: 'ABOUT' }, // duplicate pair → collapses
+        { from: 'insight:i2', to: 'topic:reg', type: 'ABOUT' },
+        { from: 'insight:i1', to: 'org:openai', type: 'MENTIONS_ORG' },
+        { from: 'person:alice', to: 'ep:001', type: 'SPOKE_IN' },
+      ],
+    },
+  } as unknown as ParsedArtifact
+}
+
+describe('PersonLandingView — #1048 shell (Person Profile + Position Tracker)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    fetchPositions.mockResolvedValue({ subject: 'person:alice', results: [] })
+    fetchPersonProfile.mockResolvedValue({ subject: 'person:alice', profile: {} })
+    fetchPersonTopics.mockResolvedValue({ subject: 'person:alice', results: [] })
+    fetchCoSpeakers.mockResolvedValue({ subject: 'person:alice', results: [] })
+  })
+
+  async function mountWithArtifact(): Promise<ReturnType<typeof mount>> {
+    const w = mount(PersonLandingView, { attachTo: document.body, global: { stubs: STUBS } })
+    const shell = useShellStore()
+    shell.corpusPath = '/corpus'
+    shell.healthStatus = 'ok'
+    // Mirrors TopicEntityView.test.ts injection pattern.
+    useArtifactsStore().parsedList = [makeArtifactWithPersonAndTopics()]
+    useSubjectStore().focusPerson('person:alice')
+    await flushPromises()
+    await flushPromises()
+    return w
+  }
+
+  it('renders the Person Profile + Position Tracker tab pair (no Positions tab)', async () => {
+    const w = await mountWithArtifact()
+    expect(w.find('[data-testid="person-landing-tab-profile"]').text()).toBe('Person Profile')
+    expect(w.find('[data-testid="person-landing-tab-position-tracker"]').text()).toBe(
+      'Position Tracker',
+    )
+    expect(w.find('[data-testid="person-landing-tab-positions"]').exists()).toBe(false)
+  })
+
+  it('shows a role badge with the Person.role value', async () => {
+    const w = await mountWithArtifact()
+    const badge = w.get('[data-testid="person-landing-role"]')
+    expect(badge.text()).toBe('Host')
+    expect(badge.attributes('data-role')).toBe('host')
+  })
+
+  it('renders the episode-count signal from SPOKE_IN edges', async () => {
+    const w = await mountWithArtifact()
+    expect(w.get('[data-testid="person-landing-episode-count"]').text()).toContain('1 episode')
+  })
+
+  it('renders organization chips from MENTIONS_PERSON ∩ MENTIONS_ORG insights', async () => {
+    const w = await mountWithArtifact()
+    const chips = w.findAll('[data-testid="person-landing-organization-chip"]')
+    expect(chips.map((c) => c.text())).toEqual(['OpenAI'])
+  })
+
+  it('ranks topics by collapsed ABOUT∩MENTIONS_PERSON pairs (duplicate edges collapse)', async () => {
+    const w = await mountWithArtifact()
+    const rows = w.findAll('[data-testid="person-landing-ranked-topic-row"]')
+    expect(rows.length).toBe(2)
+    // Both topics tied at 1 (duplicate ABOUT collapsed); alphabetic tiebreak
+    // puts "AI ethics" before "AI regulation".
+    expect(rows[0].text()).toContain('AI ethics')
+    expect(rows[0].text()).toContain('1')
+    expect(rows[1].text()).toContain('AI regulation')
+    expect(rows[1].text()).toContain('1')
+  })
+
+  it('Position Tracker tab renders the #1049 placeholder when active', async () => {
+    const w = await mountWithArtifact()
+    await w.get('[data-testid="person-landing-tab-position-tracker"]').trigger('click')
+    expect(
+      w.find('[data-testid="person-landing-position-tracker-placeholder"]').exists(),
+    ).toBe(true)
+    expect(w.find('[data-testid="person-landing-panel-position-tracker"]').isVisible()).toBe(true)
   })
 })

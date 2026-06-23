@@ -1,5 +1,6 @@
 /**
- * Person Landing Playwright spec — coverage gap surfaced by #678 PR-A audit.
+ * Person Landing Playwright spec — coverage gap surfaced by #678 PR-A audit;
+ * extended for #1048 shared-component shell.
  *
  * Person Landing is the SubjectRail panel that renders when
  * ``subject.kind === 'person'``. Entry points (per E2E_SURFACE_MAP §223):
@@ -11,18 +12,19 @@
  * subject store. This spec uses the explore-rollup entry path because it's
  * the more deterministic of the two — it doesn't depend on a search index.
  *
- * Smoke contract (per E2E_SURFACE_MAP):
+ * Smoke contract (post-#1048):
  *
  *   - ``person-landing-view`` root visible
  *   - ``person-landing-view-name`` shows the speaker's name
  *   - ``role="tablist"`` with two tabs:
- *     - ``person-landing-tab-profile`` (default selected)
- *     - ``person-landing-tab-positions``
+ *     - ``person-landing-tab-profile`` ("Person Profile") — default selected
+ *     - ``person-landing-tab-position-tracker`` ("Position Tracker") —
+ *       placeholder for #1049
  *   - Profile panel ``person-landing-panel-profile`` is visible
- *   - Switching to Positions panel reveals
- *     ``person-landing-panel-positions``
+ *   - Switching to Position Tracker reveals
+ *     ``person-landing-panel-position-tracker`` with the placeholder
  *   - Action buttons ``person-landing-go-graph`` /
- *     ``person-landing-prefill-search`` are present
+ *     ``person-landing-prefill-search`` are present in the Profile panel
  */
 
 import { readFileSync } from 'node:fs'
@@ -164,22 +166,32 @@ test.describe('Person Landing rail panel', () => {
 
     const tablist = view.getByRole('tablist')
     await expect(tablist).toBeVisible()
-    await expect(page.getByTestId('person-landing-tab-profile')).toBeVisible()
-    await expect(page.getByTestId('person-landing-tab-positions')).toBeVisible()
+    await expect(page.getByTestId('person-landing-tab-profile')).toHaveText(/Person Profile/)
+    await expect(page.getByTestId('person-landing-tab-position-tracker')).toHaveText(
+      /Position Tracker/,
+    )
 
     // Profile is the default tab and contains the action buttons; assert
-    // those are reachable before switching tabs (positions panel hides
-    // them via ``v-show``).
+    // those are reachable before switching tabs (Position Tracker panel
+    // hides them via ``v-show``).
     await expect(page.getByTestId('person-landing-panel-profile')).toBeVisible()
     await expect(page.getByTestId('person-landing-go-graph')).toBeVisible()
     await expect(page.getByTestId('person-landing-prefill-search')).toBeVisible()
 
-    // Switching to Positions reveals the positions panel.
-    await page.getByTestId('person-landing-tab-positions').click()
-    await expect(page.getByTestId('person-landing-panel-positions')).toBeVisible()
+    // Switching to Position Tracker reveals the placeholder panel.
+    await page.getByTestId('person-landing-tab-position-tracker').click()
+    await expect(page.getByTestId('person-landing-panel-position-tracker')).toBeVisible()
+    await expect(
+      page.getByTestId('person-landing-position-tracker-placeholder'),
+    ).toBeVisible()
+
+    // Back-navigation: returning to Person Profile re-shows the action buttons.
+    await page.getByTestId('person-landing-tab-profile').click()
+    await expect(page.getByTestId('person-landing-panel-profile')).toBeVisible()
+    await expect(page.getByTestId('person-landing-go-graph')).toBeVisible()
   })
 
-  test('FR4.1: Positions tab lists stated positions from the relational layer', async ({
+  test('FR4.1: Person Profile shows stated positions from the relational layer (#1048: was Positions tab pre-shell-refactor)', async ({
     page,
   }) => {
     await page.route('**/api/relational/positions**', async (route) => {
@@ -209,7 +221,9 @@ test.describe('Person Landing rail panel', () => {
     await page.getByTestId('explore-top-speaker-link').first().click()
     await expect(page.getByTestId('person-landing-view')).toBeVisible({ timeout: 10_000 })
 
-    await page.getByTestId('person-landing-tab-positions').click()
+    // #1048 — Profile tab is the default; stated positions now live there
+    // (moved from the deleted Positions tab as part of the shared-shell
+    // refactor). No tab switch required.
     const stated = page.getByTestId('person-landing-stated')
     await expect(stated).toBeVisible()
     await expect(stated.getByTestId('person-landing-stated-row')).toHaveCount(2)

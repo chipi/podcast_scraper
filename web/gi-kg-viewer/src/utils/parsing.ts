@@ -466,6 +466,134 @@ export function countPersonEntityIncidentEdges(
   return { spokenByQuotes, spokeInEpisodes }
 }
 
+/**
+ * Ranked Topic mentions a Person discusses, via the ``ABOUT(Insight→Topic)``
+ * chain whose Insight has a ``MENTIONS_PERSON(Insight→Person)`` edge to the
+ * given person. Counts collapse to unique (insight, topic) pairs so the
+ * same Insight pointing at the same Topic via two edges still scores 1.
+ * Topics with no graph-attested name fall back to the id.
+ *
+ * Returns Top-N by count, then alphabetically.
+ */
+export interface PersonTopicMention {
+  id: string
+  name: string
+  count: number
+}
+export function rankedPersonTopicMentions(
+  art: ParsedArtifact | null,
+  personGraphId: string | null,
+  topN = 10,
+): PersonTopicMention[] {
+  if (!art?.data?.edges || personGraphId == null) return []
+  const pid = String(personGraphId).trim()
+  if (!pid) return []
+  const mentioningInsights = new Set<string>()
+  for (const e of art.data.edges) {
+    if (!e) continue
+    if (normalizeGiEdgeType(e.type) !== 'mentions_person') continue
+    if (String(e.to ?? '').trim() !== pid) continue
+    const from = String(e.from ?? '').trim()
+    if (from) mentioningInsights.add(from)
+  }
+  if (mentioningInsights.size === 0) return []
+  const counts = new Map<string, number>()
+  const seenPair = new Set<string>()
+  for (const e of art.data.edges) {
+    if (!e) continue
+    if (normalizeGiEdgeType(e.type) !== 'about') continue
+    const from = String(e.from ?? '').trim()
+    if (!mentioningInsights.has(from)) continue
+    const to = String(e.to ?? '').trim()
+    if (!to) continue
+    const key = `${from}\0${to}`
+    if (seenPair.has(key)) continue
+    seenPair.add(key)
+    counts.set(to, (counts.get(to) ?? 0) + 1)
+  }
+  const rows: PersonTopicMention[] = []
+  for (const [id, count] of counts) {
+    const n = findRawNodeInArtifact(art, id)
+    const p = n?.properties as Record<string, unknown> | undefined
+    const rawName = typeof p?.name === 'string' ? p.name.trim() : ''
+    const label = typeof p?.label === 'string' ? p.label.trim() : ''
+    rows.push({ id, name: rawName || label || id, count })
+  }
+  rows.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+  return rows.slice(0, topN)
+}
+
+/**
+ * Organizations co-mentioned with a Person, via Insights that carry both a
+ * ``MENTIONS_PERSON`` edge to the Person and a ``MENTIONS_ORG`` edge to the
+ * Organization. Counts collapse to unique (insight, org) pairs.
+ *
+ * Returns Top-N by count, then alphabetically. Organization names fall back
+ * to the id when the node has no name/label property.
+ */
+export interface PersonOrganizationMention {
+  id: string
+  name: string
+  count: number
+}
+export function rankedPersonOrganizations(
+  art: ParsedArtifact | null,
+  personGraphId: string | null,
+  topN = 10,
+): PersonOrganizationMention[] {
+  if (!art?.data?.edges || personGraphId == null) return []
+  const pid = String(personGraphId).trim()
+  if (!pid) return []
+  const mentioningInsights = new Set<string>()
+  for (const e of art.data.edges) {
+    if (!e) continue
+    if (normalizeGiEdgeType(e.type) !== 'mentions_person') continue
+    if (String(e.to ?? '').trim() !== pid) continue
+    const from = String(e.from ?? '').trim()
+    if (from) mentioningInsights.add(from)
+  }
+  if (mentioningInsights.size === 0) return []
+  const counts = new Map<string, number>()
+  const seenPair = new Set<string>()
+  for (const e of art.data.edges) {
+    if (!e) continue
+    if (normalizeGiEdgeType(e.type) !== 'mentions_org') continue
+    const from = String(e.from ?? '').trim()
+    if (!mentioningInsights.has(from)) continue
+    const to = String(e.to ?? '').trim()
+    if (!to) continue
+    const key = `${from}\0${to}`
+    if (seenPair.has(key)) continue
+    seenPair.add(key)
+    counts.set(to, (counts.get(to) ?? 0) + 1)
+  }
+  const rows: PersonOrganizationMention[] = []
+  for (const [id, count] of counts) {
+    const n = findRawNodeInArtifact(art, id)
+    const p = n?.properties as Record<string, unknown> | undefined
+    const rawName = typeof p?.name === 'string' ? p.name.trim() : ''
+    const label = typeof p?.label === 'string' ? p.label.trim() : ''
+    rows.push({ id, name: rawName || label || id, count })
+  }
+  rows.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+  return rows.slice(0, topN)
+}
+
+/**
+ * Read Person.role from the node's ``properties.role`` when present and
+ * normalize to lowercase trimmed text. Returns null for unknown / missing.
+ * The role value is one of ``"host" | "guest" | "mention"`` by RFC-097
+ * convention; callers should not assume any other vocabulary.
+ */
+export function personRoleFromNode(node: RawGraphNode | null): string | null {
+  if (!node) return null
+  const p = node.properties as Record<string, unknown> | undefined
+  const role = p?.role
+  if (typeof role !== 'string') return null
+  const trimmed = role.trim().toLowerCase()
+  return trimmed || null
+}
+
 export interface InsightSupportingQuoteRow {
   id: string
   preview: string

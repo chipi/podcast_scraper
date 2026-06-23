@@ -22,8 +22,11 @@ import {
   insightSupportingQuoteRows,
   insightSupportingTranscriptAggregate,
   nodeLabel,
+  personRoleFromNode,
   primaryTextFromLooseGiNode,
   parseArtifact,
+  rankedPersonOrganizations,
+  rankedPersonTopicMentions,
   aggregateEpisodePersonEdges,
   aggregateEpisodeTopicEdges,
   confidenceTierFromInsightProperties,
@@ -959,6 +962,111 @@ describe('countPersonEntityIncidentEdges', () => {
       spokenByQuotes: 1,
       spokeInEpisodes: 0,
     })
+  })
+})
+
+// #1048 — Person Landing shared component helpers.
+describe('rankedPersonTopicMentions', () => {
+  it('returns [] for missing artifact or id', () => {
+    expect(rankedPersonTopicMentions(null, 'person:x')).toEqual([])
+    const art = parseArtifact('x.gi.json', { nodes: [], edges: [] })
+    expect(rankedPersonTopicMentions(art, null)).toEqual([])
+  })
+
+  it('ranks topics by collapsed (insight, topic) pairs, alphabetic tiebreak', () => {
+    const art = parseArtifact('x.gi.json', {
+      nodes: [
+        { id: 'topic:ai', type: 'Topic', properties: { name: 'AI ethics' } },
+        { id: 'topic:reg', type: 'Topic', properties: { name: 'AI regulation' } },
+      ],
+      edges: [
+        { type: 'MENTIONS_PERSON', from: 'i1', to: 'person:a' },
+        { type: 'MENTIONS_PERSON', from: 'i2', to: 'person:a' },
+        { type: 'MENTIONS_PERSON', from: 'i3', to: 'person:a' },
+        // i1 → topic:ai counted twice in edges but collapses to 1 pair
+        { type: 'ABOUT', from: 'i1', to: 'topic:ai' },
+        { type: 'ABOUT', from: 'i1', to: 'topic:ai' },
+        { type: 'ABOUT', from: 'i2', to: 'topic:ai' }, // distinct pair (i2, ai) = 1 more
+        { type: 'ABOUT', from: 'i3', to: 'topic:reg' },
+      ],
+    })
+    expect(rankedPersonTopicMentions(art, 'person:a')).toEqual([
+      { id: 'topic:ai', name: 'AI ethics', count: 2 },
+      { id: 'topic:reg', name: 'AI regulation', count: 1 },
+    ])
+  })
+
+  it('falls back to id when Topic node lacks a name/label', () => {
+    const art = parseArtifact('x.gi.json', {
+      nodes: [{ id: 'topic:unknown', type: 'Topic', properties: {} }],
+      edges: [
+        { type: 'MENTIONS_PERSON', from: 'i1', to: 'person:a' },
+        { type: 'ABOUT', from: 'i1', to: 'topic:unknown' },
+      ],
+    })
+    expect(rankedPersonTopicMentions(art, 'person:a')).toEqual([
+      { id: 'topic:unknown', name: 'topic:unknown', count: 1 },
+    ])
+  })
+
+  it('skips ABOUT edges whose Insight does not MENTIONS_PERSON this person', () => {
+    const art = parseArtifact('x.gi.json', {
+      nodes: [{ id: 'topic:ai', type: 'Topic', properties: { name: 'AI' } }],
+      edges: [
+        { type: 'MENTIONS_PERSON', from: 'i1', to: 'person:other' },
+        { type: 'ABOUT', from: 'i1', to: 'topic:ai' },
+      ],
+    })
+    expect(rankedPersonTopicMentions(art, 'person:a')).toEqual([])
+  })
+})
+
+describe('rankedPersonOrganizations', () => {
+  it('returns [] when no MENTIONS_PERSON edges target the person', () => {
+    const art = parseArtifact('x.gi.json', {
+      nodes: [],
+      edges: [{ type: 'MENTIONS_ORG', from: 'i1', to: 'org:openai' }],
+    })
+    expect(rankedPersonOrganizations(art, 'person:a')).toEqual([])
+  })
+
+  it('ranks co-mentioned orgs via MENTIONS_PERSON ∩ MENTIONS_ORG on the same Insight', () => {
+    const art = parseArtifact('x.gi.json', {
+      nodes: [
+        { id: 'org:openai', type: 'Organization', properties: { name: 'OpenAI' } },
+        { id: 'org:google', type: 'Organization', properties: { name: 'Google' } },
+      ],
+      edges: [
+        { type: 'MENTIONS_PERSON', from: 'i1', to: 'person:a' },
+        { type: 'MENTIONS_PERSON', from: 'i2', to: 'person:a' },
+        { type: 'MENTIONS_ORG', from: 'i1', to: 'org:openai' },
+        { type: 'MENTIONS_ORG', from: 'i2', to: 'org:openai' },
+        { type: 'MENTIONS_ORG', from: 'i1', to: 'org:google' },
+      ],
+    })
+    expect(rankedPersonOrganizations(art, 'person:a')).toEqual([
+      { id: 'org:openai', name: 'OpenAI', count: 2 },
+      { id: 'org:google', name: 'Google', count: 1 },
+    ])
+  })
+})
+
+describe('personRoleFromNode', () => {
+  it('returns null for null node or missing role', () => {
+    expect(personRoleFromNode(null)).toBeNull()
+    expect(personRoleFromNode({ id: 'p1', type: 'Person', properties: {} })).toBeNull()
+  })
+
+  it('lowercases and trims the role string', () => {
+    expect(
+      personRoleFromNode({ id: 'p1', type: 'Person', properties: { role: '  Host  ' } }),
+    ).toBe('host')
+  })
+
+  it('returns null for non-string role values', () => {
+    expect(
+      personRoleFromNode({ id: 'p1', type: 'Person', properties: { role: 7 } }),
+    ).toBeNull()
   })
 })
 
