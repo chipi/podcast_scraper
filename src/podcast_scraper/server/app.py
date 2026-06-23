@@ -17,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from podcast_scraper import __version__
 from podcast_scraper.server.pathutil import CorpusPathRequestError
 from podcast_scraper.server.routes import (
+    app_episodes,
     artifacts,
     cil,
     corpus_binary,
@@ -194,6 +195,10 @@ def create_app(
     app.include_router(corpus_topic_clusters.router, prefix="/api")
     app.include_router(cil.router, prefix="/api")
     app.include_router(ops.router, prefix="/api")
+    # Consumer Learning Platform API (RFC-098): slug-addressed read routes under their
+    # own /api/app namespace, separate from the operator routes. Read-only over the
+    # shared corpus; access becomes auth-gated in later Epic-1 tasks (#1063/#1066).
+    app.include_router(app_episodes.router, prefix="/api/app")
 
     resolved_output = Path(output_dir).expanduser().resolve() if output_dir is not None else None
     app.state.output_dir = resolved_output

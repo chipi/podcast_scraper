@@ -46,6 +46,8 @@ Local **dev** server: no auth. Treat **production** deployments as out-of-scope 
 | GET | `/api/corpus/runs/summary` | corpus | Discover `run.json` under the tree (capped), compact metrics per file for Dashboard. | `path` |
 | GET | `/api/corpus/coverage` | corpus | GI/KG sibling-file presence per episode; aggregates by publish month and feed (Dashboard). | `path` |
 | GET | `/api/corpus/persons/top` | corpus | Top speakers by grounded insight count (scans `*.gi.json` under catalog). | `path`, `limit` |
+| GET | `/api/app/episodes/{slug}/segments` | app | **Consumer platform** (read-only; access becomes auth-gated in later Epic-1 tasks): transcript **`segments.json`** contract `{version, episode_slug, segments[{id, start, end, text, speaker?}]}` for one episode addressed by stable **slug** (RFC-098 §4–§5, [#1067](https://github.com/chipi/podcast_scraper/issues/1067)). Reads `*.segments.json` (ad-free base preferred). **404** for unknown slug or missing transcript/segments. Serves the single shared corpus at `output_dir`; no `path` override. | — |
+| GET | `/api/app/episodes/{slug}/audio-source` | app | **Consumer platform**: resolve the **origin enclosure URL** the client plays directly — *bridge, never rehost* (RFC-100, [#1070](https://github.com/chipi/podcast_scraper/issues/1070)). Returns `{episode_slug, url, mime?, duration_seconds?, media_id?, strategy:"direct"}` from `content.media_url`. **404** when no origin URL. Freshness re-resolution + optional no-store proxy are deferred follow-ups. | — |
 
 Design and response field semantics: [Corpus Digest](../rfc/RFC-068-corpus-digest-api-viewer.md). Topic strings: repo `config/digest_topics.yaml`.
 

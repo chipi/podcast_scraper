@@ -7,6 +7,49 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class TranscriptSegment(BaseModel):
+    """One transcript segment in the player ``segments.json`` contract (PRD-036)."""
+
+    id: str = Field(description="Stable segment id within the episode.")
+    start: float = Field(ge=0, description="Segment start time in seconds.")
+    end: float = Field(ge=0, description="Segment end time in seconds.")
+    text: str = Field(description="Segment transcript text.")
+    speaker: str | None = Field(
+        default=None,
+        description="Speaker label/id when diarized (canonical person:{slug} when "
+        "resolved, else raw label); omitted when unknown.",
+    )
+
+
+class SegmentsResponse(BaseModel):
+    """Response for GET /api/app/episodes/{slug}/segments (the segments.json contract)."""
+
+    version: str = Field(default="1.0", description="Segments contract version.")
+    episode_slug: str = Field(description="Stable episode slug this transcript belongs to.")
+    segments: list[TranscriptSegment] = Field(default_factory=list)
+
+
+class AudioSourceResponse(BaseModel):
+    """Response for GET /api/app/episodes/{slug}/audio-source (bridge, never rehost)."""
+
+    episode_slug: str = Field(description="Stable episode slug.")
+    url: str = Field(description="Origin-host enclosure URL the client plays directly.")
+    mime: str | None = Field(
+        default=None, description="Enclosure MIME type when known (content.media_type)."
+    )
+    duration_seconds: int | None = Field(
+        default=None, ge=0, description="Episode duration in seconds when known."
+    )
+    media_id: str | None = Field(
+        default=None, description="Stable media identifier (content.media_id) when present."
+    )
+    strategy: Literal["direct", "proxy"] = Field(
+        default="direct",
+        description="'direct' = client streams the origin URL; 'proxy' (future) = "
+        "no-store pass-through when a host blocks direct play.",
+    )
+
+
 class ArtifactItem(BaseModel):
     """One GI, KG, or bridge artifact file under a corpus directory."""
 
