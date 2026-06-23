@@ -3,7 +3,8 @@
 # Preflight: the HTTP stack alone is not enough for ``create_app`` (routers import LanceDB / embeddings).
 # This image hand-installs the FastAPI/uvicorn/prometheus/apscheduler server-runtime pins (kept
 # in sync with the same pins in ``[dev]`` in pyproject.toml — they MUST match; they drifted to a
-# wrong prometheus major once, #1019) plus ``.[search]`` (CPU torch, lancedb, sentence-transformers).
+# wrong prometheus major once, #1019) plus ``.[search]`` (CPU torch, lancedb, sentence-transformers)
+# and ``.[sentry]`` (this image inits Sentry; the SDK is an opt-in o11y extension, not a base dep).
 # Installed directly rather than via ``.[dev]`` to avoid pytest/black in production, and without the
 # full ``.[ml]`` stack (Whisper/spaCy/llama-cpp). See docs/guides/DOCKER_SERVICE_GUIDE.md.
 #
@@ -52,7 +53,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
          "uvicorn[standard]>=0.48.0,<1.0.0" \
          "prometheus-fastapi-instrumentator>=8.0.0,<9.0.0" \
          "apscheduler>=3.11.2,<4.0.0" \
-         ".[search]" "numpy>=1.24.0" \
+         ".[search,sentry]" "numpy>=1.24.0" \
     && pip install --force-reinstall --no-deps torch --index-url https://download.pytorch.org/whl/cpu \
     && pip install --no-deps . \
     && python -c "from podcast_scraper.server.app import create_app; print('create_app import ok')"

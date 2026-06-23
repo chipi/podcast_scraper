@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from podcast_scraper.utils.sentry_init import init_sentry
+from podcast_scraper.utils.sentry_init import init_sentry, set_run_tag
 
 
 @pytest.mark.unit
@@ -161,6 +161,34 @@ class TestInitSentryImportError(unittest.TestCase):
         # raises ImportError without uninstalling the real package.
         with patch.dict(sys.modules, {"sentry_sdk": None}):
             self.assertFalse(init_sentry("api"))
+
+
+class TestSetRunTag(unittest.TestCase):
+    """set_run_tag stamps the correlation join key onto the Sentry scope (#1053)."""
+
+    def test_noop_without_run_id(self) -> None:
+        fake = MagicMock()
+        with patch.dict(sys.modules, {"sentry_sdk": fake}):
+            set_run_tag(None)
+        fake.set_tag.assert_not_called()
+
+    def test_noop_when_sentry_sdk_unimportable(self) -> None:
+        # absent SDK -> no raise, no effect (Sentry is an optional o11y extension).
+        with patch.dict(sys.modules, {"sentry_sdk": None}):
+            set_run_tag("run-1", "ep:1")  # must not raise
+
+    def test_sets_run_and_episode_tags(self) -> None:
+        fake = MagicMock()
+        with patch.dict(sys.modules, {"sentry_sdk": fake}):
+            set_run_tag("run-1", "ep:1")
+        fake.set_tag.assert_any_call("run_id", "run-1")
+        fake.set_tag.assert_any_call("episode_id", "ep:1")
+
+    def test_episode_tag_optional(self) -> None:
+        fake = MagicMock()
+        with patch.dict(sys.modules, {"sentry_sdk": fake}):
+            set_run_tag("run-1")
+        fake.set_tag.assert_called_once_with("run_id", "run-1")
 
 
 if __name__ == "__main__":

@@ -202,3 +202,56 @@ async def cross_show(
         return RelationalGroupedResponse(subject=topic, error="no_corpus_path")
     groups = rq.cross_show_synthesis(graph, topic, per_show=per_show)
     return RelationalGroupedResponse(subject=topic, groups=_group(groups))
+
+
+@router.get("/relational/topics", response_model=RelationalListResponse)
+async def topics(
+    request: Request,
+    person: str = Query(min_length=1, description="Canonical person id, e.g. person:jane-doe."),
+    path: str | None = Query(default=None, description="Corpus output dir; omit for default."),
+    k: int = Query(default=20, ge=1, le=200),
+) -> RelationalListResponse:
+    """Topics a person engages — the **structural** lens (#1055).
+
+    person→STATES→insight→ABOUT→topic over the typed graph. NOTE: the **grounded**
+    (quote-backed) lens is ``GET /api/cil/persons/{id}/topics`` — the two can differ
+    (relational/* is graph traversal; cil/* is grounded GI). Choose by intent.
+    """
+    graph = _graph_or_none(request, path)
+    if graph is None:
+        return RelationalListResponse(subject=person, error="no_corpus_path")
+    return RelationalListResponse(
+        subject=person, results=[_node(n) for n in rq.topics_of(graph, person, k=k)]
+    )
+
+
+@router.get("/relational/co-speakers", response_model=RelationalListResponse)
+async def co_speakers(
+    request: Request,
+    person: str = Query(min_length=1, description="Canonical person id."),
+    path: str | None = Query(default=None, description="Corpus output dir; omit for default."),
+    k: int = Query(default=20, ge=1, le=200),
+) -> RelationalListResponse:
+    """People who speak on the same topics as a person — the social graph (#1055)."""
+    graph = _graph_or_none(request, path)
+    if graph is None:
+        return RelationalListResponse(subject=person, error="no_corpus_path")
+    return RelationalListResponse(
+        subject=person, results=[_node(n) for n in rq.co_speakers(graph, person, k=k)]
+    )
+
+
+@router.get("/relational/related-topics", response_model=RelationalListResponse)
+async def related_topics(
+    request: Request,
+    topic: str = Query(min_length=1, description="Canonical topic id, e.g. topic:inflation."),
+    path: str | None = Query(default=None, description="Corpus output dir; omit for default."),
+    k: int = Query(default=20, ge=1, le=200),
+) -> RelationalListResponse:
+    """Topics that share insights with a topic — topic↔topic connectivity (#1055)."""
+    graph = _graph_or_none(request, path)
+    if graph is None:
+        return RelationalListResponse(subject=topic, error="no_corpus_path")
+    return RelationalListResponse(
+        subject=topic, results=[_node(n) for n in rq.related_topics(graph, topic, k=k)]
+    )

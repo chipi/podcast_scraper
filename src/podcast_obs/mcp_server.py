@@ -16,10 +16,10 @@ from __future__ import annotations
 
 from typing import Any, Callable, Optional
 
-from .aggregate import summary as _summary
+from .aggregate import correlate as _correlate, summary as _summary
 from .config import ObservabilityConfig, ObservabilityConfigError, TargetConfig
 from .result import err
-from .sources import github, grafana, loki, prod_api, sentry
+from .sources import github, grafana, langfuse, loki, prod_api, sentry
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8848
@@ -27,7 +27,8 @@ DEFAULT_PORT = 8848
 _INSTRUCTIONS = (
     "Read-only prod observability control plane. Tools answer 'what is a deploy doing right "
     "now?' — health, version, recent pipeline runs and deploys, today's LLM cost, recent error "
-    "logs (Loki) and Sentry issues, and current Grafana alerts. Each tool takes an optional "
+    "logs (Loki) and Sentry issues, current Grafana alerts, and recent Langfuse LLM traces. "
+    "Each tool takes an optional "
     "`target` (a configured deploy name; omit for the default). Results are uniform envelopes: "
     "{ok, source, data|error, configured}; configured=false means that source isn't wired for "
     "the target. Compose with other MCP servers (e.g. Grafana) for deeper drill-down."
@@ -102,9 +103,18 @@ def _build_tools(config: ObservabilityConfig) -> list[Callable[..., dict]]:
         """Current Grafana alerts (alertname, severity, state, summary)."""
         return _run(config, target, grafana.recent_alerts, limit=limit)
 
+    def prod_recent_traces(target: Optional[str] = None, limit: int = 10) -> dict:
+        """Recent Langfuse LLM traces for a deploy (id/name/timestamp/latency/cost)."""
+        return _run(config, target, langfuse.recent_traces, limit=limit)
+
     def prod_summary(target: Optional[str] = None) -> dict:
         """One-call control-plane glance: every source for a deploy (live/unconfigured/failed)."""
         return _run(config, target, _summary)
+
+    def prod_correlate(run_id: str, target: Optional[str] = None) -> dict:
+        """Every signal for ONE run_id, joined: Langfuse trace (per-call model/cost/tokens) +
+        Loki llm_cost events + Sentry errors. The cross-layer view for a single run (#1053)."""
+        return _run(config, target, lambda t: _correlate(t, run_id))
 
     return [
         prod_health,
@@ -115,7 +125,9 @@ def _build_tools(config: ObservabilityConfig) -> list[Callable[..., dict]]:
         prod_recent_logs,
         prod_recent_errors,
         prod_recent_alerts,
+        prod_recent_traces,
         prod_summary,
+        prod_correlate,
     ]
 
 

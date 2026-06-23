@@ -6,6 +6,8 @@ Loki holds everything the containers logged. Use both for a full error picture.
 
 from __future__ import annotations
 
+from typing import Optional
+
 from .._http import get_json
 from ..config import TargetConfig
 from ..result import err, ok
@@ -14,19 +16,34 @@ _SOURCE = "sentry.errors"
 _API = "https://sentry.io/api/0"
 
 
-def recent_errors(target: TargetConfig, window: str = "24h", limit: int = 10) -> dict:
-    """Top unresolved issues per Sentry project for ``environment=<target.sentry_environment>``."""
+def recent_errors(
+    target: TargetConfig,
+    window: str = "24h",
+    limit: int = 10,
+    *,
+    run_id: Optional[str] = None,
+) -> dict:
+    """Top issues per Sentry project for ``environment=<target.sentry_environment>``.
+
+    With ``run_id`` set (#1053), filters to issues tagged ``run_id:<id>`` (and drops the
+    ``is:unresolved`` filter so a run's *full* error picture surfaces for correlation).
+    """
     if not target.sentry_token:
         return err(_SOURCE, "sentry token not set (PODCAST_OBS_SENTRY_TOKEN)", configured=False)
     if not target.sentry_org or not target.sentry_projects:
         return err(_SOURCE, "sentry org/projects not set", configured=False)
     headers = {"Authorization": f"Bearer {target.sentry_token}"}
+    if run_id:
+        # safe charset, but quote so an id with spaces can't split the query
+        query = f'environment:{target.sentry_environment} run_id:"{run_id}"'
+    else:
+        query = f"is:unresolved environment:{target.sentry_environment}"
     projects: list[dict] = []
     total = 0
     for project in target.sentry_projects:
         url = f"{_API}/projects/{target.sentry_org}/{project}/issues/"
         params = {
-            "query": f"is:unresolved environment:{target.sentry_environment}",
+            "query": query,
             "statsPeriod": window,
             "limit": max(limit, 1),
         }

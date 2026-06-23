@@ -2166,7 +2166,13 @@ def apply_log_level(level: str, log_file: Optional[str] = None, json_logs: bool 
 
         formatter = JSONFormatter()
     else:
-        formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
+        # #1053: CorrelationFormatter stamps the run_id join key onto every line, so the
+        # run's logs are correlatable in Loki alongside its cost events / Langfuse trace.
+        from ..utils.correlation import CorrelationFormatter
+
+        formatter = CorrelationFormatter(
+            "%(asctime)s %(levelname)s %(name)s [run=%(run_id)s]: %(message)s"
+        )
 
     # Remove existing handlers if we're setting up fresh
     if not root_logger.handlers:
@@ -2296,6 +2302,20 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         config.reset_screenplay_issue_562_gates()
     except Exception:  # pragma: no cover - defensive import/cleanup
         logger.debug("reset_screenplay_issue_562_gates (startup) failed", exc_info=True)
+
+    # #1053: resolve this run's correlation id ONCE, up front, so every o11y signal
+    # (Loki cost event + logs, Sentry scope, Langfuse trace) for the run stamps the same
+    # join key. Process-global because the pipeline is a per-run subprocess.
+    from podcast_scraper.utils import correlation
+
+    correlation.set_run_id(correlation.resolve_run_id(cfg.run_id))
+    # Mirror the join key onto the Sentry scope so errors correlate too (no-op without Sentry).
+    try:
+        from podcast_scraper.utils.sentry_init import set_run_tag
+
+        set_run_tag(correlation.get_run_id())
+    except Exception:  # pragma: no cover - never block a run on o11y tagging
+        logger.debug("sentry run-tag skipped", exc_info=True)
 
     # Step 1: Setup pipeline environment
     effective_output_dir, run_suffix, full_config_string, pipeline_metrics = (

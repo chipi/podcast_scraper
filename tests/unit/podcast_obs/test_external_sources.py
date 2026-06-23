@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from podcast_obs.config import TargetConfig
-from podcast_obs.sources import github, grafana, loki, sentry
+from podcast_obs.sources import github, grafana, langfuse, loki, sentry
 
 
 def _t(**kw) -> TargetConfig:
@@ -197,6 +197,61 @@ def test_errors_all_projects_failing_is_not_ok(monkeypatch: pytest.MonkeyPatch) 
     assert result["ok"] is False  # not a healthy zero — all projects failed
     assert result["configured"] is True
     assert "all configured" in result["error"]
+
+
+# --- langfuse.recent_traces --------------------------------------------------------
+
+
+def test_traces_not_configured_without_keys() -> None:
+    assert langfuse.recent_traces(_t())["configured"] is False
+    # public key alone isn't enough — the Basic-auth pair needs both.
+    assert langfuse.recent_traces(_t(langfuse_public_key="pk"))["configured"] is False
+
+
+def test_traces_parsing(monkeypatch: pytest.MonkeyPatch) -> None:
+    payload = {
+        "data": [
+            {
+                "id": "t1",
+                "name": "summarization:claude",
+                "timestamp": "2026-06-22T00:00:00Z",
+                "latency": 1.2,
+                "totalCost": 0.0151,
+            },
+            {"id": "t2", "name": "gi:gpt", "timestamp": "2026-06-22T00:01:00Z"},
+        ]
+    }
+    monkeypatch.setattr(langfuse, "get_json", lambda url, **_: payload)
+    target = _t(langfuse_public_key="pk", langfuse_secret_key="sk")
+    result = langfuse.recent_traces(target)
+    assert result["ok"] is True
+    data = result["data"]
+    assert data["base_url"] == "https://cloud.langfuse.com"  # default when base unset
+    assert data["count"] == 2
+    assert data["traces"][0]["name"] == "summarization:claude"
+    assert data["traces"][0]["totalCost"] == 0.0151
+
+
+def test_traces_self_hosted_base_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(langfuse, "get_json", lambda url, **_: {"data": []})
+    target = _t(
+        langfuse_public_key="pk",
+        langfuse_secret_key="sk",
+        langfuse_base_url="http://langfuse.tailnet:3000/",
+    )
+    data = langfuse.recent_traces(target)["data"]
+    assert data["base_url"] == "http://langfuse.tailnet:3000"  # trailing slash stripped
+    assert data["count"] == 0
+
+
+def test_traces_error_is_failed_not_unconfigured(monkeypatch: pytest.MonkeyPatch) -> None:
+    def boom(url, **_):
+        raise RuntimeError("401 unauthorized")
+
+    monkeypatch.setattr(langfuse, "get_json", boom)
+    result = langfuse.recent_traces(_t(langfuse_public_key="pk", langfuse_secret_key="sk"))
+    assert result["ok"] is False
+    assert result.get("configured") is not False  # keys present → not an "unconfigured"
 
 
 # --- loki helpers: window parsing, URL base, malformed payloads (regression guards) -----

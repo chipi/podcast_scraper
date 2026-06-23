@@ -26,13 +26,9 @@ dependencies = [
   # TODO(CVE-2026-4539): After pygments ships a fixed release and pip-audit/OSV match NVD ranges, bump the cap and drop Makefile ignore.
   "pygments>=2.20.0,<2.21.0",
   "psutil>=5.9.0,<8.0.0",  # RFC-065 monitor / sampler (imported with orchestration); Docker base image
-  # Sentry SDK lives in base deps so both the api (long-lived FastAPI process)
-  # and the pipeline subprocess (one-shot ``python -m podcast_scraper.cli``)
-  # can initialise it from podcast_scraper.utils.sentry_init.init_sentry().
-  # Init is gated on PODCAST_SENTRY_DSN_API / PODCAST_SENTRY_DSN_PIPELINE so
-  # default (no DSN) stays a true no-op.  ~3 MB install footprint.
-  # See RFC-081 §Layer 2 + issue #681.
-  "sentry-sdk>=2.60.0,<3.0.0",
+  # NOTE: no 3rd-party observability SaaS SDKs here — Sentry/Langfuse are fully
+  # optional opt-in extras ([sentry] / [langfuse]); the core no-ops without them.
+  # See the [project.optional-dependencies] header + docs/guides/OBSERVABILITY_EXTENSIONS.md.
 ]
 
 [project.optional-dependencies]
@@ -55,6 +51,29 @@ observability = [
   "httpx>=0.28.1,<1.0.0",
   "PyYAML>=6.0.3,<7.0.0",
   "mcp>=1.2.0,<2.0.0",  # FastMCP server for the agent-facing layer (stdio + sse/http)
+]
+
+# ── Optional 3rd-party observability extensions ──────────────────────────────────
+# o11y SaaS integrations are FULLY OPTIONAL, one extra per service. The core carries
+# ZERO of these deps and no-ops without them (every touchpoint is a lazy guarded import
+# + config-gated). Two distinct kinds of o11y dep:
+#   • READ an o11y backend (Grafana / Loki / Sentry API / Langfuse API) → httpx only, in
+#     [observability] (the light control plane). No vendor SDK — uniform across the 5
+#     podcast_obs sources.
+#   • EMIT from the app → the service's vendor SDK, one extra each below. Each is a
+#     config-gated no-op (active only when its secret is present) AND degrades to a no-op
+#     when the SDK isn't installed. Install only what you use; compose them into the prod
+#     images you deploy (docker/{api,pipeline}); [dev] pulls all of them so tests/CI
+#     exercise them. Adding a new one → docs/guides/OBSERVABILITY_EXTENSIONS.md.
+sentry = [
+  # Error reporting for the api (FastAPI) + pipeline (cli) via
+  # podcast_scraper.utils.sentry_init.init_sentry(); no-op without PODCAST_SENTRY_DSN_*.
+  "sentry-sdk>=2.60.0,<3.0.0",
+]
+langfuse = [
+  # LLM tracing emitted at the provider cost choke point (#1052); no-op without
+  # LANGFUSE_PUBLIC_KEY + LANGFUSE_SECRET_KEY. Pulls OpenTelemetry.
+  "langfuse>=4.9.0,<5.0.0",
 ]
 
 # Heavy ML dependencies - only install when needed
@@ -152,6 +171,11 @@ monitor = [
 # docker/api/Dockerfile, which installs them directly rather than via ``.[dev]`` (to keep
 # pytest/black/etc out of the production image). KEEP THE TWO IN SYNC — they drifted once (#1019).
 dev = [
+  # All optional o11y emit-SDKs — so every dev/CI/`make install` venv exercises them
+  # (the tests import the SDKs to mock them) and the core-without-them path is covered
+  # via simulated absence. Runtime stays a no-op unless each service's secrets are set.
+  "podcast-scraper[sentry]",
+  "podcast-scraper[langfuse]",
   # Cap <0.137 (#1029): fastapi 0.137 added the internal ``_IncludedRouter`` route
   # type, which prometheus-fastapi-instrumentator 8.0.0 (latest) cannot resolve
   # (``'_IncludedRouter' object has no attribute 'path'``) -> /api/health 500 when

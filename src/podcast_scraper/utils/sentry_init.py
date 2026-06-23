@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Literal
+from typing import Literal, Optional
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -122,3 +122,24 @@ def init_sentry(component: Component) -> bool:
         traces_rate,
     )
     return True
+
+
+def set_run_tag(run_id: Optional[str], episode_id: Optional[str] = None) -> None:
+    """Tag the Sentry scope with the run/episode correlation ids (#1053).
+
+    So a Sentry error carries the same ``run_id`` as the run's Loki cost events and
+    Langfuse trace — the join key an agent uses to pull every signal for one run. A true
+    no-op when ``sentry-sdk`` isn't installed or Sentry wasn't initialised (no DSN).
+    """
+    if not run_id:
+        return
+    try:
+        import sentry_sdk
+    except ImportError:
+        return
+    try:
+        sentry_sdk.set_tag("run_id", run_id)
+        if episode_id:
+            sentry_sdk.set_tag("episode_id", episode_id)
+    except Exception:  # pragma: no cover - never break the run for a tag
+        _LOGGER.debug("sentry set_run_tag skipped", exc_info=True)

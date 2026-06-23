@@ -26,7 +26,9 @@ def test_tool_table_names_and_count() -> None:
         "prod_recent_logs",
         "prod_recent_errors",
         "prod_recent_alerts",
+        "prod_recent_traces",
         "prod_summary",
+        "prod_correlate",
     ]
     # every tool carries a docstring (FastMCP uses it as the tool description)
     assert all(fn.__doc__ for fn in tools)

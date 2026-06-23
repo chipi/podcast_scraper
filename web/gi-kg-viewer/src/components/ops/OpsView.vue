@@ -13,6 +13,7 @@ const SOURCE_ORDER = [
   'logs',
   'errors',
   'alerts',
+  'traces',
 ] as const
 
 const data = ref<OpsSummary | null>(null)
@@ -58,6 +59,8 @@ function summaryLine(name: string, env: OpsSourceEnvelope | undefined): string {
       return `${num(d.total_issues)} unresolved`
     case 'alerts':
       return `${num(d.firing)} firing / ${num(d.count)}`
+    case 'traces':
+      return `${num(d.count)} recent traces`
     default:
       return 'ok'
   }

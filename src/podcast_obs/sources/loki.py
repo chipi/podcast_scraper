@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import json
 import time
 from datetime import datetime, timezone
 from typing import Optional
@@ -18,6 +19,7 @@ from ..config import TargetConfig
 from ..result import err, ok
 
 _COST = "loki.cost"
+_COST_RUN = "loki.cost_run"
 _LOGS = "loki.logs"
 _ERROR_FILTER = r'|~ "(?i)(error|critical|exception|traceback|fatal)"'
 _PATH_SUFFIXES = ("/loki/api/v1/push", "/loki/api/v1/query_range", "/loki/api/v1/query")
@@ -149,6 +151,67 @@ def recent_logs(
             "service": service,
             "count": len(lines),
             "lines": lines,
+        },
+    )
+
+
+def cost_for_run(
+    target: TargetConfig, run_id: str, *, window: str = "24h", limit: int = 200
+) -> dict:
+    """All ``llm_cost`` events for one ``run_id`` (#1053) — per-call cost for correlation."""
+    creds = _creds(target)
+    if not creds:
+        return err(_COST_RUN, _NOT_CONFIGURED, configured=False)
+    base, user, token = creds
+    # run_id is our own resolved id (safe charset), but escape defensively for LogQL.
+    safe = run_id.replace(chr(92), chr(92) + chr(92)).replace(chr(34), chr(92) + chr(34))
+    selector = f'{{app="podcast_scraper", env="{target.env_label}"}}'
+    query = f'{selector} | json | event_type="llm_cost" | run_id="{safe}"'
+    end_ns = time.time_ns()
+    start_ns = end_ns - _parse_window_seconds(window) * 1_000_000_000
+    url = f"{base}/loki/api/v1/query_range"
+    params = {
+        "query": query,
+        "start": str(start_ns),
+        "end": str(end_ns),
+        "limit": str(max(limit, 1)),
+        "direction": "backward",
+    }
+    try:
+        data = get_json(url, params=params, auth=(user, token), timeout=target.timeout)
+    except Exception as exc:  # noqa: BLE001
+        return err(_COST_RUN, f"loki query_range failed: {exc}")
+    events: list[dict] = []
+    total = 0.0
+    for entry in _flatten_streams(data, limit):
+        try:
+            event = json.loads(entry["line"])
+        except (ValueError, TypeError):
+            continue
+        cost = event.get("estimated_cost_usd")
+        if isinstance(cost, (int, float)):
+            total += float(cost)
+        events.append(
+            {
+                key: event.get(key)
+                for key in (
+                    "provider",
+                    "stage",
+                    "model",
+                    "estimated_cost_usd",
+                    "prompt_tokens",
+                    "completion_tokens",
+                )
+            }
+        )
+    return ok(
+        _COST_RUN,
+        {
+            "run_id": run_id,
+            "window": window,
+            "count": len(events),
+            "total_cost_usd": round(total, 6),
+            "events": events,
         },
     )
 

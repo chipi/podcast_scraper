@@ -47,8 +47,10 @@ def test_resolve_entity_roundtrip(tmp_path, monkeypatch) -> None:
         lambda corpus_dir: _Resolver(),
     )
     out = _call(build_server(tmp_path), "resolve_entity", {"name": "jane"})
-    assert out["candidates"][0]["id"] == "person:jane"
-    assert out["candidates"][0]["kind"] == "person"
+    # #1054 uniform envelope: every tool returns {ok, data, note}.
+    assert out["ok"] is True
+    assert out["data"]["candidates"][0]["id"] == "person:jane"
+    assert out["data"]["candidates"][0]["kind"] == "person"
 
 
 def test_search_corpus_roundtrip(tmp_path, monkeypatch) -> None:
@@ -70,8 +72,9 @@ def test_search_corpus_roundtrip(tmp_path, monkeypatch) -> None:
         },
     )
     out = _call(build_server(tmp_path), "search_corpus", {"query": "Jane Doe", "tier": "insight"})
-    assert out["query_type"] == "entity_lookup"
-    assert out["results"][0]["source_tier"] == "insight"
+    assert out["ok"] is True
+    assert out["data"]["query_type"] == "entity_lookup"
+    assert out["data"]["results"][0]["source_tier"] == "insight"
 
 
 def test_relational_tool_roundtrip(tmp_path, monkeypatch) -> None:
@@ -95,9 +98,22 @@ def test_relational_tool_roundtrip(tmp_path, monkeypatch) -> None:
         lambda *a, **k: _Graph(),
     )
     out = _call(build_server(tmp_path), "person_positions", {"person_id": "person:p"})
-    assert [r["id"] for r in out["results"]] == ["insight:1"]
+    assert out["ok"] is True
+    assert [r["id"] for r in out["data"]["results"]] == ["insight:1"]
 
 
 def test_unknown_tool_raises(tmp_path) -> None:
     with pytest.raises(Exception):
         asyncio.run(build_server(tmp_path).call_tool("no_such_tool", {}))
+
+
+def test_uniform_envelope_and_error_path(tmp_path, monkeypatch) -> None:
+    # every tool returns {ok, data, note}; a tool that raises becomes ok=False (not a crash).
+    def _boom(*a, **k):
+        raise RuntimeError("kaboom")
+
+    monkeypatch.setattr("podcast_scraper.search.corpus_graph.get_corpus_graph", _boom)
+    out = _call(build_server(tmp_path), "person_positions", {"person_id": "person:x"})
+    assert out["ok"] is False
+    assert "kaboom" in out["note"]
+    assert out["data"] == {}

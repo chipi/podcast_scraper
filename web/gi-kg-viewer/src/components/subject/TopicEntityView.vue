@@ -14,6 +14,7 @@ import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
 import {
   fetchCrossShow,
+  fetchRelatedTopics,
   fetchTopicEntities,
   fetchWhoSaid,
   type RelatedNode,
@@ -66,6 +67,7 @@ const voicesError = ref<string | null>(null)
 const voiceRows = ref<VoiceRow[]>([])
 const entitiesLoading = ref(false)
 const entityRows = ref<RelatedNode[]>([])
+const relatedTopicRows = ref<RelatedNode[]>([]) // #1055 — topics that share insights
 const relationalGate = new StaleGeneration()
 
 function shortId(id: string): string {
@@ -78,6 +80,7 @@ function resetRelational(): void {
   voiceRows.value = []
   voicesError.value = null
   entityRows.value = []
+  relatedTopicRows.value = []
 }
 
 async function loadRelational(topicId: string): Promise<void> {
@@ -92,12 +95,14 @@ async function loadRelational(topicId: string): Promise<void> {
   entitiesLoading.value = true
   resetRelational()
   try {
-    const [cross, who, ents] = await Promise.all([
+    const [cross, who, ents, related] = await Promise.all([
       fetchCrossShow(root, topicId).catch((e) => ({ error: String(e?.message ?? e), groups: {} })),
       fetchWhoSaid(root, topicId).catch((e) => ({ error: String(e?.message ?? e), groups: {} })),
       fetchTopicEntities(root, topicId).catch(() => ({ results: [] as RelatedNode[] })),
+      fetchRelatedTopics(root, topicId).catch(() => ({ results: [] as RelatedNode[] })),
     ])
     if (relationalGate.isStale(seq)) return
+    relatedTopicRows.value = related.results ?? []
     crossShowError.value = cross.error ?? null
     crossShowRows.value = Object.entries(cross.groups ?? {})
       .map(([showId, insights]) => ({ showId, insight: insights[0] }))
@@ -397,6 +402,26 @@ function onPrefillSearch(): void {
             </p>
           </li>
         </ul>
+      </section>
+
+      <!-- #1055 — related topics (topics that share insights with this one). -->
+      <section
+        v-if="relatedTopicRows.length"
+        class="w-full min-w-0"
+        aria-label="Related topics"
+        data-testid="tev-related-topics"
+      >
+        <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+          Related topics
+        </h3>
+        <div class="flex flex-wrap gap-1">
+          <span
+            v-for="t in relatedTopicRows"
+            :key="t.id"
+            class="rounded bg-overlay px-1.5 py-0.5 text-[10px] text-surface-foreground"
+            data-testid="tev-related-topic-chip"
+          >{{ t.text }}</span>
+        </div>
       </section>
 
       <!-- PRD-033 FR4.2 — key voices (Person→Insight for this topic). -->
