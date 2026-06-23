@@ -146,6 +146,55 @@ class AppEntitiesResponse(BaseModel):
     topics: list[AppTopic] = Field(default_factory=list)
 
 
+class PlaybackPosition(BaseModel):
+    """Per-user playback position for one episode."""
+
+    slug: str = Field(description="Episode slug.")
+    position_seconds: float = Field(ge=0, description="Saved playback position in seconds.")
+    updated_at: int | None = Field(default=None, description="Unix time of the last save.")
+
+
+class PlaybackUpdate(BaseModel):
+    """Body for PUT /api/app/playback/{slug}."""
+
+    position_seconds: float = Field(ge=0, description="Playback position in seconds.")
+
+
+class QueueResponse(BaseModel):
+    """The user's play queue (ordered episode slugs)."""
+
+    items: list[str] = Field(default_factory=list)
+
+
+class QueueUpdate(BaseModel):
+    """Body for PUT /api/app/queue."""
+
+    items: list[str] = Field(default_factory=list, description="Ordered episode slugs.")
+
+
+class LibraryItem(BaseModel):
+    """A subscribed podcast in the user's library."""
+
+    feed_id: str = Field(description="Feed id.")
+    feed_url: str | None = Field(default=None, description="RSS feed URL.")
+    title: str | None = Field(default=None, description="Show title.")
+    added_at: int | None = Field(default=None, description="Unix time subscribed.")
+
+
+class LibraryAdd(BaseModel):
+    """Body for POST /api/app/library."""
+
+    feed_id: str = Field(description="Feed id to subscribe.")
+    feed_url: str | None = Field(default=None, description="RSS feed URL.")
+    title: str | None = Field(default=None, description="Show title.")
+
+
+class LibraryResponse(BaseModel):
+    """The user's library (subscribed podcasts)."""
+
+    items: list[LibraryItem] = Field(default_factory=list)
+
+
 class ArtifactItem(BaseModel):
     """One GI, KG, or bridge artifact file under a corpus directory."""
 

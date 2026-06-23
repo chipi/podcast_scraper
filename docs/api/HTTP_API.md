@@ -57,6 +57,9 @@ Local **dev** server: no auth. Treat **production** deployments as out-of-scope 
 | GET | `/api/app/auth/callback` | app | **Consumer platform auth**: complete OAuth — verify state, exchange code, upsert the user (plain per-user files), set an HMAC-signed session cookie, **307** to `/`. **400** invalid state; **403** account not on the sign-in allowlist ([#1064](https://github.com/chipi/podcast_scraper/issues/1064)); **502** exchange failure. | `code`, `state` |
 | POST | `/api/app/auth/logout` | app | **Consumer platform auth**: clear the session cookie (**204**). | — |
 | GET | `/api/app/me` | app | **Consumer platform auth**: the signed-in user's `{user_id, email, name}`; **401** when not authenticated. Gate dependency `get_current_user` for per-user routes. | — |
+| GET, PUT | `/api/app/playback/{slug}` | app | **Consumer platform** (auth, per-user files): playback position `{slug, position_seconds, updated_at?}`; GET returns 0 when unset ([#1065](https://github.com/chipi/podcast_scraper/issues/1065)). | — |
+| GET, PUT | `/api/app/queue` | app | **Consumer platform** (auth): the user's play queue — ordered episode slugs `{items[]}` ([#1065](https://github.com/chipi/podcast_scraper/issues/1065)). | — |
+| GET, POST, DELETE | `/api/app/library` (+ `/{feed_id}`) | app | **Consumer platform** (auth): subscribed podcasts — list / subscribe (idempotent on `feed_id`) / unsubscribe ([#1065](https://github.com/chipi/podcast_scraper/issues/1065)). | — |
 
 Design and response field semantics: [Corpus Digest](../rfc/RFC-068-corpus-digest-api-viewer.md). Topic strings: repo `config/digest_topics.yaml`.
 

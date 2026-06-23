@@ -22,6 +22,7 @@ from podcast_scraper.server.routes import (
     app_auth,
     app_episodes,
     app_search,
+    app_user_state,
     artifacts,
     cil,
     corpus_binary,
@@ -225,6 +226,7 @@ def create_app(
     app.include_router(app_auth.router, prefix="/api/app")
     app.include_router(app_episodes.router, prefix="/api/app")
     app.include_router(app_search.router, prefix="/api/app")
+    app.include_router(app_user_state.router, prefix="/api/app")
 
     resolved_output = Path(output_dir).expanduser().resolve() if output_dir is not None else None
     app.state.output_dir = resolved_output
