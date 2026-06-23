@@ -312,21 +312,24 @@ In order:
    memory thrash, (b) gate decisions match the offline measurement.
 5. **Operator runbook addition** — gate on/off recipe + fallback.
 
-## 8. Open questions for operator
+## 8. Open questions for operator — RESOLVED 2026-06-23
 
-- **Q1**: What's the right gate criterion? (NER density vs speaker
-  count vs domain-keyword match vs combination). The methodology
-  scaffolds NER density as a starting point but the operator may
-  want a different signal.
-- **Q2**: When the gate doesn't fire, is the sniff-only transcript
-  **shipped** (saved to artifacts as the canonical transcript), or
-  **discarded** (the episode is treated as not-transcribed)?
-  Different downstream impacts.
-- **Q3**: Is there a different first-pass strategy worth measuring
-  alongside (e.g. transcribe the first 60s only, decide from that)?
+All three were resolved by measurement pass 2 (section 13) + the
+operator framing the goal as "best intelligence extraction":
 
-These don't block this design doc but DO block the service code.
-Operator decides before milestone 3.
+- **Q1** (gate criterion): N/A — the skip-deep gate is rejected
+  under the intelligence goal (section 13). The shipped default
+  (PERSON+ORG NER ≥ 5) is an opt-in for offline benchmarking only.
+- **Q2** (ship-or-discard the sniff transcript when gate skips):
+  N/A — gate not enabled in prod. The shipped behaviour ("ship"
+  via `kept_sniff` decision) is correct *for the gate*, but the
+  gate isn't running.
+- **Q3** (alternative first-pass strategies like first-60s-only):
+  not pursued — moot under gate rejection.
+
+The per-call model_override + dual-model capability is preserved
+for future uses documented in
+[`1046-WHISPER-DUAL-MODEL-FUTURE-USES.md`](1046-WHISPER-DUAL-MODEL-FUTURE-USES.md).
 
 ## 9. Why this isn't a "just ship it" project
 
@@ -397,17 +400,20 @@ Five new cases in
 
 ### What's still missing for #1046 acceptance
 
-- ~~The 3 measurement passes from section 3~~ — **section 12 below**
-  captures the first measurement pass (T_small / T_large + memory).
-  The remaining two passes (``r`` on prod-v2; gate accuracy) still
-  need operator-attended time on real corpus.
-- Operator decisions on the 3 open questions in section 8.
-- The gate orchestrator itself (workflow-level helper) — wires the
-  Config knobs to the provider's ``model_override`` parameter.
-- The compose change on DGX to preload both Whisper models OR keep
-  the on-demand install path (section 12 found speaches downloads
-  on-demand without preload — works fine).
-- Operator runbook section (when the gate ships).
+- ~~The 3 measurement passes from section 3~~ — **section 12** captures
+  the first measurement pass (T_small / T_large + memory) and
+  **section 13** captures the corpus-level pass (``r`` + gate accuracy
+  on the 32-episode fixture set).
+- Operator decision on Q1 in section 8 (the gate criterion default
+  shipped is "PERSON+ORG NER count ≥ 5" — the orchestrator commit
+  9f75049f wired this with operator override available via
+  ``cfg.dgx_whisper_sniff_gate_min_entities``).
+- ~~The gate orchestrator itself~~ — shipped in commit 9f75049f as
+  ``src/podcast_scraper/workflow/sniff_gate.py``. See section 14.
+- The compose change on DGX to preload both Whisper models — out of
+  scope; speaches downloads on-demand and ~9.5 s is acceptable for the
+  first-ever request to each model.
+- Operator runbook section (when the gate ships to a real profile).
 
 ## 12. Measurement pass 1 — latency + memory (2026-06-22 on DGX Spark)
 
@@ -498,14 +504,169 @@ no fallback misfires.
 
 ### What measurement pass 1 does NOT cover
 
-- ``r`` on the prod-v2 corpus (99 episodes) — needs the gate
-  criterion locked first (operator-attended).
-- Gate accuracy / agreement between small + large on the topic
-  classifier — depends on which criterion is chosen.
+- ~~``r`` on the prod-v2 corpus~~ — done in **section 13** below on
+  the 32-episode fixture corpus (sufficient signal for the
+  decision; prod-v2 measurement deferred unless the conclusion
+  changes).
+- ~~Gate accuracy / agreement between small + large~~ — done in
+  section 13.
 - Cold-start latency (these were warm runs; first call after a
-  container restart adds ~1-3 s model-load on top).
-- Steady-state under concurrent transcription load.
+  container restart adds ~1-3 s model-load on top). Not pursued —
+  prod usage is steady-state.
+- Steady-state under concurrent transcription load. Not pursued —
+  the conclusion (gate rejected) makes this moot.
 
 The cost-model math + memory budget + plumbing wire are all
-confirmed. The remaining unknown is gate criterion (open question
-Q1 in section 8) and corpus-level ``r``.
+confirmed. The corpus-level gate behaviour is in section 13.
+
+## 13. Measurement pass 2 — corpus r + gate accuracy (2026-06-23 on DGX Spark)
+
+End-to-end measurement on the 32-episode fixture corpus
+(`tests/fixtures/audio/v1/*.mp3`). Both models run on every episode
+serially; spaCy NER (PERSON+ORG) counted on each transcript; gate
+decisions at threshold=5 computed for the small.en transcript, the
+large-v3 transcript, and the canonical source script.
+
+Artifacts: `data/eval/runs/1046-measurement-pass-2/`.
+
+### Latency distribution
+
+| Stat | Value |
+| --- | --- |
+| Total small.en wallclock | 1,127.94 s |
+| Total large-v3 wallclock | 8,512.27 s |
+| Ratio (large/small) — geomean | **4.98×** |
+| Ratio — arithmetic mean | 5.36× |
+| Ratio — min (short multi-clips) | 1.53× |
+| Ratio — max (long episode) | 7.99× |
+
+Geomean ratio of 4.98× → break-even sniff fire rate:
+
+```text
+r* = 1 − T_small / T_large = 1 − 1 / 4.98 = 0.799
+```
+
+So the gate saves wallclock when fewer than **80%** of episodes
+pass it. (Measurement pass 1 had estimated 0.63 from a single short
+clip; pass 2 corpus-level is more honest.)
+
+### Sniff fire rate `r` at threshold=5 (PERSON+ORG)
+
+| Signal source | r (fraction of episodes where count ≥ 5) |
+| --- | --- |
+| Sniff transcript (small.en) | **0.750** |
+| Deep transcript (large-v3) | 0.688 |
+| Source script (ground truth) | 0.969 |
+
+`r_by_sniff = 0.75` sits **just below the break-even of 0.80**.
+The gate marginally pays off in wallclock — but the margin is thin
+and corpus-shape-dependent (short clips push `r` down; long episodes
+push it up).
+
+### Gate-decision agreement — does cheap NER on a cheap transcript predict the expensive gate?
+
+Per-episode decision agreement at threshold=5:
+
+| Comparison | Agreement |
+| --- | --- |
+| Sniff gate vs deep gate | **0.812** (26/32) |
+| Sniff gate vs source-ground-truth gate | 0.781 |
+| Deep gate vs source-ground-truth gate | 0.719 |
+
+Sniff agrees with deep 81% of the time. Both diverge from the
+source script noticeably (28% / 22%), confirming that the NER signal
+on a noisy transcript drifts from the underlying content density —
+expected, but informs that "gate by deep-transcript NER" wouldn't
+be much better than "gate by sniff-transcript NER" here.
+
+### Confusion matrix — small.en gate vs large-v3 gate (the operational question)
+
+Treating large-v3 gate as the "reference" decision:
+
+```text
+                          large-v3 gate
+                       FIRE        SKIP
+sniff.en      FIRE    TP=20       FP= 4   → 4 wasted deeps
+gate          SKIP    FN= 2       TN= 6   → 2 missed deep-worthies (quality cost)
+
+False-negative rate (FN / (FN + TP)): 2/22 = 0.091   ← QUALITY COST
+False-positive rate (FP / (FP + TN)): 4/10 = 0.400   ← wasted wallclock
+```
+
+### Bottom-line economics on this corpus
+
+| Metric | Value |
+| --- | --- |
+| Deep-all baseline (current state) | 8,512 s |
+| Sniff + conditional-deep (at threshold=5) | ~7,500 s |
+| Wallclock saved | **~12%** |
+| Episodes shipping the lossy sniff transcript | 8 / 32 (25%) |
+| Episodes silently degraded (deep-worthy but skipped) | **2 / 32 (6%)** |
+
+### Decision — under the "best intelligence extraction" goal: **gate rejected**
+
+The operator's stated goal (2026-06-23 conversation) is *best
+intelligence extraction from each episode*, not throughput. Under
+that goal:
+
+- The **~12% wallclock saving** has no upside — transcription is
+  not the bottleneck.
+- The **9% FN rate** is the controlling metric: 1 in 11 episodes
+  silently gets the lossy `small.en` transcript, corrupting
+  downstream NER → KG → summarisation. Measurement pass 1 saw
+  exactly this: `single track` (vs `Singletrack`), `breaking` (vs
+  `braking`), `burn` (vs `berm`) — exactly the domain vocabulary
+  the KG depends on.
+- The marginal economics (`r=0.75` vs `r*=0.80`) means the gate
+  barely earns its complexity in time saved either.
+
+**Therefore**: the skip-deep gate as designed in this doc is
+**rejected for any prod profile**. All prod profiles keep the
+default `cfg.dgx_whisper_sniff_model=""` (disabled). The
+orchestrator code shipped in commit `9f75049f` stays in tree as
+opt-in plumbing — it works correctly — but no prod profile enables
+it.
+
+### Q1/Q2/Q3 — as decided post-measurement
+
+- **Q1** (gate criterion): N/A — gate rejected. The shipped default
+  (`PERSON+ORG NER count ≥ 5`) is a documented opt-in for anyone
+  benchmarking the gate offline.
+- **Q2** (sniff transcript shipped or discarded when gate skips):
+  N/A — gate not enabled in prod. The shipped behaviour (`kept_sniff`
+  → ship as canonical) was the right default *for the gate*, but
+  the gate isn't running.
+- **Q3** (alternative first-pass strategies): not pursued — moot
+  under gate rejection.
+
+### What's NEXT for the dual-model machinery
+
+The per-call `model_override` capability + the fact that both
+models coexist on DGX (3.26 GiB resident) remain *useful* — just
+for purposes other than skip-deep. Five candidate uses are documented
+separately in
+[`1046-WHISPER-DUAL-MODEL-FUTURE-USES.md`](1046-WHISPER-DUAL-MODEL-FUTURE-USES.md):
+
+1. Dual-pass reconciliation (both models run, disagreements flagged)
+2. Confidence-weighted NER (entities in both = high-confidence)
+3. Sniff-driven NER pre-pass (#1035-adjacent)
+4. Speculative pipeline (preliminary results from sniff while deep
+   runs)
+5. Cross-model dispatch by audio characteristics
+
+All five run BOTH models — none of them sacrifice the deep transcript.
+None are queued or in-flight; the doc parks them for future pickup.
+
+### Acceptance status on the original #1046 bars
+
+- [x] **Design doc with (r, latency, accuracy) measured estimate
+  before any service code lands** — this doc (sections 1–12) + the
+  measurement passes in sections 12–13.
+- [x] **Per-request model selection working end-to-end against the
+  test-prod corpus** — provider plumbing (27d65fb4) + orchestrator
+  (9f75049f) + the 32-episode E2E measurement validates the
+  capability. The capability *works*; we are deliberately not
+  enabling it in prod under the intelligence goal.
+
+Both acceptance bars cleared; #1046 closeable with the rejection
++ future-uses doc as the operational outcome.
