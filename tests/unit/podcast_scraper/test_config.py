@@ -216,72 +216,62 @@ class TestLoadEnvVariableHelpers(unittest.TestCase):
         self.assertEqual(self.data["summary_device"], "cpu")
 
 
-class TestSummaryModeProfileDefaults(unittest.TestCase):
-    """Tests for dev/prod profile selection of summary mode defaults."""
+class TestSummaryModeFieldDefault(unittest.TestCase):
+    """Tests for the Field default of summary_mode_id post-refactor.
 
-    def tearDown(self):
-        """Clean up environment variables set by tests."""
-        os.environ.pop("PODCAST_SCRAPER_PROFILE", None)
+    Before 2026-06-23: the helper read ``PODCAST_SCRAPER_PROFILE`` env var
+    and returned DEV mode for ``dev``/``development``/``local`` profile
+    names, PROD mode otherwise. That env-var-reading branch was removed
+    in favor of explicit pins in profile YAMLs (operator directive: "no
+    separate set of controls"). dev.yaml now pins
+    ``summary_mode_id: ml_small_authority`` directly; the Field default
+    is the PROD mode unconditionally.
+    """
 
-    def test_default_summary_mode_id_is_prod_when_profile_unset(self):
-        """When profile is unset (and not testing), default mode should be production."""
-        with patch("podcast_scraper.config._is_pytest_run", return_value=False):
-            os.environ.pop("PODCAST_SCRAPER_PROFILE", None)
-            mode_id = config._get_default_summary_mode_id()
-            self.assertEqual(mode_id, config.config_constants.PROD_DEFAULT_SUMMARY_MODE_ID)
+    def test_default_summary_mode_id_is_always_prod(self):
+        """No env-detect: helper returns PROD mode regardless of env var."""
+        mode_id = config._get_default_summary_mode_id()
+        self.assertEqual(mode_id, config.config_constants.PROD_DEFAULT_SUMMARY_MODE_ID)
 
-    def test_default_summary_mode_id_is_dev_when_profile_dev(self):
-        """When profile is dev (and not testing), default mode should be dev baseline."""
-        with patch("podcast_scraper.config._is_pytest_run", return_value=False):
-            os.environ["PODCAST_SCRAPER_PROFILE"] = "dev"
-            mode_id = config._get_default_summary_mode_id()
-            self.assertEqual(mode_id, config.config_constants.DEV_DEFAULT_SUMMARY_MODE_ID)
+    def test_default_summary_tokenize_uses_prod_mode_id(self):
+        """Tokenize defaults source from PROD mode unconditionally."""
+        expected = {
+            "map_max_input_tokens": 111,
+            "reduce_max_input_tokens": 222,
+            "truncation": True,
+        }
+        with patch(
+            "podcast_scraper.providers.ml.model_registry.ModelRegistry.get_mode_configuration",
+            return_value=SimpleNamespace(tokenize=expected),
+        ) as mock_get_mode:
+            got = config._get_default_summary_tokenize()
+            self.assertEqual(got, expected)
+            mock_get_mode.assert_called_once_with(
+                config.config_constants.PROD_DEFAULT_SUMMARY_MODE_ID
+            )
 
-    def test_default_summary_tokenize_uses_selected_mode_id(self):
-        """Tokenize defaults should be sourced from the selected promoted mode."""
-        with patch("podcast_scraper.config._is_pytest_run", return_value=False):
-            os.environ["PODCAST_SCRAPER_PROFILE"] = "dev"
-            expected = {
-                "map_max_input_tokens": 111,
-                "reduce_max_input_tokens": 222,
-                "truncation": True,
-            }
-            with patch(
-                "podcast_scraper.providers.ml.model_registry.ModelRegistry.get_mode_configuration",
-                return_value=SimpleNamespace(tokenize=expected),
-            ) as mock_get_mode:
-                got = config._get_default_summary_tokenize()
-                self.assertEqual(got, expected)
-                mock_get_mode.assert_called_once_with(
-                    config.config_constants.DEV_DEFAULT_SUMMARY_MODE_ID
-                )
+    def test_dev_profile_pin_overrides_field_default(self):
+        """The DEV mode_id reaches Config via dev.yaml's explicit pin, NOT
+        via any env-var heuristic in `_get_default_summary_mode_id`. This
+        regression-guards the cleanup."""
+        cfg = config.Config(profile="dev", rss_url="https://example.com/feed.xml")
+        self.assertEqual(cfg.summary_mode_id, config.config_constants.DEV_DEFAULT_SUMMARY_MODE_ID)
 
 
 class TestOpenAICleaningModelDefaults(unittest.TestCase):
-    """OpenAI cleaning defaults match config_constants (registry adjacency)."""
+    """OpenAI cleaning defaults match config_constants (registry adjacency).
 
-    def test_get_default_openai_cleaning_model_test_environment(self):
-        """Test/CI uses TEST_DEFAULT_OPENAI_CLEANING_MODEL."""
-        with patch("podcast_scraper.config._is_pytest_run", return_value=True):
-            self.assertEqual(
-                config._get_default_openai_cleaning_model(),
-                config.TEST_DEFAULT_OPENAI_CLEANING_MODEL,
-            )
-            self.assertEqual(
-                config._get_default_openai_cleaning_model(),
-                config.config_constants.TEST_DEFAULT_OPENAI_CLEANING_MODEL,
-            )
+    Post-2026-06-23 refactor: ``_get_default_openai_cleaning_model`` and
+    its env-detect-based partners are gone; Pydantic Field defaults
+    inline the PROD constant. The test_default profile YAML pins the
+    cheap value for tests. Two tests deleted (they exercised the
+    removed helper). The remaining test verifies the cfg-resolved
+    value matches what the profile pins.
+    """
 
-    def test_get_default_openai_cleaning_model_production_environment(self):
-        """Non-test uses PROD_DEFAULT_OPENAI_CLEANING_MODEL."""
-        with patch("podcast_scraper.config._is_pytest_run", return_value=False):
-            self.assertEqual(
-                config._get_default_openai_cleaning_model(),
-                config.PROD_DEFAULT_OPENAI_CLEANING_MODEL,
-            )
-
-    def test_config_openai_cleaning_model_matches_test_default(self):
-        """Config field resolves via factory (pytest runs in test environment)."""
+    def test_config_openai_cleaning_model_matches_profile_pin(self):
+        """Under the test_default profile, openai_cleaning_model is the
+        test-tier value pinned by ``config/profiles/test_default.yaml``."""
         cfg = Config(rss_url="https://example.com/feed.xml")
         self.assertEqual(cfg.openai_cleaning_model, config.TEST_DEFAULT_OPENAI_CLEANING_MODEL)
 

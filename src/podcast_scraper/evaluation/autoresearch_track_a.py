@@ -10,7 +10,6 @@ import json
 import logging
 import os
 import re
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -22,21 +21,7 @@ from podcast_scraper.utils.log_redaction import format_exception_for_log
 logger = logging.getLogger(__name__)
 
 
-def _is_pytest_run() -> bool:
-    # See `config.py::_is_pytest_run` (commit ce029849) for the same
-    # narrowed-detection rationale. ``"unittest" in sys.modules`` was a
-    # false-positive trap: numpy lazy-imports ``numpy.testing`` which pulls
-    # stdlib unittest into sys.modules, so every production run that
-    # imported numpy looked like a test environment to the old check. Here
-    # the consequence was that ``.env.autoresearch`` silently failed to
-    # load in production autoresearch runs — operator-only env keys
-    # (``AUTORESEARCH_*``) didn't override ``.env``. Detection is now
-    # explicit pytest / TESTING signals only.
-    if "pytest" in sys.modules or "PYTEST_CURRENT_TEST" in os.environ:
-        return True
-    if os.environ.get("TESTING", "").lower() in ("1", "true", "yes"):
-        return True
-    return False
+from podcast_scraper.utils.runtime_env import is_pytest_run as _is_pytest_run  # noqa: E402
 
 
 def load_local_dotenv_files(repo_root: Path) -> None:
