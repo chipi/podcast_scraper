@@ -874,9 +874,11 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
         measured_at="2026-06-13",
         tier="primary",
     ),
-    # Dev / airgapped_thin floor — fastest local Whisper. WER inflated by
-    # speaker labels + markdown headers in the smoke_v2 reference (see eval
-    # report § "Caveat — WER absolute level"). Relative ranking holds.
+    # Dev / airgapped_thin floor — fastest local Whisper. Smoke_v2 numbers
+    # use the FU4 clean-reference preprocessing (markdown headers + speaker
+    # labels + timestamps stripped) so WER is comparable to the v2 fixture
+    # baseline in EVAL_WHISPER_SMALL_EN_2026_06_13.md. FU5 DGX figures pinned
+    # alongside for cross-device portability.
     "local_whisper_tiny_en": StageOption(
         stage="transcription",
         option_id="local_whisper_tiny_en",
@@ -884,16 +886,18 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
         model="tiny.en",
         research_ref="docs/guides/eval-reports/EVAL_DEV_TIER_REGISTRY_2026_06_23.md",
         headline_metric=(
-            "mean WER 21.7% on smoke_v2 (M4 Pro CPU); 8.7 s/ep "
-            "(~63× realtime). Dev/CI floor — speed over accuracy."
+            "mean WER 17.2% (M4 Pro CPU) / 16.0% (DGX GB10 CUDA) on smoke_v2 "
+            "with FU4 clean reference; 9.8 s/ep CPU vs 5.4 s/ep CUDA "
+            "(1.8× speedup). Dev/CI floor — quality intentionally traded for "
+            "speed; not for production transcription."
         ),
         measured_at="2026-06-23",
         tier="primary",
         resident_memory_gb=0.1,
     ),
     # Airgapped quality default — Whisper medium.en. Quality upgrade over
-    # tiny.en at ~10× the wallclock; preferred when the airgapped pipeline
-    # has CPU headroom and quality matters.
+    # tiny.en; runs comfortably on a server (DGX GB10) and on a beefy laptop
+    # CPU but not on a Docker stack-test box (~3 GB working set).
     "local_whisper_medium_en": StageOption(
         stage="transcription",
         option_id="local_whisper_medium_en",
@@ -901,8 +905,10 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
         model="medium.en",
         research_ref="docs/guides/eval-reports/EVAL_DEV_TIER_REGISTRY_2026_06_23.md",
         headline_metric=(
-            "mean WER 13.2% on smoke_v2 (M4 Pro CPU); 83.9 s/ep "
-            "(~6.6× realtime). -39% relative WER vs tiny.en at ~10× latency."
+            "mean WER 8.1% on smoke_v2 with FU4 clean reference (M4 Pro CPU "
+            "and DGX GB10 CUDA agree to 1pp); 82.7 s/ep CPU vs 34.3 s/ep CUDA "
+            "(2.4× speedup). Airgapped quality default; -53% relative WER vs "
+            "tiny.en at ~6× CPU wallclock."
         ),
         measured_at="2026-06-23",
         tier="primary",
@@ -1151,7 +1157,8 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
     ),
     # Airgapped summary default — SummLlama 3.2-3B paragraph. Local MPS,
     # no cloud, no Ollama. #571 / #652 / #653 history continues in the
-    # 2026-06-23 smoke_v2 measurement.
+    # 2026-06-23 smoke_v2 measurement. Laptop-class scope only by design —
+    # operators with a GPU pick a larger ollama/vLLM model instead.
     "summllama_3_2_3b_paragraph": StageOption(
         stage="summary",
         option_id="summllama_3_2_3b_paragraph",
@@ -1165,9 +1172,10 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         research_ref="docs/guides/eval-reports/EVAL_DEV_TIER_REGISTRY_2026_06_23.md",
         headline_metric=(
             "ROUGE-L 0.251 / ROUGE-1 0.499 / cosine 0.823 on smoke_v2 "
-            "paragraph vs silver_sonnet46_smoke_v2; 53.3 s/ep on MPS. "
-            "Airgapped paragraph quality default — beats bart-small+long-fast "
-            "by +67% ROUGE-L and +25% cosine at 2.9× the latency."
+            "paragraph vs silver_sonnet46_smoke_v2; 53.3 s/ep on M4 Pro MPS "
+            "(laptop-class scope — not DGX-benched). Airgapped paragraph "
+            "quality default — beats bart-small+long-fast by +67% ROUGE-L "
+            "and +25% cosine at 2.9× the latency."
         ),
         measured_at="2026-06-23",
         tier="primary",
@@ -1175,7 +1183,7 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
     ),
     # Dev / airgapped_thin summary default — pure-transformers map-reduce,
     # no GPU required, no external model server. Backs the
-    # `ml_small_authority` ModeConfiguration above.
+    # `ml_small_authority` ModeConfiguration above. Laptop-class scope only.
     "transformers_bart_small_long_fast_authority": StageOption(
         stage="summary",
         option_id="transformers_bart_small_long_fast_authority",
@@ -1188,9 +1196,9 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         research_ref="docs/guides/eval-reports/EVAL_DEV_TIER_REGISTRY_2026_06_23.md",
         headline_metric=(
             "ROUGE-L 0.150 / ROUGE-1 0.311 / cosine 0.655 on smoke_v2 "
-            "paragraph vs silver_sonnet46_smoke_v2; 18.3 s/ep on MPS. "
-            "Dev/airgapped-thin floor — 8.1× compression, no GPU or "
-            "external model server required."
+            "paragraph vs silver_sonnet46_smoke_v2; 18.3 s/ep on M4 Pro MPS "
+            "(laptop / stack-test scope — not DGX-benched). Dev/airgapped-thin "
+            "floor — 8.1× compression, no GPU or external model server required."
         ),
         measured_at="2026-06-23",
         tier="primary",
