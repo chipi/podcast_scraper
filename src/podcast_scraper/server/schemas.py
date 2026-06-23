@@ -50,6 +50,91 @@ class AudioSourceResponse(BaseModel):
     )
 
 
+class AppEpisodeDetail(BaseModel):
+    """Response for GET /api/app/episodes/{slug} — consumer episode detail."""
+
+    slug: str = Field(description="Stable episode slug.")
+    title: str = Field(description="Episode title.")
+    feed_id: str = Field(description="Owning feed id.")
+    podcast_title: str | None = Field(default=None, description="Feed/show display title.")
+    publish_date: str | None = Field(
+        default=None, description="Publish date (YYYY-MM-DD) when known."
+    )
+    duration_seconds: int | None = Field(
+        default=None, ge=0, description="Episode duration when known."
+    )
+    episode_image_url: str | None = Field(
+        default=None, description="Episode artwork URL when present."
+    )
+    feed_image_url: str | None = Field(default=None, description="Feed artwork URL when present.")
+    summary_title: str | None = Field(default=None, description="Summary title when present.")
+    summary_bullets: list[str] = Field(default_factory=list, description="Summary bullet points.")
+    summary_text: str | None = Field(
+        default=None, description="Full summary paragraph when present."
+    )
+    has_transcript: bool = Field(description="Whether a transcript file is referenced.")
+    has_summary: bool = Field(description="Whether any summary content is present.")
+    has_gi: bool = Field(description="Whether a grounded-insight artifact exists.")
+    has_kg: bool = Field(description="Whether a knowledge-graph artifact exists.")
+    has_bridge: bool = Field(description="Whether a canonical-identity bridge artifact exists.")
+
+
+class AppQuote(BaseModel):
+    """A verbatim quote supporting an insight."""
+
+    text: str = Field(description="Verbatim quote text.")
+    speaker: str | None = Field(default=None, description="Speaker name/id when attributed.")
+    char_start: int | None = Field(default=None, description="Transcript char offset start.")
+    char_end: int | None = Field(default=None, description="Transcript char offset end.")
+    start_ms: int | None = Field(default=None, description="Quote start timestamp (ms).")
+    end_ms: int | None = Field(default=None, description="Quote end timestamp (ms).")
+
+
+class AppInsight(BaseModel):
+    """A grounded insight with its supporting quotes (GIL projection)."""
+
+    id: str = Field(description="Insight node id.")
+    text: str = Field(description="Insight text.")
+    grounded: bool = Field(description="Whether the insight has >=1 supporting quote.")
+    insight_type: str | None = Field(
+        default=None, description="claim/recommendation/observation/... when set."
+    )
+    confidence: float | None = Field(default=None, description="Extractor confidence when set.")
+    position_hint: str | None = Field(default=None, description="Temporal position hint when set.")
+    quotes: list[AppQuote] = Field(default_factory=list)
+
+
+class AppInsightsResponse(BaseModel):
+    """Response for GET /api/app/episodes/{slug}/insights."""
+
+    episode_slug: str = Field(description="Stable episode slug.")
+    insights: list[AppInsight] = Field(default_factory=list)
+
+
+class AppEntity(BaseModel):
+    """A KG person/org entity mentioned in an episode."""
+
+    id: str = Field(description="Canonical entity id (person:{slug} / org:{slug}).")
+    name: str = Field(description="Display name.")
+    kind: Literal["person", "org"] = Field(description="Entity kind.")
+
+
+class AppTopic(BaseModel):
+    """A KG topic discussed in an episode."""
+
+    id: str = Field(description="Canonical topic id (topic:{slug}).")
+    label: str = Field(description="Topic display label.")
+
+
+class AppEntitiesResponse(BaseModel):
+    """Response for GET /api/app/episodes/{slug}/entities."""
+
+    episode_slug: str = Field(description="Stable episode slug.")
+    persons: list[AppEntity] = Field(default_factory=list)
+    orgs: list[AppEntity] = Field(default_factory=list)
+    topics: list[AppTopic] = Field(default_factory=list)
+
+
 class ArtifactItem(BaseModel):
     """One GI, KG, or bridge artifact file under a corpus directory."""
 

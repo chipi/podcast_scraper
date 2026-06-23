@@ -1,7 +1,7 @@
-"""Integration tests for the consumer platform episode routes (#1067/#1070).
+"""Integration tests for the consumer platform episode routes (#1067/#1068/#1070).
 
-GET /api/app/episodes/{slug}/segments  and  /audio-source, against a real fixture
-corpus via TestClient. Slug-addressed, mounted only when enable_platform=True.
+GET /api/app/episodes/{slug} (detail), /insights, /entities, /segments, /audio-source,
+against a real fixture corpus via TestClient. Slug-addressed; routes mounted at /api/app.
 """
 
 from __future__ import annotations
@@ -29,8 +29,10 @@ def _write_corpus(
     episode_id: str | None = "ep1",
     media_url: str | None = "https://cdn.example/ep1.mp3",
     with_segments: bool = True,
+    with_gi: bool = True,
+    with_kg: bool = True,
 ) -> None:
-    """Build a minimal flat corpus: one episode metadata + transcript segments."""
+    """Build a minimal flat corpus: one episode metadata + transcript/segments + GI/KG."""
     (root / "metadata").mkdir(parents=True, exist_ok=True)
     (root / "transcripts").mkdir(parents=True, exist_ok=True)
 
@@ -61,6 +63,40 @@ def _write_corpus(
         (root / "transcripts" / f"{stem}.segments.json").write_text(
             json.dumps(segs), encoding="utf-8"
         )
+
+    if with_gi:
+        gi = {
+            "episode_id": episode_id,
+            "nodes": [
+                {
+                    "id": "insight:1",
+                    "type": "Insight",
+                    "properties": {"text": "Big claim.", "grounded": True, "insight_type": "claim"},
+                },
+                {
+                    "id": "quote:1",
+                    "type": "Quote",
+                    "properties": {
+                        "text": "verbatim quote",
+                        "speaker_id": "SPEAKER_00",
+                        "timestamp_start_ms": 1000,
+                        "timestamp_end_ms": 2000,
+                    },
+                },
+            ],
+            "edges": [{"type": "SUPPORTED_BY", "from": "insight:1", "to": "quote:1"}],
+        }
+        (root / "metadata" / f"{stem}.gi.json").write_text(json.dumps(gi), encoding="utf-8")
+
+    if with_kg:
+        kg = {
+            "episode_id": episode_id,
+            "nodes": [
+                {"id": "person:jane-doe", "type": "Person", "properties": {"name": "Jane Doe"}},
+                {"id": "topic:ai", "type": "Topic", "properties": {"label": "AI"}},
+            ],
+        }
+        (root / "metadata" / f"{stem}.kg.json").write_text(json.dumps(kg), encoding="utf-8")
 
 
 def _client(root: Path) -> TestClient:
@@ -125,3 +161,64 @@ def test_no_media_url_404(tmp_path: Path) -> None:
     _write_corpus(tmp_path, media_url=None)
     slug = _only_slug(tmp_path)
     assert _client(tmp_path).get(f"/api/app/episodes/{slug}/audio-source").status_code == 404
+
+
+def test_detail_returns_metadata_and_flags(tmp_path: Path) -> None:
+    _write_corpus(tmp_path)
+    slug = _only_slug(tmp_path)
+    body = _client(tmp_path).get(f"/api/app/episodes/{slug}").json()
+    assert body["slug"] == slug
+    assert body["title"] == "Hello"
+    assert body["feed_id"] == "myfeed"
+    assert body["podcast_title"] == "My Show"
+    assert body["duration_seconds"] == 4823
+    assert body["summary_bullets"] == ["a", "b"]
+    assert body["has_transcript"] is True
+    assert body["has_summary"] is True
+    assert body["has_gi"] is True
+    assert body["has_kg"] is True
+
+
+def test_insights_endpoint_returns_grounded(tmp_path: Path) -> None:
+    _write_corpus(tmp_path)
+    slug = _only_slug(tmp_path)
+    body = _client(tmp_path).get(f"/api/app/episodes/{slug}/insights").json()
+    assert body["episode_slug"] == slug
+    assert len(body["insights"]) == 1
+    ins = body["insights"][0]
+    assert ins["id"] == "insight:1"
+    assert ins["text"] == "Big claim."
+    assert ins["grounded"] is True
+    assert ins["insight_type"] == "claim"
+    assert ins["quotes"][0]["text"] == "verbatim quote"
+    assert ins["quotes"][0]["speaker"] == "SPEAKER_00"
+    assert ins["quotes"][0]["start_ms"] == 1000
+
+
+def test_entities_endpoint_returns_persons_and_topics(tmp_path: Path) -> None:
+    _write_corpus(tmp_path)
+    slug = _only_slug(tmp_path)
+    body = _client(tmp_path).get(f"/api/app/episodes/{slug}/entities").json()
+    assert body["episode_slug"] == slug
+    assert [p["id"] for p in body["persons"]] == ["person:jane-doe"]
+    assert body["persons"][0]["name"] == "Jane Doe"
+    assert [t["id"] for t in body["topics"]] == ["topic:ai"]
+
+
+def test_insights_empty_when_no_gi(tmp_path: Path) -> None:
+    _write_corpus(tmp_path, with_gi=False)
+    slug = _only_slug(tmp_path)
+    body = _client(tmp_path).get(f"/api/app/episodes/{slug}/insights").json()
+    assert body == {"episode_slug": slug, "insights": []}
+
+
+def test_entities_empty_when_no_kg(tmp_path: Path) -> None:
+    _write_corpus(tmp_path, with_kg=False)
+    slug = _only_slug(tmp_path)
+    body = _client(tmp_path).get(f"/api/app/episodes/{slug}/entities").json()
+    assert body == {"episode_slug": slug, "persons": [], "orgs": [], "topics": []}
+
+
+def test_detail_unknown_slug_404(tmp_path: Path) -> None:
+    _write_corpus(tmp_path)
+    assert _client(tmp_path).get("/api/app/episodes/does-not-exist").status_code == 404
