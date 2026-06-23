@@ -787,7 +787,7 @@ def _classify_inference_target(base_url: Optional[str], backend_type: Optional[s
         return "local-hf"
     url = (base_url or "").lower()
     if url:
-        is_local_host = "localhost" in url or "127.0.0.1" in url or "0.0.0.0" in url
+        is_local_host = "localhost" in url or "127.0.0.1" in url or "0.0.0.0" in url  # nosec B104
         if is_local_host:
             if ":11434" in url or "ollama" in url:
                 return "local-ollama"
