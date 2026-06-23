@@ -157,8 +157,10 @@ zero-byte persistence in proxy mode.
 
 ## Open Questions
 
-1. **Confirm enclosure persistence** — is the origin URL captured today, or is a small pipeline add needed?
-   (Flagged in the gap analysis; verify before P1.)
+1. ~~Confirm enclosure persistence~~ **Resolved (2026-06-23):** the origin enclosure URL is **already
+   persisted per episode** at `content.media_url` in every `*.metadata.json` (with `content.media_id`
+   SHA-256 + `content.media_type`). No pipeline change needed; §1 "capture origin URL" reduces to *reading*
+   `content.media_url`. Only possible follow-up: backfill pre-existing corpus metadata via live re-resolution.
 2. Proxy resource limits (max concurrent pass-through streams) and where it runs in prod hosting (RFC-082).
 3. Analytics/affiliate prefixes some hosts require — preserve them on direct play?
 

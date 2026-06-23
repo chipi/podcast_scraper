@@ -86,8 +86,9 @@ rough (S/M/L). Phase = where it lands (P0–P3 from PRD-035).
   index handle on `app.state`. Flag as a scale risk; measure before optimizing.
 - **Slug stability (G4) is contract-critical.** The frozen `segments.json` contract and every consumer
   route key on slug; the mapping must be stable across re-scrapes and collision-safe.
-- **Enclosure persistence (G5) needs confirmation.** Before committing the bridge, verify the original
-  enclosure URL is captured and stored at scrape time; if not, that's a small pipeline addition.
+- **Enclosure persistence (G5) — CONFIRMED (2026-06-23).** The origin enclosure URL is already persisted
+  per episode at `content.media_url` (+ `media_id`, `media_type`) in `*.metadata.json`. No pipeline change
+  for the bridge; only a possible backfill of pre-existing metadata.
 
 ---
 
