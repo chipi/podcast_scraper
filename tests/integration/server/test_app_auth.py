@@ -15,7 +15,9 @@ pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
 
 from podcast_scraper.server.app import create_app
+from podcast_scraper.server.app_access import AccessPolicy
 from podcast_scraper.server.app_oauth import OAuthError, OAuthIdentity
+from podcast_scraper.server.app_user_store import set_disabled
 
 pytestmark = [pytest.mark.integration]
 
@@ -34,11 +36,18 @@ class _StubProvider:
         )
 
 
-def _app(tmp_path: Path, *, with_provider: bool = True, secret: str = "test-secret"):
+def _app(
+    tmp_path: Path,
+    *,
+    with_provider: bool = True,
+    secret: str = "test-secret",
+    access_policy: AccessPolicy | None = None,
+):
     app = create_app(tmp_path, static_dir=False)
     app.state.session_secret = secret
     app.state.app_data_dir = tmp_path / "appdata"
     app.state.oauth_provider = _StubProvider() if with_provider else None
+    app.state.access_policy = access_policy or AccessPolicy("open", frozenset(), frozenset())
     return app
 
 
@@ -97,4 +106,26 @@ def test_login_503_when_unconfigured(tmp_path: Path) -> None:
 
 def test_me_401_without_session(tmp_path: Path) -> None:
     client = TestClient(_app(tmp_path))
+    assert client.get("/api/app/me").status_code == 401
+
+
+def test_callback_rejects_disallowed_email(tmp_path: Path) -> None:
+    policy = AccessPolicy("allowlist", frozenset({"allowed@example.com"}), frozenset())
+    client = TestClient(_app(tmp_path, access_policy=policy))
+    state = _login_state(client)
+    resp = client.get(
+        "/api/app/auth/callback", params={"code": "good", "state": state}, follow_redirects=False
+    )
+    assert resp.status_code == 403  # jane@example.com is not on the allowlist
+    assert client.get("/api/app/me").status_code == 401  # and no account was created
+
+
+def test_disabled_user_is_locked_out(tmp_path: Path) -> None:
+    client = TestClient(_app(tmp_path))
+    state = _login_state(client)
+    client.get(
+        "/api/app/auth/callback", params={"code": "good", "state": state}, follow_redirects=False
+    )
+    uid = client.get("/api/app/me").json()["user_id"]
+    assert set_disabled(tmp_path / "appdata", uid, True) is True
     assert client.get("/api/app/me").status_code == 401

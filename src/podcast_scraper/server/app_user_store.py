@@ -1,4 +1,4 @@
-"""File-based per-user identity store for the consumer platform (#1063, RFC-098 §3).
+"""File-based per-user identity store for the consumer platform (#1063/#1064, RFC-098 §3).
 
 Per-user state as **plain files** (no DB) — the foundation #1065 extends. Each user is a
 directory ``<data_dir>/users/<user_id>/`` holding ``profile.json``. The user id is derived
@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -25,6 +26,7 @@ class User:
     name: str
     provider: str
     subject: str
+    disabled: bool = False
 
 
 def user_id_for(provider: str, subject: str) -> str:
@@ -35,6 +37,25 @@ def user_id_for(provider: str, subject: str) -> str:
 
 def _profile_path(data_dir: Path, user_id: str) -> Path:
     return data_dir / "users" / user_id / "profile.json"
+
+
+def _write_profile(data_dir: Path, user: User) -> None:
+    path = _profile_path(data_dir, user.user_id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    atomic_write_text(
+        path,
+        json.dumps(
+            {
+                "email": user.email,
+                "name": user.name,
+                "provider": user.provider,
+                "subject": user.subject,
+                "disabled": user.disabled,
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+    )
 
 
 def get_user(data_dir: Path, user_id: str) -> User | None:
@@ -54,6 +75,7 @@ def get_user(data_dir: Path, user_id: str) -> User | None:
         name=str(doc.get("name", "")),
         provider=str(doc.get("provider", "")),
         subject=str(doc.get("subject", "")),
+        disabled=bool(doc.get("disabled", False)),
     )
 
 
@@ -66,23 +88,45 @@ def get_or_create_user(
     if existing is not None:
         return existing
     user = User(user_id=uid, email=email, name=name, provider=provider, subject=subject)
-    path = _profile_path(data_dir, uid)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    atomic_write_text(
-        path,
-        json.dumps(
-            {"email": email, "name": name, "provider": provider, "subject": subject},
-            ensure_ascii=False,
-            indent=2,
+    _write_profile(data_dir, user)
+    return user
+
+
+def list_users(data_dir: Path) -> list[User]:
+    """List all users (id-sorted); empty when the store is absent."""
+    users_dir = data_dir / "users"
+    if not users_dir.is_dir():
+        return []
+    out: list[User] = []
+    for child in sorted(users_dir.iterdir()):
+        if child.is_dir():
+            user = get_user(data_dir, child.name)
+            if user is not None:
+                out.append(user)
+    return out
+
+
+def set_disabled(data_dir: Path, user_id: str, disabled: bool) -> bool:
+    """Enable/disable a user (disabled users fail auth). Returns False for unknown users."""
+    user = get_user(data_dir, user_id)
+    if user is None:
+        return False
+    _write_profile(
+        data_dir,
+        User(
+            user_id=user.user_id,
+            email=user.email,
+            name=user.name,
+            provider=user.provider,
+            subject=user.subject,
+            disabled=bool(disabled),
         ),
     )
-    return user
+    return True
 
 
 def delete_user(data_dir: Path, user_id: str) -> bool:
     """Remove a user's directory (GDPR hard delete). Returns True if anything was removed."""
-    import shutil
-
     udir = data_dir / "users" / user_id
     if not udir.is_dir():
         return False

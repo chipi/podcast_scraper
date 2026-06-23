@@ -8,6 +8,8 @@ from podcast_scraper.server.app_user_store import (
     delete_user,
     get_or_create_user,
     get_user,
+    list_users,
+    set_disabled,
     user_id_for,
 )
 
@@ -31,6 +33,16 @@ def test_get_or_create_is_idempotent(tmp_path: Path) -> None:
 
 def test_get_user_missing(tmp_path: Path) -> None:
     assert get_user(tmp_path, "u_does_not_exist") is None
+
+
+def test_set_disabled_and_list_users(tmp_path: Path) -> None:
+    u1 = get_or_create_user(tmp_path, provider="google", subject="s1", email="a@x.com", name="A")
+    u2 = get_or_create_user(tmp_path, provider="google", subject="s2", email="b@x.com", name="B")
+    assert set_disabled(tmp_path, u1.user_id, True) is True
+    reloaded = get_user(tmp_path, u1.user_id)
+    assert reloaded is not None and reloaded.disabled is True
+    assert set_disabled(tmp_path, "u_does_not_exist", True) is False
+    assert {u.user_id for u in list_users(tmp_path)} == {u1.user_id, u2.user_id}
 
 
 def test_delete_user(tmp_path: Path) -> None:

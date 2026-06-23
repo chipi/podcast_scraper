@@ -52,7 +52,7 @@ def get_current_user(request: Request) -> User:
     payload = app_sessions.verify(request.cookies.get(app_sessions.SESSION_COOKIE), secret)
     user_id = payload.get("user_id") if payload else None
     user = get_user(data_dir, str(user_id)) if user_id else None
-    if user is None:
+    if user is None or user.disabled:
         raise HTTPException(status_code=401, detail="Not authenticated.")
     return user
 
@@ -97,6 +97,9 @@ async def app_auth_callback(
         identity = provider.exchange_code(code=code, redirect_uri=_callback_uri(request))
     except OAuthError as exc:
         raise HTTPException(status_code=502, detail="OAuth exchange failed.") from exc
+    policy = getattr(request.app.state, "access_policy", None)
+    if policy is not None and not policy.is_allowed(identity.email):
+        raise HTTPException(status_code=403, detail="This account is not allowed to sign in.")
     user = get_or_create_user(
         data_dir,
         provider=identity.provider,

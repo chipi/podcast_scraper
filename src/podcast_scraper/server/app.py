@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from podcast_scraper import __version__
+from podcast_scraper.server.app_access import policy_from_env
 from podcast_scraper.server.app_oauth import provider_from_env
 from podcast_scraper.server.pathutil import CorpusPathRequestError
 from podcast_scraper.server.routes import (
@@ -82,6 +83,7 @@ def _configure_platform_auth(app: FastAPI, resolved_output: Path | None) -> None
     else:
         app.state.app_data_dir = None
     app.state.oauth_provider = provider_from_env()
+    app.state.access_policy = policy_from_env()
 
 
 def _default_static_dir() -> Path | None:
