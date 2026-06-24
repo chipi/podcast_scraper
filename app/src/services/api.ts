@@ -7,10 +7,13 @@
  */
 
 import type {
+  AudioSource,
   EpisodeDetail,
   EpisodesPage,
   ListEpisodesParams,
   Me,
+  PlaybackPosition,
+  SegmentsResponse,
 } from './types'
 
 const BASE = '/api/app'
@@ -78,6 +81,39 @@ export function listPodcastEpisodes(
 /** Episode detail by slug. */
 export function getEpisode(slug: string): Promise<EpisodeDetail> {
   return getJSON<EpisodeDetail>(`/episodes/${encodeURIComponent(slug)}`)
+}
+
+/** Transcript segments for the sync engine. */
+export function getSegments(slug: string): Promise<SegmentsResponse> {
+  return getJSON<SegmentsResponse>(`/episodes/${encodeURIComponent(slug)}/segments`)
+}
+
+/** Origin audio descriptor — the client plays `url` directly (bridge, never rehost). */
+export function getAudioSource(slug: string): Promise<AudioSource> {
+  return getJSON<AudioSource>(`/episodes/${encodeURIComponent(slug)}/audio-source`)
+}
+
+/** Saved playback position (auth-gated); `null` when signed out or unset. */
+export async function getPlayback(slug: string): Promise<PlaybackPosition | null> {
+  try {
+    return await getJSON<PlaybackPosition>(`/playback/${encodeURIComponent(slug)}`)
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) return null
+    throw err
+  }
+}
+
+/** Persist the playback position (auth-gated); silently no-ops when signed out (401). */
+export async function putPlayback(slug: string, positionSeconds: number): Promise<void> {
+  const resp = await fetch(`${BASE}/playback/${encodeURIComponent(slug)}`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ position_seconds: positionSeconds }),
+  })
+  if (!resp.ok && resp.status !== 401) {
+    throw new ApiError(resp.status, `PUT /playback → ${resp.status}`)
+  }
 }
 
 /** Begin the OAuth login flow (full-page redirect; Google in prod, mock in dev/e2e). */

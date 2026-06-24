@@ -27,7 +27,17 @@
   "player": {
     "back": "Back to catalog",
     "loading": "Loading episode…",
-    "notFound": "Episode not found."
+    "notFound": "Episode not found.",
+    "play": "Play",
+    "pause": "Pause",
+    "back15": "Skip back 15 seconds",
+    "forward30": "Skip forward 30 seconds",
+    "speed": "Playback speed",
+    "scrubber": "Seek",
+    "speakingNow": "Speaking now",
+    "grounded": "Grounded",
+    "audioUnavailable": "Audio isn’t available for this episode yet.",
+    "transcriptPending": "Transcript pending — audio still plays."
   },
   "status": {
     "ready": "Ready",

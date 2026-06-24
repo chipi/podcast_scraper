@@ -67,3 +67,38 @@ export interface ListEpisodesParams {
   status?: EpisodeStatus
   feedId?: string
 }
+
+/** One transcript segment (segments.json contract). */
+export interface Segment {
+  id: string
+  start: number
+  end: number
+  text: string
+  speaker: string | null
+}
+
+export interface SegmentsResponse {
+  version: string
+  episode_slug: string
+  segments: Segment[]
+}
+
+/** Origin audio descriptor (GET /api/app/episodes/{slug}/audio-source). */
+export interface AudioSource {
+  episode_slug: string
+  url: string
+  mime: string | null
+  duration_seconds: number | null
+  media_id: string | null
+  strategy: string
+  resolved_url: string | null
+  verified: boolean | null
+  content_length: number | null
+}
+
+/** Per-user saved playback position (auth-gated). */
+export interface PlaybackPosition {
+  slug: string
+  position_seconds: number
+  updated_at: number | null
+}
