@@ -53,6 +53,7 @@ def walk_app_contract(client: Any, slug: str) -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> int:  # pragma: no cover - thin live wrapper
+    """Walk the contract against a live server and print the summary as JSON."""
     import argparse
 
     import httpx

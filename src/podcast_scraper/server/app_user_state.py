@@ -38,6 +38,7 @@ def _write(data_dir: Path, user_id: str, name: str, obj: Any) -> None:
 
 
 def get_playback(data_dir: Path, user_id: str, slug: str) -> dict[str, Any] | None:
+    """Return the saved playback record for an episode, or ``None`` when unset."""
     data = _read(data_dir, user_id, "playback", {})
     rec = data.get(slug) if isinstance(data, dict) else None
     return rec if isinstance(rec, dict) else None
@@ -46,6 +47,7 @@ def get_playback(data_dir: Path, user_id: str, slug: str) -> dict[str, Any] | No
 def set_playback(
     data_dir: Path, user_id: str, slug: str, position_seconds: float, updated_at: int
 ) -> dict[str, Any]:
+    """Save the playback position for an episode; return the stored record."""
     data = _read(data_dir, user_id, "playback", {})
     if not isinstance(data, dict):
         data = {}
@@ -59,11 +61,13 @@ def set_playback(
 
 
 def get_queue(data_dir: Path, user_id: str) -> list[str]:
+    """Return the user's play queue (ordered slugs); empty when unset."""
     data = _read(data_dir, user_id, "queue", [])
     return [str(x) for x in data] if isinstance(data, list) else []
 
 
 def set_queue(data_dir: Path, user_id: str, items: list[str]) -> list[str]:
+    """Replace the user's play queue; return the stored list."""
     clean = [str(x) for x in items]
     _write(data_dir, user_id, "queue", clean)
     return clean
@@ -73,6 +77,7 @@ def set_queue(data_dir: Path, user_id: str, items: list[str]) -> list[str]:
 
 
 def get_library(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
+    """Return the user's subscriptions; empty when unset."""
     data = _read(data_dir, user_id, "library", [])
     return [x for x in data if isinstance(x, dict)] if isinstance(data, list) else []
 
@@ -87,6 +92,7 @@ def add_subscription(data_dir: Path, user_id: str, item: dict[str, Any]) -> list
 
 
 def remove_subscription(data_dir: Path, user_id: str, feed_id: str) -> list[dict[str, Any]]:
+    """Remove a subscription by ``feed_id`` (no-op if absent); return the remaining list."""
     library = [x for x in get_library(data_dir, user_id) if x.get("feed_id") != feed_id]
     _write(data_dir, user_id, "library", library)
     return library

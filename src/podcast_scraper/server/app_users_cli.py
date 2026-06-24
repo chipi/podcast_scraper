@@ -40,6 +40,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Run the user-admin command; return a process exit code."""
     args = _build_parser().parse_args(argv)
     data_dir: Path = args.data_dir
 

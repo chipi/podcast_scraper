@@ -39,9 +39,13 @@ class OAuthProvider(Protocol):
 
     name: str
 
-    def authorization_url(self, *, state: str, redirect_uri: str) -> str: ...
+    def authorization_url(self, *, state: str, redirect_uri: str) -> str:
+        """Return the provider authorize URL for this ``state`` + ``redirect_uri``."""
+        ...
 
-    def exchange_code(self, *, code: str, redirect_uri: str) -> OAuthIdentity: ...
+    def exchange_code(self, *, code: str, redirect_uri: str) -> OAuthIdentity:
+        """Exchange an authorization ``code`` for the resolved identity."""
+        ...
 
 
 class GoogleProvider:
@@ -55,6 +59,7 @@ class GoogleProvider:
         self._timeout = timeout
 
     def authorization_url(self, *, state: str, redirect_uri: str) -> str:
+        """Build Google's OAuth2 consent URL (openid email profile) with CSRF ``state``."""
         query = urlencode(
             {
                 "client_id": self._client_id,
@@ -69,6 +74,7 @@ class GoogleProvider:
         return f"{GOOGLE_AUTH_URL}?{query}"
 
     def exchange_code(self, *, code: str, redirect_uri: str) -> OAuthIdentity:
+        """Exchange the code for a token, fetch userinfo, return the identity (or OAuthError)."""
         try:
             with httpx.Client(timeout=self._timeout) as client:
                 token_resp = client.post(

@@ -43,6 +43,7 @@ class OperatorWriteGuard(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
+        """Gate (if a key is set) + audit mutating operator requests; pass the rest through."""
         if not is_operator_write(request.method, request.url.path):
             return await call_next(request)
 

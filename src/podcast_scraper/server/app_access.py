@@ -20,6 +20,7 @@ class AccessPolicy:
     allowed_domains: frozenset[str]
 
     def is_allowed(self, email: str) -> bool:
+        """True if ``email`` may sign in under this policy."""
         if self.mode == "open":
             return True
         normalized = (email or "").strip().lower()
