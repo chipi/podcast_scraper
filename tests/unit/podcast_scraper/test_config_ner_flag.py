@@ -67,6 +67,34 @@ class TestProfileNERFlag:
         assert cfg.gi_typed_mentions_use_ner is False
 
 
+class TestProfileKGOrgFlag:
+    """#1058 chunk 1 — YAML-overlay contract for ``kg_organizations_use_ner``."""
+
+    def test_airgapped_profile_flips_kg_org_on(self, _fake_keys: None) -> None:
+        cfg = Config.model_validate({"profile": "airgapped"})
+        assert cfg.kg_organizations_use_ner is True
+
+    def test_airgapped_thin_profile_flips_kg_org_on(self, _fake_keys: None) -> None:
+        cfg = Config.model_validate({"profile": "airgapped_thin"})
+        assert cfg.kg_organizations_use_ner is True
+
+    def test_dev_profile_leaves_kg_org_off(self, _fake_keys: None) -> None:
+        cfg = Config.model_validate({"profile": "dev"})
+        assert cfg.kg_organizations_use_ner is False
+
+    def test_cloud_thin_profile_leaves_kg_org_off(self, _fake_keys: None) -> None:
+        cfg = Config.model_validate({"profile": "cloud_thin"})
+        assert cfg.kg_organizations_use_ner is False
+
+    def test_default_when_no_profile(self, _fake_keys: None) -> None:
+        cfg = Config.model_validate({})
+        assert cfg.kg_organizations_use_ner is False
+
+    def test_explicit_override_wins_over_profile(self, _fake_keys: None) -> None:
+        cfg = Config.model_validate({"profile": "airgapped", "kg_organizations_use_ner": False})
+        assert cfg.kg_organizations_use_ner is False
+
+
 class TestWorkflowGatingExpression:
     """Direct contract test for the conditional at
     ``workflow/metadata_generation.py:4008``."""

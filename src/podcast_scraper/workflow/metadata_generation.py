@@ -3992,6 +3992,42 @@ def generate_episode_metadata(  # noqa: C901
     # payloads available, run the post-pass and re-write gi.json so the
     # disk artifact carries the typed descriptive edges that the viewer
     # graph + search relational queries expect.
+    # #1058 chunk 1 — KG Organization post-pass under LLM-free profiles.
+    # Runs BEFORE the GI typed-MENTIONS post-pass so any MENTIONS_ORG
+    # edges that downstream chunks resolve will see the Organization
+    # nodes that just landed. Skipped when the flag is off (default).
+    if (
+        bridge_gi_payload is not None
+        and bridge_kg_payload is not None
+        and getattr(cfg, "kg_organizations_use_ner", False)
+    ):
+        try:
+            from ..kg.ner_postpass import apply_org_postpass_to_kg_artifact
+
+            added_orgs = apply_org_postpass_to_kg_artifact(
+                bridge_kg_payload, bridge_gi_payload, nlp
+            )
+            if added_orgs > 0:
+                # Re-write the KG artifact to persist the lifted
+                # Organization nodes. Strict validation stays on.
+                from ..kg.io import write_artifact as _kg_write_artifact
+
+                _kg_path = Path(kg_path) if "kg_path" in locals() and kg_path is not None else None
+                if _kg_path is not None:
+                    _kg_write_artifact(_kg_path, bridge_kg_payload, validate=True)
+                logger.info(
+                    "[%s] Added %d Organization nodes to KG artifact (NER post-pass)",
+                    episode.idx if hasattr(episode, "idx") else episode_id,
+                    added_orgs,
+                )
+        except Exception as org_postpass_exc:
+            logger.warning(
+                "[%s] KG Organization post-pass failed (non-fatal): %s",
+                episode.idx if hasattr(episode, "idx") else episode_id,
+                org_postpass_exc,
+                exc_info=True,
+            )
+
     if (
         bridge_gi_payload is not None
         and bridge_kg_payload is not None

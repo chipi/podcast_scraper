@@ -36,6 +36,7 @@ def _cfg(
     transcript_cleaning_strategy: str | None = None,
     extra_body: dict | None = None,
     gi_typed_mentions_use_ner: bool | None = None,
+    kg_organizations_use_ner: bool | None = None,
 ) -> Any:
     backend = SimpleNamespace(
         type="openai", model="autoresearch", base_url=None, extra_body=extra_body
@@ -55,6 +56,8 @@ def _cfg(
     )
     if gi_typed_mentions_use_ner is not None:
         ns.gi_typed_mentions_use_ner = gi_typed_mentions_use_ner
+    if kg_organizations_use_ner is not None:
+        ns.kg_organizations_use_ner = kg_organizations_use_ner
     return ns
 
 
@@ -217,6 +220,52 @@ def test_ner_flag_flip_produces_different_fingerprint(
     _mocks(mock_get_model_details, mock_get_provider_lib_info)
     fp_on = _gen(_cfg(gi_typed_mentions_use_ner=True))
     fp_off = _gen(_cfg(gi_typed_mentions_use_ner=False))
+    psc_on = fp_on["pipeline"]["stages"]["main"]["podcast_scraper_config"]
+    psc_off = fp_off["pipeline"]["stages"]["main"]["podcast_scraper_config"]
+    assert psc_on != psc_off
+
+
+# ─────────────────────────────────────────────────────────────────────
+# #1058 chunk 1 — KG ORG NER flag fingerprint capture
+# ─────────────────────────────────────────────────────────────────────
+
+
+@patch("scripts.eval.data.materialize_baseline.get_provider_library_info")
+@patch("scripts.eval.data.materialize_baseline.get_model_details")
+@patch("scripts.eval.data.materialize_baseline._probe_vllm_backing_model_id", return_value=None)
+def test_captures_kg_organizations_use_ner_when_set(
+    mock_probe, mock_get_model_details, mock_get_provider_lib_info
+) -> None:
+    """The KG ORG post-pass materially changes which Organization
+    nodes land in the artifact. Eval runs with the flag on vs off
+    MUST produce distinct podcast_scraper_config captures."""
+    _mocks(mock_get_model_details, mock_get_provider_lib_info)
+    fp = _gen(_cfg(kg_organizations_use_ner=True))
+    psc = fp["pipeline"]["stages"]["main"]["podcast_scraper_config"]
+    assert psc["kg_organizations_use_ner"] is True
+
+
+@patch("scripts.eval.data.materialize_baseline.get_provider_library_info")
+@patch("scripts.eval.data.materialize_baseline.get_model_details")
+@patch("scripts.eval.data.materialize_baseline._probe_vllm_backing_model_id", return_value=None)
+def test_kg_org_flag_omitted_when_attribute_absent(
+    mock_probe, mock_get_model_details, mock_get_provider_lib_info
+) -> None:
+    _mocks(mock_get_model_details, mock_get_provider_lib_info)
+    fp = _gen(_cfg())
+    psc = fp["pipeline"]["stages"]["main"]["podcast_scraper_config"]
+    assert "kg_organizations_use_ner" not in psc
+
+
+@patch("scripts.eval.data.materialize_baseline.get_provider_library_info")
+@patch("scripts.eval.data.materialize_baseline.get_model_details")
+@patch("scripts.eval.data.materialize_baseline._probe_vllm_backing_model_id", return_value=None)
+def test_kg_org_flag_flip_produces_different_fingerprint(
+    mock_probe, mock_get_model_details, mock_get_provider_lib_info
+) -> None:
+    _mocks(mock_get_model_details, mock_get_provider_lib_info)
+    fp_on = _gen(_cfg(kg_organizations_use_ner=True))
+    fp_off = _gen(_cfg(kg_organizations_use_ner=False))
     psc_on = fp_on["pipeline"]["stages"]["main"]["podcast_scraper_config"]
     psc_off = fp_off["pipeline"]["stages"]["main"]["podcast_scraper_config"]
     assert psc_on != psc_off

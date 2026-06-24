@@ -2149,6 +2149,23 @@ class Config(BaseModel):
             "see no behavior change until operator validates and flips."
         ),
     )
+    kg_organizations_use_ner: bool = Field(
+        default=False,
+        alias="kg_organizations_use_ner",
+        description=(
+            "#1058 chunk 1. When True, a KG post-pass "
+            "(kg/ner_postpass.py::apply_org_postpass_to_kg_artifact) "
+            "runs spaCy NER over the GI Insight texts and adds "
+            "Organization nodes for every distinct ORG span. Closes "
+            "the airgapped capability gap where the no-LLM summary "
+            "provider can't extract typed entities — Organization "
+            "nodes (and downstream MENTIONS_ORG edges in #1058 chunk "
+            "2) now land deterministically. Default False; YAML "
+            "overlays for airgapped + airgapped_thin flip it on. "
+            "Idempotent: re-run on a KG that already carries the same "
+            "org adds nothing."
+        ),
+    )
     vector_search: bool = Field(
         default=False,
         alias="vector_search",
