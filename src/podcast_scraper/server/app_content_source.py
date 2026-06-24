@@ -24,11 +24,42 @@ from podcast_scraper.server.corpus_catalog import (
     _load_metadata_doc,
     build_catalog_rows_cumulative,
     CatalogEpisodeRow,
-    episode_list_summary_preview,
     episode_list_topics,
     filter_rows,
 )
 from podcast_scraper.server.schemas import AppEpisodeSummary
+
+#: Max bullets surfaced on a card's expand-on-demand insights view.
+_MAX_CARD_BULLETS = 8
+
+
+def _card_lede(row: CatalogEpisodeRow, *, max_len: int = 150) -> str | None:
+    """A short, clean one-line lede for the card — NEVER the bullets jammed together.
+
+    Prefers the summary title (a crisp human-written headline); falls back to the first
+    summary bullet, then the prose body's first sentence. The full bullets are surfaced
+    separately (``summary_bullets``) so the card stays compact and readable.
+    """
+    title = (row.summary_title or "").strip()
+    if title:
+        lede = title
+    else:
+        bullets = [str(b).strip() for b in row.summary_bullets if str(b).strip()]
+        if bullets:
+            lede = bullets[0]
+        else:
+            body = (row.summary_text or "").strip()
+            if not body:
+                return None
+            # First sentence (or the head) of the prose body.
+            cut = body.find(". ")
+            lede = body[: cut + 1] if cut != -1 else body
+    return lede if len(lede) <= max_len else lede[: max_len - 1].rstrip() + "…"
+
+
+def _card_bullets(row: CatalogEpisodeRow) -> list[str]:
+    """The full summary bullets for the card's expand-on-demand insights view."""
+    return [str(b).strip() for b in row.summary_bullets if str(b).strip()][:_MAX_CARD_BULLETS]
 
 
 @dataclass(frozen=True)
@@ -101,7 +132,8 @@ def row_to_summary(corpus_root: Path, row: CatalogEpisodeRow) -> AppEpisodeSumma
         feed_image_url=row.feed_image_url,
         artwork_url=artwork_url(local_art, "thumb"),
         status="ready" if has_transcript else "pending",
-        summary_preview=episode_list_summary_preview(row),
+        summary_preview=_card_lede(row),
+        summary_bullets=_card_bullets(row),
         topics=episode_list_topics(row.summary_bullets),
         has_transcript=has_transcript,
         has_summary=has_summary,

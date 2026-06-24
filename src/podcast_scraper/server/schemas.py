@@ -134,7 +134,14 @@ class AppEpisodeSummary(BaseModel):
         "Local-content MVP yields 'ready'; richer states arrive with scrape-on-demand (#1069).",
     )
     summary_preview: str | None = Field(
-        default=None, description="One-line recap for the card, when summary content exists."
+        default=None,
+        description="Short, clean one-line lede for the card (summary title / first sentence) — "
+        "NOT the bullets joined; the full bullets are in `summary_bullets`.",
+    )
+    summary_bullets: list[str] = Field(
+        default_factory=list,
+        description="Full summary bullet points, for the card's expand-on-demand insights view "
+        "(so the card stays compact while the complete summary stays one tap/hover away).",
     )
     topics: list[str] = Field(
         default_factory=list, description="Short topic labels for card pills (from summary)."

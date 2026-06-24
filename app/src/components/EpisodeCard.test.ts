@@ -35,6 +35,7 @@ function makeEpisode(over: Partial<EpisodeSummary> = {}): EpisodeSummary {
     artwork_url: null,
     status: 'ready',
     summary_preview: 'A crisp recap.',
+    summary_bullets: ['Sleep clears metabolic waste.', 'Deep sleep consolidates memory.'],
     topics: ['memory', 'sleep'],
     has_transcript: true,
     has_summary: true,
@@ -50,14 +51,15 @@ function mountCard(ep: EpisodeSummary) {
 }
 
 describe('EpisodeCard', () => {
-  it('renders title, podcast, preview, duration, topics, and the insight signal', () => {
+  it('renders title, podcast, clean lede, duration, and the full-summary insights popover', () => {
     const w = mountCard(makeEpisode())
     expect(w.text()).toContain('A Great Episode')
     expect(w.text()).toContain('The Show')
-    expect(w.text()).toContain('A crisp recap.')
+    expect(w.text()).toContain('A crisp recap.') // clean one-line lede (not the bullets jammed)
     expect(w.text()).toContain('48 min')
-    expect(w.text()).toContain('memory')
-    expect(w.text()).toContain('insights') // has_gi badge
+    // The insights affordance exposes the FULL summary bullets (popover content is in the DOM).
+    expect(w.find('[role="dialog"]').exists()).toBe(true)
+    expect(w.text()).toContain('Deep sleep consolidates memory.')
   })
 
   it('links to the player and to the podcast view', () => {
@@ -71,6 +73,7 @@ describe('EpisodeCard', () => {
     const w = mountCard(
       makeEpisode({
         summary_preview: null,
+        summary_bullets: [],
         topics: [],
         has_gi: false,
         duration_seconds: null,
@@ -78,7 +81,8 @@ describe('EpisodeCard', () => {
       }),
     )
     expect(w.text()).toContain('A Great Episode')
-    expect(w.text()).not.toContain('insights')
+    // No insights affordance without grounded summary bullets.
+    expect(w.find('[role="dialog"]').exists()).toBe(false)
     expect(w.text()).not.toContain('min')
     // No podcast link when the title is absent.
     expect(w.findAll('a').map((a) => a.attributes('href'))).not.toContain('/podcast/show')

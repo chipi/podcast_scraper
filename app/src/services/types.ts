@@ -25,7 +25,10 @@ export interface EpisodeSummary {
   /** Preferred artwork (our locally-stored copy, thumb size) when present; else use image urls. */
   artwork_url: string | null
   status: EpisodeStatus
+  /** Short, clean one-line lede for the card (NOT the bullets joined). */
   summary_preview: string | null
+  /** Full summary bullets, surfaced via the card's expand-on-demand insights view. */
+  summary_bullets: string[]
   topics: string[]
   has_transcript: boolean
   has_summary: boolean

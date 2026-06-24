@@ -146,8 +146,10 @@ def test_summary_card_fields_are_populated(tmp_path: Path) -> None:
     assert a_two.status == "ready"
     assert a_two.has_transcript is True
     assert a_two.has_gi is True
-    assert a_two.summary_preview  # derived from summary title/bullets
-    assert a_two.topics  # from summary bullets
+    # Clean one-line lede = the summary title (NOT the bullets jammed together).
+    assert a_two.summary_preview == "A Two summary"
+    # Full bullets carried for the card's expand-on-demand insights view.
+    assert a_two.summary_bullets == ["point one", "point two"]
 
 
 def test_pagination_offset_limit(tmp_path: Path) -> None:

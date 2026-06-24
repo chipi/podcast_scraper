@@ -22,6 +22,13 @@
     "resume": "Resume",
     "minLeft": "{count} min left"
   },
+  "rail": {
+    "prev": "Scroll left",
+    "next": "Scroll right"
+  },
+  "card": {
+    "insights": "Insights"
+  },
   "search": {
     "title": "Search your library",
     "placeholder": "Ask your library…",
@@ -29,7 +36,17 @@
     "noResults": "No grounded passages found.",
     "error": "Search needs the library index.",
     "in": "in",
-    "jumpTo": "Play from {time} in {episode}"
+    "jumpTo": "Play from {time} in {episode}",
+    "summary": "{passages} passages across {episodes} episodes",
+    "playHere": "Play from {time}",
+    "openEpisode": "Open episode",
+    "matchCount": "1 match | {count} matches",
+    "kind": {
+      "insight": "Insight",
+      "transcript": "Transcript",
+      "topic": "Topic",
+      "passage": "Passage"
+    }
   },
   "auth": {
     "signIn": "Sign in",
