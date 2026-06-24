@@ -15,6 +15,11 @@ const queue = useQueueStore()
 const details = ref<Record<string, EpisodeDetail>>({})
 const loading = ref(true)
 
+const art = (slug: string) => {
+  const d = details.value[slug]
+  return d ? d.artwork_url || d.episode_image_url || d.feed_image_url : null
+}
+
 async function hydrate(): Promise<void> {
   await queue.ensureLoaded()
   const missing = queue.items.filter((s) => !details.value[s])
@@ -47,14 +52,27 @@ watch(() => queue.items.slice(), hydrate)
         class="flex items-center gap-3 border-b border-border py-3"
       >
         <span class="font-mono text-xs text-muted tabular-nums">{{ i + 1 }}</span>
+        <img
+          v-if="art(slug)"
+          :src="art(slug)!"
+          alt=""
+          loading="lazy"
+          class="h-12 w-12 shrink-0 rounded-md bg-elevated object-cover"
+        />
         <div class="min-w-0 flex-1">
           <RouterLink
             :to="{ name: 'player', params: { slug } }"
-            class="block truncate font-display font-bold text-canvas-foreground no-underline"
+            class="block font-display font-bold leading-snug text-canvas-foreground no-underline"
           >
             {{ details[slug]?.title ?? slug }}
           </RouterLink>
-          <span v-if="details[slug]?.podcast_title" class="lp-kicker">{{ details[slug]?.podcast_title }}</span>
+          <RouterLink
+            v-if="details[slug]?.podcast_title"
+            :to="{ name: 'podcast', params: { feedId: details[slug]!.feed_id } }"
+            class="lp-kicker inline-block no-underline"
+          >
+            {{ details[slug]?.podcast_title }}
+          </RouterLink>
         </div>
         <div class="flex shrink-0 items-center gap-1 text-muted">
           <button type="button" :disabled="i === 0" :aria-label="t('queue.up')" class="px-2 disabled:opacity-30" @click="queue.move(slug, -1)">↑</button>

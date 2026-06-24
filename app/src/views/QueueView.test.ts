@@ -15,6 +15,7 @@ const router = createRouter({
     { path: '/', name: 'catalog', component: { template: '<div/>' } },
     { path: '/queue', name: 'queue', component: QueueView },
     { path: '/episode/:slug', name: 'player', component: { template: '<div/>' } },
+    { path: '/podcast/:feedId', name: 'podcast', component: { template: '<div/>' } },
   ],
 })
 

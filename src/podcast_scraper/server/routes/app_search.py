@@ -14,6 +14,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from podcast_scraper.search.capability import structured_corpus_search
 from podcast_scraper.search.corpus_similar import episode_scope_key
 from podcast_scraper.search.query_log import append_query_event
+from podcast_scraper.server.app_artwork import artwork_url
 from podcast_scraper.server.app_search_view import build_search_response
 from podcast_scraper.server.app_slugs import slug_for_row
 from podcast_scraper.server.corpus_catalog import (
@@ -41,11 +42,16 @@ def _attach_consumer_slugs(root: Path, resp: CorpusSearchApiResponse) -> None:
     for hit in resp.results:
         row = by_scope.get(episode_scope_key(hit.metadata) or ("", ""))
         if row is not None:
+            local_art = row.episode_image_local_relpath or row.feed_image_local_relpath
             hit.metadata = {
                 **hit.metadata,
                 "episode_slug": slug_for_row(row),
                 "episode_title": row.episode_title,
                 "podcast_title": row.feed_title or "",
+                # Small show/episode artwork so search results read like library cards.
+                "episode_artwork": (
+                    artwork_url(local_art, "thumb") or row.episode_image_url or row.feed_image_url
+                ),
             }
 
 

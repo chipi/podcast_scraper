@@ -57,7 +57,10 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: process.env.VITE_API_TARGET || 'http://127.0.0.1:8000',
-        changeOrigin: true,
+        // changeOrigin:false preserves the Host (localhost:5174) so the API builds
+        // SAME-ORIGIN OAuth callback URLs — otherwise the mock/Google sign-in redirect
+        // lands on the API origin and the session cookie is set on the wrong host.
+        changeOrigin: false,
       },
     },
   },

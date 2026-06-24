@@ -10,7 +10,10 @@ import KnowledgePanel from './KnowledgePanel.vue'
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 const router = createRouter({
   history: createMemoryHistory(),
-  routes: [{ path: '/episode/:slug', name: 'player', component: { template: '<div/>' } }],
+  routes: [
+    { path: '/episode/:slug', name: 'player', component: { template: '<div/>' } },
+    { path: '/search', name: 'search', component: { template: '<div/>' } },
+  ],
 })
 
 const emptyPage = { items: [], page: 1, page_size: 6, total: 0, has_more: false }
@@ -92,14 +95,15 @@ describe('KnowledgePanel', () => {
     expect(w.emitted('seek')?.[0]).toEqual([12])
   })
 
-  it('filters insights by person and clears', async () => {
-    const other = insight({ id: 'i2', text: 'Other claim.', quotes: [] })
-    const w = mountPanel({ insights: [insight(), other] })
-    expect(w.text()).toContain('Other claim.')
-    // Tap the person → only insights with that speaker remain.
+  it('tapping a person or topic explores that term across the library (search)', async () => {
+    const w = mountPanel()
+    const push = vi.spyOn(router, 'push')
+    // Person chip → corpus search for that name.
     await w.findAll('button').find((b) => b.text() === 'Matthew Walker')!.trigger('click')
-    expect(w.text()).not.toContain('Other claim.')
-    expect(w.text()).toContain('Sleep consolidates memory.')
+    expect(push).toHaveBeenCalledWith({ name: 'search', query: { q: 'Matthew Walker' } })
+    // Topic chip → corpus search for that topic.
+    await w.findAll('button').find((b) => b.text() === 'memory')!.trigger('click')
+    expect(push).toHaveBeenCalledWith({ name: 'search', query: { q: 'memory' } })
   })
 
   it('runs episode-scoped search and renders grounded results', async () => {

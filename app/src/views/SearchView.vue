@@ -31,6 +31,7 @@ interface EpisodeGroup {
   title: string
   show: string | null
   date: string | null
+  art: string | null
   hits: SearchHit[]
 }
 
@@ -39,6 +40,7 @@ const hitSlug = (h: SearchHit) => (md(h).episode_slug as string | undefined) ?? 
 const hitEpisode = (h: SearchHit) => (md(h).episode_title as string | undefined) ?? null
 const hitShow = (h: SearchHit) => (md(h).podcast_title as string | undefined) ?? null
 const hitDate = (h: SearchHit) => (md(h).publish_date as string | undefined) ?? null
+const hitArt = (h: SearchHit) => (md(h).episode_artwork as string | undefined) ?? null
 
 function hitKind(h: SearchHit): Kind {
   const dt = md(h).doc_type
@@ -58,7 +60,14 @@ const groups = computed<EpisodeGroup[]>(() => {
     const key = slug ?? `doc:${h.doc_id}`
     let g = byKey.get(key)
     if (!g) {
-      g = { slug, title: hitEpisode(h) ?? t('player.notFound'), show: hitShow(h), date: hitDate(h), hits: [] }
+      g = {
+        slug,
+        title: hitEpisode(h) ?? t('player.notFound'),
+        show: hitShow(h),
+        date: hitDate(h),
+        art: hitArt(h),
+        hits: [],
+      }
       byKey.set(key, g)
       order.push(key)
     }
@@ -145,10 +154,17 @@ const showEmpty = computed(
           <!-- Episode header: opens the player -->
           <button
             type="button"
-            class="flex w-full items-baseline justify-between gap-3 px-4 pt-4 text-left"
+            class="flex w-full items-center gap-3 px-4 pt-4 text-left"
             @click="openEpisode(g.slug)"
           >
-            <span class="min-w-0">
+            <img
+              v-if="g.art"
+              :src="g.art"
+              alt=""
+              loading="lazy"
+              class="h-12 w-12 shrink-0 rounded-md bg-elevated object-cover"
+            />
+            <span class="min-w-0 flex-1">
               <span class="block font-display text-base font-bold leading-snug text-canvas-foreground">
                 {{ g.title }}
               </span>
@@ -188,7 +204,7 @@ const showEmpty = computed(
                 </button>
               </div>
               <p
-                class="mt-1.5 text-sm leading-relaxed"
+                class="mt-1.5 line-clamp-2 text-sm leading-relaxed"
                 :class="hitKind(h) === 'topic' ? 'italic text-muted' : 'text-surface-foreground'"
               >
                 {{ h.text }}

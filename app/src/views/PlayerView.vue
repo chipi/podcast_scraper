@@ -9,14 +9,14 @@
  * zone doubles as a live intelligence surface (speaking-now + grounded signal); per-show
  * adaptive accent + insight-surfacing are wired progressively (Knowledge Panel = C5/#1084).
  */
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useQueueStore } from '../stores/queue'
 import KnowledgePanel from '../components/KnowledgePanel.vue'
 import PlayerControls from '../components/PlayerControls.vue'
 import TranscriptList from '../components/TranscriptList.vue'
-import { activeInsightIndex } from '../player/insights'
+import { activeInsightIndex, groundedSpansBySegment } from '../player/insights'
 import { activeSegmentIndex, PLAYBACK_RATES } from '../player/transcriptSync'
 import {
   getAudioSource,
@@ -49,8 +49,21 @@ const insights = ref<Insight[]>([])
 const topics = ref<Topic[]>([])
 const persons = ref<Entity[]>([])
 const panelOpen = ref(false)
+const focusInsightId = ref<string | null>(null)
 const loading = ref(true)
 const notFound = ref(false)
+
+// Transcript ↔ insight bridge: which segments back a grounded insight (highlight + tap-through).
+const groundedSpans = computed(() => groundedSpansBySegment(segments.value, insights.value))
+
+function openInsight(insightId: string): void {
+  panelOpen.value = true
+  // Reset then set so re-tapping the same grounded segment re-triggers the centre-scroll.
+  focusInsightId.value = null
+  void nextTick(() => {
+    focusInsightId.value = insightId
+  })
+}
 
 const audioEl = ref<HTMLAudioElement | null>(null)
 const playing = ref(false)
@@ -193,7 +206,13 @@ onBeforeUnmount(() => persist())
     >
       <!-- Left rail: masthead + intelligent artwork zone + controls -->
       <div>
-        <span class="lp-kicker">{{ episode.podcast_title }}</span>
+        <RouterLink
+          v-if="episode.podcast_title"
+          :to="{ name: 'podcast', params: { feedId: episode.feed_id } }"
+          class="lp-kicker inline-block no-underline"
+        >
+          {{ episode.podcast_title }}
+        </RouterLink>
         <h1 class="mt-1 font-display text-3xl font-extrabold leading-tight tracking-tight">
           {{ episode.title }}
         </h1>
@@ -292,8 +311,10 @@ onBeforeUnmount(() => persist())
           v-if="segments.length"
           :segments="segments"
           :active-index="activeIndex"
+          :grounded="groundedSpans"
           class="lg:max-h-[70vh]"
           @seek="seek"
+          @insight="openInsight"
         />
         <p v-else class="rounded-2xl border border-border bg-surface p-4 text-muted">
           {{ t('player.transcriptPending') }}
@@ -312,6 +333,7 @@ onBeforeUnmount(() => persist())
           :persons="persons"
           :slug="slug"
           :active-insight-id="activeInsight?.id ?? null"
+          :focus-insight-id="focusInsightId"
           @seek="seek"
           @close="panelOpen = false"
         />

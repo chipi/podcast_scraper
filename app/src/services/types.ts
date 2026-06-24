@@ -116,6 +116,7 @@ export interface Podcast {
   title: string | null
   artwork_url: string | null
   image_url: string | null
+  description: string | null
   episode_count: number
 }
 

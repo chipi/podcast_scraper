@@ -50,9 +50,16 @@
   },
   "auth": {
     "signIn": "Sign in",
+    "signUp": "Sign up",
     "signOut": "Sign out",
     "signedInAs": "Signed in as {name}",
-    "signedOut": "Not signed in"
+    "signedOut": "Not signed in",
+    "loginTitle": "Sign in to your library",
+    "loginTagline": "Save your place, build a queue, and grow your personal knowledge corpus.",
+    "signupTitle": "Create your account",
+    "signupTagline": "Start turning every episode you hear into a knowledge corpus that's yours.",
+    "haveAccount": "Already have an account?",
+    "newHere": "New here?"
   },
   "catalog": {
     "heading": "Your Library",
@@ -63,7 +70,9 @@
     "loadError": "Couldn’t load episodes."
   },
   "podcast": {
-    "episodeCount": "{count} episode | {count} episodes"
+    "episodeCount": "{count} episode | {count} episodes",
+    "showMore": "Show more",
+    "showLess": "Show less"
   },
   "player": {
     "back": "Back to catalog",
@@ -80,10 +89,11 @@
     "grounded": "Grounded",
     "audioUnavailable": "Audio isn’t available for this episode yet.",
     "audioError": "Couldn’t load the audio from the source. Try again later.",
-    "transcriptPending": "Transcript pending — audio still plays."
+    "transcriptPending": "Transcript pending — audio still plays.",
+    "groundedSegment": "Backs a grounded insight — tap to open it"
   },
   "kp": {
-    "title": "Knowledge",
+    "title": "Insights",
     "open": "Insights",
     "ask": "Ask",
     "askPlaceholder": "Ask this episode…",
@@ -93,10 +103,13 @@
     "summary": "Summary",
     "topics": "Topics",
     "people": "People",
+    "tags": "Topics & People",
+    "groundedHint": "Grounded — sourced to a moment in the audio",
     "insights": "Insights",
     "related": "More like this",
     "showAll": "Show all",
     "clearFilter": "Clear filter",
+    "exploreTerm": "Search your library for {term}",
     "close": "Close panel",
     "empty": "Insights appear once this episode is processed."
   },

@@ -153,6 +153,7 @@ async def podcasts_list(request: Request) -> AppPodcastsResponse:
             title=f.get("display_title"),
             artwork_url=artwork_url(f.get("image_local_relpath"), "thumb"),
             image_url=f.get("image_url"),
+            description=f.get("description"),
             episode_count=int(f.get("episode_count", 0)),
         )
         for f in feeds

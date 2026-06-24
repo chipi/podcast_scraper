@@ -3,7 +3,40 @@
  * "surfacing now" math and timestamp extraction are unit-tested in isolation.
  */
 
-import type { Insight, Quote, SearchHit } from '../services/types'
+import type { Insight, Quote, SearchHit, Segment } from '../services/types'
+
+/** Where in the transcript an insight's quote lands, for highlighting + tap-to-reveal. */
+export interface GroundedSpan {
+  insightId: string
+  insightText: string
+  insightType: string | null
+}
+
+/**
+ * Map transcript segment indices → the grounded insight whose supporting quote overlaps them
+ * (by timeline, robust to transcript-version char-offset drift). The earliest insight wins a
+ * shared segment. Lets the transcript highlight quoted passages and tap through to the claim.
+ */
+export function groundedSpansBySegment(
+  segments: Segment[],
+  insights: Insight[],
+): Record<number, GroundedSpan> {
+  const out: Record<number, GroundedSpan> = {}
+  for (const ins of insights) {
+    for (const q of ins.quotes) {
+      if (q.start_ms == null) continue
+      const qStart = q.start_ms / 1000
+      const qEnd = (q.end_ms ?? q.start_ms + 8000) / 1000
+      for (let i = 0; i < segments.length; i++) {
+        const s = segments[i]
+        if (s.start < qEnd && s.end > qStart && !(i in out)) {
+          out[i] = { insightId: ins.id, insightText: ins.text, insightType: ins.insight_type }
+        }
+      }
+    }
+  }
+  return out
+}
 
 /** Earliest supporting-quote start (seconds) for an insight, or null when untimed. */
 export function insightStartSeconds(insight: Insight): number | null {

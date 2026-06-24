@@ -39,7 +39,7 @@ const summaryOpen = ref(false)
 
 <template>
   <article
-    class="relative -mx-3 flex gap-4 rounded-xl border-b border-border px-3 py-5 transition-colors hover:bg-overlay sm:gap-5"
+    class="group relative -mx-3 flex gap-4 rounded-xl border-b border-border px-3 py-5 transition-colors hover:bg-overlay sm:gap-5"
   >
     <img
       v-if="artwork"
@@ -67,10 +67,12 @@ const summaryOpen = ref(false)
             {{ t('status.pending') }}
           </span>
 
-          <!-- Insights: cool icon → full-summary popover (hover/focus on desktop, tap on touch) -->
+          <!-- Insights: cool icon → full-summary popover (hover/focus on desktop, tap on touch).
+               Hidden at rest on desktop so the row stays summary-clean; always shown on touch. -->
           <div
             v-if="hasInsights"
-            class="relative z-20"
+            class="relative z-20 transition-opacity sm:opacity-0 sm:focus-within:opacity-100 sm:group-hover:opacity-100"
+            :class="summaryOpen ? 'sm:opacity-100' : ''"
             @mouseenter="summaryOpen = true"
             @mouseleave="summaryOpen = false"
             @focusin="summaryOpen = true"

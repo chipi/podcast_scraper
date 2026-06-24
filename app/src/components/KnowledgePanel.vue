@@ -9,25 +9,31 @@
  * "More like this" surfaces semantic peer episodes (vector similarity) at the foot of the
  * panel — the consolidation loop: finish here, keep learning next.
  */
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import { getRelated, searchEpisode } from '../services/api'
 import type { EpisodeDetail, EpisodeSummary, Entity, Insight, SearchHit, Topic } from '../services/types'
 import { formatTime } from '../player/transcriptSync'
 import { hitStartSeconds, insightStartSeconds } from '../player/insights'
 
-const props = defineProps<{
-  episode: EpisodeDetail
-  insights: Insight[]
-  topics: Topic[]
-  persons: Entity[]
-  slug: string
-  activeInsightId: string | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    episode: EpisodeDetail
+    insights: Insight[]
+    topics: Topic[]
+    persons: Entity[]
+    slug: string
+    activeInsightId: string | null
+    /** An insight tapped from the transcript — scroll it into view + highlight it. */
+    focusInsightId?: string | null
+  }>(),
+  { focusInsightId: null },
+)
 const emit = defineEmits<{ (e: 'seek', seconds: number): void; (e: 'close'): void }>()
 
 const { t } = useI18n()
+const router = useRouter()
 
 const summary = computed(() => props.episode.summary_text || props.episode.summary_title || null)
 const hasAnything = computed(
@@ -38,26 +44,50 @@ const hasAnything = computed(
     props.insights.length > 0,
 )
 
-// --- person filter ---
-const selectedPerson = ref<string | null>(null)
-function norm(s: string): string {
-  return s
-    .replace(/^person:/, '')
-    .replace(/-/g, ' ')
-    .trim()
-    .toLowerCase()
+// A topic/person chip explores that term across the whole library (clear, consistent action).
+function exploreSearch(term: string): void {
+  const q = term.replace(/^person:/, '').replace(/-/g, ' ').trim()
+  if (q) void router.push({ name: 'search', query: { q } })
 }
-function togglePerson(name: string): void {
-  selectedPerson.value = selectedPerson.value === name ? null : name
+
+// --- Topics + People as one compact, expandable row (height-optimised) ---
+type Tag = { key: string; label: string; kind: 'topic' | 'person' }
+const allTags = computed<Tag[]>(() => [
+  ...props.topics.map((tp) => ({ key: tp.id, label: tp.label, kind: 'topic' as const })),
+  ...props.persons.map((p) => ({ key: p.id, label: p.name, kind: 'person' as const })),
+])
+const TAG_COLLAPSED = 6
+const tagsExpanded = ref(false)
+const visibleTags = computed(() =>
+  tagsExpanded.value ? allTags.value : allTags.value.slice(0, TAG_COLLAPSED),
+)
+const hiddenTagCount = computed(() => Math.max(0, allTags.value.length - TAG_COLLAPSED))
+
+// A grounded insight is one with a timestamped supporting quote (sourced in the audio); the
+// rest are ungrounded claims — that's why only some show a quote + play button.
+function isGrounded(ins: Insight): boolean {
+  return insightStartSeconds(ins) != null
 }
+
 const showAll = ref(false)
-const filteredInsights = computed(() => {
-  if (!selectedPerson.value) return props.insights
-  const want = norm(selectedPerson.value)
-  return props.insights.filter((ins) => ins.quotes.some((qt) => qt.speaker && norm(qt.speaker) === want))
-})
 const visibleInsights = computed(() =>
-  showAll.value ? filteredInsights.value : filteredInsights.value.slice(0, 5),
+  showAll.value ? props.insights : props.insights.slice(0, 5),
+)
+
+// Scroll a transcript-tapped insight into view (and reveal it past the 5-item fold).
+const insightEls = ref<Record<string, HTMLElement>>({})
+watch(
+  () => props.focusInsightId,
+  async (id) => {
+    if (!id) return
+    showAll.value = true
+    await nextTick()
+    // rAF so the panel (and on mobile, its open transition) has laid out before we centre —
+    // scrollIntoView walks every scroll ancestor, bringing the claim into the viewport too.
+    requestAnimationFrame(() => {
+      insightEls.value[id]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+  },
 )
 
 // --- ask (extractive grounded search) ---
@@ -90,6 +120,7 @@ function speakerLabel(s: string | null): string | null {
 }
 
 // --- related ("more like this") ---
+const epArt = (e: EpisodeSummary) => e.artwork_url || e.episode_image_url || e.feed_image_url
 const related = ref<EpisodeSummary[]>([])
 async function loadRelated(slug: string): Promise<void> {
   try {
@@ -103,7 +134,7 @@ watch(() => props.slug, (s) => loadRelated(s))
 </script>
 
 <template>
-  <aside class="flex h-full flex-col bg-surface" aria-label="Knowledge">
+  <aside class="flex h-full flex-col bg-surface" :aria-label="t('kp.title')">
     <header class="flex items-center justify-between border-b border-border px-4 py-3">
       <span class="font-display text-lg font-bold">{{ t('kp.title') }}</span>
       <button type="button" class="text-muted" :aria-label="t('kp.close')" @click="emit('close')">✕</button>
@@ -151,30 +182,28 @@ watch(() => props.slug, (s) => loadRelated(s))
         <p class="text-sm leading-relaxed text-surface-foreground">{{ summary }}</p>
       </section>
 
-      <!-- Topics -->
-      <section v-if="topics.length" class="mb-5">
-        <h3 class="lp-kicker mb-2">{{ t('kp.topics') }}</h3>
-        <div class="flex flex-wrap gap-2">
-          <span v-for="topic in topics" :key="topic.id" class="rounded-full bg-overlay px-3 py-1 text-xs text-topic">
-            {{ topic.label }}
-          </span>
-        </div>
-      </section>
-
-      <!-- People (filter insights) -->
-      <section v-if="persons.length" class="mb-5">
-        <h3 class="lp-kicker mb-2">{{ t('kp.people') }}</h3>
-        <div class="flex flex-wrap gap-2">
+      <!-- Topics & People — one compact, expandable row; tap a chip to explore the library -->
+      <section v-if="allTags.length" class="mb-5">
+        <h3 class="lp-kicker mb-2">{{ t('kp.tags') }}</h3>
+        <div class="flex flex-wrap gap-1.5">
           <button
-            v-for="p in persons"
-            :key="p.id"
+            v-for="tag in visibleTags"
+            :key="tag.key"
             type="button"
-            class="rounded-full px-3 py-1 text-xs"
-            :class="selectedPerson === p.name ? 'bg-accent text-accent-foreground' : 'bg-overlay text-person'"
-            :aria-pressed="selectedPerson === p.name"
-            @click="togglePerson(p.name)"
+            class="rounded-full bg-overlay px-2.5 py-1 text-xs transition hover:bg-elevated"
+            :class="tag.kind === 'topic' ? 'text-topic' : 'text-person'"
+            :aria-label="t('kp.exploreTerm', { term: tag.label })"
+            @click="exploreSearch(tag.label)"
           >
-            {{ p.name }}
+            {{ tag.label }}
+          </button>
+          <button
+            v-if="!tagsExpanded && hiddenTagCount > 0"
+            type="button"
+            class="rounded-full px-2 py-1 text-xs font-bold text-accent"
+            @click="tagsExpanded = true"
+          >
+            +{{ hiddenTagCount }} …
           </button>
         </div>
       </section>
@@ -183,24 +212,29 @@ watch(() => props.slug, (s) => loadRelated(s))
       <section v-if="insights.length">
         <div class="mb-2 flex items-center justify-between">
           <h3 class="lp-kicker">{{ t('kp.insights') }} · {{ insights.length }}</h3>
-          <button
-            v-if="selectedPerson"
-            type="button"
-            class="text-xs text-accent"
-            @click="selectedPerson = null"
-          >
-            {{ t('kp.clearFilter') }}
-          </button>
         </div>
         <ul class="flex flex-col gap-3">
           <li
             v-for="ins in visibleInsights"
             :key="ins.id"
-            class="rounded-xl border p-3"
-            :class="ins.id === activeInsightId ? 'border-accent bg-overlay' : 'border-border'"
+            :ref="(el) => { if (el) insightEls[ins.id] = el as HTMLElement }"
+            class="rounded-xl border p-3 transition-colors"
+            :class="
+              ins.id === activeInsightId || ins.id === focusInsightId
+                ? 'border-accent bg-overlay'
+                : 'border-border'
+            "
           >
             <div class="flex items-center justify-between gap-2">
-              <span v-if="ins.insight_type" class="lp-kicker">{{ ins.insight_type }}</span>
+              <span class="flex items-center gap-1.5">
+                <span
+                  v-if="isGrounded(ins)"
+                  class="text-grounded"
+                  :title="t('kp.groundedHint')"
+                  aria-hidden="true"
+                >●</span>
+                <span v-if="ins.insight_type" class="lp-kicker">{{ ins.insight_type }}</span>
+              </span>
               <button
                 v-if="insightStartSeconds(ins) != null"
                 type="button"
@@ -220,7 +254,7 @@ watch(() => props.slug, (s) => loadRelated(s))
           </li>
         </ul>
         <button
-          v-if="!showAll && filteredInsights.length > 5"
+          v-if="!showAll && insights.length > 5"
           type="button"
           class="mt-3 text-sm font-bold text-accent"
           @click="showAll = true"
@@ -236,10 +270,20 @@ watch(() => props.slug, (s) => loadRelated(s))
           <li v-for="r in related" :key="r.slug">
             <RouterLink
               :to="{ name: 'player', params: { slug: r.slug } }"
-              class="block border-b border-border py-2 no-underline text-canvas-foreground hover:bg-overlay"
+              class="flex items-center gap-3 border-b border-border py-2 no-underline text-canvas-foreground hover:bg-overlay"
             >
-              <span class="block truncate text-sm font-semibold">{{ r.title }}</span>
-              <span v-if="r.podcast_title" class="lp-kicker">{{ r.podcast_title }}</span>
+              <img
+                v-if="epArt(r)"
+                :src="epArt(r)!"
+                alt=""
+                loading="lazy"
+                class="h-10 w-10 shrink-0 rounded-md bg-elevated object-cover"
+              />
+              <div v-else class="h-10 w-10 shrink-0 rounded-md bg-elevated" />
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-sm font-semibold">{{ r.title }}</span>
+                <span v-if="r.podcast_title" class="lp-kicker block truncate">{{ r.podcast_title }}</span>
+              </span>
             </RouterLink>
           </li>
         </ul>

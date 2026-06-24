@@ -6,11 +6,31 @@
  * prefers-reduced-motion. Tapping a segment emits `seek` with its start time.
  */
 import { nextTick, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { Segment } from '../services/types'
+import type { GroundedSpan } from '../player/insights'
 import { formatTime } from '../player/transcriptSync'
 
-const props = defineProps<{ segments: Segment[]; activeIndex: number }>()
-const emit = defineEmits<{ (e: 'seek', start: number): void }>()
+const props = withDefaults(
+  defineProps<{
+    segments: Segment[]
+    activeIndex: number
+    /** segmentIndex → grounded insight whose quote lands here (highlight + tap-to-reveal). */
+    grounded?: Record<number, GroundedSpan>
+  }>(),
+  { grounded: () => ({}) },
+)
+const emit = defineEmits<{
+  (e: 'seek', start: number): void
+  (e: 'insight', insightId: string): void
+}>()
+const { t } = useI18n()
+
+function onSegmentClick(i: number, seg: Segment): void {
+  emit('seek', seg.start)
+  const g = props.grounded[i]
+  if (g) emit('insight', g.insightId)
+}
 
 const items = ref<HTMLElement[]>([])
 let userScrolling = false
@@ -61,21 +81,27 @@ function speakerLabel(s: string | null): string | null {
       :class="
         i === activeIndex
           ? 'border-l-2 border-accent bg-overlay pl-3 -ml-3 rounded'
-          : 'border-l-2 border-transparent pl-3 -ml-3'
+          : grounded[i]
+            ? 'border-l-2 border-grounded pl-3 -ml-3'
+            : 'border-l-2 border-transparent pl-3 -ml-3'
       "
-      @click="emit('seek', seg.start)"
+      :aria-label="grounded[i] ? t('player.groundedSegment') : undefined"
+      @click="onSegmentClick(i, seg)"
     >
       <span
         v-if="speakerLabel(seg.speaker)"
         class="lp-kicker block mb-0.5"
       >{{ speakerLabel(seg.speaker) }}</span>
       <span class="flex gap-3">
-        <span class="font-mono text-xs text-muted shrink-0 pt-0.5 tabular-nums">
-          {{ formatTime(seg.start) }}
+        <span class="shrink-0 pt-0.5 font-mono text-xs tabular-nums" :class="grounded[i] ? 'text-grounded' : 'text-muted'">
+          {{ grounded[i] ? '●' : formatTime(seg.start) }}
         </span>
         <span
           class="text-sm leading-relaxed"
-          :class="i === activeIndex ? 'text-surface-foreground font-semibold' : 'text-muted'"
+          :class="[
+            i === activeIndex ? 'text-surface-foreground font-semibold' : 'text-muted',
+            grounded[i] ? 'underline decoration-grounded decoration-2 underline-offset-2' : '',
+          ]"
         >{{ seg.text }}</span>
       </span>
     </button>
