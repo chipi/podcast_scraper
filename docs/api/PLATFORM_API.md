@@ -63,9 +63,9 @@ lazily from the per-episode endpoints, not the list.
 
 | Method | Path | Description |
 | --- | --- | --- |
-| GET | `/api/app/episodes?page=&page_size=&status=&feed_id=` | Catalog across the corpus, newest-first. `{items[{slug, title, feed_id, podcast_title, publish_date, duration_seconds, episode_image_url, feed_image_url, status, summary_preview, topics[], has_transcript, has_summary, has_gi, has_kg, has_bridge}], page, page_size, total, has_more}`. `page≥1`, `1≤page_size≤100` (**422** otherwise). `status` ∈ `ready`\|`pending`. |
+| GET | `/api/app/episodes?page=&page_size=&status=&feed_id=` | Catalog across the corpus, newest-first. `{items[{slug, title, feed_id, podcast_title, publish_date, duration_seconds, episode_image_url, feed_image_url, artwork_url, status, summary_preview, summary_bullets[], topics[], has_transcript, has_summary, has_gi, has_kg, has_bridge}], page, page_size, total, has_more}`. `summary_preview` = short clean lede; `summary_bullets[]` = full summary (card expand-on-demand). `page≥1`, `1≤page_size≤100` (**422** otherwise). `status` ∈ `ready`\|`pending`. |
 | GET | `/api/app/podcasts/{feed_id}/episodes?page=&page_size=&status=` | Same shape, scoped to one feed. |
-| GET | `/api/app/podcasts` | Distinct shows in the corpus (Home "Your shows"): `{items[{feed_id, title, artwork_url, image_url, episode_count}]}`. |
+| GET | `/api/app/podcasts` | Distinct shows in the corpus (Home "Your shows" + show-page header): `{items[{feed_id, title, artwork_url, image_url, description, episode_count}]}`. |
 
 `status`: `ready` when a transcript exists (playable), else `pending`. Local-content MVP yields
 `ready`; richer states (not-scraped/processing) arrive with scrape-on-demand (`#1069`).
@@ -94,7 +94,7 @@ Reuses the hybrid index (RFC-090); answers are real ranked passages, never gener
 | Method | Path | Description |
 | --- | --- | --- |
 | GET | `/api/app/episodes/{slug}/search?q=&top_k=` | Episode-scoped: over-fetch by feed, narrow to this episode. |
-| GET | `/api/app/search?q=&top_k=&grounded_only=` | Library-wide (whole shared corpus for now; scoped to the user's library once that lands). Each hit's `metadata` is enriched with `episode_slug` / `episode_title` / `podcast_title` so the client can jump to the episode + moment (`/episode/{slug}?t=`). |
+| GET | `/api/app/search?q=&top_k=&grounded_only=` | Library-wide (whole shared corpus for now; scoped to the user's library once that lands). Each hit's `metadata` is enriched with `episode_slug` / `episode_title` / `podcast_title` / `episode_artwork` (thumb) so the client can jump to the episode + moment (`/episode/{slug}?t=`) and render results like library cards. |
 
 Both return the standard search shape (`{query, results[{doc_id, score, metadata, text,
 source_tier, supporting_quotes?, lifted?}], query_type, lift_stats?}`) and carry
