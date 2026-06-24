@@ -1,17 +1,22 @@
 <script setup lang="ts">
 /**
- * Catalog — global all-episodes view (PRD-038 FR1). Newest-first, paginated with a
- * "load more" control (20/page). Cards degrade cleanly via EpisodeCard.
+ * Per-podcast catalog view (PRD-038 FR2): one show's episodes, newest-first, paginated.
+ * Header derives the show title + total from the first page (no separate feed endpoint in
+ * the MVP). Cards reuse EpisodeCard.
  */
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { RouterLink } from 'vue-router'
 import EpisodeCard from '../components/EpisodeCard.vue'
-import { listEpisodes } from '../services/api'
+import { listPodcastEpisodes } from '../services/api'
 import type { EpisodeSummary } from '../services/types'
 
 const PAGE_SIZE = 20
+const props = defineProps<{ feedId: string }>()
 const { t } = useI18n()
+
 const episodes = ref<EpisodeSummary[]>([])
+const total = ref(0)
 const page = ref(0)
 const hasMore = ref(false)
 const loading = ref(false)
@@ -22,9 +27,10 @@ async function loadMore(): Promise<void> {
   error.value = false
   try {
     const next = page.value + 1
-    const res = await listEpisodes({ page: next, pageSize: PAGE_SIZE })
+    const res = await listPodcastEpisodes(props.feedId, { page: next, pageSize: PAGE_SIZE })
     episodes.value.push(...res.items)
     page.value = next
+    total.value = res.total
     hasMore.value = res.has_more
   } catch {
     error.value = true
@@ -33,14 +39,30 @@ async function loadMore(): Promise<void> {
   }
 }
 
+function reset(): void {
+  episodes.value = []
+  page.value = 0
+  total.value = 0
+  hasMore.value = false
+  void loadMore()
+}
+
 onMounted(loadMore)
+watch(() => props.feedId, reset)
 </script>
 
 <template>
   <section>
-    <h1 class="mb-5 font-display text-3xl font-extrabold tracking-tight">
-      {{ t('catalog.heading') }}
-    </h1>
+    <RouterLink :to="{ name: 'catalog' }" class="lp-kicker no-underline">‹ {{ t('nav.catalog') }}</RouterLink>
+
+    <header class="mb-5 mt-2">
+      <h1 class="font-display text-3xl font-extrabold tracking-tight">
+        {{ episodes[0]?.podcast_title ?? feedId }}
+      </h1>
+      <p v-if="total" class="mt-1 text-sm text-muted">
+        {{ t('podcast.episodeCount', { count: total }, total) }}
+      </p>
+    </header>
 
     <p v-if="loading && episodes.length === 0" class="text-muted">{{ t('catalog.loading') }}</p>
     <p v-else-if="error && episodes.length === 0" class="text-danger">{{ t('catalog.loadError') }}</p>

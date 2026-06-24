@@ -18,7 +18,11 @@
     "empty": "No episodes yet.",
     "insightsBadge": "insights",
     "loading": "Loading episodes…",
+    "loadMore": "Load more",
     "loadError": "Couldn’t load episodes."
+  },
+  "podcast": {
+    "episodeCount": "{count} episode | {count} episodes"
   },
   "player": {
     "back": "Back to catalog",

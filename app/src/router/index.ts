@@ -21,6 +21,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/CatalogView.vue'),
   },
   {
+    path: '/podcast/:feedId',
+    name: 'podcast',
+    component: () => import('../views/PodcastView.vue'),
+    props: true,
+  },
+  {
     path: '/episode/:slug',
     name: 'player',
     component: () => import('../views/PlayerView.vue'),
