@@ -194,6 +194,17 @@ extension above, this means an airgapped corpus carries the
 data every connectivity surface needs — including
 `cross_show_synthesis` — without ever calling a cloud LLM.
 
+The corpus-level pass is operator-triggered via the
+``cluster-corpus-topics`` CLI:
+
+```bash
+.venv/bin/python -m podcast_scraper cluster-corpus-topics \
+    --output-dir <corpus>
+```
+
+It is not auto-fired by the per-episode workflow — see ADR-103 for
+the rationale.
+
 ---
 
 ## Insight properties (v2 additive)

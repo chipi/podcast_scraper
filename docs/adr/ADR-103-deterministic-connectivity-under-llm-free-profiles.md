@@ -60,13 +60,28 @@ existing airgapped path. Six chunks land on
    the shared-surname disambiguation guard.
 
 3. **Cross-show Topic clustering** (`kg/topic_clustering.py`,
-   `kg_topic_corpus_clustering: true`). Walks every KG, gathers
+   `kg_topic_corpus_clustering: true` — captured into the eval
+   fingerprint). Walks every KG, gathers
    `(episode_id, podcast_id, label, topic_id, kg_path)`, embeds via
    sentence-transformers (`all-MiniLM-L6-v2` — same model the ABOUT
    layer uses), greedy single-link clusters on cosine ≥ 0.75. For
    each cluster spanning ≥2 distinct episodes, adds a synthetic
    `concept:topic-{slug}` Topic (`is_concept: true`) plus
    `RELATED_TO` edges from every member. Idempotent.
+
+   Surfaced to the operator via the new
+   ``cluster-corpus-topics`` CLI:
+
+   ```bash
+   .venv/bin/python -m podcast_scraper cluster-corpus-topics \
+       --output-dir <corpus> [--threshold 0.75] [--min-episodes 2] [--dry-run]
+   ```
+
+   The CLI is the source of truth for triggering — the workflow
+   orchestrator does **not** auto-fire this pass today (the
+   per-episode workflow doesn't know when "all episodes are
+   processed"). Auto-triggering on corpus-completion is parked as
+   a follow-up.
 
 ### Chunks 4–5 — prove the server / viewer layer renders it
 
@@ -160,8 +175,12 @@ the issue body — both layers caught, each by a different test.
   `relational_edges` NER pass.
 - 6 profile-overlay tests + drift-test pins for the three new
   flags.
-- 10 fixture-shape contract tests + 9 Tier-3 connectivity
-  surface tests on the multi-show fixture.
+- 9 fingerprint capture tests across the three new flags (3 per
+  flag: captured-when-set / omitted-when-absent / flip-produces-
+  different-hash).
+- 10 fixture-shape contract tests + 9 Tier-3 connectivity surface
+  tests on the multi-show fixture.
+- 8 smoke tests for the ``cluster-corpus-topics`` CLI.
 - `make ci-fast` green (final state).
 
 ## Implementation references
@@ -169,6 +188,10 @@ the issue body — both layers caught, each by a different test.
 - `src/podcast_scraper/kg/ner_postpass.py` — ORG node post-pass.
 - `src/podcast_scraper/kg/topic_clustering.py` — corpus-level
   clustering.
+- `src/podcast_scraper/search/cli_handlers.py::parse_cluster_corpus_topics_argv`
+  and `run_cluster_corpus_topics_cli` — operator-facing CLI.
+- `src/podcast_scraper/cli.py` — `cluster-corpus-topics` command
+  dispatch.
 - `src/podcast_scraper/gi/relational_edges.py:_apply_ner_mentions_pass`
   — extended PERSON | ORG filter.
 - `src/podcast_scraper/workflow/metadata_generation.py` — KG ORG
