@@ -45,10 +45,24 @@ npm run build        # vue-tsc -b && vite build  (catches strict-mode TS errors)
 
 ## Docker
 
+Its own static image (node build → nginx), independent of the API/viewer images:
+
 ```bash
-docker build -t learning-player app/
+make app-docker-build        # build podcast-scraper-learning-app:latest
 # serves the SPA on :80 and proxies /api → the api service (see nginx.conf)
 ```
+
+Run alongside the stack (api + viewer + this app on one network) via the compose overlay:
+
+```bash
+make app-stack-up            # APP_PORT default 8081; api proxied over the compose network
+# working sign-in (dev only): APP_OAUTH_PROVIDER=mock APP_SESSION_SECRET=dev-secret make app-stack-up
+make app-stack-down
+```
+
+> Compose overlay: `compose/docker-compose.app.yml` (use with `docker-compose.stack.yml`).
+> Validate config with `make app-stack-config`. A full stack boot is required to validate
+> end-to-end before the deployment PR merges (compose changes → real-boot gate).
 
 ## Status
 

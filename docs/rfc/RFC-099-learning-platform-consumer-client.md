@@ -170,6 +170,9 @@ required second implementation, not a new abstraction.
   (the PWA shell + assets), independent of the API image. It talks to the backend purely over
   `/api/app/*` — no shared process, no server-rendered coupling. This keeps the consumer surface
   independently deployable/scalable and lets the operator API and pipeline images stay untouched.
+  Concretely (#1086): `app/Dockerfile` (node build → nginx; `app/nginx.conf` = SPA fallback +
+  `/api` proxy, no audio) + the `compose/docker-compose.app.yml` overlay (adds `learning-app` to
+  the stack network) + `make app-docker-build` / `app-stack-up`.
 - **API is the only contract.** Because the client consumes `/api/app/*` exclusively (session cookie
   auth, JSON), the **same API supports a future native mobile app** with no server changes — the mobile
   client would swap the cookie session for a token grant against the same OAuth boundary (RFC-098) and

@@ -59,7 +59,7 @@ PYTEST_WORKERS ?= 2
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e build-viewer serve-app serve-app-dev test-app test-app-e2e build-app verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
+.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e build-viewer serve-app serve-app-dev test-app test-app-e2e build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
 
 help:
 	@echo "Common developer commands:"
@@ -121,6 +121,9 @@ help:
 	@echo "  make test-app            Vitest unit tests + coverage gate for $(APP_DIR)"
 	@echo "  make test-app-e2e        Playwright E2E for $(APP_DIR) (needs npm install + chromium in that dir)"
 	@echo "  make build-app           Production Learning Player bundle (vue-tsc -b && vite build)"
+	@echo "  make app-docker-build    Build the Learning Player Docker image"
+	@echo "  make app-stack-up        Stack + Learning Player container (api proxied; APP_PORT, default 8081)"
+	@echo "  make app-stack-down      Tear down the stack + Learning Player overlay"
 	@echo ""
 	@echo "Analysis commands:"
 	@echo "  make analyze-test-memory [TARGET=test-unit] [WORKERS=N]  Analyze test memory usage and resource consumption"
@@ -1237,6 +1240,21 @@ test-app-e2e:
 build-app:
 	@echo "Production Learning Player bundle (vue-tsc -b && vite build)..."
 	@cd $(APP_DIR) && npm install && npm run build
+
+# Consumer Learning Player container (RFC-099 §10): its own nginx-served static image.
+app-docker-build:
+	@echo "Building the Learning Player Docker image..."
+	@docker build -t podcast-scraper-learning-app:latest $(APP_DIR)
+
+# Stack + consumer app overlay (api + viewer + learning-app on one network).
+APP_STACK_COMPOSE ?= docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.app.yml
+app-stack-config:
+	@$(APP_STACK_COMPOSE) config >/dev/null && echo "compose config OK (stack + app overlay)"
+app-stack-up:
+	@echo "Stack + Learning Player up (app on APP_PORT, default 8081; api proxied)..."
+	@$(APP_STACK_COMPOSE) up -d --build
+app-stack-down:
+	@$(APP_STACK_COMPOSE) down $(REMOVE_VOLUMES)
 
 # Phase 5 (#528): fail if GIL Quote spans do not overlap indexed transcript chunks enough.
 verify-gil-offsets-strict:
