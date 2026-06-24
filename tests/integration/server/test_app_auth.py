@@ -16,7 +16,7 @@ from fastapi.testclient import TestClient
 
 from podcast_scraper.server.app import create_app
 from podcast_scraper.server.app_access import AccessPolicy
-from podcast_scraper.server.app_oauth import OAuthError, OAuthIdentity
+from podcast_scraper.server.app_oauth import MockOAuthProvider, OAuthError, OAuthIdentity
 from podcast_scraper.server.app_user_store import set_disabled
 
 pytestmark = [pytest.mark.integration]
@@ -118,6 +118,38 @@ def test_callback_rejects_disallowed_email(tmp_path: Path) -> None:
     )
     assert resp.status_code == 403  # jane@example.com is not on the allowlist
     assert client.get("/api/app/me").status_code == 401  # and no account was created
+
+
+def test_mock_provider_full_flow_dev_identity(tmp_path: Path) -> None:
+    """The real MockOAuthProvider self-completes the code flow with a dev identity.
+
+    Mirrors what local dev + Playwright e2e drive: login redirects straight back to
+    the callback with a mock code, no network, and ``/me`` returns the dev account.
+    """
+    app = create_app(tmp_path, static_dir=False)
+    app.state.session_secret = "test-secret"
+    app.state.app_data_dir = tmp_path / "appdata"
+    app.state.oauth_provider = MockOAuthProvider()
+    app.state.access_policy = AccessPolicy("open", frozenset(), frozenset())
+    client = TestClient(app)
+
+    resp = client.get("/api/app/auth/login", follow_redirects=False)
+    assert resp.status_code == 307, resp.text
+    loc = resp.headers["location"]
+    # Mock redirects back to our own callback with a code + the CSRF state.
+    assert "/api/app/auth/callback" in loc
+    q = parse_qs(urlparse(loc).query)
+    assert q["code"] == [MockOAuthProvider.MOCK_CODE]
+
+    cb = client.get(
+        "/api/app/auth/callback",
+        params={"code": q["code"][0], "state": q["state"][0]},
+        follow_redirects=False,
+    )
+    assert cb.status_code == 307
+    me = client.get("/api/app/me")
+    assert me.status_code == 200
+    assert me.json()["email"] == "dev@localhost"
 
 
 def test_disabled_user_is_locked_out(tmp_path: Path) -> None:
