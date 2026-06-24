@@ -84,3 +84,8 @@ export function getEpisode(slug: string): Promise<EpisodeDetail> {
 export function loginUrl(): string {
   return `${BASE}/auth/login`
 }
+
+/** Clear the session server-side (deletes the cookie). Best-effort; resolves on 204. */
+export async function logout(): Promise<void> {
+  await fetch(`${BASE}/auth/logout`, { method: 'POST', credentials: 'include' })
+}

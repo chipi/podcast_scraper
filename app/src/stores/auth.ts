@@ -4,7 +4,7 @@
  */
 
 import { defineStore } from 'pinia'
-import { getMe, loginUrl } from '../services/api'
+import { getMe, loginUrl, logout as apiLogout } from '../services/api'
 import type { Me } from '../services/types'
 
 interface AuthState {
@@ -22,9 +22,17 @@ export const useAuthStore = defineStore('auth', {
       this.user = await getMe()
       this.loaded = true
     },
+    /** Resolve auth once (no-op if already loaded) — used by the router guard. */
+    async ensureLoaded(): Promise<void> {
+      if (!this.loaded) await this.refresh()
+    },
     login(): void {
       // Full-page redirect into the OAuth flow (Google in prod, mock provider in dev/e2e).
       window.location.assign(loginUrl())
+    },
+    async logout(): Promise<void> {
+      await apiLogout()
+      this.user = null
     },
   },
 })

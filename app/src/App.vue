@@ -1,17 +1,23 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink, RouterView } from 'vue-router'
+import { RouterLink, RouterView, useRouter } from 'vue-router'
 import SkipLink from './components/SkipLink.vue'
 import { useAuthStore } from './stores/auth'
 
 const { t } = useI18n()
 const auth = useAuthStore()
+const router = useRouter()
 
 onMounted(() => {
   // Best-effort: resolve the session cookie to a user (null when signed out — reads still work).
   void auth.refresh()
 })
+
+async function onSignOut(): Promise<void> {
+  await auth.logout()
+  await router.push({ name: 'catalog' })
+}
 </script>
 
 <template>
@@ -22,10 +28,19 @@ onMounted(() => {
         <span class="lp-kicker block">{{ t('app.tagline') }}</span>
         <span class="font-display text-2xl font-extrabold tracking-tight">{{ t('app.title') }}</span>
       </RouterLink>
-      <nav class="text-sm">
-        <span v-if="auth.isAuthenticated" class="text-muted">
-          {{ t('auth.signedInAs', { name: auth.user?.name }) }}
-        </span>
+      <nav class="text-sm flex items-center gap-3">
+        <template v-if="auth.isAuthenticated">
+          <span class="text-muted hidden sm:inline">
+            {{ t('auth.signedInAs', { name: auth.user?.name }) }}
+          </span>
+          <button
+            type="button"
+            class="rounded-full border border-border px-4 py-2 font-bold text-canvas-foreground"
+            @click="onSignOut"
+          >
+            {{ t('auth.signOut') }}
+          </button>
+        </template>
         <RouterLink
           v-else
           :to="{ name: 'login' }"

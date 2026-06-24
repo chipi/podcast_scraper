@@ -9,6 +9,7 @@
   },
   "auth": {
     "signIn": "Sign in",
+    "signOut": "Sign out",
     "signedInAs": "Signed in as {name}",
     "signedOut": "Not signed in"
   },
