@@ -1,6 +1,6 @@
 # RFC-015: AI Experiment Pipeline
 
-- **Status**: **Phase 1–3 complete** — Experiment runner, evaluation metrics, and storage/comparison implemented. CI integration pending.
+- **Status**: Completed (v2.7) — Phases 1–3 (experiment runner, evaluation metrics, storage/comparison) shipped earlier. Phase 4 (CI integration) shipped 2026-06-24 as the standalone `.github/workflows/ai-experiment-pipeline.yml` workflow (operator-triggered via `workflow_dispatch`, no gate on other workflows). Workflow uploads run artifacts for paste-into-release-notes.
 - **Authors**:
 - **Stakeholders**: Maintainers, researchers tuning AI models/prompts, developers evaluating model performance
 - **Related PRDs**: `docs/prd/PRD-006-openai-provider-integration.md`, `docs/prd/PRD-007-ai-quality-experiment-platform.md`
