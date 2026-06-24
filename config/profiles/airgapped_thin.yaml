@@ -89,6 +89,15 @@ kg_extraction_source: provider
 kg_max_topics: 10
 kg_max_entities: 15
 
+# #1076 chunk 4-A — spaCy NER pass for typed MENTIONS_PERSON post-pass.
+# Default-on for airgapped_thin because BART summarisation paraphrases
+# speaker names ("Maya argued..." instead of "Maya Hutchinson argued...")
+# and the literal whole-word regex misses the fragment case. Real-corpus
+# measurement on 209 prod-v2 GI files (2026-06-24) showed +78 MP edges
+# (12 → 90, +650% over baseline) after the shared-surname disambiguation
+# guard; sample inspection found no false positives.
+gi_typed_mentions_use_ner: true
+
 # Vector search + clustering
 vector_search: true
 vector_embedding_provider: sentence_transformers

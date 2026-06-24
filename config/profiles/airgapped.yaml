@@ -71,6 +71,12 @@ kg_extraction_source: provider
 kg_max_topics: 10
 kg_max_entities: 15
 
+# #1076 chunk 4-A — spaCy NER pass for typed MENTIONS_PERSON post-pass.
+# Default-on for airgapped because SummLlama (like BART) paraphrases
+# speaker names away from the literal KG form; NER catches fragments
+# the regex misses. Same validation as airgapped_thin (see that YAML).
+gi_typed_mentions_use_ner: true
+
 # Vector search + clustering
 vector_search: true
 vector_embedding_provider: sentence_transformers

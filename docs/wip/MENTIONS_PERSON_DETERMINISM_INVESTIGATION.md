@@ -1,5 +1,35 @@
 # MENTIONS_PERSON deterministic emission — investigation (#1076 chunk 4)
 
+> **STATUS: VALIDATED AND ENABLED 2026-06-24.** Path A shipped in
+> `d8a2a2d3`; shared-surname disambiguation guard added after prod-v2
+> measurement found ~30% FP from "Trump" subset-matching both Donald
+> and Eric Trump. Post-guard prod-v2 measurement (`209 GI files`):
+> regex baseline 12 MP edges → regex+NER 90 MP edges (+78, 650% over
+> baseline). Sample inspection: clean TPs (Carlson, Hegseth, Musk,
+> Trump in single-Trump artifacts, etc.). Flag flipped on in
+> airgapped + airgapped_thin profiles. `dev` skipped (`generate_gi:
+> false` means the post-pass never runs).
+>
+> Path B shipped as three cloud_thin Tier-3 specs across
+> PersonLandingView (`stack-person-profile-cloud.spec.ts`),
+> TopicEntityView (`stack-topic-entity-cloud.spec.ts`), and NodeDetail
+> Connections (`stack-node-detail-connections-cloud.spec.ts`).
+> Gated on `STACK_TEST_PROFILE=cloud_thin`; default CI never runs them.
+>
+> Validation scripts (checked in):
+> - `scripts/dev/measure_ner_mentions_diff.py` — runs both regex-only
+>   and regex+NER on a corpus, prints delta, emits operator-labellable
+>   sample JSON.
+> - `scripts/dev/upgrade_viewer_validation_corpus_to_v3.py --use-ner` —
+>   re-bakes the chunk-2 fixture corpus with NER on.
+> - `enrich-edges --use-ner --retro-audit` — production retro sweep
+>   with audit trail (`_retro_audit` stamped on every mutated artifact
+>   + summary JSON written to `<corpus>/_retro_audit_<marker>.json`).
+> - Fingerprint capture: `gi_typed_mentions_use_ner` lands in
+>   `pipeline.stages.main.podcast_scraper_config` so eval runs under
+>   the NER pass produce a different `fingerprint_hash`.
+
+
 Background: `tests/stack-test/stack-person-profile.spec.ts` strictly
 asserts the Person Profile **shell** but only conditionally exercises
 the click-to-PositionTracker rich-data path because airgapped_thin

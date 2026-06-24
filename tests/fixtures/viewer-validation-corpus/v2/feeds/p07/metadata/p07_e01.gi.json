@@ -171,6 +171,11 @@
       "properties": {
         "confidence": 0.5
       }
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:84304fb24a96f6ae",
+      "to": "person:speaker-02"
     }
   ],
   "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",

@@ -596,3 +596,41 @@ class TestAddInsightEntityEdgesWithNer:
         gi = self._gi_with_paraphrased_insight()
         added = add_insight_entity_edges(gi, self._kg_index_with_maya(), nlp=_CrashyNlp())
         assert added == 0
+
+    def test_ner_rejects_ambiguous_shared_surname_match(self):
+        """When the KG has multiple people sharing a surname (e.g. 'Donald
+        Trump' AND 'Eric Trump'), a bare span 'Trump' must NOT fire any
+        edge — we can't tell which one the text refers to, so emitting
+        to all of them would scatter wrong attributions across the corpus
+        and emitting to one would be arbitrary. The disambiguation rule
+        added in #1076 chunk 4-A's prod-v2 measurement run rejects the
+        match entirely.
+        """
+        from podcast_scraper.gi.relational_edges import add_insight_entity_edges
+
+        gi = self._gi_with_paraphrased_insight()
+        gi["nodes"][1]["properties"]["text"] = "Trump argued that policy must shift."
+        entity_index = {
+            "person:donald-trump": ("Donald Trump", "person"),
+            "person:eric-trump": ("Eric Trump", "person"),
+        }
+        nlp = _StubNlp({"Trump argued that policy must shift.": ["Trump"]})
+        added = add_insight_entity_edges(gi, entity_index, nlp=nlp)
+        assert added == 0
+
+    def test_ner_keeps_multi_token_match_when_no_ambiguity(self):
+        """A two-token span 'Donald Trump' is unambiguous even when KG
+        also has 'Eric Trump' — only one entry matches the full span."""
+        from podcast_scraper.gi.relational_edges import add_insight_entity_edges
+
+        gi = self._gi_with_paraphrased_insight()
+        gi["nodes"][1]["properties"]["text"] = "Donald Trump argued for the policy."
+        entity_index = {
+            "person:donald-trump": ("Donald Trump", "person"),
+            "person:eric-trump": ("Eric Trump", "person"),
+        }
+        nlp = _StubNlp({"Donald Trump argued for the policy.": ["Donald Trump"]})
+        added = add_insight_entity_edges(gi, entity_index, nlp=nlp)
+        assert added == 1
+        edge = next(e for e in gi["edges"] if e.get("type") == "MENTIONS_PERSON")
+        assert edge["to"] == "person:donald-trump"

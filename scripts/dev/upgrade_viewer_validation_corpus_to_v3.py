@@ -33,6 +33,7 @@ de-dup edges and the v3 defaults survive the round-trip).
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -121,8 +122,14 @@ def _add_about_edges_to_all_topics(artifact: dict) -> int:
     return added
 
 
-def upgrade_one(path: Path) -> tuple[int, int]:
+def upgrade_one(path: Path, nlp=None) -> tuple[int, int]:
     """Upgrade a single .gi.json file in place.
+
+    When *nlp* is provided, ``add_insight_entity_edges`` runs the
+    #1076 chunk 4-A spaCy NER pass in addition to the literal whole-
+    word regex match. Used by the validation script to measure how
+    many extra MENTIONS_PERSON edges the NER pass catches vs the
+    regex baseline.
 
     Returns ``(mentions_person_added, about_added)``.
     """
@@ -153,7 +160,7 @@ def upgrade_one(path: Path) -> tuple[int, int]:
 
     # Stage 3 — MENTIONS_PERSON from Person names in Insight text.
     entity_index = _build_entity_index(migrated)
-    mp_added = add_insight_entity_edges(migrated, entity_index)
+    mp_added = add_insight_entity_edges(migrated, entity_index, nlp=nlp)
 
     # Stage 4 — ABOUT edges across the cartesian Insight × Topic for
     # this episode (small, deterministic, exercises every viewer
@@ -171,6 +178,19 @@ def upgrade_one(path: Path) -> tuple[int, int]:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--use-ner",
+        action="store_true",
+        help=(
+            "Augment the regex-based typed-MENTIONS post-pass with the "
+            "#1076 chunk 4-A spaCy NER pass. Catches BART-paraphrased "
+            "name fragments (KG 'Maya Hutchinson' matched by Insight "
+            "text 'Maya')."
+        ),
+    )
+    args = parser.parse_args()
+
     if not _CORPUS_DIR.is_dir():
         print(f"Corpus dir not found: {_CORPUS_DIR}", file=sys.stderr)
         return 2
@@ -178,16 +198,28 @@ def main() -> int:
     if not files:
         print(f"No .gi.json files under {_CORPUS_DIR}", file=sys.stderr)
         return 2
+
+    nlp = None
+    if args.use_ner:
+        try:
+            import spacy
+
+            nlp = spacy.load("en_core_web_sm")
+            print("spaCy en_core_web_sm loaded — NER pass ON")
+        except Exception as exc:
+            print(f"spaCy load failed: {exc}", file=sys.stderr)
+            return 2
+
     total_mp = 0
     total_about = 0
     for path in files:
-        mp, about = upgrade_one(path)
+        mp, about = upgrade_one(path, nlp=nlp)
         total_mp += mp
         total_about += about
         print(f"  {path.relative_to(_REPO_ROOT)}  +{mp} MP  +{about} ABOUT")
     print(
         f"\nUpgraded {len(files)} files: +{total_mp} MENTIONS_PERSON edges, "
-        f"+{total_about} ABOUT edges"
+        f"+{total_about} ABOUT edges (NER {'ON' if nlp is not None else 'OFF'})"
     )
     return 0
 

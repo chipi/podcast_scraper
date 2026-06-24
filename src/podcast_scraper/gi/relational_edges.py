@@ -358,17 +358,31 @@ def _resolve_span_to_index(
 
     Mutates the shared edge/node/existing collections in place.
     Returns the count of edges added by this span.
+
+    #1076 chunk 4-A — shared-surname disambiguation. When the span is
+    a single token (e.g. "Trump") and multiple KG entries share that
+    surname (e.g. "Donald Trump", "Eric Trump"), reject the match — we
+    can't tell which one the text refers to and emitting an edge to
+    every candidate scatters wrong attributions across the corpus.
+    Multi-token spans like "Donald Trump" are still resolved
+    deterministically because the disambiguation is per-distinct-
+    candidate-set, not per-span.
     """
+    # Pre-pass: gather all index entries whose token set is a superset of
+    # the span. When the span is a single token shared by ≥2 candidates,
+    # bail with zero edges — emitting to all of them would scatter wrong
+    # attributions; emitting to one would be arbitrary.
+    candidates: List[Tuple[str, str, str, Set[str]]] = []
+    for entry in index_entries:
+        _, _, _, name_tokens = entry
+        if span_tokens & name_tokens and span_tokens.issubset(name_tokens):
+            candidates.append(entry)
+    if len(candidates) > 1 and len(span_tokens) == 1:
+        # Ambiguous single-token (typically surname-only) match against
+        # multiple KG entries that share that token. Conservative reject.
+        return 0
     added = 0
-    for entity_id, kind, surface_name, name_tokens in index_entries:
-        # Constrain: span tokens must be a SUBSET of the entity's name
-        # tokens. Catches "Maya" → "Maya Hutchinson"; rejects
-        # "Maya Smith" → "Maya Hutchinson" (different person sharing
-        # the first name).
-        if not (span_tokens & name_tokens):
-            continue
-        if not span_tokens.issubset(name_tokens):
-            continue
+    for entity_id, kind, surface_name, name_tokens in candidates:
         edge_type = "MENTIONS_ORG" if kind == "organization" else "MENTIONS_PERSON"
         keys = {
             (insight_id, entity_id, "MENTIONS"),
