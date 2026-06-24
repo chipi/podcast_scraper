@@ -58,6 +58,52 @@ const cache = new Map<string, CacheEntry<unknown>>()
 let ttlMs: number = DEFAULT_TTL_MS
 let maxEntries: number = DEFAULT_MAX_ENTRIES
 
+/**
+ * #1076 chunk 1 — observability. Without these counters a cache bug
+ * (a key collision after a refactor, a TTL set to zero by accident,
+ * a forgotten ``invalidateRelationalCache`` call leaving stale data
+ * across corpus switches) would not surface until users notice
+ * "the tab feels slow again." Counters are read by the dev-gated
+ * ``__GIKG_RELATIONAL_CACHE__`` window hook below.
+ */
+export interface RelationalCacheStats {
+  hits: number
+  misses: number
+  expiries: number
+  evictions: number
+  /** Current entry count — derived from cache.size, exposed for symmetry. */
+  size: number
+}
+
+const stats: { hits: number; misses: number; expiries: number; evictions: number } = {
+  hits: 0,
+  misses: 0,
+  expiries: 0,
+  evictions: 0,
+}
+
+/** Snapshot of the running counters + current size. Cheap to call. */
+export function getRelationalCacheStats(): RelationalCacheStats {
+  return {
+    hits: stats.hits,
+    misses: stats.misses,
+    expiries: stats.expiries,
+    evictions: stats.evictions,
+    size: cache.size,
+  }
+}
+
+/** Reset counters without dropping cache entries. Useful from tests
+ *  that want to assert per-test cache-fn call totals without flushing
+ *  the cache. Distinct from ``invalidateRelationalCache()`` which
+ *  drops entries but leaves counters alone for the same reason. */
+export function _resetCacheStatsForTest(): void {
+  stats.hits = 0
+  stats.misses = 0
+  stats.expiries = 0
+  stats.evictions = 0
+}
+
 /** Build a deterministic cache key. Joined with a control-character
  *  separator so an arg containing `::` can't collide with another
  *  arg's value. */
@@ -67,14 +113,20 @@ function makeKey(corpusPath: string, fn: string, args: string[]): string {
 
 function getEntry<T>(key: string): T | undefined {
   const entry = cache.get(key)
-  if (!entry) return undefined
+  if (!entry) {
+    stats.misses += 1
+    return undefined
+  }
   if (Date.now() - entry.ts > ttlMs) {
     cache.delete(key)
+    stats.expiries += 1
+    stats.misses += 1
     return undefined
   }
   // LRU touch — re-insert moves to the end.
   cache.delete(key)
   cache.set(key, entry)
+  stats.hits += 1
   return entry.value as T
 }
 
@@ -82,7 +134,10 @@ function setEntry(key: string, value: unknown): void {
   if (cache.size >= maxEntries) {
     // Drop the oldest (Map iteration is insertion order).
     const oldest = cache.keys().next().value as string | undefined
-    if (oldest !== undefined) cache.delete(oldest)
+    if (oldest !== undefined) {
+      cache.delete(oldest)
+      stats.evictions += 1
+    }
   }
   cache.set(key, { ts: Date.now(), value })
 }
@@ -114,6 +169,21 @@ export function _cacheSizeForTest(): number {
 // Explicit operator-triggered invalidation lives at
 // ``invalidateRelationalCache``; consumers that need eager cache flush
 // on corpus change call it directly (e.g. from a settings page).
+
+// Dev-only inspection hook. Mirrors ``__GIKG_SUBJECT__`` / ``__GIKG_FSM__``
+// from the subject store / FSM. Exposed so the operator can run
+// ``__GIKG_RELATIONAL_CACHE__.stats()`` from the browser devtools to
+// verify cache health when debugging a "tab feels slow" report.
+if (typeof window !== 'undefined' && import.meta.env?.DEV) {
+  ;(
+    window as unknown as {
+      __GIKG_RELATIONAL_CACHE__?: object
+    }
+  ).__GIKG_RELATIONAL_CACHE__ = {
+    stats: getRelationalCacheStats,
+    invalidate: invalidateRelationalCache,
+  }
+}
 
 /** Cached wrapper for `fetchPersonTopics(corpus, person, k?)`. */
 export async function cachedFetchPersonTopics(

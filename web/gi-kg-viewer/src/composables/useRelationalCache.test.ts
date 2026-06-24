@@ -28,11 +28,13 @@ import { fetchPersonProfile as rawFetchPersonProfile } from '../api/cilApi'
 import {
   _cacheSizeForTest,
   _resetCacheParamsForTest,
+  _resetCacheStatsForTest,
   _setCacheParamsForTest,
   cachedFetchCoSpeakers,
   cachedFetchPersonProfile,
   cachedFetchPersonTopics,
   cachedFetchPositions,
+  getRelationalCacheStats,
   invalidateRelationalCache,
 } from './useRelationalCache'
 
@@ -41,6 +43,7 @@ describe('useRelationalCache (#1075 chunk 4)', () => {
     setActivePinia(createPinia())
     invalidateRelationalCache()
     _resetCacheParamsForTest()
+    _resetCacheStatsForTest()
     vi.mocked(rawFetchPersonTopics).mockReset()
     vi.mocked(rawFetchCoSpeakers).mockReset()
     vi.mocked(rawFetchPositions).mockReset()
@@ -160,6 +163,40 @@ describe('useRelationalCache (#1075 chunk 4)', () => {
     expect(first.results[0].text).toBe('A')
     expect(second.results[0].text).toBe('B')
     expect(rawFetchPersonTopics).toHaveBeenCalledTimes(2)
+  })
+
+  // #1076 chunk 1 — observability counters.
+  it('getRelationalCacheStats counts miss + hit accurately', async () => {
+    vi.mocked(rawFetchPersonTopics).mockResolvedValue({ subject: 'x', results: [] })
+    // First call: miss + populate.
+    await cachedFetchPersonTopics('/corpus', 'person:a')
+    expect(getRelationalCacheStats().misses).toBe(1)
+    expect(getRelationalCacheStats().hits).toBe(0)
+    // Second call: hit.
+    await cachedFetchPersonTopics('/corpus', 'person:a')
+    expect(getRelationalCacheStats().misses).toBe(1)
+    expect(getRelationalCacheStats().hits).toBe(1)
+    expect(getRelationalCacheStats().size).toBe(1)
+  })
+
+  it('TTL expiry increments both expiries and misses', async () => {
+    _setCacheParamsForTest({ ttlMs: 1 })
+    vi.mocked(rawFetchPersonTopics).mockResolvedValue({ subject: 'x', results: [] })
+    await cachedFetchPersonTopics('/corpus', 'person:a')
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    await cachedFetchPersonTopics('/corpus', 'person:a')
+    expect(getRelationalCacheStats().expiries).toBe(1)
+    // 1 initial miss + 1 expiry-miss = 2 misses total.
+    expect(getRelationalCacheStats().misses).toBe(2)
+  })
+
+  it('LRU eviction increments evictions counter', async () => {
+    _setCacheParamsForTest({ maxEntries: 2 })
+    vi.mocked(rawFetchPersonTopics).mockResolvedValue({ subject: 'x', results: [] })
+    await cachedFetchPersonTopics('/corpus', 'person:a')
+    await cachedFetchPersonTopics('/corpus', 'person:b')
+    await cachedFetchPersonTopics('/corpus', 'person:c')
+    expect(getRelationalCacheStats().evictions).toBe(1)
   })
 
   it('separate fetch fns are cached independently', async () => {
