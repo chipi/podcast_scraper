@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Player — Direction C · Immersive cinematic</title>
+<style>
+  :root{
+    --fg:#F6F4FB; --muted:#B9B2D0; --faint:#8A82A6;
+    --accent:#C9B6FF; --glass:rgba(255,255,255,.08); --glass-brd:rgba(255,255,255,.14);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;}
+  html,body{width:390px;height:844px;overflow:hidden;color:var(--fg);
+    font-family:-apple-system,"SF Pro Text",Inter,system-ui,sans-serif;}
+  /* full-bleed gradient derived from artwork */
+  body{background:
+    radial-gradient(130% 80% at 15% 0%, #6D49C9 0%, transparent 55%),
+    radial-gradient(120% 90% at 95% 25%, #B5417E 0%, transparent 50%),
+    radial-gradient(140% 90% at 50% 110%, #2B2150 0%, transparent 60%),
+    #150F2A;}
+  .phone{width:390px;height:844px;display:flex;flex-direction:column;}
+  .status{height:44px;display:flex;align-items:center;justify-content:space-between;
+    padding:0 22px;font-size:14px;font-weight:600;}
+  .status .dots{letter-spacing:2px;}
+  .hdr{display:flex;align-items:center;justify-content:space-between;padding:6px 20px 8px;}
+  .hdr .chev{font-size:22px;}
+  .hdr .show{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);font-weight:700;}
+  .hdr .more{color:var(--muted);font-size:20px;}
+  /* compact artwork orb + live data */
+  .art{display:flex;gap:14px;align-items:center;padding:8px 22px 4px;}
+  .art .orb{width:74px;height:74px;border-radius:18px;flex:none;position:relative;overflow:hidden;
+    background:linear-gradient(135deg,#C9B6FF,#7B4DD6);box-shadow:0 10px 30px rgba(123,77,214,.5);}
+  .art .orb::after{content:"";position:absolute;inset:0;background:radial-gradient(60% 60% at 30% 25%,rgba(255,255,255,.45),transparent 60%);}
+  .art .meta h1{font-size:18px;line-height:1.16;font-weight:800;letter-spacing:-.01em;}
+  .art .meta .row{margin-top:7px;display:flex;gap:8px;flex-wrap:wrap;}
+  .art .chip{font-size:10.5px;font-weight:700;padding:4px 9px;border-radius:999px;
+    background:var(--glass);border:1px solid var(--glass-brd);backdrop-filter:blur(8px);}
+  .art .chip.g{color:#B9FFD8;border-color:rgba(110,255,180,.35);}
+  /* live insight glass card */
+  .live{margin:14px 18px 0;border-radius:18px;padding:14px 15px;background:var(--glass);
+    border:1px solid var(--glass-brd);backdrop-filter:blur(16px);}
+  .live .k{font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);}
+  .live .t{font-size:14px;line-height:1.38;margin-top:5px;}
+  .live .spk{font-size:11px;color:var(--muted);margin-top:8px;font-weight:600;}
+  /* scrubber */
+  .scrub{padding:16px 22px 2px;}
+  .bar{height:4px;background:rgba(255,255,255,.16);border-radius:3px;position:relative;}
+  .bar i{position:absolute;left:0;top:0;bottom:0;width:25%;background:var(--fg);border-radius:3px;}
+  .bar b{position:absolute;left:25%;top:50%;width:13px;height:13px;margin:-6.5px 0 0 -6.5px;background:#fff;border-radius:50%;
+    box-shadow:0 0 12px rgba(255,255,255,.7);}
+  .times{display:flex;justify-content:space-between;font-size:11px;color:var(--faint);margin-top:8px;font-variant-numeric:tabular-nums;}
+  .ctrl{display:flex;align-items:center;justify-content:center;gap:24px;padding:8px 20px 14px;}
+  .ctrl .ic{font-size:15px;font-weight:700;opacity:.92;}
+  .ctrl .play{width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.95);color:#241653;
+    display:flex;align-items:center;justify-content:center;font-size:26px;box-shadow:0 8px 30px rgba(255,255,255,.3);}
+  .ctrl .spd{background:var(--glass);border:1px solid var(--glass-brd);color:var(--fg);font-size:12px;font-weight:700;padding:7px 11px;border-radius:999px;}
+  /* transcript glass sheet */
+  .tx{flex:1;overflow:hidden;margin:6px 12px 0;border-radius:22px 22px 0 0;padding:18px 18px 0;
+    background:var(--glass);border:1px solid var(--glass-brd);border-bottom:none;backdrop-filter:blur(18px);}
+  .tx .grab{width:38px;height:4px;border-radius:3px;background:rgba(255,255,255,.3);margin:-6px auto 14px;}
+  .tx .seg{display:flex;gap:10px;margin-bottom:13px;}
+  .tx .ts{font-size:11px;color:var(--faint);width:38px;flex:none;padding-top:2px;font-variant-numeric:tabular-nums;}
+  .tx .ln{font-size:14px;line-height:1.44;color:var(--muted);}
+  .tx .seg.active .ln{color:var(--fg);font-weight:600;}
+  .tx .spk{font-size:11px;font-weight:700;color:var(--accent);display:block;margin-bottom:3px;}
+  .dock{display:flex;gap:10px;padding:12px 16px 18px;background:var(--glass);backdrop-filter:blur(18px);}
+  .dock .pill{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;
+    border-radius:14px;padding:13px;font-size:13px;font-weight:700;background:rgba(255,255,255,.1);border:1px solid var(--glass-brd);}
+  .dock .pill.hi{background:rgba(201,182,255,.18);color:var(--accent);border-color:rgba(201,182,255,.4);}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="status"><span>9:41</span><span class="dots">●●● ⌃ ▮</span></div>
+  <div class="hdr"><span class="chev">‹</span><span class="show">Huberman Lab · 042</span><span class="more">⋯</span></div>
+
+  <div class="art">
+    <div class="orb"></div>
+    <div class="meta">
+      <h1>How Memory Consolidates During Sleep</h1>
+      <div class="row">
+        <span class="chip">🎙 Dr. Matthew Walker</span>
+        <span class="chip g">92% grounded</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="live">
+    <div class="k">Insight surfacing now</div>
+    <div class="t">Sleep spindles gate the transfer of memory from hippocampus to cortex.</div>
+    <div class="spk">grounded in this moment · tap to pin</div>
+  </div>
+
+  <div class="scrub">
+    <div class="bar"><i></i><b></b></div>
+    <div class="times"><span>12:04</span><span>48:31</span></div>
+  </div>
+  <div class="ctrl">
+    <span class="ic">↺15</span>
+    <div class="play">►</div>
+    <span class="ic">30↻</span>
+    <span class="spd">1.25×</span>
+  </div>
+
+  <div class="tx">
+    <div class="grab"></div>
+    <div class="seg"><span class="ts">11:48</span><span class="ln">So the question everyone asks is when exactly does this happen.</span></div>
+    <div class="seg active"><span class="ts">12:01</span><span class="ln"><span class="spk">Dr. Walker</span>The hippocampus replays the day's sequences during deep sleep, and that's the window where consolidation really takes hold.</span></div>
+    <div class="seg"><span class="ts">12:19</span><span class="ln">It's almost like the brain is pressing save on the most important files.</span></div>
+  </div>
+
+  <div class="dock">
+    <div class="pill hi">💡 7 insights</div>
+    <div class="pill">🔍 Ask this episode</div>
+  </div>
+</div>
+</body>
+</html>

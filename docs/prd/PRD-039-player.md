@@ -6,6 +6,8 @@
 - **Parent PRD**: `docs/prd/PRD-035-learning-platform.md`
 - **Depends on**: PRD-036 (segments, insights, entities, enclosure, playback state)
 - **Upstream**: PRD-038 (Catalog) · **Feeds**: PRD-040 (Capture), PRD-041 (Consolidation)
+- **Related UX spec**: `docs/uxs/UXS-011-consumer-learning-app.md` (Editorial Bold; Player visual contract)
+- **Related RFC**: `docs/rfc/RFC-099-learning-platform-consumer-client.md` (client behaviour, MVP slice)
 - **Supersedes**: `PRD-030-platform-player.md` (deleted draft)
 
 ---
@@ -79,7 +81,7 @@ so it's ready by the time it's reached.
   and "add to queue" actions from Catalog cards (PRD-038).
 - **FR2.4**: Queuing an unprocessed episode triggers scrape-on-demand (PRD-036 FR5) and shows its
   progress in the queue; it becomes playable when Ready.
-- **FR2.5**: Playback position auto-saves to `PUT /api/user/playback/{slug}` every ~10s and on pause;
+- **FR2.5**: Playback position auto-saves to `PUT /api/app/playback/{slug}` every ~10s and on pause;
   restored via `GET` on open.
 - **FR2.6**: A "Resume from X:XX" prompt appears for episodes with a saved position.
 
@@ -128,15 +130,19 @@ so it's ready by the time it's reached.
 
 ## API summary
 
+All endpoints live under the **consumer namespace `/api/app/*`** (RFC-098), isolated from the operator
+API. The paths below are the **shipped Epic-1 surface** — the Player MVP is fully served (no net-new
+server endpoints required).
+
 | Method | Path | Description |
 | --- | --- | --- |
-| `GET` | `/api/episodes/{slug}/segments` | Transcript sync (PRD-036) |
-| `GET` | `/api/episodes/{slug}/insights` | Knowledge Panel insights |
-| `GET` | `/api/episodes/{slug}/entities` | Knowledge Panel entities |
-| `GET` | `/api/episodes/{slug}/audio-source` | Original enclosure URL (PRD-036) |
-| `GET`/`PUT` | `/api/user/playback/{slug}` | Resume position |
-| `GET`/`PUT` | `/api/user/queue` | Queue read/update |
-| `GET` | `/api/episodes/{slug}/search` | Episode-scoped grounded retrieval (no LLM) |
+| `GET` | `/api/app/episodes/{slug}/segments` | Transcript sync (PRD-036) |
+| `GET` | `/api/app/episodes/{slug}/insights` | Knowledge Panel insights |
+| `GET` | `/api/app/episodes/{slug}/entities` | Knowledge Panel entities |
+| `GET` | `/api/app/episodes/{slug}/audio-source` | Original enclosure URL (PRD-036, RFC-100) |
+| `GET`/`PUT` | `/api/app/playback/{slug}` | Resume position |
+| `GET`/`PUT` | `/api/app/queue` | Queue read/update |
+| `GET` | `/api/app/episodes/{slug}/search` | Episode-scoped grounded retrieval (no LLM) |
 
 ## Success Metrics
 

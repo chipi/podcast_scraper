@@ -6,6 +6,8 @@
 - **Parent PRD**: `docs/prd/PRD-035-learning-platform.md`
 - **Depends on**: PRD-036 (read API), PRD-037 (library, scrape)
 - **Downstream**: PRD-039 (Player)
+- **Related UX spec**: `docs/uxs/UXS-011-consumer-learning-app.md` (Editorial Bold; catalog cards inherit tokens)
+- **Related RFC**: `docs/rfc/RFC-099-learning-platform-consumer-client.md` (client behaviour, MVP slice)
 - **Supersedes**: `PRD-029-platform-catalog.md` (deleted draft)
 
 ---
@@ -16,6 +18,13 @@ The Catalog is the user's view of available content — the bridge from Discover
 which episodes are ready, pending, or unscraped, and surfaces enough per-episode context (summary,
 topics, insight count, duration) to choose what to play. Two levels: the **podcast view** (one show)
 and the **global catalog** (all episodes across the user's library, newest first).
+
+> **MVP scope (Epic 2 — local content only).** The first release catalogs **only the episodes already
+> processed in the local corpus** (served via the `LocalCorpusSource` — see API summary). In this slice
+> effectively every catalogued episode is **Ready**; the **Not-scraped / Pending / Request** states
+> (FR1.3, FR1.4, FR2.3, FR4.2) describe the **post-#1069** behaviour and are built when scrape-on-demand
+> (#1069) and the audio proxy (#1070) land. The card and list contracts are designed now so that adding
+> those states later does not reshape the UI or the API.
 
 ## Background & Context
 
@@ -86,11 +95,28 @@ and the **global catalog** (all episodes across the user's library, newest first
 
 ## API summary
 
-| Method | Path | Description |
-| --- | --- | --- |
-| `GET` | `/api/episodes` | Episodes across library (`page`, `status`) — PRD-036 FR3.1 |
-| `GET` | `/api/podcasts/{id}/episodes` | One podcast's episodes (`page`) |
-| `GET` | `/api/episodes/{slug}` | Detail + artifact flags — PRD-036 FR3.2 |
+All endpoints live under the **consumer namespace `/api/app/*`** (RFC-098), isolated from the operator
+API.
+
+| Method | Path | Description | Status |
+| --- | --- | --- | --- |
+| `GET` | `/api/app/episodes` | Episodes across the library (`page`, `status`) — PRD-036 FR3.1 | **Net-new (Epic 2)** |
+| `GET` | `/api/app/podcasts/{id}/episodes` | One podcast's episodes (`page`) | **Net-new (Epic 2)** |
+| `GET` | `/api/app/episodes/{slug}` | Detail + artifact flags — PRD-036 FR3.2 | Shipped (Epic 1) |
+| `GET` | `/api/app/library` | The user's subscriptions (feed ids) | Shipped (Epic 1) |
+
+> **Server gap — the catalog list endpoints do not exist yet.** Epic 1 shipped episode **detail** by
+> slug, the per-user **library** (subscriptions), and **search**, but **no catalog list** (`GET
+> /api/app/episodes`, `GET /api/app/podcasts/{id}/episodes`). These are the central **net-new server
+> work for Epic 2** and are backed by a **pluggable `ContentSource`** (see below). The Player (PRD-039)
+> has no such gap — it is fully served by the Epic-1 surface.
+
+**ContentSource (pluggable catalog backend).** The list endpoints read through a `ContentSource`
+abstraction. For the MVP this is a **`LocalCorpusSource`** that enumerates the **already-processed local
+corpus** (the episodes we have) — no scraping, no discovery. When #1069 (scrape-on-demand) and #1070
+land, a `DiscoverySource` extends the same contract to surface content not yet in the corpus and to
+create the entry point for "add content". The catalog UI and the `/api/app/episodes*` shape stay
+unchanged across that swap.
 
 Episode summary shape (per PRD-036): `slug, title, podcast_name, publish_date, duration_seconds,
 status, artifacts{transcript,summary,gi,kg}, summary_preview, topics[], speaker_count, insight_count`.

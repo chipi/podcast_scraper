@@ -164,6 +164,7 @@ nav:
       - UXS-008 Enriched Search: uxs/UXS-008-enriched-search.md
       - UXS-009 Position Tracker: uxs/UXS-009-position-tracker.md
       - UXS-010 Person Profile: uxs/UXS-010-person-profile.md
+      - UXS-011 Consumer Learning App: uxs/UXS-011-consumer-learning-app.md
       - UXS Template: uxs/UXS_TEMPLATE.md
   - Architecture Decisions:
       - adr/index.md
