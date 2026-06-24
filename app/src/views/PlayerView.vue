@@ -12,11 +12,21 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
+import KnowledgePanel from '../components/KnowledgePanel.vue'
 import PlayerControls from '../components/PlayerControls.vue'
 import TranscriptList from '../components/TranscriptList.vue'
+import { activeInsightIndex } from '../player/insights'
 import { activeSegmentIndex, PLAYBACK_RATES } from '../player/transcriptSync'
-import { getAudioSource, getEpisode, getPlayback, getSegments, putPlayback } from '../services/api'
-import type { EpisodeDetail, Segment } from '../services/types'
+import {
+  getAudioSource,
+  getEntities,
+  getEpisode,
+  getInsights,
+  getPlayback,
+  getSegments,
+  putPlayback,
+} from '../services/api'
+import type { EpisodeDetail, Entity, Insight, Segment, Topic } from '../services/types'
 import { formatDuration, formatPublishDate } from '../utils/format'
 
 const props = defineProps<{ slug: string }>()
@@ -25,6 +35,10 @@ const { t, locale } = useI18n()
 const episode = ref<EpisodeDetail | null>(null)
 const segments = ref<Segment[]>([])
 const audioUrl = ref<string | null>(null)
+const insights = ref<Insight[]>([])
+const topics = ref<Topic[]>([])
+const persons = ref<Entity[]>([])
+const panelOpen = ref(false)
 const loading = ref(true)
 const notFound = ref(false)
 
@@ -45,6 +59,10 @@ const artwork = computed(
     episode.value?.episode_image_url ||
     episode.value?.feed_image_url,
 )
+const activeInsight = computed(() => {
+  const i = activeInsightIndex(insights.value, currentTime.value)
+  return i >= 0 ? insights.value[i] : null
+})
 const metaLine = computed(() => {
   const parts: string[] = []
   const d = formatPublishDate(episode.value?.publish_date ?? null, locale.value)
@@ -65,17 +83,25 @@ async function load(slug: string): Promise<void> {
   audioError.value = false
   segments.value = []
   audioUrl.value = null
+  insights.value = []
+  topics.value = []
+  persons.value = []
   resumeSeconds = 0
   try {
-    const [detail, segs, audio, playback] = await Promise.all([
+    const [detail, segs, audio, playback, ins, ents] = await Promise.all([
       getEpisode(slug),
       getSegments(slug).catch(() => null),
       getAudioSource(slug).catch(() => null),
       getPlayback(slug).catch(() => null),
+      getInsights(slug).catch(() => null),
+      getEntities(slug).catch(() => null),
     ])
     episode.value = detail
     segments.value = segs?.segments ?? []
     audioUrl.value = audio?.url ?? null
+    insights.value = ins?.insights ?? []
+    topics.value = ents?.topics ?? []
+    persons.value = ents?.persons ?? []
     resumeSeconds = playback?.position_seconds ?? 0
   } catch {
     notFound.value = true
@@ -142,7 +168,15 @@ onBeforeUnmount(() => persist())
     <p v-if="loading" class="mt-4 text-muted">{{ t('player.loading') }}</p>
     <p v-else-if="notFound" class="mt-4 text-danger">{{ t('player.notFound') }}</p>
 
-    <div v-else-if="episode" class="mt-3 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:gap-8">
+    <div
+      v-else-if="episode"
+      class="mt-3 lg:grid lg:gap-8"
+      :class="
+        panelOpen
+          ? 'lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)_minmax(0,0.85fr)]'
+          : 'lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]'
+      "
+    >
       <!-- Left rail: masthead + intelligent artwork zone + controls -->
       <div>
         <span class="lp-kicker">{{ episode.podcast_title }}</span>
@@ -169,7 +203,18 @@ onBeforeUnmount(() => persist())
                 ● {{ t('player.grounded') }}
               </span>
             </div>
-            <div v-if="speakingNow" class="self-start rounded-full bg-canvas/70 px-3 py-1.5 backdrop-blur">
+            <!-- Live intelligence: surface the insight being spoken; else who's speaking. -->
+            <div
+              v-if="activeInsight"
+              class="self-start max-w-[90%] rounded-xl bg-canvas/80 px-3 py-2 backdrop-blur"
+            >
+              <span class="lp-kicker block leading-none">{{ t('player.insightNow') }}</span>
+              <span class="mt-1 block text-sm font-semibold line-clamp-3">{{ activeInsight.text }}</span>
+            </div>
+            <div
+              v-else-if="speakingNow"
+              class="self-start rounded-full bg-canvas/70 px-3 py-1.5 backdrop-blur"
+            >
               <span class="lp-kicker block leading-none">{{ t('player.speakingNow') }}</span>
               <span class="text-sm font-semibold">{{ speakingNow }}</span>
             </div>
@@ -207,9 +252,27 @@ onBeforeUnmount(() => persist())
         <p v-else class="mt-4 rounded-2xl border border-border bg-surface p-4 text-muted">
           {{ t('player.audioUnavailable') }}
         </p>
+
+        <!-- Knowledge dock: one tap to reveal the panel (collapsed by default). -->
+        <div v-if="!panelOpen" class="mt-3 flex gap-2">
+          <button
+            type="button"
+            class="flex-1 rounded-full border border-border px-4 py-3 text-sm font-bold"
+            @click="panelOpen = true"
+          >
+            💡 {{ insights.length }} {{ t('kp.insights') }}
+          </button>
+          <button
+            type="button"
+            class="flex-1 rounded-full border border-border px-4 py-3 text-sm font-bold"
+            @click="panelOpen = true"
+          >
+            🔍 {{ t('kp.ask') }}
+          </button>
+        </div>
       </div>
 
-      <!-- Right: synced transcript -->
+      <!-- Middle: synced transcript -->
       <div class="mt-6 lg:mt-0 lg:max-h-[70vh]">
         <TranscriptList
           v-if="segments.length"
@@ -222,6 +285,29 @@ onBeforeUnmount(() => persist())
           {{ t('player.transcriptPending') }}
         </p>
       </div>
+
+      <!-- Knowledge Panel: persistent rail on desktop, overlay sheet on mobile. -->
+      <div
+        v-if="panelOpen"
+        class="fixed inset-x-0 bottom-0 top-14 z-40 overflow-hidden rounded-t-2xl border-t border-border lg:static lg:z-auto lg:mt-0 lg:max-h-[70vh] lg:rounded-2xl lg:border"
+      >
+        <KnowledgePanel
+          :episode="episode"
+          :insights="insights"
+          :topics="topics"
+          :persons="persons"
+          :slug="slug"
+          :active-insight-id="activeInsight?.id ?? null"
+          @seek="seek"
+          @close="panelOpen = false"
+        />
+      </div>
+      <!-- Mobile backdrop -->
+      <div
+        v-if="panelOpen"
+        class="fixed inset-0 z-30 bg-black/50 lg:hidden"
+        @click="panelOpen = false"
+      />
     </div>
   </section>
 </template>

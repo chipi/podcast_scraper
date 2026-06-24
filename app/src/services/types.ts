@@ -106,3 +106,66 @@ export interface PlaybackPosition {
   position_seconds: number
   updated_at: number | null
 }
+
+/** A verbatim quote supporting an insight. */
+export interface Quote {
+  text: string
+  speaker: string | null
+  char_start: number | null
+  char_end: number | null
+  start_ms: number | null
+  end_ms: number | null
+}
+
+/** A grounded GIL insight (with supporting quotes). */
+export interface Insight {
+  id: string
+  text: string
+  grounded: boolean
+  insight_type: string | null
+  confidence: number | null
+  position_hint: string | null
+  quotes: Quote[]
+}
+
+export interface InsightsResponse {
+  episode_slug: string
+  insights: Insight[]
+}
+
+/** A KG person/org entity. */
+export interface Entity {
+  id: string
+  name: string
+  kind: 'person' | 'org'
+}
+
+/** A KG topic. */
+export interface Topic {
+  id: string
+  label: string
+}
+
+export interface EntitiesResponse {
+  episode_slug: string
+  persons: Entity[]
+  orgs: Entity[]
+  topics: Topic[]
+}
+
+/** One grounded search hit (loosely typed — metadata/lifted vary by tier). */
+export interface SearchHit {
+  doc_id: string
+  score: number
+  text: string
+  metadata: Record<string, unknown>
+  source_tier: string
+  supporting_quotes?: Record<string, unknown>[] | null
+  lifted?: Record<string, unknown> | null
+}
+
+export interface SearchResponse {
+  query: string
+  results: SearchHit[]
+  error: string | null
+}

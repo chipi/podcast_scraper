@@ -8,11 +8,14 @@
 
 import type {
   AudioSource,
+  EntitiesResponse,
   EpisodeDetail,
   EpisodesPage,
+  InsightsResponse,
   ListEpisodesParams,
   Me,
   PlaybackPosition,
+  SearchResponse,
   SegmentsResponse,
 } from './types'
 
@@ -91,6 +94,24 @@ export function getSegments(slug: string): Promise<SegmentsResponse> {
 /** Origin audio descriptor — the client plays `url` directly (bridge, never rehost). */
 export function getAudioSource(slug: string): Promise<AudioSource> {
   return getJSON<AudioSource>(`/episodes/${encodeURIComponent(slug)}/audio-source`)
+}
+
+/** Grounded GIL insights for an episode (empty when no GI artifact). */
+export function getInsights(slug: string): Promise<InsightsResponse> {
+  return getJSON<InsightsResponse>(`/episodes/${encodeURIComponent(slug)}/insights`)
+}
+
+/** KG entities (persons/orgs/topics) for an episode (empty when no KG artifact). */
+export function getEntities(slug: string): Promise<EntitiesResponse> {
+  return getJSON<EntitiesResponse>(`/episodes/${encodeURIComponent(slug)}/entities`)
+}
+
+/** Episode-scoped grounded search — extractive passages, no request-time LLM (D6). */
+export function searchEpisode(slug: string, q: string, topK = 8): Promise<SearchResponse> {
+  return getJSON<SearchResponse>(`/episodes/${encodeURIComponent(slug)}/search`, {
+    q,
+    top_k: topK,
+  })
 }
 
 /** Saved playback position (auth-gated); `null` when signed out or unset. */
