@@ -164,6 +164,36 @@ JSON shape; the viewer cannot tell them apart at read time.
    AMBIGUOUS / 0 FP. See ADR-102 for the `_retro_audit` audit-trail
    pattern used when sweeping the post-pass over existing corpora.
 
+### `MENTIONS_ORG` + `Organization` under LLM-free profiles
+
+`Organization` nodes under airgapped / airgapped_thin land via the
+**KG ORG post-pass** (`gi_typed_mentions_use_ner: true` flips on the
+GI side; `kg_organizations_use_ner: true` lands the KG nodes — #1058
+chunk 1). Walks each Insight's text with spaCy NER, extracts `ORG`
+spans, and adds an `Organization` node per unique slug. The `MENTIONS_ORG`
+edges then land via the same NER pass that emits `MENTIONS_PERSON`
+(extended in #1058 chunk 2 to filter `PERSON | ORG`, picking the typed
+edge from the entity-index `kind`).
+
+### Cross-show concept Topics under LLM-free profiles
+
+Per-show `Topic` labels under airgapped are derived from BART /
+SummLlama bullets — they're literally bullet text, so two shows
+discussing the same concept get different labels and never link.
+A corpus-level post-pass (`kg_topic_corpus_clustering: true`,
+issue #1058 chunk 3) clusters all per-show Topic labels via
+sentence-transformers cosine similarity (the same MiniLM model the
+ABOUT-edge layer uses). Clusters that span ≥2 distinct episodes
+produce a synthetic `concept:topic-{slug}` Topic (`is_concept: true`)
+plus `RELATED_TO` edges from every member Topic. The concept-Topic
+lives in each source KG artifact (duplicated with stable id for
+idempotency) so `corpus_graph` resolves the edge target on any join.
+
+Together with the live NER ORG post-pass and the GI MENTIONS_ORG
+extension above, this means an airgapped corpus carries the
+data every connectivity surface needs — including
+`cross_show_synthesis` — without ever calling a cloud LLM.
+
 ---
 
 ## Insight properties (v2 additive)
