@@ -3,9 +3,15 @@
 Reshapes ``RetrievalLayer`` output into a structured, token-budgeted document
 positioned for attention: critical grounding at the start, supporting evidence in
 the middle, caveats at the end (LITM — models attend poorly to the middle of long
-contexts). The builder is plain Python — the autoresearch loop can consume it
-directly; the ``corpus_briefing_pack`` MCP tool wrapper is gated on an MCP layer
-that does not exist in this repo yet (separate issue).
+contexts). The builder is plain Python.
+
+**Consumers (2026-06-25):**
+
+- The ``corpus_briefing_pack`` MCP tool
+  (``mcp/tools/briefing_pack.py``) wraps this builder for agents on
+  Claude Desktop / Cursor; registered in the existing RFC-095 server.
+- The autoresearch loop can consume it directly when ready — the
+  pack-builder is an independent Python module with no MCP coupling.
 
 ``top_contradiction`` / ``coverage_gaps`` remain empty until typed contradiction
 KG edges and a corpus-impact surface exist; the fields are kept so the consumer

@@ -1,7 +1,7 @@
 # RFC-093: LITM-Aware MCP Context Packs
 
-- **Status**: Draft
-- **v2 cross-reference (RFC-097, 2026-06-20)**: `CorpusBriefingPack` builder gains richer inputs from RFC-097 v2 — `insight_type` for filtering (claim/recommendation/observation/question), `position_hint` for temporal sorting. MCP tool wrapper (RFC-095 prerequisite), `top_contradiction` content (CONTRADICTS edges v3), and `coverage_gaps` surface (corpus-impact TBD) remain open. See [RFC-097](RFC-097-unified-kg-gi-ontology-v2.md).
+- **Status**: Completed (v2.7) — pack-builder (`src/podcast_scraper/search/context_pack.py`) shipped earlier with LITM positioning + token budget + unit tests. MCP tool wrapper (`mcp/tools/briefing_pack.py`, `corpus_briefing_pack`) shipped 2026-06-25 and registered in the existing RFC-095 server. Autoresearch adoption is decoupled — the pack-builder is plain Python the autoresearch loop can consume at its own pace. `top_contradiction` / `coverage_gaps` content stays empty until typed CONTRADICTS edges + corpus-impact surface exist (the schema fields are kept stable so callers can adopt them later without a breaking change).
+- **v2 cross-reference (RFC-097, 2026-06-20)**: `CorpusBriefingPack` builder gains richer inputs from RFC-097 v2 — `insight_type` for filtering (claim/recommendation/observation/question), `position_hint` for temporal sorting.
 - **Authors**: Marko
 - **Stakeholders**: Core team
 - **Related PRDs**:
