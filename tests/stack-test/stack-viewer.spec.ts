@@ -197,9 +197,19 @@ test.describe("Stack smoke test", () => {
     }
 
     // -- insight_type classifier (3.2): every Insight node must carry a
-    //    non-empty insight_type from the enum. ``unknown`` is allowed
-    //    only when the upstream insight text is empty/stub; production
-    //    insights MUST have a real classified type. --
+    //    VALID insight_type from the enum (durable, all-profile contract).
+    //    ``unknown`` is the correct, EXPECTED type on this profile:
+    //    airgapped_thin has GI generation disabled (BART/SummLlama is
+    //    summary-only, NO cloud LLM/Ollama; the lossy ``summary_bullets``
+    //    GI route was removed in #1033/#1034), so the pipeline emits the
+    //    single stub Insight ("Summary insight (stub).") typed ``unknown``
+    //    per episode. The ≥1-non-unknown + diversity assertions therefore
+    //    fire only when the corpus actually contains real (non-stub)
+    //    insights — full teeth on profiles that run a real GI provider
+    //    (cloud_thin / cloud_balanced / local_dgx_*), no-op here. This
+    //    matches this file's "assert what the profile DOES produce; richer
+    //    output asserted elsewhere" split (see header). --
+    const STUB_INSIGHT_TEXT = "Summary insight (stub)."
     const allowedInsightTypes = new Set([
       "claim",
       "recommendation",
@@ -208,41 +218,62 @@ test.describe("Stack smoke test", () => {
       "unknown",
     ])
     let totalInsights = 0
+    let stubInsights = 0
     let nonUnknownInsights = 0
     const insightTypesSeen = new Set<string>()
     for (const gi of giContents) {
       for (const n of gi.nodes ?? []) {
         if (n.type !== "Insight") continue
         totalInsights += 1
-        const it = (n.properties as Record<string, unknown> | undefined)?.[
-          "insight_type"
-        ] as string | undefined
+        const props = n.properties as Record<string, unknown> | undefined
+        const it = props?.["insight_type"] as string | undefined
+        const text = String(props?.["text"] ?? "")
+        // Durable contract — every insight carries a valid enum type.
         expect(it, `Insight ${n.id} insight_type`).toBeDefined()
         expect(allowedInsightTypes.has(String(it))).toBe(true)
-        if (it !== "unknown") {
+        if (text === STUB_INSIGHT_TEXT) {
+          stubInsights += 1
+          // GI-disabled contract: the stub insight MUST be typed unknown.
+          expect(
+            String(it),
+            `stub Insight ${n.id} must be typed "unknown" (GI disabled on this profile)`,
+          ).toBe("unknown")
+        } else if (it !== "unknown") {
           nonUnknownInsights += 1
           insightTypesSeen.add(String(it))
         }
       }
     }
     expect(totalInsights, "at least one Insight produced by pipeline").toBeGreaterThan(0)
-    // The classifier ran — at least one insight has a non-"unknown" type.
-    expect(
-      nonUnknownInsights,
-      "insight_type classifier must produce ≥1 non-unknown type in the corpus",
-    ).toBeGreaterThan(0)
-    // Stricter: if the pipeline produced ≥3 non-unknown insights, the
-    // classifier must produce ≥2 distinct buckets across them (catches
-    // the classifier collapsing to a single default). Below 3 we don't
-    // assert diversity — too few datapoints for a meaningful claim.
-    if (nonUnknownInsights >= 3) {
+
+    const realInsights = totalInsights - stubInsights
+    if (realInsights > 0) {
+      // A real GI provider ran — the classifier must produce ≥1 non-unknown
+      // type, and (with ≥3) ≥2 distinct buckets (catches the classifier
+      // collapsing to a single default). Below 3 we don't assert diversity —
+      // too few datapoints for a meaningful claim.
       expect(
-        insightTypesSeen.size,
-        `classifier collapse: ${nonUnknownInsights} non-unknown insights ` +
-          `but only ${insightTypesSeen.size} distinct buckets seen: ` +
-          `${[...insightTypesSeen].join(", ")}. Classifier may have ` +
-          "defaulted everything to one type.",
-      ).toBeGreaterThanOrEqual(2)
+        nonUnknownInsights,
+        "insight_type classifier must produce ≥1 non-unknown type when real insights exist",
+      ).toBeGreaterThan(0)
+      if (nonUnknownInsights >= 3) {
+        expect(
+          insightTypesSeen.size,
+          `classifier collapse: ${nonUnknownInsights} non-unknown insights ` +
+            `but only ${insightTypesSeen.size} distinct buckets seen: ` +
+            `${[...insightTypesSeen].join(", ")}. Classifier may have ` +
+            "defaulted everything to one type.",
+        ).toBeGreaterThanOrEqual(2)
+      }
+    } else {
+      // GI-disabled profile (airgapped_thin): the corpus is exactly the
+      // per-episode stub insight. Assert that explicitly so a real future
+      // GI break on a profile that SHOULD generate insights is not masked
+      // by silently passing on an all-unknown corpus.
+      expect(
+        stubInsights,
+        "GI-disabled profile must emit the stub insight per episode",
+      ).toBeGreaterThan(0)
     }
 
     // -- position_hint waterfall (3.3): with RSS itunes:duration set
