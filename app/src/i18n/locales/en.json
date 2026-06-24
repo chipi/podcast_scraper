@@ -58,6 +58,14 @@
     "close": "Close panel",
     "empty": "Insights appear once this episode is processed."
   },
+  "queue": {
+    "title": "Queue",
+    "empty": "Your queue is empty. Add episodes from the catalog.",
+    "add": "Add to queue",
+    "remove": "Remove from queue",
+    "up": "Move up",
+    "down": "Move down"
+  },
   "status": {
     "ready": "Ready",
     "pending": "Pending"

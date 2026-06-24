@@ -11,7 +11,8 @@
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
+import { useQueueStore } from '../stores/queue'
 import KnowledgePanel from '../components/KnowledgePanel.vue'
 import PlayerControls from '../components/PlayerControls.vue'
 import TranscriptList from '../components/TranscriptList.vue'
@@ -31,6 +32,14 @@ import { formatDuration, formatPublishDate } from '../utils/format'
 
 const props = defineProps<{ slug: string }>()
 const { t, locale } = useI18n()
+const router = useRouter()
+const queue = useQueueStore()
+
+async function onEnded(): Promise<void> {
+  playing.value = false
+  const next = queue.nextAfter(props.slug)
+  if (next) await router.push({ name: 'player', params: { slug: next } })
+}
 
 const episode = ref<EpisodeDetail | null>(null)
 const segments = ref<Segment[]>([])
@@ -230,7 +239,7 @@ onBeforeUnmount(() => persist())
           @timeupdate="onTimeUpdate"
           @play="playing = true"
           @pause="playing = false"
-          @ended="playing = false"
+          @ended="onEnded"
           @error="audioError = true"
         />
 

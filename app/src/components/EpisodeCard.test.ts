@@ -1,5 +1,6 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import en from '../i18n/locales/en.json'
@@ -7,6 +8,11 @@ import type { EpisodeSummary } from '../services/types'
 import EpisodeCard from './EpisodeCard.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
+
+beforeEach(() => {
+  // Fresh pinia per test; auth defaults to signed-out → no queue button.
+  setActivePinia(createPinia())
+})
 const router = createRouter({
   history: createMemoryHistory(),
   routes: [

@@ -11,10 +11,14 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import type { EpisodeSummary } from '../services/types'
+import { useAuthStore } from '../stores/auth'
+import { useQueueStore } from '../stores/queue'
 import { formatDuration, formatPublishDate } from '../utils/format'
 
 const props = defineProps<{ episode: EpisodeSummary }>()
 const { t, locale } = useI18n()
+const auth = useAuthStore()
+const queue = useQueueStore()
 
 const duration = computed(() => formatDuration(props.episode.duration_seconds))
 const date = computed(() => formatPublishDate(props.episode.publish_date, locale.value))
@@ -45,12 +49,25 @@ const artwork = computed(
         >
           {{ episode.title }}
         </RouterLink>
-        <span
-          class="shrink-0 text-xs"
-          :class="episode.status === 'ready' ? 'text-grounded' : 'text-warning'"
-        >
-          {{ episode.status === 'ready' ? t('status.ready') : t('status.pending') }}
-        </span>
+        <div class="flex shrink-0 items-center gap-2">
+          <button
+            v-if="auth.isAuthenticated"
+            type="button"
+            class="relative z-10 rounded-full border border-border px-2 py-0.5 text-xs"
+            :class="queue.has(episode.slug) ? 'text-accent' : 'text-muted'"
+            :aria-pressed="queue.has(episode.slug)"
+            :aria-label="queue.has(episode.slug) ? t('queue.remove') : t('queue.add')"
+            @click="queue.toggle(episode.slug)"
+          >
+            {{ queue.has(episode.slug) ? '✓' : '+' }}
+          </button>
+          <span
+            class="text-xs"
+            :class="episode.status === 'ready' ? 'text-grounded' : 'text-warning'"
+          >
+            {{ episode.status === 'ready' ? t('status.ready') : t('status.pending') }}
+          </span>
+        </div>
       </div>
       <RouterLink
         v-if="episode.podcast_title"

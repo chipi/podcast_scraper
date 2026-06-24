@@ -137,6 +137,29 @@ export async function putPlayback(slug: string, positionSeconds: number): Promis
   }
 }
 
+/** The user's play queue (ordered slugs); `[]` when signed out (401). Auth-gated. */
+export async function getQueue(): Promise<string[]> {
+  try {
+    return (await getJSON<{ items: string[] }>('/queue')).items
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) return []
+    throw err
+  }
+}
+
+/** Replace the play queue (auth-gated); silently no-ops when signed out (401). */
+export async function putQueue(items: string[]): Promise<void> {
+  const resp = await fetch(`${BASE}/queue`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ items }),
+  })
+  if (!resp.ok && resp.status !== 401) {
+    throw new ApiError(resp.status, `PUT /queue → ${resp.status}`)
+  }
+}
+
 /** Begin the OAuth login flow (full-page redirect; Google in prod, mock in dev/e2e). */
 export function loginUrl(): string {
   return `${BASE}/auth/login`

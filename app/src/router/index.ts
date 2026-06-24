@@ -33,6 +33,12 @@ const routes: RouteRecordRaw[] = [
     props: true,
   },
   {
+    path: '/queue',
+    name: 'queue',
+    component: () => import('../views/QueueView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/login',
     name: 'login',
     component: () => import('../views/LoginView.vue'),

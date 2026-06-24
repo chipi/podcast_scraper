@@ -4,14 +4,17 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
 import SkipLink from './components/SkipLink.vue'
 import { useAuthStore } from './stores/auth'
+import { useQueueStore } from './stores/queue'
 
 const { t } = useI18n()
 const auth = useAuthStore()
+const queue = useQueueStore()
 const router = useRouter()
 
-onMounted(() => {
+onMounted(async () => {
   // Best-effort: resolve the session cookie to a user (null when signed out — reads still work).
-  void auth.refresh()
+  await auth.refresh()
+  if (auth.isAuthenticated) await queue.ensureLoaded()
 })
 
 async function onSignOut(): Promise<void> {
@@ -30,6 +33,9 @@ async function onSignOut(): Promise<void> {
       </RouterLink>
       <nav class="text-sm flex items-center gap-3">
         <template v-if="auth.isAuthenticated">
+          <RouterLink :to="{ name: 'queue' }" class="text-muted no-underline">
+            {{ t('queue.title') }}<span v-if="queue.count"> · {{ queue.count }}</span>
+          </RouterLink>
           <span class="text-muted hidden sm:inline">
             {{ t('auth.signedInAs', { name: auth.user?.name }) }}
           </span>
