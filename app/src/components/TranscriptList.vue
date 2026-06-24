@@ -70,7 +70,7 @@ function speakerLabel(s: string | null): string | null {
         class="lp-kicker block mb-0.5"
       >{{ speakerLabel(seg.speaker) }}</span>
       <span class="flex gap-3">
-        <span class="font-mono text-xs text-disabled shrink-0 pt-0.5 tabular-nums">
+        <span class="font-mono text-xs text-muted shrink-0 pt-0.5 tabular-nums">
           {{ formatTime(seg.start) }}
         </span>
         <span

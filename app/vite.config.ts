@@ -39,7 +39,12 @@ export default defineConfig({
             },
           },
           {
-            urlPattern: ({ url }: { url: URL }) => url.pathname.startsWith('/api/app/'),
+            // Shared, non-user GET reads (catalog/episode/segments/search) — SWR is safe.
+            // Per-user + auth endpoints (/me, /queue, /playback, /auth) are EXCLUDED: caching
+            // them risks serving one session's state to another across sign-in/out.
+            urlPattern: ({ url }: { url: URL }) =>
+              url.pathname.startsWith('/api/app/') &&
+              !/^\/api\/app\/(me|queue|playback|auth)\b/.test(url.pathname),
             handler: 'StaleWhileRevalidate',
             options: { cacheName: 'api-app' },
           },

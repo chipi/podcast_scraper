@@ -13,15 +13,18 @@ export default defineConfig({
   use: {
     baseURL: 'http://127.0.0.1:4174',
     trace: 'on-first-retry',
+    // Block the PWA service worker so route mocks are deterministic (the SW would otherwise
+    // intercept /api/app/* and race the fulfilled responses).
+    serviceWorkers: 'block',
   },
   projects: [
     { name: 'mobile-chrome', use: { ...devices['Pixel 7'] } },
     { name: 'desktop-chrome', use: { ...devices['Desktop Chrome'] } },
   ],
   webServer: {
-    command: 'npm run build && npm run preview -- --port 4174 --strictPort',
+    command: 'npm run build && npm run preview -- --port 4174 --strictPort --host 127.0.0.1',
     url: 'http://127.0.0.1:4174',
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    timeout: 180_000,
   },
 })

@@ -46,7 +46,7 @@ watch(() => queue.items.slice(), hydrate)
         :key="slug"
         class="flex items-center gap-3 border-b border-border py-3"
       >
-        <span class="font-mono text-xs text-disabled tabular-nums">{{ i + 1 }}</span>
+        <span class="font-mono text-xs text-muted tabular-nums">{{ i + 1 }}</span>
         <div class="min-w-0 flex-1">
           <RouterLink
             :to="{ name: 'player', params: { slug } }"

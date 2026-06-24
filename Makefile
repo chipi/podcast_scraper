@@ -2134,7 +2134,7 @@ ci: cleanup-processes
 # Offline HF for pytest: ``tests/conftest.py`` sets HF_HUB_OFFLINE / TRANSFORMERS_OFFLINE.
 # The ``ci:`` cache probe above passes them inline so probes do not hit the Hub accidentally.
 
-_ci_body: format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy test test-ui test-ui-e2e build-viewer coverage-enforce docs build stack-test-ml-ci
+_ci_body: format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy test test-ui test-ui-e2e build-viewer test-app test-app-e2e build-app coverage-enforce docs build stack-test-ml-ci
 	# Final gate is ``stack-test-ml-ci`` (build → up → seed → Playwright →
 	# always-teardown). ml pipeline only — ~5-10 min, no API keys, no cloud
 	# cost. Cloud-thin variant (``stack-test-cloud-thin``) is a separate
