@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import PersonLandingView from './PersonLandingView.vue'
+import { invalidateRelationalCache } from '../../composables/useRelationalCache'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
@@ -46,6 +47,10 @@ async function mountWith(): Promise<ReturnType<typeof mount>> {
 describe('PersonLandingView — connections (#1055)', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    // #1075 chunk 4 — clear the module-level relational panel cache
+    // between tests so a prior test's stub response doesn't survive
+    // into the next test's mock setup.
+    invalidateRelationalCache()
     fetchPositions.mockResolvedValue({ subject: 'person:alice', results: [] })
     fetchPersonProfile.mockResolvedValue({ subject: 'person:alice', profile: {} })
     fetchPersonTopics.mockResolvedValue({
@@ -123,6 +128,10 @@ function makeArtifactWithPersonAndTopics(): ParsedArtifact {
 describe('PersonLandingView — #1048 shell (Person Profile + Position Tracker)', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    // #1075 chunk 4 — clear the module-level relational panel cache
+    // between tests so a prior test's stub response doesn't survive
+    // into the next test's mock setup.
+    invalidateRelationalCache()
     fetchPositions.mockResolvedValue({ subject: 'person:alice', results: [] })
     fetchPersonProfile.mockResolvedValue({ subject: 'person:alice', profile: {} })
     fetchPersonTopics.mockResolvedValue({ subject: 'person:alice', results: [] })
@@ -258,6 +267,10 @@ function makeArtifactForPersonProfile(): ParsedArtifact {
 describe('PersonLandingView — #1050 Person Profile aggregate (PRD-029 / UXS-010)', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    // #1075 chunk 4 — clear the module-level relational panel cache
+    // between tests so a prior test's stub response doesn't survive
+    // into the next test's mock setup.
+    invalidateRelationalCache()
     fetchPositions.mockResolvedValue({ subject: 'person:alice', results: [] })
     fetchPersonProfile.mockResolvedValue({ subject: 'person:alice', profile: {} })
     fetchPersonTopics.mockResolvedValue({ subject: 'person:alice', results: [] })

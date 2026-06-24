@@ -23,13 +23,17 @@ import type { RawGraphNode } from '../../types/artifact'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
+// #1075 chunk 4 — relational endpoints go through the LRU+TTL panel
+// cache so re-focusing a recently-viewed Person feels instant. Same
+// signatures as the wrapped fns; the cache invalidates on corpusPath
+// change.
 import {
-  fetchCoSpeakers,
-  fetchPersonTopics,
-  fetchPositions,
-  type RelatedNode,
-} from '../../api/relationalApi'
-import { fetchPersonProfile } from '../../api/cilApi'
+  cachedFetchCoSpeakers as fetchCoSpeakers,
+  cachedFetchPersonTopics as fetchPersonTopics,
+  cachedFetchPositions as fetchPositions,
+  cachedFetchPersonProfile as fetchPersonProfile,
+} from '../../composables/useRelationalCache'
+import type { RelatedNode } from '../../api/relationalApi'
 import { StaleGeneration } from '../../utils/staleGeneration'
 import {
   countPersonEntityIncidentEdges,
