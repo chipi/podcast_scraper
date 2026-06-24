@@ -1,7 +1,7 @@
 # RFC-094: Search-Powered Surfaces — Relational-Query Layer + Front-End Retrieval State
 
-- **Status**: Draft
-- **v2 closure (RFC-097, 2026-06-20)**: stable `person:` / `topic:` / `org:` IDs formalized via CIL (RFC-072 + RFC-097); v2-materialized ABOUT + MENTIONS_PERSON + MENTIONS_ORG edges enable `who_said_what_about(topic)`, `insights_about(person)`, `mentions_of_person(org)` queries against per-artifact data (no CorpusGraph composition required). MCP exposure (RFC-095), panel caching (OQ-1), and coverage-aware filtering remain open. See [RFC-097](RFC-097-unified-kg-gi-ontology-v2.md).
+- **Status**: Completed (v2.6.0–v2.7) — relational query layer shipped via #882–#888 (PR #890); OQ-1 panel cache shipped via #1075 chunk 4 (PR #1089); OQ-2 `activeSearchContext` Pinia store + OQ-3 skeleton-first async cards live on main (`web/gi-kg-viewer/src/stores/activeSearchContext.ts` consumed by `LibraryView.vue` + `GraphCanvas.vue`; `PersonLandingView.vue` + `TopicEntityView.vue` render skeleton-first with stale-gating). MCP exposure landed via PRD-034 / RFC-095 (16 tools, stdio).
+- **v2 closure (RFC-097, 2026-06-20)**: stable `person:` / `topic:` / `org:` IDs formalized via CIL (RFC-072 + RFC-097); v2-materialized ABOUT + MENTIONS_PERSON + MENTIONS_ORG edges enable `who_said_what_about(topic)`, `insights_about(person)`, `mentions_of_person(org)` queries against per-artifact data (no CorpusGraph composition required).
 - **Authors**: Marko
 - **Stakeholders**: Core team
 - **Related PRDs**:
