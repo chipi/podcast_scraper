@@ -12,6 +12,11 @@
     },
     {
       "from": "insight:show-b-ep1-i0",
+      "to": "concept:topic-ai-safety",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:show-b-ep1-i0",
       "to": "quote:show-b-ep1-q0",
       "type": "SUPPORTED_BY"
     },
@@ -48,6 +53,14 @@
         "text": "Bob Chen discussed AI alignment. They noted Acme Labs."
       },
       "type": "Insight"
+    },
+    {
+      "id": "concept:topic-ai-safety",
+      "properties": {
+        "is_concept": true,
+        "label": "AI safety"
+      },
+      "type": "Topic"
     },
     {
       "id": "quote:show-b-ep1-q0",

@@ -420,6 +420,29 @@ def _build_gi_json(
         edges.append({"type": "HAS_INSIGHT", "from": eid, "to": iid})
         # ABOUT edge to per-show Topic (which already exists in KG).
         edges.append({"type": "ABOUT", "from": iid, "to": _topic_id(podcast_short, label)})
+        # #1058 chunk 3 contract — when this per-show Topic is a
+        # member of a cross-show cluster, also emit ABOUT to the
+        # concept-Topic so the relational layer's `related_topics`
+        # surface can fold across shows via shared insights on the
+        # concept-Topic.
+        concept_id_for_topic = _concept_id_for_label(podcast_short, label)
+        if concept_id_for_topic:
+            edges.append({"type": "ABOUT", "from": iid, "to": concept_id_for_topic})
+            if not any(n.get("id") == concept_id_for_topic for n in nodes):
+                nodes.append(
+                    {
+                        "id": concept_id_for_topic,
+                        "type": "Topic",
+                        "properties": {
+                            "label": next(
+                                canonical
+                                for (cid, canonical, _) in _CONCEPT_CLUSTERS
+                                if cid == concept_id_for_topic
+                            ),
+                            "is_concept": True,
+                        },
+                    }
+                )
         # Quote + SUPPORTED_BY for at least one insight per episode so
         # grounded=True is honest under the v3 contract.
         qid = _quote_id(podcast_short, episode_short, ix)
@@ -446,9 +469,16 @@ def _build_gi_json(
         # MENTIONS_ORG edges per mentioned organization.
         for org_id in mentioned_org_ids:
             edges.append({"type": "MENTIONS_ORG", "from": iid, "to": org_id})
-        # SPOKEN_BY for the quote.
-        if hosts:
-            edges.append({"type": "SPOKEN_BY", "from": qid, "to": hosts[0]})
+        # SPOKEN_BY for the quote — alternate host / guest so both
+        # have STATES → Insight → ABOUT → Topic chains and
+        # co_speakers can resolve within the episode.
+        speaker = (
+            hosts[0]
+            if (ix % 2 == 0 and hosts)
+            else (guests[0] if guests else (hosts[0] if hosts else None))
+        )
+        if speaker:
+            edges.append({"type": "SPOKEN_BY", "from": qid, "to": speaker})
     # Mention nodes (so the targets resolve locally without a KG join).
     for person_id in mentioned_person_ids:
         nodes.append(

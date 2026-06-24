@@ -12,6 +12,11 @@
     },
     {
       "from": "insight:show-c-ep2-i0",
+      "to": "concept:topic-clean-energy",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:show-c-ep2-i0",
       "to": "quote:show-c-ep2-q0",
       "type": "SUPPORTED_BY"
     },
@@ -53,6 +58,14 @@
         "text": "Dr. Alice Hayes discussed renewable energy transition. They referenced Maya Okonkwo. They noted GreenTech Ventures."
       },
       "type": "Insight"
+    },
+    {
+      "id": "concept:topic-clean-energy",
+      "properties": {
+        "is_concept": true,
+        "label": "clean energy"
+      },
+      "type": "Topic"
     },
     {
       "id": "quote:show-c-ep2-q0",

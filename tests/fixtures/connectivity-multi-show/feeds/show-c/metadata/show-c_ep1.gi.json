@@ -12,6 +12,11 @@
     },
     {
       "from": "insight:show-c-ep1-i0",
+      "to": "concept:topic-ai-safety",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:show-c-ep1-i0",
       "to": "quote:show-c-ep1-q0",
       "type": "SUPPORTED_BY"
     },
@@ -37,6 +42,11 @@
     },
     {
       "from": "insight:show-c-ep1-i1",
+      "to": "concept:topic-clean-energy",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:show-c-ep1-i1",
       "to": "quote:show-c-ep1-q1",
       "type": "SUPPORTED_BY"
     },
@@ -47,7 +57,7 @@
     },
     {
       "from": "quote:show-c-ep1-q1",
-      "to": "person:alice-hayes",
+      "to": "person:bob-chen",
       "type": "SPOKEN_BY"
     }
   ],
@@ -75,6 +85,14 @@
       "type": "Insight"
     },
     {
+      "id": "concept:topic-ai-safety",
+      "properties": {
+        "is_concept": true,
+        "label": "AI safety"
+      },
+      "type": "Topic"
+    },
+    {
       "id": "quote:show-c-ep1-q0",
       "properties": {
         "char_end": 40,
@@ -98,6 +116,14 @@
         "text": "Dr. Alice Hayes discussed renewable energy transition. They noted GreenTech Ventures."
       },
       "type": "Insight"
+    },
+    {
+      "id": "concept:topic-clean-energy",
+      "properties": {
+        "is_concept": true,
+        "label": "clean energy"
+      },
+      "type": "Topic"
     },
     {
       "id": "quote:show-c-ep1-q1",

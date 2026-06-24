@@ -12,6 +12,11 @@
     },
     {
       "from": "insight:show-a-ep2-i0",
+      "to": "concept:topic-ai-safety",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:show-a-ep2-i0",
       "to": "quote:show-a-ep2-q0",
       "type": "SUPPORTED_BY"
     },
@@ -53,6 +58,14 @@
         "text": "Dr. Alice Hayes discussed AI safety. They referenced Maya Okonkwo. They noted Acme Labs."
       },
       "type": "Insight"
+    },
+    {
+      "id": "concept:topic-ai-safety",
+      "properties": {
+        "is_concept": true,
+        "label": "AI safety"
+      },
+      "type": "Topic"
     },
     {
       "id": "quote:show-a-ep2-q0",
