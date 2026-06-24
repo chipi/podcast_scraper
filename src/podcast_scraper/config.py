@@ -2166,6 +2166,24 @@ class Config(BaseModel):
             "org adds nothing."
         ),
     )
+    kg_topic_corpus_clustering: bool = Field(
+        default=False,
+        alias="kg_topic_corpus_clustering",
+        description=(
+            "#1058 chunk 3. When True, a corpus-level post-pass "
+            "(kg/topic_clustering.py::cluster_and_apply_corpus_topics) "
+            "clusters per-episode Topic labels across the corpus via "
+            "sentence-transformers cosine similarity and emits a "
+            "synthetic concept-Topic node + RELATED_TO edges from each "
+            "source Topic. Closes the cross_show_synthesis gap under "
+            "airgapped — bullet-derived Topics from different shows "
+            "never share a label without this merge. Default False; "
+            "YAML overlays for airgapped + airgapped_thin flip it on. "
+            "Idempotent. Triggered via the standalone `cluster-topics` "
+            "CLI or by the workflow orchestrator after every episode "
+            "in a corpus has been processed."
+        ),
+    )
     vector_search: bool = Field(
         default=False,
         alias="vector_search",

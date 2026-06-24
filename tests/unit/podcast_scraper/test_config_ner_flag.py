@@ -95,6 +95,34 @@ class TestProfileKGOrgFlag:
         assert cfg.kg_organizations_use_ner is False
 
 
+class TestProfileKGTopicClusteringFlag:
+    """#1058 chunk 3 — YAML-overlay contract for ``kg_topic_corpus_clustering``."""
+
+    def test_airgapped_profile_flips_clustering_on(self, _fake_keys: None) -> None:
+        cfg = Config.model_validate({"profile": "airgapped"})
+        assert cfg.kg_topic_corpus_clustering is True
+
+    def test_airgapped_thin_profile_flips_clustering_on(self, _fake_keys: None) -> None:
+        cfg = Config.model_validate({"profile": "airgapped_thin"})
+        assert cfg.kg_topic_corpus_clustering is True
+
+    def test_dev_profile_leaves_clustering_off(self, _fake_keys: None) -> None:
+        cfg = Config.model_validate({"profile": "dev"})
+        assert cfg.kg_topic_corpus_clustering is False
+
+    def test_cloud_thin_profile_leaves_clustering_off(self, _fake_keys: None) -> None:
+        cfg = Config.model_validate({"profile": "cloud_thin"})
+        assert cfg.kg_topic_corpus_clustering is False
+
+    def test_default_when_no_profile(self, _fake_keys: None) -> None:
+        cfg = Config.model_validate({})
+        assert cfg.kg_topic_corpus_clustering is False
+
+    def test_explicit_override_wins_over_profile(self, _fake_keys: None) -> None:
+        cfg = Config.model_validate({"profile": "airgapped", "kg_topic_corpus_clustering": False})
+        assert cfg.kg_topic_corpus_clustering is False
+
+
 class TestWorkflowGatingExpression:
     """Direct contract test for the conditional at
     ``workflow/metadata_generation.py:4008``."""

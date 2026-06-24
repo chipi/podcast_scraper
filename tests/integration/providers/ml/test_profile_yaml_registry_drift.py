@@ -103,10 +103,12 @@ _OVERLAY_EXPECTED: Dict[str, Dict[str, Any]] = {
     "airgapped": {
         "gi_typed_mentions_use_ner": True,
         "kg_organizations_use_ner": True,
+        "kg_topic_corpus_clustering": True,
     },
     "airgapped_thin": {
         "gi_typed_mentions_use_ner": True,
         "kg_organizations_use_ner": True,
+        "kg_topic_corpus_clustering": True,
     },
 }
 
