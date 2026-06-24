@@ -14,8 +14,22 @@ from podcast_scraper.server.app_content_source import (
     EpisodeListResult,
     get_content_source,
     LocalCorpusSource,
+    transcript_corpus_relpath,
     transcript_relpath,
 )
+
+
+def test_transcript_corpus_relpath_resolves_run_relative() -> None:
+    # Nested run layout (prod): transcript_file_path is relative to the run dir.
+    assert (
+        transcript_corpus_relpath("feeds/F/run_R/metadata/ep.metadata.json", "transcripts/ep.txt")
+        == "feeds/F/run_R/transcripts/ep.txt"
+    )
+    # Flat layout: run dir is "" → just the transcript path.
+    assert (
+        transcript_corpus_relpath("metadata/ep.metadata.json", "transcripts/ep.txt")
+        == "transcripts/ep.txt"
+    )
 
 
 def test_transcript_relpath_prefers_canonical_key() -> None:

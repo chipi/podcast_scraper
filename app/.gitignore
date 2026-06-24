@@ -13,3 +13,6 @@ coverage/
 
 # Vite
 .vite/
+
+# e2e fixture runtime per-user state (APP_DATA_DIR)
+e2e/fixtures/corpus/.app/

@@ -171,6 +171,30 @@ def test_related_empty_without_index(tmp_path: Path) -> None:
     assert client.get("/api/app/episodes/nope/related").status_code == 404
 
 
+def test_segments_resolve_in_nested_run_layout(tmp_path: Path) -> None:
+    # Prod layout: feeds/<feed>/run_<R>/{metadata,transcripts}; transcript_file_path is
+    # relative to the RUN dir (regression guard for the segments path-resolution bug).
+    run = tmp_path / "feeds" / "myfeed" / "run_20240101_x"
+    (run / "metadata").mkdir(parents=True)
+    (run / "transcripts").mkdir(parents=True)
+    (run / "transcripts" / "0001.txt").write_text("hi", encoding="utf-8")
+    (run / "transcripts" / "0001.segments.json").write_text(
+        json.dumps([{"id": 0, "start": 0.0, "end": 1.0, "text": "Hello.", "speaker_label": "A"}]),
+        encoding="utf-8",
+    )
+    doc = {
+        "feed": {"feed_id": "myfeed", "title": "My Show"},
+        "episode": {"episode_id": "ep1", "title": "Hello", "published_date": "2024-01-01T00:00:00"},
+        "content": {"transcript_file_path": "transcripts/0001.txt"},
+    }
+    (run / "metadata" / "0001.metadata.json").write_text(json.dumps(doc), encoding="utf-8")
+
+    slug = _only_slug(tmp_path)
+    resp = _client(tmp_path).get(f"/api/app/episodes/{slug}/segments")
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["segments"][0]["text"] == "Hello."
+
+
 def test_no_segments_file_404(tmp_path: Path) -> None:
     _write_corpus(tmp_path, with_segments=False)
     slug = _only_slug(tmp_path)

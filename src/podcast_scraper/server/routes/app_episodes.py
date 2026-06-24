@@ -23,6 +23,7 @@ from podcast_scraper.server.app_audio_bridge import resolve_audio
 from podcast_scraper.server.app_content_source import (
     get_content_source,
     row_to_summary,
+    transcript_corpus_relpath,
     transcript_relpath,
 )
 from podcast_scraper.server.app_gi_view import insights_from_gi
@@ -252,7 +253,10 @@ async def episode_segments(request: Request, slug: str) -> SegmentsResponse:
     if transcript_rel is None:
         raise HTTPException(status_code=404, detail="Transcript not available for this episode.")
 
-    for candidate in segments_relpaths_for_transcript(transcript_rel):
+    # transcript_file_path is relative to the run dir (parent of the metadata dir); resolve it
+    # to a corpus-root-relative path before deriving the adjacent segments file.
+    transcript_corpus_rel = transcript_corpus_relpath(row.metadata_relative_path, transcript_rel)
+    for candidate in segments_relpaths_for_transcript(transcript_corpus_rel):
         safe = safe_relpath_under_corpus_root(root, candidate)
         if not safe:
             continue

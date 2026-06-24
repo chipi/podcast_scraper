@@ -13,6 +13,7 @@ the catalog/slug layers already perform.
 
 from __future__ import annotations
 
+import posixpath
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast, Optional, Protocol
@@ -61,6 +62,18 @@ def transcript_relpath(content: dict) -> str | None:
     """
     tr = content.get("transcript_file_path") or content.get("transcript_file")
     return tr.strip() if isinstance(tr, str) and tr.strip() else None
+
+
+def transcript_corpus_relpath(metadata_relpath: str, transcript_rel: str) -> str:
+    """Resolve a run-relative ``transcript_file_path`` to a corpus-root-relative path.
+
+    ``transcript_file_path`` is stored relative to the **run directory** (the parent of the
+    metadata dir): e.g. metadata ``feeds/F/run_R/metadata/ep.metadata.json`` → transcript
+    ``feeds/F/run_R/transcripts/ep.txt``. For a flat corpus (``metadata/ep.metadata.json``)
+    the run dir is ``""`` and the result is just ``transcript_rel``.
+    """
+    run_dir = posixpath.dirname(posixpath.dirname(metadata_relpath))
+    return posixpath.normpath(posixpath.join(run_dir, transcript_rel.lstrip("/")))
 
 
 def _has_transcript(corpus_root: Path, metadata_relpath: str) -> bool:
