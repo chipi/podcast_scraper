@@ -17,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from podcast_scraper import __version__
 from podcast_scraper.server.app_access import policy_from_env
 from podcast_scraper.server.app_oauth import provider_from_env
+from podcast_scraper.server.app_operator_guard import OperatorWriteGuard
 from podcast_scraper.server.pathutil import CorpusPathRequestError
 from podcast_scraper.server.routes import (
     app_auth,
@@ -85,6 +86,10 @@ def _configure_platform_auth(app: FastAPI, resolved_output: Path | None) -> None
         app.state.app_data_dir = None
     app.state.oauth_provider = provider_from_env()
     app.state.access_policy = policy_from_env()
+    app.state.operator_api_key = os.environ.get("APP_OPERATOR_API_KEY", "")
+    app.state.audit_path = (
+        (app.state.app_data_dir / "audit.jsonl") if app.state.app_data_dir is not None else None
+    )
 
 
 def _default_static_dir() -> Path | None:
@@ -172,6 +177,10 @@ def create_app(
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Operator write-path authz (optional API key) + audit trail (#1071). Inert unless
+    # APP_OPERATOR_API_KEY is set; consumer /api/app routes are never gated here.
+    app.add_middleware(OperatorWriteGuard)
 
     # Prometheus /metrics endpoint, gated on ``PODCAST_METRICS_ENABLED``
     # so the default behaviour (no Grafana account, no agent running)
