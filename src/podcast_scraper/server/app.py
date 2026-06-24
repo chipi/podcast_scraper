@@ -15,8 +15,15 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from podcast_scraper import __version__
+from podcast_scraper.server.app_access import policy_from_env
+from podcast_scraper.server.app_oauth import provider_from_env
+from podcast_scraper.server.app_operator_guard import OperatorWriteGuard
 from podcast_scraper.server.pathutil import CorpusPathRequestError
 from podcast_scraper.server.routes import (
+    app_auth,
+    app_episodes,
+    app_search,
+    app_user_state,
     artifacts,
     cil,
     corpus_binary,
@@ -61,6 +68,30 @@ def serve_feature_kwargs_from_environ() -> dict[str, bool | str | None]:
     }
 
 
+def _configure_platform_auth(app: FastAPI, resolved_output: Path | None) -> None:
+    """Set consumer-platform auth/session state from env (RFC-098 §2; #1063).
+
+    Auth stays inert until a session secret + OAuth creds are configured — the routes
+    return 401/503 otherwise. Per-user data lives under ``APP_DATA_DIR`` (or
+    ``<corpus>/.app``), kept outside the shared corpus tree.
+    """
+    app.state.session_secret = os.environ.get("APP_SESSION_SECRET", "")
+    app.state.session_cookie_secure = _env_truthy("APP_SESSION_COOKIE_SECURE")
+    raw = os.environ.get("APP_DATA_DIR", "").strip()
+    if raw:
+        app.state.app_data_dir = Path(raw).expanduser().resolve()
+    elif resolved_output is not None:
+        app.state.app_data_dir = resolved_output / ".app"
+    else:
+        app.state.app_data_dir = None
+    app.state.oauth_provider = provider_from_env()
+    app.state.access_policy = policy_from_env()
+    app.state.operator_api_key = os.environ.get("APP_OPERATOR_API_KEY", "")
+    app.state.audit_path = (
+        (app.state.app_data_dir / "audit.jsonl") if app.state.app_data_dir is not None else None
+    )
+
+
 def _default_static_dir() -> Path | None:
     """Built SPA assets under ``web/gi-kg-viewer/dist`` (repo root relative to this file)."""
     repo_root = Path(__file__).resolve().parents[3]
@@ -84,9 +115,9 @@ def create_app(
         output_dir: Default corpus directory (stored on ``app.state`` for future routes).
         static_dir: Directory of built Vue assets. ``True`` uses the default ``dist`` path
             when present; ``False`` skips static mounting; ``None`` auto-detects.
-        enable_platform: Reserved for v2.7 platform routes (#50, #347). When ``True``,
-            platform route modules from ``routes/platform/`` will be mounted. Currently
-            a no-op — stubs exist but no routers are implemented yet.
+        enable_platform: Reserved legacy no-op (#50/#347). The consumer platform API
+            (``/api/app/*``) now mounts **unconditionally** and is NOT gated by this flag;
+            it is kept only for backward compatibility.
         enable_feeds_api: When ``True``, mount GET/PUT ``/api/feeds`` (requires ``output_dir``).
         enable_operator_config_api: When ``True``, mount GET/PUT ``/api/operator-config``
             (requires ``output_dir``). YAML defaults to ``<corpus>/viewer_operator.yaml``
@@ -147,6 +178,10 @@ def create_app(
         allow_headers=["*"],
     )
 
+    # Operator write-path authz (optional API key) + audit trail (#1071). Inert unless
+    # APP_OPERATOR_API_KEY is set; consumer /api/app routes are never gated here.
+    app.add_middleware(OperatorWriteGuard)
+
     # Prometheus /metrics endpoint, gated on ``PODCAST_METRICS_ENABLED``
     # so the default behaviour (no Grafana account, no agent running)
     # stays a no-op. Wired for the Grafana Cloud free-tier sink in
@@ -194,9 +229,17 @@ def create_app(
     app.include_router(corpus_topic_clusters.router, prefix="/api")
     app.include_router(cil.router, prefix="/api")
     app.include_router(ops.router, prefix="/api")
+    # Consumer Learning Platform API (RFC-098): slug-addressed read routes under their
+    # own /api/app namespace, separate from the operator routes. Read-only over the
+    # shared corpus; access becomes auth-gated in later Epic-1 tasks (#1063/#1066).
+    app.include_router(app_auth.router, prefix="/api/app")
+    app.include_router(app_episodes.router, prefix="/api/app")
+    app.include_router(app_search.router, prefix="/api/app")
+    app.include_router(app_user_state.router, prefix="/api/app")
 
     resolved_output = Path(output_dir).expanduser().resolve() if output_dir is not None else None
     app.state.output_dir = resolved_output
+    _configure_platform_auth(app, resolved_output)
 
     app.state.feeds_api_enabled = bool(enable_feeds_api)
     app.state.operator_config_api_enabled = bool(enable_operator_config_api)

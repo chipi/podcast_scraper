@@ -115,6 +115,7 @@ Authoritative specs; current implementations should conform
 | [UXS-004](UXS-004-graph-exploration.md) | Graph Exploration | PRD-024; RFC-069, RFC-076 | Graph chrome, canvas, overlays, node detail; **camera framing** + selection/dimming contract for focus hand-offs and single-tap |
 | [UXS-005](UXS-005-semantic-search.md) | Semantic Search | PRD-021; RFC-061 | Search panel: query, advanced filters, result cards, insights modal |
 | [UXS-006](UXS-006-dashboard.md) | Dashboard | PRD-025; RFC-071 | Dashboard tab: briefing + Coverage / Intelligence / Pipeline (normative spec in UXS-006) |
+| [UXS-011](UXS-011-consumer-learning-app.md) | Consumer Learning App — Design System + Player | PRD-038, PRD-039; RFC-099 | **Separate** consumer-app design system (Editorial Bold, dark-primary) + the Player surface; distinct from the operator viewer (UXS-001) |
 
 ## Templates
 

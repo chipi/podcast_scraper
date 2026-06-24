@@ -144,6 +144,13 @@ nav:
       - PRD-032 Hybrid Corpus Search: prd/PRD-032-hybrid-corpus-search.md
       - PRD-033 Search-Powered Surface Enhancements: prd/PRD-033-search-powered-surfaces.md
       - PRD-034 Generic MCP Server: prd/PRD-034-generic-mcp-server.md
+      - PRD-035 Learning Platform (parent): prd/PRD-035-learning-platform.md
+      - PRD-036 Foundation / Identity: prd/PRD-036-foundation-identity.md
+      - PRD-037 Discovery: prd/PRD-037-discovery.md
+      - PRD-038 Catalog: prd/PRD-038-catalog.md
+      - PRD-039 Player: prd/PRD-039-player.md
+      - PRD-040 Capture: prd/PRD-040-capture.md
+      - PRD-041 Consolidation: prd/PRD-041-consolidation.md
       - PRD Template: prd/PRD_TEMPLATE.md
   - UX Specifications:
       - uxs/index.md
@@ -157,6 +164,7 @@ nav:
       - UXS-008 Enriched Search: uxs/UXS-008-enriched-search.md
       - UXS-009 Position Tracker: uxs/UXS-009-position-tracker.md
       - UXS-010 Person Profile: uxs/UXS-010-person-profile.md
+      - UXS-011 Consumer Learning App: uxs/UXS-011-consumer-learning-app.md
       - UXS Template: uxs/UXS_TEMPLATE.md
   - Architecture Decisions:
       - adr/index.md
@@ -354,10 +362,15 @@ nav:
       - RFC-095 Generic MCP Server: rfc/RFC-095-generic-mcp-server.md
       - RFC-096 Audio Pipeline Separation and Viewer Media: rfc/RFC-096-audio-pipeline-separation-and-viewer-media.md
       - RFC-097 Unified KG + GI Ontology v2: rfc/RFC-097-unified-kg-gi-ontology-v2.md
+      - RFC-098 Learning Platform Foundation: rfc/RFC-098-learning-platform-foundation.md
+      - RFC-099 Learning Platform Consumer Client: rfc/RFC-099-learning-platform-consumer-client.md
+      - RFC-100 Audio Bridge Subsystem: rfc/RFC-100-audio-bridge-subsystem.md
+      - RFC-101 Personal Knowledge Corpus: rfc/RFC-101-personal-knowledge-corpus.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md
       - HTTP API Reference (viewer): api/HTTP_API.md
+      - Consumer Platform API (/api/app): api/PLATFORM_API.md
       - Server Guide (viewer): guides/SERVER_GUIDE.md
       - API Reference: api/REFERENCE.md
       - Core API: api/CORE.md

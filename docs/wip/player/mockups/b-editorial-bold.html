@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Player — Direction B · Editorial bold</title>
+<style>
+  :root{
+    --canvas:#0E0D10; --surface:#161419; --ink:#F4F1EA; --muted:#9C97A6; --faint:#6E6A78;
+    --show:#FF6A3D;        /* per-show accent (editorial color block) */
+    --show-2:#FFB37A; --border:#272430;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;}
+  html,body{width:390px;height:844px;background:var(--canvas);color:var(--ink);
+    font-family:"SF Pro Display",Inter,system-ui,sans-serif;overflow:hidden;}
+  .phone{width:390px;height:844px;display:flex;flex-direction:column;}
+  .status{height:44px;display:flex;align-items:center;justify-content:space-between;
+    padding:0 22px;font-size:14px;font-weight:600;}
+  .status .dots{letter-spacing:2px;}
+  .hdr{display:flex;align-items:center;justify-content:space-between;padding:4px 20px 10px;}
+  .hdr .chev{font-size:24px;}
+  .hdr .more{color:var(--muted);font-size:20px;}
+  /* editorial masthead */
+  .mast{padding:2px 22px 6px;}
+  .mast .kicker{font-size:11px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:var(--show);}
+  .mast h1{font-size:30px;line-height:1.02;font-weight:800;letter-spacing:-.025em;margin-top:8px;}
+  .mast .meta{margin-top:10px;font-size:12.5px;color:var(--muted);font-weight:600;letter-spacing:.02em;}
+  /* color-block artwork w/ live data */
+  .art{margin:14px 22px 0;height:170px;border-radius:6px;position:relative;overflow:hidden;
+    background:linear-gradient(135deg,var(--show),#B33B1C 90%);}
+  .art .epno{position:absolute;left:18px;bottom:14px;font-size:64px;font-weight:800;line-height:.8;
+    color:rgba(14,13,16,.22);letter-spacing:-.04em;}
+  .art .nowspk{position:absolute;left:18px;top:16px;font-size:12px;font-weight:800;
+    letter-spacing:.04em;color:#1a0e08;}
+  .art .nowspk small{display:block;font-size:10px;font-weight:700;opacity:.7;letter-spacing:.16em;text-transform:uppercase;}
+  .art .ground{position:absolute;right:16px;top:16px;font-size:11px;font-weight:800;color:#1a0e08;
+    border:1.5px solid rgba(26,14,8,.5);border-radius:2px;padding:4px 8px;}
+  .art .insight{position:absolute;right:16px;bottom:14px;left:120px;text-align:right;font-size:12.5px;
+    font-weight:700;line-height:1.3;color:#1a0e08;}
+  /* scrubber editorial = thin rule */
+  .scrub{padding:18px 22px 4px;}
+  .bar{height:2px;background:#2c2833;position:relative;}
+  .bar i{position:absolute;left:0;top:0;bottom:0;width:25%;background:var(--show);}
+  .bar b{position:absolute;left:25%;top:50%;width:10px;height:10px;margin:-5px 0 0 -5px;background:var(--show);border-radius:50%;}
+  .times{display:flex;justify-content:space-between;font-size:11px;color:var(--faint);margin-top:8px;
+    font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.04em;}
+  .ctrl{display:flex;align-items:center;justify-content:space-between;padding:12px 30px 14px;}
+  .ctrl .ic{font-size:14px;font-weight:800;color:var(--ink);}
+  .ctrl .play{width:56px;height:56px;border-radius:50%;border:2.5px solid var(--ink);
+    display:flex;align-items:center;justify-content:center;font-size:22px;}
+  .ctrl .spd{font-size:13px;font-weight:800;letter-spacing:.02em;color:var(--show);}
+  /* transcript */
+  .tx{flex:1;overflow:hidden;border-top:1px solid var(--border);margin-top:4px;padding:16px 22px 0;}
+  .tx .seg{margin-bottom:16px;}
+  .tx .ts{font-size:10px;color:var(--faint);font-weight:800;letter-spacing:.1em;display:block;margin-bottom:4px;}
+  .tx .ln{font-size:15px;line-height:1.46;color:var(--muted);font-weight:500;}
+  .tx .seg.active .ln{color:var(--ink);font-weight:600;}
+  .tx .seg.active{border-left:3px solid var(--show);padding-left:14px;margin-left:-17px;}
+  .tx .spk{font-size:11px;font-weight:800;color:var(--show);letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:4px;}
+  .dock{display:flex;gap:0;padding:0;border-top:1px solid var(--border);}
+  .dock .pill{flex:1;text-align:center;padding:16px;font-size:13px;font-weight:800;letter-spacing:.02em;}
+  .dock .pill:first-child{border-right:1px solid var(--border);color:var(--show);}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="status"><span>9:41</span><span class="dots">●●● ⌃ ▮</span></div>
+  <div class="hdr"><span class="chev">‹</span><span class="more">⋯</span></div>
+
+  <div class="mast">
+    <div class="kicker">Huberman Lab</div>
+    <h1>How Memory<br>Consolidates<br>During Sleep</h1>
+    <div class="meta">EP 042 · 48 MIN · 7 INSIGHTS · 2 SPEAKERS</div>
+  </div>
+
+  <div class="art">
+    <div class="nowspk"><small>Speaking now</small>Dr. Matthew Walker</div>
+    <div class="ground">92% GROUNDED</div>
+    <div class="epno">042</div>
+    <div class="insight">Sleep spindles gate memory transfer to the cortex</div>
+  </div>
+
+  <div class="scrub">
+    <div class="bar"><i></i><b></b></div>
+    <div class="times"><span>12:04</span><span>48:31</span></div>
+  </div>
+  <div class="ctrl">
+    <span class="ic">↺ 15</span>
+    <div class="play">►</div>
+    <span class="ic">30 ↻</span>
+    <span class="spd">1.25×</span>
+  </div>
+
+  <div class="tx">
+    <div class="seg"><span class="ts">11:48</span><span class="ln">So the question everyone asks is when exactly does this happen.</span></div>
+    <div class="seg active"><span class="spk">Dr. Walker</span><span class="ts">12:01</span><span class="ln">The hippocampus replays the day's sequences during deep sleep, and that's the window where consolidation really takes hold.</span></div>
+    <div class="seg"><span class="ts">12:19</span><span class="ln">It's almost like the brain is pressing save on the most important files.</span></div>
+  </div>
+
+  <div class="dock">
+    <div class="pill">7 INSIGHTS</div>
+    <div class="pill">ASK THIS EPISODE</div>
+  </div>
+</div>
+</body>
+</html>
