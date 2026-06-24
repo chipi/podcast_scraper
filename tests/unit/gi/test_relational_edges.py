@@ -439,3 +439,160 @@ class TestApplyTypedMentionsAndRewriteGi:
         second = apply_typed_mentions_and_rewrite_gi(gi, kg, str(gi_path))
         assert second == 0  # nothing to add on second run
         assert gi_path.stat().st_mtime_ns == mtime_after_first  # disk untouched
+
+
+# ─────────────────────────────────────────────────────────────────────
+# #1076 chunk 4-A — spaCy NER pass coverage. The leaf function accepts
+# an optional ``nlp`` kwarg that catches name fragments the literal
+# regex misses (e.g. KG entry "Maya Hutchinson" matched by spaCy span
+# "Maya"). Stub nlp implementations keep the test hermetic — no real
+# spaCy model load.
+# ─────────────────────────────────────────────────────────────────────
+
+
+class _StubEnt:
+    """Mimics a single spaCy Span — label_ + text are all the production
+    code reads."""
+
+    def __init__(self, text: str, label: str = "PERSON") -> None:
+        self.text = text
+        self.label_ = label
+
+
+class _StubDoc:
+    def __init__(self, ents):
+        self.ents = ents
+
+
+class _StubNlp:
+    """Callable that returns a deterministic ``_StubDoc`` per input text.
+
+    Configured at construction with a mapping ``text -> list of PERSON
+    spans``; unknown texts return an empty doc. Production spaCy is
+    ``nlp(text) -> Doc``; this matches that contract.
+    """
+
+    def __init__(self, ent_map):
+        self._ent_map = ent_map
+
+    def __call__(self, text):
+        spans = self._ent_map.get(text, [])
+        return _StubDoc([_StubEnt(s) for s in spans])
+
+
+class TestAddInsightEntityEdgesWithNer:
+    """#1076 chunk 4-A — NER pass behavior on the leaf function."""
+
+    def _gi_with_paraphrased_insight(self):
+        """GI artifact whose Insight text mentions 'Maya' (a first-name
+        fragment) but NOT the full 'Maya Hutchinson' that the KG carries."""
+        return {
+            "schema_version": "3.0",
+            "model_version": "stub",
+            "prompt_version": "v1",
+            "episode_id": "ep:1",
+            "nodes": [
+                {
+                    "id": "ep:1",
+                    "type": "Episode",
+                    "properties": {
+                        "podcast_id": "podcast:p",
+                        "title": "T",
+                        "publish_date": "2024-01-01T00:00:00Z",
+                    },
+                },
+                {
+                    "id": "insight:1",
+                    "type": "Insight",
+                    "properties": {
+                        "text": "Maya argued that trail building needs more federal support.",
+                        "episode_id": "ep:1",
+                        "grounded": True,
+                        "insight_type": "claim",
+                        "position_hint": 0.4,
+                    },
+                },
+            ],
+            "edges": [],
+        }
+
+    def _kg_index_with_maya(self):
+        """entity_index matching the leaf fn's input shape: id -> (name, kind).
+
+        KG carries the FULL name 'Maya Hutchinson'; the Insight text says
+        only 'Maya' so the regex pass misses but the NER pass should
+        catch via token-subset match.
+        """
+        return {"person:maya-hutchinson": ("Maya Hutchinson", "person")}
+
+    def test_regex_alone_misses_first_name_fragment(self):
+        """Without nlp, the substring regex doesn't match 'Maya' against
+        'Maya Hutchinson' — the documented limitation that motivates Path A."""
+        from podcast_scraper.gi.relational_edges import add_insight_entity_edges
+
+        gi = self._gi_with_paraphrased_insight()
+        added = add_insight_entity_edges(gi, self._kg_index_with_maya())
+        assert added == 0
+        assert all(e.get("type") != "MENTIONS_PERSON" for e in gi.get("edges", []))
+
+    def test_ner_catches_first_name_fragment(self):
+        """With an nlp that detects 'Maya' as PERSON, the NER pass emits
+        the MENTIONS_PERSON edge the regex missed."""
+        from podcast_scraper.gi.relational_edges import add_insight_entity_edges
+
+        nlp = _StubNlp({"Maya argued that trail building needs more federal support.": ["Maya"]})
+        gi = self._gi_with_paraphrased_insight()
+        added = add_insight_entity_edges(gi, self._kg_index_with_maya(), nlp=nlp)
+        assert added == 1
+        edge = next(e for e in gi["edges"] if e.get("type") == "MENTIONS_PERSON")
+        assert edge["from"] == "insight:1"
+        assert edge["to"] == "person:maya-hutchinson"
+
+    def test_ner_does_not_double_emit_when_regex_also_matched(self):
+        """If both passes would emit the same edge, dedup keeps it to one."""
+        from podcast_scraper.gi.relational_edges import add_insight_entity_edges
+
+        gi = self._gi_with_paraphrased_insight()
+        gi["nodes"][1]["properties"]["text"] = "Maya Hutchinson argued strongly."
+        nlp = _StubNlp({"Maya Hutchinson argued strongly.": ["Maya", "Maya Hutchinson"]})
+        added = add_insight_entity_edges(gi, self._kg_index_with_maya(), nlp=nlp)
+        assert added == 1
+        mp_edges = [e for e in gi["edges"] if e.get("type") == "MENTIONS_PERSON"]
+        assert len(mp_edges) == 1
+
+    def test_ner_rejects_span_that_is_not_a_subset_of_an_indexed_name(self):
+        """Span 'Maya Smith' must NOT match KG 'Maya Hutchinson' — the
+        subset constraint catches the 'shared first name, different
+        person' false positive."""
+        from podcast_scraper.gi.relational_edges import add_insight_entity_edges
+
+        gi = self._gi_with_paraphrased_insight()
+        gi["nodes"][1]["properties"]["text"] = "Maya Smith argued strongly."
+        nlp = _StubNlp({"Maya Smith argued strongly.": ["Maya Smith"]})
+        added = add_insight_entity_edges(gi, self._kg_index_with_maya(), nlp=nlp)
+        assert added == 0
+
+    def test_ner_skips_short_spans(self):
+        """Spans <3 chars (rare wrong PERSON detections like 'AI') get
+        filtered before the subset check fires."""
+        from podcast_scraper.gi.relational_edges import add_insight_entity_edges
+
+        gi = self._gi_with_paraphrased_insight()
+        gi["nodes"][1]["properties"]["text"] = "AI argued strongly."
+        nlp = _StubNlp({"AI argued strongly.": ["AI"]})
+        added = add_insight_entity_edges(
+            gi, {"person:ai-research": ("AI Research", "person")}, nlp=nlp
+        )
+        assert added == 0
+
+    def test_ner_handles_nlp_throwing_gracefully(self):
+        """A malformed spaCy doc on one Insight doesn't kill the pass."""
+        from podcast_scraper.gi.relational_edges import add_insight_entity_edges
+
+        class _CrashyNlp:
+            def __call__(self, text):
+                raise RuntimeError("simulated spaCy crash")
+
+        gi = self._gi_with_paraphrased_insight()
+        added = add_insight_entity_edges(gi, self._kg_index_with_maya(), nlp=_CrashyNlp())
+        assert added == 0

@@ -1419,6 +1419,17 @@ def parse_enrich_edges_argv(argv: Sequence[str]) -> Namespace:
         action="store_true",
         help="Skip SPOKEN_BY (diarization-dependent); emit only show + entity edges.",
     )
+    parser.add_argument(
+        "--use-ner",
+        action="store_true",
+        help=(
+            "#1076 chunk 4-A. Augment the typed-MENTIONS post-pass with a "
+            "spaCy PERSON detection pass — catches BART-paraphrased name "
+            "fragments (KG 'Maya Hutchinson' matched by Insight text "
+            "'Maya'). Default off so re-runs are bit-identical to today's "
+            "output until you opt in."
+        ),
+    )
     args = parser.parse_args(list(argv))
     args.command = "enrich-edges"
     return args
@@ -1446,6 +1457,27 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
     from podcast_scraper.search.corpus_scope import episode_root_from_metadata_path
     from podcast_scraper.search.indexer import _gi_path, _load_metadata_file, _transcript_path
 
+    # #1076 chunk 4-A — operator-controlled flag. ``--use-ner`` on the
+    # CLI flips the typed-MENTIONS post-pass to also run a spaCy PERSON
+    # detection pass. Defaults off so re-running enrich-edges on
+    # historical corpora is bit-identical to today's output until the
+    # operator opts in.
+    use_ner = bool(getattr(args, "use_ner", False))
+    nlp = None
+    if use_ner:
+        try:
+            from podcast_scraper.config import Config
+            from podcast_scraper.providers.ml.speaker_detection import get_ner_model
+
+            nlp = get_ner_model(Config())
+        except Exception as ner_load_exc:
+            logger.warning(
+                "enrich-edges: --use-ner set but spaCy load failed (%s); "
+                "falling back to regex-only typed-MENTIONS",
+                format_exception_for_log(ner_load_exc),
+            )
+            nlp = None
+
     corpus = Path(output_dir)
     include_speaker = not bool(getattr(args, "no_speaker", False))
     totals = {"episodes": 0, "has_episode": 0, "mentions": 0, "spoken_by": 0}
@@ -1469,7 +1501,7 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
             try:
                 kg_artifact = json.loads(kg_path.read_text(encoding="utf-8"))
                 totals["mentions"] += add_insight_entity_edges(
-                    artifact, kg_entity_index(kg_artifact)
+                    artifact, kg_entity_index(kg_artifact), nlp=nlp
                 )
             except (OSError, ValueError):
                 pass

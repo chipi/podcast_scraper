@@ -23,12 +23,17 @@ Both are persisted into the gi.json artifact. Conservative + idempotent.
 from __future__ import annotations
 
 import re
-from typing import Dict, Mapping, Tuple
+from typing import Any, Dict, List, Mapping, Set, Tuple
 
 from ..identity.slugify import slugify
 
 
-def add_insight_entity_edges(artifact: Dict, entity_index: Mapping[str, Tuple[str, str]]) -> int:
+def add_insight_entity_edges(
+    artifact: Dict,
+    entity_index: Mapping[str, Tuple[str, str]],
+    *,
+    nlp: Any = None,
+) -> int:
     """Add typed ``Insight ─MENTIONS_PERSON/ORG→`` edges to *artifact* in place.
 
     *entity_index* maps ``entity_id`` (``person:``/``org:`` slug) → ``(name, kind)``
@@ -44,6 +49,19 @@ def add_insight_entity_edges(artifact: Dict, entity_index: Mapping[str, Tuple[st
     the function adds a minimal ``{name, label}`` Person / Organization
     node so the edge resolves locally and the viewer doesn't have to
     join across kg.json to render the relationship.
+
+    #1076 chunk 4-A — optional spaCy NER pass (operator-gated via
+    ``cfg.gi_typed_mentions_use_ner``). When *nlp* is provided, the
+    function additionally extracts PERSON spans from each Insight's
+    text and emits edges for spans that resolve against an
+    entity_index entry by case-insensitive token overlap (spans like
+    "Maya" match the index entry "Maya Hutchinson"; the substring
+    regex above can't). Catches BART-paraphrased name fragments under
+    airgapped_thin. False-positive bound: span must be ≥3 chars + at
+    least one token must match the index entry, so single-token
+    matches against indexed multi-word names work but spurious
+    spaCy detections like "AI" (≥3-letter words tagged as PERSON
+    by mistake) won't resolve to anyone.
 
     When at least one typed edge is added, the artifact's ``schema_version``
     is bumped to ``3.0`` (RFC-097); earlier versions otherwise pass through.
@@ -96,6 +114,21 @@ def add_insight_entity_edges(artifact: Dict, entity_index: Mapping[str, Tuple[st
                 edges.append({"type": edge_type, "from": insight_id, "to": entity_id})
                 existing.add((insight_id, entity_id, edge_type))
                 added += 1
+    # #1076 chunk 4-A — optional spaCy NER pass. Runs after the regex
+    # pass so anything the substring match caught stays caught (the
+    # dedup key check prevents double edges); the NER pass adds the
+    # paraphrase-fragment misses that the regex couldn't reach.
+    if nlp is not None:
+        added += _apply_ner_mentions_pass(
+            insights=insights,
+            entity_index=entity_index,
+            nlp=nlp,
+            nodes=nodes,
+            edges=edges,
+            existing=existing,
+            existing_node_ids=existing_node_ids,
+        )
+
     if added and isinstance(artifact.get("schema_version"), str):
         # Bump to v3.0 (RFC-097) on first typed-edge addition; preserves existing higher versions.
         if artifact["schema_version"] in ("1.0", "2.0"):
@@ -180,6 +213,8 @@ def kg_entity_index(kg_artifact: Dict) -> Dict[str, Tuple[str, str]]:
 def apply_typed_mentions_to_gi_artifact(
     gi_payload: Dict,
     kg_payload: Dict,
+    *,
+    nlp: Any = None,
 ) -> int:
     """Apply the RFC-097 v3.0 typed-MENTIONS post-pass to a GI artifact.
 
@@ -206,13 +241,15 @@ def apply_typed_mentions_to_gi_artifact(
     entity_index = kg_entity_index(kg_payload)
     if not entity_index:
         return 0
-    return add_insight_entity_edges(gi_payload, entity_index)
+    return add_insight_entity_edges(gi_payload, entity_index, nlp=nlp)
 
 
 def apply_typed_mentions_and_rewrite_gi(
     gi_payload: Dict,
     kg_payload: Dict,
     gi_path: str,
+    *,
+    nlp: Any = None,
 ) -> int:
     """Apply the typed-MENTIONS post-pass and re-write the GI artifact on disk.
 
@@ -238,7 +275,119 @@ def apply_typed_mentions_and_rewrite_gi(
 
     from .io import write_artifact
 
-    added = apply_typed_mentions_to_gi_artifact(gi_payload, kg_payload)
+    added = apply_typed_mentions_to_gi_artifact(gi_payload, kg_payload, nlp=nlp)
     if added > 0:
         write_artifact(Path(gi_path), gi_payload, validate=True)
+    return added
+
+
+def _apply_ner_mentions_pass(
+    *,
+    insights: List[Tuple[str, str]],
+    entity_index: Mapping[str, Tuple[str, str]],
+    nlp: Any,
+    nodes: List[Any],
+    edges: List[Any],
+    existing: Set[Tuple[Any, Any, Any]],
+    existing_node_ids: Set[Any],
+) -> int:
+    """#1076 chunk 4-A NER pass — extracted from ``add_insight_entity_edges``
+    to keep the leaf function under the C901 complexity gate.
+
+    Mutates *nodes*, *edges*, *existing*, *existing_node_ids* in place. See
+    the leaf function's docstring for the matching contract: spans
+    must be ≥3 chars and a token-subset of the indexed entity name.
+    """
+    # Pre-build per-entity name-token lookups so the NER pass resolves
+    # spaCy spans in O(spans × entities), not O(spans × entities × tokens).
+    index_entries: List[Tuple[str, str, str, Set[str]]] = []
+    for eid, (name, kind) in entity_index.items():
+        if not name or len(name) < 2:
+            continue
+        name_tokens = {t for t in re.split(r"\W+", name.lower()) if t}
+        if name_tokens:
+            index_entries.append((eid, kind, name, name_tokens))
+
+    added = 0
+    for insight_id, text in insights:
+        if not text or not text.strip():
+            continue
+        try:
+            doc = nlp(text)
+        except Exception:  # nosec B112
+            # Defensive: a malformed spaCy doc on one Insight shouldn't kill the pass.
+            continue
+        seen_span_norms: Set[str] = set()
+        for ent in getattr(doc, "ents", []) or []:
+            if getattr(ent, "label_", None) != "PERSON":
+                continue
+            span_text = (ent.text or "").strip()
+            if len(span_text) < 3:
+                continue
+            norm = span_text.lower()
+            if norm in seen_span_norms:
+                continue
+            seen_span_norms.add(norm)
+            span_tokens = {t for t in re.split(r"\W+", norm) if t}
+            if not span_tokens:
+                continue
+            added += _resolve_span_to_index(
+                insight_id=insight_id,
+                span_tokens=span_tokens,
+                index_entries=index_entries,
+                nodes=nodes,
+                edges=edges,
+                existing=existing,
+                existing_node_ids=existing_node_ids,
+            )
+    return added
+
+
+def _resolve_span_to_index(
+    *,
+    insight_id: str,
+    span_tokens: Set[str],
+    index_entries: List[Tuple[str, str, str, Set[str]]],
+    nodes: List[Any],
+    edges: List[Any],
+    existing: Set[Tuple[Any, Any, Any]],
+    existing_node_ids: Set[Any],
+) -> int:
+    """Resolve one spaCy span to zero-or-more entity_index entries via
+    the token-subset rule, emitting the typed edge for each match.
+
+    Mutates the shared edge/node/existing collections in place.
+    Returns the count of edges added by this span.
+    """
+    added = 0
+    for entity_id, kind, surface_name, name_tokens in index_entries:
+        # Constrain: span tokens must be a SUBSET of the entity's name
+        # tokens. Catches "Maya" → "Maya Hutchinson"; rejects
+        # "Maya Smith" → "Maya Hutchinson" (different person sharing
+        # the first name).
+        if not (span_tokens & name_tokens):
+            continue
+        if not span_tokens.issubset(name_tokens):
+            continue
+        edge_type = "MENTIONS_ORG" if kind == "organization" else "MENTIONS_PERSON"
+        keys = {
+            (insight_id, entity_id, "MENTIONS"),
+            (insight_id, entity_id, "MENTIONS_PERSON"),
+            (insight_id, entity_id, "MENTIONS_ORG"),
+        }
+        if keys & existing:
+            continue
+        if entity_id not in existing_node_ids:
+            node_type = "Organization" if kind == "organization" else "Person"
+            nodes.append(
+                {
+                    "id": entity_id,
+                    "type": node_type,
+                    "properties": {"name": surface_name},
+                }
+            )
+            existing_node_ids.add(entity_id)
+        edges.append({"type": edge_type, "from": insight_id, "to": entity_id})
+        existing.add((insight_id, entity_id, edge_type))
+        added += 1
     return added
