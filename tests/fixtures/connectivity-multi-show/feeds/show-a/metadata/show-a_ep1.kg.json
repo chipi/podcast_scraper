@@ -1,0 +1,98 @@
+{
+  "edges": [
+    {
+      "from": "podcast:show-a",
+      "to": "episode:show-a-ep1",
+      "type": "HAS_EPISODE"
+    },
+    {
+      "from": "topic:show-a-ai-safety",
+      "to": "concept:topic-ai-safety",
+      "type": "RELATED_TO"
+    },
+    {
+      "from": "topic:show-a-clean-energy",
+      "to": "concept:topic-clean-energy",
+      "type": "RELATED_TO"
+    }
+  ],
+  "episode_id": "episode:show-a-ep1",
+  "extraction": {
+    "extracted_at": "2024-01-01T00:00:00Z",
+    "model_version": "fixture",
+    "transcript_ref": "show-a_ep1.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:show-a-ep1",
+      "properties": {
+        "podcast_id": "podcast:show-a",
+        "publish_date": "2024-01-01T00:00:00Z",
+        "title": "Building a clean energy grid"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "podcast:show-a",
+      "properties": {
+        "title": "Show A"
+      },
+      "type": "Podcast"
+    },
+    {
+      "id": "person:alice-hayes",
+      "properties": {
+        "name": "Dr. Alice Hayes",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:maya-okonkwo",
+      "properties": {
+        "name": "Maya Okonkwo",
+        "role": "guest"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "topic:show-a-ai-safety",
+      "properties": {
+        "label": "AI safety"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:show-a-clean-energy",
+      "properties": {
+        "label": "clean energy"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "org:greentech-ventures",
+      "properties": {
+        "name": "GreenTech Ventures",
+        "role": "mentioned"
+      },
+      "type": "Organization"
+    },
+    {
+      "id": "concept:topic-ai-safety",
+      "properties": {
+        "is_concept": true,
+        "label": "AI safety"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "concept:topic-clean-energy",
+      "properties": {
+        "is_concept": true,
+        "label": "clean energy"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2.0"
+}

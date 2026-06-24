@@ -1,0 +1,22 @@
+{
+  "content": {
+    "detected_guests": [
+      "Maya Okonkwo"
+    ],
+    "detected_hosts": [
+      "Dr. Alice Hayes"
+    ],
+    "transcript_file_path": "show-a_ep1.txt"
+  },
+  "episode": {
+    "episode_id": "episode:show-a-ep1",
+    "publish_date": "2024-01-01T00:00:00Z",
+    "title": "Building a clean energy grid"
+  },
+  "feed": {
+    "title": "Show A"
+  },
+  "grounded_insights": {
+    "artifact_path": "show-a_ep1.gi.json"
+  }
+}

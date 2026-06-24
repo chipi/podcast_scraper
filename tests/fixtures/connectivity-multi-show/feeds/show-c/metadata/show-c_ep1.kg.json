@@ -1,0 +1,98 @@
+{
+  "edges": [
+    {
+      "from": "podcast:show-c",
+      "to": "episode:show-c-ep1",
+      "type": "HAS_EPISODE"
+    },
+    {
+      "from": "topic:show-c-alignment-problem",
+      "to": "concept:topic-ai-safety",
+      "type": "RELATED_TO"
+    },
+    {
+      "from": "topic:show-c-renewable-energy-transition",
+      "to": "concept:topic-clean-energy",
+      "type": "RELATED_TO"
+    }
+  ],
+  "episode_id": "episode:show-c-ep1",
+  "extraction": {
+    "extracted_at": "2024-01-05T00:00:00Z",
+    "model_version": "fixture",
+    "transcript_ref": "show-c_ep1.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:show-c-ep1",
+      "properties": {
+        "podcast_id": "podcast:show-c",
+        "publish_date": "2024-01-05T00:00:00Z",
+        "title": "Alignment problem and policy"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "podcast:show-c",
+      "properties": {
+        "title": "Show C"
+      },
+      "type": "Podcast"
+    },
+    {
+      "id": "person:alice-hayes",
+      "properties": {
+        "name": "Dr. Alice Hayes",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:bob-chen",
+      "properties": {
+        "name": "Bob Chen",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "topic:show-c-alignment-problem",
+      "properties": {
+        "label": "alignment problem"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:show-c-renewable-energy-transition",
+      "properties": {
+        "label": "renewable energy transition"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "org:greentech-ventures",
+      "properties": {
+        "name": "GreenTech Ventures",
+        "role": "mentioned"
+      },
+      "type": "Organization"
+    },
+    {
+      "id": "concept:topic-ai-safety",
+      "properties": {
+        "is_concept": true,
+        "label": "AI safety"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "concept:topic-clean-energy",
+      "properties": {
+        "is_concept": true,
+        "label": "clean energy"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2.0"
+}

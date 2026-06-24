@@ -1,0 +1,91 @@
+{
+  "edges": [
+    {
+      "from": "episode:show-b-ep2",
+      "to": "insight:show-b-ep2-i0",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:show-b-ep2-i0",
+      "to": "topic:show-b-ai-alignment",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:show-b-ep2-i0",
+      "to": "quote:show-b-ep2-q0",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:show-b-ep2-i0",
+      "to": "org:acme-labs",
+      "type": "MENTIONS_ORG"
+    },
+    {
+      "from": "quote:show-b-ep2-q0",
+      "to": "person:bob-chen",
+      "type": "SPOKEN_BY"
+    }
+  ],
+  "episode_id": "episode:show-b-ep2",
+  "model_version": "fixture",
+  "nodes": [
+    {
+      "id": "episode:show-b-ep2",
+      "properties": {
+        "podcast_id": "podcast:show-b",
+        "publish_date": "2024-01-04T00:00:00Z",
+        "title": "The future of compute"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "insight:show-b-ep2-i0",
+      "properties": {
+        "episode_id": "episode:show-b-ep2",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Bob Chen discussed AI alignment. They noted Acme Labs."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:show-b-ep2-q0",
+      "properties": {
+        "char_end": 40,
+        "char_start": 0,
+        "episode_id": "episode:show-b-ep2",
+        "speaker_id": "person:bob-chen",
+        "text": "This is what we said about AI alignment.",
+        "timestamp_end_ms": 500,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "show-b_ep2.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "org:acme-labs",
+      "properties": {
+        "name": "Acme Labs",
+        "role": "mentioned"
+      },
+      "type": "Organization"
+    },
+    {
+      "id": "person:bob-chen",
+      "properties": {
+        "name": "Bob Chen"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:maya-okonkwo",
+      "properties": {
+        "name": "Maya Okonkwo"
+      },
+      "type": "Person"
+    }
+  ],
+  "prompt_version": "v1",
+  "schema_version": "3.0"
+}

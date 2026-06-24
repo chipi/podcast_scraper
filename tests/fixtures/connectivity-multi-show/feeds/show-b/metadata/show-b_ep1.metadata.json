@@ -1,0 +1,22 @@
+{
+  "content": {
+    "detected_guests": [
+      "Dr. Alice Hayes"
+    ],
+    "detected_hosts": [
+      "Bob Chen"
+    ],
+    "transcript_file_path": "show-b_ep1.txt"
+  },
+  "episode": {
+    "episode_id": "episode:show-b-ep1",
+    "publish_date": "2024-01-03T00:00:00Z",
+    "title": "AI alignment in practice"
+  },
+  "feed": {
+    "title": "Show B"
+  },
+  "grounded_insights": {
+    "artifact_path": "show-b_ep1.gi.json"
+  }
+}

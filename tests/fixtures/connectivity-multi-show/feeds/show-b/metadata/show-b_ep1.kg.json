@@ -1,0 +1,78 @@
+{
+  "edges": [
+    {
+      "from": "podcast:show-b",
+      "to": "episode:show-b-ep1",
+      "type": "HAS_EPISODE"
+    },
+    {
+      "from": "topic:show-b-ai-alignment",
+      "to": "concept:topic-ai-safety",
+      "type": "RELATED_TO"
+    }
+  ],
+  "episode_id": "episode:show-b-ep1",
+  "extraction": {
+    "extracted_at": "2024-01-03T00:00:00Z",
+    "model_version": "fixture",
+    "transcript_ref": "show-b_ep1.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:show-b-ep1",
+      "properties": {
+        "podcast_id": "podcast:show-b",
+        "publish_date": "2024-01-03T00:00:00Z",
+        "title": "AI alignment in practice"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "podcast:show-b",
+      "properties": {
+        "title": "Show B"
+      },
+      "type": "Podcast"
+    },
+    {
+      "id": "person:bob-chen",
+      "properties": {
+        "name": "Bob Chen",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:alice-hayes",
+      "properties": {
+        "name": "Dr. Alice Hayes",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "topic:show-b-ai-alignment",
+      "properties": {
+        "label": "AI alignment"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "org:acme-labs",
+      "properties": {
+        "name": "Acme Labs",
+        "role": "mentioned"
+      },
+      "type": "Organization"
+    },
+    {
+      "id": "concept:topic-ai-safety",
+      "properties": {
+        "is_concept": true,
+        "label": "AI safety"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2.0"
+}

@@ -1,0 +1,22 @@
+{
+  "content": {
+    "detected_guests": [
+      "Bob Chen"
+    ],
+    "detected_hosts": [
+      "Dr. Alice Hayes"
+    ],
+    "transcript_file_path": "show-c_ep1.txt"
+  },
+  "episode": {
+    "episode_id": "episode:show-c-ep1",
+    "publish_date": "2024-01-05T00:00:00Z",
+    "title": "Alignment problem and policy"
+  },
+  "feed": {
+    "title": "Show C"
+  },
+  "grounded_insights": {
+    "artifact_path": "show-c_ep1.gi.json"
+  }
+}

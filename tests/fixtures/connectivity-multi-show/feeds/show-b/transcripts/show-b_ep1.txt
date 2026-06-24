@@ -1,0 +1,3 @@
+# AI alignment in practice
+Bob Chen: Welcome to the show.
+Dr. Alice Hayes: Thanks for having me.
