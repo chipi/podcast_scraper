@@ -148,3 +148,64 @@ def test_v3_emission_contract_real_fields_present() -> None:
     #    a forgotten field or a malformed edge that the contract above
     #    might miss.
     validate_artifact(artifact, strict=True)
+
+
+def test_v3_emission_contract_real_validation_corpus_artifacts() -> None:
+    """The same contract holds when loaded from the real on-disk
+    ``tests/fixtures/viewer-validation-corpus/v2/`` artifacts (#1075
+    chunk 2 upgrade).
+
+    Catches a regression where the on-disk fixtures fall out of sync
+    with the in-memory emission contract — e.g. a future migration that
+    drops one of the four required fields/edges from disk but leaves
+    the emit functions unchanged.
+    """
+    import glob
+    import json
+    from pathlib import Path
+
+    repo_root = Path(__file__).resolve().parents[3]
+    corpus_glob = str(
+        repo_root
+        / "tests"
+        / "fixtures"
+        / "viewer-validation-corpus"
+        / "v2"
+        / "feeds"
+        / "*"
+        / "metadata"
+        / "*.gi.json"
+    )
+    files = sorted(glob.glob(corpus_glob))
+    assert files, "no viewer-validation-corpus/v2 GI files found"
+
+    insights_seen = 0
+    mp_total = 0
+    about_total = 0
+    for path in files:
+        raw = json.loads(Path(path).read_text(encoding="utf-8"))
+        nodes = raw.get("data", {}).get("nodes") or raw.get("nodes") or []
+        edges = raw.get("data", {}).get("edges") or raw.get("edges") or []
+
+        # Per-file required-field invariant.
+        for n in nodes:
+            if not isinstance(n, dict) or n.get("type") != "Insight":
+                continue
+            insights_seen += 1
+            props = n.get("properties") or {}
+            assert "insight_type" in props, f"{path}: Insight {n.get('id')} missing insight_type"
+            assert "position_hint" in props, f"{path}: Insight {n.get('id')} missing position_hint"
+
+        for e in edges:
+            if not isinstance(e, dict):
+                continue
+            if e.get("type") == "MENTIONS_PERSON":
+                mp_total += 1
+            elif e.get("type") == "ABOUT":
+                about_total += 1
+
+    # Corpus-wide invariants — at least some edges of each type exist
+    # so the chunk-2 upgrade isn't a silent no-op.
+    assert insights_seen > 0, "no Insight nodes across the entire validation corpus"
+    assert mp_total > 0, "no MENTIONS_PERSON edges across the entire validation corpus"
+    assert about_total > 0, "no ABOUT edges across the entire validation corpus"

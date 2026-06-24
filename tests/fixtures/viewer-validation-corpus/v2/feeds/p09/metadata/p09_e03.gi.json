@@ -89,6 +89,88 @@
       "from": "insight:0989e1b01ea24a17",
       "to": "quote:25b94a8b75638a3f",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:71a5799ea206dcd4",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:84304fb24a96f6ae",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:71a5799ea206dcd4",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:71a5799ea206dcd4",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:71a5799ea206dcd4",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:84304fb24a96f6ae",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:84304fb24a96f6ae",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:84304fb24a96f6ae",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:0989e1b01ea24a17",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:0989e1b01ea24a17",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:0989e1b01ea24a17",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
@@ -102,7 +184,7 @@
         "metadata_relative_path": "feeds/p09/metadata/p09_e03.metadata.json",
         "podcast_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
         "publish_date": "2026-06-15T12:00:00",
-        "title": "The Long View: Biohacking \u2014 Episode 3"
+        "title": "The Long View: Biohacking — Episode 3"
       },
       "type": "Episode"
     },
@@ -135,7 +217,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "# The Long View \u2014 Episode\n## The Risk Profile of Self-Experimentation\nHost: Alex Morgan\nGuest: Dr."
+        "text": "# The Long View — Episode\n## The Risk Profile of Self-Experimentation\nHost: Alex Morgan\nGuest: Dr.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +228,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Elena Fischer\nAlex Morgan: Welcome to The Long View."
+        "text": "Elena Fischer\nAlex Morgan: Welcome to The Long View.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +239,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today we're exploring the risk profile of self experimentation in depth with Dr."
+        "text": "Today we're exploring the risk profile of self experimentation in depth with Dr.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -206,7 +294,7 @@
         "char_start": 274,
         "episode_id": "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
         "speaker_id": "person:speaker-01",
-        "text": "This episode is brought to you by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Get started at linear.com/podcast.",
+        "text": "This episode is brought to you by Linear. Linear is the issue tracker built for speed — keyboard-first, fast search, and a clean roadmap view your team actually uses. Get started at linear.com/podcast.",
         "timestamp_end_ms": 18000,
         "timestamp_start_ms": 12000,
         "transcript_ref": "transcripts/p09_e03.txt"
@@ -257,5 +345,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

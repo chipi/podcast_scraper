@@ -59,6 +59,83 @@
       "from": "insight:610091403c99329b",
       "to": "quote:be085204673f2d04",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:e9740a00d0461a30",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e9740a00d0461a30",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e9740a00d0461a30",
+      "to": "topic:this-is-an-edge",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e9740a00d0461a30",
+      "to": "topic:this-episode-is-intentionally",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:504222534a5710a7",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:504222534a5710a7",
+      "to": "topic:this-is-an-edge",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:504222534a5710a7",
+      "to": "topic:this-episode-is-intentionally",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:610091403c99329b",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:610091403c99329b",
+      "to": "topic:this-is-an-edge",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:610091403c99329b",
+      "to": "topic:this-episode-is-intentionally",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
@@ -72,7 +149,7 @@
         "metadata_relative_path": "feeds/p06/metadata/p06_e01.metadata.json",
         "podcast_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
         "publish_date": "2026-06-10T12:00:00",
-        "title": "Edge Cases Podcast \u2014 Episode 1"
+        "title": "Edge Cases Podcast — Episode 1"
       },
       "type": "Episode"
     },
@@ -105,7 +182,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "# Edge Cases \u2014 Episode e01\n## Empty-ish Episode\nHost: Maya\nMaya: This is an edge-case fixture used for parser and processor robustness tests."
+        "text": "# Edge Cases — Episode e01\n## Empty-ish Episode\nHost: Maya\nMaya: This is an edge-case fixture used for parser and processor robustness tests.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -114,7 +193,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "This episode is intentionally short to test minimal-content handling."
+        "text": "This episode is intentionally short to test minimal-content handling.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -123,7 +204,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "End of edge-case episode e01."
+        "text": "End of edge-case episode e01.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -178,5 +261,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

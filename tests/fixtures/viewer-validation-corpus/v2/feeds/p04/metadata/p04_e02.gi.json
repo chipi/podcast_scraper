@@ -89,6 +89,69 @@
       "from": "insight:5dc2253d421449be",
       "to": "quote:b8b4cc15665a36b1",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:41017ff3f83946ea",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:41017ff3f83946ea",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:8bdb3ace00a545ac",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:41017ff3f83946ea",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:41017ff3f83946ea",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:8bdb3ace00a545ac",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:8bdb3ace00a545ac",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:5dc2253d421449be",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:5dc2253d421449be",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
@@ -102,7 +165,7 @@
         "metadata_relative_path": "feeds/p04/metadata/p04_e02.metadata.json",
         "podcast_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
         "publish_date": "2026-06-10T12:00:00",
-        "title": "Frame & Light \u2014 Episode 2"
+        "title": "Frame & Light — Episode 2"
       },
       "type": "Episode"
     },
@@ -135,7 +198,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "# Frame & Light \u2014 Episode\n## Documentary Workflow in the Field\nHost: Leo\nGuest: Tariq\nLeo: Welcome back to Frame & Light."
+        "text": "# Frame & Light — Episode\n## Documentary Workflow in the Field\nHost: Leo\nGuest: Tariq\nLeo: Welcome back to Frame & Light.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +209,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today we're talking about documentary photography, and I'm joined by Tariq, documentary photographer."
+        "text": "Today we're talking about documentary photography, and I'm joined by Tariq, documentary photographer.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +220,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today's episode is sponsored by Adobe."
+        "text": "Today's episode is sponsored by Adobe.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -220,7 +289,7 @@
         "char_start": 360,
         "episode_id": "9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
         "speaker_id": "person:speaker-01",
-        "text": "Before we get into it \u2014 Ava was on last week talking about strobe positioning underwater. The same principles \u2014 read the light, then place it \u2014 show up in field documentary work.",
+        "text": "Before we get into it — Ava was on last week talking about strobe positioning underwater. The same principles — read the light, then place it — show up in field documentary work.",
         "timestamp_end_ms": 24000,
         "timestamp_start_ms": 18000,
         "transcript_ref": "transcripts/p04_e02.txt"
@@ -257,5 +326,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

@@ -89,6 +89,98 @@
       "from": "insight:26a3c94c02bbc759",
       "to": "quote:53f1bb1ee58f8760",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:da2f8ac7df94d0a9",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:da2f8ac7df94d0a9",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:a615fa69d639e612",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:26a3c94c02bbc759",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:da2f8ac7df94d0a9",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:da2f8ac7df94d0a9",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:da2f8ac7df94d0a9",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a615fa69d639e612",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a615fa69d639e612",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a615fa69d639e612",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:26a3c94c02bbc759",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:26a3c94c02bbc759",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:26a3c94c02bbc759",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
@@ -102,7 +194,7 @@
         "metadata_relative_path": "feeds/p01/metadata/p01_e02.metadata.json",
         "podcast_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
         "publish_date": "2026-06-13T12:00:00",
-        "title": "Singletrack Sessions \u2014 Episode 2"
+        "title": "Singletrack Sessions — Episode 2"
       },
       "type": "Episode"
     },
@@ -135,7 +227,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "# Singletrack Sessions \u2014 Episode\n## Enduro Skills Without the Hype\nHost: Maya\nGuest: Sophie\nMaya: Welcome back to Singletrack Sessions."
+        "text": "# Singletrack Sessions — Episode\n## Enduro Skills Without the Hype\nHost: Maya\nGuest: Sophie\nMaya: Welcome back to Singletrack Sessions.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +238,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today we're talking about enduro racing, and I'm joined by Sophie, enduro racer and coach."
+        "text": "Today we're talking about enduro racing, and I'm joined by Sophie, enduro racer and coach.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +249,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Sophie, thanks for being here."
+        "text": "Sophie, thanks for being here.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -206,7 +304,7 @@
         "char_start": 212,
         "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
         "speaker_id": "person:speaker-01",
-        "text": "This episode is brought to you by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Get started at linear.com/podcast.",
+        "text": "This episode is brought to you by Linear. Linear is the issue tracker built for speed — keyboard-first, fast search, and a clean roadmap view your team actually uses. Get started at linear.com/podcast.",
         "timestamp_end_ms": 18000,
         "timestamp_start_ms": 12000,
         "transcript_ref": "transcripts/p01_e02.txt"
@@ -220,7 +318,7 @@
         "char_start": 413,
         "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
         "speaker_id": "person:speaker-01",
-        "text": "Before we get into it \u2014 Liam was on the show talking about how drainage is the single highest-leverage design choice. That ties directly into how a track holds up across race day.",
+        "text": "Before we get into it — Liam was on the show talking about how drainage is the single highest-leverage design choice. That ties directly into how a track holds up across race day.",
         "timestamp_end_ms": 24000,
         "timestamp_start_ms": 18000,
         "transcript_ref": "transcripts/p01_e02.txt"
@@ -248,7 +346,7 @@
         "char_start": 659,
         "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
         "speaker_id": "person:speaker-02",
-        "text": "I used to think you could brake your way out of any line mistake. After 2024 nationals I revised that \u2014 the right line in practice is everything.",
+        "text": "I used to think you could brake your way out of any line mistake. After 2024 nationals I revised that — the right line in practice is everything.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p01_e02.txt"
@@ -257,5 +355,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

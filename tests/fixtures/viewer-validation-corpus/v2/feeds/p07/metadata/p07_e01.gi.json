@@ -89,6 +89,88 @@
       "from": "insight:871cc7a038c59bce",
       "to": "quote:289808645b0fed2e",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:5d1f3bc68812c4f8",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:84304fb24a96f6ae",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:5d1f3bc68812c4f8",
+      "to": "topic:environment",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:5d1f3bc68812c4f8",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:5d1f3bc68812c4f8",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:84304fb24a96f6ae",
+      "to": "topic:environment",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:84304fb24a96f6ae",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:84304fb24a96f6ae",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:871cc7a038c59bce",
+      "to": "topic:environment",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:871cc7a038c59bce",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:871cc7a038c59bce",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
@@ -102,7 +184,7 @@
         "metadata_relative_path": "feeds/p07/metadata/p07_e01.metadata.json",
         "podcast_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
         "publish_date": "2026-06-15T12:00:00",
-        "title": "The Long View \u2014 Episode 1"
+        "title": "The Long View — Episode 1"
       },
       "type": "Episode"
     },
@@ -135,7 +217,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "# The Long View \u2014 Episode\n## What Sustainability Really Means (And Why Everyone Is Talking About It)\nHost: Alex Morgan\nGuest: Dr."
+        "text": "# The Long View — Episode\n## What Sustainability Really Means (And Why Everyone Is Talking About It)\nHost: Alex Morgan\nGuest: Dr.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +228,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Elena Fischer\nAlex Morgan: Welcome to The Long View."
+        "text": "Elena Fischer\nAlex Morgan: Welcome to The Long View.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +239,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today we're exploring sustainability in depth with Dr."
+        "text": "Today we're exploring sustainability in depth with Dr.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -257,5 +345,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

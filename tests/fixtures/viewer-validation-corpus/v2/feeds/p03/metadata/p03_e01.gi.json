@@ -89,6 +89,93 @@
       "from": "insight:235ac690e3034ff4",
       "to": "quote:880f12ce9fac3a35",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:23f9c526b4cdfacc",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:23f9c526b4cdfacc",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:92cf0200624fa288",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:23f9c526b4cdfacc",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:23f9c526b4cdfacc",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:23f9c526b4cdfacc",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:92cf0200624fa288",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:92cf0200624fa288",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:92cf0200624fa288",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:235ac690e3034ff4",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:235ac690e3034ff4",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:235ac690e3034ff4",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
@@ -102,7 +189,7 @@
         "metadata_relative_path": "feeds/p03/metadata/p03_e01.metadata.json",
         "podcast_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
         "publish_date": "2026-06-13T12:00:00",
-        "title": "Below the Surface \u2014 Episode 1"
+        "title": "Below the Surface — Episode 1"
       },
       "type": "Episode"
     },
@@ -135,7 +222,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "# Below the Surface \u2014 Episode\n## Wreck Diving Fundamentals\nHost: Rina\nGuest: Marco\nRina: Welcome back to Below the Surface."
+        "text": "# Below the Surface — Episode\n## Wreck Diving Fundamentals\nHost: Rina\nGuest: Marco\nRina: Welcome back to Below the Surface.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +233,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today we're talking about wreck diving, and I'm joined by Marco, technical diver and underwater archaeologist."
+        "text": "Today we're talking about wreck diving, and I'm joined by Marco, technical diver and underwater archaeologist.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +244,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Excited for this one \u2014 wreck-diving fundamentals is something I've been thinking about a lot."
+        "text": "Excited for this one — wreck-diving fundamentals is something I've been thinking about a lot.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -192,7 +285,7 @@
         "char_start": 189,
         "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
         "speaker_id": "person:speaker-02",
-        "text": "Thanks, Rina. Excited for this one \u2014 wreck-diving fundamentals is something I've been thinking about a lot.",
+        "text": "Thanks, Rina. Excited for this one — wreck-diving fundamentals is something I've been thinking about a lot.",
         "timestamp_end_ms": 12000,
         "timestamp_start_ms": 6000,
         "transcript_ref": "transcripts/p03_e01.txt"
@@ -234,7 +327,7 @@
         "char_start": 601,
         "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
         "speaker_id": "person:speaker-02",
-        "text": "Yeah, so \u2014 Wreck penetration is a planning problem first, a buoyancy problem second. The dive happens at the desk. We've seen this play out at teams using Suunto. And the second-order effect is the part most people miss.",
+        "text": "Yeah, so — Wreck penetration is a planning problem first, a buoyancy problem second. The dive happens at the desk. We've seen this play out at teams using Suunto. And the second-order effect is the part most people miss.",
         "timestamp_end_ms": 30000,
         "timestamp_start_ms": 24000,
         "transcript_ref": "transcripts/p03_e01.txt"
@@ -257,5 +350,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

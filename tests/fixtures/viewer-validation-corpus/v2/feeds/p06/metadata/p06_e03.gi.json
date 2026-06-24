@@ -79,6 +79,83 @@
       "from": "insight:ad70fda15471fa29",
       "to": "quote:115987e9c181fda2",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:c4e87c5ebfe01da0",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c4e87c5ebfe01da0",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c4e87c5ebfe01da0",
+      "to": "topic:this-is-an-edge",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c4e87c5ebfe01da0",
+      "to": "topic:first-line",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:ad70fda15471fa29",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:ad70fda15471fa29",
+      "to": "topic:this-is-an-edge",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:ad70fda15471fa29",
+      "to": "topic:first-line",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9788ab13f1d78023",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9788ab13f1d78023",
+      "to": "topic:this-is-an-edge",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9788ab13f1d78023",
+      "to": "topic:first-line",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "01835c28-431e-5b5a-adbb-5ec01411a299",
@@ -92,7 +169,7 @@
         "metadata_relative_path": "feeds/p06/metadata/p06_e03.metadata.json",
         "podcast_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
         "publish_date": "2026-06-12T12:00:00",
-        "title": "Edge Cases Podcast \u2014 Episode 3"
+        "title": "Edge Cases Podcast — Episode 3"
       },
       "type": "Episode"
     },
@@ -125,7 +202,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "# Edge Cases \u2014 Episode e03\n## Repeated Speaker Labels\nHost: Maya\nMaya: This is an edge-case fixture used for parser and processor robustness tests."
+        "text": "# Edge Cases — Episode e03\n## Repeated Speaker Labels\nHost: Maya\nMaya: This is an edge-case fixture used for parser and processor robustness tests.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -134,7 +213,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Third line in a row to test merging."
+        "text": "Third line in a row to test merging.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -143,7 +224,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "End of edge-case episode e03."
+        "text": "End of edge-case episode e03.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -226,5 +309,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }
