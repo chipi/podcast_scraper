@@ -50,18 +50,22 @@ def add_insight_entity_edges(
     node so the edge resolves locally and the viewer doesn't have to
     join across kg.json to render the relationship.
 
-    #1076 chunk 4-A — optional spaCy NER pass (operator-gated via
-    ``cfg.gi_typed_mentions_use_ner``). When *nlp* is provided, the
-    function additionally extracts PERSON spans from each Insight's
-    text and emits edges for spans that resolve against an
-    entity_index entry by case-insensitive token overlap (spans like
-    "Maya" match the index entry "Maya Hutchinson"; the substring
-    regex above can't). Catches BART-paraphrased name fragments under
-    airgapped_thin. False-positive bound: span must be ≥3 chars + at
-    least one token must match the index entry, so single-token
-    matches against indexed multi-word names work but spurious
-    spaCy detections like "AI" (≥3-letter words tagged as PERSON
-    by mistake) won't resolve to anyone.
+    #1076 chunk 4-A / #1058 chunk 2 — optional spaCy NER pass
+    (operator-gated via ``cfg.gi_typed_mentions_use_ner``). When *nlp*
+    is provided, the function additionally extracts PERSON and ORG
+    spans from each Insight's text and emits edges (MENTIONS_PERSON /
+    MENTIONS_ORG, by index-entry kind) for spans that resolve against
+    an entity_index entry by case-insensitive token overlap (spans
+    like "Maya" match the index entry "Maya Hutchinson"; the substring
+    regex above can't). ORG support depends on the KG actually
+    carrying ``Organization`` nodes — which under airgapped requires
+    the #1058 chunk 1 KG ORG post-pass to have run first. Catches
+    BART-paraphrased name fragments under airgapped_thin.
+    False-positive bound: span must be ≥3 chars + at least one token
+    must match the index entry, so single-token matches against
+    indexed multi-word names work but spurious spaCy detections like
+    "AI" (≥3-letter words tagged as PERSON / ORG by mistake) won't
+    resolve to anyone.
 
     When at least one typed edge is added, the artifact's ``schema_version``
     is bumped to ``3.0`` (RFC-097); earlier versions otherwise pass through.
@@ -319,7 +323,12 @@ def _apply_ner_mentions_pass(
             continue
         seen_span_norms: Set[str] = set()
         for ent in getattr(doc, "ents", []) or []:
-            if getattr(ent, "label_", None) != "PERSON":
+            # #1076 chunk 4-A: PERSON; #1058 chunk 2: ORG. The
+            # ``_resolve_span_to_index`` helper picks the correct edge
+            # type (MENTIONS_PERSON vs MENTIONS_ORG) from the matched
+            # index entry's ``kind`` field, so the only change for ORG
+            # support is the label filter here.
+            if getattr(ent, "label_", None) not in ("PERSON", "ORG"):
                 continue
             span_text = (ent.text or "").strip()
             if len(span_text) < 3:

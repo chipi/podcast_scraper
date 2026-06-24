@@ -467,9 +467,11 @@ class _StubDoc:
 class _StubNlp:
     """Callable that returns a deterministic ``_StubDoc`` per input text.
 
-    Configured at construction with a mapping ``text -> list of PERSON
-    spans``; unknown texts return an empty doc. Production spaCy is
-    ``nlp(text) -> Doc``; this matches that contract.
+    Configured at construction with a mapping ``text -> list of
+    spans``; each span is either a string (defaults to PERSON label)
+    or a ``(text, label)`` tuple. Unknown texts return an empty doc.
+    Production spaCy is ``nlp(text) -> Doc``; this matches that
+    contract.
     """
 
     def __init__(self, ent_map):
@@ -477,7 +479,13 @@ class _StubNlp:
 
     def __call__(self, text):
         spans = self._ent_map.get(text, [])
-        return _StubDoc([_StubEnt(s) for s in spans])
+        ents = []
+        for s in spans:
+            if isinstance(s, tuple):
+                ents.append(_StubEnt(s[0], s[1]))
+            else:
+                ents.append(_StubEnt(s))
+        return _StubDoc(ents)
 
 
 class TestAddInsightEntityEdgesWithNer:
@@ -686,3 +694,78 @@ class TestAddInsightEntityEdgesWithNer:
         assert added == 1
         edge = next(e for e in gi["edges"] if e.get("type") == "MENTIONS_PERSON")
         assert edge["to"] == "person:bob-lee"
+
+    # ─────────────────────────────────────────────────────────────
+    # #1058 chunk 2 — MENTIONS_ORG via NER
+    # ─────────────────────────────────────────────────────────────
+
+    def test_ner_catches_org_fragment_and_emits_mentions_org(self):
+        """A spaCy ORG span 'Acme' that token-subset matches the index
+        entry 'Acme Corp' (kind='organization') must emit a
+        MENTIONS_ORG edge — the kind selects the edge type."""
+        from podcast_scraper.gi.relational_edges import add_insight_entity_edges
+
+        gi = self._gi_with_paraphrased_insight()
+        gi["nodes"][1]["properties"]["text"] = "Acme launched a new product line."
+        entity_index = {"org:acme-corp": ("Acme Corp", "organization")}
+        nlp = _StubNlp({"Acme launched a new product line.": [("Acme", "ORG")]})
+        added = add_insight_entity_edges(gi, entity_index, nlp=nlp)
+        assert added == 1
+        edge = next(e for e in gi["edges"] if e.get("type") == "MENTIONS_ORG")
+        assert edge["to"] == "org:acme-corp"
+        assert edge["from"] == "insight:1"
+
+    def test_ner_pass_emits_org_and_person_together(self):
+        """A single insight mentioning both a Person and an Organization
+        emits a typed edge of the appropriate kind for each."""
+        from podcast_scraper.gi.relational_edges import add_insight_entity_edges
+
+        gi = self._gi_with_paraphrased_insight()
+        gi["nodes"][1]["properties"]["text"] = "Maya joined Acme last quarter."
+        entity_index = {
+            "person:maya-hutchinson": ("Maya Hutchinson", "person"),
+            "org:acme-corp": ("Acme Corp", "organization"),
+        }
+        nlp = _StubNlp(
+            {
+                "Maya joined Acme last quarter.": [
+                    ("Maya", "PERSON"),
+                    ("Acme", "ORG"),
+                ]
+            }
+        )
+        added = add_insight_entity_edges(gi, entity_index, nlp=nlp)
+        assert added == 2
+        types = {e["type"] for e in gi["edges"]}
+        assert "MENTIONS_PERSON" in types
+        assert "MENTIONS_ORG" in types
+
+    def test_ner_rejects_non_person_non_org_label(self):
+        """spaCy labels like GPE, PRODUCT, EVENT must NOT contribute
+        edges even when their span tokens overlap an indexed name."""
+        from podcast_scraper.gi.relational_edges import add_insight_entity_edges
+
+        gi = self._gi_with_paraphrased_insight()
+        gi["nodes"][1]["properties"]["text"] = "Apple unveiled a new device."
+        entity_index = {"org:apple-inc": ("Apple Inc", "organization")}
+        # spaCy can tag 'Apple' as PRODUCT in some contexts — we must
+        # not emit MENTIONS_ORG for that span.
+        nlp = _StubNlp({"Apple unveiled a new device.": [("Apple", "PRODUCT")]})
+        added = add_insight_entity_edges(gi, entity_index, nlp=nlp)
+        assert added == 0
+
+    def test_ner_emits_mentions_org_adds_organization_node_locally(self):
+        """When the Org index entry resolves but the GI artifact didn't
+        carry the Organization node, the leaf function lifts it in
+        (retroactive sweep behavior). Required so the viewer can render
+        the edge target without a cross-layer join."""
+        from podcast_scraper.gi.relational_edges import add_insight_entity_edges
+
+        gi = self._gi_with_paraphrased_insight()
+        gi["nodes"][1]["properties"]["text"] = "Acme reorganised."
+        entity_index = {"org:acme-corp": ("Acme Corp", "organization")}
+        nlp = _StubNlp({"Acme reorganised.": [("Acme", "ORG")]})
+        add_insight_entity_edges(gi, entity_index, nlp=nlp)
+        org_node = next(n for n in gi["nodes"] if n.get("type") == "Organization")
+        assert org_node["id"] == "org:acme-corp"
+        assert org_node["properties"]["name"] == "Acme Corp"
