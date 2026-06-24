@@ -37,6 +37,7 @@
     "speakingNow": "Speaking now",
     "grounded": "Grounded",
     "audioUnavailable": "Audio isn’t available for this episode yet.",
+    "audioError": "Couldn’t load the audio from the source. Try again later.",
     "transcriptPending": "Transcript pending — audio still plays."
   },
   "status": {

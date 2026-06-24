@@ -17,9 +17,10 @@ import TranscriptList from '../components/TranscriptList.vue'
 import { activeSegmentIndex, PLAYBACK_RATES } from '../player/transcriptSync'
 import { getAudioSource, getEpisode, getPlayback, getSegments, putPlayback } from '../services/api'
 import type { EpisodeDetail, Segment } from '../services/types'
+import { formatDuration, formatPublishDate } from '../utils/format'
 
 const props = defineProps<{ slug: string }>()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 const episode = ref<EpisodeDetail | null>(null)
 const segments = ref<Segment[]>([])
@@ -32,6 +33,7 @@ const playing = ref(false)
 const currentTime = ref(0)
 const duration = ref(0)
 const rate = ref(1)
+const audioError = ref(false)
 
 let resumeSeconds = 0
 let lastSaved = 0
@@ -43,6 +45,14 @@ const artwork = computed(
     episode.value?.episode_image_url ||
     episode.value?.feed_image_url,
 )
+const metaLine = computed(() => {
+  const parts: string[] = []
+  const d = formatPublishDate(episode.value?.publish_date ?? null, locale.value)
+  const dur = formatDuration(episode.value?.duration_seconds ?? null)
+  if (d) parts.push(d)
+  if (dur) parts.push(dur)
+  return parts.join(' · ')
+})
 const speakingNow = computed(() => {
   const s = activeIndex.value >= 0 ? segments.value[activeIndex.value]?.speaker : null
   if (!s) return null
@@ -52,6 +62,7 @@ const speakingNow = computed(() => {
 async function load(slug: string): Promise<void> {
   loading.value = true
   notFound.value = false
+  audioError.value = false
   segments.value = []
   audioUrl.value = null
   resumeSeconds = 0
@@ -138,6 +149,10 @@ onBeforeUnmount(() => persist())
         <h1 class="mt-1 font-display text-3xl font-extrabold leading-tight tracking-tight">
           {{ episode.title }}
         </h1>
+        <p v-if="metaLine" class="mt-1 text-sm text-muted">{{ metaLine }}</p>
+        <p v-if="episode.summary_text || episode.summary_title" class="mt-2 text-sm text-muted line-clamp-3">
+          {{ episode.summary_text || episode.summary_title }}
+        </p>
 
         <div
           class="relative mt-4 aspect-square w-full overflow-hidden rounded-2xl border border-border bg-elevated"
@@ -171,10 +186,14 @@ onBeforeUnmount(() => persist())
           @play="playing = true"
           @pause="playing = false"
           @ended="playing = false"
+          @error="audioError = true"
         />
 
+        <p v-if="audioError" class="mt-4 rounded-2xl border border-border bg-surface p-4 text-danger">
+          {{ t('player.audioError') }}
+        </p>
         <PlayerControls
-          v-if="audioUrl"
+          v-else-if="audioUrl"
           class="mt-4"
           :playing="playing"
           :current-time="currentTime"
