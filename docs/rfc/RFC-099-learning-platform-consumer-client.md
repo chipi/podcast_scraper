@@ -117,6 +117,33 @@ required second implementation, not a new abstraction.
   extends the same contract to surface not-yet-processed content and provide the "add content" entry
   point. The client and the `/api/app/episodes*` response shape are **unchanged** across that swap.
 
+#### Home (Learning Hub) & corpus-wide search — PRD-042 / UXS-012 (#1090)
+
+Home (`/`) is the launch surface; the full catalog moves to `/catalog`. Routes: `/` Home,
+`/catalog`, `/search?q=` (corpus search), `/podcast/:feedId`, `/episode/:slug`, `/queue`.
+
+- **Adaptive hero (behaviour for UXS-012's two states):** on load, resolve auth + in-progress
+  history. **Resume state** when signed-in and `GET /api/app/playback` returns ≥1 in-progress
+  position (`0 < position < duration`, newest first) → Continue hero. **Discover state**
+  otherwise → "Ask your library" + Featured. The hero never renders an empty Continue card; the
+  search entry is mounted in both states.
+- **Corpus-wide search:** the Home search field navigates to `/search?q=`; the results view
+  calls `GET /api/app/search` (RFC-090 hybrid; extractive, **no request-time LLM**) and renders
+  grounded passages with source episode + speaker + a jump control that routes to
+  `/episode/:slug` and seeks to the passage timestamp (reusing the player resume seam). Debounce
+  ~250ms on the field; submit also navigates. Empty/no-index → graceful message (same as
+  in-episode search).
+- **Sections:** What's new (`GET /api/app/episodes`, newest), Recommended (v1 heuristic:
+  `GET /api/app/episodes/{slug}/related` seeded by the most-recent play; hidden when no signal),
+  Your shows (`GET /api/app/podcasts`), Featured (deterministic pick from newest). Each hides
+  when empty/signed-out.
+- **Net-new endpoints:** `GET /api/app/podcasts` (shows list — reuse `aggregate_feeds`) and
+  `GET /api/app/playback` (list saved positions, auth) for Continue. Search + related + episodes
+  already exist.
+- **Phasing:** Home shell + What's-new + Shows + Featured + the `/search` surface ship first
+  (no new auth dependency beyond `/podcasts`); Continue + Recommended follow with the
+  `/api/app/playback` list endpoint. Full personalisation is PRD-041.
+
 ### 4. Queue
 
 - Pinia `queue` store mirrored to `GET/PUT /api/app/queue`. Auto-advance on `ended`. "Play next" / "add to
