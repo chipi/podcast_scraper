@@ -26,7 +26,8 @@ async function onSignOut(): Promise<void> {
 <template>
   <SkipLink />
   <div class="min-h-screen bg-canvas text-canvas-foreground font-sans">
-    <header class="border-b border-border px-5 py-4 flex items-center justify-between">
+    <header class="border-b border-border px-5 py-4">
+      <div class="mx-auto flex max-w-6xl items-center justify-between">
       <RouterLink :to="{ name: 'home' }" class="no-underline">
         <span class="lp-kicker block">{{ t('app.tagline') }}</span>
         <span class="font-display text-2xl font-extrabold tracking-tight">{{ t('app.title') }}</span>
@@ -62,9 +63,10 @@ async function onSignOut(): Promise<void> {
           </RouterLink>
         </template>
       </nav>
+      </div>
     </header>
 
-    <main id="main" tabindex="-1" class="px-5 py-6 outline-none">
+    <main id="main" tabindex="-1" class="mx-auto max-w-6xl px-5 py-6 outline-none">
       <RouterView />
     </main>
   </div>

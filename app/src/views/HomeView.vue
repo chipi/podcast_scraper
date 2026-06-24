@@ -144,7 +144,7 @@ onMounted(async () => {
           class="pointer-events-none absolute left-3 top-1 font-display text-[5rem] font-extrabold leading-none text-white/10"
           aria-hidden="true"
         >01</span>
-        <div class="relative flex min-h-[12rem] flex-col justify-end p-5">
+        <div class="relative flex min-h-[12rem] flex-col justify-end p-5 sm:min-h-[16rem] sm:p-6">
           <span class="lp-kicker text-grounded">{{ wnFeatured.podcast_title }}</span>
           <h3 class="mt-1 font-display text-2xl font-extrabold leading-tight tracking-tight">
             {{ wnFeatured.title }}

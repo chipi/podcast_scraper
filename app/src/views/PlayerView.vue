@@ -72,10 +72,36 @@ const duration = ref(0)
 const rate = ref(1)
 const audioError = ref(false)
 
+// Manual transcript-sync offset (seconds): the bridged stream (acast) injects ads not in our
+// transcribed copy, so the transcript can lead the played audio. This lets the listener nudge
+// the highlight to match what they hear. Maps content-time ↔ audio-time; persisted per episode.
+const syncOffset = ref(0)
+function syncKey(slug: string): string {
+  return `lp:sync:${slug}`
+}
+function adjustSync(delta: number): void {
+  syncOffset.value = Math.round((syncOffset.value + delta) * 10) / 10
+  try {
+    localStorage.setItem(syncKey(props.slug), String(syncOffset.value))
+  } catch {
+    /* storage unavailable — offset still applies for this session */
+  }
+}
+function resetSync(): void {
+  syncOffset.value = 0
+  try {
+    localStorage.removeItem(syncKey(props.slug))
+  } catch {
+    /* ignore */
+  }
+}
+
 let resumeSeconds = 0
 let lastSaved = 0
 
-const activeIndex = computed(() => activeSegmentIndex(segments.value, currentTime.value))
+// Audio-time → content-time: subtract the sync offset so the highlight tracks what's heard.
+const contentTime = computed(() => currentTime.value - syncOffset.value)
+const activeIndex = computed(() => activeSegmentIndex(segments.value, contentTime.value))
 const artwork = computed(
   () =>
     episode.value?.artwork_url ||
@@ -83,7 +109,7 @@ const artwork = computed(
     episode.value?.feed_image_url,
 )
 const activeInsight = computed(() => {
-  const i = activeInsightIndex(insights.value, currentTime.value)
+  const i = activeInsightIndex(insights.value, contentTime.value)
   return i >= 0 ? insights.value[i] : null
 })
 const metaLine = computed(() => {
@@ -110,6 +136,11 @@ async function load(slug: string): Promise<void> {
   topics.value = []
   persons.value = []
   resumeSeconds = 0
+  try {
+    syncOffset.value = Number(localStorage.getItem(syncKey(slug))) || 0
+  } catch {
+    syncOffset.value = 0
+  }
   try {
     const [detail, segs, audio, playback, ins, ents] = await Promise.all([
       getEpisode(slug),
@@ -140,7 +171,8 @@ function onLoadedMetadata(): void {
   // A ?t= deep-link (jump-to-moment from search) wins over the saved resume position.
   const deepLink = Number(route.query.t)
   if (Number.isFinite(deepLink) && deepLink > 0) {
-    el.currentTime = deepLink
+    // ?t= is a content-time (from a search jump-to-moment) → map to audio-time.
+    el.currentTime = deepLink + syncOffset.value
   } else if (resumeSeconds > 1 && resumeSeconds < duration.value - 1) {
     el.currentTime = resumeSeconds
   }
@@ -171,6 +203,11 @@ function seek(to: number): void {
   const el = audioEl.value
   if (!el) return
   el.currentTime = Math.max(0, Math.min(to, duration.value || to))
+}
+
+// Jump to a transcript/insight position (content-time) → audio-time via the sync offset.
+function seekContent(contentSeconds: number): void {
+  seek(contentSeconds + syncOffset.value)
 }
 
 function skip(delta: number): void {
@@ -306,14 +343,48 @@ onBeforeUnmount(() => persist())
       </div>
 
       <!-- Middle: synced transcript -->
-      <div class="mt-6 lg:mt-0 lg:max-h-[70vh]">
+      <div class="mt-6 lg:mt-0 lg:flex lg:max-h-[70vh] lg:flex-col">
+        <!-- Manual sync nudge: align the highlight with the played audio (ad-insertion drift). -->
+        <div
+          v-if="segments.length"
+          class="mb-2 flex items-center justify-end gap-2 text-xs text-muted"
+        >
+          <span :title="t('player.syncHelp')">{{ t('player.sync') }}</span>
+          <div class="flex items-center gap-1">
+            <button
+              type="button"
+              class="rounded-full border border-border px-2 py-0.5 font-mono leading-none"
+              :aria-label="t('player.syncEarlier')"
+              @click="adjustSync(-1)"
+            >
+              −
+            </button>
+            <button
+              type="button"
+              class="min-w-[3.5rem] rounded-full px-1 py-0.5 text-center font-mono tabular-nums"
+              :class="syncOffset !== 0 ? 'text-accent' : 'text-muted'"
+              :aria-label="t('player.syncReset')"
+              @click="resetSync"
+            >
+              {{ syncOffset > 0 ? '+' : '' }}{{ syncOffset }}s
+            </button>
+            <button
+              type="button"
+              class="rounded-full border border-border px-2 py-0.5 font-mono leading-none"
+              :aria-label="t('player.syncLater')"
+              @click="adjustSync(1)"
+            >
+              +
+            </button>
+          </div>
+        </div>
         <TranscriptList
           v-if="segments.length"
           :segments="segments"
           :active-index="activeIndex"
           :grounded="groundedSpans"
-          class="lg:max-h-[70vh]"
-          @seek="seek"
+          class="min-h-0 lg:flex-1"
+          @seek="seekContent"
           @insight="openInsight"
         />
         <p v-else class="rounded-2xl border border-border bg-surface p-4 text-muted">
@@ -334,7 +405,7 @@ onBeforeUnmount(() => persist())
           :slug="slug"
           :active-insight-id="activeInsight?.id ?? null"
           :focus-insight-id="focusInsightId"
-          @seek="seek"
+          @seek="seekContent"
           @close="panelOpen = false"
         />
       </div>
