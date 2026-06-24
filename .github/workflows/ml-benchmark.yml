@@ -32,6 +32,17 @@ on:
         description: 'ML eval config YAML (must target local providers)'
         required: true
         default: 'data/eval/configs/ml/baseline_ml_dev_authority_benchmark_v1.yaml'
+  # Reusable from release.yml + nightly-data-baseline.yml. Per
+  # operator directive: NOT a CI gate; only called from workflows
+  # the operator explicitly authored.
+  workflow_call:
+    inputs:
+      dataset_size:
+        type: string
+        required: true
+      config:
+        type: string
+        required: true
 
 permissions:
   contents: read

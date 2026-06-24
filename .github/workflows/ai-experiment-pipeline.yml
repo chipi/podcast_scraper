@@ -33,6 +33,22 @@ on:
         description: 'Force-rerun (delete existing run dir first)'
         required: false
         default: 'false'
+  # Reusable from release.yml + nightly-data-baseline.yml. Per
+  # operator directive: NOT a CI gate; only called from workflows
+  # the operator explicitly authored.
+  workflow_call:
+    inputs:
+      config:
+        type: string
+        required: true
+      baseline:
+        type: string
+        required: false
+        default: ''
+      force:
+        type: string
+        required: false
+        default: 'false'
 
 permissions:
   contents: read
