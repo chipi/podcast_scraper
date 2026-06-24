@@ -69,6 +69,83 @@
       "from": "insight:cf518a87cfa3ca42",
       "to": "quote:286964398526f067",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:cf518a87cfa3ca42",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cf518a87cfa3ca42",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cf518a87cfa3ca42",
+      "to": "topic:this-is-an-edge",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cf518a87cfa3ca42",
+      "to": "topic:welcome-to-a-transcript",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:248f0f75837bef22",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:248f0f75837bef22",
+      "to": "topic:this-is-an-edge",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:248f0f75837bef22",
+      "to": "topic:welcome-to-a-transcript",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:57c42c70ec823caf",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:57c42c70ec823caf",
+      "to": "topic:this-is-an-edge",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:57c42c70ec823caf",
+      "to": "topic:welcome-to-a-transcript",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
@@ -82,7 +159,7 @@
         "metadata_relative_path": "feeds/p06/metadata/p06_e02.metadata.json",
         "podcast_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
         "publish_date": "2026-06-14T12:00:00",
-        "title": "Edge Cases Podcast \u2014 Episode 2"
+        "title": "Edge Cases Podcast — Episode 2"
       },
       "type": "Episode"
     },
@@ -115,7 +192,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "# Edge Cases \u2014 Episode e02\n## No-Speaker Lines\nHost: Maya\nMaya: This is an edge-case fixture used for parser and processor robustness tests."
+        "text": "# Edge Cases — Episode e02\n## No-Speaker Lines\nHost: Maya\nMaya: This is an edge-case fixture used for parser and processor robustness tests.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -124,7 +203,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Welcome to a transcript with mixed speaker-attribution."
+        "text": "Welcome to a transcript with mixed speaker-attribution.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -133,7 +214,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Some lines have speakers."
+        "text": "Some lines have speakers.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -209,5 +292,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

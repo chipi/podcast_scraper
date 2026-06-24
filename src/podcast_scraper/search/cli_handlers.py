@@ -1419,6 +1419,41 @@ def parse_enrich_edges_argv(argv: Sequence[str]) -> Namespace:
         action="store_true",
         help="Skip SPOKEN_BY (diarization-dependent); emit only show + entity edges.",
     )
+    parser.add_argument(
+        "--use-ner",
+        action="store_true",
+        help=(
+            "#1076 chunk 4-A. Augment the typed-MENTIONS post-pass with a "
+            "spaCy PERSON detection pass — catches BART-paraphrased name "
+            "fragments (KG 'Maya Hutchinson' matched by Insight text "
+            "'Maya'). Default off so re-runs are bit-identical to today's "
+            "output until you opt in."
+        ),
+    )
+    parser.add_argument(
+        "--retro-audit",
+        action="store_true",
+        help=(
+            "#1076 chunk 4-A retro-audit hook. When set, stamp "
+            "_retro_audit on every mutated GI artifact + emit a summary "
+            "JSON listing per-episode edge deltas. Use when running "
+            "--use-ner against existing prod corpora so the audit trail "
+            "survives the in-place rewrite."
+        ),
+    )
+    parser.add_argument(
+        "--retro-marker",
+        default=None,
+        help="Custom marker string for --retro-audit (default '#1076-ner').",
+    )
+    parser.add_argument(
+        "--retro-summary",
+        default=None,
+        help=(
+            "Path to write the --retro-audit summary JSON. Default: "
+            "<corpus>/_retro_audit_<marker>.json."
+        ),
+    )
     args = parser.parse_args(list(argv))
     args.command = "enrich-edges"
     return args
@@ -1446,6 +1481,47 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
     from podcast_scraper.search.corpus_scope import episode_root_from_metadata_path
     from podcast_scraper.search.indexer import _gi_path, _load_metadata_file, _transcript_path
 
+    # #1076 chunk 4-A — operator-controlled flag. ``--use-ner`` on the
+    # CLI flips the typed-MENTIONS post-pass to also run a spaCy PERSON
+    # detection pass. Defaults off so re-running enrich-edges on
+    # historical corpora is bit-identical to today's output until the
+    # operator opts in.
+    use_ner = bool(getattr(args, "use_ner", False))
+    nlp = None
+    if use_ner:
+        try:
+            from podcast_scraper.config import Config
+            from podcast_scraper.providers.ml.speaker_detection import get_ner_model
+
+            nlp = get_ner_model(Config())
+        except Exception as ner_load_exc:
+            logger.warning(
+                "enrich-edges: --use-ner set but spaCy load failed (%s); "
+                "falling back to regex-only typed-MENTIONS",
+                format_exception_for_log(ner_load_exc),
+            )
+            nlp = None
+
+    # #1076 chunk 4-A — retro-audit hook. When ``--retro-audit`` is set
+    # AND we're actively flipping behavior on existing artifacts, stamp
+    # ``_retro_audit`` on every mutated GI and emit a summary JSON so
+    # the audit trail survives the in-place rewrite (per memory
+    # [[feedback_never_mutate_historical_artifacts]]).
+    retro_audit = bool(getattr(args, "retro_audit", False))
+    retro_marker = getattr(args, "retro_marker", None) or "#1076-ner"
+    retro_summary_path_arg = getattr(args, "retro_summary", None)
+    retro_rows: list = []
+    retro_applied_at: str | None = None
+    if retro_audit:
+        from datetime import datetime, timezone
+
+        retro_applied_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        logger.info(
+            "enrich-edges: --retro-audit on (marker=%s applied_at=%s)",
+            retro_marker,
+            retro_applied_at,
+        )
+
     corpus = Path(output_dir)
     include_speaker = not bool(getattr(args, "no_speaker", False))
     totals = {"episodes": 0, "has_episode": 0, "mentions": 0, "spoken_by": 0}
@@ -1463,26 +1539,53 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
             logger.warning("enrich-edges: skip %s (%s)", gi_path, format_exception_for_log(exc))
             continue
         show_title = (doc.get("feed") or {}).get("title") or ""
-        totals["has_episode"] += add_episode_show_edges(artifact, show_title)
+        per_episode_has_episode = add_episode_show_edges(artifact, show_title)
+        totals["has_episode"] += per_episode_has_episode
         kg_path = Path(str(gi_path).replace(".gi.json", ".kg.json"))
+        per_episode_mentions = 0
         if kg_path.is_file():
             try:
                 kg_artifact = json.loads(kg_path.read_text(encoding="utf-8"))
-                totals["mentions"] += add_insight_entity_edges(
-                    artifact, kg_entity_index(kg_artifact)
+                per_episode_mentions = add_insight_entity_edges(
+                    artifact, kg_entity_index(kg_artifact), nlp=nlp
                 )
+                totals["mentions"] += per_episode_mentions
             except (OSError, ValueError):
                 pass
+        per_episode_spoken_by = 0
         if include_speaker:
             transcript_path = _transcript_path(episode_root, doc)
             if transcript_path and transcript_path.is_file():
                 content = doc.get("content") or {}
-                totals["spoken_by"] += add_spoken_by_edges(
+                per_episode_spoken_by = add_spoken_by_edges(
                     artifact,
                     transcript_path.read_text(encoding="utf-8", errors="replace"),
                     hosts=content.get("detected_hosts") or [],
                     guests=content.get("detected_guests") or [],
                 )
+                totals["spoken_by"] += per_episode_spoken_by
+        # Retro-audit marker — stamp ONLY when --retro-audit set AND we
+        # actually added edges. Idempotent re-runs (zero-op) don't stamp.
+        if retro_audit and (per_episode_has_episode + per_episode_mentions + per_episode_spoken_by):
+            audit_entry = {
+                "marker": retro_marker,
+                "applied_at": retro_applied_at,
+                "use_ner": bool(use_ner),
+                "edges_added": {
+                    "has_episode": per_episode_has_episode,
+                    "mentions": per_episode_mentions,
+                    "spoken_by": per_episode_spoken_by,
+                },
+            }
+            audit_log = artifact.setdefault("_retro_audit", [])
+            if isinstance(audit_log, list):
+                audit_log.append(audit_entry)
+            retro_rows.append(
+                {
+                    "gi_path": str(gi_path.resolve().relative_to(corpus.resolve())),
+                    **audit_entry,
+                }
+            )
         write_artifact(gi_path, artifact, validate=True)
         totals["episodes"] += 1
 
@@ -1492,4 +1595,28 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
     )
     logger.info(msg)
     print(msg)
+
+    if retro_audit and retro_rows:
+        if retro_summary_path_arg:
+            summary_path = Path(retro_summary_path_arg)
+        else:
+            summary_path = (
+                corpus / f"_retro_audit_{retro_marker.replace('#', '').replace('/', '-')}.json"
+            )
+        summary_path.write_text(
+            json.dumps(
+                {
+                    "marker": retro_marker,
+                    "applied_at": retro_applied_at,
+                    "use_ner": bool(use_ner),
+                    "corpus": str(corpus),
+                    "totals": totals,
+                    "per_episode": retro_rows,
+                },
+                indent=2,
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        print(f"enrich-edges: retro-audit summary → {summary_path}")
     return EXIT_SUCCESS

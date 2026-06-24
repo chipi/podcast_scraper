@@ -4000,14 +4000,24 @@ def generate_episode_metadata(  # noqa: C901
         try:
             from ..gi.relational_edges import apply_typed_mentions_and_rewrite_gi
 
+            # #1076 chunk 4-A — pass the cached spaCy NER model when the
+            # operator-gated flag is on. ``nlp`` was loaded at line ~3093
+            # for speaker-detection purposes; reuse it here so we don't
+            # pay a second model-load cost. ``None`` keeps the legacy
+            # whole-word substring behavior (the default).
+            typed_mentions_nlp = nlp if getattr(cfg, "gi_typed_mentions_use_ner", False) else None
             added_typed = apply_typed_mentions_and_rewrite_gi(
-                bridge_gi_payload, bridge_kg_payload, gi_artifact_path
+                bridge_gi_payload,
+                bridge_kg_payload,
+                gi_artifact_path,
+                nlp=typed_mentions_nlp,
             )
             if added_typed > 0:
                 logger.info(
-                    "[%s] Added %d typed MENTIONS_PERSON/MENTIONS_ORG edges to GI artifact",
+                    "[%s] Added %d typed MENTIONS_PERSON/MENTIONS_ORG edges to GI artifact" "%s",
                     episode.idx if hasattr(episode, "idx") else episode_id,
                     added_typed,
+                    " (NER pass on)" if typed_mentions_nlp is not None else "",
                 )
         except Exception as typed_mentions_exc:
             logger.warning(

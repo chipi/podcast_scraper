@@ -180,7 +180,7 @@
         "properties": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["text", "episode_id", "grounded"],
+          "required": ["text", "episode_id", "grounded", "insight_type", "position_hint"],
           "properties": {
             "text": { "type": "string", "minLength": 1, "description": "The insight statement (can be rephrased for clarity)" },
             "episode_id": { "type": "string", "minLength": 1, "description": "Episode where insight was extracted" },
@@ -188,13 +188,13 @@
             "insight_type": {
               "type": "string",
               "enum": ["claim", "recommendation", "observation", "question", "unknown"],
-              "description": "Optional v2.0 classification (default unknown when omitted)"
+              "description": "v3.0 strict (RFC-097 chunk 9 / ADR-101): required. v2.0 LLM-classifier output; falls back to 'unknown' when the classifier abstains."
             },
             "position_hint": {
               "type": "number",
               "minimum": 0,
               "maximum": 1,
-              "description": "Optional mean(quote_start_ms)/episode_duration_ms (RFC-072)"
+              "description": "v3.0 strict (RFC-097 chunk 9 / ADR-101): required. mean(quote_start_ms)/episode_duration_ms per RFC-072 §3 (4-step waterfall)."
             }
           }
         },

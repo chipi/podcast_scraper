@@ -216,3 +216,145 @@ def test_run_emits_spoken_by_for_named_diarized_transcript(tmp_path):
     spoken = {(e["from"], e["to"]) for e in art["edges"] if e["type"] == "SPOKEN_BY"}
     assert ("quote:1", "person:liam") in spoken
     assert any(n["id"] == "person:liam" and n["type"] == "Person" for n in art["nodes"])
+
+
+# ─────────────────────────────────────────────────────────────────────
+# #1076 chunk 4-A / ADR-102 — retro-audit CLI machinery
+# ─────────────────────────────────────────────────────────────────────
+
+
+class TestRetroAuditCLI:
+    """Covers the retro-audit hook: marker stamping, summary JSON shape,
+    gating (no stamp when zero edges), filename sanitization, and the
+    relative-vs-absolute path bug fixed at cli_handlers.py:1585.
+    """
+
+    def test_retro_audit_stamps_marker_on_mutated_artifact(self, tmp_path):
+        _build_corpus(tmp_path)
+        rc = run_enrich_edges_cli(
+            parse_enrich_edges_argv(
+                [
+                    "--output-dir",
+                    str(tmp_path),
+                    "--retro-audit",
+                    "--retro-marker",
+                    "#test-1076",
+                ]
+            ),
+            _LOG,
+        )
+        assert rc == 0
+        art = json.loads((tmp_path / "ep1.gi.json").read_text())
+        audit = art.get("_retro_audit")
+        assert isinstance(audit, list) and len(audit) == 1
+        entry = audit[0]
+        assert entry["marker"] == "#test-1076"
+        assert "applied_at" in entry and entry["applied_at"]
+        assert "edges_added" in entry
+        assert entry["edges_added"]["mentions"] >= 1  # Elon Musk match
+
+    def test_retro_audit_summary_written_at_default_path(self, tmp_path):
+        _build_corpus(tmp_path)
+        run_enrich_edges_cli(
+            parse_enrich_edges_argv(
+                [
+                    "--output-dir",
+                    str(tmp_path),
+                    "--retro-audit",
+                    "--retro-marker",
+                    "#test-1076",
+                ]
+            ),
+            _LOG,
+        )
+        # The default summary path strips '#' and '/' from the marker.
+        summary_path = tmp_path / "_retro_audit_test-1076.json"
+        assert summary_path.is_file()
+        s = json.loads(summary_path.read_text())
+        # ADR-102 required keys
+        assert s["marker"] == "#test-1076"
+        assert "applied_at" in s
+        assert "totals" in s
+        # The per-artifact list lives under 'per_episode' (NOT 'artifacts')
+        # — drift here would break any tooling that reads the summary.
+        assert "per_episode" in s
+        assert len(s["per_episode"]) == 1
+        assert s["per_episode"][0]["gi_path"].endswith("ep1.gi.json")
+
+    def test_retro_audit_zero_edges_does_not_stamp(self, tmp_path):
+        """When a re-run adds no edges, no _retro_audit entry is appended
+        and no summary JSON is written. Keeps idempotent re-runs from
+        polluting the marker list."""
+        _build_corpus(tmp_path)
+        # First pass: real edges land.
+        run_enrich_edges_cli(parse_enrich_edges_argv(["--output-dir", str(tmp_path)]), _LOG)
+        # Second pass: idempotent (no edges added) — even with --retro-audit
+        # there should be NO marker stamped this round.
+        run_enrich_edges_cli(
+            parse_enrich_edges_argv(
+                [
+                    "--output-dir",
+                    str(tmp_path),
+                    "--retro-audit",
+                    "--retro-marker",
+                    "#idempotent",
+                ]
+            ),
+            _LOG,
+        )
+        art = json.loads((tmp_path / "ep1.gi.json").read_text())
+        # No _retro_audit field at all because no edges were added this pass.
+        assert "_retro_audit" not in art or art["_retro_audit"] == []
+        assert not (tmp_path / "_retro_audit_idempotent.json").exists()
+
+    def test_retro_audit_accepts_relative_output_dir(self, tmp_path, monkeypatch):
+        """Regression for cli_handlers.py:1585: relative ``--output-dir``
+        + absolute ``rglob`` matches used to raise ``ValueError("... is not
+        in the subpath of ...")`` from ``Path.relative_to``. Fixed by
+        resolving both sides before subtracting."""
+        _build_corpus(tmp_path)
+        monkeypatch.chdir(tmp_path.parent)
+        rel_dir = tmp_path.name
+        rc = run_enrich_edges_cli(
+            parse_enrich_edges_argv(
+                [
+                    "--output-dir",
+                    rel_dir,
+                    "--retro-audit",
+                    "--retro-marker",
+                    "#rel-path",
+                ]
+            ),
+            _LOG,
+        )
+        assert rc == 0
+        # The summary file lands inside the corpus, marker-derived name.
+        summary_path = tmp_path / "_retro_audit_rel-path.json"
+        assert summary_path.is_file()
+        s = json.loads(summary_path.read_text())
+        # gi_path is corpus-relative, NOT absolute.
+        gi_path_str = s["per_episode"][0]["gi_path"]
+        assert not gi_path_str.startswith("/")
+        assert gi_path_str.endswith("ep1.gi.json")
+
+    def test_retro_audit_marker_default_when_omitted(self, tmp_path):
+        """Without --retro-marker the default ``#1076-ner`` marker
+        sanitizes to ``_retro_audit_1076-ner.json`` for the summary
+        filename (# stripped)."""
+        _build_corpus(tmp_path)
+        rc = run_enrich_edges_cli(
+            parse_enrich_edges_argv(["--output-dir", str(tmp_path), "--retro-audit"]),
+            _LOG,
+        )
+        assert rc == 0
+        assert (tmp_path / "_retro_audit_1076-ner.json").is_file()
+
+    def test_retro_audit_off_by_default(self, tmp_path):
+        """No --retro-audit flag → no marker, no summary, even when edges
+        are added."""
+        _build_corpus(tmp_path)
+        rc = run_enrich_edges_cli(parse_enrich_edges_argv(["--output-dir", str(tmp_path)]), _LOG)
+        assert rc == 0
+        art = json.loads((tmp_path / "ep1.gi.json").read_text())
+        assert "_retro_audit" not in art
+        assert not list(tmp_path.glob("_retro_audit_*.json"))

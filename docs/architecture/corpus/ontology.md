@@ -130,6 +130,40 @@ descriptive cross-layer edges (ABOUT / MENTIONS_PERSON / MENTIONS_ORG)
 in per-artifact JSON, so the viewer + relational query layer
 (RFC-094) can render the relationships without rebuilding the graph.
 
+### `MENTIONS_PERSON` emit paths
+
+Two routes produce typed `Insight → Person` edges. Both feed the same
+JSON shape; the viewer cannot tell them apart at read time.
+
+1. **LLM emit** (cloud_thin, cloud_balanced, local_dgx_*) — the
+   summarization LLM directly returns mentioned-person spans at
+   insight-emit time; the bridging layer types them as
+   `MENTIONS_PERSON` against KG Person ids.
+2. **Post-pass enrichment** (airgapped, airgapped_thin) — the LLM is
+   summary-only (BART-small / SummLlama), so insights are emitted
+   without explicit mention spans. The `apply_typed_mentions_and_rewrite_gi`
+   post-pass (`gi/relational_edges.py`) walks every Insight's text
+   and matches against the KG Person index. Two matchers run in
+   order:
+
+   - **Whole-word regex** on each KG Person `name`. Cheap and
+     deterministic given the text. Misses paraphrased fragments
+     ("Maya" when the KG entry is "Maya Hutchinson").
+   - **spaCy NER pass** (opt-in via `cfg.gi_typed_mentions_use_ner`,
+     default off; default-on for airgapped + airgapped_thin
+     profiles). Extracts PERSON spans and matches them by
+     token-subset against KG Person names. Reuses the spaCy model
+     already loaded for speaker detection — no extra load cost.
+
+   **Shared-surname disambiguation.** When a single-token span
+   (e.g. "Trump") token-subset-matches MULTIPLE KG Persons (Donald
+   Trump AND Eric Trump in the same artifact), the resolver refuses
+   to pick one and emits no edge. Multi-token spans resolve
+   normally. Validated on the prod-v2 corpus (209 GI files,
+   2026-06-24): operator-labelled 50-row sample showed 47 TP / 3
+   AMBIGUOUS / 0 FP. See ADR-102 for the `_retro_audit` audit-trail
+   pattern used when sweeping the post-pass over existing corpora.
+
 ---
 
 ## Insight properties (v2 additive)

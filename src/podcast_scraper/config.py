@@ -2133,6 +2133,22 @@ class Config(BaseModel):
             "Default matches DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX (avoid truncating long lists)."
         ),
     )
+    gi_typed_mentions_use_ner: bool = Field(
+        default=False,
+        alias="gi_typed_mentions_use_ner",
+        description=(
+            "#1076 chunk 4-A. When True, the typed-MENTIONS post-pass "
+            "(gi/relational_edges.py::add_insight_entity_edges) augments "
+            "the literal whole-word regex match with a spaCy NER pass. "
+            "Catches BART-paraphrased name fragments under airgapped_thin: "
+            "if the KG carries 'Maya Hutchinson' but the GI Insight text "
+            "says just 'Maya', the regex misses; spaCy's PERSON span 'Maya' "
+            "resolves to the KG entry via token-subset match. False-positive "
+            "bound: spans <3 chars dropped + spans must be a token-subset "
+            "of an indexed name. Default False (opt-in) so existing corpora "
+            "see no behavior change until operator validates and flips."
+        ),
+    )
     vector_search: bool = Field(
         default=False,
         alias="vector_search",

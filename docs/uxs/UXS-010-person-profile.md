@@ -1,6 +1,19 @@
 # UXS-010: Person Profile
 
 - **Status**: Draft
+- **v2 closure (RFC-097, 2026-06-20; chunk-8 scope-cut 2026-06-21)**: viewer
+  surface delivered by **#1048** (shared shell), **#1049** (Position Tracker
+  panel), and **#1050** (Person Profile aggregate, 2026-06-23). Person
+  Profile tab on `PersonLandingView.vue` now renders the UXS-010 sections:
+  Topics discussed (ranked by `ABOUT∩MENTIONS_PERSON` count), Insights
+  voiced (grouped-by-Topic, each header navigates into #1049 Position
+  Tracker for that pair), Episodes appeared in (`SPOKE_IN`-derived list,
+  newest-first), Organizations affiliated (`MENTIONS_PERSON ∩ MENTIONS_ORG`
+  chips), plus the pre-existing PRD-033 corpus / stated-positions / attributed-
+  quotes blocks. Helpers `personEpisodeAppearances` and
+  `personInsightsByTopic` in `web/gi-kg-viewer/src/utils/parsing.ts` own
+  the pure joins; testid map lives in `e2e/E2E_SURFACE_MAP.md` § "Person
+  Landing rail panel".
 - **Authors**: Marko
 - **Parent UXS**: [UXS-001: GI/KG Viewer](UXS-001-gi-kg-viewer.md) -- shared tokens,
   typography, layout, states

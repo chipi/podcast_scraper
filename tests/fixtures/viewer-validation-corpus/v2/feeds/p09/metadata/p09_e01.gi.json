@@ -89,6 +89,93 @@
       "from": "insight:22e96dbc24c92db7",
       "to": "quote:60c1af9601e83355",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:07fa6d7dbde95d9a",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:84304fb24a96f6ae",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:07fa6d7dbde95d9a",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:07fa6d7dbde95d9a",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:07fa6d7dbde95d9a",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:84304fb24a96f6ae",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:84304fb24a96f6ae",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:84304fb24a96f6ae",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:22e96dbc24c92db7",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:22e96dbc24c92db7",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:22e96dbc24c92db7",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:84304fb24a96f6ae",
+      "to": "person:speaker-02"
     }
   ],
   "episode_id": "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
@@ -102,7 +189,7 @@
         "metadata_relative_path": "feeds/p09/metadata/p09_e01.metadata.json",
         "podcast_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
         "publish_date": "2026-06-13T12:00:00",
-        "title": "The Long View: Biohacking \u2014 Episode 1"
+        "title": "The Long View: Biohacking — Episode 1"
       },
       "type": "Episode"
     },
@@ -135,7 +222,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "# The Long View \u2014 Episode\n## The Biohacking Premise\nHost: Alex Morgan\nGuest: Dr."
+        "text": "# The Long View — Episode\n## The Biohacking Premise\nHost: Alex Morgan\nGuest: Dr.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +233,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Elena Fischer\nAlex Morgan: Welcome to The Long View."
+        "text": "Elena Fischer\nAlex Morgan: Welcome to The Long View.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +244,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today we're exploring the biohacking premise in depth with Dr."
+        "text": "Today we're exploring the biohacking premise in depth with Dr.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -206,7 +299,7 @@
         "char_start": 256,
         "episode_id": "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
         "speaker_id": "person:speaker-01",
-        "text": "This episode is brought to you by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Get started at linear.com/podcast.",
+        "text": "This episode is brought to you by Linear. Linear is the issue tracker built for speed — keyboard-first, fast search, and a clean roadmap view your team actually uses. Get started at linear.com/podcast.",
         "timestamp_end_ms": 18000,
         "timestamp_start_ms": 12000,
         "transcript_ref": "transcripts/p09_e01.txt"
@@ -234,7 +327,7 @@
         "char_start": 539,
         "episode_id": "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
         "speaker_id": "person:speaker-02",
-        "text": "The short answer is Biohacking is mostly hygiene factors and recovery \u2014 the exotic stuff is downstream. Teams working with WHOOP run into this constantly. The framing matters because it tells you which trade-offs you're actually making.",
+        "text": "The short answer is Biohacking is mostly hygiene factors and recovery — the exotic stuff is downstream. Teams working with WHOOP run into this constantly. The framing matters because it tells you which trade-offs you're actually making.",
         "timestamp_end_ms": 30000,
         "timestamp_start_ms": 24000,
         "transcript_ref": "transcripts/p09_e01.txt"
@@ -257,5 +350,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

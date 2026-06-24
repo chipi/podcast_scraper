@@ -89,6 +89,93 @@
       "from": "insight:42c4a9f138eb1851",
       "to": "quote:5351b48f497b915e",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:28d65da2957382c0",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:28d65da2957382c0",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:b23b6583135a55b1",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:28d65da2957382c0",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:28d65da2957382c0",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:28d65da2957382c0",
+      "to": "topic:security-as",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b23b6583135a55b1",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b23b6583135a55b1",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b23b6583135a55b1",
+      "to": "topic:security-as",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:42c4a9f138eb1851",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:42c4a9f138eb1851",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:42c4a9f138eb1851",
+      "to": "topic:security-as",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
@@ -102,7 +189,7 @@
         "metadata_relative_path": "feeds/p02/metadata/p02_e03.metadata.json",
         "podcast_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
         "publish_date": "2026-06-10T12:00:00",
-        "title": "Practical Systems \u2014 Episode 3"
+        "title": "Practical Systems — Episode 3"
       },
       "type": "Episode"
     },
@@ -135,7 +222,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "# Practical Systems \u2014 Episode\n## Security as Design, Not a Checklist\nHost: Ethan\nGuest: Priya\nEthan: Welcome back to Practical Systems."
+        "text": "# Practical Systems — Episode\n## Security as Design, Not a Checklist\nHost: Ethan\nGuest: Priya\nEthan: Welcome back to Practical Systems.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +233,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today we're talking about security design, and I'm joined by Priya, principal SRE at a payments platform."
+        "text": "Today we're talking about security design, and I'm joined by Priya, principal SRE at a payments platform.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +244,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today's episode is sponsored by Vanta."
+        "text": "Today's episode is sponsored by Vanta.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -220,7 +313,7 @@
         "char_start": 386,
         "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
         "speaker_id": "person:speaker-01",
-        "text": "Before we get into it \u2014 I was last on the show talking about on-call rotations. The pattern shows up again here \u2014 embed ownership where the work happens.",
+        "text": "Before we get into it — I was last on the show talking about on-call rotations. The pattern shows up again here — embed ownership where the work happens.",
         "timestamp_end_ms": 24000,
         "timestamp_start_ms": 18000,
         "transcript_ref": "transcripts/p02_e03.txt"
@@ -248,7 +341,7 @@
         "char_start": 605,
         "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
         "speaker_id": "person:speaker-02",
-        "text": "I used to argue for a single central security team. I changed my mind after the 2024 webhook incident \u2014 the embedded model gets faster fixes and better signal.",
+        "text": "I used to argue for a single central security team. I changed my mind after the 2024 webhook incident — the embedded model gets faster fixes and better signal.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p02_e03.txt"
@@ -257,5 +350,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

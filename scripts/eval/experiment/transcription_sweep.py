@@ -65,6 +65,33 @@ def transcribe_episode(
     }
 
 
+import re
+
+# #1060 FU4 — synthetic v2 reference transcripts include markdown headers,
+# speaker labels (``Maya:`` / ``Liam:``) and timestamps (``[00:00]``); Whisper
+# does not emit any of these, so naive WER is inflated by a near-constant delta.
+# This preprocessing brings the reference onto the same shape as the hypothesis.
+_SPEAKER_LABEL_RE = re.compile(r"^[A-Z][a-zA-Z'-]*:\s+", re.MULTILINE)
+_TIMESTAMP_RE = re.compile(r"\[\d{1,2}:\d{2}(?::\d{2})?\]")
+_MARKDOWN_HEADER_RE = re.compile(r"^#+\s.*$", re.MULTILINE)
+_HOSTGUEST_BLOCK_RE = re.compile(r"^(?:Host|Guest|Speaker):\s.*$", re.MULTILINE)
+
+
+def clean_reference_for_wer(text: str) -> str:
+    """Strip non-spoken artifacts from the synthetic reference transcript.
+
+    Removes: markdown headers (``# ...``), prose host/guest lines (``Host:
+    Maya``), per-utterance speaker labels (``Maya: …`` / ``Liam: …``), and
+    bracketed timestamps (``[00:00]``). What remains is the actual spoken
+    content the Whisper hypothesis tries to reconstruct.
+    """
+    out = _MARKDOWN_HEADER_RE.sub("", text)
+    out = _HOSTGUEST_BLOCK_RE.sub("", out)
+    out = _TIMESTAMP_RE.sub("", out)
+    out = _SPEAKER_LABEL_RE.sub("", out)
+    return out
+
+
 def compute_wer(hypothesis: str, reference: str) -> float:
     """Compute Word Error Rate between hypothesis and reference."""
     ref_words = reference.lower().split()
@@ -107,6 +134,16 @@ def main():
         default=",".join(DEFAULT_MODELS),
         help=f"Comma-separated Whisper models (default: {','.join(DEFAULT_MODELS)})",
     )
+    parser.add_argument(
+        "--clean-reference",
+        action="store_true",
+        help=(
+            "Strip markdown headers, speaker labels, and timestamps from the "
+            "reference before computing WER (#1060 FU4). Required for absolute-"
+            "comparable WER against EVAL_WHISPER_SMALL_EN_2026_06_13.md and "
+            "EVAL_TRANSCRIPTION_3WAY_2026_06.md. Default off for back-compat."
+        ),
+    )
     args = parser.parse_args()
 
     audio_dir = Path(args.audio_dir)
@@ -125,9 +162,13 @@ def main():
     for ep in episodes:
         ref_path = ref_dir / f"{ep}.txt"
         if ref_path.exists():
-            refs[ep] = ref_path.read_text()
+            raw = ref_path.read_text()
+            refs[ep] = clean_reference_for_wer(raw) if args.clean_reference else raw
         else:
             print(f"  WARNING: no reference for {ep}")
+
+    if args.clean_reference:
+        print("Reference cleaning: ON (markdown + speaker labels + timestamps stripped)")
 
     results: List[Dict[str, Any]] = []
 

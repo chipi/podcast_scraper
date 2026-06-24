@@ -89,6 +89,93 @@
       "from": "insight:e4d827ca6454fa6f",
       "to": "quote:a2dc9e1c4f362c2a",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:0afee1649ef910d9",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:0afee1649ef910d9",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:a929e389641180b2",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:0afee1649ef910d9",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:0afee1649ef910d9",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:0afee1649ef910d9",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a929e389641180b2",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a929e389641180b2",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a929e389641180b2",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e4d827ca6454fa6f",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e4d827ca6454fa6f",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e4d827ca6454fa6f",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
@@ -102,7 +189,7 @@
         "metadata_relative_path": "feeds/p04/metadata/p04_e01.metadata.json",
         "podcast_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
         "publish_date": "2026-06-12T12:00:00",
-        "title": "Frame & Light \u2014 Episode 1"
+        "title": "Frame & Light — Episode 1"
       },
       "type": "Episode"
     },
@@ -135,7 +222,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "# Frame & Light \u2014 Episode\n## Underwater Images That Feel Alive\nHost: Leo\nGuest: Ava\nLeo: Welcome back to Frame & Light."
+        "text": "# Frame & Light — Episode\n## Underwater Images That Feel Alive\nHost: Leo\nGuest: Ava\nLeo: Welcome back to Frame & Light.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +233,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today we're talking about underwater photography, and I'm joined by Ava, underwater photographer."
+        "text": "Today we're talking about underwater photography, and I'm joined by Ava, underwater photographer.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +244,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Excited for this one \u2014 underwater imaging is something I've been thinking about a lot."
+        "text": "Excited for this one — underwater imaging is something I've been thinking about a lot.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -192,7 +285,7 @@
         "char_start": 167,
         "episode_id": "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
         "speaker_id": "person:speaker-02",
-        "text": "Thanks, Leo. Excited for this one \u2014 underwater imaging is something I've been thinking about a lot.",
+        "text": "Thanks, Leo. Excited for this one — underwater imaging is something I've been thinking about a lot.",
         "timestamp_end_ms": 12000,
         "timestamp_start_ms": 6000,
         "transcript_ref": "transcripts/p04_e01.txt"
@@ -257,5 +350,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

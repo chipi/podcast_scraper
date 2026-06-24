@@ -89,6 +89,93 @@
       "from": "insight:e7b90825a574637b",
       "to": "quote:ce971125015bf042",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:3c07a9ec6895756b",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:3c07a9ec6895756b",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:d11ccb1d5c3b1cd9",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:3c07a9ec6895756b",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:3c07a9ec6895756b",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:3c07a9ec6895756b",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d11ccb1d5c3b1cd9",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d11ccb1d5c3b1cd9",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d11ccb1d5c3b1cd9",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e7b90825a574637b",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e7b90825a574637b",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e7b90825a574637b",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
@@ -102,7 +189,7 @@
         "metadata_relative_path": "feeds/p03/metadata/p03_e02.metadata.json",
         "podcast_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
         "publish_date": "2026-06-11T12:00:00",
-        "title": "Below the Surface \u2014 Episode 2"
+        "title": "Below the Surface — Episode 2"
       },
       "type": "Episode"
     },
@@ -135,7 +222,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "# Below the Surface \u2014 Episode\n## Marine Biology for Divers\nHost: Rina\nGuest: Hanna\nRina: Welcome back to Below the Surface."
+        "text": "# Below the Surface — Episode\n## Marine Biology for Divers\nHost: Rina\nGuest: Hanna\nRina: Welcome back to Below the Surface.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +233,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today we're talking about marine biology, and I'm joined by Hanna, marine biologist focused on reef systems."
+        "text": "Today we're talking about marine biology, and I'm joined by Hanna, marine biologist focused on reef systems.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +244,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "This episode is brought to you by PADI."
+        "text": "This episode is brought to you by PADI.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -206,7 +299,7 @@
         "char_start": 225,
         "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
         "speaker_id": "person:speaker-01",
-        "text": "This episode is brought to you by PADI. PADI is the global standard for dive education \u2014 find a certified instructor in your area. Get started at padi.com/podcast.",
+        "text": "This episode is brought to you by PADI. PADI is the global standard for dive education — find a certified instructor in your area. Get started at padi.com/podcast.",
         "timestamp_end_ms": 18000,
         "timestamp_start_ms": 12000,
         "transcript_ref": "transcripts/p03_e02.txt"
@@ -220,7 +313,7 @@
         "char_start": 388,
         "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
         "speaker_id": "person:speaker-01",
-        "text": "Before we get into it \u2014 Marco was on last week talking about wreck planning. The same discipline applies to reef diving \u2014 plan the dive, dive the plan.",
+        "text": "Before we get into it — Marco was on last week talking about wreck planning. The same discipline applies to reef diving — plan the dive, dive the plan.",
         "timestamp_end_ms": 24000,
         "timestamp_start_ms": 18000,
         "transcript_ref": "transcripts/p03_e02.txt"
@@ -257,5 +350,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

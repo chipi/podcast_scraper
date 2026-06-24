@@ -89,6 +89,98 @@
       "from": "insight:1bc052c2cd922b94",
       "to": "quote:2742ac2297a792e9",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:75fca224addd5258",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:75fca224addd5258",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:3c2ecfd377960b18",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:1bc052c2cd922b94",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:75fca224addd5258",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:75fca224addd5258",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:75fca224addd5258",
+      "to": "topic:great-to-be-back",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:3c2ecfd377960b18",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:3c2ecfd377960b18",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:3c2ecfd377960b18",
+      "to": "topic:great-to-be-back",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:1bc052c2cd922b94",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:1bc052c2cd922b94",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:1bc052c2cd922b94",
+      "to": "topic:great-to-be-back",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
@@ -102,7 +194,7 @@
         "metadata_relative_path": "feeds/p05/metadata/p05_e02.metadata.json",
         "podcast_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
         "publish_date": "2026-06-15T12:00:00",
-        "title": "Long Horizon Notes \u2014 Episode 2"
+        "title": "Long Horizon Notes — Episode 2"
       },
       "type": "Episode"
     },
@@ -135,7 +227,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "# Long Horizon Notes \u2014 Episode\n## Real Estate: Numbers Before Narratives\nHost: Nora\nGuest: Isabel\nNora: Welcome back to Long Horizon Notes."
+        "text": "# Long Horizon Notes — Episode\n## Real Estate: Numbers Before Narratives\nHost: Nora\nGuest: Isabel\nNora: Welcome back to Long Horizon Notes.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +238,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today we're talking about real estate underwriting, and I'm joined by Isabel, real estate underwriter."
+        "text": "Today we're talking about real estate underwriting, and I'm joined by Isabel, real estate underwriter.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +249,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Isabel, thanks for being here."
+        "text": "Isabel, thanks for being here.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -206,7 +304,7 @@
         "char_start": 222,
         "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
         "speaker_id": "person:speaker-01",
-        "text": "Before we dive in, a quick word from our sponsor Wealthfront. Wealthfront automates the boring parts of investing \u2014 tax-loss harvesting, rebalancing, and high-yield cash. Use code POD for an extended trial.",
+        "text": "Before we dive in, a quick word from our sponsor Wealthfront. Wealthfront automates the boring parts of investing — tax-loss harvesting, rebalancing, and high-yield cash. Use code POD for an extended trial.",
         "timestamp_end_ms": 18000,
         "timestamp_start_ms": 12000,
         "transcript_ref": "transcripts/p05_e02.txt"
@@ -220,7 +318,7 @@
         "char_start": 428,
         "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
         "speaker_id": "person:speaker-01",
-        "text": "Before we get into it \u2014 Daniel was on episode 1 making the case for behavioral discipline in index investing. The same discipline keeps you from buying the wrong building.",
+        "text": "Before we get into it — Daniel was on episode 1 making the case for behavioral discipline in index investing. The same discipline keeps you from buying the wrong building.",
         "timestamp_end_ms": 24000,
         "timestamp_start_ms": 18000,
         "transcript_ref": "transcripts/p05_e02.txt"
@@ -248,7 +346,7 @@
         "char_start": 673,
         "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
         "speaker_id": "person:speaker-01",
-        "text": "Before we get into it \u2014 Marco Bianchi was on the show a few weeks back walking through tax-loss harvesting research \u2014 the same habit of running the numbers before deciding applies to real estate underwriting, just on a longer clock.",
+        "text": "Before we get into it — Marco Bianchi was on the show a few weeks back walking through tax-loss harvesting research — the same habit of running the numbers before deciding applies to real estate underwriting, just on a longer clock.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p05_e02.txt"
@@ -257,5 +355,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

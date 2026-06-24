@@ -213,7 +213,12 @@ def migrate_gi_document_v3(data: Dict[str, Any]) -> Dict[str, Any]:
             e["type"] = "MENTIONS_ORG"
         # Fall through if neither prefix matches (rare; preserve legacy).
 
-    # Normalise insight_type vocab on every Insight node.
+    # Normalise insight_type vocab + ensure required v3 fields exist on
+    # every Insight node. RFC-097 chunk 9 (ADR-101) made insight_type +
+    # position_hint required under strict v3, so the one-shot migration
+    # backfills defaults; the dedicated ``compute_position_hints_for_document``
+    # call later overwrites position_hint with the real 4-step waterfall
+    # value when timestamps are available.
     for n in nodes:
         if not isinstance(n, dict) or n.get("type") != "Insight":
             continue
@@ -222,8 +227,8 @@ def migrate_gi_document_v3(data: Dict[str, Any]) -> Dict[str, Any]:
             continue
         raw = props.get("insight_type")
         if raw is None:
-            continue
-        if isinstance(raw, str):
+            props["insight_type"] = "unknown"
+        elif isinstance(raw, str):
             k = raw.strip().lower()
             if k in _V3_INSIGHT_TYPES:
                 if k != raw:
@@ -232,6 +237,8 @@ def migrate_gi_document_v3(data: Dict[str, Any]) -> Dict[str, Any]:
                 props["insight_type"] = _V3_LEGACY_SYNONYMS[k]
             else:
                 props["insight_type"] = "unknown"
+        if "position_hint" not in props:
+            props["position_hint"] = 0.5
 
     if out.get("schema_version") in ("1.0", "2.0"):
         out["schema_version"] = "3.0"

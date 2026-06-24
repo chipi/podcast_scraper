@@ -89,6 +89,93 @@
       "from": "insight:7b9ac0f02e6557b7",
       "to": "quote:d3b2ecbe3c216c72",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:713c89323723fe81",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:713c89323723fe81",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:7231288f6f3d8a4d",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:713c89323723fe81",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:713c89323723fe81",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:713c89323723fe81",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:7231288f6f3d8a4d",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:7231288f6f3d8a4d",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:7231288f6f3d8a4d",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:7b9ac0f02e6557b7",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:7b9ac0f02e6557b7",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:7b9ac0f02e6557b7",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
@@ -102,7 +189,7 @@
         "metadata_relative_path": "feeds/p01/metadata/p01_e03.metadata.json",
         "podcast_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
         "publish_date": "2026-06-11T12:00:00",
-        "title": "Singletrack Sessions \u2014 Episode 3"
+        "title": "Singletrack Sessions — Episode 3"
       },
       "type": "Episode"
     },
@@ -135,7 +222,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "# Singletrack Sessions \u2014 Episode\n## The Mechanics of a Quiet, Fast Bike\nHost: Maya\nGuest: Noah\nMaya: Welcome back to Singletrack Sessions."
+        "text": "# Singletrack Sessions — Episode\n## The Mechanics of a Quiet, Fast Bike\nHost: Maya\nGuest: Noah\nMaya: Welcome back to Singletrack Sessions.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +233,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today we're talking about drivetrain mechanics, and I'm joined by Noah, mechanic at Spoke & Wrench."
+        "text": "Today we're talking about drivetrain mechanics, and I'm joined by Noah, mechanic at Spoke & Wrench.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +244,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "This episode is brought to you by Notion."
+        "text": "This episode is brought to you by Notion.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -220,7 +313,7 @@
         "char_start": 404,
         "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
         "speaker_id": "person:speaker-01",
-        "text": "Before we get into it \u2014 Sophie was on last episode talking about tire pressure mattering more than suspension tweaks. I want to push back on that a little from a mechanic's perspective.",
+        "text": "Before we get into it — Sophie was on last episode talking about tire pressure mattering more than suspension tweaks. I want to push back on that a little from a mechanic's perspective.",
         "timestamp_end_ms": 24000,
         "timestamp_start_ms": 18000,
         "transcript_ref": "transcripts/p01_e03.txt"
@@ -257,5 +350,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

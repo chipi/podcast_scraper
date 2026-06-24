@@ -1,9 +1,11 @@
 # Profile: airgapped — no network, no Ollama daemon
 #
-# Registry status: YAML-only (no entry in `_PROFILE_PRESETS`). The
-# `summllama` summary provider has no matching StageOption today;
-# promotion is gated on either adding one or migrating to an existing
-# StageOption. Drift-checked by SKIP (no `profile:` opt-in).
+# Registry status: ProfilePreset-backed (promoted 2026-06-23 in #1060).
+# Routing maps to the `airgapped` preset in `_PROFILE_PRESETS`:
+# medium.en Whisper + SummLlama 3.2-3B paragraph + spaCy trf.
+# Drift-checked by `test_profile_yaml_registry_drift.py`.
+#
+profile: airgapped
 #
 # Maximum isolation: no API calls, no Ollama server, no network.
 # Uses only bundled ML models (SummLlama / transformers, spaCy, local Whisper).
@@ -68,6 +70,19 @@ generate_kg: true
 kg_extraction_source: provider
 kg_max_topics: 10
 kg_max_entities: 15
+
+# #1076 chunk 4-A — spaCy NER pass for typed MENTIONS_PERSON post-pass.
+# Default-on for airgapped because SummLlama (like BART) paraphrases
+# speaker names away from the literal KG form; NER catches fragments
+# the regex misses. Same validation as airgapped_thin (see that YAML).
+#
+# Layered overlay only — NOT carried by ProfilePreset (the registry
+# class has no slot for this field). Code that instantiates
+# `_PROFILE_PRESETS["airgapped"]` programmatically without the YAML
+# overlay will run with the cfg-default (False). The drift test
+# `tests/unit/podcast_scraper/test_config_ner_flag.py` pins the
+# YAML-overlay expected values.
+gi_typed_mentions_use_ner: true
 
 # Vector search + clustering
 vector_search: true

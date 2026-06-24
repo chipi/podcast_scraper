@@ -228,6 +228,9 @@ class TestGILSchema:
                         "text": "AI will be regulated.",
                         "episode_id": "episode:1",
                         "grounded": False,
+                        # RFC-097 chunk 9 (ADR-101): required in v3.0 strict.
+                        "insight_type": "claim",
+                        "position_hint": 0.5,
                     },
                 },
             ],

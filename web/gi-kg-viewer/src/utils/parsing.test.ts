@@ -20,10 +20,17 @@ import {
   insightProvenanceLine,
   insightRelatedTopicRows,
   insightSupportingQuoteRows,
+  canonicalTopicKey,
   insightSupportingTranscriptAggregate,
   nodeLabel,
+  personEpisodeAppearances,
+  personInsightsByTopic,
+  personRoleFromNode,
+  personTopicPositionArc,
   primaryTextFromLooseGiNode,
   parseArtifact,
+  rankedPersonOrganizations,
+  rankedPersonTopicMentions,
   aggregateEpisodePersonEdges,
   aggregateEpisodeTopicEdges,
   confidenceTierFromInsightProperties,
@@ -959,6 +966,465 @@ describe('countPersonEntityIncidentEdges', () => {
       spokenByQuotes: 1,
       spokeInEpisodes: 0,
     })
+  })
+})
+
+// #1048 — Person Landing shared component helpers.
+describe('rankedPersonTopicMentions', () => {
+  it('returns [] for missing artifact or id', () => {
+    expect(rankedPersonTopicMentions(null, 'person:x')).toEqual([])
+    const art = parseArtifact('x.gi.json', { nodes: [], edges: [] })
+    expect(rankedPersonTopicMentions(art, null)).toEqual([])
+  })
+
+  it('ranks topics by collapsed (insight, topic) pairs, alphabetic tiebreak', () => {
+    const art = parseArtifact('x.gi.json', {
+      nodes: [
+        { id: 'topic:ai', type: 'Topic', properties: { name: 'AI ethics' } },
+        { id: 'topic:reg', type: 'Topic', properties: { name: 'AI regulation' } },
+      ],
+      edges: [
+        { type: 'MENTIONS_PERSON', from: 'i1', to: 'person:a' },
+        { type: 'MENTIONS_PERSON', from: 'i2', to: 'person:a' },
+        { type: 'MENTIONS_PERSON', from: 'i3', to: 'person:a' },
+        // i1 → topic:ai counted twice in edges but collapses to 1 pair
+        { type: 'ABOUT', from: 'i1', to: 'topic:ai' },
+        { type: 'ABOUT', from: 'i1', to: 'topic:ai' },
+        { type: 'ABOUT', from: 'i2', to: 'topic:ai' }, // distinct pair (i2, ai) = 1 more
+        { type: 'ABOUT', from: 'i3', to: 'topic:reg' },
+      ],
+    })
+    expect(rankedPersonTopicMentions(art, 'person:a')).toEqual([
+      { id: 'topic:ai', name: 'AI ethics', count: 2 },
+      { id: 'topic:reg', name: 'AI regulation', count: 1 },
+    ])
+  })
+
+  it('falls back to id when Topic node lacks a name/label', () => {
+    const art = parseArtifact('x.gi.json', {
+      nodes: [{ id: 'topic:unknown', type: 'Topic', properties: {} }],
+      edges: [
+        { type: 'MENTIONS_PERSON', from: 'i1', to: 'person:a' },
+        { type: 'ABOUT', from: 'i1', to: 'topic:unknown' },
+      ],
+    })
+    expect(rankedPersonTopicMentions(art, 'person:a')).toEqual([
+      { id: 'topic:unknown', name: 'topic:unknown', count: 1 },
+    ])
+  })
+
+  it('skips ABOUT edges whose Insight does not MENTIONS_PERSON this person', () => {
+    const art = parseArtifact('x.gi.json', {
+      nodes: [{ id: 'topic:ai', type: 'Topic', properties: { name: 'AI' } }],
+      edges: [
+        { type: 'MENTIONS_PERSON', from: 'i1', to: 'person:other' },
+        { type: 'ABOUT', from: 'i1', to: 'topic:ai' },
+      ],
+    })
+    expect(rankedPersonTopicMentions(art, 'person:a')).toEqual([])
+  })
+})
+
+describe('rankedPersonOrganizations', () => {
+  it('returns [] when no MENTIONS_PERSON edges target the person', () => {
+    const art = parseArtifact('x.gi.json', {
+      nodes: [],
+      edges: [{ type: 'MENTIONS_ORG', from: 'i1', to: 'org:openai' }],
+    })
+    expect(rankedPersonOrganizations(art, 'person:a')).toEqual([])
+  })
+
+  it('ranks co-mentioned orgs via MENTIONS_PERSON ∩ MENTIONS_ORG on the same Insight', () => {
+    const art = parseArtifact('x.gi.json', {
+      nodes: [
+        { id: 'org:openai', type: 'Organization', properties: { name: 'OpenAI' } },
+        { id: 'org:google', type: 'Organization', properties: { name: 'Google' } },
+      ],
+      edges: [
+        { type: 'MENTIONS_PERSON', from: 'i1', to: 'person:a' },
+        { type: 'MENTIONS_PERSON', from: 'i2', to: 'person:a' },
+        { type: 'MENTIONS_ORG', from: 'i1', to: 'org:openai' },
+        { type: 'MENTIONS_ORG', from: 'i2', to: 'org:openai' },
+        { type: 'MENTIONS_ORG', from: 'i1', to: 'org:google' },
+      ],
+    })
+    expect(rankedPersonOrganizations(art, 'person:a')).toEqual([
+      { id: 'org:openai', name: 'OpenAI', count: 2 },
+      { id: 'org:google', name: 'Google', count: 1 },
+    ])
+  })
+})
+
+describe('personTopicPositionArc (#1049)', () => {
+  it('returns [] for missing inputs', () => {
+    expect(personTopicPositionArc(null, 'p1', 't1')).toEqual([])
+    const art = parseArtifact('x.gi.json', { nodes: [], edges: [] })
+    expect(personTopicPositionArc(art, null, 't1')).toEqual([])
+    expect(personTopicPositionArc(art, 'p1', null)).toEqual([])
+  })
+
+  it('intersects MENTIONS_PERSON ∩ ABOUT and sorts by date then position_hint', () => {
+    const art = parseArtifact('x.gi.json', {
+      nodes: [
+        {
+          id: 'i_old',
+          type: 'Insight',
+          properties: { text: 'older claim', insight_type: 'claim', position_hint: 0.4 },
+        },
+        {
+          id: 'i_new_early',
+          type: 'Insight',
+          properties: { text: 'newer early', insight_type: 'observation', position_hint: 0.2 },
+        },
+        {
+          id: 'i_new_late',
+          type: 'Insight',
+          properties: { text: 'newer late', insight_type: 'recommendation', position_hint: 0.8 },
+        },
+        // Distractor — wrong topic
+        {
+          id: 'i_wrong_topic',
+          type: 'Insight',
+          properties: { text: 'wrong topic', insight_type: 'claim', position_hint: 0.1 },
+        },
+        // Distractor — wrong person
+        {
+          id: 'i_wrong_person',
+          type: 'Insight',
+          properties: { text: 'wrong person', insight_type: 'claim', position_hint: 0.1 },
+        },
+        { id: 'ep:old', type: 'Episode', properties: { publish_date: '2026-01-10' } },
+        { id: 'ep:new', type: 'Episode', properties: { publish_date: '2026-02-15' } },
+      ],
+      edges: [
+        { type: 'MENTIONS_PERSON', from: 'i_old', to: 'p:alice' },
+        { type: 'MENTIONS_PERSON', from: 'i_new_early', to: 'p:alice' },
+        { type: 'MENTIONS_PERSON', from: 'i_new_late', to: 'p:alice' },
+        { type: 'MENTIONS_PERSON', from: 'i_wrong_topic', to: 'p:alice' },
+        { type: 'MENTIONS_PERSON', from: 'i_wrong_person', to: 'p:bob' },
+        { type: 'ABOUT', from: 'i_old', to: 't:ai' },
+        { type: 'ABOUT', from: 'i_new_early', to: 't:ai' },
+        { type: 'ABOUT', from: 'i_new_late', to: 't:ai' },
+        { type: 'ABOUT', from: 'i_wrong_topic', to: 't:other' },
+        { type: 'ABOUT', from: 'i_wrong_person', to: 't:ai' },
+        { type: 'IN_EPISODE', from: 'i_old', to: 'ep:old' },
+        { type: 'IN_EPISODE', from: 'i_new_early', to: 'ep:new' },
+        { type: 'IN_EPISODE', from: 'i_new_late', to: 'ep:new' },
+      ],
+    })
+    const arc = personTopicPositionArc(art, 'p:alice', 't:ai')
+    expect(arc.map((r) => r.insightId)).toEqual(['i_old', 'i_new_early', 'i_new_late'])
+    expect(arc[0].publishDate).toBe('2026-01-10')
+    expect(arc[1].publishDate).toBe('2026-02-15')
+    expect(arc[1].positionHint).toBe(0.2)
+    expect(arc[2].positionHint).toBe(0.8)
+    expect(arc[0].insightType).toBe('claim')
+    expect(arc[1].text).toBe('newer early')
+  })
+
+  it('attaches supporting quote texts via SUPPORTED_BY', () => {
+    const art = parseArtifact('x.gi.json', {
+      nodes: [
+        { id: 'i1', type: 'Insight', properties: { text: 'argued for X', insight_type: 'claim' } },
+        { id: 'q1', type: 'Quote', properties: { text: 'i think X is true' } },
+        { id: 'q2', type: 'Quote', properties: { text: 'X matters because Y' } },
+        // Not a Quote (Insight self-reference) — should be ignored.
+        { id: 'q3', type: 'Insight', properties: { text: 'not a quote' } },
+      ],
+      edges: [
+        { type: 'MENTIONS_PERSON', from: 'i1', to: 'p:a' },
+        { type: 'ABOUT', from: 'i1', to: 't:x' },
+        { type: 'SUPPORTED_BY', from: 'i1', to: 'q1' },
+        { type: 'SUPPORTED_BY', from: 'i1', to: 'q2' },
+        { type: 'SUPPORTED_BY', from: 'i1', to: 'q3' },
+      ],
+    })
+    const arc = personTopicPositionArc(art, 'p:a', 't:x')
+    expect(arc.length).toBe(1)
+    expect(arc[0].supportingQuoteTexts).toEqual(['i think X is true', 'X matters because Y'])
+  })
+
+  it('sinks undated insights to the tail (consistent with sibling helpers)', () => {
+    const art = parseArtifact('x.gi.json', {
+      nodes: [
+        { id: 'i_dated', type: 'Insight', properties: { text: 'dated', position_hint: 0.5 } },
+        { id: 'i_undated', type: 'Insight', properties: { text: 'no date', position_hint: 0.5 } },
+        { id: 'ep:1', type: 'Episode', properties: { publish_date: '2026-03-01' } },
+      ],
+      edges: [
+        { type: 'MENTIONS_PERSON', from: 'i_dated', to: 'p:a' },
+        { type: 'MENTIONS_PERSON', from: 'i_undated', to: 'p:a' },
+        { type: 'ABOUT', from: 'i_dated', to: 't:x' },
+        { type: 'ABOUT', from: 'i_undated', to: 't:x' },
+        { type: 'IN_EPISODE', from: 'i_dated', to: 'ep:1' },
+      ],
+    })
+    const arc = personTopicPositionArc(art, 'p:a', 't:x')
+    expect(arc.map((r) => r.insightId)).toEqual(['i_dated', 'i_undated'])
+    expect(arc[0].publishDate).toBe('2026-03-01')
+    expect(arc[1].publishDate).toBeNull()
+  })
+})
+
+describe('canonicalTopicKey (#1076 chunk 2)', () => {
+  it('lowercases', () => {
+    expect(canonicalTopicKey('AI Ethics')).toBe('ai ethics')
+  })
+  it('strips ASCII punctuation', () => {
+    expect(canonicalTopicKey('AI-Ethics')).toBe('ai ethics')
+    expect(canonicalTopicKey('AI/Ethics?')).toBe('ai ethics')
+  })
+  it('collapses whitespace and trims', () => {
+    expect(canonicalTopicKey('  AI   ethics  ')).toBe('ai ethics')
+  })
+  it('returns empty string for non-strings', () => {
+    expect(canonicalTopicKey(null)).toBe('')
+    expect(canonicalTopicKey(undefined)).toBe('')
+  })
+  it('folds three near-duplicates to a single canonical key', () => {
+    const key1 = canonicalTopicKey('AI ethics')
+    const key2 = canonicalTopicKey('AI Ethics')
+    const key3 = canonicalTopicKey('AI-ethics')
+    expect(key1).toBe(key2)
+    expect(key2).toBe(key3)
+  })
+})
+
+describe('rankedPersonTopicMentions — near-duplicate fold (#1076 chunk 2)', () => {
+  it('groups Topic rows with the same canonical key under the alphabetically-smallest id', () => {
+    const art = parseArtifact('x.gi.json', {
+      nodes: [
+        // Three near-duplicate Topics, alphabetically t:ai-1 < t:ai-2 < t:ai-3.
+        { id: 't:ai-1', type: 'Topic', properties: { name: 'AI ethics' } },
+        { id: 't:ai-2', type: 'Topic', properties: { name: 'AI Ethics' } },
+        { id: 't:ai-3', type: 'Topic', properties: { name: 'AI-Ethics' } },
+        { id: 't:other', type: 'Topic', properties: { name: 'Climate' } },
+      ],
+      edges: [
+        { type: 'MENTIONS_PERSON', from: 'i1', to: 'p:a' },
+        { type: 'MENTIONS_PERSON', from: 'i2', to: 'p:a' },
+        { type: 'MENTIONS_PERSON', from: 'i3', to: 'p:a' },
+        { type: 'MENTIONS_PERSON', from: 'i4', to: 'p:a' },
+        { type: 'ABOUT', from: 'i1', to: 't:ai-1' },
+        { type: 'ABOUT', from: 'i2', to: 't:ai-2' },
+        { type: 'ABOUT', from: 'i3', to: 't:ai-3' },
+        { type: 'ABOUT', from: 'i4', to: 't:other' },
+      ],
+    })
+    const rows = rankedPersonTopicMentions(art, 'p:a')
+    expect(rows.length).toBe(2)
+    // Folded row uses the smallest id (t:ai-1) + sums counts (3 across the 3 near-dups).
+    const ai = rows.find((r) => r.name === 'AI ethics')
+    expect(ai).toBeDefined()
+    expect(ai!.id).toBe('t:ai-1')
+    expect(ai!.count).toBe(3)
+    const other = rows.find((r) => r.name === 'Climate')
+    expect(other!.count).toBe(1)
+  })
+
+  it('does not fold topics with no extractable name (empty canonical key)', () => {
+    // Topics fall back to id when name is missing → canonical key on
+    // the id includes the colon punctuation stripped → may collide
+    // BUT the helper uses the FALLBACK name (= id) for keying which
+    // contains the colon. canonicalTopicKey strips ":" so the ids
+    // would collide. Confirm distinct Topics with id-fallback names
+    // still surface as distinct rows.
+    const art = parseArtifact('x.gi.json', {
+      nodes: [
+        { id: 't:foo', type: 'Topic', properties: {} },
+        { id: 't:bar', type: 'Topic', properties: {} },
+      ],
+      edges: [
+        { type: 'MENTIONS_PERSON', from: 'i1', to: 'p:a' },
+        { type: 'MENTIONS_PERSON', from: 'i2', to: 'p:a' },
+        { type: 'ABOUT', from: 'i1', to: 't:foo' },
+        { type: 'ABOUT', from: 'i2', to: 't:bar' },
+      ],
+    })
+    const rows = rankedPersonTopicMentions(art, 'p:a')
+    // Both Topics surface (they have different canonical keys via id).
+    expect(rows.length).toBe(2)
+    const ids = rows.map((r) => r.id).sort()
+    expect(ids).toEqual(['t:bar', 't:foo'])
+  })
+})
+
+describe('personInsightsByTopic — near-duplicate fold (#1076 chunk 2)', () => {
+  it('merges insights across near-duplicate Topic groups', () => {
+    const art = parseArtifact('x.gi.json', {
+      nodes: [
+        { id: 't:ai-1', type: 'Topic', properties: { name: 'AI ethics' } },
+        { id: 't:ai-2', type: 'Topic', properties: { name: 'AI Ethics' } },
+        { id: 'i1', type: 'Insight', properties: { text: 'first' } },
+        { id: 'i2', type: 'Insight', properties: { text: 'second' } },
+        { id: 'i3', type: 'Insight', properties: { text: 'third' } },
+      ],
+      edges: [
+        { type: 'MENTIONS_PERSON', from: 'i1', to: 'p:a' },
+        { type: 'MENTIONS_PERSON', from: 'i2', to: 'p:a' },
+        { type: 'MENTIONS_PERSON', from: 'i3', to: 'p:a' },
+        { type: 'ABOUT', from: 'i1', to: 't:ai-1' },
+        { type: 'ABOUT', from: 'i2', to: 't:ai-2' },
+        // i3 is ABOUT both near-duplicates → should appear once.
+        { type: 'ABOUT', from: 'i3', to: 't:ai-1' },
+        { type: 'ABOUT', from: 'i3', to: 't:ai-2' },
+      ],
+    })
+    const groups = personInsightsByTopic(art, 'p:a')
+    expect(groups.length).toBe(1)
+    expect(groups[0].topicId).toBe('t:ai-1')
+    expect(groups[0].count).toBe(3)
+    const insightIds = groups[0].insights.map((i) => i.insightId).sort()
+    expect(insightIds).toEqual(['i1', 'i2', 'i3'])
+  })
+})
+
+describe('personEpisodeAppearances (#1050)', () => {
+  it('returns [] for missing artifact or id', () => {
+    expect(personEpisodeAppearances(null, 'p1')).toEqual([])
+    const art = parseArtifact('x.gi.json', { nodes: [], edges: [] })
+    expect(personEpisodeAppearances(art, null)).toEqual([])
+  })
+
+  it('lists SPOKE_IN targets with publish_date sorted desc; undated sink to bottom', () => {
+    const art = parseArtifact('x.gi.json', {
+      nodes: [
+        { id: 'ep:new', type: 'Episode', properties: { episode_title: 'Newer', publish_date: '2026-03-15' } },
+        { id: 'ep:old', type: 'Episode', properties: { episode_title: 'Older', publish_date: '2026-01-10' } },
+        { id: 'ep:undated', type: 'Episode', properties: { episode_title: 'No date' } },
+      ],
+      edges: [
+        { type: 'SPOKE_IN', from: 'p:alice', to: 'ep:old' },
+        { type: 'SPOKE_IN', from: 'p:alice', to: 'ep:new' },
+        { type: 'SPOKE_IN', from: 'p:alice', to: 'ep:undated' },
+        // distractor
+        { type: 'SPOKE_IN', from: 'p:bob', to: 'ep:new' },
+      ],
+    })
+    const rows = personEpisodeAppearances(art, 'p:alice')
+    expect(rows.map((r) => r.episodeId)).toEqual(['ep:new', 'ep:old', 'ep:undated'])
+    expect(rows[0].title).toBe('Newer')
+    expect(rows[0].publishDate).toBe('2026-03-15')
+    expect(rows[2].publishDate).toBeNull()
+  })
+
+  it('collapses duplicate SPOKE_IN edges to the same episode', () => {
+    const art = parseArtifact('x.gi.json', {
+      nodes: [{ id: 'ep:1', type: 'Episode', properties: { publish_date: '2026-04-01' } }],
+      edges: [
+        { type: 'SPOKE_IN', from: 'p:alice', to: 'ep:1' },
+        { type: 'SPOKE_IN', from: 'p:alice', to: 'ep:1' },
+      ],
+    })
+    expect(personEpisodeAppearances(art, 'p:alice').length).toBe(1)
+  })
+
+  it('falls back to title then id when episode_title is missing', () => {
+    const art = parseArtifact('x.gi.json', {
+      nodes: [
+        { id: 'ep:1', type: 'Episode', properties: { title: 'Alt title' } },
+        { id: 'ep:2', type: 'Episode', properties: {} },
+      ],
+      edges: [
+        { type: 'SPOKE_IN', from: 'p:a', to: 'ep:1' },
+        { type: 'SPOKE_IN', from: 'p:a', to: 'ep:2' },
+      ],
+    })
+    const rows = personEpisodeAppearances(art, 'p:a')
+    const byId = new Map(rows.map((r) => [r.episodeId, r]))
+    expect(byId.get('ep:1')!.title).toBe('Alt title')
+    expect(byId.get('ep:2')!.title).toBeNull()
+  })
+})
+
+describe('personInsightsByTopic (#1050)', () => {
+  it('returns [] for missing inputs', () => {
+    expect(personInsightsByTopic(null, 'p1')).toEqual([])
+    const art = parseArtifact('x.gi.json', { nodes: [], edges: [] })
+    expect(personInsightsByTopic(art, null)).toEqual([])
+  })
+
+  it('groups insights by Topic, sorts groups by count desc then name', () => {
+    const art = parseArtifact('x.gi.json', {
+      nodes: [
+        { id: 't:ai', type: 'Topic', properties: { name: 'AI ethics' } },
+        { id: 't:reg', type: 'Topic', properties: { name: 'AI regulation' } },
+        { id: 'i1', type: 'Insight', properties: { text: 'first', insight_type: 'claim' } },
+        { id: 'i2', type: 'Insight', properties: { text: 'second', insight_type: 'observation' } },
+        { id: 'i3', type: 'Insight', properties: { text: 'third', insight_type: 'recommendation' } },
+      ],
+      edges: [
+        { type: 'MENTIONS_PERSON', from: 'i1', to: 'p:a' },
+        { type: 'MENTIONS_PERSON', from: 'i2', to: 'p:a' },
+        { type: 'MENTIONS_PERSON', from: 'i3', to: 'p:a' },
+        { type: 'ABOUT', from: 'i1', to: 't:ai' },
+        { type: 'ABOUT', from: 'i2', to: 't:ai' },
+        { type: 'ABOUT', from: 'i3', to: 't:reg' },
+      ],
+    })
+    const groups = personInsightsByTopic(art, 'p:a')
+    expect(groups.map((g) => [g.topicName, g.count])).toEqual([
+      ['AI ethics', 2],
+      ['AI regulation', 1],
+    ])
+    expect(groups[0].insights.map((i) => i.insightId)).toEqual(['i1', 'i2'])
+    expect(groups[0].insights[0].text).toBe('first')
+    expect(groups[1].insights[0].insightType).toBe('recommendation')
+  })
+
+  it('places an Insight into every Topic it is ABOUT', () => {
+    const art = parseArtifact('x.gi.json', {
+      nodes: [
+        { id: 't:ai', type: 'Topic', properties: { name: 'AI' } },
+        { id: 't:law', type: 'Topic', properties: { name: 'Law' } },
+        { id: 'i1', type: 'Insight', properties: { text: 'bridge insight' } },
+      ],
+      edges: [
+        { type: 'MENTIONS_PERSON', from: 'i1', to: 'p:a' },
+        { type: 'ABOUT', from: 'i1', to: 't:ai' },
+        { type: 'ABOUT', from: 'i1', to: 't:law' },
+      ],
+    })
+    const groups = personInsightsByTopic(art, 'p:a')
+    expect(groups.length).toBe(2)
+    expect(groups.every((g) => g.count === 1)).toBe(true)
+    expect(groups.every((g) => g.insights[0].insightId === 'i1')).toBe(true)
+  })
+
+  it('collapses duplicate (insight, topic) pairs', () => {
+    const art = parseArtifact('x.gi.json', {
+      nodes: [
+        { id: 't:ai', type: 'Topic', properties: { name: 'AI' } },
+        { id: 'i1', type: 'Insight', properties: { text: 'dup' } },
+      ],
+      edges: [
+        { type: 'MENTIONS_PERSON', from: 'i1', to: 'p:a' },
+        { type: 'ABOUT', from: 'i1', to: 't:ai' },
+        { type: 'ABOUT', from: 'i1', to: 't:ai' },
+      ],
+    })
+    const groups = personInsightsByTopic(art, 'p:a')
+    expect(groups[0].count).toBe(1)
+    expect(groups[0].insights.length).toBe(1)
+  })
+})
+
+describe('personRoleFromNode', () => {
+  it('returns null for null node or missing role', () => {
+    expect(personRoleFromNode(null)).toBeNull()
+    expect(personRoleFromNode({ id: 'p1', type: 'Person', properties: {} })).toBeNull()
+  })
+
+  it('lowercases and trims the role string', () => {
+    expect(
+      personRoleFromNode({ id: 'p1', type: 'Person', properties: { role: '  Host  ' } }),
+    ).toBe('host')
+  })
+
+  it('returns null for non-string role values', () => {
+    expect(
+      personRoleFromNode({ id: 'p1', type: 'Person', properties: { role: 7 } }),
+    ).toBeNull()
   })
 })
 
