@@ -1,0 +1,15 @@
+node_modules/
+dist/
+dist-ssr/
+.env.local
+*.local
+
+# Playwright outputs
+test-results/
+playwright-report/
+
+# Vitest coverage
+coverage/
+
+# Vite
+.vite/

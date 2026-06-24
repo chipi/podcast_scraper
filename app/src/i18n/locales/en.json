@@ -1,0 +1,31 @@
+{
+  "app": {
+    "title": "Learning Player",
+    "tagline": "Listen. Understand. Remember."
+  },
+  "nav": {
+    "catalog": "Catalog",
+    "skipToContent": "Skip to content"
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signedInAs": "Signed in as {name}",
+    "signedOut": "Not signed in"
+  },
+  "catalog": {
+    "heading": "Your Library",
+    "empty": "No episodes yet.",
+    "insightsBadge": "insights",
+    "loading": "Loading episodes…",
+    "loadError": "Couldn’t load episodes."
+  },
+  "player": {
+    "back": "Back to catalog",
+    "loading": "Loading episode…",
+    "notFound": "Episode not found."
+  },
+  "status": {
+    "ready": "Ready",
+    "pending": "Pending"
+  }
+}

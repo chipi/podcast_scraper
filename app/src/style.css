@@ -1,0 +1,50 @@
+@import './theme/tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--lp-canvas);
+    color: var(--lp-canvas-foreground);
+    font-family: var(--lp-font-ui);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Visible focus on every interactive element (UXS-011 a11y). */
+  :focus-visible {
+    outline: 2px solid var(--lp-accent);
+    outline-offset: 2px;
+  }
+
+  /* Respect reduced-motion (autoscroll / transitions opt out). */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* Editorial kicker/eyebrow — the signature label treatment (UXS-011 typography). */
+  .lp-kicker {
+    font-size: 0.6875rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--lp-accent);
+  }
+}
