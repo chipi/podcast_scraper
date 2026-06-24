@@ -10,6 +10,38 @@
 > airgapped + airgapped_thin profiles. `dev` skipped (`generate_gi:
 > false` means the post-pass never runs).
 >
+> **Operator-labelled 50-row sample (2026-06-24):** 47 TP (94%), 3
+> AMBIGUOUS (6%, all single-token common surnames — "Cole Allen" /
+> "Bob Lee" — that pass the disambig guard because they're the sole
+> matching entry in their artifact's KG), 0 confirmed FP. Sample
+> dumped to `/tmp/ner_fp_sample_for_labelling.json` via
+> `scripts/dev/measure_ner_mentions_diff.py --sample-size 50`.
+>
+> **Retro-sweep results (2026-06-24, marker `#1076-ner-2026-06-24`):**
+> Both sibling worktrees (FUTURE + AI-ML-improvements) swept on
+> 2026-06-24 with identical counts: 99 GI/KG-paired episodes
+> processed, 14 artifacts mutated, +46 MENTIONS_PERSON edges from
+> NER on top of the post-migration baseline. (The migration script
+> rewrites legacy MENTIONS → typed MENTIONS_PERSON in bulk, so the
+> disk-baseline grew from 0 → ~330 during migration before the NER
+> pass added 46 more.) Summary JSONs:
+> `<corpus>/_retro_audit_1076-ner-2026-06-24.json` and
+> `_retro_audit_1076-ner-2026-06-24-sibling.json`. One bug fixed
+> mid-sweep: `gi_path.relative_to(corpus)` failed when `corpus` was a
+> relative CLI arg and `gi_path` an absolute glob match — now resolves
+> both sides before subtracting (regression test:
+> `tests/unit/search/test_enrich_edges_cli.py::TestRetroAuditCLI::test_retro_audit_accepts_relative_output_dir`).
+>
+> **Sibling-worktree revert (2026-06-24):** The AI-ML-improvements
+> corpus was reverted to v2 via `scripts/dev/revert_gi_v3_to_v2.py`
+> after the operator flagged the cross-worktree mutation as
+> unauthorized for that branch's purposes. Revert is lossy:
+> `insight_type`/`position_hint` stay normalized, and the 46
+> NER-added MP edges revert to untyped MENTIONS (not removed). FUTURE
+> worktree retains its v3 sweep as the canonical evidence corpus.
+> ADR-102 codifies the `_retro_audit` pattern that made the
+> revert auditable.
+>
 > Path B shipped as three cloud_thin Tier-3 specs across
 > PersonLandingView (`stack-person-profile-cloud.spec.ts`),
 > TopicEntityView (`stack-topic-entity-cloud.spec.ts`), and NodeDetail

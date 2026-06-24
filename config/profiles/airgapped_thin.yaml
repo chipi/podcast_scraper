@@ -92,10 +92,25 @@ kg_max_entities: 15
 # #1076 chunk 4-A — spaCy NER pass for typed MENTIONS_PERSON post-pass.
 # Default-on for airgapped_thin because BART summarisation paraphrases
 # speaker names ("Maya argued..." instead of "Maya Hutchinson argued...")
-# and the literal whole-word regex misses the fragment case. Real-corpus
-# measurement on 209 prod-v2 GI files (2026-06-24) showed +78 MP edges
-# (12 → 90, +650% over baseline) after the shared-surname disambiguation
-# guard; sample inspection found no false positives.
+# and the literal whole-word regex misses the fragment case.
+#
+# Validation against the prod-v2 corpus (209 GI files, 2026-06-24):
+#   Pre-migration measurement (regex-only baseline vs regex+NER on raw
+#   v2 envelopes via scripts/dev/measure_ner_mentions_diff.py):
+#     12 → 90 MP edges, +78 NER-only delta over the regex-only floor.
+#   Post-migration on-disk retro sweep (`enrich-edges --use-ner
+#   --retro-audit`, marker `#1076-ner-2026-06-24`):
+#     +46 NER-only MP edges across 14 of 99 paired GI/KG artifacts on
+#     top of the legacy MENTIONS → typed-MENTIONS migration rewrite.
+# Two baselines, two numbers — both real. Operator-labelled 50-row
+# sample: 47 TP / 3 AMBIGUOUS (single-token common-surname names that
+# pass the per-artifact disambiguation guard) / 0 FP.
+#
+# Layered overlay only — NOT carried by ProfilePreset. Code that
+# instantiates `_PROFILE_PRESETS["airgapped_thin"]` programmatically
+# without the YAML overlay will run with the cfg-default (False).
+# The drift test `tests/unit/podcast_scraper/test_config_ner_flag.py`
+# pins the YAML-overlay expected values.
 gi_typed_mentions_use_ner: true
 
 # Vector search + clustering

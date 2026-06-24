@@ -634,3 +634,55 @@ class TestAddInsightEntityEdgesWithNer:
         assert added == 1
         edge = next(e for e in gi["edges"] if e.get("type") == "MENTIONS_PERSON")
         assert edge["to"] == "person:donald-trump"
+
+    def test_ner_rejects_single_token_lee_when_two_lees_in_kg(self):
+        """Stress test for the AMBIGUOUS rows in the 2026-06-24 operator-
+        labelled sample: a bare 'Lee' span when the KG has both 'Bob Lee'
+        AND 'Robert E. Lee' must reject the match. This is the
+        per-artifact KG case that the prod-v2 sample's AMBIGUOUS rows
+        survived only because they sat alone in their artifact's KG."""
+        from podcast_scraper.gi.relational_edges import add_insight_entity_edges
+
+        gi = self._gi_with_paraphrased_insight()
+        gi["nodes"][1]["properties"]["text"] = "Lee told the crowd to stand firm."
+        entity_index = {
+            "person:bob-lee": ("Bob Lee", "person"),
+            "person:robert-e-lee": ("Robert E. Lee", "person"),
+        }
+        nlp = _StubNlp({"Lee told the crowd to stand firm.": ["Lee"]})
+        added = add_insight_entity_edges(gi, entity_index, nlp=nlp)
+        assert added == 0
+
+    def test_ner_rejects_single_token_allen_when_two_allens_in_kg(self):
+        """Same shape as the Lee case, with the other AMBIGUOUS row's
+        name. Locks the disambig guard against a future change that
+        only handles two-token-name collisions but lets one-token
+        common-first-name-or-surname overlaps slip through."""
+        from podcast_scraper.gi.relational_edges import add_insight_entity_edges
+
+        gi = self._gi_with_paraphrased_insight()
+        gi["nodes"][1]["properties"]["text"] = "Allen pressed his case."
+        entity_index = {
+            "person:cole-allen": ("Cole Allen", "person"),
+            "person:allen-smith": ("Allen Smith", "person"),
+        }
+        nlp = _StubNlp({"Allen pressed his case.": ["Allen"]})
+        added = add_insight_entity_edges(gi, entity_index, nlp=nlp)
+        assert added == 0
+
+    def test_ner_emits_when_lone_single_token_match_exists(self):
+        """Counterfact to the two-Lees case: when only ONE Lee is in
+        the KG, the single-token 'Lee' span SHOULD fire (this is exactly
+        why the operator-labelled prod-v2 sample's 3 AMBIGUOUS rows
+        were treated as not-FP — each was the only matching entry in
+        its artifact)."""
+        from podcast_scraper.gi.relational_edges import add_insight_entity_edges
+
+        gi = self._gi_with_paraphrased_insight()
+        gi["nodes"][1]["properties"]["text"] = "Lee told the crowd to stand firm."
+        entity_index = {"person:bob-lee": ("Bob Lee", "person")}
+        nlp = _StubNlp({"Lee told the crowd to stand firm.": ["Lee"]})
+        added = add_insight_entity_edges(gi, entity_index, nlp=nlp)
+        assert added == 1
+        edge = next(e for e in gi["edges"] if e.get("type") == "MENTIONS_PERSON")
+        assert edge["to"] == "person:bob-lee"

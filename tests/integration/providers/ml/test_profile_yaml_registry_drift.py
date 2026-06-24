@@ -95,6 +95,46 @@ def test_profile_yaml_matches_registry_preset(path: Path, data: Dict[str, Any]) 
         assert data[field] == expected.get(field), msg
 
 
+# #1076 chunk 4-A — overlay-only fields that ProfilePreset does NOT carry.
+# A YAML drop of a `True` here silently regresses the airgapped profiles
+# back to the regex-only MENTIONS_PERSON path. Pin the expected value
+# per profile so the drift test catches it.
+_OVERLAY_EXPECTED: Dict[str, Dict[str, Any]] = {
+    "airgapped": {"gi_typed_mentions_use_ner": True},
+    "airgapped_thin": {"gi_typed_mentions_use_ner": True},
+}
+
+
+@pytest.mark.parametrize(
+    "path,data",
+    _OPTED_IN,
+    ids=[p.name for p, _ in _OPTED_IN] or ["no-opted-in-yamls"],
+)
+def test_profile_yaml_overlay_fields_match_expected(path: Path, data: Dict[str, Any]) -> None:
+    """YAML-overlay-only fields (not in ProfilePreset) MUST match the
+    pinned expected value per profile. Without this, a silent YAML
+    drop wouldn't be caught by the routing-field drift test above —
+    the registry has no slot to compare against.
+
+    Add new overlay fields to ``_OVERLAY_EXPECTED`` as they're
+    introduced; profiles that don't appear in the map are skipped.
+    """
+    profile_name = data["profile"]
+    if profile_name not in _OVERLAY_EXPECTED:
+        pytest.skip(f"no overlay expectations for profile {profile_name!r}")
+    for field, expected_value in _OVERLAY_EXPECTED[profile_name].items():
+        assert field in data, (
+            f"{path.name}: overlay field {field!r} is MISSING. "
+            f"_OVERLAY_EXPECTED[{profile_name!r}] expects {expected_value!r}. "
+            f"Either restore the field or remove the pin in the test."
+        )
+        assert data[field] == expected_value, (
+            f"{path.name}: overlay field {field!r} = {data[field]!r} drifted "
+            f"from expected {expected_value!r}. Update either the YAML or "
+            f"the _OVERLAY_EXPECTED pin to bring them back in sync."
+        )
+
+
 def test_no_opted_in_yamls_is_self_documenting() -> None:
     """Smoke test that surfaces an informative message if no YAML has opted in yet.
 

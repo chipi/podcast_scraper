@@ -20,7 +20,8 @@
         "text": "Summary insight (stub).",
         "episode_id": "ci-fixture",
         "grounded": true,
-        "insight_type": "unknown"
+        "insight_type": "unknown",
+        "position_hint": 0.5
       }
     },
     {

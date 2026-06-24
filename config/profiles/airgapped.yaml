@@ -75,6 +75,13 @@ kg_max_entities: 15
 # Default-on for airgapped because SummLlama (like BART) paraphrases
 # speaker names away from the literal KG form; NER catches fragments
 # the regex misses. Same validation as airgapped_thin (see that YAML).
+#
+# Layered overlay only — NOT carried by ProfilePreset (the registry
+# class has no slot for this field). Code that instantiates
+# `_PROFILE_PRESETS["airgapped"]` programmatically without the YAML
+# overlay will run with the cfg-default (False). The drift test
+# `tests/unit/podcast_scraper/test_config_ner_flag.py` pins the
+# YAML-overlay expected values.
 gi_typed_mentions_use_ner: true
 
 # Vector search + clustering

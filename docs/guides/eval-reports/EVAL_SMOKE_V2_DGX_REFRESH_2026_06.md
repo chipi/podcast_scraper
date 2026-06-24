@@ -356,7 +356,8 @@ differently-but-well — Opus silver lets the metric breathe.
 - [#939 — Silver upgrade to Opus 4.7](https://github.com/chipi/podcast_scraper/issues/939) — Phase 0 of next batch (this addendum)
 - [SILVER_OPUS47_GENERATION_2026_06](SILVER_OPUS47_GENERATION_2026_06.md) — generation report for the new silver
 - [EVAL_SMOKE_V1_DGX_VS_LAPTOP_2026_06](EVAL_SMOKE_V1_DGX_VS_LAPTOP_2026_06.md) — the prior DGX validation pass
-- [docs/wip/AUTORESEARCH_NEXT_PHASE_DEPENDENCIES.md](../../wip/AUTORESEARCH_NEXT_PHASE_DEPENDENCIES.md) — dependency map across the open work
+- `docs/wip/AUTORESEARCH_NEXT_PHASE_DEPENDENCIES.md` — dependency map
+  across the open work (removed 2026-06-24; #907 + children all closed)
 - [docs/wip/AUTORESEARCH_LEARNINGS_FOR_V3.md](../../wip/AUTORESEARCH_LEARNINGS_FOR_V3.md) — failure-mode catalogue
 
 ### Tuned prompt addendum — hermes3:8b (#937, 2026-06-09)

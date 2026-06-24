@@ -1582,7 +1582,7 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
                 audit_log.append(audit_entry)
             retro_rows.append(
                 {
-                    "gi_path": str(gi_path.relative_to(corpus)),
+                    "gi_path": str(gi_path.resolve().relative_to(corpus.resolve())),
                     **audit_entry,
                 }
             )
