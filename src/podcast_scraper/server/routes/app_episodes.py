@@ -17,6 +17,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 
 from podcast_scraper.search.capability import structured_corpus_search
 from podcast_scraper.search.query_log import append_query_event
+from podcast_scraper.server.app_artwork import artwork_url
 from podcast_scraper.server.app_audio_bridge import resolve_audio
 from podcast_scraper.server.app_content_source import get_content_source
 from podcast_scraper.server.app_gi_view import insights_from_gi
@@ -148,6 +149,7 @@ async def episode_detail(request: Request, slug: str) -> AppEpisodeDetail:
     transcript_rel = _content_block(root, row.metadata_relative_path).get("transcript_file")
     has_transcript = isinstance(transcript_rel, str) and bool(transcript_rel.strip())
     has_summary = bool(row.summary_title or row.summary_bullets or row.summary_text)
+    local_art = row.episode_image_local_relpath or row.feed_image_local_relpath
     return AppEpisodeDetail(
         slug=slug,
         title=row.episode_title,
@@ -157,6 +159,7 @@ async def episode_detail(request: Request, slug: str) -> AppEpisodeDetail:
         duration_seconds=row.duration_seconds,
         episode_image_url=row.episode_image_url,
         feed_image_url=row.feed_image_url,
+        artwork_url=artwork_url(local_art, "large"),
         summary_title=row.summary_title,
         summary_bullets=list(row.summary_bullets),
         summary_text=row.summary_text,

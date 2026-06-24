@@ -26,6 +26,7 @@ function makeEpisode(over: Partial<EpisodeSummary> = {}): EpisodeSummary {
     duration_seconds: 2880,
     episode_image_url: null,
     feed_image_url: null,
+    artwork_url: null,
     status: 'ready',
     summary_preview: 'A crisp recap.',
     topics: ['memory', 'sleep'],
@@ -80,5 +81,21 @@ describe('EpisodeCard', () => {
   it('shows pending status when not ready', () => {
     const w = mountCard(makeEpisode({ status: 'pending' }))
     expect(w.text()).toContain('Pending')
+  })
+
+  it('prefers local artwork_url over the remote image URLs', () => {
+    const w = mountCard(
+      makeEpisode({
+        artwork_url: '/api/app/artwork?ref=x&size=thumb',
+        episode_image_url: 'https://remote/ep.jpg',
+        feed_image_url: 'https://remote/feed.jpg',
+      }),
+    )
+    expect(w.find('img').attributes('src')).toBe('/api/app/artwork?ref=x&size=thumb')
+  })
+
+  it('falls back to the remote image URL when no local artwork', () => {
+    const w = mountCard(makeEpisode({ artwork_url: null, feed_image_url: 'https://remote/feed.jpg' }))
+    expect(w.find('img').attributes('src')).toBe('https://remote/feed.jpg')
   })
 })

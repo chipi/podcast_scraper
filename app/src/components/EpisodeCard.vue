@@ -19,7 +19,13 @@ const { t, locale } = useI18n()
 const duration = computed(() => formatDuration(props.episode.duration_seconds))
 const date = computed(() => formatPublishDate(props.episode.publish_date, locale.value))
 const topics = computed(() => props.episode.topics.slice(0, 4))
-const artwork = computed(() => props.episode.episode_image_url || props.episode.feed_image_url)
+// Prefer our locally-stored copy (artwork_url); fall back to the remote feed image URLs.
+const artwork = computed(
+  () =>
+    props.episode.artwork_url ||
+    props.episode.episode_image_url ||
+    props.episode.feed_image_url,
+)
 </script>
 
 <template>

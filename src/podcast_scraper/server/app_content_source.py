@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast, Optional, Protocol
 
+from podcast_scraper.server.app_artwork import artwork_url
 from podcast_scraper.server.app_slugs import slug_for_row
 from podcast_scraper.server.corpus_catalog import (
     _load_metadata_doc,
@@ -66,6 +67,7 @@ def _row_to_summary(corpus_root: Path, row: CatalogEpisodeRow) -> AppEpisodeSumm
     """Map a catalog row to the consumer card shape (one metadata read for transcript)."""
     has_transcript = _has_transcript(corpus_root, row.metadata_relative_path)
     has_summary = bool(row.summary_title or row.summary_bullets or row.summary_text)
+    local_art = row.episode_image_local_relpath or row.feed_image_local_relpath
     return AppEpisodeSummary(
         slug=slug_for_row(row),
         title=row.episode_title,
@@ -75,6 +77,7 @@ def _row_to_summary(corpus_root: Path, row: CatalogEpisodeRow) -> AppEpisodeSumm
         duration_seconds=row.duration_seconds,
         episode_image_url=row.episode_image_url,
         feed_image_url=row.feed_image_url,
+        artwork_url=artwork_url(local_art, "thumb"),
         status="ready" if has_transcript else "pending",
         summary_preview=episode_list_summary_preview(row),
         topics=episode_list_topics(row.summary_bullets),

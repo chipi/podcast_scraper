@@ -37,7 +37,12 @@ let resumeSeconds = 0
 let lastSaved = 0
 
 const activeIndex = computed(() => activeSegmentIndex(segments.value, currentTime.value))
-const artwork = computed(() => episode.value?.episode_image_url || episode.value?.feed_image_url)
+const artwork = computed(
+  () =>
+    episode.value?.artwork_url ||
+    episode.value?.episode_image_url ||
+    episode.value?.feed_image_url,
+)
 const speakingNow = computed(() => {
   const s = activeIndex.value >= 0 ? segments.value[activeIndex.value]?.speaker : null
   if (!s) return null

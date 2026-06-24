@@ -75,9 +75,16 @@ class AppEpisodeDetail(BaseModel):
         default=None, ge=0, description="Episode duration when known."
     )
     episode_image_url: str | None = Field(
-        default=None, description="Episode artwork URL when present."
+        default=None, description="Remote (feed-hosted) episode artwork URL — fallback only."
     )
-    feed_image_url: str | None = Field(default=None, description="Feed artwork URL when present.")
+    feed_image_url: str | None = Field(
+        default=None, description="Remote (feed-hosted) feed artwork URL — fallback only."
+    )
+    artwork_url: str | None = Field(
+        default=None,
+        description="Preferred artwork: our locally-stored copy (large size for the player) "
+        "when present. Clients use this, falling back to the remote image URLs.",
+    )
     summary_title: str | None = Field(default=None, description="Summary title when present.")
     summary_bullets: list[str] = Field(default_factory=list, description="Summary bullet points.")
     summary_text: str | None = Field(
@@ -111,9 +118,16 @@ class AppEpisodeSummary(BaseModel):
         default=None, ge=0, description="Episode duration when known."
     )
     episode_image_url: str | None = Field(
-        default=None, description="Episode artwork URL when present."
+        default=None, description="Remote (feed-hosted) episode artwork URL — fallback only."
     )
-    feed_image_url: str | None = Field(default=None, description="Feed artwork URL when present.")
+    feed_image_url: str | None = Field(
+        default=None, description="Remote (feed-hosted) feed artwork URL — fallback only."
+    )
+    artwork_url: str | None = Field(
+        default=None,
+        description="Preferred artwork: our locally-stored copy (thumb size) when present. "
+        "Clients use this, falling back to the remote image URLs.",
+    )
     status: Literal["ready", "pending"] = Field(
         default="ready",
         description="Playability: 'ready' when a transcript exists, else 'pending'. "

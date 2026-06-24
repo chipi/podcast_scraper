@@ -100,6 +100,25 @@ source_tier, supporting_quotes?, lifted?}], query_type, lift_stats?}`) and carry
 
 ---
 
+## Artwork (serve our stored copy, never re-fetch from origin)
+
+The counterpart to _bridge-never-rehost_ for audio: cover art is small and downloaded **once
+at ingest** into the corpus-art store, so the app serves **our copy** and never re-fetches
+graphics from the origin host. Two sizes, both derived from the local original (downscale
+only): `large` (the original — ≥1400² at source, fits the player hero) and `thumb` (≤320px
+for lists, generated on first request and cached). Content-addressed → served `immutable`,
+so the browser + PWA service worker keep it on-device after one fetch.
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/api/app/artwork?ref=&size=` | Serve stored art. `ref` = corpus-relative path under the corpus-art store (**400** otherwise); `size` ∈ `large`\|`thumb` (default `large`). **404** when the file is absent. `Cache-Control: immutable`. |
+
+Episode summary/detail carry **`artwork_url`** (our local copy — `thumb` in lists, `large`
+in detail) plus the remote `episode_image_url`/`feed_image_url` as **fallback only**. Clients
+use `artwork_url` when present.
+
+---
+
 ## Audio bridge (play from origin, never rehost)
 
 | Method | Path | Description |

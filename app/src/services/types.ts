@@ -22,6 +22,8 @@ export interface EpisodeSummary {
   duration_seconds: number | null
   episode_image_url: string | null
   feed_image_url: string | null
+  /** Preferred artwork (our locally-stored copy, thumb size) when present; else use image urls. */
+  artwork_url: string | null
   status: EpisodeStatus
   summary_preview: string | null
   topics: string[]
@@ -51,6 +53,8 @@ export interface EpisodeDetail {
   duration_seconds: number | null
   episode_image_url: string | null
   feed_image_url: string | null
+  /** Preferred artwork (our locally-stored copy, large size for the player) when present. */
+  artwork_url: string | null
   summary_title: string | null
   summary_bullets: string[]
   summary_text: string | null

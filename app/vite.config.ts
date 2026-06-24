@@ -30,6 +30,15 @@ export default defineConfig({
         navigateFallback: '/index.html',
         runtimeCaching: [
           {
+            // Artwork is content-addressed + served immutable → cache hard, keep on-device.
+            urlPattern: ({ url }: { url: URL }) => url.pathname === '/api/app/artwork',
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'app-artwork',
+              expiration: { maxEntries: 500, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+          {
             urlPattern: ({ url }: { url: URL }) => url.pathname.startsWith('/api/app/'),
             handler: 'StaleWhileRevalidate',
             options: { cacheName: 'api-app' },
