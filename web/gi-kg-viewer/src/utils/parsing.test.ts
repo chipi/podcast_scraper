@@ -20,6 +20,7 @@ import {
   insightProvenanceLine,
   insightRelatedTopicRows,
   insightSupportingQuoteRows,
+  canonicalTopicKey,
   insightSupportingTranscriptAggregate,
   nodeLabel,
   personEpisodeAppearances,
@@ -1162,6 +1163,119 @@ describe('personTopicPositionArc (#1049)', () => {
     expect(arc.map((r) => r.insightId)).toEqual(['i_dated', 'i_undated'])
     expect(arc[0].publishDate).toBe('2026-03-01')
     expect(arc[1].publishDate).toBeNull()
+  })
+})
+
+describe('canonicalTopicKey (#1076 chunk 2)', () => {
+  it('lowercases', () => {
+    expect(canonicalTopicKey('AI Ethics')).toBe('ai ethics')
+  })
+  it('strips ASCII punctuation', () => {
+    expect(canonicalTopicKey('AI-Ethics')).toBe('ai ethics')
+    expect(canonicalTopicKey('AI/Ethics?')).toBe('ai ethics')
+  })
+  it('collapses whitespace and trims', () => {
+    expect(canonicalTopicKey('  AI   ethics  ')).toBe('ai ethics')
+  })
+  it('returns empty string for non-strings', () => {
+    expect(canonicalTopicKey(null)).toBe('')
+    expect(canonicalTopicKey(undefined)).toBe('')
+  })
+  it('folds three near-duplicates to a single canonical key', () => {
+    const key1 = canonicalTopicKey('AI ethics')
+    const key2 = canonicalTopicKey('AI Ethics')
+    const key3 = canonicalTopicKey('AI-ethics')
+    expect(key1).toBe(key2)
+    expect(key2).toBe(key3)
+  })
+})
+
+describe('rankedPersonTopicMentions — near-duplicate fold (#1076 chunk 2)', () => {
+  it('groups Topic rows with the same canonical key under the alphabetically-smallest id', () => {
+    const art = parseArtifact('x.gi.json', {
+      nodes: [
+        // Three near-duplicate Topics, alphabetically t:ai-1 < t:ai-2 < t:ai-3.
+        { id: 't:ai-1', type: 'Topic', properties: { name: 'AI ethics' } },
+        { id: 't:ai-2', type: 'Topic', properties: { name: 'AI Ethics' } },
+        { id: 't:ai-3', type: 'Topic', properties: { name: 'AI-Ethics' } },
+        { id: 't:other', type: 'Topic', properties: { name: 'Climate' } },
+      ],
+      edges: [
+        { type: 'MENTIONS_PERSON', from: 'i1', to: 'p:a' },
+        { type: 'MENTIONS_PERSON', from: 'i2', to: 'p:a' },
+        { type: 'MENTIONS_PERSON', from: 'i3', to: 'p:a' },
+        { type: 'MENTIONS_PERSON', from: 'i4', to: 'p:a' },
+        { type: 'ABOUT', from: 'i1', to: 't:ai-1' },
+        { type: 'ABOUT', from: 'i2', to: 't:ai-2' },
+        { type: 'ABOUT', from: 'i3', to: 't:ai-3' },
+        { type: 'ABOUT', from: 'i4', to: 't:other' },
+      ],
+    })
+    const rows = rankedPersonTopicMentions(art, 'p:a')
+    expect(rows.length).toBe(2)
+    // Folded row uses the smallest id (t:ai-1) + sums counts (3 across the 3 near-dups).
+    const ai = rows.find((r) => r.name === 'AI ethics')
+    expect(ai).toBeDefined()
+    expect(ai!.id).toBe('t:ai-1')
+    expect(ai!.count).toBe(3)
+    const other = rows.find((r) => r.name === 'Climate')
+    expect(other!.count).toBe(1)
+  })
+
+  it('does not fold topics with no extractable name (empty canonical key)', () => {
+    // Topics fall back to id when name is missing → canonical key on
+    // the id includes the colon punctuation stripped → may collide
+    // BUT the helper uses the FALLBACK name (= id) for keying which
+    // contains the colon. canonicalTopicKey strips ":" so the ids
+    // would collide. Confirm distinct Topics with id-fallback names
+    // still surface as distinct rows.
+    const art = parseArtifact('x.gi.json', {
+      nodes: [
+        { id: 't:foo', type: 'Topic', properties: {} },
+        { id: 't:bar', type: 'Topic', properties: {} },
+      ],
+      edges: [
+        { type: 'MENTIONS_PERSON', from: 'i1', to: 'p:a' },
+        { type: 'MENTIONS_PERSON', from: 'i2', to: 'p:a' },
+        { type: 'ABOUT', from: 'i1', to: 't:foo' },
+        { type: 'ABOUT', from: 'i2', to: 't:bar' },
+      ],
+    })
+    const rows = rankedPersonTopicMentions(art, 'p:a')
+    // Both Topics surface (they have different canonical keys via id).
+    expect(rows.length).toBe(2)
+    const ids = rows.map((r) => r.id).sort()
+    expect(ids).toEqual(['t:bar', 't:foo'])
+  })
+})
+
+describe('personInsightsByTopic — near-duplicate fold (#1076 chunk 2)', () => {
+  it('merges insights across near-duplicate Topic groups', () => {
+    const art = parseArtifact('x.gi.json', {
+      nodes: [
+        { id: 't:ai-1', type: 'Topic', properties: { name: 'AI ethics' } },
+        { id: 't:ai-2', type: 'Topic', properties: { name: 'AI Ethics' } },
+        { id: 'i1', type: 'Insight', properties: { text: 'first' } },
+        { id: 'i2', type: 'Insight', properties: { text: 'second' } },
+        { id: 'i3', type: 'Insight', properties: { text: 'third' } },
+      ],
+      edges: [
+        { type: 'MENTIONS_PERSON', from: 'i1', to: 'p:a' },
+        { type: 'MENTIONS_PERSON', from: 'i2', to: 'p:a' },
+        { type: 'MENTIONS_PERSON', from: 'i3', to: 'p:a' },
+        { type: 'ABOUT', from: 'i1', to: 't:ai-1' },
+        { type: 'ABOUT', from: 'i2', to: 't:ai-2' },
+        // i3 is ABOUT both near-duplicates → should appear once.
+        { type: 'ABOUT', from: 'i3', to: 't:ai-1' },
+        { type: 'ABOUT', from: 'i3', to: 't:ai-2' },
+      ],
+    })
+    const groups = personInsightsByTopic(art, 'p:a')
+    expect(groups.length).toBe(1)
+    expect(groups[0].topicId).toBe('t:ai-1')
+    expect(groups[0].count).toBe(3)
+    const insightIds = groups[0].insights.map((i) => i.insightId).sort()
+    expect(insightIds).toEqual(['i1', 'i2', 'i3'])
   })
 })
 

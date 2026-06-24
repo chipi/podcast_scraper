@@ -467,11 +467,44 @@ export function countPersonEntityIncidentEdges(
 }
 
 /**
+ * #1076 chunk 2 — viewer-side near-duplicate Topic suppression.
+ *
+ * Real corpora frequently emit near-duplicate Topic names ("AI ethics",
+ * "AI Ethics", "AI-ethics") which scatter the user across multiple
+ * rows for what is one conceptual topic. Until full corpus-wide
+ * clustering ships (RFC-075 Phase 0-4), the viewer dedupes on the
+ * read side via simple normalization: lowercase, strip ASCII
+ * punctuation, collapse whitespace. Groups produced by this key
+ * surface under the canonical (= first-seen-after-sort) Topic id +
+ * its name, so clicks through to Position Tracker resolve to a real
+ * graph node.
+ *
+ * Returns the empty string for non-string input — callers should not
+ * group on the empty string (that's a "no name" sentinel and would
+ * fold every nameless Topic into one row).
+ */
+export function canonicalTopicKey(name: string | null | undefined): string {
+  if (typeof name !== 'string') return ''
+  return name
+    .toLowerCase()
+    .replace(/[\p{P}\p{S}]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/**
  * Ranked Topic mentions a Person discusses, via the ``ABOUT(Insight→Topic)``
  * chain whose Insight has a ``MENTIONS_PERSON(Insight→Person)`` edge to the
  * given person. Counts collapse to unique (insight, topic) pairs so the
  * same Insight pointing at the same Topic via two edges still scores 1.
  * Topics with no graph-attested name fall back to the id.
+ *
+ * #1076 chunk 2: Topic rows whose names normalize to the same canonical
+ * key (lowercase, strip punctuation, collapse whitespace) are folded
+ * into one row. The surviving row uses the alphabetically-smallest
+ * topic id + its name; counts are summed across the duplicates.
+ * Topics with no extractable name (callback returns empty string) are
+ * NOT grouped — every nameless Topic gets its own row.
  *
  * Returns Top-N by count, then alphabetically.
  */
@@ -519,8 +552,35 @@ export function rankedPersonTopicMentions(
     const label = typeof p?.label === 'string' ? p.label.trim() : ''
     rows.push({ id, name: rawName || label || id, count })
   }
-  rows.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
-  return rows.slice(0, topN)
+  // #1076 chunk 2 — fold near-duplicates by canonical key (lowercase +
+  // strip punctuation + collapse whitespace). Rows whose names produce
+  // the same canonical key sum their counts under the alphabetically-
+  // smallest topic id. Empty canonical key = no extractable name; those
+  // rows pass through ungrouped.
+  const grouped = new Map<string, PersonTopicMention>()
+  const ungrouped: PersonTopicMention[] = []
+  for (const row of rows) {
+    const key = canonicalTopicKey(row.name)
+    if (!key) {
+      ungrouped.push(row)
+      continue
+    }
+    const existing = grouped.get(key)
+    if (!existing) {
+      grouped.set(key, { ...row })
+    } else {
+      existing.count += row.count
+      // Prefer the alphabetically-smallest topic id so navigation is
+      // deterministic across runs and across viewer sessions.
+      if (row.id < existing.id) {
+        existing.id = row.id
+        existing.name = row.name
+      }
+    }
+  }
+  const deduped = [...grouped.values(), ...ungrouped]
+  deduped.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+  return deduped.slice(0, topN)
 }
 
 /**
@@ -709,7 +769,7 @@ export function personInsightsByTopic(
     })
   }
 
-  const out: PersonTopicGroup[] = []
+  const raw: PersonTopicGroup[] = []
   for (const [topicId, bucket] of groups) {
     const n = findRawNodeInArtifact(art, topicId)
     const p = n?.properties as Record<string, unknown> | undefined
@@ -719,12 +779,57 @@ export function personInsightsByTopic(
     insights.sort((a, b) =>
       a.insightId < b.insightId ? -1 : a.insightId > b.insightId ? 1 : 0,
     )
-    out.push({
+    raw.push({
       topicId,
       topicName: rawName || label || topicId,
       count: bucket.size,
       insights,
     })
+  }
+  // #1076 chunk 2 — fold near-duplicate Topic groups by canonical key
+  // (lowercase + strip punctuation + collapse whitespace). Insights
+  // from grouped Topics merge into a single group under the
+  // alphabetically-smallest topic id + its name. Topics with no
+  // extractable name pass through ungrouped.
+  const dedupedGroups = new Map<string, PersonTopicGroup>()
+  const ungroupedGroups: PersonTopicGroup[] = []
+  const seenInsightIdsByKey = new Map<string, Set<string>>()
+  for (const g of raw) {
+    const key = canonicalTopicKey(g.topicName)
+    if (!key) {
+      ungroupedGroups.push(g)
+      continue
+    }
+    const existing = dedupedGroups.get(key)
+    if (!existing) {
+      dedupedGroups.set(key, {
+        topicId: g.topicId,
+        topicName: g.topicName,
+        count: 0,
+        insights: [],
+      })
+      seenInsightIdsByKey.set(key, new Set())
+    }
+    const target = dedupedGroups.get(key)!
+    const seen = seenInsightIdsByKey.get(key)!
+    if (g.topicId < target.topicId) {
+      target.topicId = g.topicId
+      target.topicName = g.topicName
+    }
+    // Dedup insights across the grouped Topics — the same Insight
+    // ABOUT both "AI ethics" and "AI Ethics" must surface once.
+    for (const ins of g.insights) {
+      if (seen.has(ins.insightId)) continue
+      seen.add(ins.insightId)
+      target.insights.push(ins)
+    }
+    target.count = target.insights.length
+  }
+  const out: PersonTopicGroup[] = [...dedupedGroups.values(), ...ungroupedGroups]
+  for (const g of out) {
+    g.insights.sort((a, b) =>
+      a.insightId < b.insightId ? -1 : a.insightId > b.insightId ? 1 : 0,
+    )
   }
   out.sort((a, b) => b.count - a.count || a.topicName.localeCompare(b.topicName))
   return out
