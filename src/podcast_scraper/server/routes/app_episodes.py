@@ -16,6 +16,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from podcast_scraper.search.capability import structured_corpus_search
+from podcast_scraper.search.query_log import append_query_event
 from podcast_scraper.server.app_audio_bridge import resolve_audio
 from podcast_scraper.server.app_gi_view import insights_from_gi
 from podcast_scraper.server.app_kg_view import entities_from_kg
@@ -225,5 +226,7 @@ async def episode_search(
     root, row = _resolve(request, slug)
     internal_k = min(100, max(top_k, top_k * 5))
     outcome = structured_corpus_search(root, q, feed=row.feed_id or None, top_k=internal_k)
+    if not outcome.get("error"):
+        append_query_event(root, str(outcome.get("query_type") or ""))
     scoped = filter_outcome_to_episode(outcome, row.episode_id, top_k)
     return build_search_response(q, scoped)

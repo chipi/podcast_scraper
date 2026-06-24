@@ -15,6 +15,7 @@ def test_is_operator_write_matches_mutating_operator_routes() -> None:
     assert is_operator_write("POST", "/api/jobs")
     assert is_operator_write("POST", "/api/jobs/abc/cancel")
     assert is_operator_write("POST", "/api/jobs/reconcile")
+    assert is_operator_write("POST", "/api/index/rebuild")
 
 
 def test_is_operator_write_ignores_reads_and_consumer_and_unrelated() -> None:

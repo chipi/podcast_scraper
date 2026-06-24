@@ -115,9 +115,9 @@ def create_app(
         output_dir: Default corpus directory (stored on ``app.state`` for future routes).
         static_dir: Directory of built Vue assets. ``True`` uses the default ``dist`` path
             when present; ``False`` skips static mounting; ``None`` auto-detects.
-        enable_platform: Reserved for v2.7 platform routes (#50, #347). When ``True``,
-            platform route modules from ``routes/platform/`` will be mounted. Currently
-            a no-op — stubs exist but no routers are implemented yet.
+        enable_platform: Reserved legacy no-op (#50/#347). The consumer platform API
+            (``/api/app/*``) now mounts **unconditionally** and is NOT gated by this flag;
+            it is kept only for backward compatibility.
         enable_feeds_api: When ``True``, mount GET/PUT ``/api/feeds`` (requires ``output_dir``).
         enable_operator_config_api: When ``True``, mount GET/PUT ``/api/operator-config``
             (requires ``output_dir``). YAML defaults to ``<corpus>/viewer_operator.yaml``

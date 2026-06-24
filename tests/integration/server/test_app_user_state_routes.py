@@ -62,6 +62,15 @@ def test_queue_roundtrip(tmp_path: Path) -> None:
     assert client.get("/api/app/queue").json()["items"] == ["a", "b"]
 
 
+def test_disabled_user_blocked_on_state_route(tmp_path: Path) -> None:
+    from podcast_scraper.server.app_user_store import set_disabled, user_id_for
+
+    client = _authed_client(tmp_path)
+    assert client.get("/api/app/queue").status_code == 200  # works while enabled
+    set_disabled(tmp_path / "appdata", user_id_for("stub", "s1"), True)
+    assert client.get("/api/app/queue").status_code == 401  # disabled → locked out
+
+
 def test_library_subscribe_list_unsubscribe(tmp_path: Path) -> None:
     client = _authed_client(tmp_path)
     assert client.get("/api/app/library").json()["items"] == []

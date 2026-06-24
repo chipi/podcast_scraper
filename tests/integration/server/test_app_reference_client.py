@@ -71,7 +71,23 @@ def _corpus(root: Path) -> None:
     )
 
 
-def test_reference_client_walks_full_spine(tmp_path: Path) -> None:
+def test_reference_client_walks_full_spine(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from podcast_scraper.search.corpus_search import CorpusSearchOutcome
+
+    # Keep search deterministic + ML-free: the walker hits /search, so stub the retrieval.
+    monkeypatch.setattr(
+        "podcast_scraper.search.capability.run_corpus_search",
+        lambda output_dir, query, **kw: CorpusSearchOutcome(
+            results=[
+                {
+                    "doc_id": "insight:1",
+                    "score": 0.9,
+                    "metadata": {"doc_type": "insight", "episode_id": "ep1"},
+                    "text": "hit",
+                }
+            ]
+        ),
+    )
     _corpus(tmp_path)
     data_dir = tmp_path / "appdata"
     app = create_app(tmp_path, static_dir=False)
@@ -96,3 +112,5 @@ def test_reference_client_walks_full_spine(tmp_path: Path) -> None:
     assert summary["resume_seconds"] == 12.0
     assert summary["queue"] == [slug]
     assert summary["library"] == 1
+    assert summary["search_error"] is None
+    assert summary["search_results"] == 1

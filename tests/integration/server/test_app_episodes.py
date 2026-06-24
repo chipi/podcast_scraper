@@ -261,6 +261,49 @@ def test_audio_source_default_skips_validation(tmp_path: Path) -> None:
     assert body["resolved_url"] is None
 
 
+def test_audio_source_validate_network_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import httpx
+
+    from podcast_scraper.server import app_audio_bridge
+
+    _write_corpus(tmp_path)
+    slug = _only_slug(tmp_path)
+
+    def boom(url: str, timeout: float):
+        raise httpx.ConnectError("unreachable")
+
+    monkeypatch.setattr(app_audio_bridge, "_head_request", boom)
+    body = (
+        _client(tmp_path)
+        .get(f"/api/app/episodes/{slug}/audio-source", params={"validate": "true"})
+        .json()
+    )
+    assert body["verified"] is False
+    assert body["resolved_url"] == "https://cdn.example/ep1.mp3"  # falls back to the original URL
+
+
+def test_episode_search_no_index(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _write_corpus(tmp_path)
+    slug = _only_slug(tmp_path)
+    monkeypatch.setattr(
+        "podcast_scraper.search.capability.run_corpus_search",
+        lambda output_dir, query, **kw: CorpusSearchOutcome(error="no_index", detail="no index"),
+    )
+    body = _client(tmp_path).get(f"/api/app/episodes/{slug}/search", params={"q": "x"}).json()
+    assert body["error"] == "no_index"
+    assert body["results"] == []
+
+
+def test_resolve_slug_fallback_without_episode_id(tmp_path: Path) -> None:
+    _write_corpus(tmp_path, episode_id=None)  # exercises the metadata-relpath slug fallback
+    slug = _only_slug(tmp_path)
+    resp = _client(tmp_path).get(f"/api/app/episodes/{slug}")
+    assert resp.status_code == 200
+    assert resp.json()["slug"] == slug
+
+
 def test_episode_search_filters_to_episode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _write_corpus(tmp_path)  # feed "myfeed", episode "ep1"
     slug = _only_slug(tmp_path)

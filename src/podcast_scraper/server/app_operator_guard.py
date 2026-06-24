@@ -1,8 +1,8 @@
 """Authz + audit for operator write endpoints (#1071, epic #911).
 
-The operator API (``/api/feeds``, ``/api/operator-config``, ``/api/jobs*``) is network-gated
-(Tailscale, RFC-082) and otherwise unauthenticated. This middleware adds **optional**
-API-key auth on its *mutating* routes plus an audit trail:
+The operator API (``/api/feeds``, ``/api/operator-config``, ``/api/jobs*``,
+``/api/index/rebuild``) is network-gated (Tailscale, RFC-082) and otherwise unauthenticated.
+This middleware adds **optional** API-key auth on its *mutating* routes plus an audit trail:
 
 - When ``APP_OPERATOR_API_KEY`` is set, mutating operator requests must carry a matching
   ``X-Operator-Key`` header (else 401). When unset, the key check is skipped
@@ -24,7 +24,7 @@ from starlette.responses import JSONResponse, Response
 from podcast_scraper.server.app_audit import append_audit
 
 _WRITE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
-_WRITE_EXACT = {"/api/feeds", "/api/operator-config"}
+_WRITE_EXACT = {"/api/feeds", "/api/operator-config", "/api/index/rebuild"}
 _WRITE_PREFIXES = ("/api/jobs",)
 
 

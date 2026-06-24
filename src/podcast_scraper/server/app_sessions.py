@@ -53,7 +53,12 @@ def verify(
         return None
     if not isinstance(payload, dict):
         return None
-    iat = payload.get("iat")
-    if max_age > 0 and isinstance(iat, (int, float)) and (time.time() - float(iat)) > max_age:
-        return None
+    if max_age > 0:
+        iat = payload.get("iat")
+        # Require a real numeric issue-time when expiry is enforced — a token without a
+        # usable ``iat`` must NOT be treated as immortal.
+        if not isinstance(iat, (int, float)) or isinstance(iat, bool):
+            return None
+        if (time.time() - float(iat)) > max_age:
+            return None
     return payload

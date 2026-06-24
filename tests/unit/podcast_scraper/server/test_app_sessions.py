@@ -30,6 +30,12 @@ def test_expired_rejected() -> None:
     assert app_sessions.verify(token, "secret", max_age=10) is None
 
 
+def test_missing_iat_rejected_when_expiry_enforced() -> None:
+    token = app_sessions.sign({"user_id": "u_1"}, "secret")  # no iat
+    assert app_sessions.verify(token, "secret") is None  # default max_age > 0 → not immortal
+    assert app_sessions.verify(token, "secret", max_age=0) == {"user_id": "u_1"}  # expiry off → ok
+
+
 def test_garbage_and_empty_inputs() -> None:
     assert app_sessions.verify(None, "secret") is None
     assert app_sessions.verify("", "secret") is None

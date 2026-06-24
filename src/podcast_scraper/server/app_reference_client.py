@@ -37,6 +37,10 @@ def walk_app_contract(client: Any, slug: str) -> dict[str, Any]:
     summary["insights"] = len(_ok(client.get(f"/api/app/episodes/{slug}/insights"))["insights"])
     summary["persons"] = len(_ok(client.get(f"/api/app/episodes/{slug}/entities"))["persons"])
 
+    search = _ok(client.get(f"/api/app/episodes/{slug}/search", params={"q": "the"}))
+    summary["search_error"] = search.get("error")  # None, or "no_index" without a built index
+    summary["search_results"] = len(search["results"])
+
     _ok(client.put(f"/api/app/playback/{slug}", json={"position_seconds": 12.0}))
     summary["resume_seconds"] = _ok(client.get(f"/api/app/playback/{slug}"))["position_seconds"]
 
