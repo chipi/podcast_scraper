@@ -90,6 +90,58 @@ class AppEpisodeDetail(BaseModel):
     has_bridge: bool = Field(description="Whether a canonical-identity bridge artifact exists.")
 
 
+class AppEpisodeSummary(BaseModel):
+    """One episode card in the consumer catalog (PRD-038; list-item shape).
+
+    Lightweight by design: it carries the fields the catalog scan already produces.
+    Per-artifact depth counts (insight_count, speaker_count) are intentionally NOT
+    computed here (they would cost an artifact load per row) — the client reads them
+    lazily from the detail / insights / entities endpoints. Artifact-presence flags
+    (``has_gi`` / ``has_kg``) are the cheap depth signal for cards.
+    """
+
+    slug: str = Field(description="Stable episode slug.")
+    title: str = Field(description="Episode title.")
+    feed_id: str = Field(description="Owning feed id.")
+    podcast_title: str | None = Field(default=None, description="Feed/show display title.")
+    publish_date: str | None = Field(
+        default=None, description="Publish date (YYYY-MM-DD) when known."
+    )
+    duration_seconds: int | None = Field(
+        default=None, ge=0, description="Episode duration when known."
+    )
+    episode_image_url: str | None = Field(
+        default=None, description="Episode artwork URL when present."
+    )
+    feed_image_url: str | None = Field(default=None, description="Feed artwork URL when present.")
+    status: Literal["ready", "pending"] = Field(
+        default="ready",
+        description="Playability: 'ready' when a transcript exists, else 'pending'. "
+        "Local-content MVP yields 'ready'; richer states arrive with scrape-on-demand (#1069).",
+    )
+    summary_preview: str | None = Field(
+        default=None, description="One-line recap for the card, when summary content exists."
+    )
+    topics: list[str] = Field(
+        default_factory=list, description="Short topic labels for card pills (from summary)."
+    )
+    has_transcript: bool = Field(description="Whether a transcript file is referenced.")
+    has_summary: bool = Field(description="Whether any summary content is present.")
+    has_gi: bool = Field(description="Whether a grounded-insight artifact exists.")
+    has_kg: bool = Field(description="Whether a knowledge-graph artifact exists.")
+    has_bridge: bool = Field(description="Whether a canonical-identity bridge artifact exists.")
+
+
+class AppEpisodesResponse(BaseModel):
+    """Paginated episode list for GET /api/app/episodes and /podcasts/{id}/episodes."""
+
+    items: list[AppEpisodeSummary] = Field(default_factory=list)
+    page: int = Field(ge=1, description="1-based page index for this response.")
+    page_size: int = Field(ge=1, description="Requested page size.")
+    total: int = Field(ge=0, description="Total episodes matching the filter.")
+    has_more: bool = Field(description="Whether more pages exist after this one.")
+
+
 class AppQuote(BaseModel):
     """A verbatim quote supporting an insight."""
 

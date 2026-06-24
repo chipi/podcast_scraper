@@ -18,6 +18,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from podcast_scraper.search.capability import structured_corpus_search
 from podcast_scraper.search.query_log import append_query_event
 from podcast_scraper.server.app_audio_bridge import resolve_audio
+from podcast_scraper.server.app_content_source import get_content_source
 from podcast_scraper.server.app_gi_view import insights_from_gi
 from podcast_scraper.server.app_kg_view import entities_from_kg
 from podcast_scraper.server.app_search_view import build_search_response, filter_outcome_to_episode
@@ -26,6 +27,7 @@ from podcast_scraper.server.corpus_catalog import _load_metadata_doc, CatalogEpi
 from podcast_scraper.server.schemas import (
     AppEntitiesResponse,
     AppEpisodeDetail,
+    AppEpisodesResponse,
     AppInsightsResponse,
     AudioSourceResponse,
     CorpusSearchApiResponse,
@@ -82,6 +84,61 @@ def _load_artifact(root: Path, relpath: str) -> dict | None:
         logger.warning("Unreadable artifact %s: %s", path, exc)
         return None
     return loaded if isinstance(loaded, dict) else None
+
+
+def _episodes_page(
+    request: Request,
+    *,
+    feed_id: str | None,
+    status: str | None,
+    page: int,
+    page_size: int,
+) -> AppEpisodesResponse:
+    """Shared catalog-list builder for the global + per-podcast endpoints."""
+    root = _corpus_root(request)
+    source = get_content_source(request.app.state, root)
+    offset = (page - 1) * page_size
+    result = source.list_episodes(feed_id=feed_id, status=status, offset=offset, limit=page_size)
+    has_more = offset + len(result.items) < result.total
+    return AppEpisodesResponse(
+        items=result.items,
+        page=page,
+        page_size=page_size,
+        total=result.total,
+        has_more=has_more,
+    )
+
+
+@router.get("/episodes", response_model=AppEpisodesResponse)
+async def episodes_list(
+    request: Request,
+    page: int = Query(default=1, ge=1, description="1-based page index."),
+    page_size: int = Query(default=20, ge=1, le=100, description="Episodes per page."),
+    status: str | None = Query(
+        default=None, description="Optional status filter: 'ready' or 'pending'."
+    ),
+    feed_id: str | None = Query(default=None, description="Optional feed-id scope."),
+) -> AppEpisodesResponse:
+    """Catalog: episodes across the corpus, newest-first (PRD-038 FR1).
+
+    Served via the pluggable ``ContentSource`` (local corpus for the MVP; #1069 extends
+    it). Per-artifact depth counts are not computed here — see the detail endpoints.
+    """
+    return _episodes_page(request, feed_id=feed_id, status=status, page=page, page_size=page_size)
+
+
+@router.get("/podcasts/{feed_id}/episodes", response_model=AppEpisodesResponse)
+async def podcast_episodes_list(
+    request: Request,
+    feed_id: str,
+    page: int = Query(default=1, ge=1, description="1-based page index."),
+    page_size: int = Query(default=20, ge=1, le=100, description="Episodes per page."),
+    status: str | None = Query(
+        default=None, description="Optional status filter: 'ready' or 'pending'."
+    ),
+) -> AppEpisodesResponse:
+    """Catalog: one podcast's episodes, newest-first (PRD-038 FR2)."""
+    return _episodes_page(request, feed_id=feed_id, status=status, page=page, page_size=page_size)
 
 
 @router.get("/episodes/{slug}", response_model=AppEpisodeDetail)

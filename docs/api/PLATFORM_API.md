@@ -53,6 +53,24 @@ Default **deny**: only allow-listed emails/domains may create an account.
 
 ---
 
+## Catalog (episode lists)
+
+Episode lists are served through a pluggable **`ContentSource`** (`#1078`). The MVP backend
+(`LocalCorpusSource`) enumerates the already-processed local corpus, newest-first; a
+`DiscoverySource` (`#1069`) can later implement the same contract with no API change.
+Lightweight by design — per-artifact depth counts (`insight_count`, `speaker_count`) are read
+lazily from the per-episode endpoints, not the list.
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/api/app/episodes?page=&page_size=&status=&feed_id=` | Catalog across the corpus, newest-first. `{items[{slug, title, feed_id, podcast_title, publish_date, duration_seconds, episode_image_url, feed_image_url, status, summary_preview, topics[], has_transcript, has_summary, has_gi, has_kg, has_bridge}], page, page_size, total, has_more}`. `page≥1`, `1≤page_size≤100` (**422** otherwise). `status` ∈ `ready`\|`pending`. |
+| GET | `/api/app/podcasts/{feed_id}/episodes?page=&page_size=&status=` | Same shape, scoped to one feed. |
+
+`status`: `ready` when a transcript exists (playable), else `pending`. Local-content MVP yields
+`ready`; richer states (not-scraped/processing) arrive with scrape-on-demand (`#1069`).
+
+---
+
 ## Episodes
 
 Addressed by a stable, URL-safe **slug** (`{feed-slug}-{hash(feed_id,episode_id)}`), derived
@@ -121,7 +139,9 @@ The operator write routes (`PUT /api/feeds`, `PUT /api/operator-config`, `POST /
 | `APP_DATA_DIR` | `<corpus>/.app` | Per-user files + audit log (outside the shared corpus tree). |
 | `APP_SESSION_SECRET` | _(unset → auth inert)_ | HMAC key for the session cookie. |
 | `APP_SESSION_COOKIE_SECURE` | `false` | Set `true` behind HTTPS. |
+| `APP_OAUTH_PROVIDER` | _(unset → Google)_ | Set `mock` to use the local network-free provider for **dev/e2e only** (never prod); logged loudly. |
 | `APP_OAUTH_GOOGLE_CLIENT_ID` / `_SECRET` | _(unset → login 503)_ | Google OAuth app credentials. |
+| `APP_OAUTH_MOCK_EMAIL` / `_SUBJECT` / `_NAME` | `dev@localhost` / `dev-local` / `Dev User` | Override the mock provider's dev identity (only when `APP_OAUTH_PROVIDER=mock`). |
 | `APP_SIGNUP_MODE` / `APP_ALLOWED_EMAILS` / `APP_ALLOWED_DOMAINS` | `allowlist` / — / — | Access control. |
 | `APP_OPERATOR_API_KEY` | _(unset → no key check)_ | Operator write-path API key. |
 
