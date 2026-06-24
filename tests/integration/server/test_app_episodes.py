@@ -195,6 +195,24 @@ def test_segments_resolve_in_nested_run_layout(tmp_path: Path) -> None:
     assert resp.json()["segments"][0]["text"] == "Hello."
 
 
+def test_player_serves_raw_segments_not_adfree(tmp_path: Path) -> None:
+    # The player streams the ORIGINAL audio (ads in), so transcript-sync must use the raw
+    # canonical segments (original timeline), NOT the ad-free ones (minutes shorter → drift).
+    _write_corpus(tmp_path, stem="0001-ep")
+    # Add an ad-free variant alongside the raw one, with distinct text + later timeline.
+    (tmp_path / "transcripts" / "0001-ep.adfree.segments.json").write_text(
+        json.dumps(
+            [{"id": 0, "start": 0.0, "end": 9.0, "text": "AD-FREE timeline.", "speaker_label": "X"}]
+        ),
+        encoding="utf-8",
+    )
+    slug = _only_slug(tmp_path)
+    body = _client(tmp_path).get(f"/api/app/episodes/{slug}/segments").json()
+    texts = [s["text"] for s in body["segments"]]
+    assert "Hello world." in texts  # raw canonical (from _write_corpus)
+    assert "AD-FREE timeline." not in texts  # ad-free must NOT be served to the player
+
+
 def test_no_segments_file_404(tmp_path: Path) -> None:
     _write_corpus(tmp_path, with_segments=False)
     slug = _only_slug(tmp_path)

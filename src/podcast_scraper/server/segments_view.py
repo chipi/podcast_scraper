@@ -12,11 +12,16 @@ from podcast_scraper.server.schemas import TranscriptSegment
 
 
 def segments_relpaths_for_transcript(transcript_relpath: str) -> list[str]:
-    """Candidate segment-file relpaths for a transcript file, ad-free preferred.
+    """Candidate segment-file relpaths for a transcript file — **raw canonical preferred**.
 
-    ``transcripts/ep1.txt`` -> ``[transcripts/ep1.adfree.segments.json,
-    transcripts/ep1.segments.json]``. A trailing ``.adfree`` on the stem is stripped
+    ``transcripts/ep1.txt`` -> ``[transcripts/ep1.segments.json,
+    transcripts/ep1.adfree.segments.json]``. A trailing ``.adfree`` on the stem is stripped
     so both ``ep1.txt`` and ``ep1.adfree.txt`` resolve to the same candidates.
+
+    The consumer Player streams the **original (unbridged) audio** — ads included — so its
+    transcript-sync must use the **raw canonical** segments, whose timestamps run on the
+    original timeline. The ad-free segments (ads removed) are minutes shorter and would drift
+    the highlight/seek against the played audio; they are only a last-resort fallback here.
     """
     rel = (transcript_relpath or "").strip().replace("\\", "/")
     if not rel:
@@ -24,7 +29,7 @@ def segments_relpaths_for_transcript(transcript_relpath: str) -> list[str]:
     base = rel[:-4] if rel.lower().endswith(".txt") else rel
     if base.lower().endswith(".adfree"):
         base = base[: -len(".adfree")]
-    return [f"{base}.adfree.segments.json", f"{base}.segments.json"]
+    return [f"{base}.segments.json", f"{base}.adfree.segments.json"]
 
 
 def _segment_speaker(raw: dict[str, Any]) -> str | None:
