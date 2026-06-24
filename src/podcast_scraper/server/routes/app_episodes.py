@@ -16,15 +16,21 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from podcast_scraper.search.capability import structured_corpus_search
+from podcast_scraper.search.corpus_similar import episode_scope_key, run_similar_episodes
 from podcast_scraper.search.query_log import append_query_event
 from podcast_scraper.server.app_artwork import artwork_url
 from podcast_scraper.server.app_audio_bridge import resolve_audio
-from podcast_scraper.server.app_content_source import get_content_source
+from podcast_scraper.server.app_content_source import get_content_source, row_to_summary
 from podcast_scraper.server.app_gi_view import insights_from_gi
 from podcast_scraper.server.app_kg_view import entities_from_kg
 from podcast_scraper.server.app_search_view import build_search_response, filter_outcome_to_episode
 from podcast_scraper.server.app_slugs import resolve_slug
-from podcast_scraper.server.corpus_catalog import _load_metadata_doc, CatalogEpisodeRow
+from podcast_scraper.server.corpus_catalog import (
+    _load_metadata_doc,
+    build_catalog_rows_cumulative,
+    CatalogEpisodeRow,
+    index_rows_by_feed_episode,
+)
 from podcast_scraper.server.schemas import (
     AppEntitiesResponse,
     AppEpisodeDetail,
@@ -168,6 +174,45 @@ async def episode_detail(request: Request, slug: str) -> AppEpisodeDetail:
         has_gi=row.has_gi,
         has_kg=row.has_kg,
         has_bridge=row.has_bridge,
+    )
+
+
+@router.get("/episodes/{slug}/related", response_model=AppEpisodesResponse)
+async def episode_related(
+    request: Request,
+    slug: str,
+    top_k: int = Query(default=8, ge=1, le=25, description="Max 'more like this' peers."),
+) -> AppEpisodesResponse:
+    """ "More like this" — semantic peer episodes via the vector index (RFC-099; #1084 follow-up).
+
+    Reuses the same similarity engine as the operator library, projected to the consumer
+    card shape. Returns 200 with empty items when the index is unavailable (graceful, same as
+    no-index search) so the panel section simply hides.
+    """
+    root, row = _resolve(request, slug)
+    outcome = run_similar_episodes(
+        root,
+        summary_title=row.summary_title,
+        summary_bullets=row.summary_bullets,
+        episode_title=row.episode_title,
+        source_feed_id=row.feed_id,
+        source_episode_id=row.episode_id,
+        top_k=top_k,
+    )
+    if outcome.error:
+        return AppEpisodesResponse(items=[], page=1, page_size=top_k, total=0, has_more=False)
+
+    by_scope = index_rows_by_feed_episode(build_catalog_rows_cumulative(root))
+    items = []
+    seen: set[str] = {row.metadata_relative_path}
+    for it in outcome.items:
+        key = episode_scope_key(dict(it.get("metadata") or {}))
+        peer = by_scope.get(key) if key else None
+        if peer is not None and peer.metadata_relative_path not in seen:
+            seen.add(peer.metadata_relative_path)
+            items.append(row_to_summary(root, peer))
+    return AppEpisodesResponse(
+        items=items, page=1, page_size=top_k, total=len(items), has_more=False
     )
 
 

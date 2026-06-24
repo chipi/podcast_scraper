@@ -6,13 +6,14 @@
  * Every timestamp + Ask result emits `seek` for jump-to-moment. Tapping a person filters
  * the insight list. The "surfacing now" insight (driven by playback) is highlighted.
  *
- * A "Related / more-like-this" section is a planned addition (logged for the gap-seek) —
- * the layout leaves room for it above the footer.
+ * "More like this" surfaces semantic peer episodes (vector similarity) at the foot of the
+ * panel — the consolidation loop: finish here, keep learning next.
  */
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { searchEpisode } from '../services/api'
-import type { EpisodeDetail, Entity, Insight, SearchHit, Topic } from '../services/types'
+import { RouterLink } from 'vue-router'
+import { getRelated, searchEpisode } from '../services/api'
+import type { EpisodeDetail, EpisodeSummary, Entity, Insight, SearchHit, Topic } from '../services/types'
 import { formatTime } from '../player/transcriptSync'
 import { hitStartSeconds, insightStartSeconds } from '../player/insights'
 
@@ -87,6 +88,18 @@ function speakerLabel(s: string | null): string | null {
   if (!s) return null
   return s.startsWith('person:') ? s.slice('person:'.length).replace(/-/g, ' ') : s
 }
+
+// --- related ("more like this") ---
+const related = ref<EpisodeSummary[]>([])
+async function loadRelated(slug: string): Promise<void> {
+  try {
+    related.value = (await getRelated(slug)).items.filter((e) => e.slug !== slug)
+  } catch {
+    related.value = []
+  }
+}
+onMounted(() => loadRelated(props.slug))
+watch(() => props.slug, (s) => loadRelated(s))
 </script>
 
 <template>
@@ -214,6 +227,22 @@ function speakerLabel(s: string | null): string | null {
         >
           {{ t('kp.showAll') }}
         </button>
+      </section>
+
+      <!-- More like this (semantic peers; hidden when the index has no neighbours). -->
+      <section v-if="related.length" class="mt-5">
+        <h3 class="lp-kicker mb-2">{{ t('kp.related') }}</h3>
+        <ul class="flex flex-col">
+          <li v-for="r in related" :key="r.slug">
+            <RouterLink
+              :to="{ name: 'player', params: { slug: r.slug } }"
+              class="block border-b border-border py-2 no-underline text-canvas-foreground hover:bg-overlay"
+            >
+              <span class="block truncate text-sm font-semibold">{{ r.title }}</span>
+              <span v-if="r.podcast_title" class="lp-kicker">{{ r.podcast_title }}</span>
+            </RouterLink>
+          </li>
+        </ul>
       </section>
     </div>
   </aside>

@@ -63,7 +63,7 @@ def _has_transcript(corpus_root: Path, metadata_relpath: str) -> bool:
     return isinstance(tr, str) and bool(tr.strip())
 
 
-def _row_to_summary(corpus_root: Path, row: CatalogEpisodeRow) -> AppEpisodeSummary:
+def row_to_summary(corpus_root: Path, row: CatalogEpisodeRow) -> AppEpisodeSummary:
     """Map a catalog row to the consumer card shape (one metadata read for transcript)."""
     has_transcript = _has_transcript(corpus_root, row.metadata_relative_path)
     has_summary = bool(row.summary_title or row.summary_bullets or row.summary_text)
@@ -114,13 +114,13 @@ class LocalCorpusSource:
         rows = filter_rows(build_catalog_rows_cumulative(self._root), feed_id=feed_id)
 
         if status in ("ready", "pending"):
-            mapped = [_row_to_summary(self._root, r) for r in rows]
+            mapped = [row_to_summary(self._root, r) for r in rows]
             mapped = [m for m in mapped if m.status == status]
             return EpisodeListResult(items=mapped[off : off + lim], total=len(mapped))
 
         page_rows = rows[off : off + lim]
         return EpisodeListResult(
-            items=[_row_to_summary(self._root, r) for r in page_rows], total=len(rows)
+            items=[row_to_summary(self._root, r) for r in page_rows], total=len(rows)
         )
 
 

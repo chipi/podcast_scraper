@@ -114,6 +114,11 @@ export function searchEpisode(slug: string, q: string, topK = 8): Promise<Search
   })
 }
 
+/** "More like this" — semantic peer episodes; empty page when the index is unavailable. */
+export function getRelated(slug: string, topK = 6): Promise<EpisodesPage> {
+  return getJSON<EpisodesPage>(`/episodes/${encodeURIComponent(slug)}/related`, { top_k: topK })
+}
+
 /** Saved playback position (auth-gated); `null` when signed out or unset. */
 export async function getPlayback(slug: string): Promise<PlaybackPosition | null> {
   try {

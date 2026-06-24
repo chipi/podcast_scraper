@@ -1,11 +1,25 @@
-import { mount } from '@vue/test-utils'
-import { describe, expect, it, vi } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
+import { createMemoryHistory, createRouter } from 'vue-router'
+import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
 import type { EpisodeDetail, Entity, Insight, Topic } from '../services/types'
 import KnowledgePanel from './KnowledgePanel.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
+const router = createRouter({
+  history: createMemoryHistory(),
+  routes: [{ path: '/episode/:slug', name: 'player', component: { template: '<div/>' } }],
+})
+
+const emptyPage = { items: [], page: 1, page_size: 6, total: 0, has_more: false }
+
+beforeEach(() => {
+  // Default: no related peers (index unavailable) so the section hides.
+  vi.spyOn(api, 'getRelated').mockResolvedValue(emptyPage)
+})
+afterEach(() => vi.restoreAllMocks())
 
 function episode(): EpisodeDetail {
   return {
@@ -55,7 +69,7 @@ function mountPanel(props: Partial<Parameters<typeof KnowledgePanel>[0]> = {}) {
       activeInsightId: null,
       ...props,
     },
-    global: { plugins: [i18n] },
+    global: { plugins: [i18n, router] },
   })
 }
 
@@ -112,6 +126,25 @@ describe('KnowledgePanel', () => {
     const jump = w.findAll('button').find((b) => b.text().includes('0:20'))
     await jump!.trigger('click')
     expect(w.emitted('seek')?.at(-1)).toEqual([20])
+  })
+
+  it('renders "More like this" peers with links to the player', async () => {
+    vi.spyOn(api, 'getRelated').mockResolvedValue({
+      items: [
+        {
+          slug: 'peer-1', title: 'A Related Episode', feed_id: 'f', podcast_title: 'Show',
+          publish_date: null, duration_seconds: null, episode_image_url: null, feed_image_url: null,
+          artwork_url: null, status: 'ready', summary_preview: null, topics: [],
+          has_transcript: true, has_summary: false, has_gi: false, has_kg: false, has_bridge: false,
+        },
+      ],
+      page: 1, page_size: 6, total: 1, has_more: false,
+    })
+    const w = mountPanel()
+    await flushPromises()
+    expect(w.text()).toContain('More like this')
+    expect(w.text()).toContain('A Related Episode')
+    expect(w.findAll('a').map((a) => a.attributes('href'))).toContain('/episode/peer-1')
   })
 
   it('shows the empty message when no intelligence is present', () => {
