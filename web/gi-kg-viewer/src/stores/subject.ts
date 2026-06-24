@@ -32,6 +32,16 @@ export const useSubjectStore = defineStore('subject', () => {
   const graphConnectionsCyId = ref<string | null>(null)
   const topicId = ref<string | null>(null)
   const personId = ref<string | null>(null)
+  /**
+   * #1049 — Topic drill-in for the Position Tracker tab on Person Landing
+   * (PRD-028 / RFC-072 §5A `position_arc`). When non-null AND `kind` is
+   * `'person'`, the Position Tracker panel renders insights for the pair
+   * (``personId``, ``positionTrackerTopicId``) ordered by publish_date +
+   * position_hint. Cleared whenever ``focusPerson`` switches to a different
+   * person OR the subject is cleared, so a stale Topic from a prior Person
+   * never bleeds into a new one.
+   */
+  const positionTrackerTopicId = ref<string | null>(null)
 
   function clearFields(): void {
     episodeMetadataPath.value = null
@@ -41,6 +51,7 @@ export const useSubjectStore = defineStore('subject', () => {
     graphConnectionsCyId.value = null
     topicId.value = null
     personId.value = null
+    positionTrackerTopicId.value = null
   }
 
   function focusEpisode(
@@ -66,6 +77,11 @@ export const useSubjectStore = defineStore('subject', () => {
       graphNodeCyId.value = null
       topicId.value = null
       personId.value = null
+      // #1049 — orphan-state leak: re-opening the same episode after a
+      // Person was focused must not carry the prior Position Tracker
+      // topic across (the Person rail is gone but the store state survives
+      // and would leak back into the next Person focus).
+      positionTrackerTopicId.value = null
     }
     kind.value = 'episode'
     episodeMetadataPath.value = t
@@ -129,6 +145,22 @@ export const useSubjectStore = defineStore('subject', () => {
     personId.value = t
   }
 
+  /**
+   * #1049 — Pivot the Person Landing rail's Position Tracker tab onto a
+   * specific Topic. No-op when no Person is currently focused (the
+   * Position Tracker only renders when ``kind === 'person'``); silent
+   * clear on empty / whitespace input.
+   */
+  function selectTopicForPositionTracker(topicGraphId: string): void {
+    const t = topicGraphId.trim()
+    if (kind.value !== 'person') return
+    positionTrackerTopicId.value = t || null
+  }
+
+  function clearPositionTrackerTopic(): void {
+    positionTrackerTopicId.value = null
+  }
+
   function clearSubject(): void {
     kind.value = null
     clearFields()
@@ -170,6 +202,9 @@ export const useSubjectStore = defineStore('subject', () => {
       get personId() {
         return personId.value
       },
+      get positionTrackerTopicId() {
+        return positionTrackerTopicId.value
+      },
       // E2E-only mutators. The TEV contract Playwright spec drives the
       // panel via ``focusTopic`` after the V2 architectural change removed
       // the digest topic-band-title click affordance; other handoff specs
@@ -177,6 +212,7 @@ export const useSubjectStore = defineStore('subject', () => {
       focusTopic,
       focusEntity,
       clearSubject,
+      selectTopicForPositionTracker,
     }
   }
 
@@ -189,6 +225,7 @@ export const useSubjectStore = defineStore('subject', () => {
     graphConnectionsCyId,
     topicId,
     personId,
+    positionTrackerTopicId,
     focusEpisode,
     focusGraphNode,
     focusTopic,
@@ -197,5 +234,7 @@ export const useSubjectStore = defineStore('subject', () => {
     clearSubject,
     setEpisodeUiLabel,
     setEpisodeId,
+    selectTopicForPositionTracker,
+    clearPositionTrackerTopic,
   }
 })

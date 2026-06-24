@@ -89,6 +89,69 @@
       "from": "insight:ee56dba0cc316a6d",
       "to": "quote:d4bc4106240566ea",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:f878a437eb2b9167",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:84304fb24a96f6ae",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:f878a437eb2b9167",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:f878a437eb2b9167",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:84304fb24a96f6ae",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:84304fb24a96f6ae",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:ee56dba0cc316a6d",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:ee56dba0cc316a6d",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:84304fb24a96f6ae",
+      "to": "person:speaker-02"
     }
   ],
   "episode_id": "d24c1620-8d16-54dd-b681-2f2e06c0b579",
@@ -102,7 +165,7 @@
         "metadata_relative_path": "feeds/p09/metadata/p09_e02.metadata.json",
         "podcast_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
         "publish_date": "2026-06-11T12:00:00",
-        "title": "The Long View: Biohacking \u2014 Episode 2"
+        "title": "The Long View: Biohacking — Episode 2"
       },
       "type": "Episode"
     },
@@ -135,7 +198,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "# The Long View \u2014 Episode\n## Continuous Glucose Monitors and What They Tell You\nHost: Alex Morgan\nGuest: Dr."
+        "text": "# The Long View — Episode\n## Continuous Glucose Monitors and What They Tell You\nHost: Alex Morgan\nGuest: Dr.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +209,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Elena Fischer\nAlex Morgan: Welcome to The Long View."
+        "text": "Elena Fischer\nAlex Morgan: Welcome to The Long View.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +220,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today we're exploring continuous glucose monitors and what they tell you in depth with Dr."
+        "text": "Today we're exploring continuous glucose monitors and what they tell you in depth with Dr.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -206,7 +275,7 @@
         "char_start": 284,
         "episode_id": "d24c1620-8d16-54dd-b681-2f2e06c0b579",
         "speaker_id": "person:speaker-01",
-        "text": "This episode is brought to you by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Get started at linear.com/podcast.",
+        "text": "This episode is brought to you by Linear. Linear is the issue tracker built for speed — keyboard-first, fast search, and a clean roadmap view your team actually uses. Get started at linear.com/podcast.",
         "timestamp_end_ms": 18000,
         "timestamp_start_ms": 12000,
         "transcript_ref": "transcripts/p09_e02.txt"
@@ -257,5 +326,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

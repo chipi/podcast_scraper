@@ -1,5 +1,16 @@
 # Fingerprint gaps analysis (2026-06-22)
 
+> **STATUS: CLOSED.** All 7 gap-closure commits landed in
+> PR #1036 (`b1ef7046..a31b4e9a`): generation_params for GI/KG,
+> backing_model_id + base_url, task_pipeline + inference_args/image,
+> runtime.inference_target, podcast_scraper_config, dataset_content_hash
+> (replaces the original "upstream summary provenance" framing with a
+> stronger general dataset hash), and fingerprint_version 2.0 + full-dict
+> hash. Tracking issue #1074 filed and closed the same day after audit
+> confirmed pre-merged closure. Retro tool at
+> `scripts/eval/fingerprint/refingerprint_from_run.py` handles old
+> artifacts.
+
 Operator-flagged concern after RFC-097 v2 merge (#1039): *"we did not
 notice when we did GI/KG from bullets vs summary, and also I think we
 need to fingerprint models with all their env setup as part of it

@@ -89,6 +89,93 @@
       "from": "insight:f247d55c98c9b199",
       "to": "quote:343efaa683fd96ac",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:a9007839a644d4d8",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:a9007839a644d4d8",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:4fcccbf9181c2a25",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a9007839a644d4d8",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a9007839a644d4d8",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a9007839a644d4d8",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:4fcccbf9181c2a25",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:4fcccbf9181c2a25",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:4fcccbf9181c2a25",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:f247d55c98c9b199",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:f247d55c98c9b199",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:f247d55c98c9b199",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
@@ -102,7 +189,7 @@
         "metadata_relative_path": "feeds/p01/metadata/p01_e01.metadata.json",
         "podcast_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
         "publish_date": "2026-06-15T12:00:00",
-        "title": "Singletrack Sessions \u2014 Episode 1"
+        "title": "Singletrack Sessions — Episode 1"
       },
       "type": "Episode"
     },
@@ -135,7 +222,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions."
+        "text": "# Singletrack Sessions — Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +233,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today we're talking about trail building, and I'm joined by Liam, trail builder for the Cascadia Alliance."
+        "text": "Today we're talking about trail building, and I'm joined by Liam, trail builder for the Cascadia Alliance.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +244,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Excited for this one \u2014 trail building is something I've been thinking about a lot."
+        "text": "Excited for this one — trail building is something I've been thinking about a lot.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -192,7 +285,7 @@
         "char_start": 186,
         "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
         "speaker_id": "person:speaker-02",
-        "text": "Thanks, Maya. Excited for this one \u2014 trail building is something I've been thinking about a lot.",
+        "text": "Thanks, Maya. Excited for this one — trail building is something I've been thinking about a lot.",
         "timestamp_end_ms": 12000,
         "timestamp_start_ms": 6000,
         "transcript_ref": "transcripts/p01_e01.txt"
@@ -206,7 +299,7 @@
         "char_start": 289,
         "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
         "speaker_id": "person:speaker-01",
-        "text": "Before we dive in, a quick word from our sponsor Strava. Strava is the home for athletes \u2014 track every ride, run, and swim, and compare segments with friends. Use code POD for an extended trial.",
+        "text": "Before we dive in, a quick word from our sponsor Strava. Strava is the home for athletes — track every ride, run, and swim, and compare segments with friends. Use code POD for an extended trial.",
         "timestamp_end_ms": 18000,
         "timestamp_start_ms": 12000,
         "transcript_ref": "transcripts/p01_e01.txt"
@@ -257,5 +350,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

@@ -35,11 +35,12 @@ def _cfg(
     llm_pipeline_mode: str | None = None,
     transcript_cleaning_strategy: str | None = None,
     extra_body: dict | None = None,
+    gi_typed_mentions_use_ner: bool | None = None,
 ) -> Any:
     backend = SimpleNamespace(
         type="openai", model="autoresearch", base_url=None, extra_body=extra_body
     )
-    return SimpleNamespace(
+    ns = SimpleNamespace(
         task="knowledge_graph",
         backend=backend,
         params={"temperature": 0.0, "max_length": 800},
@@ -52,6 +53,9 @@ def _cfg(
         prompts=None,
         preprocessing_profile=None,
     )
+    if gi_typed_mentions_use_ner is not None:
+        ns.gi_typed_mentions_use_ner = gi_typed_mentions_use_ner
+    return ns
 
 
 def _mocks(mock_get_model_details, mock_get_provider_lib_info) -> None:
@@ -149,3 +153,70 @@ def test_different_extra_body_produces_different_fingerprint(
     psc1 = fp_thinking["pipeline"]["stages"]["main"]["podcast_scraper_config"]
     psc2 = fp_no_thinking["pipeline"]["stages"]["main"]["podcast_scraper_config"]
     assert psc1 != psc2
+
+
+# ─────────────────────────────────────────────────────────────────────
+# #1076 chunk 4-A — NER flag fingerprint capture
+# ─────────────────────────────────────────────────────────────────────
+
+
+@patch("scripts.eval.data.materialize_baseline.get_provider_library_info")
+@patch("scripts.eval.data.materialize_baseline.get_model_details")
+@patch("scripts.eval.data.materialize_baseline._probe_vllm_backing_model_id", return_value=None)
+def test_captures_gi_typed_mentions_use_ner_when_set(
+    mock_probe, mock_get_model_details, mock_get_provider_lib_info
+) -> None:
+    """The NER post-pass materially changes which MENTIONS_PERSON edges
+    land in the GI artifact. Eval runs with the flag on vs off MUST
+    produce distinct podcast_scraper_config captures so cross-run
+    comparisons stay honest."""
+    _mocks(mock_get_model_details, mock_get_provider_lib_info)
+    fp = _gen(_cfg(gi_typed_mentions_use_ner=True))
+    psc = fp["pipeline"]["stages"]["main"]["podcast_scraper_config"]
+    assert psc["gi_typed_mentions_use_ner"] is True
+
+
+@patch("scripts.eval.data.materialize_baseline.get_provider_library_info")
+@patch("scripts.eval.data.materialize_baseline.get_model_details")
+@patch("scripts.eval.data.materialize_baseline._probe_vllm_backing_model_id", return_value=None)
+def test_captures_gi_typed_mentions_use_ner_when_false(
+    mock_probe, mock_get_model_details, mock_get_provider_lib_info
+) -> None:
+    """Flag=False is a real signal too — the capture distinguishes
+    "explicitly disabled" from "never set" (the latter omits the key)."""
+    _mocks(mock_get_model_details, mock_get_provider_lib_info)
+    fp = _gen(_cfg(gi_typed_mentions_use_ner=False))
+    psc = fp["pipeline"]["stages"]["main"]["podcast_scraper_config"]
+    assert psc["gi_typed_mentions_use_ner"] is False
+
+
+@patch("scripts.eval.data.materialize_baseline.get_provider_library_info")
+@patch("scripts.eval.data.materialize_baseline.get_model_details")
+@patch("scripts.eval.data.materialize_baseline._probe_vllm_backing_model_id", return_value=None)
+def test_ner_flag_omitted_when_attribute_absent(
+    mock_probe, mock_get_model_details, mock_get_provider_lib_info
+) -> None:
+    """When the cfg doesn't carry the attribute at all (legacy cfgs from
+    before #1076), the key is OMITTED rather than recorded as False —
+    so we can tell "old cfg shape" apart from "explicit off"."""
+    _mocks(mock_get_model_details, mock_get_provider_lib_info)
+    fp = _gen(_cfg())  # gi_typed_mentions_use_ner not set
+    psc = fp["pipeline"]["stages"]["main"]["podcast_scraper_config"]
+    assert "gi_typed_mentions_use_ner" not in psc
+
+
+@patch("scripts.eval.data.materialize_baseline.get_provider_library_info")
+@patch("scripts.eval.data.materialize_baseline.get_model_details")
+@patch("scripts.eval.data.materialize_baseline._probe_vllm_backing_model_id", return_value=None)
+def test_ner_flag_flip_produces_different_fingerprint(
+    mock_probe, mock_get_model_details, mock_get_provider_lib_info
+) -> None:
+    """The regression this prevents: an eval cohort silently runs half
+    with the NER pass and half without and the fingerprint doesn't
+    notice — silver scoring then sees inconsistent recall."""
+    _mocks(mock_get_model_details, mock_get_provider_lib_info)
+    fp_on = _gen(_cfg(gi_typed_mentions_use_ner=True))
+    fp_off = _gen(_cfg(gi_typed_mentions_use_ner=False))
+    psc_on = fp_on["pipeline"]["stages"]["main"]["podcast_scraper_config"]
+    psc_off = fp_off["pipeline"]["stages"]["main"]["podcast_scraper_config"]
+    assert psc_on != psc_off

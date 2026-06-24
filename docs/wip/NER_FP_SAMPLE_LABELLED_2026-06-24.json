@@ -1,0 +1,452 @@
+[
+  {
+    "episode_path": "feeds/rss_feeds.simplecast.com_999571cd/run_20260505-220439_5252ca4f/metadata/0004 - What Does Tucker Carlson Really _20260505-220439_5252ca4f.gi.json",
+    "insight_id": "insight:df3d87b9574ba475",
+    "insight_text": "Carlson believes President Trump was more of a hostage than a sovereign decision-maker in the context of the Iran war.",
+    "kg_entity_id": "person:donald-trump",
+    "kg_entity_name": "Donald Trump",
+    "spacy_span": "Trump",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.npr.org_7ce5b183/run_20260613-165729_ba02775e/metadata/0008 - A pro-worker experiment in priva_20260613-165729_ba02775e.gi.json",
+    "insight_id": "insight:68fb53da2f257a3f",
+    "insight_text": "Stavros's worker ownership model is not intended to fix private equity's reputation but to demonstrate its business benefits.",
+    "kg_entity_id": "person:pete-stavros",
+    "kg_entity_name": "Pete Stavros",
+    "spacy_span": "Stavros",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.simplecast.com_999571cd/run_20260613-205101_ba02775e/metadata/0004 - What Does Tucker Carlson Really _20260613-205101_ba02775e.gi.json",
+    "insight_id": "insight:70696835c5ad32a4",
+    "insight_text": "Carlson criticizes the US for prioritizing Israel's interests over its own, citing the Iraq War as a past example.",
+    "kg_entity_id": "person:tucker-carlson",
+    "kg_entity_name": "Tucker Carlson",
+    "spacy_span": "Carlson",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.simplecast.com_999571cd/run_20260613-205101_ba02775e/metadata/0008 - Assassination Attempt Suspect Ch_20260613-205101_ba02775e.gi.json",
+    "insight_id": "insight:166f488e9c3f9a6f",
+    "insight_text": "Allen purchased firearms in California years prior to the incident and transported them to Washington D.C.",
+    "kg_entity_id": "person:cole-allen",
+    "kg_entity_name": "Cole Allen",
+    "spacy_span": "Allen",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.simplecast.com_999571cd/run_20260613-205101_ba02775e/metadata/0004 - What Does Tucker Carlson Really _20260613-205101_ba02775e.gi.json",
+    "insight_id": "insight:bd101a18c996a524",
+    "insight_text": "Carlson asserts that Trump never seemed enthusiastic about the prospect of war with Iran.",
+    "kg_entity_id": "person:tucker-carlson",
+    "kg_entity_name": "Tucker Carlson",
+    "spacy_span": "Carlson",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.simplecast.com_999571cd/run_20260505-220439_5252ca4f/metadata/0004 - What Does Tucker Carlson Really _20260505-220439_5252ca4f.gi.json",
+    "insight_id": "insight:28643e4b395872d2",
+    "insight_text": "Carlson believes President Trump felt he had no choice but to proceed with the Iran war, despite personal reservations.",
+    "kg_entity_id": "person:donald-trump",
+    "kg_entity_name": "Donald Trump",
+    "spacy_span": "Trump",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.acast.com_f08ef8e2/run_20260505-230601_5252ca4f/metadata/0004 - Gloom and boom_20260505-230601_5252ca4f.gi.json",
+    "insight_id": "insight:d28beaaada01b740",
+    "insight_text": "Kevin Warsh's nomination for a Federal Reserve position is complicated by his past statements on interest rates and potential conflicts with President Trump's agenda.",
+    "kg_entity_id": "person:donald-trump",
+    "kg_entity_name": "Donald Trump",
+    "spacy_span": "Trump",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.simplecast.com_999571cd/run_20260505-220439_5252ca4f/metadata/0004 - What Does Tucker Carlson Really _20260505-220439_5252ca4f.gi.json",
+    "insight_id": "insight:27e7a16f27f2e38c",
+    "insight_text": "Carlson asserts that pressure to initiate the Iran war came primarily from outside the administration, including donors and influencers.",
+    "kg_entity_id": "person:tucker-carlson",
+    "kg_entity_name": "Tucker Carlson",
+    "spacy_span": "Carlson",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.megaphone.fm_3581c092/run_20260505-114413_5252ca4f/metadata/0001 - Brian Chesky - AI Founder Mode_20260505-114413_5252ca4f.gi.json",
+    "insight_id": "insight:9c3a11eeb4472611",
+    "insight_text": "The pandemic forced Airbnb into a crisis state, compelling Chesky to implement a highly centralized and detail-oriented leadership approach.",
+    "kg_entity_id": "person:brian-chesky",
+    "kg_entity_name": "Brian Chesky",
+    "spacy_span": "Chesky",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_video-api.wsj.com_9acc908e/run_20260505-191358_5252ca4f/metadata/0009 - Tim Cook Built the Apple Empire._20260505-191358_5252ca4f.gi.json",
+    "insight_id": "insight:37f9701d08e734e0",
+    "insight_text": "Cook initiated a massive stock buyback program, a strategy that generated significant shareholder value.",
+    "kg_entity_id": "person:tim-cook",
+    "kg_entity_name": "Tim Cook",
+    "spacy_span": "Cook",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.npr.org_7ce5b183/run_20260613-165729_ba02775e/metadata/0004 - Live_ Anthropic co-founder on AI_20260613-165729_ba02775e.gi.json",
+    "insight_id": "insight:bbd1b83ded05342c",
+    "insight_text": "Clark believes that societal changes driven by technology, like the telephone, alter human relationships but do not necessarily lead to negative outcomes.",
+    "kg_entity_id": "person:jack-clark",
+    "kg_entity_name": "Jack Clark",
+    "spacy_span": "Clark",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.simplecast.com_999571cd/run_20260505-220439_5252ca4f/metadata/0004 - What Does Tucker Carlson Really _20260505-220439_5252ca4f.gi.json",
+    "insight_id": "insight:23e2697612cf6816",
+    "insight_text": "Carlson describes President Trump as possessing remarkable insight into people and power dynamics, despite being proudly ignorant on many topics.",
+    "kg_entity_id": "person:tucker-carlson",
+    "kg_entity_name": "Tucker Carlson",
+    "spacy_span": "Carlson",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.simplecast.com_999571cd/run_20260505-220439_5252ca4f/metadata/0004 - What Does Tucker Carlson Really _20260505-220439_5252ca4f.gi.json",
+    "insight_id": "insight:3ca0d70356ebc753",
+    "insight_text": "Carlson argues that President Trump could not restrain Benjamin Netanyahu, leading to the prioritization of Israeli interests.",
+    "kg_entity_id": "person:tucker-carlson",
+    "kg_entity_name": "Tucker Carlson",
+    "spacy_span": "Carlson",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.simplecast.com_999571cd/run_20260613-205101_ba02775e/metadata/0004 - What Does Tucker Carlson Really _20260613-205101_ba02775e.gi.json",
+    "insight_id": "insight:d9eb1c0cf56d0308",
+    "insight_text": "Carlson believes Trump felt he had no choice but to proceed with the Iran war, acting more as a hostage than a sovereign decision-maker.",
+    "kg_entity_id": "person:donald-trump",
+    "kg_entity_name": "Donald Trump",
+    "spacy_span": "Trump",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.simplecast.com_999571cd/run_20260613-205101_ba02775e/metadata/0004 - What Does Tucker Carlson Really _20260613-205101_ba02775e.gi.json",
+    "insight_id": "insight:7814889677016996",
+    "insight_text": "Carlson argues that no one within the administration was overtly pushing for the war, with pressure coming from outside sources.",
+    "kg_entity_id": "person:tucker-carlson",
+    "kg_entity_name": "Tucker Carlson",
+    "spacy_span": "Carlson",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.npr.org_7ce5b183/run_20260613-165729_ba02775e/metadata/0004 - Live_ Anthropic co-founder on AI_20260613-165729_ba02775e.gi.json",
+    "insight_id": "insight:9172a750f906f067",
+    "insight_text": "Clark views his fictional writings as \"messages in a bottle\" to grapple with his moral and ethical responsibilities in AI development.",
+    "kg_entity_id": "person:jack-clark",
+    "kg_entity_name": "Jack Clark",
+    "spacy_span": "Clark",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.simplecast.com_999571cd/run_20260505-220439_5252ca4f/metadata/0004 - What Does Tucker Carlson Really _20260505-220439_5252ca4f.gi.json",
+    "insight_id": "insight:c393526979d9c338",
+    "insight_text": "Carlson states he spoke with President Trump multiple times about the plan to attack Iran before it occurred.",
+    "kg_entity_id": "person:donald-trump",
+    "kg_entity_name": "Donald Trump",
+    "spacy_span": "Trump",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.simplecast.com_999571cd/run_20260613-205101_ba02775e/metadata/0004 - What Does Tucker Carlson Really _20260613-205101_ba02775e.gi.json",
+    "insight_id": "insight:bb60f1ec88115636",
+    "insight_text": "Carlson states he spoke with President Trump multiple times about the plan to attack Iran before it occurred.",
+    "kg_entity_id": "person:donald-trump",
+    "kg_entity_name": "Donald Trump",
+    "spacy_span": "Trump",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260613-165437_ba02775e/metadata/0003 - How Taiwan Became the World_s Mo_20260613-165437_ba02775e.gi.json",
+    "insight_id": "insight:436ff8d447f56b82",
+    "insight_text": "Freiman finds it difficult to conduct useful research in China due to increased risks and limited access to archives and interviews.",
+    "kg_entity_id": "person:ike-freiman",
+    "kg_entity_name": "Ike Freiman",
+    "spacy_span": "Freiman",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.simplecast.com_999571cd/run_20260613-205101_ba02775e/metadata/0008 - Assassination Attempt Suspect Ch_20260613-205101_ba02775e.gi.json",
+    "insight_id": "insight:ae1e8b470b677d29",
+    "insight_text": "A security agent fired shots at the suspect, hitting his protective vest, before Allen was tackled and disarmed.",
+    "kg_entity_id": "person:cole-allen",
+    "kg_entity_name": "Cole Allen",
+    "spacy_span": "Allen",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.simplecast.com_2e104dc7/run_20260505-171553_5252ca4f/metadata/0001 - OpenAI_s Big Reset _ A.I. in the_20260505-171553_5252ca4f.gi.json",
+    "insight_id": "insight:7ee9b6a0675c0cf5",
+    "insight_text": "OpenAI's defense in the Musk trial suggests his lawsuit is motivated by personal resentment.",
+    "kg_entity_id": "person:elon-musk",
+    "kg_entity_name": "Elon Musk",
+    "spacy_span": "Musk",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.simplecast.com_999571cd/run_20260613-205101_ba02775e/metadata/0004 - What Does Tucker Carlson Really _20260613-205101_ba02775e.gi.json",
+    "insight_id": "insight:7c7b64eff1230887",
+    "insight_text": "Carlson believed Trump was under enormous pressure to pursue regime change in Iran.",
+    "kg_entity_id": "person:donald-trump",
+    "kg_entity_name": "Donald Trump",
+    "spacy_span": "Trump",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.npr.org_7ce5b183/run_20260613-165729_ba02775e/metadata/0004 - Live_ Anthropic co-founder on AI_20260613-165729_ba02775e.gi.json",
+    "insight_id": "insight:b661eb823a7e68e7",
+    "insight_text": "Clark suggests that a fully automated production system necessitates taxing AI and robots to reallocate wealth to the human economy.",
+    "kg_entity_id": "person:jack-clark",
+    "kg_entity_name": "Jack Clark",
+    "spacy_span": "Clark",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_video-api.wsj.com_9acc908e/run_20260613-135102_ba02775e/metadata/0007 - The Crypto President_ Part 2_20260613-135102_ba02775e.gi.json",
+    "insight_id": "insight:72a76eb1309ca0c0",
+    "insight_text": "The investment in World Liberty Financial by Sheikh Taqnoon occurred at a time when Donald Trump was preparing to assume the presidency.",
+    "kg_entity_id": "person:sheikh-taqnoon-bin-zayed-al-nayan",
+    "kg_entity_name": "Sheikh Taqnoon bin Zayed Al-Nayan",
+    "spacy_span": "Taqnoon",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.acast.com_f08ef8e2/run_20260505-230601_5252ca4f/metadata/0003 - The Fed holds steady_20260505-230601_5252ca4f.gi.json",
+    "insight_id": "insight:65fd59da7dc99095",
+    "insight_text": "A dropped investigation into the Fed's building costs lacked finality, prompting Powell's decision to stay.",
+    "kg_entity_id": "person:jay-powell",
+    "kg_entity_name": "Jay Powell",
+    "spacy_span": "Powell",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_video-api.wsj.com_9acc908e/run_20260613-135102_ba02775e/metadata/0007 - The Crypto President_ Part 2_20260613-135102_ba02775e.gi.json",
+    "insight_id": "insight:41757b2273f8ad1d",
+    "insight_text": "Sheikh Taqnoon's primary objective was to gain access to advanced U.S. artificial intelligence chips for the UAE's technological advancement.",
+    "kg_entity_id": "person:sheikh-taqnoon-bin-zayed-al-nayan",
+    "kg_entity_name": "Sheikh Taqnoon bin Zayed Al-Nayan",
+    "spacy_span": "Taqnoon",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.simplecast.com_999571cd/run_20260505-220439_5252ca4f/metadata/0004 - What Does Tucker Carlson Really _20260505-220439_5252ca4f.gi.json",
+    "insight_id": "insight:0dd331667a0c2fd6",
+    "insight_text": "Carlson suggests that Israeli leadership, particularly Benjamin Netanyahu, exerted significant influence over President Trump's decisions regarding Iran.",
+    "kg_entity_id": "person:tucker-carlson",
+    "kg_entity_name": "Tucker Carlson",
+    "spacy_span": "Carlson",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.simplecast.com_999571cd/run_20260505-220439_5252ca4f/metadata/0010 - Daniel Radcliffe_ Mariska Hargit_20260505-220439_5252ca4f.gi.json",
+    "insight_id": "insight:ae49a0b3a22b279f",
+    "insight_text": "Radcliffe suggests that the play's ability to blend humor with serious subject matter can be healing for audiences.",
+    "kg_entity_id": "person:daniel-radcliffe",
+    "kg_entity_name": "Daniel Radcliffe",
+    "spacy_span": "Radcliffe",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.simplecast.com_999571cd/run_20260613-205101_ba02775e/metadata/0004 - What Does Tucker Carlson Really _20260613-205101_ba02775e.gi.json",
+    "insight_id": "insight:83203784c5f65e96",
+    "insight_text": "Carlson dismisses the idea that the Venezuela operation emboldened Trump for the Iran conflict, suggesting it led to fear instead.",
+    "kg_entity_id": "person:tucker-carlson",
+    "kg_entity_name": "Tucker Carlson",
+    "spacy_span": "Carlson",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.npr.org_7ce5b183/run_20260613-165729_ba02775e/metadata/0010 - Dark times for Cuba_s economic e_20260613-165729_ba02775e.gi.json",
+    "insight_id": "insight:2300cdd291867c95",
+    "insight_text": "The U.S. has significantly influenced Cuba's economy through sanctions and travel restrictions, particularly under the Trump administration.",
+    "kg_entity_id": "person:donald-trump",
+    "kg_entity_name": "Donald Trump",
+    "spacy_span": "Trump",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.simplecast.com_999571cd/run_20260613-205101_ba02775e/metadata/0005 - Hegseth in the Hot Seat_20260613-205101_ba02775e.gi.json",
+    "insight_id": "insight:a02900851f4083ec",
+    "insight_text": "Hegseth's current posture suggests an intolerance for criticism, a departure from his previous public statements.",
+    "kg_entity_id": "person:pete-hegseth",
+    "kg_entity_name": "Pete Hegseth",
+    "spacy_span": "Hegseth",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260505-203215_5252ca4f/metadata/0003 - How Taiwan Became the World_s Mo_20260505-203215_5252ca4f.gi.json",
+    "insight_id": "insight:436ff8d447f56b82",
+    "insight_text": "Freiman finds it difficult to conduct useful research in China due to increased risks and limited access to archives and interviews.",
+    "kg_entity_id": "person:ike-freiman",
+    "kg_entity_name": "Ike Freiman",
+    "spacy_span": "Freiman",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.simplecast.com_999571cd/run_20260613-205101_ba02775e/metadata/0004 - What Does Tucker Carlson Really _20260613-205101_ba02775e.gi.json",
+    "insight_id": "insight:b3501cd119c17e4e",
+    "insight_text": "Carlson argues that domestic economic issues like credit card debt are a greater problem for Americans than foreign entities like Hezbollah or Hamas.",
+    "kg_entity_id": "person:tucker-carlson",
+    "kg_entity_name": "Tucker Carlson",
+    "spacy_span": "Carlson",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.simplecast.com_2e104dc7/run_20260505-112744_5252ca4f/metadata/0001 - OpenAI_s Big Reset _ A.I. in the_20260505-112744_5252ca4f.gi.json",
+    "insight_id": "insight:035078156e02ccad",
+    "insight_text": "OpenAI's defense in the Musk trial highlights Musk's own past interest in a for-profit structure for the company.",
+    "kg_entity_id": "person:elon-musk",
+    "kg_entity_name": "Elon Musk",
+    "spacy_span": "Musk",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.acast.com_f08ef8e2/run_20260613-234602_ba02775e/metadata/0003 - The Fed holds steady_20260613-234602_ba02775e.gi.json",
+    "insight_id": "insight:a160d77621792dae",
+    "insight_text": "Greg Ip argued that Powell's decision is beneficial as it makes it more costly for Trump to attack Fed independence.",
+    "kg_entity_id": "person:jay-powell",
+    "kg_entity_name": "Jay Powell",
+    "spacy_span": "Powell",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_video-api.wsj.com_9acc908e/run_20260613-135102_ba02775e/metadata/0007 - The Crypto President_ Part 2_20260613-135102_ba02775e.gi.json",
+    "insight_id": "insight:4b9810b038f735da",
+    "insight_text": "The secret deal between World Liberty Financial and Sheikh Taqnoon was not publicly disclosed until The Wall Street Journal reported on it.",
+    "kg_entity_id": "person:sheikh-taqnoon-bin-zayed-al-nayan",
+    "kg_entity_name": "Sheikh Taqnoon bin Zayed Al-Nayan",
+    "spacy_span": "Taqnoon",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.simplecast.com_999571cd/run_20260505-220439_5252ca4f/metadata/0004 - What Does Tucker Carlson Really _20260505-220439_5252ca4f.gi.json",
+    "insight_id": "insight:cb5ff59fddd30b7b",
+    "insight_text": "Carlson criticizes the lack of curiosity surrounding the decision-making process for the Iran war.",
+    "kg_entity_id": "person:tucker-carlson",
+    "kg_entity_name": "Tucker Carlson",
+    "spacy_span": "Carlson",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.acast.com_f08ef8e2/run_20260613-234602_ba02775e/metadata/0003 - The Fed holds steady_20260613-234602_ba02775e.gi.json",
+    "insight_id": "insight:fd0b1c4edcd9605b",
+    "insight_text": "A criminal investigation into alleged cost overruns at the Fed's building was initiated by the Trump administration.",
+    "kg_entity_id": "person:donald-trump",
+    "kg_entity_name": "Donald Trump",
+    "spacy_span": "Trump",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.simplecast.com_999571cd/run_20260613-205101_ba02775e/metadata/0004 - What Does Tucker Carlson Really _20260613-205101_ba02775e.gi.json",
+    "insight_id": "insight:3789f7b864b2b2e5",
+    "insight_text": "Carlson suggests that external pressure from donors and influencers, rather than Trump's own conviction, drove the decision for military action against Iran.",
+    "kg_entity_id": "person:tucker-carlson",
+    "kg_entity_name": "Tucker Carlson",
+    "spacy_span": "Carlson",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_video-api.wsj.com_9acc908e/run_20260613-135102_ba02775e/metadata/0007 - The Crypto President_ Part 2_20260613-135102_ba02775e.gi.json",
+    "insight_id": "insight:51543280b7e127d8",
+    "insight_text": "Foreign governments perceive Donald Trump as a transactional president, expecting to offer something in return for desired outcomes.",
+    "kg_entity_id": "person:donald-trump-jr",
+    "kg_entity_name": "Donald Trump Jr.",
+    "spacy_span": "Donald Trump",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_video-api.wsj.com_9acc908e/run_20260505-191358_5252ca4f/metadata/0009 - Tim Cook Built the Apple Empire._20260505-191358_5252ca4f.gi.json",
+    "insight_id": "insight:ec505b665fc0710c",
+    "insight_text": "Cook's leadership focused on operational excellence and supply chain management, rather than direct product innovation.",
+    "kg_entity_id": "person:tim-cook",
+    "kg_entity_name": "Tim Cook",
+    "spacy_span": "Cook",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260505-203215_5252ca4f/metadata/0006 - Presenting Foundering Season 6_ _20260505-203215_5252ca4f.gi.json",
+    "insight_id": "insight:f321f032f3dc4b61",
+    "insight_text": "Tech industry leaders linked Lee's murder to the \"San Francisco doom loop\" and criticized city politicians.",
+    "kg_entity_id": "person:bob-lee",
+    "kg_entity_name": "Bob Lee",
+    "spacy_span": "Lee",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.simplecast.com_999571cd/run_20260505-220439_5252ca4f/metadata/0004 - What Does Tucker Carlson Really _20260505-220439_5252ca4f.gi.json",
+    "insight_id": "insight:28643e4b395872d2",
+    "insight_text": "Carlson believes President Trump felt he had no choice but to proceed with the Iran war, despite personal reservations.",
+    "kg_entity_id": "person:tucker-carlson",
+    "kg_entity_name": "Tucker Carlson",
+    "spacy_span": "Carlson",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.simplecast.com_999571cd/run_20260613-205101_ba02775e/metadata/0004 - What Does Tucker Carlson Really _20260613-205101_ba02775e.gi.json",
+    "insight_id": "insight:fa521f161c77395a",
+    "insight_text": "Carlson believes Trump's decision to threaten Iran's civilian infrastructure on Easter Sunday was a pivotal moment for public criticism.",
+    "kg_entity_id": "person:tucker-carlson",
+    "kg_entity_name": "Tucker Carlson",
+    "spacy_span": "Carlson",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.simplecast.com_999571cd/run_20260613-205101_ba02775e/metadata/0005 - Hegseth in the Hot Seat_20260613-205101_ba02775e.gi.json",
+    "insight_id": "insight:6fe8c38280f8fdb8",
+    "insight_text": "Hegseth's willingness to criticize senior military figures may have contributed to his appointment.",
+    "kg_entity_id": "person:pete-hegseth",
+    "kg_entity_name": "Pete Hegseth",
+    "spacy_span": "Hegseth",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.simplecast.com_999571cd/run_20260613-205101_ba02775e/metadata/0005 - Hegseth in the Hot Seat_20260613-205101_ba02775e.gi.json",
+    "insight_id": "insight:e89e814d20a9e909",
+    "insight_text": "Lawmakers perceive Hegseth as suspicious and dismissive during congressional hearings.",
+    "kg_entity_id": "person:pete-hegseth",
+    "kg_entity_name": "Pete Hegseth",
+    "spacy_span": "Hegseth",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_video-api.wsj.com_9acc908e/run_20260613-135102_ba02775e/metadata/0007 - The Crypto President_ Part 2_20260613-135102_ba02775e.gi.json",
+    "insight_id": "insight:6461c817a8ef1698",
+    "insight_text": "Concerns about the UAE's ties to China created obstacles for Sheikh Taqnoon's pursuit of AI chips during the Biden administration.",
+    "kg_entity_id": "person:sheikh-taqnoon-bin-zayed-al-nayan",
+    "kg_entity_name": "Sheikh Taqnoon bin Zayed Al-Nayan",
+    "spacy_span": "Taqnoon",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_video-api.wsj.com_9acc908e/run_20260613-135102_ba02775e/metadata/0007 - The Crypto President_ Part 2_20260613-135102_ba02775e.gi.json",
+    "insight_id": "insight:72a76eb1309ca0c0",
+    "insight_text": "The investment in World Liberty Financial by Sheikh Taqnoon occurred at a time when Donald Trump was preparing to assume the presidency.",
+    "kg_entity_id": "person:donald-trump-jr",
+    "kg_entity_name": "Donald Trump Jr.",
+    "spacy_span": "Donald Trump",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.simplecast.com_999571cd/run_20260613-205101_ba02775e/metadata/0005 - Hegseth in the Hot Seat_20260613-205101_ba02775e.gi.json",
+    "insight_id": "insight:78a6765197135f10",
+    "insight_text": "Hegseth's past role as a media critic of military leadership is noted as ironic given his current position.",
+    "kg_entity_id": "person:pete-hegseth",
+    "kg_entity_name": "Pete Hegseth",
+    "spacy_span": "Hegseth",
+    "operator_label": null
+  },
+  {
+    "episode_path": "feeds/rss_feeds.simplecast.com_999571cd/run_20260613-205101_ba02775e/metadata/0004 - What Does Tucker Carlson Really _20260613-205101_ba02775e.gi.json",
+    "insight_id": "insight:7c7b64eff1230887",
+    "insight_text": "Carlson believed Trump was under enormous pressure to pursue regime change in Iran.",
+    "kg_entity_id": "person:tucker-carlson",
+    "kg_entity_name": "Tucker Carlson",
+    "spacy_span": "Carlson",
+    "operator_label": null
+  }
+]

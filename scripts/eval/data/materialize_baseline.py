@@ -1280,6 +1280,15 @@ def generate_enhanced_fingerprint(  # noqa: C901
         _eb = getattr(experiment_config.backend, "extra_body", None)
         if _eb is not None:
             podcast_scraper_cfg["openai_extra_body"] = _eb
+        # #1076 chunk 4-A — capture gi_typed_mentions_use_ner so eval
+        # runs under the NER pass produce a different fingerprint hash
+        # than equivalent runs without it. The flag changes which
+        # MENTIONS_PERSON edges land in the artifact, which materially
+        # affects downstream relational queries; the fingerprint must
+        # reflect that to keep cross-run comparisons honest.
+        _ner_flag = getattr(experiment_config, "gi_typed_mentions_use_ner", None)
+        if _ner_flag is not None:
+            podcast_scraper_cfg["gi_typed_mentions_use_ner"] = bool(_ner_flag)
 
         # Inference args + image (operator-supplied via env). Sweep runbooks
         # populate these by running:

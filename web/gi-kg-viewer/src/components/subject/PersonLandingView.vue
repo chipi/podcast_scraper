@@ -9,28 +9,46 @@
  * person's quotes across ALL episodes (from the CIL ``person_profile`` endpoint),
  * not just the episodes currently merged into the loaded graph. This is the
  * corpus-wide "what X said across episodes" payoff of the #875/#876 diarization work.
+ *
+ * #1048 — restructured to be the shared Person Landing shell per PRD-029.
+ * Tabs are now "Person Profile" (the aggregate person view; inherits all
+ * shipped #672 / #909 / #1055 content) and "Position Tracker" (placeholder
+ * for #1049 / PRD-028 Person × Topic over-time drill-in). Identity header
+ * gains role + episode count + organization chips. New ranked topic-overview
+ * list under Person Profile counts ``ABOUT(Insight→Topic)`` edges whose
+ * Insight ``MENTIONS_PERSON`` this Person.
  */
 import { computed, ref, watch } from 'vue'
 import type { RawGraphNode } from '../../types/artifact'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
+// #1075 chunk 4 — relational endpoints go through the LRU+TTL panel
+// cache so re-focusing a recently-viewed Person feels instant. Same
+// signatures as the wrapped fns; the cache invalidates on corpusPath
+// change.
 import {
-  fetchCoSpeakers,
-  fetchPersonTopics,
-  fetchPositions,
-  type RelatedNode,
-} from '../../api/relationalApi'
-import { fetchPersonProfile } from '../../api/cilApi'
+  cachedFetchCoSpeakers as fetchCoSpeakers,
+  cachedFetchPersonTopics as fetchPersonTopics,
+  cachedFetchPositions as fetchPositions,
+  cachedFetchPersonProfile as fetchPersonProfile,
+} from '../../composables/useRelationalCache'
+import type { RelatedNode } from '../../api/relationalApi'
 import { StaleGeneration } from '../../utils/staleGeneration'
 import {
   countPersonEntityIncidentEdges,
   findRawNodeInArtifact,
   findRawNodeInArtifactByIdOrPrefixed,
   normalizeGiEdgeType,
+  personEpisodeAppearances,
+  personInsightsByTopic,
+  personRoleFromNode,
+  rankedPersonOrganizations,
+  rankedPersonTopicMentions,
 } from '../../utils/parsing'
 import { logicalEpisodeIdFromGraphNodeId } from '../../utils/graphEpisodeMetadata'
 import { buildSubjectMentionsTimeline } from '../../utils/subjectMentionsTimeline'
+import PositionTrackerPanel from './PositionTrackerPanel.vue'
 import SubjectTimelineChart from './SubjectTimelineChart.vue'
 
 /** Positions list cap — Persons accumulate more attributed quotes than a
@@ -48,7 +66,10 @@ const artifacts = useArtifactsStore()
 const shell = useShellStore()
 const subject = useSubjectStore()
 
-type PersonTab = 'profile' | 'positions'
+// #1048 — tab vocabulary aligned with PRD-028 / PRD-029. ``profile`` is the
+// aggregate Person Profile view (PRD-029); ``position_tracker`` is the
+// per-topic drill-in (PRD-028, filled by follow-up #1049).
+type PersonTab = 'profile' | 'position_tracker'
 const activeTab = ref<PersonTab>('profile')
 
 watch(
@@ -245,6 +266,68 @@ const timeline = computed(() =>
   buildSubjectMentionsTimeline(artifacts.displayArtifact, personGraphNodeId.value),
 )
 
+// #1048 — identity header additions per PRD-029.
+const personRole = computed(() => personRoleFromNode(personNode.value))
+const personRoleLabel = computed(() => {
+  const r = personRole.value
+  if (!r) return ''
+  return r.charAt(0).toUpperCase() + r.slice(1)
+})
+
+// #1048 — ranked topic overview via ABOUT(Insight→Topic) chains whose Insight
+// MENTIONS_PERSON this person. Distinct from the relational
+// fetchPersonTopics() chips above (which use the structural person→topic lens).
+const TOPIC_OVERVIEW_CAP = 10
+const rankedTopics = computed(() =>
+  rankedPersonTopicMentions(
+    artifacts.displayArtifact,
+    personGraphNodeId.value,
+    TOPIC_OVERVIEW_CAP,
+  ),
+)
+
+// #1048 — co-mentioned Organizations via MENTIONS_PERSON ⨯ MENTIONS_ORG join
+// on the same Insight. Empty until KG fixtures contain MENTIONS_ORG edges
+// (RFC-097 v2 strict subset; cloud profiles only).
+const ORG_CHIPS_CAP = 10
+const rankedOrgs = computed(() =>
+  rankedPersonOrganizations(
+    artifacts.displayArtifact,
+    personGraphNodeId.value,
+    ORG_CHIPS_CAP,
+  ),
+)
+
+// #1050 — Episodes appeared in (UXS-010 section). SPOKE_IN-derived list,
+// newest-first, undated entries sink. Empty when no SPOKE_IN edges exist
+// for this Person.
+const episodeAppearances = computed(() =>
+  personEpisodeAppearances(artifacts.displayArtifact, personGraphNodeId.value),
+)
+
+// #1050 — Insights voiced grouped by Topic (UXS-010 section). Each Topic
+// header reuses the #1049 entry point so the Profile tab is the canonical
+// way into the Position Tracker (chains naturally with the Top Topics
+// list above — same selectTopicForPositionTracker call).
+const insightTopicGroups = computed(() =>
+  personInsightsByTopic(artifacts.displayArtifact, personGraphNodeId.value),
+)
+// Per-group expand state (default collapsed so the Profile tab stays
+// scannable on first open; the count + topic name is the summary line).
+const expandedTopicGroups = ref<Set<string>>(new Set())
+watch(
+  () => `${personGraphNodeId.value}`,
+  () => {
+    expandedTopicGroups.value = new Set()
+  },
+)
+function toggleTopicGroup(topicId: string): void {
+  const next = new Set(expandedTopicGroups.value)
+  if (next.has(topicId)) next.delete(topicId)
+  else next.add(topicId)
+  expandedTopicGroups.value = next
+}
+
 interface PositionRow {
   id: string
   text: string
@@ -321,6 +404,15 @@ function onPrefillSearch(): void {
   if (!q) return
   emit('prefillSemanticSearch', { query: q })
 }
+
+// #1049 — clicking a ranked-Topic row pivots the Position Tracker tab
+// onto that (Person, Topic) pair and switches tabs. The same handler is
+// the entry point #1050 will eventually use from Topic group headers.
+function onPickTopicForPositionTracker(topicId: string): void {
+  if (!topicId.trim()) return
+  subject.selectTopicForPositionTracker(topicId)
+  activeTab.value = 'position_tracker'
+}
 </script>
 
 <template>
@@ -330,17 +422,55 @@ function onPrefillSearch(): void {
     aria-label="Person"
     data-testid="person-landing-view"
   >
-    <div class="mt-1 flex shrink-0 items-baseline gap-2 border-b border-border pb-2">
-      <span
-        class="text-[10px] font-semibold uppercase tracking-wider text-muted"
-      >Person</span>
-      <h2
-        class="min-w-0 flex-1 truncate text-xs font-semibold text-surface-foreground"
-        data-testid="person-landing-view-name"
-        :title="personName"
+    <div class="mt-1 shrink-0 border-b border-border pb-2">
+      <div class="flex items-baseline gap-2">
+        <span
+          class="text-[10px] font-semibold uppercase tracking-wider text-muted"
+        >Person</span>
+        <h2
+          class="min-w-0 flex-1 truncate text-xs font-semibold text-surface-foreground"
+          data-testid="person-landing-view-name"
+          :title="personName"
+        >
+          {{ personName }}
+        </h2>
+        <!-- #1048 — role badge (host / guest / mention) per PRD-029 FR1 -->
+        <span
+          v-if="personRoleLabel"
+          class="rounded bg-overlay px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-surface-foreground"
+          data-testid="person-landing-role"
+          :data-role="personRole"
+          :title="`Role: ${personRoleLabel}`"
+        >
+          {{ personRoleLabel }}
+        </span>
+      </div>
+      <!-- #1048 / #1050 — episode-count signal. Derives from the same
+           personEpisodeAppearances list rendered below so the at-a-glance
+           count cannot disagree with the section (raw SPOKE_IN edge tallies
+           are not deduplicated by target episode; the list helper is). -->
+      <p
+        v-if="episodeAppearances.length > 0"
+        class="mt-1 text-[10px] text-muted"
+        data-testid="person-landing-episode-count"
       >
-        {{ personName }}
-      </h2>
+        {{ episodeAppearances.length }}
+        episode{{ episodeAppearances.length === 1 ? '' : 's' }}
+      </p>
+      <!-- #1048 — co-mentioned Organizations (PRD-029 FR1 affiliations) -->
+      <div
+        v-if="rankedOrgs.length"
+        class="mt-1 flex flex-wrap gap-1"
+        data-testid="person-landing-organizations"
+      >
+        <span
+          v-for="org in rankedOrgs"
+          :key="org.id"
+          class="rounded bg-overlay px-1.5 py-0.5 text-[10px] text-surface-foreground"
+          data-testid="person-landing-organization-chip"
+          :title="`${org.name} · ${org.count} insight${org.count === 1 ? '' : 's'}`"
+        >{{ org.name }}</span>
+      </div>
     </div>
     <nav
       class="flex shrink-0 gap-1 border-b border-border bg-elevated/50 px-2 py-1.5"
@@ -358,20 +488,20 @@ function onPrefillSearch(): void {
         data-testid="person-landing-tab-profile"
         @click="activeTab = 'profile'"
       >
-        Profile
+        Person Profile
       </button>
       <button
-        id="person-landing-tab-positions"
+        id="person-landing-tab-position-tracker"
         type="button"
         role="tab"
-        :class="tabClass(activeTab === 'positions')"
-        :aria-selected="activeTab === 'positions'"
-        aria-controls="person-landing-panel-positions"
-        :tabindex="activeTab === 'positions' ? 0 : -1"
-        data-testid="person-landing-tab-positions"
-        @click="activeTab = 'positions'"
+        :class="tabClass(activeTab === 'position_tracker')"
+        :aria-selected="activeTab === 'position_tracker'"
+        aria-controls="person-landing-panel-position-tracker"
+        :tabindex="activeTab === 'position_tracker' ? 0 : -1"
+        data-testid="person-landing-tab-position-tracker"
+        @click="activeTab = 'position_tracker'"
       >
-        Positions
+        Position Tracker
       </button>
     </nav>
     <div
@@ -422,6 +552,149 @@ function onPrefillSearch(): void {
           aria-label="Mentions by month for this person"
         />
       </section>
+      <!-- #1050 — UXS-010 "Topics discussed" — ranked by ABOUT∩MENTIONS_PERSON
+           insight count. Each row is a button that pivots the Position
+           Tracker tab to (this Person, that Topic) — #1049 entry point. -->
+      <section
+        v-if="rankedTopics.length"
+        aria-label="Topics discussed"
+        data-testid="person-landing-ranked-topics"
+      >
+        <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+          Topics discussed
+        </h3>
+        <ul class="space-y-0.5" data-testid="person-landing-ranked-topics-list">
+          <li
+            v-for="t in rankedTopics"
+            :key="t.id"
+            data-testid="person-landing-ranked-topic-row"
+          >
+            <button
+              type="button"
+              class="flex w-full items-baseline justify-between gap-2 rounded px-1 py-0.5 text-left text-[11px] text-surface-foreground hover:bg-overlay/60 focus-visible:bg-overlay/60 focus-visible:outline-none"
+              data-testid="person-landing-ranked-topic-button"
+              :title="`Open Position Tracker for ${t.name}`"
+              :aria-label="`Open Position Tracker for ${t.name}`"
+              @click="onPickTopicForPositionTracker(t.id)"
+            >
+              <span class="min-w-0 truncate">{{ t.name }}</span>
+              <span
+                class="shrink-0 rounded bg-overlay px-1.5 py-0.5 text-[10px] text-muted"
+                data-testid="person-landing-ranked-topic-count"
+              >{{ t.count }}</span>
+            </button>
+          </li>
+        </ul>
+      </section>
+      <!-- #1050 — UXS-010 "Insights voiced (grouped by Topic)". Each Topic
+           header is a button that opens the Position Tracker for the
+           (Person, Topic) pair — same entry point as the ranked-Topics
+           list above so the user has one consistent affordance. -->
+      <section
+        v-if="insightTopicGroups.length"
+        aria-label="Insights voiced grouped by topic"
+        data-testid="person-landing-insights-voiced"
+      >
+        <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+          Insights voiced
+        </h3>
+        <ul
+          class="space-y-1.5"
+          data-testid="person-landing-insights-voiced-list"
+        >
+          <li
+            v-for="group in insightTopicGroups"
+            :key="group.topicId"
+            class="rounded border border-border bg-elevated/30 px-2 py-1.5"
+            data-testid="person-landing-insights-voiced-group"
+            :data-topic-id="group.topicId"
+          >
+            <button
+              type="button"
+              class="flex w-full items-baseline justify-between gap-2 text-left text-[11px] font-semibold text-surface-foreground hover:text-primary focus-visible:text-primary focus-visible:outline-none"
+              :aria-label="`${group.topicName} — ${group.count} insight${group.count === 1 ? '' : 's'}. Open Position Tracker.`"
+              data-testid="person-landing-insights-voiced-topic-button"
+              @click="onPickTopicForPositionTracker(group.topicId)"
+            >
+              <span class="min-w-0 truncate" :title="group.topicName">
+                {{ group.topicName }}
+              </span>
+              <span
+                class="shrink-0 rounded bg-overlay px-1.5 py-0.5 text-[10px] font-normal text-muted"
+                data-testid="person-landing-insights-voiced-topic-count"
+              >{{ group.count }}</span>
+            </button>
+            <button
+              type="button"
+              class="mt-0.5 text-[10px] text-muted underline-offset-2 hover:underline focus-visible:underline"
+              data-testid="person-landing-insights-voiced-toggle"
+              :aria-expanded="expandedTopicGroups.has(group.topicId)"
+              @click="toggleTopicGroup(group.topicId)"
+            >
+              {{ expandedTopicGroups.has(group.topicId) ? 'Hide insights' : 'Show insights' }}
+            </button>
+            <ul
+              v-if="expandedTopicGroups.has(group.topicId)"
+              class="mt-1 space-y-1"
+              data-testid="person-landing-insights-voiced-rows"
+            >
+              <li
+                v-for="ins in group.insights"
+                :key="ins.insightId"
+                class="rounded bg-elevated/60 px-2 py-1 text-[11px] leading-snug text-surface-foreground"
+                data-testid="person-landing-insights-voiced-row"
+                :data-insight-type="ins.insightType ?? 'unknown'"
+              >
+                <p
+                  v-if="ins.insightType"
+                  class="mb-0.5 text-[9px] uppercase tracking-wider text-muted"
+                  data-testid="person-landing-insights-voiced-row-type"
+                >{{ ins.insightType }}</p>
+                <p data-testid="person-landing-insights-voiced-row-text">{{ ins.text || ins.insightId }}</p>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </section>
+
+      <!-- #1050 — UXS-010 "Episodes appeared in" — SPOKE_IN-derived list,
+           newest-first. Replaces the prior numeric-only count signal in the
+           identity header (we keep that count for at-a-glance, but expose
+           the actual episodes here). -->
+      <section
+        v-if="episodeAppearances.length"
+        aria-label="Episodes appeared in"
+        data-testid="person-landing-episodes-appeared"
+      >
+        <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+          Episodes appeared in
+        </h3>
+        <ul
+          class="space-y-0.5"
+          data-testid="person-landing-episodes-appeared-list"
+        >
+          <li
+            v-for="ep in episodeAppearances"
+            :key="ep.episodeId"
+            class="flex items-baseline justify-between gap-2 text-[11px] text-surface-foreground"
+            data-testid="person-landing-episodes-appeared-row"
+            :data-episode-id="ep.episodeId"
+          >
+            <span class="min-w-0 truncate" :title="ep.title ?? ep.episodeId">{{ ep.title || ep.episodeId }}</span>
+            <span
+              v-if="ep.publishDate"
+              class="shrink-0 text-[10px] text-muted"
+              data-testid="person-landing-episodes-appeared-date"
+            >{{ ep.publishDate }}</span>
+            <span
+              v-else
+              class="shrink-0 text-[10px] italic text-muted"
+              data-testid="person-landing-episodes-appeared-date-unknown"
+            >date unknown</span>
+          </li>
+        </ul>
+      </section>
+
       <section aria-label="Connections" data-testid="person-landing-connections">
         <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
           Topics
@@ -460,34 +733,7 @@ function onPrefillSearch(): void {
           No co-speakers share a topic with this voice yet.
         </p>
       </section>
-      <div class="flex shrink-0 flex-wrap gap-2 pt-2">
-        <button
-          type="button"
-          class="rounded border border-border px-2 py-1 text-[11px] font-medium hover:bg-overlay"
-          data-testid="person-landing-go-graph"
-          @click="emit('goGraph')"
-        >
-          Open in graph
-        </button>
-        <button
-          type="button"
-          class="rounded border border-border px-2 py-1 text-[11px] font-medium hover:bg-overlay"
-          data-testid="person-landing-prefill-search"
-          @click="onPrefillSearch"
-        >
-          Prefill semantic search
-        </button>
-      </div>
-    </div>
-    <div
-      v-show="activeTab === 'positions'"
-      id="person-landing-panel-positions"
-      role="tabpanel"
-      aria-labelledby="person-landing-tab-positions"
-      data-testid="person-landing-panel-positions"
-      class="min-h-0 flex-1 space-y-2 overflow-y-auto px-1 py-2"
-    >
-      <!-- #909 — corpus-wide quotes this person spoke across ALL episodes (CIL person_profile). -->
+      <!-- #909 / #1048 — corpus-wide quotes this person spoke across ALL episodes (CIL person_profile). -->
       <section
         v-if="corpusLoading || corpusError || corpusQuotes.length"
         aria-label="Across the corpus"
@@ -624,6 +870,35 @@ function onPrefillSearch(): void {
       >
         + {{ positionRows.length - PERSON_LANDING_POSITIONS_CAP }} more
       </p>
+      <div class="flex shrink-0 flex-wrap gap-2 pt-2">
+        <button
+          type="button"
+          class="rounded border border-border px-2 py-1 text-[11px] font-medium hover:bg-overlay"
+          data-testid="person-landing-go-graph"
+          @click="emit('goGraph')"
+        >
+          Open in graph
+        </button>
+        <button
+          type="button"
+          class="rounded border border-border px-2 py-1 text-[11px] font-medium hover:bg-overlay"
+          data-testid="person-landing-prefill-search"
+          @click="onPrefillSearch"
+        >
+          Prefill semantic search
+        </button>
+      </div>
+    </div>
+    <!-- #1049 — Position Tracker per PRD-028 / RFC-072 §5A. -->
+    <div
+      v-show="activeTab === 'position_tracker'"
+      id="person-landing-panel-position-tracker"
+      role="tabpanel"
+      aria-labelledby="person-landing-tab-position-tracker"
+      data-testid="person-landing-panel-position-tracker"
+      class="flex min-h-0 flex-1 flex-col"
+    >
+      <PositionTrackerPanel />
     </div>
   </div>
 </template>

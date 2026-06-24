@@ -453,3 +453,74 @@ describe('useSubjectStore — DEV window hook (__GIKG_SUBJECT__)', () => {
     expect(s.topicId).toBeNull()
   })
 })
+
+// #1049 — positionTrackerTopicId state lifecycle.
+describe('useSubjectStore — positionTrackerTopicId (#1049)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  it('selectTopicForPositionTracker sets the topic when a Person is focused', () => {
+    const s = useSubjectStore()
+    s.focusPerson('person:alice')
+    s.selectTopicForPositionTracker('topic:ai')
+    expect(s.positionTrackerTopicId).toBe('topic:ai')
+  })
+
+  it('selectTopicForPositionTracker is a no-op when no Person is focused', () => {
+    const s = useSubjectStore()
+    s.focusTopic('topic:x')
+    s.selectTopicForPositionTracker('topic:ai')
+    expect(s.positionTrackerTopicId).toBeNull()
+  })
+
+  it('selectTopicForPositionTracker clears on empty / whitespace input', () => {
+    const s = useSubjectStore()
+    s.focusPerson('person:alice')
+    s.selectTopicForPositionTracker('topic:ai')
+    s.selectTopicForPositionTracker('   ')
+    expect(s.positionTrackerTopicId).toBeNull()
+  })
+
+  it('clearPositionTrackerTopic resets the topic without dropping the Person', () => {
+    const s = useSubjectStore()
+    s.focusPerson('person:alice')
+    s.selectTopicForPositionTracker('topic:ai')
+    s.clearPositionTrackerTopic()
+    expect(s.positionTrackerTopicId).toBeNull()
+    expect(s.kind).toBe('person')
+    expect(s.personId).toBe('person:alice')
+  })
+
+  it('focusPerson(new person) clears any stale Position Tracker topic', () => {
+    const s = useSubjectStore()
+    s.focusPerson('person:alice')
+    s.selectTopicForPositionTracker('topic:ai')
+    s.focusPerson('person:bob')
+    expect(s.positionTrackerTopicId).toBeNull()
+    expect(s.personId).toBe('person:bob')
+  })
+
+  it('clearSubject also clears the Position Tracker topic', () => {
+    const s = useSubjectStore()
+    s.focusPerson('person:alice')
+    s.selectTopicForPositionTracker('topic:ai')
+    s.clearSubject()
+    expect(s.positionTrackerTopicId).toBeNull()
+    expect(s.kind).toBeNull()
+  })
+
+  it('focusEpisode (re-open same episode) does not leak a prior Position Tracker topic', () => {
+    const s = useSubjectStore()
+    // Land on an episode first so the "sameEpisode" branch is exercised below.
+    s.focusEpisode('metadata/a.json')
+    // Now focus a Person, select a Topic for Position Tracker.
+    s.focusPerson('person:alice')
+    s.selectTopicForPositionTracker('topic:ai')
+    // Re-open the same episode. The else-branch in focusEpisode used to skip
+    // positionTrackerTopicId — fix #1049-FU-review verifies it clears now.
+    s.focusEpisode('metadata/a.json')
+    expect(s.positionTrackerTopicId).toBeNull()
+    expect(s.kind).toBe('episode')
+  })
+})

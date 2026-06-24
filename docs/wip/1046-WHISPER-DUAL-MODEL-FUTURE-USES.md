@@ -2,9 +2,10 @@
 
 **Created**: 2026-06-23.
 **Sibling docs**:
-- [`1046-WHISPER-MULTI-MODEL-DESIGN.md`](1046-WHISPER-MULTI-MODEL-DESIGN.md) —
-  the original design + the measurement passes that drove the
-  skip-deep-gate rejection
+- `1046-WHISPER-MULTI-MODEL-DESIGN.md` — the original design + the
+  measurement passes that drove the skip-deep-gate rejection.
+  Removed 2026-06-24 (closeable per WIP_README); git history retains
+  the content at commit `c48b01b1` and earlier.
 - Measurement artifacts: `data/eval/runs/1046-measurement-pass-2/`
 
 ## Why this doc exists

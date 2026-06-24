@@ -134,7 +134,9 @@ At 128GB, every reasonable champion candidate fits at fp16 on vLLM. The choice b
 
 ## Recommended sequencing (post-PR #941)
 
-Tied to the autoresearch programme in [`AUTORESEARCH_NEXT_PHASE_AGENT_PLAN.md`](AUTORESEARCH_NEXT_PHASE_AGENT_PLAN.md):
+Tied to the autoresearch programme (originally tracked in
+`AUTORESEARCH_NEXT_PHASE_AGENT_PLAN.md`, removed 2026-06-24 second-pass
+cleanup — #907 / #927 epics + children all closed; sequencing below stands):
 
 1. **Phase 0-2 of agent plan** — autoresearch settles on a champion (qwen3.5:35b vs qwen3.6:latest, gated on #932 G-Eval + #933 prod-curated validation)
 2. **Add `summary_provider: vllm` support to the codebase** — new provider in `src/podcast_scraper/providers/vllm/`, OpenAI-compatible client mirroring `ollama_provider.py`. Maybe 1-2 days of work.
@@ -174,8 +176,10 @@ These slot after PR #941 lands but before the vLLM-prod work (step 3 of the reco
 
 Nothing — supplemental to:
 
-- [`AUTORESEARCH_NEXT_PHASE_AGENT_PLAN.md`](AUTORESEARCH_NEXT_PHASE_AGENT_PLAN.md) — the autoresearch programme's 2-agent execution plan
-- [`AUTORESEARCH_NEXT_PHASE_DEPENDENCIES.md`](AUTORESEARCH_NEXT_PHASE_DEPENDENCIES.md) — issue dependency map
+- `AUTORESEARCH_NEXT_PHASE_AGENT_PLAN.md` — the autoresearch programme's
+  2-agent execution plan (removed 2026-06-24; #907 / #927 epics closed)
+- `AUTORESEARCH_NEXT_PHASE_DEPENDENCIES.md` — issue dependency map
+  (removed 2026-06-24; same reason)
 - [ADR-096](../adr/ADR-096-dgx-spark-prod-primary-with-fallback.md) — prod-with-fallback degradation contract
 - [ADR-098](../adr/ADR-098-embedding-provider-profile-axis.md) — embedding provider profile axis (the "embeddings stay local" decision)
 - [RFC-089](../rfc/RFC-089-dgx-spark-tailnet-integration.md) — original DGX bring-up
