@@ -107,6 +107,15 @@ export interface PlaybackPosition {
   updated_at: number | null
 }
 
+/** A show in the user's library (Home "Your shows"). */
+export interface Podcast {
+  feed_id: string
+  title: string | null
+  artwork_url: string | null
+  image_url: string | null
+  episode_count: number
+}
+
 /** A verbatim quote supporting an insight. */
 export interface Quote {
   text: string

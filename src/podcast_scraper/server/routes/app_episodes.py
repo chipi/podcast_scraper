@@ -32,6 +32,7 @@ from podcast_scraper.server.app_search_view import build_search_response, filter
 from podcast_scraper.server.app_slugs import resolve_slug
 from podcast_scraper.server.corpus_catalog import (
     _load_metadata_doc,
+    aggregate_feeds,
     build_catalog_rows_cumulative,
     CatalogEpisodeRow,
     index_rows_by_feed_episode,
@@ -41,6 +42,8 @@ from podcast_scraper.server.schemas import (
     AppEpisodeDetail,
     AppEpisodesResponse,
     AppInsightsResponse,
+    AppPodcastItem,
+    AppPodcastsResponse,
     AudioSourceResponse,
     CorpusSearchApiResponse,
     SegmentsResponse,
@@ -137,6 +140,25 @@ async def episodes_list(
     it). Per-artifact depth counts are not computed here — see the detail endpoints.
     """
     return _episodes_page(request, feed_id=feed_id, status=status, page=page, page_size=page_size)
+
+
+@router.get("/podcasts", response_model=AppPodcastsResponse)
+async def podcasts_list(request: Request) -> AppPodcastsResponse:
+    """Distinct shows in the corpus, for Home 'Your shows' (PRD-042 FR6)."""
+    root = _corpus_root(request)
+    feeds = aggregate_feeds(build_catalog_rows_cumulative(root))
+    items = [
+        AppPodcastItem(
+            feed_id=f["feed_id"],
+            title=f.get("display_title"),
+            artwork_url=artwork_url(f.get("image_local_relpath"), "thumb"),
+            image_url=f.get("image_url"),
+            episode_count=int(f.get("episode_count", 0)),
+        )
+        for f in feeds
+        if f.get("feed_id")
+    ]
+    return AppPodcastsResponse(items=items)
 
 
 @router.get("/podcasts/{feed_id}/episodes", response_model=AppEpisodesResponse)

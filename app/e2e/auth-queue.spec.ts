@@ -16,11 +16,15 @@ test('sign in (mock OAuth), add to queue, see it in the queue view', async ({ pa
   await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
   await expect(page.getByRole('link', { name: /Queue/ })).toBeVisible()
 
-  // Add the episode to the queue from its catalog card (auth-gated control).
-  await page.getByRole('button', { name: 'Add to queue' }).first().click()
+  // Add a SPECIFIC episode to the queue from its catalog card (auth-gated control).
+  // Deterministic + idempotent so the two parallel projects (which share one mock-user
+  // queue) don't race: both add the same episode → consistent shared state.
+  await page.goto('/catalog')
+  const card = page.locator('article').filter({ hasText: 'How Sleep Consolidates Memory' })
+  await card.getByRole('button', { name: 'Add to queue' }).click()
 
   // The queue view (auth-gated route) lists the queued episode, served by the real API.
   await page.getByRole('link', { name: /Queue/ }).click()
   await expect(page).toHaveURL(/\/queue/)
-  await expect(page.getByText('How Sleep Consolidates Memory')).toBeVisible()
+  await expect(page.getByText('How Sleep Consolidates Memory').first()).toBeVisible()
 })

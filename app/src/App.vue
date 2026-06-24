@@ -27,11 +27,14 @@ async function onSignOut(): Promise<void> {
   <SkipLink />
   <div class="min-h-screen bg-canvas text-canvas-foreground font-sans">
     <header class="border-b border-border px-5 py-4 flex items-center justify-between">
-      <RouterLink :to="{ name: 'catalog' }" class="no-underline">
+      <RouterLink :to="{ name: 'home' }" class="no-underline">
         <span class="lp-kicker block">{{ t('app.tagline') }}</span>
         <span class="font-display text-2xl font-extrabold tracking-tight">{{ t('app.title') }}</span>
       </RouterLink>
       <nav class="text-sm flex items-center gap-3">
+        <RouterLink :to="{ name: 'catalog' }" class="text-muted no-underline hidden sm:inline">
+          {{ t('nav.browse') }}
+        </RouterLink>
         <template v-if="auth.isAuthenticated">
           <RouterLink :to="{ name: 'queue' }" class="text-muted no-underline">
             {{ t('queue.title') }}<span v-if="queue.count"> · {{ queue.count }}</span>

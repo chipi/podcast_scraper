@@ -226,6 +226,30 @@ class PlaybackUpdate(BaseModel):
     position_seconds: float = Field(ge=0, description="Playback position in seconds.")
 
 
+class PlaybackListResponse(BaseModel):
+    """All saved playback positions (Home 'Continue listening')."""
+
+    items: list[PlaybackPosition] = Field(default_factory=list)
+
+
+class AppPodcastItem(BaseModel):
+    """One show in the user's library (Home 'Your shows')."""
+
+    feed_id: str = Field(description="Feed id.")
+    title: str | None = Field(default=None, description="Show display title.")
+    artwork_url: str | None = Field(
+        default=None, description="Preferred (local) show artwork, thumb size."
+    )
+    image_url: str | None = Field(default=None, description="Remote feed image URL — fallback.")
+    episode_count: int = Field(ge=0, default=0, description="Episodes available for this show.")
+
+
+class AppPodcastsResponse(BaseModel):
+    """Response for GET /api/app/podcasts — distinct shows in the corpus."""
+
+    items: list[AppPodcastItem] = Field(default_factory=list)
+
+
 class QueueResponse(BaseModel):
     """The user's play queue (ordered episode slugs)."""
 

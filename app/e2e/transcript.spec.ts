@@ -7,15 +7,15 @@ import { expect, test } from '@playwright/test'
  * (i.e. the real metadata → /segments → client path works), plus the Knowledge Panel and an
  * axe a11y pass on both surfaces.
  */
-test('catalog → player renders the real transcript + insights (no mocks)', async ({ page }) => {
+test('home → player renders the real transcript + insights (no mocks)', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Your Library' })).toBeVisible()
+  await expect(page.getByText('Learning Player')).toBeVisible()
 
-  // a11y on the catalog.
-  const catalogAxe = await new AxeBuilder({ page }).analyze()
-  expect(catalogAxe.violations.filter((v) => v.impact === 'critical' || v.impact === 'serious')).toEqual([])
+  // a11y on Home.
+  const homeAxe = await new AxeBuilder({ page }).analyze()
+  expect(homeAxe.violations.filter((v) => v.impact === 'critical' || v.impact === 'serious')).toEqual([])
 
-  // Open the episode (real navigation; slug computed by the backend).
+  // Open the episode from What's new (real navigation; slug computed by the backend).
   await page.getByText('How Sleep Consolidates Memory').first().click()
   await expect(page.getByRole('heading', { name: 'How Sleep Consolidates Memory' })).toBeVisible()
 

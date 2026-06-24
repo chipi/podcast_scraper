@@ -143,3 +143,13 @@ def test_page_size_bounds_enforced(tmp_path: Path) -> None:
     assert client.get("/api/app/episodes", params={"page_size": 0}).status_code == 422
     assert client.get("/api/app/episodes", params={"page_size": 101}).status_code == 422
     assert client.get("/api/app/episodes", params={"page": 0}).status_code == 422
+
+
+def test_podcasts_lists_shows(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    body = _client(tmp_path).get("/api/app/podcasts").json()
+    feeds = {p["feed_id"]: p for p in body["items"]}
+    assert set(feeds) == {"showa", "showb"}
+    assert feeds["showa"]["episode_count"] == 2
+    assert feeds["showa"]["title"] == "Show A"
+    assert feeds["showb"]["episode_count"] == 1

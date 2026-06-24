@@ -11,7 +11,7 @@
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useQueueStore } from '../stores/queue'
 import KnowledgePanel from '../components/KnowledgePanel.vue'
 import PlayerControls from '../components/PlayerControls.vue'
@@ -33,6 +33,7 @@ import { formatDuration, formatPublishDate } from '../utils/format'
 const props = defineProps<{ slug: string }>()
 const { t, locale } = useI18n()
 const router = useRouter()
+const route = useRoute()
 const queue = useQueueStore()
 
 async function onEnded(): Promise<void> {
@@ -123,7 +124,11 @@ function onLoadedMetadata(): void {
   const el = audioEl.value
   if (!el) return
   duration.value = el.duration || 0
-  if (resumeSeconds > 1 && resumeSeconds < duration.value - 1) {
+  // A ?t= deep-link (jump-to-moment from search) wins over the saved resume position.
+  const deepLink = Number(route.query.t)
+  if (Number.isFinite(deepLink) && deepLink > 0) {
+    el.currentTime = deepLink
+  } else if (resumeSeconds > 1 && resumeSeconds < duration.value - 1) {
     el.currentTime = resumeSeconds
   }
   el.playbackRate = rate.value

@@ -18,6 +18,7 @@ from podcast_scraper.server.schemas import (
     LibraryAdd,
     LibraryItem,
     LibraryResponse,
+    PlaybackListResponse,
     PlaybackPosition,
     PlaybackUpdate,
     QueueResponse,
@@ -43,6 +44,24 @@ def _library_items(rows: list[dict]) -> list[LibraryItem]:
         for r in rows
         if r.get("feed_id")
     ]
+
+
+@router.get("/playback", response_model=PlaybackListResponse)
+async def list_playback(
+    request: Request, user: User = Depends(get_current_user)
+) -> PlaybackListResponse:
+    """All saved playback positions, newest-updated first (Home 'Continue listening')."""
+    rows = app_user_state.list_playback(_data_dir(request), user.user_id)
+    return PlaybackListResponse(
+        items=[
+            PlaybackPosition(
+                slug=r["slug"],
+                position_seconds=float(r["position_seconds"]),
+                updated_at=r.get("updated_at"),
+            )
+            for r in rows
+        ]
+    )
 
 
 @router.get("/playback/{slug}", response_model=PlaybackPosition)

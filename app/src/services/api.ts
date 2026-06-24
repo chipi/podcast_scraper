@@ -15,6 +15,7 @@ import type {
   ListEpisodesParams,
   Me,
   PlaybackPosition,
+  Podcast,
   SearchResponse,
   SegmentsResponse,
 } from './types'
@@ -117,6 +118,26 @@ export function searchEpisode(slug: string, q: string, topK = 8): Promise<Search
 /** "More like this" — semantic peer episodes; empty page when the index is unavailable. */
 export function getRelated(slug: string, topK = 6): Promise<EpisodesPage> {
   return getJSON<EpisodesPage>(`/episodes/${encodeURIComponent(slug)}/related`, { top_k: topK })
+}
+
+/** Corpus-wide grounded search (Home "Ask your library"); empty when no index. */
+export function searchCorpus(q: string, topK = 12): Promise<SearchResponse> {
+  return getJSON<SearchResponse>('/search', { q, top_k: topK })
+}
+
+/** Shows in the user's library (Home "Your shows"). */
+export async function getPodcasts(): Promise<Podcast[]> {
+  return (await getJSON<{ items: Podcast[] }>('/podcasts')).items
+}
+
+/** Saved playback positions, newest-first (Home "Continue"); `[]` when signed out. */
+export async function getPlaybackList(): Promise<PlaybackPosition[]> {
+  try {
+    return (await getJSON<{ items: PlaybackPosition[] }>('/playback')).items
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) return []
+    throw err
+  }
 }
 
 /** Saved playback position (auth-gated); `null` when signed out or unset. */

@@ -1,0 +1,183 @@
+<script setup lang="ts">
+/**
+ * Home — the Learning Hub (PRD-042 / UXS-012). Adaptive hero: resume-state (Continue) when
+ * signed-in with in-progress history, else discover-state ("Ask your library" + Featured).
+ * Corpus search is prominent in both states. Sections (What's new / Recommended / Your shows)
+ * hide cleanly when empty or signed-out. All data from the real /api/app/* surface.
+ */
+import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { RouterLink, useRouter } from 'vue-router'
+import {
+  getEpisode,
+  getPlaybackList,
+  getPodcasts,
+  getRelated,
+  listEpisodes,
+} from '../services/api'
+import type { EpisodeDetail, EpisodeSummary, Podcast } from '../services/types'
+import { formatTime } from '../player/transcriptSync'
+import { useAuthStore } from '../stores/auth'
+
+const { t } = useI18n()
+const router = useRouter()
+const auth = useAuthStore()
+
+const latest = ref<EpisodeSummary[]>([])
+const shows = ref<Podcast[]>([])
+const recommended = ref<EpisodeSummary[]>([])
+const continueItems = ref<{ detail: EpisodeDetail; position: number }[]>([])
+const query = ref('')
+
+const resumeState = computed(() => auth.isAuthenticated && continueItems.value.length > 0)
+const featured = computed(() => latest.value[0] ?? null)
+const resumeTop = computed(() => continueItems.value[0] ?? null)
+const resumeArt = (d: EpisodeDetail) => d.artwork_url || d.episode_image_url || d.feed_image_url
+const showArt = (p: Podcast) => p.artwork_url || p.image_url
+const epArt = (e: EpisodeSummary) => e.artwork_url || e.episode_image_url || e.feed_image_url
+
+function goSearch(q: string): void {
+  const term = q.trim()
+  if (term) void router.push({ name: 'search', query: { q: term } })
+}
+
+onMounted(async () => {
+  latest.value = (await listEpisodes({ pageSize: 8 }).catch(() => null))?.items ?? []
+  getPodcasts()
+    .then((s) => (shows.value = s))
+    .catch(() => (shows.value = []))
+
+  if (auth.isAuthenticated || !auth.loaded) {
+    const positions = await getPlaybackList().catch(() => [])
+    const inProgress = positions.filter((p) => p.position_seconds > 1).slice(0, 6)
+    const hydrated = await Promise.all(
+      inProgress.map((p) =>
+        getEpisode(p.slug)
+          .then((detail) => ({ detail, position: p.position_seconds }))
+          .catch(() => null),
+      ),
+    )
+    continueItems.value = hydrated.filter((x): x is { detail: EpisodeDetail; position: number } => !!x)
+    // Recommended = peers of the most-recent play (v1 heuristic; PRD-041 supersedes).
+    if (continueItems.value[0]) {
+      recommended.value =
+        (await getRelated(continueItems.value[0].detail.slug).catch(() => null))?.items ?? []
+    }
+  }
+})
+</script>
+
+<template>
+  <section>
+    <!-- Adaptive hero -->
+    <div v-if="resumeState && resumeTop" class="relative overflow-hidden rounded-2xl border border-border">
+      <img v-if="resumeArt(resumeTop.detail)" :src="resumeArt(resumeTop.detail)!" alt="" class="absolute inset-0 h-full w-full object-cover opacity-30" />
+      <div class="relative p-5">
+        <span class="lp-kicker text-grounded">{{ t('home.continue') }}</span>
+        <h1 class="mt-1 font-display text-2xl font-extrabold leading-tight tracking-tight">
+          {{ resumeTop.detail.title }}
+        </h1>
+        <p class="mt-1 text-sm text-muted">{{ resumeTop.detail.podcast_title }}</p>
+        <div class="mt-3 h-1 rounded bg-overlay">
+          <div
+            class="h-1 rounded bg-accent"
+            :style="{ width: Math.min(100, (resumeTop.position / (resumeTop.detail.duration_seconds || 1)) * 100) + '%' }"
+          />
+        </div>
+        <RouterLink
+          :to="{ name: 'player', params: { slug: resumeTop.detail.slug } }"
+          class="mt-3 inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2 font-bold text-accent-foreground no-underline"
+        >
+          ► {{ t('home.resume') }} · {{ formatTime(resumeTop.position) }}
+        </RouterLink>
+      </div>
+    </div>
+    <div v-else class="rounded-2xl border border-border bg-surface p-5">
+      <span class="lp-kicker text-topic">{{ t('home.askKicker') }}</span>
+      <h1 class="mt-2 font-display text-3xl font-extrabold leading-none tracking-tight">
+        {{ t('home.askTitle') }}
+      </h1>
+      <p class="mt-2 text-sm text-muted">{{ t('home.askTagline') }}</p>
+    </div>
+
+    <!-- Search bar (prominent in both states) -->
+    <form class="mt-3 flex gap-2" @submit.prevent="goSearch(query)">
+      <label class="sr-only" for="home-search">{{ t('home.askKicker') }}</label>
+      <input
+        id="home-search"
+        v-model="query"
+        type="search"
+        :placeholder="t('home.askPlaceholder')"
+        class="min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-3 text-sm"
+      />
+      <button type="submit" class="rounded-full bg-accent px-5 py-3 font-bold text-accent-foreground">
+        {{ t('search.title') }}
+      </button>
+    </form>
+
+    <!-- Featured (discover state only) -->
+    <RouterLink
+      v-if="!resumeState && featured"
+      :to="{ name: 'player', params: { slug: featured.slug } }"
+      class="mt-6 block rounded-2xl border border-border bg-surface p-4 no-underline text-canvas-foreground"
+    >
+      <span class="lp-kicker">{{ t('home.featured') }}</span>
+      <div class="mt-1 flex items-center gap-3">
+        <img v-if="epArt(featured)" :src="epArt(featured)!" alt="" class="h-16 w-16 rounded-lg object-cover bg-elevated" />
+        <div>
+          <div class="font-display text-lg font-bold leading-snug">{{ featured.title }}</div>
+          <div class="lp-kicker">{{ featured.podcast_title }}</div>
+        </div>
+      </div>
+    </RouterLink>
+
+    <!-- What's new -->
+    <section v-if="latest.length" class="mt-7">
+      <div class="mb-3 flex items-baseline justify-between">
+        <h2 class="lp-kicker">{{ t('home.whatsNew') }}</h2>
+        <RouterLink :to="{ name: 'catalog' }" class="text-sm font-bold text-accent no-underline">
+          {{ t('home.browseAll') }} →
+        </RouterLink>
+      </div>
+      <ul class="flex gap-3 overflow-x-auto pb-2">
+        <li v-for="ep in latest" :key="ep.slug" class="w-36 shrink-0">
+          <RouterLink :to="{ name: 'player', params: { slug: ep.slug } }" class="block no-underline text-canvas-foreground">
+            <img v-if="epArt(ep)" :src="epArt(ep)!" alt="" class="h-36 w-36 rounded-xl object-cover bg-elevated" />
+            <div v-else class="h-36 w-36 rounded-xl bg-elevated" />
+            <div class="mt-2 line-clamp-2 text-sm font-bold leading-tight">{{ ep.title }}</div>
+            <div class="lp-kicker mt-0.5">{{ ep.podcast_title }}</div>
+          </RouterLink>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Recommended -->
+    <section v-if="recommended.length" class="mt-7">
+      <h2 class="lp-kicker mb-3">{{ t('home.recommended') }}</h2>
+      <ul class="flex gap-3 overflow-x-auto pb-2">
+        <li v-for="ep in recommended" :key="ep.slug" class="w-36 shrink-0">
+          <RouterLink :to="{ name: 'player', params: { slug: ep.slug } }" class="block no-underline text-canvas-foreground">
+            <img v-if="epArt(ep)" :src="epArt(ep)!" alt="" class="h-36 w-36 rounded-xl object-cover bg-elevated" />
+            <div v-else class="h-36 w-36 rounded-xl bg-elevated" />
+            <div class="mt-2 line-clamp-2 text-sm font-bold leading-tight">{{ ep.title }}</div>
+            <div class="lp-kicker mt-0.5">{{ ep.podcast_title }}</div>
+          </RouterLink>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Your shows -->
+    <section v-if="shows.length" class="mt-7">
+      <h2 class="lp-kicker mb-3">{{ t('home.shows') }}</h2>
+      <ul class="grid grid-cols-3 gap-3 sm:grid-cols-4">
+        <li v-for="p in shows" :key="p.feed_id">
+          <RouterLink :to="{ name: 'podcast', params: { feedId: p.feed_id } }" class="block no-underline text-canvas-foreground">
+            <img v-if="showArt(p)" :src="showArt(p)!" alt="" class="aspect-square w-full rounded-xl object-cover bg-elevated" />
+            <div v-else class="aspect-square w-full rounded-xl bg-elevated" />
+            <div class="mt-1 truncate text-xs font-bold">{{ p.title ?? p.feed_id }}</div>
+          </RouterLink>
+        </li>
+      </ul>
+    </section>
+  </section>
+</template>

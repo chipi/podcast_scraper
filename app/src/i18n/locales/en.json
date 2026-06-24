@@ -5,7 +5,31 @@
   },
   "nav": {
     "catalog": "Catalog",
+    "browse": "Browse",
     "skipToContent": "Skip to content"
+  },
+  "home": {
+    "askKicker": "Ask your library",
+    "askTitle": "Find any moment you've heard.",
+    "askTagline": "Search across every episode — grounded answers that jump you to the moment.",
+    "askPlaceholder": "e.g. how memory consolidates…",
+    "continue": "Continue listening",
+    "whatsNew": "What's new",
+    "browseAll": "Browse all",
+    "recommended": "Recommended for you",
+    "shows": "Your shows",
+    "featured": "Featured",
+    "resume": "Resume",
+    "minLeft": "{count} min left"
+  },
+  "search": {
+    "title": "Search your library",
+    "placeholder": "Ask your library…",
+    "searching": "Searching…",
+    "noResults": "No grounded passages found.",
+    "error": "Search needs the library index.",
+    "in": "in",
+    "jumpTo": "Play from {time} in {episode}"
   },
   "auth": {
     "signIn": "Sign in",

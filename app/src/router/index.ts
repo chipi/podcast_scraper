@@ -17,8 +17,18 @@ declare module 'vue-router' {
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
+    name: 'home',
+    component: () => import('../views/HomeView.vue'),
+  },
+  {
+    path: '/catalog',
     name: 'catalog',
     component: () => import('../views/CatalogView.vue'),
+  },
+  {
+    path: '/search',
+    name: 'search',
+    component: () => import('../views/SearchView.vue'),
   },
   {
     path: '/podcast/:feedId',
@@ -43,7 +53,7 @@ const routes: RouteRecordRaw[] = [
     name: 'login',
     component: () => import('../views/LoginView.vue'),
   },
-  { path: '/:pathMatch(.*)*', redirect: { name: 'catalog' } },
+  { path: '/:pathMatch(.*)*', redirect: { name: 'home' } },
 ]
 
 export const router = createRouter({
