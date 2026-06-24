@@ -151,6 +151,26 @@ class TestPerEpisodeConnectivity:
         pytest.fail("no MENTIONS_ORG edges anywhere in fixture")
 
 
+class TestTranscriptFiles:
+    """Every episode metadata.json references a transcript file that
+    actually exists on disk under feeds/<show>/transcripts/. Without
+    this, the .txt files would be dead weight — the JSON-level
+    reference would lie about the on-disk presence."""
+
+    def test_every_metadata_has_a_real_transcript(self) -> None:
+        import json
+
+        for meta_path in sorted(_FIXTURE_ROOT.rglob("*.metadata.json")):
+            data = json.loads(meta_path.read_text(encoding="utf-8"))
+            tx_name = (data.get("content") or {}).get("transcript_file_path")
+            assert tx_name, f"{meta_path.name}: no transcript_file_path"
+            tx_path = meta_path.parent.parent / "transcripts" / tx_name
+            assert (
+                tx_path.is_file()
+            ), f"{meta_path.name} references {tx_name} but the file is missing"
+            assert tx_path.read_text(encoding="utf-8").strip(), f"{tx_path.name} is empty"
+
+
 class TestEntityNeighborhood:
     def test_at_least_one_person_reachable_via_insight_and_topic(self) -> None:
         """``Person → MENTIONS_PERSON ← Insight → ABOUT → Topic`` —

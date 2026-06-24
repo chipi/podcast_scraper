@@ -92,6 +92,29 @@ def slug_for_concept(label: str) -> str:
     return _SLUG_NORMALISE.sub("-", label.strip().lower()).strip("-")
 
 
+def is_concept_topic(node: Dict[str, Any]) -> bool:
+    """Return True when *node* is a corpus-level concept-Topic.
+
+    Looks at both the id-prefix signal (``concept:topic-*``) and the
+    ``is_concept: True`` property emitted by
+    ``apply_concept_topics_to_corpus``. Either is sufficient — id is
+    authoritative when the node didn't round-trip through a payload
+    refresh that dropped the property.
+
+    Callers that want to filter per-show Topics out of a Topic list
+    (or vice-versa) use this helper rather than re-deriving the rule.
+    """
+    if not isinstance(node, dict):
+        return False
+    if node.get("type") != "Topic":
+        return False
+    node_id = node.get("id") or ""
+    if isinstance(node_id, str) and node_id.startswith("concept:topic-"):
+        return True
+    props = node.get("properties") or {}
+    return bool(props.get("is_concept"))
+
+
 def gather_corpus_topics(corpus_root: Path) -> List[TopicMention]:
     """Walk every ``*.kg.json`` under ``corpus_root`` and collect every
     Topic node with its source episode / podcast ids and on-disk path.

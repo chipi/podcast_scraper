@@ -69,19 +69,20 @@ existing airgapped path. Six chunks land on
    `concept:topic-{slug}` Topic (`is_concept: true`) plus
    `RELATED_TO` edges from every member. Idempotent.
 
-   Surfaced to the operator via the new
-   ``cluster-corpus-topics`` CLI:
+   Surfaced both as a workflow auto-trigger and an operator CLI:
 
-   ```bash
-   .venv/bin/python -m podcast_scraper cluster-corpus-topics \
-       --output-dir <corpus> [--threshold 0.75] [--min-episodes 2] [--dry-run]
-   ```
+   - **Workflow** — `workflow/orchestration.py` Step 16 (after
+     `_finalize_pipeline`) fires `cluster_and_apply_corpus_topics`
+     on every corpus run where `cfg.kg_topic_corpus_clustering`
+     is True. Non-fatal — a clustering failure doesn't bring down
+     a successful run.
+   - **CLI** — operators can re-run / experiment on an existing
+     corpus without a full pipeline pass:
 
-   The CLI is the source of truth for triggering — the workflow
-   orchestrator does **not** auto-fire this pass today (the
-   per-episode workflow doesn't know when "all episodes are
-   processed"). Auto-triggering on corpus-completion is parked as
-   a follow-up.
+     ```bash
+     .venv/bin/python -m podcast_scraper cluster-corpus-topics \
+         --output-dir <corpus> [--threshold 0.75] [--min-episodes 2] [--dry-run]
+     ```
 
 ### Chunks 4–5 — prove the server / viewer layer renders it
 

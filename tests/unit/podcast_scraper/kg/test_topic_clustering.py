@@ -20,6 +20,7 @@ from podcast_scraper.kg.topic_clustering import (
     cluster_topics,
     ClusteringSummary,
     gather_corpus_topics,
+    is_concept_topic,
     slug_for_concept,
     TopicCluster,
     TopicMention,
@@ -82,6 +83,53 @@ def _write_kg(corpus: Path, podcast_id: str, episode_id: str, topics: List[str])
         )
     path.write_text(json.dumps(data, indent=2), encoding="utf-8")
     return path
+
+
+class TestIsConceptTopic:
+    """#1058 chunk 7 — concept-Topic discrimination helper. Required by
+    callers that want to filter per-show vs corpus-level Topics
+    after the chunk-3 post-pass folded them into the same node list."""
+
+    def test_id_prefix_signal(self) -> None:
+        assert (
+            is_concept_topic({"id": "concept:topic-ai-safety", "type": "Topic", "properties": {}})
+            is True
+        )
+
+    def test_property_signal(self) -> None:
+        assert (
+            is_concept_topic(
+                {
+                    "id": "topic:show-a-ai-safety",
+                    "type": "Topic",
+                    "properties": {"is_concept": True, "label": "AI safety"},
+                }
+            )
+            is True
+        )
+
+    def test_per_show_topic_is_not_concept(self) -> None:
+        assert (
+            is_concept_topic(
+                {
+                    "id": "topic:show-a-ai-safety",
+                    "type": "Topic",
+                    "properties": {"label": "AI safety"},
+                }
+            )
+            is False
+        )
+
+    def test_wrong_type_returns_false(self) -> None:
+        assert (
+            is_concept_topic({"id": "concept:topic-foo", "type": "Person", "properties": {}})
+            is False
+        )
+
+    def test_non_dict_input_returns_false(self) -> None:
+        # The helper guards against malformed input — defensive
+        # because it lives on the hot path of the relational layer.
+        assert is_concept_topic("not a dict") is False  # type: ignore[arg-type]
 
 
 class TestSlugForConcept:
