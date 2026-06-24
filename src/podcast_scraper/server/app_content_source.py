@@ -53,14 +53,23 @@ class ContentSource(Protocol):
         ...
 
 
+def transcript_relpath(content: dict) -> str | None:
+    """Episode transcript relpath from a metadata ``content`` block, or ``None``.
+
+    Canonical key is ``transcript_file_path`` (written by the pipeline, read by the search
+    indexer); ``transcript_file`` is accepted as a defensive fallback.
+    """
+    tr = content.get("transcript_file_path") or content.get("transcript_file")
+    return tr.strip() if isinstance(tr, str) and tr.strip() else None
+
+
 def _has_transcript(corpus_root: Path, metadata_relpath: str) -> bool:
     """Whether the episode's metadata references a transcript file (playable signal)."""
     doc = _load_metadata_doc(corpus_root / metadata_relpath)
     content = doc.get("content") if isinstance(doc, dict) else None
     if not isinstance(content, dict):
         return False
-    tr = content.get("transcript_file")
-    return isinstance(tr, str) and bool(tr.strip())
+    return transcript_relpath(content) is not None
 
 
 def row_to_summary(corpus_root: Path, row: CatalogEpisodeRow) -> AppEpisodeSummary:

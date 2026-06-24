@@ -14,7 +14,20 @@ from podcast_scraper.server.app_content_source import (
     EpisodeListResult,
     get_content_source,
     LocalCorpusSource,
+    transcript_relpath,
 )
+
+
+def test_transcript_relpath_prefers_canonical_key() -> None:
+    # Canonical key written by the pipeline + read by the search indexer.
+    assert transcript_relpath({"transcript_file_path": "t/0001.txt"}) == "t/0001.txt"
+    # Defensive fallback for the legacy/fixture key.
+    assert transcript_relpath({"transcript_file": "t/0001.txt"}) == "t/0001.txt"
+    # Canonical wins when both present.
+    assert transcript_relpath({"transcript_file_path": "a", "transcript_file": "b"}) == "a"
+    # None / blank → no transcript.
+    assert transcript_relpath({}) is None
+    assert transcript_relpath({"transcript_file_path": "  "}) is None
 
 
 def _write_episode(
@@ -34,7 +47,7 @@ def _write_episode(
     if with_transcript:
         (root / "transcripts").mkdir(parents=True, exist_ok=True)
         (root / "transcripts" / f"{stem}.txt").write_text("hi", encoding="utf-8")
-        content["transcript_file"] = f"transcripts/{stem}.txt"
+        content["transcript_file_path"] = f"transcripts/{stem}.txt"
     doc = {
         "feed": {
             "feed_id": feed_id,

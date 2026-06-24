@@ -13,18 +13,40 @@ export default defineConfig({
   use: {
     baseURL: 'http://127.0.0.1:4174',
     trace: 'on-first-retry',
-    // Block the PWA service worker so route mocks are deterministic (the SW would otherwise
-    // intercept /api/app/* and race the fulfilled responses).
+    // Block the PWA service worker so the e2e exercises the real network path deterministically
+    // (the SW would otherwise intercept /api/app/* with stale-while-revalidate).
     serviceWorkers: 'block',
   },
   projects: [
     { name: 'mobile-chrome', use: { ...devices['Pixel 7'] } },
     { name: 'desktop-chrome', use: { ...devices['Desktop Chrome'] } },
   ],
-  webServer: {
-    command: 'npm run build && npm run preview -- --port 4174 --strictPort --host 127.0.0.1',
-    url: 'http://127.0.0.1:4174',
-    reuseExistingServer: !process.env.CI,
-    timeout: 180_000,
-  },
+  // Full-stack, NO MOCKS: the real consumer API serves a real fixture corpus, and the built
+  // app is proxied to it (same-origin via preview proxy). This is what catches server-contract
+  // bugs (e.g. the transcript_file_path metadata key) that a client-mocked e2e cannot.
+  webServer: [
+    {
+      // Real API on :8011 over the fixture corpus, with the dev/e2e mock OAuth provider.
+      command:
+        '../.venv/bin/python -m podcast_scraper.cli serve ' +
+        '--output-dir e2e/fixtures/corpus --port 8011 --host 127.0.0.1',
+      url: 'http://127.0.0.1:8011/api/health',
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+      env: {
+        PYTHONPATH: '../src',
+        APP_OAUTH_PROVIDER: 'mock',
+        APP_SESSION_SECRET: 'e2e-secret',
+        // Allow the mock dev identity through the access policy (default is allowlist/deny).
+        APP_SIGNUP_MODE: 'open',
+      },
+    },
+    {
+      command: 'npm run build && npm run preview -- --port 4174 --strictPort --host 127.0.0.1',
+      url: 'http://127.0.0.1:4174',
+      reuseExistingServer: !process.env.CI,
+      timeout: 180_000,
+      env: { VITE_API_TARGET: 'http://127.0.0.1:8011' },
+    },
+  ],
 })

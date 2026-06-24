@@ -20,7 +20,11 @@ from podcast_scraper.search.corpus_similar import episode_scope_key, run_similar
 from podcast_scraper.search.query_log import append_query_event
 from podcast_scraper.server.app_artwork import artwork_url
 from podcast_scraper.server.app_audio_bridge import resolve_audio
-from podcast_scraper.server.app_content_source import get_content_source, row_to_summary
+from podcast_scraper.server.app_content_source import (
+    get_content_source,
+    row_to_summary,
+    transcript_relpath,
+)
 from podcast_scraper.server.app_gi_view import insights_from_gi
 from podcast_scraper.server.app_kg_view import entities_from_kg
 from podcast_scraper.server.app_search_view import build_search_response, filter_outcome_to_episode
@@ -152,8 +156,8 @@ async def podcast_episodes_list(
 async def episode_detail(request: Request, slug: str) -> AppEpisodeDetail:
     """Consumer episode detail (metadata + summary + artifact-availability flags)."""
     root, row = _resolve(request, slug)
-    transcript_rel = _content_block(root, row.metadata_relative_path).get("transcript_file")
-    has_transcript = isinstance(transcript_rel, str) and bool(transcript_rel.strip())
+    transcript_rel = transcript_relpath(_content_block(root, row.metadata_relative_path))
+    has_transcript = transcript_rel is not None
     has_summary = bool(row.summary_title or row.summary_bullets or row.summary_text)
     local_art = row.episode_image_local_relpath or row.feed_image_local_relpath
     return AppEpisodeDetail(
@@ -244,8 +248,8 @@ async def episode_entities(request: Request, slug: str) -> AppEntitiesResponse:
 async def episode_segments(request: Request, slug: str) -> SegmentsResponse:
     """Serve the transcript ``segments.json`` contract for one episode (by slug)."""
     root, row = _resolve(request, slug)
-    transcript_rel = _content_block(root, row.metadata_relative_path).get("transcript_file")
-    if not isinstance(transcript_rel, str) or not transcript_rel.strip():
+    transcript_rel = transcript_relpath(_content_block(root, row.metadata_relative_path))
+    if transcript_rel is None:
         raise HTTPException(status_code=404, detail="Transcript not available for this episode.")
 
     for candidate in segments_relpaths_for_transcript(transcript_rel):

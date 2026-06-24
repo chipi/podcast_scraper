@@ -45,7 +45,7 @@ def _write_corpus_with_art(root: Path) -> None:
             "image_local_relpath": ART_REL,
         },
         "summary": {"title": "Sum", "bullets": ["one", "two"]},
-        "content": {"transcript_file": "transcripts/0001.txt"},
+        "content": {"transcript_file_path": "transcripts/0001.txt"},
     }
     (root / "metadata" / "0001.metadata.json").write_text(json.dumps(doc), encoding="utf-8")
 

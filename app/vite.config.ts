@@ -61,6 +61,18 @@ export default defineConfig({
       },
     },
   },
+  // Same proxy for `vite preview` — used by the full-stack e2e (real API, no mocks).
+  // changeOrigin:false preserves the Host so the API builds same-origin OAuth callback URLs
+  // (so the mock-provider sign-in flow + session cookie work on the preview origin).
+  preview: {
+    port: 4174,
+    proxy: {
+      '/api': {
+        target: process.env.VITE_API_TARGET || 'http://127.0.0.1:8011',
+        changeOrigin: false,
+      },
+    },
+  },
   test: {
     include: ['src/**/*.test.ts'],
     environment: 'happy-dom',

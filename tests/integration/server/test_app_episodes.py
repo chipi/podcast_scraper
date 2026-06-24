@@ -38,7 +38,7 @@ def _write_corpus(
     (root / "metadata").mkdir(parents=True, exist_ok=True)
     (root / "transcripts").mkdir(parents=True, exist_ok=True)
 
-    content: dict = {"transcript_file": f"transcripts/{stem}.txt"}
+    content: dict = {"transcript_file_path": f"transcripts/{stem}.txt"}
     if media_url is not None:
         content.update(
             {"media_url": media_url, "media_type": "audio/mpeg", "media_id": "sha256:abc"}
@@ -154,6 +154,21 @@ def test_unknown_slug_404(tmp_path: Path) -> None:
     client = _client(tmp_path)
     assert client.get("/api/app/episodes/does-not-exist/segments").status_code == 404
     assert client.get("/api/app/episodes/does-not-exist/audio-source").status_code == 404
+
+
+def test_related_empty_without_index(tmp_path: Path) -> None:
+    # "More like this" needs the vector index; without one it degrades to 200 + empty
+    # (graceful — the panel section simply hides). No real index is built in CI.
+    _write_corpus(tmp_path)
+    slug = _only_slug(tmp_path)
+    client = _client(tmp_path)
+    resp = client.get(f"/api/app/episodes/{slug}/related")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["items"] == []
+    assert body["total"] == 0
+    # Unknown slug still 404s.
+    assert client.get("/api/app/episodes/nope/related").status_code == 404
 
 
 def test_no_segments_file_404(tmp_path: Path) -> None:

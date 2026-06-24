@@ -1,0 +1,11 @@
+{
+  "feed": {"feed_id": "memlab", "title": "Memory Lab", "url": "https://memlab.example/feed.xml", "image_url": "https://memlab.example/art.jpg"},
+  "episode": {"episode_id": "ep-sleep-1", "title": "How Sleep Consolidates Memory", "published_date": "2024-03-10T00:00:00", "duration_seconds": 1800},
+  "summary": {"title": "Sleep & memory", "bullets": ["Hippocampal replay", "Sleep spindles"], "raw_text": "Sleep consolidates memory via hippocampal replay during deep sleep."},
+  "content": {
+    "transcript_file_path": "transcripts/0001.txt",
+    "media_url": "data:audio/mpeg;base64,",
+    "media_type": "audio/mpeg",
+    "media_id": "sha256:fixture"
+  }
+}

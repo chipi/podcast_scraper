@@ -36,7 +36,7 @@ def _write_episode(
     if with_transcript:
         (root / "transcripts").mkdir(parents=True, exist_ok=True)
         (root / "transcripts" / f"{stem}.txt").write_text("hi", encoding="utf-8")
-        content["transcript_file"] = f"transcripts/{stem}.txt"
+        content["transcript_file_path"] = f"transcripts/{stem}.txt"
     doc = {
         "feed": {"feed_id": feed_id, "title": feed_title, "url": f"https://{feed_id}.example/f"},
         "episode": {
