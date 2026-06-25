@@ -10,6 +10,7 @@ import pytest
 from podcast_scraper.search.topic_clusters import (
     build_topic_clusters_payload,
     cluster_indices_by_threshold,
+    consumer_topic_cluster_map,
     cosine_similarity_matrix,
     evaluate_validation_against_topics,
     load_topic_cluster_enrichment_map,
@@ -261,3 +262,27 @@ def test_fixture_topic_clusters_validation_yaml_inline_episode_sources_shape() -
                 assert isinstance(ep_list, list), f"{key}[{row_id}] episode_sources[{tid!r}]"
                 for e in ep_list:
                     assert isinstance(e, str), f"{key}[{row_id}] episode_sources[{tid!r}]"
+
+
+def test_consumer_topic_cluster_map_shape_and_skips_malformed(tmp_path: Path) -> None:
+    search_dir = tmp_path / "search"
+    search_dir.mkdir()
+    (search_dir / "topic_clusters.json").write_text(
+        '{"clusters": ['
+        '{"graph_compound_parent_id": "tc:ai", "canonical_label": "AI", '
+        '"members": [{"topic_id": "topic:ml"}, {"topic_id": "topic:dl"}, "bad-member"]}, '
+        '{"canonical_label": "no-id", "members": [{"topic_id": "topic:x"}]}, '
+        '{"graph_compound_parent_id": "tc:bad", "members": "not-a-list"}'
+        "]}\n",
+        encoding="utf-8",
+    )
+    m = consumer_topic_cluster_map(tmp_path)
+    assert m["topic:ml"] == {"cluster_id": "tc:ai", "cluster_label": "AI", "cluster_size": 3}
+    assert (
+        m["topic:dl"]["cluster_size"] == 3
+    )  # the bad member is counted in len() but skipped as a key
+    assert "topic:x" not in m  # cluster without graph_compound_parent_id is skipped
+
+
+def test_consumer_topic_cluster_map_empty_without_artifact(tmp_path: Path) -> None:
+    assert consumer_topic_cluster_map(tmp_path) == {}
