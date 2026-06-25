@@ -112,23 +112,25 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-079](RFC-079-full-stack-docker-compose.md) | Full-stack Docker Compose topology | — | v2.6.0–v2.7 | Phase 1 (#659): `compose/docker-compose.stack.yml`, viewer + API + pipeline images, Makefile `stack-*` targets, `DOCKER_SERVICE_GUIDE.md`. Phase 2 (#660): Docker job execution via the Jobs API factory (`PODCAST_PIPELINE_EXEC_MODE=docker`). |
 | [RFC-095](RFC-095-generic-mcp-server.md) | Generic MCP Server | PRD-034 | v2.7 | Epic #891 + slices #892/#893/#894 closed 2026-06-06/07. 17 tools registered in `src/podcast_scraper/mcp/` (incl. `corpus_briefing_pack` from RFC-093 via PR #1094). Library-wrap architecture, stdio transport. HTTP/SSE transport (OQ-1) deferred until remote-agent demand surfaces. |
 | [RFC-097](RFC-097-unified-kg-gi-ontology-v2.md) | Unified KG + GI ontology v2 | PRD-017 / PRD-019 | v2.6.0–v2.7 | Anchor #1036 closed; chunks 1–8 in PR #1039; chunk 9 (#1073) in PR #1089. ADR-101 + ADR-102 + ADR-103 Accepted. Person Profile + Position Tracker viewer surfaces live via #1048/#1049/#1050. NER post-pass + corpus-level Topic clustering deliver deterministic typed connectivity under airgapped profiles (PR #1094). |
+| [RFC-058](RFC-058-audio-speaker-diarization.md) | Audio-Based Speaker Diarization | PRD-020 / PRD-002 / PRD-008 | v2.6.0–v2.7 | pyannote provider + segment↔speaker alignment shipped (`src/podcast_scraper/diarization/`); ADR-058 ratified; providers wired into pipeline + evaluation harness. WhisperX comparison eval is future scope, not a gating deliverable. |
+| [RFC-059](RFC-059-speaker-detection-refactor-test-audio.md) | Speaker Detection Refactor & Test Audio Improvements | PRD-020 / PRD-008 / PRD-002 | v2.6.0–v2.7 | `speaker_detectors/` package refactor (NER, hosts, guests, normalization) + test-audio improvements shipped; all 3 tracked issues (#269, #111, #109) closed. |
+| [RFC-060](RFC-060-diarization-aware-commercial-cleaning.md) | Diarization-Aware Commercial Detection & Cleaning | PRD-020 / PRD-005 | v2.6.0–v2.7 | Phase 1 (#486) + Phase 2 (#488) closed; diarization signals layer shipped (`src/podcast_scraper/cleaning/commercial/diarization_signals.py`), integrated with hybrid summarization triggers. |
+| [RFC-083](RFC-083-prod-failover-orchestration-and-cutover.md) | Production Failover — Orchestration, Spare Stack, and Traffic Cutover | — | v2.7 | #762/#763/#764 closed; ADR-089/090/091/092 Accepted; `prod-failover-stand-up.yml` orchestrator + 8 `drill-*.yml` workflows shipped (drill-bootstrap / drill-restore / drill-promote / drill-cutover / drill-rollback / drill-teardown / drill-status / drill-end-to-end). |
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when moving RFCs):** **87** files under `docs/rfc/RFC-*.md` -- IDs **RFC-001--RFC-087**
-with **no RFC-014**. **6** open (in-flight, partial implementation), **62** completed, and **16** Draft
+**Counts (reconcile when moving RFCs):** **100** files under `docs/rfc/RFC-*.md` -- IDs **RFC-001--RFC-101**
+with **no RFC-014**. **8** open (in-flight, partial implementation), **80** completed, and **12** Draft
 (not indexed until promoted) in the tables above.
 
-**Open RFC clusters:** AI experiment pipeline + ML benchmark CI (**RFC-015**, **RFC-041**).
+**Open RFC clusters:** Consumer Learning Platform foundation (**RFC-098**–**RFC-101**), VPS public edge
+(**RFC-087**), ML query router (**RFC-092**), audio pipeline separation + viewer media (**RFC-096**),
+KG proximity signal — rejected (**RFC-091**).
 
 **Draft RFCs (not indexed):** Pipeline metrics (**RFC-027**), continuous review (**RFC-038**),
 metrics alerts (**RFC-043**), Postgres projection (**RFC-051**), adaptive summarization routing
-(**RFC-053**), E2E mock composition (**RFC-054**), diarization and cleaning
-(**RFC-058**--**RFC-060**), semantic search platform (**RFC-070**), canonical identity layer
-(**RFC-072**), enrichment layer (**RFC-073**), process safety (**RFC-074**),
-ephemeral acceptance smoke test (**RFC-078**), full-stack Docker Compose (**RFC-079**;
-optional doc polish: [RFC-079 §Optional follow-ups](RFC-079-full-stack-docker-compose.md#optional-follow-ups)),
-prod failover orchestration and cutover (**RFC-083**).
+(**RFC-053**), E2E mock composition (**RFC-054**), semantic search platform (**RFC-070**),
+enrichment layer (**RFC-073**), process safety (**RFC-074**).
 These are discoverable by filename under `docs/rfc/` but excluded from the index per the
 [index inclusion rule](../guides/MARKDOWN_LINTING_GUIDE.md) (Draft docs are not indexed).
 
@@ -136,11 +138,14 @@ These are discoverable by filename under `docs/rfc/` but excluded from the index
 
 | RFC | Theme | Notes |
 | --- | --- | --- |
-| [RFC-015](RFC-015-ai-experiment-pipeline.md) | Experiments | Runner implemented; **CI auto-run still pending** |
-| [RFC-041](RFC-041-podcast-ml-benchmarking-framework.md) | Benchmarks | Datasets/scripts exist; **automated CI benchmarking** not fully wired |
-| [RFC-077](RFC-077-viewer-feeds-and-serve-pipeline-jobs.md) | Viewer feeds + operator config + `serve` jobs & hygiene | [PRD-030](../prd/PRD-030-viewer-feed-sources-and-pipeline-jobs.md) | **Draft:** `/api/feeds` (**`feeds.spec.yaml`**), `/api/operator-config` (no secret keys in file), job registry + stale/cancel/reconcile ([#626](https://github.com/chipi/podcast_scraper/issues/626)); ≠ [RFC-065](RFC-065-live-pipeline-monitor.md) |
-| [RFC-078](RFC-078-ephemeral-acceptance-smoke-test.md) | Ephemeral full-stack stack-test (CI + gates) | **Implemented (Phase 1):** `compose/docker-compose.stack-test.yml`, `make stack-test-*`, Playwright `tests/stack-test/`, `.github/workflows/stack-test.yml`; stack base [RFC-079](RFC-079-full-stack-docker-compose.md) / [#659](https://github.com/chipi/podcast_scraper/issues/659); follow-ups (`workflow_run`, merge policy, BuildKit cache) tracked via **GitHub issues** |
-| [RFC-079](RFC-079-full-stack-docker-compose.md) | Full-stack Compose (Nginx + API + pipeline) | **Implemented:** `compose/docker-compose.stack.yml`, `stack-*`, [#659](https://github.com/chipi/podcast_scraper/issues/659) Phase 1 + [#660](https://github.com/chipi/podcast_scraper/issues/660) Docker job factory (Option B); [§Native vs Docker](RFC-079-full-stack-docker-compose.md#native-vs-docker) |
+| [RFC-087](RFC-087-vps-public-edge-multi-compose.md) | VPS public edge + multi-Compose hosting | **Draft:** optional public TLS edge (Caddy / Traefik / Cloudflare Tunnel) for multi-host VPS routing while operators stay on Tailscale. |
+| [RFC-091](RFC-091-kg-proximity-signal.md) | KG Proximity Signal | **Decision Record:** rejected as retrieval signal on every corpus/axis; KG value is meaning-bearing relational edges (Person→Insight, #874), not proximity ranking. |
+| [RFC-092](RFC-092-ml-query-router.md) | ML Query Router | **Draft:** rules router shipped; ML classifier gated on eval data ([#860](https://github.com/chipi/podcast_scraper/issues/860)). |
+| [RFC-096](RFC-096-audio-pipeline-separation-and-viewer-media.md) | Audio pipeline separation + viewer media | **Draft:** `pipeline_stage` split ([#414](https://github.com/chipi/podcast_scraper/issues/414)); persist corpus `media/` + `GET /api/corpus/media` + viewer transcript audio player ([#547](https://github.com/chipi/podcast_scraper/issues/547)). |
+| [RFC-098](RFC-098-learning-platform-foundation.md) | Learning Platform Foundation | **Draft (v2.7, P0):** OAuth identity, plain per-user files, dedicated `/api/app/*` consumer API, stable episode slug contract, episode-scoped grounded search. Keystone for RFC-099–101. |
+| [RFC-099](RFC-099-learning-platform-consumer-client.md) | Learning Platform Consumer Client | **Draft (v2.7, P1–P2):** new top-level PWA (Vue 3 + TS); transcript-sync engine, queue, Knowledge Panel, capture; consumes RFC-098. |
+| [RFC-100](RFC-100-audio-bridge-subsystem.md) | Audio Bridge Subsystem | **Draft (v2.7):** resolve playable origin enclosure URL per episode (bridge, never rehost); freshness/redirect/expiry handling. |
+| [RFC-101](RFC-101-personal-knowledge-corpus.md) | Personal Knowledge Corpus | **Draft (v2.7, P3):** per-user projection over GIL/KG scoped to heard/captured episodes; grounded recall via retrieval (no LLM); cross-episode connections; spaced resurfacing. |
 
 ### Recently completed (v2.6.0+)
 

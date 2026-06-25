@@ -1,6 +1,6 @@
 # RFC-058: Audio-Based Speaker Diarization
 
-- **Status**: Partial
+- **Status**: Completed (v2.6.0–v2.7) — pyannote provider + alignment shipped (`src/podcast_scraper/diarization/`), ADR-058 ratified, providers wired into pipeline + evaluation harness. WhisperX comparison eval is future scope, not a gating deliverable.
 - **Authors**: Architecture Review
 - **Stakeholders**: Core Pipeline, ML Providers, Transcription Consumers
 - **Related PRDs**:

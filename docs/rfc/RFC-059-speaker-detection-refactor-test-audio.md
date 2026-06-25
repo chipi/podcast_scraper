@@ -1,6 +1,6 @@
 # RFC-059: Speaker Detection Refactor & Test Audio Improvements
 
-- **Status**: Draft
+- **Status**: Completed (v2.6.0–v2.7) — speaker_detectors package refactor + test-audio improvements shipped; all 3 tracked issues (#269, #111, #109) closed.
 - **Authors**: Architecture Review
 - **Stakeholders**: Core Pipeline, ML Providers, Test Infrastructure
 - **Related PRDs**:
