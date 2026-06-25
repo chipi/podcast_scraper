@@ -126,6 +126,25 @@ describe('EntityCard', () => {
     expect(w.emitted('close')).toBeTruthy()
   })
 
+  it('moves focus into the dialog on open and restores it on close (modal a11y)', async () => {
+    vi.spyOn(api, 'getPersonCard').mockResolvedValue(personCard())
+    const anchor = document.createElement('button')
+    document.body.appendChild(anchor)
+    anchor.focus()
+    expect(document.activeElement).toBe(anchor)
+    const w = mount(EntityCard, {
+      props: { kind: 'person', id: 'person:jane-doe' },
+      global: { plugins: [i18n, router] },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    const dialog = w.find('[role="dialog"]').element
+    expect(dialog.contains(document.activeElement)).toBe(true)
+    w.unmount()
+    expect(document.activeElement).toBe(anchor)
+    anchor.remove()
+  })
+
   it('shows a graceful message when the entity has no footprint (404)', async () => {
     vi.spyOn(api, 'getPersonCard').mockRejectedValue(new api.ApiError(404, 'nope'))
     const w = mountCard({ kind: 'person', id: 'person:ghost' })

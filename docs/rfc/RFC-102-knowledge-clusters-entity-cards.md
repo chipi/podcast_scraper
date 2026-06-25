@@ -48,15 +48,20 @@ lead-in names the dominant cluster. Stable sort preserves original order within 
 
 ### §2 Person profile card (3.2, #1095)
 
-Tap a person → a card (sheet mobile / panel desktop): name/role, episodes they appear in, related
-people/topics. Reuse #1089's relational data + `subject` store / `useRelationalCache`; project to a
-consumer endpoint (or thin proxy of the viewer relational API) + UXS-011 tokens. Replaces the
-Epic-2 person-chip→search default; card keeps an explicit "search the library" action.
+Tap a person → a card (sheet mobile / panel desktop): name, episodes they appear in, related
+people/topics. Data from a **dedicated** `GET /api/app/persons/{id}` — KG co-occurrence over the
+corpus (`app_relational_view.build_person_card` reuses `entities_from_kg`), NOT the operator
+relational API / `subject` store (the `/api/app` boundary stays clean; effort over coupling). No
+biography. Replaces the Epic-2 person-chip→search default; the `EntityCard` keeps an explicit
+"search the library" action, is re-entrant (related chips walk with a back stack), and is a proper
+modal (focus trap, ESC/backdrop close, restore focus). UXS-011 tokens.
 
 ### §3 Topic card (3.3, #1096)
 
-Tap a topic → a card: its cluster (`cluster_label`), sibling topics in the cluster (from
-`topic_clusters.json` members), and episodes about it. Builds on §1's exposed cluster identity.
+Tap a topic → the same `EntityCard`: its cluster (`cluster_label`), sibling topics in the cluster
+(from `topic_clusters.json` members via `consumer_cluster_siblings`), episodes about it, and related
+people. Data from a **dedicated** `GET /api/app/topics/{id}` (KG-grounded; not a reuse of search).
+Builds on §1's exposed cluster identity.
 
 ### §4 Entities as search results (3.4, #1097)
 

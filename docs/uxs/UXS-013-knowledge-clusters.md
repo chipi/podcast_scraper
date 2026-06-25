@@ -22,25 +22,30 @@ Within the Insights panel's compact, expandable **Topics & People** row:
   groups first); singleton topics trail; **people** chips (`text-person`) come after topics.
 - **Theme lead-in:** a small `text-topic` line beside the section header — **"Theme · {cluster}"**
   — names the dominant cluster (hidden when there is none).
-- **Affordance:** tapping any chip still navigates to corpus search for that term (Epic 2 behaviour);
-  the dominant ring is a *visual* cue, not a new control. Collapsed at 6 chips; **+N …** expands.
+- **Affordance:** tapping a chip opens its **entity card** (3.2/3.3 — shipped; the Epic-2
+  chip→search default now lives as an explicit action inside the card). The dominant ring is a
+  *visual* cue, not a new control. Collapsed at 6 chips; **+N …** expands.
 - **Degrade:** no `topic_clusters.json` → no rings, no theme line, flat order (today's behaviour).
 
 **Tokens:** topic `--lp-topic`, person `--lp-person`, chip bg `--lp-overlay`, ring `--lp-topic`.
 **A11y:** the ring is supplementary to label text + colour (not the only signal); chips keep their
-`aria-label` ("Search your library for {term}"); contrast per UXS-011.
+`aria-label` ("Open {term}"); contrast per UXS-011.
 
-## Entity cards (3.2 / 3.3 — design)
+## Entity cards (3.2 person · 3.3 topic — shipped)
 
-- **Person card** (sheet on mobile, side panel/popover on desktop): avatar/initial, name, role,
-  "appears in" episode list (artwork + title), related people/topics chips, and a "Search the
-  library for {name}" action. Mirrors the viewer's `PersonLandingView` content, re-skinned to
-  `--lp-*`.
-- **Topic card:** the cluster (`cluster_label`) as a header, sibling-topic chips, and "episodes
-  about this" list. Opening either replaces the Epic-2 chip→search default; the search action stays
-  available inside the card.
-- **Open/close:** tap to open; mobile = bottom sheet with backdrop (same pattern as the Knowledge
-  sheet); desktop = inline panel. Focus trap + ESC close + restore focus (a11y).
+One `EntityCard` overlay serves both (sheet on mobile, centred panel on desktop):
+
+- **Person card:** a "Person" kicker + name, an "In {n} episodes" list (artwork + title), related
+  people/topics chips, and a "Search the library for {name}" action. No avatar/role/bio — the
+  consumer scope is lean. Data: KG co-occurrence via `GET /api/app/persons/{id}`.
+- **Topic card:** a "Topic" kicker + label, the cluster **"Theme · {cluster}"** line, sibling-theme
+  chips ("More in this theme"), a "Discussed in {n} episodes" list, and related people. Data:
+  `GET /api/app/topics/{id}`.
+- **Re-entrant:** tapping a related person/topic chip walks to that entity in place, with a back
+  (‹) control; the search action lives inside the card, not on chip-tap.
+- **Open/close:** tap to open; mobile = bottom sheet with backdrop; desktop = centred panel. Modal
+  a11y: `role="dialog"`/`aria-modal`, focus trap, initial focus + restore-on-close; dismiss via
+  ESC, backdrop, or the ✕ control.
 
 ## Entities in search (3.4 — design)
 
@@ -48,7 +53,9 @@ When a query matches a person/topic, an **entity card** sits **above** the group
 (UXS-012 search), linking into the person/topic card. Clearly distinct from passage cards (kicker
 "Person"/"Topic", entity styling), never blocking the passages below.
 
-## Open questions (parked for operator)
+## Decisions (operator, 2026-06-25)
 
-- Person-card data source: dedicated consumer endpoint vs thin proxy of the viewer relational API.
-- Entity-match threshold for surfacing a card in search (exact vs fuzzy).
+- Person **and** topic cards use **dedicated** `/api/app/persons|topics/{id}` endpoints (KG
+  co-occurrence), not a proxy of the viewer relational API — effort over coupling.
+- Entities-in-search (3.4) surfaces a card only on **exact/near-exact** entity-name match
+  (consumer first), reusing the 3.2/3.3 cards.

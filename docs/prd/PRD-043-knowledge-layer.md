@@ -91,30 +91,32 @@ The cluster API is the shared spine.
   dominant cluster. Singletons trail. People remain a separate, adjacent affordance.
 - **FR1.3**: Degrades cleanly when `topic_clusters.json` is absent (flat topic list, today's behaviour).
 
-### FR2: Entity cards (3.2)
+### FR2: Entity cards (3.2 person · 3.3 topic)
 
-- **FR2.1**: A **person card** (sheet on mobile / popover or panel on desktop) shows name/role,
-  episodes the person appears in (from KG), and related people/topics — sourced from the same
-  relational data as the viewer's `PersonLandingView`, projected to a consumer endpoint.
-- **FR2.2**: A **topic card** shows the topic's cluster, sibling topics in that cluster, and
-  episodes about the topic.
+- **FR2.1**: A **person card** (sheet on mobile / panel on desktop) shows the name, the episodes the
+  person appears in, and related people/topics — from **KG co-occurrence across the corpus** via a
+  dedicated `GET /api/app/persons/{id}` (NOT a proxy of the operator relational API; the `/api/app`
+  boundary stays clean). No biography (consumer scope is lean).
+- **FR2.2**: A **topic card** shows the topic's cluster, sibling topics in that cluster, and the
+  episodes about the topic — via a dedicated `GET /api/app/topics/{id}` (KG-grounded).
 - **FR2.3**: Tapping a person/topic chip opens its card (replacing the Epic-2 "→ library search"
-  default); the card offers an explicit "search the library for this" action.
+  default); the card offers an explicit "search the library for this" action. Re-entrant (related
+  chips walk to that entity with a back stack); modal a11y (focus trap, ESC/backdrop close).
 
-### FR3: Entities in search (3.3)
+### FR3: Entities in search (3.4)
 
 - **FR3.1**: When a query strongly matches a person or topic (exact/near-exact entity name), the
   consumer + viewer search surfaces an **entity card** above the passage results.
 - **FR3.2**: The entity card links into the person/topic card (FR2) and the episodes.
 
-### FR4: Personalized discovery (3.4)
+### FR4: Personalized discovery (3.5)
 
 - **FR4.1**: At sign-up (and editable later), the user selects interest **topic clusters** from the
   corpus's top clusters; stored on the per-user profile.
 - **FR4.2**: Home "What's new" / "Recommended" rank by **corpus-digest significance × interest-cluster
   affinity** (not pure recency); fall back to recency when no interests/digest.
 
-### FR5: Char-level quote highlighting (3.5 — Epic-2 polish)
+### FR5: Char-level quote highlighting (3.6 — Epic-2 polish)
 
 - **FR5.1**: Upgrade the transcript grounded-quote highlight from segment-level to the exact quoted
   substring (char offsets), guarded against transcript-version drift; no-op when offsets don't align.

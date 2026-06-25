@@ -9,7 +9,7 @@
  * Re-entrant: tapping a related person/topic inside the card pushes onto a small back stack so
  * the user can walk the graph and step back, all without leaving the player.
  */
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 import { getPersonCard, getTopicCard } from '../services/api'
@@ -83,11 +83,44 @@ function searchLibrary(): void {
   if (term) void router.push({ name: 'search', query: { q: term } })
 }
 
-function onKeydown(e: KeyboardEvent): void {
-  if (e.key === 'Escape') emit('close')
+// --- focus management (modal a11y): trap Tab inside the card, restore focus on close ---
+const dialogEl = ref<HTMLElement | null>(null)
+let restoreFocus: HTMLElement | null = null
+
+function focusables(): HTMLElement[] {
+  if (!dialogEl.value) return []
+  const sel = 'a[href], button:not([disabled]), input, [tabindex]:not([tabindex="-1"])'
+  return Array.from(dialogEl.value.querySelectorAll<HTMLElement>(sel))
 }
-onMounted(() => window.addEventListener('keydown', onKeydown))
-onUnmounted(() => window.removeEventListener('keydown', onKeydown))
+
+function onKeydown(e: KeyboardEvent): void {
+  if (e.key === 'Escape') {
+    emit('close')
+    return
+  }
+  if (e.key !== 'Tab') return
+  const items = focusables()
+  if (items.length === 0) return
+  const first = items[0]
+  const last = items[items.length - 1]
+  if (e.shiftKey && document.activeElement === first) {
+    e.preventDefault()
+    last.focus()
+  } else if (!e.shiftKey && document.activeElement === last) {
+    e.preventDefault()
+    first.focus()
+  }
+}
+
+onMounted(() => {
+  restoreFocus = document.activeElement as HTMLElement | null
+  window.addEventListener('keydown', onKeydown)
+  void nextTick(() => (focusables()[0] ?? dialogEl.value)?.focus())
+})
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKeydown)
+  restoreFocus?.focus?.()
+})
 </script>
 
 <template>
@@ -99,7 +132,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
     @click.self="emit('close')"
   >
     <div
-      class="flex max-h-[85vh] w-full max-w-lg flex-col rounded-t-2xl bg-surface sm:rounded-2xl"
+      ref="dialogEl"
+      tabindex="-1"
+      class="flex max-h-[85vh] w-full max-w-lg flex-col rounded-t-2xl bg-surface outline-none sm:rounded-2xl"
     >
       <header class="flex items-center gap-2 border-b border-border px-4 py-3">
         <button
