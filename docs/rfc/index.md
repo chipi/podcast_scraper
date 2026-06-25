@@ -123,11 +123,12 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-070](RFC-070-semantic-corpus-search-platform-future.md) | Semantic Corpus Search — Platform & Future Backends | PRD-021 | v2.6.0 | **Superseded by RFC-090.** FAISS retired via [ADR-099](../adr/ADR-099-lancedb-first-single-index-search.md) / PR #1010 in favour of LanceDB-first hybrid retrieval (BM25 + dense + RRF). Native filtering, hybrid retrieval, online clustering — RFC-070's three motivating outcomes — all shipped on that path. Qdrant + pgvector backends no longer planned. Cross-show Topic clustering shipped via RFC-097 chunk 9. |
 | [RFC-073](RFC-073-autoresearch-v2-framework.md) | Autoresearch v2 Framework | PRD-007 | v2.6.0 | dev/held-out split (`curated_5feeds_dev_v1` + `curated_5feeds_benchmark_v2`), 40% fraction contestation, Efficiency rubric, seed plumbing for OpenAI, prose extraction before judging (`autoresearch/JUDGING.md`), v2 reference card (`autoresearch/openai_v2_comparison_2026-04-14.md`) all shipped. Cross-provider replication + multi-run averaging tracked as Future Work. |
 | [RFC-074](RFC-074-process-safety-ml-workloads-macos.md) | Process Safety for ML Workloads on macOS | — | v2.6.0–v2.7 | Makefile `cleanup-processes` / `check-zombie` / `check-spotlight` targets shipped + wired as prerequisites for test-unit/test-integration/test-e2e. `PYTEST_WORKERS ?= 2` simplification, pre-commit `MAX_HOOK_SECONDS=120` watchdog (`.github/hooks/pre-commit`), SIGALRM-based preload timeout in `scripts/cache/preload_ml_models.py` (1200s default / 7200s `--production` / `PRELOAD_TIMEOUT` override) all live. No system-crash incidents recurred since. |
+| [RFC-075](RFC-075-corpus-topic-clustering.md) | Corpus Topic Clustering Layer | PRD-021 | v2.6.0–v2.7 | All 4 phases + post-impl review shipped end-to-end. #551/#552/#553/#554/#555/#556 closed + label-quality follow-ups #580/#587/#590. `src/podcast_scraper/search/topic_clusters.py` + `topic-clusters` CLI + `GET /api/corpus/topic-clusters` route + viewer ingestion (`corpusTopicClustersApi.ts`) + Cytoscape `TopicCluster` compound parent style. v2 schema with v1 read-compat. Default threshold lowered to 0.70 after 1178-topic production sweep. Distinct from RFC-097 chunk 9: RFC-075 is the viewer-overlay path; RFC-097 chunk 9 is the KG-typed-connectivity path — they coexist. |
 
 ## Gap analysis {:#gaps}
 
 **Counts (reconcile when moving RFCs):** **100** files under `docs/rfc/RFC-*.md` -- IDs **RFC-001--RFC-101**
-with **no RFC-014**. **8** open (in-flight, partial implementation), **87** completed, and **4** Draft
+with **no RFC-014**. **8** open (in-flight, partial implementation), **88** completed, and **3** Draft
 (not indexed until promoted) in the tables above.
 
 **Open RFC clusters:** Consumer Learning Platform foundation (**RFC-098**–**RFC-101**), VPS public edge
@@ -135,10 +136,8 @@ with **no RFC-014**. **8** open (in-flight, partial implementation), **87** comp
 KG proximity signal — rejected (**RFC-091**).
 
 **Draft RFCs (not indexed):** Postgres projection (**RFC-051**), adaptive summarization routing
-(**RFC-053**), corpus topic clustering as separate artifact (**RFC-075**;
-RFC-097 chunk 9 shipped clustering directly into KG, not as separate `topic_clusters.json`),
-enrichment-layer architecture (**RFC-088**; bridge.json + typed nodes shipped via RFC-097 v2;
-QueryEnricher protocol + typed contradiction enrichers remain open).
+(**RFC-053**), enrichment-layer architecture (**RFC-088**; bridge.json + typed nodes shipped via
+RFC-097 v2; QueryEnricher protocol + typed contradiction enrichers remain open).
 These are discoverable by filename under `docs/rfc/` but excluded from the index per the
 [index inclusion rule](../guides/MARKDOWN_LINTING_GUIDE.md) (Draft docs are not indexed).
 
