@@ -55,10 +55,12 @@ Region order, top to bottom:
 1. **Masthead** — app identity kicker + title; account/sign-in affordance (per UXS-011 shell).
 2. **Adaptive hero** (one of two states — see below).
 3. **Continue listening** — *only when not already the hero* (auth; hidden otherwise).
-4. **What's new** — horizontal rail of newest episodes; "Browse all →" to `/catalog`.
-5. **Recommended for you** — rail; hidden when no signal.
+4. **What's new** — *shipped (#1091) as an editorial **ranked** layout, **not** a horizontal rail*:
+   a featured **#01** hero (artwork + gradient + oversized faint numeral) over compact numbered rows
+   (02–06), all on screen; "Browse all →" to `/catalog`.
+5. **Recommended for you** — *shipped as a no-scroll responsive **grid***; hidden when no signal.
 6. **Your shows** — grid of followed podcasts → that show's catalog.
-7. **Featured / spotlight** — *only when not already the hero*.
+7. **Featured / spotlight** — *folded into What's-new as the #01 hero (no separate block).*
 
 ### Adaptive hero — the two states
 
@@ -74,9 +76,12 @@ In both states the search entry is visually prominent (in or immediately under t
 
 ## Corpus-wide search results (`/search`)
 
-- A query field (carries the Home query) + a results list of **grounded passages** across the
-  whole library: verbatim passage text, **source episode + show + speaker**, and a `▶ mm:ss`
-  control that **opens the Player at that moment**. Editorial cards, hairline-separated.
+- A query field (carries the Home query) + results across the whole library. *Shipped (#1091):
+  results are **grouped by source episode** (ranked by best hit); each episode header shows an
+  **artwork thumbnail** + title + show + match count, and each passage is **labelled by kind**
+  (Insight / Transcript / Topic). A `▶ "Play from m:ss"` control appears **only when the passage
+  carries a real timestamp** (opens the Player there) — otherwise the header opens the episode.
+  Bare topic-term matches are de-emphasised (muted italic).*
 - **No generated prose** (D6) — passages are extractive; no disclaimer needed.
 - **Empty / no-index**: a single `muted` line ("Search needs the library index") — never a
   broken panel. **No results**: "No grounded passages found."
@@ -85,8 +90,9 @@ In both states the search entry is visually prominent (in or immediately under t
 
 - **Hero (resume):** artwork-derived bg, `--lp-accent` progress + resume button (`accent-foreground`).
 - **Hero (discover):** `surface` panel, `topic`-toned kicker, large search input (UXS-011 input).
-- **Rails:** horizontal scroll, momentum; cards are `EpisodeCard`-derived (UXS-011). Hover →
-  `overlay`. Snap optional (timing → RFC-099).
+- **What's new / Recommended:** *shipped as no-scroll layouts — What's-new is the ranked
+  hero+rows, Recommended is a responsive grid* (the earlier horizontal-rail/`CardRail` direction
+  was dropped on Home; `CardRail` remains available for future Catalog use). Hover → `overlay`.
 - **Loading:** skeleton hero + skeleton rail cards (`surface`/`border`).
 - **Empty/degraded:** sections with no data are omitted; a fully-empty signed-out Home still
   shows the discover hero (search) + What's new.
@@ -94,7 +100,9 @@ In both states the search entry is visually prominent (in or immediately under t
 
 ## Components
 
-- Reuse **`EpisodeCard`** (UXS-011) for rails and Continue (compact variant).
+- **`EpisodeCard`** (UXS-011) is reused on **Catalog + search-result episodes**, not Home; *Home's
+  What's-new hero (#01) + numbered rows and the Continue card are bespoke layouts* (the EpisodeCard
+  is the clean-lede + ✦ insights-popover card).
 - **Search bar:** pill input (UXS-011 input tokens), search icon, example chips (`topic` toned).
 - **Continue hero card:** artwork bg + progress rule + circular resume button (player transport
   styling, UXS-011).

@@ -189,10 +189,14 @@ KG / grounding semantics visually consistent with the operator stack's meaning w
   skip-forward 30 as type-led glyphs, speed as a text pill in `--accent`.
 - **Scrubber:** a 2px editorial rule (not a fat bar); progress in `--accent`; a small round thumb.
 - **Chips:** topic (`topic`), person (`person`), grounding (`grounded`) — `xs`, rounded, low-fill.
-- **Knowledge dock:** two equal cells split by a `border` hairline — "N insights" (`--accent`) and
-  "Ask this episode". On `lg` this becomes the Knowledge Panel rail header.
-- **Cards (Catalog, future):** hairline-separated rows over heavy boxes; artwork as a small editorial
-  block with the episode number as an oversized faint numeral.
+- **Insights dock:** two cells — "N insights" (`--accent`) + "Ask this episode" — that open the
+  **Insights** panel (titled "Insights" in the UI; shipped #1091). The panel is a single
+  vertical column: Ask · Summary · **Topics & People (one merged, expandable row; chips → corpus
+  search)** · Insights (grounded cards, `●` grounded marker) · More like this.
+- **Episode card (Catalog + search):** hairline-separated row — artwork block + clean **lede**
+  (summary title) + `date · duration` + a grounded **✦ insights icon** that reveals the full
+  summary bullets on hover/tap. *No topic pills on the card.* (The oversized faint **numeral** is the
+  Home **What's-new** ranked hero/rows, not the Catalog card — see UXS-012.)
 
 ## Charts and graph
 

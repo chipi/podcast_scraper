@@ -80,8 +80,12 @@ moments), **browser** (shows + featured → something to play).
 
 ### FR3: What's new
 
-- **FR3.1**: The newest episodes across the library (a short rail), newest-first → Player.
+- **FR3.1**: The newest episodes across the library, newest-first → Player. **Shipped (#1091) as
+  an editorial *ranked* layout — NO horizontal scroll**: a featured **#01** hero (artwork +
+  gradient + oversized faint numeral) over compact numbered rows (02–06), all on screen.
 - **FR3.2**: "Browse all →" links to the full Catalog (`/catalog`).
+- **FR3.3** _(retrospective)_: The standalone **Featured/spotlight** (FR7) is **folded into**
+  What's-new as the #01 hero rather than a separate block.
 
 ### FR4: Recommended (v1 heuristic)
 
@@ -95,6 +99,11 @@ moments), **browser** (shows + featured → something to play).
   search index (RFC-090), returning **grounded passages** — verbatim text, source episode +
   speaker, and a timestamp that **opens the Player at that moment**. No request-time LLM (D6).
 - **FR5.2**: Graceful when the index is unavailable (200 + empty, message), same as in-episode.
+- **FR5.3** _(retrospective, shipped #1091)_: Results are **grouped by source episode** (ranked by
+  best hit per episode); each episode header shows an **artwork thumbnail** + title + show. Each
+  passage is **labelled by kind** (Insight / Transcript / Topic). The **▶ "Play from m:ss"** jump
+  appears **only when the passage carries a real timestamp** — otherwise the header opens the
+  episode (no fabricated 0:00). Bare `kg_topic` term-matches are de-emphasised.
 
 ### FR6: Your shows
 
@@ -103,6 +112,8 @@ moments), **browser** (shows + featured → something to play).
 ### FR7: Featured / spotlight (optional)
 
 - **FR7.1**: One deterministic spotlight episode (e.g. newest with rich insights) with a play CTA.
+- **FR7.2** _(retrospective, shipped #1091)_: **Folded into FR3** — the spotlight is the What's-new
+  **#01 hero**, not a separate Featured block.
 
 ### FR8: Listening stats / "your knowledge" (later)
 

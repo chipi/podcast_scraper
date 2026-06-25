@@ -77,10 +77,18 @@ and the **global catalog** (all episodes across the user's library, newest first
 
 ### FR3: Episode card — enriched state
 
-- **FR3.1**: 1–2 sentence summary preview from the summary artifact.
-- **FR3.2**: Up to 5 topic chips (KG), truncated with "+N more".
-- **FR3.3**: Speaker count when diarization present (e.g. "2 speakers").
-- **FR3.4**: GIL insight count when present (e.g. "7 insights") as a depth signal.
+> **Retrospective (shipped #1091):** the card is a clean **lede** + an expand-on-demand insights
+> popover, **not** a row of metadata pills. FR3.2–FR3.4 below were superseded.
+
+- **FR3.1**: A clean one-line **lede** — the summary title / first sentence (`summary_preview`),
+  **never** the bullets joined together.
+- **FR3.2** _(shipped)_: A grounded **✦ insights icon** (shown when `has_gi` + bullets exist) reveals
+  a popover with the **full summary bullets** (`summary_bullets[]`) on hover/tap — so the card stays
+  compact while the complete summary is one interaction away. **Topic pills were dropped from the
+  card** (topic discovery happens via the Insights panel / corpus search).
+- **FR3.3** _(superseded)_: Speaker count is not surfaced on the card.
+- **FR3.4** _(superseded)_: Insight _count_ is not surfaced on the card; `has_gi`/`has_kg` are the
+  cheap depth signal (they gate the insights affordance), not a displayed number.
 
 ### FR4: Episode card — degraded state
 

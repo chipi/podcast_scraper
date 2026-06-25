@@ -84,6 +84,10 @@ app/                      # new top-level project (sibling of web/)
 - **PWA**: service worker caches the app shell + GET API responses (stale-while-revalidate); **audio is
   never cached/proxied** by the SW. Web App Manifest for install.
 - **Auth**: unauthenticated → redirect to `/api/app/auth/login`; session cookie carries the rest.
+  _Shipped (#1091):_ `LoginView` has **two framings** — sign-in vs sign-up (`?mode=signup`) — both
+  driving the same OAuth flow (open-signup get-or-creates the account); the header shows Sign in +
+  Sign up when out. In the local dev preview, the vite proxy uses `changeOrigin:false` so the API
+  builds **same-origin** OAuth callbacks (else the session cookie lands on the API origin).
 - **Visual design**: implements **UXS-011** (Editorial Bold, dark-primary). The single token layer is
   `app/src/styles/tokens.css`; the Player's now-playing artwork zone applies the per-show adaptive accent
   (contrast-clamped per UXS-011 Accessibility). This is a **separate** design system from `gi-kg-viewer`.
@@ -105,6 +109,17 @@ required second implementation, not a new abstraction.
   active segment, apply the highlight class, and autoscroll into view (disabled on manual scroll, re-enabled
   after ~5s idle). Tap a segment → `audio.currentTime = segment.start`.
 - Speaker labels from `segment.speaker` (canonical `person:{slug}` when present).
+- _Shipped (#1091) — transcript ↔ insight bridge:_ `groundedSpansBySegment(segments, insights)` maps
+  each segment index to the grounded insight whose supporting quote overlaps it **by timeline** (robust
+  to transcript-version char-offset drift). Those segments get a `●` marker + underline; tapping one
+  emits `insight` → the player opens the Insights panel and centre-scrolls to that claim. (Char-level
+  highlighting of the exact quoted substring is Epic 3.6 / PRD-043 FR5.)
+- _Shipped (#1091) — manual sync nudge:_ the bridged origin stream (e.g. acast) does dynamic ad
+  insertion, so its timeline can lead our transcribed copy. A persisted-per-episode `syncOffset`
+  (localStorage) maps audio-time ↔ content-time: `activeSegmentIndex(segments, currentTime − offset)`
+  for the highlight, `seek(contentSeconds + offset)` for taps/`?t=`. A `Sync −/+` control lets the
+  listener align it. (This is the accepted cost of bridge-never-rehost; see the transcript/audio
+  hosting decision — perfect sync would need rehosting the transcribed audio.)
 
 ### 3. Catalog & the pluggable ContentSource
 
@@ -128,15 +143,18 @@ Home (`/`) is the launch surface; the full catalog moves to `/catalog`. Routes: 
   otherwise → "Ask your library" + Featured. The hero never renders an empty Continue card; the
   search entry is mounted in both states.
 - **Corpus-wide search:** the Home search field navigates to `/search?q=`; the results view
-  calls `GET /api/app/search` (RFC-090 hybrid; extractive, **no request-time LLM**) and renders
-  grounded passages with source episode + speaker + a jump control that routes to
-  `/episode/:slug` and seeks to the passage timestamp (reusing the player resume seam). Debounce
-  ~250ms on the field; submit also navigates. Empty/no-index → graceful message (same as
-  in-episode search).
-- **Sections:** What's new (`GET /api/app/episodes`, newest), Recommended (v1 heuristic:
-  `GET /api/app/episodes/{slug}/related` seeded by the most-recent play; hidden when no signal),
-  Your shows (`GET /api/app/podcasts`), Featured (deterministic pick from newest). Each hides
-  when empty/signed-out.
+  calls `GET /api/app/search` (RFC-090 hybrid; extractive, **no request-time LLM**). _Shipped
+  (#1091):_ results are **grouped by source episode** (ranked by best hit), each episode header
+  carrying an **artwork thumbnail** (`metadata.episode_artwork`) + title + show; each passage is
+  **labelled by kind** (Insight / Transcript / Topic) and shows a **▶ "Play from m:ss"** jump
+  **only when it carries a real timestamp** (routes to `/episode/:slug?t=`), else the header opens
+  the episode — no fabricated 0:00. Bare `kg_topic` term-matches are de-emphasised. Submit
+  navigates; empty/no-index → graceful message.
+- **Sections:** What's new (`GET /api/app/episodes`, newest) — _shipped as an editorial **ranked**
+  layout (featured #01 hero + numbered rows, no horizontal scroll), with the **Featured** spotlight
+  folded into the #01 hero rather than a separate block_; Recommended (v1 heuristic:
+  `GET /api/app/episodes/{slug}/related` seeded by the most-recent play; hidden when no signal);
+  Your shows (`GET /api/app/podcasts`). Each hides when empty/signed-out.
 - **Net-new endpoints:** `GET /api/app/podcasts` (shows list — reuse `aggregate_feeds`) and
   `GET /api/app/playback` (list saved positions, auth) for Continue. Search + related + episodes
   already exist.
@@ -152,9 +170,16 @@ Home (`/`) is the launch surface; the full catalog moves to `/catalog`. Routes: 
   **unprocessed** episode (calling `POST /api/app/scrape`, showing inline progress, flipping to playable
   when Ready) is **post-#1069** — built when scrape-on-demand and the `DiscoverySource` arrive.
 
-### 5. Knowledge Panel & in-episode search
+### 5. Insights panel & in-episode search
 
-- Collapsible panel: Summary, Topics, Insights (grounded cards with timestamp jump), Persons.
+> _Shipped (#1091):_ the panel is titled **"Insights"** (matching the dock button + cards). **Topics
+> and People are merged** into one compact, expandable "Topics & People" row; tapping a chip
+> **navigates to corpus search** for that term — the originally-specified person→insight filter was
+> dropped. A `●` grounded marker distinguishes insights with a timestamped quote. _Epic 3 (PRD-043)
+> layers cluster-first topic ordering + person/topic entity cards on top._
+
+- Collapsible panel: Summary, **Topics & People (merged, chips → corpus search)**, Insights (grounded
+  cards with timestamp jump + `●` grounded marker), "More like this" peers.
 - "Ask / find in this episode" → `GET /api/app/episodes/{slug}/search` → ranked grounded passages with
   jump-to-moment. No generation, no disclaimer (results are verbatim).
 - **Relational context** uses the RFC-094 queries by name: Insights via `who_said` + `cross_show_synthesis`,

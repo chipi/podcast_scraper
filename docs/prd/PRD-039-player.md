@@ -95,14 +95,27 @@ so it's ready by the time it's reached.
 - **FR3.5**: Speaker labels per segment when diarization present — canonical `person:{slug}` (RFC-072)
   when available, else raw label.
 - **FR3.6**: No transcript → panel offers "Request processing" (audio-only mode still plays).
+- **FR3.7** _(retrospective, shipped #1091)_: **Grounded-quote highlighting** — transcript segments
+  backing a grounded insight (matched by timeline) get a `●` marker + underline; tapping one
+  **opens the Insights panel and centre-scrolls to that insight** (the transcript↔insight bridge).
+- **FR3.8** _(retrospective, shipped #1091)_: **Manual sync nudge** — a `Sync −/+` control lets the
+  listener shift the transcript↔audio alignment to compensate for ad-insertion drift in the bridged
+  stream (the played audio carries dynamic ads not in our transcribed copy). Persisted per episode.
 
-### FR4: Knowledge Panel (collapsible; collapsed on mobile, open on wide desktop)
+### FR4: Insights panel (collapsible; collapsed on mobile, open on wide desktop)
+
+> **Retrospective (shipped #1091):** the panel is titled **"Insights"** in the UI (matching the dock
+> button + cards). Topics and People are **merged** into one compact, expandable "Topics & People"
+> row; tapping a chip **searches the corpus** for that term (the originally-specified person→insight
+> filter was dropped).
 
 - **FR4.1 Summary**: 2–4 sentence episode summary, shown first when available.
-- **FR4.2 Topics**: KG topic chips, ordered by mention count. (Tap → Topic view: post-v2.7.)
+- **FR4.2 Topics & People** _(merged)_: KG topics + persons as chips in one compact, expandable row
+  (`+N …` to reveal the rest). Tapping a chip navigates to **corpus search** for that term. _(Epic 3
+  layers cluster-first ordering + entity cards on top — PRD-043.)_
 - **FR4.3 Insights**: grounded GIL insights as cards — insight text, supporting quote (verbatim),
-  speaker if attributed, and a timestamp link that seeks on tap. Max 5; "Show all" expands.
-- **FR4.4 Persons**: persons from KG + GIL, as chips; tapping filters insights to that person.
+  speaker if attributed, and a timestamp link that seeks on tap. A `●` **grounded marker**
+  distinguishes insights with a timestamped quote from ungrounded claims. Max 5; "Show all" expands.
 - **FR4.5 Ask / find in this episode**: a search input scoped to this episode. On submit, the backend runs
   hybrid retrieval (RFC-090) over the episode's segments + insights and returns the most relevant **grounded
   passages** — verbatim text, speaker, and a timestamp link that seeks on tap. **No request-time LLM** (D6):
