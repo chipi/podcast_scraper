@@ -105,16 +105,20 @@ The cluster API is the shared spine.
 
 ### FR3: Entities in search (3.4)
 
-- **FR3.1**: When a query strongly matches a person or topic (exact/near-exact entity name), the
-  consumer + viewer search surfaces an **entity card** above the passage results.
-- **FR3.2**: The entity card links into the person/topic card (FR2) and the episodes.
+- **FR3.1**: When a query exact/near-exact-matches a person or topic name, the **consumer** search
+  surfaces an **entity card** above the passage results (viewer parity deferred). Resolution is a
+  dedicated `GET /api/app/entities/search` (kept off the shared search response).
+- **FR3.2**: The entity card opens the person/topic card (FR2); tapping an episode opens the player.
 
 ### FR4: Personalized discovery (3.5)
 
-- **FR4.1**: At sign-up (and editable later), the user selects interest **topic clusters** from the
-  corpus's top clusters; stored on the per-user profile.
-- **FR4.2**: Home "What's new" / "Recommended" rank by **corpus-digest significance × interest-cluster
-  affinity** (not pure recency); fall back to recency when no interests/digest.
+- **FR4.1**: A first-Home **dismissible** "set your interests" card (signed-in only) opens a picker
+  over the corpus's **top-12 clusters** (`GET /api/app/clusters`); the chosen cluster ids are saved
+  as **per-user files** (`GET/PUT /api/app/interests`) — no new persistence layer, no sign-up step.
+- **FR4.2**: The Home feed (`GET /api/app/discover`) ranks by **significance × interest-cluster
+  affinity** when personalization is **enabled** (env `APP_PERSONALIZED_RANKING`, default off) AND
+  the signed-in user has interests; otherwise **recency** — the unchanged default. The score is
+  provisional and flag-gated until tuned.
 
 ### FR5: Char-level quote highlighting (3.6 — Epic-2 polish)
 

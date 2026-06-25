@@ -47,11 +47,23 @@ One `EntityCard` overlay serves both (sheet on mobile, centred panel on desktop)
   a11y: `role="dialog"`/`aria-modal`, focus trap, initial focus + restore-on-close; dismiss via
   ESC, backdrop, or the ✕ control.
 
-## Entities in search (3.4 — design)
+## Entities in search (3.4 — shipped)
 
-When a query matches a person/topic, an **entity card** sits **above** the grouped passage results
-(UXS-012 search), linking into the person/topic card. Clearly distinct from passage cards (kicker
-"Person"/"Topic", entity styling), never blocking the passages below.
+When a query exact/near-exact-matches a person/topic, an **entity card** sits **above** the grouped
+passage results (UXS-012 search): a kicker ("Person"/"Topic") + name + a "View ›" affordance,
+tapping which opens the §Entity-cards overlay. Distinct from passage cards, never blocking the
+passages below; the "no grounded passages" line is suppressed when an entity matched (we *did* find
+something). Resolved in parallel with the passage search, so a miss never delays results.
+
+## Personalized discovery (3.5 — shipped)
+
+- **First-Home card:** a dismissible "Personalize your Home" card (signed-in only; remembered via
+  `localStorage`) opens the **interests picker**.
+- **Picker:** a modal over the corpus's **top-12 clusters** (toggle chips; pre-selected from saved
+  interests; Save / Not now). Modal a11y matches the entity card (focus trap, ESC/backdrop).
+- **Effect:** the Home "What's new" feed re-ranks by interest affinity **only** when the deployment
+  flag is on; by default (and signed-out) it is recency — visually identical to today.
+- **Tokens:** selected chip = `--lp-accent`; unselected = `--lp-overlay` / `--lp-topic`.
 
 ## Decisions (operator, 2026-06-25)
 

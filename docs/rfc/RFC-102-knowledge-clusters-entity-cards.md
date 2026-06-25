@@ -65,15 +65,21 @@ Builds on §1's exposed cluster identity.
 
 ### §4 Entities as search results (3.4, #1097)
 
-When a query exact/near-exact-matches a person/topic name, the search response carries an **entity
-hit** that the client renders as a card above passage results (consumer + viewer). Links into
-§2/§3 cards.
+A **dedicated** `GET /api/app/entities/search` resolves a query to a person/topic by exact/near-exact
+name match (normalized: case/punctuation/spacing-insensitive; persons win on a tie) — kept off the
+shared search response so the operator surface stays clean. `SearchView` calls it in parallel with
+`/search` and renders the match as a card above the passages, opening the §2/§3 `EntityCard` on tap.
+Consumer-only for now (viewer parity deferred).
 
 ### §5 Personalized discovery (3.5, #1098)
 
-Sign-up interests = chosen topic **clusters** (from the corpus's top clusters), stored on the
-per-user profile (existing per-user files). Home "What's new"/"Recommended" rank by **corpus-digest
-significance × interest-cluster affinity**; fall back to recency when absent.
+Interests = chosen topic **clusters**, saved as **per-user files** (`GET/PUT /api/app/interests` —
+the same overlay as playback/queue; no new persistence). A first-Home dismissible card opens a
+picker over `GET /api/app/clusters` (top by `member_count`). The Home feed
+`GET /api/app/discover` ranks by **significance × interest-cluster affinity** (episode KG topics →
+cluster ids) when `app.state.personalized_ranking` (env `APP_PERSONALIZED_RANKING`, default off) is
+set **and** the signed-in user has interests; otherwise recency. `get_optional_user` keeps the feed
+open to anonymous requests. Flag-gated until the score is tuned.
 
 ## Testing
 
