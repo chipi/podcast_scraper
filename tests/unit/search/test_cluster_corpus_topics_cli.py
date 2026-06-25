@@ -126,9 +126,23 @@ class TestRunClusterCorpusTopicsCli:
         out = capsys.readouterr().out
         assert "clusters=0" in out
 
-    def test_dry_run_does_not_mutate_artifacts(self, tmp_path: Path) -> None:
+    def test_dry_run_does_not_mutate_artifacts(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         # Two episodes from different shows share a topic label → would
         # cluster, but --dry-run keeps the disk artifacts untouched.
+        # Stub the embedder so test-unit doesn't need sentence-transformers
+        # on the import path.
+        from podcast_scraper.kg import topic_clustering
+
+        def _stub_default_embedder():
+            def _embed(labels):
+                return [[1.0, 0.0] for _ in labels]
+
+            return _embed
+
+        monkeypatch.setattr(topic_clustering, "_default_embedder", _stub_default_embedder)
+
         path_a = _write_kg(tmp_path, "show-a", "ep1", ["shared topic"])
         path_b = _write_kg(tmp_path, "show-b", "ep1", ["shared topic"])
         before_a = path_a.read_text()
