@@ -1,6 +1,6 @@
 # RFC-095: Generic MCP Server — Platform Capabilities as Agent Tools
 
-- **Status**: Implemented (v1 — stdio); HTTP/SSE transport + RFC-093 tool deferred
+- **Status**: Completed (v2.7) — Epic #891 + slices #892 (skeleton + resolve + search) + #893 (relational tools wrapping RFC-094) + #894 (catalog + CIL) all closed 2026-06-06/07. 17 tools registered in `src/podcast_scraper/mcp/` (`corpus_briefing_pack` from RFC-093 added 2026-06-25 via PR #1094). Library-wrap architecture, stdio transport. HTTP/SSE transport remains an open question (OQ-1) — separate scope when remote-agent demand surfaces.
 - **Updated**: 2026-06-20 (reconciled with shipped code; search layer is now LanceDB-first)
 - **v2 cross-reference (RFC-097, 2026-06-20)**: prerequisite — stable CIL IDs (RFC-072 + RFC-097) needed for stable tool schemas. MCP server design itself unchanged by v2; HTTP/SSE transport, MCP resources, QueryEnricher tool remain open. See [RFC-097](RFC-097-unified-kg-gi-ontology-v2.md).
 - **Authors**: Marko

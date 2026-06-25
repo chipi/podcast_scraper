@@ -1,6 +1,6 @@
 # RFC-079: Full-Stack Docker Compose Topology
 
-- **Status**: Implemented
+- **Status**: Completed (v2.6.0–v2.7) — Phase 1 (#659) shipped `compose/docker-compose.stack.yml`, viewer + API + pipeline images, Makefile `stack-*` targets, `config/examples/docker-stack.example.yaml`, and DOCKER_SERVICE_GUIDE. Phase 2 (#660) shipped Docker job execution via the Jobs API factory (`PODCAST_PIPELINE_EXEC_MODE=docker`). Optional doc polish follow-ups tracked as the RFC's own issues.
 - **Authors**: Marko
 - **Created**: 2026-04-22
 - **Domain**: Infrastructure / DevOps

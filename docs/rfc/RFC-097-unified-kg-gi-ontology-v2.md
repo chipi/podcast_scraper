@@ -1,6 +1,6 @@
 # RFC-097: Unified KG + GI Ontology v2
 
-- **Status**: Draft
+- **Status**: Completed (v2.6.0–v2.7) — Anchor #1036 closed; chunks 1–8 shipped in PR #1039 (foundation + edge styling); chunk 9 (#1073) shipped on `feat/rfc097-followups` (PR #1089) — strict KG v2.0 / GI v3.0 schemas + [ADR-101](../adr/ADR-101-drop-legacy-kg-gi-shape.md). [ADR-102](../adr/ADR-102-retro-audit-marker-for-in-place-artifact-mutation.md) + [ADR-103](../adr/ADR-103-deterministic-connectivity-under-llm-free-profiles.md) Accepted. Person Profile + Position Tracker viewer surfaces live via #1048/#1049/#1050. Follow-ups: #1075 / #1076 / #1058 all closed. NER post-pass and corpus-level Topic clustering ship deterministic typed connectivity under airgapped profiles (PR #1094).
 - **Authors**: Marko Dragoljevic (chipi), Claude (Opus 4.7)
 - **Stakeholders**: Operator (sign-off), KG/GI maintainers, viewer maintainers
 - **Related PRDs**:
