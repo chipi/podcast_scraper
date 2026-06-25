@@ -11,11 +11,12 @@
  */
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink, useRouter } from 'vue-router'
+import { RouterLink } from 'vue-router'
 import { getRelated, searchEpisode } from '../services/api'
 import type { EpisodeDetail, EpisodeSummary, Entity, Insight, SearchHit, Topic } from '../services/types'
 import { formatTime } from '../player/transcriptSync'
 import { hitStartSeconds, insightStartSeconds } from '../player/insights'
+import EntityCard from './EntityCard.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -33,7 +34,6 @@ const props = withDefaults(
 const emit = defineEmits<{ (e: 'seek', seconds: number): void; (e: 'close'): void }>()
 
 const { t } = useI18n()
-const router = useRouter()
 
 const summary = computed(() => props.episode.summary_text || props.episode.summary_title || null)
 const hasAnything = computed(
@@ -44,14 +44,14 @@ const hasAnything = computed(
     props.insights.length > 0,
 )
 
-// A topic/person chip explores that term across the whole library (clear, consistent action).
-function exploreSearch(term: string): void {
-  const q = term.replace(/^person:/, '').replace(/-/g, ' ').trim()
-  if (q) void router.push({ name: 'search', query: { q } })
-}
-
 // --- Topics + People as one compact, expandable row; topics cluster-first (RFC-102) ---
 type Tag = { key: string; label: string; kind: 'topic' | 'person'; dominant: boolean }
+
+// Tapping a chip opens its entity card (PRD-043; library search now lives inside the card).
+const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
+function openCard(tag: Tag): void {
+  cardTarget.value = { kind: tag.kind, id: tag.key }
+}
 
 // How many of THIS episode's topics fall in each corpus cluster (intra-episode dominance).
 const topicClusterCounts = computed<Record<string, number>>(() => {
@@ -247,8 +247,8 @@ watch(() => props.slug, (s) => loadRelated(s))
               tag.kind === 'topic' ? 'text-topic' : 'text-person',
               tag.dominant ? 'ring-1 ring-topic' : '',
             ]"
-            :aria-label="t('kp.exploreTerm', { term: tag.label })"
-            @click="exploreSearch(tag.label)"
+            :aria-label="t('kp.openEntity', { term: tag.label })"
+            @click="openCard(tag)"
           >
             {{ tag.label }}
           </button>
@@ -344,5 +344,12 @@ watch(() => props.slug, (s) => loadRelated(s))
         </ul>
       </section>
     </div>
+
+    <EntityCard
+      v-if="cardTarget"
+      :kind="cardTarget.kind"
+      :id="cardTarget.id"
+      @close="cardTarget = null"
+    />
   </aside>
 </template>

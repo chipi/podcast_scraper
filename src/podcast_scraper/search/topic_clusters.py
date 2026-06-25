@@ -161,6 +161,57 @@ def consumer_topic_cluster_map(corpus_root: Path) -> Dict[str, Dict[str, Any]]:
     return out
 
 
+def consumer_cluster_siblings(corpus_root: Path, topic_id: str) -> List[Dict[str, str]]:
+    """Sibling topics sharing ``topic_id``'s cluster, excluding itself (PRD-043 FR3).
+
+    Returns ``[{"id", "label"}, ...]`` drawn from the cluster's ``members`` (so each carries
+    its own display label). Empty when the topic is a singleton, absent, or the artifact is
+    missing/invalid. The first cluster containing ``topic_id`` wins (topic ids are unique
+    across clusters by construction).
+    """
+    tid = topic_id.strip()
+    if not tid:
+        return []
+    payload = _load_topic_clusters_payload(corpus_root)
+    if payload is None:
+        return []
+    raw = payload.get("clusters")
+    if not isinstance(raw, list):
+        return []
+    for cl in raw:
+        if not isinstance(cl, Mapping):
+            continue
+        members = cl.get("members")
+        if not isinstance(members, list):
+            continue
+        member_ids = {
+            str(m.get("topic_id")).strip()
+            for m in members
+            if isinstance(m, Mapping) and isinstance(m.get("topic_id"), str)
+        }
+        if tid not in member_ids:
+            continue
+        siblings: List[Dict[str, str]] = []
+        for m in members:
+            if not isinstance(m, Mapping):
+                continue
+            mid_raw = m.get("topic_id")
+            if not isinstance(mid_raw, str) or not mid_raw.strip():
+                continue
+            mid = mid_raw.strip()
+            if mid == tid:
+                continue
+            label_raw = m.get("label")
+            label = (
+                label_raw.strip()
+                if isinstance(label_raw, str) and label_raw.strip()
+                else mid.split(":", 1)[-1]
+            )
+            siblings.append({"id": mid, "label": label})
+        return siblings
+    return []
+
+
 def cosine_similarity_matrix(vectors: np.ndarray) -> np.ndarray:
     """Pairwise cosine similarity for L2-normalized rows (``n``, ``d``)."""
     if vectors.ndim != 2:

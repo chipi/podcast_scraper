@@ -169,6 +169,29 @@ export interface EntitiesResponse {
   topics: Topic[]
 }
 
+/** Person profile card (GET /api/app/persons/{id} — AppPersonCard). KG co-occurrence. */
+export interface PersonCard {
+  id: string
+  label: string
+  episode_count: number
+  episodes: EpisodeSummary[]
+  related_people: Entity[]
+  related_topics: Topic[]
+}
+
+/** Topic card (GET /api/app/topics/{id} — AppTopicCard). Episodes-about + cluster siblings. */
+export interface TopicCard {
+  id: string
+  label: string
+  cluster_id: string | null
+  cluster_label: string | null
+  cluster_size: number
+  sibling_topics: Topic[]
+  episode_count: number
+  episodes: EpisodeSummary[]
+  related_people: Entity[]
+}
+
 /** One grounded search hit (loosely typed — metadata/lifted vary by tier). */
 export interface SearchHit {
   doc_id: string

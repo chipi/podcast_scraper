@@ -230,6 +230,62 @@ class AppEntitiesResponse(BaseModel):
     topics: list[AppTopic] = Field(default_factory=list)
 
 
+class AppPersonCard(BaseModel):
+    """Person profile card (PRD-043 FR2; GET /api/app/persons/{id}).
+
+    KG-grounded over the whole corpus: ``episodes`` are those whose KG asserts this person's
+    node; ``related_people`` / ``related_topics`` are the entities co-occurring most often
+    within those episodes (descending). Deliberately lean — no biography, no LLM (consumer
+    scope). Empty/404 when the person appears in no episode's KG.
+    """
+
+    id: str = Field(description="Canonical person id (person:{slug}).")
+    label: str = Field(description="Display name.")
+    episode_count: int = Field(ge=0, description="Episodes this person appears in.")
+    episodes: list[AppEpisodeSummary] = Field(
+        default_factory=list, description="Appears-in episode cards (newest-first)."
+    )
+    related_people: list[AppEntity] = Field(
+        default_factory=list, description="People co-appearing most often (descending)."
+    )
+    related_topics: list[AppTopic] = Field(
+        default_factory=list,
+        description="Topics co-occurring most often (descending); cluster-enriched.",
+    )
+
+
+class AppTopicCard(BaseModel):
+    """Topic card (PRD-043 FR3; GET /api/app/topics/{id}).
+
+    KG-grounded: ``episodes`` are those whose KG asserts this topic; ``sibling_topics`` are the
+    other members of this topic's corpus cluster (same theme, from ``topic_clusters.json``);
+    ``related_people`` are the people co-occurring most often within the episodes-about
+    (descending). Empty/404 when the topic appears in no episode's KG.
+    """
+
+    id: str = Field(description="Canonical topic id (topic:{slug}).")
+    label: str = Field(description="Topic display label.")
+    cluster_id: str | None = Field(
+        default=None, description="Corpus cluster id (graph_compound_parent_id) when clustered."
+    )
+    cluster_label: str | None = Field(
+        default=None, description="Canonical label of the topic's cluster, when clustered."
+    )
+    cluster_size: int = Field(
+        default=0, ge=0, description="Cross-corpus member count of the topic's cluster (0 if none)."
+    )
+    sibling_topics: list[AppTopic] = Field(
+        default_factory=list, description="Other topics in the same cluster (the theme's siblings)."
+    )
+    episode_count: int = Field(ge=0, description="Episodes this topic is discussed in.")
+    episodes: list[AppEpisodeSummary] = Field(
+        default_factory=list, description="Episodes-about cards (newest-first)."
+    )
+    related_people: list[AppEntity] = Field(
+        default_factory=list, description="People co-occurring most often (descending)."
+    )
+
+
 class PlaybackPosition(BaseModel):
     """Per-user playback position for one episode."""
 

@@ -95,15 +95,42 @@ describe('KnowledgePanel', () => {
     expect(w.emitted('seek')?.[0]).toEqual([12])
   })
 
-  it('tapping a person or topic explores that term across the library (search)', async () => {
+  it('tapping a person chip opens its entity card (PRD-043)', async () => {
+    const getPerson = vi.spyOn(api, 'getPersonCard').mockResolvedValue({
+      id: 'person:matthew-walker',
+      label: 'Matthew Walker',
+      episode_count: 0,
+      episodes: [],
+      related_people: [],
+      related_topics: [],
+    })
     const w = mountPanel()
-    const push = vi.spyOn(router, 'push')
-    // Person chip → corpus search for that name.
     await w.findAll('button').find((b) => b.text() === 'Matthew Walker')!.trigger('click')
-    expect(push).toHaveBeenCalledWith({ name: 'search', query: { q: 'Matthew Walker' } })
-    // Topic chip → corpus search for that topic.
+    await flushPromises()
+    expect(getPerson).toHaveBeenCalledWith('person:matthew-walker')
+    const dialog = w.find('[role="dialog"]')
+    expect(dialog.exists()).toBe(true)
+    expect(dialog.text()).toContain('Matthew Walker')
+  })
+
+  it('tapping a topic chip opens its entity card (not a search)', async () => {
+    const getTopic = vi.spyOn(api, 'getTopicCard').mockResolvedValue({
+      id: 'topic:memory',
+      label: 'memory',
+      cluster_id: null,
+      cluster_label: null,
+      cluster_size: 0,
+      sibling_topics: [],
+      episode_count: 0,
+      episodes: [],
+      related_people: [],
+    })
+    const push = vi.spyOn(router, 'push')
+    const w = mountPanel()
     await w.findAll('button').find((b) => b.text() === 'memory')!.trigger('click')
-    expect(push).toHaveBeenCalledWith({ name: 'search', query: { q: 'memory' } })
+    await flushPromises()
+    expect(getTopic).toHaveBeenCalledWith('topic:memory')
+    expect(push).not.toHaveBeenCalled() // search now lives inside the card, not on chip-tap
   })
 
   it('orders topics cluster-first and marks the dominant cluster (RFC-102)', () => {

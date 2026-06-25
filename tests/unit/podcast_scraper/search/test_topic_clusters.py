@@ -10,6 +10,7 @@ import pytest
 from podcast_scraper.search.topic_clusters import (
     build_topic_clusters_payload,
     cluster_indices_by_threshold,
+    consumer_cluster_siblings,
     consumer_topic_cluster_map,
     cosine_similarity_matrix,
     evaluate_validation_against_topics,
@@ -286,3 +287,38 @@ def test_consumer_topic_cluster_map_shape_and_skips_malformed(tmp_path: Path) ->
 
 def test_consumer_topic_cluster_map_empty_without_artifact(tmp_path: Path) -> None:
     assert consumer_topic_cluster_map(tmp_path) == {}
+
+
+def _write_clusters_payload(tmp_path: Path, payload: str) -> None:
+    search_dir = tmp_path / "search"
+    search_dir.mkdir(exist_ok=True)
+    (search_dir / "topic_clusters.json").write_text(payload, encoding="utf-8")
+
+
+def test_consumer_cluster_siblings_returns_co_members_with_labels(tmp_path: Path) -> None:
+    _write_clusters_payload(
+        tmp_path,
+        '{"clusters": [{"graph_compound_parent_id": "tc:ai", "canonical_label": "AI", '
+        '"members": [{"topic_id": "topic:ai", "label": "AI"}, '
+        '{"topic_id": "topic:ml", "label": "Machine Learning"}, '
+        '{"topic_id": "topic:dl"}]}]}\n',  # third member has no label → slug fallback
+    )
+    out = consumer_cluster_siblings(tmp_path, "topic:ai")
+    assert {s["id"]: s["label"] for s in out} == {
+        "topic:ml": "Machine Learning",
+        "topic:dl": "dl",  # label fell back to the slug
+    }
+    # self is excluded from its own sibling list.
+    assert all(s["id"] != "topic:ai" for s in out)
+
+
+def test_consumer_cluster_siblings_empty_for_singleton_or_missing(tmp_path: Path) -> None:
+    assert consumer_cluster_siblings(tmp_path, "topic:ai") == []  # no artifact
+    _write_clusters_payload(
+        tmp_path,
+        '{"clusters": [{"graph_compound_parent_id": "tc:ai", "canonical_label": "AI", '
+        '"members": [{"topic_id": "topic:ai", "label": "AI"}]}]}\n',
+    )
+    assert consumer_cluster_siblings(tmp_path, "topic:ai") == []  # alone in its cluster
+    assert consumer_cluster_siblings(tmp_path, "topic:absent") == []  # not in any cluster
+    assert consumer_cluster_siblings(tmp_path, "   ") == []  # blank id

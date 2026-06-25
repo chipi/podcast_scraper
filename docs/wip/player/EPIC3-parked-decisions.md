@@ -1,5 +1,14 @@
 # Epic 3 — parked items (need an operator decision)
 
+> **DECIDED (2026-06-25, operator):** **3.2** → new dedicated consumer endpoint (a). **3.3** →
+> **also a new dedicated, specialized endpoint** (operator overrode the "reuse search" lean — effort
+> is not the problem; KG-grounded episodes, not search relevance), tap opens the card. **3.4** →
+> exact/near-exact match, consumer first. **3.5** → first-Home interests card, top-12 clusters,
+> flag-gated ranking, recency default. All dedicated `/api/app/*` endpoints reuse the existing PURE
+> builders (`cil_queries.person_profile`/`topic_timeline`, `relational_queries.*`,
+> `consumer_topic_cluster_map`) — no proxying of operator routes.
+
+
 Autonomous session of 2026-06-25 completed the **low-assumption** slices — Retro (#1100), **3.1**
 cluster API + cluster-first panel (#1092), **3.6** char-level quote highlight (#1099). The
 remaining four each hinge on a design decision I deliberately did **not** guess (per "no crazy

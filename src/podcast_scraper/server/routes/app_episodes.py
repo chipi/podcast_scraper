@@ -27,6 +27,7 @@ from podcast_scraper.server.app_content_source import (
     transcript_corpus_relpath,
     transcript_relpath,
 )
+from podcast_scraper.server.app_corpus_access import corpus_root_or_503, load_json_artifact
 from podcast_scraper.server.app_gi_view import insights_from_gi
 from podcast_scraper.server.app_kg_view import entities_from_kg
 from podcast_scraper.server.app_search_view import build_search_response, filter_outcome_to_episode
@@ -60,17 +61,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["app"])
 
 
-def _corpus_root(request: Request) -> Path:
-    """Resolve the single shared corpus root, or 503 if the platform has no corpus."""
-    anchor = getattr(request.app.state, "output_dir", None)
-    if anchor is None:
-        raise HTTPException(status_code=503, detail="No corpus configured for the platform API.")
-    return Path(anchor)
-
-
 def _resolve(request: Request, slug: str) -> tuple[Path, CatalogEpisodeRow]:
     """Resolve ``(corpus_root, row)`` for a slug, or 404 when the slug is unknown."""
-    root = _corpus_root(request)
+    root = corpus_root_or_503(request)
     row = resolve_slug(root, slug)
     if row is None:
         raise HTTPException(status_code=404, detail="Unknown episode slug.")
@@ -84,24 +77,6 @@ def _content_block(root: Path, metadata_relpath: str) -> dict:
     return content if isinstance(content, dict) else {}
 
 
-def _load_artifact(root: Path, relpath: str) -> dict | None:
-    """Path-safe JSON load of a corpus artifact (GI/KG); ``None`` when missing/unreadable."""
-    if not relpath:
-        return None
-    safe = safe_relpath_under_corpus_root(root, relpath)
-    if not safe:
-        return None
-    path = root / safe
-    if not path.is_file():
-        return None
-    try:
-        loaded = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as exc:
-        logger.warning("Unreadable artifact %s: %s", path, exc)
-        return None
-    return loaded if isinstance(loaded, dict) else None
-
-
 def _episodes_page(
     request: Request,
     *,
@@ -111,7 +86,7 @@ def _episodes_page(
     page_size: int,
 ) -> AppEpisodesResponse:
     """Shared catalog-list builder for the global + per-podcast endpoints."""
-    root = _corpus_root(request)
+    root = corpus_root_or_503(request)
     source = get_content_source(request.app.state, root)
     offset = (page - 1) * page_size
     result = source.list_episodes(feed_id=feed_id, status=status, offset=offset, limit=page_size)
@@ -146,7 +121,7 @@ async def episodes_list(
 @router.get("/podcasts", response_model=AppPodcastsResponse)
 async def podcasts_list(request: Request) -> AppPodcastsResponse:
     """Distinct shows in the corpus, for Home 'Your shows' (PRD-042 FR6)."""
-    root = _corpus_root(request)
+    root = corpus_root_or_503(request)
     feeds = aggregate_feeds(build_catalog_rows_cumulative(root))
     items = [
         AppPodcastItem(
@@ -255,7 +230,7 @@ async def episode_insights(request: Request, slug: str) -> AppInsightsResponse:
     root, row = _resolve(request, slug)
     if not row.has_gi:
         return AppInsightsResponse(episode_slug=slug, insights=[])
-    artifact = _load_artifact(root, row.gi_relative_path)
+    artifact = load_json_artifact(root, row.gi_relative_path)
     return AppInsightsResponse(episode_slug=slug, insights=insights_from_gi(artifact))
 
 
@@ -265,7 +240,7 @@ async def episode_entities(request: Request, slug: str) -> AppEntitiesResponse:
     root, row = _resolve(request, slug)
     if not row.has_kg:
         return AppEntitiesResponse(episode_slug=slug)
-    persons, orgs, topics = entities_from_kg(_load_artifact(root, row.kg_relative_path))
+    persons, orgs, topics = entities_from_kg(load_json_artifact(root, row.kg_relative_path))
     # Cluster-first grouping (RFC-102 / PRD-043 FR1): attach corpus topic-cluster identity to each
     # topic (no-op when search/topic_clusters.json is absent → flat list, today's behaviour).
     cluster_map = consumer_topic_cluster_map(root)

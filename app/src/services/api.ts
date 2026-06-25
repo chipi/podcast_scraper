@@ -14,10 +14,12 @@ import type {
   InsightsResponse,
   ListEpisodesParams,
   Me,
+  PersonCard,
   PlaybackPosition,
   Podcast,
   SearchResponse,
   SegmentsResponse,
+  TopicCard,
 } from './types'
 
 const BASE = '/api/app'
@@ -118,6 +120,16 @@ export function searchEpisode(slug: string, q: string, topK = 8): Promise<Search
 /** "More like this" — semantic peer episodes; empty page when the index is unavailable. */
 export function getRelated(slug: string, topK = 6): Promise<EpisodesPage> {
   return getJSON<EpisodesPage>(`/episodes/${encodeURIComponent(slug)}/related`, { top_k: topK })
+}
+
+/** Person profile card — appears-in episodes + related people/topics (KG co-occurrence). */
+export function getPersonCard(id: string): Promise<PersonCard> {
+  return getJSON<PersonCard>(`/persons/${encodeURIComponent(id)}`)
+}
+
+/** Topic card — episodes-about + cluster siblings + related people (KG-grounded). */
+export function getTopicCard(id: string): Promise<TopicCard> {
+  return getJSON<TopicCard>(`/topics/${encodeURIComponent(id)}`)
 }
 
 /** Corpus-wide grounded search (Home "Ask your library"); empty when no index. */

@@ -23,6 +23,7 @@ from podcast_scraper.server.routes import (
     app_artwork,
     app_auth,
     app_episodes,
+    app_relational,
     app_search,
     app_user_state,
     artifacts,
@@ -236,6 +237,7 @@ def create_app(
     app.include_router(app_auth.router, prefix="/api/app")
     app.include_router(app_artwork.router, prefix="/api/app")
     app.include_router(app_episodes.router, prefix="/api/app")
+    app.include_router(app_relational.router, prefix="/api/app")
     app.include_router(app_search.router, prefix="/api/app")
     app.include_router(app_user_state.router, prefix="/api/app")
 

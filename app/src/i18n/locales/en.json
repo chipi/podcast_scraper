@@ -111,9 +111,23 @@
     "insights": "Insights",
     "related": "More like this",
     "showAll": "Show all",
-    "exploreTerm": "Search your library for {term}",
+    "openEntity": "Open {term}",
     "close": "Close panel",
     "empty": "Insights appear once this episode is processed."
+  },
+  "ec": {
+    "person": "Person",
+    "topic": "Topic",
+    "close": "Close",
+    "back": "Back",
+    "loading": "Loading…",
+    "notFound": "Nothing to show for this yet.",
+    "searchLibrary": "Search the library for “{term}”",
+    "personEpisodes": "In {count} episode | In {count} episodes",
+    "topicEpisodes": "Discussed in {count} episode | Discussed in {count} episodes",
+    "siblingTopics": "More in this theme",
+    "relatedPeople": "Related people",
+    "relatedTopics": "Related topics"
   },
   "queue": {
     "title": "Queue",
