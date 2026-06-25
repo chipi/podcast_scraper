@@ -106,6 +106,23 @@ describe('KnowledgePanel', () => {
     expect(push).toHaveBeenCalledWith({ name: 'search', query: { q: 'memory' } })
   })
 
+  it('orders topics cluster-first and marks the dominant cluster (RFC-102)', () => {
+    const topics: Topic[] = [
+      { id: 'topic:z', label: 'zulu', cluster_id: null, cluster_label: null, cluster_size: 0 },
+      { id: 'topic:ai', label: 'ai', cluster_id: 'tc:ml', cluster_label: 'machine learning', cluster_size: 5 },
+      { id: 'topic:ml', label: 'ml', cluster_id: 'tc:ml', cluster_label: 'machine learning', cluster_size: 5 },
+    ]
+    const w = mountPanel({ topics, persons: [] })
+    // Dominant-cluster label surfaces as the "Theme" lead-in.
+    expect(w.text()).toContain('machine learning')
+    // Dominant-cluster topics lead (ai, ml), the singleton (zulu) trails.
+    const chips = w.findAll('button').filter((b) => ['ai', 'ml', 'zulu'].includes(b.text()))
+    expect(chips.map((c) => c.text())).toEqual(['ai', 'ml', 'zulu'])
+    // Dominant chips carry the standout ring; the singleton does not.
+    expect(chips[0].classes()).toContain('ring-topic')
+    expect(chips[2].classes()).not.toContain('ring-topic')
+  })
+
   it('runs episode-scoped search and renders grounded results', async () => {
     const api = await import('../services/api')
     vi.spyOn(api, 'searchEpisode').mockResolvedValue({

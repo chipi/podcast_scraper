@@ -32,6 +32,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-099](RFC-099-learning-platform-consumer-client.md) | Learning Platform Consumer Client | [PRD-039](../prd/PRD-039-player.md) / [PRD-038](../prd/PRD-038-catalog.md) / [PRD-040](../prd/PRD-040-capture.md) | **Draft (v2.7, P1–P2):** new top-level PWA (Vue 3 + TS); transcript-sync engine, queue, Knowledge Panel, capture; a11y (WCAG 2.1 AA) + i18n from line one; consumes RFC-098. |
 | [RFC-100](RFC-100-audio-bridge-subsystem.md) | Audio Bridge Subsystem | [PRD-039](../prd/PRD-039-player.md) | **Draft (v2.7):** resolve a fresh, playable **origin enclosure URL** per episode (bridge, never rehost); freshness/redirect/expiry handling; optional no-store pass-through only when a host forces it. New subsystem. |
 | [RFC-101](RFC-101-personal-knowledge-corpus.md) | Personal Knowledge Corpus | [PRD-041](../prd/PRD-041-consolidation.md) | **Draft (v2.7, P3):** per-user projection over GIL/KG scoped to heard/captured episodes; grounded recall via retrieval (no LLM); cross-episode connections; spaced resurfacing; interest profile. The moat. |
+| [RFC-102](RFC-102-knowledge-clusters-entity-cards.md) | Knowledge Clusters, Entity Cards & Personalized Discovery | [PRD-043](../prd/PRD-043-knowledge-layer.md) | **Draft (Epic 3):** §1 topic clusters + cluster-first Insights panel **(Implemented, #1092)**; §2/§3 person/topic entity cards; §4 entities in search; §5 digest × interest-cluster personalization. |
 
 ## Completed RFCs
 

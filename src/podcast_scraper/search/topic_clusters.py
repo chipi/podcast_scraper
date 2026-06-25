@@ -90,29 +90,75 @@ def topic_cluster_enrichment_by_topic_id(
     return out
 
 
-def load_topic_cluster_enrichment_map(corpus_root: Path) -> Dict[str, Dict[str, str]]:
-    """Load ``search/topic_clusters.json`` and return enrichment map; empty if missing/invalid."""
+def _load_topic_clusters_payload(corpus_root: Path) -> Optional[Dict[str, Any]]:
+    """Path-safe load of ``search/topic_clusters.json`` → payload dict (None if missing/invalid)."""
     root_p = safe_resolve_directory(corpus_root)
     if root_p is None:
-        return {}
+        return None
     root_s = os.path.normpath(str(root_p))
     safe_prefix = root_s + os.sep
     joined = os.path.normpath(os.path.join(root_s, "search", TOPIC_CLUSTERS_FILENAME))
     if joined != root_s and not joined.startswith(safe_prefix):
-        return {}
+        return None
     # codeql[py/path-injection] -- joined under root_s (Type 1; CODEQL_DISMISSALS.md).
     if not os.path.isfile(joined):
-        return {}
+        return None
     try:
         # codeql[py/path-injection] -- joined sanitized above.
         with open(joined, encoding="utf-8") as fh:
             payload = cast(Dict[str, Any], json.loads(fh.read()))
     except (OSError, json.JSONDecodeError) as exc:
-        logger.warning("topic cluster enrichment: skip %s: %s", joined, exc)
-        return {}
-    if not isinstance(payload, dict):
+        logger.warning("topic clusters: skip %s: %s", joined, exc)
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def load_topic_cluster_enrichment_map(corpus_root: Path) -> Dict[str, Dict[str, str]]:
+    """Load ``search/topic_clusters.json`` and return enrichment map; empty if missing/invalid."""
+    payload = _load_topic_clusters_payload(corpus_root)
+    if payload is None:
         return {}
     return topic_cluster_enrichment_by_topic_id(payload)
+
+
+def consumer_topic_cluster_map(corpus_root: Path) -> Dict[str, Dict[str, Any]]:
+    """Per-topic cluster info for the consumer ``/entities`` endpoint (RFC-102 / PRD-043 FR1).
+
+    ``topic_id`` → ``{cluster_id, cluster_label, cluster_size}`` where ``cluster_id`` is the
+    cluster's ``graph_compound_parent_id``, ``cluster_label`` its canonical label, and
+    ``cluster_size`` the cross-corpus member count. Topics not in any multi-member cluster
+    (singletons) are simply absent. Empty when ``topic_clusters.json`` is missing/invalid.
+    """
+    payload = _load_topic_clusters_payload(corpus_root)
+    if payload is None:
+        return {}
+    raw = payload.get("clusters")
+    if not isinstance(raw, list):
+        return {}
+    out: Dict[str, Dict[str, Any]] = {}
+    for cl in raw:
+        if not isinstance(cl, Mapping):
+            continue
+        gpid = _graph_compound_parent_id(cl)
+        if not gpid:
+            continue
+        label_raw = cl.get("canonical_label")
+        label = str(label_raw).strip() if isinstance(label_raw, str) and label_raw.strip() else gpid
+        members = cl.get("members")
+        if not isinstance(members, list):
+            continue
+        size = len(members)
+        for m in members:
+            if not isinstance(m, Mapping):
+                continue
+            tid = m.get("topic_id")
+            if isinstance(tid, str) and tid.strip():
+                out[tid.strip()] = {
+                    "cluster_id": gpid,
+                    "cluster_label": label,
+                    "cluster_size": size,
+                }
+    return out
 
 
 def cosine_similarity_matrix(vectors: np.ndarray) -> np.ndarray:

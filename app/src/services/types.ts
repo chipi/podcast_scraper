@@ -153,10 +153,13 @@ export interface Entity {
   kind: 'person' | 'org'
 }
 
-/** A KG topic. */
+/** A KG topic. Cluster fields (RFC-102) drive cluster-first grouping; null/0 = singleton/no artifact. */
 export interface Topic {
   id: string
   label: string
+  cluster_id: string | null
+  cluster_label: string | null
+  cluster_size: number
 }
 
 export interface EntitiesResponse {

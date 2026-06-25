@@ -168,6 +168,7 @@ nav:
       - UXS-010 Person Profile: uxs/UXS-010-person-profile.md
       - UXS-011 Consumer Learning App: uxs/UXS-011-consumer-learning-app.md
       - UXS-012 Consumer Home: uxs/UXS-012-consumer-home.md
+      - UXS-013 Knowledge Clusters: uxs/UXS-013-knowledge-clusters.md
       - UXS Template: uxs/UXS_TEMPLATE.md
   - Architecture Decisions:
       - adr/index.md
@@ -369,6 +370,7 @@ nav:
       - RFC-099 Learning Platform Consumer Client: rfc/RFC-099-learning-platform-consumer-client.md
       - RFC-100 Audio Bridge Subsystem: rfc/RFC-100-audio-bridge-subsystem.md
       - RFC-101 Personal Knowledge Corpus: rfc/RFC-101-personal-knowledge-corpus.md
+      - RFC-102 Knowledge Clusters & Entity Cards: rfc/RFC-102-knowledge-clusters-entity-cards.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md

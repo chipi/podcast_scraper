@@ -50,12 +50,59 @@ function exploreSearch(term: string): void {
   if (q) void router.push({ name: 'search', query: { q } })
 }
 
-// --- Topics + People as one compact, expandable row (height-optimised) ---
-type Tag = { key: string; label: string; kind: 'topic' | 'person' }
-const allTags = computed<Tag[]>(() => [
-  ...props.topics.map((tp) => ({ key: tp.id, label: tp.label, kind: 'topic' as const })),
-  ...props.persons.map((p) => ({ key: p.id, label: p.name, kind: 'person' as const })),
-])
+// --- Topics + People as one compact, expandable row; topics cluster-first (RFC-102) ---
+type Tag = { key: string; label: string; kind: 'topic' | 'person'; dominant: boolean }
+
+// How many of THIS episode's topics fall in each corpus cluster (intra-episode dominance).
+const topicClusterCounts = computed<Record<string, number>>(() => {
+  const c: Record<string, number> = {}
+  for (const t of props.topics) if (t.cluster_id) c[t.cluster_id] = (c[t.cluster_id] ?? 0) + 1
+  return c
+})
+// The dominant cluster = the one with the most of this episode's topics (≥2), tie → larger corpus
+// cluster; null when no topic is clustered or none reaches 2 (then it's a flat list).
+const dominantClusterId = computed<string | null>(() => {
+  const counts = topicClusterCounts.value
+  let best: string | null = null
+  let bestCount = 1
+  let bestSize = -1
+  for (const t of props.topics) {
+    if (!t.cluster_id) continue
+    const n = counts[t.cluster_id] ?? 0
+    if (n > bestCount || (n === bestCount && t.cluster_size > bestSize)) {
+      best = t.cluster_id
+      bestCount = n
+      bestSize = t.cluster_size
+    }
+  }
+  return best
+})
+const dominantClusterLabel = computed(
+  () => props.topics.find((t) => t.cluster_id === dominantClusterId.value)?.cluster_label ?? null,
+)
+const allTags = computed<Tag[]>(() => {
+  const counts = topicClusterCounts.value
+  const dom = dominantClusterId.value
+  // Rank: dominant cluster first, then other clustered (larger intra-episode groups earlier),
+  // then singletons. Stable sort keeps original order within a rank.
+  const rank = (t: { cluster_id: string | null }): number =>
+    t.cluster_id === dom && dom ? 0 : t.cluster_id ? 100 - (counts[t.cluster_id] ?? 0) : 1000
+  const topics = [...props.topics].sort((a, b) => rank(a) - rank(b))
+  return [
+    ...topics.map((tp) => ({
+      key: tp.id,
+      label: tp.label,
+      kind: 'topic' as const,
+      dominant: Boolean(dom) && tp.cluster_id === dom,
+    })),
+    ...props.persons.map((p) => ({
+      key: p.id,
+      label: p.name,
+      kind: 'person' as const,
+      dominant: false,
+    })),
+  ]
+})
 const TAG_COLLAPSED = 6
 const tagsExpanded = ref(false)
 const visibleTags = computed(() =>
@@ -182,16 +229,24 @@ watch(() => props.slug, (s) => loadRelated(s))
         <p class="text-sm leading-relaxed text-surface-foreground">{{ summary }}</p>
       </section>
 
-      <!-- Topics & People — one compact, expandable row; tap a chip to explore the library -->
+      <!-- Topics & People — one compact, expandable row; topics cluster-first (RFC-102) -->
       <section v-if="allTags.length" class="mb-5">
-        <h3 class="lp-kicker mb-2">{{ t('kp.tags') }}</h3>
+        <div class="mb-2 flex items-baseline justify-between gap-2">
+          <h3 class="lp-kicker">{{ t('kp.tags') }}</h3>
+          <span v-if="dominantClusterLabel" class="truncate text-xs text-topic">
+            {{ t('kp.theme', { cluster: dominantClusterLabel }) }}
+          </span>
+        </div>
         <div class="flex flex-wrap gap-1.5">
           <button
             v-for="tag in visibleTags"
             :key="tag.key"
             type="button"
             class="rounded-full bg-overlay px-2.5 py-1 text-xs transition hover:bg-elevated"
-            :class="tag.kind === 'topic' ? 'text-topic' : 'text-person'"
+            :class="[
+              tag.kind === 'topic' ? 'text-topic' : 'text-person',
+              tag.dominant ? 'ring-1 ring-topic' : '',
+            ]"
             :aria-label="t('kp.exploreTerm', { term: tag.label })"
             @click="exploreSearch(tag.label)"
           >

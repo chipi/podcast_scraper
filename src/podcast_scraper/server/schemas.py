@@ -204,10 +204,21 @@ class AppEntity(BaseModel):
 
 
 class AppTopic(BaseModel):
-    """A KG topic discussed in an episode."""
+    """A KG topic discussed in an episode (RFC-102: cluster fields for cluster-first grouping)."""
 
     id: str = Field(description="Canonical topic id (topic:{slug}).")
     label: str = Field(description="Topic display label.")
+    cluster_id: str | None = Field(
+        default=None,
+        description="Corpus topic-cluster id (graph_compound_parent_id) when the topic belongs to "
+        "a multi-member cluster; null for singletons. From search/topic_clusters.json.",
+    )
+    cluster_label: str | None = Field(
+        default=None, description="Canonical label of the topic's cluster, when clustered."
+    )
+    cluster_size: int = Field(
+        default=0, ge=0, description="Cross-corpus member count of the topic's cluster (0 if none)."
+    )
 
 
 class AppEntitiesResponse(BaseModel):
