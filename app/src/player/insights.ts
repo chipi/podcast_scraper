@@ -10,6 +10,33 @@ export interface GroundedSpan {
   insightId: string
   insightText: string
   insightType: string | null
+  /** Verbatim supporting quote (for char-level highlight of the exact phrase, 3.6). */
+  quote: string
+}
+
+/**
+ * Char-level highlight range of a grounded quote inside one segment's text (RFC-102 / PRD-043 FR5).
+ * Text-matched (NOT char offsets — those drift across transcript versions). Returns the split
+ * `{pre, match, post}` when the quote (or this whole segment, for a multi-segment quote) can be
+ * located; `null` when it can't — the caller then underlines the whole segment (safe fallback).
+ */
+export function quoteHighlight(
+  segmentText: string,
+  quote: string,
+): { pre: string; match: string; post: string } | null {
+  const s = segmentText
+  const q = quote.trim()
+  if (!q || !s) return null
+  // Quote sits inside this segment → highlight just the matched phrase (short single-segment quote).
+  const idx = s.toLowerCase().indexOf(q.toLowerCase())
+  if (idx !== -1) {
+    return { pre: s.slice(0, idx), match: s.slice(idx, idx + q.length), post: s.slice(idx + q.length) }
+  }
+  // This whole segment sits inside the quote → it's all part of the quote (middle of a long quote).
+  if (s.trim() && q.toLowerCase().includes(s.trim().toLowerCase())) {
+    return { pre: '', match: s, post: '' }
+  }
+  return null
 }
 
 /**
@@ -30,7 +57,12 @@ export function groundedSpansBySegment(
       for (let i = 0; i < segments.length; i++) {
         const s = segments[i]
         if (s.start < qEnd && s.end > qStart && !(i in out)) {
-          out[i] = { insightId: ins.id, insightText: ins.text, insightType: ins.insight_type }
+          out[i] = {
+            insightId: ins.id,
+            insightText: ins.text,
+            insightType: ins.insight_type,
+            quote: q.text,
+          }
         }
       }
     }

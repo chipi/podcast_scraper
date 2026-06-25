@@ -5,11 +5,14 @@
  * but backs off while the user is manually scrolling (re-enabled after idle) and respects
  * prefers-reduced-motion. Tapping a segment emits `seek` with its start time.
  */
-import { nextTick, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Segment } from '../services/types'
 import type { GroundedSpan } from '../player/insights'
+import { quoteHighlight } from '../player/insights'
 import { formatTime } from '../player/transcriptSync'
+
+type Split = { pre: string; match: string; post: string }
 
 const props = withDefaults(
   defineProps<{
@@ -31,6 +34,16 @@ function onSegmentClick(i: number, seg: Segment): void {
   const g = props.grounded[i]
   if (g) emit('insight', g.insightId)
 }
+
+// Char-level highlight split per grounded segment (3.6); null → whole-segment underline fallback.
+const highlights = computed<Record<number, Split | null>>(() => {
+  const out: Record<number, Split | null> = {}
+  for (const key of Object.keys(props.grounded)) {
+    const i = Number(key)
+    out[i] = quoteHighlight(props.segments[i]?.text ?? '', props.grounded[i].quote)
+  }
+  return out
+})
 
 const items = ref<HTMLElement[]>([])
 let userScrolling = false
@@ -98,11 +111,16 @@ function speakerLabel(s: string | null): string | null {
         </span>
         <span
           class="text-sm leading-relaxed"
-          :class="[
-            i === activeIndex ? 'text-surface-foreground font-semibold' : 'text-muted',
-            grounded[i] ? 'underline decoration-grounded decoration-2 underline-offset-2' : '',
-          ]"
-        >{{ seg.text }}</span>
+          :class="i === activeIndex ? 'text-surface-foreground font-semibold' : 'text-muted'"
+        >
+          <!-- Char-level: underline only the matched quote phrase within the segment (3.6). -->
+          <template v-if="grounded[i] && highlights[i]">{{ highlights[i]!.pre }}<span class="text-grounded underline decoration-grounded decoration-2 underline-offset-2">{{ highlights[i]!.match }}</span>{{ highlights[i]!.post }}</template>
+          <!-- Fallback: whole-segment underline (grounded but quote not locatable in this segment). -->
+          <span
+            v-else
+            :class="grounded[i] ? 'underline decoration-grounded decoration-2 underline-offset-2' : ''"
+          >{{ seg.text }}</span>
+        </span>
       </span>
     </button>
   </div>

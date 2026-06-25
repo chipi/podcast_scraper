@@ -37,13 +37,17 @@ describe('TranscriptList', () => {
     expect(w.emitted('seek')?.[0]).toEqual([2.5])
   })
 
-  it('highlights grounded segments and emits the insight id on tap', async () => {
+  it('highlights grounded segments, char-level underlines the quote, and emits insight on tap', async () => {
     const grounded: Record<number, GroundedSpan> = {
-      0: { insightId: 'ins-1', insightText: 'A claim.', insightType: 'claim' },
+      0: { insightId: 'ins-1', insightText: 'A claim.', insightType: 'claim', quote: 'world' },
     }
     const w = mountList({ segments, activeIndex: -1, grounded })
-    expect(w.findAll('button')[0].classes()).toContain('border-grounded')
-    await w.findAll('button')[0].trigger('click')
+    const btn = w.findAll('button')[0]
+    expect(btn.classes()).toContain('border-grounded')
+    // Char-level: only the matched phrase "world" is underlined, not the whole "Hello world.".
+    const mark = btn.findAll('span').find((s) => s.classes().includes('decoration-grounded'))
+    expect(mark?.text()).toBe('world')
+    await btn.trigger('click')
     expect(w.emitted('seek')?.[0]).toEqual([0])
     expect(w.emitted('insight')?.[0]).toEqual(['ins-1'])
   })
