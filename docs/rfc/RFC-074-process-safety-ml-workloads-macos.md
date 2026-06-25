@@ -1,6 +1,6 @@
 # RFC-074: Process Safety for ML Workloads on macOS
 
-- **Status**: Draft
+- **Status**: Completed (v2.6.0–v2.7) — process-safety mitigations all shipped: Makefile `cleanup-processes` / `check-zombie` / `check-spotlight` targets live (with the `cleanup-processes` prerequisite wired into test-unit/test-integration/test-e2e), `PYTEST_WORKERS ?= 2` simplification in place, pre-commit hook `MAX_HOOK_SECONDS=120` watchdog active (`.github/hooks/pre-commit`), `scripts/cache/preload_ml_models.py` carries SIGALRM-based timeout (1200s default / 7200s `--production` / `PRELOAD_TIMEOUT` override). No system-crash incidents recurred in the months following these changes.
 - **Authors**: Marko Dragoljevic
 - **Stakeholders**: All contributors running CI locally on macOS
 - **Related Documents**:

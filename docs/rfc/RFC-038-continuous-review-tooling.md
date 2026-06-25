@@ -4,7 +4,7 @@
 
 - **RFC ID**: RFC-038
 - **Title**: Continuous Review Tooling Implementation
-- **Status**: Draft
+- **Status**: Completed (v2.4–v2.7) — core scope shipped: Dependabot (#169 closed, `.github/dependabot.yml` live + ADR-029 ratified), pydeps module coupling analysis (#170 closed, Makefile `deps-graph` / `deps-graph-full` / `call-graph` targets + ADR-030 ratified). The pre-release checklist item (#255) is tracked as a future enhancement and does not block this RFC's promotion — ADR-031 captures the decision boundary.
 - **Related ADRs**:
   - [ADR-029: Grouped Dependency Automation](../adr/ADR-029-grouped-dependency-automation.md)
   - [ADR-030: Periodic Module Coupling Analysis](../adr/ADR-030-periodic-module-coupling-analysis.md)

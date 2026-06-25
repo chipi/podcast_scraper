@@ -1,6 +1,6 @@
 # RFC-070: Semantic Corpus Search — Platform & Future Backends
 
-- **Status**: Draft (not implemented; captures deferred scope split from [RFC-061](RFC-061-semantic-corpus-search.md))
+- **Status**: Superseded by [RFC-090](RFC-090-hybrid-retrieval.md) (v2.6.0). The original RFC-061 → RFC-070 plan was "FAISS Phase 1 → Qdrant + pgvector Phase 2 backends behind a `VectorStore` protocol." Instead, FAISS was retired entirely via [ADR-099](../adr/ADR-099-lancedb-first-single-index-search.md) / PR #1010 in favour of a single LanceDB-first hybrid pipeline (BM25 + dense + RRF, two-tier segment/insight). Native filtering, hybrid retrieval, and online clustering — the three motivating outcomes for RFC-070 — all shipped on that path; Qdrant + pgvector backends are no longer planned. Cross-show Topic clustering shipped via [RFC-097](RFC-097-unified-kg-gi-ontology-v2.md) chunk 9. Kept as historical design record.
 - **Authors**: Podcast Scraper Team
 - **Stakeholders**: Core team, platform owners, operators needing multi-tenant or remote vector search
 - **Related PRDs**:

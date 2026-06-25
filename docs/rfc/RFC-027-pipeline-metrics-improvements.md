@@ -1,6 +1,6 @@
 # RFC-027: Pipeline Metrics Improvements
 
-- **Status**: Draft
+- **Status**: Completed (v2.4–v2.7) — issue #120 closed 2026-02-03. The metrics infrastructure evolved well beyond the RFC's original Phase 1–3 scope: `src/podcast_scraper/workflow/metrics.py` (1668 LOC) now covers stage timing, per-episode operation timing, LLM provider call tracking, GI/KG-specific metric capture, cost monitoring (`cost_monitoring.py`), and JSONL streaming (`jsonl_emitter.py`). Two-tier output (DEBUG detail + INFO summary) shipped via `log_metrics()`. Export-friendly via `to_json()` and the dashboard pipeline (`scripts/dashboard/`). The exact field names in this RFC (`peak_memory_mb`, `whisper_model_loading_time`) drifted during evolution — the broader metric set is richer than the RFC envisioned. Proactive PR-comment + webhook alerting (Phase 4 in the original plan) split out to [RFC-043](RFC-043-automated-metrics-alerts.md).
 - **Authors**:
 - **Stakeholders**: Maintainers, developers, performance analysts
 - **Related Issues**:

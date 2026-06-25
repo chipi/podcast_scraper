@@ -116,21 +116,29 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-059](RFC-059-speaker-detection-refactor-test-audio.md) | Speaker Detection Refactor & Test Audio Improvements | PRD-020 / PRD-008 / PRD-002 | v2.6.0–v2.7 | `speaker_detectors/` package refactor (NER, hosts, guests, normalization) + test-audio improvements shipped; all 3 tracked issues (#269, #111, #109) closed. |
 | [RFC-060](RFC-060-diarization-aware-commercial-cleaning.md) | Diarization-Aware Commercial Detection & Cleaning | PRD-020 / PRD-005 | v2.6.0–v2.7 | Phase 1 (#486) + Phase 2 (#488) closed; diarization signals layer shipped (`src/podcast_scraper/cleaning/commercial/diarization_signals.py`), integrated with hybrid summarization triggers. |
 | [RFC-083](RFC-083-prod-failover-orchestration-and-cutover.md) | Production Failover — Orchestration, Spare Stack, and Traffic Cutover | — | v2.7 | #762/#763/#764 closed; ADR-089/090/091/092 Accepted; `prod-failover-stand-up.yml` orchestrator + 8 `drill-*.yml` workflows shipped (drill-bootstrap / drill-restore / drill-promote / drill-cutover / drill-rollback / drill-teardown / drill-status / drill-end-to-end). |
+| [RFC-027](RFC-027-pipeline-metrics-improvements.md) | Pipeline Metrics Improvements | PRD-001 | v2.4–v2.7 | #120 closed 2026-02-03. `src/podcast_scraper/workflow/metrics.py` (1668 LOC) covers stage timing, per-episode timing, LLM call tracking, GI/KG metrics, cost monitoring, JSONL streaming. Two-tier output (DEBUG detail + INFO summary) + `to_json()` export shipped. RFC's specific Phase-2 field names drifted during evolution — the actual surface is richer. Proactive alerting split out to RFC-043. |
+| [RFC-038](RFC-038-continuous-review-tooling.md) | Continuous Review Tooling | — | v2.4–v2.7 | Dependabot (#169 closed, `.github/dependabot.yml` + ADR-029) and pydeps module-coupling analysis (#170 closed, Makefile `deps-graph` / `call-graph` + ADR-030) both shipped. Pre-release checklist (#255) is tracked as a future enhancement (ADR-031) and does not block this RFC's promotion. |
+| [RFC-043](RFC-043-automated-metrics-alerts.md) | Automated Metrics Alerts | — | v2.7 | Completed via redirect: operator-side alerting on Sentry + Grafana + Langfuse (the deployed o11y surface). Codebase emits everything alerts need; thresholds live with the vendor. Operator recipes documented in [`OBSERVABILITY_EXTENSIONS.md` §Operator alerting](../guides/OBSERVABILITY_EXTENSIONS.md#operator-alerting--sentry--grafana). Nightly `alerts[]` detection in `scripts/dashboard/generate_metrics.py` still feeds Grafana panels. Original PR-comment + webhook scripts deliberately abandoned. |
+| [RFC-054](RFC-054-e2e-mock-response-strategy.md) | Flexible E2E Mock Response Strategy | — | v2.4–v2.7 | #135/#399/#401 closed. Implementation took a per-provider mock-client shape (`tests/fixtures/mock_server/{gemini,mistral}_mock_client.py`) plus dedicated unit suites for non-functional concerns (`test_retryable_errors.py` / `test_retry_integration.py` / `test_llm_circuit_breaker.py` / `test_provider_metrics.py` / `test_download_resilience.py`). Functional + non-functional separation, error / 429 / 5xx / timeout coverage all in place — just without the centralized router this RFC drafted. |
+| [RFC-070](RFC-070-semantic-corpus-search-platform-future.md) | Semantic Corpus Search — Platform & Future Backends | PRD-021 | v2.6.0 | **Superseded by RFC-090.** FAISS retired via [ADR-099](../adr/ADR-099-lancedb-first-single-index-search.md) / PR #1010 in favour of LanceDB-first hybrid retrieval (BM25 + dense + RRF). Native filtering, hybrid retrieval, online clustering — RFC-070's three motivating outcomes — all shipped on that path. Qdrant + pgvector backends no longer planned. Cross-show Topic clustering shipped via RFC-097 chunk 9. |
+| [RFC-073](RFC-073-autoresearch-v2-framework.md) | Autoresearch v2 Framework | PRD-007 | v2.6.0 | dev/held-out split (`curated_5feeds_dev_v1` + `curated_5feeds_benchmark_v2`), 40% fraction contestation, Efficiency rubric, seed plumbing for OpenAI, prose extraction before judging (`autoresearch/JUDGING.md`), v2 reference card (`autoresearch/openai_v2_comparison_2026-04-14.md`) all shipped. Cross-provider replication + multi-run averaging tracked as Future Work. |
+| [RFC-074](RFC-074-process-safety-ml-workloads-macos.md) | Process Safety for ML Workloads on macOS | — | v2.6.0–v2.7 | Makefile `cleanup-processes` / `check-zombie` / `check-spotlight` targets shipped + wired as prerequisites for test-unit/test-integration/test-e2e. `PYTEST_WORKERS ?= 2` simplification, pre-commit `MAX_HOOK_SECONDS=120` watchdog (`.github/hooks/pre-commit`), SIGALRM-based preload timeout in `scripts/cache/preload_ml_models.py` (1200s default / 7200s `--production` / `PRELOAD_TIMEOUT` override) all live. No system-crash incidents recurred since. |
 
 ## Gap analysis {:#gaps}
 
 **Counts (reconcile when moving RFCs):** **100** files under `docs/rfc/RFC-*.md` -- IDs **RFC-001--RFC-101**
-with **no RFC-014**. **8** open (in-flight, partial implementation), **80** completed, and **12** Draft
+with **no RFC-014**. **8** open (in-flight, partial implementation), **87** completed, and **4** Draft
 (not indexed until promoted) in the tables above.
 
 **Open RFC clusters:** Consumer Learning Platform foundation (**RFC-098**–**RFC-101**), VPS public edge
 (**RFC-087**), ML query router (**RFC-092**), audio pipeline separation + viewer media (**RFC-096**),
 KG proximity signal — rejected (**RFC-091**).
 
-**Draft RFCs (not indexed):** Pipeline metrics (**RFC-027**), continuous review (**RFC-038**),
-metrics alerts (**RFC-043**), Postgres projection (**RFC-051**), adaptive summarization routing
-(**RFC-053**), E2E mock composition (**RFC-054**), semantic search platform (**RFC-070**),
-enrichment layer (**RFC-073**), process safety (**RFC-074**).
+**Draft RFCs (not indexed):** Postgres projection (**RFC-051**), adaptive summarization routing
+(**RFC-053**), corpus topic clustering as separate artifact (**RFC-075**;
+RFC-097 chunk 9 shipped clustering directly into KG, not as separate `topic_clusters.json`),
+enrichment-layer architecture (**RFC-088**; bridge.json + typed nodes shipped via RFC-097 v2;
+QueryEnricher protocol + typed contradiction enrichers remain open).
 These are discoverable by filename under `docs/rfc/` but excluded from the index per the
 [index inclusion rule](../guides/MARKDOWN_LINTING_GUIDE.md) (Draft docs are not indexed).
 

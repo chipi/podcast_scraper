@@ -1,6 +1,6 @@
 # RFC-054: Flexible E2E Mock Response Strategy
 
-- **Status**: Draft
+- **Status**: Completed (v2.4–v2.7) — all 3 tracked issues (#135, #399, #401) closed. Implementation took a per-provider mock-client shape (`tests/fixtures/mock_server/{gemini,mistral}_mock_client.py`) rather than the centralized router this RFC drafted, plus dedicated unit-test surfaces for the non-functional concerns: retry behaviour (`tests/unit/podcast_scraper/utils/test_retryable_errors.py`, `test_retry_integration.py`), circuit breaker (`test_llm_circuit_breaker.py`), provider metrics (`test_provider_metrics.py`), download resilience (`test_download_resilience.py`). Functional + non-functional concerns are separated; error / rate-limit / timeout scenarios are covered — just via per-suite scaffolding rather than the shared response-profile router. RFC kept as the historical design record.
 - **Authors**:
 - **Stakeholders**: Maintainers, developers writing E2E tests, CI/CD pipeline maintainers
 - **Related Issues**:
