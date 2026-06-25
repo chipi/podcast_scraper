@@ -6,7 +6,7 @@ interests, episodes rank by a provisional **significance × interest-cluster-aff
 gated behind ``APP_PERSONALIZED_RANKING`` until the weights are tuned on real engagement.
 
 No new persistence: interests are per-user files; this only re-orders the shared catalog. The
-ranking re-uses the same KG view as the entity endpoints; the candidate pool is bounded by the
+ranking reuses the same KG view as the entity endpoints; the candidate pool is bounded by the
 caller so the per-episode KG loads stay cheap.
 """
 

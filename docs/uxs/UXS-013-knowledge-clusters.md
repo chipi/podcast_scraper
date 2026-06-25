@@ -59,7 +59,7 @@ something). Resolved in parallel with the passage search, so a miss never delays
 
 - **First-Home card:** a dismissible "Personalize your Home" card (signed-in only; remembered via
   `localStorage`) opens the **interests picker**.
-- **Picker:** a modal over the corpus's **top-12 clusters** (toggle chips; pre-selected from saved
+- **Picker:** a modal over the corpus's **top-12 clusters** (toggle chips; preselected from saved
   interests; Save / Not now). Modal a11y matches the entity card (focus trap, ESC/backdrop).
 - **Effect:** the Home "What's new" feed re-ranks by interest affinity **only** when the deployment
   flag is on; by default (and signed-out) it is recency — visually identical to today.
