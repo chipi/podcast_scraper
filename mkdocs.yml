@@ -151,6 +151,7 @@ nav:
       - PRD-039 Player: prd/PRD-039-player.md
       - PRD-040 Capture: prd/PRD-040-capture.md
       - PRD-041 Consolidation: prd/PRD-041-consolidation.md
+      - PRD-042 Home: prd/PRD-042-home.md
       - PRD Template: prd/PRD_TEMPLATE.md
   - UX Specifications:
       - uxs/index.md
@@ -165,6 +166,7 @@ nav:
       - UXS-009 Position Tracker: uxs/UXS-009-position-tracker.md
       - UXS-010 Person Profile: uxs/UXS-010-person-profile.md
       - UXS-011 Consumer Learning App: uxs/UXS-011-consumer-learning-app.md
+      - UXS-012 Consumer Home: uxs/UXS-012-consumer-home.md
       - UXS Template: uxs/UXS_TEMPLATE.md
   - Architecture Decisions:
       - adr/index.md

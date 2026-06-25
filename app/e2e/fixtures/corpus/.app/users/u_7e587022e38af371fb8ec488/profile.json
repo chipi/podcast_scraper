@@ -1,0 +1,7 @@
+{
+  "email": "dev@localhost",
+  "name": "Dev User",
+  "provider": "mock",
+  "subject": "dev-local",
+  "disabled": false
+}

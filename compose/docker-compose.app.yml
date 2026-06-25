@@ -1,0 +1,39 @@
+# Consumer Learning Player overlay (Epic 2 / RFC-099 §10).
+#
+# Adds the consumer app as its OWN container, independent of the operator viewer + API
+# images. It serves the PWA on its own port and proxies /api → the `api` service over the
+# shared compose network (see app/nginx.conf). It proxies NO audio — the client plays origin
+# enclosure URLs directly (bridge-never-rehost). One API → this web PWA + a future mobile app.
+#
+# Use WITH the stack compose so the `api` service exists:
+#   docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.app.yml up -d --build
+#
+# For a working sign-in locally, set the dev mock provider on the API (NEVER in prod):
+#   APP_OAUTH_PROVIDER=mock APP_SESSION_SECRET=dev-secret docker compose ... up -d --build
+
+services:
+  api:
+    # Merge-only: surface the consumer-auth env on the existing api service (does not
+    # redefine it). Empty defaults keep auth inert (reads still work); set mock for a demo.
+    environment:
+      APP_OAUTH_PROVIDER: ${APP_OAUTH_PROVIDER:-}
+      APP_SESSION_SECRET: ${APP_SESSION_SECRET:-}
+      APP_SESSION_COOKIE_SECURE: ${APP_SESSION_COOKIE_SECURE:-false}
+
+  learning-app:
+    build:
+      context: ../app
+      dockerfile: Dockerfile
+    image: podcast-scraper-learning-app:latest
+    ports:
+      - "${APP_PORT:-8081}:80"
+    healthcheck:
+      # busybox wget on nginx:alpine; accept any HTTP/ response line as "nginx alive".
+      test: ["CMD-SHELL", "wget -qSO /dev/null http://127.0.0.1/ 2>&1 | grep -q 'HTTP/'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      api:
+        condition: service_healthy

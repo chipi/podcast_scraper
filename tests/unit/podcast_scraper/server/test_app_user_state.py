@@ -21,6 +21,15 @@ def test_playback_roundtrip(tmp_path: Path) -> None:
     assert first is not None and first["position_seconds"] == 42.5
 
 
+def test_list_playback_newest_first(tmp_path: Path) -> None:
+    assert st.list_playback(tmp_path, UID) == []
+    st.set_playback(tmp_path, UID, "ep1", 10.0, 1000)
+    st.set_playback(tmp_path, UID, "ep2", 20.0, 2000)
+    items = st.list_playback(tmp_path, UID)
+    assert [i["slug"] for i in items] == ["ep2", "ep1"]  # newest updated_at first
+    assert items[0]["position_seconds"] == 20.0
+
+
 def test_queue_roundtrip(tmp_path: Path) -> None:
     assert st.get_queue(tmp_path, UID) == []
     assert st.set_queue(tmp_path, UID, ["a", "b"]) == ["a", "b"]

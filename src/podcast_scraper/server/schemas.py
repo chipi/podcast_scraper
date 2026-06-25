@@ -75,9 +75,16 @@ class AppEpisodeDetail(BaseModel):
         default=None, ge=0, description="Episode duration when known."
     )
     episode_image_url: str | None = Field(
-        default=None, description="Episode artwork URL when present."
+        default=None, description="Remote (feed-hosted) episode artwork URL — fallback only."
     )
-    feed_image_url: str | None = Field(default=None, description="Feed artwork URL when present.")
+    feed_image_url: str | None = Field(
+        default=None, description="Remote (feed-hosted) feed artwork URL — fallback only."
+    )
+    artwork_url: str | None = Field(
+        default=None,
+        description="Preferred artwork: our locally-stored copy (large size for the player) "
+        "when present. Clients use this, falling back to the remote image URLs.",
+    )
     summary_title: str | None = Field(default=None, description="Summary title when present.")
     summary_bullets: list[str] = Field(default_factory=list, description="Summary bullet points.")
     summary_text: str | None = Field(
@@ -88,6 +95,72 @@ class AppEpisodeDetail(BaseModel):
     has_gi: bool = Field(description="Whether a grounded-insight artifact exists.")
     has_kg: bool = Field(description="Whether a knowledge-graph artifact exists.")
     has_bridge: bool = Field(description="Whether a canonical-identity bridge artifact exists.")
+
+
+class AppEpisodeSummary(BaseModel):
+    """One episode card in the consumer catalog (PRD-038; list-item shape).
+
+    Lightweight by design: it carries the fields the catalog scan already produces.
+    Per-artifact depth counts (insight_count, speaker_count) are intentionally NOT
+    computed here (they would cost an artifact load per row) — the client reads them
+    lazily from the detail / insights / entities endpoints. Artifact-presence flags
+    (``has_gi`` / ``has_kg``) are the cheap depth signal for cards.
+    """
+
+    slug: str = Field(description="Stable episode slug.")
+    title: str = Field(description="Episode title.")
+    feed_id: str = Field(description="Owning feed id.")
+    podcast_title: str | None = Field(default=None, description="Feed/show display title.")
+    publish_date: str | None = Field(
+        default=None, description="Publish date (YYYY-MM-DD) when known."
+    )
+    duration_seconds: int | None = Field(
+        default=None, ge=0, description="Episode duration when known."
+    )
+    episode_image_url: str | None = Field(
+        default=None, description="Remote (feed-hosted) episode artwork URL — fallback only."
+    )
+    feed_image_url: str | None = Field(
+        default=None, description="Remote (feed-hosted) feed artwork URL — fallback only."
+    )
+    artwork_url: str | None = Field(
+        default=None,
+        description="Preferred artwork: our locally-stored copy (thumb size) when present. "
+        "Clients use this, falling back to the remote image URLs.",
+    )
+    status: Literal["ready", "pending"] = Field(
+        default="ready",
+        description="Playability: 'ready' when a transcript exists, else 'pending'. "
+        "Local-content MVP yields 'ready'; richer states arrive with scrape-on-demand (#1069).",
+    )
+    summary_preview: str | None = Field(
+        default=None,
+        description="Short, clean one-line lede for the card (summary title / first sentence) — "
+        "NOT the bullets joined; the full bullets are in `summary_bullets`.",
+    )
+    summary_bullets: list[str] = Field(
+        default_factory=list,
+        description="Full summary bullet points, for the card's expand-on-demand insights view "
+        "(so the card stays compact while the complete summary stays one tap/hover away).",
+    )
+    topics: list[str] = Field(
+        default_factory=list, description="Short topic labels for card pills (from summary)."
+    )
+    has_transcript: bool = Field(description="Whether a transcript file is referenced.")
+    has_summary: bool = Field(description="Whether any summary content is present.")
+    has_gi: bool = Field(description="Whether a grounded-insight artifact exists.")
+    has_kg: bool = Field(description="Whether a knowledge-graph artifact exists.")
+    has_bridge: bool = Field(description="Whether a canonical-identity bridge artifact exists.")
+
+
+class AppEpisodesResponse(BaseModel):
+    """Paginated episode list for GET /api/app/episodes and /podcasts/{id}/episodes."""
+
+    items: list[AppEpisodeSummary] = Field(default_factory=list)
+    page: int = Field(ge=1, description="1-based page index for this response.")
+    page_size: int = Field(ge=1, description="Requested page size.")
+    total: int = Field(ge=0, description="Total episodes matching the filter.")
+    has_more: bool = Field(description="Whether more pages exist after this one.")
 
 
 class AppQuote(BaseModel):
@@ -158,6 +231,31 @@ class PlaybackUpdate(BaseModel):
     """Body for PUT /api/app/playback/{slug}."""
 
     position_seconds: float = Field(ge=0, description="Playback position in seconds.")
+
+
+class PlaybackListResponse(BaseModel):
+    """All saved playback positions (Home 'Continue listening')."""
+
+    items: list[PlaybackPosition] = Field(default_factory=list)
+
+
+class AppPodcastItem(BaseModel):
+    """One show in the user's library (Home 'Your shows')."""
+
+    feed_id: str = Field(description="Feed id.")
+    title: str | None = Field(default=None, description="Show display title.")
+    artwork_url: str | None = Field(
+        default=None, description="Preferred (local) show artwork, thumb size."
+    )
+    image_url: str | None = Field(default=None, description="Remote feed image URL — fallback.")
+    description: str | None = Field(default=None, description="Show description/blurb when known.")
+    episode_count: int = Field(ge=0, default=0, description="Episodes available for this show.")
+
+
+class AppPodcastsResponse(BaseModel):
+    """Response for GET /api/app/podcasts — distinct shows in the corpus."""
+
+    items: list[AppPodcastItem] = Field(default_factory=list)
 
 
 class QueueResponse(BaseModel):

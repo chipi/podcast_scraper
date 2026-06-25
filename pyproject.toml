@@ -12,6 +12,11 @@ license = "MIT"
 requires-python = ">=3.10"
 dependencies = [
   "requests>=2.31.0,<3.0.0",
+  # Server HTTP client, required unconditionally by the create_app import chain (consumer
+  # OAuth app_oauth, audio-bridge HEAD validation, reference client, job webhooks) + Ollama
+  # health checks + the [observability] control plane. A true base dep: the api image installs
+  # only `.[search,sentry]`, so httpx must live in core — not only in extras.
+  "httpx>=0.28.1,<1.0.0",
   "urllib3>=2.6.0,<3.0.0",
   "rich>=15.0.0,<16.0.0",
   "defusedxml>=0.7.1,<1.0.0",

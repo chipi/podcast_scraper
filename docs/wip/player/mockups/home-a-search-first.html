@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Home A · Search-first</title>
+<style>
+  :root{--canvas:#0E0D10;--surface:#161419;--elevated:#1F1B24;--ink:#F4F1EA;--muted:#9C97A6;--faint:#6E6A78;--accent:#FF6A3D;--grounded:#7BE6B0;--topic:#C9B6FF;--border:#272430;}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;}
+  html,body{width:390px;height:844px;background:var(--canvas);color:var(--ink);font-family:"SF Pro Display",Inter,system-ui,sans-serif;overflow:hidden;}
+  .status{height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;font-size:14px;font-weight:600;}
+  .hdr{display:flex;align-items:center;justify-content:space-between;padding:2px 22px 8px;}
+  .hdr .k{font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);}
+  .hdr h1{font-size:24px;font-weight:800;letter-spacing:-.02em;}
+  .hdr .av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#b33b1c);}
+  /* HERO: ask your library */
+  .hero{margin:6px 18px 0;padding:20px 18px;border-radius:20px;background:linear-gradient(160deg,#241019,#161419);border:1px solid var(--border);}
+  .hero .kick{font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--topic);}
+  .hero h2{font-size:26px;line-height:1.05;font-weight:800;letter-spacing:-.02em;margin-top:8px;}
+  .hero p{color:var(--muted);font-size:13px;margin-top:8px;line-height:1.4;}
+  .search{margin-top:14px;display:flex;align-items:center;gap:8px;background:var(--canvas);border:1px solid var(--border);border-radius:999px;padding:12px 16px;}
+  .search .ph{color:var(--faint);font-size:14px;}
+  .chips{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;}
+  .chips span{font-size:11px;color:var(--topic);border:1px solid var(--border);border-radius:999px;padding:5px 10px;}
+  /* continue slim */
+  .row{margin:18px 22px 0;}
+  .row .lbl{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;display:flex;justify-content:space-between;}
+  .cont{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:10px 12px;}
+  .cont .art{width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,#5b4a16,#1b3a2a);flex:none;}
+  .cont .t{font-size:13.5px;font-weight:700;}
+  .cont .sub{font-size:11px;color:var(--muted);margin-top:2px;}
+  .cont .play{margin-left:auto;width:34px;height:34px;border-radius:50%;background:var(--accent);color:#1a0e08;display:flex;align-items:center;justify-content:center;font-size:15px;}
+  /* what's new rail */
+  .rail{margin-top:10px;display:flex;gap:12px;overflow:hidden;}
+  .card{flex:none;width:150px;}
+  .card .art{height:150px;border-radius:12px;background:linear-gradient(135deg,#3a2f12,#161419);border:1px solid var(--border);}
+  .card .t{font-size:13px;font-weight:700;line-height:1.2;margin-top:8px;}
+  .card .sub{font-size:11px;color:var(--muted);margin-top:3px;}
+  .shows{margin-top:10px;display:flex;gap:10px;}
+  .shows .s{width:60px;height:60px;border-radius:12px;background:var(--elevated);border:1px solid var(--border);}
+</style></head><body>
+  <div class="status"><span>9:41</span><span>●●● ⌃ ▮</span></div>
+  <div class="hdr"><div><span class="k">Your library</span><h1>Learning</h1></div><div class="av"></div></div>
+
+  <div class="hero">
+    <span class="kick">Ask your library</span>
+    <h2>Find any moment<br>you've ever heard.</h2>
+    <p>Search across every episode — grounded answers that jump you straight to the moment.</p>
+    <div class="search"><span>🔍</span><span class="ph">e.g. how memory consolidates…</span></div>
+    <div class="chips"><span>memory consolidation</span><span>the AI bubble</span><span>Fed policy</span></div>
+  </div>
+
+  <div class="row"><div class="lbl"><span>Continue</span></div>
+    <div class="cont"><div class="art"></div><div><div class="t">How Memory Consolidates…</div><div class="sub">Huberman Lab · 12:04 / 48:00</div></div><div class="play">►</div></div>
+  </div>
+
+  <div class="row"><div class="lbl"><span>What's new</span><span style="color:var(--accent)">Browse all →</span></div>
+    <div class="rail">
+      <div class="card"><div class="art"></div><div class="t">Are AI stocks the new railroad bonds?</div><div class="sub">Unhedged · 7 insights</div></div>
+      <div class="card"><div class="art"></div><div class="t">Brian Chesky — AI Founder Mode</div><div class="sub">Invest Like the Best</div></div>
+    </div>
+  </div>
+
+  <div class="row"><div class="lbl"><span>Your shows</span></div>
+    <div class="shows"><div class="s"></div><div class="s"></div><div class="s"></div><div class="s"></div><div class="s"></div></div>
+  </div>
+</body></html>

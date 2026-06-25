@@ -1,0 +1,18 @@
+node_modules/
+dist/
+dist-ssr/
+.env.local
+*.local
+
+# Playwright outputs
+test-results/
+playwright-report/
+
+# Vitest coverage
+coverage/
+
+# Vite
+.vite/
+
+# e2e fixture runtime per-user state (APP_DATA_DIR)
+e2e/fixtures/corpus/.app/

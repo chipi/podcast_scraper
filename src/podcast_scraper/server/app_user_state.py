@@ -57,6 +57,25 @@ def set_playback(
     return rec
 
 
+def list_playback(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
+    """All saved playback positions, newest-updated first (for the Home 'Continue' rail)."""
+    data = _read(data_dir, user_id, "playback", {})
+    if not isinstance(data, dict):
+        return []
+    out: list[dict[str, Any]] = []
+    for slug, rec in data.items():
+        if isinstance(rec, dict):
+            out.append(
+                {
+                    "slug": str(slug),
+                    "position_seconds": float(rec.get("position_seconds", 0.0)),
+                    "updated_at": rec.get("updated_at"),
+                }
+            )
+    out.sort(key=lambda r: (r.get("updated_at") or 0), reverse=True)
+    return out
+
+
 # --- queue (ordered list of slugs) ---
 
 

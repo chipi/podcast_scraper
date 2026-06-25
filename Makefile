@@ -19,6 +19,9 @@ PYTEST_PROGRESS_OPTS := -o console_output_style=classic
 # GI/KG viewer (Vue + Vite + Playwright). Override if the app moves, e.g. ``make serve-ui WEB_VIEWER_DIR=apps/viewer``.
 WEB_VIEWER_DIR ?= web/gi-kg-viewer
 
+# Consumer Learning Player (Vue + Vite + Playwright; Epic 2 / RFC-099). Separate top-level app.
+APP_DIR ?= app
+
 # GIL Quote vs indexed transcript chunk offset gate (#528 Phase 5). ``make verify-gil-offsets-strict`` uses these.
 # Override for CI or another indexed corpus: GIL_OFFSET_VERIFY_DIR=/path/to/corpus-root make verify-gil-offsets-strict
 GIL_OFFSET_VERIFY_DIR ?= output
@@ -56,7 +59,7 @@ PYTEST_WORKERS ?= 2
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e build-viewer verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
+.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e build-viewer serve-app serve-app-dev test-app test-app-e2e build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
 
 help:
 	@echo "Common developer commands:"
@@ -113,6 +116,14 @@ help:
 	@echo "  make test-ui             Vitest unit tests for TypeScript utils in $(WEB_VIEWER_DIR) (fast, no browser)"
 	@echo "  make test-ui-e2e         Playwright E2E for $(WEB_VIEWER_DIR) (needs npm install in that dir)"
 	@echo "  make build-viewer        Production viewer bundle (vue-tsc -b && vite build); catches strict-mode TS errors invisible to vitest/playwright"
+	@echo "  make serve-app           Consumer Learning Player dev server ($(APP_DIR); proxies /api → :8000)"
+	@echo "  make serve-app-dev       API (mock OAuth) + Learning Player app in parallel — one-command local app env"
+	@echo "  make test-app            Vitest unit tests + coverage gate for $(APP_DIR)"
+	@echo "  make test-app-e2e        Playwright E2E for $(APP_DIR) (needs npm install + chromium in that dir)"
+	@echo "  make build-app           Production Learning Player bundle (vue-tsc -b && vite build)"
+	@echo "  make app-docker-build    Build the Learning Player Docker image"
+	@echo "  make app-stack-up        Stack + Learning Player container (api proxied; APP_PORT, default 8081)"
+	@echo "  make app-stack-down      Tear down the stack + Learning Player overlay"
 	@echo ""
 	@echo "Analysis commands:"
 	@echo "  make analyze-test-memory [TARGET=test-unit] [WORKERS=N]  Analyze test memory usage and resource consumption"
@@ -611,7 +622,7 @@ validate-kg-schema:
 	fi
 
 # GI/KG viewer v2 (#489): FastAPI + Vite. ``make init`` includes FastAPI via ``[dev]``; cd $(WEB_VIEWER_DIR) && npm install
-.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod reprocess-corpus-from-transcripts corpus-compat-check index-two-tier enrich-relational-edges redo-diarization upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify smoke-prod corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
+.PHONY: serve serve-api serve-ui serve-app serve-app-dev serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod reprocess-corpus-from-transcripts corpus-compat-check index-two-tier enrich-relational-edges redo-diarization upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify smoke-prod corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
 SERVE_OUTPUT_DIR ?= ./output
 # Optional corpus-editing + jobs routes (health shows green when on). Override with SERVE_ARGS= to disable.
 SERVE_ARGS ?= --enable-feeds-api --enable-operator-config-api --enable-jobs-api
@@ -627,6 +638,18 @@ serve-api:
 
 serve-ui:
 	@cd $(WEB_VIEWER_DIR) && npm run dev
+
+# Consumer Learning Player dev server (Vite). Proxies /api → 127.0.0.1:8000; run the API
+# separately, or use ``serve-app-dev`` to run both with the local mock OAuth provider.
+serve-app:
+	@cd $(APP_DIR) && npm run dev
+
+# One-command local app environment: the consumer API (with the dev/e2e mock OAuth provider
+# + a dev session secret) and the Learning Player app, in parallel (Ctrl+C stops both).
+# NEVER use APP_OAUTH_PROVIDER=mock outside local dev.
+serve-app-dev:
+	@echo "Running the consumer API (mock OAuth) + the Learning Player app in parallel (Ctrl+C stops both)."
+	@APP_OAUTH_PROVIDER=mock APP_SESSION_SECRET=$${APP_SESSION_SECRET:-dev-secret} $(MAKE) -j2 serve-api serve-app
 
 # E2E fixture HTTP server (RSS + mock API paths); use --feeds-spec with URLs on this port.
 serve-e2e-mock:
@@ -1200,6 +1223,38 @@ test-ui-e2e:
 build-viewer:
 	@echo "Production viewer bundle (vue-tsc -b && vite build)..."
 	@cd $(WEB_VIEWER_DIR) && npm install && npm run build
+
+# Consumer Learning Player — Vitest unit + coverage gate (mirrors ``test-ui``).
+test-app:
+	@echo "Vitest unit tests + coverage gate (Learning Player)..."
+	@cd $(APP_DIR) && npm install && npm run test:coverage
+
+# Consumer Learning Player — Playwright E2E (mobile + desktop projects).
+# Install browsers once: cd $(APP_DIR) && npx playwright install chromium
+test-app-e2e:
+	@echo "Playwright E2E (Learning Player)..."
+	@cd $(APP_DIR) && npm install && npx playwright install chromium && npm run test:e2e
+
+# Production app bundle: ``vue-tsc -b && vite build`` (catches strict-mode TS errors that
+# vitest/playwright skip). Run locally before push for app PRs (mirrors ``build-viewer``).
+build-app:
+	@echo "Production Learning Player bundle (vue-tsc -b && vite build)..."
+	@cd $(APP_DIR) && npm install && npm run build
+
+# Consumer Learning Player container (RFC-099 §10): its own nginx-served static image.
+app-docker-build:
+	@echo "Building the Learning Player Docker image..."
+	@docker build -t podcast-scraper-learning-app:latest $(APP_DIR)
+
+# Stack + consumer app overlay (api + viewer + learning-app on one network).
+APP_STACK_COMPOSE ?= docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.app.yml
+app-stack-config:
+	@$(APP_STACK_COMPOSE) config >/dev/null && echo "compose config OK (stack + app overlay)"
+app-stack-up:
+	@echo "Stack + Learning Player up (app on APP_PORT, default 8081; api proxied)..."
+	@$(APP_STACK_COMPOSE) up -d --build
+app-stack-down:
+	@$(APP_STACK_COMPOSE) down $(REMOVE_VOLUMES)
 
 # Phase 5 (#528): fail if GIL Quote spans do not overlap indexed transcript chunks enough.
 verify-gil-offsets-strict:
@@ -2079,7 +2134,7 @@ ci: cleanup-processes
 # Offline HF for pytest: ``tests/conftest.py`` sets HF_HUB_OFFLINE / TRANSFORMERS_OFFLINE.
 # The ``ci:`` cache probe above passes them inline so probes do not hit the Hub accidentally.
 
-_ci_body: format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy test test-ui test-ui-e2e build-viewer coverage-enforce docs build stack-test-ml-ci
+_ci_body: format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy test test-ui test-ui-e2e build-viewer test-app test-app-e2e build-app coverage-enforce docs build stack-test-ml-ci
 	# Final gate is ``stack-test-ml-ci`` (build → up → seed → Playwright →
 	# always-teardown). ml pipeline only — ~5-10 min, no API keys, no cloud
 	# cost. Cloud-thin variant (``stack-test-cloud-thin``) is a separate

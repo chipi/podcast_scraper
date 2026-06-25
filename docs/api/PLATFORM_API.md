@@ -53,6 +53,25 @@ Default **deny**: only allow-listed emails/domains may create an account.
 
 ---
 
+## Catalog (episode lists)
+
+Episode lists are served through a pluggable **`ContentSource`** (`#1078`). The MVP backend
+(`LocalCorpusSource`) enumerates the already-processed local corpus, newest-first; a
+`DiscoverySource` (`#1069`) can later implement the same contract with no API change.
+Lightweight by design — per-artifact depth counts (`insight_count`, `speaker_count`) are read
+lazily from the per-episode endpoints, not the list.
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/api/app/episodes?page=&page_size=&status=&feed_id=` | Catalog across the corpus, newest-first. `{items[{slug, title, feed_id, podcast_title, publish_date, duration_seconds, episode_image_url, feed_image_url, artwork_url, status, summary_preview, summary_bullets[], topics[], has_transcript, has_summary, has_gi, has_kg, has_bridge}], page, page_size, total, has_more}`. `summary_preview` = short clean lede; `summary_bullets[]` = full summary (card expand-on-demand). `page≥1`, `1≤page_size≤100` (**422** otherwise). `status` ∈ `ready`\|`pending`. |
+| GET | `/api/app/podcasts/{feed_id}/episodes?page=&page_size=&status=` | Same shape, scoped to one feed. |
+| GET | `/api/app/podcasts` | Distinct shows in the corpus (Home "Your shows" + show-page header): `{items[{feed_id, title, artwork_url, image_url, description, episode_count}]}`. |
+
+`status`: `ready` when a transcript exists (playable), else `pending`. Local-content MVP yields
+`ready`; richer states (not-scraped/processing) arrive with scrape-on-demand (`#1069`).
+
+---
+
 ## Episodes
 
 Addressed by a stable, URL-safe **slug** (`{feed-slug}-{hash(feed_id,episode_id)}`), derived
@@ -64,6 +83,7 @@ deterministically and stable across re-scrapes.
 | GET | `/api/app/episodes/{slug}/segments` | The frozen `segments.json` contract: `{version, episode_slug, segments[{id, start, end, text, speaker?}]}`. **404** when no transcript/segments. |
 | GET | `/api/app/episodes/{slug}/insights` | Grounded GIL insights: `{episode_slug, insights[{id, text, grounded, insight_type?, confidence?, position_hint?, quotes[{text, speaker?, char_start?, char_end?, start_ms?, end_ms?}]}]}`. Empty list when no GI. |
 | GET | `/api/app/episodes/{slug}/entities` | KG entities: `{episode_slug, persons[], orgs[], topics[]}`. Empty when no KG. |
+| GET | `/api/app/episodes/{slug}/related?top_k=` | "More like this" — semantic peer episodes (vector similarity), as an `AppEpisodesResponse`. **200 + empty** when the index is unavailable (graceful). |
 
 ---
 
@@ -74,11 +94,30 @@ Reuses the hybrid index (RFC-090); answers are real ranked passages, never gener
 | Method | Path | Description |
 | --- | --- | --- |
 | GET | `/api/app/episodes/{slug}/search?q=&top_k=` | Episode-scoped: over-fetch by feed, narrow to this episode. |
-| GET | `/api/app/search?q=&top_k=&grounded_only=` | Library-wide (whole shared corpus for now; scoped to the user's library once that lands). |
+| GET | `/api/app/search?q=&top_k=&grounded_only=` | Library-wide (whole shared corpus for now; scoped to the user's library once that lands). Each hit's `metadata` is enriched with `episode_slug` / `episode_title` / `podcast_title` / `episode_artwork` (thumb) so the client can jump to the episode + moment (`/episode/{slug}?t=`) and render results like library cards. |
 
 Both return the standard search shape (`{query, results[{doc_id, score, metadata, text,
 source_tier, supporting_quotes?, lifted?}], query_type, lift_stats?}`) and carry
 `error:"no_index"` (HTTP 200, empty results) when no index is built.
+
+---
+
+## Artwork (serve our stored copy, never re-fetch from origin)
+
+The counterpart to _bridge-never-rehost_ for audio: cover art is small and downloaded **once
+at ingest** into the corpus-art store, so the app serves **our copy** and never re-fetches
+graphics from the origin host. Two sizes, both derived from the local original (downscale
+only): `large` (the original — ≥1400² at source, fits the player hero) and `thumb` (≤320px
+for lists, generated on first request and cached). Content-addressed → served `immutable`,
+so the browser + PWA service worker keep it on-device after one fetch.
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/api/app/artwork?ref=&size=` | Serve stored art. `ref` = corpus-relative path under the corpus-art store (**400** otherwise); `size` ∈ `large`\|`thumb` (default `large`). **404** when the file is absent. `Cache-Control: immutable`. |
+
+Episode summary/detail carry **`artwork_url`** (our local copy — `thumb` in lists, `large`
+in detail) plus the remote `episode_image_url`/`feed_image_url` as **fallback only**. Clients
+use `artwork_url` when present.
 
 ---
 
@@ -97,6 +136,7 @@ source_tier, supporting_quotes?, lifted?}], query_type, lift_stats?}`) and carry
 
 | Method | Path | Description |
 | --- | --- | --- |
+| GET | `/api/app/playback` | All saved positions, newest-updated first (Home "Continue"): `{items[{slug, position_seconds, updated_at?}]}`. |
 | GET, PUT | `/api/app/playback/{slug}` | Resume position `{slug, position_seconds, updated_at?}`; GET returns 0 when unset. |
 | GET, PUT | `/api/app/queue` | Play queue `{items: [slug, …]}`. |
 | GET, POST, DELETE | `/api/app/library` (+ `/{feed_id}`) | Subscriptions — list / subscribe (idempotent on `feed_id`) / unsubscribe. |
@@ -121,7 +161,9 @@ The operator write routes (`PUT /api/feeds`, `PUT /api/operator-config`, `POST /
 | `APP_DATA_DIR` | `<corpus>/.app` | Per-user files + audit log (outside the shared corpus tree). |
 | `APP_SESSION_SECRET` | _(unset → auth inert)_ | HMAC key for the session cookie. |
 | `APP_SESSION_COOKIE_SECURE` | `false` | Set `true` behind HTTPS. |
+| `APP_OAUTH_PROVIDER` | _(unset → Google)_ | Set `mock` to use the local network-free provider for **dev/e2e only** (never prod); logged loudly. |
 | `APP_OAUTH_GOOGLE_CLIENT_ID` / `_SECRET` | _(unset → login 503)_ | Google OAuth app credentials. |
+| `APP_OAUTH_MOCK_EMAIL` / `_SUBJECT` / `_NAME` | `dev@localhost` / `dev-local` / `Dev User` | Override the mock provider's dev identity (only when `APP_OAUTH_PROVIDER=mock`). |
 | `APP_SIGNUP_MODE` / `APP_ALLOWED_EMAILS` / `APP_ALLOWED_DOMAINS` | `allowlist` / — / — | Access control. |
 | `APP_OPERATOR_API_KEY` | _(unset → no key check)_ | Operator write-path API key. |
 

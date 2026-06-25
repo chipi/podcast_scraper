@@ -38,7 +38,7 @@ def _write_corpus(
     (root / "metadata").mkdir(parents=True, exist_ok=True)
     (root / "transcripts").mkdir(parents=True, exist_ok=True)
 
-    content: dict = {"transcript_file": f"transcripts/{stem}.txt"}
+    content: dict = {"transcript_file_path": f"transcripts/{stem}.txt"}
     if media_url is not None:
         content.update(
             {"media_url": media_url, "media_type": "audio/mpeg", "media_id": "sha256:abc"}
@@ -154,6 +154,63 @@ def test_unknown_slug_404(tmp_path: Path) -> None:
     client = _client(tmp_path)
     assert client.get("/api/app/episodes/does-not-exist/segments").status_code == 404
     assert client.get("/api/app/episodes/does-not-exist/audio-source").status_code == 404
+
+
+def test_related_empty_without_index(tmp_path: Path) -> None:
+    # "More like this" needs the vector index; without one it degrades to 200 + empty
+    # (graceful — the panel section simply hides). No real index is built in CI.
+    _write_corpus(tmp_path)
+    slug = _only_slug(tmp_path)
+    client = _client(tmp_path)
+    resp = client.get(f"/api/app/episodes/{slug}/related")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["items"] == []
+    assert body["total"] == 0
+    # Unknown slug still 404s.
+    assert client.get("/api/app/episodes/nope/related").status_code == 404
+
+
+def test_segments_resolve_in_nested_run_layout(tmp_path: Path) -> None:
+    # Prod layout: feeds/<feed>/run_<R>/{metadata,transcripts}; transcript_file_path is
+    # relative to the RUN dir (regression guard for the segments path-resolution bug).
+    run = tmp_path / "feeds" / "myfeed" / "run_20240101_x"
+    (run / "metadata").mkdir(parents=True)
+    (run / "transcripts").mkdir(parents=True)
+    (run / "transcripts" / "0001.txt").write_text("hi", encoding="utf-8")
+    (run / "transcripts" / "0001.segments.json").write_text(
+        json.dumps([{"id": 0, "start": 0.0, "end": 1.0, "text": "Hello.", "speaker_label": "A"}]),
+        encoding="utf-8",
+    )
+    doc = {
+        "feed": {"feed_id": "myfeed", "title": "My Show"},
+        "episode": {"episode_id": "ep1", "title": "Hello", "published_date": "2024-01-01T00:00:00"},
+        "content": {"transcript_file_path": "transcripts/0001.txt"},
+    }
+    (run / "metadata" / "0001.metadata.json").write_text(json.dumps(doc), encoding="utf-8")
+
+    slug = _only_slug(tmp_path)
+    resp = _client(tmp_path).get(f"/api/app/episodes/{slug}/segments")
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["segments"][0]["text"] == "Hello."
+
+
+def test_player_serves_raw_segments_not_adfree(tmp_path: Path) -> None:
+    # The player streams the ORIGINAL audio (ads in), so transcript-sync must use the raw
+    # canonical segments (original timeline), NOT the ad-free ones (minutes shorter → drift).
+    _write_corpus(tmp_path, stem="0001-ep")
+    # Add an ad-free variant alongside the raw one, with distinct text + later timeline.
+    (tmp_path / "transcripts" / "0001-ep.adfree.segments.json").write_text(
+        json.dumps(
+            [{"id": 0, "start": 0.0, "end": 9.0, "text": "AD-FREE timeline.", "speaker_label": "X"}]
+        ),
+        encoding="utf-8",
+    )
+    slug = _only_slug(tmp_path)
+    body = _client(tmp_path).get(f"/api/app/episodes/{slug}/segments").json()
+    texts = [s["text"] for s in body["segments"]]
+    assert "Hello world." in texts  # raw canonical (from _write_corpus)
+    assert "AD-FREE timeline." not in texts  # ad-free must NOT be served to the player
 
 
 def test_no_segments_file_404(tmp_path: Path) -> None:
@@ -332,3 +389,91 @@ def test_episode_search_filters_to_episode(tmp_path: Path, monkeypatch: pytest.M
     body = _client(tmp_path).get(f"/api/app/episodes/{slug}/search", params={"q": "foo"}).json()
     assert captured["feed"] == "myfeed"  # over-fetched scoped by feed
     assert [r["doc_id"] for r in body["results"]] == ["a"]  # narrowed to this episode
+
+
+def test_episodes_list_endpoint(tmp_path: Path) -> None:
+    _write_corpus(tmp_path)
+    body = _client(tmp_path).get("/api/app/episodes").json()
+    assert body["total"] == 1
+    assert body["page"] == 1 and body["page_size"] == 20 and body["has_more"] is False
+    item = body["items"][0]
+    assert item["title"] == "Hello"
+    assert item["status"] == "ready"
+    assert item["summary_preview"] == "Sum"  # clean lede = summary title
+    assert item["summary_bullets"] == ["a", "b"]
+
+
+def test_episodes_list_status_filter(tmp_path: Path) -> None:
+    _write_corpus(tmp_path)  # has a transcript → "ready"
+    c = _client(tmp_path)
+    assert c.get("/api/app/episodes", params={"status": "ready"}).json()["total"] == 1
+    assert c.get("/api/app/episodes", params={"status": "pending"}).json()["total"] == 0
+
+
+def test_podcasts_list_endpoint_includes_description(tmp_path: Path) -> None:
+    # A feed with a description surfaces it on /podcasts (the show-page header).
+    (tmp_path / "metadata").mkdir(parents=True, exist_ok=True)
+    doc = {
+        "feed": {
+            "feed_id": "f1",
+            "title": "Show One",
+            "url": "https://p/f.xml",
+            "description": "A great show.",
+        },
+        "episode": {"episode_id": "e1", "title": "E1", "published_date": "2024-03-01T00:00:00"},
+        "content": {},
+    }
+    (tmp_path / "metadata" / "e1.metadata.json").write_text(json.dumps(doc), encoding="utf-8")
+    body = _client(tmp_path).get("/api/app/podcasts").json()
+    show = next(s for s in body["items"] if s["feed_id"] == "f1")
+    assert show["title"] == "Show One"
+    assert show["description"] == "A great show."
+    assert show["episode_count"] == 1
+
+
+def test_podcast_episodes_scoped_to_feed(tmp_path: Path) -> None:
+    _write_corpus(tmp_path)
+    body = _client(tmp_path).get("/api/app/podcasts/myfeed/episodes").json()
+    assert body["total"] == 1
+    assert all(i["feed_id"] == "myfeed" for i in body["items"])
+    # Unknown feed → empty page, not an error.
+    empty = _client(tmp_path).get("/api/app/podcasts/nope/episodes").json()
+    assert empty["total"] == 0 and empty["items"] == []
+
+
+def _slug_for(root: Path, episode_id: str) -> str:
+    for r in build_catalog_rows_cumulative(root):
+        if r.episode_id == episode_id:
+            return slug_for_row(r)
+    raise AssertionError(f"no row for {episode_id}")
+
+
+def test_related_returns_peers_when_index_has_neighbours(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import types
+
+    _write_corpus(tmp_path, stem="0001-a", episode_id="ep1")
+    _write_corpus(tmp_path, stem="0002-b", episode_id="ep2")
+
+    # Mock the similarity engine to return ep2 as a neighbour of ep1 (no real vector index).
+    monkeypatch.setattr(
+        "podcast_scraper.server.routes.app_episodes.run_similar_episodes",
+        lambda *a, **k: types.SimpleNamespace(
+            error=None, items=[{"metadata": {"feed_id": "myfeed", "episode_id": "ep2"}}]
+        ),
+    )
+    src = _slug_for(tmp_path, "ep1")
+    body = _client(tmp_path).get(f"/api/app/episodes/{src}/related").json()
+    assert body["total"] == 1  # the source itself is excluded; one peer mapped
+    assert body["items"][0]["feed_id"] == "myfeed"
+
+
+def test_segments_unreadable_file_returns_500(tmp_path: Path) -> None:
+    _write_corpus(tmp_path)
+    # Corrupt the segments JSON the resolver will pick → 500, not a silent empty transcript.
+    (tmp_path / "transcripts" / "0001-hello.segments.json").write_text(
+        "not json {", encoding="utf-8"
+    )
+    slug = _only_slug(tmp_path)
+    assert _client(tmp_path).get(f"/api/app/episodes/{slug}/segments").status_code == 500

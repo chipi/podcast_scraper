@@ -1,0 +1,47 @@
+/**
+ * UXS-011 consumer-app semantic tokens — Editorial Bold, dark-primary.
+ *
+ * The single token layer (no raw hex in components). Names are the frozen API; values +
+ * the per-show accent algorithm are open (see UXS-011 tunables). The consumer app owns
+ * these `--lp-*` tokens; they are deliberately separate from the operator viewer's `--ps-*`.
+ *
+ * Light theme is a post-MVP fast-follow — the structure (data-theme) is in place so it can
+ * be added without renaming.
+ */
+
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --lp-canvas: #0e0d10;
+  --lp-canvas-foreground: #f4f1ea; /* warm off-white "paper" */
+  --lp-surface: #161419;
+  --lp-surface-foreground: #f4f1ea;
+  --lp-elevated: #1f1b24;
+  --lp-overlay: rgba(244, 241, 234, 0.06);
+  --lp-border: #272430;
+
+  /* Text */
+  --lp-muted: #9c97a6;
+  --lp-disabled: #6e6a78;
+  --lp-link: var(--lp-accent);
+
+  /* Intent — accent is per-show adaptive (set at runtime), default brand "Ember". */
+  --lp-brand-default: #ff6a3d;
+  --lp-accent: var(--lp-brand-default);
+  --lp-accent-foreground: #1a0e08;
+  --lp-success: #3fb984;
+  --lp-warning: #e8b339;
+  --lp-danger: #f0533f;
+
+  /* Knowledge-layer domain tokens (provenance cues — not generic UI intents). */
+  --lp-grounded: #7be6b0;
+  --lp-topic: #c9b6ff;
+  --lp-person: #ffb37a;
+
+  /* Typography */
+  --lp-font-display: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --lp-font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --lp-font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', monospace;
+}

@@ -12,21 +12,23 @@ from podcast_scraper.server.segments_view import (
 
 
 class TestSegmentsRelpaths:
-    def test_prefers_adfree_then_plain(self) -> None:
+    def test_prefers_raw_canonical_then_adfree(self) -> None:
+        # Player streams the ORIGINAL audio → raw canonical segments first (matching the
+        # original timeline); ad-free is only a last-resort fallback.
         assert segments_relpaths_for_transcript("transcripts/ep1.txt") == [
-            "transcripts/ep1.adfree.segments.json",
             "transcripts/ep1.segments.json",
+            "transcripts/ep1.adfree.segments.json",
         ]
 
     def test_strips_adfree_stem(self) -> None:
         assert segments_relpaths_for_transcript("transcripts/ep1.adfree.txt") == [
-            "transcripts/ep1.adfree.segments.json",
             "transcripts/ep1.segments.json",
+            "transcripts/ep1.adfree.segments.json",
         ]
 
     def test_backslashes_normalised(self) -> None:
         assert segments_relpaths_for_transcript("transcripts\\ep1.txt")[0] == (
-            "transcripts/ep1.adfree.segments.json"
+            "transcripts/ep1.segments.json"
         )
 
     def test_empty_returns_empty(self) -> None:

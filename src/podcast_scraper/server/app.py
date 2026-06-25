@@ -20,6 +20,7 @@ from podcast_scraper.server.app_oauth import provider_from_env
 from podcast_scraper.server.app_operator_guard import OperatorWriteGuard
 from podcast_scraper.server.pathutil import CorpusPathRequestError
 from podcast_scraper.server.routes import (
+    app_artwork,
     app_auth,
     app_episodes,
     app_search,
@@ -233,6 +234,7 @@ def create_app(
     # own /api/app namespace, separate from the operator routes. Read-only over the
     # shared corpus; access becomes auth-gated in later Epic-1 tasks (#1063/#1066).
     app.include_router(app_auth.router, prefix="/api/app")
+    app.include_router(app_artwork.router, prefix="/api/app")
     app.include_router(app_episodes.router, prefix="/api/app")
     app.include_router(app_search.router, prefix="/api/app")
     app.include_router(app_user_state.router, prefix="/api/app")

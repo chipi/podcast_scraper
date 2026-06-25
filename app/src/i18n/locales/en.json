@@ -1,0 +1,129 @@
+{
+  "app": {
+    "title": "Learning Player",
+    "tagline": "Listen. Understand. Remember."
+  },
+  "nav": {
+    "catalog": "Catalog",
+    "browse": "Browse",
+    "skipToContent": "Skip to content"
+  },
+  "home": {
+    "askKicker": "Ask your library",
+    "askTitle": "Find any moment you've heard.",
+    "askTagline": "Search across every episode — grounded answers that jump you to the moment.",
+    "askPlaceholder": "e.g. how memory consolidates…",
+    "continue": "Continue listening",
+    "whatsNew": "What's new",
+    "browseAll": "Browse all",
+    "recommended": "Recommended for you",
+    "shows": "Your shows",
+    "featured": "Featured",
+    "resume": "Resume",
+    "minLeft": "{count} min left"
+  },
+  "rail": {
+    "prev": "Scroll left",
+    "next": "Scroll right"
+  },
+  "card": {
+    "insights": "Insights"
+  },
+  "search": {
+    "title": "Search your library",
+    "placeholder": "Ask your library…",
+    "searching": "Searching…",
+    "noResults": "No grounded passages found.",
+    "error": "Search needs the library index.",
+    "in": "in",
+    "jumpTo": "Play from {time} in {episode}",
+    "summary": "{passages} passages across {episodes} episodes",
+    "playHere": "Play from {time}",
+    "openEpisode": "Open episode",
+    "matchCount": "1 match | {count} matches",
+    "kind": {
+      "insight": "Insight",
+      "transcript": "Transcript",
+      "topic": "Topic",
+      "passage": "Passage"
+    }
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signUp": "Sign up",
+    "signOut": "Sign out",
+    "signedInAs": "Signed in as {name}",
+    "signedOut": "Not signed in",
+    "loginTitle": "Sign in to your library",
+    "loginTagline": "Save your place, build a queue, and grow your personal knowledge corpus.",
+    "signupTitle": "Create your account",
+    "signupTagline": "Start turning every episode you hear into a knowledge corpus that's yours.",
+    "haveAccount": "Already have an account?",
+    "newHere": "New here?"
+  },
+  "catalog": {
+    "heading": "Your Library",
+    "empty": "No episodes yet.",
+    "insightsBadge": "insights",
+    "loading": "Loading episodes…",
+    "loadMore": "Load more",
+    "loadError": "Couldn’t load episodes."
+  },
+  "podcast": {
+    "episodeCount": "{count} episode | {count} episodes",
+    "showMore": "Show more",
+    "showLess": "Show less"
+  },
+  "player": {
+    "back": "Back to catalog",
+    "loading": "Loading episode…",
+    "notFound": "Episode not found.",
+    "play": "Play",
+    "pause": "Pause",
+    "back15": "Skip back 15 seconds",
+    "forward30": "Skip forward 30 seconds",
+    "speed": "Playback speed",
+    "scrubber": "Seek",
+    "speakingNow": "Speaking now",
+    "insightNow": "Insight now",
+    "grounded": "Grounded",
+    "audioUnavailable": "Audio isn’t available for this episode yet.",
+    "audioError": "Couldn’t load the audio from the source. Try again later.",
+    "transcriptPending": "Transcript pending — audio still plays.",
+    "groundedSegment": "Backs a grounded insight — tap to open it",
+    "sync": "Sync",
+    "syncHelp": "Nudge the transcript to match the audio (ads in the stream can shift it).",
+    "syncEarlier": "Shift transcript earlier",
+    "syncLater": "Shift transcript later",
+    "syncReset": "Reset transcript sync"
+  },
+  "kp": {
+    "title": "Insights",
+    "ask": "Ask",
+    "askPlaceholder": "Ask this episode…",
+    "searching": "Searching…",
+    "searchError": "Search isn’t available for this episode.",
+    "noResults": "No grounded passages found.",
+    "summary": "Summary",
+    "tags": "Topics & People",
+    "groundedHint": "Grounded — sourced to a moment in the audio",
+    "insights": "Insights",
+    "related": "More like this",
+    "showAll": "Show all",
+    "exploreTerm": "Search your library for {term}",
+    "close": "Close panel",
+    "empty": "Insights appear once this episode is processed."
+  },
+  "queue": {
+    "title": "Queue",
+    "empty": "Your queue is empty. Add episodes from the catalog.",
+    "add": "Add to queue",
+    "remove": "Remove from queue",
+    "up": "Move up",
+    "down": "Move down"
+  },
+  "status": {
+    "ready": "Ready",
+    "pending": "Pending"
+  }
+}

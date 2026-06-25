@@ -43,6 +43,7 @@ WIP file is removed.
 | `wip-concurrent-pipeline-http-retry-metrics.md` | Open documentation gap for `http_urllib3_retry_events` | Open |
 | `wip-topic-clusters-validation-reference.yaml` | Reference topic-cluster validation config | Reference |
 | `VIEWER-UI-709-695-694-PLAN.md` | UI batch plan (`feat/viewer-ui-709-695-694`): widen+restructure the Config modal to a sub-nav rail, in-app log-viewer modal (#695), per-feed override drill-in (#694), Scheduled rail item (#709), built on a small shared-primitive layer (AppDialog/ToggleSwitch/RelativeTime/clipboard) | Active |
+| `CLOUD-PROVIDER-RESILIENCE-E2E-GAP-1003.md` | Audit of cloud-LLM resilience E2E coverage; matrix + 5 follow-up gaps surfaced during #1003 (closed 2026-06-15) | Closed |
 | `player/EPIC-2-CONSUMER-APP-PLAN.md` | Epic 2 (consumer Learning App, P1) plan + task breakdown (S1–S2 server, C1–C7 client) with a cross-cutting Definition of Done (mobile-first + i18n + a11y + full test pyramid on every task). Mirrors GH Epic 2. Player-first vertical slice over local content; defers #1069/#1070/Capture. | Active |
 | `player/SERVER-SIDE-GAP-ANALYSIS.md` | Server-side gap analysis for the consumer platform — what `/api/app/*` shipped in Epic 1 vs what the consumer surfaces need (surfaced the catalog-list endpoint gap). | Active |
 | `player/RFC-LANDSCAPE-FOR-PLATFORM.md` | Survey of in-flight/adjacent RFCs the platform builds on (RFC-075/023/068/088/094/069) and older ideas to dismiss or fold in. | Active |
