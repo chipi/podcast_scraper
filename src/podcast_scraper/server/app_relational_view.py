@@ -11,6 +11,7 @@ endpoints). The scan is the cost; cache later if the corpus grows large enough t
 
 from __future__ import annotations
 
+import re
 from collections import Counter
 from pathlib import Path
 from typing import Iterator, Sequence
@@ -28,6 +29,7 @@ from podcast_scraper.server.corpus_catalog import (
 )
 from podcast_scraper.server.schemas import (
     AppEntity,
+    AppEntityRef,
     AppEpisodeSummary,
     AppPersonCard,
     AppTopic,
@@ -52,6 +54,45 @@ def _iter_kg_entities(
             continue
         persons, orgs, topics = entities_from_kg(artifact)
         yield row, persons, orgs, topics
+
+
+def _normalize_label(text: str) -> str:
+    """Fold a label/query to a comparison key: punctuation→space, collapse, lower.
+
+    "Matthew Walker." / "matthew-walker" / "MATTHEW  WALKER" all map to "matthew walker",
+    giving exact/near-exact matching (case / punctuation / spacing insensitive) without the
+    false positives of fuzzy distance matching.
+    """
+    return re.sub(r"\s+", " ", re.sub(r"[^\w\s]", " ", text)).strip().lower()
+
+
+def resolve_entity(
+    root: Path,
+    query: str,
+    *,
+    rows: Sequence[CatalogEpisodeRow] | None = None,
+) -> AppEntityRef | None:
+    """Resolve an exact/near-exact person/topic name match for ``query``, else ``None`` (3.4).
+
+    Persons take precedence over topics on a tie. Only persons/topics are resolved (those are the
+    entities with cards). One corpus KG scan per call — cache later if search traffic warrants it.
+    """
+    norm = _normalize_label(query)
+    if not norm:
+        return None
+    catalog = list(rows) if rows is not None else build_catalog_rows_cumulative(root)
+    persons_idx: dict[str, AppEntityRef] = {}
+    topics_idx: dict[str, AppEntityRef] = {}
+    for _row, persons, _orgs, topics in _iter_kg_entities(root, catalog):
+        for p in persons:
+            persons_idx.setdefault(
+                _normalize_label(p.name), AppEntityRef(id=p.id, kind="person", label=p.name)
+            )
+        for t in topics:
+            topics_idx.setdefault(
+                _normalize_label(t.label), AppEntityRef(id=t.id, kind="topic", label=t.label)
+            )
+    return persons_idx.get(norm) or topics_idx.get(norm)
 
 
 def _enrich_topic(topic: AppTopic, cluster_map: ClusterMap) -> AppTopic:

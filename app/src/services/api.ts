@@ -9,6 +9,7 @@
 import type {
   AudioSource,
   EntitiesResponse,
+  EntitySearchResponse,
   EpisodeDetail,
   EpisodesPage,
   InsightsResponse,
@@ -135,6 +136,11 @@ export function getTopicCard(id: string): Promise<TopicCard> {
 /** Corpus-wide grounded search (Home "Ask your library"); empty when no index. */
 export function searchCorpus(q: string, topK = 12): Promise<SearchResponse> {
   return getJSON<SearchResponse>('/search', { q, top_k: topK })
+}
+
+/** Resolve a query to a person/topic card (exact/near-exact); `entity: null` when none. */
+export function resolveEntity(q: string): Promise<EntitySearchResponse> {
+  return getJSON<EntitySearchResponse>('/entities/search', { q })
 }
 
 /** Shows in the user's library (Home "Your shows"). */

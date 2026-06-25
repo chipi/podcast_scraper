@@ -9,11 +9,12 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
-import { searchCorpus } from '../services/api'
-import type { SearchHit } from '../services/types'
+import { resolveEntity, searchCorpus } from '../services/api'
+import type { EntityRef, SearchHit } from '../services/types'
 import { hitStartSeconds } from '../player/insights'
 import { formatTime } from '../player/transcriptSync'
 import { formatPublishDate } from '../utils/format'
+import EntityCard from '../components/EntityCard.vue'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -21,6 +22,8 @@ const router = useRouter()
 
 const query = ref(String(route.query.q ?? ''))
 const results = ref<SearchHit[]>([])
+const entity = ref<EntityRef | null>(null)
+const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
 const searching = ref(false)
 const error = ref(false)
 const ran = ref(false)
@@ -80,11 +83,18 @@ async function run(q: string): Promise<void> {
   const term = q.trim()
   if (!term) {
     results.value = []
+    entity.value = null
     ran.value = false
     return
   }
   searching.value = true
   error.value = false
+  // Resolve a person/topic entity match in parallel with the passage search (3.4); a failed
+  // resolution never blocks the passages — the entity card simply doesn't appear.
+  const entityP = resolveEntity(term).then(
+    (r) => (entity.value = r.entity),
+    () => (entity.value = null),
+  )
   try {
     const resp = await searchCorpus(term)
     results.value = resp.results
@@ -92,9 +102,14 @@ async function run(q: string): Promise<void> {
   } catch {
     error.value = true
   } finally {
+    await entityP
     searching.value = false
     ran.value = true
   }
+}
+
+function openEntity(): void {
+  if (entity.value) cardTarget.value = { kind: entity.value.kind, id: entity.value.id }
 }
 
 function submit(): void {
@@ -114,7 +129,12 @@ function openEpisode(slug: string | null, hit?: SearchHit): void {
 watch(() => route.query.q, (q) => run(String(q ?? '')), { immediate: true })
 
 const showEmpty = computed(
-  () => ran.value && !searching.value && !error.value && results.value.length === 0,
+  () =>
+    ran.value &&
+    !searching.value &&
+    !error.value &&
+    results.value.length === 0 &&
+    entity.value === null,
 )
 </script>
 
@@ -135,6 +155,21 @@ const showEmpty = computed(
         {{ t('search.title') }}
       </button>
     </form>
+
+    <!-- Entity match (3.4): a person/topic card above the passages, opening the full card on tap. -->
+    <button
+      v-if="entity && !searching"
+      type="button"
+      class="mt-4 flex w-full items-center gap-3 rounded-xl border border-border bg-surface p-4 text-left transition hover:bg-overlay"
+      :aria-label="t('kp.openEntity', { term: entity.label })"
+      @click="openEntity"
+    >
+      <span class="min-w-0 flex-1">
+        <span class="lp-kicker block">{{ entity.kind === 'person' ? t('ec.person') : t('ec.topic') }}</span>
+        <span class="block font-display text-lg font-bold text-canvas-foreground">{{ entity.label }}</span>
+      </span>
+      <span class="shrink-0 text-sm font-semibold text-accent">{{ t('search.viewEntity') }} ›</span>
+    </button>
 
     <p v-if="searching" class="mt-4 text-muted">{{ t('search.searching') }}</p>
     <p v-else-if="error" class="mt-4 text-muted">{{ t('search.error') }}</p>
@@ -214,5 +249,12 @@ const showEmpty = computed(
         </li>
       </ul>
     </template>
+
+    <EntityCard
+      v-if="cardTarget"
+      :kind="cardTarget.kind"
+      :id="cardTarget.id"
+      @close="cardTarget = null"
+    />
   </section>
 </template>

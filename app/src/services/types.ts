@@ -169,6 +169,19 @@ export interface EntitiesResponse {
   topics: Topic[]
 }
 
+/** A resolved person/topic reference (GET /api/app/entities/search — AppEntityRef). */
+export interface EntityRef {
+  id: string
+  kind: 'person' | 'topic'
+  label: string
+}
+
+/** Entity-in-search resolution (AppEntitySearchResponse) — at most one exact/near-exact match. */
+export interface EntitySearchResponse {
+  query: string
+  entity: EntityRef | null
+}
+
 /** Person profile card (GET /api/app/persons/{id} — AppPersonCard). KG co-occurrence. */
 export interface PersonCard {
   id: string

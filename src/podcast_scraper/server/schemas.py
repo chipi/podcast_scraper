@@ -230,6 +230,23 @@ class AppEntitiesResponse(BaseModel):
     topics: list[AppTopic] = Field(default_factory=list)
 
 
+class AppEntityRef(BaseModel):
+    """A resolved person/topic reference for the entity-in-search result (PRD-043 FR3 / 3.4)."""
+
+    id: str = Field(description="Canonical entity id (person:{slug} / topic:{slug}).")
+    kind: Literal["person", "topic"] = Field(description="Which card to open.")
+    label: str = Field(description="Display name / topic label.")
+
+
+class AppEntitySearchResponse(BaseModel):
+    """Response for GET /api/app/entities/search — at most one exact/near-exact match."""
+
+    query: str = Field(description="The query that was resolved.")
+    entity: AppEntityRef | None = Field(
+        default=None, description="The matched person/topic, or null when nothing matches."
+    )
+
+
 class AppPersonCard(BaseModel):
     """Person profile card (PRD-043 FR2; GET /api/app/persons/{id}).
 

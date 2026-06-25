@@ -1,7 +1,8 @@
-"""Integration tests for the consumer knowledge-card routes (#1095/#1096).
+"""Integration tests for the consumer knowledge-card routes (#1095/#1096/#1097).
 
-GET /api/app/persons/{id} and /api/app/topics/{id} — KG co-occurrence projections over a
-real fixture corpus via TestClient. Mounted at /api/app, separate from the operator API.
+GET /api/app/persons/{id}, /api/app/topics/{id} (KG co-occurrence cards) and
+/api/app/entities/search (exact/near-exact entity resolution) over a real fixture corpus via
+TestClient. Mounted at /api/app, separate from the operator API.
 """
 
 from __future__ import annotations
@@ -153,3 +154,46 @@ def test_topic_card_without_clusters_has_no_siblings(tmp_path: Path) -> None:
 def test_topic_card_unknown_is_404(tmp_path: Path) -> None:
     _two_episode_corpus(tmp_path)
     assert _client(tmp_path).get("/api/app/topics/topic:nope").status_code == 404
+
+
+def test_entity_search_resolves_person_exact_and_near_exact(tmp_path: Path) -> None:
+    _two_episode_corpus(tmp_path)
+    client = _client(tmp_path)
+    exact = client.get("/api/app/entities/search", params={"q": "Jane Doe"}).json()
+    assert exact["entity"] == {"id": "person:jane-doe", "kind": "person", "label": "Jane Doe"}
+    # Case/punctuation-insensitive ("near-exact"): hyphen + lowercase still resolves.
+    near = client.get("/api/app/entities/search", params={"q": "jane-doe"}).json()
+    assert near["entity"]["id"] == "person:jane-doe"
+
+
+def test_entity_search_resolves_topic(tmp_path: Path) -> None:
+    _two_episode_corpus(tmp_path)
+    body = (
+        _client(tmp_path).get("/api/app/entities/search", params={"q": "machine learning"}).json()
+    )
+    assert body["entity"] == {"id": "topic:ml", "kind": "topic", "label": "Machine Learning"}
+
+
+def test_entity_search_no_match_returns_null(tmp_path: Path) -> None:
+    _two_episode_corpus(tmp_path)
+    body = (
+        _client(tmp_path)
+        .get("/api/app/entities/search", params={"q": "quantum chromodynamics"})
+        .json()
+    )
+    assert body["query"] == "quantum chromodynamics"
+    assert body["entity"] is None
+
+
+def test_entity_search_prefers_person_over_topic_on_collision(tmp_path: Path) -> None:
+    # A person and a topic share the name "Focus" → the person card wins.
+    _write_episode(
+        tmp_path,
+        stem="0001-c",
+        episode_id="ep1",
+        persons=[("person:focus", "Focus")],
+        topics=[("topic:focus", "Focus")],
+    )
+    body = _client(tmp_path).get("/api/app/entities/search", params={"q": "focus"}).json()
+    assert body["entity"]["kind"] == "person"
+    assert body["entity"]["id"] == "person:focus"

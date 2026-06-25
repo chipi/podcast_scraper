@@ -8,11 +8,19 @@ operator relational API (the consumer/operator boundary stays clean). Mounted un
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
-from podcast_scraper.server.app_relational_view import build_person_card, build_topic_card
-from podcast_scraper.server.schemas import AppPersonCard, AppTopicCard
+from podcast_scraper.server.app_relational_view import (
+    build_person_card,
+    build_topic_card,
+    resolve_entity,
+)
+from podcast_scraper.server.schemas import (
+    AppEntitySearchResponse,
+    AppPersonCard,
+    AppTopicCard,
+)
 
 router = APIRouter(tags=["app"])
 
@@ -29,6 +37,20 @@ async def person_card(request: Request, person_id: str) -> AppPersonCard:
     if card is None:
         raise HTTPException(status_code=404, detail="Unknown person id.")
     return card
+
+
+@router.get("/entities/search", response_model=AppEntitySearchResponse)
+async def entity_search(
+    request: Request,
+    q: str = Query(min_length=1, description="Query to resolve to a person/topic entity."),
+) -> AppEntitySearchResponse:
+    """Resolve a query to a person/topic card (PRD-043 FR3 / 3.4) — exact/near-exact name only.
+
+    The consumer search view calls this alongside `/search` and renders the matched entity as a
+    card above the passage results. Returns ``entity: null`` (200) when nothing matches.
+    """
+    root = corpus_root_or_503(request)
+    return AppEntitySearchResponse(query=q, entity=resolve_entity(root, q))
 
 
 @router.get("/topics/{topic_id}", response_model=AppTopicCard)
