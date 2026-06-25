@@ -92,6 +92,28 @@ def set_queue(data_dir: Path, user_id: str, items: list[str]) -> list[str]:
     return clean
 
 
+# --- interests (personalized discovery; ordered list of cluster ids) ---
+
+
+def get_interests(data_dir: Path, user_id: str) -> list[str]:
+    """Return the user's interest cluster ids (graph_compound_parent_id); empty when unset."""
+    data = _read(data_dir, user_id, "interests", [])
+    return [str(x) for x in data] if isinstance(data, list) else []
+
+
+def set_interests(data_dir: Path, user_id: str, cluster_ids: list[str]) -> list[str]:
+    """Replace the user's interests; return the stored list (de-duplicated, order preserved)."""
+    seen: set[str] = set()
+    clean: list[str] = []
+    for x in cluster_ids:
+        s = str(x)
+        if s and s not in seen:
+            seen.add(s)
+            clean.append(s)
+    _write(data_dir, user_id, "interests", clean)
+    return clean
+
+
 # --- library (subscriptions; list of {feed_id, feed_url?, title?, added_at?}) ---
 
 

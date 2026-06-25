@@ -36,6 +36,16 @@ def test_queue_roundtrip(tmp_path: Path) -> None:
     assert st.get_queue(tmp_path, UID) == ["a", "b"]
 
 
+def test_interests_roundtrip_dedup_and_isolation(tmp_path: Path) -> None:
+    assert st.get_interests(tmp_path, UID) == []
+    # de-dup + blank-drop, order preserved
+    assert st.set_interests(tmp_path, UID, ["tc:a", "tc:b", "tc:a", ""]) == ["tc:a", "tc:b"]
+    assert st.get_interests(tmp_path, UID) == ["tc:a", "tc:b"]
+    # users are isolated
+    st.set_interests(tmp_path, "other", ["tc:z"])
+    assert st.get_interests(tmp_path, UID) == ["tc:a", "tc:b"]
+
+
 def test_library_add_dedupe_remove(tmp_path: Path) -> None:
     assert st.get_library(tmp_path, UID) == []
     st.add_subscription(tmp_path, UID, {"feed_id": "f1", "title": "One"})

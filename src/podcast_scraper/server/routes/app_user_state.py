@@ -15,6 +15,8 @@ from podcast_scraper.server import app_user_state
 from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
+    InterestsResponse,
+    InterestsUpdate,
     LibraryAdd,
     LibraryItem,
     LibraryResponse,
@@ -103,6 +105,24 @@ async def put_queue(
     """Replace the user's play queue (ordered slugs)."""
     return QueueResponse(
         items=app_user_state.set_queue(_data_dir(request), user.user_id, body.items)
+    )
+
+
+@router.get("/interests", response_model=InterestsResponse)
+async def get_interests(
+    request: Request, user: User = Depends(get_current_user)
+) -> InterestsResponse:
+    """Return the user's saved interest cluster ids (personalized discovery)."""
+    return InterestsResponse(items=app_user_state.get_interests(_data_dir(request), user.user_id))
+
+
+@router.put("/interests", response_model=InterestsResponse)
+async def put_interests(
+    request: Request, body: InterestsUpdate, user: User = Depends(get_current_user)
+) -> InterestsResponse:
+    """Replace the user's interest cluster ids."""
+    return InterestsResponse(
+        items=app_user_state.set_interests(_data_dir(request), user.user_id, body.items)
     )
 
 

@@ -303,6 +303,32 @@ class AppTopicCard(BaseModel):
     )
 
 
+class AppInterestCluster(BaseModel):
+    """One selectable interest cluster for the discovery picker (PRD-043 FR4 / 3.5)."""
+
+    id: str = Field(description="Cluster id (graph_compound_parent_id, e.g. 'tc:…').")
+    label: str = Field(description="Cluster canonical label.")
+    size: int = Field(ge=0, description="Cross-corpus member count (prevalence).")
+
+
+class AppInterestClustersResponse(BaseModel):
+    """Top interest clusters for the picker (GET /api/app/clusters)."""
+
+    items: list[AppInterestCluster] = Field(default_factory=list)
+
+
+class InterestsResponse(BaseModel):
+    """The user's saved interest cluster ids (GET /api/app/interests)."""
+
+    items: list[str] = Field(default_factory=list, description="Ordered cluster ids (tc:…).")
+
+
+class InterestsUpdate(BaseModel):
+    """Body for PUT /api/app/interests."""
+
+    items: list[str] = Field(default_factory=list, description="Cluster ids to save.")
+
+
 class PlaybackPosition(BaseModel):
     """Per-user playback position for one episode."""
 

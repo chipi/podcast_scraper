@@ -116,6 +116,20 @@
     "close": "Close panel",
     "empty": "Insights appear once this episode is processed."
   },
+  "interests": {
+    "title": "Choose your interests",
+    "subtitle": "Topics you care about shape your Home",
+    "loading": "Loading topics…",
+    "empty": "No topics to choose yet.",
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "close": "Close",
+    "cardTitle": "Personalize your Home",
+    "cardBody": "Tell us what you're into for sharper picks.",
+    "cardCta": "Choose interests",
+    "dismiss": "Not now"
+  },
   "ec": {
     "person": "Person",
     "topic": "Topic",

@@ -62,6 +62,25 @@ def test_queue_roundtrip(tmp_path: Path) -> None:
     assert client.get("/api/app/queue").json()["items"] == ["a", "b"]
 
 
+def test_interests_roundtrip_and_dedup(tmp_path: Path) -> None:
+    client = _authed_client(tmp_path)
+    assert client.get("/api/app/interests").json()["items"] == []
+    put = client.put("/api/app/interests", json={"items": ["tc:ai", "tc:health", "tc:ai", ""]})
+    assert put.status_code == 200, put.text
+    # Dedup + blank-drop, order preserved.
+    assert put.json()["items"] == ["tc:ai", "tc:health"]
+    assert client.get("/api/app/interests").json()["items"] == ["tc:ai", "tc:health"]
+
+
+def test_interests_requires_auth(tmp_path: Path) -> None:
+    app = create_app(tmp_path, static_dir=False)
+    app.state.session_secret = "test-secret"
+    app.state.app_data_dir = tmp_path / "appdata"
+    client = TestClient(app)
+    assert client.get("/api/app/interests").status_code == 401
+    assert client.put("/api/app/interests", json={"items": ["tc:x"]}).status_code == 401
+
+
 def test_disabled_user_blocked_on_state_route(tmp_path: Path) -> None:
     from podcast_scraper.server.app_user_store import set_disabled, user_id_for
 

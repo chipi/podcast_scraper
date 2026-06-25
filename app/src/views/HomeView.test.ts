@@ -5,8 +5,9 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
-import type { EpisodeSummary, Podcast } from '../services/types'
+import type { EpisodeSummary, Me, Podcast } from '../services/types'
 import HomeView from './HomeView.vue'
+import { useAuthStore } from '../stores/auth'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 const router = createRouter({
@@ -29,12 +30,23 @@ function ep(slug: string, title: string): EpisodeSummary {
   }
 }
 
-beforeEach(() => setActivePinia(createPinia()))
+beforeEach(() => {
+  setActivePinia(createPinia())
+  try {
+    localStorage.removeItem('lp.interests.dismissed')
+  } catch {
+    /* happy-dom storage edge — ignore */
+  }
+})
 afterEach(() => vi.restoreAllMocks())
+
+function signIn(): void {
+  useAuthStore().user = { user_id: 'u', email: 'e@x.com', name: 'N' } as unknown as Me
+}
 
 describe('HomeView (discover state, signed out)', () => {
   it('renders the ask hero, What\'s new and Your shows', async () => {
-    vi.spyOn(api, 'listEpisodes').mockResolvedValue({
+    vi.spyOn(api, 'getDiscover').mockResolvedValue({
       items: [ep('a-1', 'First Ep'), ep('a-2', 'Second Ep')], page: 1, page_size: 8, total: 2, has_more: false,
     })
     vi.spyOn(api, 'getPodcasts').mockResolvedValue([
@@ -52,7 +64,7 @@ describe('HomeView (discover state, signed out)', () => {
   })
 
   it('submitting the search navigates to /search', async () => {
-    vi.spyOn(api, 'listEpisodes').mockResolvedValue({ items: [], page: 1, page_size: 8, total: 0, has_more: false })
+    vi.spyOn(api, 'getDiscover').mockResolvedValue({ items: [], page: 1, page_size: 8, total: 0, has_more: false })
     vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
     vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
     const push = vi.spyOn(router, 'push')
@@ -61,5 +73,40 @@ describe('HomeView (discover state, signed out)', () => {
     await w.find('input#home-search').setValue('memory')
     await w.find('form').trigger('submit')
     expect(push).toHaveBeenCalledWith({ name: 'search', query: { q: 'memory' } })
+  })
+})
+
+describe('HomeView interests card (3.5)', () => {
+  beforeEach(() => {
+    vi.spyOn(api, 'getDiscover').mockResolvedValue({ items: [], page: 1, page_size: 8, total: 0, has_more: false })
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+  })
+
+  it('is hidden when signed out', async () => {
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    expect(w.text()).not.toContain('Personalize your Home')
+  })
+
+  it('shows to signed-in users and opens the cluster picker', async () => {
+    vi.spyOn(api, 'getTopClusters').mockResolvedValue([{ id: 'tc:ai', label: 'AI', size: 3 }])
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+    signIn()
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    expect(w.text()).toContain('Personalize your Home')
+    await w.findAll('button').find((b) => b.text() === 'Choose interests')!.trigger('click')
+    await flushPromises()
+    expect(w.find('[role="dialog"]').exists()).toBe(true)
+    expect(w.text()).toContain('AI') // a cluster chip in the picker
+  })
+
+  it('dismissing hides the card', async () => {
+    signIn()
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    await w.findAll('button').find((b) => b.text() === 'Not now')!.trigger('click')
+    expect(w.text()).not.toContain('Personalize your Home')
   })
 })

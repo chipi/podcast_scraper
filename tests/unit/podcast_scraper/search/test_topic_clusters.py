@@ -17,6 +17,7 @@ from podcast_scraper.search.topic_clusters import (
     load_topic_cluster_enrichment_map,
     load_validation_yaml,
     pick_centroid_closest_label,
+    top_clusters_by_member_count,
     topic_cluster_enrichment_by_topic_id,
     TOPIC_CLUSTERS_SCHEMA_VERSION,
     topic_id_aliases_from_clusters_payload,
@@ -310,6 +311,29 @@ def test_consumer_cluster_siblings_returns_co_members_with_labels(tmp_path: Path
     }
     # self is excluded from its own sibling list.
     assert all(s["id"] != "topic:ai" for s in out)
+
+
+def test_top_clusters_by_member_count_ranks_and_limits(tmp_path: Path) -> None:
+    _write_clusters_payload(
+        tmp_path,
+        '{"clusters": ['
+        '{"graph_compound_parent_id": "tc:small", "canonical_label": "Small", "member_count": 2, '
+        '"members": [{"topic_id": "topic:a"}, {"topic_id": "topic:b"}]}, '
+        '{"graph_compound_parent_id": "tc:big", "canonical_label": "Big", "member_count": 9, '
+        '"members": [{"topic_id": "topic:c"}]}, '
+        '{"canonical_label": "no-id", "members": [{"topic_id": "topic:x"}]}, '
+        '{"graph_compound_parent_id": "tc:mid", "canonical_label": "Mid", '
+        '"members": [{"topic_id": "topic:d"}, {"topic_id": "topic:e"}, {"topic_id": "topic:f"}]}'
+        "]}\n",  # tc:mid has no member_count → falls back to len(members)=3
+    )
+    top = top_clusters_by_member_count(tmp_path, top_n=2)
+    assert [c["id"] for c in top] == ["tc:big", "tc:mid"]  # 9, then 3 (len fallback), small=2 cut
+    assert top[0] == {"id": "tc:big", "label": "Big", "size": 9}
+    assert top[1]["size"] == 3  # len(members) fallback
+
+
+def test_top_clusters_by_member_count_empty_without_artifact(tmp_path: Path) -> None:
+    assert top_clusters_by_member_count(tmp_path) == []
 
 
 def test_consumer_cluster_siblings_empty_for_singleton_or_missing(tmp_path: Path) -> None:

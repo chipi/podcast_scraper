@@ -169,6 +169,13 @@ export interface EntitiesResponse {
   topics: Topic[]
 }
 
+/** One selectable interest cluster (GET /api/app/clusters — AppInterestCluster). */
+export interface InterestCluster {
+  id: string
+  label: string
+  size: number
+}
+
 /** A resolved person/topic reference (GET /api/app/entities/search — AppEntityRef). */
 export interface EntityRef {
   id: string

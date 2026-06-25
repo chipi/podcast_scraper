@@ -9,16 +9,19 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 import {
+  getDiscover,
   getEpisode,
   getPlaybackList,
   getPodcasts,
   getRelated,
-  listEpisodes,
 } from '../services/api'
 import type { EpisodeDetail, EpisodeSummary, Podcast } from '../services/types'
 import { formatTime } from '../player/transcriptSync'
 import { formatDuration } from '../utils/format'
 import { useAuthStore } from '../stores/auth'
+import InterestsPicker from '../components/InterestsPicker.vue'
+
+const INTERESTS_DISMISSED_KEY = 'lp.interests.dismissed'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -29,6 +32,26 @@ const shows = ref<Podcast[]>([])
 const recommended = ref<EpisodeSummary[]>([])
 const continueItems = ref<{ detail: EpisodeDetail; position: number }[]>([])
 const query = ref('')
+
+// First-Home dismissible "set your interests" card → opens the picker (PRD-043 FR4 / 3.5).
+const interestsDismissed = ref(false)
+const pickerOpen = ref(false)
+const showInterestsCard = computed(() => auth.isAuthenticated && !interestsDismissed.value)
+
+function dismissInterests(): void {
+  interestsDismissed.value = true
+  try {
+    localStorage.setItem(INTERESTS_DISMISSED_KEY, '1')
+  } catch {
+    /* private mode / storage disabled — the card just reappears next load */
+  }
+}
+
+async function onInterestsSaved(): Promise<void> {
+  dismissInterests()
+  // Re-pull discovery so a personalized order (when the flag is on) takes effect immediately.
+  latest.value = (await getDiscover(8).catch(() => null))?.items ?? latest.value
+}
 
 const resumeState = computed(() => auth.isAuthenticated && continueItems.value.length > 0)
 // Editorial ranked "What's new": a featured #1 + ranked rows — all on screen, no scroll.
@@ -46,7 +69,12 @@ function goSearch(q: string): void {
 }
 
 onMounted(async () => {
-  latest.value = (await listEpisodes({ pageSize: 8 }).catch(() => null))?.items ?? []
+  try {
+    interestsDismissed.value = localStorage.getItem(INTERESTS_DISMISSED_KEY) === '1'
+  } catch {
+    interestsDismissed.value = false
+  }
+  latest.value = (await getDiscover(8).catch(() => null))?.items ?? []
   getPodcasts()
     .then((s) => (shows.value = s))
     .catch(() => (shows.value = []))
@@ -118,6 +146,27 @@ onMounted(async () => {
         {{ t('search.title') }}
       </button>
     </form>
+
+    <!-- Set-your-interests card (first visit; dismissible) — opens the cluster picker -->
+    <section
+      v-if="showInterestsCard"
+      class="mt-4 flex items-center gap-3 rounded-2xl border border-accent bg-overlay p-4"
+    >
+      <span class="min-w-0 flex-1">
+        <span class="block font-bold">{{ t('interests.cardTitle') }}</span>
+        <span class="block text-sm text-muted">{{ t('interests.cardBody') }}</span>
+      </span>
+      <button
+        type="button"
+        class="shrink-0 rounded-full bg-accent px-4 py-2 text-sm font-bold text-accent-foreground"
+        @click="pickerOpen = true"
+      >
+        {{ t('interests.cardCta') }}
+      </button>
+      <button type="button" class="shrink-0 text-sm text-muted" @click="dismissInterests">
+        {{ t('interests.dismiss') }}
+      </button>
+    </section>
 
     <!-- What's new — editorial ranked: a featured #1 + ranked rows, all on screen, NO scroll -->
     <section v-if="wnFeatured" class="mt-7">
@@ -191,6 +240,8 @@ onMounted(async () => {
         </li>
       </ul>
     </section>
+
+    <InterestsPicker v-if="pickerOpen" @close="pickerOpen = false" @saved="onInterestsSaved" />
 
     <!-- Your shows -->
     <section v-if="shows.length" class="mt-7">

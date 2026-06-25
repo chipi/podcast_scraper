@@ -13,6 +13,7 @@ import type {
   EpisodeDetail,
   EpisodesPage,
   InsightsResponse,
+  InterestCluster,
   ListEpisodesParams,
   Me,
   PersonCard,
@@ -141,6 +142,40 @@ export function searchCorpus(q: string, topK = 12): Promise<SearchResponse> {
 /** Resolve a query to a person/topic card (exact/near-exact); `entity: null` when none. */
 export function resolveEntity(q: string): Promise<EntitySearchResponse> {
   return getJSON<EntitySearchResponse>('/entities/search', { q })
+}
+
+/** Home discovery feed — interest-ranked when enabled + signed-in, else recency (the default). */
+export function getDiscover(limit = 8): Promise<EpisodesPage> {
+  return getJSON<EpisodesPage>('/discover', { limit })
+}
+
+/** Top interest clusters for the picker, by corpus prevalence. */
+export async function getTopClusters(limit = 12): Promise<InterestCluster[]> {
+  return (await getJSON<{ items: InterestCluster[] }>('/clusters', { limit })).items
+}
+
+/** The signed-in user's interest cluster ids; `[]` when signed out (401). Auth-gated. */
+export async function getUserInterests(): Promise<string[]> {
+  try {
+    return (await getJSON<{ items: string[] }>('/interests')).items
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) return []
+    throw err
+  }
+}
+
+/** Replace the user's interest cluster ids (auth-gated); returns the stored list. */
+export async function putUserInterests(clusterIds: string[]): Promise<string[]> {
+  const resp = await fetch(`${BASE}/interests`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ items: clusterIds }),
+  })
+  if (!resp.ok) {
+    throw new ApiError(resp.status, `PUT /interests → ${resp.status}`)
+  }
+  return ((await resp.json()) as { items: string[] }).items
 }
 
 /** Shows in the user's library (Home "Your shows"). */

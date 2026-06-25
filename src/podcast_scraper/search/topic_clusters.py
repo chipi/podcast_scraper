@@ -161,6 +161,41 @@ def consumer_topic_cluster_map(corpus_root: Path) -> Dict[str, Dict[str, Any]]:
     return out
 
 
+def top_clusters_by_member_count(corpus_root: Path, top_n: int = 12) -> List[Dict[str, Any]]:
+    """Top-N clusters by member count (desc) for the interests picker (PRD-043 FR4 / 3.5).
+
+    Returns ``[{"id", "label", "size"}, ...]``; empty when the artifact is missing/invalid.
+    ``size`` is the explicit ``member_count`` when present, else ``len(members)``. ``id`` is the
+    cluster's ``graph_compound_parent_id`` (the stable interest key stored per-user).
+    """
+    payload = _load_topic_clusters_payload(corpus_root)
+    if payload is None:
+        return []
+    raw = payload.get("clusters")
+    if not isinstance(raw, list):
+        return []
+    out: List[Dict[str, Any]] = []
+    for cl in raw:
+        if not isinstance(cl, Mapping):
+            continue
+        gpid = _graph_compound_parent_id(cl)
+        if not gpid:
+            continue
+        mc = cl.get("member_count")
+        members = cl.get("members")
+        if isinstance(mc, int):
+            size = mc
+        elif isinstance(members, list):
+            size = len(members)
+        else:
+            size = 0
+        label_raw = cl.get("canonical_label")
+        label = str(label_raw).strip() if isinstance(label_raw, str) and label_raw.strip() else gpid
+        out.append({"id": gpid, "label": label, "size": size})
+    out.sort(key=lambda c: c["size"], reverse=True)
+    return out[: max(top_n, 0)]
+
+
 def consumer_cluster_siblings(corpus_root: Path, topic_id: str) -> List[Dict[str, str]]:
     """Sibling topics sharing ``topic_id``'s cluster, excluding itself (PRD-043 FR3).
 

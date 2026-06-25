@@ -57,6 +57,18 @@ def get_current_user(request: Request) -> User:
     return user
 
 
+def get_optional_user(request: Request) -> User | None:
+    """Resolve the session to a ``User``, or ``None`` when unauthenticated (no 401).
+
+    For read surfaces that personalize *when* signed in but stay open otherwise (e.g. the
+    discovery feed): an anonymous request simply gets the un-personalized response.
+    """
+    try:
+        return get_current_user(request)
+    except HTTPException:
+        return None
+
+
 @router.get("/auth/login")
 async def app_auth_login(request: Request) -> RedirectResponse:
     """Begin the OAuth flow: redirect to the provider with a CSRF state cookie."""
