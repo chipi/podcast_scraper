@@ -42,6 +42,7 @@ Features with meaningful **UI** may also link **[UX specifications](../uxs/index
 | [PRD-040](PRD-040-capture.md) | Capture — highlights + notes | [RFC-099](../rfc/RFC-099-learning-platform-consumer-client.md) | **Draft (v2.7, P2):** Kindle-style highlights and notes, grounded to timestamps/offsets, per user. |
 | [PRD-041](PRD-041-consolidation.md) | Consolidation — personal knowledge corpus | [RFC-101](../rfc/RFC-101-personal-knowledge-corpus.md) | **Draft (v2.7, P3):** per-user projection over GIL/KG; grounded recall scoped to heard episodes; spaced resurfacing; interest profile. |
 | [PRD-042](PRD-042-home.md) | Home (Learning Hub) | [RFC-099](../rfc/RFC-099-learning-platform-consumer-client.md) | **Draft (v2.7, P1):** the app's launch surface — orient (what's new) / resume (continue) / discover-within (recommended + corpus-wide grounded search) / route; catalog moves to /catalog. GH #1090. |
+| [PRD-043](PRD-043-knowledge-layer.md) | Knowledge Layer — Topic Clusters, Entity Cards & Personalized Discovery | RFC-102 (planned) | **Draft (v2.8, Epic 3):** make knowledge first-class — topic clusters (cluster-first UI), person/topic entity cards, entities in search, and digest × interest-cluster personalized discovery. Merges the proposed Epic 3+4. |
 
 ## Implemented PRDs
 

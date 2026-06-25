@@ -152,6 +152,7 @@ nav:
       - PRD-040 Capture: prd/PRD-040-capture.md
       - PRD-041 Consolidation: prd/PRD-041-consolidation.md
       - PRD-042 Home: prd/PRD-042-home.md
+      - PRD-043 Knowledge Layer: prd/PRD-043-knowledge-layer.md
       - PRD Template: prd/PRD_TEMPLATE.md
   - UX Specifications:
       - uxs/index.md
