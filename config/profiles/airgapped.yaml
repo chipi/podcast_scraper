@@ -84,6 +84,22 @@ kg_max_entities: 15
 # YAML-overlay expected values.
 gi_typed_mentions_use_ner: true
 
+# #1058 chunk 1 — KG Organization post-pass for LLM-free profiles.
+# Default-on for airgapped because SummLlama (summary-only, no JSON)
+# can't extract typed entities — Organization nodes never land
+# without this. The post-pass runs spaCy NER over GI Insight texts
+# and adds Organization nodes; idempotent. Same overlay-only nature
+# as gi_typed_mentions_use_ner (not carried by ProfilePreset).
+kg_organizations_use_ner: true
+
+# #1058 chunk 3 — corpus-level Topic clustering for cross-show synthesis.
+# Under SummLlama, bullet-derived Topics per show never share labels
+# with other shows; this corpus post-pass clusters them via
+# sentence-transformers (already present for ABOUT edges) and emits
+# concept-Topic + RELATED_TO so cross_show_synthesis connectivity
+# lands. Overlay-only (not on ProfilePreset). Idempotent.
+kg_topic_corpus_clustering: true
+
 # Vector search + clustering
 vector_search: true
 vector_embedding_provider: sentence_transformers

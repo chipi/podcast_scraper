@@ -2149,6 +2149,41 @@ class Config(BaseModel):
             "see no behavior change until operator validates and flips."
         ),
     )
+    kg_organizations_use_ner: bool = Field(
+        default=False,
+        alias="kg_organizations_use_ner",
+        description=(
+            "#1058 chunk 1. When True, a KG post-pass "
+            "(kg/ner_postpass.py::apply_org_postpass_to_kg_artifact) "
+            "runs spaCy NER over the GI Insight texts and adds "
+            "Organization nodes for every distinct ORG span. Closes "
+            "the airgapped capability gap where the no-LLM summary "
+            "provider can't extract typed entities — Organization "
+            "nodes (and downstream MENTIONS_ORG edges in #1058 chunk "
+            "2) now land deterministically. Default False; YAML "
+            "overlays for airgapped + airgapped_thin flip it on. "
+            "Idempotent: re-run on a KG that already carries the same "
+            "org adds nothing."
+        ),
+    )
+    kg_topic_corpus_clustering: bool = Field(
+        default=False,
+        alias="kg_topic_corpus_clustering",
+        description=(
+            "#1058 chunk 3. When True, a corpus-level post-pass "
+            "(kg/topic_clustering.py::cluster_and_apply_corpus_topics) "
+            "clusters per-episode Topic labels across the corpus via "
+            "sentence-transformers cosine similarity and emits a "
+            "synthetic concept-Topic node + RELATED_TO edges from each "
+            "source Topic. Closes the cross_show_synthesis gap under "
+            "airgapped — bullet-derived Topics from different shows "
+            "never share a label without this merge. Default False; "
+            "YAML overlays for airgapped + airgapped_thin flip it on. "
+            "Idempotent. Triggered via the standalone `cluster-topics` "
+            "CLI or by the workflow orchestrator after every episode "
+            "in a corpus has been processed."
+        ),
+    )
     vector_search: bool = Field(
         default=False,
         alias="vector_search",

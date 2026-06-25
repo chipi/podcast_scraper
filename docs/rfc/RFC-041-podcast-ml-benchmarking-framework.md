@@ -2,7 +2,7 @@
 
 ## Status
 
-**Phase 0–1 complete** — Dataset materialization, baseline creation, and metrics structure implemented. CI integration pending.
+Completed (v2.7) — Phases 0–1 (dataset materialization, baseline creation, metrics structure) shipped earlier. Phase 4 (CI integration) shipped 2026-06-24 as the standalone `.github/workflows/ml-benchmark.yml` workflow (operator-triggered via `workflow_dispatch`, smoke/benchmark dataset choice, no gate on other workflows).
 
 ## RFC Number
 

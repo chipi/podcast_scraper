@@ -67,6 +67,62 @@ class TestProfileNERFlag:
         assert cfg.gi_typed_mentions_use_ner is False
 
 
+class TestProfileKGOrgFlag:
+    """#1058 chunk 1 — YAML-overlay contract for ``kg_organizations_use_ner``."""
+
+    def test_airgapped_profile_flips_kg_org_on(self, _fake_keys: None) -> None:
+        cfg = Config.model_validate({"profile": "airgapped"})
+        assert cfg.kg_organizations_use_ner is True
+
+    def test_airgapped_thin_profile_flips_kg_org_on(self, _fake_keys: None) -> None:
+        cfg = Config.model_validate({"profile": "airgapped_thin"})
+        assert cfg.kg_organizations_use_ner is True
+
+    def test_dev_profile_leaves_kg_org_off(self, _fake_keys: None) -> None:
+        cfg = Config.model_validate({"profile": "dev"})
+        assert cfg.kg_organizations_use_ner is False
+
+    def test_cloud_thin_profile_leaves_kg_org_off(self, _fake_keys: None) -> None:
+        cfg = Config.model_validate({"profile": "cloud_thin"})
+        assert cfg.kg_organizations_use_ner is False
+
+    def test_default_when_no_profile(self, _fake_keys: None) -> None:
+        cfg = Config.model_validate({})
+        assert cfg.kg_organizations_use_ner is False
+
+    def test_explicit_override_wins_over_profile(self, _fake_keys: None) -> None:
+        cfg = Config.model_validate({"profile": "airgapped", "kg_organizations_use_ner": False})
+        assert cfg.kg_organizations_use_ner is False
+
+
+class TestProfileKGTopicClusteringFlag:
+    """#1058 chunk 3 — YAML-overlay contract for ``kg_topic_corpus_clustering``."""
+
+    def test_airgapped_profile_flips_clustering_on(self, _fake_keys: None) -> None:
+        cfg = Config.model_validate({"profile": "airgapped"})
+        assert cfg.kg_topic_corpus_clustering is True
+
+    def test_airgapped_thin_profile_flips_clustering_on(self, _fake_keys: None) -> None:
+        cfg = Config.model_validate({"profile": "airgapped_thin"})
+        assert cfg.kg_topic_corpus_clustering is True
+
+    def test_dev_profile_leaves_clustering_off(self, _fake_keys: None) -> None:
+        cfg = Config.model_validate({"profile": "dev"})
+        assert cfg.kg_topic_corpus_clustering is False
+
+    def test_cloud_thin_profile_leaves_clustering_off(self, _fake_keys: None) -> None:
+        cfg = Config.model_validate({"profile": "cloud_thin"})
+        assert cfg.kg_topic_corpus_clustering is False
+
+    def test_default_when_no_profile(self, _fake_keys: None) -> None:
+        cfg = Config.model_validate({})
+        assert cfg.kg_topic_corpus_clustering is False
+
+    def test_explicit_override_wins_over_profile(self, _fake_keys: None) -> None:
+        cfg = Config.model_validate({"profile": "airgapped", "kg_topic_corpus_clustering": False})
+        assert cfg.kg_topic_corpus_clustering is False
+
+
 class TestWorkflowGatingExpression:
     """Direct contract test for the conditional at
     ``workflow/metadata_generation.py:4008``."""
@@ -99,3 +155,60 @@ class TestWorkflowGatingExpression:
 
         sentinel_nlp = object()
         assert self._gate(_LegacyCfg(), sentinel_nlp) is None
+
+
+class TestKGOrgWorkflowGatingExpression:
+    """#1058 chunk 1 — gating expression for the KG ORG post-pass
+    (workflow/metadata_generation.py). Mirrors the PERSON gating
+    contract above so a refactor that renames either field can't
+    silently slip past CI."""
+
+    @staticmethod
+    def _gate(cfg: object) -> bool:
+        return bool(getattr(cfg, "kg_organizations_use_ner", False))
+
+    def test_gate_returns_true_when_flag_true(self) -> None:
+        class _Cfg:
+            kg_organizations_use_ner = True
+
+        assert self._gate(_Cfg()) is True
+
+    def test_gate_returns_false_when_flag_false(self) -> None:
+        class _Cfg:
+            kg_organizations_use_ner = False
+
+        assert self._gate(_Cfg()) is False
+
+    def test_gate_defaults_to_false_when_field_absent(self) -> None:
+        class _LegacyCfg:
+            pass
+
+        assert self._gate(_LegacyCfg()) is False
+
+
+class TestKGTopicClusteringWorkflowGatingExpression:
+    """#1058 chunk 3 — gating expression at the orchestration call site
+    (workflow/orchestration.py — Step 16). Same contract shape as the
+    other two flags."""
+
+    @staticmethod
+    def _gate(cfg: object) -> bool:
+        return bool(getattr(cfg, "kg_topic_corpus_clustering", False))
+
+    def test_gate_returns_true_when_flag_true(self) -> None:
+        class _Cfg:
+            kg_topic_corpus_clustering = True
+
+        assert self._gate(_Cfg()) is True
+
+    def test_gate_returns_false_when_flag_false(self) -> None:
+        class _Cfg:
+            kg_topic_corpus_clustering = False
+
+        assert self._gate(_Cfg()) is False
+
+    def test_gate_defaults_to_false_when_field_absent(self) -> None:
+        class _LegacyCfg:
+            pass
+
+        assert self._gate(_LegacyCfg()) is False

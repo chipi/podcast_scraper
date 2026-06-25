@@ -1,0 +1,116 @@
+{
+  "edges": [
+    {
+      "from": "episode:show-c-ep2",
+      "to": "insight:show-c-ep2-i0",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:show-c-ep2-i0",
+      "to": "topic:show-c-renewable-energy-transition",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:show-c-ep2-i0",
+      "to": "concept:topic-clean-energy",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:show-c-ep2-i0",
+      "to": "quote:show-c-ep2-q0",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:show-c-ep2-i0",
+      "to": "person:maya-okonkwo",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:show-c-ep2-i0",
+      "to": "org:greentech-ventures",
+      "type": "MENTIONS_ORG"
+    },
+    {
+      "from": "quote:show-c-ep2-q0",
+      "to": "person:alice-hayes",
+      "type": "SPOKEN_BY"
+    }
+  ],
+  "episode_id": "episode:show-c-ep2",
+  "model_version": "fixture",
+  "nodes": [
+    {
+      "id": "episode:show-c-ep2",
+      "properties": {
+        "podcast_id": "podcast:show-c",
+        "publish_date": "2024-01-06T00:00:00Z",
+        "title": "Renewable energy economics"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "insight:show-c-ep2-i0",
+      "properties": {
+        "episode_id": "episode:show-c-ep2",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Dr. Alice Hayes discussed renewable energy transition. They referenced Maya Okonkwo. They noted GreenTech Ventures."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "concept:topic-clean-energy",
+      "properties": {
+        "is_concept": true,
+        "label": "clean energy"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "quote:show-c-ep2-q0",
+      "properties": {
+        "char_end": 40,
+        "char_start": 0,
+        "episode_id": "episode:show-c-ep2",
+        "speaker_id": "person:alice-hayes",
+        "text": "This is what we said about renewable energy transition.",
+        "timestamp_end_ms": 500,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "show-c_ep2.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:maya-okonkwo",
+      "properties": {
+        "name": "Maya Okonkwo"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "org:greentech-ventures",
+      "properties": {
+        "name": "GreenTech Ventures",
+        "role": "mentioned"
+      },
+      "type": "Organization"
+    },
+    {
+      "id": "person:alice-hayes",
+      "properties": {
+        "name": "Dr. Alice Hayes"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:dan-tran",
+      "properties": {
+        "name": "Dan Tran"
+      },
+      "type": "Person"
+    }
+  ],
+  "prompt_version": "v1",
+  "schema_version": "3.0"
+}

@@ -1,0 +1,116 @@
+{
+  "edges": [
+    {
+      "from": "episode:show-a-ep2",
+      "to": "insight:show-a-ep2-i0",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:show-a-ep2-i0",
+      "to": "topic:show-a-ai-safety",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:show-a-ep2-i0",
+      "to": "concept:topic-ai-safety",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:show-a-ep2-i0",
+      "to": "quote:show-a-ep2-q0",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:show-a-ep2-i0",
+      "to": "person:maya-okonkwo",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:show-a-ep2-i0",
+      "to": "org:acme-labs",
+      "type": "MENTIONS_ORG"
+    },
+    {
+      "from": "quote:show-a-ep2-q0",
+      "to": "person:alice-hayes",
+      "type": "SPOKEN_BY"
+    }
+  ],
+  "episode_id": "episode:show-a-ep2",
+  "model_version": "fixture",
+  "nodes": [
+    {
+      "id": "episode:show-a-ep2",
+      "properties": {
+        "podcast_id": "podcast:show-a",
+        "publish_date": "2024-01-02T00:00:00Z",
+        "title": "AI safety roundtable"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "insight:show-a-ep2-i0",
+      "properties": {
+        "episode_id": "episode:show-a-ep2",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Dr. Alice Hayes discussed AI safety. They referenced Maya Okonkwo. They noted Acme Labs."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "concept:topic-ai-safety",
+      "properties": {
+        "is_concept": true,
+        "label": "AI safety"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "quote:show-a-ep2-q0",
+      "properties": {
+        "char_end": 40,
+        "char_start": 0,
+        "episode_id": "episode:show-a-ep2",
+        "speaker_id": "person:alice-hayes",
+        "text": "This is what we said about AI safety.",
+        "timestamp_end_ms": 500,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "show-a_ep2.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:maya-okonkwo",
+      "properties": {
+        "name": "Maya Okonkwo"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "org:acme-labs",
+      "properties": {
+        "name": "Acme Labs",
+        "role": "mentioned"
+      },
+      "type": "Organization"
+    },
+    {
+      "id": "person:alice-hayes",
+      "properties": {
+        "name": "Dr. Alice Hayes"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:dan-tran",
+      "properties": {
+        "name": "Dan Tran"
+      },
+      "type": "Person"
+    }
+  ],
+  "prompt_version": "v1",
+  "schema_version": "3.0"
+}

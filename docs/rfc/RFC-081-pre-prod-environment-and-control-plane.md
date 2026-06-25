@@ -1,6 +1,6 @@
 # RFC-081: Pre-prod Environment, Minimal Observability, and Mobile Control Plane
 
-- **Status**: Draft
+- **Status**: Completed (v2.7) — `.github/workflows/deploy-codespace.yml` auto-fires the Codespaces deploy on stack-test green; `cloud_thin` profile published via GHCR `:main` + `:sha-<short>` image tags; `backup-corpus.yml` + `verify-backup-restore.yml` workflows live; `post-deploy-smoke.yml` exercises the codespace post-deploy; observability (Grafana + Sentry) wired through the existing prod stack. Always-on host work continues as RFC-082.
 - **Authors**: Marko + Claude
 - **Created**: 2026-04-27
 - **Domain**: Infrastructure / DevOps / Observability

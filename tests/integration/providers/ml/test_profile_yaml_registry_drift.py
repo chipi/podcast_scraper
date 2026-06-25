@@ -100,8 +100,16 @@ def test_profile_yaml_matches_registry_preset(path: Path, data: Dict[str, Any]) 
 # back to the regex-only MENTIONS_PERSON path. Pin the expected value
 # per profile so the drift test catches it.
 _OVERLAY_EXPECTED: Dict[str, Dict[str, Any]] = {
-    "airgapped": {"gi_typed_mentions_use_ner": True},
-    "airgapped_thin": {"gi_typed_mentions_use_ner": True},
+    "airgapped": {
+        "gi_typed_mentions_use_ner": True,
+        "kg_organizations_use_ner": True,
+        "kg_topic_corpus_clustering": True,
+    },
+    "airgapped_thin": {
+        "gi_typed_mentions_use_ner": True,
+        "kg_organizations_use_ner": True,
+        "kg_topic_corpus_clustering": True,
+    },
 }
 
 

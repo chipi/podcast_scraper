@@ -1,0 +1,22 @@
+{
+  "content": {
+    "detected_guests": [
+      "Maya Okonkwo"
+    ],
+    "detected_hosts": [
+      "Bob Chen"
+    ],
+    "transcript_file_path": "show-b_ep2.txt"
+  },
+  "episode": {
+    "episode_id": "episode:show-b-ep2",
+    "publish_date": "2024-01-04T00:00:00Z",
+    "title": "The future of compute"
+  },
+  "feed": {
+    "title": "Show B"
+  },
+  "grounded_insights": {
+    "artifact_path": "show-b_ep2.gi.json"
+  }
+}

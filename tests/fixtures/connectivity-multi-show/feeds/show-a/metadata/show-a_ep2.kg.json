@@ -1,0 +1,78 @@
+{
+  "edges": [
+    {
+      "from": "podcast:show-a",
+      "to": "episode:show-a-ep2",
+      "type": "HAS_EPISODE"
+    },
+    {
+      "from": "topic:show-a-ai-safety",
+      "to": "concept:topic-ai-safety",
+      "type": "RELATED_TO"
+    }
+  ],
+  "episode_id": "episode:show-a-ep2",
+  "extraction": {
+    "extracted_at": "2024-01-02T00:00:00Z",
+    "model_version": "fixture",
+    "transcript_ref": "show-a_ep2.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:show-a-ep2",
+      "properties": {
+        "podcast_id": "podcast:show-a",
+        "publish_date": "2024-01-02T00:00:00Z",
+        "title": "AI safety roundtable"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "podcast:show-a",
+      "properties": {
+        "title": "Show A"
+      },
+      "type": "Podcast"
+    },
+    {
+      "id": "person:alice-hayes",
+      "properties": {
+        "name": "Dr. Alice Hayes",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:dan-tran",
+      "properties": {
+        "name": "Dan Tran",
+        "role": "guest"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "topic:show-a-ai-safety",
+      "properties": {
+        "label": "AI safety"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "org:acme-labs",
+      "properties": {
+        "name": "Acme Labs",
+        "role": "mentioned"
+      },
+      "type": "Organization"
+    },
+    {
+      "id": "concept:topic-ai-safety",
+      "properties": {
+        "is_concept": true,
+        "label": "AI safety"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2.0"
+}

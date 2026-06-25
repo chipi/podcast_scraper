@@ -1,0 +1,22 @@
+{
+  "content": {
+    "detected_guests": [
+      "Dan Tran"
+    ],
+    "detected_hosts": [
+      "Dr. Alice Hayes"
+    ],
+    "transcript_file_path": "show-a_ep2.txt"
+  },
+  "episode": {
+    "episode_id": "episode:show-a-ep2",
+    "publish_date": "2024-01-02T00:00:00Z",
+    "title": "AI safety roundtable"
+  },
+  "feed": {
+    "title": "Show A"
+  },
+  "grounded_insights": {
+    "artifact_path": "show-a_ep2.gi.json"
+  }
+}

@@ -1,0 +1,153 @@
+# Release workflow — operator-triggered, stops at tag + draft notes
+# (per operator directive 2026-06-25).
+#
+# Steps:
+#   1. ci-fast on the release commit (hard gate)
+#   2. AI experiment pipeline (workflow_call) — soft warnings
+#   3. ML benchmark smoke (workflow_call) — soft warnings
+#   4. Compare against the most recent data/baselines/ snapshot
+#   5. Build release notes draft with eval deltas embedded
+#   6. Create a DRAFT GitHub release with the notes attached
+#
+# Operator publishes the draft manually after reviewing. Deploy is
+# intentionally NOT wired in — surfaced via a separate manual deploy
+# workflow once the release is published.
+
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. v2.7.0)'
+        required: true
+      smoke_only:
+        description: 'Skip the full benchmark and use smoke dataset only'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+permissions:
+  contents: write   # creates the draft GitHub release + tag
+
+concurrency:
+  group: release-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  ci-fast:
+    name: Sanity (ci-fast)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11.8'
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install package (dev)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run make ci-fast
+        run: make ci-fast
+
+  experiment:
+    name: AI experiment pipeline
+    needs: ci-fast
+    uses: ./.github/workflows/ai-experiment-pipeline.yml
+    with:
+      config: 'data/eval/configs/ml/baseline_ml_dev_authority_benchmark_v1.yaml'
+      baseline: ''
+      # force: default 'false' in the called workflow — omitted here so
+      # actionlint doesn't mis-coerce the YAML string literal to bool.
+
+  benchmark:
+    name: ML benchmark
+    needs: ci-fast
+    uses: ./.github/workflows/ml-benchmark.yml
+    with:
+      dataset_size: 'smoke'
+      config: 'data/eval/configs/ml/baseline_ml_dev_authority_benchmark_v1.yaml'
+
+  draft-release:
+    name: Compose draft release
+    needs: [experiment, benchmark]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # need full history for prev-tag lookup
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11.8'
+
+      - name: Download experiment artifact
+        uses: actions/download-artifact@v4
+        with:
+          pattern: experiment-run-*
+          path: /tmp/artifacts/experiment
+          merge-multiple: true
+
+      - name: Download benchmark artifact
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ml-benchmark-*
+          path: /tmp/artifacts/benchmark
+          merge-multiple: true
+
+      - name: Compare against latest baseline
+        run: |
+          # The downloaded artifacts dropped the data/eval/runs/<id>/...
+          # tree into /tmp/artifacts/{experiment,benchmark}/. Pick the
+          # newest run dir under each for the comparator.
+          EXP_RUN=$(find /tmp/artifacts/experiment -type d -name 'metrics.json' -prune -o -type d -mindepth 3 -print 2>/dev/null | sort | tail -n 1 || true)
+          BM_RUN=$(find /tmp/artifacts/benchmark -type d -name 'metrics.json' -prune -o -type d -mindepth 3 -print 2>/dev/null | sort | tail -n 1 || true)
+          python scripts/baselines/compare_against_baseline.py \
+              --experiment-run-dir "${EXP_RUN}" \
+              --benchmark-run-dir "${BM_RUN}" \
+              --output /tmp/eval-comparison.md
+          cat /tmp/eval-comparison.md >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Compose release notes
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -e
+          PREV_TAG=$(git tag --sort=-version:refname | head -n 1 || true)
+          {
+            echo "# Release ${VERSION}"
+            echo
+            echo "## Commits since ${PREV_TAG:-(no prior tag)}"
+            if [ -n "${PREV_TAG}" ]; then
+              git log --pretty='- %h %s' "${PREV_TAG}..HEAD" || true
+            else
+              git log --pretty='- %h %s' -n 25 || true
+            fi
+            echo
+            cat /tmp/eval-comparison.md
+          } > /tmp/release-notes.md
+          echo "Composed /tmp/release-notes.md ($(wc -l </tmp/release-notes.md) lines)"
+
+      - name: Create draft GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          gh release create "${VERSION}" \
+            --draft \
+            --title "${VERSION}" \
+            --notes-file /tmp/release-notes.md \
+            --target "${GITHUB_SHA}"
+          echo "::notice::Draft release ${VERSION} created. Publish manually after review."

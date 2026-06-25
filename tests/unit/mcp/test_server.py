@@ -17,6 +17,8 @@ def test_build_server_registers_tools(tmp_path) -> None:
         # slice 1
         "resolve_entity",
         "search_corpus",
+        # RFC-093 LITM briefing pack (added 2026-06-25)
+        "corpus_briefing_pack",
         # slice 2 — relational (RFC-094 traversals)
         "person_positions",
         "who_said_about_topic",

@@ -1,6 +1,6 @@
 # RFC-077: Viewer feeds API, operator config, job runner, and process hygiene (`serve`)
 
-- **Status**: Draft
+- **Status**: Completed (v2.6.0–v2.7) — Phase 1a (`/api/feeds` + `feeds.spec.yaml` + `--feeds-spec`), Phase 1b (`/api/operator-config` + `viewer_operator.yaml` + forbidden-key validation + `available_profiles`), and Phase 2 (jobs API + subprocess runner + stale/PID-orphan reconcile + cancel via SIGTERM + JSONL registry under `.viewer/jobs.jsonl`) all shipped. Health flags `feeds_api` / `operator_config_api` / `jobs_api` live. Viewer-side `jobsApi.ts` + `operatorConfigApi.ts` consume the APIs.
 - **Authors**: Podcast Scraper Team
 - **Stakeholders**: Maintainers; viewer operators
 - **Tracking**: [GitHub #626](https://github.com/chipi/podcast_scraper/issues/626)

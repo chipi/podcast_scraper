@@ -1289,6 +1289,21 @@ def generate_enhanced_fingerprint(  # noqa: C901
         _ner_flag = getattr(experiment_config, "gi_typed_mentions_use_ner", None)
         if _ner_flag is not None:
             podcast_scraper_cfg["gi_typed_mentions_use_ner"] = bool(_ner_flag)
+        # #1058 chunk 1 — capture kg_organizations_use_ner. Same rationale
+        # as gi_typed_mentions_use_ner: the flag changes which Organization
+        # nodes land in the KG (and therefore which MENTIONS_ORG edges
+        # downstream chunks can resolve), so the fingerprint must reflect
+        # it to keep cross-run comparisons honest.
+        _kg_org_flag = getattr(experiment_config, "kg_organizations_use_ner", None)
+        if _kg_org_flag is not None:
+            podcast_scraper_cfg["kg_organizations_use_ner"] = bool(_kg_org_flag)
+        # #1058 chunk 3 — capture kg_topic_corpus_clustering. Flag
+        # changes which concept-Topic + RELATED_TO edges land via the
+        # corpus-level post-pass; fingerprint must reflect it for
+        # cross-run comparison honesty.
+        _kg_topic_flag = getattr(experiment_config, "kg_topic_corpus_clustering", None)
+        if _kg_topic_flag is not None:
+            podcast_scraper_cfg["kg_topic_corpus_clustering"] = bool(_kg_topic_flag)
 
         # Inference args + image (operator-supplied via env). Sweep runbooks
         # populate these by running:

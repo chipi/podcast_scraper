@@ -46,6 +46,7 @@ from .tools import (
     connectivity as _connectivity,
     relational as _relational,
 )
+from .tools.briefing_pack import corpus_briefing_pack as _corpus_briefing_pack
 from .tools.resolve import resolve_entity as _resolve_entity
 from .tools.search import search_corpus as _search_corpus
 
@@ -96,6 +97,41 @@ def build_server(corpus_dir: Path | str) -> Any:
             feed=feed,
             since=since,
             top_k=top_k,
+        )
+
+    @server.tool()
+    @_enveloped
+    def corpus_briefing_pack(
+        query: str,
+        tier: str = "both",
+        grounded_only: bool = False,
+        feed: Optional[str] = None,
+        since: Optional[str] = None,
+        top_k: int = 10,
+        max_tokens: int = 8000,
+    ) -> dict:
+        """LITM-positioned briefing pack over the corpus (RFC-093).
+
+        Wraps ``search_corpus`` + the existing pack builder: returns a
+        ready-to-paste-into-context block ordered for LLM attention
+        — critical grounding at the top, supporting evidence in the
+        middle, caveats / low-confidence at the bottom (LITM
+        positioning, Liu et al. 2023). Use INSTEAD of ``search_corpus``
+        when you want one assembled brief; use ``search_corpus`` when
+        you want raw hits to assemble yourself.
+
+        ``max_tokens`` is a soft budget (default 8000; ~4 chars / token
+        approximation). The builder trims supporting evidence to fit.
+        """
+        return _corpus_briefing_pack(
+            ctx,
+            query,
+            tier=tier,
+            grounded_only=grounded_only,
+            feed=feed,
+            since=since,
+            top_k=top_k,
+            max_tokens=max_tokens,
         )
 
     # --- relational tools (RFC-095 slice 2): all take canonical ids (resolve first) ---

@@ -2441,6 +2441,36 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
                     pass
             raise
 
+        # Step 16: #1058 chunk 3 — corpus-level Topic clustering.
+        # Runs AFTER per-episode finalize so every kg.json is on disk
+        # before we collect Topic labels across the corpus. Gated on
+        # cfg.kg_topic_corpus_clustering (default off; airgapped*
+        # overlays flip it on). Non-fatal — a failure here doesn't
+        # bring down a successful run.
+        if getattr(cfg, "kg_topic_corpus_clustering", False) and not cfg.dry_run:
+            try:
+                from pathlib import Path as _Path
+
+                from podcast_scraper.kg.topic_clustering import (
+                    cluster_and_apply_corpus_topics,
+                )
+
+                summary = cluster_and_apply_corpus_topics(_Path(effective_output_dir))
+                logger.info(
+                    "corpus topic clustering: clusters=%d concept_topics_added=%d "
+                    "related_to_edges_added=%d artifacts_mutated=%d",
+                    summary.clusters_found,
+                    summary.concept_topics_added,
+                    summary.related_to_edges_added,
+                    summary.artifacts_mutated,
+                )
+            except Exception as cluster_exc:
+                logger.warning(
+                    "corpus topic clustering failed (non-fatal): %s",
+                    cluster_exc,
+                    exc_info=True,
+                )
+
         maybe_update_pipeline_status(cfg, effective_output_dir, stage="done")
         return result
     finally:
