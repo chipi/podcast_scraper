@@ -389,3 +389,91 @@ def test_episode_search_filters_to_episode(tmp_path: Path, monkeypatch: pytest.M
     body = _client(tmp_path).get(f"/api/app/episodes/{slug}/search", params={"q": "foo"}).json()
     assert captured["feed"] == "myfeed"  # over-fetched scoped by feed
     assert [r["doc_id"] for r in body["results"]] == ["a"]  # narrowed to this episode
+
+
+def test_episodes_list_endpoint(tmp_path: Path) -> None:
+    _write_corpus(tmp_path)
+    body = _client(tmp_path).get("/api/app/episodes").json()
+    assert body["total"] == 1
+    assert body["page"] == 1 and body["page_size"] == 20 and body["has_more"] is False
+    item = body["items"][0]
+    assert item["title"] == "Hello"
+    assert item["status"] == "ready"
+    assert item["summary_preview"] == "Sum"  # clean lede = summary title
+    assert item["summary_bullets"] == ["a", "b"]
+
+
+def test_episodes_list_status_filter(tmp_path: Path) -> None:
+    _write_corpus(tmp_path)  # has a transcript → "ready"
+    c = _client(tmp_path)
+    assert c.get("/api/app/episodes", params={"status": "ready"}).json()["total"] == 1
+    assert c.get("/api/app/episodes", params={"status": "pending"}).json()["total"] == 0
+
+
+def test_podcasts_list_endpoint_includes_description(tmp_path: Path) -> None:
+    # A feed with a description surfaces it on /podcasts (the show-page header).
+    (tmp_path / "metadata").mkdir(parents=True, exist_ok=True)
+    doc = {
+        "feed": {
+            "feed_id": "f1",
+            "title": "Show One",
+            "url": "https://p/f.xml",
+            "description": "A great show.",
+        },
+        "episode": {"episode_id": "e1", "title": "E1", "published_date": "2024-03-01T00:00:00"},
+        "content": {},
+    }
+    (tmp_path / "metadata" / "e1.metadata.json").write_text(json.dumps(doc), encoding="utf-8")
+    body = _client(tmp_path).get("/api/app/podcasts").json()
+    show = next(s for s in body["items"] if s["feed_id"] == "f1")
+    assert show["title"] == "Show One"
+    assert show["description"] == "A great show."
+    assert show["episode_count"] == 1
+
+
+def test_podcast_episodes_scoped_to_feed(tmp_path: Path) -> None:
+    _write_corpus(tmp_path)
+    body = _client(tmp_path).get("/api/app/podcasts/myfeed/episodes").json()
+    assert body["total"] == 1
+    assert all(i["feed_id"] == "myfeed" for i in body["items"])
+    # Unknown feed → empty page, not an error.
+    empty = _client(tmp_path).get("/api/app/podcasts/nope/episodes").json()
+    assert empty["total"] == 0 and empty["items"] == []
+
+
+def _slug_for(root: Path, episode_id: str) -> str:
+    for r in build_catalog_rows_cumulative(root):
+        if r.episode_id == episode_id:
+            return slug_for_row(r)
+    raise AssertionError(f"no row for {episode_id}")
+
+
+def test_related_returns_peers_when_index_has_neighbours(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import types
+
+    _write_corpus(tmp_path, stem="0001-a", episode_id="ep1")
+    _write_corpus(tmp_path, stem="0002-b", episode_id="ep2")
+
+    # Mock the similarity engine to return ep2 as a neighbour of ep1 (no real vector index).
+    monkeypatch.setattr(
+        "podcast_scraper.server.routes.app_episodes.run_similar_episodes",
+        lambda *a, **k: types.SimpleNamespace(
+            error=None, items=[{"metadata": {"feed_id": "myfeed", "episode_id": "ep2"}}]
+        ),
+    )
+    src = _slug_for(tmp_path, "ep1")
+    body = _client(tmp_path).get(f"/api/app/episodes/{src}/related").json()
+    assert body["total"] == 1  # the source itself is excluded; one peer mapped
+    assert body["items"][0]["feed_id"] == "myfeed"
+
+
+def test_segments_unreadable_file_returns_500(tmp_path: Path) -> None:
+    _write_corpus(tmp_path)
+    # Corrupt the segments JSON the resolver will pick → 500, not a silent empty transcript.
+    (tmp_path / "transcripts" / "0001-hello.segments.json").write_text(
+        "not json {", encoding="utf-8"
+    )
+    slug = _only_slug(tmp_path)
+    assert _client(tmp_path).get(f"/api/app/episodes/{slug}/segments").status_code == 500

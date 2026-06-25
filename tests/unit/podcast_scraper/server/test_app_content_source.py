@@ -11,12 +11,74 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from podcast_scraper.server.app_content_source import (
+    _card_bullets,
+    _card_lede,
     EpisodeListResult,
     get_content_source,
     LocalCorpusSource,
     transcript_corpus_relpath,
     transcript_relpath,
 )
+from podcast_scraper.server.corpus_catalog import CatalogEpisodeRow
+
+
+def _row(
+    *,
+    summary_title: str | None = None,
+    summary_bullets: tuple[str, ...] = (),
+    summary_text: str | None = None,
+) -> CatalogEpisodeRow:
+    return CatalogEpisodeRow(
+        metadata_relative_path="m.json",
+        feed_id="f",
+        feed_title=None,
+        episode_id="e",
+        episode_title="Ep",
+        publish_date=None,
+        summary_title=summary_title,
+        summary_bullets=summary_bullets,
+        summary_text=summary_text,
+        gi_relative_path="m.gi.json",
+        kg_relative_path="m.kg.json",
+        bridge_relative_path="m.bridge.json",
+        has_gi=False,
+        has_kg=False,
+        has_bridge=False,
+    )
+
+
+class TestCardLede:
+    def test_prefers_summary_title(self) -> None:
+        assert _card_lede(_row(summary_title="Head", summary_bullets=("b1",))) == "Head"
+
+    def test_falls_back_to_first_bullet_when_no_title(self) -> None:
+        r = _row(summary_bullets=(" ", "First bullet.", "Second."))
+        assert _card_lede(r) == "First bullet."
+
+    def test_falls_back_to_body_first_sentence(self) -> None:
+        lede = _card_lede(_row(summary_text="A first sentence. A second one."))
+        assert lede == "A first sentence."
+
+    def test_body_without_sentence_break_used_whole(self) -> None:
+        assert _card_lede(_row(summary_text="no period here")) == "no period here"
+
+    def test_returns_none_when_no_summary_content(self) -> None:
+        assert _card_lede(_row()) is None
+        assert _card_lede(_row(summary_title="   ", summary_text="   ")) is None
+
+    def test_truncates_long_lede_with_ellipsis(self) -> None:
+        out = _card_lede(_row(summary_title="x" * 200), max_len=10)
+        assert out is not None and len(out) == 10 and out.endswith("…")
+
+
+class TestCardBullets:
+    def test_strips_blanks_and_caps(self) -> None:
+        bullets = tuple(f"b{i}" for i in range(20))
+        out = _card_bullets(_row(summary_bullets=("  ", *bullets)))
+        assert out == [f"b{i}" for i in range(8)]  # blanks dropped, capped at 8
+
+    def test_empty_when_no_bullets(self) -> None:
+        assert _card_bullets(_row()) == []
 
 
 def test_transcript_corpus_relpath_resolves_run_relative() -> None:
