@@ -67,7 +67,7 @@ watch(() => props.feedId, reset)
 
 <template>
   <section>
-    <RouterLink :to="{ name: 'catalog' }" class="lp-kicker no-underline">‹ {{ t('nav.catalog') }}</RouterLink>
+    <RouterLink :to="{ name: 'catalog' }" class="lp-nav">‹ {{ t('nav.catalog') }}</RouterLink>
 
     <header class="mb-6 mt-2 flex gap-4 sm:gap-5">
       <img

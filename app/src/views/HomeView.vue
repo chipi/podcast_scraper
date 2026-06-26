@@ -218,7 +218,7 @@ onMounted(async () => {
             >{{ rank(i) }}</span>
             <span class="min-w-0 flex-1">
               <span class="block truncate font-bold leading-tight">{{ ep.title }}</span>
-              <span class="lp-kicker mt-0.5 block truncate">{{ ep.podcast_title }}</span>
+              <span class="lp-kicker mt-0.5 block">{{ ep.podcast_title }}</span>
             </span>
             <span class="shrink-0 text-muted transition group-hover:text-accent" aria-hidden="true">▶</span>
           </RouterLink>
@@ -251,7 +251,7 @@ onMounted(async () => {
           <RouterLink :to="{ name: 'podcast', params: { feedId: p.feed_id } }" class="block no-underline text-canvas-foreground">
             <img v-if="showArt(p)" :src="showArt(p)!" alt="" class="aspect-square w-full rounded-xl object-cover bg-elevated" />
             <div v-else class="aspect-square w-full rounded-xl bg-elevated" />
-            <div class="mt-1 truncate text-xs font-bold">{{ p.title ?? p.feed_id }}</div>
+            <div class="mt-1 text-xs font-bold">{{ p.title ?? p.feed_id }}</div>
           </RouterLink>
         </li>
       </ul>

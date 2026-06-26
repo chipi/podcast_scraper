@@ -12,6 +12,8 @@ import type {
   EntitySearchResponse,
   EpisodeDetail,
   EpisodesPage,
+  FavoriteAdd,
+  FavoritesResponse,
   InsightsResponse,
   InterestCluster,
   ListEpisodesParams,
@@ -162,6 +164,38 @@ export async function getUserInterests(): Promise<string[]> {
     if (err instanceof ApiError && err.status === 401) return []
     throw err
   }
+}
+
+/** The user's favorites grouped by kind; `{episodes:[],insights:[]}` when signed out (401). */
+export async function getFavorites(): Promise<FavoritesResponse> {
+  try {
+    return await getJSON<FavoritesResponse>('/favorites')
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) return { episodes: [], insights: [] }
+    throw err
+  }
+}
+
+/** Save an item (auth-gated); returns the updated favorites. */
+export async function addFavorite(item: FavoriteAdd): Promise<FavoritesResponse> {
+  const resp = await fetch(`${BASE}/favorites`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(item),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `PUT /favorites → ${resp.status}`)
+  return (await resp.json()) as FavoritesResponse
+}
+
+/** Remove a saved item by kind+ref (auth-gated); returns the updated favorites. */
+export async function removeFavorite(kind: string, ref: string): Promise<FavoritesResponse> {
+  const resp = await fetch(
+    `${BASE}/favorites/${encodeURIComponent(kind)}/${encodeURIComponent(ref)}`,
+    { method: 'DELETE', credentials: 'include' },
+  )
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /favorites → ${resp.status}`)
+  return (await resp.json()) as FavoritesResponse
 }
 
 /** Replace the user's interest cluster ids (auth-gated); returns the stored list. */

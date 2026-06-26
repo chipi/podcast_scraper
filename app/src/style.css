@@ -47,4 +47,40 @@
     text-transform: uppercase;
     color: var(--lp-accent);
   }
+
+  /* Back / navigation control — ONE canonical treatment for every "go back" affordance across the
+     app (UXS-014). Deliberately muted (not the accent kicker) so navigation never reads as a
+     content label. Never restyle a back control per-page — use this class. */
+  .lp-nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.125rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--lp-muted);
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+  .lp-nav:hover {
+    color: var(--lp-surface-foreground);
+  }
+
+  /* Favorite (heart) toggle — ONE canonical affordance everywhere a thing can be saved (UXS-014). */
+  .lp-fav {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    color: var(--lp-muted);
+    transition: color 0.15s ease, transform 0.1s ease;
+  }
+  .lp-fav:hover {
+    color: var(--lp-accent);
+  }
+  .lp-fav:active {
+    transform: scale(0.85);
+  }
+  .lp-fav--on {
+    color: var(--lp-accent);
+  }
 }

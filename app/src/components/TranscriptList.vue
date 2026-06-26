@@ -107,7 +107,7 @@ function speakerLabel(s: string | null): string | null {
       >{{ speakerLabel(seg.speaker) }}</span>
       <span class="flex gap-3">
         <span class="shrink-0 pt-0.5 font-mono text-xs tabular-nums" :class="grounded[i] ? 'text-grounded' : 'text-muted'">
-          {{ grounded[i] ? '●' : formatTime(seg.start) }}
+          <span v-if="grounded[i]" aria-hidden="true" class="mr-0.5">●</span>{{ formatTime(seg.start) }}
         </span>
         <span
           class="text-sm leading-relaxed"

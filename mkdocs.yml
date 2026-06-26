@@ -169,6 +169,7 @@ nav:
       - UXS-011 Consumer Learning App: uxs/UXS-011-consumer-learning-app.md
       - UXS-012 Consumer Home: uxs/UXS-012-consumer-home.md
       - UXS-013 Knowledge Clusters: uxs/UXS-013-knowledge-clusters.md
+      - UXS-014 Interaction Patterns: uxs/UXS-014-interaction-patterns.md
       - UXS Template: uxs/UXS_TEMPLATE.md
   - Architecture Decisions:
       - adr/index.md

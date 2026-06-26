@@ -203,7 +203,7 @@ const showEmpty = computed(
               <span class="block font-display text-base font-bold leading-snug text-canvas-foreground">
                 {{ g.title }}
               </span>
-              <span v-if="g.show || g.date" class="lp-kicker mt-0.5 block truncate">
+              <span v-if="g.show || g.date" class="lp-kicker mt-0.5 block">
                 {{ g.show }}<template v-if="g.show && g.date"> · </template>{{ g.date ? formatPublishDate(g.date, locale) : '' }}
               </span>
             </span>

@@ -12,9 +12,13 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, Request
 
 from podcast_scraper.server import app_user_state
+from podcast_scraper.server.app_corpus_access import corpus_root_or_503
+from podcast_scraper.server.app_favorites_view import hydrate_favorites
 from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
+    AppFavoritesResponse,
+    FavoriteAdd,
     InterestsResponse,
     InterestsUpdate,
     LibraryAdd,
@@ -124,6 +128,39 @@ async def put_interests(
     return InterestsResponse(
         items=app_user_state.set_interests(_data_dir(request), user.user_id, body.items)
     )
+
+
+def _favorites(request: Request, user: User) -> AppFavoritesResponse:
+    raw = app_user_state.get_favorites(_data_dir(request), user.user_id)
+    return hydrate_favorites(corpus_root_or_503(request), raw)
+
+
+@router.get("/favorites", response_model=AppFavoritesResponse)
+async def get_favorites(
+    request: Request, user: User = Depends(get_current_user)
+) -> AppFavoritesResponse:
+    """The user's saved items, grouped by kind (episodes hydrated, insights from snapshot)."""
+    return _favorites(request, user)
+
+
+@router.put("/favorites", response_model=AppFavoritesResponse)
+async def put_favorite(
+    request: Request, body: FavoriteAdd, user: User = Depends(get_current_user)
+) -> AppFavoritesResponse:
+    """Save an item (idempotent on kind+ref); returns the updated favorites."""
+    app_user_state.add_favorite(
+        _data_dir(request), user.user_id, body.model_dump(exclude_none=True)
+    )
+    return _favorites(request, user)
+
+
+@router.delete("/favorites/{kind}/{ref}", response_model=AppFavoritesResponse)
+async def delete_favorite(
+    request: Request, kind: str, ref: str, user: User = Depends(get_current_user)
+) -> AppFavoritesResponse:
+    """Remove a saved item by kind+ref (ref is URL-encoded by the client)."""
+    app_user_state.remove_favorite(_data_dir(request), user.user_id, kind, ref)
+    return _favorites(request, user)
 
 
 @router.get("/library", response_model=LibraryResponse)

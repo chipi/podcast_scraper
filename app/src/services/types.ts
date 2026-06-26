@@ -169,6 +169,34 @@ export interface EntitiesResponse {
   topics: Topic[]
 }
 
+/** Saveable kinds for the polymorphic favorites store. */
+export type FavoriteKind = 'episode' | 'insight' | 'person' | 'topic'
+
+/** Body for PUT /api/app/favorites — denormalized so the Library renders without re-fetching. */
+export interface FavoriteAdd {
+  kind: FavoriteKind
+  ref: string
+  label?: string
+  sublabel?: string
+  slug?: string
+  start_ms?: number
+}
+
+/** A saved insight (AppFavoriteInsight) — snapshot, since insights have no global detail route. */
+export interface FavoriteInsight {
+  ref: string
+  text: string
+  episode_slug: string | null
+  podcast_title: string | null
+  start_ms: number | null
+}
+
+/** The user's favorites, grouped by kind (GET/PUT/DELETE /api/app/favorites). */
+export interface FavoritesResponse {
+  episodes: EpisodeSummary[]
+  insights: FavoriteInsight[]
+}
+
 /** One selectable interest cluster (GET /api/app/clusters — AppInterestCluster). */
 export interface InterestCluster {
   id: string

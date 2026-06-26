@@ -59,7 +59,7 @@ describe('HomeView (discover state, signed out)', () => {
     expect(w.text()).toContain("Find any moment you've heard.") // discover hero
     expect(w.text()).toContain("What's new")
     expect(w.text()).toContain('First Ep')
-    expect(w.text()).toContain('Your shows')
+    expect(w.text()).toContain('All shows')
     expect(w.text()).toContain('Show A')
   })
 
@@ -93,7 +93,7 @@ describe('HomeView interests card (3.5)', () => {
     vi.spyOn(api, 'getTopClusters').mockResolvedValue([{ id: 'tc:ai', label: 'AI', size: 3 }])
     vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
     signIn()
-    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    const w = mount(HomeView, { global: { plugins: [i18n, router], stubs: { teleport: true } } })
     await flushPromises()
     expect(w.text()).toContain('Personalize your Home')
     await w.findAll('button').find((b) => b.text() === 'Choose interests')!.trigger('click')

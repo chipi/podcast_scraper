@@ -16,6 +16,7 @@ import { useQueueStore } from '../stores/queue'
 import KnowledgePanel from '../components/KnowledgePanel.vue'
 import PlayerControls from '../components/PlayerControls.vue'
 import TranscriptList from '../components/TranscriptList.vue'
+import FavoriteButton from '../components/FavoriteButton.vue'
 import { activeInsightIndex, groundedSpansBySegment } from '../player/insights'
 import { activeSegmentIndex, PLAYBACK_RATES } from '../player/transcriptSync'
 import {
@@ -27,7 +28,7 @@ import {
   getSegments,
   putPlayback,
 } from '../services/api'
-import type { EpisodeDetail, Entity, Insight, Segment, Topic } from '../services/types'
+import type { EpisodeDetail, Entity, FavoriteAdd, Insight, Segment, Topic } from '../services/types'
 import { formatDuration, formatPublishDate } from '../utils/format'
 
 const props = defineProps<{ slug: string }>()
@@ -108,6 +109,15 @@ const artwork = computed(
     episode.value?.episode_image_url ||
     episode.value?.feed_image_url,
 )
+
+const favItem = computed<FavoriteAdd>(() => ({
+  kind: 'episode',
+  ref: props.slug,
+  label: episode.value?.title ?? '',
+  sublabel: episode.value?.podcast_title ?? undefined,
+  slug: props.slug,
+}))
+
 const activeInsight = computed(() => {
   const i = activeInsightIndex(insights.value, contentTime.value)
   return i >= 0 ? insights.value[i] : null
@@ -130,6 +140,7 @@ async function load(slug: string): Promise<void> {
   loading.value = true
   notFound.value = false
   audioError.value = false
+  scrolledToTranscript = false // re-arm scroll-to-transcript for the new episode
   segments.value = []
   audioUrl.value = null
   insights.value = []
@@ -192,11 +203,25 @@ function onTimeUpdate(): void {
   }
 }
 
+// Transcript section — on the first play of an episode, bring it into view (the masthead/artwork
+// is tall; pressing play means "I'm listening", so surface the synced transcript).
+const transcriptEl = ref<HTMLElement | null>(null)
+let scrolledToTranscript = false
+
 function toggle(): void {
   const el = audioEl.value
   if (!el) return
-  if (el.paused) void el.play()
-  else el.pause()
+  if (el.paused) {
+    void el.play()
+    if (!scrolledToTranscript) {
+      scrolledToTranscript = true
+      void nextTick(() =>
+        transcriptEl.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+      )
+    }
+  } else {
+    el.pause()
+  }
 }
 
 function seek(to: number): void {
@@ -227,7 +252,7 @@ onBeforeUnmount(() => persist())
 
 <template>
   <section>
-    <RouterLink :to="{ name: 'catalog' }" class="lp-kicker no-underline">‹ {{ t('player.back') }}</RouterLink>
+    <RouterLink :to="{ name: 'catalog' }" class="lp-nav">‹ {{ t('player.back') }}</RouterLink>
 
     <p v-if="loading" class="mt-4 text-muted">{{ t('player.loading') }}</p>
     <p v-else-if="notFound" class="mt-4 text-danger">{{ t('player.notFound') }}</p>
@@ -243,23 +268,31 @@ onBeforeUnmount(() => persist())
     >
       <!-- Left rail: masthead + intelligent artwork zone + controls -->
       <div>
-        <RouterLink
-          v-if="episode.podcast_title"
-          :to="{ name: 'podcast', params: { feedId: episode.feed_id } }"
-          class="lp-kicker inline-block no-underline"
-        >
-          {{ episode.podcast_title }}
-        </RouterLink>
+        <div class="flex items-start justify-between gap-3">
+          <RouterLink
+            v-if="episode.podcast_title"
+            :to="{ name: 'podcast', params: { feedId: episode.feed_id } }"
+            class="lp-kicker min-w-0 no-underline"
+          >
+            {{ episode.podcast_title }}
+          </RouterLink>
+          <span v-else />
+          <FavoriteButton :item="favItem" class="shrink-0 text-xl" />
+        </div>
         <h1 class="mt-1 font-display text-3xl font-extrabold leading-tight tracking-tight">
           {{ episode.title }}
         </h1>
-        <p v-if="metaLine" class="mt-1 text-sm text-muted">{{ metaLine }}</p>
-        <p v-if="episode.summary_text || episode.summary_title" class="mt-2 text-sm text-muted line-clamp-3">
-          {{ episode.summary_text || episode.summary_title }}
-        </p>
-
+        <div v-if="metaLine || episode.has_gi" class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
+          <span v-if="metaLine">{{ metaLine }}</span>
+          <span
+            v-if="episode.has_gi"
+            class="inline-flex items-center gap-1 rounded-full bg-overlay px-2 py-0.5 text-xs font-bold text-grounded"
+          >● {{ t('player.grounded') }}</span>
+        </div>
+        <!-- Hero artwork (UXS-014): live intelligence + Ask/Insights actions + the summary all sit
+             OVER the image, reclaiming the vertical space of separate stacked blocks. -->
         <div
-          class="relative mt-4 aspect-square w-full overflow-hidden rounded-2xl border border-border bg-elevated"
+          class="relative mt-3 aspect-square w-full overflow-hidden rounded-2xl border border-border bg-elevated"
         >
           <img
             v-if="artwork"
@@ -267,26 +300,40 @@ onBeforeUnmount(() => persist())
             :alt="episode.podcast_title ?? episode.title"
             class="h-full w-full object-cover"
           />
-          <div class="pointer-events-none absolute inset-0 flex flex-col justify-between p-4">
-            <div class="flex justify-end">
-              <span v-if="episode.has_gi" class="rounded-full bg-canvas/70 px-3 py-1 text-xs font-bold text-grounded backdrop-blur">
-                ● {{ t('player.grounded') }}
-              </span>
+          <div class="absolute inset-0 flex flex-col justify-between">
+            <!-- Top: live intelligence (left) + Ask/Insights pull-out actions (right) -->
+            <div class="flex items-start justify-between gap-2 p-3">
+              <div class="min-w-0">
+                <div
+                  v-if="activeInsight"
+                  class="rounded-xl bg-canvas/80 px-3 py-2 backdrop-blur"
+                >
+                  <span class="lp-kicker block leading-none">{{ t('player.insightNow') }}</span>
+                  <span class="mt-1 block text-sm font-semibold line-clamp-3">{{ activeInsight.text }}</span>
+                </div>
+                <div
+                  v-else-if="speakingNow"
+                  class="inline-flex items-baseline gap-1 rounded-full bg-canvas/70 px-3 py-1.5 backdrop-blur"
+                >
+                  <span class="lp-kicker leading-none">{{ t('player.speakingNow') }}</span>
+                  <span class="text-sm font-semibold">{{ speakingNow }}</span>
+                </div>
+              </div>
+              <button
+                v-if="!panelOpen"
+                type="button"
+                class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-canvas/85 px-3 py-1.5 text-xs font-bold backdrop-blur transition hover:bg-canvas"
+                @click="panelOpen = true"
+              >💡 {{ insights.length }} {{ t('kp.insights') }}</button>
             </div>
-            <!-- Live intelligence: surface the insight being spoken; else who's speaking. -->
+
+            <!-- Bottom: the FULL summary over a legibility gradient. The hero is a fixed square, so
+                 length never changes the layout; an unusually long summary just scrolls in place. -->
             <div
-              v-if="activeInsight"
-              class="self-start max-w-[90%] rounded-xl bg-canvas/80 px-3 py-2 backdrop-blur"
+              v-if="episode.summary_text || episode.summary_title"
+              class="max-h-[62%] overflow-y-auto bg-gradient-to-t from-black/90 via-black/55 to-transparent px-4 pb-4 pt-12"
             >
-              <span class="lp-kicker block leading-none">{{ t('player.insightNow') }}</span>
-              <span class="mt-1 block text-sm font-semibold line-clamp-3">{{ activeInsight.text }}</span>
-            </div>
-            <div
-              v-else-if="speakingNow"
-              class="self-start rounded-full bg-canvas/70 px-3 py-1.5 backdrop-blur"
-            >
-              <span class="lp-kicker block leading-none">{{ t('player.speakingNow') }}</span>
-              <span class="text-sm font-semibold">{{ speakingNow }}</span>
+              <p class="whitespace-pre-line text-sm leading-relaxed text-white/90">{{ episode.summary_text || episode.summary_title }}</p>
             </div>
           </div>
         </div>
@@ -322,28 +369,10 @@ onBeforeUnmount(() => persist())
         <p v-else class="mt-4 rounded-2xl border border-border bg-surface p-4 text-muted">
           {{ t('player.audioUnavailable') }}
         </p>
-
-        <!-- Knowledge dock: one tap to reveal the panel (collapsed by default). -->
-        <div v-if="!panelOpen" class="mt-3 flex gap-2">
-          <button
-            type="button"
-            class="flex-1 rounded-full border border-border px-4 py-3 text-sm font-bold"
-            @click="panelOpen = true"
-          >
-            💡 {{ insights.length }} {{ t('kp.insights') }}
-          </button>
-          <button
-            type="button"
-            class="flex-1 rounded-full border border-border px-4 py-3 text-sm font-bold"
-            @click="panelOpen = true"
-          >
-            🔍 {{ t('kp.ask') }}
-          </button>
-        </div>
       </div>
 
       <!-- Middle: synced transcript -->
-      <div class="mt-6 lg:mt-0 lg:flex lg:max-h-[70vh] lg:flex-col">
+      <div ref="transcriptEl" class="mt-6 scroll-mt-20 lg:mt-0 lg:flex lg:max-h-[70vh] lg:flex-col">
         <!-- Manual sync nudge: align the highlight with the played audio (ad-insertion drift). -->
         <div
           v-if="segments.length"
@@ -395,7 +424,7 @@ onBeforeUnmount(() => persist())
       <!-- Knowledge Panel: persistent rail on desktop, overlay sheet on mobile. -->
       <div
         v-if="panelOpen"
-        class="fixed inset-x-0 bottom-0 top-14 z-40 overflow-hidden rounded-t-2xl border-t border-border lg:static lg:z-auto lg:mt-0 lg:max-h-[70vh] lg:rounded-2xl lg:border"
+        class="fixed inset-x-0 bottom-0 top-8 z-40 overflow-hidden rounded-t-2xl border-t border-border lg:static lg:top-auto lg:z-auto lg:mt-0 lg:max-h-[70vh] lg:rounded-2xl lg:border"
       >
         <KnowledgePanel
           :episode="episode"

@@ -90,8 +90,9 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <Teleport to="body">
   <div
-    class="fixed inset-0 z-40 flex items-end justify-center bg-black/40 sm:items-center"
+    class="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center"
     role="dialog"
     aria-modal="true"
     :aria-label="t('interests.title')"
@@ -145,4 +146,5 @@ onUnmounted(() => {
       </footer>
     </div>
   </div>
+  </Teleport>
 </template>

@@ -16,8 +16,9 @@ const router = createRouter({
   ],
 })
 
+// Stub <Teleport> so the modal renders inline in the wrapper (it teleports to <body> in the app).
 const mountCard = (props: { kind: 'person' | 'topic'; id: string }) =>
-  mount(EntityCard, { props, global: { plugins: [i18n, router] } })
+  mount(EntityCard, { props, global: { plugins: [i18n, router], stubs: { teleport: true } } })
 
 function personCard(over: Partial<PersonCard> = {}): PersonCard {
   return {
@@ -86,7 +87,7 @@ describe('EntityCard', () => {
     const w = mountCard({ kind: 'topic', id: 'topic:ai' })
     await flushPromises()
     expect(w.text()).toContain('Artificial Intelligence') // cluster theme line
-    expect(w.text()).toContain('More in this theme')
+    expect(w.text()).toContain('topics in this cluster') // all-members heading
     expect(w.text()).toContain('Machine Learning') // sibling chip
     expect(w.text()).toContain('Discussed in 3 episodes')
   })
@@ -96,7 +97,7 @@ describe('EntityCard', () => {
     const push = vi.spyOn(router, 'push')
     const w = mountCard({ kind: 'person', id: 'person:jane-doe' })
     await flushPromises()
-    await w.findAll('button').find((b) => b.text().includes('Search the library'))!.trigger('click')
+    await w.findAll('button').find((b) => b.text().includes('Search every episode'))!.trigger('click')
     expect(push).toHaveBeenCalledWith({ name: 'search', query: { q: 'Jane Doe' } })
     expect(w.emitted('close')).toBeTruthy()
   })
@@ -110,7 +111,7 @@ describe('EntityCard', () => {
     await w.findAll('button').find((b) => b.text() === 'AI')!.trigger('click')
     await flushPromises()
     expect(getTopic).toHaveBeenCalledWith('topic:ai')
-    expect(w.text()).toContain('More in this theme') // topic view now shown
+    expect(w.text()).toContain('topics in this cluster') // topic view now shown
     // Back → returns to the person.
     await w.find('button[aria-label="Back"]').trigger('click')
     await flushPromises()
@@ -134,7 +135,7 @@ describe('EntityCard', () => {
     expect(document.activeElement).toBe(anchor)
     const w = mount(EntityCard, {
       props: { kind: 'person', id: 'person:jane-doe' },
-      global: { plugins: [i18n, router] },
+      global: { plugins: [i18n, router], stubs: { teleport: true } },
       attachTo: document.body,
     })
     await flushPromises()

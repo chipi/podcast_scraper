@@ -13,10 +13,31 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import { getRelated, searchEpisode } from '../services/api'
-import type { EpisodeDetail, EpisodeSummary, Entity, Insight, SearchHit, Topic } from '../services/types'
+import type {
+  EpisodeDetail,
+  EpisodeSummary,
+  Entity,
+  FavoriteAdd,
+  Insight,
+  SearchHit,
+  Topic,
+} from '../services/types'
 import { formatTime } from '../player/transcriptSync'
 import { hitStartSeconds, insightStartSeconds } from '../player/insights'
-import EntityCard from './EntityCard.vue'
+import EntityCardBody from './EntityCardBody.vue'
+import FavoriteButton from './FavoriteButton.vue'
+
+function favInsight(ins: Insight): FavoriteAdd {
+  const secs = insightStartSeconds(ins)
+  return {
+    kind: 'insight',
+    ref: `${props.slug}#${ins.id}`,
+    label: ins.text,
+    sublabel: props.episode.title,
+    slug: props.slug,
+    start_ms: secs != null ? Math.round(secs * 1000) : undefined,
+  }
+}
 
 const props = withDefaults(
   defineProps<{
@@ -182,6 +203,20 @@ watch(() => props.slug, (s) => loadRelated(s))
 
 <template>
   <aside class="flex h-full flex-col bg-surface" :aria-label="t('kp.title')">
+    <!-- Mobile bottom-sheet grab handle (signals the player sits behind; hidden on desktop rail). -->
+    <div class="flex shrink-0 justify-center pt-2 lg:hidden" aria-hidden="true">
+      <span class="h-1.5 w-10 rounded-full bg-border"></span>
+    </div>
+    <!-- Replace-in-panel (UXS-014): a tapped chip swaps the panel content to the entity card with a
+         ‹ Back — no overlay, no second backdrop. -->
+    <EntityCardBody
+      v-if="cardTarget"
+      variant="inline"
+      :kind="cardTarget.kind"
+      :id="cardTarget.id"
+      @close="cardTarget = null"
+    />
+    <template v-else>
     <header class="flex items-center justify-between border-b border-border px-4 py-3">
       <span class="font-display text-lg font-bold">{{ t('kp.title') }}</span>
       <button type="button" class="text-muted" :aria-label="t('kp.close')" @click="emit('close')">✕</button>
@@ -290,14 +325,17 @@ watch(() => props.slug, (s) => loadRelated(s))
                 >●</span>
                 <span v-if="ins.insight_type" class="lp-kicker">{{ ins.insight_type }}</span>
               </span>
-              <button
-                v-if="insightStartSeconds(ins) != null"
-                type="button"
-                class="font-mono text-xs text-accent"
-                @click="emit('seek', insightStartSeconds(ins) as number)"
-              >
-                ▶ {{ formatTime(insightStartSeconds(ins) as number) }}
-              </button>
+              <span class="flex items-center gap-2">
+                <button
+                  v-if="insightStartSeconds(ins) != null"
+                  type="button"
+                  class="font-mono text-xs text-accent"
+                  @click="emit('seek', insightStartSeconds(ins) as number)"
+                >
+                  ▶ {{ formatTime(insightStartSeconds(ins) as number) }}
+                </button>
+                <FavoriteButton :item="favInsight(ins)" />
+              </span>
             </div>
             <p class="mt-1 text-sm font-semibold text-surface-foreground">{{ ins.text }}</p>
             <blockquote v-if="ins.quotes[0]" class="mt-2 border-l-2 border-border pl-3 text-sm text-muted">
@@ -337,19 +375,13 @@ watch(() => props.slug, (s) => loadRelated(s))
               <div v-else class="h-10 w-10 shrink-0 rounded-md bg-elevated" />
               <span class="min-w-0 flex-1">
                 <span class="block truncate text-sm font-semibold">{{ r.title }}</span>
-                <span v-if="r.podcast_title" class="lp-kicker block truncate">{{ r.podcast_title }}</span>
+                <span v-if="r.podcast_title" class="lp-kicker block">{{ r.podcast_title }}</span>
               </span>
             </RouterLink>
           </li>
         </ul>
       </section>
     </div>
-
-    <EntityCard
-      v-if="cardTarget"
-      :kind="cardTarget.kind"
-      :id="cardTarget.id"
-      @close="cardTarget = null"
-    />
+    </template>
   </aside>
 </template>

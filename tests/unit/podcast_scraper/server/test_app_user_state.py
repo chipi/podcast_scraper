@@ -36,6 +36,23 @@ def test_queue_roundtrip(tmp_path: Path) -> None:
     assert st.get_queue(tmp_path, UID) == ["a", "b"]
 
 
+def test_favorites_roundtrip_idempotent_and_remove(tmp_path: Path) -> None:
+    assert st.get_favorites(tmp_path, UID) == []
+    st.add_favorite(tmp_path, UID, {"kind": "episode", "ref": "ep1", "label": "A"})
+    st.add_favorite(tmp_path, UID, {"kind": "insight", "ref": "ep1#i1", "label": "claim"})
+    # idempotent on kind+ref (re-add replaces, no dup)
+    favs = st.add_favorite(tmp_path, UID, {"kind": "episode", "ref": "ep1", "label": "A2"})
+    eps = [f for f in favs if f["kind"] == "episode"]
+    assert len(eps) == 1 and eps[0]["label"] == "A2"
+    # remove by kind+ref
+    favs = st.remove_favorite(tmp_path, UID, "episode", "ep1")
+    assert all(f["ref"] != "ep1" for f in favs)
+    assert any(f["ref"] == "ep1#i1" for f in favs)  # insight survives
+    # malformed entries (missing kind/ref) are filtered on read
+    st._write(tmp_path, UID, "favorites", [{"kind": "episode"}, {"ref": "x"}, "bad"])
+    assert st.get_favorites(tmp_path, UID) == []
+
+
 def test_interests_roundtrip_dedup_and_isolation(tmp_path: Path) -> None:
     assert st.get_interests(tmp_path, UID) == []
     # de-dup + blank-drop, order preserved

@@ -6,6 +6,7 @@ avoiding the full OAuth dance.
 
 from __future__ import annotations
 
+import json
 import time
 from pathlib import Path
 
@@ -70,6 +71,62 @@ def test_interests_roundtrip_and_dedup(tmp_path: Path) -> None:
     # Dedup + blank-drop, order preserved.
     assert put.json()["items"] == ["tc:ai", "tc:health"]
     assert client.get("/api/app/interests").json()["items"] == ["tc:ai", "tc:health"]
+
+
+def _write_kg_episode(root: Path, *, stem: str, episode_id: str) -> None:
+    """Minimal episode so favorite-episode hydration resolves a real slug."""
+    (root / "metadata").mkdir(parents=True, exist_ok=True)
+    (root / "transcripts").mkdir(parents=True, exist_ok=True)
+    doc = {
+        "feed": {"feed_id": "f", "title": "Show", "url": "https://p.example/f.xml"},
+        "episode": {"episode_id": episode_id, "title": "Hello", "published_date": "2024-01-01"},
+        "content": {"transcript_file_path": f"transcripts/{stem}.txt"},
+    }
+    (root / "metadata" / f"{stem}.metadata.json").write_text(json.dumps(doc), encoding="utf-8")
+    (root / "transcripts" / f"{stem}.txt").write_text("hi", encoding="utf-8")
+
+
+def test_favorites_roundtrip_grouped_and_hydrated(tmp_path: Path) -> None:
+    from podcast_scraper.server.app_slugs import slug_for_row
+    from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
+
+    _write_kg_episode(tmp_path, stem="0001-hello", episode_id="ep1")
+    slug = slug_for_row(build_catalog_rows_cumulative(tmp_path)[0])
+    client = _authed_client(tmp_path)
+
+    assert client.get("/api/app/favorites").json() == {"episodes": [], "insights": []}
+    # save an episode (hydrated from catalog) + an insight (from snapshot)
+    client.put("/api/app/favorites", json={"kind": "episode", "ref": slug, "label": "Hello"})
+    body = client.put(
+        "/api/app/favorites",
+        json={
+            "kind": "insight",
+            "ref": f"{slug}#i1",
+            "label": "A claim",
+            "slug": slug,
+            "start_ms": 5000,
+        },
+    ).json()
+    assert [e["slug"] for e in body["episodes"]] == [slug]
+    assert body["insights"][0] == {
+        "ref": f"{slug}#i1",
+        "text": "A claim",
+        "episode_slug": slug,
+        "podcast_title": None,
+        "start_ms": 5000,
+    }
+    # remove the episode (url-encoded ref); insight remains
+    after = client.delete(f"/api/app/favorites/episode/{slug}").json()
+    assert after["episodes"] == [] and len(after["insights"]) == 1
+
+
+def test_favorites_requires_auth(tmp_path: Path) -> None:
+    app = create_app(tmp_path, static_dir=False)
+    app.state.session_secret = "test-secret"
+    app.state.app_data_dir = tmp_path / "appdata"
+    client = TestClient(app)
+    assert client.get("/api/app/favorites").status_code == 401
+    assert client.put("/api/app/favorites", json={"kind": "episode", "ref": "x"}).status_code == 401
 
 
 def test_interests_requires_auth(tmp_path: Path) -> None:

@@ -9,7 +9,7 @@
     "skipToContent": "Skip to content"
   },
   "home": {
-    "askKicker": "Ask your library",
+    "askKicker": "Ask across every episode",
     "askTitle": "Find any moment you've heard.",
     "askTagline": "Search across every episode — grounded answers that jump you to the moment.",
     "askPlaceholder": "e.g. how memory consolidates…",
@@ -17,7 +17,7 @@
     "whatsNew": "What's new",
     "browseAll": "Browse all",
     "recommended": "Recommended for you",
-    "shows": "Your shows",
+    "shows": "All shows",
     "featured": "Featured",
     "resume": "Resume",
     "minLeft": "{count} min left"
@@ -30,8 +30,8 @@
     "insights": "Insights"
   },
   "search": {
-    "title": "Search your library",
-    "placeholder": "Ask your library…",
+    "title": "Search",
+    "placeholder": "Search across every episode…",
     "searching": "Searching…",
     "noResults": "No grounded passages found.",
     "error": "Search needs the library index.",
@@ -63,12 +63,27 @@
     "newHere": "New here?"
   },
   "catalog": {
-    "heading": "Your Library",
+    "heading": "All episodes",
     "empty": "No episodes yet.",
     "insightsBadge": "insights",
     "loading": "Loading episodes…",
     "loadMore": "Load more",
     "loadError": "Couldn’t load episodes."
+  },
+  "list": {
+    "controls": "Sort & filter",
+    "search": "Filter this list…",
+    "sort": "Sort",
+    "sortNewest": "Newest first",
+    "sortOldest": "Oldest first",
+    "sortTitle": "Title A–Z",
+    "filter": "Filter",
+    "filterAll": "All",
+    "filterInsights": "With insights",
+    "filterShow": "Show",
+    "allShows": "All shows",
+    "noMatches": "No episodes match your filters.",
+    "count": "{shown} of {total}"
   },
   "podcast": {
     "episodeCount": "{count} episode | {count} episodes",
@@ -131,16 +146,18 @@
     "dismiss": "Not now"
   },
   "ec": {
+    "clusterSize": "{count} topic | {count} topics",
+    "singleTopic": "Standalone topic — not part of a cluster",
     "person": "Person",
     "topic": "Topic",
     "close": "Close",
     "back": "Back",
     "loading": "Loading…",
     "notFound": "Nothing to show for this yet.",
-    "searchLibrary": "Search the library for “{term}”",
+    "searchLibrary": "Search every episode for “{term}”",
     "personEpisodes": "In {count} episode | In {count} episodes",
     "topicEpisodes": "Discussed in {count} episode | Discussed in {count} episodes",
-    "siblingTopics": "More in this theme",
+    "clusterMembers": "{count} topic in this cluster | {count} topics in this cluster",
     "relatedPeople": "Related people",
     "relatedTopics": "Related topics"
   },
@@ -151,6 +168,27 @@
     "remove": "Remove from queue",
     "up": "Move up",
     "down": "Move down"
+  },
+  "fav": {
+    "add": "Save to favorites",
+    "remove": "Remove from favorites"
+  },
+  "profile": {
+    "title": "Your profile",
+    "interests": "Interest topics",
+    "interestsHelp": "These shape what surfaces on your Home when personalization is on.",
+    "editInterests": "Edit",
+    "noInterests": "No interests chosen yet."
+  },
+  "library": {
+    "title": "Library",
+    "saved": "Saved",
+    "queue": "Queue",
+    "recent": "Recent",
+    "episodes": "Episodes",
+    "insights": "Insights",
+    "savedEmpty": "Nothing saved yet. Tap the heart on episodes or insights to save them.",
+    "recentEmpty": "Nothing played yet."
   },
   "status": {
     "ready": "Ready",

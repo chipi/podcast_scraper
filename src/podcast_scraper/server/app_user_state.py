@@ -92,6 +92,37 @@ def set_queue(data_dir: Path, user_id: str, items: list[str]) -> list[str]:
     return clean
 
 
+# --- favorites (polymorphic "saved things": episodes, insights, … keyed by kind+ref) ---
+
+
+def get_favorites(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
+    """Return the user's saved favorites (newest-last as stored); empty when unset."""
+    data = _read(data_dir, user_id, "favorites", [])
+    if not isinstance(data, list):
+        return []
+    return [x for x in data if isinstance(x, dict) and x.get("kind") and x.get("ref")]
+
+
+def add_favorite(data_dir: Path, user_id: str, item: dict[str, Any]) -> list[dict[str, Any]]:
+    """Add/replace a favorite (idempotent on ``kind``+``ref``); appended newest-last."""
+    kind, ref = item.get("kind"), item.get("ref")
+    favorites = [
+        x for x in get_favorites(data_dir, user_id) if (x.get("kind"), x.get("ref")) != (kind, ref)
+    ]
+    favorites.append(item)
+    _write(data_dir, user_id, "favorites", favorites)
+    return favorites
+
+
+def remove_favorite(data_dir: Path, user_id: str, kind: str, ref: str) -> list[dict[str, Any]]:
+    """Remove a favorite by ``kind``+``ref`` (no-op if absent); return the remaining list."""
+    favorites = [
+        x for x in get_favorites(data_dir, user_id) if (x.get("kind"), x.get("ref")) != (kind, ref)
+    ]
+    _write(data_dir, user_id, "favorites", favorites)
+    return favorites
+
+
 # --- interests (personalized discovery; ordered list of cluster ids) ---
 
 

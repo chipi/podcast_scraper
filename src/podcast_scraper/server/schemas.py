@@ -317,6 +317,34 @@ class AppInterestClustersResponse(BaseModel):
     items: list[AppInterestCluster] = Field(default_factory=list)
 
 
+class FavoriteAdd(BaseModel):
+    """Body for PUT /api/app/favorites — save a polymorphic item (idempotent on kind+ref)."""
+
+    kind: Literal["episode", "insight", "person", "topic"] = Field(description="Saveable kind.")
+    ref: str = Field(description="Stable id within the kind (episode→slug; insight→slug#id).")
+    label: str | None = Field(default=None, description="Display label (title / insight text).")
+    sublabel: str | None = Field(default=None, description="Secondary label (show / episode).")
+    slug: str | None = Field(default=None, description="Episode slug to open (episode/insight).")
+    start_ms: int | None = Field(default=None, description="Jump target for an insight (ms).")
+
+
+class AppFavoriteInsight(BaseModel):
+    """A saved insight in the favorites list (snapshot — insights have no global detail route)."""
+
+    ref: str = Field(description="slug#insightId.")
+    text: str = Field(description="Insight text.")
+    episode_slug: str | None = Field(default=None, description="Episode to open.")
+    podcast_title: str | None = Field(default=None, description="Show / episode label.")
+    start_ms: int | None = Field(default=None, description="Jump-to-moment (ms).")
+
+
+class AppFavoritesResponse(BaseModel):
+    """The user's favorites, grouped by kind (GET/PUT/DELETE /api/app/favorites)."""
+
+    episodes: list[AppEpisodeSummary] = Field(default_factory=list)
+    insights: list[AppFavoriteInsight] = Field(default_factory=list)
+
+
 class InterestsResponse(BaseModel):
     """The user's saved interest cluster ids (GET /api/app/interests)."""
 

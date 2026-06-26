@@ -10,6 +10,8 @@ import { getEpisode } from '../services/api'
 import type { EpisodeDetail } from '../services/types'
 import { useQueueStore } from '../stores/queue'
 
+// `hideTitle` lets the Library hub embed this as the "Queue" tab without a duplicate heading.
+defineProps<{ hideTitle?: boolean }>()
 const { t } = useI18n()
 const queue = useQueueStore()
 const details = ref<Record<string, EpisodeDetail>>({})
@@ -40,7 +42,7 @@ watch(() => queue.items.slice(), hydrate)
 
 <template>
   <section>
-    <h1 class="mb-5 font-display text-3xl font-extrabold tracking-tight">{{ t('queue.title') }}</h1>
+    <h1 v-if="!hideTitle" class="mb-5 font-display text-3xl font-extrabold tracking-tight">{{ t('queue.title') }}</h1>
 
     <p v-if="loading && queue.count === 0" class="text-muted">{{ t('catalog.loading') }}</p>
     <p v-else-if="queue.count === 0" class="text-muted">{{ t('queue.empty') }}</p>

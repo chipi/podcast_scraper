@@ -28,7 +28,7 @@ async function mountAt(q: string) {
   const router = makeRouter()
   router.push({ name: 'search', query: { q } })
   await router.isReady()
-  const w = mount(SearchView, { global: { plugins: [i18n, router] } })
+  const w = mount(SearchView, { global: { plugins: [i18n, router], stubs: { teleport: true } } })
   await flushPromises()
   return { w, router }
 }

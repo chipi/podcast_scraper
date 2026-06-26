@@ -1,5 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
@@ -19,6 +20,7 @@ const router = createRouter({
 const emptyPage = { items: [], page: 1, page_size: 6, total: 0, has_more: false }
 
 beforeEach(() => {
+  setActivePinia(createPinia()) // FavoriteButton (on insights) resolves the favorites/auth stores
   // Default: no related peers (index unavailable) so the section hides.
   vi.spyOn(api, 'getRelated').mockResolvedValue(emptyPage)
 })
@@ -107,10 +109,10 @@ describe('KnowledgePanel', () => {
     const w = mountPanel()
     await w.findAll('button').find((b) => b.text() === 'Matthew Walker')!.trigger('click')
     await flushPromises()
+    // Replace-in-panel (UXS-014): the card renders INLINE in the panel (no overlay), with a ‹ Back.
     expect(getPerson).toHaveBeenCalledWith('person:matthew-walker')
-    const dialog = w.find('[role="dialog"]')
-    expect(dialog.exists()).toBe(true)
-    expect(dialog.text()).toContain('Matthew Walker')
+    expect(w.text()).toContain('Matthew Walker')
+    expect(w.findAll('button').some((b) => b.text().includes('Back'))).toBe(true)
   })
 
   it('tapping a topic chip opens its entity card (not a search)', async () => {

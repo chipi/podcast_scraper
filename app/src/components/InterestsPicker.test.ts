@@ -6,7 +6,8 @@ import en from '../i18n/locales/en.json'
 import InterestsPicker from './InterestsPicker.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
-const mountPicker = () => mount(InterestsPicker, { global: { plugins: [i18n] } })
+// Stub <Teleport> so the modal renders inline in the wrapper (it teleports to <body> in the app).
+const mountPicker = () => mount(InterestsPicker, { global: { plugins: [i18n], stubs: { teleport: true } } })
 
 afterEach(() => vi.restoreAllMocks())
 
