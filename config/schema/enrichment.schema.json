@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://podcast-scraper.example/schema/enrichment.schema.json",
+  "title": "Enrichment block",
+  "description": "Operator-config schema for the `enrichment:` block (RFC-088 / Epic #1101 chunk 1).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "description": "Master switch for the enrichment pass. Defaults to true; set false to disable enrichment for the corpus."
+    },
+    "max_total_cost_usd_per_run": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Run-wide hard cost cap (O1 decision, REPLAN-O7 enforcement). When the total accumulated cost across all enrichers in a run exceeds this, the executor aborts the pass and marks subsequent enrichers `skipped` with reason `run_cost_cap_exceeded`."
+    },
+    "fail_on_run_cost_cap": {
+      "type": "boolean",
+      "description": "When true (default), exceeding `max_total_cost_usd_per_run` causes a non-zero exit code. When false, the abort is silent (run logs warning but completes with exit_code=0)."
+    },
+    "enrichers": {
+      "type": "object",
+      "description": "Per-enricher configuration (id → overrides).",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Include this enricher in the active set for the run."
+          },
+          "opt_in": {
+            "type": "boolean",
+            "description": "Required double-opt-in flag for LLM-tier enrichers (manifest.requires_opt_in=true). Both `enabled` and `opt_in` must be true for LLM-tier enrichers to run."
+          },
+          "max_cost_usd_per_run": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Per-enricher soft cost budget. When the enricher's accumulated cost in a run exceeds this, the executor quarantines it (`status: quarantined`, reason `cost_cap_exceeded`); other enrichers continue."
+          },
+          "expected_duration_s": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Hard timeout for the enricher's whole run. Defaults to 60s episode-scope / 600s corpus-scope when unset."
+          }
+        }
+      }
+    }
+  }
+}
