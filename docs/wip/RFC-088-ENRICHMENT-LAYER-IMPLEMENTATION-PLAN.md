@@ -11,6 +11,33 @@ from API + viewer.
 **Working branch:** `feat/enrichment-layer` (new branch off main after the
 current `feat/rfc-paperwork-promotions-v3` lands).
 
+**Hard constraints set 2026-06-26:**
+
+- **No DGX dependency anywhere in the shipping path.** DGX is an optional
+  add-on for operator-side experimentation; the codebase, CI, and every
+  default-enabled enricher must run without it. The NLI piece in chunk 4
+  is a local DeBERTa-v3-small on CPU, full stop — no DGX fallback, no
+  DGX preferred path. If a future LLM-tier enricher wants DGX, that's
+  scoped as opt-in operator infrastructure, not as the default.
+- **Every "smart" enricher (embedding, ml, llm tier) ships with an
+  eval harness in the same chunk that introduces it.** Deterministic
+  enrichers are validated by unit + integration tests; smart enrichers
+  additionally need a labeled eval set under `data/eval/enrichment/`
+  with structured metrics (P/R/F1, MRR, nDCG@k, calibration error —
+  whichever fits the task) and a `scripts/eval/score/enrichment_*.py`
+  scoring script. **Autoresearch wiring is optional per enricher** —
+  required when there's a tunable param worth sweeping (e.g.
+  `nli_contradiction.threshold`, `topic_similarity.top_k`), skipped
+  when the enricher is parameter-free.
+- **All enrichers are opt-in via profile presets, never per-config
+  toggling alone.** Per `[[feedback_profiles_are_source_of_truth]]`,
+  the `config/profiles/*.yaml` registry decides which enrichers run in
+  which environment. Each profile preset names its enricher set
+  explicitly (`airgapped`: deterministic + topic_similarity;
+  `airgapped_thin`: deterministic only; `cloud_thin`: deterministic +
+  topic_similarity + nli_contradiction; etc.). A new chunk (7) wires
+  the `EnricherSet` into the existing `ProfilePreset` machinery.
+
 ---
 
 ## Architectural prerequisite — resolve the RFC-097 ↔ RFC-088 divergence
@@ -173,11 +200,20 @@ exercised by the "no-op" path.
 fixtures asserting numerics. One integration test runs all six against
 the eval `curated_5feeds_smoke_v1` corpus and asserts shape + status.
 
+**Eval harness (no autoresearch — these are parameter-free):**
+
+- `data/eval/enrichment/deterministic/gold/` — hand-authored expected
+  outputs for the 6 enrichers over a 3–5 episode synthetic corpus.
+- `scripts/eval/score/enrichment_deterministic.py` — diffs current
+  outputs against gold; emits per-enricher accuracy table + any
+  drift. Runs on every PR via `make eval-enrichment-deterministic`.
+- Acceptance: exact match against gold on the synthetic corpus.
+
 **Acceptance:** every enricher idempotent, deterministic, < 5s for the
 100-episode reference corpus; CI runs them by default (the fixture is
-real-corpus-tiny, no LLM, no network).
+real-corpus-tiny, no LLM, no network); eval harness exact-match passes.
 
-**Est size:** ~600–900 LOC code + ~700–1000 LOC tests.
+**Est size:** ~600–900 LOC code + ~700–1000 LOC tests + ~200 LOC eval.
 
 ---
 
@@ -196,12 +232,34 @@ concept-Topic ids when present so downstream consumers can join.
 LanceDB-indexed corpus with a small embedder. Cost-of-validation: real
 sentence-transformers must run in integration only (already a dependency).
 
+**Eval harness:**
+
+- `data/eval/enrichment/topic_similarity/gold/` — operator-curated
+  labels of "these two topics are related" pairs over the prod corpus
+  (start with ~50 pairs, grow over time). Per-pair fields: `topic_a`,
+  `topic_b`, `expected_related: bool`, `notes`.
+- `scripts/eval/score/enrichment_topic_similarity.py` — at every
+  threshold candidate, computes precision / recall / F1 against the
+  labels + MRR@10 of the top-K neighbours per topic.
+- Runs locally + on demand via `make eval-enrichment-topic-similarity`.
+  NOT in CI (needs the real embedder + indexed corpus).
+
+**Autoresearch wiring (optional, recommended):** the two tunable
+parameters — `similarity_threshold` (default 0.7) and `top_k` (default
+20) — are wired into the existing autoresearch v2 framework as a small
+sweep: dev/held-out split on the curated pairs, F1 as the ratchet
+signal. Same shape as RFC-073's Track A loop. Adds
+`autoresearch/enrichment_topic_similarity/` directory; produces a
+champion params recommendation that lands in the default
+`topic_similarity.yaml` config block.
+
 **ADR-104 anchor:** explicitly documents that `topic_similarity` (this
 enricher) and RFC-097 chunk 9 `RELATED_TO` (KG-direct) can coexist —
 this enricher is the rankable/scored variant, KG is the
 typed-connectivity variant.
 
-**Est size:** ~300–500 LOC code + ~400–600 LOC tests.
+**Est size:** ~300–500 LOC code + ~400–600 LOC tests + ~400 LOC eval +
+~300 LOC autoresearch wiring.
 
 ---
 
@@ -212,17 +270,18 @@ typed-connectivity variant.
 
 **Implementation:**
 
-- Local NLI model via `[ml]` extra. Candidate model:
+- Local NLI model via `[ml]` extra. **Confirmed model:**
   `cross-encoder/nli-deberta-v3-small` (DeBERTa-v3-small fine-tuned on
-  MNLI; ~80MB, runs on CPU). Add to `pyproject.toml` `[ml]` extra and
-  to the preload manifest.
+  MNLI; ~80MB, runs on CPU at ~50–200ms/pair). **CPU-only — no DGX
+  fallback, no DGX preferred path.** Added to `pyproject.toml` `[ml]`
+  extra and to the preload manifest.
 - For each topic, take all Insights from different Persons mentioning
   that topic (via `MENTIONS_PERSON ∩ ABOUT`), score every cross-Person
   pair with NLI (`contradiction` probability), keep pairs with score ≥
   configurable threshold (default 0.5).
 - Output: `enrichments/nli_contradiction.json` — list of `{topic_id,
   person_a_id, person_b_id, insight_a_id, insight_b_id,
-  contradiction_score}`.
+  contradiction_score, model_id, model_version}`.
 
 **CI hygiene** (per `[[feedback_no_llm_in_ci]]`): NLI model must NOT run
 in CI; integration test uses a stub `NliScorer` protocol that returns
@@ -230,13 +289,44 @@ fixed scores per pair. Real-model test gated by environment marker, runs
 only on operator demand. **Crucial — the enricher infrastructure must be
 testable deterministically without the model.**
 
+**Eval harness (this is the biggest one):**
+
+- `data/eval/enrichment/nli_contradiction/gold/` — operator-curated
+  contradiction labels over the prod corpus. Start ~100 cross-Person
+  Insight pairs on shared topics, each labelled
+  `{contradiction, neutral, entailment}` plus a `confidence` field.
+  Grow as the corpus grows. JSONL for diffability.
+- `scripts/eval/score/enrichment_nli_contradiction.py` — at every
+  threshold candidate, computes:
+  - precision / recall / F1 against the contradiction class
+  - Brier score (calibration of probability estimates)
+  - error analysis: false positives + false negatives with insight text
+- Splits the labels dev/held-out per `[[feedback_silver_judge_vendor_bias]]`
+  — though there's no judge here, the dev/held-out hygiene applies
+  whenever the loop is closed via autoresearch.
+- Runs locally + on demand via `make eval-enrichment-nli-contradiction`.
+  NOT in CI.
+
+**Autoresearch wiring (required for this enricher):** two tunable
+dimensions worth a sweep:
+1. `threshold` — anywhere from 0.3 to 0.8 in 0.05 steps; ratchet on
+   dev-set F1, validate on held-out.
+2. `model_variant` — `nli-deberta-v3-small` (default) vs
+   `nli-deberta-v3-base` vs `nli-deberta-v3-large` — useful if F1 on
+   dev is below acceptable. Each is a one-line config change; the eval
+   loop spawns the contender against the current champion.
+
+Lives at `autoresearch/enrichment_nli_contradiction/` mirroring
+`autoresearch/bundled_prompt_tuning/`. Champion params land in the
+default `nli_contradiction.yaml` config block on accept.
+
 **Edge type:** does NOT introduce a `CONTRADICTS` edge type in KG v2.0
 (per ADR-104 boundary — derived data lives in enrichments). A future v3
 KG decision can promote validated contradiction pairs to typed edges if
 warranted; not in scope here.
 
-**Est size:** ~400–600 LOC code + ~600–800 LOC tests (most of it stub-
-mode coverage).
+**Est size:** ~400–600 LOC code + ~600–800 LOC tests + ~500 LOC eval +
+~600 LOC autoresearch wiring + ~100-row gold-label JSONL.
 
 ---
 
@@ -305,7 +395,69 @@ stack-test job).
 
 ---
 
-## Chunk 7 — Promotion + ADR + docs (1 small PR)
+## Chunk 7 — Profile-preset wiring (1 medium PR)
+
+Per `[[feedback_profiles_are_source_of_truth]]`, the
+`config/profiles/*.yaml` registry is the authoritative answer to "which
+enrichers run in this environment." Every enricher ships off by default;
+profile presets are the only thing that turns the deterministic six on,
+and the way operators opt into the smart tiers.
+
+**Module additions:**
+
+- New `EnricherSet` dataclass alongside the existing `StageOption` /
+  `ProfilePreset` machinery (`src/podcast_scraper/profiles/`).
+  Carries: `enabled_enrichers: list[str]`, per-enricher config overrides,
+  opt-in flags for the `llm` tier.
+- `ProfilePreset` gains an `enrichments: EnricherSet` field. Legacy
+  presets default to a sentinel "all-off" set so older profiles keep
+  current behaviour.
+
+**Preset assignments (the "what runs where" matrix):**
+
+| Profile | Deterministic 6 | topic_similarity | nli_contradiction | Query enrichers |
+|---|---|---|---|---|
+| `test_default` | off | off | off | off |
+| `airgapped_thin` | **on** | off | off | off |
+| `airgapped` | **on** | **on** | off | **on** (deterministic only) |
+| `cloud_thin` | **on** | **on** | **on** | **on** |
+| `dev` | **on** | **on** | off | **on** |
+| `prod` | **on** | **on** | **on** | **on** |
+
+Concrete rationale:
+- `test_default`: nothing — tests opt in per-test when they exercise an
+  enricher.
+- `airgapped_thin`: cheap deterministic only; this profile is the
+  always-runs-on-CI variant.
+- `airgapped`: adds `topic_similarity` because the LanceDB index exists
+  in airgapped runs; adds the deterministic query enricher.
+- `cloud_thin` / `prod`: full stack including NLI.
+- `dev`: matches `airgapped` (we don't want devs accidentally running
+  the NLI model on every save; they can override locally).
+
+**Override mechanism:** CLI `--enrichers <id>,<id>` and
+`--no-enrichers <id>,<id>` flags layer over the profile choice (matches
+existing `--feed` / `--profile` override semantics).
+
+**Tests:**
+
+- `tests/unit/profiles/test_enricher_set.py` — preset assignments match
+  the matrix above; CLI override semantics; sentinel default for legacy
+  presets.
+- Drift test: every profile preset must declare an `enrichments` field
+  (cannot silently inherit), enforced by existing profile-validator.
+- Pipeline integration test per profile: run the enrichment pass with
+  each preset, assert only the expected outputs appear on disk.
+
+**Acceptance:** every preset's enricher set is explicit; legacy presets
+still pass the existing drift test; the matrix is documented in the
+profiles README.
+
+**Est size:** ~400 LOC code + ~500 LOC tests + ~100 LOC docs.
+
+---
+
+## Chunk 8 — Promotion + ADR + docs (1 small PR)
 
 - RFC-088 Status → Completed (with the implementation-time amendments
   from chunks 0/3 inline).
@@ -317,7 +469,7 @@ stack-test job).
 - `docs/architecture/ARCHITECTURE.md` enrichment-layer section added.
 - `docs/guides/ENRICHMENT_LAYER_GUIDE.md` operator-facing how-to:
   enabling enrichers, opt-in semantics, output discovery, re-run, opt-in
-  for ML tier.
+  for ML tier, profile-preset matrix.
 
 **Est size:** doc-only, ~300 LOC across files.
 
@@ -373,7 +525,7 @@ Enrichments are additive; their absence is silent.
 | Risk | Mitigation |
 |---|---|
 | Enrichment pass adds non-trivial pipeline wall-clock | Default to 6 deterministic enrichers only; measure on real corpus before declaring done; opt out via config |
-| NLI model is too big for CI / dev laptops | Pick a small distilled model (DeBERTa-v3-small ~80MB); ship stub mode; gate real run behind operator workflow |
+| NLI model is too big for CI / dev laptops | DeBERTa-v3-small (~80MB, CPU); ship stub mode for tests; real model only runs under operator-side workflow. No DGX dependency anywhere. |
 | RFC-097 / RFC-088 divergence (RELATED_TO) breaks consumers if naive | Settle as chunk 0 with ADR-104 before any code |
 | `topic_similarity` duplicates LanceDB work | Reuse existing index, don't re-embed; the enricher only consumes and projects |
 | Operator config schema sprawl | Match RFC-077 viewer-operator YAML conventions; one block, one source of truth |
@@ -381,42 +533,52 @@ Enrichments are additive; their absence is silent.
 
 ---
 
-## Open decisions for operator
+## Decisions resolved 2026-06-26
 
-These are the ones to settle before chunk 0 lands:
-
-1. **ADR-104 phrasing** — is "Co-exist, two outputs, two purposes"
-   acceptable, or do you want me to push harder on retiring RFC-097
-   chunk 9's KG-direct path? (Latter is more invasive but architecturally
-   cleaner. Recommendation: keep both per (A).)
-2. **NLI model choice** — DeBERTa-v3-small (~80MB, CPU-OK, MNLI) is the
-   default recommendation. If you'd rather host on DGX via the existing
-   vLLM autoresearch stack (Qwen3-30B in-context NLI), say so — that's
-   a different chunk-4 plan.
-3. **Phasing cadence** — 7 chunks, each its own PR, merged sequentially
-   into main? Or one big `feat/enrichment-layer` integration branch with
-   chunks as commits, single PR at the end? RFC-097 used the latter and
-   it worked well for review; default to that here unless you prefer
-   smaller PRs.
-4. **`make enrich` standalone target** — RFC-088 §Open Question #1 says
-   "likely yes for Phase 2". Confirm: ship the standalone target in
-   chunk 1 with the CLI, or defer to chunk 7?
-5. **GitHub issues** — per `[[feedback_never_open_gh_issues]]`, I won't
-   open any. Want one umbrella issue for the layer + 7 child issues per
-   chunk? Or stay branch-only and let the PRs carry the narrative?
+1. **ADR-104 framing** — Path (A): KG-direct + enrichment-layer paths
+   coexist. KG owns typed connectivity (airgapped + LLM grounding);
+   enrichment owns scored/rankable signals (UI consumption + autoresearch
+   tuning).
+2. **NLI model** — DeBERTa-v3-small, CPU only. **No DGX fallback.**
+   DGX is operator-side experimentation, never the shipping path.
+3. **Phasing cadence** — single `feat/enrichment-layer` integration
+   branch with chunks 0–8 as separate commits, one PR at the end.
+   Matches the RFC-097 chunked-PR shape that worked well for review.
+4. **`make enrich` standalone target** — ships in chunk 1 with the CLI.
+   Operator wants to re-run the enrichment pass without re-extracting.
+5. **GH-issue tracking** — Epic + 9 child issues, one per chunk. Epic
+   is the umbrella; chunks reference the Epic and each other. Operator
+   explicitly authorized creation 2026-06-26 (overrides the default
+   `[[feedback_never_open_gh_issues]]` for this work only).
+6. **Eval per smart enricher** — every embedding/ml/llm-tier enricher
+   ships an eval harness in the same chunk; autoresearch wiring lands
+   alongside when the enricher has tunable params. Eval lives under
+   `data/eval/enrichment/`, scoring scripts under
+   `scripts/eval/score/enrichment_*.py`, Makefile targets
+   `make eval-enrichment-*`.
+7. **Profile-preset wiring** — chunk 7 wires `EnricherSet` into
+   `ProfilePreset`. Every preset names its enricher set explicitly;
+   per-CLI overrides supported (`--enrichers`, `--no-enrichers`).
 
 ---
 
 ## Estimated total
 
-7 chunks. Doc/code split roughly 25/75. Total ~3000–4500 LOC of code +
-~3500–5000 LOC of tests. Mostly mergeable in a 2–3-week elapsed window
-if chunks land sequentially with one-day reviewer turnaround. The
-deterministic baseline (chunks 0–2) is the highest-value milestone —
-gets `topic_cooccurrence_corpus` / `temporal_velocity` /
-`grounding_rate` on disk and consumable, and unblocks PRD-026 Topic
-Entity View work without needing the embedding/ml/llm tiers.
+9 chunks (was 7; +eval-per-chunk integrated, +profile-preset chunk
+added). Doc/code split roughly 25/75. Total ~3500–5500 LOC of code +
+~4500–6500 LOC of tests + ~1500 LOC of eval scripts/scoring + ~1200 LOC
+of autoresearch wiring. Mostly mergeable in a 3–4-week elapsed window
+on a single integration branch.
 
-If we have to land less than the full plan: stopping after chunk 2 gives
-the bulk of the user-visible value; chunks 3–6 layer in capability
-without rework.
+The deterministic baseline (chunks 0–2) remains the highest-value
+milestone — `topic_cooccurrence_corpus` / `temporal_velocity` /
+`grounding_rate` on disk and consumable; PRD-026 Topic Entity View work
+unblocked. Chunks 3–4 add the smart tiers with full eval coverage.
+Chunks 5–6 wire query-time + viewer consumption. Chunk 7 makes the
+operator's profile-preset control over the whole thing real. Chunk 8
+closes the paperwork.
+
+If we have to land less than the full plan: stopping after chunk 2 +
+chunk 7 (preset wiring scoped to deterministic only) gives the
+deterministic enrichers usable in every profile without rework. Smart
+tiers (chunks 3–4) and query-time (chunk 5) layer in additively.
