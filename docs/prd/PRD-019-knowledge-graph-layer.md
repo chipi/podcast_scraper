@@ -1,12 +1,15 @@
 # PRD-019: Knowledge Graph Layer (KG)
 
-- **Status**: Partially implemented (v2.6.0)
-- **v2 closure (RFC-097, 2026-06-20)**: FR3.1 (documented entity node types — Person/Org/Podcast first-class), entity identity fragmentation closed via CIL (`entity:person:` → `person:`), KG schema v2.0 ships. Non-Goal "merging KG into gi.json" clarified: v2 unifies the **ontology**, not the file layout. RFC-056 use-case spec + RFC-051 DB projection + perfect entity resolution remain open. See [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md).
+- **Status**: Implemented (v2.7)
+- **v2 closure (RFC-097, 2026-06-20)**: FR3.1 (documented entity node types — Person/Org/Podcast first-class), entity identity fragmentation closed via CIL (`entity:person:` → `person:`), KG schema v2.0 ships. Non-Goal "merging KG into gi.json" clarified: v2 unifies the **ontology**, not the file layout. Cross-layer bridge ([RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md)) Completed. Single-layer use cases ([RFC-056](../rfc/RFC-056-knowledge-graph-layer-use-cases.md)) Completed. Postgres database projection ([RFC-051](../rfc/RFC-051-database-projection-gil-kg.md)) + asymptotic entity resolution remain open as orthogonal scope. See [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md).
 - **Authors**: Podcast Scraper Team
 - **Related RFCs** (RFCs whose **Related PRD** is PRD-019 in [RFC index](../rfc/index.md); they specify or ship this feature):
   - [RFC-055](../rfc/RFC-055-knowledge-graph-layer-core.md) — KG core & artifacts (**complete**)
-  - [RFC-056](../rfc/RFC-056-knowledge-graph-layer-use-cases.md) — Use cases & consumption (**open**)
+  - [RFC-056](../rfc/RFC-056-knowledge-graph-layer-use-cases.md) — Use cases & consumption (**complete**)
   - [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md) — GI/KG viewer (KG graph/search surfaces) (**complete**)
+  - [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) — Canonical Identity Layer + cross-layer bridge (**complete**)
+  - [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md) — Unified KG + GI ontology v2 (**complete**)
+  - [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) — Postgres projection (**Draft**, deferred persistence-layer scope)
 - **Related PRDs** (reference only; separate features):
   - [PRD-017: Grounded Insight Layer](PRD-017-grounded-insight-layer.md) (GI / GIL — evidence-first insights and quotes)
   - [PRD-018: Database Projection](PRD-018-database-projection-gil-kg.md) (Postgres projection for **GIL and KG** — RFC-051)

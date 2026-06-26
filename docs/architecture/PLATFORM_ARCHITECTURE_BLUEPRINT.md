@@ -272,7 +272,7 @@ User/UI → API (RFC-062 server) → Postgres (catalog, subscriptions, entitleme
                     ↓
 Worker(s) → run_pipeline(cfg) → canonical files (+ optional object store)
                     ↓                       ↓
-              projection → Postgres    vector index → LanceDB (RFC-090) / Qdrant (RFC-070 Draft)
+              projection → Postgres    vector index → LanceDB (RFC-090; FAISS retired, RFC-070 superseded)
                     ↓                       ↓
 User/UI → API → read Postgres       → semantic search API
               (+ signed URLs to blobs if needed)

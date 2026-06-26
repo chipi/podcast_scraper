@@ -1,10 +1,34 @@
 # ADR-056: Composable E2E Mock Response Strategy
 
-- **Status**: Proposed
-- **Date**: 2026-02-05
+- **Status**: Superseded (the underlying RFC-054 work shipped in a different shape; see below)
+- **Date**: 2026-02-05 (Proposed) · 2026-06-26 (Superseded)
 - **Authors**: Podcast Scraper Team
-- **Related RFCs**: [RFC-054](../rfc/RFC-054-e2e-mock-response-strategy.md)
-- **Related Issues**: #135, #399, #401
+- **Related RFCs**: [RFC-054](../rfc/RFC-054-e2e-mock-response-strategy.md) (now Completed via redirect — per-provider mock-client path, not the centralized router this ADR drafted)
+- **Related Issues**: #135 (closed), #399 (closed), #401 (closed)
+
+## Superseded — what actually shipped (2026-06-26)
+
+The composable-router architecture this ADR proposed is **not what we built**. The three
+linked issues all closed, but the work landed as:
+
+- **Per-provider mock clients** (`tests/fixtures/mock_server/gemini_mock_client.py`,
+  `mistral_mock_client.py`) carrying the functional response shapes per vendor.
+- **Per-concern unit-test suites** for the non-functional behaviour:
+  - `tests/unit/podcast_scraper/utils/test_retryable_errors.py`
+  - `tests/unit/podcast_scraper/utils/test_retry_integration.py`
+  - `tests/unit/podcast_scraper/utils/test_llm_circuit_breaker.py`
+  - `tests/unit/podcast_scraper/utils/test_provider_metrics.py`
+  - `tests/unit/podcast_scraper/test_download_resilience.py`
+
+That's the same goals delivered (functional ↔ non-functional separation, 429 / 5xx /
+timeout / retry / circuit-breaker coverage) without the shared response-profile router
+this ADR sketched. The router would have been infrastructure overhead for a problem the
+per-suite scaffolding already solves.
+
+This ADR is preserved as the historical decision record. The shipping approach is
+documented inline in RFC-054 (Status: Completed). No new decision is needed unless we
+later consolidate the per-suite scaffolding into a shared router — that would warrant a
+follow-on ADR.
 
 ## Context & Problem Statement
 

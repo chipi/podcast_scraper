@@ -74,10 +74,10 @@ still rolling out; **No** = not started (including accepted ADRs waiting on impl
 | [ADR-053](ADR-053-grounding-contract-for-evidence-backed-insights.md) | Grounding Contract for Evidence-Backed Insights | Accepted | [RFC-049](../rfc/RFC-049-grounded-insight-layer-core.md), [RFC-050](../rfc/RFC-050-grounded-insight-layer-use-cases.md) | Explicit grounded boolean, verbatim quotes with spans, evidence chain | Yes |
 | [ADR-054](ADR-054-relational-postgres-projection-for-gil-and-kg.md) | Relational Postgres Projection for GIL and KG | Accepted | [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) | Files canonical, Postgres is derived; separate GIL/KG tables; provenance on every row | No |
 | [ADR-055](ADR-055-adaptive-summarization-routing.md) | Adaptive Summarization Routing | Proposed | [RFC-053](../rfc/RFC-053-adaptive-summarization-routing.md) | Rule-based routing with episode profiling for summarization strategies | No |
-| [ADR-056](ADR-056-composable-e2e-mock-response-strategy.md) | Composable E2E Mock Response Strategy | Proposed | [RFC-054](../rfc/RFC-054-e2e-mock-response-strategy.md) | Separation of functional responses from non-functional behavior in tests | No |
+| [ADR-056](ADR-056-composable-e2e-mock-response-strategy.md) | Composable E2E Mock Response Strategy | Superseded | [RFC-054](../rfc/RFC-054-e2e-mock-response-strategy.md) | Centralized response-profile router not built; per-provider mock clients + per-concern unit suites shipped instead. RFC-054 closed via redirect. | Yes (different shape) |
 | [ADR-057](ADR-057-autoresearch-thin-harness-with-credential-isolation.md) | AutoResearch Thin Harness with Credential Isolation | Accepted | [RFC-057](../rfc/RFC-057-autoresearch-optimization-loop.md) | Thin control layer reusing existing eval; immutable score.py; AUTORESEARCH\_\* credential vars | Yes |
 | [ADR-058](ADR-058-additive-pyannote-diarization-with-separate-extra.md) | Additive pyannote Diarization | Accepted | [RFC-058](../rfc/RFC-058-audio-speaker-diarization.md) | pyannote additive second pass; `[ml]`/`[dev]` deps; default on for local Whisper | Partial |
-| [ADR-059](ADR-059-confidence-scored-multi-signal-commercial-detection.md) | Confidence-Scored Multi-Signal Commercial Detection | Accepted | [RFC-060](../rfc/RFC-060-diarization-aware-commercial-cleaning.md) | Confidence-scored candidates; Phase 1 landed, Phase 2 diarization signals in flight | Partial |
+| [ADR-059](ADR-059-confidence-scored-multi-signal-commercial-detection.md) | Confidence-Scored Multi-Signal Commercial Detection | Accepted | [RFC-060](../rfc/RFC-060-diarization-aware-commercial-cleaning.md) | Confidence-scored candidates; Phase 1 (#486) + Phase 2 diarization signals (#488) both shipped | Yes |
 | [ADR-060](ADR-060-vectorstore-protocol-with-backend-abstraction.md) | VectorStore Protocol with Backend Abstraction | Accepted (superseded by [ADR-099](ADR-099-lancedb-first-single-index-search.md)) | [RFC-061](../rfc/RFC-061-semantic-corpus-search.md) | PEP 544 protocol decoupling FAISS (Phase 1) from Qdrant (Phase 2) | Yes |
 | [ADR-061](ADR-061-faiss-phase-1-with-post-filter-metadata.md) | FAISS Phase 1 with Post-Filter Metadata Strategy | Accepted (superseded by [ADR-099](ADR-099-lancedb-first-single-index-search.md)) | [RFC-061](../rfc/RFC-061-semantic-corpus-search.md) | Over-fetch + post-filter for CLI-scale; auto index type selection | Yes |
 | [ADR-062](ADR-062-sentence-boundary-transcript-chunking.md) | Sentence-Boundary Transcript Chunking | Accepted | [RFC-061](../rfc/RFC-061-semantic-corpus-search.md) | Regex sentence split, configurable target/overlap tokens, timestamp interpolation | Yes |
@@ -107,9 +107,9 @@ still rolling out; **No** = not started (including accepted ADRs waiting on impl
 | [ADR-086](ADR-086-canonical-identity-layer-and-bridge-json-cross-layer-join.md) | Canonical Identity Layer and Per-Episode bridge.json Cross-Layer Join | Accepted | [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) | CIL ids + `bridge.json` seam; GIL or KG stay separate (ADR-052) | Yes |
 | [ADR-087](ADR-087-autoresearch-track-a-v2-dev-held-out-and-judging.md) | Autoresearch Track A v2 — Dev or Held-Out Split and Judging | Accepted | [RFC-073](../rfc/RFC-073-autoresearch-v2-framework.md), [RFC-057](../rfc/RFC-057-autoresearch-optimization-loop.md) | Disjoint held-out; fraction contestation; Efficiency rubric; seed wiring | Yes |
 | [ADR-088](ADR-088-macos-local-ci-process-safety-for-ml-workloads.md) | macOS Local CI Process Safety for ML Workloads | Accepted | [RFC-074](../rfc/RFC-074-process-safety-ml-workloads-macos.md) | No parse-time ML probes; cleanup or zombie checks; agent no-pileup rules | Yes |
-| [ADR-089](ADR-089-prod-failover-orchestrator-separate-from-drill.md) | Prod Failover Orchestrator Separate from DR Drill | Accepted | [RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md) | Own workflow family; reuse drill workspace/secrets; no auto-destroy; GitHub #764 | No |
-| [ADR-090](ADR-090-prod-failover-dns-first-cutover.md) | Prod Failover — DNS-First Cutover on Tailnet | Accepted | [RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md) | Canonical hostname DNS flip primary; floating IP optional | No |
-| [ADR-091](ADR-091-prod-failover-gha-triggers-and-gates.md) | Prod Failover — GHA Triggers and Gates | Accepted | [RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md) | Manual cutover/failback/teardown; freeze prod schedules; spare schedules off after restore | No |
+| [ADR-089](ADR-089-prod-failover-orchestrator-separate-from-drill.md) | Prod Failover Orchestrator Separate from DR Drill | Accepted | [RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md) | Own workflow family; reuse drill workspace/secrets; no auto-destroy; GitHub #764 | Yes |
+| [ADR-090](ADR-090-prod-failover-dns-first-cutover.md) | Prod Failover — DNS-First Cutover on Tailnet | Accepted | [RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md) | Canonical hostname DNS flip primary; floating IP optional | Yes |
+| [ADR-091](ADR-091-prod-failover-gha-triggers-and-gates.md) | Prod Failover — GHA Triggers and Gates | Accepted | [RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md) | Manual cutover/failback/teardown; freeze prod schedules; spare schedules off after restore | Yes |
 | [ADR-092](ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md) | Corpus Snapshot Backup Manifest and Newest-Compatible Restore Default | Accepted | [RFC-084](../rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md) | `snapshot.manifest.json`; dual placement; newest-compatible default; fail closed; GitHub #763 | Yes |
 | [ADR-093](ADR-093-canonical-stack-contract-and-environment-adapters.md) | Canonical Stack Contract Versus Environment Adapters | Accepted | [RFC-082](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md) | One topology/health/`stack-test` discipline; adapters for transport/secrets only; steady vs restore playbooks separate; GitHub #762 | Yes |
 | [ADR-094](ADR-094-graph-handoff-orchestrator-fsm.md) | Graph Handoff Orchestrator — 8-State FSM with Envelope and Generation Tokens | Accepted | [RFC-085](../rfc/RFC-085-graph-handoff-orchestrator-retrospective.md) | Single FSM authoritative across 13 entry points; envelope contract; generation supersession; viewer-side stuck detection + error strip | Yes |
@@ -125,10 +125,12 @@ still rolling out; **No** = not started (including accepted ADRs waiting on impl
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when adding ADRs):** **99** files under `docs/adr/ADR-*.md` (ADR-001–ADR-099;
-numbering has historical gaps). From the index table: **2** **Proposed** (**ADR-055**, **ADR-056**),
-**7** **Accepted** with **Code = No** (**ADR-054**, **ADR-058**, **ADR-059**, **ADR-089**, **ADR-090**, **ADR-091**), **5** **Accepted** with
-**Code = Partial** (**ADR-031**, **ADR-047**, **ADR-096**, **ADR-097**, **ADR-098**). **Accepted** means ratified, not necessarily shipped.
+**Counts (reconcile when adding ADRs):** **103** files under `docs/adr/ADR-*.md` (ADR-001–ADR-103;
+numbering has historical gaps). From the index table: **1** **Proposed** (**ADR-055**, tied to Draft
+RFC-053), **1** **Superseded** (**ADR-056**, RFC-054 shipped in different shape — per-provider mocks
+rather than the centralized router this ADR drafted), **1** **Accepted** with **Code = No**
+(**ADR-054**, tied to Draft RFC-051 Postgres projection), **3** **Accepted** with **Code = Partial**
+(**ADR-031**, **ADR-047**, **ADR-058**). **Accepted** means ratified, not necessarily shipped.
 
 ### When to extract a new ADR
 
@@ -158,25 +160,26 @@ Use an ADR when one or more of these hold; otherwise an **RFC + normative doc** 
 | ADR | Primary RFC | Note |
 | --- | --- | --- |
 | [ADR-055](ADR-055-adaptive-summarization-routing.md) | [RFC-053](../rfc/RFC-053-adaptive-summarization-routing.md) | No episode profiling / routing in pipeline yet |
-| [ADR-056](ADR-056-composable-e2e-mock-response-strategy.md) | [RFC-054](../rfc/RFC-054-e2e-mock-response-strategy.md) | Composable ResponseProfile / Router not implemented |
+
+**Superseded**
+
+| ADR | Primary RFC | Note |
+| --- | --- | --- |
+| [ADR-056](ADR-056-composable-e2e-mock-response-strategy.md) | [RFC-054](../rfc/RFC-054-e2e-mock-response-strategy.md) | Composable ResponseProfile / Router not built; per-provider mock clients + per-concern unit suites shipped instead. RFC-054 closed via redirect. |
 
 **Accepted, partial**
 
 | ADR | Primary RFC / gap | Note |
 | --- | --- | --- |
-| [ADR-058](ADR-058-additive-pyannote-diarization-with-separate-extra.md) | [RFC-058](../rfc/RFC-058-audio-speaker-diarization.md) | Core module landed; diarization result caching (RFC Phase 4) still open |
-| [ADR-059](ADR-059-confidence-scored-multi-signal-commercial-detection.md) | [RFC-060](../rfc/RFC-060-diarization-aware-commercial-cleaning.md) | Phase 1 landed (#486); Phase 2 diarization signals (#488) in flight |
-| [ADR-031](ADR-031-mandatory-pre-release-validation.md) | [RFC-038](../rfc/RFC-038-continuous-review-tooling.md) | `make pre-release` / checklist not fully aligned |
-| [ADR-047](ADR-047-proactive-metric-regression-alerting.md) | — | Alerts exist; **automated PR comments** not complete |
+| [ADR-058](ADR-058-additive-pyannote-diarization-with-separate-extra.md) | [RFC-058](../rfc/RFC-058-audio-speaker-diarization.md) | Core pyannote provider + alignment shipped; diarization result caching deferred as future scope |
+| [ADR-031](ADR-031-mandatory-pre-release-validation.md) | [RFC-038](../rfc/RFC-038-continuous-review-tooling.md) | Dependabot + pydeps shipped; pre-release checklist tracked as #255 future enhancement |
+| [ADR-047](ADR-047-proactive-metric-regression-alerting.md) | [RFC-043](../rfc/RFC-043-automated-metrics-alerts.md) | Nightly `alerts[]` detection shipped; PR-comment + webhook scripts deliberately abandoned — operator-side Sentry/Grafana wiring is the destination (see [`OBSERVABILITY_EXTENSIONS.md`](../guides/OBSERVABILITY_EXTENSIONS.md#operator-alerting--sentry--grafana)) |
 
 **Accepted, code not landed (expected)**
 
 | ADR | Primary RFC | Note |
 | --- | --- | --- |
-| [ADR-054](ADR-054-relational-postgres-projection-for-gil-and-kg.md) | [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) | Postgres projection future |
-| [ADR-089](ADR-089-prod-failover-orchestrator-separate-from-drill.md) | [RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md) | Prod-failover workflows not landed |
-| [ADR-090](ADR-090-prod-failover-dns-first-cutover.md) | [RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md) | Runbook or DNS automation follow-up |
-| [ADR-091](ADR-091-prod-failover-gha-triggers-and-gates.md) | [RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md) | `repository_dispatch` + cutover gates not landed |
+| [ADR-054](ADR-054-relational-postgres-projection-for-gil-and-kg.md) | [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) | Postgres projection deferred persistence-layer scope; PRD-017/019 still ship without it |
 
 ### Stale-audit corrections (reference)
 
@@ -190,7 +193,7 @@ are **Yes**; **ADR-064**–**ADR-066** are implemented; **ADR-021** is reflected
 | --- | --- |
 | **Prefer a new ADR** | Irreversible stack boundary, cross-cutting protocol, frozen empirical default, heavy optional extra, or closure of a large program (e.g. **ADR-073**). |
 | **Often RFC-only** | Bounded HTTP routes or viewer tabs where **ADR-064**–**ADR-066** + UXS already fix the stack (e.g. **RFC-067**, **RFC-068**, **RFC-069**, **RFC-071**). Corpus layout + manifest: **ADR-074**. Frozen resource baselines: **ADR-075**. Streamlit vs Vue for eval tools: **ADR-076**. Full-stack Compose + stack-test gate: **ADR-084**, **ADR-085**. CIL + `bridge.json`: **ADR-086**. Autoresearch Track A v2: **ADR-087**. macOS ML `make` safety: **ADR-088**. **Prod failover** design: **[RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md)**; decisions **ADR-089**–**ADR-091**. Corpus **snapshot** backup manifest + restore defaults: **[RFC-084](../rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md)**; **ADR-092**. **Cross-surface stack contract vs adapters:** **ADR-093** ([#762](https://github.com/chipi/podcast_scraper/issues/762)). |
-| **Proposed ADRs** | Promote **ADR-055** / **ADR-056** to **Accepted** (or supersede) when **RFC-053** / **RFC-054** ship end-to-end. |
+| **Proposed ADRs** | Promote **ADR-055** to **Accepted** (or supersede) when **RFC-053** ships end-to-end. **ADR-056** already Superseded (2026-06-26) — the centralized router this ADR drafted was replaced by per-provider mock clients + per-concern unit suites; no further action needed. |
 
 ### Future triggers
 
