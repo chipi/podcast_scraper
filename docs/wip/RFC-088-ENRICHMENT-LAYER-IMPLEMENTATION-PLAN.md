@@ -153,8 +153,37 @@ episode-scope, 600s corpus-scope; overridable per enricher.
   pairs. No event for > 2× expected interval triggers a `WARNING`;
   configurable escalation to cancel.
 - Pid-alive reconcile — existing
-  `pipeline_jobs.py:reconcile_jobs_inplace` catches dead enrichment-
-  job processes the same way it catches dead pipeline-job processes.
+  `jobs.py:reconcile_jobs_inplace` (renamed per O4) catches dead
+  enrichment-job processes the same way it catches dead pipeline-job
+  processes.
+
+### Cost-cap enforcement (per REPLAN-O7)
+
+The cost-cap plumbing ships in chunk 1 next to the rest of the
+resilience model. Chunks 4 + 5 just populate manifest fields; no
+enforcement code lands there.
+
+- **Per-enricher quarantine** — after each enricher run, the executor
+  compares `EnrichmentMetrics.cost_usd` (set by the existing
+  `record_provider_call_cost` chain when an enricher's scorer calls
+  a provider) against `manifest.max_cost_usd_per_run`. Exceeded →
+  status `quarantined`, reason `cost_cap_exceeded`. Other enrichers
+  in the run continue normally.
+- **Run-wide hard stop** — a `total_cost_usd` counter is incremented
+  across every enricher's `EnrichmentMetrics.cost_usd`. When the total
+  exceeds `enrichment.max_total_cost_usd_per_run`, the executor aborts
+  the enrichment pass — subsequent enrichers in the queue marked
+  `skipped`, reason `run_cost_cap_exceeded`. The whole run's `status`
+  flips to `failed`; `exit_code` is non-zero unless
+  `enrichment.fail_on_run_cost_cap: false` is set.
+- Test cases in `test_resilience_scenarios.py`:
+  - `cost_cap_per_enricher_quarantines_offender` — mocked scorer
+    returns `cost_usd: 0.10` per call; enricher hits its
+    `max_cost_usd_per_run = 0.50` budget after 5 calls; quarantine
+    fires; other enrichers in the run continue.
+  - `cost_cap_run_wide_aborts_pass` — total accumulated cost across
+    enrichers exceeds the run-wide cap; subsequent enrichers in the
+    queue marked `skipped`; run status `failed`.
 
 ### Health persistence
 
@@ -1038,7 +1067,11 @@ the eval `curated_5feeds_smoke_v1` corpus and asserts shape + status.
   outputs for the 6 enrichers over a 3–5 episode synthetic corpus.
 - `scripts/eval/score/enrichment_deterministic.py` — diffs current
   outputs against gold; emits per-enricher accuracy table + any
-  drift. Runs on every PR via `make eval-enrichment-deterministic`.
+  drift. Direct Python entry point: `python scripts/eval/score/enrichment_deterministic.py`.
+- The chunk-2 test suite wraps this script as a unit test so the
+  gold-fixture exact-match runs in CI on every PR. No Make target
+  needed — per REPLAN-O6, this matches the existing `scripts/eval/score/`
+  convention (39 scoring scripts; none have Make wrappers).
 - Acceptance: exact match against gold on the synthetic corpus.
 
 **Acceptance:** every enricher idempotent, deterministic, < 5s for the
@@ -1072,18 +1105,27 @@ sentence-transformers must run in integration only (already a dependency).
   `topic_b`, `expected_related: bool`, `notes`.
 - `scripts/eval/score/enrichment_topic_similarity.py` — at every
   threshold candidate, computes precision / recall / F1 against the
-  labels + MRR@10 of the top-K neighbours per topic.
-- Runs locally + on demand via `make eval-enrichment-topic-similarity`.
-  NOT in CI (needs the real embedder + indexed corpus).
+  labels + MRR@10 of the top-K neighbours per topic. Direct Python
+  entry point: `python scripts/eval/score/enrichment_topic_similarity.py
+  --threshold 0.7 --top-k 20`. NOT in CI (needs the real embedder +
+  indexed corpus).
+- Per REPLAN-O6 — no `make eval-enrichment-*` wrapper for the scoring
+  script; matches the existing `scripts/eval/score/` 39-script
+  convention.
 
-**Autoresearch wiring (optional, recommended):** the two tunable
+**Autoresearch wiring (required for this enricher):** the two tunable
 parameters — `similarity_threshold` (default 0.7) and `top_k` (default
 20) — are wired into the existing autoresearch v2 framework as a small
 sweep: dev/held-out split on the curated pairs, F1 as the ratchet
-signal. Same shape as RFC-073's Track A loop. Adds
-`autoresearch/enrichment_topic_similarity/` directory; produces a
-champion params recommendation that lands in the default
-`topic_similarity.yaml` config block.
+signal. Same shape as RFC-073's Track A loop. Adds:
+
+- `autoresearch/enrichment_topic_similarity/eval/score.py` program
+  entry point (same shape as `autoresearch/bundled_prompt_tuning/eval/score.py`).
+- New `make autoresearch-enrichment-topic-similarity [CONFIG=…]
+  [REFERENCE=…]` Makefile target (same shape as existing
+  `make autoresearch-score` / `make autoresearch-score-bundled`).
+- Champion params land in the default `topic_similarity.yaml` config
+  block on accept.
 
 **ADR-104 anchor:** explicitly documents that `topic_similarity` (this
 enricher) and RFC-097 chunk 9 `RELATED_TO` (KG-direct) can coexist —
@@ -1133,11 +1175,13 @@ testable deterministically without the model.**
   - precision / recall / F1 against the contradiction class
   - Brier score (calibration of probability estimates)
   - error analysis: false positives + false negatives with insight text
+  Direct Python entry point: `python scripts/eval/score/enrichment_nli_contradiction.py
+  --model nli-deberta-v3-small --threshold 0.5`. NOT in CI.
 - Splits the labels dev/held-out per `[[feedback_silver_judge_vendor_bias]]`
   — though there's no judge here, the dev/held-out hygiene applies
   whenever the loop is closed via autoresearch.
-- Runs locally + on demand via `make eval-enrichment-nli-contradiction`.
-  NOT in CI.
+- Per REPLAN-O6 — no `make eval-enrichment-*` wrapper; matches the
+  existing 39-script convention.
 
 **Autoresearch wiring (required for this enricher):** two tunable
 dimensions worth a sweep:
@@ -1148,9 +1192,15 @@ dimensions worth a sweep:
    dev is below acceptable. Each is a one-line config change; the eval
    loop spawns the contender against the current champion.
 
-Lives at `autoresearch/enrichment_nli_contradiction/` mirroring
-`autoresearch/bundled_prompt_tuning/`. Champion params land in the
-default `nli_contradiction.yaml` config block on accept.
+Adds:
+
+- `autoresearch/enrichment_nli_contradiction/eval/score.py` program
+  entry point (same shape as `autoresearch/bundled_prompt_tuning/eval/score.py`).
+- New `make autoresearch-enrichment-nli-contradiction [CONFIG=…]
+  [REFERENCE=…]` Makefile target (same shape as existing
+  `make autoresearch-score`).
+- Champion params land in the default `nli_contradiction.yaml` config
+  block on accept.
 
 **Edge type:** does NOT introduce a `CONTRADICTS` edge type in KG v2.0
 (per ADR-104 boundary — derived data lives in enrichments). A future v3
@@ -1389,10 +1439,18 @@ Enrichments are additive; their absence is silent.
    `[[feedback_never_open_gh_issues]]` for this work only).
 6. **Eval per smart enricher** — every embedding/ml/llm-tier enricher
    ships an eval harness in the same chunk; autoresearch wiring lands
-   alongside when the enricher has tunable params. Eval lives under
-   `data/eval/enrichment/`, scoring scripts under
-   `scripts/eval/score/enrichment_*.py`, Makefile targets
-   `make eval-enrichment-*`.
+   alongside when the enricher has tunable params. Per REPLAN-O6
+   (revised):
+   - **Scoring scripts** ship under `scripts/eval/score/enrichment_*.py`
+     as direct Python entry points (matches the existing 39-script
+     convention; **no `make eval-enrichment-*` Make wrappers**).
+   - **Autoresearch program entry points** ship under
+     `autoresearch/enrichment_<id>/eval/score.py` (same shape as
+     `autoresearch/bundled_prompt_tuning/eval/score.py`) and **get**
+     `make autoresearch-enrichment-<id>` Make wrappers (matches existing
+     `make autoresearch-score` / `make autoresearch-score-bundled`
+     convention).
+   - Eval data lives under `data/eval/enrichment/`.
 7. **Profile-preset wiring** — chunk 7 wires `EnricherSet` into
    `ProfilePreset`. Every preset names its enricher set explicitly;
    per-CLI overrides supported (`--enrichers`, `--no-enrichers`).

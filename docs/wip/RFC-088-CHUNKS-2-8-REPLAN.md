@@ -96,12 +96,11 @@ resilience / metrics / MCP) is consumed from chunk 1.
   auto-disable at 5 consecutive failed runs) already enforced by
   chunk-1 `resilience.py`.
 - Eval harness simplified: `data/eval/enrichment/deterministic/gold/`
-  + `scripts/eval/score/enrichment_deterministic.py` + new
-  `make eval-enrichment-deterministic` Makefile target. **Make IS
-  the right home for eval workflows** (eval is dev tooling, not
-  production ops) — operator's earlier "no `make enrich` target"
-  constraint applies to the enrichment-run path, not to eval. Plan
-  amends to clarify.
+  + `scripts/eval/score/enrichment_deterministic.py` (direct Python
+  entry point, no Make wrapper — matches the existing 39-script
+  convention per REPLAN-O6). The chunk-2 test suite wraps this script
+  as a unit test so the gold-fixture exact-match runs in CI on every
+  PR.
 - Acceptance unchanged: every enricher idempotent, <5s on the
   reference corpus, gold-fixture exact-match.
 
@@ -125,10 +124,11 @@ eval). Now:** ~500-800 LOC code (less framework boilerplate) +
 - Cost-cap manifest fields stay at None (no provider cost for
   LanceDB local index).
 - Eval harness: `data/eval/enrichment/topic_similarity/gold/` +
-  `scripts/eval/score/enrichment_topic_similarity.py` + `make
-  eval-enrichment-topic-similarity` + autoresearch sweep at
-  `autoresearch/enrichment_topic_similarity/` (operator-driven, not
-  CI).
+  `scripts/eval/score/enrichment_topic_similarity.py` (direct Python,
+  no Make wrapper) + autoresearch ratchet at
+  `autoresearch/enrichment_topic_similarity/eval/score.py` with
+  `make autoresearch-enrichment-topic-similarity` Make wrapper
+  (matches existing `make autoresearch-score` convention).
 - The `enrichment_eval_history` MCP tool from chunk 1 starts
   returning real data once chunk 3's eval JSONL ships.
 
@@ -291,50 +291,33 @@ original plan.
 
 ---
 
-## Follow-on operator decisions
+## Follow-on operator decisions — partial RESOLVED 2026-06-26
 
-Three new questions surfaced during the replan. The first is the
-plumbing decision I've inlined as recommended; the other two need
-your call.
+### REPLAN-O5. Chunk 6 split → **CONFIRMED: monolithic PR, commit-per-chunk** ✅
 
-### REPLAN-O5. Chunk 6 split: monolithic vs 6a/6b/6c?
+**Decision:** **all 9 chunks land on the single `feat/rfc-paperwork-promotions-v3` branch as separate commits; one PR at the end.** Matches the operator's earlier directive ("keep going on this branch") and the RFC-097 chunked-commit shape that worked well for review. Chunk 6 internally still splits into server-routes / Operator-panel / Topic-Entity-View / Person-Profile commits, but they all ride the same PR.
 
-**Recommendation:** **(A) monolithic chunk-6 PR, commit-internally
-split into server-routes / Operator-panel / Topic-Entity-View /
-Person-Profile sections.** Matches RFC-097 chunked-commits shape.
+### REPLAN-O7. Cost-cap enforcement plumbing in chunk 1 → **CONFIRMED** ✅
 
-Awaiting confirm.
+**Decision:** **plumbing in chunk 1.** The executor checks + per-enricher quarantine + run-wide abort all ship in chunk 1's `enrichment/executor.py` + `enrichment/resilience.py`. Chunks 4 + 5 populate manifest fields only. Test cases added to chunk-1 `test_resilience_scenarios.py`:
+- `cost_cap_per_enricher_quarantines_offender` — scorer mock returns `cost_usd: 0.10` per call; enricher hits its `max_cost_usd_per_run` budget; status flips to `quarantined`, reason `cost_cap_exceeded`; other enrichers continue.
+- `cost_cap_run_wide_aborts_pass` — total accumulated `cost_usd` across enrichers exceeds `enrichment.max_total_cost_usd_per_run`; subsequent enrichers in the queue marked `skipped`, reason `run_cost_cap_exceeded`; run status `failed` (unless `enrichment.fail_on_run_cost_cap: false`).
 
-### REPLAN-O6. Make targets OK for eval workflows?
+**Chunk-1 size delta:** ~50 LOC code + ~80 LOC tests added.
 
-Chunks 2–4 add `make eval-enrichment-deterministic` /
-`make eval-enrichment-topic-similarity` /
-`make eval-enrichment-nli-contradiction` targets. Operator's earlier
-constraint was that `make` isn't for ops/production — it's for dev.
-Eval is dev tooling.
+### REPLAN-O6. Make targets for eval workflows → **CONFIRMED option (2): scoring scripts only, Make wrappers for autoresearch programs** ✅
 
-**Recommendation:** **yes — Make is correct for eval workflows.**
-Eval is operator-driven dev tooling (not production), runs locally
-or under an operator-triggered workflow. The "no `make enrich`"
-constraint applied to the enrichment-run path (CLI + Jobs API are
-the production entry points).
+**Decision (revised after operator analysis):** **match the established API-LLM eval pattern.** The 39 existing `scripts/eval/score/*.py` files have NO Make wrappers — they're called directly. Make targets are reserved for *programs* (recurring multi-step workflows like `make autoresearch-score`, `make benchmark`, `make silver-pairwise`, `make run-compare`).
 
-Awaiting confirm (no change if confirmed).
+**Applied to enrichment:**
 
-### REPLAN-O7. Cost-cap enforcement plumbing in chunk 1?
+| Surface | Lives at | How called |
+| --- | --- | --- |
+| Per-enricher scoring scripts | `scripts/eval/score/enrichment_deterministic.py`, `enrichment_topic_similarity.py`, `enrichment_nli_contradiction.py` | Direct Python: `python scripts/eval/score/enrichment_topic_similarity.py --threshold 0.7 --top-k 20`. **No Make wrappers.** |
+| Deterministic gold-fixture check | Same script as above (`enrichment_deterministic.py`) | Called from chunk-2 test suite as a unit test → runs in CI on every PR |
+| Autoresearch ratchet programs (chunks 3 + 4) | `autoresearch/enrichment_topic_similarity/eval/score.py`, `autoresearch/enrichment_nli_contradiction/eval/score.py` (same shape as existing `autoresearch/bundled_prompt_tuning/eval/score.py`) | Direct Python + Make wrappers: `make autoresearch-enrichment-topic-similarity`, `make autoresearch-enrichment-nli-contradiction` (same shape as existing `make autoresearch-score`) |
 
-The replan moves the cost-cap *plumbing* (executor checks + quarantine
-+ run-wide abort) from chunk 5 to chunk 1. The *fields* + *populating*
-stay in chunks 4 + 5. This is the only chunk-1 amendment surfaced by
-the replan.
-
-**Recommendation:** **yes — plumbing in chunk 1.** Chunks 4 + 5 just
-populate manifest fields; no enforcement code lands there.
-Bundling the plumbing with the rest of the resilience model is more
-coherent. ~50 LOC code + ~80 LOC tests added to chunk 1; saves more
-than that across chunks 4 + 5.
-
-Awaiting confirm.
+**Rationale:** the operator was right to question Make wrappers per scoring script — the 39-script convention shows scoring is a Python-script-direct affair; Make wrappers are reserved for programs. Per-enricher scoring scripts get the convention-matching shape; the autoresearch programs that wrap them get the convention-matching Make wrappers.
 
 ---
 
