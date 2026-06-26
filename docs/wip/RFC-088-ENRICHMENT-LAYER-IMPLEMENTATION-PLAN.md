@@ -8,6 +8,12 @@ landed (chunked PRs, each independently mergeable, ~9 chunks total).
 "4th artifact tier" of derived signals exists on disk and is consumable
 from API + viewer.
 
+**Chunk-1 lock audit (2026-06-26):** the 20-finding internal-consistency
+audit of this plan after 7 iterative revisions lives at
+[`RFC-088-CHUNK1-LOCK-AUDIT.md`](./RFC-088-CHUNK1-LOCK-AUDIT.md). The
+fixes are inlined into this plan (B1–B10 + I1–I4); the audit lists
+the open operator decisions (O1–O4) that block chunk-1 start.
+
 **Working branch:** `feat/enrichment-layer` (new branch off main after the
 current `feat/rfc-paperwork-promotions-v3` lands).
 
@@ -690,11 +696,26 @@ divergence framing.
 ```text
 src/podcast_scraper/enrichment/
   __init__.py
-  protocol.py          # Enricher, EnricherManifest, EnricherScope,
-                       # EnricherTier, EpisodeArtifactBundle (PEP 544,
-                       # @runtime_checkable, mirrors RFC-088 §Protocol)
+  protocol.py          # Enricher (PEP 544, @runtime_checkable) —
+                       # async def enrich(*, bundle, corpus_root,
+                       # all_bundles, config, ctx: RunContext) ->
+                       # EnricherResult. Amends RFC-088 §Protocol
+                       # (was: sync def enrich(...) -> dict). Sync
+                       # deterministic bodies use @sync_enricher
+                       # decorator (runs in default thread executor).
+                       # EnricherManifest, EnricherScope, EnricherTier,
+                       # EpisodeArtifactBundle. EnricherResult frozen
+                       # dataclass (status: ok|failed|timeout|
+                       # quarantined|cancelled|skipped, data, error,
+                       # error_class, retry_count, circuit_state,
+                       # duration_ms, records_written). Minimal
+                       # EnricherSet stub (enabled_enrichers,
+                       # per_enricher_config, opt_in_flags) — chunk 7
+                       # wires profile presets to it.
   registry.py          # register(), get(), list_enabled(); double-opt-in
-                       # enforcement for LLM tier; YAML-driven discovery
+                       # gate for LLM tier; tests use direct registry
+                       # construction via pytest fixtures (not profile
+                       # presets) per chunk-1 lock audit §B7.
   envelope.py          # Output validation: derived: true required,
                        # computed_at, enricher_id, enricher_version,
                        # schema_version, status, error?, data
@@ -782,8 +803,13 @@ jobs API.
   this job type — same status / progress / cancel UI as pipeline
   jobs.
 
-**Config schema additions:** new top-level `enrichment:` block in operator
-YAML / corpus config:
+**Config schema additions** (per chunk-1 lock audit §B8 + §I1 + §I4):
+
+- New `config/schema/enrichment.schema.json` formal JSON Schema for the `enrichment:` block; validation runs at `enrichment/cli.py` startup with a clear error on malformed config.
+- New server routes module `src/podcast_scraper/server/routes/enrichment.py` carrying all 6 new routes (`POST /api/jobs/enrichment` + `POST /api/enrichment/health/<id>/re-enable` + 5 read routes); mounted in `server/app.py`.
+- `src/podcast_scraper/server/pipeline_jobs.py` keeps its filename; module docstring notes it serves multiple `command_type` values. Rename to `jobs.py` is a deferred cleanup.
+
+New top-level `enrichment:` block in operator YAML / corpus config:
 
 ```yaml
 enrichment:
@@ -800,6 +826,35 @@ enrichment:
 `workflow/orchestration.py` that runs after all core artifacts are
 written. No-op when `enrichment.enabled: false` or no enrichers
 registered. Pure addition — does not alter core stage signatures.
+
+**Pipeline-attached failure semantics** (per chunk-1 lock audit §B4):
+the enrichment step runs **only when the core pipeline completes
+successfully** (`run.status == "ok"` in `run_summary`). Partial-
+failure pipelines emit `enrichment.run.skipped { reason:
+"core_pipeline_failed" }` JSONL event and skip the enrichment step.
+Operators can still run enrichment standalone via CLI / jobs API on a
+partial corpus — that's a deliberate operator choice.
+
+**`.viewer/` directory creation** (per chunk-1 lock audit §B6):
+`enrichment/health.py` and `enrichment/status.py` both do
+`Path.mkdir(parents=True, exist_ok=True)` on the `.viewer/` parent
+before the first write. Standalone runs against corpora that lack a
+`.viewer/` directory work without the operator pre-creating it.
+
+**Cancel + concurrency interaction** (per chunk-1 lock audit §B10):
+the executor creates ONE `asyncio.Event` per run; every enricher
+receives a reference via `ctx.cancel_event`. Cancel sets the event
+once; every parallel enricher checks it between batches and bails.
+Test: `test_executor.py::test_cancel_during_parallel_run_bails_all_workers`.
+
+**`runs_skipped` flow path** (per chunk-1 lock audit §B5):
+`EnrichmentMetrics.runs_skipped` increments when an enricher is
+**configured + enabled by the active profile preset** but skipped this
+run for one of: circuit open + cooldown active; auto-disabled;
+`--skip <id>` CLI flag; `enabled: false` in operator YAML override;
+query-time enricher whose precomputed-file dependency is missing.
+Profile-preset says off → enricher isn't registered at all → no
+`EnrichmentMetrics` record (distinct state).
 
 **Tests** (`tests/unit/enrichment/`):
 
@@ -830,16 +885,32 @@ registered. Pure addition — does not alter core stage signatures.
 - `tests/unit/enrichment/test_health.py` — `enrichment_health.json`
   shape, atomic write, recovery from corrupt file, auto-disable
   threshold, manual re-enable.
+- `tests/unit/enrichment/test_config_schema.py` — `enrichment.schema.json`
+  validates the operator YAML `enrichment:` block; malformed config
+  rejected with clear error; valid config round-trips through
+  `enrichment/cli.py` startup (per chunk-1 lock audit §B8).
 - `tests/integration/enrichment/test_resilience_scenarios.py` —
   scenario-driven scorer mocks exercise the full retry-then-recover,
   circuit-open, OOM, timeout, stall, intermittent-30%, drift paths
-  end-to-end through the executor. **One of the most important
-  test files in chunk 1** — it pins resilience behaviour against
-  representative failure modes.
+  end-to-end through the executor + **enricher-side synthetic
+  failure cases** (per chunk-1 lock audit §B9):
+  - `enricher_emits_malformed_envelope` — envelope fails schema
+    validation → `EnvelopeShapeError` (non-retryable, auto-disable
+    candidate).
+  - `enricher_missing_required_input` — bundle missing `bridge_path`
+    → `BadInputError` (non-retryable, status `failed: missing_input`).
+  - `enricher_raises_unexpected` — bare `RuntimeError` from enricher
+    body → caught by safety net, logged + Sentry breadcrumb, status
+    `failed: unexpected`.
+  Scorer scenarios exercise the retry + circuit-breaker path;
+  enricher-side cases exercise the executor's safety-net path. Both
+  kinds needed. **One of the most important test files in chunk 1.**
 - `tests/unit/enrichment/test_metrics.py` — `EnrichmentMetrics`
   dataclass round-trips through JSON / CSV; all run_status values
   produce the right counter increments; cost / token accounting for
-  the ml + llm tiers; `Metrics.to_json()` carries enrichment fields.
+  the ml + llm tiers; `Metrics.to_json()` carries enrichment fields;
+  **`error_samples` capped at 5 via `__post_init__` (per chunk-1
+  lock audit §I2)** — older samples popped on push.
 - `tests/unit/enrichment/test_status.py` — `.viewer/enrichment_status.json`
   atomic write, heartbeat publishing, progress payload validation,
   reader round-trip.
@@ -914,12 +985,16 @@ framework owns the surfaces, enrichers just write through them.**
 story even with zero enrichers configured (empty enrichment block in
 the join, not a 500).**
 
-**Est size:** ~2200–3000 LOC code + ~2200–2900 LOC tests + ~600 LOC
-mock-scorer fixtures + ~600 LOC E2E spec. Added ~300 LOC code +
-~400 LOC tests over the previous estimate for the correlation IDs
-+ `src/podcast_obs/sources/enrichment.py` + 7 new MCP tools + 5 new
-server read routes + correlation propagation across Sentry / Langfuse
-/ Loki / JSONL. ~3 reviewer days.
+**Est size:** ~2250–3050 LOC code + ~2350–3050 LOC tests + ~600 LOC
+mock-scorer fixtures + ~600 LOC E2E spec. ~3 reviewer days.
+
+Chunk-1 lock audit (2026-06-26) added ~50 LOC code + ~150 LOC tests
+on top of the prior estimate for: explicit `EnricherResult` dataclass,
+minimal `EnricherSet` stub in chunk 1, `config/schema/enrichment.schema.json`,
+`server/routes/enrichment.py` module, enricher-side failure
+scenarios (B9), cancel-shared-event test (B10), `.viewer/` directory
+creation (B6), pipeline-attached failure path (B4), `runs_skipped`
+flow tests (B5). See `docs/wip/RFC-088-CHUNK1-LOCK-AUDIT.md`.
 
 ---
 
