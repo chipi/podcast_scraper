@@ -2,6 +2,8 @@
 
 - **Status**: Draft
 - **v2 cross-reference (RFC-097, 2026-06-20)**: enricher input data (`bridge.json` + typed Person/Org/Podcast nodes + descriptive ABOUT/MENTIONS_* edges) shipped per-artifact via RFC-097 v2. QueryEnricher protocol (Phase 4), typed contradiction enricher output (needs CONTRADICTS edges, v3), and LLM tier enrichers remain open. See [RFC-097](RFC-097-unified-kg-gi-ontology-v2.md).
+- **Boundary clarification (ADR-104, 2026-06-26)**: Key Decision #1 ("Enrichers never modify core artifacts") is amended — the rule is **enrichers never modify core artifacts produced by core pipeline stages**. RFC-097 chunk 9's cross-show Topic clustering (`concept:topic-{slug}` Topic nodes + `RELATED_TO` edges) runs in `workflow/orchestration.py`, conforms to KG v2.0, and is therefore part of the **core pipeline** — not an enrichment-layer violation. Enrichment outputs live under `enrichments/`, are read-only from the perspective of core artifacts, and serve ranking / scoring / UI consumption / autoresearch sweeps. The same underlying signal (e.g. topic relatedness) can have one output in core (typed `RELATED_TO` for traversal + LLM grounding, per chunk 9) and one in enrichments (cosine scores + top-K ranking for UI + autoresearch, per RFC-088 chunk 3 `topic_similarity`); both are correct, neither is redundant. Rubric: traversal → core, ranking → enrichments. See [ADR-104](../adr/ADR-104-enrichment-layer-boundary-vs-kg-direct.md).
+- **Implementation tracking (Epic #1101)**: 9-chunk implementation plan with full eval coverage + profile-preset wiring. See `docs/wip/RFC-088-ENRICHMENT-LAYER-IMPLEMENTATION-PLAN.md`.
 - **Authors**: Marko
 - **Stakeholders**: Core team
 - **Target Release**: TBD

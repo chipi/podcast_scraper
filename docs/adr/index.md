@@ -122,12 +122,14 @@ still rolling out; **No** = not started (including accepted ADRs waiting on impl
 | [ADR-101](ADR-101-drop-legacy-kg-gi-shape.md) | Drop legacy KG + GI shape support | Accepted | [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md) (chunk 9) | Skip the 2–4 week bake gate from RFC-097 §161; flip KG v2.0 / GI v3.0 validators to strict immediately. No external consumers, all corpora regenerable | Yes |
 | [ADR-102](ADR-102-retro-audit-marker-for-in-place-artifact-mutation.md) | `_retro_audit` marker for in-place artifact mutation | Accepted | [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md) | Canonical shape for the audit trail when in-place mutation is the only viable path for published artifacts (eval runs, prod corpora). Required keys + summary file format + migration-script grandfathering | Yes |
 | [ADR-103](ADR-103-deterministic-connectivity-under-llm-free-profiles.md) | Deterministic connectivity under LLM-free profiles | Accepted | [RFC-094](../rfc/RFC-094-search-powered-surfaces-query-layer.md) | Closes #1058 — three deterministic post-passes (KG ORG nodes via spaCy NER, GI MENTIONS_ORG via the existing NER pass, corpus-level Topic clustering via sentence-transformers) plus a multi-show pre-seeded fixture so airgapped CI carries real connectivity data without ever calling a cloud LLM | Yes |
+| [ADR-104](ADR-104-enrichment-layer-boundary-vs-kg-direct.md) | Enrichment-layer boundary vs KG-direct connectivity | Proposed | [RFC-088](../rfc/RFC-088-enrichment-layer-architecture.md), [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md) | Amends RFC-088 §Key Decision #1: "Enrichers never modify core artifacts produced by core pipeline stages." RFC-097 chunk 9's KG-direct `RELATED_TO` is part of the core pipeline (conforms to KG v2.0; runs in `workflow/orchestration.py`); enrichments live under `enrichments/` and serve ranking / scoring / UI consumption. Rubric: traversal → core, ranking → enrichments. Same signal can have two outputs (one each), no redundancy. | Doc-only |
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when adding ADRs):** **103** files under `docs/adr/ADR-*.md` (ADR-001–ADR-103;
-numbering has historical gaps). From the index table: **1** **Proposed** (**ADR-055**, tied to Draft
-RFC-053), **1** **Superseded** (**ADR-056**, RFC-054 shipped in different shape — per-provider mocks
+**Counts (reconcile when adding ADRs):** **104** files under `docs/adr/ADR-*.md` (ADR-001–ADR-104;
+numbering has historical gaps). From the index table: **2** **Proposed** (**ADR-055**, tied to Draft
+RFC-053; **ADR-104**, tied to in-flight RFC-088 implementation Epic #1101 — promoted to Accepted in
+chunk 8), **1** **Superseded** (**ADR-056**, RFC-054 shipped in different shape — per-provider mocks
 rather than the centralized router this ADR drafted), **1** **Accepted** with **Code = No**
 (**ADR-054**, tied to Draft RFC-051 Postgres projection), **3** **Accepted** with **Code = Partial**
 (**ADR-031**, **ADR-047**, **ADR-058**). **Accepted** means ratified, not necessarily shipped.
@@ -160,6 +162,7 @@ Use an ADR when one or more of these hold; otherwise an **RFC + normative doc** 
 | ADR | Primary RFC | Note |
 | --- | --- | --- |
 | [ADR-055](ADR-055-adaptive-summarization-routing.md) | [RFC-053](../rfc/RFC-053-adaptive-summarization-routing.md) | No episode profiling / routing in pipeline yet |
+| [ADR-104](ADR-104-enrichment-layer-boundary-vs-kg-direct.md) | [RFC-088](../rfc/RFC-088-enrichment-layer-architecture.md), [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md) | Settles enrichment-layer ↔ KG-direct boundary (RFC-097 chunk 9 `RELATED_TO` is core, not enrichment violation). Doc-only; promoted to Accepted in RFC-088 implementation chunk 8 ([#1110](https://github.com/chipi/podcast_scraper/issues/1110)). |
 
 **Superseded**
 
