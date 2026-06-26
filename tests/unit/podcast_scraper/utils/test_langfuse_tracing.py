@@ -162,3 +162,49 @@ def test_noop_when_sdk_unimportable(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert lt.get_langfuse_client() is None
     lt.emit_langfuse_span(provider="x", capability="y", model="m", cost=0.01)  # no raise
+
+
+# ── enrichment-layer correlation (RFC-088 / Epic #1101 chunk 1) ────────────
+
+
+def test_emit_passes_enricher_id_into_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
+    """LLM-tier query enrichers tag their provider calls with enricher_id.
+
+    The MCP ``prod_recent_traces`` tool + the enrichment MCP tools can
+    then filter Langfuse traces by enricher.
+    """
+    monkeypatch.setenv(_PUB, "pk-test")
+    monkeypatch.setenv(_SEC, "sk-test")
+    _install_fake_sdk(monkeypatch)
+
+    lt.emit_langfuse_span(
+        provider="openai",
+        capability="query_synthesis",
+        model="gpt-4o",
+        cost=0.003,
+        run_seed="run-1",
+        enricher_id="query_synthesis",
+        enricher_tier="llm",
+    )
+    md = _FakeLangfuse.last["observation"]["metadata"]
+    assert md["enricher_id"] == "query_synthesis"
+    assert md["enricher_tier"] == "llm"
+    assert md["run_id"] == "run-1"
+
+
+def test_emit_omits_enricher_fields_when_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pipeline-driven LLM calls (no enricher) don't add the enrichment fields."""
+    monkeypatch.setenv(_PUB, "pk-test")
+    monkeypatch.setenv(_SEC, "sk-test")
+    _install_fake_sdk(monkeypatch)
+
+    lt.emit_langfuse_span(
+        provider="openai",
+        capability="summarization",
+        model="gpt-4o",
+        cost=0.002,
+        run_seed="run-2",
+    )
+    md = _FakeLangfuse.last["observation"]["metadata"]
+    assert "enricher_id" not in md
+    assert "enricher_tier" not in md

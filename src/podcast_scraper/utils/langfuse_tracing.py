@@ -118,13 +118,22 @@ def emit_langfuse_span(
     feed_id: Optional[str] = None,
     triggered_guardrail: bool = False,
     env: Optional[str] = None,
+    # Enrichment-layer correlation (RFC-088 / Epic #1101). Future LLM
+    # query enrichers pass these so the Langfuse trace is filterable
+    # by enricher via ``prod_recent_traces`` + the enrichment MCP tools.
+    enricher_id: Optional[str] = None,
+    enricher_tier: Optional[str] = None,
 ) -> None:
     """Emit one ``generation`` observation for a single LLM call.
 
     Silent no-op when tracing is disabled. ``run_seed`` (the run_id correlation key,
     #1053) deterministically groups all of a run's calls under one Langfuse trace —
     so the trace is addressable as ``create_trace_id(seed=run_seed)`` — and is stamped
-    into the span metadata alongside ``episode_id`` so the signals join. Never raises.
+    into the span metadata alongside ``episode_id`` so the signals join.
+
+    When ``enricher_id`` is set (LLM-tier query enricher provider calls),
+    it lands in the span metadata so Langfuse traces can be filtered
+    by enricher in addition to ``run_id``. Never raises.
     """
     client = get_langfuse_client()
     if client is None:
@@ -140,20 +149,26 @@ def emit_langfuse_span(
         if completion_tokens is not None:
             usage["output"] = int(completion_tokens)
 
+        metadata: dict[str, Any] = {
+            "provider": provider,
+            "stage": capability,
+            "run_id": run_seed,
+            "episode_id": episode_id,
+            "feed_id": feed_id,
+            "triggered_guardrail": bool(triggered_guardrail),
+            "env": env,
+        }
+        if enricher_id is not None:
+            metadata["enricher_id"] = enricher_id
+        if enricher_tier is not None:
+            metadata["enricher_tier"] = enricher_tier
+
         observation = client.start_observation(
             trace_context=trace_context,
             name=f"{capability}:{model}",
             as_type="generation",
             model=str(model),
-            metadata={
-                "provider": provider,
-                "stage": capability,
-                "run_id": run_seed,
-                "episode_id": episode_id,
-                "feed_id": feed_id,
-                "triggered_guardrail": bool(triggered_guardrail),
-                "env": env,
-            },
+            metadata=metadata,
             usage_details=usage or None,
             cost_details=({"total": float(cost)} if cost is not None else None),
         )
