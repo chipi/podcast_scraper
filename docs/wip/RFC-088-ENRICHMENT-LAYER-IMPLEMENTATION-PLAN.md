@@ -488,6 +488,144 @@ new `/api/enrichment/metrics` routes.
 
 ---
 
+## Single-surface o11y: MCP server extension + correlation IDs
+
+`src/podcast_obs/mcp_server.py` is the operator's single observability
+surface today — one MCP server with 11 tools that join Sentry +
+Langfuse + Loki + Grafana + GitHub + the prod API. An agent asks
+`prod_correlate(run_id)` and gets every signal joined into one story.
+Enrichment has to plug into the same surface, not become a second
+one. Otherwise we have two stories and the agent has to stitch.
+
+Two halves to this: the **MCP tool extensions** (what an agent can
+ask) and the **correlation ID propagation** (how the answer stitches).
+
+### Correlation ID propagation (the consistent story)
+
+Every enrichment-emitted signal carries the `run_id` it belongs to,
+plus enricher-scope identifiers. The schema:
+
+| Field | Source | Set when |
+| --- | --- | --- |
+| `run_id` | UUID | the outermost job (pipeline run if attached; enrichment job if standalone) |
+| `parent_run_id` | UUID or null | pipeline `run_id` for attached enrichment; null for standalone |
+| `enricher_id` | str | every per-enricher event |
+| `enricher_version` | str | every per-enricher event (helps diff before / after a version bump) |
+| `tier` | str | every per-enricher event |
+| `attempt` | int | every per-enricher event during retry loop |
+| `job_id` | UUID | the jobs-API record id (== `run_id` for standalone enrichment) |
+
+Where each correlation field lands:
+
+| Surface | Carries | Format |
+| --- | --- | --- |
+| Pipeline run | `run_id` | already in `run_manifest.json`; unchanged |
+| Enrichment job (pipeline-attached) | `run_id = pipeline.run_id`, `parent_run_id = null` | inherited at executor start |
+| Enrichment job (standalone CLI / API) | `run_id = job_id`, `parent_run_id = null` | jobs API generates |
+| `enrichments/run_summary.json` | `run_id`, `parent_run_id`, per-enricher records | written at end of run |
+| `run.jsonl` events | every event line carries `run_id`, `enricher_id` (when applicable), `attempt`, `tier` | `JSONLEmitter` injects |
+| Sentry breadcrumb / message | tags: `run_id`, `enricher_id`, `tier`, `enricher_version` | set by `enrichment/observability.py` |
+| Langfuse trace (LLM-tier enrichers) | metadata: `run_id`, `parent_run_id`, `enricher_id`, `enricher_version`, `tier` | passed into provider context |
+| Loki log lines | structured extra: `run_id`, `enricher_id`, `tier` | enrichment uses existing structured-logging adapter |
+| Pipeline `Metrics` | `run_id` already present; enrichment per-id records share it | same emitter |
+| Live status `.viewer/enrichment_status.json` | `run_id` at top level | written by `enrichment/status.py` |
+| `enrichment_health.json` | `last_run_id` per enricher | persisted across runs |
+
+Result: a single `run_id` lookup in Sentry / Langfuse / Loki / Grafana
+returns the full enrichment chain alongside the pipeline chain.
+`prod_correlate(run_id)` does the join.
+
+### New `src/podcast_obs/sources/enrichment.py` source
+
+Mirrors the existing `sources/{sentry,langfuse,loki,grafana,prod_api,github}.py`
+modules. Reads:
+
+- `/api/jobs?command_type=corpus_enrichment` for recent runs.
+- `/api/enrichment/health` for per-enricher state.
+- `/api/enrichment/metrics` for windowed counter snapshots.
+- `/api/enrichment/status` (live, current run) — reads `.viewer/enrichment_status.json`.
+- `/api/enrichment/events` for JSONL event slices.
+- `/api/enrichment/eval-history?enricher_id=<id>` for eval ratchet data.
+
+All routes ship in chunk 1 alongside the source module. Source uses
+`httpx` only (no SDKs) — same constraint as the rest of `podcast_obs`.
+
+### New MCP tools (added to `mcp_server.py`)
+
+| Tool | Returns |
+| --- | --- |
+| `enrichment_run_status(target, run_id=None)` | Current live status: which enricher is running, items_done/total, eta_seconds, heartbeat freshness. If `run_id` omitted, returns the currently-active run; if specified, returns that run's final state from `enrichment/run_summary.json`. |
+| `enrichment_recent_runs(target, limit=10, status=None)` | Recent enrichment jobs from `/api/jobs?command_type=corpus_enrichment`. Optional `status` filter. Each row carries `run_id`, `started_at`, `duration_ms`, per-enricher OK / failed counts. |
+| `enrichment_health(target, enricher_id=None)` | Per-enricher health: `consecutive_failures`, `circuit_state`, `auto_disabled`, `cooldown_until`. Omitting `enricher_id` returns all enrichers; specifying narrows to one. |
+| `enrichment_metrics(target, enricher_id=None, window="24h")` | Per-enricher windowed metrics: `ok_rate`, `p50_ms`, `p95_ms`, `retry_rate`, `circuit_opens`, `tokens_in`, `tokens_out`, `cost_usd`. Filter by enricher_id; window per Grafana convention (`1h`/`24h`/`7d`). |
+| `enrichment_recent_events(target, enricher_id=None, event_type=None, window="1h", limit=50)` | JSONL event slice. Filter by enricher_id (e.g. `nli_contradiction`), event_type (e.g. `enrichment.enricher.retry`), time window. Useful for "what failed and why in the last hour." |
+| `enrichment_eval_history(target, enricher_id, metric="f1", limit=20)` | Eval ratchet history for a smart enricher. Returns `[{run_id, started_at, champion_threshold, dev_f1, held_out_f1, drift_from_baseline}]`. Wired in chunks 3 / 4 once the eval JSONL ships. |
+| `enrichment_re_enable(target, enricher_id, reason)` | Operator-side reactivation. Calls `POST /api/enrichment/health/<id>/re-enable` with `reason` (audit trail in the health file). Returns the reset health record. |
+
+### Extensions to existing tools
+
+| Tool | Extension |
+| --- | --- |
+| `prod_correlate(run_id, target)` | Joins enrichment per-enricher outcomes + retry counts + circuit transitions + LLM-tier provider calls under that `run_id`. The cross-layer view stays one tool. |
+| `prod_summary(target)` | New `enrichment` subsection: counts of active / quarantined / auto-disabled enrichers; OK rate over last 24h; alerts pending. |
+| `prod_recent_logs(target, service=...)` | Accepts `service="enrichment.<id>"` to filter Loki for enrichment events by enricher_id. |
+| `prod_recent_errors(target, ...)` | Sentry filter by `tag:enricher_id` supported via existing `contains` field. |
+| `prod_recent_traces(target, ...)` | Langfuse traces tagged with `enricher_id` carry the tag through; no schema change. |
+| `prod_cost_today(target)` | LLM-tier enricher costs roll up via Loki `llm_cost` events — already include `run_id`; gain `enricher_id` field. |
+
+### Test surface for the MCP additions (in chunk 1)
+
+| Test | Asserts |
+| --- | --- |
+| `tests/unit/podcast_obs/sources/test_enrichment_source.py` | All 6 routes return the expected shape; httpx error handling matches the existing source pattern. |
+| `tests/unit/podcast_obs/test_mcp_server_enrichment_tools.py` | All 7 new tools registered; each closes over config correctly; arguments validate. |
+| `tests/integration/podcast_obs/test_mcp_correlate_with_enrichment.py` | Run a pipeline + enrichment fixture; query `prod_correlate(run_id)`; assert pipeline + enrichment + LLM signals all join under one run_id. |
+| `tests/integration/podcast_obs/test_mcp_summary_includes_enrichment.py` | `prod_summary` includes the enrichment subsection with the configured enrichers' health. |
+
+### Failure handling
+
+Same as the existing MCP tools: when an upstream surface is
+unconfigured (no Sentry DSN, no Langfuse keys, no Grafana endpoint),
+the tool returns `{"available": false, "reason": "..."}` rather than
+raising. Mirrors `_run` in `mcp_server.py:38`. Agents handle the
+absence gracefully.
+
+### Files added or extended
+
+| File | Change |
+| --- | --- |
+| `src/podcast_obs/sources/enrichment.py` | New source module; httpx-only reads against the new `/api/enrichment/*` routes |
+| `src/podcast_obs/sources/__init__.py` | Re-export the new module |
+| `src/podcast_obs/mcp_server.py` | 7 new tool closures + extensions to `prod_correlate` / `prod_summary` |
+| `src/podcast_obs/aggregate.py` | `_correlate` adds the enrichment join; `_summary` adds the enrichment subsection |
+| `src/podcast_obs/config.py` | New `EnrichmentEndpoint` config field (per target) |
+| `src/podcast_obs/cli.py` | Optional `--tool enrichment_*` test shortcuts |
+| `src/podcast_scraper/enrichment/correlation.py` | Helpers: `RunContext` dataclass (run_id + parent_run_id + enricher_id + tier + attempt), `correlation_extras_for_logging()`, `set_sentry_correlation_tags()`, `langfuse_trace_metadata()` |
+| `src/podcast_scraper/enrichment/executor.py` | Establishes `RunContext` once at run start; passes through to every enricher + scorer call |
+| `src/podcast_scraper/utils/sentry_init.py` | New helper `set_correlation_tags(run_id, enricher_id, tier)` (no-op when SDK absent) |
+| `src/podcast_scraper/utils/langfuse_tracing.py` | New helper `with_enrichment_metadata(run_id, enricher_id, ...)` decorator (no-op when SDK absent) |
+| `docs/api/ENRICHMENT_LAYER_API.md` | New "Correlation IDs + MCP surface" section |
+| `docs/guides/OBSERVABILITY_EXTENSIONS.md` | Mention the new MCP tools in the §"Operator alerting" section (chunk 8 polish) |
+
+### Per-chunk MCP extension responsibility
+
+The MCP server is the single surface — each chunk owns the part of
+the surface its data populates. Locks in the consistent-story
+guarantee chunk-by-chunk:
+
+| Chunk | MCP additions |
+| --- | --- |
+| **1 (foundation)** | `enrichment_run_status`, `enrichment_recent_runs`, `enrichment_health`, `enrichment_metrics`, `enrichment_recent_events`, `enrichment_re_enable`, extended `prod_correlate` (joins enrichment by run_id even with no enrichers registered — surface is wired through the no-op path), extended `prod_summary` (enrichment subsection with empty counts) |
+| **2 (deterministic)** | each enricher's metrics flow through `enrichment_metrics` automatically; no MCP code change |
+| **3 (topic_similarity)** | `enrichment_eval_history` for `topic_similarity` |
+| **4 (nli_contradiction)** | `enrichment_eval_history` for `nli_contradiction`; Langfuse pass-through tested via `prod_recent_traces` |
+| **5 (QueryEnricher)** | query enrichers carry `run_id` (per-request, derived from the search request id); join in `prod_correlate` |
+| **6 (server + viewer)** | viewer Operator-tab Enrichment panel consumes the same `/api/enrichment/*` routes that the MCP source module uses — single read surface for both |
+| **7 (profile presets)** | none |
+| **8 (docs)** | `OBSERVABILITY_EXTENSIONS.md` + `ENRICHMENT_LAYER_GUIDE.md` document the MCP tools |
+
+---
+
 ## Architectural prerequisite — resolve the RFC-097 ↔ RFC-088 divergence
 
 Before any code, decide and document this once:
@@ -589,6 +727,13 @@ src/podcast_scraper/enrichment/
                        # stall_escalation); reuses utils/sentry_init.py;
                        # Langfuse context tag passthrough for future
                        # LLM enrichers (enricher_id tag)
+  correlation.py       # RunContext dataclass (run_id, parent_run_id,
+                       # enricher_id, enricher_version, tier, attempt,
+                       # job_id); correlation_extras_for_logging();
+                       # set_sentry_correlation_tags();
+                       # langfuse_trace_metadata() — threads
+                       # correlation IDs through every emit path so
+                       # prod_correlate(run_id) stitches a single story
   scorers/
     __init__.py
     protocol.py        # NliScorer, EmbeddingProvider, LLMScorer
@@ -719,6 +864,29 @@ registered. Pure addition — does not alter core stage signatures.
   Operator tab reads `enrichment_status.json` and renders the
   current-enricher progress + ETA; status switches to `idle` on
   completion.
+- `tests/unit/enrichment/test_correlation.py` — `RunContext`
+  construction; pipeline-attached vs standalone parent_run_id
+  semantics; correlation extras propagate through every emit point
+  (logging extras, Sentry tags, Langfuse metadata, JSONL event
+  fields).
+- `tests/unit/podcast_obs/sources/test_enrichment_source.py` — 6
+  new routes return expected shape; httpx errors match the existing
+  source pattern.
+- `tests/unit/podcast_obs/test_mcp_server_enrichment_tools.py` — 7
+  new MCP tools registered; argument validation; "available: false"
+  graceful-degrade when surfaces unconfigured.
+- `tests/integration/podcast_obs/test_mcp_correlate_with_enrichment.py`
+  — run pipeline + enrichment fixture; query
+  `prod_correlate(run_id)`; assert pipeline + enrichment + LLM
+  signals all join under one run_id (the consistent-story
+  guarantee).
+- `tests/integration/podcast_obs/test_mcp_summary_includes_enrichment.py`
+  — `prod_summary` includes the enrichment subsection.
+- `tests/unit/server/test_enrichment_read_routes.py` — new server
+  routes `/api/enrichment/health`, `/api/enrichment/metrics`,
+  `/api/enrichment/status`, `/api/enrichment/events`,
+  `/api/enrichment/eval-history` return the expected shape on a
+  populated corpus + sensible 404 when empty.
 
 **Mock-scorer fixtures** (`tests/fixtures/enrichment/mock_scorers.py`):
 `ScenarioNliScorer` + `ScenarioEmbeddingProvider` with the 9 scenarios
@@ -731,23 +899,27 @@ filename conventions, discovery rules, opt-in semantics, **CLI usage
 model + health-file shape + manual recovery procedures**.
 
 **Acceptance:** ci-fast green; integration tests pass (including all 9
-scenario-driven resilience cases + metrics/o11y/status round-trips);
+scenario-driven resilience cases + metrics/o11y/status round-trips +
+the `prod_correlate(run_id)` cross-layer join test);
 stack-test green (7 resilience scenarios + live-monitor scenario);
 `make docs` strict green; no enrichers shipped yet but the framework
 is fully exercised by the "no-op" path through CLI, jobs API, and
 pipeline-attached entry points + the full resilience pipeline through
 the scorer-stub scenarios. **Every operator observability surface
 (Metrics class, JSONL events, run_summary, live status,
-enrichment_status.json, Sentry breadcrumbs, dashboard metrics) is
-populated even with no real enricher running — the framework owns
-the surfaces, enrichers just write through them.**
+enrichment_status.json, Sentry breadcrumbs, dashboard metrics, MCP
+tools) is populated even with no real enricher running — the
+framework owns the surfaces, enrichers just write through them.**
+**`prod_correlate(run_id)` returns a consistent enrichment-included
+story even with zero enrichers configured (empty enrichment block in
+the join, not a 500).**
 
-**Est size:** ~1900–2600 LOC code + ~1900–2500 LOC tests + ~600 LOC
-mock-scorer fixtures + ~600 LOC E2E spec. Added ~400 LOC code +
-~400 LOC tests over the previous estimate for the metrics +
-observability + analytics primitives (`metrics.py`, `status.py`,
-`observability.py`, JSONL event vocab, dashboard JSON extension).
-~2.5 reviewer days.
+**Est size:** ~2200–3000 LOC code + ~2200–2900 LOC tests + ~600 LOC
+mock-scorer fixtures + ~600 LOC E2E spec. Added ~300 LOC code +
+~400 LOC tests over the previous estimate for the correlation IDs
++ `src/podcast_obs/sources/enrichment.py` + 7 new MCP tools + 5 new
+server read routes + correlation propagation across Sentry / Langfuse
+/ Loki / JSONL. ~3 reviewer days.
 
 ---
 
