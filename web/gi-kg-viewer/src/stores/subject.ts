@@ -211,6 +211,7 @@ export const useSubjectStore = defineStore('subject', () => {
       // use the FSM store dev hook. Mutators stay DEV-gated.
       focusTopic,
       focusEntity,
+      focusPerson,
       clearSubject,
       selectTopicForPositionTracker,
     }
