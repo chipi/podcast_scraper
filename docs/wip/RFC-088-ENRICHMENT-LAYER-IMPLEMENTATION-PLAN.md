@@ -37,6 +37,230 @@ current `feat/rfc-paperwork-promotions-v3` lands).
   `airgapped_thin`: deterministic only; `cloud_thin`: deterministic +
   topic_similarity + nli_contradiction; etc.). A new chunk (7) wires
   the `EnricherSet` into the existing `ProfilePreset` machinery.
+- **Resilience is a core architectural property of the enrichment
+  layer, not a layer added later.** Every enricher run goes through
+  retry-with-backoff + circuit-breaker + auto-disable, mirroring the
+  pattern we already use for cloud LLM providers
+  (`utils/retry.py`, `utils/llm_circuit_breaker.py`,
+  `utils/retryable_errors.py`, `utils/provider_metrics.py`). The
+  executor is `asyncio.gather`-based with per-tier concurrency caps
+  and cooperative cancel. Per-enricher health (consecutive failures,
+  circuit state, auto-disable status) persists across runs in
+  `.viewer/enrichment_health.json`. Full design lives in
+  §"Resilience model" below.
+- **Mock-server / E2E strategy is baked into the design, not bolted
+  on.** Each smart enricher consumes a small scorer protocol
+  (`NliScorer`, `EmbeddingProvider`, future `LLMScorer`). Real
+  implementations call DeBERTa / LanceDB / providers; scenario-driven
+  mocks under `tests/fixtures/enrichment/` exercise every resilience
+  path (flaky-then-recovers, OOM, timeout, stall-forever, drift)
+  without needing real models in CI. Same pattern as RFC-054 mock
+  clients. Three-tier test pyramid: unit (stub) / integration
+  (scenarios) / E2E stack-test (operator flow via `/api/jobs/enrichment`).
+
+---
+
+## Resilience model (core, not bolt-on)
+
+Every enricher run goes through the same resilience pipeline. The
+executor is `asyncio.gather`-based; failures are handled inside the
+executor, never raised into the calling pipeline; per-enricher state
+persists across runs.
+
+### Per-enricher state machine
+
+`READY → RUNNING → OK | (RETRY → RUNNING)* → QUARANTINED → (cooldown) → READY → AUTO-DISABLED`
+
+```text
+       enabled (config + profile preset)
+                  │
+                  ▼
+              READY ─────────► RUNNING ───── ok ─────► OK
+                ▲                 │
+                │                 ├── transient failure ─► RETRY (backoff)
+                │                 │
+                │                 └── non-retryable / max retries ─┐
+                │                                                   │
+                │             cooldown elapsed                      ▼
+                │ ◄─────────────────────────────────────────  QUARANTINED
+                │                                                   │
+                │                            N consecutive failures │
+                │                                                   ▼
+                │ ◄── operator re-enable ── (CLI / viewer) ── AUTO-DISABLED
+```
+
+### Per-tier policy (overridable per enricher via config)
+
+| Tier | Max retries | Initial backoff | Backoff factor | Max backoff | Circuit threshold (consecutive fails in a run) | Auto-disable threshold (consecutive failed runs) |
+| --- | --- | --- | --- | --- | --- | --- |
+| `deterministic` | 0 | — | — | — | n/a | 5 |
+| `embedding` | 3 | 1s | 2.0 | 30s | 5 | 3 |
+| `ml` | 2 | 5s | 2.0 | 60s | 3 | 2 |
+| `llm` | 5 | 2s | 2.0 | 120s | 3 | 2 |
+
+Backoff: `min(initial * factor ** attempt + jitter, max_backoff)` —
+same shape as `utils/retry.py`. Reuses `utils/llm_circuit_breaker.py`
+state machine. Failure taxonomy reuses `utils/retryable_errors.py`
+classification.
+
+### Failure taxonomy
+
+| Error | Class | Action |
+| --- | --- | --- |
+| `EnvelopeShapeError` (output fails schema validation) | non-retryable | fail fast; status `failed`; counts toward auto-disable |
+| `BadInputError` (missing required artifact) | non-retryable | fail fast; status `failed: missing_input` |
+| `DependencyAccessError` (LanceDB lock, file IO) | retryable | retry with backoff |
+| `OutOfMemoryError` | retryable once | single retry after GC pause |
+| `ModelLoadError` | retryable once | retry; if still fails → circuit opens immediately |
+| `ScorerTimeoutError` (per-pair / per-batch) | retryable | retry; partial result preserved |
+| `RunTimeoutError` (whole-enricher hard timeout) | non-retryable | cancel; status `timeout` |
+| any other `Exception` | non-retryable (caught by safety net) | log + Sentry breadcrumb; status `failed: unexpected` |
+
+Enrichers never raise into the executor — every run produces an
+`EnricherResult(status: ok | failed | timeout | quarantined |
+cancelled | skipped)`. The executor handles the result; the enricher
+owns its retry loop.
+
+### Async execution + concurrency caps
+
+Both phases (episode-scope, corpus-scope) run as `asyncio.gather`
+over enrichers with per-tier concurrency caps (config + profile
+override):
+
+| Tier | Default concurrency | Why |
+| --- | --- | --- |
+| `deterministic` | 4 | Pure CPU; bounded by core count |
+| `embedding` | 2 | LanceDB connection contention |
+| `ml` | 1 (sequential) | Single model in memory; avoid OOM |
+| `llm` | matches provider rate limit | Same logic as existing LLM provider concurrency |
+
+Per-enricher hard timeout via `asyncio.wait_for`. Defaults: 60s
+episode-scope, 600s corpus-scope; overridable per enricher.
+
+### Cooperative cancel + stall detection
+
+- Cancel propagates from `/api/jobs/{job_id}/cancel` via the existing
+  `cancel_requested` flag pattern. Executor passes an `asyncio.Event`
+  into each enricher; long-running enrichers check between batches and
+  bail cleanly. Partial output preserved with `status: cancelled`.
+- Per-enricher heartbeat — enrichers emit a progress event every N
+  pairs. No event for > 2× expected interval triggers a `WARNING`;
+  configurable escalation to cancel.
+- Pid-alive reconcile — existing
+  `pipeline_jobs.py:reconcile_jobs_inplace` catches dead enrichment-
+  job processes the same way it catches dead pipeline-job processes.
+
+### Health persistence
+
+`.viewer/enrichment_health.json` (JSONL-style append-and-rotate same
+as the jobs registry):
+
+```json
+{
+  "topic_similarity": {
+    "consecutive_failures": 0,
+    "last_run_at": "2026-06-26T14:23:11Z",
+    "last_run_id": "job_a1b2c3",
+    "last_status": "ok",
+    "auto_disabled": false,
+    "circuit_state": "closed"
+  },
+  "nli_contradiction": {
+    "consecutive_failures": 3,
+    "last_run_at": "2026-06-26T15:01:42Z",
+    "last_run_id": "job_d4e5f6",
+    "last_status": "failed",
+    "auto_disabled": true,
+    "auto_disabled_at": "2026-06-26T15:01:42Z",
+    "auto_disabled_reason": "3 consecutive failed runs (circuit opened twice)",
+    "circuit_state": "open",
+    "circuit_opened_at": "2026-06-26T15:01:42Z",
+    "cooldown_until": "2026-06-26T16:01:42Z"
+  }
+}
+```
+
+Manual recovery: `podcast enrich --re-enable <id>` or
+`POST /api/enrichment/health/<id>/re-enable`. Resets counter; clears
+`auto_disabled`; optionally clears circuit cooldown.
+
+### Observability
+
+- Each run emits `enrichments/run_summary.json` with per-enricher
+  outcome, duration, retry count, circuit state, model_id /
+  model_version.
+- Sentry breadcrumb on circuit-open + auto-disable events.
+- Metrics surface via the existing pipeline metrics path
+  (`workflow/metrics.py`): `enrichment.{id}.{ok|failed|retries|
+  duration_ms}`.
+
+---
+
+## Mock-server / scorer-stub strategy (E2E + resilience coverage)
+
+Same pattern as `tests/fixtures/mock_server/{gemini,mistral}_mock_client.py`
+(RFC-054), applied at the **scorer protocol** layer because most
+enrichment backends are in-process. HTTP mock server only needed
+later for cloud LLM-tier query enrichers.
+
+### Scorer protocols (injectable, swappable)
+
+```text
+src/podcast_scraper/enrichment/scorers/
+  __init__.py
+  protocol.py
+    NliScorer            # async def score(premise, hypothesis) -> NliScore
+    EmbeddingProvider    # async def topic_vector(topic_id) -> vec | None
+    LLMScorer            # future, for LLM query enrichers
+  nli_deberta.py         # real CPU DeBERTa implementation (chunk 4)
+  lancedb_embeddings.py  # real LanceDB-backed implementation (chunk 3)
+```
+
+### Scenario-driven mocks under `tests/fixtures/enrichment/`
+
+```text
+tests/fixtures/enrichment/
+  __init__.py
+  mock_scorers.py
+    ScenarioNliScorer(scenario=...)
+    ScenarioEmbeddingProvider(scenario=...)
+```
+
+Scenarios per scorer:
+
+| Scenario | Behaviour | Tests what |
+| --- | --- | --- |
+| `happy_high_contradiction` | Always returns 0.9 | happy path |
+| `happy_no_contradiction` | Always returns 0.1 | happy path negative |
+| `flaky_then_recovers` | Fails 2x with retryable error, then succeeds | retry + backoff path |
+| `always_oom` | Raises `OutOfMemoryError` | OOM retry + circuit open |
+| `always_dependency_lock` | Raises `DependencyAccessError` | retry + eventual circuit |
+| `slow` | `await asyncio.sleep(timeout * 2)` | hard timeout |
+| `stalls_forever` | Never returns | heartbeat watchdog escalation |
+| `drift_calibration` | Returns mis-calibrated scores | eval drift detection |
+| `intermittent_30pct` | Random fail-rate 30% | flake-tolerance |
+
+### Three-tier test pyramid (mirrors ADR-095 viewer pyramid)
+
+| Tier | Where | What it covers |
+| --- | --- | --- |
+| **Unit** | `tests/unit/enrichment/` | each enricher with stub scorer + synthetic fixture; deterministic outputs |
+| **Integration** | `tests/integration/enrichment/` | scenario-driven scorers; assert retry counts, circuit state transitions, auto-disable persistence, cooperative cancel, hard timeout, per-tier concurrency caps, run_summary shape |
+| **E2E stack-test** | `tests/stack-test/stack-enrichment-resilience.spec.ts` | enrichment job through `POST /api/jobs/enrichment` with scenario-injected scorers; viewer Operator tab observes status / quarantine / auto-disable / re-enable cycle |
+
+### E2E test scenarios (concrete `stack-enrichment-resilience.spec.ts`)
+
+1. **Happy path** — submit enrichment job; assert completion + output files + run_summary shape.
+2. **Retry recovery** — submit with `flaky_then_recovers` scorer; assert success with `retry_count > 0`.
+3. **Circuit open** — submit with `always_oom`; watch enricher quarantine; assert next run skips it during cooldown.
+4. **Auto-disable across runs** — chain 3 failed runs; assert `enrichment_health.json` flips `auto_disabled: true`; viewer Operator tab shows the disabled badge.
+5. **Manual re-enable** — operator clicks re-enable in viewer; assert health file resets, next run includes the enricher.
+6. **Cancel** — submit long-running enrichment; send cancel via `/api/jobs/{id}/cancel`; assert graceful shutdown + partial output preserved.
+7. **Stall watchdog** — `stalls_forever` scorer; assert heartbeat WARNING then escalation to cancel.
+
+Scenario injection happens via a test-only `SCORER_OVERRIDE` env var
+(same shape as the existing `PODCAST_MOCK_PROVIDER` overrides), so
+production code paths never see the stub registry.
 
 ---
 
@@ -119,8 +343,26 @@ src/podcast_scraper/enrichment/
                        # over all bundles; phase 2 = CORPUS enrichers;
                        # never raises; one WARNING per failed enricher
   cli.py               # `podcast enrich --output-dir ... [--corpus-only]
-                       # [--only <id>,<id>] [--skip <id>,<id>]`
+                       # [--only <id>,<id>] [--skip <id>,<id>]
+                       # [--re-enable <id>]`
+  resilience.py        # per-enricher state machine, retry-with-backoff
+                       # (reuses utils/retry.py), circuit-breaker (reuses
+                       # utils/llm_circuit_breaker.py), failure taxonomy
+                       # (reuses utils/retryable_errors.py + enrichment-
+                       # specific additions), heartbeat watchdog
+  health.py            # .viewer/enrichment_health.json persistence,
+                       # auto-disable / re-enable, cross-run state
+  scorers/
+    __init__.py
+    protocol.py        # NliScorer, EmbeddingProvider, LLMScorer
+                       # protocols (injectable)
 ```
+
+Real scorer implementations land with their consuming enricher:
+`scorers/lancedb_embeddings.py` with chunk 3 `topic_similarity`,
+`scorers/nli_deberta.py` with chunk 4 `nli_contradiction`. The
+protocols + injection plumbing ship in chunk 1 so the framework is
+complete.
 
 **Operator entry points — three layers, dev/ops separation explicit:**
 
@@ -200,18 +442,44 @@ registered. Pure addition — does not alter core stage signatures.
 - `tests/integration/server/test_enrichment_job_route.py` — `POST
   /api/jobs/enrichment` round-trip: enqueue → poll status → completion
   → log surfacing. Reuses the existing pipeline-job route fixtures.
+- `tests/unit/enrichment/test_resilience.py` — per-tier retry policy,
+  backoff calculation, circuit-breaker state transitions, failure
+  taxonomy classification, heartbeat watchdog behaviour.
+- `tests/unit/enrichment/test_health.py` — `enrichment_health.json`
+  shape, atomic write, recovery from corrupt file, auto-disable
+  threshold, manual re-enable.
+- `tests/integration/enrichment/test_resilience_scenarios.py` —
+  scenario-driven scorer mocks exercise the full retry-then-recover,
+  circuit-open, OOM, timeout, stall, intermittent-30%, drift paths
+  end-to-end through the executor. **One of the most important
+  test files in chunk 1** — it pins resilience behaviour against
+  representative failure modes.
+- `tests/stack-test/stack-enrichment-resilience.spec.ts` — 7 E2E
+  resilience scenarios (happy / retry-recovery / circuit-open /
+  auto-disable / re-enable / cancel / stall-watchdog) driven through
+  `POST /api/jobs/enrichment` with `SCORER_OVERRIDE` env-var injection.
+
+**Mock-scorer fixtures** (`tests/fixtures/enrichment/mock_scorers.py`):
+`ScenarioNliScorer` + `ScenarioEmbeddingProvider` with the 9 scenarios
+listed in §"Mock-server / scorer-stub strategy" above. Ship in
+chunk 1 — every later chunk consumes them.
 
 **Docs:** `docs/api/ENRICHMENT_LAYER_API.md` — output envelope schema,
 filename conventions, discovery rules, opt-in semantics, **CLI usage
-+ jobs-API endpoint shape + viewer-tab integration note**.
++ jobs-API endpoint shape + viewer-tab integration note + resilience
+model + health-file shape + manual recovery procedures**.
 
-**Acceptance:** ci-fast green; integration tests pass; `make docs`
-strict green; no enrichers shipped yet but the framework is fully
-exercised by the "no-op" path through CLI, jobs API, and pipeline-
-attached entry points.
+**Acceptance:** ci-fast green; integration tests pass (including all 9
+scenario-driven resilience cases); stack-test green (7 E2E scenarios);
+`make docs` strict green; no enrichers shipped yet but the framework
+is fully exercised by the "no-op" path through CLI, jobs API, and
+pipeline-attached entry points + the full resilience pipeline through
+the scorer-stub scenarios.
 
-**Est size:** ~900–1300 LOC code + ~800–1100 LOC tests (added ~200 LOC
-for the jobs-API job type + ~200 LOC tests). One+ reviewer day.
+**Est size:** ~1500–2100 LOC code + ~1500–2000 LOC tests + ~600 LOC
+mock-scorer fixtures + ~400 LOC E2E spec. Added ~600 LOC code +
+~800 LOC tests for the resilience primitives, scorer protocols,
+health persistence, and scenario mocks. ~2 reviewer days.
 
 ---
 
