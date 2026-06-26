@@ -264,6 +264,230 @@ production code paths never see the stub registry.
 
 ---
 
+## Metrics, observability, analytics (core, mirrors the pipeline)
+
+Same primitives the pipeline already uses — extended, not forked. The
+goal: anything the operator can ask about a pipeline run, they can ask
+about an enrichment run with identical surfaces (Metrics class, JSONL
+events, run summary, live status, Sentry, Langfuse, Grafana,
+dashboard JSON, viewer Operator tab).
+
+### Inputs we extend (not reinvent)
+
+| Pipeline surface | What we add for enrichment |
+| --- | --- |
+| `workflow/metrics.py` `Metrics` class | New `enrichment: dict[str, EnrichmentMetrics]` field; one record per enricher per run with `runs_total / runs_{ok,failed,timeout,quarantined,cancelled,skipped} / duration_seconds / retries_total / circuit_transitions / output_records_total / scorer_calls_total / scorer_failures_total / tokens_in / tokens_out / cost_usd`. Same JSON / CSV / dashboard export pipeline picks it up. |
+| `workflow/jsonl_emitter.py` `JSONLEmitter` | New event types: `enrichment.run.{started,completed}`, `enrichment.enricher.{started,retry,completed,circuit_opened,auto_disabled,cancelled}`, `enrichment.health.re_enabled`. Each line atomically appended; same tail-friendly file (`run.jsonl`). |
+| `workflow/run_summary.py` `create_run_summary` | Includes `enrichment_summary` when enrichment ran (per-enricher outcome / duration / retries / model_id / records_written / last_error / circuit state). |
+| `workflow/run_manifest.py` | Manifest records which enrichers participated + their versions. |
+| `workflow/cost_monitoring.py` | Reused as-is for future LLM-tier enrichers via the existing `record_provider_call_cost` hook — no enrichment-specific code needed for cost. |
+| `monitor/status.py` `maybe_update_pipeline_status` | New `maybe_update_enrichment_status` writes `.viewer/enrichment_status.json` (mirrors `.pipeline_status.json` shape). Live monitor + viewer Operator tab subscribe. |
+| `utils/sentry_init.py` | Reused; new breadcrumbs fired from `enrichment/resilience.py` on circuit-open + auto-disable + stall-escalation events. |
+| `utils/langfuse_tracing.py` | Reused — when a future LLM-tier query enricher calls a provider, the existing tracing wraps it. No enrichment-specific Langfuse code. |
+| `scripts/dashboard/generate_metrics.py` `detect_deviations()` | Extended to flag enrichment regressions: `ok_rate < 0.9` for 3+ runs, `p95_duration > 2× baseline`, `auto_disabled: true`. Surfaces as nightly `alerts[]`. |
+
+### Per-enricher metric record (`EnrichmentMetrics` dataclass)
+
+```python
+# workflow/metrics.py (new dataclass alongside Metrics)
+@dataclass
+class EnrichmentMetrics:
+    enricher_id: str
+    enricher_version: str
+    scope: str                 # "episode" | "corpus"
+    tier: str                  # "deterministic" | "embedding" | "ml" | "llm"
+    runs_total: int = 0
+    runs_ok: int = 0
+    runs_failed: int = 0
+    runs_timeout: int = 0
+    runs_quarantined: int = 0
+    runs_cancelled: int = 0
+    runs_skipped: int = 0
+    duration_seconds: float = 0.0
+    retries_total: int = 0
+    circuit_transitions: dict[str, int] = field(default_factory=dict)
+    output_records_total: int = 0
+    scorer_calls_total: int = 0
+    scorer_failures_total: dict[str, int] = field(default_factory=dict)
+    tokens_in: int = 0           # ml / llm tier; deterministic stays 0
+    tokens_out: int = 0
+    cost_usd: float = 0.0
+    last_run_status: str = ""
+    last_run_started_at: str = ""
+    last_run_finished_at: str = ""
+    model_id: str = ""
+    model_version: str = ""
+    error_samples: list[dict] = field(default_factory=list)  # most recent 5
+```
+
+Exposed via the existing `Metrics.to_json()` / `.to_csv()` /
+`workflow.metrics.log_metrics()` paths — operators see enrichment
+metrics anywhere they see pipeline metrics today.
+
+### JSONL event vocabulary
+
+| Event | Payload fields |
+| --- | --- |
+| `enrichment.run.started` | `run_id, profile, enricher_set, started_at` |
+| `enrichment.enricher.started` | `enricher_id, scope, tier, attempt, started_at` |
+| `enrichment.enricher.retry` | `enricher_id, attempt, backoff_s, reason, error_class` |
+| `enrichment.enricher.completed` | `enricher_id, status, duration_ms, records_written, retries, finished_at` |
+| `enrichment.enricher.circuit_opened` | `enricher_id, consecutive_failures, cooldown_until, opened_at` |
+| `enrichment.enricher.auto_disabled` | `enricher_id, consecutive_failed_runs, reason, disabled_at` |
+| `enrichment.enricher.cancelled` | `enricher_id, reason, partial_records_written` |
+| `enrichment.enricher.stall_warning` | `enricher_id, last_heartbeat_at, expected_interval_s` |
+| `enrichment.health.re_enabled` | `enricher_id, operator_id, reset_counter, cleared_cooldown` |
+| `enrichment.run.completed` | `run_id, duration_ms, per_enricher_totals` |
+
+Same `JSONLEmitter` instance, same `run.jsonl` file as the pipeline.
+
+### Live status (`.viewer/enrichment_status.json`)
+
+```json
+{
+  "schema_version": "1",
+  "run_id": "job_d4e5f6",
+  "started_at": "2026-06-26T15:01:42Z",
+  "profile": "cloud_thin",
+  "current_enricher": {
+    "enricher_id": "nli_contradiction",
+    "scope": "corpus",
+    "tier": "ml",
+    "attempt": 1,
+    "progress": {
+      "items_done": 247,
+      "items_total": 1000,
+      "eta_seconds": 142
+    },
+    "last_heartbeat_at": "2026-06-26T15:03:14Z"
+  },
+  "queue": ["nli_contradiction", "topic_similarity"],
+  "completed": [
+    {"enricher_id": "topic_cooccurrence_corpus", "status": "ok",
+     "duration_ms": 412}
+  ]
+}
+```
+
+Atomic-write same as `pipeline_status.json`. Viewer Operator tab polls
+it. CLI shows a Rich progress bar when run interactively (TTY) — same
+pattern as `--monitor`.
+
+### Sentry (errors + perf)
+
+Three new event categories fired from `enrichment/resilience.py`:
+
+1. `enrichment.circuit_opened` — breadcrumb + tag (`enricher_id`,
+   `tier`, `consecutive_failures`). Not an issue alert; just a
+   breadcrumb. Operators define their own threshold alert rules in
+   Sentry (e.g. "more than 5 circuit-opens per hour" → page).
+2. `enrichment.auto_disabled` — Sentry message at `warning` level
+   (one-off event, not an exception). Operators alert on the message
+   string in Sentry.
+3. `enrichment.stall_escalation` — Sentry message at `error` level.
+   Indicates an enricher had to be cancelled by the watchdog; likely a
+   real bug or a corrupt input.
+
+Unhandled exceptions inside the safety net continue to fire normal
+Sentry issues via the existing pipeline init.
+
+### Langfuse (LLM tracing)
+
+No enrichment-specific Langfuse code. When a future LLM-tier query
+enricher (chunk 5 / follow-on RFC) calls a provider, the existing
+provider-level Langfuse tracing wraps the call. The enrichment layer
+just passes `enricher_id` into the provider context so the Langfuse
+trace carries an `enricher_id` tag.
+
+### Grafana (operator-side dashboards)
+
+`docs/guides/OBSERVABILITY_EXTENSIONS.md` §"Operator alerting — Sentry
++ Grafana" gains an "Enricher panels" subsection in chunk 8:
+
+| Panel | Source | What it answers |
+| --- | --- | --- |
+| Enricher OK rate (24h, per id) | `metrics/history.jsonl` enrichment fields | Is any enricher unhealthy? |
+| Enricher latency p50/p95 (per tier) | `metrics/history.jsonl` | Which enricher is slowest? |
+| Circuit-state heatmap | `enrichment_health.json` (polled) | Which enrichers are quarantined? |
+| Auto-disable events (timeline) | Sentry message search | When did we lose an enricher? |
+| Eval drift (F1 / MRR over time) | `data/eval/enrichment/<id>/history.jsonl` | Is autoresearch silver drifting? |
+| Cost per LLM enricher (future) | Langfuse | Spend by query enricher |
+
+### Dashboard JSON (CI surface)
+
+`metrics/latest.json` gains an `enrichment` block:
+
+```json
+{
+  "enrichment": {
+    "per_enricher": {
+      "topic_similarity": {
+        "ok_rate": 0.98, "p50_ms": 312, "p95_ms": 845,
+        "retry_rate": 0.02, "circuit_opens_24h": 0,
+        "auto_disabled": false, "model_id": "..."
+      },
+      "nli_contradiction": {
+        "ok_rate": 0.85, "p50_ms": 4200, "p95_ms": 8900,
+        "retry_rate": 0.15, "circuit_opens_24h": 1,
+        "auto_disabled": false, "tokens_in": 14820,
+        "tokens_out": 0, "cost_usd": 0.0
+      }
+    },
+    "totals": {
+      "runs_24h": 47, "ok_rate_24h": 0.94, "alerts_24h": 1
+    }
+  }
+}
+```
+
+PR comments / nightly summary already render `metrics/latest.json` —
+enrichment metrics show up there for free.
+
+### Eval-time metrics
+
+Each eval run (chunks 2–4) produces
+`data/eval/enrichment/<id>/runs/<run_id>/metrics.json` with the gold-
+scoring metrics (P / R / F1 / MRR / Brier / per-tier latency).
+Aggregated into `data/eval/enrichment/<id>/history.jsonl` for trend
+tracking. Autoresearch ratchet (chunks 3 & 4) reads these to detect
+regressions vs champion baseline.
+
+### Viewer Operator tab — Enrichment panel (chunk 6 lands the UI)
+
+The chunk-6 viewer integration includes a new Enrichment panel on the
+Operator tab. Surfaces:
+
+- Per-enricher last-run status (✓ ok / ✗ failed / ⏳ running /
+  💤 disabled).
+- Health badges: auto-disabled flag + circuit state.
+- Latency: p50 / p95 (last 24h).
+- Output: records written, file size.
+- Eval signal: latest F1 / MRR if eval data available.
+- Drill-down: history graph (last 10 runs), recent errors, manual
+  re-enable button.
+
+Wires through the same `/api/jobs` + new `/api/enrichment/health` +
+new `/api/enrichment/metrics` routes.
+
+### Files added or extended
+
+| File | Change |
+| --- | --- |
+| `workflow/metrics.py` | New `EnrichmentMetrics` dataclass + `Metrics.enrichment` field + record-methods |
+| `workflow/jsonl_emitter.py` | New event-type constants |
+| `workflow/run_summary.py` | `create_run_summary` reads `Metrics.enrichment` |
+| `workflow/run_manifest.py` | Includes enricher set + versions |
+| `monitor/status.py` | New `maybe_update_enrichment_status` + reader |
+| `utils/sentry_init.py` | New `emit_enrichment_breadcrumb` helper |
+| `enrichment/resilience.py` | Wires Sentry + JSONL emitter calls into state-machine transitions |
+| `enrichment/executor.py` | Wires Metrics record-methods around every enricher call |
+| `enrichment/health.py` | Persistence emits `enrichment.health.re_enabled` event |
+| `scripts/dashboard/generate_metrics.py` | `detect_deviations()` extended |
+| `docs/guides/OBSERVABILITY_EXTENSIONS.md` | New "Enricher panels" subsection (chunk 8) |
+| `web/gi-kg-viewer/src/components/operator/EnrichmentPanel.vue` | Operator-tab UI (chunk 6) |
+
+---
+
 ## Architectural prerequisite — resolve the RFC-097 ↔ RFC-088 divergence
 
 Before any code, decide and document this once:
@@ -352,6 +576,19 @@ src/podcast_scraper/enrichment/
                        # specific additions), heartbeat watchdog
   health.py            # .viewer/enrichment_health.json persistence,
                        # auto-disable / re-enable, cross-run state
+  metrics.py           # EnrichmentMetrics record helpers; wraps every
+                       # enricher call to update workflow/metrics.py
+                       # Metrics.enrichment field; emits JSONL events
+                       # via the existing JSONLEmitter
+  status.py            # .viewer/enrichment_status.json live-status
+                       # writer (mirrors monitor/status.py shape);
+                       # heartbeat + progress publishing for viewer
+                       # Operator tab + CLI Rich progress bar
+  observability.py     # Sentry breadcrumb + message helpers
+                       # (circuit_opened / auto_disabled /
+                       # stall_escalation); reuses utils/sentry_init.py;
+                       # Langfuse context tag passthrough for future
+                       # LLM enrichers (enricher_id tag)
   scorers/
     __init__.py
     protocol.py        # NliScorer, EmbeddingProvider, LLMScorer
@@ -454,10 +691,34 @@ registered. Pure addition — does not alter core stage signatures.
   end-to-end through the executor. **One of the most important
   test files in chunk 1** — it pins resilience behaviour against
   representative failure modes.
+- `tests/unit/enrichment/test_metrics.py` — `EnrichmentMetrics`
+  dataclass round-trips through JSON / CSV; all run_status values
+  produce the right counter increments; cost / token accounting for
+  the ml + llm tiers; `Metrics.to_json()` carries enrichment fields.
+- `tests/unit/enrichment/test_status.py` — `.viewer/enrichment_status.json`
+  atomic write, heartbeat publishing, progress payload validation,
+  reader round-trip.
+- `tests/unit/enrichment/test_observability.py` — Sentry breadcrumb
+  fired on circuit-open / auto-disable / stall-escalation; Langfuse
+  context tag carries `enricher_id` when wrapped around a provider
+  call; o11y extensions are no-op when SDKs absent.
+- `tests/unit/workflow/test_jsonl_emitter_enrichment_events.py` —
+  every new enrichment event type emits a parseable JSONL line with
+  the documented payload fields.
+- `tests/integration/dashboard/test_enrichment_in_metrics_latest.py`
+  — `scripts/dashboard/generate_metrics.py` writes the new
+  `enrichment` block in `metrics/latest.json` and
+  `detect_deviations()` flags the expected regressions
+  (ok_rate < 0.9, p95 > 2× baseline, auto_disabled).
 - `tests/stack-test/stack-enrichment-resilience.spec.ts` — 7 E2E
   resilience scenarios (happy / retry-recovery / circuit-open /
   auto-disable / re-enable / cancel / stall-watchdog) driven through
   `POST /api/jobs/enrichment` with `SCORER_OVERRIDE` env-var injection.
+- `tests/stack-test/stack-enrichment-live-monitor.spec.ts` — live
+  status flow: long-running scenario emits heartbeats, viewer
+  Operator tab reads `enrichment_status.json` and renders the
+  current-enricher progress + ETA; status switches to `idle` on
+  completion.
 
 **Mock-scorer fixtures** (`tests/fixtures/enrichment/mock_scorers.py`):
 `ScenarioNliScorer` + `ScenarioEmbeddingProvider` with the 9 scenarios
@@ -470,16 +731,23 @@ filename conventions, discovery rules, opt-in semantics, **CLI usage
 model + health-file shape + manual recovery procedures**.
 
 **Acceptance:** ci-fast green; integration tests pass (including all 9
-scenario-driven resilience cases); stack-test green (7 E2E scenarios);
+scenario-driven resilience cases + metrics/o11y/status round-trips);
+stack-test green (7 resilience scenarios + live-monitor scenario);
 `make docs` strict green; no enrichers shipped yet but the framework
 is fully exercised by the "no-op" path through CLI, jobs API, and
 pipeline-attached entry points + the full resilience pipeline through
-the scorer-stub scenarios.
+the scorer-stub scenarios. **Every operator observability surface
+(Metrics class, JSONL events, run_summary, live status,
+enrichment_status.json, Sentry breadcrumbs, dashboard metrics) is
+populated even with no real enricher running — the framework owns
+the surfaces, enrichers just write through them.**
 
-**Est size:** ~1500–2100 LOC code + ~1500–2000 LOC tests + ~600 LOC
-mock-scorer fixtures + ~400 LOC E2E spec. Added ~600 LOC code +
-~800 LOC tests for the resilience primitives, scorer protocols,
-health persistence, and scenario mocks. ~2 reviewer days.
+**Est size:** ~1900–2600 LOC code + ~1900–2500 LOC tests + ~600 LOC
+mock-scorer fixtures + ~600 LOC E2E spec. Added ~400 LOC code +
+~400 LOC tests over the previous estimate for the metrics +
+observability + analytics primitives (`metrics.py`, `status.py`,
+`observability.py`, JSONL event vocab, dashboard JSON extension).
+~2.5 reviewer days.
 
 ---
 
