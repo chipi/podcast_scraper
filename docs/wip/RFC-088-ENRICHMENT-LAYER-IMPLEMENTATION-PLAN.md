@@ -636,7 +636,7 @@ absence gracefully.
 | `src/podcast_obs/aggregate.py` | `_correlate` adds the enrichment join; `_summary` adds the enrichment subsection |
 | `src/podcast_obs/config.py` | New `EnrichmentEndpoint` config field (per target) |
 | `src/podcast_obs/cli.py` | Optional `--tool enrichment_*` test shortcuts |
-| `src/podcast_scraper/enrichment/correlation.py` | Helpers: `RunContext` dataclass (run_id + parent_run_id + enricher_id + tier + attempt), `correlation_extras_for_logging()`, `set_sentry_correlation_tags()`, `langfuse_trace_metadata()` |
+| `src/podcast_scraper/enrichment/correlation.py` | Surface-specific correlation extras for the o11y emit paths: `correlation_extras_for_logging(ctx)` (Loki structured fields), `sentry_tags_for_context(ctx)` (string-coerced Sentry tags), `langfuse_metadata_for_context(ctx)` (Langfuse trace metadata), `jsonl_event_extras(ctx)` (per-line JSONL extras). The `RunContext` dataclass itself lives in `enrichment/protocol.py` next to the rest of the foundation types. The Sentry tag-setter helper is `utils/sentry_init.set_correlation_tags(tags)`; consumed by `enrichment/observability.stamp_sentry_correlation(ctx)`. |
 | `src/podcast_scraper/enrichment/executor.py` | Establishes `RunContext` once at run start; passes through to every enricher + scorer call |
 | `src/podcast_scraper/utils/sentry_init.py` | New helper `set_correlation_tags(run_id, enricher_id, tier)` (no-op when SDK absent) |
 | `src/podcast_scraper/utils/langfuse_tracing.py` | New helper `with_enrichment_metadata(run_id, enricher_id, ...)` decorator (no-op when SDK absent) |
