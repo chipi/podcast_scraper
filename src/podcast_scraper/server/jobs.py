@@ -1,4 +1,18 @@
-"""Pipeline job queue, subprocess spawn, and registry updates (Phase 2)."""
+"""Job queue, subprocess spawn, and registry updates.
+
+Serves multiple ``command_type`` values via the JSONL job registry:
+
+- ``full_incremental_pipeline`` — the original pipeline runs (Phase 2).
+- ``corpus_enrichment`` — enrichment-layer runs (Epic #1101, RFC-088).
+
+The promote-queued / cancel / stale-reconcile / pid-alive logic is
+``command_type``-agnostic; new job kinds just register new
+``COMMAND_*`` constants and ``build_*_argv`` / ``enqueue_*_job`` /
+``spawn_*_subprocess`` helpers alongside the existing pipeline ones.
+
+Renamed from ``pipeline_jobs.py`` in Epic #1101 chunk 1 (per O4) to
+reflect the multi-kind reality. Module API + behaviour unchanged.
+"""
 
 from __future__ import annotations
 

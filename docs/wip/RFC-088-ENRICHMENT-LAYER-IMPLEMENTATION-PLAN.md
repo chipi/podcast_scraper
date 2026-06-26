@@ -817,7 +817,8 @@ jobs API.
 
 **Jobs-API integration (the new job type):**
 
-- `src/podcast_scraper/server/pipeline_jobs.py` gains a new
+- `src/podcast_scraper/server/jobs.py` (renamed from `pipeline_jobs.py`
+  in sub-commit 1) gains a new
   `COMMAND_ENRICHMENT = "corpus_enrichment"` constant alongside the
   existing `COMMAND_FULL`. The `command_type` field on the JSONL job
   record is already parametric — `_new_job_record` just takes whatever

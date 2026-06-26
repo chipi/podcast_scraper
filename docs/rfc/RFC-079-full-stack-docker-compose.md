@@ -406,7 +406,7 @@ stack-logs:
 
 RFC-077 defines **`POST /api/jobs`**: enqueue a pipeline job, persist registry rows under the
 corpus (e.g. `.viewer/jobs/`), stream logs, cancel, reconcile. The **spawn** path today is
-implemented in `src/podcast_scraper/server/pipeline_jobs.py`:
+implemented in `src/podcast_scraper/server/jobs.py` (renamed from `pipeline_jobs.py` in Epic #1101 chunk 1):
 
 1. **`build_pipeline_argv`** builds argv:
    `[sys.executable, "-m", "podcast_scraper.cli", "--output-dir", <corpus>, … "--config", <operator.yaml>, …]`.

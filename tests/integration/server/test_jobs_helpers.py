@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from podcast_scraper.server.pipeline_job_registry import with_jobs_locked_mutate
-from podcast_scraper.server.pipeline_jobs import (
+from podcast_scraper.server.jobs import (
     argv_summary,
     build_pipeline_argv,
     cancel_job,

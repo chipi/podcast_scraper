@@ -379,7 +379,7 @@ def make_app_spawn_callback(app: Any) -> Any:
     """
     import asyncio
 
-    from podcast_scraper.server.pipeline_jobs import (
+    from podcast_scraper.server.jobs import (
         enqueue_pipeline_job,
         schedule_post_submit,
     )
