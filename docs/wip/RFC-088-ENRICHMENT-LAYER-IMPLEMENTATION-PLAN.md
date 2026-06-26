@@ -122,6 +122,42 @@ src/podcast_scraper/enrichment/
                        # [--only <id>,<id>] [--skip <id>,<id>]`
 ```
 
+**Operator entry points — three layers, dev/ops separation explicit:**
+
+| Layer | Entry point | Audience | Notes |
+| --- | --- | --- | --- |
+| **CLI** (one-shot, scriptable) | `podcast enrich --output-dir <corpus> [--only id,id] [--skip id,id] [--corpus-only]` | Operators on a terminal, automation scripts, dev iteration | The canonical operator-facing entry point. Standalone runs without re-running the core pipeline. |
+| **Jobs API** (server-managed, viewer-driven) | `POST /api/jobs/enrichment` with body `{"only": [...], "skip": [...], "corpus_only": false}` | Viewer Operator tab; remote / cron-driven runs | New job type alongside the existing `"full_incremental_pipeline"`. Same JSONL registry, same stale/PID-orphan reconcile, same cancel + status flow as RFC-077 pipeline jobs. |
+| **Pipeline-attached** (free, automatic) | Runs as Step N+1 of `workflow/orchestration.py` | Every full pipeline run | Always-on; covered by the core pipeline integration in this chunk. |
+
+**No new `make enrich` target.** Per operator: Makefile targets are for
+dev convenience, not ops. Dev iteration uses
+`.venv/bin/python -m podcast_scraper enrich --output-dir <test-corpus>`
+directly — same as how we don't have a `make scrape` for one-off
+pipeline runs. The two production operator paths are the CLI and the
+jobs API.
+
+**Jobs-API integration (the new job type):**
+
+- `src/podcast_scraper/server/pipeline_jobs.py` gains a new
+  `COMMAND_ENRICHMENT = "corpus_enrichment"` constant alongside the
+  existing `COMMAND_FULL`. The `command_type` field on the JSONL job
+  record is already parametric — `_new_job_record` just takes whatever
+  is passed in.
+- New helpers next to the existing pipeline ones:
+  - `build_enrichment_argv(corpus_root, operator_yaml, *, only=None, skip=None, corpus_only=False) -> list[str]`
+  - `enqueue_enrichment_job(corpus_root, operator_yaml, *, only=None, skip=None, corpus_only=False) -> dict`
+  - `spawn_enrichment_subprocess(corpus_root, operator_yaml, job_record, *, only=None, skip=None, corpus_only=False)`
+- The promote-queued / cancel / stale-reconcile / pid-alive logic is
+  agnostic to `command_type` — works for the new kind without code
+  changes there.
+- New server route `POST /api/jobs/enrichment` (mirrors the existing
+  pipeline-job route shape). Reuses the `app_operator_guard` auth
+  layer.
+- Viewer Operator tab gains a "Run enrichment" action that submits
+  this job type — same status / progress / cancel UI as pipeline
+  jobs.
+
 **Config schema additions:** new top-level `enrichment:` block in operator
 YAML / corpus config:
 
@@ -158,15 +194,24 @@ registered. Pure addition — does not alter core stage signatures.
 - `tests/integration/enrichment/test_enrichment_pass.py` — full pass
   against a 3-episode fixture; asserts directory layout, `derived: true`
   on every output, core artifacts unchanged.
+- `tests/unit/server/test_enrichment_jobs.py` — new job-type coverage:
+  `enqueue_enrichment_job` produces the right `command_type`, queue/
+  promote/cancel/reconcile work identically to pipeline jobs.
+- `tests/integration/server/test_enrichment_job_route.py` — `POST
+  /api/jobs/enrichment` round-trip: enqueue → poll status → completion
+  → log surfacing. Reuses the existing pipeline-job route fixtures.
 
 **Docs:** `docs/api/ENRICHMENT_LAYER_API.md` — output envelope schema,
-filename conventions, discovery rules, opt-in semantics.
+filename conventions, discovery rules, opt-in semantics, **CLI usage
++ jobs-API endpoint shape + viewer-tab integration note**.
 
-**Acceptance:** ci-fast green; integration test passes; `make docs`
+**Acceptance:** ci-fast green; integration tests pass; `make docs`
 strict green; no enrichers shipped yet but the framework is fully
-exercised by the "no-op" path.
+exercised by the "no-op" path through CLI, jobs API, and pipeline-
+attached entry points.
 
-**Est size:** ~700–1100 LOC code + ~600–900 LOC tests. One reviewer day.
+**Est size:** ~900–1300 LOC code + ~800–1100 LOC tests (added ~200 LOC
+for the jobs-API job type + ~200 LOC tests). One+ reviewer day.
 
 ---
 
@@ -544,8 +589,13 @@ Enrichments are additive; their absence is silent.
 3. **Phasing cadence** — single `feat/enrichment-layer` integration
    branch with chunks 0–8 as separate commits, one PR at the end.
    Matches the RFC-097 chunked-PR shape that worked well for review.
-4. **`make enrich` standalone target** — ships in chunk 1 with the CLI.
-   Operator wants to re-run the enrichment pass without re-extracting.
+4. **Operator entry points** — three layers, all in chunk 1: CLI
+   (`podcast enrich`), Jobs API (new job type `"corpus_enrichment"`
+   alongside `"full_incremental_pipeline"`, viewer Operator tab gets a
+   "Run enrichment" action), and pipeline-attached (always-on
+   Step N+1 of `workflow/orchestration.py`). **No `make enrich`
+   target** — Makefile is for dev convenience, not ops; dev iteration
+   uses `.venv/bin/python -m podcast_scraper enrich` directly.
 5. **GH-issue tracking** — Epic + 9 child issues, one per chunk. Epic
    is the umbrella; chunks reference the Epic and each other. Operator
    explicitly authorized creation 2026-06-26 (overrides the default
