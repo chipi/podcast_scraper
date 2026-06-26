@@ -293,64 +293,87 @@ matches RFC-095 MCP server module layout.
 
 ---
 
-## Open (operator decision)
+## Open (operator decision) — RESOLVED 2026-06-26
 
-### O1. Cost cap policy for LLM-tier enrichment
+### O1. Cost cap policy for LLM-tier enrichment → **BOTH**
 
-**Found:** `cost_monitoring.py:enforce_cost_soft_cap` raises
-`CostCapExceeded` and the pipeline aborts the run. For enrichment,
-options:
+**Decision:** **(c) — both per-enricher quarantine AND run-wide
+hard stop.** Belt-and-suspenders model:
 
-- (a) Per-enricher cost budget; exceeded → quarantine that enricher
-  only (next runs skip it until cooldown).
-- (b) Run-wide cost budget shared with pipeline; exceeded → abort
-  the entire run.
-- (c) Both: per-enricher quarantine + run-wide hard stop.
+- **Per-enricher soft budget** (default off; settable per enricher in
+  YAML, e.g. `nli_contradiction.max_cost_usd_per_run: 0.50`). When
+  exceeded, quarantine that enricher (status `quarantined`,
+  reason `cost_cap_exceeded`); other enrichers continue.
+- **Run-wide hard cap** (default off; settable in the `enrichment:`
+  top-level YAML, e.g. `enrichment.max_total_cost_usd_per_run: 5.00`).
+  When exceeded, abort the whole enrichment pass with status
+  `failed: run_cost_cap_exceeded` — pipeline-attached path bubbles
+  to `enrichment.run.completed { status: failed, reason: cost_cap }`
+  and does NOT fail the parent pipeline run (enrichment is additive).
+- Standalone CLI / Jobs API runs surface non-zero `exit_code` on
+  run-wide hard cap hit; operators can opt in to soft-cap-only by
+  setting `enrichment.fail_on_run_cost_cap: false`.
 
-**Recommendation:** **(a)** for enrichment-only cost caps — quarantine
-the offender, let other enrichers continue. Pipeline-attached path
-still respects the existing run-wide soft cap from
-`cost_monitoring.py`. Reason: enrichment is opt-in and additive; one
-LLM enricher blowing its budget shouldn't kill a deterministic
-enrichment pass that costs nothing.
+No code wiring in chunk 1 (no LLM enricher ships in chunk 1) but the
+JSON Schema (B8) and `EnricherManifest` carry the budget fields from
+day one so chunk 4 + chunk 5 just consume them.
 
-No code in chunk 1 needs this (no LLM enricher ships in chunk 1).
-Defer concrete wiring to chunk 5 or follow-on RFC. Flag in plan as
-open question; resolve when first LLM-tier enricher lands.
+### O2. `enrichment_cancel` MCP tool → **ADD**
 
-### O2. `enrichment_cancel` MCP tool
+**Decision:** **add `enrichment_cancel(target, job_id, reason)`** to
+chunk 1's MCP surface. Proxies `POST /api/jobs/{job_id}/cancel`;
+records `reason` in the cancel envelope for audit. Costs ~30 LOC code
++ a unit test + an integration test.
 
-**Found:** plan adds `enrichment_re_enable` MCP tool but no
-`enrichment_cancel`. Agents can re-enable but can't cancel a
-runaway run.
+Updates: MCP tools count in chunk 1 goes from 7 to 8. Issue #1103
+amended.
 
-**Recommendation:** **add `enrichment_cancel(target, job_id, reason)`**
-to chunk 1's MCP surface — proxies `POST /api/jobs/{job_id}/cancel`.
-Costs ~30 LOC code + a test. Useful if an agent detects a
-runaway enricher pattern via `enrichment_recent_events`.
+### O3. RFC-088 Status transition during implementation → **Active**
 
-Awaiting operator yes/no.
+**Decision:** **move RFC-088 from Draft to Active** when chunk 1
+foundation lands. Reflects the live-implementation state. Chunk 8
+promotes Active → Completed at the end.
 
-### O3. RFC-088 Status transition during implementation
+Changes:
 
-**Found:** RFC-088 is currently Draft. Chunk 8 promotes to Completed.
-What status during chunks 1–7?
+- RFC-088 body Status line: Draft → Active (chunk 1 PR carries the
+  edit alongside the foundation code).
+- `docs/rfc/index.md` gap-analysis text updates: RFC-088 moves from
+  the "Draft RFCs (not indexed)" list to a new "Active RFCs (in
+  implementation)" line.
+- Chunk 8 (#1110) issue updated: Status promotion now Active →
+  Completed (was Draft → Completed).
 
-**Recommendation:** **stay Draft until chunk 8**. Cleaner convention —
-no intermediate "Active" state to manage; matches RFC-097 v2's
-shape during its multi-chunk landing. The Epic #1101 + the
-implementation-plan WIP doc carry the live state during the build.
+### O4. Module rename: `pipeline_jobs.py` → `jobs.py` → **NOW**
 
-Awaiting operator confirm (no change needed if confirmed).
+**Decision:** **rename in chunk 1**, alongside the new job-type
+addition (less awkward to add `COMMAND_ENRICHMENT` to a file already
+called `pipeline_jobs`).
 
-### O4. Module rename: `pipeline_jobs.py` → `jobs.py`
+Rename impact (verified):
 
-**Found:** see I1 above. The full rename is a sensible cleanup but
-not in scope.
+- 1 src file renamed: `src/podcast_scraper/server/pipeline_jobs.py`
+  → `src/podcast_scraper/server/jobs.py`.
+- 4 internal src imports updated:
+  - `src/podcast_scraper/server/jobs_log_path.py`
+  - `src/podcast_scraper/server/scheduler.py`
+  - `src/podcast_scraper/server/routes/jobs.py` (HTTP route module
+    — different file, different package, no name clash)
+  - `src/podcast_scraper/server/pipeline_run_prometheus.py`
+- 4 test files renamed for symmetry:
+  - `test_pipeline_jobs_argv.py` → `test_jobs_argv.py`
+  - `test_pipeline_jobs_log_pump.py` → `test_jobs_log_pump.py`
+  - `test_pipeline_jobs_helpers.py` → `test_jobs_helpers.py`
+  - `test_pipeline_jobs_reconcile.py` → `test_jobs_reconcile.py`
+- Docs touched (find-and-replace): `RFC-079`, `RFC-098`,
+  `CODEQL_DISMISSALS.md`.
 
-**Recommendation:** **leave it.** Touched-only-where-needed. If you
-want the rename, file as a small follow-up after the enrichment
-layer lands.
+Module docstring updates: "Pipeline job queue, subprocess spawn,
+and registry updates" → "Job queue, subprocess spawn, and registry
+updates — serves pipeline and enrichment job kinds via `command_type`."
+
+The HTTP route module `server/routes/jobs.py` already exists with that
+name; no clash (different package).
 
 ---
 
@@ -378,24 +401,27 @@ layer lands.
 
 ---
 
-## Lock state
+## Lock state — LOCKED 2026-06-26
 
-After applying B1–B10 (in the plan amendment + RFC-088 amendments
-A1+A2) + I1–I4 (in the plan + issue) + O1–O4 decisions:
+All four open operator decisions resolved:
 
-**Chunk 1 is locked when:**
+- [x] **O1** — both per-enricher quarantine + run-wide hard stop cost cap
+- [x] **O2** — `enrichment_cancel` MCP tool added (chunk 1 MCP surface = 8 tools, was 7)
+- [x] **O3** — RFC-088 Status: Draft → **Active** (chunk 1 PR carries the edit); chunk 8 promotes Active → Completed
+- [x] **O4** — `pipeline_jobs.py` → `jobs.py` rename ships in chunk 1 alongside the `COMMAND_ENRICHMENT` addition
 
-- [ ] B1–B10 land in the plan + chunk-1 issue (in this audit's
-  follow-on commit).
-- [ ] A1 + A2 RFC-088 amendments land alongside chunk-1 foundation
-  code (chunk-1 PR carries them).
-- [ ] I1–I4 land in the plan + issue.
-- [ ] Operator decides O1 / O2 / O3 / O4.
+Chunk 1 is implementable as written:
 
-Operator decisions block chunk-1 implementation start. Once those
-four are confirmed, the chunk-1 issue is implementable as written.
+- [x] B1–B10 inlined in the plan (commit `dba0c38a`).
+- [x] I1–I4 inlined in the plan (commit `dba0c38a`).
+- [x] O1–O4 decisions inlined in the plan (this commit).
+- [x] A1 + A2 RFC-088 §Protocol amendments queued for chunk-1 PR body.
 
-Estimated impl-time delta: ~50 LOC code + ~150 LOC tests added by
-B1–B10 + I1–I4 over the previous chunk-1 estimate. New chunk-1 size:
-~2250–3050 LOC code + ~2350–3050 LOC tests + ~600 LOC mocks + ~600
-LOC E2E. ~3 reviewer days unchanged.
+**Chunk-1 size (final):** ~2300–3100 LOC code + ~2400–3100 LOC tests
++ ~600 LOC mocks + ~600 LOC E2E. ~3 reviewer days.
+
+Delta from O1–O4 decisions: ~50 LOC code + ~50 LOC tests for the
+`enrichment_cancel` MCP tool + the cost-cap fields in `EnricherManifest`
++ the `pipeline_jobs.py → jobs.py` rename + cascading import updates.
+
+**Status:** chunk 1 is locked. Implementation can start.

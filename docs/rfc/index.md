@@ -135,9 +135,16 @@ with **no RFC-014**. **8** open (in-flight, partial implementation), **88** comp
 (**RFC-087**), ML query router (**RFC-092**), audio pipeline separation + viewer media (**RFC-096**),
 KG proximity signal — rejected (**RFC-091**).
 
+**Active RFCs (in implementation):** Enrichment-layer architecture
+(**RFC-088**) — Epic [#1101](https://github.com/chipi/podcast_scraper/issues/1101) carries the live
+implementation across 9 chunks (foundation + resilience + metrics/o11y + MCP correlation + 6
+deterministic enrichers + topic_similarity + nli_contradiction + QueryEnricher + viewer
+integration + profile-preset wiring + promotion). Live plan:
+`docs/wip/RFC-088-ENRICHMENT-LAYER-IMPLEMENTATION-PLAN.md`. Chunk 0 (ADR-104) shipped on the
+current branch.
+
 **Draft RFCs (not indexed):** Postgres projection (**RFC-051**), adaptive summarization routing
-(**RFC-053**), enrichment-layer architecture (**RFC-088**; bridge.json + typed nodes shipped via
-RFC-097 v2; QueryEnricher protocol + typed contradiction enrichers remain open).
+(**RFC-053**).
 These are discoverable by filename under `docs/rfc/` but excluded from the index per the
 [index inclusion rule](../guides/MARKDOWN_LINTING_GUIDE.md) (Draft docs are not indexed).
 

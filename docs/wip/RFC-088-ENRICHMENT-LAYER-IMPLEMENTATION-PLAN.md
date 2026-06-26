@@ -567,6 +567,7 @@ All routes ship in chunk 1 alongside the source module. Source uses
 | `enrichment_recent_events(target, enricher_id=None, event_type=None, window="1h", limit=50)` | JSONL event slice. Filter by enricher_id (e.g. `nli_contradiction`), event_type (e.g. `enrichment.enricher.retry`), time window. Useful for "what failed and why in the last hour." |
 | `enrichment_eval_history(target, enricher_id, metric="f1", limit=20)` | Eval ratchet history for a smart enricher. Returns `[{run_id, started_at, champion_threshold, dev_f1, held_out_f1, drift_from_baseline}]`. Wired in chunks 3 / 4 once the eval JSONL ships. |
 | `enrichment_re_enable(target, enricher_id, reason)` | Operator-side reactivation. Calls `POST /api/enrichment/health/<id>/re-enable` with `reason` (audit trail in the health file). Returns the reset health record. |
+| `enrichment_cancel(target, job_id, reason)` | Cancel a running enrichment job. Proxies `POST /api/jobs/{job_id}/cancel` with `reason` recorded in the cancel envelope. Useful when an agent detects a runaway pattern via `enrichment_recent_events` (per chunk-1 lock audit §O2). |
 
 ### Extensions to existing tools
 
@@ -602,7 +603,7 @@ absence gracefully.
 | --- | --- |
 | `src/podcast_obs/sources/enrichment.py` | New source module; httpx-only reads against the new `/api/enrichment/*` routes |
 | `src/podcast_obs/sources/__init__.py` | Re-export the new module |
-| `src/podcast_obs/mcp_server.py` | 7 new tool closures + extensions to `prod_correlate` / `prod_summary` |
+| `src/podcast_obs/mcp_server.py` | **8** new tool closures (incl. `enrichment_cancel` per O2) + extensions to `prod_correlate` / `prod_summary` |
 | `src/podcast_obs/aggregate.py` | `_correlate` adds the enrichment join; `_summary` adds the enrichment subsection |
 | `src/podcast_obs/config.py` | New `EnrichmentEndpoint` config field (per target) |
 | `src/podcast_obs/cli.py` | Optional `--tool enrichment_*` test shortcuts |
@@ -612,6 +613,9 @@ absence gracefully.
 | `src/podcast_scraper/utils/langfuse_tracing.py` | New helper `with_enrichment_metadata(run_id, enricher_id, ...)` decorator (no-op when SDK absent) |
 | `docs/api/ENRICHMENT_LAYER_API.md` | New "Correlation IDs + MCP surface" section |
 | `docs/guides/OBSERVABILITY_EXTENSIONS.md` | Mention the new MCP tools in the §"Operator alerting" section (chunk 8 polish) |
+| `src/podcast_scraper/server/jobs.py` (renamed from `pipeline_jobs.py` per O4) | Adds `COMMAND_ENRICHMENT = "corpus_enrichment"`; `build_enrichment_argv` / `enqueue_enrichment_job` / `spawn_enrichment_subprocess` helpers; module docstring updated to "Job queue, subprocess spawn, and registry updates — serves pipeline and enrichment job kinds via `command_type`." 4 internal src imports updated (`jobs_log_path.py`, `scheduler.py`, `routes/jobs.py`, `pipeline_run_prometheus.py`); 4 test files renamed for symmetry (`test_pipeline_jobs_*.py` → `test_jobs_*.py`); doc references find-and-replaced. |
+| `src/podcast_scraper/enrichment/protocol.py` `EnricherManifest` | Adds `max_cost_usd_per_run: float \| None = None` and `expected_duration_s: int \| None = None` fields per O1 cost-cap decision. Chunk 4 (NLI) and chunk 5 (LLM query enrichers) consume these; chunk 1 wires the JSON Schema to accept them. |
+| `config/schema/enrichment.schema.json` | Top-level `enrichment.max_total_cost_usd_per_run: float \| null` and `enrichment.fail_on_run_cost_cap: bool = true` fields per O1 cost-cap decision. Chunk 1 ships the schema; chunk 5 wires enforcement. |
 
 ### Per-chunk MCP extension responsibility
 
@@ -621,7 +625,7 @@ guarantee chunk-by-chunk:
 
 | Chunk | MCP additions |
 | --- | --- |
-| **1 (foundation)** | `enrichment_run_status`, `enrichment_recent_runs`, `enrichment_health`, `enrichment_metrics`, `enrichment_recent_events`, `enrichment_re_enable`, extended `prod_correlate` (joins enrichment by run_id even with no enrichers registered — surface is wired through the no-op path), extended `prod_summary` (enrichment subsection with empty counts) |
+| **1 (foundation)** | `enrichment_run_status`, `enrichment_recent_runs`, `enrichment_health`, `enrichment_metrics`, `enrichment_recent_events`, `enrichment_re_enable`, **`enrichment_cancel` (per O2)**, extended `prod_correlate` (joins enrichment by run_id even with no enrichers registered — surface is wired through the no-op path), extended `prod_summary` (enrichment subsection with empty counts) |
 | **2 (deterministic)** | each enricher's metrics flow through `enrichment_metrics` automatically; no MCP code change |
 | **3 (topic_similarity)** | `enrichment_eval_history` for `topic_similarity` |
 | **4 (nli_contradiction)** | `enrichment_eval_history` for `nli_contradiction`; Langfuse pass-through tested via `prod_recent_traces` |
