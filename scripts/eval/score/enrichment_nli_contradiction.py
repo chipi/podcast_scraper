@@ -22,11 +22,15 @@ Aggregate: P / R / F1 + per-row breakdown of FPs and FNs (for error
 analysis).
 
 Brier score (calibration) requires the model's probability for every
-gold pair, which the envelope only carries for positives. The Brier
-scorer ships separately — operators run it via the
-``--with-live-model`` flag (load DeBERTa locally and re-score each
-gold pair). That's intentionally NOT in CI per
-[[feedback_no_llm_in_ci]].
+gold pair, which the envelope only carries for positives. Pass
+``--with-live-model`` to load DeBERTa locally and re-score every gold
+pair — the scorer then emits Brier alongside P/R/F1. That path is
+intentionally OFF by default per [[feedback_no_llm_in_ci]]; only the
+operator opts in.
+
+Brier formula:
+    Brier = mean over gold rows of (contradiction_prob - label_int)^2
+where label_int = 1 if label=="contradiction" else 0.
 
 Usage:
     python scripts/eval/score/enrichment_nli_contradiction.py \\
@@ -70,7 +74,7 @@ def _pair_key(a: str, b: str) -> tuple[str, str]:
     return lo, hi
 
 
-def main() -> int:
+def main() -> int:  # noqa: C901 — orchestration script; splitting hurts readability
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--corpus", type=Path, required=True)
     parser.add_argument(
@@ -80,6 +84,16 @@ def main() -> int:
     )
     parser.add_argument("--threshold", type=float, default=0.5)
     parser.add_argument("--model", type=str, default="cross-encoder/nli-deberta-v3-small")
+    parser.add_argument(
+        "--with-live-model",
+        action="store_true",
+        help=(
+            "Load DeBERTa locally and re-score every gold pair so a Brier "
+            "score (calibration) can be reported alongside P/R/F1. "
+            "Requires the [ml] extra; downloads ~80MB on first run. "
+            "Operator opt-in only — never in CI."
+        ),
+    )
     args = parser.parse_args()
 
     out = args.corpus / "enrichments" / "nli_contradiction.json"
@@ -172,27 +186,86 @@ def main() -> int:
     recall = tp / gold_positives if gold_positives else 0.0
     f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) > 0 else 0.0
 
-    print(
-        json.dumps(
-            {
-                "status": "scored",
-                "threshold": args.threshold,
-                "model": args.model,
-                "gold_rows": total,
-                "gold_positives": gold_positives,
-                "detected_positives": detected_count,
-                "true_positives": tp,
-                "false_positives": fp_count,
-                "false_negatives": fn_count,
-                "precision": round(precision, 4),
-                "recall": round(recall, 4),
-                "f1": round(f1, 4),
-                "false_positive_rows": fp_rows[:20],  # head sample for error analysis
-                "false_negative_rows": fn_rows[:20],
-            },
-            indent=2,
-        )
-    )
+    # Optional --with-live-model: load DeBERTa and compute Brier score
+    # (calibration) over every gold pair. Operator opt-in only.
+    brier: float | None = None
+    brier_n = 0
+    if args.with_live_model:
+        try:
+            import asyncio as _asyncio
+
+            from podcast_scraper.enrichment.scorers.nli import DeBERTaNliScorer
+        except Exception as exc:  # noqa: BLE001
+            print(
+                json.dumps(
+                    {
+                        "status": "live_model_unavailable",
+                        "error": str(exc),
+                        "hint": (
+                            "install [ml] extra (sentence-transformers) "
+                            "to enable --with-live-model"
+                        ),
+                    }
+                )
+            )
+            return 2
+        scorer = DeBERTaNliScorer(model_id=args.model)
+        sq_err_sum = 0.0
+        n = 0
+        for gold_file in gold_files:
+            for gold_row in _read_jsonl(gold_file):
+                premise = gold_row.get("insight_a_text")
+                hypothesis = gold_row.get("insight_b_text")
+                label = gold_row.get("label")
+                if not (
+                    isinstance(premise, str)
+                    and isinstance(hypothesis, str)
+                    and isinstance(label, str)
+                ):
+                    continue
+                label_int = 1.0 if label == "contradiction" else 0.0
+                try:
+                    score = _asyncio.run(scorer.score(premise, hypothesis))
+                except Exception as exc:  # noqa: BLE001
+                    print(
+                        json.dumps(
+                            {
+                                "status": "live_model_predict_failed",
+                                "error": str(exc),
+                                "pair": [
+                                    gold_row.get("insight_a_id"),
+                                    gold_row.get("insight_b_id"),
+                                ],
+                            }
+                        )
+                    )
+                    return 2
+                sq_err_sum += (score.contradiction - label_int) ** 2
+                n += 1
+        if n > 0:
+            brier = sq_err_sum / n
+            brier_n = n
+
+    payload: dict[str, Any] = {
+        "status": "scored",
+        "threshold": args.threshold,
+        "model": args.model,
+        "gold_rows": total,
+        "gold_positives": gold_positives,
+        "detected_positives": detected_count,
+        "true_positives": tp,
+        "false_positives": fp_count,
+        "false_negatives": fn_count,
+        "precision": round(precision, 4),
+        "recall": round(recall, 4),
+        "f1": round(f1, 4),
+        "false_positive_rows": fp_rows[:20],  # head sample for error analysis
+        "false_negative_rows": fn_rows[:20],
+    }
+    if brier is not None:
+        payload["brier"] = round(brier, 6)
+        payload["brier_n"] = brier_n
+    print(json.dumps(payload, indent=2))
     return 0
 
 

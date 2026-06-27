@@ -165,6 +165,22 @@ def test_enrichment_topic_similarity_scores_recall_at_k(tmp_path: Path) -> None:
     assert abs(body["macro_recall@3"] - 0.6667) < 0.01
 
 
+def test_nli_with_live_model_flag_accepted(tmp_path: Path) -> None:
+    """The --with-live-model flag must be accepted by argparse.
+    (Exercising the actual model load lives in
+    tests/integration/enrichment/test_deberta_real_model_optin.py
+    under the ml_models marker.)"""
+    script = _SCRIPTS / "enrichment_nli_contradiction.py"
+    result = subprocess.run(
+        [sys.executable, str(script), "--help"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert "--with-live-model" in result.stdout
+    assert "Brier" in result.stdout
+
+
 def test_enrichment_nli_contradiction_scores_precision_recall(tmp_path: Path) -> None:
     """Wires the P/R/F1 loop end-to-end."""
     import json
