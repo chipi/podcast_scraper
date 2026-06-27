@@ -179,6 +179,30 @@ export async function getCorpusEnrichmentsCatalogue(
   )
 }
 
+export interface CorpusEnrichmentEnvelope<TData = Record<string, unknown>> {
+  schema_version?: string
+  enricher_id: string
+  enricher_version?: string
+  data: TData
+}
+
+/** Read a single corpus-scope enrichment envelope. Returns ``null`` on 404. */
+export async function getCorpusEnrichmentEnvelope<TData = Record<string, unknown>>(
+  corpusPath: string,
+  enricherId: string,
+): Promise<CorpusEnrichmentEnvelope<TData> | null> {
+  const res = await fetchWithTimeout(
+    `/api/corpus/enrichments/${encodeURIComponent(enricherId)}?${q(corpusPath)}`,
+    undefined,
+    { timeoutDetail: `corpus.enrichments.${enricherId}` },
+  )
+  if (res.status === 404) return null
+  if (!res.ok) {
+    throw new Error(await readApiErrorMessage(res))
+  }
+  return (await res.json()) as CorpusEnrichmentEnvelope<TData>
+}
+
 export async function reEnableEnricher(
   corpusPath: string,
   enricherId: string,

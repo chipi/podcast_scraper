@@ -19,6 +19,7 @@ import {
   fetchWhoSaid,
   type RelatedNode,
 } from '../../api/relationalApi'
+import { getCorpusEnrichmentEnvelope } from '../../api/enrichmentApi'
 import { StaleGeneration } from '../../utils/staleGeneration'
 import {
   findRawNodeInArtifact,
@@ -70,6 +71,24 @@ const entityRows = ref<RelatedNode[]>([])
 const relatedTopicRows = ref<RelatedNode[]>([]) // #1055 — topics that share insights
 const relationalGate = new StaleGeneration()
 
+// RFC-088 chunk 6c: enrichment-layer signals for the focused topic.
+interface CoOccurrenceRow {
+  topic_id: string
+  topic_label?: string
+  episode_count: number
+}
+interface VelocityRow {
+  topic_id: string
+  topic_label?: string
+  velocity_last_over_6mo: number
+  monthly_counts: Record<string, number>
+  total: number
+}
+const cooccurrenceRows = ref<CoOccurrenceRow[]>([])
+const velocityRow = ref<VelocityRow | null>(null)
+const enrichmentLoaded = ref(false)
+const COOCC_TOP_N = 8
+
 function shortId(id: string): string {
   return id.replace(/^(podcast|person|topic|org):/, '').replace(/[-_]/g, ' ').trim() || id
 }
@@ -81,6 +100,41 @@ function resetRelational(): void {
   voicesError.value = null
   entityRows.value = []
   relatedTopicRows.value = []
+  cooccurrenceRows.value = []
+  velocityRow.value = null
+  enrichmentLoaded.value = false
+}
+
+async function loadEnrichmentSignals(topicId: string): Promise<void> {
+  const root = shell.corpusPath?.trim()
+  if (!topicId || !root) return
+  try {
+    const [coOcc, velocity] = await Promise.all([
+      getCorpusEnrichmentEnvelope<{ pairs: Array<{ topic_a_id: string; topic_b_id: string; topic_a_label?: string; topic_b_label?: string; episode_count: number }> }>(
+        root,
+        'topic_cooccurrence_corpus',
+      ).catch(() => null),
+      getCorpusEnrichmentEnvelope<{ topics: VelocityRow[] }>(root, 'temporal_velocity').catch(() => null),
+    ])
+    enrichmentLoaded.value = true
+    if (coOcc?.data?.pairs) {
+      const partners: CoOccurrenceRow[] = []
+      for (const p of coOcc.data.pairs) {
+        if (p.topic_a_id === topicId) {
+          partners.push({ topic_id: p.topic_b_id, topic_label: p.topic_b_label, episode_count: p.episode_count })
+        } else if (p.topic_b_id === topicId) {
+          partners.push({ topic_id: p.topic_a_id, topic_label: p.topic_a_label, episode_count: p.episode_count })
+        }
+      }
+      partners.sort((a, b) => b.episode_count - a.episode_count)
+      cooccurrenceRows.value = partners.slice(0, COOCC_TOP_N)
+    }
+    if (velocity?.data?.topics) {
+      velocityRow.value = velocity.data.topics.find((t) => t.topic_id === topicId) ?? null
+    }
+  } catch {
+    /* enrichment signals are best-effort; never break the rail */
+  }
 }
 
 async function loadRelational(topicId: string): Promise<void> {
@@ -122,6 +176,7 @@ async function loadRelational(topicId: string): Promise<void> {
 }
 
 watch(subjectId, (id) => void loadRelational(id), { immediate: true })
+watch(subjectId, (id) => void loadEnrichmentSignals(id), { immediate: true })
 
 function onClickVoice(personId: string): void {
   if (personId) subject.focusPerson(personId)
@@ -300,6 +355,45 @@ function onPrefillSearch(): void {
           v-if="timeline.undated > 0"
         >; {{ timeline.undated }} undated</span>).
       </p>
+      <!-- RFC-088 chunk 6c: enrichment-layer signals (velocity + co-occurrence chips). -->
+      <section
+        v-if="enrichmentLoaded && (velocityRow || cooccurrenceRows.length)"
+        class="w-full min-w-0 rounded border border-default bg-overlay/40 p-2"
+        aria-label="Enrichment signals"
+        data-testid="topic-entity-view-enrichment-signals"
+      >
+        <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+          Enrichment signals
+        </h3>
+        <div
+          v-if="velocityRow"
+          class="mb-1 flex items-center gap-2 text-[10px]"
+          data-testid="topic-entity-view-velocity"
+        >
+          <span class="text-muted">Velocity (last / 6-mo avg):</span>
+          <span
+            class="rounded px-2 py-0.5 font-mono"
+            :class="velocityRow.velocity_last_over_6mo > 1.5 ? 'bg-emerald-700/30 text-emerald-300' : velocityRow.velocity_last_over_6mo < 0.5 ? 'bg-rose-700/30 text-rose-300' : 'bg-overlay text-muted'"
+          >{{ velocityRow.velocity_last_over_6mo.toFixed(2) }}×</span>
+          <span class="text-muted">· {{ velocityRow.total }} mentions / 12-mo</span>
+        </div>
+        <div v-if="cooccurrenceRows.length" data-testid="topic-entity-view-cooccurrence">
+          <p class="mb-1 text-[10px] text-muted">Co-occurs with</p>
+          <div class="flex flex-wrap gap-1">
+            <button
+              v-for="r in cooccurrenceRows"
+              :key="r.topic_id"
+              type="button"
+              class="rounded border border-default bg-overlay px-2 py-0.5 text-[10px] hover:bg-overlay-2"
+              :data-testid="`topic-entity-view-cooccurrence-chip-${r.topic_id}`"
+              @click="subject.focusTopic(r.topic_id)"
+            >
+              {{ r.topic_label || shortId(r.topic_id) }}
+              <span class="ml-1 text-muted">·{{ r.episode_count }}</span>
+            </button>
+          </div>
+        </div>
+      </section>
       <section
         class="w-full min-w-0"
         aria-label="Mentions by month"

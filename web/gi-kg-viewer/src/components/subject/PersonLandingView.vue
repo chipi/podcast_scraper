@@ -34,6 +34,7 @@ import {
   cachedFetchPersonProfile as fetchPersonProfile,
 } from '../../composables/useRelationalCache'
 import type { RelatedNode } from '../../api/relationalApi'
+import { getCorpusEnrichmentEnvelope } from '../../api/enrichmentApi'
 import { StaleGeneration } from '../../utils/staleGeneration'
 import {
   countPersonEntityIncidentEdges,
@@ -71,6 +72,90 @@ const subject = useSubjectStore()
 // per-topic drill-in (PRD-028, filled by follow-up #1049).
 type PersonTab = 'profile' | 'position_tracker'
 const activeTab = ref<PersonTab>('profile')
+
+// RFC-088 chunk 6c: enrichment-layer signals for the focused person.
+interface GroundingRateRow {
+  person_id: string
+  person_name?: string
+  total_insights: number
+  grounded_insights: number
+  rate: number
+}
+interface CoappearanceRow {
+  person_a_id: string
+  person_b_id: string
+  person_a_name?: string
+  person_b_name?: string
+  episode_count: number
+}
+interface CoGuestChip {
+  person_id: string
+  person_name?: string
+  episode_count: number
+}
+const groundingRow = ref<GroundingRateRow | null>(null)
+const coGuestChips = ref<CoGuestChip[]>([])
+const enrichmentLoaded = ref(false)
+const COGUEST_TOP_N = 6
+
+async function loadPersonEnrichmentSignals(focusedPersonId: string): Promise<void> {
+  const root = shell.corpusPath?.trim()
+  if (!focusedPersonId || !root) return
+  groundingRow.value = null
+  coGuestChips.value = []
+  enrichmentLoaded.value = false
+  try {
+    const [grounding, coapp] = await Promise.all([
+      getCorpusEnrichmentEnvelope<{ persons: GroundingRateRow[] }>(root, 'grounding_rate').catch(
+        () => null,
+      ),
+      getCorpusEnrichmentEnvelope<{ pairs: CoappearanceRow[] }>(
+        root,
+        'guest_coappearance',
+      ).catch(() => null),
+    ])
+    enrichmentLoaded.value = true
+    if (grounding?.data?.persons) {
+      groundingRow.value =
+        grounding.data.persons.find((p) => p.person_id === focusedPersonId) ?? null
+    }
+    if (coapp?.data?.pairs) {
+      const chips: CoGuestChip[] = []
+      for (const p of coapp.data.pairs) {
+        if (p.person_a_id === focusedPersonId) {
+          chips.push({
+            person_id: p.person_b_id,
+            person_name: p.person_b_name,
+            episode_count: p.episode_count,
+          })
+        } else if (p.person_b_id === focusedPersonId) {
+          chips.push({
+            person_id: p.person_a_id,
+            person_name: p.person_a_name,
+            episode_count: p.episode_count,
+          })
+        }
+      }
+      chips.sort((a, b) => b.episode_count - a.episode_count)
+      coGuestChips.value = chips.slice(0, COGUEST_TOP_N)
+    }
+  } catch {
+    /* enrichment is best-effort; never break the rail */
+  }
+}
+
+watch(
+  () => subject.personId,
+  (id) => {
+    if (id) void loadPersonEnrichmentSignals(id)
+    else {
+      groundingRow.value = null
+      coGuestChips.value = []
+      enrichmentLoaded.value = false
+    }
+  },
+  { immediate: true },
+)
 
 watch(
   () => subject.personId,
@@ -543,6 +628,47 @@ function onPickTopicForPositionTracker(topicId: string): void {
       >
         No graph links for this person yet — load the corpus graph to populate.
       </p>
+      <!-- RFC-088 chunk 6c: enrichment signals (grounding rate + co-guest chips). -->
+      <section
+        v-if="enrichmentLoaded && (groundingRow || coGuestChips.length)"
+        class="w-full min-w-0 rounded border border-default bg-overlay/40 p-2"
+        aria-label="Enrichment signals"
+        data-testid="person-landing-enrichment-signals"
+      >
+        <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+          Enrichment signals
+        </h3>
+        <div
+          v-if="groundingRow"
+          class="mb-1 flex items-center gap-2 text-[10px]"
+          data-testid="person-landing-grounding-rate"
+        >
+          <span class="text-muted">Grounded:</span>
+          <span
+            class="rounded px-2 py-0.5 font-mono"
+            :class="groundingRow.rate >= 0.8 ? 'bg-emerald-700/30 text-emerald-300' : groundingRow.rate >= 0.5 ? 'bg-overlay text-muted' : 'bg-amber-700/30 text-amber-300'"
+          >{{ (groundingRow.rate * 100).toFixed(0) }}%</span>
+          <span class="text-muted">
+            · {{ groundingRow.grounded_insights }} / {{ groundingRow.total_insights }} insights
+          </span>
+        </div>
+        <div v-if="coGuestChips.length" data-testid="person-landing-coguests">
+          <p class="mb-1 text-[10px] text-muted">Often appears with</p>
+          <div class="flex flex-wrap gap-1">
+            <button
+              v-for="g in coGuestChips"
+              :key="g.person_id"
+              type="button"
+              class="rounded border border-default bg-overlay px-2 py-0.5 text-[10px] hover:bg-overlay-2"
+              :data-testid="`person-landing-coguest-${g.person_id}`"
+              @click="subject.focusPerson(g.person_id)"
+            >
+              {{ g.person_name || g.person_id }}
+              <span class="ml-1 text-muted">·{{ g.episode_count }}</span>
+            </button>
+          </div>
+        </div>
+      </section>
       <section aria-label="Mentions by month">
         <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
           Mentions by month
