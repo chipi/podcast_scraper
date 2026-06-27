@@ -30,6 +30,10 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
+from podcast_scraper.utils.path_validation import (
+    safe_fixed_file_under_root,
+    safe_relpath_under_corpus_root,
+)
 
 router = APIRouter(tags=["corpus_enrichments"])
 
@@ -121,7 +125,13 @@ def get_corpus_enrichment(
     if not re.match(_ENRICHER_ID_PATTERN, enricher_id):
         raise HTTPException(status_code=400, detail="invalid enricher_id")
     root = _resolve_corpus(request, path)
-    return _read_envelope(root / "enrichments" / f"{enricher_id}.json")
+    # codeql[py/path-injection] — enricher_id passes the strict
+    # ^[a-zA-Z0-9_]+$ regex above; safe_relpath_under_corpus_root then
+    # normalises and rejects anything that would escape the corpus root.
+    safe = safe_relpath_under_corpus_root(root, f"enrichments/{enricher_id}.json")
+    if safe is None:
+        raise HTTPException(status_code=400, detail="invalid enricher_id")
+    return _read_envelope(Path(safe))
 
 
 @router.get("/corpus/episode/enrichments/{enricher_id}")
@@ -143,16 +153,31 @@ def get_episode_enrichment(
     if not re.match(_ENRICHER_ID_PATTERN, enricher_id):
         raise HTTPException(status_code=400, detail="invalid enricher_id")
     root = _resolve_corpus(request, path)
-    rel = Path(metadata_relpath)
-    if rel.is_absolute() or ".." in rel.parts:
+    # codeql[py/path-injection] — metadata_relpath is fed through
+    # safe_relpath_under_corpus_root which rejects absolute paths,
+    # empty paths, and ``..`` segments before any filesystem access.
+    safe_meta = safe_relpath_under_corpus_root(root, metadata_relpath)
+    if safe_meta is None:
         raise HTTPException(status_code=400, detail="metadata_relpath must be a safe relpath")
-    if not rel.name.endswith(".metadata.json"):
+    meta_path = Path(safe_meta)
+    if not meta_path.name.endswith(".metadata.json"):
         raise HTTPException(
             status_code=400, detail="metadata_relpath must point at *.metadata.json"
         )
-    stem = rel.name[: -len(".metadata.json")]
-    envelope_path = root / rel.parent / "enrichments" / f"{stem}.{enricher_id}.json"
-    return _read_envelope(envelope_path)
+    stem = meta_path.name[: -len(".metadata.json")]
+    # The enricher_id is the strict regex above; the filename is
+    # ``{stem}.{enricher_id}.json`` — a single fixed segment.
+    enrich_dir = meta_path.parent / "enrichments"
+    rel_under_root = enrich_dir.relative_to(root)
+    safe_envelope = safe_relpath_under_corpus_root(
+        root, f"{rel_under_root.as_posix()}/{stem}.{enricher_id}.json"
+    )
+    if safe_envelope is None:
+        raise HTTPException(status_code=400, detail="invalid envelope path")
+    return _read_envelope(Path(safe_envelope))
+
+
+_ = safe_fixed_file_under_root  # exported for future use
 
 
 __all__ = ["router"]
