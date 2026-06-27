@@ -23,13 +23,25 @@ import {
   getAudioSource,
   getEntities,
   getEpisode,
+  getEpisodeStats,
   getInsights,
   getPlayback,
   getSegments,
+  logListen,
   putPlayback,
 } from '../services/api'
-import type { EpisodeDetail, Entity, FavoriteAdd, Insight, Segment, Topic } from '../services/types'
-import { formatDuration, formatPublishDate } from '../utils/format'
+import type {
+  EpisodeDetail,
+  EpisodeStats,
+  Entity,
+  FavoriteAdd,
+  Insight,
+  Segment,
+  Topic,
+} from '../services/types'
+import Sparkline from '../components/Sparkline.vue'
+import { formatDuration, formatPublishDate, speakerLabel } from '../utils/format'
+import { episodeArtwork } from '../utils/episode'
 
 const props = defineProps<{ slug: string }>()
 const { t, locale } = useI18n()
@@ -53,6 +65,12 @@ const panelOpen = ref(false)
 const focusInsightId = ref<string | null>(null)
 const loading = ref(true)
 const notFound = ref(false)
+
+// Per-episode reach (UXS-014): anonymous cross-user counts + a daily-opens sparkline.
+const stats = ref<EpisodeStats | null>(null)
+const statsSeries = computed(() => stats.value?.daily.map((d) => d.count) ?? [])
+const compact = (n: number): string =>
+  n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(n)
 
 // Transcript ↔ insight bridge: which segments back a grounded insight (highlight + tap-through).
 const groundedSpans = computed(() => groundedSpansBySegment(segments.value, insights.value))
@@ -103,12 +121,7 @@ let lastSaved = 0
 // Audio-time → content-time: subtract the sync offset so the highlight tracks what's heard.
 const contentTime = computed(() => currentTime.value - syncOffset.value)
 const activeIndex = computed(() => activeSegmentIndex(segments.value, contentTime.value))
-const artwork = computed(
-  () =>
-    episode.value?.artwork_url ||
-    episode.value?.episode_image_url ||
-    episode.value?.feed_image_url,
-)
+const artwork = computed(() => (episode.value ? episodeArtwork(episode.value) : undefined))
 
 const favItem = computed<FavoriteAdd>(() => ({
   kind: 'episode',
@@ -130,11 +143,9 @@ const metaLine = computed(() => {
   if (dur) parts.push(dur)
   return parts.join(' · ')
 })
-const speakingNow = computed(() => {
-  const s = activeIndex.value >= 0 ? segments.value[activeIndex.value]?.speaker : null
-  if (!s) return null
-  return s.startsWith('person:') ? s.slice('person:'.length).replace(/-/g, ' ') : s
-})
+const speakingNow = computed(() =>
+  speakerLabel(activeIndex.value >= 0 ? (segments.value[activeIndex.value]?.speaker ?? null) : null),
+)
 
 async function load(slug: string): Promise<void> {
   loading.value = true
@@ -146,7 +157,17 @@ async function load(slug: string): Promise<void> {
   insights.value = []
   topics.value = []
   persons.value = []
+  stats.value = null
   resumeSeconds = 0
+  // Record the open (best-effort) then fetch fresh reach — order so this open is counted.
+  await logListen(slug)
+  getEpisodeStats(slug)
+    .then((s) => {
+      stats.value = s
+    })
+    .catch(() => {
+      stats.value = null
+    })
   try {
     syncOffset.value = Number(localStorage.getItem(syncKey(slug))) || 0
   } catch {
@@ -292,7 +313,7 @@ onBeforeUnmount(() => persist())
         <!-- Hero artwork (UXS-014): live intelligence + Ask/Insights actions + the summary all sit
              OVER the image, reclaiming the vertical space of separate stacked blocks. -->
         <div
-          class="relative mt-3 aspect-square w-full overflow-hidden rounded-2xl border border-border bg-elevated"
+          class="group relative mt-3 aspect-square w-full overflow-hidden rounded-2xl border border-border bg-elevated"
         >
           <img
             v-if="artwork"
@@ -319,21 +340,56 @@ onBeforeUnmount(() => persist())
                   <span class="text-sm font-semibold">{{ speakingNow }}</span>
                 </div>
               </div>
-              <button
+              <!-- Per-episode reach (UXS-014): listeners · opens · insights, with a tiny opens-over-time
+                   sparkline. The insights score opens the Knowledge panel. -->
+              <div
                 v-if="!panelOpen"
-                type="button"
-                class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-canvas/85 px-3 py-1.5 text-xs font-bold backdrop-blur transition hover:bg-canvas"
-                @click="panelOpen = true"
-              >💡 {{ insights.length }} {{ t('kp.insights') }}</button>
+                class="shrink-0 rounded-xl bg-canvas/80 px-3 py-2 text-right backdrop-blur"
+              >
+                <div class="flex items-center justify-end gap-3 text-xs font-bold leading-none">
+                  <span
+                    v-if="stats && stats.listeners > 0"
+                    class="flex items-center gap-1 text-canvas-foreground"
+                    :aria-label="t('stats.listeners', stats.listeners, { named: { count: stats.listeners } })"
+                    :title="t('stats.listeners', stats.listeners, { named: { count: stats.listeners } })"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-3.5 w-3.5" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+                    {{ compact(stats.listeners) }}
+                  </span>
+                  <span
+                    v-if="stats && stats.opens > 0"
+                    class="flex items-center gap-1 text-canvas-foreground"
+                    :aria-label="t('stats.opens', stats.opens, { named: { count: stats.opens } })"
+                    :title="t('stats.opens', stats.opens, { named: { count: stats.opens } })"
+                  >▶ {{ compact(stats.opens) }}</span>
+                  <button
+                    type="button"
+                    class="flex items-center gap-1 text-accent transition hover:opacity-80"
+                    :aria-label="t('kp.insights')"
+                    @click="panelOpen = true"
+                  >💡 {{ insights.length }}</button>
+                </div>
+                <Sparkline
+                  v-if="stats && statsSeries.some((n) => n > 0)"
+                  :values="statsSeries"
+                  :width="116"
+                  :height="22"
+                  class="mt-1.5 block text-accent"
+                />
+              </div>
             </div>
 
-            <!-- Bottom: the FULL summary over a legibility gradient. The hero is a fixed square, so
-                 length never changes the layout; an unusually long summary just scrolls in place. -->
+            <!-- Bottom: the FULL summary over a legibility gradient. Hidden by default so the artwork
+                 reads clean; slides up + fades in on hover/focus (and is always shown on touch, where
+                 there's no hover). The fixed-square hero means length never shifts the layout. -->
             <div
               v-if="episode.summary_text || episode.summary_title"
-              class="max-h-[62%] overflow-y-auto bg-gradient-to-t from-black/90 via-black/55 to-transparent px-4 pb-4 pt-12"
+              tabindex="0"
+              role="region"
+              :aria-label="t('player.summaryRegion')"
+              class="max-h-[66%] translate-y-full overflow-y-auto bg-gradient-to-t from-black/95 via-black/85 to-black/40 px-5 pb-5 pt-6 opacity-0 backdrop-blur-[2px] transition-all duration-300 ease-out group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100 focus-visible:translate-y-0 focus-visible:opacity-100 [@media(hover:none)]:translate-y-0 [@media(hover:none)]:opacity-100"
             >
-              <p class="whitespace-pre-line text-sm leading-relaxed text-white/90">{{ episode.summary_text || episode.summary_title }}</p>
+              <p class="whitespace-pre-line border-l-2 border-accent pl-4 font-display text-base font-semibold leading-snug tracking-tight text-white drop-shadow sm:text-lg">{{ episode.summary_text || episode.summary_title }}</p>
             </div>
           </div>
         </div>

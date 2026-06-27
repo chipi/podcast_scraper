@@ -1,9 +1,0 @@
-{
-  "schema_version": "3.0",
-  "episode_id": "ep-sleep-1",
-  "nodes": [
-    {"id": "insight:1", "type": "Insight", "properties": {"text": "Sleep spindles gate memory transfer to the cortex.", "grounded": true, "insight_type": "claim"}},
-    {"id": "quote:1", "type": "Quote", "properties": {"text": "the hippocampus replays sequences during sleep", "speaker_id": "SPEAKER_01", "timestamp_start_ms": 2600, "timestamp_end_ms": 6000}}
-  ],
-  "edges": [{"type": "SUPPORTED_BY", "from": "insight:1", "to": "quote:1"}]
-}

@@ -27,6 +27,8 @@ export interface EpisodeSummary {
   status: EpisodeStatus
   /** Short, clean one-line lede for the card (NOT the bullets joined). */
   summary_preview: string | null
+  /** Full prose summary, for the card's hover/expand preview (null when absent). */
+  summary_text: string | null
   /** Full summary bullets, surfaced via the card's expand-on-demand insights view. */
   summary_bullets: string[]
   topics: string[]
@@ -255,4 +257,29 @@ export interface SearchResponse {
   query: string
   results: SearchHit[]
   error: string | null
+}
+
+/** One day bucket of a listening sparkline (UXS-014). */
+export interface StatPoint {
+  date: string
+  count: number
+}
+
+/** The signed-in user's own listening analytics (GET /api/app/me/stats). */
+export interface UserStats {
+  episodes: number
+  shows: number
+  listening_seconds: number
+  active_days: number
+  day_streak: number
+  daily: StatPoint[]
+}
+
+/** Cross-user reach for one episode (GET /api/app/episodes/{slug}/stats). */
+export interface EpisodeStats {
+  slug: string
+  listeners: number
+  opens: number
+  insights: number
+  daily: StatPoint[]
 }

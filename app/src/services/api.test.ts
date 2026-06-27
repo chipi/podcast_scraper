@@ -1,5 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, getEpisode, getMe, listEpisodes, listPodcastEpisodes } from './api'
+import {
+  ApiError,
+  addInterest,
+  getEpisode,
+  getEpisodeStats,
+  getMe,
+  getMyStats,
+  listEpisodes,
+  listPodcastEpisodes,
+  logListen,
+  removeInterest,
+} from './api'
 
 function mockFetch(status: number, body: unknown): void {
   vi.stubGlobal(
@@ -67,5 +78,91 @@ describe('getEpisode', () => {
     mockFetch(404, { detail: 'Unknown episode slug.' })
     await expect(getEpisode('nope')).rejects.toMatchObject({ status: 404 })
     await expect(getEpisode('nope')).rejects.toBeInstanceOf(ApiError)
+  })
+})
+
+describe('logListen', () => {
+  it('POSTs to the per-episode listen endpoint (best-effort)', async () => {
+    const fetchMock = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({}) }))
+    vi.stubGlobal('fetch', fetchMock)
+    await logListen('show a/b')
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(String(url)).toContain('/api/app/listen/show%20a%2Fb')
+    expect(init).toMatchObject({ method: 'POST' })
+  })
+
+  it('never throws even when the request rejects (analytics is best-effort)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('network down')
+      }),
+    )
+    await expect(logListen('ep')).resolves.toBeUndefined()
+  })
+})
+
+describe('getMyStats', () => {
+  it('GETs the user-stats endpoint and returns the stats', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        episodes: 4, shows: 2, listening_seconds: 7200, active_days: 3, day_streak: 2, daily: [],
+      }),
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+    const stats = await getMyStats()
+    expect(stats?.episodes).toBe(4)
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/api/app/me/stats')
+  })
+
+  it('returns null when signed out (401)', async () => {
+    mockFetch(401, { detail: 'Not authenticated.' })
+    expect(await getMyStats()).toBeNull()
+  })
+})
+
+describe('getEpisodeStats', () => {
+  it('GETs the per-episode stats endpoint', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ slug: 'ep', listeners: 10, opens: 25, insights: 3, daily: [] }),
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+    const stats = await getEpisodeStats('ep')
+    expect(stats.opens).toBe(25)
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/api/app/episodes/ep/stats')
+  })
+})
+
+describe('addInterest / removeInterest', () => {
+  it('addInterest POSTs to the token path and returns the items', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ items: ['topic:ai'] }),
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+    const items = await addInterest('topic:ai')
+    expect(items).toEqual(['topic:ai'])
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(String(url)).toContain('/api/app/interests/topic%3Aai')
+    expect(init).toMatchObject({ method: 'POST' })
+  })
+
+  it('removeInterest DELETEs the token path and returns the remaining items', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ items: [] }),
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+    const items = await removeInterest('person:jane')
+    expect(items).toEqual([])
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(String(url)).toContain('/api/app/interests/person%3Ajane')
+    expect(init).toMatchObject({ method: 'DELETE' })
   })
 })

@@ -18,6 +18,7 @@ import {
 import type { EpisodeDetail, EpisodeSummary, Podcast } from '../services/types'
 import { formatTime } from '../player/transcriptSync'
 import { formatDuration } from '../utils/format'
+import { episodeArtwork, showArtwork } from '../utils/episode'
 import { useAuthStore } from '../stores/auth'
 import InterestsPicker from '../components/InterestsPicker.vue'
 
@@ -59,9 +60,9 @@ const wnFeatured = computed(() => latest.value[0] ?? null)
 const wnRows = computed(() => latest.value.slice(1, 6))
 const rank = (i: number) => String(i + 2).padStart(2, '0')
 const resumeTop = computed(() => continueItems.value[0] ?? null)
-const resumeArt = (d: EpisodeDetail) => d.artwork_url || d.episode_image_url || d.feed_image_url
-const showArt = (p: Podcast) => p.artwork_url || p.image_url
-const epArt = (e: EpisodeSummary) => e.artwork_url || e.episode_image_url || e.feed_image_url
+const resumeArt = episodeArtwork
+const showArt = showArtwork
+const epArt = episodeArtwork
 
 function goSearch(q: string): void {
   const term = q.trim()
@@ -171,7 +172,7 @@ onMounted(async () => {
     <!-- What's new — editorial ranked: a featured #1 + ranked rows, all on screen, NO scroll -->
     <section v-if="wnFeatured" class="mt-7">
       <div class="mb-3 flex items-baseline justify-between">
-        <h2 class="lp-kicker">{{ t('home.whatsNew') }}</h2>
+        <h2 class="lp-section">{{ t('home.whatsNew') }}</h2>
         <RouterLink :to="{ name: 'catalog' }" class="text-sm font-bold text-accent no-underline">
           {{ t('home.browseAll') }} →
         </RouterLink>
@@ -228,7 +229,7 @@ onMounted(async () => {
 
     <!-- Recommended — no-scroll responsive grid -->
     <section v-if="recommended.length" class="mt-7">
-      <h2 class="lp-kicker mb-3">{{ t('home.recommended') }}</h2>
+      <h2 class="lp-section mb-3">{{ t('home.recommended') }}</h2>
       <ul class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         <li v-for="ep in recommended.slice(0, 8)" :key="ep.slug">
           <RouterLink :to="{ name: 'player', params: { slug: ep.slug } }" class="block no-underline text-canvas-foreground">
@@ -245,7 +246,7 @@ onMounted(async () => {
 
     <!-- Your shows -->
     <section v-if="shows.length" class="mt-7">
-      <h2 class="lp-kicker mb-3">{{ t('home.shows') }}</h2>
+      <h2 class="lp-section mb-3">{{ t('home.shows') }}</h2>
       <ul class="grid grid-cols-3 gap-3 sm:grid-cols-4">
         <li v-for="p in shows" :key="p.feed_id">
           <RouterLink :to="{ name: 'podcast', params: { feedId: p.feed_id } }" class="block no-underline text-canvas-foreground">

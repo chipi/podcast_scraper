@@ -83,8 +83,8 @@ The viewer UXS is split into a **shared design system hub** (UXS-001) and
 for tokens, typography, and shared conventions. This keeps individual specs short
 (2-4 pages) while the shared foundation stays in one place.
 
-Draft UXS documents (UXS-007 through UXS-010) exist in this directory but are **not
-indexed** until promoted to Active. They are discoverable by filename.
+Draft UXS documents (UXS-007 through UXS-010) are listed in the site nav under their
+**Draft** status; their tokens and rules may change before implementation begins.
 
 ## Conventions
 

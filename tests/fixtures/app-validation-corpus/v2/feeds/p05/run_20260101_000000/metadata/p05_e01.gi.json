@@ -1,0 +1,261 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-bccfce5798a83a6e",
+      "to": "topic:personal-finance",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-bccfce5798a83a6e",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-bccfce5798a83a6e",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-bccfce5798a83a6e",
+      "to": "insight:54dc8860d6a77bf1",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-bccfce5798a83a6e",
+      "to": "insight:3e93cad03b16c3fd",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-bccfce5798a83a6e",
+      "to": "insight:ae36d26ccfcc11af",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:f339defaafc6e0af",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:54dc8860d6a77bf1",
+      "to": "quote:f339defaafc6e0af",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:37993a692feb677b",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3e93cad03b16c3fd",
+      "to": "quote:37993a692feb677b",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:4832fb8c6257c762",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ae36d26ccfcc11af",
+      "to": "quote:4832fb8c6257c762",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:07aa17c95c4209e2",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:54dc8860d6a77bf1",
+      "to": "quote:07aa17c95c4209e2",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:e991b9e46886767e",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3e93cad03b16c3fd",
+      "to": "quote:e991b9e46886767e",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:1f1da0c76f354d8a",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ae36d26ccfcc11af",
+      "to": "quote:1f1da0c76f354d8a",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "ep-bccfce5798a83a6e",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-bccfce5798a83a6e",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ep-bccfce5798a83a6e",
+        "metadata_relative_path": "feeds/p05/run_20260101_000000/metadata/p05_e01.metadata.json",
+        "podcast_id": "p05",
+        "publish_date": "2026-01-28T12:00:00",
+        "title": "Index Investing Without the Myths"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:personal-finance",
+      "properties": {
+        "label": "personal finance",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:54dc8860d6a77bf1",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Welcome back to Long Horizon Notes. Today we're talking about index investing, and I'm joined by Daniel, former bond trader turned index advocate. Daniel, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:3e93cad03b16c3fd",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Thanks, Nora. Excited for this one \u2014 index investing is something I've been thinking about a lot."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:ae36d26ccfcc11af",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "How do you know when you've gotten it right? Where do people most often confuse correlation with causation in this area?"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Nora"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:f339defaafc6e0af",
+      "properties": {
+        "char_end": 183,
+        "char_start": 6,
+        "episode_id": "ep-bccfce5798a83a6e",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Long Horizon Notes. Today we're talking about index investing, and I'm joined by Daniel, former bond trader turned index advocate. Daniel, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p05_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Daniel"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:37993a692feb677b",
+      "properties": {
+        "char_end": 289,
+        "char_start": 192,
+        "episode_id": "ep-bccfce5798a83a6e",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Nora. Excited for this one \u2014 index investing is something I've been thinking about a lot.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p05_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:4832fb8c6257c762",
+      "properties": {
+        "char_end": 480,
+        "char_start": 296,
+        "episode_id": "ep-bccfce5798a83a6e",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we dive in, a quick word from our sponsor Vanguard. Vanguard pioneered low-cost index funds and still keeps expense ratios where they belong. Use code POD for an extended trial.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p05_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:07aa17c95c4209e2",
+      "properties": {
+        "char_end": 600,
+        "char_start": 480,
+        "episode_id": "ep-bccfce5798a83a6e",
+        "speaker_id": "person:speaker-01",
+        "text": "How do you know when you've gotten it right? Where do people most often confuse correlation with causation in this area?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p05_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:e991b9e46886767e",
+      "properties": {
+        "char_end": 829,
+        "char_start": 609,
+        "episode_id": "ep-bccfce5798a83a6e",
+        "speaker_id": "person:speaker-02",
+        "text": "Honestly, Index funds are not a strategy \u2014 they're the absence of one. That's their advantage. We've seen this play out at teams using Morningstar. Most of the cost shows up downstream, which is why teams keep paying it.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p05_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:1f1da0c76f354d8a",
+      "properties": {
+        "char_end": 937,
+        "char_start": 836,
+        "episode_id": "ep-bccfce5798a83a6e",
+        "speaker_id": "person:speaker-01",
+        "text": "What does that look like day-to-day? What's the structural angle most listeners don't have access to?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p05_e01.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

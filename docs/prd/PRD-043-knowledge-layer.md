@@ -115,15 +115,35 @@ The cluster API is the shared spine.
 - **FR4.1**: A first-Home **dismissible** "set your interests" card (signed-in only) opens a picker
   over the corpus's **top-12 clusters** (`GET /api/app/clusters`); the chosen cluster ids are saved
   as **per-user files** (`GET/PUT /api/app/interests`) — no new persistence layer, no sign-up step.
-- **FR4.2**: The Home feed (`GET /api/app/discover`) ranks by **significance × interest-cluster
-  affinity** when personalization is **enabled** (env `APP_PERSONALIZED_RANKING`, default off) AND
-  the signed-in user has interests; otherwise **recency** — the unchanged default. The score is
-  provisional and flag-gated until tuned.
+  Interests are a **mixed token set**, not clusters-only: a token is a cluster (`tc:`), a topic
+  (`topic:`) or a person (`person:`).
+- **FR4.2**: A one-tap **Follow / Following** affordance on a person/topic **entity card** (FR2) is a
+  second interest entry-point: it follows / unfollows a single `topic:` / `person:` token via
+  `POST` / `DELETE /api/app/interests/{token}` (idempotent), feeding the same per-user list as the
+  cluster picker.
+- **FR4.3**: The Home feed (`GET /api/app/discover`) ranks by **significance × interest affinity**
+  (a followed token matches the episode's clusters / topics / people by prefix) when personalization
+  is **enabled** (env `APP_PERSONALIZED_RANKING`, default off) AND the signed-in user has interests;
+  otherwise **recency** — the unchanged default. The score is provisional and flag-gated until tuned.
 
 ### FR5: Char-level quote highlighting (3.6 — Epic-2 polish)
 
 - **FR5.1**: Upgrade the transcript grounded-quote highlight from segment-level to the exact quoted
   substring (char offsets), guarded against transcript-version drift; no-op when offsets don't align.
+
+### FR6: Listening analytics (profile + per-episode reach)
+
+- **FR6.1**: The player appends one **"episode opened"** event per mount to an **append-only**
+  per-user listen-events log (`POST /api/app/listen/{slug}`; `<data_dir>/users/<id>/listen_events.jsonl`)
+  — the only per-listen history we keep (playback stays last-position-only). For analytics; best-effort,
+  never blocks playback.
+- **FR6.2**: **Profile "Your listening"** (own data, auth) shows single scores — episodes, shows,
+  hours, active days, day streak — plus an opens-over-time sparkline, via `GET /api/app/me/stats`
+  (`UserStatsResponse`). Derived from the user's playback + listen log; no LLM, no DB.
+- **FR6.3**: **Player per-episode reach** (cross-user) shows distinct listeners, total opens, an
+  opens-over-time sparkline, and the grounded-insight count, via `GET /api/app/episodes/{slug}/stats`
+  (`EpisodeStatsResponse`). Intentionally **public + anonymous** — aggregate counts only, never
+  identities — aggregated by scanning every user's listen log.
 
 ## Success Metrics
 

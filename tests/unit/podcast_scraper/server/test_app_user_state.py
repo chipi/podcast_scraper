@@ -75,3 +75,42 @@ def test_library_add_dedupe_remove(tmp_path: Path) -> None:
     assert next(x for x in library if x["feed_id"] == "f1")["title"] == "One-updated"
     st.remove_subscription(tmp_path, UID, "f1")
     assert {x["feed_id"] for x in st.get_library(tmp_path, UID)} == {"f2"}
+
+
+def test_add_remove_interest(tmp_path: Path) -> None:
+    assert st.get_interests(tmp_path, UID) == []
+    st.add_interest(tmp_path, UID, "tc:ai")
+    st.add_interest(tmp_path, UID, "person:jane")
+    st.add_interest(tmp_path, UID, "tc:ai")  # idempotent
+    assert st.get_interests(tmp_path, UID) == ["tc:ai", "person:jane"]
+    st.remove_interest(tmp_path, UID, "tc:ai")
+    assert st.get_interests(tmp_path, UID) == ["person:jane"]
+    st.remove_interest(tmp_path, UID, "topic:absent")  # no-op
+    assert st.get_interests(tmp_path, UID) == ["person:jane"]
+
+
+def test_listen_events_append_and_list(tmp_path: Path) -> None:
+    assert st.list_listen_events(tmp_path, UID) == []
+    st.append_listen_event(tmp_path, UID, "ep1", "feedX", 1000)
+    st.append_listen_event(tmp_path, UID, "ep1", "feedX", 1086400)
+    st.append_listen_event(tmp_path, UID, "ep2", None, 1100)
+    events = st.list_listen_events(tmp_path, UID)
+    assert [e["slug"] for e in events] == ["ep1", "ep1", "ep2"]  # append order preserved
+    assert events[0] == {"slug": "ep1", "feed_id": "feedX", "ts": 1000}
+    assert events[2]["feed_id"] is None
+
+
+def test_listen_events_skip_corrupt_lines(tmp_path: Path) -> None:
+    st.append_listen_event(tmp_path, UID, "ep1", "feedX", 1000)
+    path = tmp_path / "users" / UID / "listen_events.jsonl"
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write("not json\n\n")  # a garbage line + a blank line
+    st.append_listen_event(tmp_path, UID, "ep2", "feedY", 2000)
+    assert [e["slug"] for e in st.list_listen_events(tmp_path, UID)] == ["ep1", "ep2"]
+
+
+def test_iter_user_ids(tmp_path: Path) -> None:
+    assert st.iter_user_ids(tmp_path) == []
+    st.append_listen_event(tmp_path, "alice", "ep1", "f", 1000)
+    st.set_playback(tmp_path, "bob", "ep2", 5.0, 1000)
+    assert set(st.iter_user_ids(tmp_path)) == {"alice", "bob"}

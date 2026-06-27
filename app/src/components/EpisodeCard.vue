@@ -15,6 +15,7 @@ import type { EpisodeSummary, FavoriteAdd } from '../services/types'
 import { useAuthStore } from '../stores/auth'
 import { useQueueStore } from '../stores/queue'
 import { formatDuration, formatPublishDate } from '../utils/format'
+import { episodeArtwork } from '../utils/episode'
 import FavoriteButton from './FavoriteButton.vue'
 
 const props = defineProps<{ episode: EpisodeSummary }>()
@@ -28,12 +29,7 @@ const bullets = computed(() => props.episode.summary_bullets ?? [])
 // Show the insights affordance only when there's grounded summary content to reveal.
 const hasInsights = computed(() => props.episode.has_gi && bullets.value.length > 0)
 // Prefer our locally-stored copy (artwork_url); fall back to the remote feed image URLs.
-const artwork = computed(
-  () =>
-    props.episode.artwork_url ||
-    props.episode.episode_image_url ||
-    props.episode.feed_image_url,
-)
+const artwork = computed(() => episodeArtwork(props.episode))
 
 const summaryOpen = ref(false)
 
@@ -57,13 +53,13 @@ const favItem = computed<FavoriteAdd>(() => ({
       loading="lazy"
       class="h-20 w-20 shrink-0 rounded-lg bg-elevated object-cover sm:h-24 sm:w-24"
     />
-    <div class="relative flex min-w-0 flex-1 flex-col">
+    <div class="flex min-w-0 flex-1 flex-col">
       <!-- Kicker row: podcast name (independent link) + status / insights / favorite / queue -->
       <div class="flex items-start justify-between gap-3">
         <RouterLink
           v-if="episode.podcast_title"
           :to="{ name: 'podcast', params: { feedId: episode.feed_id } }"
-          class="lp-kicker relative z-10 inline-block min-w-0 no-underline"
+          class="lp-kicker relative z-30 inline-block min-w-0 no-underline transition-opacity duration-200 group-hover:opacity-0"
         >
           {{ episode.podcast_title }}
         </RouterLink>
@@ -71,7 +67,7 @@ const favItem = computed<FavoriteAdd>(() => ({
         <div class="flex shrink-0 items-center gap-2">
           <span
             v-if="episode.status !== 'ready'"
-            class="relative z-10 rounded-full bg-overlay px-2 py-0.5 text-xs font-semibold text-warning"
+            class="relative z-30 rounded-full bg-overlay px-2 py-0.5 text-xs font-semibold text-warning"
           >
             {{ t('status.pending') }}
           </span>
@@ -81,7 +77,7 @@ const favItem = computed<FavoriteAdd>(() => ({
           <div
             v-if="hasInsights"
             class="relative transition-opacity sm:opacity-0 sm:focus-within:opacity-100 sm:group-hover:opacity-100"
-            :class="summaryOpen ? 'z-50 sm:opacity-100' : 'z-20'"
+            :class="summaryOpen ? 'z-50 sm:opacity-100' : 'z-30'"
             @mouseenter="summaryOpen = true"
             @mouseleave="summaryOpen = false"
             @focusin="summaryOpen = true"
@@ -93,6 +89,7 @@ const favItem = computed<FavoriteAdd>(() => ({
               :class="summaryOpen ? 'bg-overlay text-accent' : ''"
               :aria-label="t('card.insights')"
               :aria-expanded="summaryOpen"
+              :aria-controls="`insights-pop-${episode.slug}`"
               @click="summaryOpen = !summaryOpen"
             >
               <svg viewBox="0 0 24 24" class="h-5 w-5" fill="currentColor" aria-hidden="true">
@@ -103,7 +100,8 @@ const favItem = computed<FavoriteAdd>(() => ({
             <transition name="lp-pop">
               <div
                 v-show="summaryOpen"
-                role="dialog"
+                :id="`insights-pop-${episode.slug}`"
+                role="group"
                 :aria-label="t('card.insights')"
                 class="absolute right-0 top-9 z-50 w-72 max-w-[80vw] rounded-xl border border-border bg-elevated p-4 text-left shadow-2xl"
               >
@@ -122,12 +120,12 @@ const favItem = computed<FavoriteAdd>(() => ({
             </transition>
           </div>
 
-          <FavoriteButton :item="favItem" class="relative z-10" />
+          <FavoriteButton :item="favItem" class="relative z-30" />
 
           <button
             v-if="auth.isAuthenticated"
             type="button"
-            class="relative z-10 flex h-7 w-7 items-center justify-center rounded-full border border-border"
+            class="relative z-30 flex h-7 w-7 items-center justify-center rounded-full border border-border"
             :class="queue.has(episode.slug) ? 'border-accent text-accent' : 'text-muted hover:text-canvas-foreground'"
             :aria-pressed="queue.has(episode.slug)"
             :aria-label="queue.has(episode.slug) ? t('queue.remove') : t('queue.add')"
@@ -143,10 +141,10 @@ const favItem = computed<FavoriteAdd>(() => ({
         </div>
       </div>
 
-      <!-- Title (stretched link → Player) -->
+      <!-- Title (stretched link → Player). Fades out on hover so the summary overlay stands alone. -->
       <RouterLink
         :to="{ name: 'player', params: { slug: episode.slug } }"
-        class="mt-1 font-display text-lg font-bold leading-snug text-canvas-foreground no-underline after:absolute after:inset-0 sm:text-xl"
+        class="mt-1 font-display text-lg font-bold leading-snug text-canvas-foreground no-underline transition-opacity duration-200 after:absolute after:inset-0 group-hover:opacity-0 sm:text-xl"
       >
         {{ episode.title }}
       </RouterLink>
@@ -154,7 +152,7 @@ const favItem = computed<FavoriteAdd>(() => ({
       <!-- Clean one-line lede (never the bullets jammed together) -->
       <p
         v-if="episode.summary_preview"
-        class="mt-2 line-clamp-2 text-sm leading-relaxed text-muted"
+        class="mt-2 line-clamp-2 text-sm leading-relaxed text-muted transition-opacity duration-200 group-hover:opacity-0"
       >
         {{ episode.summary_preview }}
       </p>
@@ -162,31 +160,24 @@ const favItem = computed<FavoriteAdd>(() => ({
       <!-- Meta line: date · duration -->
       <div
         v-if="date || duration"
-        class="mt-3 flex items-center gap-2 text-xs font-medium text-muted"
+        class="mt-3 flex items-center gap-2 text-xs font-medium text-muted transition-opacity duration-200 group-hover:opacity-0"
       >
         <span v-if="date">{{ date }}</span>
         <span v-if="date && duration" aria-hidden="true">·</span>
         <span v-if="duration">{{ duration }}</span>
       </div>
 
-      <!-- Whole-row hover (UXS-014): the row highlight becomes a glassy summary overlay. Sits below
-           the affordance icons (z-10/20) and is click-through (pointer-events-none) so they stay
-           usable and the card still navigates to the player. -->
-      <div
-        v-if="hasInsights"
-        class="pointer-events-none absolute inset-0 flex flex-col justify-center gap-0.5 overflow-hidden rounded-lg bg-canvas/95 px-2 opacity-0 backdrop-blur-md transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
-      >
-        <ul class="space-y-0.5">
-          <li
-            v-for="(b, i) in bullets.slice(0, 4)"
-            :key="i"
-            class="flex items-start gap-1.5 text-xs leading-snug text-surface-foreground"
-          >
-            <span class="mt-1 h-1 w-1 shrink-0 rounded-full bg-accent" aria-hidden="true" />
-            <span class="line-clamp-1">{{ b }}</span>
-          </li>
-        </ul>
-      </div>
+    </div>
+
+    <!-- Whole-card hover (UXS-014): the episode summary as an editorial pull-quote across the ENTIRE
+         card. Click-through; the top-row affordances (z-30) float above it; card still opens player. -->
+    <div
+      v-if="episode.summary_text || episode.summary_preview"
+      class="pointer-events-none absolute inset-0 z-20 flex items-center overflow-hidden rounded-xl bg-gradient-to-br from-elevated via-canvas to-elevated px-5 py-4 opacity-0 shadow-2xl transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100"
+    >
+      <p class="border-l-2 border-accent pl-4 font-display text-base font-semibold leading-snug text-canvas-foreground sm:text-lg">
+        {{ episode.summary_text || episode.summary_preview }}
+      </p>
     </div>
   </article>
 </template>

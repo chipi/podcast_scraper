@@ -12,6 +12,7 @@ import type {
   EntitySearchResponse,
   EpisodeDetail,
   EpisodesPage,
+  EpisodeStats,
   FavoriteAdd,
   FavoritesResponse,
   InsightsResponse,
@@ -24,6 +25,7 @@ import type {
   SearchResponse,
   SegmentsResponse,
   TopicCard,
+  UserStats,
 } from './types'
 
 const BASE = '/api/app'
@@ -198,6 +200,26 @@ export async function removeFavorite(kind: string, ref: string): Promise<Favorit
   return (await resp.json()) as FavoritesResponse
 }
 
+/** Follow one interest token — cluster (`tc:`), topic (`topic:`) or person (`person:`). Auth-gated. */
+export async function addInterest(token: string): Promise<string[]> {
+  const resp = await fetch(`${BASE}/interests/${encodeURIComponent(token)}`, {
+    method: 'POST',
+    credentials: 'include',
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /interests → ${resp.status}`)
+  return ((await resp.json()) as { items: string[] }).items
+}
+
+/** Unfollow one interest token (auth-gated); returns the remaining list. */
+export async function removeInterest(token: string): Promise<string[]> {
+  const resp = await fetch(`${BASE}/interests/${encodeURIComponent(token)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /interests → ${resp.status}`)
+  return ((await resp.json()) as { items: string[] }).items
+}
+
 /** Replace the user's interest cluster ids (auth-gated); returns the stored list. */
 export async function putUserInterests(clusterIds: string[]): Promise<string[]> {
   const resp = await fetch(`${BASE}/interests`, {
@@ -271,6 +293,36 @@ export async function putQueue(items: string[]): Promise<void> {
   if (!resp.ok && resp.status !== 401) {
     throw new ApiError(resp.status, `PUT /queue → ${resp.status}`)
   }
+}
+
+/** Record that the user opened an episode (listen-event log, ). Best-effort; ignores 401. */
+export async function logListen(slug: string): Promise<void> {
+  try {
+    const resp = await fetch(`${BASE}/listen/${encodeURIComponent(slug)}`, {
+      method: 'POST',
+      credentials: 'include',
+    })
+    if (!resp.ok && resp.status !== 401) {
+      throw new ApiError(resp.status, `POST /listen → ${resp.status}`)
+    }
+  } catch {
+    /* analytics is best-effort — never surface to the listener */
+  }
+}
+
+/** The signed-in user's own listening analytics; `null` when signed out (401). Auth-gated. */
+export async function getMyStats(): Promise<UserStats | null> {
+  try {
+    return await getJSON<UserStats>('/me/stats')
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) return null
+    throw err
+  }
+}
+
+/** Cross-user reach for one episode (public; anonymous aggregate counts). */
+export async function getEpisodeStats(slug: string): Promise<EpisodeStats> {
+  return getJSON<EpisodeStats>(`/episodes/${encodeURIComponent(slug)}/stats`)
 }
 
 /** Begin the OAuth login flow (full-page redirect; Google in prod, mock in dev/e2e). */

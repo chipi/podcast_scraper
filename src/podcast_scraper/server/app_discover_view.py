@@ -38,23 +38,30 @@ def _significance(row: CatalogEpisodeRow) -> float:
     return score
 
 
-def _episode_cluster_ids(
+def _episode_features(
     root: Path, row: CatalogEpisodeRow, cluster_map: dict[str, dict[str, object]]
-) -> set[str]:
-    """Cluster ids this episode touches (its KG topics mapped through the corpus cluster map)."""
+) -> tuple[set[str], set[str], set[str]]:
+    """Interest-matchable ids this episode touches: (topic-cluster ids, topic ids, person ids).
+
+    One KG load per episode. An interest token matches whichever set its prefix belongs to —
+    ``tc:`` → cluster, ``topic:`` → topic, ``person:`` → person — so a follow on any of those
+    (clusters from the picker; topics/people from entity cards) re-ranks discovery.
+    """
     if not row.has_kg:
-        return set()
+        return set(), set(), set()
     artifact = load_json_artifact(root, row.kg_relative_path)
     if artifact is None:
-        return set()
-    _persons, _orgs, topics = entities_from_kg(artifact)
-    out: set[str] = set()
+        return set(), set(), set()
+    persons, _orgs, topics = entities_from_kg(artifact)
+    clusters: set[str] = set()
+    topic_ids: set[str] = set()
     for topic in topics:
+        topic_ids.add(topic.id)
         info = cluster_map.get(topic.id)
         cid = info.get("cluster_id") if info else None
         if isinstance(cid, str):
-            out.add(cid)
-    return out
+            clusters.add(cid)
+    return clusters, topic_ids, {p.id for p in persons}
 
 
 def rank_discover(
@@ -69,16 +76,29 @@ def rank_discover(
     ``rows`` is the candidate pool, already in recency order (newest-first). With no interests
     we simply take the first ``limit`` (recency). With interests we re-score the pool and keep
     the original order as a stable tie-break (so equal-score episodes stay newest-first).
+
+    Interests are a mixed token list — topic-cluster (``tc:``) from the picker, plus topics
+    (``topic:``) and people (``person:``) followed from entity cards. Affinity is the fraction of
+    all followed tokens the episode matches (clusters, topics or people).
     """
     interest_set = {str(i) for i in interests if str(i)}
     if not interest_set:
         return [row_to_summary(root, r) for r in rows[:limit]]
+    # Only `tc:` / `topic:` / `person:` tokens are honored; any other prefix lands in
+    # `cluster_interests`, never matches an episode, and just dilutes the affinity denominator.
+    person_interests = {t for t in interest_set if t.startswith("person:")}
+    topic_interests = {t for t in interest_set if t.startswith("topic:")}
+    cluster_interests = interest_set - person_interests - topic_interests
     cluster_map = consumer_topic_cluster_map(root)
     scored: list[tuple[float, int, CatalogEpisodeRow]] = []
     for idx, row in enumerate(rows):
-        affinity = len(_episode_cluster_ids(root, row, cluster_map) & interest_set) / len(
-            interest_set
+        clusters, topics, persons = _episode_features(root, row, cluster_map)
+        matched = (
+            len(clusters & cluster_interests)
+            + len(topics & topic_interests)
+            + len(persons & person_interests)
         )
+        affinity = matched / len(interest_set)
         score = _significance(row) * (1.0 + _AFFINITY_WEIGHT * affinity)
         scored.append((score, -idx, row))  # -idx → earlier (newer) wins score ties
     scored.sort(key=lambda s: (s[0], s[1]), reverse=True)

@@ -1,0 +1,109 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "entity:personal-finance",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "entity:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "topic:personal-finance",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "topic:lifelong-learning",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "topic:expert-interviews",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "person:nora",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "person:isabel",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-1e526e495918fb27",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-1e526e495918fb27",
+      "properties": {
+        "episode_id": "ep-1e526e495918fb27",
+        "metadata_relative_path": "feeds/p05/run_20260101_000000/metadata/p05_e02.metadata.json",
+        "title": "Real Estate: Numbers Before Narratives"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:personal-finance",
+      "properties": {
+        "category": "Concept",
+        "label": "Personal Finance"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:lifelong-learning",
+      "properties": {
+        "category": "Concept",
+        "label": "Lifelong Learning"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:personal-finance",
+      "properties": {
+        "label": "personal finance"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:nora",
+      "properties": {
+        "name": "Nora",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:isabel",
+      "properties": {
+        "name": "Isabel",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2"
+}

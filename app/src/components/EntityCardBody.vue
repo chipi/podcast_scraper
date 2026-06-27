@@ -12,6 +12,9 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 import { getPersonCard, getTopicCard } from '../services/api'
 import type { Entity, EpisodeSummary, PersonCard, Topic, TopicCard } from '../services/types'
+import { useAuthStore } from '../stores/auth'
+import { useInterestsStore } from '../stores/interests'
+import { episodeArtwork } from '../utils/episode'
 
 type Target = { kind: 'person' | 'topic'; id: string }
 
@@ -23,6 +26,23 @@ const emit = defineEmits<{ (e: 'close'): void }>()
 
 const { t } = useI18n()
 const router = useRouter()
+const auth = useAuthStore()
+const interests = useInterestsStore()
+// Load follow-state once we know the user is signed in — auth may resolve after this mounts.
+watch(
+  () => auth.isAuthenticated,
+  (authed) => {
+    if (authed) void interests.ensureLoaded()
+  },
+  { immediate: true },
+)
+
+// Follow this person/topic → its id is the interest token (person:… / topic:…), which feeds
+// personalized discovery. Following shapes "Recommended for you" on Home.
+const following = computed(() => interests.has(current.value.id))
+function toggleFollow(): void {
+  void interests.toggle(current.value.id)
+}
 
 // Back stack — the bottom is the entity opened on; the top is what's shown.
 const stack = ref<Target[]>([{ kind: props.kind, id: props.id }])
@@ -81,7 +101,7 @@ const themeLabel = computed(() => topic.value?.cluster_label ?? null)
 const clusterSize = computed(() => topic.value?.cluster_size ?? 0)
 const isTopic = computed(() => current.value.kind === 'topic')
 
-const epArt = (e: EpisodeSummary) => e.artwork_url || e.episode_image_url || e.feed_image_url
+const epArt = episodeArtwork
 
 function searchLibrary(): void {
   const term = label.value.trim()
@@ -106,6 +126,18 @@ function searchLibrary(): void {
       </button>
       <span class="lp-kicker mt-3 block">{{ current.kind === 'person' ? t('ec.person') : t('ec.topic') }}</span>
       <span class="block truncate font-display text-xl font-extrabold">{{ label || '…' }}</span>
+      <button
+        v-if="auth.isAuthenticated && label"
+        type="button"
+        class="mt-2 inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition"
+        :class="following ? 'bg-accent text-accent-foreground' : 'bg-overlay text-canvas-foreground hover:bg-elevated'"
+        :aria-pressed="following"
+        :title="t('ec.followHint')"
+        @click="toggleFollow"
+      >
+        <span aria-hidden="true">{{ following ? '✓' : '+' }}</span>
+        {{ following ? t('ec.following') : t('ec.follow') }}
+      </button>
     </header>
 
     <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
@@ -130,7 +162,7 @@ function searchLibrary(): void {
 
         <!-- All topics in this cluster: the one you're on (ringed) + every sibling, with a count. -->
         <section v-if="siblings.length" class="mb-4">
-          <h3 class="lp-kicker mb-2">
+          <h3 class="lp-section mb-2">
             {{ t('ec.clusterMembers', siblings.length + 1, { named: { count: siblings.length + 1 } }) }}
           </h3>
           <div class="flex flex-wrap gap-1.5">
@@ -148,7 +180,7 @@ function searchLibrary(): void {
         </section>
 
         <section v-if="episodes.length" class="mb-4">
-          <h3 class="lp-kicker mb-2">
+          <h3 class="lp-section mb-2">
             {{
               current.kind === 'person'
                 ? t('ec.personEpisodes', episodeCount, { named: { count: episodeCount } })
@@ -180,7 +212,7 @@ function searchLibrary(): void {
         </section>
 
         <section v-if="relatedPeople.length" class="mb-4">
-          <h3 class="lp-kicker mb-2">{{ t('ec.relatedPeople') }}</h3>
+          <h3 class="lp-section mb-2">{{ t('ec.relatedPeople') }}</h3>
           <div class="flex flex-wrap gap-1.5">
             <button
               v-for="p in relatedPeople"
@@ -193,7 +225,7 @@ function searchLibrary(): void {
         </section>
 
         <section v-if="relatedTopics.length">
-          <h3 class="lp-kicker mb-2">{{ t('ec.relatedTopics') }}</h3>
+          <h3 class="lp-section mb-2">{{ t('ec.relatedTopics') }}</h3>
           <div class="flex flex-wrap gap-1.5">
             <button
               v-for="tp in relatedTopics"

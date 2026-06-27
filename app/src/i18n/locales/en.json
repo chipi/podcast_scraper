@@ -18,9 +18,7 @@
     "browseAll": "Browse all",
     "recommended": "Recommended for you",
     "shows": "All shows",
-    "featured": "Featured",
-    "resume": "Resume",
-    "minLeft": "{count} min left"
+    "resume": "Resume"
   },
   "rail": {
     "prev": "Scroll left",
@@ -35,11 +33,9 @@
     "searching": "Searching…",
     "noResults": "No grounded passages found.",
     "error": "Search needs the library index.",
-    "in": "in",
     "jumpTo": "Play from {time} in {episode}",
     "summary": "{passages} passages across {episodes} episodes",
     "playHere": "Play from {time}",
-    "openEpisode": "Open episode",
     "viewEntity": "View",
     "matchCount": "1 match | {count} matches",
     "kind": {
@@ -53,8 +49,6 @@
     "signIn": "Sign in",
     "signUp": "Sign up",
     "signOut": "Sign out",
-    "signedInAs": "Signed in as {name}",
-    "signedOut": "Not signed in",
     "loginTitle": "Sign in to your library",
     "loginTagline": "Save your place, build a queue, and grow your personal knowledge corpus.",
     "signupTitle": "Create your account",
@@ -111,7 +105,8 @@
     "syncHelp": "Nudge the transcript to match the audio (ads in the stream can shift it).",
     "syncEarlier": "Shift transcript earlier",
     "syncLater": "Shift transcript later",
-    "syncReset": "Reset transcript sync"
+    "syncReset": "Reset transcript sync",
+    "summaryRegion": "Episode summary"
   },
   "kp": {
     "title": "Insights",
@@ -159,13 +154,17 @@
     "topicEpisodes": "Discussed in {count} episode | Discussed in {count} episodes",
     "clusterMembers": "{count} topic in this cluster | {count} topics in this cluster",
     "relatedPeople": "Related people",
-    "relatedTopics": "Related topics"
+    "relatedTopics": "Related topics",
+    "follow": "Follow",
+    "following": "Following",
+    "followHint": "Add to your interests — shapes your recommendations"
   },
   "queue": {
     "title": "Queue",
     "empty": "Your queue is empty. Add episodes from the catalog.",
     "add": "Add to queue",
     "remove": "Remove from queue",
+    "playNext": "Play next",
     "up": "Move up",
     "down": "Move down"
   },
@@ -183,15 +182,26 @@
   "library": {
     "title": "Library",
     "saved": "Saved",
+    "knowledge": "Knowledge",
     "queue": "Queue",
     "recent": "Recent",
-    "episodes": "Episodes",
-    "insights": "Insights",
-    "savedEmpty": "Nothing saved yet. Tap the heart on episodes or insights to save them.",
+    "savedEmpty": "Nothing saved yet. Tap the heart on an episode to save it.",
+    "knowledgeEmpty": "No saved insights yet. Tap the heart on an insight to keep it here.",
     "recentEmpty": "Nothing played yet."
   },
+  "stats": {
+    "title": "Your listening",
+    "streak": "Day streak",
+    "episodes": "Episodes",
+    "shows": "Shows",
+    "hours": "Hours",
+    "overTime": "Opens over time",
+    "activeDays": "{count} active day | {count} active days",
+    "empty": "Start listening to build your stats.",
+    "listeners": "1 listener | {count} listeners",
+    "opens": "1 open | {count} opens"
+  },
   "status": {
-    "ready": "Ready",
     "pending": "Pending"
   }
 }

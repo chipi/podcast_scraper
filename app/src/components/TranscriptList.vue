@@ -11,6 +11,7 @@ import type { Segment } from '../services/types'
 import type { GroundedSpan } from '../player/insights'
 import { quoteHighlight } from '../player/insights'
 import { formatTime } from '../player/transcriptSync'
+import { speakerLabel } from '../utils/format'
 
 type Split = { pre: string; match: string; post: string }
 
@@ -74,9 +75,12 @@ watch(
   },
 )
 
-function speakerLabel(s: string | null): string | null {
-  if (!s) return null
-  return s.startsWith('person:') ? s.slice('person:'.length).replace(/-/g, ' ') : s
+// Show the speaker name only at the START of a run — i.e. when this segment's speaker differs from
+// the previous one. Avoids repeating the same name on every short segment of one continuous turn.
+function showSpeaker(i: number): boolean {
+  const s = props.segments[i]?.speaker ?? null
+  if (!s) return false
+  return i === 0 || (props.segments[i - 1]?.speaker ?? null) !== s
 }
 </script>
 
@@ -102,8 +106,8 @@ function speakerLabel(s: string | null): string | null {
       @click="onSegmentClick(i, seg)"
     >
       <span
-        v-if="speakerLabel(seg.speaker)"
-        class="lp-kicker block mb-0.5"
+        v-if="showSpeaker(i)"
+        class="lp-speaker block mb-0.5"
       >{{ speakerLabel(seg.speaker) }}</span>
       <span class="flex gap-3">
         <span class="shrink-0 pt-0.5 font-mono text-xs tabular-nums" :class="grounded[i] ? 'text-grounded' : 'text-muted'">

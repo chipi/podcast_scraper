@@ -14,5 +14,11 @@ coverage/
 # Vite
 .vite/
 
-# e2e fixture runtime per-user state (APP_DATA_DIR)
-e2e/fixtures/corpus/.app/
+# e2e per-user runtime state — the API server writes queue/profile/interest files
+# here (APP_DATA_DIR, set in playwright.config.ts). The corpus itself is the
+# COMMITTED tests/fixtures/app-validation-corpus/v2; only this mutable overlay is
+# ephemeral, so it stays out of the committed tree and out of git.
+e2e/.app-state/
+
+# ML model caches (whisper/transformers) pulled by any local pipeline run — never commit
+.cache/

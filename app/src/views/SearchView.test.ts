@@ -1,4 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils'
+import { createPinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -28,7 +29,9 @@ async function mountAt(q: string) {
   const router = makeRouter()
   router.push({ name: 'search', query: { q } })
   await router.isReady()
-  const w = mount(SearchView, { global: { plugins: [i18n, router], stubs: { teleport: true } } })
+  const w = mount(SearchView, {
+    global: { plugins: [i18n, router, createPinia()], stubs: { teleport: true } },
+  })
   await flushPromises()
   return { w, router }
 }

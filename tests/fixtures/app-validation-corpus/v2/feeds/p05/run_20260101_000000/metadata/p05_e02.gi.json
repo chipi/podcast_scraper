@@ -1,0 +1,261 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "topic:personal-finance",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "insight:8849442fe6035df2",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "insight:e0f0b5e2712e26b6",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "insight:3aabb6d8787f9373",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:a0da51e02d8dea24",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:8849442fe6035df2",
+      "to": "quote:a0da51e02d8dea24",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:19257379f3772adf",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:e0f0b5e2712e26b6",
+      "to": "quote:19257379f3772adf",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:af3a55470ec7ddf4",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "quote:af3a55470ec7ddf4",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:565d51793ca182b2",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:8849442fe6035df2",
+      "to": "quote:565d51793ca182b2",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:c1de972f14d9a623",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:e0f0b5e2712e26b6",
+      "to": "quote:c1de972f14d9a623",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:4eac61ac7a9c4c35",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "quote:4eac61ac7a9c4c35",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "ep-1e526e495918fb27",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-1e526e495918fb27",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ep-1e526e495918fb27",
+        "metadata_relative_path": "feeds/p05/run_20260101_000000/metadata/p05_e02.metadata.json",
+        "podcast_id": "p05",
+        "publish_date": "2026-01-27T12:00:00",
+        "title": "Real Estate: Numbers Before Narratives"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:personal-finance",
+      "properties": {
+        "label": "personal finance",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:8849442fe6035df2",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Welcome back to Long Horizon Notes. Today we're talking about real estate underwriting, and I'm joined by Isabel, real estate underwriter. Isabel, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:e0f0b5e2712e26b6",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Before we get into it \u2014 Daniel was on episode 1 making the case for behavioral discipline in index investing. The same discipline keeps you from buying the wrong building."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:3aabb6d8787f9373",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Yeah, exactly. And it ties into what we're covering today."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Nora"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:a0da51e02d8dea24",
+      "properties": {
+        "char_end": 175,
+        "char_start": 6,
+        "episode_id": "ep-1e526e495918fb27",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Long Horizon Notes. Today we're talking about real estate underwriting, and I'm joined by Isabel, real estate underwriter. Isabel, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p05_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Isabel"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:19257379f3772adf",
+      "properties": {
+        "char_end": 215,
+        "char_start": 184,
+        "episode_id": "ep-1e526e495918fb27",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Nora. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p05_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:af3a55470ec7ddf4",
+      "properties": {
+        "char_end": 428,
+        "char_start": 222,
+        "episode_id": "ep-1e526e495918fb27",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we dive in, a quick word from our sponsor Wealthfront. Wealthfront automates the boring parts of investing \u2014 tax-loss harvesting, rebalancing, and high-yield cash. Use code POD for an extended trial.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p05_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:565d51793ca182b2",
+      "properties": {
+        "char_end": 599,
+        "char_start": 428,
+        "episode_id": "ep-1e526e495918fb27",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Daniel was on episode 1 making the case for behavioral discipline in index investing. The same discipline keeps you from buying the wrong building.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p05_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:c1de972f14d9a623",
+      "properties": {
+        "char_end": 666,
+        "char_start": 608,
+        "episode_id": "ep-1e526e495918fb27",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, exactly. And it ties into what we're covering today.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p05_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:4eac61ac7a9c4c35",
+      "properties": {
+        "char_end": 905,
+        "char_start": 673,
+        "episode_id": "ep-1e526e495918fb27",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Marco Bianchi was on the show a few weeks back walking through tax-loss harvesting research \u2014 the same habit of running the numbers before deciding applies to real estate underwriting, just on a longer clock.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p05_e02.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

@@ -1,4 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils'
+import { createPinia } from 'pinia'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -18,7 +19,10 @@ const router = createRouter({
 
 // Stub <Teleport> so the modal renders inline in the wrapper (it teleports to <body> in the app).
 const mountCard = (props: { kind: 'person' | 'topic'; id: string }) =>
-  mount(EntityCard, { props, global: { plugins: [i18n, router], stubs: { teleport: true } } })
+  mount(EntityCard, {
+    props,
+    global: { plugins: [i18n, router, createPinia()], stubs: { teleport: true } },
+  })
 
 function personCard(over: Partial<PersonCard> = {}): PersonCard {
   return {

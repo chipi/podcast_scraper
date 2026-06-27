@@ -1,0 +1,450 @@
+[
+  {
+    "end": 6.0,
+    "id": 0,
+    "speaker_label": "Rina",
+    "start": 0.0,
+    "text": "Welcome back to Below the Surface. Today we're talking about marine biology, and I'm joined by Hanna, marine biologist focused on reef systems. Hanna, thanks for being here."
+  },
+  {
+    "end": 12.0,
+    "id": 1,
+    "speaker_label": "Hanna",
+    "start": 6.0,
+    "text": "Thanks, Rina. Great to be back."
+  },
+  {
+    "end": 18.0,
+    "id": 2,
+    "speaker_label": "Rina",
+    "start": 12.0,
+    "text": "This episode is brought to you by PADI. PADI is the global standard for dive education \u2014 find a certified instructor in your area. Get started at padi.com/podcast."
+  },
+  {
+    "end": 24.0,
+    "id": 3,
+    "speaker_label": "Rina",
+    "start": 18.0,
+    "text": "Before we get into it \u2014 Marco was on last week talking about wreck planning. The same discipline applies to reef diving \u2014 plan the dive, dive the plan."
+  },
+  {
+    "end": 30.0,
+    "id": 4,
+    "speaker_label": "Hanna",
+    "start": 24.0,
+    "text": "Yeah, exactly. And it ties into what we're covering today."
+  },
+  {
+    "end": 36.0,
+    "id": 5,
+    "speaker_label": "Rina",
+    "start": 30.0,
+    "text": "Take me through the decision. What's the most underrated piece of marine biology?"
+  },
+  {
+    "end": 42.0,
+    "id": 6,
+    "speaker_label": "Hanna",
+    "start": 36.0,
+    "text": "Yeah, so \u2014 Coral bleaching events are not random \u2014 they follow water temperature anomalies you can track. We've seen this play out at teams using GoPro. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "end": 48.0,
+    "id": 7,
+    "speaker_label": "Rina",
+    "start": 42.0,
+    "text": "Take me through the decision. How does soil erosion change the calculus here?"
+  },
+  {
+    "end": 54.0,
+    "id": 8,
+    "speaker_label": "Hanna",
+    "start": 48.0,
+    "text": "The short answer is Erosion in coastal areas drives sediment plumes that reduce reef light by 30-40% during runoff season. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "end": 60.0,
+    "id": 9,
+    "speaker_label": "Rina",
+    "start": 54.0,
+    "text": "Walk me through a concrete example. How does soil erosion change the calculus here?"
+  },
+  {
+    "end": 66.0,
+    "id": 10,
+    "speaker_label": "Hanna",
+    "start": 60.0,
+    "text": "The short answer is Most reef damage from divers isn't fin contact \u2014 it's anchor strikes from boats that didn't moor. We've seen this play out at teams using GoPro. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "end": 72.0,
+    "id": 11,
+    "speaker_label": "Rina",
+    "start": 66.0,
+    "text": "Say more about that."
+  },
+  {
+    "end": 78.0,
+    "id": 12,
+    "speaker_label": "Hanna",
+    "start": 72.0,
+    "text": "I've seen this with teams running GoPro and teams running everything in-house. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "end": 84.0,
+    "id": 13,
+    "speaker_label": "Rina",
+    "start": 78.0,
+    "text": "What's the one heuristic you keep coming back to? How does GoPro fit into this picture?"
+  },
+  {
+    "end": 90.0,
+    "id": 14,
+    "speaker_label": "Hanna",
+    "start": 84.0,
+    "text": "Sure. GoPro footage has changed marine surveys \u2014 citizen scientists submitting tagged video has expanded our datasets enormously. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "end": 96.0,
+    "id": 15,
+    "speaker_label": "Rina",
+    "start": 90.0,
+    "text": "Take me through the decision. What's something you used to believe about this that you've revised?"
+  },
+  {
+    "end": 102.0,
+    "id": 16,
+    "speaker_label": "Hanna",
+    "start": 96.0,
+    "text": "Yeah, so \u2014 PADI's Project AWARE has the right shape, but it depends on individual instructor buy-in to actually move species protections. We've seen this play out at teams using Suunto. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "end": 108.0,
+    "id": 17,
+    "speaker_label": "Rina",
+    "start": 102.0,
+    "text": "That's a useful framing. How does Suunto fit into this picture?"
+  },
+  {
+    "end": 114.0,
+    "id": 18,
+    "speaker_label": "Hanna",
+    "start": 108.0,
+    "text": "The short answer is I changed my mind on shark dives. I used to think they were extractive \u2014 now I think well-run operators are the strongest political case for protection. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "end": 120.0,
+    "id": 19,
+    "speaker_label": "Rina",
+    "start": 114.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "end": 126.0,
+    "id": 20,
+    "speaker_label": "Hanna",
+    "start": 120.0,
+    "text": "Outside of PADI-class tooling, the failure mode is harder to spot. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "end": 132.0,
+    "id": 21,
+    "speaker_label": "Rina",
+    "start": 126.0,
+    "text": "We'll be right back after a quick word from our sponsors."
+  },
+  {
+    "end": 138.0,
+    "id": 22,
+    "speaker_label": "Ad",
+    "start": 132.0,
+    "text": "This portion is brought to you by GoPro. GoPro captures the moments words don't reach \u2014 your next dive, ride, or run, in cinematic detail. Use promo POD20 to get started."
+  },
+  {
+    "end": 144.0,
+    "id": 23,
+    "speaker_label": "Rina",
+    "start": 138.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "end": 150.0,
+    "id": 24,
+    "speaker_label": "Rina",
+    "start": 144.0,
+    "text": "What's the one heuristic you keep coming back to? What's the most underrated piece of marine biology?"
+  },
+  {
+    "end": 156.0,
+    "id": 25,
+    "speaker_label": "Hanna",
+    "start": 150.0,
+    "text": "Honestly, Coral bleaching events are not random \u2014 they follow water temperature anomalies you can track. We've seen this play out at teams using Suunto. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "end": 162.0,
+    "id": 26,
+    "speaker_label": "Rina",
+    "start": 156.0,
+    "text": "What does that look like day-to-day? What's the version of the question that actually matters?"
+  },
+  {
+    "end": 168.0,
+    "id": 27,
+    "speaker_label": "Hanna",
+    "start": 162.0,
+    "text": "It comes down to this: Erosion in coastal areas drives sediment plumes that reduce reef light by 30-40% during runoff season. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 174.0,
+    "id": 28,
+    "speaker_label": "Rina",
+    "start": 168.0,
+    "text": "What's the one heuristic you keep coming back to? How does DAN fit into this picture?"
+  },
+  {
+    "end": 180.0,
+    "id": 29,
+    "speaker_label": "Hanna",
+    "start": 174.0,
+    "text": "Here's how I think about it. Most reef damage from divers isn't fin contact \u2014 it's anchor strikes from boats that didn't moor. We've seen this play out at teams using GoPro. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "end": 186.0,
+    "id": 30,
+    "speaker_label": "Rina",
+    "start": 180.0,
+    "text": "Say more about that."
+  },
+  {
+    "end": 192.0,
+    "id": 31,
+    "speaker_label": "Hanna",
+    "start": 186.0,
+    "text": "DAN is one of the platforms where this shows up cleanly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "end": 198.0,
+    "id": 32,
+    "speaker_label": "Rina",
+    "start": 192.0,
+    "text": "I want to dig into that. Where do people most often confuse correlation with causation in this area?"
+  },
+  {
+    "end": 204.0,
+    "id": 33,
+    "speaker_label": "Hanna",
+    "start": 198.0,
+    "text": "Yeah, so \u2014 GoPro footage has changed marine surveys \u2014 citizen scientists submitting tagged video has expanded our datasets enormously. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 210.0,
+    "id": 34,
+    "speaker_label": "Rina",
+    "start": 204.0,
+    "text": "Walk me through a concrete example. What's the operational angle most listeners don't have access to?"
+  },
+  {
+    "end": 216.0,
+    "id": 35,
+    "speaker_label": "Hanna",
+    "start": 210.0,
+    "text": "Here's how I think about it. PADI's Project AWARE has the right shape, but it depends on individual instructor buy-in to actually move species protections. We've seen this play out at teams using DAN. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "end": 222.0,
+    "id": 36,
+    "speaker_label": "Rina",
+    "start": 216.0,
+    "text": "Where do most teams get it wrong? What's the operational angle most listeners don't have access to?"
+  },
+  {
+    "end": 228.0,
+    "id": 37,
+    "speaker_label": "Hanna",
+    "start": 222.0,
+    "text": "It comes down to this: I changed my mind on shark dives. I used to think they were extractive \u2014 now I think well-run operators are the strongest political case for protection. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "end": 234.0,
+    "id": 38,
+    "speaker_label": "Rina",
+    "start": 228.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "end": 240.0,
+    "id": 39,
+    "speaker_label": "Hanna",
+    "start": 234.0,
+    "text": "I've seen this with teams running GoPro and teams running everything in-house. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "end": 246.0,
+    "id": 40,
+    "speaker_label": "Rina",
+    "start": 240.0,
+    "text": "Let's pivot \u2014 soil erosion is where I want to spend the last stretch."
+  },
+  {
+    "end": 252.0,
+    "id": 41,
+    "speaker_label": "Hanna",
+    "start": 246.0,
+    "text": "That's where the conversation gets interesting, because the trade-offs around soil erosion cross-cut everything we've covered so far."
+  },
+  {
+    "end": 258.0,
+    "id": 42,
+    "speaker_label": "Rina",
+    "start": 252.0,
+    "text": "That's a useful framing. How does soil erosion change the calculus here?"
+  },
+  {
+    "end": 264.0,
+    "id": 43,
+    "speaker_label": "Hanna",
+    "start": 258.0,
+    "text": "Sure. Coral bleaching events are not random \u2014 they follow water temperature anomalies you can track. We've seen this play out at teams using GoPro. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "end": 270.0,
+    "id": 44,
+    "speaker_label": "Rina",
+    "start": 264.0,
+    "text": "Where do most teams get it wrong? How does soil erosion change the calculus here?"
+  },
+  {
+    "end": 276.0,
+    "id": 45,
+    "speaker_label": "Hanna",
+    "start": 270.0,
+    "text": "I'd put it this way: Erosion in coastal areas drives sediment plumes that reduce reef light by 30-40% during runoff season. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "end": 282.0,
+    "id": 46,
+    "speaker_label": "Rina",
+    "start": 276.0,
+    "text": "Let's start there. How does DAN fit into this picture?"
+  },
+  {
+    "end": 288.0,
+    "id": 47,
+    "speaker_label": "Hanna",
+    "start": 282.0,
+    "text": "Honestly, Most reef damage from divers isn't fin contact \u2014 it's anchor strikes from boats that didn't moor. We've seen this play out at teams using PADI. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "end": 294.0,
+    "id": 48,
+    "speaker_label": "Rina",
+    "start": 288.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "end": 300.0,
+    "id": 49,
+    "speaker_label": "Hanna",
+    "start": 294.0,
+    "text": "Outside of PADI-class tooling, the failure mode is harder to spot. And the second-order effect is the part most people miss."
+  },
+  {
+    "end": 306.0,
+    "id": 50,
+    "speaker_label": "Rina",
+    "start": 300.0,
+    "text": "Let's start there. What's something you used to believe about this that you've revised?"
+  },
+  {
+    "end": 312.0,
+    "id": 51,
+    "speaker_label": "Hanna",
+    "start": 306.0,
+    "text": "I'd put it this way: GoPro footage has changed marine surveys \u2014 citizen scientists submitting tagged video has expanded our datasets enormously. And the second-order effect is the part most people miss."
+  },
+  {
+    "end": 318.0,
+    "id": 52,
+    "speaker_label": "Rina",
+    "start": 312.0,
+    "text": "What does that look like day-to-day? What's something you used to believe about this that you've revised?"
+  },
+  {
+    "end": 324.0,
+    "id": 53,
+    "speaker_label": "Hanna",
+    "start": 318.0,
+    "text": "Honestly, PADI's Project AWARE has the right shape, but it depends on individual instructor buy-in to actually move species protections. We've seen this play out at teams using DAN. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "end": 330.0,
+    "id": 54,
+    "speaker_label": "Rina",
+    "start": 324.0,
+    "text": "I want to dig into that. What's the contrarian angle most listeners don't have access to?"
+  },
+  {
+    "end": 336.0,
+    "id": 55,
+    "speaker_label": "Hanna",
+    "start": 330.0,
+    "text": "It comes down to this: I changed my mind on shark dives. I used to think they were extractive \u2014 now I think well-run operators are the strongest political case for protection. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 342.0,
+    "id": 56,
+    "speaker_label": "Rina",
+    "start": 336.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "end": 348.0,
+    "id": 57,
+    "speaker_label": "Hanna",
+    "start": 342.0,
+    "text": "And when teams adopt GoPro in that flow, the trade-off becomes visible \u2014 If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "end": 354.0,
+    "id": 58,
+    "speaker_label": "Rina",
+    "start": 348.0,
+    "text": "Before we wrap, what's one thing listeners can try this week?"
+  },
+  {
+    "end": 360.0,
+    "id": 59,
+    "speaker_label": "Hanna",
+    "start": 354.0,
+    "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
+  },
+  {
+    "end": 366.0,
+    "id": 60,
+    "speaker_label": "Rina",
+    "start": 360.0,
+    "text": "And finally, a big thank you to our partners at Suunto. Suunto builds dive computers and outdoor watches that you trust because they don't quit when conditions change. Check out suunto.com."
+  },
+  {
+    "end": 372.0,
+    "id": 61,
+    "speaker_label": "Rina",
+    "start": 366.0,
+    "text": "Hanna, thanks for the conversation."
+  },
+  {
+    "end": 378.0,
+    "id": 62,
+    "speaker_label": "Hanna",
+    "start": 372.0,
+    "text": "Thanks, Rina."
+  },
+  {
+    "end": 384.0,
+    "id": 63,
+    "speaker_label": "Rina",
+    "start": 378.0,
+    "text": "That's it for today's episode of Below the Surface. See you next time."
+  }
+]

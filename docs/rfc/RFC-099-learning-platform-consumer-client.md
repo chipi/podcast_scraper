@@ -209,6 +209,13 @@ Home (`/`) is the launch surface; the full catalog moves to `/catalog`. Routes: 
 - **Backend** `/api/app/*` latency/errors → Prometheus (reuse the existing `PODCAST_METRICS_ENABLED` hook) →
   Grafana, aligning the consumer layer with the operator's existing observability.
 - **GDPR-light:** per-user analytics are deletable with the account (RFC-098).
+- **Listening analytics (shipped, UXS-014):** an append-only per-user listen log
+  (`<data_dir>/users/<id>/listen_events.jsonl`) backs `POST /api/app/listen/{slug}` (record an open),
+  `GET /api/app/me/stats` (the user's own streak/episodes/shows/hours + sparkline) and the public,
+  anonymous `GET /api/app/episodes/{slug}/stats` (cross-user reach). Interest follows from entity
+  cards use `POST`/`DELETE /api/app/interests/{token}` (cluster/`topic:`/`person:`) and feed
+  personalized discovery. Full endpoint contracts live in `docs/api/PLATFORM_API.md`; the
+  interest-token model in RFC-102.
 
 ### 9. Optional consumer knowledge-graph browser (P2+)
 

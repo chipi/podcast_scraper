@@ -45,6 +45,23 @@ def test_requires_auth(tmp_path: Path) -> None:
     assert client.get("/api/app/queue").status_code == 401
     assert client.get("/api/app/playback/ep").status_code == 401
     assert client.get("/api/app/library").status_code == 401
+    assert client.get("/api/app/me/stats").status_code == 401
+    assert client.post("/api/app/listen/ep").status_code == 401
+
+
+def test_listen_then_my_stats(tmp_path: Path) -> None:
+    client = _authed_client(tmp_path)
+    # Empty to start.
+    empty = client.get("/api/app/me/stats")
+    assert empty.status_code == 200, empty.text
+    assert empty.json()["episodes"] == 0 and empty.json()["day_streak"] == 0
+    # Record an open (no corpus in-test → feed_id resolves to None, but the event still logs).
+    assert client.post("/api/app/listen/ep1").status_code == 204
+    stats = client.get("/api/app/me/stats").json()
+    assert stats["episodes"] == 1
+    assert stats["day_streak"] == 1
+    assert stats["active_days"] == 1
+    assert stats["daily"][-1]["count"] == 1  # today's bucket
 
 
 def test_playback_save_and_resume(tmp_path: Path) -> None:
@@ -71,6 +88,20 @@ def test_interests_roundtrip_and_dedup(tmp_path: Path) -> None:
     # Dedup + blank-drop, order preserved.
     assert put.json()["items"] == ["tc:ai", "tc:health"]
     assert client.get("/api/app/interests").json()["items"] == ["tc:ai", "tc:health"]
+
+
+def test_follow_unfollow_interest_token(tmp_path: Path) -> None:
+    client = _authed_client(tmp_path)
+    # Follow a topic and a person from an entity card (URL-encoded `:`); idempotent.
+    client.post("/api/app/interests/topic%3Aai")
+    body = client.post("/api/app/interests/person%3Ajane").json()
+    assert body["items"] == ["topic:ai", "person:jane"]
+    assert client.post("/api/app/interests/topic%3Aai").json()["items"] == [
+        "topic:ai",
+        "person:jane",
+    ]
+    # Unfollow.
+    assert client.delete("/api/app/interests/topic%3Aai").json()["items"] == ["person:jane"]
 
 
 def _write_kg_episode(root: Path, *, stem: str, episode_id: str) -> None:

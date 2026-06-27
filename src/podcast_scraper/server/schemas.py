@@ -138,6 +138,10 @@ class AppEpisodeSummary(BaseModel):
         description="Short, clean one-line lede for the card (summary title / first sentence) — "
         "NOT the bullets joined; the full bullets are in `summary_bullets`.",
     )
+    summary_text: str | None = Field(
+        default=None,
+        description="The full prose summary, for the card's hover/expand preview (null if absent).",
+    )
     summary_bullets: list[str] = Field(
         default_factory=list,
         description="Full summary bullet points, for the card's expand-on-demand insights view "
@@ -375,6 +379,36 @@ class PlaybackListResponse(BaseModel):
     """All saved playback positions (Home 'Continue listening')."""
 
     items: list[PlaybackPosition] = Field(default_factory=list)
+
+
+class StatPoint(BaseModel):
+    """One day bucket of a listening sparkline (UXS-014)."""
+
+    date: str = Field(description="UTC calendar day, ISO 'YYYY-MM-DD'.")
+    count: int = Field(ge=0, description="Opens on that day.")
+
+
+class UserStatsResponse(BaseModel):
+    """The signed-in user's own listening summary — GET /api/app/me/stats (PRD-043 / RFC-102)."""
+
+    episodes: int = Field(ge=0, description="Distinct episodes opened / in progress.")
+    shows: int = Field(ge=0, description="Distinct shows listened to.")
+    listening_seconds: float = Field(
+        ge=0, description="Estimated time invested (sum of furthest playback positions)."
+    )
+    active_days: int = Field(ge=0, description="Distinct days with at least one open.")
+    day_streak: int = Field(ge=0, description="Current consecutive-day listening run.")
+    daily: list[StatPoint] = Field(default_factory=list, description="Daily opens sparkline.")
+
+
+class EpisodeStatsResponse(BaseModel):
+    """Cross-user reach for one episode — GET /api/app/episodes/{slug}/stats (PRD-043 / RFC-102)."""
+
+    slug: str = Field(description="Episode slug.")
+    listeners: int = Field(ge=0, description="Distinct people who have opened this episode.")
+    opens: int = Field(ge=0, description="Total opens across everyone.")
+    insights: int = Field(ge=0, description="Grounded insights available for the episode.")
+    daily: list[StatPoint] = Field(default_factory=list, description="Daily opens sparkline.")
 
 
 class AppPodcastItem(BaseModel):

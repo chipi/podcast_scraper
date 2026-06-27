@@ -24,6 +24,10 @@ import type {
 } from '../services/types'
 import { formatTime } from '../player/transcriptSync'
 import { hitStartSeconds, insightStartSeconds } from '../player/insights'
+import { speakerLabel } from '../utils/format'
+import { episodeArtwork } from '../utils/episode'
+import { useAuthStore } from '../stores/auth'
+import { useQueueStore } from '../stores/queue'
 import EntityCardBody from './EntityCardBody.vue'
 import FavoriteButton from './FavoriteButton.vue'
 
@@ -182,13 +186,15 @@ async function runSearch(): Promise<void> {
   }
 }
 
-function speakerLabel(s: string | null): string | null {
-  if (!s) return null
-  return s.startsWith('person:') ? s.slice('person:'.length).replace(/-/g, ' ') : s
-}
-
 // --- related ("more like this") ---
-const epArt = (e: EpisodeSummary) => e.artwork_url || e.episode_image_url || e.feed_image_url
+const auth = useAuthStore()
+const queue = useQueueStore()
+const epArt = episodeArtwork
+
+// Queue a peer episode to play right after the current one (RFC-099 §4 "Play next").
+function playNext(slug: string): void {
+  void queue.playNext(slug, props.slug)
+}
 const related = ref<EpisodeSummary[]>([])
 async function loadRelated(slug: string): Promise<void> {
   try {
@@ -260,14 +266,14 @@ watch(() => props.slug, (s) => loadRelated(s))
 
       <!-- Summary -->
       <section v-if="summary" class="mb-5">
-        <h3 class="lp-kicker mb-1">{{ t('kp.summary') }}</h3>
+        <h3 class="lp-section mb-1">{{ t('kp.summary') }}</h3>
         <p class="text-sm leading-relaxed text-surface-foreground">{{ summary }}</p>
       </section>
 
       <!-- Topics & People — one compact, expandable row; topics cluster-first (RFC-102) -->
       <section v-if="allTags.length" class="mb-5">
         <div class="mb-2 flex items-baseline justify-between gap-2">
-          <h3 class="lp-kicker">{{ t('kp.tags') }}</h3>
+          <h3 class="lp-section">{{ t('kp.tags') }}</h3>
           <span v-if="dominantClusterLabel" class="truncate text-xs text-topic">
             {{ t('kp.theme', { cluster: dominantClusterLabel }) }}
           </span>
@@ -301,7 +307,7 @@ watch(() => props.slug, (s) => loadRelated(s))
       <!-- Insights -->
       <section v-if="insights.length">
         <div class="mb-2 flex items-center justify-between">
-          <h3 class="lp-kicker">{{ t('kp.insights') }} · {{ insights.length }}</h3>
+          <h3 class="lp-section">{{ t('kp.insights') }} · {{ insights.length }}</h3>
         </div>
         <ul class="flex flex-col gap-3">
           <li
@@ -340,7 +346,7 @@ watch(() => props.slug, (s) => loadRelated(s))
             <p class="mt-1 text-sm font-semibold text-surface-foreground">{{ ins.text }}</p>
             <blockquote v-if="ins.quotes[0]" class="mt-2 border-l-2 border-border pl-3 text-sm text-muted">
               “{{ ins.quotes[0].text }}”
-              <span v-if="speakerLabel(ins.quotes[0].speaker)" class="block text-xs text-person">
+              <span v-if="speakerLabel(ins.quotes[0].speaker)" class="lp-speaker block">
                 — {{ speakerLabel(ins.quotes[0].speaker) }}
               </span>
             </blockquote>
@@ -358,12 +364,12 @@ watch(() => props.slug, (s) => loadRelated(s))
 
       <!-- More like this (semantic peers; hidden when the index has no neighbours). -->
       <section v-if="related.length" class="mt-5">
-        <h3 class="lp-kicker mb-2">{{ t('kp.related') }}</h3>
+        <h3 class="lp-section mb-2">{{ t('kp.related') }}</h3>
         <ul class="flex flex-col">
-          <li v-for="r in related" :key="r.slug">
+          <li v-for="r in related" :key="r.slug" class="flex items-center gap-1 border-b border-border">
             <RouterLink
               :to="{ name: 'player', params: { slug: r.slug } }"
-              class="flex items-center gap-3 border-b border-border py-2 no-underline text-canvas-foreground hover:bg-overlay"
+              class="flex min-w-0 flex-1 items-center gap-3 py-2 no-underline text-canvas-foreground hover:bg-overlay"
             >
               <img
                 v-if="epArt(r)"
@@ -378,6 +384,20 @@ watch(() => props.slug, (s) => loadRelated(s))
                 <span v-if="r.podcast_title" class="lp-kicker block">{{ r.podcast_title }}</span>
               </span>
             </RouterLink>
+            <!-- Play next: queue this peer right after the current episode (RFC-099 §4). -->
+            <button
+              v-if="auth.isAuthenticated"
+              type="button"
+              class="shrink-0 rounded-full p-1.5 transition hover:bg-overlay hover:text-accent"
+              :class="queue.has(r.slug) ? 'text-accent' : 'text-muted'"
+              :aria-label="t('queue.playNext')"
+              :title="t('queue.playNext')"
+              @click="playNext(r.slug)"
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4" aria-hidden="true">
+                <path d="M5 5l9 7-9 7V5z" /><rect x="16" y="5" width="2.4" height="14" rx="1" />
+              </svg>
+            </button>
           </li>
         </ul>
       </section>

@@ -33,6 +33,7 @@ def _write_episode(
     topics: list[tuple[str, str]],
     published: str,
     with_gi: bool = False,
+    persons: list[tuple[str, str]] | None = None,
 ) -> None:
     (root / "metadata").mkdir(parents=True, exist_ok=True)
     (root / "transcripts").mkdir(parents=True, exist_ok=True)
@@ -50,6 +51,9 @@ def _write_episode(
     (root / "metadata" / f"{stem}.metadata.json").write_text(json.dumps(doc), encoding="utf-8")
     (root / "transcripts" / f"{stem}.txt").write_text("hello", encoding="utf-8")
     nodes = [{"id": tid, "type": "Topic", "properties": {"label": label}} for tid, label in topics]
+    nodes += [
+        {"id": pid, "type": "Person", "properties": {"name": name}} for pid, name in (persons or [])
+    ]
     (root / "metadata" / f"{stem}.kg.json").write_text(
         json.dumps({"episode_id": episode_id, "nodes": nodes}), encoding="utf-8"
     )
@@ -67,6 +71,7 @@ def _corpus(root: Path) -> None:
         topics=[("topic:ai", "AI")],
         published="2024-01-01T00:00:00",
         with_gi=True,
+        persons=[("person:jane", "Jane")],
     )
     _write_episode(
         root,
@@ -136,6 +141,24 @@ def test_discover_personalizes_when_flag_on_and_interests_set(tmp_path: Path) ->
     _sign_in(client, tmp_path, ["tc:ai"])
     titles = [e["title"] for e in client.get("/api/app/discover").json()["items"]]
     # epOld (about AI, the user's interest) now leads despite being older.
+    assert titles == ["Episode old", "Episode new"]
+
+
+def test_discover_personalizes_by_followed_topic(tmp_path: Path) -> None:
+    # Following the topic itself (topic: token) — not its cluster — also re-ranks.
+    _corpus(tmp_path)
+    client = _client(tmp_path, personalized=True)
+    _sign_in(client, tmp_path, ["topic:ai"])
+    titles = [e["title"] for e in client.get("/api/app/discover").json()["items"]]
+    assert titles == ["Episode old", "Episode new"]
+
+
+def test_discover_personalizes_by_followed_person(tmp_path: Path) -> None:
+    # Following a person (person: token) boosts episodes that feature them.
+    _corpus(tmp_path)
+    client = _client(tmp_path, personalized=True)
+    _sign_in(client, tmp_path, ["person:jane"])  # Jane appears only in (older) epOld
+    titles = [e["title"] for e in client.get("/api/app/discover").json()["items"]]
     assert titles == ["Episode old", "Episode new"]
 
 

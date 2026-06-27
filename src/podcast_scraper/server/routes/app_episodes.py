@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -19,6 +20,7 @@ from podcast_scraper.search.capability import structured_corpus_search
 from podcast_scraper.search.corpus_similar import episode_scope_key, run_similar_episodes
 from podcast_scraper.search.query_log import append_query_event
 from podcast_scraper.search.topic_clusters import consumer_topic_cluster_map
+from podcast_scraper.server import app_stats
 from podcast_scraper.server.app_artwork import artwork_url
 from podcast_scraper.server.app_audio_bridge import resolve_audio
 from podcast_scraper.server.app_content_source import (
@@ -48,6 +50,7 @@ from podcast_scraper.server.schemas import (
     AppPodcastsResponse,
     AudioSourceResponse,
     CorpusSearchApiResponse,
+    EpisodeStatsResponse,
     SegmentsResponse,
 )
 from podcast_scraper.server.segments_view import (
@@ -232,6 +235,43 @@ async def episode_insights(request: Request, slug: str) -> AppInsightsResponse:
         return AppInsightsResponse(episode_slug=slug, insights=[])
     artifact = load_json_artifact(root, row.gi_relative_path)
     return AppInsightsResponse(episode_slug=slug, insights=insights_from_gi(artifact))
+
+
+# Public reach is an O(users × events) scan of every listen log; memoize per (data_dir, slug) for a
+# short window so a burst of opens of the same episode doesn't re-scan on every request. Counts are
+# analytics — brief staleness is fine. Keyed by data_dir so isolated test corpora never collide.
+_EPISODE_REACH_TTL_SECONDS = 30.0
+_episode_reach_cache: dict[tuple[str, str], tuple[float, dict]] = {}
+
+
+def _episode_reach(app_data_dir: object, slug: str) -> dict:
+    if not app_data_dir:
+        return {"listeners": 0, "opens": 0, "daily": []}
+    key = (str(app_data_dir), slug)
+    now = time.monotonic()
+    cached = _episode_reach_cache.get(key)
+    if cached is not None and now - cached[0] < _EPISODE_REACH_TTL_SECONDS:
+        return cached[1]
+    reach = app_stats.compute_episode_stats(Path(str(app_data_dir)), slug)
+    _episode_reach_cache[key] = (now, reach)
+    return reach
+
+
+@router.get("/episodes/{slug}/stats", response_model=EpisodeStatsResponse)
+async def episode_stats(request: Request, slug: str) -> EpisodeStatsResponse:
+    """Cross-user reach for one episode: distinct listeners, opens, daily sparkline + insight count.
+
+    Public (no auth) — returns only anonymous aggregate counts (no user identity crosses the
+    boundary). Listener/open counts come from scanning every user's listen log; they are zero when
+    no app data dir is configured, and memoized for a short TTL (see ``_episode_reach``).
+    """
+    root, row = _resolve(request, slug)
+    insights = 0
+    if row.has_gi:
+        insights = len(insights_from_gi(load_json_artifact(root, row.gi_relative_path)))
+
+    reach = _episode_reach(getattr(request.app.state, "app_data_dir", None), slug)
+    return EpisodeStatsResponse(slug=slug, insights=insights, **reach)
 
 
 @router.get("/episodes/{slug}/entities", response_model=AppEntitiesResponse)

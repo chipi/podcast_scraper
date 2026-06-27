@@ -73,13 +73,22 @@ Consumer-only for now (viewer parity deferred).
 
 ### §5 Personalized discovery (3.5, #1098)
 
-Interests = chosen topic **clusters**, saved as **per-user files** (`GET/PUT /api/app/interests` —
-the same overlay as playback/queue; no new persistence). A first-Home dismissible card opens a
-picker over `GET /api/app/clusters` (top by `member_count`). The Home feed
-`GET /api/app/discover` ranks by **significance × interest-cluster affinity** (episode KG topics →
-cluster ids) when `app.state.personalized_ranking` (env `APP_PERSONALIZED_RANKING`, default off) is
-set **and** the signed-in user has interests; otherwise recency. `get_optional_user` keeps the feed
-open to anonymous requests. Flag-gated until the score is tuned.
+Interests = a **mixed token set**, saved as **per-user files** (`GET/PUT /api/app/interests` — the
+same overlay as playback/queue; no new persistence). A token is a topic **cluster** (`tc:`), a
+**topic** (`topic:`) or a **person** (`person:`). Two entry-points feed the same list:
+
+- a first-Home dismissible card opens a picker over `GET /api/app/clusters` (top by `member_count`),
+  which writes `tc:` cluster ids via `PUT /api/app/interests`; and
+- a one-tap **Follow / Following** toggle on a person/topic **entity card** (§2/§3) follows /
+  unfollows a single `topic:` / `person:` token via `POST` / `DELETE /api/app/interests/{token}`
+  (idempotent; `DELETE` is a no-op when absent).
+
+The Home feed `GET /api/app/discover` ranks via `rank_discover`, which scores **significance ×
+interest affinity** over the episode's KG — a followed token matches whichever set its prefix
+belongs to (`tc:` → topic-cluster, `topic:` → topic, `person:` → person) — when
+`app.state.personalized_ranking` (env `APP_PERSONALIZED_RANKING`, default off) is set **and** the
+signed-in user has interests; otherwise recency. `get_optional_user` keeps the feed open to
+anonymous requests. Flag-gated until the score is tuned.
 
 ## Testing
 

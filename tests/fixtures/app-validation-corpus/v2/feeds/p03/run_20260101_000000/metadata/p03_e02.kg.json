@@ -1,0 +1,109 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "entity:safety-practices",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "entity:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "topic:safety-practices",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "topic:lifelong-learning",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "topic:expert-interviews",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "person:rina",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "person:hanna",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-a0a7f86b34a4de26",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-a0a7f86b34a4de26",
+      "properties": {
+        "episode_id": "ep-a0a7f86b34a4de26",
+        "metadata_relative_path": "feeds/p03/run_20260101_000000/metadata/p03_e02.metadata.json",
+        "title": "Marine Biology for Divers"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:safety-practices",
+      "properties": {
+        "category": "Concept",
+        "label": "Safety Practices"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:lifelong-learning",
+      "properties": {
+        "category": "Concept",
+        "label": "Lifelong Learning"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:safety-practices",
+      "properties": {
+        "label": "safety practices"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:rina",
+      "properties": {
+        "name": "Rina",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:hanna",
+      "properties": {
+        "name": "Hanna",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2"
+}

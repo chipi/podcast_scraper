@@ -24,6 +24,17 @@ describe('TranscriptList', () => {
     expect(w.text()).toContain('matthew walker') // person: prefix stripped, dashes → spaces
   })
 
+  it('shows a speaker name once per run, not on every consecutive segment', () => {
+    const run: Segment[] = [
+      { id: 'a', start: 0, end: 1, text: 'One.', speaker: 'person:amy-lawrence' },
+      { id: 'b', start: 1, end: 2, text: 'Two.', speaker: 'person:amy-lawrence' },
+      { id: 'c', start: 2, end: 3, text: 'Three.', speaker: 'person:bob-jones' },
+    ]
+    const w = mountList({ segments: run, activeIndex: -1 })
+    const labels = w.findAll('.lp-speaker').map((n) => n.text())
+    expect(labels).toEqual(['amy lawrence', 'bob jones']) // not repeated for the 2nd amy segment
+  })
+
   it('marks the active segment with the accent treatment', () => {
     const w = mountList({ segments, activeIndex: 1 })
     const buttons = w.findAll('button')
