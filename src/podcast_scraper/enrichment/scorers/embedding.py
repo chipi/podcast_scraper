@@ -56,6 +56,7 @@ class TopicEmbeddingProvider:
     _cache: dict[str, list[float] | None] = field(default_factory=dict, init=False, repr=False)
 
     async def topic_vector(self, topic_id: str) -> list[float] | None:
+        """EmbeddingProvider.topic_vector impl — sync embed_text via to_thread."""
         if topic_id in self._cache:
             return self._cache[topic_id]
         label = _safe_topic_label(topic_id, self.labels)
@@ -79,6 +80,7 @@ class AsyncTopicEmbeddingProvider:
     _cache: dict[str, list[float] | None] = field(default_factory=dict, init=False, repr=False)
 
     async def topic_vector(self, topic_id: str) -> list[float] | None:
+        """EmbeddingProvider.topic_vector impl — awaitable embed_text directly."""
         if topic_id in self._cache:
             return self._cache[topic_id]
         label = _safe_topic_label(topic_id, self.labels)

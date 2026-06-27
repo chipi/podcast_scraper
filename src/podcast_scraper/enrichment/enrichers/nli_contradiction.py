@@ -132,6 +132,7 @@ class NliContradictionEnricher:
         config: dict[str, Any],
         ctx: RunContext,
     ) -> EnricherResult:
+        """Enricher.enrich impl — scores cross-Person Insight pairs per Topic."""
         threshold = float(config.get("threshold", self._threshold))
         model_id = str(config.get("model_id", self._model_id))
         model_version = str(config.get("model_version", self._model_version))

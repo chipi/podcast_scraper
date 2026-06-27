@@ -28,18 +28,22 @@ class QueryEnricherRegistry:
         self._enrichers: dict[str, QueryEnricher] = {}
 
     def register(self, enricher: QueryEnricher) -> None:
+        """Register one QueryEnricher; raises on duplicate id."""
         mid = enricher.manifest.id
         if mid in self._enrichers:
             raise ValueError(f"query enricher already registered: {mid!r}")
         self._enrichers[mid] = enricher
 
     def get(self, enricher_id: str) -> QueryEnricher:
+        """Look up a registered QueryEnricher by id."""
         return self._enrichers[enricher_id]
 
     def all_ids(self) -> list[str]:
+        """Return every registered QueryEnricher id, insertion order."""
         return list(self._enrichers.keys())
 
     def clear(self) -> None:
+        """Drop every registered QueryEnricher (test fixture cleanup)."""
         self._enrichers.clear()
 
     async def run_chain(

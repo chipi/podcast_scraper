@@ -92,6 +92,7 @@ class QueryTopicRelatednessEnricher:
         config: dict[str, Any],
         ctx: Any,  # RunContext — kept loose to avoid circular import
     ) -> QueryResultEnvelope:
+        """QueryEnricher impl — decorate hits with topic_similarity Top-K."""
         max_per_hit = int(config.get("max_per_hit", self._max_per_hit))
         if max_per_hit < 1:
             max_per_hit = self._max_per_hit

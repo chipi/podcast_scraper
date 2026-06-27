@@ -100,6 +100,8 @@ class RunTimeoutError(Exception):
 
 
 class RetryClass(Enum):
+    """Per-exception retry verdict produced by classify_failure()."""
+
     NON_RETRYABLE = "non_retryable"
     RETRYABLE = "retryable"
     RETRYABLE_ONCE = "retryable_once"
@@ -266,6 +268,8 @@ def compute_backoff(attempt: int, policy: TierPolicy) -> float:
 
 
 class CircuitStatus(Enum):
+    """Per-enricher circuit-breaker state inside a single run."""
+
     CLOSED = "closed"
     OPEN = "open"
     HALF_OPEN = "half_open"
@@ -287,11 +291,13 @@ class EnricherCircuitState:
     opened_at: float | None = None
 
     def record_success(self) -> None:
+        """Reset failure count + close the circuit."""
         self.status = CircuitStatus.CLOSED
         self.consecutive_failures = 0
         self.opened_at = None
 
     def record_failure(self, policy: TierPolicy) -> None:
+        """Increment failure count; open the circuit at the policy threshold."""
         self.consecutive_failures += 1
         threshold = policy.circuit_threshold
         if (
@@ -327,6 +333,7 @@ class HeartbeatWatchdog:
     last_heartbeat_at: float = field(default_factory=time.monotonic)
 
     def record_heartbeat(self, *, now: float | None = None) -> None:
+        """Bump the watchdog's last-heartbeat timestamp."""
         self.last_heartbeat_at = time.monotonic() if now is None else now
 
     def is_stalled(self, *, now: float | None = None, factor: float = 2.0) -> bool:

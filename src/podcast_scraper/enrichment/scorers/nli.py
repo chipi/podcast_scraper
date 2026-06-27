@@ -42,6 +42,7 @@ class FixedNliScorer:
     default: NliScore = field(default_factory=lambda: NliScore(0.05, 0.85, 0.10))
 
     async def score(self, premise: str, hypothesis: str) -> NliScore:
+        """NliScorer.score impl — returns scripted score per (premise, hypothesis)."""
         await asyncio.sleep(0)
         return self.scores.get((premise, hypothesis), self.default)
 
@@ -79,6 +80,7 @@ class DeBERTaNliScorer:
             raise ModelLoadError(f"failed to load NLI model {self.model_id!r}: {exc}") from exc
 
     async def score(self, premise: str, hypothesis: str) -> NliScore:
+        """NliScorer.score impl — lazy-load DeBERTa then predict the pair."""
         if self._model is None:
             self._model = await asyncio.to_thread(self._load)
         try:

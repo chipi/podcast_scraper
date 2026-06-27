@@ -103,6 +103,7 @@ class TopicSimilarityEnricher:
         # ModelLoadError) BUBBLE so the executor's retry classifier can apply
         # the embedding-tier policy. Domain results (cancel / empty corpus)
         # return an EnricherResult directly.
+        """Enricher.enrich impl — computes Top-K cosine neighbours per Topic."""
         top_k = int(config.get("top_k", self._top_k))
         if top_k < 1:
             top_k = self._top_k

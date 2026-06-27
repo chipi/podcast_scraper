@@ -71,6 +71,8 @@ class EnrichmentJobRequest(BaseModel):
 
 
 class EnrichmentJobAccepted(BaseModel):
+    """202 response shape for POST /api/jobs/enrichment."""
+
     job_id: str
     status: str
     corpus_path: str
@@ -78,6 +80,8 @@ class EnrichmentJobAccepted(BaseModel):
 
 
 class HealthReEnableRequest(BaseModel):
+    """POST body for /api/enrichment/health/{id}/re-enable."""
+
     reason: str = Field(default="manual re_enable via API", min_length=1, max_length=500)
 
 
@@ -279,6 +283,7 @@ async def get_enrichment_run_summary(
     request: Request,
     path: str | None = Query(default=None, description="Corpus output directory."),
 ) -> dict[str, Any]:
+    """GET /api/enrichment/run-summary — last completed run summary."""
     corpus, _op = _corpus_and_operator(request, path)
     payload = await asyncio.to_thread(_read_run_summary, corpus)
     return payload or {"available": False, "reason": "no run yet"}

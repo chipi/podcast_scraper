@@ -150,6 +150,7 @@ class InsightDensityEnricher:
         config: dict[str, Any],
         ctx: RunContext,
     ) -> EnricherResult:
+        """Enricher.enrich impl — delegates to the sync body via @sync_enricher."""
         return await _enrich_async(bundle, corpus_root, all_bundles, config, ctx)
 
 

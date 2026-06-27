@@ -22,11 +22,15 @@ from typing import Any, Callable, Coroutine, Protocol, runtime_checkable
 
 
 class EnricherScope(Enum):
+    """Scope tag distinguishing episode-scope vs corpus-scope enrichers."""
+
     EPISODE = "episode"
     CORPUS = "corpus"
 
 
 class EnricherTier(Enum):
+    """Resilience tier — drives the retry/circuit/auto-disable policy."""
+
     DETERMINISTIC = "deterministic"
     EMBEDDING = "embedding"
     ML = "ml"
@@ -205,6 +209,7 @@ def sync_enricher(
 
     @functools.wraps(func)
     async def wrapper(*args: Any, **kwargs: Any) -> EnricherResult:
+        """Async wrapper threading the sync body through asyncio.to_thread."""
         try:
             result = await asyncio.to_thread(func, *args, **kwargs)
         except Exception as exc:  # pylint: disable=broad-except
