@@ -1,6 +1,6 @@
 # ADR-104: Enrichment-layer boundary vs KG-direct connectivity
 
-- **Status**: Proposed
+- **Status**: Accepted (promoted 2026-06-27 with RFC-088 chunks 0-8)
 - **Date**: 2026-06-26
 - **Authors**: Marko Dragoljevic, Claude (Opus 4.7)
 - **Related ADRs**:

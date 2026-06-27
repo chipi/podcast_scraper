@@ -189,3 +189,31 @@ The original RFC-043 plan was to ship `scripts/generate_pr_comment.py` and
 If a future need surfaces for an automated PR-comment narration (e.g. coverage
 deltas summarised on each PR), revisit it then. The o11y surface here is sufficient
 for the proactive-alerting goal.
+
+## RFC-088 enrichment-layer MCP tools
+
+The `podcast_obs` control plane (read-only) ships eight MCP tools that
+operate on the same enrichment surface the viewer Configuration popup
+consumes. Available wherever `podcast-obs serve` runs (stdio / sse /
+streamable-http):
+
+| Tool | What it answers | HTTP backend |
+| ---- | --------------- | ------------ |
+| `enrichment_run_status` | Last enrichment status snapshot | `GET /api/enrichment/status` |
+| `enrichment_recent_runs(limit=10)` | Newest enrichment-only jobs | `GET /api/jobs` filtered to `command_type=corpus_enrichment` |
+| `enrichment_health(enricher_id?)` | Per-enricher health (or a single record) | `GET /api/enrichment/health` |
+| `enrichment_metrics(window="24h")` | Rollup metrics window | `GET /api/enrichment/metrics` |
+| `enrichment_recent_events(enricher_id?, event_type?, limit=50)` | JSONL event tail | `GET /api/enrichment/events` |
+| `enrichment_eval_history(eval_root?, limit=10)` | Enrichment-tagged eval runs on disk | local scan (operator-side; eval artefacts are frozen-once-written) |
+| `enrichment_re_enable(enricher_id, reason)` | Operator manual recovery | `POST /api/enrichment/health/{id}/re-enable` |
+| `enrichment_cancel(job_id)` | Cancel a running/queued enrichment job | `POST /api/jobs/{id}/cancel` |
+
+`prod_correlate(run_id)` joins enrichment events for a `run_id` into
+its cross-layer view (pipeline trace + Langfuse + Loki + Sentry +
+enrichment). `prod_summary` adds three enrichment subsections
+(`enrichment_status`, `enrichment_health`, `enrichment_events`) so a
+half-configured deploy still gives a useful glance.
+
+See [Enrichment Layer Guide](./ENRICHMENT_LAYER_GUIDE.md) for the
+operator runbook (auto-disabled recovery, cost cap behaviour, adding a
+new enricher / profile).

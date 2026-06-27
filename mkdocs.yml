@@ -378,6 +378,7 @@ nav:
       - HTTP API Reference (viewer): api/HTTP_API.md
       - Consumer Platform API (/api/app): api/PLATFORM_API.md
       - Enrichment Layer API (RFC-088): api/ENRICHMENT_LAYER_API.md
+      - Enrichment Layer Guide (RFC-088): guides/ENRICHMENT_LAYER_GUIDE.md
       - Server Guide (viewer): guides/SERVER_GUIDE.md
       - API Reference: api/REFERENCE.md
       - Core API: api/CORE.md
