@@ -157,13 +157,24 @@ The CLI exits non-zero on invalid config.
 ```bash
 python -m podcast_scraper.enrichment.cli \
   --output-dir <corpus> \
+  [--profile cloud_balanced] \
+  [--enrichers topic_cooccurrence,temporal_velocity]    # alias for --only \
   [--only topic_cooccurrence,temporal_velocity] \
   [--skip nli_contradiction] \
+  [--no-enrichers]                                      # disable everything \
+  [--opt-in <id,id>]                                    # for requires_opt_in enrichers \
   [--corpus-only] \
   [--re-enable nli_contradiction --re-enable-reason "transient HF outage"] \
   [--config viewer_operator.yaml] \
   [--log-level INFO]
 ```
+
+Resolution order (chunk 7): YAML `enrichment:` block wins on per-enricher
+config; `--profile` provides the default set if the YAML doesn't list
+enrichers; `--no-enrichers` / `--enrichers` / `--only` / `--skip` /
+`--opt-in` layer on top. See
+[Enrichment Layer Guide](../guides/ENRICHMENT_LAYER_GUIDE.md) for the
+operator runbook.
 
 The viewer surfaces the same CLI as the `POST /api/jobs/enrichment`
 handler (spawns `python -m podcast_scraper.enrichment.cli` in a
@@ -171,9 +182,10 @@ subprocess and tracks it through the shared jobs registry).
 
 ## References
 
-- [RFC-088 Enrichment Layer Architecture](../rfc/RFC-088-enrichment-layer-architecture.md) — protocol spec (status: **Active**)
+- [RFC-088 Enrichment Layer Architecture](../rfc/RFC-088-enrichment-layer-architecture.md) — protocol spec (status: **Completed**, 2026-06-27)
+- [Enrichment Layer Guide](../guides/ENRICHMENT_LAYER_GUIDE.md) — operator + developer companion (CLI / viewer / writing a new enricher)
 - [Implementation plan](../wip/RFC-088-ENRICHMENT-LAYER-IMPLEMENTATION-PLAN.md) — chunk-by-chunk decomposition
 - [Chunk-1 lock audit](../wip/RFC-088-CHUNK1-LOCK-AUDIT.md) — locked decisions for the foundation
 - Source: [`src/podcast_scraper/enrichment/`](https://github.com/chipi/podcast_scraper/tree/main/src/podcast_scraper/enrichment)
-- HTTP routes: [`src/podcast_scraper/server/routes/enrichment.py`](https://github.com/chipi/podcast_scraper/blob/main/src/podcast_scraper/server/routes/enrichment.py)
+- HTTP routes: [`src/podcast_scraper/server/routes/enrichment.py`](https://github.com/chipi/podcast_scraper/blob/main/src/podcast_scraper/server/routes/enrichment.py) + [`corpus_enrichments.py`](https://github.com/chipi/podcast_scraper/blob/main/src/podcast_scraper/server/routes/corpus_enrichments.py)
 - MCP tools: [`src/podcast_obs/sources/enrichment.py`](https://github.com/chipi/podcast_scraper/blob/main/src/podcast_obs/sources/enrichment.py)

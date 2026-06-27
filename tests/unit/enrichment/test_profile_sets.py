@@ -94,9 +94,22 @@ def test_skip_filter_drops_named_ids() -> None:
 
 
 def test_extra_opt_in_layers_on_top_of_base_flags() -> None:
-    base = EnricherSet(enabled_enrichers=["a"], opt_in_flags={"a": True})
+    """extra_opt_in MUST name an enricher that's in the active set —
+    opting in to an enricher that won't run is almost always a typo
+    (A3 fix)."""
+    base = EnricherSet(enabled_enrichers=["a", "b"], opt_in_flags={"a": True})
     out = apply_cli_overrides(base, extra_opt_in=["b"])
     assert out.opt_in_flags == {"a": True, "b": True}
+
+
+def test_extra_opt_in_for_unregistered_enricher_raises() -> None:
+    """A3 follow-up: --opt-in nly_contradiction (typo) should fail loudly
+    instead of silently setting a flag for an enricher that won't run."""
+    from podcast_scraper.enrichment.profile_sets import UnknownOptInError
+
+    base = EnricherSet(enabled_enrichers=["a"])
+    with pytest.raises(UnknownOptInError):
+        apply_cli_overrides(base, extra_opt_in=["nly_contradiction"])
 
 
 def test_overrides_preserve_per_enricher_config() -> None:
@@ -106,6 +119,37 @@ def test_overrides_preserve_per_enricher_config() -> None:
     )
     out = apply_cli_overrides(base, only=["a"])
     assert out.per_enricher_config == {"a": {"threshold": 0.7}}
+
+
+def test_empty_only_list_is_a_noop() -> None:
+    """only=[] (empty list, not None) must not filter — empty restriction
+    would clear the active set silently."""
+    base = EnricherSet(enabled_enrichers=["a", "b", "c"])
+    out = apply_cli_overrides(base, only=[])
+    assert out.enabled_enrichers == ["a", "b", "c"]
+
+
+def test_empty_skip_list_is_a_noop() -> None:
+    """skip=[] is a no-op too — the active set is preserved verbatim."""
+    base = EnricherSet(enabled_enrichers=["a", "b"])
+    out = apply_cli_overrides(base, skip=[])
+    assert out.enabled_enrichers == ["a", "b"]
+
+
+def test_skip_with_id_not_in_base_is_a_noop() -> None:
+    """Operator can skip an enricher that wasn't active — should not raise."""
+    base = EnricherSet(enabled_enrichers=["a"])
+    out = apply_cli_overrides(base, skip=["zzz"])
+    assert out.enabled_enrichers == ["a"]
+
+
+def test_no_enrichers_beats_only_and_extra_opt_in() -> None:
+    """no_enrichers wins over everything — should not raise on extra_opt_in
+    either, since the active set is empty by construction."""
+    base = EnricherSet(enabled_enrichers=["a", "b"])
+    out = apply_cli_overrides(base, only=["a"], extra_opt_in=["zzz"], no_enrichers=True)
+    assert out.enabled_enrichers == []
+    assert out.opt_in_flags == {}
 
 
 # ---------------------------------------------------------------------------
@@ -139,3 +183,69 @@ def test_every_real_profile_yaml_has_a_matrix_decision() -> None:
     for name in discover_profile_yaml_names():
         s = enricher_set_for_profile(name)
         assert isinstance(s, EnricherSet), name
+
+
+def test_every_real_profile_yaml_lands_in_an_explicit_branch(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Stronger drift gate: every profile YAML must hit a known branch in
+    ``enricher_set_for_profile()``. If a profile YAML falls through to the
+    unknown-profile WARNING, this test fails — that's exactly the drift the
+    A9 follow-up is supposed to catch.
+    """
+    caplog.clear()
+    with caplog.at_level("WARNING", logger="podcast_scraper.enrichment.profile_sets"):
+        for name in discover_profile_yaml_names():
+            enricher_set_for_profile(name)
+    unknown_warnings = [rec for rec in caplog.records if "unknown profile" in rec.getMessage()]
+    assert not unknown_warnings, (
+        f"profile YAML(s) without an explicit enricher_set_for_profile() branch: "
+        f"{[w.getMessage() for w in unknown_warnings]}"
+    )
+
+
+def test_yaml_enrichment_block_matches_python_matrix() -> None:
+    """D2 follow-up: the advisory `enrichment:` block in each
+    config/profiles/*.yaml MUST list the same enrichers as the Python
+    matrix. The Python matrix is the source of truth; the YAML block is
+    the operator-facing mirror. Drift between them is a bug — an
+    operator reading the YAML would get the wrong set.
+    """
+    import yaml
+
+    profiles_dir = Path(__file__).resolve().parents[3] / "config" / "profiles"
+    for name in discover_profile_yaml_names(profiles_dir):
+        yaml_path = profiles_dir / f"{name}.yaml"
+        body = yaml.safe_load(yaml_path.read_text(encoding="utf-8")) or {}
+        yaml_block = body.get("enrichment")
+        if yaml_block is None:
+            # No block — that's a deliberate choice for some legacy
+            # profiles, but the test catches *new* profiles that should
+            # have one. Allow absence for now; the next test enforces
+            # presence for the top-level set.
+            continue
+        yaml_set = set(yaml_block.get("enrichers") or [])
+        py_set = set(enricher_set_for_profile(name).enabled_enrichers)
+        assert yaml_set == py_set, (
+            f"profile {name!r}: YAML enrichment.enrichers ({sorted(yaml_set)}) "
+            f"differs from Python matrix ({sorted(py_set)})"
+        )
+
+
+def test_top_level_profiles_have_an_enrichment_block() -> None:
+    """Every top-level profile YAML (under config/profiles/, not the
+    freeze/ subdirectory or *.example.yaml) must declare an
+    `enrichment:` block — operators read these YAMLs to discover what's
+    active, so the block must be present even when the matrix says
+    `enabled: false`.
+    """
+    import yaml
+
+    profiles_dir = Path(__file__).resolve().parents[3] / "config" / "profiles"
+    missing: list[str] = []
+    for name in discover_profile_yaml_names(profiles_dir):
+        yaml_path = profiles_dir / f"{name}.yaml"
+        body = yaml.safe_load(yaml_path.read_text(encoding="utf-8")) or {}
+        if body.get("enrichment") is None:
+            missing.append(name)
+    assert not missing, f"profiles missing `enrichment:` block: {missing}"

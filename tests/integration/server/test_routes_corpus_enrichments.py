@@ -211,3 +211,17 @@ def test_routes_400_when_no_path_and_no_anchor() -> None:
     client = TestClient(app)
     r = client.get("/api/corpus/enrichments")
     assert r.status_code == 400
+
+
+def test_get_corpus_enrichment_500_when_envelope_is_not_a_json_object(tmp_path: Path) -> None:
+    """The route insists the envelope decode to a dict (the schema requires
+    schema_version/enricher_id/data fields). A bare JSON array surfaces as
+    500 with a structured detail."""
+    out = tmp_path / "enrichments"
+    out.mkdir()
+    (out / "x.json").write_text("[1, 2, 3]", encoding="utf-8")
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    r = client.get("/api/corpus/enrichments/x", params={"path": str(tmp_path)})
+    assert r.status_code == 500
+    assert "not a JSON object" in r.json().get("detail", "")

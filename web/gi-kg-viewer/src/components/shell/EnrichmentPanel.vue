@@ -15,6 +15,7 @@ import {
   type EnrichmentRunSummary,
   type EnrichmentStatusResponse,
 } from '../../api/enrichmentApi'
+import { invalidateEnrichmentCache } from '../../composables/useEnrichmentEnvelopeCache'
 
 interface Props {
   corpusPath: string
@@ -95,6 +96,9 @@ async function runEnrichmentNow(): Promise<void> {
   try {
     const accepted: EnrichmentJobAccepted = await submitEnrichmentJob(props.corpusPath, {})
     submitNotice.value = `Enrichment job ${accepted.job_id.slice(0, 12)}… ${accepted.status}.`
+    // The job will produce new envelopes — drop the rail cache so the
+    // Topic / Person rails refetch on next subject focus.
+    invalidateEnrichmentCache({ corpusPath: props.corpusPath })
     await refresh()
   } catch (exc) {
     error.value = exc instanceof Error ? exc.message : String(exc)
@@ -108,6 +112,9 @@ async function reEnable(enricherId: string): Promise<void> {
   error.value = null
   try {
     await reEnableEnricher(props.corpusPath, enricherId)
+    // The next run will rewrite this enricher's envelope; drop just
+    // that entry from the cache.
+    invalidateEnrichmentCache({ corpusPath: props.corpusPath, enricherId })
     await refresh()
   } catch (exc) {
     error.value = exc instanceof Error ? exc.message : String(exc)

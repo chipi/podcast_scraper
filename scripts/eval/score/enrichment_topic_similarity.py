@@ -85,7 +85,9 @@ def main() -> int:
             }
         )
     )
-    return 0
+    # See enrichment_deterministic.py — exit 78 (EX_CONFIG) distinguishes
+    # real-but-unimplemented from the no-gold scaffolding case.
+    return 78
 
 
 if __name__ == "__main__":

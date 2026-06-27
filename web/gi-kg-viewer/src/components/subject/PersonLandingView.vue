@@ -34,7 +34,7 @@ import {
   cachedFetchPersonProfile as fetchPersonProfile,
 } from '../../composables/useRelationalCache'
 import type { RelatedNode } from '../../api/relationalApi'
-import { getCorpusEnrichmentEnvelope } from '../../api/enrichmentApi'
+import { fetchCachedCorpusEnvelope } from '../../composables/useEnrichmentEnvelopeCache'
 import { StaleGeneration } from '../../utils/staleGeneration'
 import {
   countPersonEntityIncidentEdges,
@@ -106,10 +106,10 @@ async function loadPersonEnrichmentSignals(focusedPersonId: string): Promise<voi
   enrichmentLoaded.value = false
   try {
     const [grounding, coapp] = await Promise.all([
-      getCorpusEnrichmentEnvelope<{ persons: GroundingRateRow[] }>(root, 'grounding_rate').catch(
+      fetchCachedCorpusEnvelope<{ persons: GroundingRateRow[] }>(root, 'grounding_rate').catch(
         () => null,
       ),
-      getCorpusEnrichmentEnvelope<{ pairs: CoappearanceRow[] }>(
+      fetchCachedCorpusEnvelope<{ pairs: CoappearanceRow[] }>(
         root,
         'guest_coappearance',
       ).catch(() => null),

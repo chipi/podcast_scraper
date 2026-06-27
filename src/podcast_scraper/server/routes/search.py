@@ -148,10 +148,22 @@ async def search_corpus(
         # never break the response — the chain swallows + logs them.
         try:
             corpus_root: Path = root
-            registry = QueryEnricherRegistry()
-            register_deterministic_query_enrichers(
-                registry, corpus_root_provider=lambda: corpus_root
-            )
+            # Cache the registry on app.state: it's stateless across
+            # requests because the corpus root flows in via the closure
+            # below at run_chain() time. Re-creating per request was
+            # noise on every /api/search call.
+            registry = getattr(request.app.state, "query_enricher_registry", None)
+            if registry is None:
+                registry = QueryEnricherRegistry()
+                request.app.state.query_enricher_registry = registry
+                request.app.state.query_enricher_corpus_root = corpus_root
+                register_deterministic_query_enrichers(
+                    registry,
+                    corpus_root_provider=lambda: (
+                        request.app.state.query_enricher_corpus_root or corpus_root
+                    ),
+                )
+            request.app.state.query_enricher_corpus_root = corpus_root
             envelope = QueryResultEnvelope(
                 query=q,
                 hits=[{"doc_id": h.doc_id, "metadata": dict(h.metadata)} for h in hits],

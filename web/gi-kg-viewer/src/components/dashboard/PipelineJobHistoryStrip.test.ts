@@ -31,10 +31,10 @@ describe('PipelineJobHistoryStrip.vue — RFC-088 kind filter wiring', () => {
     expect(source).toMatch(/type\s+JobKindFilter\s*=\s*'all'\s*\|\s*'pipeline'\s*\|\s*'enrichment'/)
   })
 
-  it('defines matchesKindFilter that maps to command_type', () => {
+  it('defines matchesKindFilter that maps to command_type constants', () => {
     expect(source).toMatch(/function\s+matchesKindFilter/)
-    expect(source).toContain("'corpus_enrichment'")
-    expect(source).toContain("'full_incremental_pipeline'")
+    expect(source).toContain('COMMAND_CORPUS_ENRICHMENT')
+    expect(source).toContain('COMMAND_FULL_INCREMENTAL_PIPELINE')
   })
 
   it('option label includes the jobKindLabel marker', () => {
@@ -42,6 +42,12 @@ describe('PipelineJobHistoryStrip.vue — RFC-088 kind filter wiring', () => {
     expect(source).toContain('${jobKindLabel(j)}')
     expect(source).toContain("'[enrich]'")
     expect(source).toContain("'[pipe]'")
+  })
+
+  it('imports command_type constants from jobsApi (not hardcoded literals)', () => {
+    expect(source).toContain('COMMAND_CORPUS_ENRICHMENT')
+    expect(source).toContain('COMMAND_FULL_INCREMENTAL_PIPELINE')
+    expect(source).toContain("from '../../api/jobsApi'")
   })
 
   it('filtered list applies the kind filter before the substring filter', () => {

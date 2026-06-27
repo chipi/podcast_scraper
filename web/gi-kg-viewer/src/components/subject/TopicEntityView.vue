@@ -19,7 +19,7 @@ import {
   fetchWhoSaid,
   type RelatedNode,
 } from '../../api/relationalApi'
-import { getCorpusEnrichmentEnvelope } from '../../api/enrichmentApi'
+import { fetchCachedCorpusEnvelope } from '../../composables/useEnrichmentEnvelopeCache'
 import { StaleGeneration } from '../../utils/staleGeneration'
 import {
   findRawNodeInArtifact,
@@ -110,11 +110,11 @@ async function loadEnrichmentSignals(topicId: string): Promise<void> {
   if (!topicId || !root) return
   try {
     const [coOcc, velocity] = await Promise.all([
-      getCorpusEnrichmentEnvelope<{ pairs: Array<{ topic_a_id: string; topic_b_id: string; topic_a_label?: string; topic_b_label?: string; episode_count: number }> }>(
+      fetchCachedCorpusEnvelope<{ pairs: Array<{ topic_a_id: string; topic_b_id: string; topic_a_label?: string; topic_b_label?: string; episode_count: number }> }>(
         root,
         'topic_cooccurrence_corpus',
       ).catch(() => null),
-      getCorpusEnrichmentEnvelope<{ topics: VelocityRow[] }>(root, 'temporal_velocity').catch(() => null),
+      fetchCachedCorpusEnvelope<{ topics: VelocityRow[] }>(root, 'temporal_velocity').catch(() => null),
     ])
     enrichmentLoaded.value = true
     if (coOcc?.data?.pairs) {

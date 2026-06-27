@@ -215,11 +215,16 @@ async def run_cli(args: argparse.Namespace) -> int:
         return 0
 
     # Build the enricher set. Order of resolution (chunk 7):
-    #   1. YAML `enrichment:` block (if any) — explicit operator config
-    #      always wins on per-enricher knobs (cost caps, thresholds).
-    #   2. --profile preset → chunk-7 default EnricherSet for that profile.
-    #   3. CLI overrides: --no-enrichers / --enrichers (alias for --only) /
-    #      --only / --skip / --opt-in.
+    #   1. enabled_enrichers list: YAML wins ONLY when it actually lists
+    #      enrichers; an empty/absent YAML list falls back to the
+    #      --profile preset's set. (The YAML toggling individual enrichers
+    #      via enrichment.enrichers.<id>.enabled is per-enricher config.)
+    #   2. per_enricher_config: YAML wins per-key over the profile's
+    #      defaults — operators tune thresholds, cost caps, etc. without
+    #      having to re-declare the whole set.
+    #   3. opt_in_flags: same — YAML wins per-key.
+    #   4. CLI overrides on top: --no-enrichers / --enrichers (alias for
+    #      --only) / --only / --skip / --opt-in.
     registry = EnricherRegistry()
     yaml_set = build_enricher_set_from_yaml(args.config)
     profile_set = enricher_set_for_profile(args.profile)

@@ -633,7 +633,11 @@ class EnrichmentExecutor:
         # emit stall_warning. (Hard timeout is already handled by
         # asyncio.wait_for upstream; this catches the slow-but-finishing
         # case operators want to know about.)
-        if watchdog.is_stalled(factor=1.0):
+        #
+        # factor=1.2 gives 20% slack so enrichers that finish *right* at
+        # expected_duration_s don't trigger spurious warnings — the hard
+        # timeout still fires at 1.0× (via asyncio.wait_for above).
+        if watchdog.is_stalled(factor=1.2):
             ctx_stall = RunContext(
                 run_id=run_id,
                 parent_run_id=parent_run_id,

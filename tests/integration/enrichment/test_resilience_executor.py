@@ -357,6 +357,76 @@ def test_status_file_written_and_finalised_idle(tmp_path: Path) -> None:
     assert final.get("idle") is True or final.get("current_enricher") is None
 
 
+def test_auto_disable_emits_jsonl_event_on_cross_run_threshold(
+    tmp_path: Path,
+) -> None:
+    """Pre-seed health so the next failing run trips auto_disable. The executor
+    must emit enrichment.enricher.auto_disabled to JSONL."""
+    from podcast_scraper.enrichment.health import HealthRegistry
+
+    # Deterministic tier auto-disables at 5 consecutive failed runs. Seed
+    # consecutive_failures=4 so the next failure crosses the threshold.
+    health = HealthRegistry(tmp_path)
+    rec = health.get("flaky_det")
+    rec.consecutive_failures = 4
+    health.save()
+
+    from podcast_scraper.enrichment.resilience import BadInputError
+
+    enr = ScriptedEnricher(
+        manifest=manifest("flaky_det"),
+        script=Script(steps=[BadInputError("missing input")]),
+    )
+    result = asyncio.run(_executor(tmp_path, _registry(enr), _set("flaky_det")).run())
+    assert result.per_enricher_metrics["flaky_det"].runs_failed == 1
+    events = _read_jsonl(tmp_path / "enrichments" / "run.jsonl")
+    auto_disabled = [e for e in events if e["event_type"] == "enrichment.enricher.auto_disabled"]
+    assert len(auto_disabled) == 1
+    assert auto_disabled[0]["enricher_id"] == "flaky_det"
+    assert auto_disabled[0]["consecutive_failed_runs"] >= 5
+
+
+def test_stall_warning_emitted_when_enricher_exceeds_expected_duration(
+    tmp_path: Path,
+) -> None:
+    """Slow enricher whose body exceeds expected_duration_s × 1.2 emits
+    enrichment.enricher.stall_warning. (Hard timeout via asyncio.wait_for
+    is separately tested; this is the soft-stall path.)"""
+    # expected_duration_s=1 with 1.2× watchdog factor → stall fires after
+    # ~1.2s; delay_s=2 ensures the watchdog trips well before wait_for.
+    # But wait_for at 1s would cut it first → make wait_for window roomy
+    # by manipulating expected_duration_s vs delay timing. We instead
+    # bypass wait_for cap by setting expected_duration_s=3 (timeout=3s)
+    # and sleeping 0.5s while monkeypatching the watchdog's _start so
+    # is_stalled() returns True deterministically.
+    enr = SlowEnricher(
+        manifest=manifest(
+            "slow_for_stall",
+            tier=EnricherTier.DETERMINISTIC,
+            writes="slow_for_stall.json",
+            expected_duration_s=3,
+        ),
+        delay_s=0.2,
+    )
+    # Monkeypatch HeartbeatWatchdog.is_stalled to always return True so we
+    # don't need to wait real seconds in tests.
+    import pytest as _pytest
+
+    import podcast_scraper.enrichment.executor as exec_mod
+
+    with _pytest.MonkeyPatch.context() as mp:
+        mp.setattr(
+            exec_mod.HeartbeatWatchdog,
+            "is_stalled",
+            lambda self, factor=1.2: True,
+        )
+        asyncio.run(_executor(tmp_path, _registry(enr), _set("slow_for_stall")).run())
+    events = _read_jsonl(tmp_path / "enrichments" / "run.jsonl")
+    stalls = [e for e in events if e["event_type"] == "enrichment.enricher.stall_warning"]
+    assert len(stalls) == 1
+    assert stalls[0]["enricher_id"] == "slow_for_stall"
+
+
 def test_executor_options_profile_is_threaded_into_run_summary(tmp_path: Path) -> None:
     """ExecutorOptions.profile must flow through to run_summary.profile so the
     operator can tell which profile preset drove the run."""

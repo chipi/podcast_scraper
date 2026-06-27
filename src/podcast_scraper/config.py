@@ -992,6 +992,12 @@ class Config(BaseModel):
         description="Preload ML models at startup if configured to use them (default: True)",
     )
     language: str = Field(default=DEFAULT_LANGUAGE, alias="language")
+    # RFC-088 chunk-8 follow-up: profile YAMLs carry an advisory `enrichment:`
+    # block mirroring the Python matrix at `enrichment/profile_sets.py`.
+    # Stored as a free-form dict here so adding new enricher fields doesn't
+    # require touching Config; the chunk-1 JSON Schema validates the block
+    # at `enrichment/config_schema.py`.
+    enrichment: dict = Field(default_factory=dict, alias="enrichment")
     ner_model: Optional[str] = Field(
         default=PROD_DEFAULT_NER_MODEL,
         alias="ner_model",

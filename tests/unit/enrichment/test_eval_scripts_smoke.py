@@ -44,3 +44,50 @@ def test_enrichment_deterministic_no_gold_exits_zero(tmp_path: Path) -> None:
     )
     assert result.returncode == 0
     assert "no_gold" in result.stdout
+
+
+def test_enrichment_topic_similarity_missing_corpus_output_exits_one(
+    tmp_path: Path,
+) -> None:
+    """topic_similarity scorer requires the corpus to have produced
+    enrichments/topic_similarity.json — exits 1 when missing."""
+    script = _SCRIPTS / "enrichment_topic_similarity.py"
+    result = subprocess.run(
+        [sys.executable, str(script), "--corpus", str(tmp_path)],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 1
+    assert "no_corpus_output" in result.stdout
+
+
+def test_enrichment_nli_contradiction_missing_corpus_output_exits_one(
+    tmp_path: Path,
+) -> None:
+    """nli_contradiction scorer requires enrichments/nli_contradiction.json
+    on disk — exits 1 when missing."""
+    script = _SCRIPTS / "enrichment_nli_contradiction.py"
+    result = subprocess.run(
+        [sys.executable, str(script), "--corpus", str(tmp_path)],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 1
+    assert "no_corpus_output" in result.stdout
+
+
+def test_enrichment_deterministic_gold_present_returns_78(tmp_path: Path) -> None:
+    """A8 follow-up: when gold *files* are present but the scoring loop
+    is not implemented, the script exits 78 (EX_CONFIG) — distinguishes
+    scaffolding from real-but-incomplete."""
+    gold = tmp_path / "gold"
+    gold.mkdir()
+    (gold / "example.gold.json").write_text("{}", encoding="utf-8")
+    script = _SCRIPTS / "enrichment_deterministic.py"
+    result = subprocess.run(
+        [sys.executable, str(script), "--gold", str(gold)],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 78
+    assert "not_implemented" in result.stdout

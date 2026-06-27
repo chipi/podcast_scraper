@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { listPipelineJobs, type PipelineJobRow } from '../../api/jobsApi'
+import {
+  COMMAND_CORPUS_ENRICHMENT,
+  COMMAND_FULL_INCREMENTAL_PIPELINE,
+  listPipelineJobs,
+  type PipelineJobRow,
+} from '../../api/jobsApi'
 import { useShellStore } from '../../stores/shell'
 import { usePipelineJobLogStore } from '../../stores/pipelineJobLog'
 import PipelineJobExplorePanel from './PipelineJobExplorePanel.vue'
@@ -54,8 +59,8 @@ const finishedJobs = computed(() => {
 function matchesKindFilter(j: PipelineJobRow): boolean {
   if (jobKindFilter.value === 'all') return true
   const ct = (j.command_type ?? '').toLowerCase()
-  if (jobKindFilter.value === 'enrichment') return ct === 'corpus_enrichment'
-  if (jobKindFilter.value === 'pipeline') return ct === 'full_incremental_pipeline'
+  if (jobKindFilter.value === 'enrichment') return ct === COMMAND_CORPUS_ENRICHMENT
+  if (jobKindFilter.value === 'pipeline') return ct === COMMAND_FULL_INCREMENTAL_PIPELINE
   return true
 }
 
@@ -158,8 +163,8 @@ function jobListStatusBarClass(j: PipelineJobRow): string {
 /** RFC-088: classify a job as enrichment vs pipeline by command_type. */
 function jobKindLabel(j: PipelineJobRow): string {
   const ct = (j.command_type ?? '').toLowerCase()
-  if (ct === 'corpus_enrichment') return '[enrich]'
-  if (ct === 'full_incremental_pipeline') return '[pipe]'
+  if (ct === COMMAND_CORPUS_ENRICHMENT) return '[enrich]'
+  if (ct === COMMAND_FULL_INCREMENTAL_PIPELINE) return '[pipe]'
   return '[job]'
 }
 

@@ -60,6 +60,29 @@ from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
 
 router = APIRouter(tags=["corpus"])
 
+# RFC-088 chunk-8 follow-up: episode-scope enrichers whose envelopes
+# we surface availability flags for in the catalog rows. Corpus-scope
+# enrichers are catalogued separately via /api/corpus/enrichments.
+_EPISODE_SCOPE_ENRICHER_IDS: tuple[str, ...] = ("topic_cooccurrence", "insight_density")
+
+
+def _resolve_episode_enrichments_available(
+    corpus_root: Path, metadata_relpath: str
+) -> dict[str, bool]:
+    """Cheap on-disk probe — does each episode-scope enricher have an
+    envelope for this episode? The viewer / consumer uses this to skip
+    the GET round-trip when the envelope doesn't exist.
+    """
+    rel = (metadata_relpath or "").strip()
+    if not rel or not rel.endswith(".metadata.json"):
+        return {eid: False for eid in _EPISODE_SCOPE_ENRICHER_IDS}
+    meta_path = corpus_root / rel
+    stem = meta_path.name[: -len(".metadata.json")]
+    enrich_dir = meta_path.parent / "enrichments"
+    return {
+        eid: (enrich_dir / f"{stem}.{eid}.json").is_file() for eid in _EPISODE_SCOPE_ENRICHER_IDS
+    }
+
 
 def _safe_metadata_path_str(base: Path, relpath: str) -> str:
     rel = relpath.strip().replace("\\", "/")
@@ -317,6 +340,9 @@ async def corpus_episodes(
             kg_relative_path=r.kg_relative_path or "",
             has_gi=r.has_gi,
             has_kg=r.has_kg,
+            enrichments_available=_resolve_episode_enrichments_available(
+                root, r.metadata_relative_path
+            ),
         )
         for r in page_rows
     ]

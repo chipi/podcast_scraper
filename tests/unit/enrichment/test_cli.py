@@ -105,6 +105,30 @@ def test_arg_parser_profile_flags_default_to_none(tmp_path: Path) -> None:
     assert args.opt_in is None
 
 
+def test_profile_plus_only_narrows_to_subset(tmp_path: Path) -> None:
+    """--profile gives the base set; --only narrows it."""
+    from podcast_scraper.enrichment.profile_sets import (
+        apply_cli_overrides,
+        enricher_set_for_profile,
+    )
+
+    base = enricher_set_for_profile("airgapped_thin")
+    out = apply_cli_overrides(base, only=["topic_cooccurrence"])
+    assert out.enabled_enrichers == ["topic_cooccurrence"]
+
+
+def test_no_enrichers_beats_profile_and_only(tmp_path: Path) -> None:
+    """--no-enrichers wins over --profile (chunk-7 documented precedence)."""
+    from podcast_scraper.enrichment.profile_sets import (
+        apply_cli_overrides,
+        enricher_set_for_profile,
+    )
+
+    base = enricher_set_for_profile("cloud_balanced")
+    out = apply_cli_overrides(base, only=["topic_similarity"], no_enrichers=True)
+    assert out.enabled_enrichers == []
+
+
 # ---------------------------------------------------------------------------
 # build_enricher_set_from_yaml
 # ---------------------------------------------------------------------------

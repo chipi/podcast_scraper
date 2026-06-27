@@ -72,6 +72,11 @@ def main() -> int:
     # Real scoring would: load each gold file, run the enricher against
     # the corpus, diff envelope.data against gold.data. Chunk 2 ships
     # the deterministic enrichers but not yet the gold fixtures.
+    #
+    # Gold *files* are present but the scoring loop is not wired — this
+    # is a real-but-unimplemented case (vs the empty-scaffolding above).
+    # Exit 78 (EX_CONFIG, BSD sysexits) so CI distinguishes "scaffolding"
+    # from "operator added gold but scorer is incomplete."
     print(
         json.dumps(
             {
@@ -85,7 +90,7 @@ def main() -> int:
             indent=2,
         )
     )
-    return 0
+    return 78
 
 
 if __name__ == "__main__":

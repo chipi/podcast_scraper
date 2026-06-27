@@ -89,8 +89,9 @@ which set runs by default per profile:
 | `dev`, `prod`, `local`, `local_dgx_*`, `prod_dgx_*`, `cloud_with_dgx_primary` | full set |
 | unknown profile | (none — conservative default) |
 
-CLI flags layer on top: `--enrichers <id,id>` / `--no-enrichers` /
-`--opt-in <id,id>` / `--skip <id,id>`.
+CLI flags layer on top: `--profile <name>` (sets the base set per the
+matrix above) / `--enrichers <id,id>` (alias for `--only`) /
+`--no-enrichers` / `--opt-in <id,id>` / `--skip <id,id>` / `--only <id,id>`.
 
 ## Writing a new enricher
 

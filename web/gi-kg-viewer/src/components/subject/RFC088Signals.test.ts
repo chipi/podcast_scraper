@@ -39,9 +39,9 @@ describe('TopicEntityView.vue — RFC-088 chunk 6c enrichment signals', () => {
     }
   })
 
-  it('imports getCorpusEnrichmentEnvelope from enrichmentApi', () => {
-    expect(src).toContain('getCorpusEnrichmentEnvelope')
-    expect(src).toContain("from '../../api/enrichmentApi'")
+  it('uses the chunk-8 cache composable (not the raw API helper)', () => {
+    expect(src).toContain('fetchCachedCorpusEnvelope')
+    expect(src).toContain("from '../../composables/useEnrichmentEnvelopeCache'")
   })
 
   it('co-occurrence chip click pivots subject focus to the partner topic', () => {
@@ -66,9 +66,9 @@ describe('PersonLandingView.vue — RFC-088 chunk 6c enrichment signals', () => 
     }
   })
 
-  it('imports getCorpusEnrichmentEnvelope from enrichmentApi', () => {
-    expect(src).toContain('getCorpusEnrichmentEnvelope')
-    expect(src).toContain("from '../../api/enrichmentApi'")
+  it('uses the chunk-8 cache composable (not the raw API helper)', () => {
+    expect(src).toContain('fetchCachedCorpusEnvelope')
+    expect(src).toContain("from '../../composables/useEnrichmentEnvelopeCache'")
   })
 
   it('co-guest chip click pivots subject focus to the co-guest person', () => {

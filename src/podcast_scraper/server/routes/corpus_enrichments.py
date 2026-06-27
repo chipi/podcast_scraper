@@ -47,7 +47,10 @@ def _resolve_corpus(request: Request, path: str | None) -> Path:
         raise HTTPException(
             status_code=400, detail="No corpus path provided and no server default."
         )
-    return Path(fallback)
+    # Match the sibling /api/corpus/* routes — server.state.output_dir is
+    # already resolved at create_app() time, but expanduser/resolve is
+    # cheap + idempotent and survives a state mutation by middleware.
+    return Path(fallback).expanduser().resolve()
 
 
 def _read_envelope(envelope_path: Path) -> dict[str, Any]:

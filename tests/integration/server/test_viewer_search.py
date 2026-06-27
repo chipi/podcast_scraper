@@ -374,3 +374,137 @@ def test_search_enrich_results_false_leaves_hits_unmodified(
         params={"q": "ai", "path": str(tmp_path)},
     ).json()
     assert "query_enrichments" not in body["results"][0]["metadata"]
+
+
+def test_search_enrich_results_empty_hits_does_not_break_route(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """enrich_results=true with zero hits → the chain runs over an empty
+    envelope and the response stays 200."""
+
+    def fake_run(*_a: Any, **_k: Any) -> CorpusSearchOutcome:
+        return CorpusSearchOutcome(results=[])
+
+    monkeypatch.setattr(
+        "podcast_scraper.search.capability.run_corpus_search",
+        fake_run,
+    )
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    r = client.get(
+        "/api/search",
+        params={"q": "x", "path": str(tmp_path), "enrich_results": "true"},
+    )
+    assert r.status_code == 200
+    assert r.json()["results"] == []
+
+
+def test_search_enrich_results_passes_through_when_no_topic_similarity_envelope(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """enrich_results=true + no enrichments/topic_similarity.json on disk
+    → response 200, hits unmodified (the chain logs an availability
+    annotation and passes through)."""
+
+    def fake_run(*_a: Any, **_k: Any) -> CorpusSearchOutcome:
+        return CorpusSearchOutcome(
+            results=[
+                {
+                    "doc_id": "kg_topic:ai",
+                    "score": 0.9,
+                    "metadata": {"doc_type": "kg_topic", "topic_id": "topic:ai"},
+                    "text": "AI",
+                }
+            ]
+        )
+
+    monkeypatch.setattr(
+        "podcast_scraper.search.capability.run_corpus_search",
+        fake_run,
+    )
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    body = client.get(
+        "/api/search",
+        params={"q": "ai", "path": str(tmp_path), "enrich_results": "true"},
+    ).json()
+    assert body["results"][0]["doc_id"] == "kg_topic:ai"
+    assert "query_enrichments" not in body["results"][0]["metadata"]
+
+
+def test_search_enrich_results_decorates_multiple_hits_with_different_topic_ids(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Multiple hits with distinct topic_ids each get their own
+    related_topics decoration; a hit whose topic_id is not in the
+    similarity envelope is left untouched."""
+    import json as _json
+
+    out = tmp_path / "enrichments"
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "topic_similarity.json").write_text(
+        _json.dumps(
+            {
+                "schema_version": "1.0",
+                "enricher_id": "topic_similarity",
+                "data": {
+                    "topic_count": 2,
+                    "topics": [
+                        {
+                            "topic_id": "topic:ai",
+                            "top_k": [{"topic_id": "topic:ml", "similarity": 0.9}],
+                        },
+                        {
+                            "topic_id": "topic:climate",
+                            "top_k": [{"topic_id": "topic:policy", "similarity": 0.8}],
+                        },
+                    ],
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    def fake_run(*_a: Any, **_k: Any) -> CorpusSearchOutcome:
+        return CorpusSearchOutcome(
+            results=[
+                {
+                    "doc_id": "h1",
+                    "score": 0.9,
+                    "metadata": {"doc_type": "kg_topic", "topic_id": "topic:ai"},
+                    "text": "AI",
+                },
+                {
+                    "doc_id": "h2",
+                    "score": 0.8,
+                    "metadata": {"doc_type": "kg_topic", "topic_id": "topic:climate"},
+                    "text": "Climate",
+                },
+                {
+                    "doc_id": "h3",
+                    "score": 0.7,
+                    "metadata": {"doc_type": "kg_topic", "topic_id": "topic:none"},
+                    "text": "None",
+                },
+            ]
+        )
+
+    monkeypatch.setattr(
+        "podcast_scraper.search.capability.run_corpus_search",
+        fake_run,
+    )
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    body = client.get(
+        "/api/search",
+        params={"q": "x", "path": str(tmp_path), "enrich_results": "true"},
+    ).json()
+    results = body["results"]
+    assert (
+        results[0]["metadata"]["query_enrichments"]["related_topics"][0]["topic_id"] == "topic:ml"
+    )
+    assert (
+        results[1]["metadata"]["query_enrichments"]["related_topics"][0]["topic_id"]
+        == "topic:policy"
+    )
+    assert "query_enrichments" not in results[2]["metadata"]

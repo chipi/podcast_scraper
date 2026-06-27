@@ -25,11 +25,14 @@ without registering its enricher set fails CI loudly.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
 from podcast_scraper.enrichment.enrichers import ALL_DETERMINISTIC_ENRICHER_IDS
 from podcast_scraper.enrichment.protocol import EnricherSet
+
+logger = logging.getLogger(__name__)
 
 # Profile presets that currently get the no-enricher set (mostly the
 # leaf "freeze" profiles + the test_default).
@@ -111,7 +114,15 @@ def enricher_set_for_profile(profile: str | None) -> EnricherSet:
             opt_in_flags=dict(_DEFAULT_OPT_IN_FLAGS),
         )
 
-    # Unknown profile — be conservative: no enrichers.
+    # Unknown profile — be conservative: no enrichers. Log a WARNING so
+    # operators see this in their server logs (silent empty set masked
+    # typo'd profile names in pre-A9 follow-up code).
+    logger.warning(
+        "enrichment.profile_sets: unknown profile %r; defaulting to empty enricher "
+        "set. Add a branch in enricher_set_for_profile() or use one of the known "
+        "profile names.",
+        profile,
+    )
     return EnricherSet()
 
 
@@ -132,6 +143,10 @@ def discover_profile_yaml_names(profiles_dir: Path | None = None) -> list[str]:
     return names
 
 
+class UnknownOptInError(ValueError):
+    """``--opt-in`` named an enricher that isn't in the active set."""
+
+
 def apply_cli_overrides(
     base: EnricherSet,
     *,
@@ -145,9 +160,14 @@ def apply_cli_overrides(
     Precedence (highest first):
       1. ``no_enrichers=True`` → empty set, ignore everything else.
       2. ``only=[...]`` restricts to that subset (and ``skip`` is then
-         a finer filter over what's left).
-      3. ``skip=[...]`` removes those ids from the base set.
+         a finer filter over what's left). Empty list is a no-op (no
+         filtering applied).
+      3. ``skip=[...]`` removes those ids from the base set. Empty list
+         is a no-op.
       4. ``extra_opt_in=[...]`` adds opt-in flags on top of the base.
+         Raises :class:`UnknownOptInError` if an id is not in the
+         resulting enabled set — opting in to an enricher that won't run
+         is almost always a typo (e.g. ``--opt-in nly_contradiction``).
     """
     if no_enrichers:
         return EnricherSet()
@@ -160,6 +180,12 @@ def apply_cli_overrides(
         enabled = [e for e in enabled if e not in drop]
     opt_in = dict(base.opt_in_flags)
     if extra_opt_in:
+        unknown = [eid for eid in extra_opt_in if eid not in set(enabled)]
+        if unknown:
+            raise UnknownOptInError(
+                f"--opt-in id(s) not in active enricher set: {unknown}. "
+                f"Active set: {sorted(enabled)}"
+            )
         for eid in extra_opt_in:
             opt_in[eid] = True
     return EnricherSet(
@@ -170,6 +196,7 @@ def apply_cli_overrides(
 
 
 __all__ = [
+    "UnknownOptInError",
     "apply_cli_overrides",
     "discover_profile_yaml_names",
     "enricher_set_for_profile",
