@@ -103,8 +103,13 @@ async function load(): Promise<void> {
 onMounted(load)
 watch(() => [props.corpusPath, props.metadataRelpath], () => void load(), { deep: false })
 
-function focusPartner(p: TopicCooccurrencePair, opposite: 'a' | 'b'): void {
-  const id = opposite === 'a' ? p.topic_b_id : p.topic_a_id
+/**
+ * Click on either endpoint button of a pair focuses the OTHER endpoint
+ * (the partner). ``clicked`` names which endpoint the user clicked;
+ * we return the partner's id.
+ */
+function focusPartner(p: TopicCooccurrencePair, clicked: 'a' | 'b'): void {
+  const id = clicked === 'a' ? p.topic_b_id : p.topic_a_id
   if (id) subject.focusTopic(id)
 }
 
@@ -170,15 +175,15 @@ function widthPct(segment: 'early' | 'mid' | 'late' | 'unknown'): string {
           <button
             type="button"
             class="hover:underline"
-            :title="`Focus ${p.topic_a_label || p.topic_a_id}`"
-            @click="focusPartner(p, 'b')"
+            :title="`Focus partner ${p.topic_b_label || p.topic_b_id}`"
+            @click="focusPartner(p, 'a')"
           >{{ p.topic_a_label || p.topic_a_id }}</button>
           <span class="text-muted">↔</span>
           <button
             type="button"
             class="hover:underline"
-            :title="`Focus ${p.topic_b_label || p.topic_b_id}`"
-            @click="focusPartner(p, 'a')"
+            :title="`Focus partner ${p.topic_a_label || p.topic_a_id}`"
+            @click="focusPartner(p, 'b')"
           >{{ p.topic_b_label || p.topic_b_id }}</button>
         </span>
       </div>
