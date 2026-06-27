@@ -22,6 +22,7 @@ from podcast_scraper.enrichment.enrichers.topic_cooccurrence import TopicCooccur
 from podcast_scraper.enrichment.enrichers.topic_cooccurrence_corpus import (
     TopicCooccurrenceCorpusEnricher,
 )
+from podcast_scraper.enrichment.enrichers.topic_similarity import TopicSimilarityEnricher
 from podcast_scraper.enrichment.registry import EnricherRegistry
 
 ALL_DETERMINISTIC_ENRICHER_IDS: tuple[str, ...] = (
@@ -56,5 +57,6 @@ __all__ = [
     "TemporalVelocityEnricher",
     "TopicCooccurrenceCorpusEnricher",
     "TopicCooccurrenceEnricher",
+    "TopicSimilarityEnricher",
     "register_deterministic_enrichers",
 ]
