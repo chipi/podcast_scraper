@@ -1,0 +1,248 @@
+<script setup lang="ts">
+/**
+ * RFC-088 chunk-9 follow-up: graph-view companion panel listing
+ * enrichment-layer edges (topic_similarity + nli_contradiction).
+ *
+ * Cytoscape-integrating the new edges would require deep changes to
+ * graph construction, dedup, and focus state. This panel keeps that
+ * graph untouched and instead surfaces the edges as a scannable list
+ * directly above/beside the canvas — every row is clickable and pivots
+ * the subject store, which the rest of the viewer already follows.
+ *
+ * Two sections:
+ *   - Topic similarity (top-K per topic, from topic_similarity.json)
+ *   - Contradictions (per-Topic cross-Person Insight pairs, from
+ *     nli_contradiction.json)
+ *
+ * Self-loading via the chunk-8 cache composable so re-mounting is
+ * free.
+ */
+import { computed, onMounted, ref, watch } from 'vue'
+import { fetchCachedCorpusEnvelope } from '../../composables/useEnrichmentEnvelopeCache'
+import { useSubjectStore } from '../../stores/subject'
+
+interface Props {
+  corpusPath: string
+}
+const props = defineProps<Props>()
+
+interface SimNeighbour {
+  topic_id: string
+  topic_label?: string
+  similarity?: number
+}
+interface SimTopic {
+  topic_id: string
+  topic_label?: string
+  top_k: SimNeighbour[]
+}
+interface SimData {
+  topic_count?: number
+  topics: SimTopic[]
+}
+
+interface Contradiction {
+  topic_id: string
+  person_a_id: string
+  person_b_id: string
+  person_a_name?: string
+  person_b_name?: string
+  insight_a_id: string
+  insight_b_id: string
+  contradiction_score: number
+  model_id?: string
+}
+interface ContraData {
+  contradictions: Contradiction[]
+}
+
+const similarity = ref<SimData | null>(null)
+const contradictions = ref<ContraData | null>(null)
+const loaded = ref(false)
+const error = ref<string | null>(null)
+
+const subject = useSubjectStore()
+
+const focusedTopicId = computed(() => subject.topicId?.trim() || '')
+const focusedPersonId = computed(() => subject.personId?.trim() || '')
+
+const SIM_TOP_N = 5
+const CONTRADICTIONS_TOP_N = 10
+
+/**
+ * Sim edges for the panel: when a topic is focused, narrow to that
+ * topic's neighbours; otherwise show the highest-similarity edges
+ * across the corpus (top SIM_TOP_N pairs by score).
+ */
+const visibleSimRows = computed<{ a: SimTopic; n: SimNeighbour }[]>(() => {
+  const topics = similarity.value?.topics ?? []
+  const focused = focusedTopicId.value
+  if (focused) {
+    const t = topics.find((x) => x.topic_id === focused)
+    if (!t) return []
+    return t.top_k.slice(0, SIM_TOP_N).map((n) => ({ a: t, n }))
+  }
+  // No focus → show top-N pairs by similarity across the whole corpus.
+  const flat: { a: SimTopic; n: SimNeighbour }[] = []
+  for (const t of topics) for (const n of t.top_k) flat.push({ a: t, n })
+  flat.sort((x, y) => (y.n.similarity ?? 0) - (x.n.similarity ?? 0))
+  return flat.slice(0, SIM_TOP_N)
+})
+
+/**
+ * Contradictions for the panel: when a person is focused, narrow to
+ * contradictions involving them; otherwise show the strongest globally.
+ */
+const visibleContradictions = computed<Contradiction[]>(() => {
+  const rows = contradictions.value?.contradictions ?? []
+  const focused = focusedPersonId.value
+  let filtered = rows
+  if (focused) {
+    filtered = rows.filter(
+      (r) => r.person_a_id === focused || r.person_b_id === focused,
+    )
+  }
+  return filtered
+    .slice()
+    .sort((x, y) => y.contradiction_score - x.contradiction_score)
+    .slice(0, CONTRADICTIONS_TOP_N)
+})
+
+const hasAny = computed(
+  () => visibleSimRows.value.length > 0 || visibleContradictions.value.length > 0,
+)
+
+async function load(): Promise<void> {
+  const root = props.corpusPath?.trim()
+  if (!root) {
+    similarity.value = null
+    contradictions.value = null
+    loaded.value = true
+    return
+  }
+  error.value = null
+  try {
+    const [sim, con] = await Promise.all([
+      fetchCachedCorpusEnvelope<SimData>(root, 'topic_similarity').catch(() => null),
+      fetchCachedCorpusEnvelope<ContraData>(root, 'nli_contradiction').catch(() => null),
+    ])
+    similarity.value = sim?.data ?? null
+    contradictions.value = con?.data ?? null
+  } catch (exc) {
+    error.value = exc instanceof Error ? exc.message : String(exc)
+  } finally {
+    loaded.value = true
+  }
+}
+
+onMounted(load)
+watch(() => props.corpusPath, () => void load())
+</script>
+
+<template>
+  <section
+    v-if="loaded && hasAny"
+    class="rounded border border-default bg-overlay/40 p-2 text-[11px]"
+    aria-label="Enrichment-layer edges"
+    data-testid="enrichment-edges-panel"
+  >
+    <div class="mb-1 flex items-center justify-between">
+      <h3 class="text-[10px] font-semibold uppercase tracking-wider text-muted">
+        Enrichment edges (RFC-088)
+      </h3>
+      <button
+        v-if="focusedTopicId || focusedPersonId"
+        type="button"
+        class="text-[9px] text-muted hover:underline"
+        title="Clear subject focus"
+        @click="subject.clearSubject?.()"
+      >
+        clear focus
+      </button>
+    </div>
+
+    <!-- Topic similarity edges -->
+    <div
+      v-if="visibleSimRows.length"
+      class="mb-2"
+      data-testid="enrichment-edges-similarity"
+    >
+      <p class="mb-1 text-[10px] text-muted">
+        Topic similarity
+        <span v-if="focusedTopicId">· neighbours of focused topic</span>
+        <span v-else>· top pairs corpus-wide</span>
+      </p>
+      <ul class="flex flex-col gap-1">
+        <li
+          v-for="row in visibleSimRows"
+          :key="`${row.a.topic_id}::${row.n.topic_id}`"
+          class="flex items-center gap-2 rounded border border-default bg-overlay px-2 py-0.5"
+          :data-testid="`enrichment-edges-sim-${row.a.topic_id}--${row.n.topic_id}`"
+        >
+          <button
+            type="button"
+            class="font-mono hover:underline"
+            @click="subject.focusTopic(row.a.topic_id)"
+          >{{ row.a.topic_label || row.a.topic_id }}</button>
+          <span class="text-muted">~</span>
+          <button
+            type="button"
+            class="font-mono hover:underline"
+            @click="subject.focusTopic(row.n.topic_id)"
+          >{{ row.n.topic_label || row.n.topic_id }}</button>
+          <span
+            v-if="row.n.similarity != null"
+            class="ml-auto rounded bg-overlay-2 px-1 text-[9px] text-muted"
+            :title="`Cosine similarity ${row.n.similarity.toFixed(4)}`"
+          >{{ row.n.similarity.toFixed(2) }}</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Contradiction edges -->
+    <div v-if="visibleContradictions.length" data-testid="enrichment-edges-contradictions">
+      <p class="mb-1 text-[10px] text-muted">
+        Contradictions
+        <span v-if="focusedPersonId">· involving focused person</span>
+        <span v-else>· strongest corpus-wide</span>
+      </p>
+      <ul class="flex flex-col gap-1">
+        <li
+          v-for="row in visibleContradictions"
+          :key="`${row.insight_a_id}::${row.insight_b_id}`"
+          class="flex items-center gap-2 rounded border border-rose-700/50 bg-rose-900/20 px-2 py-0.5"
+          :data-testid="`enrichment-edges-contra-${row.insight_a_id}--${row.insight_b_id}`"
+        >
+          <button
+            type="button"
+            class="font-mono hover:underline"
+            @click="subject.focusPerson(row.person_a_id)"
+          >{{ row.person_a_name || row.person_a_id }}</button>
+          <span class="text-rose-300">⚡</span>
+          <button
+            type="button"
+            class="font-mono hover:underline"
+            @click="subject.focusPerson(row.person_b_id)"
+          >{{ row.person_b_name || row.person_b_id }}</button>
+          <span class="text-muted">on</span>
+          <button
+            type="button"
+            class="font-mono hover:underline"
+            @click="subject.focusTopic(row.topic_id)"
+          >{{ row.topic_id }}</button>
+          <span
+            class="ml-auto rounded bg-rose-800/30 px-1 text-[9px] text-rose-200"
+            :title="`Contradiction score ${row.contradiction_score.toFixed(4)} · ${row.model_id ?? ''}`"
+          >{{ row.contradiction_score.toFixed(2) }}</span>
+        </li>
+      </ul>
+    </div>
+    <p
+      v-if="error"
+      class="mt-1 text-[9px] text-rose-300"
+      data-testid="enrichment-edges-error"
+    >
+      {{ error }}
+    </p>
+  </section>
+</template>

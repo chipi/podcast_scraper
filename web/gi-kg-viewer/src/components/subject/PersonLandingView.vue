@@ -98,14 +98,29 @@ const coGuestChips = ref<CoGuestChip[]>([])
 const enrichmentLoaded = ref(false)
 const COGUEST_TOP_N = 6
 
+// RFC-088 chunk-9 follow-up: contradictions for the focused person from
+// the chunk-4 nli_contradiction envelope. Each row is "X contradicts Y
+// on topic Z" — click any of the 3 to pivot focus.
+interface ContradictionRow {
+  topic_id: string
+  partner_id: string
+  partner_name?: string
+  insight_a_id: string
+  insight_b_id: string
+  contradiction_score: number
+}
+const contradictionRows = ref<ContradictionRow[]>([])
+const CONTRADICTIONS_TOP_N = 8
+
 async function loadPersonEnrichmentSignals(focusedPersonId: string): Promise<void> {
   const root = shell.corpusPath?.trim()
   if (!focusedPersonId || !root) return
   groundingRow.value = null
   coGuestChips.value = []
+  contradictionRows.value = []
   enrichmentLoaded.value = false
   try {
-    const [grounding, coapp] = await Promise.all([
+    const [grounding, coapp, contradictions] = await Promise.all([
       fetchCachedCorpusEnvelope<{ persons: GroundingRateRow[] }>(root, 'grounding_rate').catch(
         () => null,
       ),
@@ -113,6 +128,20 @@ async function loadPersonEnrichmentSignals(focusedPersonId: string): Promise<voi
         root,
         'guest_coappearance',
       ).catch(() => null),
+      // RFC-088 chunk-9: pull nli_contradiction so the rail shows
+      // "person contradicts X on topic Y" rows for the focused person.
+      fetchCachedCorpusEnvelope<{
+        contradictions: Array<{
+          topic_id: string
+          person_a_id: string
+          person_b_id: string
+          person_a_name?: string
+          person_b_name?: string
+          insight_a_id: string
+          insight_b_id: string
+          contradiction_score: number
+        }>
+      }>(root, 'nli_contradiction').catch(() => null),
     ])
     enrichmentLoaded.value = true
     if (grounding?.data?.persons) {
@@ -138,6 +167,32 @@ async function loadPersonEnrichmentSignals(focusedPersonId: string): Promise<voi
       }
       chips.sort((a, b) => b.episode_count - a.episode_count)
       coGuestChips.value = chips.slice(0, COGUEST_TOP_N)
+    }
+    if (contradictions?.data?.contradictions) {
+      const rows: ContradictionRow[] = []
+      for (const c of contradictions.data.contradictions) {
+        if (c.person_a_id === focusedPersonId) {
+          rows.push({
+            topic_id: c.topic_id,
+            partner_id: c.person_b_id,
+            partner_name: c.person_b_name,
+            insight_a_id: c.insight_a_id,
+            insight_b_id: c.insight_b_id,
+            contradiction_score: c.contradiction_score,
+          })
+        } else if (c.person_b_id === focusedPersonId) {
+          rows.push({
+            topic_id: c.topic_id,
+            partner_id: c.person_a_id,
+            partner_name: c.person_a_name,
+            insight_a_id: c.insight_b_id,
+            insight_b_id: c.insight_a_id,
+            contradiction_score: c.contradiction_score,
+          })
+        }
+      }
+      rows.sort((a, b) => b.contradiction_score - a.contradiction_score)
+      contradictionRows.value = rows.slice(0, CONTRADICTIONS_TOP_N)
     }
   } catch {
     /* enrichment is best-effort; never break the rail */
@@ -630,7 +685,7 @@ function onPickTopicForPositionTracker(topicId: string): void {
       </p>
       <!-- RFC-088 chunk 6c: enrichment signals (grounding rate + co-guest chips). -->
       <section
-        v-if="enrichmentLoaded && (groundingRow || coGuestChips.length)"
+        v-if="enrichmentLoaded && (groundingRow || coGuestChips.length || contradictionRows.length)"
         class="w-full min-w-0 rounded border border-default bg-overlay/40 p-2"
         aria-label="Enrichment signals"
         data-testid="person-landing-enrichment-signals"
@@ -667,6 +722,43 @@ function onPickTopicForPositionTracker(topicId: string): void {
               <span class="ml-1 text-muted">·{{ g.episode_count }}</span>
             </button>
           </div>
+        </div>
+        <!-- RFC-088 chunk-9: contradictions for the focused person.
+             Each row is "contradicts X on topic Y" — click any of the
+             three buttons to pivot focus. -->
+        <div
+          v-if="contradictionRows.length"
+          class="mt-2"
+          data-testid="person-landing-contradictions"
+        >
+          <p class="mb-1 text-[10px] text-muted">
+            Contradicts (cross-Person NLI · top {{ contradictionRows.length }})
+          </p>
+          <ul class="flex flex-col gap-1 text-[10px]">
+            <li
+              v-for="row in contradictionRows"
+              :key="`${row.insight_a_id}::${row.insight_b_id}`"
+              class="flex items-center gap-1 rounded border border-rose-700/50 bg-rose-900/20 px-2 py-0.5"
+              :data-testid="`person-landing-contra-${row.partner_id}--${row.topic_id}`"
+            >
+              <span class="text-muted">vs</span>
+              <button
+                type="button"
+                class="font-mono hover:underline"
+                @click="subject.focusPerson(row.partner_id)"
+              >{{ row.partner_name || row.partner_id }}</button>
+              <span class="text-muted">on</span>
+              <button
+                type="button"
+                class="font-mono hover:underline"
+                @click="subject.focusTopic(row.topic_id)"
+              >{{ row.topic_id }}</button>
+              <span
+                class="ml-auto rounded bg-rose-800/30 px-1 text-[9px] text-rose-200"
+                :title="`Contradiction score ${row.contradiction_score.toFixed(4)}`"
+              >{{ row.contradiction_score.toFixed(2) }}</span>
+            </li>
+          </ul>
         </div>
       </section>
       <section aria-label="Mentions by month">

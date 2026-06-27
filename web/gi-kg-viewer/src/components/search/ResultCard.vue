@@ -59,6 +59,37 @@ function focusPersonFromSpeakerId(rawId: unknown): void {
 
 const docType = computed(() => String(props.hit.metadata?.doc_type ?? '?'))
 
+/**
+ * RFC-088 chunk-5 follow-up: related topics decorated onto the hit by
+ * the QueryEnricher chain when /api/search?enrich_results=true. Shape:
+ * metadata.query_enrichments.related_topics = [
+ *   { topic_id, topic_label, similarity }
+ * ]
+ */
+interface RelatedTopicChip {
+  topic_id: string
+  topic_label?: string
+  similarity?: number
+}
+const relatedTopics = computed<RelatedTopicChip[]>(() => {
+  const qe = (props.hit.metadata as Record<string, unknown> | undefined)?.query_enrichments
+  if (!qe || typeof qe !== 'object') return []
+  const rt = (qe as Record<string, unknown>).related_topics
+  if (!Array.isArray(rt)) return []
+  return rt
+    .filter((r): r is Record<string, unknown> => r != null && typeof r === 'object')
+    .map((r) => ({
+      topic_id: String(r.topic_id ?? ''),
+      topic_label: typeof r.topic_label === 'string' ? r.topic_label : undefined,
+      similarity: typeof r.similarity === 'number' ? r.similarity : undefined,
+    }))
+    .filter((r) => r.topic_id)
+})
+
+function focusRelatedTopic(topicId: string): void {
+  if (topicId) subject.focusTopic(topicId)
+}
+
 /** PRD-033 FR1.1 — retrieval tier badge (insight / segment / aux). */
 const sourceTier = computed(() => String(props.hit.source_tier ?? 'aux'))
 const TIER_LABELS: Record<string, string> = {
@@ -520,6 +551,29 @@ function onEpisodeIdChipClick(ev: MouseEvent): void {
           </p>
         </blockquote>
       </div>
+    </div>
+    <!-- RFC-088 chunk-5: related-topic chips from the QueryEnricher chain
+         (only present when the request used ?enrich_results=true and the
+         corpus has an enrichments/topic_similarity.json envelope). -->
+    <div
+      v-if="relatedTopics.length"
+      class="mt-1.5 flex flex-wrap items-center gap-1 border-t border-border/60 pt-1.5"
+      data-testid="search-result-related-topics"
+      aria-label="Related topics from the enrichment layer"
+    >
+      <span class="text-[9px] uppercase tracking-wider text-muted">Related</span>
+      <button
+        v-for="r in relatedTopics"
+        :key="r.topic_id"
+        type="button"
+        class="rounded border border-default bg-overlay px-2 py-0.5 text-[10px] hover:bg-overlay-2"
+        :data-testid="`search-result-related-topic-${r.topic_id}`"
+        :title="r.similarity != null ? `Cosine similarity ${r.similarity.toFixed(2)}` : undefined"
+        @click="focusRelatedTopic(r.topic_id)"
+      >
+        {{ r.topic_label || r.topic_id }}
+        <span v-if="r.similarity != null" class="ml-1 text-muted">·{{ r.similarity.toFixed(2) }}</span>
+      </button>
     </div>
   </article>
 </template>

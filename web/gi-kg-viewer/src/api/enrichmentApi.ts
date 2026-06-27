@@ -203,6 +203,25 @@ export async function getCorpusEnrichmentEnvelope<TData = Record<string, unknown
   return (await res.json()) as CorpusEnrichmentEnvelope<TData>
 }
 
+/** Read a single episode-scope enrichment envelope (RFC-088 chunk 6a). */
+export async function getEpisodeEnrichmentEnvelope<TData = Record<string, unknown>>(
+  corpusPath: string,
+  enricherId: string,
+  metadataRelpath: string,
+): Promise<CorpusEnrichmentEnvelope<TData> | null> {
+  const params = q(corpusPath, { metadata_relpath: metadataRelpath })
+  const res = await fetchWithTimeout(
+    `/api/corpus/episode/enrichments/${encodeURIComponent(enricherId)}?${params}`,
+    undefined,
+    { timeoutDetail: `corpus.episode.enrichments.${enricherId}` },
+  )
+  if (res.status === 404) return null
+  if (!res.ok) {
+    throw new Error(await readApiErrorMessage(res))
+  }
+  return (await res.json()) as CorpusEnrichmentEnvelope<TData>
+}
+
 export async function reEnableEnricher(
   corpusPath: string,
   enricherId: string,
