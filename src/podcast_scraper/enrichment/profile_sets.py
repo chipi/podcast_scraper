@@ -175,8 +175,15 @@ def apply_cli_overrides(
         return EnricherSet()
     enabled = list(base.enabled_enrichers)
     if only:
-        keep = set(only)
-        enabled = [e for e in enabled if e in keep]
+        if not enabled:
+            # No base set (no YAML, no profile) — treat ``only`` as the
+            # full list to run. Matches the operator mental model: typing
+            # ``--enrichers a,b,c`` should RUN a,b,c, not silently no-op
+            # because the empty profile filter swallowed them.
+            enabled = list(only)
+        else:
+            keep = set(only)
+            enabled = [e for e in enabled if e in keep]
     if skip:
         drop = set(skip)
         enabled = [e for e in enabled if e not in drop]

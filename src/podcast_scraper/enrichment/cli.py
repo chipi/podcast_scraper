@@ -19,11 +19,14 @@ The CLI:
 1. Loads the operator YAML and validates the ``enrichment:`` block
    against ``config/schema/enrichment.schema.json``.
 2. Builds an EnricherSet from the YAML.
-3. Reads the registry (currently empty in chunk 1; chunk 2+
-   enrichers register at import time).
+3. Registers the six deterministic enrichers via
+   :func:`enrichers.register_deterministic_enrichers`. ML / external
+   enrichers (topic_similarity, nli_contradiction) need provider /
+   scorer wiring and are registered by callers that supply it.
 4. For ``--re-enable``: edits health and exits (no run).
-5. Otherwise: scans the corpus for episode bundles and invokes
-   ``EnrichmentExecutor.run(...)``.
+5. Otherwise: discovers episode bundles via
+   :func:`paths.discover_episode_bundles` (latest-run-per-feed dedup)
+   and invokes ``EnrichmentExecutor.run(...)``.
 """
 
 from __future__ import annotations
@@ -35,13 +38,14 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from podcast_scraper.enrichment.enrichers import register_deterministic_enrichers
 from podcast_scraper.enrichment.executor import (
     EnrichmentExecutor,
     EnrichmentRunResult,
     ExecutorOptions,
 )
 from podcast_scraper.enrichment.health import HealthRegistry
-from podcast_scraper.enrichment.paths import enrichment_health_path
+from podcast_scraper.enrichment.paths import discover_episode_bundles, enrichment_health_path
 from podcast_scraper.enrichment.profile_sets import (
     apply_cli_overrides,
     enricher_set_for_profile,
@@ -226,6 +230,13 @@ async def run_cli(args: argparse.Namespace) -> int:
     #   4. CLI overrides on top: --no-enrichers / --enrichers (alias for
     #      --only) / --only / --skip / --opt-in.
     registry = EnricherRegistry()
+    # Deterministic enrichers are always registered — they have no external
+    # dependencies. Tier=DETERMINISTIC manifests gate their own activation
+    # via the EnricherSet's enabled list; presence in the registry is
+    # purely "available". Tier=ML / EXTERNAL enrichers (topic_similarity,
+    # nli_contradiction) need provider/scorer wiring and are registered
+    # by the call site that supplies that wiring.
+    register_deterministic_enrichers(registry)
     yaml_set = build_enricher_set_from_yaml(args.config)
     profile_set = enricher_set_for_profile(args.profile)
     base_enabled = list(yaml_set.enabled_enrichers) or list(profile_set.enabled_enrichers)
@@ -257,8 +268,17 @@ async def run_cli(args: argparse.Namespace) -> int:
         corpus_only=bool(args.corpus_only),
         profile=args.profile,
     )
+    # Discover episode bundles unless --corpus-only is set (corpus-scope
+    # enrichers still need them as ``all_bundles``, but --corpus-only
+    # callers may want to skip the walk if they've already scoped down).
+    episode_bundles = discover_episode_bundles(corpus_root)
+    logger.info(
+        "enrichment: discovered %d episode bundle(s) under %s",
+        len(episode_bundles),
+        corpus_root,
+    )
     result: EnrichmentRunResult = await executor.run(
-        episode_bundles=[],  # chunk 1 ships no episode-scoping; sub-6 wires
+        episode_bundles=episode_bundles,
         options=options,
     )
     print(

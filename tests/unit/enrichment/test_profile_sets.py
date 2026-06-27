@@ -172,6 +172,28 @@ def test_no_enrichers_beats_only_and_extra_opt_in() -> None:
     assert out.opt_in_flags == {}
 
 
+def test_only_with_empty_base_force_includes() -> None:
+    """No profile + ``--only a,b,c`` runs a,b,c rather than silently no-op'ing.
+
+    The pre-fix CLI failure mode was: with no ``--profile`` and no YAML, the
+    base set is empty; ``--only`` would *filter* an empty set, leaving zero
+    enrichers active, and the CLI would print ``status=ok duration_ms=0``
+    without running anything. The natural read of ``--only a,b,c`` is "run
+    a,b,c", so when there is no base to filter we treat it as the set.
+    """
+    base = EnricherSet()  # no YAML, no profile — what the bare CLI gives
+    out = apply_cli_overrides(base, only=["topic_cooccurrence", "grounding_rate"])
+    assert out.enabled_enrichers == ["topic_cooccurrence", "grounding_rate"]
+
+
+def test_only_filters_when_base_is_non_empty() -> None:
+    """The force-include path does NOT change profile + --only filtering."""
+    base = EnricherSet(enabled_enrichers=["a", "b", "c"])
+    out = apply_cli_overrides(base, only=["a", "c", "missing"])
+    # ``missing`` not in base → dropped (this is filter semantics).
+    assert out.enabled_enrichers == ["a", "c"]
+
+
 # ---------------------------------------------------------------------------
 # discover_profile_yaml_names — drift test surface
 # ---------------------------------------------------------------------------

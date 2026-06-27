@@ -20,6 +20,7 @@ Invariants:
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from podcast_scraper.enrichment.protocol import EpisodeArtifactBundle
@@ -80,3 +81,53 @@ def enrichment_status_path(corpus_root: Path) -> Path:
 def enrichment_run_summary_path(corpus_root: Path) -> Path:
     """``enrichments/run_summary.json`` — per-enricher outcomes per run."""
     return corpus_root / "enrichments" / "run_summary.json"
+
+
+def discover_episode_bundles(corpus_root: Path) -> list[EpisodeArtifactBundle]:
+    """Discover every episode bundle under *corpus_root* (latest run per feed).
+
+    Walks the corpus using ``search.corpus_scope.discover_metadata_files`` so
+    the same safe-walk + latest-run-per-feed dedup that the indexer uses also
+    applies to enrichment. For each ``*.metadata.json``, the sibling
+    ``{stem}.gi.json`` / ``{stem}.kg.json`` / ``{stem}.bridge.json`` files
+    are attached when present; missing siblings stay ``None`` so enrichers
+    can short-circuit per their ``manifest.reads`` declaration.
+
+    Episode id resolution prefers the metadata's ``episode.guid``, then
+    ``episode_id``, then ``guid``, falling back to the filename stem.
+    """
+    from podcast_scraper.search.corpus_scope import discover_metadata_files
+
+    bundles: list[EpisodeArtifactBundle] = []
+    for meta_path in discover_metadata_files(corpus_root):
+        name = meta_path.name
+        if not name.endswith(".metadata.json"):
+            continue
+        stem = name[: -len(".metadata.json")]
+        meta_dir = meta_path.parent
+        gi = meta_dir / f"{stem}.gi.json"
+        kg = meta_dir / f"{stem}.kg.json"
+        bridge = meta_dir / f"{stem}.bridge.json"
+        try:
+            payload = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            payload = {}
+        episode = payload.get("episode") if isinstance(payload, dict) else None
+        episode_id = ""
+        if isinstance(episode, dict):
+            episode_id = str(episode.get("guid") or "")
+        if not episode_id and isinstance(payload, dict):
+            episode_id = str(payload.get("episode_id") or payload.get("guid") or "")
+        if not episode_id:
+            episode_id = stem
+        bundles.append(
+            EpisodeArtifactBundle(
+                metadata_path=meta_path,
+                gi_path=gi if gi.is_file() else None,
+                kg_path=kg if kg.is_file() else None,
+                bridge_path=bridge if bridge.is_file() else None,
+                episode_id=episode_id,
+                stem=stem,
+            )
+        )
+    return bundles

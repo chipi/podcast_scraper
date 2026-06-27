@@ -8,6 +8,7 @@ import pytest
 
 from podcast_scraper.enrichment.paths import (
     corpus_enrichment_path,
+    discover_episode_bundles,
     enrichment_health_path,
     enrichment_run_summary_path,
     enrichment_status_path,
@@ -159,3 +160,96 @@ def test_enrichment_paths_never_overwrite_core_artifacts(tmp_path: Path) -> None
     # First ``metadata`` dir walking up MUST be ``metadata/enrichments``'s parent.
     assert p.parent.name == "enrichments"
     assert p.parent.parent.name == "metadata"
+
+
+# ---------------------------------------------------------------------------
+# discover_episode_bundles
+# ---------------------------------------------------------------------------
+
+
+def _write_episode(
+    meta_dir: Path,
+    stem: str,
+    *,
+    guid: str,
+    write_gi: bool = True,
+    write_kg: bool = True,
+    write_bridge: bool = True,
+) -> None:
+    meta_dir.mkdir(parents=True, exist_ok=True)
+    (meta_dir / f"{stem}.metadata.json").write_text(
+        '{"episode": {"guid": "' + guid + '"}}', encoding="utf-8"
+    )
+    if write_gi:
+        (meta_dir / f"{stem}.gi.json").write_text("{}", encoding="utf-8")
+    if write_kg:
+        (meta_dir / f"{stem}.kg.json").write_text("{}", encoding="utf-8")
+    if write_bridge:
+        (meta_dir / f"{stem}.bridge.json").write_text("{}", encoding="utf-8")
+
+
+def test_discover_episode_bundles_multi_feed_layout(tmp_path: Path) -> None:
+    feed_a = tmp_path / "feeds" / "rss_feed_a" / "run_20260101-000000" / "metadata"
+    feed_b = tmp_path / "feeds" / "rss_feed_b" / "run_20260101-000000" / "metadata"
+    _write_episode(feed_a, "0001 - ep one", guid="guid-A1")
+    _write_episode(feed_a, "0002 - ep two", guid="guid-A2")
+    _write_episode(feed_b, "0001 - ep three", guid="guid-B1")
+
+    bundles = discover_episode_bundles(tmp_path)
+    stems = sorted(b.stem for b in bundles)
+    assert stems == ["0001 - ep one", "0001 - ep three", "0002 - ep two"]
+    guids = sorted(b.episode_id for b in bundles)
+    assert guids == ["guid-A1", "guid-A2", "guid-B1"]
+    for b in bundles:
+        assert b.gi_path is not None and b.gi_path.is_file()
+        assert b.kg_path is not None and b.kg_path.is_file()
+        assert b.bridge_path is not None and b.bridge_path.is_file()
+
+
+def test_discover_episode_bundles_latest_run_per_feed(tmp_path: Path) -> None:
+    """When a feed has multiple ``run_*`` dirs only the latest contributes bundles."""
+    feed = tmp_path / "feeds" / "rss_feed_x"
+    older = feed / "run_20260101-000000" / "metadata"
+    newer = feed / "run_20260601-000000" / "metadata"
+    _write_episode(older, "0001 - stale", guid="guid-OLD")
+    _write_episode(newer, "0001 - fresh", guid="guid-NEW")
+
+    bundles = discover_episode_bundles(tmp_path)
+    assert len(bundles) == 1
+    assert bundles[0].episode_id == "guid-NEW"
+    assert "run_20260601-000000" in bundles[0].metadata_path.parts
+
+
+def test_discover_episode_bundles_missing_siblings_left_none(tmp_path: Path) -> None:
+    """Sibling artifacts left None when absent — enrichers can short-circuit."""
+    meta = tmp_path / "feeds" / "rss_feed" / "run_20260101-000000" / "metadata"
+    _write_episode(
+        meta,
+        "0001 - no gi",
+        guid="guid-only-meta",
+        write_gi=False,
+        write_kg=False,
+        write_bridge=False,
+    )
+
+    bundles = discover_episode_bundles(tmp_path)
+    assert len(bundles) == 1
+    b = bundles[0]
+    assert b.gi_path is None
+    assert b.kg_path is None
+    assert b.bridge_path is None
+
+
+def test_discover_episode_bundles_empty_corpus_returns_empty(tmp_path: Path) -> None:
+    bundles = discover_episode_bundles(tmp_path)
+    assert bundles == []
+
+
+def test_discover_episode_bundles_falls_back_on_unreadable_metadata(tmp_path: Path) -> None:
+    """Corrupt metadata.json yields episode_id=stem (no crash)."""
+    meta = tmp_path / "feeds" / "rss_feed" / "run_20260101-000000" / "metadata"
+    meta.mkdir(parents=True)
+    (meta / "0001 - corrupt.metadata.json").write_text("not json {", encoding="utf-8")
+    bundles = discover_episode_bundles(tmp_path)
+    assert len(bundles) == 1
+    assert bundles[0].episode_id == "0001 - corrupt"
