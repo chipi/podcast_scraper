@@ -29,3 +29,27 @@ def get_json(
     )
     resp.raise_for_status()
     return resp.json()
+
+
+def post_json(
+    url: str,
+    *,
+    headers: Optional[Mapping[str, str]] = None,
+    params: Optional[Mapping[str, Any]] = None,
+    json: Optional[Mapping[str, Any]] = None,
+    auth: Optional[tuple[str, str]] = None,
+    timeout: float = 10.0,
+) -> Any:
+    """POST *url* with optional JSON body; return parsed JSON; raise on transport/HTTP error."""
+    import httpx
+
+    resp = httpx.post(
+        url,
+        headers=dict(headers or {}),
+        params=dict(params or {}),
+        json=dict(json) if json is not None else None,
+        auth=auth,
+        timeout=timeout,
+    )
+    resp.raise_for_status()
+    return resp.json()

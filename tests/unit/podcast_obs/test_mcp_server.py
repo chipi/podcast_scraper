@@ -6,7 +6,7 @@ import pytest
 
 from podcast_obs import mcp_server
 from podcast_obs.config import ObservabilityConfig, TargetConfig
-from podcast_obs.sources import prod_api
+from podcast_obs.sources import enrichment, prod_api
 
 
 def _config(**target_kw) -> ObservabilityConfig:
@@ -29,6 +29,14 @@ def test_tool_table_names_and_count() -> None:
         "prod_recent_traces",
         "prod_summary",
         "prod_correlate",
+        "enrichment_run_status",
+        "enrichment_recent_runs",
+        "enrichment_health",
+        "enrichment_metrics",
+        "enrichment_recent_events",
+        "enrichment_eval_history",
+        "enrichment_re_enable",
+        "enrichment_cancel",
     ]
     # every tool carries a docstring (FastMCP uses it as the tool description)
     assert all(fn.__doc__ for fn in tools)
@@ -62,3 +70,74 @@ def test_build_server_registers_tools() -> None:
     server = mcp_server.build_server(_config(api_base="http://x"))
     assert server is not None
     assert server.name == "podcast-obs"
+
+
+# --- RFC-088 enrichment-tool wiring ------------------------------------------------
+
+
+def test_enrichment_run_status_dispatch(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        enrichment, "get_json", lambda url, **_: {"available": True, "status": "ok"}
+    )
+    tools = {fn.__name__: fn for fn in mcp_server._build_tools(_config(api_base="http://x"))}
+    result = tools["enrichment_run_status"]()
+    assert result["ok"] is True
+    assert result["source"] == "enrichment.status"
+
+
+def test_enrichment_recent_runs_filters_to_corpus_enrichment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = {
+        "jobs": [
+            {"job_id": "p1", "command_type": "full_incremental_pipeline", "created_at": "1"},
+            {"job_id": "e1", "command_type": "corpus_enrichment", "created_at": "2"},
+        ]
+    }
+    monkeypatch.setattr(enrichment, "get_json", lambda url, **_: payload)
+    tools = {fn.__name__: fn for fn in mcp_server._build_tools(_config(api_base="http://x"))}
+    result = tools["enrichment_recent_runs"](limit=10)
+    assert [r["job_id"] for r in result["data"]["runs"]] == ["e1"]
+
+
+def test_enrichment_re_enable_dispatch(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: dict = {}
+
+    def fake_post(url, *, json=None, **_):
+        seen["url"] = url
+        seen["json"] = json
+        return {"enricher_id": "topic_similarity", "auto_disabled": False}
+
+    monkeypatch.setattr(enrichment, "post_json", fake_post)
+    tools = {fn.__name__: fn for fn in mcp_server._build_tools(_config(api_base="http://x"))}
+    result = tools["enrichment_re_enable"]("topic_similarity", reason="transient HF outage")
+    assert result["ok"] is True
+    assert seen["url"].endswith("/api/enrichment/health/topic_similarity/re-enable")
+    assert seen["json"] == {"reason": "transient HF outage"}
+
+
+def test_enrichment_cancel_dispatch(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        enrichment, "post_json", lambda url, **_: {"job_id": "j7", "status": "cancelled"}
+    )
+    tools = {fn.__name__: fn for fn in mcp_server._build_tools(_config(api_base="http://x"))}
+    result = tools["enrichment_cancel"]("j7")
+    assert result["ok"] is True
+    assert result["data"]["status"] == "cancelled"
+
+
+def test_enrichment_eval_history_passes_local_root(tmp_path, monkeypatch) -> None:
+    runs = tmp_path / "runs"
+    runs.mkdir()
+    (runs / "enrichment-2026-06-25").mkdir()
+    tools = {fn.__name__: fn for fn in mcp_server._build_tools(_config(api_base="http://x"))}
+    result = tools["enrichment_eval_history"](eval_root=str(runs))
+    assert result["ok"] is True
+    assert result["data"]["count"] == 1
+
+
+def test_enrichment_tool_unknown_target_is_config_error() -> None:
+    tools = {fn.__name__: fn for fn in mcp_server._build_tools(_config(api_base="http://x"))}
+    result = tools["enrichment_run_status"](target="missing")
+    assert result["ok"] is False
+    assert result["source"] == "config"

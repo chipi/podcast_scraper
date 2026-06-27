@@ -11,7 +11,7 @@ from typing import Callable
 
 from .config import TargetConfig
 from .result import err, ok
-from .sources import github, grafana, langfuse, loki, prod_api, sentry
+from .sources import enrichment, github, grafana, langfuse, loki, prod_api, sentry
 
 # (label, probe) — each probe takes a TargetConfig and returns a result envelope.
 # Sources whose credentials aren't set for a target return ``configured=False`` and land in the
@@ -26,6 +26,11 @@ _PROBES: list[tuple[str, Callable[[TargetConfig], dict]]] = [
     ("errors", sentry.recent_errors),
     ("alerts", grafana.recent_alerts),
     ("traces", lambda target: langfuse.recent_traces(target, limit=5)),  # compact for the glance
+    # RFC-088 enrichment-layer surface — the deploy's last status, health, and a compact
+    # tail of events round out the control-plane glance.
+    ("enrichment_status", enrichment.run_status),
+    ("enrichment_health", enrichment.health),
+    ("enrichment_events", lambda target: enrichment.recent_events(target, limit=5)),
 ]
 
 
@@ -71,6 +76,11 @@ _CORRELATORS: list[tuple[str, Callable[[TargetConfig, str], dict]]] = [
         lambda target, run_id: loki.recent_logs(
             target, level="", contains=f"run={run_id}", window="24h", limit=100
         ),
+    ),
+    # RFC-088: enrichment events filtered to this run (enrichment.*.run_id matches).
+    (
+        "enrichment_events",
+        lambda target, run_id: enrichment.recent_events(target, limit=100),
     ),
 ]
 
