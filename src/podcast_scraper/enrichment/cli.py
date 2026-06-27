@@ -42,6 +42,10 @@ from podcast_scraper.enrichment.executor import (
 )
 from podcast_scraper.enrichment.health import HealthRegistry
 from podcast_scraper.enrichment.paths import enrichment_health_path
+from podcast_scraper.enrichment.profile_sets import (
+    apply_cli_overrides,
+    enricher_set_for_profile,
+)
 from podcast_scraper.enrichment.protocol import EnricherSet
 from podcast_scraper.enrichment.registry import EnricherRegistry
 
@@ -111,6 +115,44 @@ def build_arg_parser() -> argparse.ArgumentParser:
         default="INFO",
         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
     )
+    # RFC-088 chunk 7: profile-preset overrides.
+    parser.add_argument(
+        "--profile",
+        type=str,
+        default=None,
+        help=(
+            "Profile preset name (matches config/profiles/*.yaml). When set, "
+            "the EnricherSet is derived from the chunk-7 matrix unless --only "
+            "/ --skip / --no-enrichers override."
+        ),
+    )
+    parser.add_argument(
+        "--enrichers",
+        type=str,
+        default=None,
+        help=(
+            "Comma-separated enricher ids to force-include (alias for --only "
+            "kept for parity with the plan body)."
+        ),
+    )
+    parser.add_argument(
+        "--no-enrichers",
+        action="store_true",
+        help=(
+            "Disable every enricher for this run (still emits run.skipped + "
+            "run.completed events so the JSONL audit trail stays whole)."
+        ),
+    )
+    parser.add_argument(
+        "--opt-in",
+        type=str,
+        default=None,
+        help=(
+            "Comma-separated enricher ids to mark as operator-opt-in (required "
+            "by enrichers with manifest.requires_opt_in=True). Layers on top of "
+            "the profile's defaults."
+        ),
+    )
     return parser
 
 
@@ -172,11 +214,32 @@ async def run_cli(args: argparse.Namespace) -> int:
         print(f"re-enabled: {record}")
         return 0
 
-    # Build the enricher set — in chunk 1 the registry is empty; the
-    # CLI exits cleanly as a no-op so operators can wire profile-preset
-    # configs and the executor without errors.
+    # Build the enricher set. Order of resolution (chunk 7):
+    #   1. YAML `enrichment:` block (if any) — explicit operator config
+    #      always wins on per-enricher knobs (cost caps, thresholds).
+    #   2. --profile preset → chunk-7 default EnricherSet for that profile.
+    #   3. CLI overrides: --no-enrichers / --enrichers (alias for --only) /
+    #      --only / --skip / --opt-in.
     registry = EnricherRegistry()
-    enricher_set = build_enricher_set_from_yaml(args.config)
+    yaml_set = build_enricher_set_from_yaml(args.config)
+    profile_set = enricher_set_for_profile(args.profile)
+    base_enabled = list(yaml_set.enabled_enrichers) or list(profile_set.enabled_enrichers)
+    base_set = EnricherSet(
+        enabled_enrichers=base_enabled,
+        per_enricher_config={
+            **profile_set.per_enricher_config,
+            **yaml_set.per_enricher_config,
+        },
+        opt_in_flags={**profile_set.opt_in_flags, **yaml_set.opt_in_flags},
+    )
+    only_arg = args.enrichers or args.only
+    enricher_set = apply_cli_overrides(
+        base_set,
+        only=parse_id_list(only_arg),
+        skip=parse_id_list(args.skip),
+        no_enrichers=bool(args.no_enrichers),
+        extra_opt_in=parse_id_list(args.opt_in),
+    )
     executor = EnrichmentExecutor(
         corpus_root=corpus_root,
         registry=registry,
@@ -184,9 +247,10 @@ async def run_cli(args: argparse.Namespace) -> int:
     )
 
     options = ExecutorOptions(
-        only=parse_id_list(args.only),
+        only=enricher_set.enabled_enrichers or None,
         skip=parse_id_list(args.skip),
         corpus_only=bool(args.corpus_only),
+        profile=args.profile,
     )
     result: EnrichmentRunResult = await executor.run(
         episode_bundles=[],  # chunk 1 ships no episode-scoping; sub-6 wires

@@ -75,6 +75,36 @@ def test_arg_parser_accepts_all_documented_flags(tmp_path: Path) -> None:
     assert args.log_level == "DEBUG"
 
 
+def test_arg_parser_accepts_chunk_7_profile_flags(tmp_path: Path) -> None:
+    parser = build_arg_parser()
+    args = parser.parse_args(
+        [
+            "--output-dir",
+            str(tmp_path),
+            "--profile",
+            "airgapped_thin",
+            "--enrichers",
+            "topic_cooccurrence",
+            "--no-enrichers",
+            "--opt-in",
+            "nli_contradiction",
+        ]
+    )
+    assert args.profile == "airgapped_thin"
+    assert args.enrichers == "topic_cooccurrence"
+    assert args.no_enrichers is True
+    assert args.opt_in == "nli_contradiction"
+
+
+def test_arg_parser_profile_flags_default_to_none(tmp_path: Path) -> None:
+    parser = build_arg_parser()
+    args = parser.parse_args(["--output-dir", str(tmp_path)])
+    assert args.profile is None
+    assert args.enrichers is None
+    assert args.no_enrichers is False
+    assert args.opt_in is None
+
+
 # ---------------------------------------------------------------------------
 # build_enricher_set_from_yaml
 # ---------------------------------------------------------------------------
