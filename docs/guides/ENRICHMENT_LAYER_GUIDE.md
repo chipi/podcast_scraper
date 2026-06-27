@@ -12,6 +12,26 @@ JSONL surface itself is documented in
 
 ## Quick start
 
+### Hands-free mode — run after every pipeline run (RFC-088 chunk 9)
+
+Set `enrichment.enabled: true` in `viewer_operator.yaml`. The
+pipeline's finalize step then spawns
+`python -m podcast_scraper.enrichment.cli` as a **detached background
+subprocess** after every successful pipeline run. Three properties:
+
+- The pipeline returns its own count/summary immediately — wall-clock
+  unaffected.
+- The enrichment subprocess writes its own `run.jsonl` + envelopes +
+  registers in the shared jobs registry, so the viewer's
+  **Dashboard → Pipeline runs** strip surfaces it alongside pipeline
+  jobs (badge `[enrich]`).
+- Detached: SIGINT to the parent pipeline doesn't kill enrichment.
+  Output streams to `<corpus>/.viewer/enrichment_pipeline_spawn.log`
+  — `tail -f` it if you want.
+
+Failures inside the spawn (PATH, output_dir permissions, etc.) log a
+WARNING and the pipeline returns normally.
+
 ### Run an enrichment pass
 
 ```bash
