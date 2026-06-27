@@ -38,6 +38,7 @@ from podcast_scraper.server.pipeline_job_registry import (
 logger = logging.getLogger(__name__)
 
 COMMAND_FULL = "full_incremental_pipeline"
+COMMAND_ENRICHMENT = "corpus_enrichment"  # RFC-088 / Epic #1101 chunk 1 sub-6.
 STATUS_QUEUED = "queued"
 STATUS_RUNNING = "running"
 STATUS_SUCCEEDED = "succeeded"
@@ -280,10 +281,11 @@ def _new_job_record(
     argv: list[str],
     log_relpath: str,
     status: str,
+    command_type: str = COMMAND_FULL,
 ) -> dict[str, Any]:
     rec: dict[str, Any] = {
         "job_id": job_id,
-        "command_type": COMMAND_FULL,
+        "command_type": command_type,
         "status": status,
         "created_at": _utc_iso(),
         "started_at": _utc_iso() if status == STATUS_RUNNING else None,
@@ -296,6 +298,134 @@ def _new_job_record(
         "cancel_requested": False,
     }
     return rec
+
+
+def build_enrichment_argv(
+    corpus_root: Path,
+    *,
+    only: list[str] | None = None,
+    skip: list[str] | None = None,
+    corpus_only: bool = False,
+    operator_yaml: Path | None = None,
+    log_level: str = "INFO",
+) -> list[str]:
+    """Build CLI argv for an enrichment job (RFC-088 / Epic #1101).
+
+    Mirrors ``build_pipeline_argv`` shape — the child process is
+    ``python -m podcast_scraper.enrichment.cli`` with operator-facing
+    flags surfaced to the API client.
+    """
+    argv: list[str] = [
+        sys.executable,
+        "-m",
+        "podcast_scraper.enrichment.cli",
+        "--output-dir",
+        str(corpus_root),
+        "--log-level",
+        log_level,
+    ]
+    if only:
+        argv.extend(["--only", ",".join(only)])
+    if skip:
+        argv.extend(["--skip", ",".join(skip)])
+    if corpus_only:
+        argv.append("--corpus-only")
+    if operator_yaml is not None:
+        argv.extend(["--config", str(operator_yaml)])
+    return argv
+
+
+def enqueue_enrichment_job(
+    corpus_root: Path,
+    *,
+    only: list[str] | None = None,
+    skip: list[str] | None = None,
+    corpus_only: bool = False,
+    operator_yaml: Path | None = None,
+) -> dict[str, Any]:
+    """Enqueue a ``corpus_enrichment`` job; promote to running when slot free.
+
+    Identical concurrency / queue / log-path semantics as
+    ``enqueue_pipeline_job`` — the only difference is the
+    ``command_type`` constant on the registry row and the argv
+    builder. The promote-queued / cancel / reconcile / pid-alive
+    paths in this module are ``command_type``-agnostic and reuse
+    automatically.
+    """
+
+    def fn(jobs: list[dict[str, Any]]) -> dict[str, Any]:
+        job_id = str(uuid.uuid4())
+        log_relpath = f".viewer/jobs/{job_id}.log"
+        argv = build_enrichment_argv(
+            corpus_root,
+            only=only,
+            skip=skip,
+            corpus_only=corpus_only,
+            operator_yaml=operator_yaml,
+        )
+        cap = max_concurrent_jobs()
+        if _running_count(jobs) < cap:
+            rec = _new_job_record(
+                job_id=job_id,
+                argv=argv,
+                log_relpath=log_relpath,
+                status=STATUS_RUNNING,
+                command_type=COMMAND_ENRICHMENT,
+            )
+            jobs.append(rec)
+            return rec
+        rec = _new_job_record(
+            job_id=job_id,
+            argv=argv,
+            log_relpath=log_relpath,
+            status=STATUS_QUEUED,
+            command_type=COMMAND_ENRICHMENT,
+        )
+        rec["started_at"] = None
+        jobs.append(rec)
+        return rec
+
+    return with_jobs_locked_mutate(corpus_root, fn)
+
+
+async def spawn_enrichment_subprocess(
+    app: Any,
+    corpus_root: Path,
+    job_id: str,
+    argv: list[str],
+    log_abs: Path,
+) -> asyncio.subprocess.Process:
+    """Spawn the enrichment-CLI child via the same pump as pipeline jobs.
+
+    The factory injection (``app.state.jobs_subprocess_factory``) +
+    capped log pump (``_pump_subprocess_to_log``) work identically
+    for both job kinds.
+    """
+    factory = getattr(app.state, "jobs_subprocess_factory", None)
+    if factory is not None:
+        proc = await factory(argv, corpus_root, log_abs)
+        return cast(asyncio.subprocess.Process, proc)
+
+    log_abs.parent.mkdir(parents=True, exist_ok=True)
+    proc = await asyncio.create_subprocess_exec(
+        *argv,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT,
+        cwd=str(corpus_root),
+        start_new_session=os.name != "nt",
+    )
+    assert proc.stdout is not None
+    pump_task = asyncio.create_task(
+        _pump_subprocess_to_log(
+            proc.stdout,
+            log_abs,
+            max_bytes=job_log_max_bytes(),
+            job_id=job_id,
+        ),
+        name=f"enrichment-log-pump-{job_id}",
+    )
+    setattr(proc, "_ps_log_pump", pump_task)
+    return proc
 
 
 def enqueue_pipeline_job(corpus_root: Path, operator_yaml: Path) -> dict[str, Any]:

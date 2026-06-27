@@ -38,6 +38,7 @@ from podcast_scraper.server.routes import (
     corpus_persons,
     corpus_text_file,
     corpus_topic_clusters,
+    enrichment as enrichment_route,
     explore,
     feeds,
     health,
@@ -278,6 +279,10 @@ def create_app(
     if enable_jobs_api:
         app.include_router(jobs.router, prefix="/api")
         app.include_router(scheduled_jobs_route.router, prefix="/api")
+        # Enrichment HTTP surface — same jobs_api gate (RFC-088 / Epic
+        # #1101 chunk 1 sub-6). All routes gracefully degrade to a
+        # "no run yet" payload when the corpus has no enrichment files.
+        app.include_router(enrichment_route.router, prefix="/api")
 
     # #666 review item #8: resolve the pipeline exec mode ONCE at startup
     # and pin it on ``app.state``. Route handlers must read from
