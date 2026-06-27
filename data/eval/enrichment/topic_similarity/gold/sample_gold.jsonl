@@ -1,0 +1,3 @@
+{"topic_id": "topic:ai-safety", "expected_neighbours": ["topic:ai-alignment", "topic:rlhf", "topic:interpretability"]}
+{"topic_id": "topic:climate", "expected_neighbours": ["topic:emissions", "topic:policy", "topic:renewable-energy"]}
+{"topic_id": "topic:economics", "expected_neighbours": ["topic:inflation", "topic:monetary-policy"]}

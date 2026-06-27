@@ -52,11 +52,31 @@ def test_cloud_profiles_get_full_stack(profile: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "profile", ["local_dgx_balanced", "local_dgx_full", "cloud_with_dgx_primary", "dev", "prod"]
+    "profile",
+    [
+        "local_dgx_balanced",
+        "local_dgx_full",
+        "prod_dgx_balanced",
+        "prod_dgx_full_with_fallback",
+        "cloud_with_dgx_primary",
+        "dev",
+        "local",
+    ],
 )
-def test_dgx_dev_prod_profiles_get_full_stack(profile: str) -> None:
+def test_dgx_dev_local_profiles_get_full_stack(profile: str) -> None:
+    """Every profile with a real LLM somewhere gets the full enricher set.
+    'prod' is intentionally NOT here — there is no config/profiles/prod.yaml;
+    the production profiles are prod_dgx_*."""
     s = enricher_set_for_profile(profile)
     assert "nli_contradiction" in s.enabled_enrichers
+
+
+def test_phantom_prod_profile_is_unknown() -> None:
+    """A 'prod' literal in the matrix without a corresponding YAML used to
+    be dead code (chunk-8 sweep finding #3). The matrix now treats
+    unknown 'prod' as the conservative empty set."""
+    s = enricher_set_for_profile("prod")
+    assert s.enabled_enrichers == []
 
 
 def test_unknown_profile_is_conservative_empty_set() -> None:

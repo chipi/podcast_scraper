@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "enricher_id": "topic_cooccurrence_corpus",
+  "enricher_version": "1.0.0",
+  "_comment": "Synthetic gold for the deterministic-tier exact-match scorer. Reflects what TopicCooccurrenceCorpusEnricher produces against a 3-episode corpus where ep1 has topics {a, b}, ep2 has {a, b}, ep3 has {a, c}. Operator replaces with real corpus gold once a reference corpus is selected.",
+  "data": {
+    "episode_count": 3,
+    "pairs": [
+      {
+        "topic_a_id": "topic:a",
+        "topic_b_id": "topic:b",
+        "topic_a_label": "a",
+        "topic_b_label": "b",
+        "episode_count": 2
+      },
+      {
+        "topic_a_id": "topic:a",
+        "topic_b_id": "topic:c",
+        "topic_a_label": "a",
+        "topic_b_label": "c",
+        "episode_count": 1
+      }
+    ]
+  }
+}

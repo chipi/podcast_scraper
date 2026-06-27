@@ -97,7 +97,10 @@ def enricher_set_for_profile(profile: str | None) -> EnricherSet:
 
     # Hybrid / DGX / local profiles inherit the full cloud set —
     # they all have a real LLM somewhere, so the gating constraint
-    # is the same.
+    # is the same. Note: only profile names with a real YAML under
+    # config/profiles/ are matched here ('prod' was dropped because
+    # there is no config/profiles/prod.yaml; the production-shaped
+    # profiles are prod_dgx_balanced / prod_dgx_full_with_fallback).
     if (
         name.startswith("local_dgx_")
         or name.startswith("prod_dgx_")
@@ -105,7 +108,6 @@ def enricher_set_for_profile(profile: str | None) -> EnricherSet:
         in (
             "cloud_with_dgx_primary",
             "dev",
-            "prod",
             "local",
         )
     ):
