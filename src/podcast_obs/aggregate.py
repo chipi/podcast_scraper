@@ -80,7 +80,7 @@ _CORRELATORS: list[tuple[str, Callable[[TargetConfig, str], dict]]] = [
     # RFC-088: enrichment events filtered to this run (enrichment.*.run_id matches).
     (
         "enrichment_events",
-        lambda target, run_id: enrichment.recent_events(target, limit=100),
+        lambda target, run_id: enrichment.recent_events(target, run_id=run_id, limit=100),
     ),
 ]
 

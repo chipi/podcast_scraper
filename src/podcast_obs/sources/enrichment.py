@@ -23,6 +23,11 @@ from ..result import err, ok
 
 _NOT_CONFIGURED = "api_base not set (PODCAST_OBS_API_BASE or targets.<name>.api_base)"
 
+# Must match ``podcast_scraper.server.jobs.COMMAND_ENRICHMENT``. We keep a
+# local copy so this module stays import-decoupled from the application
+# package; a unit test asserts the two constants stay in lockstep.
+COMMAND_ENRICHMENT = "corpus_enrichment"
+
 # Compact subset of PipelineJobRecord we surface for an enrichment-run listing
 # (mirrors prod_api._RUN_FIELDS but filtered to command_type == corpus_enrichment).
 _RUN_FIELDS = (
@@ -68,7 +73,7 @@ def recent_runs(target: TargetConfig, limit: int = 10) -> dict:
     except Exception as exc:  # noqa: BLE001
         return err("enrichment.runs", f"GET {url} failed: {exc}")
     jobs = data.get("jobs", []) if isinstance(data, dict) else []
-    enrich_only = [j for j in jobs if (j or {}).get("command_type") == "corpus_enrichment"]
+    enrich_only = [j for j in jobs if (j or {}).get("command_type") == COMMAND_ENRICHMENT]
     newest_first = sorted(enrich_only, key=lambda job: job.get("created_at") or "", reverse=True)
     runs = [{key: job.get(key) for key in _RUN_FIELDS} for job in newest_first[: max(limit, 0)]]
     return ok(
@@ -126,9 +131,15 @@ def recent_events(
     *,
     enricher_id: Optional[str] = None,
     event_type: Optional[str] = None,
+    run_id: Optional[str] = None,
     limit: int = 50,
 ) -> dict:
-    """GET ``/api/enrichment/events`` — JSONL tail (filterable)."""
+    """GET ``/api/enrichment/events`` — JSONL tail (filterable).
+
+    ``run_id`` is applied client-side after the fetch (the route doesn't
+    yet accept it as a query param; this keeps the route minimal and the
+    join logic in the observability layer where it belongs).
+    """
     base = _base(target)
     if not base:
         return err("enrichment.events", _NOT_CONFIGURED, configured=False)
@@ -142,6 +153,11 @@ def recent_events(
         data = get_json(url, params=params, timeout=target.timeout)
     except Exception as exc:  # noqa: BLE001
         return err("enrichment.events", f"GET {url} failed: {exc}")
+    if run_id and isinstance(data, dict):
+        events = data.get("events")
+        if isinstance(events, list):
+            filtered = [e for e in events if isinstance(e, dict) and e.get("run_id") == run_id]
+            data = {**data, "events": filtered, "count": len(filtered)}
     return ok("enrichment.events", data)
 
 

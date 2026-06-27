@@ -35,10 +35,12 @@ from enum import Enum
 
 from podcast_scraper.enrichment.envelope import EnvelopeShapeError
 from podcast_scraper.enrichment.protocol import (
+    STATUS_QUARANTINED,  # re-exported in __all__ as a convenience for executor.py
+)
+from podcast_scraper.enrichment.protocol import (
     EnricherManifest,
     EnricherTier,
     STATUS_FAILED,
-    STATUS_QUARANTINED,
     STATUS_TIMEOUT,
 )
 from podcast_scraper.utils.retryable_errors import is_retryable_error

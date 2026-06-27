@@ -38,6 +38,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
 
+from podcast_scraper.enrichment.events import append_event, build_health_re_enabled
 from podcast_scraper.enrichment.health import HealthRegistry
 from podcast_scraper.enrichment.paths import enrichment_run_summary_path
 from podcast_scraper.enrichment.status import read_status
@@ -213,6 +214,24 @@ async def re_enable_enricher_route(
     await asyncio.to_thread(registry.load)
     record = registry.re_enable(enricher_id, reason=body.reason, clear_cooldown=True)
     await asyncio.to_thread(registry.save)
+    # Audit-trail: append the manual-recovery event to the JSONL log so the
+    # MCP enrichment_recent_events tool surfaces it alongside the executor's
+    # own events. Best-effort — never break the response on log-write failure.
+    jsonl_path = corpus / "enrichments" / "run.jsonl"
+    try:
+        await asyncio.to_thread(
+            append_event,
+            jsonl_path,
+            build_health_re_enabled(
+                enricher_id=enricher_id,
+                operator_id=None,
+                reset_counter=True,
+                cleared_cooldown=True,
+                reason=body.reason,
+            ),
+        )
+    except OSError as exc:
+        logger.warning("enrichment re_enable event append failed: %s", exc)
     return {"enricher_id": enricher_id, **_health_to_dict(record)}
 
 

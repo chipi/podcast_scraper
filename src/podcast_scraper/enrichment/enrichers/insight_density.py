@@ -59,7 +59,10 @@ def _compute(
     config: dict[str, Any],
     ctx: RunContext,
 ) -> dict[str, Any]:
-    assert bundle is not None  # EPISODE scope
+    if bundle is None:
+        from podcast_scraper.enrichment.resilience import BadInputError
+
+        raise BadInputError("insight_density is EPISODE scope and requires a bundle; got None")
     gi = load_gi(bundle)
     meta = load_metadata(bundle)
     duration = float(meta.get("duration_seconds") or 0.0)

@@ -278,3 +278,99 @@ def test_search_lift_stats_invalid_dropped(tmp_path: Path, monkeypatch: pytest.M
     )
     assert response.status_code == 200
     assert response.json().get("lift_stats") is None
+
+
+# ---------------------------------------------------------------------------
+# RFC-088 chunk 5: enrich_results query param wires the QueryEnricher chain
+# ---------------------------------------------------------------------------
+
+
+def test_search_enrich_results_decorates_hits_with_related_topics(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When enrich_results=true and topic_similarity.json exists, hits
+    that carry a topic_id should gain a `query_enrichments.related_topics`
+    annotation."""
+    import json
+
+    # Seed the chunk-3 enricher output the query enricher reads.
+    out = tmp_path / "enrichments"
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "topic_similarity.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "enricher_id": "topic_similarity",
+                "data": {
+                    "topic_count": 1,
+                    "topics": [
+                        {
+                            "topic_id": "topic:ai",
+                            "topic_label": "AI",
+                            "top_k": [
+                                {"topic_id": "topic:ml", "similarity": 0.91},
+                                {"topic_id": "topic:safety", "similarity": 0.83},
+                            ],
+                        }
+                    ],
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    def fake_run(*_a: Any, **_k: Any) -> CorpusSearchOutcome:
+        return CorpusSearchOutcome(
+            results=[
+                {
+                    "doc_id": "kg_topic:ai",
+                    "score": 0.9,
+                    "metadata": {"doc_type": "kg_topic", "topic_id": "topic:ai"},
+                    "text": "AI",
+                }
+            ]
+        )
+
+    monkeypatch.setattr(
+        "podcast_scraper.search.capability.run_corpus_search",
+        fake_run,
+    )
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    body = client.get(
+        "/api/search",
+        params={"q": "ai", "path": str(tmp_path), "enrich_results": "true"},
+    ).json()
+    related = body["results"][0]["metadata"].get("query_enrichments", {}).get("related_topics")
+    assert related is not None
+    assert related[0]["topic_id"] == "topic:ml"
+
+
+def test_search_enrich_results_false_leaves_hits_unmodified(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Default enrich_results=false skips the chain — no related_topics added."""
+
+    def fake_run(*_a: Any, **_k: Any) -> CorpusSearchOutcome:
+        return CorpusSearchOutcome(
+            results=[
+                {
+                    "doc_id": "kg_topic:ai",
+                    "score": 0.9,
+                    "metadata": {"doc_type": "kg_topic", "topic_id": "topic:ai"},
+                    "text": "AI",
+                }
+            ]
+        )
+
+    monkeypatch.setattr(
+        "podcast_scraper.search.capability.run_corpus_search",
+        fake_run,
+    )
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    body = client.get(
+        "/api/search",
+        params={"q": "ai", "path": str(tmp_path)},
+    ).json()
+    assert "query_enrichments" not in body["results"][0]["metadata"]

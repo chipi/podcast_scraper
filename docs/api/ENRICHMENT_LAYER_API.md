@@ -92,7 +92,15 @@ event. All event types are stable strings prefixed `enrichment.`:
 | `enrichment.enricher.circuit_opened` | Per-enricher circuit breaker tripped during this run | `run_id`, `enricher_id`, `consecutive_failures`, `opened_at`, `cooldown_until` |
 | `enrichment.enricher.auto_disabled` | Cross-run health crossed `auto_disable_threshold` | `run_id`, `enricher_id`, `consecutive_failed_runs`, `reason` |
 | `enrichment.enricher.cancelled` | Enricher cancelled mid-run (cancel_event) | `run_id`, `enricher_id`, `reason`, `partial_records_written` |
-| `enrichment.run.cost_cap_exceeded` | Per-enricher or run-wide cap fired | `run_id`, `enricher_id?`, `cost_usd`, `cap_usd` |
+| `enrichment.enricher.stall_warning` | Enricher's wall-clock exceeded `expected_duration_s` without finishing | `run_id`, `enricher_id`, `last_heartbeat_at`, `expected_interval_s` |
+| `enrichment.health.re_enabled` | Operator manually re-enabled an auto-disabled enricher | `enricher_id`, `operator_id`, `reset_counter`, `cleared_cooldown`, `reason` |
+
+Cost-cap fires (per-enricher quarantine + run-wide skip) do not have a
+dedicated event type in the current build — they surface through the
+`enrichment.enricher.completed` event with `status="quarantined"` or
+`status="skipped"` and a structured `reason` field. A dedicated
+`enrichment.run.cost_cap_exceeded` event may land in a future chunk
+once LLM-tier query enrichers are wired.
 
 Every event payload carries the `RunContext` correlation envelope —
 `run_id`, `parent_run_id`, `enricher_id`, `enricher_version`, `tier`,

@@ -187,6 +187,36 @@ def test_post_re_enable_works_with_empty_body(app: FastAPI, corpus: Path) -> Non
     assert r.status_code == 200
 
 
+def test_post_re_enable_rejects_oversized_reason(app: FastAPI, corpus: Path) -> None:
+    """HealthReEnableRequest.reason has a 500-char cap (Pydantic Field max_length)."""
+    client = TestClient(app)
+    too_long = "x" * 501
+    r = client.post(
+        "/api/enrichment/health/topic_similarity/re-enable",
+        params={"path": str(corpus)},
+        json={"reason": too_long},
+    )
+    assert r.status_code == 422  # FastAPI validation error
+
+
+def test_post_re_enable_emits_jsonl_event(app: FastAPI, corpus: Path) -> None:
+    """Manual recovery must leave an enrichment.health.re_enabled audit row."""
+    client = TestClient(app)
+    r = client.post(
+        "/api/enrichment/health/x/re-enable",
+        params={"path": str(corpus)},
+        json={"reason": "operator override"},
+    )
+    assert r.status_code == 200
+    jsonl = corpus / "enrichments" / "run.jsonl"
+    assert jsonl.is_file()
+    events = [json.loads(line) for line in jsonl.read_text().splitlines() if line]
+    re_enabled = [e for e in events if e["event_type"] == "enrichment.health.re_enabled"]
+    assert re_enabled, "missing enrichment.health.re_enabled event"
+    assert re_enabled[-1]["enricher_id"] == "x"
+    assert re_enabled[-1]["reason"] == "operator override"
+
+
 # ---------------------------------------------------------------------------
 # /api/enrichment/run-summary
 # ---------------------------------------------------------------------------

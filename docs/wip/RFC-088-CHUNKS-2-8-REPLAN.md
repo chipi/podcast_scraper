@@ -343,3 +343,15 @@ original plan.
    this doc).
 3. GH issues #1104–#1110 updated with the revised scopes.
 4. Chunk 1 implementation starts.
+
+---
+
+## Deferrals recorded post-chunk-5 (2026-06-27)
+
+The quality sweep after chunks 0–5 surfaced three planned items that
+did not ship in their nominal chunk. Recording here so the trail is
+honest:
+
+- **Eval harnesses** (chunks 2 / 3 / 4): `data/eval/enrichment/<id>/gold/` directories + `scripts/eval/score/enrichment_<id>.py` scoring scripts. Per REPLAN-O6 these are direct-Python scripts (no Make wrappers). **Status:** stub scaffolding lands in the chunk-5 follow-up commit (gold fixtures empty + a script that prints "TODO: populate gold" and exits 0). Real gold sets get populated as the corpus grows + the operator labels (chunk 4 NLI is the biggest at ~100 labelled rows).
+- **`/api/search enrich_results: bool` parameter**: plan put this in chunk 5; the chunk-5 commit message defers to chunk 6 alongside the user-facing routes since the wiring touches the search response model. **Status:** wired in the chunk-5 follow-up commit (a thin pass-through that runs the QueryEnricherRegistry chain when `enrich_results=true`).
+- **ADR-104 promotion Proposed → Accepted**: chunk-0 acceptance criterion as written says "Accepted." Per this replan the promotion actually lands in chunk 8 with the RFC-088 Active → Completed promotion. **Status:** intentional — chunk-0 criterion is updated in the chunk-5 follow-up to read "Proposed in chunk 0, Accepted in chunk 8."

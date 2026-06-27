@@ -141,3 +141,62 @@ def test_enrichment_tool_unknown_target_is_config_error() -> None:
     result = tools["enrichment_run_status"](target="missing")
     assert result["ok"] is False
     assert result["source"] == "config"
+
+
+def test_enrichment_health_dispatch(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: dict = {}
+
+    def fake_get_json(url, *, params=None, **_):
+        seen["url"] = url
+        seen["params"] = params
+        return {"enrichers": {"x": {"auto_disabled": False}}}
+
+    monkeypatch.setattr(enrichment, "get_json", fake_get_json)
+    tools = {fn.__name__: fn for fn in mcp_server._build_tools(_config(api_base="http://x"))}
+    result = tools["enrichment_health"](enricher_id="x")
+    assert result["ok"] is True
+    assert result["source"] == "enrichment.health"
+    assert seen["params"] == {"enricher_id": "x"}
+
+
+def test_enrichment_metrics_dispatch(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: dict = {}
+
+    def fake_get_json(url, *, params=None, **_):
+        seen["params"] = params
+        return {"window": "1h", "per_enricher": {}}
+
+    monkeypatch.setattr(enrichment, "get_json", fake_get_json)
+    tools = {fn.__name__: fn for fn in mcp_server._build_tools(_config(api_base="http://x"))}
+    result = tools["enrichment_metrics"](window="1h")
+    assert result["ok"] is True
+    assert seen["params"] == {"window": "1h"}
+
+
+def test_enrichment_recent_events_dispatch(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: dict = {}
+
+    def fake_get_json(url, *, params=None, **_):
+        seen["params"] = params
+        return {"events": [], "count": 0}
+
+    monkeypatch.setattr(enrichment, "get_json", fake_get_json)
+    tools = {fn.__name__: fn for fn in mcp_server._build_tools(_config(api_base="http://x"))}
+    result = tools["enrichment_recent_events"](
+        enricher_id="topic_similarity", event_type="enrichment.enricher.completed", limit=20
+    )
+    assert result["ok"] is True
+    assert seen["params"] == {
+        "limit": 20,
+        "enricher_id": "topic_similarity",
+        "event_type": "enrichment.enricher.completed",
+    }
+
+
+def test_enrichment_source_command_type_constant_matches_server_jobs() -> None:
+    """Local COMMAND_ENRICHMENT mirror must stay in lockstep with
+    server.jobs.COMMAND_ENRICHMENT (cross-package without import)."""
+    from podcast_obs.sources.enrichment import COMMAND_ENRICHMENT as obs_const
+    from podcast_scraper.server.jobs import COMMAND_ENRICHMENT as server_const
+
+    assert obs_const == server_const

@@ -54,6 +54,7 @@ from podcast_scraper.enrichment.events import (
     build_run_completed,
     build_run_skipped,
     build_run_started,
+    build_stall_warning,
 )
 from podcast_scraper.enrichment.health import HealthRegistry
 from podcast_scraper.enrichment.metrics import EnrichmentMetrics, new_metrics_for
@@ -88,6 +89,7 @@ from podcast_scraper.enrichment.resilience import (
     compute_backoff,
     CostCapState,
     EnricherCircuitState,
+    HeartbeatWatchdog,
     policy_for,
     RetryClass,
     status_for_exception,
@@ -300,17 +302,36 @@ class EnrichmentExecutor:
             ),
         )
 
-        # Update + persist health.
+        # Update + persist health. Capture pre-transition state so we can
+        # detect cross-run auto-disable transitions and emit the JSONL +
+        # Sentry message via emit_auto_disable_event (chunk-1 wiring gap).
         for eid, m in metrics_by_id.items():
             enr = self._registry.get(eid)
             policy = policy_for(enr.manifest.tier)
-            health.update_after_run(
+            was_auto_disabled = health.get(eid).auto_disabled
+            updated = health.update_after_run(
                 eid,
                 run_id=run_id,
                 status=m.last_run_status or "skipped",
                 policy=policy,
                 circuit_state=circuit_by_id[eid].status.value,
             )
+            if updated.auto_disabled and not was_auto_disabled:
+                emit_auto_disable_event(
+                    jsonl_path=jsonl_path,
+                    ctx=RunContext(
+                        run_id=run_id,
+                        parent_run_id=parent_run_id,
+                        enricher_id=eid,
+                        enricher_version=enr.manifest.version,
+                        tier=enr.manifest.tier.value,
+                        attempt=1,
+                        job_id=run_id,
+                        cancel_event=cancel_event,
+                    ),
+                    consecutive_failed_runs=updated.consecutive_failures,
+                    reason=updated.auto_disabled_reason or "auto_disable_threshold reached",
+                )
         health.save()
 
         # Build + write run summary.
@@ -485,7 +506,8 @@ class EnrichmentExecutor:
         final_result: EnricherResult | None = None
         config = self._enricher_set.get_config(eid)
 
-        # Timeout selection.
+        # Timeout selection. ``expected_duration_s`` doubles as both the
+        # heartbeat-stall threshold (soft) and the hard wait_for cap.
         timeout_s = (
             manifest.expected_duration_s
             if manifest.expected_duration_s is not None
@@ -495,6 +517,9 @@ class EnrichmentExecutor:
                 else DEFAULT_EPISODE_TIMEOUT_S
             )
         )
+        # Heartbeat watchdog — soft stall detection at expected_duration_s.
+        # Reset per attempt so retries get a fresh window.
+        watchdog = HeartbeatWatchdog(enricher_id=eid, expected_interval_s=float(timeout_s))
 
         while True:
             if cancel_event.is_set():
@@ -603,6 +628,30 @@ class EnrichmentExecutor:
         assert final_result is not None
         finished_at = utc_iso_now()
         duration_ms = int((time.monotonic() - t_start) * 1000) if "t_start" in locals() else 0
+        # Soft stall detection: if the enricher ran longer than the
+        # heartbeat watchdog's window without calling record_heartbeat,
+        # emit stall_warning. (Hard timeout is already handled by
+        # asyncio.wait_for upstream; this catches the slow-but-finishing
+        # case operators want to know about.)
+        if watchdog.is_stalled(factor=1.0):
+            ctx_stall = RunContext(
+                run_id=run_id,
+                parent_run_id=parent_run_id,
+                enricher_id=eid,
+                enricher_version=manifest.version,
+                tier=manifest.tier.value,
+                attempt=attempt,
+                job_id=run_id,
+                cancel_event=cancel_event,
+            )
+            self._safe_append_event(
+                jsonl_path,
+                build_stall_warning(
+                    ctx_stall,
+                    last_heartbeat_at=utc_iso_now(),
+                    expected_interval_s=watchdog.expected_interval_s,
+                ),
+            )
         metrics.record_result(
             final_result,
             started_at=started_at,

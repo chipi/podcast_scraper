@@ -32,7 +32,10 @@ def _compute(
     config: dict[str, Any],
     ctx: RunContext,
 ) -> dict[str, Any]:
-    assert bundle is not None  # EPISODE scope guarantees bundle
+    if bundle is None:
+        from podcast_scraper.enrichment.resilience import BadInputError
+
+        raise BadInputError("topic_cooccurrence is EPISODE scope and requires a bundle; got None")
     kg = load_kg(bundle)
     topics = nodes_of_type(kg, "Topic")
     ids = sorted({str(t.get("id")) for t in topics if t.get("id")})

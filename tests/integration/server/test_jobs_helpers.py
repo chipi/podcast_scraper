@@ -8,7 +8,6 @@ from pathlib import Path
 
 import pytest
 
-from podcast_scraper.server.pipeline_job_registry import with_jobs_locked_mutate
 from podcast_scraper.server.jobs import (
     argv_summary,
     build_pipeline_argv,
@@ -24,6 +23,7 @@ from podcast_scraper.server.jobs import (
     STATUS_STALE,
     STATUS_SUCCEEDED,
 )
+from podcast_scraper.server.pipeline_job_registry import with_jobs_locked_mutate
 
 # Moved from tests/unit/ — RFC-081 PR-A1: tests that import [ml]/[llm] or viewer HTTP
 # gated modules belong in the integration tier per UNIT_TESTING_GUIDE.md.

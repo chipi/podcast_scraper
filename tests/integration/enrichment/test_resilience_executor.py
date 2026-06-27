@@ -355,3 +355,22 @@ def test_status_file_written_and_finalised_idle(tmp_path: Path) -> None:
     assert status_path.is_file()
     final = json.loads(status_path.read_text(encoding="utf-8"))
     assert final.get("idle") is True or final.get("current_enricher") is None
+
+
+def test_executor_options_profile_is_threaded_into_run_summary(tmp_path: Path) -> None:
+    """ExecutorOptions.profile must flow through to run_summary.profile so the
+    operator can tell which profile preset drove the run."""
+    enr = ScriptedEnricher(
+        manifest=manifest("profile_check"),
+        script=Script(steps=[EnricherResult(status=STATUS_OK, data={"k": 1})]),
+    )
+    result = asyncio.run(
+        _executor(tmp_path, _registry(enr), _set("profile_check")).run(
+            options=ExecutorOptions(profile="airgapped_thin")
+        )
+    )
+    assert result.run_summary.get("profile") == "airgapped_thin"
+    # And the JSONL run.started event records the profile too.
+    events = _read_jsonl(tmp_path / "enrichments" / "run.jsonl")
+    started = [e for e in events if e["event_type"] == "enrichment.run.started"]
+    assert started and started[0]["profile"] == "airgapped_thin"
