@@ -453,6 +453,27 @@ class NotesResponse(BaseModel):
     items: list[Note] = Field(default_factory=list)
 
 
+# --- P3 Consolidation: consumer enrichment read surface (RFC-088 envelopes / #1121) ---
+
+
+class AppEpisodeEnrichmentResponse(BaseModel):
+    """Per-episode enrichment signals for the consumer (GET /api/app/episodes/{slug}/enrichment)."""
+
+    slug: str = Field(description="Episode slug.")
+    signals: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Enricher id → its envelope `data` payload (only enrichers that ran OK).",
+    )
+
+
+class AppCorpusEnrichmentResponse(BaseModel):
+    """Corpus-scope enrichment signals for the consumer (GET /api/app/corpus/enrichment)."""
+
+    signals: dict[str, Any] = Field(
+        default_factory=dict, description="Enricher id → its envelope `data` payload."
+    )
+
+
 class PlaybackPosition(BaseModel):
     """Per-user playback position for one episode."""
 

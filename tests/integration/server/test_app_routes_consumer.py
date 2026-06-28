@@ -490,6 +490,70 @@ def test_highlights_markdown_export_empty(tmp_path: Path) -> None:
     assert "_No highlights captured yet._" in body
 
 
+# --------------------------------------------------------------------------- #
+# consumer enrichment read surface (#1121, RFC-088 envelopes)
+# --------------------------------------------------------------------------- #
+
+
+def _write_envelope(path: Path, enricher_id: str, data: object, status: str = "ok") -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "enricher_id": enricher_id,
+                "enricher_version": "1.0",
+                "schema_version": "1.0",
+                "status": status,
+                "data": data,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_episode_enrichment_surfaces_ok_envelopes_and_skips_failed(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    slug = _slug(tmp_path, "ep1")
+    enrich_dir = tmp_path / "metadata" / "enrichments"
+    _write_envelope(
+        enrich_dir / "0001-a.topic_cooccurrence.json", "topic_cooccurrence", {"pairs": 3}
+    )
+    _write_envelope(enrich_dir / "0001-a.grounding_rate.json", "grounding_rate", {"rate": 0.9})
+    # a failed envelope is present but must NOT surface
+    _write_envelope(
+        enrich_dir / "0001-a.nli_contradiction.json", "nli_contradiction", None, status="failed"
+    )
+    body = _client(tmp_path).get(f"/api/app/episodes/{slug}/enrichment").json()
+    assert body["slug"] == slug
+    assert body["signals"]["topic_cooccurrence"] == {"pairs": 3}
+    assert body["signals"]["grounding_rate"] == {"rate": 0.9}
+    assert "nli_contradiction" not in body["signals"]
+
+
+def test_episode_enrichment_unknown_slug_404(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    assert _client(tmp_path).get("/api/app/episodes/ghost-404/enrichment").status_code == 404
+
+
+def test_episode_enrichment_empty_when_no_envelopes(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    slug = _slug(tmp_path, "ep1")
+    assert _client(tmp_path).get(f"/api/app/episodes/{slug}/enrichment").json()["signals"] == {}
+
+
+def test_corpus_enrichment_surfaces_corpus_scope_envelopes(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    _write_envelope(
+        tmp_path / "enrichments" / "temporal_velocity.json", "temporal_velocity", {"trend": ["ai"]}
+    )
+    _write_envelope(
+        tmp_path / "enrichments" / "run_summary.json", "run_summary", {"x": 1}
+    )  # bookkeeping → skipped
+    body = _client(tmp_path).get("/api/app/corpus/enrichment").json()
+    assert body["signals"]["temporal_velocity"] == {"trend": ["ai"]}
+    assert "run_summary" not in body["signals"]
+
+
 def test_highlights_export_falls_back_to_slug_when_episode_unknown(tmp_path: Path) -> None:
     # A highlight on a slug that resolves to no corpus episode → the export still renders, using the
     # bare slug as the heading (title hydration is best-effort, never breaks export).
