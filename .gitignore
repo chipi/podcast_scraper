@@ -238,3 +238,6 @@ infra/dgx/converge/pyinfra-debug.log
 
 # Worktree-specific files
 WORKTREE.md
+
+# Local dev-server runtime data (per-user files written while hand-testing the app)
+.devdata/
