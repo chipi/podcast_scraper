@@ -66,7 +66,7 @@ Optional enrichers `topic_similarity` and `nli_contradiction` still
 need provider / scorer wiring at the call site (chunk-7 left those for
 profile-derived callers). They are NOT auto-registered.
 
-## Bug 2 — `temporal_velocity.velocity_last_over_6mo` is always 0.0
+## Bug 2 — `temporal_velocity.velocity_last_over_6mo` is always 0.0 → FIXED
 
 Active topics have populated EWMA curves but a 0 velocity:
 
@@ -88,12 +88,16 @@ reference window. Worth: re-derive `velocity_last_over_6mo` from
 `monthly_counts` in a unit test against this corpus's known-volatile
 topics and assert non-zero.
 
-Not fixed in this branch — surfaces as a follow-up. Scope: read
-`enrichers/temporal_velocity.py` and reproduce against `monthly_counts =
-{"2026-04": 4, "2026-05": 3, "2026-06": 1}` to see if velocity should
-be non-zero.
+**Fix:** `_velocity()` now accepts a `last_idx` parameter; a new
+`_effective_last_idx()` helper walks back from the window end to the
+most recent month with ANY topic activity across the corpus. The
+envelope also surfaces `effective_last_month` so callers can tell when
+"now" lags the data. Prod-v2 result: `effective_last_month: 2026-05`,
+top topics (`financial history`, `infrastructure investment`,
+`media influence`, `ai boom`, `ai bubbles`, ...) now report
+non-zero velocities.
 
-## Bug 3 — `guest_coappearance` is polluted by `SPEAKER_NN` placeholders
+## Bug 3 — `guest_coappearance` is polluted by `SPEAKER_NN` placeholders → FIXED
 
 The top 5 corpus-scope pairs by `episode_count` are all unresolved
 diarization placeholders:
@@ -124,7 +128,19 @@ Worth doing — the leaderboard is the headline view in the consumer
 Insights surface, and surfacing `SPEAKER_03 <-> SPEAKER_05` 4 times is
 worse than surfacing nothing.
 
-## Bug 4 — episode metadata has `duration_seconds=0` / `has_timing=False`
+**Fix:** Took the enricher-side path (option 2). Added a shared
+`is_unresolved_speaker_placeholder(person_id, name)` helper in
+`enrichers/_loaders.py` that matches
+`(person:)?speaker[_-]?\d+` (case-insensitive) on either the id or
+the display name. Both `guest_coappearance` and `grounding_rate` skip
+placeholders before aggregation. Prod-v2 result: top pairs now read
+`Jay Powell <-> Katie Martin` (real co-appearance), top grounding
+persons are all real people. 65 of 247 Person nodes in the corpus
+matched the placeholder pattern; all are now filtered from
+corpus-scope aggregates without touching the underlying
+`.gi.json` files.
+
+## Bug 4 — episode metadata has `duration_seconds=0` / `has_timing=False` → FIXED
 
 Sample `insight_density` envelopes from prod-v2 all report:
 
@@ -145,6 +161,24 @@ check: does any pipeline-produced metadata.json in prod-v2 carry a
 non-zero `duration_seconds`? If not, the upstream metadata writer is the
 bug, not the enricher.
 
+**Investigation result:** Two enricher-side bugs, not one upstream bug.
+
+1. `metadata.json` stores duration under `episode.duration_seconds`,
+   not the top-level key the enricher was reading.
+2. Real `.gi.json` Quote nodes carry timing as `timestamp_start_ms`
+   (millisecond integer), not the `start_s` / `start_seconds` / `start`
+   keys the chunk-1 contract documented.
+
+**Fix:** New `episode_duration_seconds(meta)` helper in `_loaders.py`
+accepts both metadata shapes (top-level wins, falls back to
+`episode.`). `_quote_start_s()` now also accepts
+`timestamp_start_ms` (ms → s). Prod-v2 result: episodes from the
+2026-06-13 pipeline run now correctly report `duration=1128.0
+has_timing=True` with proper early/mid/late segmentation. Older
+2026-05-05 runs still report `duration=0` — those .gi.json files
+predate the metadata writer including duration and are not touched
+by this fix.
+
 ## Notes for the next chunk
 
 - Episode-scope envelopes write to the *latest* run's
@@ -161,15 +195,29 @@ bug, not the enricher.
 - Per-enricher `records_written: 0` in the run summary is a
   bookkeeping miss (envelopes ARE written — verified by file size and
   field counts). The executor's stats-accumulator path doesn't update
-  the counter for write-through paths. Follow-up: trace
-  `EnrichmentRunResult.per_enricher[*].records_written` to see why it
-  reports zero when the envelope clearly carries N records.
+  the counter for write-through paths. See Bug 5 below.
 
-## Bugs 2-4 — open follow-ups (not in this branch)
+## Bug 5 — `per_enricher.records_written` always 0 in run summary → FIXED
 
-| # | Title                                                  | Severity | Surface                         |
-|---|--------------------------------------------------------|----------|---------------------------------|
-| 2 | temporal_velocity.velocity_last_over_6mo is always 0   | Med      | enricher math                   |
-| 3 | guest_coappearance dominated by SPEAKER_NN placeholders | High     | upstream Person resolution      |
-| 4 | episode metadata has duration_seconds=0                | Med      | upstream metadata writer        |
-| 5 | per_enricher.records_written always 0 in run summary   | Low      | executor stats accumulator      |
+The 6 deterministic enrichers all return raw `dict`s through
+`@sync_enricher`, which wrapped them as `EnricherResult(status="ok",
+data=..., records_written=0)` — leaving the dataclass default. The
+executor's metrics accumulator faithfully recorded the 0 it was
+given. None of the six bothered to count their own records, so every
+`run_summary.json` had a per-enricher `records_written: 0` line.
+
+**Fix:** `sync_enricher` now computes
+`records_written = max(len(v) for v in dict.values() if
+isinstance(v, list), default=0)`. Every deterministic enricher has
+exactly one primary list-of-records value at top-level (`pairs`,
+`persons`, `topics`, `insight_segments`), so the heuristic is
+correct for all six without per-enricher annotation. Prod-v2
+result: records_written reports 125 / 87 / 991 / 833 / 4455 / 4428
+across the six enrichers respectively, matching the on-disk envelope
+record counts.
+
+## Status
+
+All five bugs surfaced by the prod-v2 validation are closed in the
+chain of commits on this branch (Bug 1 closed the CLI no-op; Bugs 2–5
+close the enricher-side gaps surfaced by running it).

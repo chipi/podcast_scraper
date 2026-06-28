@@ -7,10 +7,15 @@ For each Topic mentioned in any episode, compute:
 * ``ewma`` — 3-period exponentially-weighted moving average over the
   monthly series (α=0.5), aligned to the latest month.
 * ``velocity`` — last-month count divided by the 6-month rolling
-  average (gives a "rising vs falling" signal).
+  average (gives a "rising vs falling" signal). "Last month" is the
+  most recent calendar month with ANY topic activity across the
+  corpus, so a stale / partial current month doesn't collapse every
+  topic's velocity to zero.
 
 Output drives dashboard "trending topics" and autoresearch follow-on
-hypotheses. The window is computed relative to ``now`` (UTC).
+hypotheses. The window is computed relative to ``now`` (UTC); the
+envelope also surfaces ``effective_last_month`` so callers can tell
+when "now" lags the data.
 """
 
 from __future__ import annotations
@@ -72,16 +77,50 @@ def _ewma(series: list[int]) -> list[float]:
     return out
 
 
-def _velocity(series: list[int]) -> float:
-    """Last-month count over the 6-month trailing average (1.0 = flat)."""
+def _velocity(series: list[int], last_idx: int | None = None) -> float:
+    """Last-month count over the 6-month trailing average (1.0 = flat).
+
+    *last_idx* lets the caller pick which bucket is the "last" month.
+    Defaults to the final element. The 6-month window ends at *last_idx*
+    inclusive. Use a non-final ``last_idx`` to skip a partial / stale
+    current-month bucket whose count is artificially low.
+    """
     if not series:
         return 0.0
-    last = series[-1]
-    six = series[-6:] if len(series) >= 6 else series
-    avg = sum(six) / len(six)
+    if last_idx is None:
+        last_idx = len(series) - 1
+    if not 0 <= last_idx < len(series):
+        return 0.0
+    last = series[last_idx]
+    lo = max(0, last_idx - 5)
+    six = series[lo : last_idx + 1]
+    avg = sum(six) / len(six) if six else 0.0
     if avg == 0:
         return 0.0
     return round(last / avg, 4)
+
+
+def _effective_last_idx(counts_by_topic: dict[str, dict[str, int]], months: list[str]) -> int:
+    """Find the most recent month with ANY topic activity across the corpus.
+
+    The window's final bucket is the current calendar month. On
+    laggy / partial corpora that month has zero data and every topic's
+    velocity collapses to ``0 / avg``. Walking back to the most recent
+    month with at least one mention anywhere in the corpus gives a
+    stable "effective now" that handles both stale data and start-of-
+    calendar-month invocations. Falls back to the last index when the
+    whole window is empty (vacuously consistent with the old
+    behaviour).
+    """
+    monthly_totals: dict[str, int] = {m: 0 for m in months}
+    for monthly in counts_by_topic.values():
+        for m, c in monthly.items():
+            if m in monthly_totals:
+                monthly_totals[m] += c
+    for idx in range(len(months) - 1, -1, -1):
+        if monthly_totals[months[idx]] > 0:
+            return idx
+    return len(months) - 1
 
 
 def _now_utc(config: dict[str, Any]) -> datetime:
@@ -122,6 +161,7 @@ def _compute(
             labels[tid] = node_label(t)
             counts_by_topic[tid][mkey] += 1
 
+    effective_idx = _effective_last_idx(counts_by_topic, months)
     topics_out: list[dict[str, Any]] = []
     for tid, monthly in counts_by_topic.items():
         series = [monthly.get(m, 0) for m in months]
@@ -131,7 +171,7 @@ def _compute(
                 "topic_label": labels.get(tid, tid),
                 "monthly_counts": dict(zip(months, series)),
                 "ewma": dict(zip(months, _ewma(series))),
-                "velocity_last_over_6mo": _velocity(series),
+                "velocity_last_over_6mo": _velocity(series, last_idx=effective_idx),
                 "total": sum(series),
             }
         )
@@ -140,6 +180,7 @@ def _compute(
         "window_months": months,
         "now": now.isoformat(),
         "alpha": _ALPHA,
+        "effective_last_month": months[effective_idx] if months else None,
         "topics": topics_out,
     }
 

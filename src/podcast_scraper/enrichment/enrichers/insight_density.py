@@ -5,9 +5,11 @@ thirds (early/mid/late) of the episode duration, then counts how many
 Insights are supported by quotes in each third.
 
 Reads ``*.gi.json`` (Quote + Insight + SUPPORTED_BY edges with quote
-``properties.start_s`` or ``start_seconds``) and ``*.metadata.json``
-for ``duration_seconds``. Tolerates missing duration / timestamps by
-falling back to even quote-count splits.
+``properties.start_s`` / ``start_seconds`` / ``start`` /
+``timestamp_start_ms``) and ``*.metadata.json`` for
+``duration_seconds`` (top-level or nested under ``episode.``).
+Tolerates missing duration / timestamps by falling back to even
+quote-count splits.
 """
 
 from __future__ import annotations
@@ -17,6 +19,7 @@ from typing import Any
 
 from podcast_scraper.enrichment.enrichers._loaders import (
     edges_of_type,
+    episode_duration_seconds,
     load_gi,
     load_metadata,
     nodes_of_type,
@@ -33,11 +36,23 @@ from podcast_scraper.enrichment.protocol import (
 
 
 def _quote_start_s(node: dict[str, Any]) -> float | None:
+    """Extract Quote start time in seconds across the field-name shapes
+    seen in real `.gi.json` envelopes.
+
+    The chunk-1 enricher contract documented ``start_s`` / ``start_seconds``
+    / ``start``, but the production GI writer emits ``timestamp_start_ms``
+    (millisecond integer). Accepting both shapes lets ``has_timing`` flip
+    to True on real corpora instead of silently falling back to
+    even-thirds segmentation.
+    """
     props = node.get("properties") or {}
     for key in ("start_s", "start_seconds", "start"):
         val = props.get(key)
         if isinstance(val, (int, float)):
             return float(val)
+    ms = props.get("timestamp_start_ms")
+    if isinstance(ms, (int, float)) and ms >= 0:
+        return float(ms) / 1000.0
     return None
 
 
@@ -65,7 +80,7 @@ def _compute(
         raise BadInputError("insight_density is EPISODE scope and requires a bundle; got None")
     gi = load_gi(bundle)
     meta = load_metadata(bundle)
-    duration = float(meta.get("duration_seconds") or 0.0)
+    duration = episode_duration_seconds(meta)
 
     # Quote id → start_s
     quote_start: dict[str, float | None] = {}

@@ -12,10 +12,16 @@ required input is *expected* but malformed.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
 from podcast_scraper.enrichment.protocol import EpisodeArtifactBundle
+
+_SPEAKER_PLACEHOLDER_PATTERN = re.compile(
+    r"^(?:person:)?speaker[_\-]?\d+$",
+    re.IGNORECASE,
+)
 
 
 def _read_json(path: Path | None) -> dict[str, Any]:
@@ -85,8 +91,45 @@ def publish_date(art: dict[str, Any]) -> str | None:
     return None
 
 
+def is_unresolved_speaker_placeholder(person_id: str, name: str | None = None) -> bool:
+    """True when *person_id* / *name* looks like a per-episode diarization label.
+
+    Upstream NER / speaker-link sometimes leaves diarization output
+    (``SPEAKER_00``, ``SPEAKER_18``) un-resolved to a real Person. The
+    pipeline still slugs them as ``person:speaker-NN`` and puts them in
+    the Person table. Each episode's ``SPEAKER_NN`` is independent —
+    ``SPEAKER_00`` in episode A has nothing to do with ``SPEAKER_00`` in
+    episode B — so corpus-scope enrichers that aggregate across episodes
+    must drop them or they over-count the same label's cross-episode
+    coincidence as a real co-occurrence / co-grounding.
+    """
+    if person_id and _SPEAKER_PLACEHOLDER_PATTERN.match(person_id):
+        return True
+    if name and _SPEAKER_PLACEHOLDER_PATTERN.match(name):
+        return True
+    return False
+
+
+def episode_duration_seconds(meta: dict[str, Any]) -> float:
+    """Pull duration from metadata.json — top-level or ``episode.``-nested.
+
+    The metadata writer puts ``duration_seconds`` under ``episode.``;
+    some legacy fixtures + the chunk-1 enricher contract assume it's
+    top-level. Both shapes accepted, ``0.0`` when neither carries it.
+    """
+    for source in (meta, meta.get("episode") if isinstance(meta.get("episode"), dict) else {}):
+        if not isinstance(source, dict):
+            continue
+        raw = source.get("duration_seconds")
+        if isinstance(raw, (int, float)) and raw > 0:
+            return float(raw)
+    return 0.0
+
+
 __all__ = [
     "edges_of_type",
+    "episode_duration_seconds",
+    "is_unresolved_speaker_placeholder",
     "load_bridge",
     "load_gi",
     "load_kg",

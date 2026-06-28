@@ -16,7 +16,12 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-from podcast_scraper.enrichment.enrichers._loaders import edges_of_type, load_gi, nodes_of_type
+from podcast_scraper.enrichment.enrichers._loaders import (
+    edges_of_type,
+    is_unresolved_speaker_placeholder,
+    load_gi,
+    nodes_of_type,
+)
 from podcast_scraper.enrichment.protocol import (
     EnricherManifest,
     EnricherResult,
@@ -76,11 +81,17 @@ def _compute(
 
     persons_out: list[dict[str, Any]] = []
     for pid, total in per_person_total.items():
+        name = person_labels.get(pid, pid)
+        # Drop unresolved diarization placeholders — each episode's
+        # ``SPEAKER_NN`` is a label-local id, so aggregating their
+        # grounding rate across episodes is meaningless.
+        if is_unresolved_speaker_placeholder(pid, name):
+            continue
         grounded_count = per_person_grounded.get(pid, 0)
         persons_out.append(
             {
                 "person_id": pid,
-                "person_name": person_labels.get(pid, pid),
+                "person_name": name,
                 "total_insights": total,
                 "grounded_insights": grounded_count,
                 "rate": round(grounded_count / total, 4) if total else 0.0,

@@ -198,7 +198,11 @@ def sync_enricher(
     Behaviour:
 
     * If the wrapped function returns a ``dict``, the decorator wraps
-      it in ``EnricherResult(status="ok", data=...)``.
+      it in ``EnricherResult(status="ok", data=..., records_written=N)``
+      where ``N`` is the largest top-level list length in the dict
+      (the natural "primary record collection" — pairs / persons /
+      topics / insight_segments / ...). Returns 0 for dicts with no
+      list values.
     * If the wrapped function returns an ``EnricherResult``, it's
       passed through unchanged.
     * If the wrapped function raises, the decorator returns
@@ -221,7 +225,11 @@ def sync_enricher(
         if isinstance(result, EnricherResult):
             return result
         if isinstance(result, dict):
-            return EnricherResult(status=STATUS_OK, data=result)
+            records = max(
+                (len(v) for v in result.values() if isinstance(v, list)),
+                default=0,
+            )
+            return EnricherResult(status=STATUS_OK, data=result, records_written=records)
         raise TypeError(
             "@sync_enricher: function must return dict or EnricherResult, "
             f"got {type(result).__name__}"
