@@ -109,8 +109,10 @@ server/
   `filelock` for concurrent writes and `atomic_write` for whole-file writes. No new abstraction, **no
   repository/interface layer, no schema, no migration tooling.**
 - File types: `profile`, `oauth_identity`, `library` (subscriptions), `playback` (per-episode position),
-  `queue`, `highlights`, `notes`, `interests`, plus a shared `episode_slugs` index. (Highlights/notes
-  detailed in PRD-040; recall projections in RFC-101.)
+  `queue`, `highlights`, `notes`, `interests`, `listen_events.jsonl` (analytics log), and — added by
+  P3 — `resurfacing` (`{highlight_id: {last_surfaced, count}}`) + `resurfacing_settings` (`{paused}`),
+  plus a shared `episode_slugs` index. (Highlights/notes detailed in PRD-040; recall projections +
+  resurfacing in RFC-101.)
 - Each file is owned by a `user_id`; the route dependencies (`deps.py`) confine reads/writes to the current
   user's directory — per-user isolation by path.
 - Lives **outside** the corpus artifact tree so the boundary stays physical: corpus artifacts = shared
