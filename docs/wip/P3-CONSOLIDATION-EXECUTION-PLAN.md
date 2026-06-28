@@ -44,7 +44,7 @@ no recompute — a read-time filtered view (RFC-101 §2 decision: projection, no
 
 ---
 
-## 3. Consumer enrichment read surface (design — sub-epic *a*)
+## 3. Consumer enrichment read surface (design — issue #1121)
 
 Thin `/api/app/*` projections over the shipped loaders, all auth-gated, all heard-set-scoped:
 
@@ -59,40 +59,42 @@ Pydantic models from RFC-088 where they exist (extend `schemas.py` only for the 
 
 ---
 
-## 4. Child decomposition (#1120–#1126)
+## 4. Child decomposition (#1120–#1126 — verified against live GH issues)
 
-Maps the REMEMBER-half-scope sub-epics (a–f) + a closing test/docs issue onto the seven children.
-**Confirm each scope against the live GH issue body on resume** (titles set in the planning session).
+The real issues split **backend (#1120–#1123, `fastapi`) → UI (#1124–#1125, `ui/ux`) → e2e+docs
+(#1126, `documentation`)**, each carrying its own `Depends on` in the issue body. Every child is
+blocked on the RFC-088 rebase. Verb in **bold** is the issue's own framing (Extend / New / Reuse) —
+the unify-don't-rebuild signal.
 
-| Issue | Sub-epic | Scope | Unifies with | Tests |
-| --- | --- | --- | --- | --- |
-| **#1120** | a — consumer enrichment read surface | `/api/app/episodes/{slug}/enrichment` + `/api/app/corpus/enrichment` over the shipped loaders, heard-set-scoped; per-user wrapper schemas | `corpus_enrichments.py` loaders | unit (scoping), integration (route over fixture corpus + envelopes), zero-coverage |
-| **#1121** | b — heard set + corpus projection | `heard_set(user)` deriver (≥30% played ∪ any capture) from `listen_events`/`playback`/highlights; read-time projection helper unifying highlights+insights+notes+heard-episode artifacts via canonical identity | `app_user_state`, RFC-072 | unit (set derivation, A≠B isolation) |
-| **#1122** | c — grounded recall | `POST /api/app/corpus/recall {q}` → grouped grounded set (hybrid RFC-090 filtered to heard set + relational + user highlights), enriched with co-occurrence/similarity/contradiction; **no LLM**; zero-coverage message. Consumer recall UI. | RFC-090/094, #1120/#1121 | unit (group/rank/coverage), integration (multi-user, no-LLM assert), e2e |
-| **#1123** | d — cross-episode connections | `GET /api/app/corpus/person/{id}` + `/corpus/topic/{id}` (RFC-094 traversals scoped to heard set) → "you also heard `<guest>` discuss this in …"; connections UI reusing entity-card machinery | RFC-094, RFC-102 entity cards | unit (scoping), integration, e2e |
-| **#1124** | e — spaced resurfacing + reflection | `GET /api/app/resurfacing` (read-time due-item ladder 2d/1w/1mo/3mo on highlight `created_at`/`last_surfaced`), reflection prompt + one-tap re-listen, pacing controls (per-user settings); in-app inbox/digest UI; `temporal_velocity` informs what to resurface | highlights store, `temporal_velocity` | unit (due-ladder), integration, e2e |
-| **#1125** | f — interest profile evolution | Aggregate topic/person frequencies from captures+history into the interest model; cross-reference enrichment topic signals; extend the shipped interest-token model (flag-gated personalised ordering, off by default) | P2/3.5 interests, `rank_discover` | unit (aggregation), integration |
-| **#1126** | tests + docs | App-activity e2e over an extended committed corpus (heard/captured + enrichment fixture); reconcile PRD-041 + RFC-101 to as-shipped; `Closes #1120…#1126` + `Part of #1113` in the PR body | committed `app-validation-corpus` | e2e, docs (mkdocs strict) |
+| Issue | Label | Scope (as written) | Extends / unifies | Depends on | Tests |
+| --- | --- | --- | --- | --- | --- |
+| **#1120** | fastapi | **Extend** hybrid search: derive the `heard∪captured` set; add `scope=mine` to `/api/app/search` + relational; grounded recall over the scoped set (no request-time LLM, D6); honest zero-coverage | `app_search.py` (its docstring already anticipates "scoped to the user's library once auth + library land") | rebase | unit (scoping) + integration |
+| **#1121** | fastapi | **New** consumer enrichment read surface: `GET /api/app/episodes/{slug}/enrichment` (+ corpus-scope) exposing co-occurrence / similarity / temporal-velocity / NLI-contradiction + `RELATED_TO` edges, read-only (ADR-104) | wraps the shipped `corpus_enrichments.py` envelope loaders (§3) | rebase | integration over an enrichment fixture |
+| **#1122** | fastapi | **Extend** person/topic endpoints with a "your corpus" lens (a guest/topic across heard episodes) + enrichment connections ("you also heard X discuss this in …") | `app_relational.py`, #1121 signals | #1120, #1121 | integration |
+| **#1123** | fastapi | **Extend** interests with implicit profile signals from captures + history (beside explicit follows); **new** spaced-resurfacing selection over highlights/heard (schedule + pacing) | interests / `app_user_state`; `temporal_velocity` informs selection | #1120 | unit (selection/schedule) + integration |
+| **#1124** | ui/ux | **Reuse** the search UI / result cards for a scoped **Recall** mode ("what have I learned about X") → grouped grounded results (insights/quotes/highlights) with jump-to-moment; honest zero-coverage message | `SearchView` / result cards | #1120 | vitest |
+| **#1125** | ui/ux | **Extend** `EntityCardBody` with a "your corpus" toggle; **new** in-app digest/inbox surfacing past highlights + a reflection prompt + one-tap jump + pacing controls (frequency/pause/dismiss) | `EntityCardBody.vue`; resurfacing API (#1123) | #1122, #1123 | vitest |
+| **#1126** | documentation | e2e (recall/connections/resurfacing) on the `app-validation-corpus` extended with enrichment + a heard/captured fixture; promote PRD-041 + RFC-101; add the endpoints to PLATFORM_API / HTTP_API; `make docs` + `lint-markdown` green | committed `app-validation-corpus` | #1124, #1125 | e2e + docs |
 
 ---
 
-## 5. Sequencing
+## 5. Sequencing (the issues' own dependency graph)
 
 ```text
 [RFC-088 #1101 lands on main]  →  git fetch && rebase origin/main  (the agreed break point)
         │
-   #1121 heard set + projection ─┐
-   #1120 enrichment read surface ─┼─► #1122 recall ─► #1123 connections
-        │                         │                    │
-        └─────────────────────────┴──► #1124 resurfacing ──► #1125 interest profile ──► #1126 e2e+docs
+  #1120 scope + scoped recall (be) ─┬─────────────► #1122 connections (be) ─┐
+  #1121 enrichment read surface (be) ┘                                      ├─► #1125 connections+
+        │                                                                   │   resurfacing UI ─► #1126
+  #1120 ─► #1123 interest + resurfacing-selection (be) ────────────────────┘
+  #1120 ─► #1124 Recall surface UI ───────────────────────────────────────────────────────► #1126
 ```
 
-- **#1120 + #1121 are the foundation** — everything else reads through them. They can proceed in
-  parallel the moment the rebase is clean.
-- **#1122–#1125** are the user-facing slices; each is independently shippable (backend → UI →
-  tests), same loop discipline as P2 (commit per issue, mid + end sweeps).
-- **#1126** closes the phase: the app-activity e2e the operator deferred in P2 (simulate per-user
-  activity over a committed corpus) finally lands here, where there's per-user corpus to exercise.
+- **#1120 ∥ #1121** are the backend foundation — start both the moment the rebase is clean.
+- Then **#1122, #1123, #1124** unblock (1122 also needs 1121); **#1125** needs both 1122 + 1123.
+- **#1126** closes the phase: the per-user-activity e2e deferred in P2 finally lands here (there's now
+  a personal corpus to exercise), plus the PRD-041/RFC-101 promotion + API-doc updates.
+- Same loop discipline as P2: one commit per issue, mid- and end-of-phase sweeps.
 
 ## 6. Cross-cutting guardrails (carry over from P2 + RFC-101)
 
