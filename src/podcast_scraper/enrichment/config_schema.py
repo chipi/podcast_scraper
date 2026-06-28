@@ -23,9 +23,7 @@ logger = logging.getLogger(__name__)
 # ``enrichment/_schema/enrichment.schema.json`` is the canonical source;
 # the legacy ``<repo>/config/schema/...`` path is kept as a fallback so
 # editable installs that haven't rebuilt the package still resolve.
-_PACKAGE_SCHEMA_PATH = (
-    Path(__file__).resolve().parent / "_schema" / "enrichment.schema.json"
-)
+_PACKAGE_SCHEMA_PATH = Path(__file__).resolve().parent / "_schema" / "enrichment.schema.json"
 _LEGACY_REPO_SCHEMA_PATH = (
     Path(__file__).resolve().parent.parent.parent.parent
     / "config"
