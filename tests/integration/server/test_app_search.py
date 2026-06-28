@@ -31,13 +31,15 @@ def _client(root: Path) -> TestClient:
     return TestClient(create_app(root, static_dir=False))
 
 
-def _authed(root: Path) -> TestClient:
+def _authed(root: Path, subject: str = "s1") -> TestClient:
     app = create_app(root, static_dir=False)
     data_dir = root / "appdata"
     app.state.session_secret = "test-secret"
     app.state.app_data_dir = data_dir
     app.state.access_policy = AccessPolicy("open", frozenset(), frozenset())
-    user = get_or_create_user(data_dir, provider="stub", subject="s1", email="j@x.com", name="J")
+    user = get_or_create_user(
+        data_dir, provider="stub", subject=subject, email=f"{subject}@x.com", name=subject
+    )
     client = TestClient(app)
     token = app_sessions.sign({"user_id": user.user_id, "iat": int(time.time())}, "test-secret")
     client.cookies.set(app_sessions.SESSION_COOKIE, token)
@@ -222,3 +224,24 @@ def test_scope_mine_filters_to_captured_episodes(
     mine_body = client.get("/api/app/search", params={"q": "x", "scope": "mine"}).json()
     assert [r["doc_id"] for r in mine_body["results"]] == ["i1"]
     assert mine_body["results"][0]["metadata"]["episode_slug"] == slug1
+
+
+def test_scope_mine_is_isolated_between_users(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _two_episode_corpus(tmp_path)
+    monkeypatch.setattr("podcast_scraper.search.capability.run_corpus_search", _both_hits_run)
+    alice, bob = _authed(tmp_path, "alice"), _authed(tmp_path, "bob")
+    alice.post(
+        "/api/app/highlights",
+        json={"episode_slug": _slug(tmp_path, "ep1"), "kind": "moment", "start_ms": 0},
+    )
+    bob.post(
+        "/api/app/highlights",
+        json={"episode_slug": _slug(tmp_path, "ep2"), "kind": "moment", "start_ms": 0},
+    )
+    # Each user's scope=mine reflects only their OWN corpus.
+    a = alice.get("/api/app/search", params={"q": "x", "scope": "mine"}).json()
+    b = bob.get("/api/app/search", params={"q": "x", "scope": "mine"}).json()
+    assert [r["doc_id"] for r in a["results"]] == ["i1"]
+    assert [r["doc_id"] for r in b["results"]] == ["i2"]

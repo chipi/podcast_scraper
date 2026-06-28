@@ -44,3 +44,39 @@ def test_malformed_playback_rows_are_skipped() -> None:
     durations = {"ok": 10.0}
     # 'ok' has no position_seconds → defaults 0 → not heard; no crash on missing slug/position
     assert derive_episode_set(playback, [], durations) == set()
+
+
+def test_user_episode_set_heard_via_playback(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    # The heard-via-listening path end-to-end: ≥30% played of a known-duration episode qualifies,
+    # below-threshold does not — exercising user_episode_set + slug_durations over a real corpus.
+    import json
+    from pathlib import Path
+
+    from podcast_scraper.server import app_user_state
+    from podcast_scraper.server.app_slugs import slug_for_row
+    from podcast_scraper.server.app_user_corpus import user_episode_set
+    from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
+
+    root = Path(tmp_path) / "corpus"
+    (root / "metadata").mkdir(parents=True)
+    for eid, dur in [("ep-heard", 1000), ("ep-skim", 1000)]:
+        (root / "metadata" / f"{eid}.metadata.json").write_text(
+            json.dumps(
+                {
+                    "feed": {"feed_id": "f", "title": "S", "url": "https://f.ex/f.xml"},
+                    "episode": {
+                        "episode_id": eid,
+                        "title": eid,
+                        "published_date": "2024-01-01T00:00:00",
+                        "duration_seconds": dur,
+                    },
+                    "content": {},
+                }
+            ),
+            encoding="utf-8",
+        )
+    slugs = {r.episode_id: slug_for_row(r) for r in build_catalog_rows_cumulative(root)}
+    data_dir = Path(tmp_path) / "appdata"
+    app_user_state.set_playback(data_dir, "u1", slugs["ep-heard"], 400.0, 1)  # 40% → heard
+    app_user_state.set_playback(data_dir, "u1", slugs["ep-skim"], 100.0, 1)  # 10% → not heard
+    assert user_episode_set(root, data_dir, "u1") == {slugs["ep-heard"]}

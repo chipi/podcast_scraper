@@ -33,8 +33,8 @@ _ENRICHER_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_]+$")
 _SUMMARY_FILES = {"run_summary.json"}
 
 
-def _envelope_data(path: Path) -> Any | None:
-    """Parsed ``data`` payload of an envelope, or ``None`` (absent / unparsable / not OK)."""
+def _parse_envelope(path: Path) -> dict[str, Any] | None:
+    """Parsed envelope dict for an OK enricher, or ``None`` (absent / unparsable / not OK)."""
     try:
         parsed = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
@@ -43,7 +43,13 @@ def _envelope_data(path: Path) -> Any | None:
         return None
     if parsed.get("status") not in (None, "ok"):  # tolerate envelopes that omit status
         return None
-    return parsed.get("data")
+    return parsed
+
+
+def _envelope_data(path: Path) -> Any | None:
+    """The ``data`` payload of an OK envelope, or ``None``."""
+    parsed = _parse_envelope(path)
+    return parsed.get("data") if parsed is not None else None
 
 
 @router.get("/episodes/{slug}/enrichment", response_model=AppEpisodeEnrichmentResponse)
@@ -83,13 +89,8 @@ async def corpus_enrichment(request: Request) -> AppCorpusEnrichmentResponse:
         for path in sorted(enrich_dir.glob("*.json")):
             if path.name in _SUMMARY_FILES:
                 continue
-            try:
-                parsed = json.loads(path.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError):
+            parsed = _parse_envelope(path)
+            if parsed is None or parsed.get("data") is None:
                 continue
-            if not isinstance(parsed, dict):
-                continue
-            enricher_id = str(parsed.get("enricher_id") or path.stem)
-            if parsed.get("status") in (None, "ok") and parsed.get("data") is not None:
-                signals[enricher_id] = parsed["data"]
+            signals[str(parsed.get("enricher_id") or path.stem)] = parsed["data"]
     return AppCorpusEnrichmentResponse(signals=signals)

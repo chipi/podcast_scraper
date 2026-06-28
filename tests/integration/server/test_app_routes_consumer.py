@@ -549,9 +549,16 @@ def test_corpus_enrichment_surfaces_corpus_scope_envelopes(tmp_path: Path) -> No
     _write_envelope(
         tmp_path / "enrichments" / "run_summary.json", "run_summary", {"x": 1}
     )  # bookkeeping → skipped
+    _write_envelope(
+        tmp_path / "enrichments" / "topic_similarity.json",
+        "topic_similarity",
+        None,
+        status="failed",
+    )  # a failed corpus enricher must not surface
     body = _client(tmp_path).get("/api/app/corpus/enrichment").json()
     assert body["signals"]["temporal_velocity"] == {"trend": ["ai"]}
     assert "run_summary" not in body["signals"]
+    assert "topic_similarity" not in body["signals"]
 
 
 # --------------------------------------------------------------------------- #

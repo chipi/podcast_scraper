@@ -263,7 +263,13 @@ def get_highlights(
     out = [
         x
         for x in data
-        if isinstance(x, dict) and x.get("id") and x.get("episode_slug") and x.get("kind")
+        if isinstance(x, dict)
+        and x.get("id")
+        and x.get("episode_slug")
+        and x.get("kind")
+        and x.get(
+            "created_at"
+        )  # required by the Highlight response model; drop hand-corrupted rows
     ]
     if episode_slug is not None:
         out = [x for x in out if x.get("episode_slug") == episode_slug]
