@@ -58,18 +58,40 @@ beforeEach(() => {
   vi.spyOn(api, 'getFavorites').mockResolvedValue({ episodes: [], insights: [] })
   vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
   vi.spyOn(api, 'getEpisode').mockResolvedValue(detail())
+  // HighlightsView (embedded) hydrates the capture store on mount.
+  vi.spyOn(api, 'getHighlights').mockResolvedValue([])
+  vi.spyOn(api, 'getNotes').mockResolvedValue([])
 })
 afterEach(() => vi.restoreAllMocks())
 
 describe('LibraryView', () => {
-  it('renders all four tabs with their labels', async () => {
+  it('renders all tabs with their labels', async () => {
     const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
     await flushPromises()
     const labels = w.findAll('button').map((b) => b.text())
     expect(labels).toContain('Saved')
+    expect(labels).toContain('Highlights')
     expect(labels).toContain('Knowledge')
     expect(labels).toContain('Queue')
     expect(labels).toContain('Recent')
+  })
+
+  it('Highlights tab shows the captured highlights (grouped) with an export link', async () => {
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([
+      {
+        id: 'h1', episode_slug: 'fav-1', kind: 'span', start_ms: 65_000, end_ms: 68_000,
+        char_start: 0, char_end: 5, segment_ids: ['s1'], quote_text: 'a captured line',
+        speaker: null, source_insight_id: null, color: null, created_at: 1, anchor_status: null,
+      },
+    ])
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail({ slug: 'fav-1', title: 'Saved Episode' }))
+    const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    await tabButton(w, 'Highlights').trigger('click')
+    expect(w.text()).toContain('a captured line')
+    expect(w.text()).toContain('1:05') // 65_000ms jump link
+    const exportLink = w.findAll('a').find((a) => (a.attributes('href') ?? '').includes('export.md'))
+    expect(exportLink).toBeTruthy()
   })
 
   it('Saved lists favorited episodes via EpisodeCard', async () => {

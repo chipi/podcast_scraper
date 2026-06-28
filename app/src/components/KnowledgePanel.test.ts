@@ -215,6 +215,7 @@ describe('KnowledgePanel', () => {
     const auth = useAuthStore()
     auth.user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
     vi.spyOn(api, 'getHighlights').mockResolvedValue([])
+    vi.spyOn(api, 'getNotes').mockResolvedValue([])
     const created: Highlight = {
       id: 'h1', episode_slug: 's1', kind: 'insight', start_ms: 12000, end_ms: null,
       char_start: null, char_end: null, segment_ids: [], quote_text: 'Sleep consolidates memory.',

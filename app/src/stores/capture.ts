@@ -7,13 +7,18 @@
 import { defineStore } from 'pinia'
 import {
   createHighlight,
+  createNote,
   deleteHighlight,
+  deleteNote,
   getHighlights,
+  getNotes,
+  patchNote,
 } from '../services/api'
-import type { Highlight, Segment } from '../services/types'
+import type { Highlight, Note, Segment } from '../services/types'
 
 interface CaptureState {
   highlights: Highlight[]
+  notes: Note[]
   loaded: boolean
 }
 
@@ -23,13 +28,18 @@ function ms(seconds: number): number {
 }
 
 export const useCaptureStore = defineStore('capture', {
-  state: (): CaptureState => ({ highlights: [], loaded: false }),
+  state: (): CaptureState => ({ highlights: [], notes: [], loaded: false }),
   getters: {
     /** Highlights for one episode (newest-last as stored). */
     forEpisode:
       (s) =>
       (slug: string): Highlight[] =>
         s.highlights.filter((h) => h.episode_slug === slug),
+    /** Notes attached to a given target (highlight / insight / episode). */
+    notesFor:
+      (s) =>
+      (target: string, targetId: string): Note[] =>
+        s.notes.filter((n) => n.target === target && n.target_id === targetId),
     /** Source-insight ids already saved as insight highlights (drives the insight save toggle). */
     savedInsightIds: (s): Set<string> =>
       new Set(s.highlights.filter((h) => h.source_insight_id).map((h) => h.source_insight_id!)),
@@ -43,7 +53,9 @@ export const useCaptureStore = defineStore('capture', {
   },
   actions: {
     async load(): Promise<void> {
-      this.highlights = await getHighlights()
+      const [highlights, notes] = await Promise.all([getHighlights(), getNotes()])
+      this.highlights = highlights
+      this.notes = notes
       this.loaded = true
     },
     async ensureLoaded(): Promise<void> {
@@ -120,10 +132,37 @@ export const useCaptureStore = defineStore('capture', {
         /* signed out / transient */
       }
     },
-    /** Remove a highlight by id. */
+    /** Remove a highlight by id (and any notes that targeted it, locally). */
     async remove(id: string): Promise<void> {
       try {
         this._sync(await deleteHighlight(id))
+        this.notes = this.notes.filter((n) => !(n.target === 'highlight' && n.target_id === id))
+      } catch {
+        /* signed out / transient */
+      }
+    },
+    /** Attach a note to a target (highlight / insight / episode). */
+    async addNote(target: Note['target'], targetId: string, text: string): Promise<void> {
+      try {
+        const n = await createNote({ target, target_id: targetId, text })
+        this.notes = [...this.notes, n]
+      } catch {
+        /* signed out / transient */
+      }
+    },
+    /** Edit a note's text. */
+    async editNote(id: string, text: string): Promise<void> {
+      try {
+        const updated = await patchNote(id, text)
+        this.notes = this.notes.map((n) => (n.id === id ? updated : n))
+      } catch {
+        /* signed out / transient */
+      }
+    },
+    /** Remove a note by id. */
+    async removeNote(id: string): Promise<void> {
+      try {
+        this.notes = await deleteNote(id)
       } catch {
         /* signed out / transient */
       }

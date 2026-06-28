@@ -24,7 +24,10 @@ function hl(over: Partial<Highlight> = {}): Highlight {
   }
 }
 
-beforeEach(() => setActivePinia(createPinia()))
+beforeEach(() => {
+  setActivePinia(createPinia())
+  vi.spyOn(api, 'getNotes').mockResolvedValue([])
+})
 afterEach(() => vi.restoreAllMocks())
 
 describe('capture store', () => {
@@ -85,5 +88,45 @@ describe('capture store', () => {
     const c = useCaptureStore()
     await expect(c.captureMoment('show-ep01', 1)).resolves.toBeUndefined()
     expect(c.count).toBe(0)
+  })
+
+  it('load() pulls highlights and notes together', async () => {
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([hl()])
+    vi.spyOn(api, 'getNotes').mockResolvedValue([
+      { id: 'n1', target: 'highlight', target_id: 'h1', text: 'note', created_at: 1, updated_at: 1 },
+    ])
+    const c = useCaptureStore()
+    await c.load()
+    expect(c.notesFor('highlight', 'h1')).toHaveLength(1)
+  })
+
+  it('addNote / editNote / removeNote keep local notes in sync', async () => {
+    const c = useCaptureStore()
+    vi.spyOn(api, 'createNote').mockResolvedValue({
+      id: 'n1', target: 'highlight', target_id: 'h1', text: 'first', created_at: 1, updated_at: 1,
+    })
+    await c.addNote('highlight', 'h1', 'first')
+    expect(c.notesFor('highlight', 'h1')[0].text).toBe('first')
+
+    vi.spyOn(api, 'patchNote').mockResolvedValue({
+      id: 'n1', target: 'highlight', target_id: 'h1', text: 'edited', created_at: 1, updated_at: 2,
+    })
+    await c.editNote('n1', 'edited')
+    expect(c.notesFor('highlight', 'h1')[0].text).toBe('edited')
+
+    vi.spyOn(api, 'deleteNote').mockResolvedValue([])
+    await c.removeNote('n1')
+    expect(c.notes).toHaveLength(0)
+  })
+
+  it('removing a highlight also drops its local notes', async () => {
+    const c = useCaptureStore()
+    c.highlights = [hl({ id: 'h1' })]
+    c.notes = [
+      { id: 'n1', target: 'highlight', target_id: 'h1', text: 'x', created_at: 1, updated_at: 1 },
+    ]
+    vi.spyOn(api, 'deleteHighlight').mockResolvedValue([])
+    await c.remove('h1')
+    expect(c.notes).toHaveLength(0)
   })
 })

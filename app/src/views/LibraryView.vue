@@ -14,16 +14,18 @@ import { formatTime } from '../player/transcriptSync'
 import { summaryFromDetail } from '../utils/episode'
 import EpisodeCard from '../components/EpisodeCard.vue'
 import QueueView from './QueueView.vue'
+import HighlightsView from './HighlightsView.vue'
 
 const { t } = useI18n()
 const favorites = useFavoritesStore()
 
-// Tabs: Saved (episodes) · Knowledge (saved insights) · Queue (what's next) · Recent (heard).
-// "Shows" returns once subscriptions are user-curated — today there's no way to curate them.
-type Tab = 'saved' | 'knowledge' | 'queue' | 'recent'
+// Tabs: Saved (episodes) · Highlights (captured moments/spans) · Knowledge (saved insights) ·
+// Queue (what's next) · Recent (heard). "Shows" returns once subscriptions are user-curated.
+type Tab = 'saved' | 'highlights' | 'knowledge' | 'queue' | 'recent'
 const tab = ref<Tab>('saved')
 const tabs: { key: Tab; label: string }[] = [
   { key: 'saved', label: 'library.saved' },
+  { key: 'highlights', label: 'library.highlights' },
   { key: 'knowledge', label: 'library.knowledge' },
   { key: 'queue', label: 'library.queue' },
   { key: 'recent', label: 'library.recent' },
@@ -70,6 +72,11 @@ onMounted(async () => {
       <section v-else class="flex flex-col">
         <EpisodeCard v-for="e in favorites.episodes" :key="e.slug" :episode="e" />
       </section>
+    </div>
+
+    <!-- Highlights — captured moments / spans / saved insights, grouped by episode, with notes. -->
+    <div v-show="tab === 'highlights'">
+      <HighlightsView />
     </div>
 
     <!-- Knowledge — saved insights (snapshot text + jump-to-moment). -->

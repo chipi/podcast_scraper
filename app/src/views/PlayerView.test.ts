@@ -106,6 +106,7 @@ describe('PlayerView', () => {
 
   it('shows the mark-moment control only when signed in and captures on tap (P2)', async () => {
     vi.spyOn(api, 'getHighlights').mockResolvedValue([])
+    vi.spyOn(api, 'getNotes').mockResolvedValue([])
     const created: Highlight = {
       id: 'm1', episode_slug: 'ep-1', kind: 'moment', start_ms: 0, end_ms: null,
       char_start: null, char_end: null, segment_ids: [], quote_text: null, speaker: null,

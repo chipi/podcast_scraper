@@ -190,12 +190,31 @@
   "library": {
     "title": "Library",
     "saved": "Saved",
+    "highlights": "Highlights",
     "knowledge": "Knowledge",
     "queue": "Queue",
     "recent": "Recent",
     "savedEmpty": "Nothing saved yet. Tap the heart on an episode to save it.",
     "knowledgeEmpty": "No saved insights yet. Tap the heart on an insight to keep it here.",
     "recentEmpty": "Nothing played yet."
+  },
+  "highlights": {
+    "empty": "No highlights yet. Mark a moment, save a transcript line, or keep an insight while you listen.",
+    "count": "No highlights | 1 highlight | {count} highlights",
+    "export": "Export Markdown",
+    "moment": "Marked moment",
+    "span": "Transcript",
+    "insight": "Insight",
+    "drifted": "anchor drifted",
+    "driftedHint": "The transcript changed since you saved this; the timestamp still points to roughly the right place.",
+    "remove": "Remove highlight",
+    "addNote": "Add note",
+    "editNote": "Edit",
+    "removeNote": "Remove note",
+    "saveNote": "Save",
+    "cancel": "Cancel",
+    "noteLabel": "Note",
+    "notePlaceholder": "Add a thought…"
   },
   "stats": {
     "title": "Your listening",
