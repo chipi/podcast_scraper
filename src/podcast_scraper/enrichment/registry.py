@@ -19,6 +19,19 @@ from podcast_scraper.enrichment.protocol import Enricher, EnricherSet
 logger = logging.getLogger(__name__)
 
 
+# Enrichers that need an injected provider / scorer at construction
+# time and so can't auto-register the way the deterministic enrichers
+# do. When ``list_enabled`` finds one of these absent from the registry,
+# the WARNING includes the wiring hint so an operator running with
+# ``--profile cloud_thin`` (which lists them in ``enabled_enrichers``)
+# sees the actionable reason rather than a generic "not registered"
+# silence. Keep this map narrow — only known optional enrichers.
+_PROVIDER_WIRING_HINT: dict[str, str] = {
+    "topic_similarity": "an EmbeddingProvider (see scorers/embedding.py)",
+    "nli_contradiction": "an NliScorer (see scorers/nli.py)",
+}
+
+
 class EnricherRegistry:
     """A flat registry of ``Enricher`` instances keyed by ``manifest.id``.
 
@@ -65,10 +78,23 @@ class EnricherRegistry:
         for eid in enricher_set.enabled_enrichers:
             enr = self._enrichers.get(eid)
             if enr is None:
-                logger.warning(
-                    "EnricherSet enables %r but it is not registered; skipping",
-                    eid,
-                )
+                hint = _PROVIDER_WIRING_HINT.get(eid)
+                if hint:
+                    logger.warning(
+                        "EnricherSet enables %r but it is not registered "
+                        "(this enricher requires %s injected at the call "
+                        "site — the CLI auto-registers deterministic "
+                        "enrichers only; the workflow / API path is the "
+                        "canonical entry point that wires providers); "
+                        "skipping",
+                        eid,
+                        hint,
+                    )
+                else:
+                    logger.warning(
+                        "EnricherSet enables %r but it is not registered; skipping",
+                        eid,
+                    )
                 continue
             manifest = enr.manifest
             if manifest.requires_opt_in and not enricher_set.has_opt_in(eid):

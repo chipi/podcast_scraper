@@ -221,3 +221,56 @@ record counts.
 All five bugs surfaced by the prod-v2 validation are closed in the
 chain of commits on this branch (Bug 1 closed the CLI no-op; Bugs 2–5
 close the enricher-side gaps surfaced by running it).
+
+## Follow-up — optional-enricher wiring (deferred; design open)
+
+Not a bug; a real design question worth thinking about between PRs.
+
+**Current state.** Profile YAMLs (`cloud_thin`, `cloud_balanced`,
+`cloud_quality`, `airgapped`, `prod_dgx_full_with_fallback`,
+`local_dgx_full`) list `topic_similarity` and `nli_contradiction` in
+`enabled_enrichers`. The CLI registry only auto-loads the six
+deterministic enrichers (those have no constructor injections). When
+the executor walks the EnricherSet it logs a WARNING and skips the
+two — now with an actionable hint pointing at the wiring requirement
+(`registry.py: _PROVIDER_WIRING_HINT`).
+
+**Why not auto-wire in the CLI.** The optional enrichers need
+constructor injections that genuinely vary by deployment:
+- `TopicSimilarityEnricher(provider: EmbeddingProvider)` — airgapped
+  uses a sentence-transformers checkpoint, cloud uses an external
+  embeddings API, CI uses `FakeEmbeddingProvider(dim=32)`.
+- `NliContradictionEnricher(scorer: NliScorer)` — `FixedNliScorer`
+  for CI, `DeBERTaNliScorer` (lazy-loads ~80MB) for real runs.
+
+NOT a CI-vs-real concern. The codebase already imports
+`sentence_transformers` lazily inside functions in `gi/`, `kg/`,
+`evaluation/`, etc.; default CI (`.[dev]`) doesn't install it, nightly
+(`.[dev,ml,llm,search]`) does. Registering an `NliContradictionEnricher`
+with a `DeBERTaNliScorer()` doesn't actually pull `sentence_transformers`
+into the import graph — the lazy `import` inside `score()` only
+triggers when the model is asked to score. So "the CLI can't import the
+scorer" is not the blocker. The blocker is: the CLI doesn't know which
+provider to construct, because that's a profile / runtime-config
+concern, not a CLI-flag concern.
+
+**Option 4 sketch (architectural; canonical long-term path).**
+Move the optional-enricher wiring to
+`workflow.orchestration._maybe_spawn_enrichment_after_pipeline` —
+the workflow already has the resolved pipeline config, which knows:
+- whether `vector_search` is enabled → which embedding model is
+  loaded → reuse the same provider for `topic_similarity`
+- whether the profile has an LLM tier with cost ceiling → use
+  `DeBERTaNliScorer` when on, skip `nli_contradiction` when not.
+
+The CLI stays deterministic-only (the operator dev-iteration entry).
+The workflow path is the production entry that brings ML.
+
+This matches the RFC-088 chunk 9 split between Mode A (CLI / dev) and
+Mode B (workflow / production) — Mode B's existing scaffold is the
+right place to add this wiring without breaking the CLI's "no ML
+dependencies" contract.
+
+Defer to a chunk-10-style follow-up PR. Today's WARNING-with-hint
+closes the honesty gap so operators running `--profile cloud_thin`
+through the CLI know exactly why those two are silent.
