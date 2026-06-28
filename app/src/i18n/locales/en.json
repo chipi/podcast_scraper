@@ -211,11 +211,11 @@
     "saved": "Saved",
     "highlights": "Highlights",
     "revisit": "Revisit",
-    "knowledge": "Knowledge",
     "queue": "Queue",
     "recent": "Recent",
-    "savedEmpty": "Nothing saved yet. Tap the heart on an episode to save it.",
-    "knowledgeEmpty": "No saved insights yet. Tap the heart on an insight to keep it here.",
+    "savedEmpty": "Nothing saved yet. Tap the heart on an episode or insight to keep it here.",
+    "savedEpisodes": "Episodes",
+    "savedInsights": "Insights",
     "recentEmpty": "Nothing played yet."
   },
   "highlights": {

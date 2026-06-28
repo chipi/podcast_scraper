@@ -21,6 +21,7 @@ import { formatDuration } from '../utils/format'
 import { episodeArtwork, showArtwork } from '../utils/episode'
 import { useAuthStore } from '../stores/auth'
 import InterestsPicker from '../components/InterestsPicker.vue'
+import QueueButton from '../components/QueueButton.vue'
 
 const INTERESTS_DISMISSED_KEY = 'lp.interests.dismissed'
 
@@ -179,6 +180,13 @@ onMounted(async () => {
       </div>
 
       <!-- Featured #01 -->
+      <div class="relative">
+      <!-- Queue toggle in the artwork's upper-right (same over-image treatment as the player hero);
+           sibling of the link, not nested in the <a>. -->
+      <QueueButton
+        :slug="wnFeatured.slug"
+        class="absolute right-3 top-3 z-30 bg-canvas/80 backdrop-blur"
+      />
       <RouterLink
         :to="{ name: 'player', params: { slug: wnFeatured.slug } }"
         class="relative block overflow-hidden rounded-2xl border border-border no-underline text-canvas-foreground"
@@ -205,13 +213,14 @@ onMounted(async () => {
           </p>
         </div>
       </RouterLink>
+      </div>
 
       <!-- Ranked rows 02–06 -->
       <ul class="mt-2">
-        <li v-for="(ep, i) in wnRows" :key="ep.slug">
+        <li v-for="(ep, i) in wnRows" :key="ep.slug" class="flex items-center gap-2">
           <RouterLink
             :to="{ name: 'player', params: { slug: ep.slug } }"
-            class="group flex items-center gap-4 rounded-xl px-2 py-3 no-underline text-canvas-foreground hover:bg-overlay"
+            class="group flex min-w-0 flex-1 items-center gap-4 rounded-xl px-2 py-3 no-underline text-canvas-foreground hover:bg-overlay"
           >
             <span
               class="w-9 shrink-0 text-center font-display text-2xl font-extrabold tracking-tight text-disabled"
@@ -223,6 +232,7 @@ onMounted(async () => {
             </span>
             <span class="shrink-0 text-muted transition group-hover:text-accent" aria-hidden="true">▶</span>
           </RouterLink>
+          <QueueButton :slug="ep.slug" class="mr-1" />
         </li>
       </ul>
     </section>
@@ -231,7 +241,8 @@ onMounted(async () => {
     <section v-if="recommended.length" class="mt-7">
       <h2 class="lp-section mb-3">{{ t('home.recommended') }}</h2>
       <ul class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        <li v-for="ep in recommended.slice(0, 8)" :key="ep.slug">
+        <li v-for="ep in recommended.slice(0, 8)" :key="ep.slug" class="relative">
+          <QueueButton :slug="ep.slug" class="absolute right-2 top-2 z-10 bg-canvas/70 backdrop-blur" />
           <RouterLink :to="{ name: 'player', params: { slug: ep.slug } }" class="block no-underline text-canvas-foreground">
             <img v-if="epArt(ep)" :src="epArt(ep)!" alt="" class="aspect-square w-full rounded-xl object-cover bg-elevated" />
             <div v-else class="aspect-square w-full rounded-xl bg-elevated" />

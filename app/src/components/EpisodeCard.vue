@@ -12,16 +12,13 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import type { EpisodeSummary, FavoriteAdd } from '../services/types'
-import { useAuthStore } from '../stores/auth'
-import { useQueueStore } from '../stores/queue'
 import { formatDuration, formatPublishDate } from '../utils/format'
 import { episodeArtwork } from '../utils/episode'
 import FavoriteButton from './FavoriteButton.vue'
+import QueueButton from './QueueButton.vue'
 
 const props = defineProps<{ episode: EpisodeSummary }>()
 const { t, locale } = useI18n()
-const auth = useAuthStore()
-const queue = useQueueStore()
 
 const duration = computed(() => formatDuration(props.episode.duration_seconds))
 const date = computed(() => formatPublishDate(props.episode.publish_date, locale.value))
@@ -122,22 +119,10 @@ const favItem = computed<FavoriteAdd>(() => ({
 
           <FavoriteButton :item="favItem" class="relative z-30" />
 
-          <button
-            v-if="auth.isAuthenticated"
-            type="button"
-            class="relative z-30 flex h-7 w-7 items-center justify-center rounded-full border border-border"
-            :class="queue.has(episode.slug) ? 'border-accent text-accent' : 'text-muted hover:text-canvas-foreground'"
-            :aria-pressed="queue.has(episode.slug)"
-            :aria-label="queue.has(episode.slug) ? t('queue.remove') : t('queue.add')"
-            @click="queue.toggle(episode.slug)"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
-              <template v-if="queue.has(episode.slug)"><path d="M20 6 9 17l-5-5" /></template>
-              <template v-else>
-                <path d="M11 12H3" /><path d="M16 6H3" /><path d="M16 18H3" /><path d="M18 9v6" /><path d="M21 12h-6" />
-              </template>
-            </svg>
-          </button>
+          <QueueButton :slug="episode.slug" />
+
+          <!-- Optional extra actions in the same icon row (e.g. the queue's reorder ↑/↓). -->
+          <slot name="actions" />
         </div>
       </div>
 

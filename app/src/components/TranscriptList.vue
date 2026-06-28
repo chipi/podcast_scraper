@@ -135,7 +135,7 @@ function showSpeaker(i: number): boolean {
           </span>
           <span
             :ref="(el) => { if (el) textEls[i] = el as HTMLElement }"
-            class="text-sm leading-relaxed"
+            class="text-sm leading-relaxed select-text"
             :class="i === activeIndex ? 'text-surface-foreground font-semibold' : 'text-muted'"
           >
             <!-- Char-level: underline only the matched quote phrase within the segment (3.6). -->

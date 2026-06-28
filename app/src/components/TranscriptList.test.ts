@@ -24,6 +24,12 @@ describe('TranscriptList', () => {
     expect(w.text()).toContain('matthew walker') // person: prefix stripped, dashes → spaces
   })
 
+  it('keeps the segment text user-selectable (so phrase capture can read a selection)', () => {
+    // The text lives inside the seek <button>; without select-text the browser blocks selection.
+    const w = mountList({ segments, activeIndex: 0 })
+    expect(w.findAll('span.leading-relaxed')[0].classes()).toContain('select-text')
+  })
+
   it('shows a speaker name once per run, not on every consecutive segment', () => {
     const run: Segment[] = [
       { id: 'a', start: 0, end: 1, text: 'One.', speaker: 'person:amy-lawrence' },

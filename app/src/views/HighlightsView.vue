@@ -101,10 +101,9 @@ onMounted(async () => {
 
 <template>
   <div>
-    <div class="mb-4 flex items-center justify-between gap-3">
+    <div v-if="capture.count" class="mb-4 flex items-center justify-between gap-3">
       <p class="text-sm text-muted">{{ t('highlights.count', capture.count, { named: { count: capture.count } }) }}</p>
       <a
-        v-if="capture.count"
         :href="highlightsExportUrl()"
         download="my-highlights.md"
         class="rounded-full border border-border px-3 py-1 text-sm font-bold text-accent no-underline transition hover:bg-overlay"

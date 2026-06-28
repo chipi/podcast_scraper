@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
- * Your Library (UXS-014) — the hub for everything per-user, tabbed: Saved (favorited episodes) ·
- * Knowledge (saved insights) · Queue (what's next) · Recent (playback history). One place, tabbed;
- * scales as new favorite kinds arrive. Auth-gated.
+ * Your Library (UXS-014) — the hub for everything per-user, tabbed: Saved (favourited things, in
+ * per-kind sections — episodes, insights, …) · Highlights · Revisit · Queue · Recent. One place,
+ * tabbed; the Saved tab grows a new section as new favourite kinds arrive. Auth-gated.
  */
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -20,15 +20,14 @@ import ResurfacingInbox from './ResurfacingInbox.vue'
 const { t } = useI18n()
 const favorites = useFavoritesStore()
 
-// Tabs: Saved · Highlights · Revisit (spaced resurfacing) · Knowledge · Queue · Recent.
+// Tabs: Saved (per-kind sections) · Highlights · Revisit · Queue · Recent.
 // "Shows" returns once subscriptions are user-curated.
-type Tab = 'saved' | 'highlights' | 'revisit' | 'knowledge' | 'queue' | 'recent'
+type Tab = 'saved' | 'highlights' | 'revisit' | 'queue' | 'recent'
 const tab = ref<Tab>('saved')
 const tabs: { key: Tab; label: string }[] = [
   { key: 'saved', label: 'library.saved' },
   { key: 'highlights', label: 'library.highlights' },
   { key: 'revisit', label: 'library.revisit' },
-  { key: 'knowledge', label: 'library.knowledge' },
   { key: 'queue', label: 'library.queue' },
   { key: 'recent', label: 'library.recent' },
 ]
@@ -68,12 +67,42 @@ onMounted(async () => {
       >{{ t(tb.label) }}</button>
     </div>
 
-    <!-- Saved — favorited episodes. -->
+    <!-- Saved — favourited things, one section per kind (episodes, insights, … more to come). -->
     <div v-show="tab === 'saved'">
-      <p v-if="!favorites.episodes.length" class="text-muted">{{ t('library.savedEmpty') }}</p>
-      <section v-else class="flex flex-col">
-        <EpisodeCard v-for="e in favorites.episodes" :key="e.slug" :episode="e" />
-      </section>
+      <p
+        v-if="!favorites.episodes.length && !favorites.insights.length"
+        class="text-muted"
+      >{{ t('library.savedEmpty') }}</p>
+      <template v-else>
+        <!-- Episodes -->
+        <section v-if="favorites.episodes.length" class="mb-6">
+          <h2 class="lp-section mb-2">{{ t('library.savedEpisodes') }}</h2>
+          <div class="flex flex-col">
+            <EpisodeCard v-for="e in favorites.episodes" :key="e.slug" :episode="e" />
+          </div>
+        </section>
+        <!-- Insights (snapshot text + jump-to-moment) -->
+        <section v-if="favorites.insights.length">
+          <h2 class="lp-section mb-2">{{ t('library.savedInsights') }}</h2>
+          <ul class="flex flex-col">
+            <li v-for="ins in favorites.insights" :key="ins.ref" class="border-b border-border py-3">
+              <RouterLink
+                v-if="ins.episode_slug"
+                :to="{ name: 'player', params: { slug: ins.episode_slug }, query: ins.start_ms != null ? { t: String(Math.floor(ins.start_ms / 1000)) } : {} }"
+                class="block no-underline text-canvas-foreground"
+              >
+                <p class="text-sm font-semibold leading-snug">{{ ins.text }}</p>
+                <p class="lp-kicker mt-1">
+                  {{ ins.podcast_title
+                  }}<template v-if="ins.podcast_title && ins.start_ms != null"> · </template
+                  ><span v-if="ins.start_ms != null" class="text-accent">▶ {{ formatTime(ins.start_ms / 1000) }}</span>
+                </p>
+              </RouterLink>
+              <p v-else class="text-sm font-semibold leading-snug text-muted">{{ ins.text }}</p>
+            </li>
+          </ul>
+        </section>
+      </template>
     </div>
 
     <!-- Highlights — captured moments / spans / saved insights, grouped by episode, with notes. -->
@@ -84,28 +113,6 @@ onMounted(async () => {
     <!-- Revisit — spaced resurfacing of past highlights with reflection prompts. -->
     <div v-show="tab === 'revisit'">
       <ResurfacingInbox />
-    </div>
-
-    <!-- Knowledge — saved insights (snapshot text + jump-to-moment). -->
-    <div v-show="tab === 'knowledge'">
-      <p v-if="!favorites.insights.length" class="text-muted">{{ t('library.knowledgeEmpty') }}</p>
-      <ul v-else class="flex flex-col">
-        <li v-for="ins in favorites.insights" :key="ins.ref" class="border-b border-border py-3">
-          <RouterLink
-            v-if="ins.episode_slug"
-            :to="{ name: 'player', params: { slug: ins.episode_slug }, query: ins.start_ms != null ? { t: String(Math.floor(ins.start_ms / 1000)) } : {} }"
-            class="block no-underline text-canvas-foreground"
-          >
-            <p class="text-sm font-semibold leading-snug">{{ ins.text }}</p>
-            <p class="lp-kicker mt-1">
-              {{ ins.podcast_title
-              }}<template v-if="ins.podcast_title && ins.start_ms != null"> · </template
-              ><span v-if="ins.start_ms != null" class="text-accent">▶ {{ formatTime(ins.start_ms / 1000) }}</span>
-            </p>
-          </RouterLink>
-          <p v-else class="text-sm font-semibold leading-snug text-muted">{{ ins.text }}</p>
-        </li>
-      </ul>
     </div>
 
     <!-- Queue (embeds the existing view, sans its heading) -->
