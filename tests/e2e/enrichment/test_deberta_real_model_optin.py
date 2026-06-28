@@ -88,7 +88,9 @@ def test_deberta_lazy_load_only_fires_on_first_call() -> None:
     assert scorer._model is not None
 
 
-def test_nli_eval_script_with_live_model_emits_brier(tmp_path) -> None:  # type: ignore[no-untyped-def]
+def test_nli_eval_script_with_live_model_emits_brier(  # type: ignore[no-untyped-def]
+    tmp_path,
+) -> None:
     """End-to-end test for the ``--with-live-model`` Brier path on the
     eval scoring script. Loads the real DeBERTa model + re-scores a tiny
     gold set + asserts Brier comes back in the result payload."""

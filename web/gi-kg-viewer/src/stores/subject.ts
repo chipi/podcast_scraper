@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
+import { e2eHooksEnabled } from '../utils/e2eHooks'
+
 export type SubjectKind = 'episode' | 'topic' | 'person' | 'graph-node' | null
 
 /**
@@ -182,7 +184,7 @@ export const useSubjectStore = defineStore('subject', () => {
   // user-visible "the rail shows the right thing" contract — selection
   // alone isn't enough because rail panels read this store, not cy directly.
   // -------------------------------------------------------------------------
-  if (typeof window !== 'undefined' && import.meta.env?.DEV) {
+  if (typeof window !== 'undefined' && e2eHooksEnabled) {
     ;(window as unknown as { __GIKG_SUBJECT__?: object }).__GIKG_SUBJECT__ = {
       get kind() {
         return kind.value

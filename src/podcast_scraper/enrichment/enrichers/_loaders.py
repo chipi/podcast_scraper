@@ -25,7 +25,7 @@ _SPEAKER_PLACEHOLDER_PATTERN = re.compile(
 
 
 def _read_json(path: Path | None) -> dict[str, Any]:
-    """Read a JSON file; return ``{}`` when absent or unparseable."""
+    """Read a JSON file; return ``{}`` when absent or unparsable."""
     if path is None or not path.is_file():
         return {}
     try:

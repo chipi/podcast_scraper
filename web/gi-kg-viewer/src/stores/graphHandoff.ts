@@ -32,6 +32,7 @@ import {
   type GraphHandoffEnvelope,
   type HandoffResult,
 } from '../services/graphHandoffFsm'
+import { e2eHooksEnabled } from '../utils/e2eHooks'
 
 export type GraphHandoffStuckListener = (envelope: GraphHandoffEnvelope) => void
 
@@ -80,7 +81,7 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
     // sessionStorage so the snapshot survives Pinia HMR replacing module
     // closures AND dev-hook re-stamping (which has been observed swapping
     // the visible closure mid-test). Read by ``readInvariant`` in tests.
-    if (typeof window !== 'undefined' && import.meta.env?.DEV) {
+    if (typeof window !== 'undefined' && e2eHooksEnabled) {
       try {
         window.sessionStorage.setItem(
           '__GIKG_FSM_LAST_INVARIANT__',
@@ -114,7 +115,7 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
     // (which is `ready` by the time the test reads it after a handoff settles)
     // — they can't verify the FSM actually walked through intermediate
     // states. The history array captures every transition for later assertion.
-    if (typeof window !== 'undefined' && import.meta.env?.DEV) {
+    if (typeof window !== 'undefined' && e2eHooksEnabled) {
       const w = window as unknown as { __GIKG_FSM_STATE_HISTORY__?: string[] }
       if (!w.__GIKG_FSM_STATE_HISTORY__) {
         w.__GIKG_FSM_STATE_HISTORY__ = []
@@ -206,7 +207,7 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
     // can mechanically verify "surface X fires event Y with source Z" without
     // monkeypatching the store. Production builds: this branch is dead-code
     // -eliminated.
-    if (typeof window !== 'undefined' && import.meta.env?.DEV) {
+    if (typeof window !== 'undefined' && e2eHooksEnabled) {
       const w = window as unknown as { __GIKG_FSM_EVENT_LOG__?: FsmEvent[] }
       if (!w.__GIKG_FSM_EVENT_LOG__) {
         w.__GIKG_FSM_EVENT_LOG__ = []
@@ -398,7 +399,7 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
   // Dev hook for E2E specs and devtools
   // -------------------------------------------------------------------------
 
-  if (typeof window !== 'undefined' && import.meta.env?.DEV) {
+  if (typeof window !== 'undefined' && e2eHooksEnabled) {
     ;(window as unknown as { __GIKG_FSM__?: object }).__GIKG_FSM__ = {
       get state() {
         return fsm.state

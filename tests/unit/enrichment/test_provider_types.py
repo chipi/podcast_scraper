@@ -7,9 +7,9 @@ import asyncio
 import pytest
 
 from podcast_scraper.enrichment.provider_types import (
+    get_global_registry,
     ProviderType,
     ProviderTypeRegistry,
-    get_global_registry,
     register_provider_type,
 )
 from podcast_scraper.enrichment.scorers.embedding import TopicEmbeddingProvider
