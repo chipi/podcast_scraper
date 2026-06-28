@@ -44,6 +44,7 @@ WIP file is removed.
 | `UNIFIED_QUALITY_PLAN.md` | Unified quality framework draft | Draft |
 | `issue-382-transformers-v5-upgrade-plan.md` | transformers v5 upgrade plan | Reference |
 | `manual-test-plan-gi-kg.md` | Manual GI/KG smoke checklist | Reference |
+| `REMEMBER-half-scope.md` | Consumer Learning Platform "Remember" half scope — PRD-040 Capture (P2) + PRD-041 Consolidation (P3). P3 rebased to **consume the Enrichment Layer (RFC-088)** envelopes (co-occurrence / similarity / velocity / contradiction). Decisions: per-user files + scoped recall, `/api/app/*`, in-app digest, MD-only export. **P3 waits for RFC-088 to land on `main`.** | Active |
 | `wip-concurrent-pipeline-http-retry-metrics.md` | Open documentation gap for `http_urllib3_retry_events` | Open |
 | `wip-topic-clusters-validation-reference.yaml` | Reference topic-cluster validation config | Reference |
 | `VIEWER-UI-709-695-694-PLAN.md` | UI batch plan (`feat/viewer-ui-709-695-694`): widen+restructure the Config modal to a sub-nav rail, in-app log-viewer modal (#695), per-feed override drill-in (#694), Scheduled rail item (#709), built on a small shared-primitive layer (AppDialog/ToggleSwitch/RelativeTime/clipboard) | Active |
