@@ -1729,6 +1729,17 @@ def _maybe_spawn_enrichment_after_pipeline(cfg: config.Config, effective_output_
     ]
     if profile:
         argv += ["--profile", str(profile)]
+    # Auto-pass --with-ml when any enricher in the resolved YAML has a
+    # ``provider`` block. The CLI's --with-ml walks the EnricherSet
+    # and instantiates ML enrichers from the provider-type registry.
+    # If no provider block exists (deterministic-only profile),
+    # we skip the flag so the spawn log stays honest about what ran.
+    enrichers_block = block.get("enrichers") if isinstance(block, dict) else None
+    if isinstance(enrichers_block, dict) and any(
+        isinstance(cfg_block, dict) and isinstance(cfg_block.get("provider"), dict)
+        for cfg_block in enrichers_block.values()
+    ):
+        argv += ["--with-ml"]
     log_path = os.path.join(effective_output_dir, ".viewer", "enrichment_pipeline_spawn.log")
     try:
         os.makedirs(os.path.dirname(log_path), exist_ok=True)

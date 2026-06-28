@@ -136,3 +136,56 @@ def test_spawn_threads_profile_from_block_when_top_level_missing(
     )
     argv = _PopenSpy.calls[0]["argv"]
     assert "cloud_balanced" in argv
+
+
+def test_spawn_does_not_pass_with_ml_for_deterministic_only_yaml(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No enricher has a ``provider`` block → no --with-ml passed.
+
+    Keeps the spawn log honest about what the subprocess will wire.
+    """
+    import subprocess
+
+    monkeypatch.setattr(subprocess, "Popen", _PopenSpy)
+    _maybe_spawn_enrichment_after_pipeline(
+        _cfg(
+            enrichment={
+                "enabled": True,
+                "enrichers": {"temporal_velocity": {}, "grounding_rate": {}},
+            }
+        ),
+        str(tmp_path),
+    )
+    argv = _PopenSpy.calls[0]["argv"]
+    assert "--with-ml" not in argv
+
+
+def test_spawn_passes_with_ml_when_any_enricher_has_a_provider_block(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Any ``provider:`` block under ``enrichers.<id>.provider`` → --with-ml
+    is passed so the spawned CLI wires the ML enricher via the
+    provider-type registry."""
+    import subprocess
+
+    monkeypatch.setattr(subprocess, "Popen", _PopenSpy)
+    _maybe_spawn_enrichment_after_pipeline(
+        _cfg(
+            enrichment={
+                "enabled": True,
+                "enrichers": {
+                    "temporal_velocity": {},
+                    "topic_similarity": {
+                        "provider": {
+                            "type": "sentence_transformer_local",
+                            "model": "all-MiniLM-L6-v2",
+                        },
+                    },
+                },
+            }
+        ),
+        str(tmp_path),
+    )
+    argv = _PopenSpy.calls[0]["argv"]
+    assert "--with-ml" in argv

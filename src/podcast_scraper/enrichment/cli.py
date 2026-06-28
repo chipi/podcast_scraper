@@ -157,6 +157,19 @@ def build_arg_parser() -> argparse.ArgumentParser:
             "the profile's defaults."
         ),
     )
+    parser.add_argument(
+        "--with-ml",
+        action="store_true",
+        help=(
+            "Wire ML / embedding / NLI enrichers (topic_similarity, "
+            "nli_contradiction, ...) from the EnricherSet's "
+            "per_enricher_config[id].provider blocks. Without this flag, "
+            "the deterministic enrichers run; ML enrichers are skipped "
+            "with a hinted WARNING. Operators running locally with the "
+            "[ml] extra installed turn this on; the workflow path passes "
+            "it automatically when the resolved EnricherSet needs ML."
+        ),
+    )
     return parser
 
 
@@ -255,6 +268,16 @@ async def run_cli(args: argparse.Namespace) -> int:
         no_enrichers=bool(args.no_enrichers),
         extra_opt_in=parse_id_list(args.opt_in),
     )
+    # --with-ml: register ML / embedding / NLI enrichers from the
+    # provider-type registry, using each enricher's per_enricher_config
+    # ``provider`` block to pick the type + params. Without this flag,
+    # the registry.list_enabled() path emits a hinted WARNING for any
+    # un-registered ML enricher (see registry.py:_PROVIDER_WIRING_HINT)
+    # — operators see exactly why those enrichers got skipped.
+    if args.with_ml:
+        from podcast_scraper.enrichment.ml_wiring import register_ml_enrichers
+
+        register_ml_enrichers(registry, enricher_set)
     executor = EnrichmentExecutor(
         corpus_root=corpus_root,
         registry=registry,
@@ -337,6 +360,9 @@ def build_enricher_set_from_yaml(config_path: Path | None) -> EnricherSet:
     # built-in profiles is handled by ``enricher_set_for_profile``,
     # not by this YAML reader.
     enrichers_raw = block.get("enrichers")
+    enabled: list[str] = []
+    per_enricher_config: dict[str, dict[str, Any]] = {}
+    opt_in_flags: dict[str, bool] = {}
     if not isinstance(enrichers_raw, dict):
         # Defensive: a list shape leaked into operator YAML by accident
         # / legacy migration. Honour it as "enable these, no config",
@@ -346,9 +372,6 @@ def build_enricher_set_from_yaml(config_path: Path | None) -> EnricherSet:
             enabled = [eid for eid in enrichers_raw if isinstance(eid, str)]
             return EnricherSet(enabled_enrichers=enabled)
         return EnricherSet()
-    enabled: list[str] = []
-    per_enricher_config: dict[str, dict[str, Any]] = {}
-    opt_in_flags: dict[str, bool] = {}
     for eid, cfg in enrichers_raw.items():
         if not isinstance(cfg, dict):
             # Bare ``enricher_id: null`` / ``enricher_id: true`` etc.
