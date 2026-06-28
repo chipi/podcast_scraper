@@ -105,6 +105,7 @@
     "audioError": "Couldn’t load the audio from the source. Try again later.",
     "transcriptPending": "Transcript pending — audio still plays.",
     "groundedSegment": "Backs a grounded insight — tap to open it",
+    "jumpToTime": "Play from {time}",
     "sync": "Sync",
     "syncHelp": "Nudge the transcript to match the audio (ads in the stream can shift it).",
     "syncEarlier": "Shift transcript earlier",

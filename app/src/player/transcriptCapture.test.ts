@@ -1,7 +1,39 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { selectionSubRange } from './transcriptCapture'
+import { selectionSubRange, spanFromParagraph } from './transcriptCapture'
 
 afterEach(() => vi.restoreAllMocks())
+
+const seg = (id: string, start: number, end: number, text: string, speaker: string | null = null) =>
+  ({ id, start, end, text, speaker })
+
+describe('spanFromParagraph', () => {
+  const para = [seg('a', 1, 2, 'Deep sleep', 'person:g'), seg('b', 2, 4, 'consolidates memory')]
+
+  it('captures the WHOLE paragraph when there is no selection', () => {
+    const span = spanFromParagraph(para, null)
+    expect(span.quote_text).toBe('Deep sleep consolidates memory')
+    expect(span.segment_ids).toEqual(['a', 'b'])
+    expect(span.start_ms).toBe(1000) // first seg start
+    expect(span.end_ms).toBe(4000) // last seg end
+    expect(span.speaker).toBe('person:g')
+  })
+
+  it('captures a phrase anchored to the segments it actually touches', () => {
+    // "sleep consolidates" spans the boundary of seg a (0–10) and seg b (11–31) in the joined text.
+    const span = spanFromParagraph(para, { char_start: 5, char_end: 21, quote_text: 'sleep consolidates' })
+    expect(span.quote_text).toBe('sleep consolidates')
+    expect(span.segment_ids).toEqual(['a', 'b']) // both touched
+    expect(span.start_ms).toBe(1000) // anchor = first touched seg (a)
+    expect(span.end_ms).toBe(4000) // last touched seg (b)
+    expect(span.char_start).toBe(5) // relative to the anchor segment
+  })
+
+  it('a phrase inside one segment touches only that segment', () => {
+    const span = spanFromParagraph(para, { char_start: 0, char_end: 4, quote_text: 'Deep' })
+    expect(span.segment_ids).toEqual(['a'])
+    expect(span.end_ms).toBe(2000)
+  })
+})
 
 function fakeSelection(range: Range | null, text: string): Selection {
   return {

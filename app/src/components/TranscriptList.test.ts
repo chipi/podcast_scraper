@@ -24,10 +24,9 @@ describe('TranscriptList', () => {
     expect(w.text()).toContain('matthew walker') // person: prefix stripped, dashes → spaces
   })
 
-  it('keeps the segment text user-selectable (so phrase capture can read a selection)', () => {
-    // The text lives inside the seek <button>; without select-text the browser blocks selection.
+  it('keeps the paragraph text user-selectable (so phrase capture can read a selection)', () => {
     const w = mountList({ segments, activeIndex: 0 })
-    expect(w.findAll('span.leading-relaxed')[0].classes()).toContain('select-text')
+    expect(w.findAll('p.leading-relaxed')[0].classes()).toContain('select-text')
   })
 
   it('shows a speaker name once per run, not on every consecutive segment', () => {
@@ -41,11 +40,12 @@ describe('TranscriptList', () => {
     expect(labels).toEqual(['amy lawrence', 'bob jones']) // not repeated for the 2nd amy segment
   })
 
-  it('marks the active segment with the accent treatment', () => {
+  it('marks the active segment span with the highlight treatment', () => {
     const w = mountList({ segments, activeIndex: 1 })
-    const buttons = w.findAll('button')
-    expect(buttons[1].classes()).toContain('border-accent')
-    expect(buttons[0].classes()).not.toContain('border-accent')
+    const segs = w.findAll('[data-testid="seg"]')
+    expect(segs[1].classes()).toContain('bg-overlay')
+    expect(segs[1].classes()).toContain('font-semibold')
+    expect(segs[0].classes()).not.toContain('bg-overlay')
   })
 
   it('emits seek with the segment start on tap', async () => {
@@ -59,12 +59,12 @@ describe('TranscriptList', () => {
       0: { insightId: 'ins-1', insightText: 'A claim.', insightType: 'claim', quote: 'world' },
     }
     const w = mountList({ segments, activeIndex: -1, grounded })
-    const btn = w.findAll('button')[0]
-    expect(btn.classes()).toContain('border-grounded')
+    const seg0 = w.findAll('[data-testid="seg"]')[0]
+    expect(seg0.classes()).toContain('text-grounded')
     // Char-level: only the matched phrase "world" is underlined, not the whole "Hello world.".
-    const mark = btn.findAll('span').find((s) => s.classes().includes('decoration-grounded'))
+    const mark = seg0.findAll('span').find((s) => s.classes().includes('decoration-grounded'))
     expect(mark?.text()).toBe('world')
-    await btn.trigger('click')
+    await seg0.trigger('click')
     expect(w.emitted('seek')?.[0]).toEqual([0])
     expect(w.emitted('insight')?.[0]).toEqual(['ins-1'])
   })
@@ -83,23 +83,26 @@ describe('TranscriptList', () => {
     expect(w.find('[aria-label="Save highlight — your selected text, or this whole line"]').exists()).toBe(false)
   })
 
-  it('renders a save button per line when canCapture and emits a whole-line capture on tap', async () => {
+  it('renders a save control per paragraph and emits a whole-paragraph span on tap', async () => {
     const w = mountList({ segments, activeIndex: 0, canCapture: true })
     const saves = w.findAll('[aria-label="Save highlight — your selected text, or this whole line"]')
-    expect(saves).toHaveLength(segments.length)
+    expect(saves).toHaveLength(2) // one per paragraph (each segment is its own turn here)
     await saves[1].trigger('click')
-    // no selection → whole-line capture (sub is null)
-    expect(w.emitted('capture')?.[0]).toEqual([{ segment: segments[1], sub: null }])
-    // the seek button still works independently of the capture button
+    // no selection → whole-paragraph span over s1
+    const span = w.emitted('capture')?.[0]?.[0] as Record<string, unknown>
+    expect(span.quote_text).toBe('Second line.')
+    expect(span.segment_ids).toEqual(['s1'])
+    expect(span.start_ms).toBe(2500)
+    // tapping a segment span still seeks
     await w.findAll('[data-testid="seg"]')[1].trigger('click')
-    expect(w.emitted('seek')?.[0]).toEqual([2.5])
+    expect(w.emitted('seek')?.at(-1)).toEqual([2.5])
   })
 
-  it('captures the selected phrase (sub-range) when text is selected within the line (FR1.2)', async () => {
+  it('captures the selected phrase (sub-range) when text is selected in the paragraph (FR1.2)', async () => {
     const w = mountList({ segments, activeIndex: 0, canCapture: true })
-    // Select "world" (chars 6–11) within the first line's rendered text node.
-    const textEl = w.findAll('span.leading-relaxed')[0].element as HTMLElement
-    const textNode = textEl.querySelector('span')!.firstChild as Text
+    // Select "world" (chars 6–11) within the first paragraph's rendered text node.
+    const pEl = w.findAll('p.leading-relaxed')[0].element as HTMLElement
+    const textNode = pEl.querySelector('[data-testid="seg"] span')!.firstChild as Text
     const range = document.createRange()
     range.setStart(textNode, 6)
     range.setEnd(textNode, 11)
@@ -110,9 +113,11 @@ describe('TranscriptList', () => {
       toString: () => 'world',
     } as unknown as Selection)
     await w.findAll('[aria-label="Save highlight — your selected text, or this whole line"]')[0].trigger('click')
-    expect(w.emitted('capture')?.[0]).toEqual([
-      { segment: segments[0], sub: { char_start: 6, char_end: 11, quote_text: 'world' } },
-    ])
+    const span = w.emitted('capture')?.[0]?.[0] as Record<string, unknown>
+    expect(span.quote_text).toBe('world')
+    expect(span.segment_ids).toEqual(['s0'])
+    expect(span.char_start).toBe(6)
+    expect(span.char_end).toBe(11)
     vi.restoreAllMocks()
   })
 

@@ -1,7 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../services/api'
-import type { Highlight, Segment } from '../services/types'
+import type { Highlight } from '../services/types'
 import { useCaptureStore } from './capture'
 
 function hl(over: Partial<Highlight> = {}): Highlight {
@@ -50,42 +50,42 @@ describe('capture store', () => {
     expect(c.forEpisode('show-ep01')).toHaveLength(1)
   })
 
-  it('captureSegment() saves a span, then toggles it off when saved again', async () => {
-    const seg: Segment = { id: 's5', start: 10, end: 14, text: 'a quote', speaker: 'person:g' }
-    const span = hl({ id: 'sp1', kind: 'span', segment_ids: ['s5'], quote_text: 'a quote' })
-    vi.spyOn(api, 'createHighlight').mockResolvedValue(span)
+  it('captureSpan() saves a span, then toggles it off when the same span is saved again', async () => {
+    const span = {
+      start_ms: 10_000, end_ms: 14_000, segment_ids: ['s5'], char_start: 0, char_end: 7,
+      quote_text: 'a quote', speaker: 'person:g',
+    }
+    const saved = hl({ id: 'sp1', kind: 'span', segment_ids: ['s5'], quote_text: 'a quote' })
+    vi.spyOn(api, 'createHighlight').mockResolvedValue(saved)
     vi.spyOn(api, 'deleteHighlight').mockResolvedValue([])
     const c = useCaptureStore()
 
-    await c.captureSegment('show-ep01', seg)
+    await c.captureSpan('show-ep01', span)
     expect(api.createHighlight).toHaveBeenCalledWith(
-      expect.objectContaining({ kind: 'span', segment_ids: ['s5'], char_start: 0, char_end: 7 }),
+      expect.objectContaining({ kind: 'span', segment_ids: ['s5'], quote_text: 'a quote' }),
     )
     expect(c.savedSegmentIds.has('s5')).toBe(true)
 
-    // second tap on the same segment removes it
-    await c.captureSegment('show-ep01', seg)
+    // saving the identical span (same quote + segments) removes it
+    await c.captureSpan('show-ep01', span)
     expect(api.deleteHighlight).toHaveBeenCalledWith('sp1')
     expect(c.savedSegmentIds.has('s5')).toBe(false)
   })
 
-  it('captureSegment() with a sub-range saves the exact phrase and always adds', async () => {
-    const seg: Segment = {
-      id: 's5', start: 10, end: 14, text: 'deep sleep consolidates memory', speaker: 'person:g',
-    }
-    const sub = { char_start: 5, char_end: 10, quote_text: 'sleep' }
-    const span = hl({ id: 'sp1', kind: 'span', segment_ids: ['s5'], quote_text: 'sleep' })
-    const create = vi.spyOn(api, 'createHighlight').mockResolvedValue(span)
+  it('captureSpan() adds distinct spans (a phrase ≠ the whole paragraph) without toggling', async () => {
+    let n = 0
+    vi.spyOn(api, 'createHighlight').mockImplementation(
+      async (b) => hl({ id: `sp${++n}`, kind: 'span', segment_ids: b.segment_ids, quote_text: b.quote_text }),
+    )
     const del = vi.spyOn(api, 'deleteHighlight')
     const c = useCaptureStore()
-    await c.captureSegment('show-ep01', seg, sub)
-    expect(create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        kind: 'span', segment_ids: ['s5'], char_start: 5, char_end: 10, quote_text: 'sleep',
-      }),
-    )
-    // a phrase capture never toggles off (you can keep several phrases per line)
-    await c.captureSegment('show-ep01', seg, sub)
+    const whole = {
+      start_ms: 10_000, end_ms: 14_000, segment_ids: ['s5', 's6'], char_start: 0, char_end: 30,
+      quote_text: 'deep sleep consolidates memory', speaker: 'person:g',
+    }
+    const phrase = { ...whole, segment_ids: ['s5'], char_start: 5, char_end: 10, quote_text: 'sleep' }
+    await c.captureSpan('show-ep01', whole)
+    await c.captureSpan('show-ep01', phrase) // different quote/segments → a second, independent span
     expect(del).not.toHaveBeenCalled()
     expect(c.forEpisode('show-ep01')).toHaveLength(2)
   })

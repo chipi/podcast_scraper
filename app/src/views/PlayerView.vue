@@ -21,7 +21,7 @@ import TranscriptList from '../components/TranscriptList.vue'
 import FavoriteButton from '../components/FavoriteButton.vue'
 import { activeInsightIndex, groundedSpansBySegment } from '../player/insights'
 import { activeSegmentIndex, PLAYBACK_RATES } from '../player/transcriptSync'
-import type { SubRange } from '../player/transcriptCapture'
+import type { ParagraphSpan } from '../player/transcriptCapture'
 import {
   getAudioSource,
   getEntities,
@@ -271,21 +271,9 @@ function cycleRate(): void {
   if (audioEl.value) audioEl.value.playbackRate = rate.value
 }
 
-// --- capture (P2, PRD-040): mark a moment, save a transcript line ---
-// The transcript bookmark's "saved" state reflects WHOLE-LINE saves only (a span whose quote is the
-// full segment text); phrase highlights (sub-selections) live independently and are managed in the
-// Library Highlights view, so they don't flip the per-line toggle.
-const savedSegmentIds = computed(() => {
-  const textById = new Map(segments.value.map((s) => [s.id, s.text]))
-  const ids = new Set<string>()
-  for (const h of capture.highlights) {
-    if (h.kind !== 'span') continue
-    for (const sid of h.segment_ids) {
-      if (textById.get(sid) === h.quote_text) ids.add(sid)
-    }
-  }
-  return ids
-})
+// --- capture (P2, PRD-040): mark a moment, save a transcript paragraph/phrase ---
+// A paragraph's save control reads as "saved" when any of its segments is covered by a saved span.
+const savedSegmentIds = computed(() => capture.savedSegmentIds)
 const momentFlash = ref(false)
 // Screen-reader confirmation for captures (the visual flash alone isn't announced). Polite so it
 // never interrupts the now-playing live region.
@@ -312,8 +300,8 @@ async function markMoment(): Promise<void> {
   }, 1500)
 }
 
-async function onCaptureSegment(payload: { segment: Segment; sub: SubRange | null }): Promise<void> {
-  await capture.captureSegment(props.slug, payload.segment, payload.sub)
+async function onCaptureParagraph(span: ParagraphSpan): Promise<void> {
+  await capture.captureSpan(props.slug, span)
   announceCapture(t('capture.savedHighlight'))
 }
 
@@ -553,7 +541,7 @@ onBeforeUnmount(() => {
           class="min-h-0 lg:flex-1"
           @seek="seekContent"
           @insight="openInsight"
-          @capture="onCaptureSegment"
+          @capture="onCaptureParagraph"
         />
         <p v-else class="rounded-2xl border border-border bg-surface p-4 text-muted">
           {{ t('player.transcriptPending') }}
