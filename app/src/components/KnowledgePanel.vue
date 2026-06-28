@@ -11,11 +11,37 @@
  */
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink, useRouter } from 'vue-router'
+import { RouterLink } from 'vue-router'
 import { getRelated, searchEpisode } from '../services/api'
-import type { EpisodeDetail, EpisodeSummary, Entity, Insight, SearchHit, Topic } from '../services/types'
+import type {
+  EpisodeDetail,
+  EpisodeSummary,
+  Entity,
+  FavoriteAdd,
+  Insight,
+  SearchHit,
+  Topic,
+} from '../services/types'
 import { formatTime } from '../player/transcriptSync'
 import { hitStartSeconds, insightStartSeconds } from '../player/insights'
+import { speakerLabel } from '../utils/format'
+import { episodeArtwork } from '../utils/episode'
+import { useAuthStore } from '../stores/auth'
+import { useQueueStore } from '../stores/queue'
+import EntityCardBody from './EntityCardBody.vue'
+import FavoriteButton from './FavoriteButton.vue'
+
+function favInsight(ins: Insight): FavoriteAdd {
+  const secs = insightStartSeconds(ins)
+  return {
+    kind: 'insight',
+    ref: `${props.slug}#${ins.id}`,
+    label: ins.text,
+    sublabel: props.episode.title,
+    slug: props.slug,
+    start_ms: secs != null ? Math.round(secs * 1000) : undefined,
+  }
+}
 
 const props = withDefaults(
   defineProps<{
@@ -33,7 +59,6 @@ const props = withDefaults(
 const emit = defineEmits<{ (e: 'seek', seconds: number): void; (e: 'close'): void }>()
 
 const { t } = useI18n()
-const router = useRouter()
 
 const summary = computed(() => props.episode.summary_text || props.episode.summary_title || null)
 const hasAnything = computed(
@@ -44,18 +69,65 @@ const hasAnything = computed(
     props.insights.length > 0,
 )
 
-// A topic/person chip explores that term across the whole library (clear, consistent action).
-function exploreSearch(term: string): void {
-  const q = term.replace(/^person:/, '').replace(/-/g, ' ').trim()
-  if (q) void router.push({ name: 'search', query: { q } })
+// --- Topics + People as one compact, expandable row; topics cluster-first (RFC-102) ---
+type Tag = { key: string; label: string; kind: 'topic' | 'person'; dominant: boolean }
+
+// Tapping a chip opens its entity card (PRD-043; library search now lives inside the card).
+const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
+function openCard(tag: Tag): void {
+  cardTarget.value = { kind: tag.kind, id: tag.key }
 }
 
-// --- Topics + People as one compact, expandable row (height-optimised) ---
-type Tag = { key: string; label: string; kind: 'topic' | 'person' }
-const allTags = computed<Tag[]>(() => [
-  ...props.topics.map((tp) => ({ key: tp.id, label: tp.label, kind: 'topic' as const })),
-  ...props.persons.map((p) => ({ key: p.id, label: p.name, kind: 'person' as const })),
-])
+// How many of THIS episode's topics fall in each corpus cluster (intra-episode dominance).
+const topicClusterCounts = computed<Record<string, number>>(() => {
+  const c: Record<string, number> = {}
+  for (const t of props.topics) if (t.cluster_id) c[t.cluster_id] = (c[t.cluster_id] ?? 0) + 1
+  return c
+})
+// The dominant cluster = the one with the most of this episode's topics (≥2), tie → larger corpus
+// cluster; null when no topic is clustered or none reaches 2 (then it's a flat list).
+const dominantClusterId = computed<string | null>(() => {
+  const counts = topicClusterCounts.value
+  let best: string | null = null
+  let bestCount = 1
+  let bestSize = -1
+  for (const t of props.topics) {
+    if (!t.cluster_id) continue
+    const n = counts[t.cluster_id] ?? 0
+    if (n > bestCount || (n === bestCount && t.cluster_size > bestSize)) {
+      best = t.cluster_id
+      bestCount = n
+      bestSize = t.cluster_size
+    }
+  }
+  return best
+})
+const dominantClusterLabel = computed(
+  () => props.topics.find((t) => t.cluster_id === dominantClusterId.value)?.cluster_label ?? null,
+)
+const allTags = computed<Tag[]>(() => {
+  const counts = topicClusterCounts.value
+  const dom = dominantClusterId.value
+  // Rank: dominant cluster first, then other clustered (larger intra-episode groups earlier),
+  // then singletons. Stable sort keeps original order within a rank.
+  const rank = (t: { cluster_id: string | null }): number =>
+    t.cluster_id === dom && dom ? 0 : t.cluster_id ? 100 - (counts[t.cluster_id] ?? 0) : 1000
+  const topics = [...props.topics].sort((a, b) => rank(a) - rank(b))
+  return [
+    ...topics.map((tp) => ({
+      key: tp.id,
+      label: tp.label,
+      kind: 'topic' as const,
+      dominant: Boolean(dom) && tp.cluster_id === dom,
+    })),
+    ...props.persons.map((p) => ({
+      key: p.id,
+      label: p.name,
+      kind: 'person' as const,
+      dominant: false,
+    })),
+  ]
+})
 const TAG_COLLAPSED = 6
 const tagsExpanded = ref(false)
 const visibleTags = computed(() =>
@@ -114,13 +186,15 @@ async function runSearch(): Promise<void> {
   }
 }
 
-function speakerLabel(s: string | null): string | null {
-  if (!s) return null
-  return s.startsWith('person:') ? s.slice('person:'.length).replace(/-/g, ' ') : s
-}
-
 // --- related ("more like this") ---
-const epArt = (e: EpisodeSummary) => e.artwork_url || e.episode_image_url || e.feed_image_url
+const auth = useAuthStore()
+const queue = useQueueStore()
+const epArt = episodeArtwork
+
+// Queue a peer episode to play right after the current one (RFC-099 §4 "Play next").
+function playNext(slug: string): void {
+  void queue.playNext(slug, props.slug)
+}
 const related = ref<EpisodeSummary[]>([])
 async function loadRelated(slug: string): Promise<void> {
   try {
@@ -135,6 +209,20 @@ watch(() => props.slug, (s) => loadRelated(s))
 
 <template>
   <aside class="flex h-full flex-col bg-surface" :aria-label="t('kp.title')">
+    <!-- Mobile bottom-sheet grab handle (signals the player sits behind; hidden on desktop rail). -->
+    <div class="flex shrink-0 justify-center pt-2 lg:hidden" aria-hidden="true">
+      <span class="h-1.5 w-10 rounded-full bg-border"></span>
+    </div>
+    <!-- Replace-in-panel (UXS-014): a tapped chip swaps the panel content to the entity card with a
+         ‹ Back — no overlay, no second backdrop. -->
+    <EntityCardBody
+      v-if="cardTarget"
+      variant="inline"
+      :kind="cardTarget.kind"
+      :id="cardTarget.id"
+      @close="cardTarget = null"
+    />
+    <template v-else>
     <header class="flex items-center justify-between border-b border-border px-4 py-3">
       <span class="font-display text-lg font-bold">{{ t('kp.title') }}</span>
       <button type="button" class="text-muted" :aria-label="t('kp.close')" @click="emit('close')">✕</button>
@@ -178,22 +266,30 @@ watch(() => props.slug, (s) => loadRelated(s))
 
       <!-- Summary -->
       <section v-if="summary" class="mb-5">
-        <h3 class="lp-kicker mb-1">{{ t('kp.summary') }}</h3>
+        <h3 class="lp-section mb-1">{{ t('kp.summary') }}</h3>
         <p class="text-sm leading-relaxed text-surface-foreground">{{ summary }}</p>
       </section>
 
-      <!-- Topics & People — one compact, expandable row; tap a chip to explore the library -->
+      <!-- Topics & People — one compact, expandable row; topics cluster-first (RFC-102) -->
       <section v-if="allTags.length" class="mb-5">
-        <h3 class="lp-kicker mb-2">{{ t('kp.tags') }}</h3>
+        <div class="mb-2 flex items-baseline justify-between gap-2">
+          <h3 class="lp-section">{{ t('kp.tags') }}</h3>
+          <span v-if="dominantClusterLabel" class="truncate text-xs text-topic">
+            {{ t('kp.theme', { cluster: dominantClusterLabel }) }}
+          </span>
+        </div>
         <div class="flex flex-wrap gap-1.5">
           <button
             v-for="tag in visibleTags"
             :key="tag.key"
             type="button"
             class="rounded-full bg-overlay px-2.5 py-1 text-xs transition hover:bg-elevated"
-            :class="tag.kind === 'topic' ? 'text-topic' : 'text-person'"
-            :aria-label="t('kp.exploreTerm', { term: tag.label })"
-            @click="exploreSearch(tag.label)"
+            :class="[
+              tag.kind === 'topic' ? 'text-topic' : 'text-person',
+              tag.dominant ? 'ring-1 ring-topic' : '',
+            ]"
+            :aria-label="t('kp.openEntity', { term: tag.label })"
+            @click="openCard(tag)"
           >
             {{ tag.label }}
           </button>
@@ -211,7 +307,7 @@ watch(() => props.slug, (s) => loadRelated(s))
       <!-- Insights -->
       <section v-if="insights.length">
         <div class="mb-2 flex items-center justify-between">
-          <h3 class="lp-kicker">{{ t('kp.insights') }} · {{ insights.length }}</h3>
+          <h3 class="lp-section">{{ t('kp.insights') }} · {{ insights.length }}</h3>
         </div>
         <ul class="flex flex-col gap-3">
           <li
@@ -235,19 +331,22 @@ watch(() => props.slug, (s) => loadRelated(s))
                 >●</span>
                 <span v-if="ins.insight_type" class="lp-kicker">{{ ins.insight_type }}</span>
               </span>
-              <button
-                v-if="insightStartSeconds(ins) != null"
-                type="button"
-                class="font-mono text-xs text-accent"
-                @click="emit('seek', insightStartSeconds(ins) as number)"
-              >
-                ▶ {{ formatTime(insightStartSeconds(ins) as number) }}
-              </button>
+              <span class="flex items-center gap-2">
+                <button
+                  v-if="insightStartSeconds(ins) != null"
+                  type="button"
+                  class="font-mono text-xs text-accent"
+                  @click="emit('seek', insightStartSeconds(ins) as number)"
+                >
+                  ▶ {{ formatTime(insightStartSeconds(ins) as number) }}
+                </button>
+                <FavoriteButton :item="favInsight(ins)" />
+              </span>
             </div>
             <p class="mt-1 text-sm font-semibold text-surface-foreground">{{ ins.text }}</p>
             <blockquote v-if="ins.quotes[0]" class="mt-2 border-l-2 border-border pl-3 text-sm text-muted">
               “{{ ins.quotes[0].text }}”
-              <span v-if="speakerLabel(ins.quotes[0].speaker)" class="block text-xs text-person">
+              <span v-if="speakerLabel(ins.quotes[0].speaker)" class="lp-speaker block">
                 — {{ speakerLabel(ins.quotes[0].speaker) }}
               </span>
             </blockquote>
@@ -265,12 +364,12 @@ watch(() => props.slug, (s) => loadRelated(s))
 
       <!-- More like this (semantic peers; hidden when the index has no neighbours). -->
       <section v-if="related.length" class="mt-5">
-        <h3 class="lp-kicker mb-2">{{ t('kp.related') }}</h3>
+        <h3 class="lp-section mb-2">{{ t('kp.related') }}</h3>
         <ul class="flex flex-col">
-          <li v-for="r in related" :key="r.slug">
+          <li v-for="r in related" :key="r.slug" class="flex items-center gap-1 border-b border-border">
             <RouterLink
               :to="{ name: 'player', params: { slug: r.slug } }"
-              class="flex items-center gap-3 border-b border-border py-2 no-underline text-canvas-foreground hover:bg-overlay"
+              class="flex min-w-0 flex-1 items-center gap-3 py-2 no-underline text-canvas-foreground hover:bg-overlay"
             >
               <img
                 v-if="epArt(r)"
@@ -282,12 +381,27 @@ watch(() => props.slug, (s) => loadRelated(s))
               <div v-else class="h-10 w-10 shrink-0 rounded-md bg-elevated" />
               <span class="min-w-0 flex-1">
                 <span class="block truncate text-sm font-semibold">{{ r.title }}</span>
-                <span v-if="r.podcast_title" class="lp-kicker block truncate">{{ r.podcast_title }}</span>
+                <span v-if="r.podcast_title" class="lp-kicker block">{{ r.podcast_title }}</span>
               </span>
             </RouterLink>
+            <!-- Play next: queue this peer right after the current episode (RFC-099 §4). -->
+            <button
+              v-if="auth.isAuthenticated"
+              type="button"
+              class="shrink-0 rounded-full p-1.5 transition hover:bg-overlay hover:text-accent"
+              :class="queue.has(r.slug) ? 'text-accent' : 'text-muted'"
+              :aria-label="t('queue.playNext')"
+              :title="t('queue.playNext')"
+              @click="playNext(r.slug)"
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4" aria-hidden="true">
+                <path d="M5 5l9 7-9 7V5z" /><rect x="16" y="5" width="2.4" height="14" rx="1" />
+              </svg>
+            </button>
           </li>
         </ul>
       </section>
     </div>
+    </template>
   </aside>
 </template>

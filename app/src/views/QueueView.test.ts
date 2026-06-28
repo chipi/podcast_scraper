@@ -6,6 +6,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
 import type { EpisodeDetail } from '../services/types'
+import { useQueueStore } from '../stores/queue'
 import QueueView from './QueueView.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
@@ -31,6 +32,8 @@ function detail(slug: string, title: string): EpisodeDetail {
 beforeEach(() => {
   setActivePinia(createPinia())
   vi.spyOn(api, 'putQueue').mockResolvedValue()
+  // The cards embed FavoriteButton, which hydrates favorites on mount — stub so it doesn't fetch.
+  vi.spyOn(api, 'getFavorites').mockResolvedValue({ episodes: [], insights: [] })
 })
 afterEach(() => vi.restoreAllMocks())
 
@@ -46,15 +49,15 @@ describe('QueueView', () => {
     expect(w.text()).toContain('Beta')
   })
 
-  it('removes an item via the queue store', async () => {
+  it('reflects queue-store removal (the card toggle drives the store)', async () => {
     vi.spyOn(api, 'getQueue').mockResolvedValue(['a-1', 'b-2'])
     vi.spyOn(api, 'getEpisode').mockImplementation(async (s: string) =>
       s === 'a-1' ? detail('a-1', 'Alpha') : detail('b-2', 'Beta'),
     )
     const w = mount(QueueView, { global: { plugins: [i18n, router] } })
     await flushPromises()
-    // First row's remove (✕) button.
-    await w.findAll('button').find((b) => b.text() === '✕')!.trigger('click')
+    // The card's queue toggle calls queue.remove — drive the store the same way.
+    useQueueStore().remove('a-1')
     await flushPromises()
     expect(w.text()).not.toContain('Alpha')
     expect(w.text()).toContain('Beta')

@@ -11,6 +11,16 @@ export function formatDuration(seconds: number | null | undefined): string | nul
   return `${h}h ${String(m).padStart(2, '0')}m`
 }
 
+/**
+ * Humanise a KG speaker id for display: `person:matthew-walker` → `matthew walker`; a non-`person:`
+ * value passes through. ONE canonical place so the `person:` slug convention can't drift across the
+ * transcript, the player and the insights panel.
+ */
+export function speakerLabel(s: string | null): string | null {
+  if (!s) return null
+  return s.startsWith('person:') ? s.slice('person:'.length).replace(/-/g, ' ') : s
+}
+
 /** Format a `YYYY-MM-DD` publish date for the given locale; raw string on parse failure. */
 export function formatPublishDate(iso: string | null | undefined, locale = 'en'): string | null {
   if (!iso) return null

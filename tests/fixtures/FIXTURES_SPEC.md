@@ -363,6 +363,38 @@ Purpose:
 
 ⸻
 
+## Validation corpora (derived, committed)
+
+Two committed, deterministically-synthesized validation corpora are built
+**from** the RSS + transcript fixtures above (no pipeline, no ML), so server /
+app e2e can run against stable, version-pinned content:
+
+- **`viewer-validation-corpus/<version>/`** — the GI/KG viewer's Tier-3 corpus
+  (`scripts/build_synthetic_validation_corpus.py`). Schema-shaped feeds /
+  episodes / GI / KG / diarized two-artifact transcripts + topic clusters /
+  digest for the operator viewer.
+- **`app-validation-corpus/<version>/`** — the consumer "Learning Player" app's
+  corpus (`scripts/build_app_validation_corpus.py`). Reuses the viewer
+  generator's construction helpers (`build_gi`, `build_kg`,
+  `parse_diarized_segments`, `format_screenplay_with_offsets`,
+  `parse_rss_feed_metadata`, `slug`) but lays artifacts out in the consumer
+  API's run-dir layout (`feeds/<show>/run_*/metadata/*.{metadata,gi,kg}.json` +
+  `feeds/<show>/run_*/transcripts/<ep>.{txt,segments.json}`) and adds the extra
+  fields the consumer readers require (`content.transcript_file_path`
+  run-relative, `content.media_url`, raw canonical `*.segments.json`,
+  `search/topic_clusters.json`). ~3 shows × 2 episodes; every episode is `ready`
+  and carries GI insights + KG topics/people. The app's Playwright e2e
+  (`app/playwright.config.ts`) serves it via the real consumer API with no build
+  step. See `app-validation-corpus/README.md` for the show/episode list and the
+  regenerate command.
+
+Both corpora use the **loose synthetic GI/KG shape** (`schema_version: "2"`)
+that the viewer/consumer readers parse defensively; they are not covered by the
+strict `make validate-gi-schema` / `validate-kg-schema` targets (which target
+real pipeline output).
+
+---
+
 ## Git & Storage
 
 - Audio files may be large (up to 65 MB for extra-long episodes)

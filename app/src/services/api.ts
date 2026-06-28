@@ -9,15 +9,23 @@
 import type {
   AudioSource,
   EntitiesResponse,
+  EntitySearchResponse,
   EpisodeDetail,
   EpisodesPage,
+  EpisodeStats,
+  FavoriteAdd,
+  FavoritesResponse,
   InsightsResponse,
+  InterestCluster,
   ListEpisodesParams,
   Me,
+  PersonCard,
   PlaybackPosition,
   Podcast,
   SearchResponse,
   SegmentsResponse,
+  TopicCard,
+  UserStats,
 } from './types'
 
 const BASE = '/api/app'
@@ -120,9 +128,110 @@ export function getRelated(slug: string, topK = 6): Promise<EpisodesPage> {
   return getJSON<EpisodesPage>(`/episodes/${encodeURIComponent(slug)}/related`, { top_k: topK })
 }
 
+/** Person profile card — appears-in episodes + related people/topics (KG co-occurrence). */
+export function getPersonCard(id: string): Promise<PersonCard> {
+  return getJSON<PersonCard>(`/persons/${encodeURIComponent(id)}`)
+}
+
+/** Topic card — episodes-about + cluster siblings + related people (KG-grounded). */
+export function getTopicCard(id: string): Promise<TopicCard> {
+  return getJSON<TopicCard>(`/topics/${encodeURIComponent(id)}`)
+}
+
 /** Corpus-wide grounded search (Home "Ask your library"); empty when no index. */
 export function searchCorpus(q: string, topK = 12): Promise<SearchResponse> {
   return getJSON<SearchResponse>('/search', { q, top_k: topK })
+}
+
+/** Resolve a query to a person/topic card (exact/near-exact); `entity: null` when none. */
+export function resolveEntity(q: string): Promise<EntitySearchResponse> {
+  return getJSON<EntitySearchResponse>('/entities/search', { q })
+}
+
+/** Home discovery feed — interest-ranked when enabled + signed-in, else recency (the default). */
+export function getDiscover(limit = 8): Promise<EpisodesPage> {
+  return getJSON<EpisodesPage>('/discover', { limit })
+}
+
+/** Top interest clusters for the picker, by corpus prevalence. */
+export async function getTopClusters(limit = 12): Promise<InterestCluster[]> {
+  return (await getJSON<{ items: InterestCluster[] }>('/clusters', { limit })).items
+}
+
+/** The signed-in user's interest cluster ids; `[]` when signed out (401). Auth-gated. */
+export async function getUserInterests(): Promise<string[]> {
+  try {
+    return (await getJSON<{ items: string[] }>('/interests')).items
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) return []
+    throw err
+  }
+}
+
+/** The user's favorites grouped by kind; `{episodes:[],insights:[]}` when signed out (401). */
+export async function getFavorites(): Promise<FavoritesResponse> {
+  try {
+    return await getJSON<FavoritesResponse>('/favorites')
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) return { episodes: [], insights: [] }
+    throw err
+  }
+}
+
+/** Save an item (auth-gated); returns the updated favorites. */
+export async function addFavorite(item: FavoriteAdd): Promise<FavoritesResponse> {
+  const resp = await fetch(`${BASE}/favorites`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(item),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `PUT /favorites → ${resp.status}`)
+  return (await resp.json()) as FavoritesResponse
+}
+
+/** Remove a saved item by kind+ref (auth-gated); returns the updated favorites. */
+export async function removeFavorite(kind: string, ref: string): Promise<FavoritesResponse> {
+  const resp = await fetch(
+    `${BASE}/favorites/${encodeURIComponent(kind)}/${encodeURIComponent(ref)}`,
+    { method: 'DELETE', credentials: 'include' },
+  )
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /favorites → ${resp.status}`)
+  return (await resp.json()) as FavoritesResponse
+}
+
+/** Follow one interest token — cluster (`tc:`), topic (`topic:`) or person (`person:`). Auth-gated. */
+export async function addInterest(token: string): Promise<string[]> {
+  const resp = await fetch(`${BASE}/interests/${encodeURIComponent(token)}`, {
+    method: 'POST',
+    credentials: 'include',
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /interests → ${resp.status}`)
+  return ((await resp.json()) as { items: string[] }).items
+}
+
+/** Unfollow one interest token (auth-gated); returns the remaining list. */
+export async function removeInterest(token: string): Promise<string[]> {
+  const resp = await fetch(`${BASE}/interests/${encodeURIComponent(token)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /interests → ${resp.status}`)
+  return ((await resp.json()) as { items: string[] }).items
+}
+
+/** Replace the user's interest cluster ids (auth-gated); returns the stored list. */
+export async function putUserInterests(clusterIds: string[]): Promise<string[]> {
+  const resp = await fetch(`${BASE}/interests`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ items: clusterIds }),
+  })
+  if (!resp.ok) {
+    throw new ApiError(resp.status, `PUT /interests → ${resp.status}`)
+  }
+  return ((await resp.json()) as { items: string[] }).items
 }
 
 /** Shows in the user's library (Home "Your shows"). */
@@ -184,6 +293,36 @@ export async function putQueue(items: string[]): Promise<void> {
   if (!resp.ok && resp.status !== 401) {
     throw new ApiError(resp.status, `PUT /queue → ${resp.status}`)
   }
+}
+
+/** Record that the user opened an episode (listen-event log, ). Best-effort; ignores 401. */
+export async function logListen(slug: string): Promise<void> {
+  try {
+    const resp = await fetch(`${BASE}/listen/${encodeURIComponent(slug)}`, {
+      method: 'POST',
+      credentials: 'include',
+    })
+    if (!resp.ok && resp.status !== 401) {
+      throw new ApiError(resp.status, `POST /listen → ${resp.status}`)
+    }
+  } catch {
+    /* analytics is best-effort — never surface to the listener */
+  }
+}
+
+/** The signed-in user's own listening analytics; `null` when signed out (401). Auth-gated. */
+export async function getMyStats(): Promise<UserStats | null> {
+  try {
+    return await getJSON<UserStats>('/me/stats')
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) return null
+    throw err
+  }
+}
+
+/** Cross-user reach for one episode (public; anonymous aggregate counts). */
+export async function getEpisodeStats(slug: string): Promise<EpisodeStats> {
+  return getJSON<EpisodeStats>(`/episodes/${encodeURIComponent(slug)}/stats`)
 }
 
 /** Begin the OAuth login flow (full-page redirect; Google in prod, mock in dev/e2e). */

@@ -138,6 +138,10 @@ class AppEpisodeSummary(BaseModel):
         description="Short, clean one-line lede for the card (summary title / first sentence) — "
         "NOT the bullets joined; the full bullets are in `summary_bullets`.",
     )
+    summary_text: str | None = Field(
+        default=None,
+        description="The full prose summary, for the card's hover/expand preview (null if absent).",
+    )
     summary_bullets: list[str] = Field(
         default_factory=list,
         description="Full summary bullet points, for the card's expand-on-demand insights view "
@@ -204,10 +208,21 @@ class AppEntity(BaseModel):
 
 
 class AppTopic(BaseModel):
-    """A KG topic discussed in an episode."""
+    """A KG topic discussed in an episode (RFC-102: cluster fields for cluster-first grouping)."""
 
     id: str = Field(description="Canonical topic id (topic:{slug}).")
     label: str = Field(description="Topic display label.")
+    cluster_id: str | None = Field(
+        default=None,
+        description="Corpus topic-cluster id (graph_compound_parent_id) when the topic belongs to "
+        "a multi-member cluster; null for singletons. From search/topic_clusters.json.",
+    )
+    cluster_label: str | None = Field(
+        default=None, description="Canonical label of the topic's cluster, when clustered."
+    )
+    cluster_size: int = Field(
+        default=0, ge=0, description="Cross-corpus member count of the topic's cluster (0 if none)."
+    )
 
 
 class AppEntitiesResponse(BaseModel):
@@ -217,6 +232,133 @@ class AppEntitiesResponse(BaseModel):
     persons: list[AppEntity] = Field(default_factory=list)
     orgs: list[AppEntity] = Field(default_factory=list)
     topics: list[AppTopic] = Field(default_factory=list)
+
+
+class AppEntityRef(BaseModel):
+    """A resolved person/topic reference for the entity-in-search result (PRD-043 FR3 / 3.4)."""
+
+    id: str = Field(description="Canonical entity id (person:{slug} / topic:{slug}).")
+    kind: Literal["person", "topic"] = Field(description="Which card to open.")
+    label: str = Field(description="Display name / topic label.")
+
+
+class AppEntitySearchResponse(BaseModel):
+    """Response for GET /api/app/entities/search — at most one exact/near-exact match."""
+
+    query: str = Field(description="The query that was resolved.")
+    entity: AppEntityRef | None = Field(
+        default=None, description="The matched person/topic, or null when nothing matches."
+    )
+
+
+class AppPersonCard(BaseModel):
+    """Person profile card (PRD-043 FR2; GET /api/app/persons/{id}).
+
+    KG-grounded over the whole corpus: ``episodes`` are those whose KG asserts this person's
+    node; ``related_people`` / ``related_topics`` are the entities co-occurring most often
+    within those episodes (descending). Deliberately lean — no biography, no LLM (consumer
+    scope). Empty/404 when the person appears in no episode's KG.
+    """
+
+    id: str = Field(description="Canonical person id (person:{slug}).")
+    label: str = Field(description="Display name.")
+    episode_count: int = Field(ge=0, description="Episodes this person appears in.")
+    episodes: list[AppEpisodeSummary] = Field(
+        default_factory=list, description="Appears-in episode cards (newest-first)."
+    )
+    related_people: list[AppEntity] = Field(
+        default_factory=list, description="People co-appearing most often (descending)."
+    )
+    related_topics: list[AppTopic] = Field(
+        default_factory=list,
+        description="Topics co-occurring most often (descending); cluster-enriched.",
+    )
+
+
+class AppTopicCard(BaseModel):
+    """Topic card (PRD-043 FR3; GET /api/app/topics/{id}).
+
+    KG-grounded: ``episodes`` are those whose KG asserts this topic; ``sibling_topics`` are the
+    other members of this topic's corpus cluster (same theme, from ``topic_clusters.json``);
+    ``related_people`` are the people co-occurring most often within the episodes-about
+    (descending). Empty/404 when the topic appears in no episode's KG.
+    """
+
+    id: str = Field(description="Canonical topic id (topic:{slug}).")
+    label: str = Field(description="Topic display label.")
+    cluster_id: str | None = Field(
+        default=None, description="Corpus cluster id (graph_compound_parent_id) when clustered."
+    )
+    cluster_label: str | None = Field(
+        default=None, description="Canonical label of the topic's cluster, when clustered."
+    )
+    cluster_size: int = Field(
+        default=0, ge=0, description="Cross-corpus member count of the topic's cluster (0 if none)."
+    )
+    sibling_topics: list[AppTopic] = Field(
+        default_factory=list, description="Other topics in the same cluster (the theme's siblings)."
+    )
+    episode_count: int = Field(ge=0, description="Episodes this topic is discussed in.")
+    episodes: list[AppEpisodeSummary] = Field(
+        default_factory=list, description="Episodes-about cards (newest-first)."
+    )
+    related_people: list[AppEntity] = Field(
+        default_factory=list, description="People co-occurring most often (descending)."
+    )
+
+
+class AppInterestCluster(BaseModel):
+    """One selectable interest cluster for the discovery picker (PRD-043 FR4 / 3.5)."""
+
+    id: str = Field(description="Cluster id (graph_compound_parent_id, e.g. 'tc:…').")
+    label: str = Field(description="Cluster canonical label.")
+    size: int = Field(ge=0, description="Cross-corpus member count (prevalence).")
+
+
+class AppInterestClustersResponse(BaseModel):
+    """Top interest clusters for the picker (GET /api/app/clusters)."""
+
+    items: list[AppInterestCluster] = Field(default_factory=list)
+
+
+class FavoriteAdd(BaseModel):
+    """Body for PUT /api/app/favorites — save a polymorphic item (idempotent on kind+ref)."""
+
+    kind: Literal["episode", "insight", "person", "topic"] = Field(description="Saveable kind.")
+    ref: str = Field(description="Stable id within the kind (episode→slug; insight→slug#id).")
+    label: str | None = Field(default=None, description="Display label (title / insight text).")
+    sublabel: str | None = Field(default=None, description="Secondary label (show / episode).")
+    slug: str | None = Field(default=None, description="Episode slug to open (episode/insight).")
+    start_ms: int | None = Field(default=None, description="Jump target for an insight (ms).")
+
+
+class AppFavoriteInsight(BaseModel):
+    """A saved insight in the favorites list (snapshot — insights have no global detail route)."""
+
+    ref: str = Field(description="slug#insightId.")
+    text: str = Field(description="Insight text.")
+    episode_slug: str | None = Field(default=None, description="Episode to open.")
+    podcast_title: str | None = Field(default=None, description="Show / episode label.")
+    start_ms: int | None = Field(default=None, description="Jump-to-moment (ms).")
+
+
+class AppFavoritesResponse(BaseModel):
+    """The user's favorites, grouped by kind (GET/PUT/DELETE /api/app/favorites)."""
+
+    episodes: list[AppEpisodeSummary] = Field(default_factory=list)
+    insights: list[AppFavoriteInsight] = Field(default_factory=list)
+
+
+class InterestsResponse(BaseModel):
+    """The user's saved interest cluster ids (GET /api/app/interests)."""
+
+    items: list[str] = Field(default_factory=list, description="Ordered cluster ids (tc:…).")
+
+
+class InterestsUpdate(BaseModel):
+    """Body for PUT /api/app/interests."""
+
+    items: list[str] = Field(default_factory=list, description="Cluster ids to save.")
 
 
 class PlaybackPosition(BaseModel):
@@ -237,6 +379,36 @@ class PlaybackListResponse(BaseModel):
     """All saved playback positions (Home 'Continue listening')."""
 
     items: list[PlaybackPosition] = Field(default_factory=list)
+
+
+class StatPoint(BaseModel):
+    """One day bucket of a listening sparkline (UXS-014)."""
+
+    date: str = Field(description="UTC calendar day, ISO 'YYYY-MM-DD'.")
+    count: int = Field(ge=0, description="Opens on that day.")
+
+
+class UserStatsResponse(BaseModel):
+    """The signed-in user's own listening summary — GET /api/app/me/stats (PRD-043 / RFC-102)."""
+
+    episodes: int = Field(ge=0, description="Distinct episodes opened / in progress.")
+    shows: int = Field(ge=0, description="Distinct shows listened to.")
+    listening_seconds: float = Field(
+        ge=0, description="Estimated time invested (sum of furthest playback positions)."
+    )
+    active_days: int = Field(ge=0, description="Distinct days with at least one open.")
+    day_streak: int = Field(ge=0, description="Current consecutive-day listening run.")
+    daily: list[StatPoint] = Field(default_factory=list, description="Daily opens sparkline.")
+
+
+class EpisodeStatsResponse(BaseModel):
+    """Cross-user reach for one episode — GET /api/app/episodes/{slug}/stats (PRD-043 / RFC-102)."""
+
+    slug: str = Field(description="Episode slug.")
+    listeners: int = Field(ge=0, description="Distinct people who have opened this episode.")
+    opens: int = Field(ge=0, description="Total opens across everyone.")
+    insights: int = Field(ge=0, description="Grounded insights available for the episode.")
+    daily: list[StatPoint] = Field(default_factory=list, description="Daily opens sparkline.")
 
 
 class AppPodcastItem(BaseModel):

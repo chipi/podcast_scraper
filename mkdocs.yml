@@ -152,6 +152,7 @@ nav:
       - PRD-040 Capture: prd/PRD-040-capture.md
       - PRD-041 Consolidation: prd/PRD-041-consolidation.md
       - PRD-042 Home: prd/PRD-042-home.md
+      - PRD-043 Knowledge Layer: prd/PRD-043-knowledge-layer.md
       - PRD Template: prd/PRD_TEMPLATE.md
   - UX Specifications:
       - uxs/index.md
@@ -167,6 +168,8 @@ nav:
       - UXS-010 Person Profile: uxs/UXS-010-person-profile.md
       - UXS-011 Consumer Learning App: uxs/UXS-011-consumer-learning-app.md
       - UXS-012 Consumer Home: uxs/UXS-012-consumer-home.md
+      - UXS-013 Knowledge Clusters: uxs/UXS-013-knowledge-clusters.md
+      - UXS-014 Interaction Patterns: uxs/UXS-014-interaction-patterns.md
       - UXS Template: uxs/UXS_TEMPLATE.md
   - Architecture Decisions:
       - adr/index.md
@@ -368,6 +371,7 @@ nav:
       - RFC-099 Learning Platform Consumer Client: rfc/RFC-099-learning-platform-consumer-client.md
       - RFC-100 Audio Bridge Subsystem: rfc/RFC-100-audio-bridge-subsystem.md
       - RFC-101 Personal Knowledge Corpus: rfc/RFC-101-personal-knowledge-corpus.md
+      - RFC-102 Knowledge Clusters & Entity Cards: rfc/RFC-102-knowledge-clusters-entity-cards.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md

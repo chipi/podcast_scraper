@@ -477,3 +477,33 @@ def test_segments_unreadable_file_returns_500(tmp_path: Path) -> None:
     )
     slug = _only_slug(tmp_path)
     assert _client(tmp_path).get(f"/api/app/episodes/{slug}/segments").status_code == 500
+
+
+def test_entities_topics_carry_cluster_info(tmp_path: Path) -> None:
+    _write_corpus(tmp_path)  # KG has topic:ai
+    (tmp_path / "search").mkdir(parents=True, exist_ok=True)
+    clusters = {
+        "schema_version": "2",
+        "clusters": [
+            {
+                "graph_compound_parent_id": "tc:ai",
+                "canonical_label": "artificial intelligence",
+                "members": [{"topic_id": "topic:ai"}, {"topic_id": "topic:ml"}],
+            }
+        ],
+    }
+    (tmp_path / "search" / "topic_clusters.json").write_text(json.dumps(clusters), encoding="utf-8")
+    slug = _only_slug(tmp_path)
+    body = _client(tmp_path).get(f"/api/app/episodes/{slug}/entities").json()
+    topic = next(t for t in body["topics"] if t["id"] == "topic:ai")
+    assert topic["cluster_id"] == "tc:ai"
+    assert topic["cluster_label"] == "artificial intelligence"
+    assert topic["cluster_size"] == 2
+
+
+def test_entities_topics_flat_without_cluster_artifact(tmp_path: Path) -> None:
+    _write_corpus(tmp_path)  # no topic_clusters.json → flat (cluster fields default)
+    slug = _only_slug(tmp_path)
+    body = _client(tmp_path).get(f"/api/app/episodes/{slug}/entities").json()
+    topic = next(t for t in body["topics"] if t["id"] == "topic:ai")
+    assert topic["cluster_id"] is None and topic["cluster_size"] == 0

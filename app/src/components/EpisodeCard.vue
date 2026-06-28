@@ -11,10 +11,12 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
-import type { EpisodeSummary } from '../services/types'
+import type { EpisodeSummary, FavoriteAdd } from '../services/types'
 import { useAuthStore } from '../stores/auth'
 import { useQueueStore } from '../stores/queue'
 import { formatDuration, formatPublishDate } from '../utils/format'
+import { episodeArtwork } from '../utils/episode'
+import FavoriteButton from './FavoriteButton.vue'
 
 const props = defineProps<{ episode: EpisodeSummary }>()
 const { t, locale } = useI18n()
@@ -27,19 +29,22 @@ const bullets = computed(() => props.episode.summary_bullets ?? [])
 // Show the insights affordance only when there's grounded summary content to reveal.
 const hasInsights = computed(() => props.episode.has_gi && bullets.value.length > 0)
 // Prefer our locally-stored copy (artwork_url); fall back to the remote feed image URLs.
-const artwork = computed(
-  () =>
-    props.episode.artwork_url ||
-    props.episode.episode_image_url ||
-    props.episode.feed_image_url,
-)
+const artwork = computed(() => episodeArtwork(props.episode))
 
 const summaryOpen = ref(false)
+
+const favItem = computed<FavoriteAdd>(() => ({
+  kind: 'episode',
+  ref: props.episode.slug,
+  label: props.episode.title,
+  sublabel: props.episode.podcast_title ?? undefined,
+  slug: props.episode.slug,
+}))
 </script>
 
 <template>
   <article
-    class="group relative -mx-3 flex gap-4 rounded-xl border-b border-border px-3 py-5 transition-colors hover:bg-overlay sm:gap-5"
+    class="group relative -mx-3 flex gap-4 rounded-xl border-b border-border px-3 py-5 transition-colors sm:gap-5"
   >
     <img
       v-if="artwork"
@@ -49,12 +54,12 @@ const summaryOpen = ref(false)
       class="h-20 w-20 shrink-0 rounded-lg bg-elevated object-cover sm:h-24 sm:w-24"
     />
     <div class="flex min-w-0 flex-1 flex-col">
-      <!-- Kicker row: podcast name (independent link) + status / insights / queue affordances -->
+      <!-- Kicker row: podcast name (independent link) + status / insights / favorite / queue -->
       <div class="flex items-start justify-between gap-3">
         <RouterLink
           v-if="episode.podcast_title"
           :to="{ name: 'podcast', params: { feedId: episode.feed_id } }"
-          class="lp-kicker relative z-10 inline-block min-w-0 truncate no-underline"
+          class="lp-kicker relative z-30 inline-block min-w-0 no-underline transition-opacity duration-200 group-hover:opacity-0"
         >
           {{ episode.podcast_title }}
         </RouterLink>
@@ -62,17 +67,17 @@ const summaryOpen = ref(false)
         <div class="flex shrink-0 items-center gap-2">
           <span
             v-if="episode.status !== 'ready'"
-            class="rounded-full bg-overlay px-2 py-0.5 text-xs font-semibold text-warning"
+            class="relative z-30 rounded-full bg-overlay px-2 py-0.5 text-xs font-semibold text-warning"
           >
             {{ t('status.pending') }}
           </span>
 
-          <!-- Insights: cool icon → full-summary popover (hover/focus on desktop, tap on touch).
-               Hidden at rest on desktop so the row stays summary-clean; always shown on touch. -->
+          <!-- Insights: its own hover/focus affordance → full-summary popover. Sibling icons stay
+               visible; the wrapper lifts to z-50 only while open so the popover clears other cards. -->
           <div
             v-if="hasInsights"
-            class="relative z-20 transition-opacity sm:opacity-0 sm:focus-within:opacity-100 sm:group-hover:opacity-100"
-            :class="summaryOpen ? 'sm:opacity-100' : ''"
+            class="relative transition-opacity sm:opacity-0 sm:focus-within:opacity-100 sm:group-hover:opacity-100"
+            :class="summaryOpen ? 'z-50 sm:opacity-100' : 'z-30'"
             @mouseenter="summaryOpen = true"
             @mouseleave="summaryOpen = false"
             @focusin="summaryOpen = true"
@@ -80,10 +85,11 @@ const summaryOpen = ref(false)
           >
             <button
               type="button"
-              class="flex h-7 w-7 items-center justify-center rounded-full text-grounded transition hover:bg-overlay"
-              :class="summaryOpen ? 'bg-overlay' : ''"
+              class="flex h-7 w-7 items-center justify-center rounded-full text-muted transition hover:bg-overlay hover:text-accent"
+              :class="summaryOpen ? 'bg-overlay text-accent' : ''"
               :aria-label="t('card.insights')"
               :aria-expanded="summaryOpen"
+              :aria-controls="`insights-pop-${episode.slug}`"
               @click="summaryOpen = !summaryOpen"
             >
               <svg viewBox="0 0 24 24" class="h-5 w-5" fill="currentColor" aria-hidden="true">
@@ -91,22 +97,22 @@ const summaryOpen = ref(false)
                 <path d="M19 14.5l.95 2.3 2.3.95-2.3.95L19 21l-.95-2.3L15.75 18l2.3-.95L19 14.5z" opacity=".75" />
               </svg>
             </button>
-            <!-- Popover: the full grounded summary -->
             <transition name="lp-pop">
               <div
                 v-show="summaryOpen"
-                role="dialog"
+                :id="`insights-pop-${episode.slug}`"
+                role="group"
                 :aria-label="t('card.insights')"
-                class="absolute right-0 top-9 z-30 w-72 max-w-[80vw] rounded-xl border border-border bg-elevated p-4 text-left shadow-2xl"
+                class="absolute right-0 top-9 z-50 w-72 max-w-[80vw] rounded-xl border border-border bg-elevated p-4 text-left shadow-2xl"
               >
-                <p class="lp-kicker text-grounded">{{ t('card.insights') }}</p>
+                <p class="lp-kicker">{{ t('card.insights') }}</p>
                 <ul class="mt-2 space-y-2">
                   <li
                     v-for="(b, i) in bullets"
                     :key="i"
                     class="flex gap-2 text-sm leading-relaxed text-surface-foreground"
                   >
-                    <span class="mt-2 h-1 w-1 shrink-0 rounded-full bg-grounded" aria-hidden="true" />
+                    <span class="mt-2 h-1 w-1 shrink-0 rounded-full bg-accent" aria-hidden="true" />
                     <span>{{ b }}</span>
                   </li>
                 </ul>
@@ -114,24 +120,31 @@ const summaryOpen = ref(false)
             </transition>
           </div>
 
+          <FavoriteButton :item="favItem" class="relative z-30" />
+
           <button
             v-if="auth.isAuthenticated"
             type="button"
-            class="relative z-10 flex h-7 w-7 items-center justify-center rounded-full border border-border text-sm leading-none"
+            class="relative z-30 flex h-7 w-7 items-center justify-center rounded-full border border-border"
             :class="queue.has(episode.slug) ? 'border-accent text-accent' : 'text-muted hover:text-canvas-foreground'"
             :aria-pressed="queue.has(episode.slug)"
             :aria-label="queue.has(episode.slug) ? t('queue.remove') : t('queue.add')"
             @click="queue.toggle(episode.slug)"
           >
-            {{ queue.has(episode.slug) ? '✓' : '+' }}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+              <template v-if="queue.has(episode.slug)"><path d="M20 6 9 17l-5-5" /></template>
+              <template v-else>
+                <path d="M11 12H3" /><path d="M16 6H3" /><path d="M16 18H3" /><path d="M18 9v6" /><path d="M21 12h-6" />
+              </template>
+            </svg>
           </button>
         </div>
       </div>
 
-      <!-- Title (stretched link → Player) -->
+      <!-- Title (stretched link → Player). Fades out on hover so the summary overlay stands alone. -->
       <RouterLink
         :to="{ name: 'player', params: { slug: episode.slug } }"
-        class="mt-1 font-display text-lg font-bold leading-snug text-canvas-foreground no-underline after:absolute after:inset-0 sm:text-xl"
+        class="mt-1 font-display text-lg font-bold leading-snug text-canvas-foreground no-underline transition-opacity duration-200 after:absolute after:inset-0 group-hover:opacity-0 sm:text-xl"
       >
         {{ episode.title }}
       </RouterLink>
@@ -139,7 +152,7 @@ const summaryOpen = ref(false)
       <!-- Clean one-line lede (never the bullets jammed together) -->
       <p
         v-if="episode.summary_preview"
-        class="mt-2 line-clamp-2 text-sm leading-relaxed text-muted"
+        class="mt-2 line-clamp-2 text-sm leading-relaxed text-muted transition-opacity duration-200 group-hover:opacity-0"
       >
         {{ episode.summary_preview }}
       </p>
@@ -147,12 +160,24 @@ const summaryOpen = ref(false)
       <!-- Meta line: date · duration -->
       <div
         v-if="date || duration"
-        class="mt-3 flex items-center gap-2 text-xs font-medium text-muted"
+        class="mt-3 flex items-center gap-2 text-xs font-medium text-muted transition-opacity duration-200 group-hover:opacity-0"
       >
         <span v-if="date">{{ date }}</span>
         <span v-if="date && duration" aria-hidden="true">·</span>
         <span v-if="duration">{{ duration }}</span>
       </div>
+
+    </div>
+
+    <!-- Whole-card hover (UXS-014): the episode summary as an editorial pull-quote across the ENTIRE
+         card. Click-through; the top-row affordances (z-30) float above it; card still opens player. -->
+    <div
+      v-if="episode.summary_text || episode.summary_preview"
+      class="pointer-events-none absolute inset-0 z-20 flex items-center overflow-hidden rounded-xl bg-gradient-to-br from-elevated via-canvas to-elevated px-5 py-4 opacity-0 shadow-2xl transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100"
+    >
+      <p class="border-l-2 border-accent pl-4 font-display text-base font-semibold leading-snug text-canvas-foreground sm:text-lg">
+        {{ episode.summary_text || episode.summary_preview }}
+      </p>
     </div>
   </article>
 </template>

@@ -27,6 +27,8 @@ export interface EpisodeSummary {
   status: EpisodeStatus
   /** Short, clean one-line lede for the card (NOT the bullets joined). */
   summary_preview: string | null
+  /** Full prose summary, for the card's hover/expand preview (null when absent). */
+  summary_text: string | null
   /** Full summary bullets, surfaced via the card's expand-on-demand insights view. */
   summary_bullets: string[]
   topics: string[]
@@ -153,10 +155,13 @@ export interface Entity {
   kind: 'person' | 'org'
 }
 
-/** A KG topic. */
+/** A KG topic. Cluster fields (RFC-102) drive cluster-first grouping; null/0 = singleton/no artifact. */
 export interface Topic {
   id: string
   label: string
+  cluster_id: string | null
+  cluster_label: string | null
+  cluster_size: number
 }
 
 export interface EntitiesResponse {
@@ -164,6 +169,77 @@ export interface EntitiesResponse {
   persons: Entity[]
   orgs: Entity[]
   topics: Topic[]
+}
+
+/** Saveable kinds for the polymorphic favorites store. */
+export type FavoriteKind = 'episode' | 'insight' | 'person' | 'topic'
+
+/** Body for PUT /api/app/favorites — denormalized so the Library renders without re-fetching. */
+export interface FavoriteAdd {
+  kind: FavoriteKind
+  ref: string
+  label?: string
+  sublabel?: string
+  slug?: string
+  start_ms?: number
+}
+
+/** A saved insight (AppFavoriteInsight) — snapshot, since insights have no global detail route. */
+export interface FavoriteInsight {
+  ref: string
+  text: string
+  episode_slug: string | null
+  podcast_title: string | null
+  start_ms: number | null
+}
+
+/** The user's favorites, grouped by kind (GET/PUT/DELETE /api/app/favorites). */
+export interface FavoritesResponse {
+  episodes: EpisodeSummary[]
+  insights: FavoriteInsight[]
+}
+
+/** One selectable interest cluster (GET /api/app/clusters — AppInterestCluster). */
+export interface InterestCluster {
+  id: string
+  label: string
+  size: number
+}
+
+/** A resolved person/topic reference (GET /api/app/entities/search — AppEntityRef). */
+export interface EntityRef {
+  id: string
+  kind: 'person' | 'topic'
+  label: string
+}
+
+/** Entity-in-search resolution (AppEntitySearchResponse) — at most one exact/near-exact match. */
+export interface EntitySearchResponse {
+  query: string
+  entity: EntityRef | null
+}
+
+/** Person profile card (GET /api/app/persons/{id} — AppPersonCard). KG co-occurrence. */
+export interface PersonCard {
+  id: string
+  label: string
+  episode_count: number
+  episodes: EpisodeSummary[]
+  related_people: Entity[]
+  related_topics: Topic[]
+}
+
+/** Topic card (GET /api/app/topics/{id} — AppTopicCard). Episodes-about + cluster siblings. */
+export interface TopicCard {
+  id: string
+  label: string
+  cluster_id: string | null
+  cluster_label: string | null
+  cluster_size: number
+  sibling_topics: Topic[]
+  episode_count: number
+  episodes: EpisodeSummary[]
+  related_people: Entity[]
 }
 
 /** One grounded search hit (loosely typed — metadata/lifted vary by tier). */
@@ -181,4 +257,29 @@ export interface SearchResponse {
   query: string
   results: SearchHit[]
   error: string | null
+}
+
+/** One day bucket of a listening sparkline (UXS-014). */
+export interface StatPoint {
+  date: string
+  count: number
+}
+
+/** The signed-in user's own listening analytics (GET /api/app/me/stats). */
+export interface UserStats {
+  episodes: number
+  shows: number
+  listening_seconds: number
+  active_days: number
+  day_streak: number
+  daily: StatPoint[]
+}
+
+/** Cross-user reach for one episode (GET /api/app/episodes/{slug}/stats). */
+export interface EpisodeStats {
+  slug: string
+  listeners: number
+  opens: number
+  insights: number
+  daily: StatPoint[]
 }

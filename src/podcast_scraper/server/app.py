@@ -22,7 +22,9 @@ from podcast_scraper.server.pathutil import CorpusPathRequestError
 from podcast_scraper.server.routes import (
     app_artwork,
     app_auth,
+    app_discover,
     app_episodes,
+    app_relational,
     app_search,
     app_user_state,
     artifacts,
@@ -87,6 +89,9 @@ def _configure_platform_auth(app: FastAPI, resolved_output: Path | None) -> None
         app.state.app_data_dir = None
     app.state.oauth_provider = provider_from_env()
     app.state.access_policy = policy_from_env()
+    # Personalized discovery ranking (PRD-043 FR4 / #1098) — OFF by default; the discovery feed
+    # falls back to recency until this toggle is flipped (gated until the score is tuned).
+    app.state.personalized_ranking = _env_truthy("APP_PERSONALIZED_RANKING")
     app.state.operator_api_key = os.environ.get("APP_OPERATOR_API_KEY", "")
     app.state.audit_path = (
         (app.state.app_data_dir / "audit.jsonl") if app.state.app_data_dir is not None else None
@@ -236,6 +241,8 @@ def create_app(
     app.include_router(app_auth.router, prefix="/api/app")
     app.include_router(app_artwork.router, prefix="/api/app")
     app.include_router(app_episodes.router, prefix="/api/app")
+    app.include_router(app_relational.router, prefix="/api/app")
+    app.include_router(app_discover.router, prefix="/api/app")
     app.include_router(app_search.router, prefix="/api/app")
     app.include_router(app_user_state.router, prefix="/api/app")
 

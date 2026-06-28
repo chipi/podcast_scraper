@@ -1,5 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
@@ -19,6 +20,7 @@ const router = createRouter({
 const emptyPage = { items: [], page: 1, page_size: 6, total: 0, has_more: false }
 
 beforeEach(() => {
+  setActivePinia(createPinia()) // FavoriteButton (on insights) resolves the favorites/auth stores
   // Default: no related peers (index unavailable) so the section hides.
   vi.spyOn(api, 'getRelated').mockResolvedValue(emptyPage)
 })
@@ -95,15 +97,59 @@ describe('KnowledgePanel', () => {
     expect(w.emitted('seek')?.[0]).toEqual([12])
   })
 
-  it('tapping a person or topic explores that term across the library (search)', async () => {
+  it('tapping a person chip opens its entity card (PRD-043)', async () => {
+    const getPerson = vi.spyOn(api, 'getPersonCard').mockResolvedValue({
+      id: 'person:matthew-walker',
+      label: 'Matthew Walker',
+      episode_count: 0,
+      episodes: [],
+      related_people: [],
+      related_topics: [],
+    })
     const w = mountPanel()
-    const push = vi.spyOn(router, 'push')
-    // Person chip → corpus search for that name.
     await w.findAll('button').find((b) => b.text() === 'Matthew Walker')!.trigger('click')
-    expect(push).toHaveBeenCalledWith({ name: 'search', query: { q: 'Matthew Walker' } })
-    // Topic chip → corpus search for that topic.
+    await flushPromises()
+    // Replace-in-panel (UXS-014): the card renders INLINE in the panel (no overlay), with a ‹ Back.
+    expect(getPerson).toHaveBeenCalledWith('person:matthew-walker')
+    expect(w.text()).toContain('Matthew Walker')
+    expect(w.findAll('button').some((b) => b.text().includes('Back'))).toBe(true)
+  })
+
+  it('tapping a topic chip opens its entity card (not a search)', async () => {
+    const getTopic = vi.spyOn(api, 'getTopicCard').mockResolvedValue({
+      id: 'topic:memory',
+      label: 'memory',
+      cluster_id: null,
+      cluster_label: null,
+      cluster_size: 0,
+      sibling_topics: [],
+      episode_count: 0,
+      episodes: [],
+      related_people: [],
+    })
+    const push = vi.spyOn(router, 'push')
+    const w = mountPanel()
     await w.findAll('button').find((b) => b.text() === 'memory')!.trigger('click')
-    expect(push).toHaveBeenCalledWith({ name: 'search', query: { q: 'memory' } })
+    await flushPromises()
+    expect(getTopic).toHaveBeenCalledWith('topic:memory')
+    expect(push).not.toHaveBeenCalled() // search now lives inside the card, not on chip-tap
+  })
+
+  it('orders topics cluster-first and marks the dominant cluster (RFC-102)', () => {
+    const topics: Topic[] = [
+      { id: 'topic:z', label: 'zulu', cluster_id: null, cluster_label: null, cluster_size: 0 },
+      { id: 'topic:ai', label: 'ai', cluster_id: 'tc:ml', cluster_label: 'machine learning', cluster_size: 5 },
+      { id: 'topic:ml', label: 'ml', cluster_id: 'tc:ml', cluster_label: 'machine learning', cluster_size: 5 },
+    ]
+    const w = mountPanel({ topics, persons: [] })
+    // Dominant-cluster label surfaces as the "Theme" lead-in.
+    expect(w.text()).toContain('machine learning')
+    // Dominant-cluster topics lead (ai, ml), the singleton (zulu) trails.
+    const chips = w.findAll('button').filter((b) => ['ai', 'ml', 'zulu'].includes(b.text()))
+    expect(chips.map((c) => c.text())).toEqual(['ai', 'ml', 'zulu'])
+    // Dominant chips carry the standout ring; the singleton does not.
+    expect(chips[0].classes()).toContain('ring-topic')
+    expect(chips[2].classes()).not.toContain('ring-topic')
   })
 
   it('runs episode-scoped search and renders grounded results', async () => {

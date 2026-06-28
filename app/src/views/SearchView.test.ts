@@ -1,5 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createPinia } from 'pinia'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
@@ -18,13 +19,19 @@ function makeRouter() {
   })
 }
 
+// Default: no entity match — search tests assert passage behaviour without an entity card.
+beforeEach(() => {
+  vi.spyOn(api, 'resolveEntity').mockResolvedValue({ query: '', entity: null })
+})
 afterEach(() => vi.restoreAllMocks())
 
 async function mountAt(q: string) {
   const router = makeRouter()
   router.push({ name: 'search', query: { q } })
   await router.isReady()
-  const w = mount(SearchView, { global: { plugins: [i18n, router] } })
+  const w = mount(SearchView, {
+    global: { plugins: [i18n, router, createPinia()], stubs: { teleport: true } },
+  })
   await flushPromises()
   return { w, router }
 }
@@ -60,5 +67,31 @@ describe('SearchView', () => {
     vi.spyOn(api, 'searchCorpus').mockResolvedValue({ query: 'x', error: null, results: [] })
     const { w } = await mountAt('x')
     expect(w.text()).toContain('No grounded passages found.')
+  })
+
+  it('surfaces an entity card above passages and opens the full card on tap (3.4)', async () => {
+    vi.spyOn(api, 'searchCorpus').mockResolvedValue({ query: 'jane', error: null, results: [] })
+    vi.spyOn(api, 'resolveEntity').mockResolvedValue({
+      query: 'jane',
+      entity: { id: 'person:jane-doe', kind: 'person', label: 'Jane Doe' },
+    })
+    const getPerson = vi.spyOn(api, 'getPersonCard').mockResolvedValue({
+      id: 'person:jane-doe',
+      label: 'Jane Doe',
+      episode_count: 0,
+      episodes: [],
+      related_people: [],
+      related_topics: [],
+    })
+    const { w } = await mountAt('jane')
+    // Entity hit card shows (Person kicker + name); the no-results line is suppressed.
+    expect(w.text()).toContain('Person')
+    expect(w.text()).toContain('Jane Doe')
+    expect(w.text()).not.toContain('No grounded passages found.')
+    // Tapping it opens the full EntityCard overlay.
+    await w.findAll('button').find((b) => b.text().includes('View'))!.trigger('click')
+    await flushPromises()
+    expect(getPerson).toHaveBeenCalledWith('person:jane-doe')
+    expect(w.find('[role="dialog"]').exists()).toBe(true)
   })
 })

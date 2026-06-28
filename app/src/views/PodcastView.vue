@@ -9,6 +9,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import EpisodeCard from '../components/EpisodeCard.vue'
 import { getPodcasts, listPodcastEpisodes } from '../services/api'
+import { showArtwork } from '../utils/episode'
 import type { EpisodeSummary, Podcast } from '../services/types'
 
 const PAGE_SIZE = 20
@@ -24,7 +25,7 @@ const error = ref(false)
 const show = ref<Podcast | null>(null)
 const descExpanded = ref(false)
 
-const showArt = (p: Podcast) => p.artwork_url || p.image_url
+const showArt = showArtwork
 async function loadShow(): Promise<void> {
   const all = await getPodcasts().catch(() => [] as Podcast[])
   show.value = all.find((p) => p.feed_id === props.feedId) ?? null
@@ -67,7 +68,7 @@ watch(() => props.feedId, reset)
 
 <template>
   <section>
-    <RouterLink :to="{ name: 'catalog' }" class="lp-kicker no-underline">‹ {{ t('nav.catalog') }}</RouterLink>
+    <RouterLink :to="{ name: 'catalog' }" class="lp-nav">‹ {{ t('nav.catalog') }}</RouterLink>
 
     <header class="mb-6 mt-2 flex gap-4 sm:gap-5">
       <img

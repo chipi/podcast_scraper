@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -18,6 +19,8 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from podcast_scraper.search.capability import structured_corpus_search
 from podcast_scraper.search.corpus_similar import episode_scope_key, run_similar_episodes
 from podcast_scraper.search.query_log import append_query_event
+from podcast_scraper.search.topic_clusters import consumer_topic_cluster_map
+from podcast_scraper.server import app_stats
 from podcast_scraper.server.app_artwork import artwork_url
 from podcast_scraper.server.app_audio_bridge import resolve_audio
 from podcast_scraper.server.app_content_source import (
@@ -26,6 +29,7 @@ from podcast_scraper.server.app_content_source import (
     transcript_corpus_relpath,
     transcript_relpath,
 )
+from podcast_scraper.server.app_corpus_access import corpus_root_or_503, load_json_artifact
 from podcast_scraper.server.app_gi_view import insights_from_gi
 from podcast_scraper.server.app_kg_view import entities_from_kg
 from podcast_scraper.server.app_search_view import build_search_response, filter_outcome_to_episode
@@ -46,6 +50,7 @@ from podcast_scraper.server.schemas import (
     AppPodcastsResponse,
     AudioSourceResponse,
     CorpusSearchApiResponse,
+    EpisodeStatsResponse,
     SegmentsResponse,
 )
 from podcast_scraper.server.segments_view import (
@@ -59,17 +64,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["app"])
 
 
-def _corpus_root(request: Request) -> Path:
-    """Resolve the single shared corpus root, or 503 if the platform has no corpus."""
-    anchor = getattr(request.app.state, "output_dir", None)
-    if anchor is None:
-        raise HTTPException(status_code=503, detail="No corpus configured for the platform API.")
-    return Path(anchor)
-
-
 def _resolve(request: Request, slug: str) -> tuple[Path, CatalogEpisodeRow]:
     """Resolve ``(corpus_root, row)`` for a slug, or 404 when the slug is unknown."""
-    root = _corpus_root(request)
+    root = corpus_root_or_503(request)
     row = resolve_slug(root, slug)
     if row is None:
         raise HTTPException(status_code=404, detail="Unknown episode slug.")
@@ -83,24 +80,6 @@ def _content_block(root: Path, metadata_relpath: str) -> dict:
     return content if isinstance(content, dict) else {}
 
 
-def _load_artifact(root: Path, relpath: str) -> dict | None:
-    """Path-safe JSON load of a corpus artifact (GI/KG); ``None`` when missing/unreadable."""
-    if not relpath:
-        return None
-    safe = safe_relpath_under_corpus_root(root, relpath)
-    if not safe:
-        return None
-    path = root / safe
-    if not path.is_file():
-        return None
-    try:
-        loaded = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as exc:
-        logger.warning("Unreadable artifact %s: %s", path, exc)
-        return None
-    return loaded if isinstance(loaded, dict) else None
-
-
 def _episodes_page(
     request: Request,
     *,
@@ -110,7 +89,7 @@ def _episodes_page(
     page_size: int,
 ) -> AppEpisodesResponse:
     """Shared catalog-list builder for the global + per-podcast endpoints."""
-    root = _corpus_root(request)
+    root = corpus_root_or_503(request)
     source = get_content_source(request.app.state, root)
     offset = (page - 1) * page_size
     result = source.list_episodes(feed_id=feed_id, status=status, offset=offset, limit=page_size)
@@ -145,7 +124,7 @@ async def episodes_list(
 @router.get("/podcasts", response_model=AppPodcastsResponse)
 async def podcasts_list(request: Request) -> AppPodcastsResponse:
     """Distinct shows in the corpus, for Home 'Your shows' (PRD-042 FR6)."""
-    root = _corpus_root(request)
+    root = corpus_root_or_503(request)
     feeds = aggregate_feeds(build_catalog_rows_cumulative(root))
     items = [
         AppPodcastItem(
@@ -254,8 +233,45 @@ async def episode_insights(request: Request, slug: str) -> AppInsightsResponse:
     root, row = _resolve(request, slug)
     if not row.has_gi:
         return AppInsightsResponse(episode_slug=slug, insights=[])
-    artifact = _load_artifact(root, row.gi_relative_path)
+    artifact = load_json_artifact(root, row.gi_relative_path)
     return AppInsightsResponse(episode_slug=slug, insights=insights_from_gi(artifact))
+
+
+# Public reach is an O(users × events) scan of every listen log; memoize per (data_dir, slug) for a
+# short window so a burst of opens of the same episode doesn't re-scan on every request. Counts are
+# analytics — brief staleness is fine. Keyed by data_dir so isolated test corpora never collide.
+_EPISODE_REACH_TTL_SECONDS = 30.0
+_episode_reach_cache: dict[tuple[str, str], tuple[float, dict]] = {}
+
+
+def _episode_reach(app_data_dir: object, slug: str) -> dict:
+    if not app_data_dir:
+        return {"listeners": 0, "opens": 0, "daily": []}
+    key = (str(app_data_dir), slug)
+    now = time.monotonic()
+    cached = _episode_reach_cache.get(key)
+    if cached is not None and now - cached[0] < _EPISODE_REACH_TTL_SECONDS:
+        return cached[1]
+    reach = app_stats.compute_episode_stats(Path(str(app_data_dir)), slug)
+    _episode_reach_cache[key] = (now, reach)
+    return reach
+
+
+@router.get("/episodes/{slug}/stats", response_model=EpisodeStatsResponse)
+async def episode_stats(request: Request, slug: str) -> EpisodeStatsResponse:
+    """Cross-user reach for one episode: distinct listeners, opens, daily sparkline + insight count.
+
+    Public (no auth) — returns only anonymous aggregate counts (no user identity crosses the
+    boundary). Listener/open counts come from scanning every user's listen log; they are zero when
+    no app data dir is configured, and memoized for a short TTL (see ``_episode_reach``).
+    """
+    root, row = _resolve(request, slug)
+    insights = 0
+    if row.has_gi:
+        insights = len(insights_from_gi(load_json_artifact(root, row.gi_relative_path)))
+
+    reach = _episode_reach(getattr(request.app.state, "app_data_dir", None), slug)
+    return EpisodeStatsResponse(slug=slug, insights=insights, **reach)
 
 
 @router.get("/episodes/{slug}/entities", response_model=AppEntitiesResponse)
@@ -264,7 +280,14 @@ async def episode_entities(request: Request, slug: str) -> AppEntitiesResponse:
     root, row = _resolve(request, slug)
     if not row.has_kg:
         return AppEntitiesResponse(episode_slug=slug)
-    persons, orgs, topics = entities_from_kg(_load_artifact(root, row.kg_relative_path))
+    persons, orgs, topics = entities_from_kg(load_json_artifact(root, row.kg_relative_path))
+    # Cluster-first grouping (RFC-102 / PRD-043 FR1): attach corpus topic-cluster identity to each
+    # topic (no-op when search/topic_clusters.json is absent → flat list, today's behaviour).
+    cluster_map = consumer_topic_cluster_map(root)
+    if cluster_map:
+        topics = [
+            t.model_copy(update=cluster_map[t.id]) if t.id in cluster_map else t for t in topics
+        ]
     return AppEntitiesResponse(episode_slug=slug, persons=persons, orgs=orgs, topics=topics)
 
 

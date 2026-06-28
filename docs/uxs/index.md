@@ -83,8 +83,8 @@ The viewer UXS is split into a **shared design system hub** (UXS-001) and
 for tokens, typography, and shared conventions. This keeps individual specs short
 (2-4 pages) while the shared foundation stays in one place.
 
-Draft UXS documents (UXS-007 through UXS-010) exist in this directory but are **not
-indexed** until promoted to Active. They are discoverable by filename.
+Draft UXS documents (UXS-007 through UXS-010) are listed in the site nav under their
+**Draft** status; their tokens and rules may change before implementation begins.
 
 ## Conventions
 
@@ -117,6 +117,8 @@ Authoritative specs; current implementations should conform
 | [UXS-006](UXS-006-dashboard.md) | Dashboard | PRD-025; RFC-071 | Dashboard tab: briefing + Coverage / Intelligence / Pipeline (normative spec in UXS-006) |
 | [UXS-011](UXS-011-consumer-learning-app.md) | Consumer Learning App — Design System + Player | PRD-038, PRD-039; RFC-099 | **Separate** consumer-app design system (Editorial Bold, dark-primary) + the Player surface; distinct from the operator viewer (UXS-001) |
 | [UXS-012](UXS-012-consumer-home.md) | Consumer Home (Learning Hub) | PRD-042; RFC-099 | Home launch surface: adaptive hero (resume / discover) + "Ask your library" corpus search + sections; inherits UXS-011 tokens |
+| [UXS-013](UXS-013-knowledge-clusters.md) | Knowledge clusters & entity cards (consumer) | PRD-043; RFC-102 | Cluster-first Topics & People (dominant-cluster standout + theme); person/topic entity cards; entities in search. Inherits UXS-011/012. |
+| [UXS-014](UXS-014-interaction-patterns.md) | Interaction patterns (consumer) | PRD-043; RFC-102 | **Foundational** cross-surface contract: surface types, never-stack-two-backdrops / replace-in-panel, shared `.lp-nav` / `.lp-fav` classes, header order, modal a11y, player hero, Library/Saved. Inherits UXS-011/012/013. |
 
 ## Templates
 

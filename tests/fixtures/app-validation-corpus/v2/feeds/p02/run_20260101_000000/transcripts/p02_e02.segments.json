@@ -1,0 +1,464 @@
+[
+  {
+    "end": 6.0,
+    "id": 0,
+    "speaker_label": "Ethan",
+    "start": 0.0,
+    "text": "Welcome back to Practical Systems. Today we're talking about engineering communication, and I'm joined by Jonas, staff engineer focused on platform teams. Jonas, thanks for being here."
+  },
+  {
+    "end": 12.0,
+    "id": 1,
+    "speaker_label": "Jonas",
+    "start": 6.0,
+    "text": "Thanks, Ethan. Great to be back."
+  },
+  {
+    "end": 18.0,
+    "id": 2,
+    "speaker_label": "Ethan",
+    "start": 12.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Try notion.com today."
+  },
+  {
+    "end": 24.0,
+    "id": 3,
+    "speaker_label": "Ethan",
+    "start": 18.0,
+    "text": "Before we get into it \u2014 Priya was on episode 1 making the case that good on-call rotations are designed so waking up is rare. I want to push that further into how we communicate the design itself."
+  },
+  {
+    "end": 30.0,
+    "id": 4,
+    "speaker_label": "Jonas",
+    "start": 24.0,
+    "text": "Yeah, exactly. And it ties into what we're covering today."
+  },
+  {
+    "end": 36.0,
+    "id": 5,
+    "speaker_label": "Ethan",
+    "start": 30.0,
+    "text": "Before we get into it \u2014 Linear keeps coming up as our project tracker \u2014 last episode Priya talked about it for incident workflows; today we're using it differently."
+  },
+  {
+    "end": 42.0,
+    "id": 6,
+    "speaker_label": "Jonas",
+    "start": 36.0,
+    "text": "Yeah, exactly. And it ties into what we're covering today."
+  },
+  {
+    "end": 48.0,
+    "id": 7,
+    "speaker_label": "Ethan",
+    "start": 42.0,
+    "text": "Push back on the conventional wisdom for me. What's the structural angle most listeners don't have access to?"
+  },
+  {
+    "end": 54.0,
+    "id": 8,
+    "speaker_label": "Jonas",
+    "start": 48.0,
+    "text": "Honestly, A great RFC starts with context and constraints, then options, then a recommendation with explicit risks. We've seen this play out at teams using PagerDuty. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "end": 60.0,
+    "id": 9,
+    "speaker_label": "Ethan",
+    "start": 54.0,
+    "text": "Where do most teams get it wrong? What's the version of the question that actually matters?"
+  },
+  {
+    "end": 66.0,
+    "id": 10,
+    "speaker_label": "Jonas",
+    "start": 60.0,
+    "text": "It comes down to this: Writing things down turns disagreement into collaboration because you can point at assumptions instead of people. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "end": 72.0,
+    "id": 11,
+    "speaker_label": "Ethan",
+    "start": 66.0,
+    "text": "How do you know when you've gotten it right? What's the structural angle most listeners don't have access to?"
+  },
+  {
+    "end": 78.0,
+    "id": 12,
+    "speaker_label": "Jonas",
+    "start": 72.0,
+    "text": "Sure. Postmortems that focus on individuals miss the system that made the mistake easy to make. We've seen this play out at teams using Sentry. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "end": 84.0,
+    "id": 13,
+    "speaker_label": "Ethan",
+    "start": 78.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "end": 90.0,
+    "id": 14,
+    "speaker_label": "Jonas",
+    "start": 84.0,
+    "text": "PagerDuty is one of the platforms where this shows up cleanly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "end": 96.0,
+    "id": 15,
+    "speaker_label": "Ethan",
+    "start": 90.0,
+    "text": "Where do most teams get it wrong? What's the most underrated piece of engineering communication?"
+  },
+  {
+    "end": 102.0,
+    "id": 16,
+    "speaker_label": "Jonas",
+    "start": 96.0,
+    "text": "Here's how I think about it. Architecture decisions are mostly tradeoffs: cost versus reliability, speed versus correctness, autonomy versus consistency. And the second-order effect is the part most people miss."
+  },
+  {
+    "end": 108.0,
+    "id": 17,
+    "speaker_label": "Ethan",
+    "start": 102.0,
+    "text": "I want to dig into that. What's the most underrated piece of engineering communication?"
+  },
+  {
+    "end": 114.0,
+    "id": 18,
+    "speaker_label": "Jonas",
+    "start": 108.0,
+    "text": "Let me give you the version I actually believe. Notion as a docs platform only works when teams treat it as the source of truth, not as a notebook. We've seen this play out at teams using PagerDuty. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 120.0,
+    "id": 19,
+    "speaker_label": "Ethan",
+    "start": 114.0,
+    "text": "Walk me through a concrete example. Where do reliability and engineering communication intersect?"
+  },
+  {
+    "end": 126.0,
+    "id": 20,
+    "speaker_label": "Jonas",
+    "start": 120.0,
+    "text": "I'd put it this way: Risk management is a communication problem. The technical work is the easier half. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 132.0,
+    "id": 21,
+    "speaker_label": "Ethan",
+    "start": 126.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "end": 138.0,
+    "id": 22,
+    "speaker_label": "Jonas",
+    "start": 132.0,
+    "text": "And when teams adopt Datadog in that flow, the trade-off becomes visible \u2014 The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "end": 144.0,
+    "id": 23,
+    "speaker_label": "Ethan",
+    "start": 138.0,
+    "text": "We'll be right back after a quick word from our sponsors."
+  },
+  {
+    "end": 150.0,
+    "id": 24,
+    "speaker_label": "Ad",
+    "start": 144.0,
+    "text": "This portion is brought to you by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Use promo POD20 to get started."
+  },
+  {
+    "end": 156.0,
+    "id": 25,
+    "speaker_label": "Ethan",
+    "start": 150.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "end": 162.0,
+    "id": 26,
+    "speaker_label": "Ethan",
+    "start": 156.0,
+    "text": "How do you balance that? How does Notion fit into this picture?"
+  },
+  {
+    "end": 168.0,
+    "id": 27,
+    "speaker_label": "Jonas",
+    "start": 162.0,
+    "text": "Here's how I think about it. A great RFC starts with context and constraints, then options, then a recommendation with explicit risks. We've seen this play out at teams using Sentry. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "end": 174.0,
+    "id": 28,
+    "speaker_label": "Ethan",
+    "start": 168.0,
+    "text": "Where do most teams get it wrong? Where do reliability and engineering communication intersect?"
+  },
+  {
+    "end": 180.0,
+    "id": 29,
+    "speaker_label": "Jonas",
+    "start": 174.0,
+    "text": "Yeah, so \u2014 Writing things down turns disagreement into collaboration because you can point at assumptions instead of people. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "end": 186.0,
+    "id": 30,
+    "speaker_label": "Ethan",
+    "start": 180.0,
+    "text": "How do you know when you've gotten it right? How does Sentry fit into this picture?"
+  },
+  {
+    "end": 192.0,
+    "id": 31,
+    "speaker_label": "Jonas",
+    "start": 186.0,
+    "text": "Sure. Postmortems that focus on individuals miss the system that made the mistake easy to make. We've seen this play out at teams using Sentry. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 198.0,
+    "id": 32,
+    "speaker_label": "Ethan",
+    "start": 192.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "end": 204.0,
+    "id": 33,
+    "speaker_label": "Jonas",
+    "start": 198.0,
+    "text": "PagerDuty is one of the platforms where this shows up cleanly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "end": 210.0,
+    "id": 34,
+    "speaker_label": "Ethan",
+    "start": 204.0,
+    "text": "How do you balance that? What's something you used to believe about this that you've revised?"
+  },
+  {
+    "end": 216.0,
+    "id": 35,
+    "speaker_label": "Jonas",
+    "start": 210.0,
+    "text": "I'd put it this way: Architecture decisions are mostly tradeoffs: cost versus reliability, speed versus correctness, autonomy versus consistency. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "end": 222.0,
+    "id": 36,
+    "speaker_label": "Ethan",
+    "start": 216.0,
+    "text": "Where do most teams get it wrong? Where do reliability and engineering communication intersect?"
+  },
+  {
+    "end": 228.0,
+    "id": 37,
+    "speaker_label": "Jonas",
+    "start": 222.0,
+    "text": "There are two angles \u2014 Notion as a docs platform only works when teams treat it as the source of truth, not as a notebook. We've seen this play out at teams using Linear. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 234.0,
+    "id": 38,
+    "speaker_label": "Ethan",
+    "start": 228.0,
+    "text": "What does the failure mode look like? Where do people most often confuse correlation with causation in this area?"
+  },
+  {
+    "end": 240.0,
+    "id": 39,
+    "speaker_label": "Jonas",
+    "start": 234.0,
+    "text": "Yeah, so \u2014 Risk management is a communication problem. The technical work is the easier half. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 246.0,
+    "id": 40,
+    "speaker_label": "Ethan",
+    "start": 240.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "end": 252.0,
+    "id": 41,
+    "speaker_label": "Jonas",
+    "start": 246.0,
+    "text": "And when teams adopt Notion in that flow, the trade-off becomes visible \u2014 The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "end": 258.0,
+    "id": 42,
+    "speaker_label": "Ethan",
+    "start": 252.0,
+    "text": "Let's pivot \u2014 risk management is where I want to spend the last stretch."
+  },
+  {
+    "end": 264.0,
+    "id": 43,
+    "speaker_label": "Jonas",
+    "start": 258.0,
+    "text": "That's where the conversation gets interesting, because the trade-offs around risk management cross-cut everything we've covered so far."
+  },
+  {
+    "end": 270.0,
+    "id": 44,
+    "speaker_label": "Ethan",
+    "start": 264.0,
+    "text": "I want to dig into that. What's the version of the question that actually matters?"
+  },
+  {
+    "end": 276.0,
+    "id": 45,
+    "speaker_label": "Jonas",
+    "start": 270.0,
+    "text": "Here's how I think about it. A great RFC starts with context and constraints, then options, then a recommendation with explicit risks. We've seen this play out at teams using Linear. And the second-order effect is the part most people miss."
+  },
+  {
+    "end": 282.0,
+    "id": 46,
+    "speaker_label": "Ethan",
+    "start": 276.0,
+    "text": "How do you know when you've gotten it right? What's the contrarian angle most listeners don't have access to?"
+  },
+  {
+    "end": 288.0,
+    "id": 47,
+    "speaker_label": "Jonas",
+    "start": 282.0,
+    "text": "It comes down to this: Writing things down turns disagreement into collaboration because you can point at assumptions instead of people. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 294.0,
+    "id": 48,
+    "speaker_label": "Ethan",
+    "start": 288.0,
+    "text": "What does that look like day-to-day? What's the contrarian angle most listeners don't have access to?"
+  },
+  {
+    "end": 300.0,
+    "id": 49,
+    "speaker_label": "Jonas",
+    "start": 294.0,
+    "text": "There are two angles \u2014 Postmortems that focus on individuals miss the system that made the mistake easy to make. We've seen this play out at teams using Linear. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "end": 306.0,
+    "id": 50,
+    "speaker_label": "Ethan",
+    "start": 300.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "end": 312.0,
+    "id": 51,
+    "speaker_label": "Jonas",
+    "start": 306.0,
+    "text": "I've seen this with teams running PagerDuty and teams running everything in-house. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "end": 318.0,
+    "id": 52,
+    "speaker_label": "Ethan",
+    "start": 312.0,
+    "text": "How do you know when you've gotten it right? Where do reliability and engineering communication intersect?"
+  },
+  {
+    "end": 324.0,
+    "id": 53,
+    "speaker_label": "Jonas",
+    "start": 318.0,
+    "text": "The short answer is Architecture decisions are mostly tradeoffs: cost versus reliability, speed versus correctness, autonomy versus consistency. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "end": 330.0,
+    "id": 54,
+    "speaker_label": "Ethan",
+    "start": 324.0,
+    "text": "Take me through the decision. What's the most underrated piece of engineering communication?"
+  },
+  {
+    "end": 336.0,
+    "id": 55,
+    "speaker_label": "Jonas",
+    "start": 330.0,
+    "text": "There are two angles \u2014 Notion as a docs platform only works when teams treat it as the source of truth, not as a notebook. We've seen this play out at teams using Datadog. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "end": 342.0,
+    "id": 56,
+    "speaker_label": "Ethan",
+    "start": 336.0,
+    "text": "What's the one heuristic you keep coming back to? Where do reliability and engineering communication intersect?"
+  },
+  {
+    "end": 348.0,
+    "id": 57,
+    "speaker_label": "Jonas",
+    "start": 342.0,
+    "text": "Let me give you the version I actually believe. Risk management is a communication problem. The technical work is the easier half. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 354.0,
+    "id": 58,
+    "speaker_label": "Ethan",
+    "start": 348.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "end": 360.0,
+    "id": 59,
+    "speaker_label": "Jonas",
+    "start": 354.0,
+    "text": "I've seen this with teams running PagerDuty and teams running everything in-house. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 366.0,
+    "id": 60,
+    "speaker_label": "Ethan",
+    "start": 360.0,
+    "text": "Before we wrap, what's one thing listeners can try this week?"
+  },
+  {
+    "end": 372.0,
+    "id": 61,
+    "speaker_label": "Jonas",
+    "start": 366.0,
+    "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
+  },
+  {
+    "end": 378.0,
+    "id": 62,
+    "speaker_label": "Ethan",
+    "start": 372.0,
+    "text": "And finally, a big thank you to our partners at Datadog. Datadog gives your team unified observability across logs, metrics, and traces so on-call has one place to look. Check out datadog.com."
+  },
+  {
+    "end": 384.0,
+    "id": 63,
+    "speaker_label": "Ethan",
+    "start": 378.0,
+    "text": "Jonas, thanks for the conversation."
+  },
+  {
+    "end": 390.0,
+    "id": 64,
+    "speaker_label": "Jonas",
+    "start": 384.0,
+    "text": "Thanks, Ethan."
+  },
+  {
+    "end": 396.0,
+    "id": 65,
+    "speaker_label": "Ethan",
+    "start": 390.0,
+    "text": "That's it for today's episode of Practical Systems. See you next time."
+  }
+]

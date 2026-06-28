@@ -67,6 +67,11 @@ run_*/
 # Streamlit run comparison app (path matches run_* above)
 !tools/run_compare/
 !tools/run_compare/**
+# Committed consumer-app validation corpus (path uses the real run-dir layout,
+# feeds/<show>/run_*/..., which the broad run_*/ rule above would otherwise ignore).
+# This is a checked-in, deterministic fixture — see
+# tests/fixtures/app-validation-corpus/README.md.
+!tests/fixtures/app-validation-corpus/**
 reports/
 # Exclude dependency graphs (generated files)
 reports/deps*.svg

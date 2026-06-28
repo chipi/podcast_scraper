@@ -1,0 +1,261 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "topic:safety-practices",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "insight:797e30552799ac18",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "insight:cd267fcf1215555c",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "insight:3aabb6d8787f9373",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:98df909806414551",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:797e30552799ac18",
+      "to": "quote:98df909806414551",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:b42f89d3b81606b8",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:cd267fcf1215555c",
+      "to": "quote:b42f89d3b81606b8",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:adcd1f9b1489ed08",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "quote:adcd1f9b1489ed08",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f868b36dd4f2b93e",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:797e30552799ac18",
+      "to": "quote:f868b36dd4f2b93e",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:4636b7c0e11c67ca",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:cd267fcf1215555c",
+      "to": "quote:4636b7c0e11c67ca",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:0942bd07dfe328f1",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "quote:0942bd07dfe328f1",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "ep-a0a7f86b34a4de26",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-a0a7f86b34a4de26",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ep-a0a7f86b34a4de26",
+        "metadata_relative_path": "feeds/p03/run_20260101_000000/metadata/p03_e02.metadata.json",
+        "podcast_id": "p03",
+        "publish_date": "2026-01-23T12:00:00",
+        "title": "Marine Biology for Divers"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:safety-practices",
+      "properties": {
+        "label": "safety practices",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:797e30552799ac18",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Welcome back to Below the Surface. Today we're talking about marine biology, and I'm joined by Hanna, marine biologist focused on reef systems. Hanna, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:cd267fcf1215555c",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Before we get into it \u2014 Marco was on last week talking about wreck planning. The same discipline applies to reef diving \u2014 plan the dive, dive the plan."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:3aabb6d8787f9373",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Yeah, exactly. And it ties into what we're covering today."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Rina"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:98df909806414551",
+      "properties": {
+        "char_end": 179,
+        "char_start": 6,
+        "episode_id": "ep-a0a7f86b34a4de26",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Below the Surface. Today we're talking about marine biology, and I'm joined by Hanna, marine biologist focused on reef systems. Hanna, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p03_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Hanna"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:b42f89d3b81606b8",
+      "properties": {
+        "char_end": 218,
+        "char_start": 187,
+        "episode_id": "ep-a0a7f86b34a4de26",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Rina. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p03_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:adcd1f9b1489ed08",
+      "properties": {
+        "char_end": 388,
+        "char_start": 225,
+        "episode_id": "ep-a0a7f86b34a4de26",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by PADI. PADI is the global standard for dive education \u2014 find a certified instructor in your area. Get started at padi.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p03_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:f868b36dd4f2b93e",
+      "properties": {
+        "char_end": 539,
+        "char_start": 388,
+        "episode_id": "ep-a0a7f86b34a4de26",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Marco was on last week talking about wreck planning. The same discipline applies to reef diving \u2014 plan the dive, dive the plan.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p03_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:4636b7c0e11c67ca",
+      "properties": {
+        "char_end": 605,
+        "char_start": 547,
+        "episode_id": "ep-a0a7f86b34a4de26",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, exactly. And it ties into what we're covering today.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p03_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:0942bd07dfe328f1",
+      "properties": {
+        "char_end": 693,
+        "char_start": 612,
+        "episode_id": "ep-a0a7f86b34a4de26",
+        "speaker_id": "person:speaker-01",
+        "text": "Take me through the decision. What's the most underrated piece of marine biology?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p03_e02.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

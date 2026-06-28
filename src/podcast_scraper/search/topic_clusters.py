@@ -90,29 +90,161 @@ def topic_cluster_enrichment_by_topic_id(
     return out
 
 
-def load_topic_cluster_enrichment_map(corpus_root: Path) -> Dict[str, Dict[str, str]]:
-    """Load ``search/topic_clusters.json`` and return enrichment map; empty if missing/invalid."""
+def _load_topic_clusters_payload(corpus_root: Path) -> Optional[Dict[str, Any]]:
+    """Path-safe load of ``search/topic_clusters.json`` → payload dict (None if missing/invalid)."""
     root_p = safe_resolve_directory(corpus_root)
     if root_p is None:
-        return {}
+        return None
     root_s = os.path.normpath(str(root_p))
     safe_prefix = root_s + os.sep
     joined = os.path.normpath(os.path.join(root_s, "search", TOPIC_CLUSTERS_FILENAME))
     if joined != root_s and not joined.startswith(safe_prefix):
-        return {}
+        return None
     # codeql[py/path-injection] -- joined under root_s (Type 1; CODEQL_DISMISSALS.md).
     if not os.path.isfile(joined):
-        return {}
+        return None
     try:
         # codeql[py/path-injection] -- joined sanitized above.
         with open(joined, encoding="utf-8") as fh:
             payload = cast(Dict[str, Any], json.loads(fh.read()))
     except (OSError, json.JSONDecodeError) as exc:
-        logger.warning("topic cluster enrichment: skip %s: %s", joined, exc)
-        return {}
-    if not isinstance(payload, dict):
+        logger.warning("topic clusters: skip %s: %s", joined, exc)
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def load_topic_cluster_enrichment_map(corpus_root: Path) -> Dict[str, Dict[str, str]]:
+    """Load ``search/topic_clusters.json`` and return enrichment map; empty if missing/invalid."""
+    payload = _load_topic_clusters_payload(corpus_root)
+    if payload is None:
         return {}
     return topic_cluster_enrichment_by_topic_id(payload)
+
+
+def consumer_topic_cluster_map(corpus_root: Path) -> Dict[str, Dict[str, Any]]:
+    """Per-topic cluster info for the consumer ``/entities`` endpoint (RFC-102 / PRD-043 FR1).
+
+    ``topic_id`` → ``{cluster_id, cluster_label, cluster_size}`` where ``cluster_id`` is the
+    cluster's ``graph_compound_parent_id``, ``cluster_label`` its canonical label, and
+    ``cluster_size`` the cross-corpus member count. Topics not in any multi-member cluster
+    (singletons) are simply absent. Empty when ``topic_clusters.json`` is missing/invalid.
+    """
+    payload = _load_topic_clusters_payload(corpus_root)
+    if payload is None:
+        return {}
+    raw = payload.get("clusters")
+    if not isinstance(raw, list):
+        return {}
+    out: Dict[str, Dict[str, Any]] = {}
+    for cl in raw:
+        if not isinstance(cl, Mapping):
+            continue
+        gpid = _graph_compound_parent_id(cl)
+        if not gpid:
+            continue
+        label_raw = cl.get("canonical_label")
+        label = str(label_raw).strip() if isinstance(label_raw, str) and label_raw.strip() else gpid
+        members = cl.get("members")
+        if not isinstance(members, list):
+            continue
+        size = len(members)
+        for m in members:
+            if not isinstance(m, Mapping):
+                continue
+            tid = m.get("topic_id")
+            if isinstance(tid, str) and tid.strip():
+                out[tid.strip()] = {
+                    "cluster_id": gpid,
+                    "cluster_label": label,
+                    "cluster_size": size,
+                }
+    return out
+
+
+def top_clusters_by_member_count(corpus_root: Path, top_n: int = 12) -> List[Dict[str, Any]]:
+    """Top-N clusters by member count (desc) for the interests picker (PRD-043 FR4 / 3.5).
+
+    Returns ``[{"id", "label", "size"}, ...]``; empty when the artifact is missing/invalid.
+    ``size`` is the explicit ``member_count`` when present, else ``len(members)``. ``id`` is the
+    cluster's ``graph_compound_parent_id`` (the stable interest key stored per-user).
+    """
+    payload = _load_topic_clusters_payload(corpus_root)
+    if payload is None:
+        return []
+    raw = payload.get("clusters")
+    if not isinstance(raw, list):
+        return []
+    out: List[Dict[str, Any]] = []
+    for cl in raw:
+        if not isinstance(cl, Mapping):
+            continue
+        gpid = _graph_compound_parent_id(cl)
+        if not gpid:
+            continue
+        mc = cl.get("member_count")
+        members = cl.get("members")
+        if isinstance(mc, int):
+            size = mc
+        elif isinstance(members, list):
+            size = len(members)
+        else:
+            size = 0
+        label_raw = cl.get("canonical_label")
+        label = str(label_raw).strip() if isinstance(label_raw, str) and label_raw.strip() else gpid
+        out.append({"id": gpid, "label": label, "size": size})
+    out.sort(key=lambda c: c["size"], reverse=True)
+    return out[: max(top_n, 0)]
+
+
+def consumer_cluster_siblings(corpus_root: Path, topic_id: str) -> List[Dict[str, str]]:
+    """Sibling topics sharing ``topic_id``'s cluster, excluding itself (PRD-043 FR3).
+
+    Returns ``[{"id", "label"}, ...]`` drawn from the cluster's ``members`` (so each carries
+    its own display label). Empty when the topic is a singleton, absent, or the artifact is
+    missing/invalid. The first cluster containing ``topic_id`` wins (topic ids are unique
+    across clusters by construction).
+    """
+    tid = topic_id.strip()
+    if not tid:
+        return []
+    payload = _load_topic_clusters_payload(corpus_root)
+    if payload is None:
+        return []
+    raw = payload.get("clusters")
+    if not isinstance(raw, list):
+        return []
+    for cl in raw:
+        if not isinstance(cl, Mapping):
+            continue
+        members = cl.get("members")
+        if not isinstance(members, list):
+            continue
+        member_ids = {
+            str(m.get("topic_id")).strip()
+            for m in members
+            if isinstance(m, Mapping) and isinstance(m.get("topic_id"), str)
+        }
+        if tid not in member_ids:
+            continue
+        siblings: List[Dict[str, str]] = []
+        for m in members:
+            if not isinstance(m, Mapping):
+                continue
+            mid_raw = m.get("topic_id")
+            if not isinstance(mid_raw, str) or not mid_raw.strip():
+                continue
+            mid = mid_raw.strip()
+            if mid == tid:
+                continue
+            label_raw = m.get("label")
+            label = (
+                label_raw.strip()
+                if isinstance(label_raw, str) and label_raw.strip()
+                else mid.split(":", 1)[-1]
+            )
+            siblings.append({"id": mid, "label": label})
+        return siblings
+    return []
 
 
 def cosine_similarity_matrix(vectors: np.ndarray) -> np.ndarray:

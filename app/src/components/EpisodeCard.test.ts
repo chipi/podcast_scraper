@@ -57,8 +57,9 @@ describe('EpisodeCard', () => {
     expect(w.text()).toContain('The Show')
     expect(w.text()).toContain('A crisp recap.') // clean one-line lede (not the bullets jammed)
     expect(w.text()).toContain('48 min')
-    // The insights affordance exposes the FULL summary bullets (popover content is in the DOM).
-    expect(w.find('[role="dialog"]').exists()).toBe(true)
+    // The insights affordance exposes the FULL summary bullets (a labelled disclosure group — not a
+    // modal dialog: it's a hover/focus popover with no focus trap).
+    expect(w.find('[role="group"]').exists()).toBe(true)
     expect(w.text()).toContain('Deep sleep consolidates memory.')
   })
 
@@ -107,5 +108,24 @@ describe('EpisodeCard', () => {
   it('falls back to the remote image URL when no local artwork', () => {
     const w = mountCard(makeEpisode({ artwork_url: null, feed_image_url: 'https://remote/feed.jpg' }))
     expect(w.find('img').attributes('src')).toBe('https://remote/feed.jpg')
+  })
+
+  it('renders the whole-card hover summary overlay from summary_text', () => {
+    const w = mountCard(
+      makeEpisode({ summary_text: 'A full editorial pull-quote.', summary_preview: 'short lede' }),
+    )
+    // The overlay carries the full prose summary as the pull-quote.
+    expect(w.text()).toContain('A full editorial pull-quote.')
+  })
+
+  it('falls back to summary_preview for the overlay when summary_text is null', () => {
+    const w = mountCard(makeEpisode({ summary_text: null, summary_preview: 'Only the preview.' }))
+    expect(w.text()).toContain('Only the preview.')
+  })
+
+  it('omits the hover summary overlay when both summary fields are null', () => {
+    const w = mountCard(makeEpisode({ summary_text: null, summary_preview: null }))
+    // No pull-quote overlay; the accent border-left wrapper isn't present.
+    expect(w.find('.border-l-2').exists()).toBe(false)
   })
 })

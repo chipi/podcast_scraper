@@ -6,15 +6,23 @@ plain files under ``<data_dir>/users/<id>/``. No DB; the personal overlay only.
 
 from __future__ import annotations
 
+import logging
 import time
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Request
 
-from podcast_scraper.server import app_user_state
+from podcast_scraper.server import app_stats, app_user_state
+from podcast_scraper.server.app_corpus_access import corpus_root_or_503
+from podcast_scraper.server.app_favorites_view import hydrate_favorites
+from podcast_scraper.server.app_slugs import resolve_slug
 from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
+    AppFavoritesResponse,
+    FavoriteAdd,
+    InterestsResponse,
+    InterestsUpdate,
     LibraryAdd,
     LibraryItem,
     LibraryResponse,
@@ -23,7 +31,10 @@ from podcast_scraper.server.schemas import (
     PlaybackUpdate,
     QueueResponse,
     QueueUpdate,
+    UserStatsResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["app"])
 
@@ -90,6 +101,27 @@ async def put_playback(
     )
 
 
+@router.post("/listen/{slug}", status_code=204)
+async def log_listen(request: Request, slug: str, user: User = Depends(get_current_user)) -> None:
+    """Record that the user opened an episode (one append to their listen log) for analytics."""
+    feed_id: str | None = None
+    try:
+        row = resolve_slug(corpus_root_or_503(request), slug)
+        feed_id = row.feed_id if row is not None else None
+    except Exception:  # noqa: BLE001 — analytics must never break playback; log without feed_id.
+        logger.debug("listen-event feed_id resolve failed for %s; logging without feed", slug)
+        feed_id = None
+    app_user_state.append_listen_event(
+        _data_dir(request), user.user_id, slug, feed_id, int(time.time())
+    )
+
+
+@router.get("/me/stats", response_model=UserStatsResponse)
+async def my_stats(request: Request, user: User = Depends(get_current_user)) -> UserStatsResponse:
+    """The signed-in user's own listening analytics (Profile panel)."""
+    return UserStatsResponse(**app_stats.compute_user_stats(_data_dir(request), user.user_id))
+
+
 @router.get("/queue", response_model=QueueResponse)
 async def get_queue(request: Request, user: User = Depends(get_current_user)) -> QueueResponse:
     """Return the user's play queue."""
@@ -104,6 +136,78 @@ async def put_queue(
     return QueueResponse(
         items=app_user_state.set_queue(_data_dir(request), user.user_id, body.items)
     )
+
+
+@router.get("/interests", response_model=InterestsResponse)
+async def get_interests(
+    request: Request, user: User = Depends(get_current_user)
+) -> InterestsResponse:
+    """Return the user's saved interest cluster ids (personalized discovery)."""
+    return InterestsResponse(items=app_user_state.get_interests(_data_dir(request), user.user_id))
+
+
+@router.put("/interests", response_model=InterestsResponse)
+async def put_interests(
+    request: Request, body: InterestsUpdate, user: User = Depends(get_current_user)
+) -> InterestsResponse:
+    """Replace the user's interest cluster ids."""
+    return InterestsResponse(
+        items=app_user_state.set_interests(_data_dir(request), user.user_id, body.items)
+    )
+
+
+@router.post("/interests/{token}", response_model=InterestsResponse)
+async def add_interest(
+    request: Request, token: str, user: User = Depends(get_current_user)
+) -> InterestsResponse:
+    """Follow one interest token — a cluster (``tc:``), topic (``topic:``) or person (``person:``)
+    from an entity card. Influences personalized discovery; idempotent."""
+    return InterestsResponse(
+        items=app_user_state.add_interest(_data_dir(request), user.user_id, token)
+    )
+
+
+@router.delete("/interests/{token}", response_model=InterestsResponse)
+async def delete_interest(
+    request: Request, token: str, user: User = Depends(get_current_user)
+) -> InterestsResponse:
+    """Unfollow one interest token (no-op if absent)."""
+    return InterestsResponse(
+        items=app_user_state.remove_interest(_data_dir(request), user.user_id, token)
+    )
+
+
+def _favorites(request: Request, user: User) -> AppFavoritesResponse:
+    raw = app_user_state.get_favorites(_data_dir(request), user.user_id)
+    return hydrate_favorites(corpus_root_or_503(request), raw)
+
+
+@router.get("/favorites", response_model=AppFavoritesResponse)
+async def get_favorites(
+    request: Request, user: User = Depends(get_current_user)
+) -> AppFavoritesResponse:
+    """The user's saved items, grouped by kind (episodes hydrated, insights from snapshot)."""
+    return _favorites(request, user)
+
+
+@router.put("/favorites", response_model=AppFavoritesResponse)
+async def put_favorite(
+    request: Request, body: FavoriteAdd, user: User = Depends(get_current_user)
+) -> AppFavoritesResponse:
+    """Save an item (idempotent on kind+ref); returns the updated favorites."""
+    app_user_state.add_favorite(
+        _data_dir(request), user.user_id, body.model_dump(exclude_none=True)
+    )
+    return _favorites(request, user)
+
+
+@router.delete("/favorites/{kind}/{ref}", response_model=AppFavoritesResponse)
+async def delete_favorite(
+    request: Request, kind: str, ref: str, user: User = Depends(get_current_user)
+) -> AppFavoritesResponse:
+    """Remove a saved item by kind+ref (ref is URL-encoded by the client)."""
+    app_user_state.remove_favorite(_data_dir(request), user.user_id, kind, ref)
+    return _favorites(request, user)
 
 
 @router.get("/library", response_model=LibraryResponse)

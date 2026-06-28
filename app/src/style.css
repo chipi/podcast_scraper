@@ -47,4 +47,62 @@
     text-transform: uppercase;
     color: var(--lp-accent);
   }
+
+  /* Section header — ONE canonical treatment for the title of a content section / list (UXS-014).
+     Deliberately a calm display heading (NOT the orange uppercase kicker) so a section title never
+     reads as a show-name eyebrow. Use this for every "this is a region of the page" heading. */
+  .lp-section {
+    font-family: var(--lp-font-display);
+    font-size: 1.0625rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--lp-canvas-foreground);
+  }
+
+  /* Speaker label — ONE canonical treatment for "who is talking" in transcript / quotes (UXS-014).
+     Its own hue (lavender) so it's clearly visible yet can't be confused with the orange show-name
+     eyebrow or the green grounded markers that share the transcript; normal-case + medium weight
+     keep it calmer than the uppercase kicker. */
+  .lp-speaker {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--lp-topic);
+  }
+
+  /* Back / navigation control — ONE canonical treatment for every "go back" affordance across the
+     app (UXS-014). Deliberately muted (not the accent kicker) so navigation never reads as a
+     content label. Never restyle a back control per-page — use this class. */
+  .lp-nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.125rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--lp-muted);
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+  .lp-nav:hover {
+    color: var(--lp-surface-foreground);
+  }
+
+  /* Favorite (heart) toggle — ONE canonical affordance everywhere a thing can be saved (UXS-014). */
+  .lp-fav {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    color: var(--lp-muted);
+    transition: color 0.15s ease, transform 0.1s ease;
+  }
+  .lp-fav:hover {
+    color: var(--lp-accent);
+  }
+  .lp-fav:active {
+    transform: scale(0.85);
+  }
+  .lp-fav--on {
+    color: var(--lp-accent);
+  }
 }

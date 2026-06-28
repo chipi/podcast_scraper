@@ -84,6 +84,7 @@ deterministically and stable across re-scrapes.
 | GET | `/api/app/episodes/{slug}/insights` | Grounded GIL insights: `{episode_slug, insights[{id, text, grounded, insight_type?, confidence?, position_hint?, quotes[{text, speaker?, char_start?, char_end?, start_ms?, end_ms?}]}]}`. Empty list when no GI. |
 | GET | `/api/app/episodes/{slug}/entities` | KG entities: `{episode_slug, persons[], orgs[], topics[]}`. Empty when no KG. |
 | GET | `/api/app/episodes/{slug}/related?top_k=` | "More like this" — semantic peer episodes (vector similarity), as an `AppEpisodesResponse`. **200 + empty** when the index is unavailable (graceful). |
+| GET | `/api/app/episodes/{slug}/stats` | **Public** (no auth) cross-user reach — anonymous aggregate counts only: `{slug, listeners, opens, insights, daily[{date, count}]}` (`EpisodeStatsResponse`). Distinct listeners + total opens come from scanning every user's listen log; `insights` is the grounded-insight count; `daily` is a 14-day opens sparkline. Zeroed when no `APP_DATA_DIR` is configured. |
 
 ---
 
@@ -140,6 +141,35 @@ use `artwork_url` when present.
 | GET, PUT | `/api/app/playback/{slug}` | Resume position `{slug, position_seconds, updated_at?}`; GET returns 0 when unset. |
 | GET, PUT | `/api/app/queue` | Play queue `{items: [slug, …]}`. |
 | GET, POST, DELETE | `/api/app/library` (+ `/{feed_id}`) | Subscriptions — list / subscribe (idempotent on `feed_id`) / unsubscribe. |
+
+### Favorites & interests
+
+The favorites bucket is **polymorphic** (episodes + insights, grouped by kind). Interests are a
+**mixed token set** — clusters (`tc:`), topics (`topic:`) and people (`person:`) — fed by two
+entry-points: the Home cluster picker (writes `tc:` ids via `PUT`) and the `Follow` toggle on a
+person/topic entity card (single-token `POST` / `DELETE`). They drive flag-gated personalized
+discovery (`rank_discover`, which scores cluster + topic + person overlap; see PRD-043 / RFC-102).
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/api/app/favorites` | Saved items grouped by kind: `{episodes[{…EpisodeSummary}], insights[{ref, text, episode_slug?, podcast_title?, start_ms?}]}` (`AppFavoritesResponse`). Episodes are hydrated from the corpus; insights are a stored snapshot (no global detail route). |
+| PUT | `/api/app/favorites` | Save an item (idempotent on `kind`+`ref`); body `{kind: episode\|insight\|person\|topic, ref, label?, sublabel?, slug?, start_ms?}` (`FavoriteAdd`). Returns the updated favorites. |
+| DELETE | `/api/app/favorites/{kind}/{ref}` | Remove a saved item by `kind`+`ref` (`ref` URL-encoded; no-op if absent). Returns the updated favorites. |
+| GET, PUT | `/api/app/interests` | The user's interest token list `{items: [token, …]}` (`InterestsResponse`); `PUT` replaces it `{items}` (`InterestsUpdate`). Tokens are a mixed set (`tc:` / `topic:` / `person:`). |
+| POST | `/api/app/interests/{token}` | Follow one token (cluster `tc:` / topic `topic:` / person `person:`), idempotent; returns `{items[]}`. |
+| DELETE | `/api/app/interests/{token}` | Unfollow one token (no-op if absent); returns `{items[]}`. |
+| GET | `/api/app/clusters?limit=` | **Top interest clusters** for the picker, by corpus prevalence: `{items[{id, label, size}]}` (`AppInterestClustersResponse`). `1≤limit≤50` (default 12). |
+
+### Listening analytics
+
+Computed from per-user files (playback + an append-only listen-events log) — **no DB, no LLM**.
+`/me/stats` is the signed-in user's own summary; `/episodes/{slug}/stats` (in **Episodes** above) is
+the **public + anonymous** cross-user reach.
+
+| Method | Path | Description |
+| --- | --- | --- |
+| POST | `/api/app/listen/{slug}` | Append one "episode opened" event to the user's listen log (`<data_dir>/users/<id>/listen_events.jsonl`) for analytics. **204**; best-effort, never blocks playback. |
+| GET | `/api/app/me/stats` | The signed-in user's own listening summary: `{episodes, shows, listening_seconds, active_days, day_streak, daily[{date, count}]}` (`UserStatsResponse`). `daily` is a 14-day opens sparkline; `StatPoint` = `{date, count}`. |
 
 ---
 

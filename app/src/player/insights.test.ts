@@ -5,6 +5,7 @@ import {
   groundedSpansBySegment,
   hitStartSeconds,
   insightStartSeconds,
+  quoteHighlight,
 } from './insights'
 
 function ins(id: string, startMs: number | null, endMs: number | null = null): Insight {
@@ -64,6 +65,29 @@ describe('groundedSpansBySegment', () => {
     const out = groundedSpansBySegment(segs, [ins('first', 6000, 7000), ins('second', 7000, 8000)])
     expect(out[1].insightId).toBe('first')
     expect(groundedSpansBySegment(segs, [ins('x', null)])).toEqual({})
+  })
+})
+
+describe('quoteHighlight', () => {
+  it('splits the segment around the quote substring (case-insensitive, original casing)', () => {
+    expect(quoteHighlight('Hello world.', 'world')).toEqual({
+      pre: 'Hello ',
+      match: 'world',
+      post: '.',
+    })
+    expect(quoteHighlight('Hello World', 'world')?.match).toBe('World')
+  })
+  it('matches the whole segment when it sits inside a longer quote', () => {
+    expect(quoteHighlight('the middle', 'this is the middle of a long quote')).toEqual({
+      pre: '',
+      match: 'the middle',
+      post: '',
+    })
+  })
+  it('returns null when the quote is not locatable (→ whole-segment fallback) or empty', () => {
+    expect(quoteHighlight('abc def', 'xyz')).toBeNull()
+    expect(quoteHighlight('abc', '   ')).toBeNull()
+    expect(quoteHighlight('', 'abc')).toBeNull()
   })
 })
 

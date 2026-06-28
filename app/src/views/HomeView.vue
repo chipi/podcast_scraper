@@ -9,16 +9,20 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 import {
+  getDiscover,
   getEpisode,
   getPlaybackList,
   getPodcasts,
   getRelated,
-  listEpisodes,
 } from '../services/api'
 import type { EpisodeDetail, EpisodeSummary, Podcast } from '../services/types'
 import { formatTime } from '../player/transcriptSync'
 import { formatDuration } from '../utils/format'
+import { episodeArtwork, showArtwork } from '../utils/episode'
 import { useAuthStore } from '../stores/auth'
+import InterestsPicker from '../components/InterestsPicker.vue'
+
+const INTERESTS_DISMISSED_KEY = 'lp.interests.dismissed'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -30,15 +34,35 @@ const recommended = ref<EpisodeSummary[]>([])
 const continueItems = ref<{ detail: EpisodeDetail; position: number }[]>([])
 const query = ref('')
 
+// First-Home dismissible "set your interests" card → opens the picker (PRD-043 FR4 / 3.5).
+const interestsDismissed = ref(false)
+const pickerOpen = ref(false)
+const showInterestsCard = computed(() => auth.isAuthenticated && !interestsDismissed.value)
+
+function dismissInterests(): void {
+  interestsDismissed.value = true
+  try {
+    localStorage.setItem(INTERESTS_DISMISSED_KEY, '1')
+  } catch {
+    /* private mode / storage disabled — the card just reappears next load */
+  }
+}
+
+async function onInterestsSaved(): Promise<void> {
+  dismissInterests()
+  // Re-pull discovery so a personalized order (when the flag is on) takes effect immediately.
+  latest.value = (await getDiscover(8).catch(() => null))?.items ?? latest.value
+}
+
 const resumeState = computed(() => auth.isAuthenticated && continueItems.value.length > 0)
 // Editorial ranked "What's new": a featured #1 + ranked rows — all on screen, no scroll.
 const wnFeatured = computed(() => latest.value[0] ?? null)
 const wnRows = computed(() => latest.value.slice(1, 6))
 const rank = (i: number) => String(i + 2).padStart(2, '0')
 const resumeTop = computed(() => continueItems.value[0] ?? null)
-const resumeArt = (d: EpisodeDetail) => d.artwork_url || d.episode_image_url || d.feed_image_url
-const showArt = (p: Podcast) => p.artwork_url || p.image_url
-const epArt = (e: EpisodeSummary) => e.artwork_url || e.episode_image_url || e.feed_image_url
+const resumeArt = episodeArtwork
+const showArt = showArtwork
+const epArt = episodeArtwork
 
 function goSearch(q: string): void {
   const term = q.trim()
@@ -46,7 +70,12 @@ function goSearch(q: string): void {
 }
 
 onMounted(async () => {
-  latest.value = (await listEpisodes({ pageSize: 8 }).catch(() => null))?.items ?? []
+  try {
+    interestsDismissed.value = localStorage.getItem(INTERESTS_DISMISSED_KEY) === '1'
+  } catch {
+    interestsDismissed.value = false
+  }
+  latest.value = (await getDiscover(8).catch(() => null))?.items ?? []
   getPodcasts()
     .then((s) => (shows.value = s))
     .catch(() => (shows.value = []))
@@ -119,10 +148,31 @@ onMounted(async () => {
       </button>
     </form>
 
+    <!-- Set-your-interests card (first visit; dismissible) — opens the cluster picker -->
+    <section
+      v-if="showInterestsCard"
+      class="mt-4 flex items-center gap-3 rounded-2xl border border-accent bg-overlay p-4"
+    >
+      <span class="min-w-0 flex-1">
+        <span class="block font-bold">{{ t('interests.cardTitle') }}</span>
+        <span class="block text-sm text-muted">{{ t('interests.cardBody') }}</span>
+      </span>
+      <button
+        type="button"
+        class="shrink-0 rounded-full bg-accent px-4 py-2 text-sm font-bold text-accent-foreground"
+        @click="pickerOpen = true"
+      >
+        {{ t('interests.cardCta') }}
+      </button>
+      <button type="button" class="shrink-0 text-sm text-muted" @click="dismissInterests">
+        {{ t('interests.dismiss') }}
+      </button>
+    </section>
+
     <!-- What's new — editorial ranked: a featured #1 + ranked rows, all on screen, NO scroll -->
     <section v-if="wnFeatured" class="mt-7">
       <div class="mb-3 flex items-baseline justify-between">
-        <h2 class="lp-kicker">{{ t('home.whatsNew') }}</h2>
+        <h2 class="lp-section">{{ t('home.whatsNew') }}</h2>
         <RouterLink :to="{ name: 'catalog' }" class="text-sm font-bold text-accent no-underline">
           {{ t('home.browseAll') }} →
         </RouterLink>
@@ -169,7 +219,7 @@ onMounted(async () => {
             >{{ rank(i) }}</span>
             <span class="min-w-0 flex-1">
               <span class="block truncate font-bold leading-tight">{{ ep.title }}</span>
-              <span class="lp-kicker mt-0.5 block truncate">{{ ep.podcast_title }}</span>
+              <span class="lp-kicker mt-0.5 block">{{ ep.podcast_title }}</span>
             </span>
             <span class="shrink-0 text-muted transition group-hover:text-accent" aria-hidden="true">▶</span>
           </RouterLink>
@@ -179,7 +229,7 @@ onMounted(async () => {
 
     <!-- Recommended — no-scroll responsive grid -->
     <section v-if="recommended.length" class="mt-7">
-      <h2 class="lp-kicker mb-3">{{ t('home.recommended') }}</h2>
+      <h2 class="lp-section mb-3">{{ t('home.recommended') }}</h2>
       <ul class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         <li v-for="ep in recommended.slice(0, 8)" :key="ep.slug">
           <RouterLink :to="{ name: 'player', params: { slug: ep.slug } }" class="block no-underline text-canvas-foreground">
@@ -192,15 +242,17 @@ onMounted(async () => {
       </ul>
     </section>
 
+    <InterestsPicker v-if="pickerOpen" @close="pickerOpen = false" @saved="onInterestsSaved" />
+
     <!-- Your shows -->
     <section v-if="shows.length" class="mt-7">
-      <h2 class="lp-kicker mb-3">{{ t('home.shows') }}</h2>
+      <h2 class="lp-section mb-3">{{ t('home.shows') }}</h2>
       <ul class="grid grid-cols-3 gap-3 sm:grid-cols-4">
         <li v-for="p in shows" :key="p.feed_id">
           <RouterLink :to="{ name: 'podcast', params: { feedId: p.feed_id } }" class="block no-underline text-canvas-foreground">
             <img v-if="showArt(p)" :src="showArt(p)!" alt="" class="aspect-square w-full rounded-xl object-cover bg-elevated" />
             <div v-else class="aspect-square w-full rounded-xl bg-elevated" />
-            <div class="mt-1 truncate text-xs font-bold">{{ p.title ?? p.feed_id }}</div>
+            <div class="mt-1 text-xs font-bold">{{ p.title ?? p.feed_id }}</div>
           </RouterLink>
         </li>
       </ul>

@@ -76,6 +76,60 @@ def list_playback(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
     return out
 
 
+# --- listen events (append-only log of episode opens, for analytics ) ---
+#
+# One line of JSON per "open", in <data_dir>/users/<id>/listen_events.jsonl. Append-only so the
+# series is cheap to write and never rewrites history; aggregation (streaks, sparklines, cross-user
+# listener counts) reads the whole small log. This is the ONLY per-listen history we keep — playback
+# stays last-position-only.
+
+
+def _events_path(data_dir: Path, user_id: str) -> Path:
+    return data_dir / "users" / user_id / "listen_events.jsonl"
+
+
+def append_listen_event(
+    data_dir: Path, user_id: str, slug: str, feed_id: str | None, ts: int
+) -> None:
+    """Append one 'opened this episode' event to the user's listen log."""
+    path = _events_path(data_dir, user_id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    line = json.dumps({"slug": str(slug), "feed_id": feed_id, "ts": int(ts)}, ensure_ascii=False)
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(line + "\n")
+
+
+def list_listen_events(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
+    """All of one user's listen events (chronological as written); skips corrupt lines."""
+    path = _events_path(data_dir, user_id)
+    if not path.is_file():
+        return []
+    out: list[dict[str, Any]] = []
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(rec, dict) and rec.get("slug") and rec.get("ts") is not None:
+            out.append(rec)
+    return out
+
+
+def iter_user_ids(data_dir: Path) -> list[str]:
+    """Every user id with a per-user directory (for cross-user aggregation)."""
+    users_dir = data_dir / "users"
+    if not users_dir.is_dir():
+        return []
+    return [p.name for p in users_dir.iterdir() if p.is_dir()]
+
+
 # --- queue (ordered list of slugs) ---
 
 
@@ -90,6 +144,71 @@ def set_queue(data_dir: Path, user_id: str, items: list[str]) -> list[str]:
     clean = [str(x) for x in items]
     _write(data_dir, user_id, "queue", clean)
     return clean
+
+
+# --- favorites (polymorphic "saved things": episodes, insights, … keyed by kind+ref) ---
+
+
+def get_favorites(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
+    """Return the user's saved favorites (newest-last as stored); empty when unset."""
+    data = _read(data_dir, user_id, "favorites", [])
+    if not isinstance(data, list):
+        return []
+    return [x for x in data if isinstance(x, dict) and x.get("kind") and x.get("ref")]
+
+
+def add_favorite(data_dir: Path, user_id: str, item: dict[str, Any]) -> list[dict[str, Any]]:
+    """Add/replace a favorite (idempotent on ``kind``+``ref``); appended newest-last."""
+    kind, ref = item.get("kind"), item.get("ref")
+    favorites = [
+        x for x in get_favorites(data_dir, user_id) if (x.get("kind"), x.get("ref")) != (kind, ref)
+    ]
+    favorites.append(item)
+    _write(data_dir, user_id, "favorites", favorites)
+    return favorites
+
+
+def remove_favorite(data_dir: Path, user_id: str, kind: str, ref: str) -> list[dict[str, Any]]:
+    """Remove a favorite by ``kind``+``ref`` (no-op if absent); return the remaining list."""
+    favorites = [
+        x for x in get_favorites(data_dir, user_id) if (x.get("kind"), x.get("ref")) != (kind, ref)
+    ]
+    _write(data_dir, user_id, "favorites", favorites)
+    return favorites
+
+
+# --- interests (personalized discovery; ordered list of cluster ids) ---
+
+
+def get_interests(data_dir: Path, user_id: str) -> list[str]:
+    """Return the user's interest cluster ids (graph_compound_parent_id); empty when unset."""
+    data = _read(data_dir, user_id, "interests", [])
+    return [str(x) for x in data] if isinstance(data, list) else []
+
+
+def set_interests(data_dir: Path, user_id: str, cluster_ids: list[str]) -> list[str]:
+    """Replace the user's interests; return the stored list (de-duplicated, order preserved)."""
+    seen: set[str] = set()
+    clean: list[str] = []
+    for x in cluster_ids:
+        s = str(x)
+        if s and s not in seen:
+            seen.add(s)
+            clean.append(s)
+    _write(data_dir, user_id, "interests", clean)
+    return clean
+
+
+def add_interest(data_dir: Path, user_id: str, token: str) -> list[str]:
+    """Follow one interest token (cluster ``tc:``, topic ``topic:`` or person ``person:``)."""
+    return set_interests(data_dir, user_id, [*get_interests(data_dir, user_id), token])
+
+
+def remove_interest(data_dir: Path, user_id: str, token: str) -> list[str]:
+    """Unfollow one interest token (no-op if absent); return the remaining list."""
+    return set_interests(
+        data_dir, user_id, [x for x in get_interests(data_dir, user_id) if x != token]
+    )
 
 
 # --- library (subscriptions; list of {feed_id, feed_url?, title?, added_at?}) ---

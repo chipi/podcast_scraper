@@ -1,0 +1,242 @@
+<script setup lang="ts">
+/**
+ * Entity card body (PRD-043 FR2/FR3; UXS-014 interaction patterns) — the shared person/topic card
+ * content, rendered two ways:
+ *   • `inline`  — replaces a panel's content with a ‹ Back (Insights → entity); no new layer.
+ *   • `overlay` — wrapped in EntityCard's modal (Search → entity, a page-level surface).
+ * KG-grounded from the dedicated `/api/app/persons|topics/{id}` endpoints; the library search is one
+ * explicit action inside. Re-entrant via an internal back stack (walk the graph, step back).
+ */
+import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { RouterLink, useRouter } from 'vue-router'
+import { getPersonCard, getTopicCard } from '../services/api'
+import type { Entity, EpisodeSummary, PersonCard, Topic, TopicCard } from '../services/types'
+import { useAuthStore } from '../stores/auth'
+import { useInterestsStore } from '../stores/interests'
+import { episodeArtwork } from '../utils/episode'
+
+type Target = { kind: 'person' | 'topic'; id: string }
+
+const props = withDefaults(
+  defineProps<{ kind: 'person' | 'topic'; id: string; variant?: 'inline' | 'overlay' }>(),
+  { variant: 'overlay' },
+)
+const emit = defineEmits<{ (e: 'close'): void }>()
+
+const { t } = useI18n()
+const router = useRouter()
+const auth = useAuthStore()
+const interests = useInterestsStore()
+// Load follow-state once we know the user is signed in — auth may resolve after this mounts.
+watch(
+  () => auth.isAuthenticated,
+  (authed) => {
+    if (authed) void interests.ensureLoaded()
+  },
+  { immediate: true },
+)
+
+// Follow this person/topic → its id is the interest token (person:… / topic:…), which feeds
+// personalized discovery. Following shapes "Recommended for you" on Home.
+const following = computed(() => interests.has(current.value.id))
+function toggleFollow(): void {
+  void interests.toggle(current.value.id)
+}
+
+// Back stack — the bottom is the entity opened on; the top is what's shown.
+const stack = ref<Target[]>([{ kind: props.kind, id: props.id }])
+const current = computed<Target>(() => stack.value[stack.value.length - 1])
+const atRoot = computed(() => stack.value.length === 1)
+
+const person = ref<PersonCard | null>(null)
+const topic = ref<TopicCard | null>(null)
+const loading = ref(false)
+const failed = ref(false)
+
+async function load(target: Target): Promise<void> {
+  loading.value = true
+  failed.value = false
+  person.value = null
+  topic.value = null
+  try {
+    if (target.kind === 'person') person.value = await getPersonCard(target.id)
+    else topic.value = await getTopicCard(target.id)
+  } catch {
+    failed.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
+// Re-open on a brand-new target (parent opened a different chip) — reset the stack.
+watch(
+  () => [props.kind, props.id] as const,
+  ([kind, id]) => {
+    stack.value = [{ kind, id }]
+  },
+)
+watch(current, (target) => void load(target), { immediate: true })
+
+function open(kind: 'person' | 'topic', id: string): void {
+  stack.value = [...stack.value, { kind, id }]
+}
+// Left control: pop the stack if deeper, else dismiss the whole card (back to panel / close modal).
+function onBack(): void {
+  if (stack.value.length > 1) stack.value = stack.value.slice(0, -1)
+  else emit('close')
+}
+
+const label = computed(() => person.value?.label ?? topic.value?.label ?? '')
+const episodes = computed<EpisodeSummary[]>(
+  () => person.value?.episodes ?? topic.value?.episodes ?? [],
+)
+const relatedPeople = computed<Entity[]>(
+  () => person.value?.related_people ?? topic.value?.related_people ?? [],
+)
+const relatedTopics = computed<Topic[]>(() => person.value?.related_topics ?? [])
+const siblings = computed<Topic[]>(() => topic.value?.sibling_topics ?? [])
+const episodeCount = computed(() => person.value?.episode_count ?? topic.value?.episode_count ?? 0)
+const themeLabel = computed(() => topic.value?.cluster_label ?? null)
+const clusterSize = computed(() => topic.value?.cluster_size ?? 0)
+const isTopic = computed(() => current.value.kind === 'topic')
+
+const epArt = episodeArtwork
+
+function searchLibrary(): void {
+  const term = label.value.trim()
+  emit('close')
+  if (term) void router.push({ name: 'search', query: { q: term } })
+}
+</script>
+
+<template>
+  <div class="flex min-h-0 flex-1 flex-col bg-surface">
+    <!-- Header mirrors the episode-detail masthead (UXS-014): back-nav on its own row, then the
+         kicker, then the title — never back crammed beside the kicker/name. -->
+    <header class="border-b border-border px-4 py-3">
+      <button
+        type="button"
+        class="lp-nav"
+        :aria-label="atRoot && variant === 'overlay' ? t('ec.close') : t('ec.back')"
+        @click="onBack"
+      >
+        <span aria-hidden="true" class="text-base leading-none">{{ atRoot && variant === 'overlay' ? '✕' : '‹' }}</span>
+        <span>{{ atRoot && variant === 'overlay' ? t('ec.close') : t('ec.back') }}</span>
+      </button>
+      <span class="lp-kicker mt-3 block">{{ current.kind === 'person' ? t('ec.person') : t('ec.topic') }}</span>
+      <span class="block truncate font-display text-xl font-extrabold">{{ label || '…' }}</span>
+      <button
+        v-if="auth.isAuthenticated && label"
+        type="button"
+        class="mt-2 inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition"
+        :class="following ? 'bg-accent text-accent-foreground' : 'bg-overlay text-canvas-foreground hover:bg-elevated'"
+        :aria-pressed="following"
+        :title="t('ec.followHint')"
+        @click="toggleFollow"
+      >
+        <span aria-hidden="true">{{ following ? '✓' : '+' }}</span>
+        {{ following ? t('ec.following') : t('ec.follow') }}
+      </button>
+    </header>
+
+    <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+      <p v-if="loading" class="text-sm text-muted">{{ t('ec.loading') }}</p>
+      <p v-else-if="failed || (!person && !topic)" class="text-sm text-muted">{{ t('ec.notFound') }}</p>
+
+      <template v-else>
+        <!-- Cluster identity: is this topic part of a multi-topic theme (and how big), or standalone? -->
+        <p v-if="themeLabel" class="mb-3 text-xs text-topic">
+          {{ t('kp.theme', { cluster: themeLabel })
+          }}<span v-if="clusterSize"> · {{ t('ec.clusterSize', clusterSize, { named: { count: clusterSize } }) }}</span>
+        </p>
+        <p v-else-if="isTopic" class="mb-3 text-xs text-muted">{{ t('ec.singleTopic') }}</p>
+
+        <button
+          type="button"
+          class="mb-4 w-full rounded-full bg-accent px-4 py-2 text-sm font-bold text-accent-foreground"
+          @click="searchLibrary"
+        >
+          {{ t('ec.searchLibrary', { term: label }) }}
+        </button>
+
+        <!-- All topics in this cluster: the one you're on (ringed) + every sibling, with a count. -->
+        <section v-if="siblings.length" class="mb-4">
+          <h3 class="lp-section mb-2">
+            {{ t('ec.clusterMembers', siblings.length + 1, { named: { count: siblings.length + 1 } }) }}
+          </h3>
+          <div class="flex flex-wrap gap-1.5">
+            <span class="rounded-full bg-overlay px-2.5 py-1 text-xs font-semibold text-topic ring-1 ring-topic">
+              {{ label }}
+            </span>
+            <button
+              v-for="s in siblings"
+              :key="s.id"
+              type="button"
+              class="rounded-full bg-overlay px-2.5 py-1 text-xs text-topic transition hover:bg-elevated"
+              @click="open('topic', s.id)"
+            >{{ s.label }}</button>
+          </div>
+        </section>
+
+        <section v-if="episodes.length" class="mb-4">
+          <h3 class="lp-section mb-2">
+            {{
+              current.kind === 'person'
+                ? t('ec.personEpisodes', episodeCount, { named: { count: episodeCount } })
+                : t('ec.topicEpisodes', episodeCount, { named: { count: episodeCount } })
+            }}
+          </h3>
+          <ul class="flex flex-col">
+            <li v-for="e in episodes" :key="e.slug">
+              <RouterLink
+                :to="{ name: 'player', params: { slug: e.slug } }"
+                class="flex items-center gap-3 border-b border-border py-2 no-underline text-canvas-foreground hover:bg-overlay"
+                @click="emit('close')"
+              >
+                <img
+                  v-if="epArt(e)"
+                  :src="epArt(e)!"
+                  alt=""
+                  loading="lazy"
+                  class="h-10 w-10 shrink-0 rounded-md bg-elevated object-cover"
+                />
+                <div v-else class="h-10 w-10 shrink-0 rounded-md bg-elevated" />
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-sm font-semibold">{{ e.title }}</span>
+                  <span v-if="e.podcast_title" class="lp-kicker block">{{ e.podcast_title }}</span>
+                </span>
+              </RouterLink>
+            </li>
+          </ul>
+        </section>
+
+        <section v-if="relatedPeople.length" class="mb-4">
+          <h3 class="lp-section mb-2">{{ t('ec.relatedPeople') }}</h3>
+          <div class="flex flex-wrap gap-1.5">
+            <button
+              v-for="p in relatedPeople"
+              :key="p.id"
+              type="button"
+              class="rounded-full bg-overlay px-2.5 py-1 text-xs text-person transition hover:bg-elevated"
+              @click="open('person', p.id)"
+            >{{ p.name }}</button>
+          </div>
+        </section>
+
+        <section v-if="relatedTopics.length">
+          <h3 class="lp-section mb-2">{{ t('ec.relatedTopics') }}</h3>
+          <div class="flex flex-wrap gap-1.5">
+            <button
+              v-for="tp in relatedTopics"
+              :key="tp.id"
+              type="button"
+              class="rounded-full bg-overlay px-2.5 py-1 text-xs text-topic transition hover:bg-elevated"
+              @click="open('topic', tp.id)"
+            >{{ tp.label }}</button>
+          </div>
+        </section>
+      </template>
+    </div>
+  </div>
+</template>

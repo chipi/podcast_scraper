@@ -9,7 +9,7 @@
     "skipToContent": "Skip to content"
   },
   "home": {
-    "askKicker": "Ask your library",
+    "askKicker": "Ask across every episode",
     "askTitle": "Find any moment you've heard.",
     "askTagline": "Search across every episode — grounded answers that jump you to the moment.",
     "askPlaceholder": "e.g. how memory consolidates…",
@@ -17,10 +17,8 @@
     "whatsNew": "What's new",
     "browseAll": "Browse all",
     "recommended": "Recommended for you",
-    "shows": "Your shows",
-    "featured": "Featured",
-    "resume": "Resume",
-    "minLeft": "{count} min left"
+    "shows": "All shows",
+    "resume": "Resume"
   },
   "rail": {
     "prev": "Scroll left",
@@ -30,16 +28,15 @@
     "insights": "Insights"
   },
   "search": {
-    "title": "Search your library",
-    "placeholder": "Ask your library…",
+    "title": "Search",
+    "placeholder": "Search across every episode…",
     "searching": "Searching…",
     "noResults": "No grounded passages found.",
     "error": "Search needs the library index.",
-    "in": "in",
     "jumpTo": "Play from {time} in {episode}",
     "summary": "{passages} passages across {episodes} episodes",
     "playHere": "Play from {time}",
-    "openEpisode": "Open episode",
+    "viewEntity": "View",
     "matchCount": "1 match | {count} matches",
     "kind": {
       "insight": "Insight",
@@ -52,8 +49,6 @@
     "signIn": "Sign in",
     "signUp": "Sign up",
     "signOut": "Sign out",
-    "signedInAs": "Signed in as {name}",
-    "signedOut": "Not signed in",
     "loginTitle": "Sign in to your library",
     "loginTagline": "Save your place, build a queue, and grow your personal knowledge corpus.",
     "signupTitle": "Create your account",
@@ -62,12 +57,27 @@
     "newHere": "New here?"
   },
   "catalog": {
-    "heading": "Your Library",
+    "heading": "All episodes",
     "empty": "No episodes yet.",
     "insightsBadge": "insights",
     "loading": "Loading episodes…",
     "loadMore": "Load more",
     "loadError": "Couldn’t load episodes."
+  },
+  "list": {
+    "controls": "Sort & filter",
+    "search": "Filter this list…",
+    "sort": "Sort",
+    "sortNewest": "Newest first",
+    "sortOldest": "Oldest first",
+    "sortTitle": "Title A–Z",
+    "filter": "Filter",
+    "filterAll": "All",
+    "filterInsights": "With insights",
+    "filterShow": "Show",
+    "allShows": "All shows",
+    "noMatches": "No episodes match your filters.",
+    "count": "{shown} of {total}"
   },
   "podcast": {
     "episodeCount": "{count} episode | {count} episodes",
@@ -95,7 +105,8 @@
     "syncHelp": "Nudge the transcript to match the audio (ads in the stream can shift it).",
     "syncEarlier": "Shift transcript earlier",
     "syncLater": "Shift transcript later",
-    "syncReset": "Reset transcript sync"
+    "syncReset": "Reset transcript sync",
+    "summaryRegion": "Episode summary"
   },
   "kp": {
     "title": "Insights",
@@ -106,24 +117,91 @@
     "noResults": "No grounded passages found.",
     "summary": "Summary",
     "tags": "Topics & People",
+    "theme": "Theme · {cluster}",
     "groundedHint": "Grounded — sourced to a moment in the audio",
     "insights": "Insights",
     "related": "More like this",
     "showAll": "Show all",
-    "exploreTerm": "Search your library for {term}",
+    "openEntity": "Open {term}",
     "close": "Close panel",
     "empty": "Insights appear once this episode is processed."
+  },
+  "interests": {
+    "title": "Choose your interests",
+    "subtitle": "Topics you care about shape your Home",
+    "loading": "Loading topics…",
+    "empty": "No topics to choose yet.",
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "close": "Close",
+    "cardTitle": "Personalize your Home",
+    "cardBody": "Tell us what you're into for sharper picks.",
+    "cardCta": "Choose interests",
+    "dismiss": "Not now"
+  },
+  "ec": {
+    "clusterSize": "{count} topic | {count} topics",
+    "singleTopic": "Standalone topic — not part of a cluster",
+    "person": "Person",
+    "topic": "Topic",
+    "close": "Close",
+    "back": "Back",
+    "loading": "Loading…",
+    "notFound": "Nothing to show for this yet.",
+    "searchLibrary": "Search every episode for “{term}”",
+    "personEpisodes": "In {count} episode | In {count} episodes",
+    "topicEpisodes": "Discussed in {count} episode | Discussed in {count} episodes",
+    "clusterMembers": "{count} topic in this cluster | {count} topics in this cluster",
+    "relatedPeople": "Related people",
+    "relatedTopics": "Related topics",
+    "follow": "Follow",
+    "following": "Following",
+    "followHint": "Add to your interests — shapes your recommendations"
   },
   "queue": {
     "title": "Queue",
     "empty": "Your queue is empty. Add episodes from the catalog.",
     "add": "Add to queue",
     "remove": "Remove from queue",
+    "playNext": "Play next",
     "up": "Move up",
     "down": "Move down"
   },
+  "fav": {
+    "add": "Save to favorites",
+    "remove": "Remove from favorites"
+  },
+  "profile": {
+    "title": "Your profile",
+    "interests": "Interest topics",
+    "interestsHelp": "These shape what surfaces on your Home when personalization is on.",
+    "editInterests": "Edit",
+    "noInterests": "No interests chosen yet."
+  },
+  "library": {
+    "title": "Library",
+    "saved": "Saved",
+    "knowledge": "Knowledge",
+    "queue": "Queue",
+    "recent": "Recent",
+    "savedEmpty": "Nothing saved yet. Tap the heart on an episode to save it.",
+    "knowledgeEmpty": "No saved insights yet. Tap the heart on an insight to keep it here.",
+    "recentEmpty": "Nothing played yet."
+  },
+  "stats": {
+    "title": "Your listening",
+    "streak": "Day streak",
+    "episodes": "Episodes",
+    "shows": "Shows",
+    "hours": "Hours",
+    "overTime": "Opens over time",
+    "activeDays": "{count} active day | {count} active days",
+    "empty": "Start listening to build your stats.",
+    "listeners": "1 listener | {count} listeners",
+    "opens": "1 open | {count} opens"
+  },
   "status": {
-    "ready": "Ready",
     "pending": "Pending"
   }
 }
