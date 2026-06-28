@@ -287,21 +287,34 @@ const savedSegmentIds = computed(() => {
   return ids
 })
 const momentFlash = ref(false)
+// Screen-reader confirmation for captures (the visual flash alone isn't announced). Polite so it
+// never interrupts the now-playing live region.
+const captureAnnounce = ref('')
 let flashTimer: ReturnType<typeof setTimeout> | undefined
+
+function announceCapture(message: string): void {
+  // Re-set so an identical consecutive message still re-announces.
+  captureAnnounce.value = ''
+  void nextTick(() => {
+    captureAnnounce.value = message
+  })
+}
 
 /** One-tap "mark this moment" at the current content-time, tagged with who's speaking. */
 async function markMoment(): Promise<void> {
   const speaker = activeIndex.value >= 0 ? (segments.value[activeIndex.value]?.speaker ?? null) : null
   await capture.captureMoment(props.slug, Math.max(0, contentTime.value), speaker)
   momentFlash.value = true
+  announceCapture(t('capture.marked'))
   if (flashTimer) clearTimeout(flashTimer)
   flashTimer = setTimeout(() => {
     momentFlash.value = false
   }, 1500)
 }
 
-function onCaptureSegment(payload: { segment: Segment; sub: SubRange | null }): void {
-  void capture.captureSegment(props.slug, payload.segment, payload.sub)
+async function onCaptureSegment(payload: { segment: Segment; sub: SubRange | null }): Promise<void> {
+  await capture.captureSegment(props.slug, payload.segment, payload.sub)
+  announceCapture(t('capture.savedHighlight'))
 }
 
 function ensureCaptureLoaded(): void {
@@ -323,6 +336,8 @@ onBeforeUnmount(() => {
 <template>
   <section>
     <RouterLink :to="{ name: 'catalog' }" class="lp-nav">‹ {{ t('player.back') }}</RouterLink>
+    <!-- Polite SR confirmation for captures (mark-moment / save line or phrase). -->
+    <p aria-live="polite" class="sr-only">{{ captureAnnounce }}</p>
 
     <p v-if="loading" class="mt-4 text-muted">{{ t('player.loading') }}</p>
     <p v-else-if="notFound" class="mt-4 text-danger">{{ t('player.notFound') }}</p>

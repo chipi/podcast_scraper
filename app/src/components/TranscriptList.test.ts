@@ -74,12 +74,12 @@ describe('TranscriptList', () => {
     const w = mountList({ segments, activeIndex: 0 })
     // only the per-segment seek buttons exist — no save buttons
     expect(w.findAll('button')).toHaveLength(segments.length)
-    expect(w.find('[aria-label="Save this line as a highlight"]').exists()).toBe(false)
+    expect(w.find('[aria-label="Save highlight — your selected text, or this whole line"]').exists()).toBe(false)
   })
 
   it('renders a save button per line when canCapture and emits a whole-line capture on tap', async () => {
     const w = mountList({ segments, activeIndex: 0, canCapture: true })
-    const saves = w.findAll('[aria-label="Save this line as a highlight"]')
+    const saves = w.findAll('[aria-label="Save highlight — your selected text, or this whole line"]')
     expect(saves).toHaveLength(segments.length)
     await saves[1].trigger('click')
     // no selection → whole-line capture (sub is null)
@@ -103,7 +103,7 @@ describe('TranscriptList', () => {
       getRangeAt: () => range,
       toString: () => 'world',
     } as unknown as Selection)
-    await w.findAll('[aria-label="Save this line as a highlight"]')[0].trigger('click')
+    await w.findAll('[aria-label="Save highlight — your selected text, or this whole line"]')[0].trigger('click')
     expect(w.emitted('capture')?.[0]).toEqual([
       { segment: segments[0], sub: { char_start: 6, char_end: 11, quote_text: 'world' } },
     ])
@@ -117,7 +117,7 @@ describe('TranscriptList', () => {
       canCapture: true,
       savedSegmentIds: new Set(['s0']),
     })
-    expect(w.find('[aria-label="Saved — tap to remove"]').exists()).toBe(true)
+    expect(w.find('[aria-label="Line saved — tap to remove"]').exists()).toBe(true)
     const pressed = w.findAll('[aria-pressed="true"]')
     expect(pressed).toHaveLength(1)
   })

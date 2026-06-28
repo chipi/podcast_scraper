@@ -1,4 +1,8 @@
+import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
+
+const serious = (vs: { impact?: string | null }[]) =>
+  vs.filter((v) => v.impact === 'critical' || v.impact === 'serious')
 
 /**
  * P2 Capture end-to-end — REAL API over the COMMITTED validation corpus, NO mocks. Drives the full
@@ -25,18 +29,23 @@ test('sign in → mark a moment + save a line → review in Library Highlights +
   await page.getByText('Index Investing Without the Myths').first().click()
   await expect(page.getByText(/Index funds are not a strategy/).first()).toBeVisible()
 
+  // a11y: the signed-in player (with the auth-gated capture controls present) has no serious axe
+  // violations — the capture affordances are keyboard- and SR-reachable.
+  const playerAxe = await new AxeBuilder({ page }).analyze()
+  expect(serious(playerAxe.violations)).toEqual([])
+
   // Mark a moment (auth-gated hero control) — monotonic add.
   await page.getByRole('button', { name: 'Mark this moment' }).click()
 
   // Save a transcript line as a span highlight (idempotent: only if not already pressed).
-  const lineSave = page.getByRole('button', { name: 'Save this line as a highlight' }).first()
+  const lineSave = page
+    .getByRole('button', { name: 'Save highlight — your selected text, or this whole line' })
+    .first()
   await expect(lineSave).toBeVisible()
   if ((await lineSave.getAttribute('aria-pressed')) === 'false') {
     await lineSave.click()
   }
-  await expect(
-    page.getByRole('button', { name: 'Saved — tap to remove' }).first(),
-  ).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Line saved — tap to remove' }).first()).toBeVisible()
 
   // Review in Library → Highlights tab (auth-gated), served by the real API.
   await page.goto('/library')
@@ -44,6 +53,10 @@ test('sign in → mark a moment + save a line → review in Library Highlights +
 
   // The episode group renders with its captured items (the marked moment is always present).
   await expect(page.getByText('Marked moment').first()).toBeVisible()
+
+  // a11y: the Highlights review surface (swatch pickers, colour filter, notes, export) is clean.
+  const highlightsAxe = await new AxeBuilder({ page }).analyze()
+  expect(serious(highlightsAxe.violations)).toEqual([])
 
   // The Markdown export link points at the real export route.
   const exportLink = page.getByRole('link', { name: 'Export Markdown' })

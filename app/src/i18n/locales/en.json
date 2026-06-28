@@ -171,10 +171,11 @@
   "capture": {
     "markMoment": "Mark this moment",
     "marked": "Moment saved",
-    "saveLine": "Save this line as a highlight",
-    "savedLine": "Saved — tap to remove",
+    "saveLine": "Save highlight — your selected text, or this whole line",
+    "savedLine": "Line saved — tap to remove",
     "saveInsight": "Save to highlights",
-    "savedInsight": "Saved to highlights — tap to remove"
+    "savedInsight": "Saved to highlights — tap to remove",
+    "savedHighlight": "Highlight saved"
   },
   "fav": {
     "add": "Save to favorites",
