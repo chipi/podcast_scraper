@@ -21,12 +21,17 @@ const props = withDefaults(
     activeIndex: number
     /** segmentIndex → grounded insight whose quote lands here (highlight + tap-to-reveal). */
     grounded?: Record<number, GroundedSpan>
+    /** Show the per-line "save highlight" affordance (auth-gated; off → transcript unchanged). */
+    canCapture?: boolean
+    /** Segment ids already captured as a span (drives the saved/toggle state). */
+    savedSegmentIds?: Set<string>
   }>(),
-  { grounded: () => ({}) },
+  { grounded: () => ({}), canCapture: false, savedSegmentIds: () => new Set<string>() },
 )
 const emit = defineEmits<{
   (e: 'seek', start: number): void
   (e: 'insight', insightId: string): void
+  (e: 'capture', segment: Segment): void
 }>()
 const { t } = useI18n()
 
@@ -89,43 +94,64 @@ function showSpeaker(i: number): boolean {
     <p aria-live="polite" class="sr-only">
       {{ activeIndex >= 0 ? segments[activeIndex]?.text : '' }}
     </p>
-    <button
+    <div
       v-for="(seg, i) in segments"
       :key="seg.id"
-      :ref="(el) => { if (el) items[i] = el as HTMLElement }"
-      type="button"
-      class="block w-full text-left py-2 transition-colors"
-      :class="
-        i === activeIndex
-          ? 'border-l-2 border-accent bg-overlay pl-3 -ml-3 rounded'
-          : grounded[i]
-            ? 'border-l-2 border-grounded pl-3 -ml-3'
-            : 'border-l-2 border-transparent pl-3 -ml-3'
-      "
-      :aria-label="grounded[i] ? t('player.groundedSegment') : undefined"
-      @click="onSegmentClick(i, seg)"
+      class="group relative"
     >
-      <span
-        v-if="showSpeaker(i)"
-        class="lp-speaker block mb-0.5"
-      >{{ speakerLabel(seg.speaker) }}</span>
-      <span class="flex gap-3">
-        <span class="shrink-0 pt-0.5 font-mono text-xs tabular-nums" :class="grounded[i] ? 'text-grounded' : 'text-muted'">
-          <span v-if="grounded[i]" aria-hidden="true" class="mr-0.5">●</span>{{ formatTime(seg.start) }}
-        </span>
+      <button
+        :ref="(el) => { if (el) items[i] = el as HTMLElement }"
+        type="button"
+        data-testid="seg"
+        class="block w-full text-left py-2 transition-colors"
+        :class="[
+          i === activeIndex
+            ? 'border-l-2 border-accent bg-overlay pl-3 -ml-3 rounded'
+            : grounded[i]
+              ? 'border-l-2 border-grounded pl-3 -ml-3'
+              : 'border-l-2 border-transparent pl-3 -ml-3',
+          canCapture ? 'pr-8' : '',
+        ]"
+        :aria-label="grounded[i] ? t('player.groundedSegment') : undefined"
+        @click="onSegmentClick(i, seg)"
+      >
         <span
-          class="text-sm leading-relaxed"
-          :class="i === activeIndex ? 'text-surface-foreground font-semibold' : 'text-muted'"
-        >
-          <!-- Char-level: underline only the matched quote phrase within the segment (3.6). -->
-          <template v-if="grounded[i] && highlights[i]">{{ highlights[i]!.pre }}<span class="text-grounded underline decoration-grounded decoration-2 underline-offset-2">{{ highlights[i]!.match }}</span>{{ highlights[i]!.post }}</template>
-          <!-- Fallback: whole-segment underline (grounded but quote not locatable in this segment). -->
+          v-if="showSpeaker(i)"
+          class="lp-speaker block mb-0.5"
+        >{{ speakerLabel(seg.speaker) }}</span>
+        <span class="flex gap-3">
+          <span class="shrink-0 pt-0.5 font-mono text-xs tabular-nums" :class="grounded[i] ? 'text-grounded' : 'text-muted'">
+            <span v-if="grounded[i]" aria-hidden="true" class="mr-0.5">●</span>{{ formatTime(seg.start) }}
+          </span>
           <span
-            v-else
-            :class="grounded[i] ? 'underline decoration-grounded decoration-2 underline-offset-2' : ''"
-          >{{ seg.text }}</span>
+            class="text-sm leading-relaxed"
+            :class="i === activeIndex ? 'text-surface-foreground font-semibold' : 'text-muted'"
+          >
+            <!-- Char-level: underline only the matched quote phrase within the segment (3.6). -->
+            <template v-if="grounded[i] && highlights[i]">{{ highlights[i]!.pre }}<span class="text-grounded underline decoration-grounded decoration-2 underline-offset-2">{{ highlights[i]!.match }}</span>{{ highlights[i]!.post }}</template>
+            <!-- Fallback: whole-segment underline (grounded but quote not locatable in this segment). -->
+            <span
+              v-else
+              :class="grounded[i] ? 'underline decoration-grounded decoration-2 underline-offset-2' : ''"
+            >{{ seg.text }}</span>
+          </span>
         </span>
-      </span>
-    </button>
+      </button>
+      <!-- Save this line as a highlight (auth-gated). Quiet until row hover/focus; filled when saved. -->
+      <button
+        v-if="canCapture"
+        type="button"
+        class="absolute right-0 top-1.5 rounded-full p-1 opacity-0 transition focus-visible:opacity-100 group-hover:opacity-100"
+        :class="savedSegmentIds.has(seg.id) ? 'text-accent opacity-100' : 'text-muted hover:text-accent'"
+        :aria-pressed="savedSegmentIds.has(seg.id)"
+        :aria-label="savedSegmentIds.has(seg.id) ? t('capture.savedLine') : t('capture.saveLine')"
+        :title="savedSegmentIds.has(seg.id) ? t('capture.savedLine') : t('capture.saveLine')"
+        @click="emit('capture', seg)"
+      >
+        <svg viewBox="0 0 24 24" :fill="savedSegmentIds.has(seg.id) ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true">
+          <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
+        </svg>
+      </button>
+    </div>
   </div>
 </template>

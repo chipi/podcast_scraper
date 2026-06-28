@@ -15,10 +15,15 @@ import type {
   EpisodeStats,
   FavoriteAdd,
   FavoritesResponse,
+  Highlight,
+  HighlightCreate,
+  HighlightUpdate,
   InsightsResponse,
   InterestCluster,
   ListEpisodesParams,
   Me,
+  Note,
+  NoteCreate,
   PersonCard,
   PlaybackPosition,
   Podcast,
@@ -333,4 +338,101 @@ export function loginUrl(): string {
 /** Clear the session server-side (deletes the cookie). Best-effort; resolves on 204. */
 export async function logout(): Promise<void> {
   await fetch(`${BASE}/auth/logout`, { method: 'POST', credentials: 'include' })
+}
+
+// --- P2 Capture: highlights + notes (PRD-040 / RFC-098 §7) ---
+
+/** The user's highlights, optionally scoped to one episode; `[]` when signed out (401). */
+export async function getHighlights(episode?: string): Promise<Highlight[]> {
+  try {
+    return (await getJSON<{ items: Highlight[] }>('/highlights', { episode })).items
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) return []
+    throw err
+  }
+}
+
+/** Capture a highlight (auth-gated); returns the created record. */
+export async function createHighlight(body: HighlightCreate): Promise<Highlight> {
+  const resp = await fetch(`${BASE}/highlights`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /highlights → ${resp.status}`)
+  return (await resp.json()) as Highlight
+}
+
+/** Edit a highlight's colour / captured text (auth-gated); returns the updated record. */
+export async function patchHighlight(id: string, body: HighlightUpdate): Promise<Highlight> {
+  const resp = await fetch(`${BASE}/highlights/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `PATCH /highlights → ${resp.status}`)
+  return (await resp.json()) as Highlight
+}
+
+/** Remove a highlight by id (auth-gated); returns the remaining list. */
+export async function deleteHighlight(id: string): Promise<Highlight[]> {
+  const resp = await fetch(`${BASE}/highlights/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /highlights → ${resp.status}`)
+  return ((await resp.json()) as { items: Highlight[] }).items
+}
+
+/** The user's notes, optionally scoped to one target; `[]` when signed out (401). */
+export async function getNotes(target?: string, targetId?: string): Promise<Note[]> {
+  try {
+    return (
+      await getJSON<{ items: Note[] }>('/notes', { target, target_id: targetId })
+    ).items
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) return []
+    throw err
+  }
+}
+
+/** Attach a free-text note to a highlight / insight / episode (auth-gated). */
+export async function createNote(body: NoteCreate): Promise<Note> {
+  const resp = await fetch(`${BASE}/notes`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /notes → ${resp.status}`)
+  return (await resp.json()) as Note
+}
+
+/** Edit a note's text (auth-gated); returns the updated record. */
+export async function patchNote(id: string, text: string): Promise<Note> {
+  const resp = await fetch(`${BASE}/notes/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `PATCH /notes → ${resp.status}`)
+  return (await resp.json()) as Note
+}
+
+/** Remove a note by id (auth-gated); returns the remaining list. */
+export async function deleteNote(id: string): Promise<Note[]> {
+  const resp = await fetch(`${BASE}/notes/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /notes → ${resp.status}`)
+  return ((await resp.json()) as { items: Note[] }).items
+}
+
+/** The URL for the Markdown export of all highlights (a download link / new tab). */
+export function highlightsExportUrl(): string {
+  return `${BASE}/highlights/export.md`
 }

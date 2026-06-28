@@ -69,4 +69,34 @@ describe('TranscriptList', () => {
     expect(live.exists()).toBe(true)
     expect(live.text()).toBe('Hello world.')
   })
+
+  it('shows no capture affordance by default (canCapture off)', () => {
+    const w = mountList({ segments, activeIndex: 0 })
+    // only the per-segment seek buttons exist — no save buttons
+    expect(w.findAll('button')).toHaveLength(segments.length)
+    expect(w.find('[aria-label="Save this line as a highlight"]').exists()).toBe(false)
+  })
+
+  it('renders a save button per line when canCapture and emits capture on tap', async () => {
+    const w = mountList({ segments, activeIndex: 0, canCapture: true })
+    const saves = w.findAll('[aria-label="Save this line as a highlight"]')
+    expect(saves).toHaveLength(segments.length)
+    await saves[1].trigger('click')
+    expect(w.emitted('capture')?.[0]).toEqual([segments[1]])
+    // the seek button still works independently of the capture button
+    await w.findAll('[data-testid="seg"]')[1].trigger('click')
+    expect(w.emitted('seek')?.[0]).toEqual([2.5])
+  })
+
+  it('reflects saved state via aria-pressed + the saved label', () => {
+    const w = mountList({
+      segments,
+      activeIndex: -1,
+      canCapture: true,
+      savedSegmentIds: new Set(['s0']),
+    })
+    expect(w.find('[aria-label="Saved — tap to remove"]').exists()).toBe(true)
+    const pressed = w.findAll('[aria-pressed="true"]')
+    expect(pressed).toHaveLength(1)
+  })
 })

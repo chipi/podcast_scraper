@@ -5,7 +5,8 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
-import type { EpisodeDetail, Entity, Insight, Topic } from '../services/types'
+import type { EpisodeDetail, Entity, Highlight, Insight, Topic } from '../services/types'
+import { useAuthStore } from '../stores/auth'
 import KnowledgePanel from './KnowledgePanel.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
@@ -203,5 +204,30 @@ describe('KnowledgePanel', () => {
     e.summary_title = null
     const w = mountPanel({ episode: e, insights: [], topics: [], persons: [] })
     expect(w.text()).toContain('Insights appear once this episode is processed.')
+  })
+
+  it('hides the insight save-to-highlights control when signed out', () => {
+    const w = mountPanel()
+    expect(w.find('[aria-label="Save to highlights"]').exists()).toBe(false)
+  })
+
+  it('lets a signed-in user save an insight to highlights (P2 capture)', async () => {
+    const auth = useAuthStore()
+    auth.user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([])
+    const created: Highlight = {
+      id: 'h1', episode_slug: 's1', kind: 'insight', start_ms: 12000, end_ms: null,
+      char_start: null, char_end: null, segment_ids: [], quote_text: 'Sleep consolidates memory.',
+      speaker: null, source_insight_id: 'i1', color: null, created_at: 1, anchor_status: null,
+    }
+    const create = vi.spyOn(api, 'createHighlight').mockResolvedValue(created)
+    const w = mountPanel()
+    await flushPromises()
+    const save = w.find('[aria-label="Save to highlights"]')
+    expect(save.exists()).toBe(true)
+    await save.trigger('click')
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'insight', source_insight_id: 'i1', start_ms: 12000 }),
+    )
   })
 })

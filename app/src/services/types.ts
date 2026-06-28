@@ -199,6 +199,77 @@ export interface FavoritesResponse {
   insights: FavoriteInsight[]
 }
 
+// --- P2 Capture: highlights + notes (PRD-040 / RFC-098 §7) ---
+
+export type HighlightKind = 'span' | 'moment' | 'insight'
+
+/** A captured highlight (GET/POST/PATCH/DELETE /api/app/highlights — the Highlight schema). */
+export interface Highlight {
+  id: string
+  episode_slug: string
+  kind: HighlightKind
+  start_ms: number | null
+  end_ms: number | null
+  char_start: number | null
+  char_end: number | null
+  segment_ids: string[]
+  quote_text: string | null
+  speaker: string | null
+  source_insight_id: string | null
+  color: string | null
+  created_at: number
+  /** 'anchored' | 'drifted' after a re-anchor on re-scrape; null until then. */
+  anchor_status: string | null
+}
+
+/** Body for POST /api/app/highlights. */
+export interface HighlightCreate {
+  episode_slug: string
+  kind: HighlightKind
+  start_ms?: number | null
+  end_ms?: number | null
+  char_start?: number | null
+  char_end?: number | null
+  segment_ids?: string[]
+  quote_text?: string | null
+  speaker?: string | null
+  source_insight_id?: string | null
+  color?: string | null
+}
+
+/** Body for PATCH /api/app/highlights/{id} — edit colour / captured text. */
+export interface HighlightUpdate {
+  color?: string | null
+  quote_text?: string | null
+}
+
+export interface HighlightsResponse {
+  items: Highlight[]
+}
+
+export type NoteTarget = 'highlight' | 'insight' | 'episode'
+
+/** A free-text note (GET/POST/PATCH/DELETE /api/app/notes — the Note schema). */
+export interface Note {
+  id: string
+  target: NoteTarget
+  target_id: string
+  text: string
+  created_at: number
+  updated_at: number
+}
+
+/** Body for POST /api/app/notes. */
+export interface NoteCreate {
+  target: NoteTarget
+  target_id: string
+  text: string
+}
+
+export interface NotesResponse {
+  items: Note[]
+}
+
 /** One selectable interest cluster (GET /api/app/clusters — AppInterestCluster). */
 export interface InterestCluster {
   id: string

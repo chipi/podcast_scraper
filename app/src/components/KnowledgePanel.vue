@@ -28,6 +28,7 @@ import { speakerLabel } from '../utils/format'
 import { episodeArtwork } from '../utils/episode'
 import { useAuthStore } from '../stores/auth'
 import { useQueueStore } from '../stores/queue'
+import { useCaptureStore } from '../stores/capture'
 import EntityCardBody from './EntityCardBody.vue'
 import FavoriteButton from './FavoriteButton.vue'
 
@@ -186,6 +187,18 @@ async function runSearch(): Promise<void> {
   }
 }
 
+// --- capture (P2, PRD-040): save a grounded insight to the personal highlights corpus ---
+const capture = useCaptureStore()
+const savedInsightIds = computed(() => capture.savedInsightIds)
+function captureInsight(ins: Insight): void {
+  const secs = insightStartSeconds(ins)
+  void capture.captureInsight(props.slug, {
+    id: ins.id,
+    text: ins.text,
+    start_ms: secs != null ? Math.round(secs * 1000) : null,
+  })
+}
+
 // --- related ("more like this") ---
 const auth = useAuthStore()
 const queue = useQueueStore()
@@ -203,8 +216,17 @@ async function loadRelated(slug: string): Promise<void> {
     related.value = []
   }
 }
-onMounted(() => loadRelated(props.slug))
+onMounted(() => {
+  loadRelated(props.slug)
+  if (auth.isAuthenticated) void capture.ensureLoaded()
+})
 watch(() => props.slug, (s) => loadRelated(s))
+watch(
+  () => auth.isAuthenticated,
+  (yes) => {
+    if (yes) void capture.ensureLoaded()
+  },
+)
 </script>
 
 <template>
@@ -339,6 +361,21 @@ watch(() => props.slug, (s) => loadRelated(s))
                   @click="emit('seek', insightStartSeconds(ins) as number)"
                 >
                   ▶ {{ formatTime(insightStartSeconds(ins) as number) }}
+                </button>
+                <!-- Save this insight to the personal highlights corpus (P2; auth-gated). -->
+                <button
+                  v-if="auth.isAuthenticated"
+                  type="button"
+                  class="rounded-full p-0.5 transition"
+                  :class="savedInsightIds.has(ins.id) ? 'text-accent' : 'text-muted hover:text-accent'"
+                  :aria-pressed="savedInsightIds.has(ins.id)"
+                  :aria-label="savedInsightIds.has(ins.id) ? t('capture.savedInsight') : t('capture.saveInsight')"
+                  :title="savedInsightIds.has(ins.id) ? t('capture.savedInsight') : t('capture.saveInsight')"
+                  @click="captureInsight(ins)"
+                >
+                  <svg viewBox="0 0 24 24" :fill="savedInsightIds.has(ins.id) ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true">
+                    <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
+                  </svg>
                 </button>
                 <FavoriteButton :item="favInsight(ins)" />
               </span>

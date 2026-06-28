@@ -13,6 +13,8 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useQueueStore } from '../stores/queue'
+import { useAuthStore } from '../stores/auth'
+import { useCaptureStore } from '../stores/capture'
 import KnowledgePanel from '../components/KnowledgePanel.vue'
 import PlayerControls from '../components/PlayerControls.vue'
 import TranscriptList from '../components/TranscriptList.vue'
@@ -48,6 +50,8 @@ const { t, locale } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const queue = useQueueStore()
+const auth = useAuthStore()
+const capture = useCaptureStore()
 
 async function onEnded(): Promise<void> {
   playing.value = false
@@ -266,9 +270,40 @@ function cycleRate(): void {
   if (audioEl.value) audioEl.value.playbackRate = rate.value
 }
 
-onMounted(() => load(props.slug))
+// --- capture (P2, PRD-040): mark a moment, save a transcript line ---
+const savedSegmentIds = computed(() => capture.savedSegmentIds)
+const momentFlash = ref(false)
+let flashTimer: ReturnType<typeof setTimeout> | undefined
+
+/** One-tap "mark this moment" at the current content-time, tagged with who's speaking. */
+async function markMoment(): Promise<void> {
+  const speaker = activeIndex.value >= 0 ? (segments.value[activeIndex.value]?.speaker ?? null) : null
+  await capture.captureMoment(props.slug, Math.max(0, contentTime.value), speaker)
+  momentFlash.value = true
+  if (flashTimer) clearTimeout(flashTimer)
+  flashTimer = setTimeout(() => {
+    momentFlash.value = false
+  }, 1500)
+}
+
+function onCaptureSegment(seg: Segment): void {
+  void capture.captureSegment(props.slug, seg)
+}
+
+function ensureCaptureLoaded(): void {
+  if (auth.isAuthenticated) void capture.ensureLoaded()
+}
+
+onMounted(() => {
+  load(props.slug)
+  ensureCaptureLoaded()
+})
 watch(() => props.slug, (s) => load(s))
-onBeforeUnmount(() => persist())
+watch(() => auth.isAuthenticated, ensureCaptureLoaded)
+onBeforeUnmount(() => {
+  persist()
+  if (flashTimer) clearTimeout(flashTimer)
+})
 </script>
 
 <template>
@@ -298,7 +333,23 @@ onBeforeUnmount(() => persist())
             {{ episode.podcast_title }}
           </RouterLink>
           <span v-else />
-          <FavoriteButton :item="favItem" class="shrink-0 text-xl" />
+          <div class="flex shrink-0 items-center gap-2">
+            <!-- Mark this moment (P2 capture; auth-gated). Brief "saved" flash on tap. -->
+            <button
+              v-if="auth.isAuthenticated"
+              type="button"
+              class="rounded-full p-1 text-xl transition"
+              :class="momentFlash ? 'text-accent' : 'text-muted hover:text-accent'"
+              :aria-label="momentFlash ? t('capture.marked') : t('capture.markMoment')"
+              :title="momentFlash ? t('capture.marked') : t('capture.markMoment')"
+              @click="markMoment"
+            >
+              <svg viewBox="0 0 24 24" :fill="momentFlash ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" class="h-5 w-5" aria-hidden="true">
+                <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
+              </svg>
+            </button>
+            <FavoriteButton :item="favItem" class="text-xl" />
+          </div>
         </div>
         <h1 class="mt-1 font-display text-3xl font-extrabold leading-tight tracking-tight">
           {{ episode.title }}
@@ -468,9 +519,12 @@ onBeforeUnmount(() => persist())
           :segments="segments"
           :active-index="activeIndex"
           :grounded="groundedSpans"
+          :can-capture="auth.isAuthenticated"
+          :saved-segment-ids="savedSegmentIds"
           class="min-h-0 lg:flex-1"
           @seek="seekContent"
           @insight="openInsight"
+          @capture="onCaptureSegment"
         />
         <p v-else class="rounded-2xl border border-border bg-surface p-4 text-muted">
           {{ t('player.transcriptPending') }}

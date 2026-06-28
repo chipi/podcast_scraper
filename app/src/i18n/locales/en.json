@@ -168,6 +168,14 @@
     "up": "Move up",
     "down": "Move down"
   },
+  "capture": {
+    "markMoment": "Mark this moment",
+    "marked": "Moment saved",
+    "saveLine": "Save this line as a highlight",
+    "savedLine": "Saved — tap to remove",
+    "saveInsight": "Save to highlights",
+    "savedInsight": "Saved to highlights — tap to remove"
+  },
   "fav": {
     "add": "Save to favorites",
     "remove": "Remove from favorites"

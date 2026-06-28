@@ -5,7 +5,8 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
-import type { EpisodeDetail, EpisodeStats } from '../services/types'
+import type { EpisodeDetail, EpisodeStats, Highlight } from '../services/types'
+import { useAuthStore } from '../stores/auth'
 import PlayerView from './PlayerView.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
@@ -101,5 +102,28 @@ describe('PlayerView', () => {
     const w = await mountPlayer('ep-1')
     expect(w.text()).toContain('The pull-quote summary prose.')
     expect(w.text()).toContain('The Episode') // title masthead
+  })
+
+  it('shows the mark-moment control only when signed in and captures on tap (P2)', async () => {
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([])
+    const created: Highlight = {
+      id: 'm1', episode_slug: 'ep-1', kind: 'moment', start_ms: 0, end_ms: null,
+      char_start: null, char_end: null, segment_ids: [], quote_text: null, speaker: null,
+      source_insight_id: null, color: null, created_at: 1, anchor_status: null,
+    }
+    const create = vi.spyOn(api, 'createHighlight').mockResolvedValue(created)
+    const w = await mountPlayer('ep-1')
+    // signed out → no capture affordance
+    expect(w.find('[aria-label="Mark this moment"]').exists()).toBe(false)
+    // sign in → the control appears (auth-gated)
+    const auth = useAuthStore()
+    auth.user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
+    await flushPromises()
+    const mark = w.find('[aria-label="Mark this moment"]')
+    expect(mark.exists()).toBe(true)
+    await mark.trigger('click')
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'moment', episode_slug: 'ep-1' }),
+    )
   })
 })
