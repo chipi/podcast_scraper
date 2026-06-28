@@ -218,17 +218,16 @@ async def run_cli(args: argparse.Namespace) -> int:
         print(f"re-enabled: {record}")
         return 0
 
-    # Build the enricher set. Order of resolution (chunk 7):
-    #   1. enabled_enrichers list: YAML wins ONLY when it actually lists
-    #      enrichers; an empty/absent YAML list falls back to the
-    #      --profile preset's set. (The YAML toggling individual enrichers
-    #      via enrichment.enrichers.<id>.enabled is per-enricher config.)
-    #   2. per_enricher_config: YAML wins per-key over the profile's
-    #      defaults — operators tune thresholds, cost caps, etc. without
-    #      having to re-declare the whole set.
-    #   3. opt_in_flags: same — YAML wins per-key.
-    #   4. CLI overrides on top: --no-enrichers / --enrichers (alias for
-    #      --only) / --only / --skip / --opt-in.
+    # Build the enricher set. Resolution model (Shape B / RFC-088 v2):
+    #   1. The --profile preset gives the BASE EnricherSet (the
+    #      hardcoded matrix in profile_sets.enricher_set_for_profile).
+    #   2. The operator YAML's ``enrichment.enrichers:`` dict is the
+    #      OVERRIDE layer, read in Shape B (block-present = enabled,
+    #      explicit ``enabled: false`` = opt-out). Knobs + provider
+    #      config merge per-key over the profile's defaults.
+    #   3. opt_in_flags merge per-key.
+    #   4. CLI flags layer on top: --no-enrichers / --enrichers (alias
+    #      for --only) / --only / --skip / --opt-in.
     registry = EnricherRegistry()
     # Deterministic enrichers are always registered — they have no external
     # dependencies. Tier=DETERMINISTIC manifests gate their own activation
@@ -326,14 +325,39 @@ def build_enricher_set_from_yaml(config_path: Path | None) -> EnricherSet:
         logger.error("enrichment: invalid 'enrichment:' block in config: %s", exc)
         raise SystemExit(2) from exc
 
-    enrichers_cfg: dict[str, dict[str, Any]] = block.get("enrichers") or {}
+    # Shape B (RFC-088 config v2): the ``enrichers:`` block is a dict
+    # keyed by enricher id. Presence of a block IS the enable; explicit
+    # ``enabled: false`` opts an enricher out. This matches the YAML
+    # operator mental model (one block per enricher, all info in one
+    # place) and the UI's per-row v-model binding.
+    #
+    # Legacy support: the dict-of-blocks shape with explicit
+    # ``enabled: true`` keys still works (the implicit-default rule
+    # makes both readings equivalent). The list-of-ids shape used by
+    # built-in profiles is handled by ``enricher_set_for_profile``,
+    # not by this YAML reader.
+    enrichers_raw = block.get("enrichers")
+    if not isinstance(enrichers_raw, dict):
+        # Defensive: a list shape leaked into operator YAML by accident
+        # / legacy migration. Honour it as "enable these, no config",
+        # but the schema rejects it on validation so this branch is
+        # rarely hit.
+        if isinstance(enrichers_raw, list):
+            enabled = [eid for eid in enrichers_raw if isinstance(eid, str)]
+            return EnricherSet(enabled_enrichers=enabled)
+        return EnricherSet()
     enabled: list[str] = []
     per_enricher_config: dict[str, dict[str, Any]] = {}
     opt_in_flags: dict[str, bool] = {}
-    for eid, cfg in enrichers_cfg.items():
+    for eid, cfg in enrichers_raw.items():
         if not isinstance(cfg, dict):
+            # Bare ``enricher_id: null`` / ``enricher_id: true`` etc.
+            # Treat as enabled with no config (presence-is-enabled).
+            enabled.append(eid)
             continue
-        if cfg.get("enabled", False):
+        # Implicit-enabled-default: block present + no explicit
+        # ``enabled: false`` → on. Explicit ``enabled: false`` → off.
+        if cfg.get("enabled", True):
             enabled.append(eid)
         per_enricher_config[eid] = cfg
         if "opt_in" in cfg:

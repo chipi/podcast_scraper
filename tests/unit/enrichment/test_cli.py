@@ -197,6 +197,54 @@ def test_build_enricher_set_no_enrichment_block_returns_empty(tmp_path: Path) ->
 
 
 # ---------------------------------------------------------------------------
+# Shape B — implicit-enabled-default semantics
+# ---------------------------------------------------------------------------
+
+
+def test_shape_b_block_present_without_enabled_key_is_on(tmp_path: Path) -> None:
+    """Operator mental model: an enricher block in the YAML means 'configured to
+    run'. ``enabled: true`` is the implicit default — operators don't need to
+    write it on every block."""
+    config = tmp_path / "operator.yaml"
+    config.write_text(
+        "enrichment:\n"
+        "  enrichers:\n"
+        "    temporal_velocity:\n"
+        "      alpha: 0.7\n"
+        "    topic_cooccurrence: {}\n"
+        "    grounding_rate:\n",
+        encoding="utf-8",
+    )
+    s = build_enricher_set_from_yaml(config)
+    assert sorted(s.enabled_enrichers) == sorted(
+        ["temporal_velocity", "topic_cooccurrence", "grounding_rate"]
+    )
+    assert s.get_config("temporal_velocity")["alpha"] == 0.7
+
+
+def test_shape_b_explicit_enabled_false_opts_out(tmp_path: Path) -> None:
+    """Profile may enable an enricher; operator override can disable JUST that
+    one by setting ``enabled: false`` on its block. Profile's other enrichers
+    untouched. Deep-merge plays nicely with this shape."""
+    config = tmp_path / "operator.yaml"
+    config.write_text(
+        "enrichment:\n"
+        "  enrichers:\n"
+        "    temporal_velocity:\n"
+        "      alpha: 0.7\n"
+        "    topic_similarity:\n"
+        "      enabled: false\n",
+        encoding="utf-8",
+    )
+    s = build_enricher_set_from_yaml(config)
+    assert "temporal_velocity" in s.enabled_enrichers
+    assert "topic_similarity" not in s.enabled_enrichers
+    # The config block is preserved even when disabled — the operator
+    # may re-enable later without losing knobs.
+    assert s.get_config("topic_similarity") == {"enabled": False}
+
+
+# ---------------------------------------------------------------------------
 # re_enable_enricher
 # ---------------------------------------------------------------------------
 
