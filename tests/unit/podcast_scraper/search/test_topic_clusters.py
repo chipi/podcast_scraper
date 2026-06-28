@@ -346,3 +346,94 @@ def test_consumer_cluster_siblings_empty_for_singleton_or_missing(tmp_path: Path
     assert consumer_cluster_siblings(tmp_path, "topic:ai") == []  # alone in its cluster
     assert consumer_cluster_siblings(tmp_path, "topic:absent") == []  # not in any cluster
     assert consumer_cluster_siblings(tmp_path, "   ") == []  # blank id
+
+
+def test_consumer_topic_cluster_map_clusters_not_a_list(tmp_path: Path) -> None:
+    _write_clusters_payload(tmp_path, '{"clusters": "not-a-list"}')
+    assert consumer_topic_cluster_map(tmp_path) == {}
+
+
+def test_consumer_topic_cluster_map_missing_clusters_key(tmp_path: Path) -> None:
+    _write_clusters_payload(tmp_path, "{}")
+    assert consumer_topic_cluster_map(tmp_path) == {}
+
+
+def test_consumer_topic_cluster_map_skips_non_mapping_cluster_and_blank_label(
+    tmp_path: Path,
+) -> None:
+    # A non-mapping cluster entry is skipped; a blank canonical_label falls back to the gpid.
+    _write_clusters_payload(
+        tmp_path,
+        '{"clusters": ['
+        '"junk", '
+        '{"graph_compound_parent_id": "tc:x", "canonical_label": "   ", '
+        '"members": [{"topic_id": "topic:x"}, 7, {"topic_id": "   "}]}'
+        "]}\n",
+    )
+    out = consumer_topic_cluster_map(tmp_path)
+    assert out["topic:x"]["cluster_label"] == "tc:x"  # blank label → gpid fallback
+    # non-Mapping member (7) and blank topic_id are not keyed.
+    assert set(out) == {"topic:x"}
+
+
+def test_top_clusters_clusters_not_a_list(tmp_path: Path) -> None:
+    _write_clusters_payload(tmp_path, '{"clusters": 5}')
+    assert top_clusters_by_member_count(tmp_path) == []
+
+
+def test_top_clusters_skips_non_mapping_and_no_id(tmp_path: Path) -> None:
+    _write_clusters_payload(
+        tmp_path,
+        '{"clusters": ['
+        '"junk", '
+        '{"canonical_label": "no id", "members": [{"topic_id": "topic:a"}]}, '
+        '{"graph_compound_parent_id": "tc:nomembers", "canonical_label": "   "}'
+        "]}\n",  # no members + no member_count → size 0, blank label → gpid fallback
+    )
+    out = top_clusters_by_member_count(tmp_path)
+    assert out == [{"id": "tc:nomembers", "label": "tc:nomembers", "size": 0}]
+
+
+def test_consumer_cluster_siblings_clusters_not_a_list(tmp_path: Path) -> None:
+    _write_clusters_payload(tmp_path, '{"clusters": 3}')
+    assert consumer_cluster_siblings(tmp_path, "topic:ai") == []
+
+
+def test_consumer_cluster_siblings_skips_non_mapping_cluster_and_bad_members(
+    tmp_path: Path,
+) -> None:
+    _write_clusters_payload(
+        tmp_path,
+        '{"clusters": ['
+        '"junk", '
+        '{"graph_compound_parent_id": "tc:a", "members": "not-a-list"}, '
+        '{"graph_compound_parent_id": "tc:b", "members": ['
+        '{"topic_id": "topic:ai", "label": "AI"}, 9, {"topic_id": "   "}, '
+        '{"topic_id": "topic:ml"}]}'
+        "]}\n",
+    )
+    out = consumer_cluster_siblings(tmp_path, "topic:ai")
+    # non-mapping member + blank topic_id dropped; topic:ml kept with slug-fallback label.
+    assert out == [{"id": "topic:ml", "label": "ml"}]
+
+
+def test_load_topic_cluster_enrichment_map_invalid_payload_is_empty(tmp_path: Path) -> None:
+    # Top-level JSON is a list (not a dict) → payload rejected → empty enrichment map.
+    _write_clusters_payload(tmp_path, "[1, 2, 3]")
+    assert load_topic_cluster_enrichment_map(tmp_path) == {}
+
+
+def test_load_topic_clusters_payload_unreadable_json_is_empty(tmp_path: Path) -> None:
+    _write_clusters_payload(tmp_path, "{not valid json")
+    assert consumer_topic_cluster_map(tmp_path) == {}
+    assert top_clusters_by_member_count(tmp_path) == []
+
+
+def test_load_topic_clusters_payload_rejects_unsafe_corpus_root() -> None:
+    # A root that fails path-safety (contains '..') → the loader bails before touching the FS,
+    # so every consumer accessor returns its empty form.
+    bad_root = Path("/tmp/../etc")
+    assert consumer_topic_cluster_map(bad_root) == {}
+    assert top_clusters_by_member_count(bad_root) == []
+    assert consumer_cluster_siblings(bad_root, "topic:ai") == []
+    assert load_topic_cluster_enrichment_map(bad_root) == {}

@@ -64,6 +64,22 @@ def test_listen_then_my_stats(tmp_path: Path) -> None:
     assert stats["daily"][-1]["count"] == 1  # today's bucket
 
 
+def test_listen_logs_without_feed_when_slug_resolve_raises(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Analytics must never break opening an episode: if slug→feed resolution throws, the listen
+    # event is still recorded (with feed_id=None) and the request succeeds.
+    from podcast_scraper.server.routes import app_user_state as routes
+
+    def boom(*_args: object, **_kwargs: object) -> object:
+        raise RuntimeError("corpus index exploded")
+
+    monkeypatch.setattr(routes, "resolve_slug", boom)
+    client = _authed_client(tmp_path)
+    assert client.post("/api/app/listen/ep1").status_code == 204
+    assert client.get("/api/app/me/stats").json()["episodes"] == 1
+
+
 def test_playback_save_and_resume(tmp_path: Path) -> None:
     client = _authed_client(tmp_path)
     assert client.get("/api/app/playback/ep").json()["position_seconds"] == 0.0
