@@ -247,7 +247,9 @@ def remove_subscription(data_dir: Path, user_id: str, feed_id: str) -> list[dict
 # ``reanchor_highlight`` recomputes the positional fields against a fresh transcript and NEVER
 # drops a highlight — a span that no longer resolves is marked ``anchor_status="drifted"`` (§7).
 
-_HIGHLIGHT_KINDS = frozenset({"span", "moment", "insight"})
+# ``kind`` (span|moment|insight) + ``target`` (highlight|insight|episode) are validated at the API
+# boundary by the route's Pydantic ``Literal`` fields; the store stays permissive and only protects
+# the immutable identity fields below from being overwritten on update.
 _IMMUTABLE_HIGHLIGHT_FIELDS = frozenset({"id", "episode_slug", "created_at"})
 
 
@@ -355,8 +357,6 @@ def reanchor_highlight(highlight: dict[str, Any], segments: list[dict[str, Any]]
 # ``target_id`` = its id/slug). Stored as one ``notes.json`` list, keyed by an opaque ``id``. A
 # separate file from highlights so a note can attach independently (e.g. an episode-level note with
 # no highlight). The route mints ``id``/``created_at``/``updated_at``.
-
-_NOTE_TARGETS = frozenset({"highlight", "insight", "episode"})
 
 
 def get_notes(
