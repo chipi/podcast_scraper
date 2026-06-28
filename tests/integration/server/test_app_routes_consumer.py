@@ -419,6 +419,12 @@ def test_highlight_create_list_patch_delete(tmp_path: Path) -> None:
     patched = client.patch(f"/api/app/highlights/{hid}", json={"color": "rose"}).json()
     assert patched["color"] == "rose" and patched["episode_slug"] == "show-ep01"
     assert client.patch("/api/app/highlights/ghost", json={"color": "x"}).status_code == 404
+    # an explicit null clears the colour (exclude_unset); an omitted field is untouched
+    assert client.patch(f"/api/app/highlights/{hid}", json={"color": None}).json()["color"] is None
+    assert (
+        client.patch(f"/api/app/highlights/{hid}", json={"quote_text": "edited"}).json()["color"]
+        is None
+    )
     # delete
     assert client.delete(f"/api/app/highlights/{hid}").json()["items"] == []
 

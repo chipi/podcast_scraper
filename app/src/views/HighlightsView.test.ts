@@ -78,6 +78,35 @@ describe('HighlightsView', () => {
     expect(del).toHaveBeenCalledWith('h1')
   })
 
+  it('sets a highlight colour from the swatch picker', async () => {
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([hl({ color: null })])
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
+    const patch = vi.spyOn(api, 'patchHighlight').mockResolvedValue(hl({ color: 'amber' }))
+    const w = mountView()
+    await flushPromises()
+    await w.find('[aria-label="Set colour: Amber"]').trigger('click')
+    expect(patch).toHaveBeenCalledWith('h1', { color: 'amber' })
+  })
+
+  it('filters by colour and clears the filter', async () => {
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([
+      hl({ id: 'h1', color: 'amber', quote_text: 'amber line' }),
+      hl({ id: 'h2', color: 'rose', quote_text: 'rose line' }),
+    ])
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
+    const w = mountView()
+    await flushPromises()
+    expect(w.text()).toContain('amber line')
+    expect(w.text()).toContain('rose line')
+    // filter to amber only
+    await w.find('[aria-label="Show only Amber highlights"]').trigger('click')
+    expect(w.text()).toContain('amber line')
+    expect(w.text()).not.toContain('rose line')
+    // clear
+    await w.findAll('button').find((b) => b.text() === 'Clear')!.trigger('click')
+    expect(w.text()).toContain('rose line')
+  })
+
   it('adds a note to a highlight through the inline editor', async () => {
     vi.spyOn(api, 'getHighlights').mockResolvedValue([hl()])
     vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))

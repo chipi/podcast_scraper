@@ -12,9 +12,16 @@ import { getEpisode, highlightsExportUrl } from '../services/api'
 import type { Highlight } from '../services/types'
 import { useCaptureStore } from '../stores/capture'
 import { formatTime } from '../player/transcriptSync'
+import { HIGHLIGHT_COLORS, borderClass } from '../utils/highlightColors'
 
 const { t } = useI18n()
 const capture = useCaptureStore()
+
+// Colour filter (PRD-040 FR4.2): null = show all; otherwise only highlights of that colour.
+const activeColor = ref<string | null>(null)
+function toggleFilter(token: string): void {
+  activeColor.value = activeColor.value === token ? null : token
+}
 
 // Episode titles for the group headings (slug → title), hydrated lazily; slug is the fallback.
 const titles = ref<Record<string, string>>({})
@@ -28,6 +35,7 @@ interface Group {
 const groups = computed<Group[]>(() => {
   const bySlug = new Map<string, Highlight[]>()
   for (const h of capture.highlights) {
+    if (activeColor.value && h.color !== activeColor.value) continue
     const list = bySlug.get(h.episode_slug) ?? []
     list.push(h)
     bySlug.set(h.episode_slug, list)
@@ -103,6 +111,28 @@ onMounted(async () => {
       >{{ t('highlights.export') }}</a>
     </div>
 
+    <!-- Colour filter (FR4.2): tap a swatch to show only that colour; tap again to clear. -->
+    <div v-if="capture.count" class="mb-4 flex items-center gap-2">
+      <span class="text-xs text-muted">{{ t('highlights.filterByColor') }}</span>
+      <button
+        v-for="c in HIGHLIGHT_COLORS"
+        :key="c.token"
+        type="button"
+        class="h-4 w-4 rounded-full ring-offset-1 ring-offset-canvas transition"
+        :class="[c.swatch, activeColor === c.token ? 'ring-2 ring-accent' : 'hover:ring-1 hover:ring-border']"
+        :aria-pressed="activeColor === c.token"
+        :aria-label="t('highlights.filterColor', { color: t(c.labelKey) })"
+        :title="t(c.labelKey)"
+        @click="toggleFilter(c.token)"
+      />
+      <button
+        v-if="activeColor"
+        type="button"
+        class="text-xs text-accent"
+        @click="activeColor = null"
+      >{{ t('highlights.clearFilter') }}</button>
+    </div>
+
     <p v-if="!capture.count" class="text-muted">{{ t('highlights.empty') }}</p>
 
     <section v-for="g in groups" :key="g.slug" class="mb-6">
@@ -114,7 +144,8 @@ onMounted(async () => {
         <li
           v-for="h in g.highlights"
           :key="h.id"
-          class="rounded-xl border border-border p-3"
+          class="rounded-xl border border-l-4 border-border p-3"
+          :class="borderClass(h.color)"
         >
           <div class="flex items-start justify-between gap-2">
             <div class="min-w-0">
@@ -144,6 +175,21 @@ onMounted(async () => {
                 @click="capture.remove(h.id)"
               >✕</button>
             </div>
+          </div>
+
+          <!-- Colour swatches (FR1.4): tap to set; tap the active one to clear. -->
+          <div class="mt-2 flex items-center gap-1.5">
+            <button
+              v-for="c in HIGHLIGHT_COLORS"
+              :key="c.token"
+              type="button"
+              class="h-3.5 w-3.5 rounded-full ring-offset-1 ring-offset-surface transition"
+              :class="[c.swatch, h.color === c.token ? 'ring-2 ring-accent' : 'opacity-60 hover:opacity-100']"
+              :aria-pressed="h.color === c.token"
+              :aria-label="t('highlights.setColor', { color: t(c.labelKey) })"
+              :title="t(c.labelKey)"
+              @click="capture.setColor(h.id, h.color === c.token ? null : c.token)"
+            />
           </div>
 
           <!-- Notes attached to this highlight -->

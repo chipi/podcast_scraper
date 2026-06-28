@@ -12,6 +12,7 @@ import {
   deleteNote,
   getHighlights,
   getNotes,
+  patchHighlight,
   patchNote,
 } from '../services/api'
 import type { Highlight, Note, Segment } from '../services/types'
@@ -128,6 +129,15 @@ export const useCaptureStore = defineStore('capture', {
         })
         this.highlights = [...this.highlights, h]
         this.loaded = true
+      } catch {
+        /* signed out / transient */
+      }
+    },
+    /** Set (or clear, with null) a highlight's colour token. */
+    async setColor(id: string, color: string | null): Promise<void> {
+      try {
+        const updated = await patchHighlight(id, { color })
+        this.highlights = this.highlights.map((h) => (h.id === id ? updated : h))
       } catch {
         /* signed out / transient */
       }

@@ -214,7 +214,18 @@
     "saveNote": "Save",
     "cancel": "Cancel",
     "noteLabel": "Note",
-    "notePlaceholder": "Add a thought…"
+    "notePlaceholder": "Add a thought…",
+    "filterByColor": "Filter by colour:",
+    "filterColor": "Show only {color} highlights",
+    "clearFilter": "Clear",
+    "setColor": "Set colour: {color}",
+    "color": {
+      "amber": "Amber",
+      "rose": "Rose",
+      "sky": "Sky",
+      "emerald": "Emerald",
+      "violet": "Violet"
+    }
   },
   "stats": {
     "title": "Your listening",

@@ -82,8 +82,12 @@ async def patch_highlight(
     body: HighlightUpdate,
     user: User = Depends(get_current_user),
 ) -> Highlight:
-    """Edit a highlight's colour / captured text (404 if it does not exist)."""
-    fields = body.model_dump(exclude_none=True)
+    """Edit a highlight's colour / captured text (404 if it does not exist).
+
+    Uses ``exclude_unset`` (not ``exclude_none``) so an explicit ``"color": null`` *clears* the
+    colour, while an omitted field is left unchanged — the correct PATCH semantics.
+    """
+    fields = body.model_dump(exclude_unset=True)
     updated = app_user_state.update_highlight(
         _data_dir(request), user.user_id, highlight_id, fields
     )

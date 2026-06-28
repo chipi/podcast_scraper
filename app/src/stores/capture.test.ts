@@ -119,6 +119,15 @@ describe('capture store', () => {
     expect(c.notes).toHaveLength(0)
   })
 
+  it('setColor patches the colour and updates local state', async () => {
+    const c = useCaptureStore()
+    c.highlights = [hl({ id: 'h1', color: null })]
+    vi.spyOn(api, 'patchHighlight').mockResolvedValue(hl({ id: 'h1', color: 'amber' }))
+    await c.setColor('h1', 'amber')
+    expect(api.patchHighlight).toHaveBeenCalledWith('h1', { color: 'amber' })
+    expect(c.highlights[0].color).toBe('amber')
+  })
+
   it('removing a highlight also drops its local notes', async () => {
     const c = useCaptureStore()
     c.highlights = [hl({ id: 'h1' })]
