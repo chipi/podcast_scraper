@@ -24,6 +24,7 @@ import type {
   Me,
   Note,
   NoteCreate,
+  NoteUpdate,
   PersonCard,
   PlaybackPosition,
   Podcast,
@@ -412,11 +413,12 @@ export async function createNote(body: NoteCreate): Promise<Note> {
 
 /** Edit a note's text (auth-gated); returns the updated record. */
 export async function patchNote(id: string, text: string): Promise<Note> {
+  const body: NoteUpdate = { text }
   const resp = await fetch(`${BASE}/notes/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify(body),
   })
   if (!resp.ok) throw new ApiError(resp.status, `PATCH /notes → ${resp.status}`)
   return (await resp.json()) as Note

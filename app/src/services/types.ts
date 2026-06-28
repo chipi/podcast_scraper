@@ -266,6 +266,11 @@ export interface NoteCreate {
   text: string
 }
 
+/** Body for PATCH /api/app/notes/{id}. */
+export interface NoteUpdate {
+  text: string
+}
+
 export interface NotesResponse {
   items: Note[]
 }

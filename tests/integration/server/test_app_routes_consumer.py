@@ -482,3 +482,16 @@ def test_highlights_markdown_export_empty(tmp_path: Path) -> None:
     client = _authed(tmp_path)
     body = client.get("/api/app/highlights/export.md").text
     assert "_No highlights captured yet._" in body
+
+
+def test_highlights_export_falls_back_to_slug_when_episode_unknown(tmp_path: Path) -> None:
+    # A highlight on a slug that resolves to no corpus episode → the export still renders, using the
+    # bare slug as the heading (title hydration is best-effort, never breaks export).
+    _corpus(tmp_path)
+    client = _authed(tmp_path)
+    client.post(
+        "/api/app/highlights",
+        json={"episode_slug": "ghost-ep-404", "kind": "moment", "start_ms": 1000},
+    )
+    body = client.get("/api/app/highlights/export.md").text
+    assert "ghost-ep-404" in body  # heading is the slug; no title resolved
