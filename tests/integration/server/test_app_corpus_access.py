@@ -16,7 +16,7 @@ from fastapi import Request
 
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503, load_json_artifact
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.integration]
 
 
 def _request(output_dir: object) -> Request:

@@ -24,7 +24,7 @@ from podcast_scraper.server.app_access import AccessPolicy
 from podcast_scraper.server.app_user_store import get_or_create_user
 from podcast_scraper.server.routes import app_episodes as episodes_routes
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.integration]
 
 
 # --------------------------------------------------------------------------- #
