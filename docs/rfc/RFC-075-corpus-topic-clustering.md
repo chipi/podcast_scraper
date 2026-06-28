@@ -1,6 +1,6 @@
 # RFC-075: Corpus Topic Clustering Layer
 
-- **Status**: Draft
+- **Status**: Completed (v2.6.0–v2.7) — all 4 phases + 3-pass holistic review shipped end-to-end. All 6 tracked issues (#551, #552, #553, #554, #555, #556) closed, plus label-quality follow-ups #580/#587/#590. `src/podcast_scraper/search/topic_clusters.py` (clustering module), `topic-clusters` CLI command, `GET /api/corpus/topic-clusters` HTTP route (`src/podcast_scraper/server/routes/corpus_topic_clusters.py`), viewer ingestion (`web/gi-kg-viewer/src/api/corpusTopicClustersApi.ts`) and Cytoscape `TopicCluster` compound parent style (`cyGraphStylesheet.ts:437`) all live. v2 schema (`graph_compound_parent_id` + `cil_alias_target_topic_id`) emitted with v1 read-compat. Default threshold lowered to 0.70 after the 1178-topic production sweep (`scripts/eval/score/topic_clusters_*.py`). Distinct from [RFC-097](RFC-097-unified-kg-gi-ontology-v2.md) chunk 9, which clusters at the KG-corpus level (`src/podcast_scraper/kg/topic_clustering.py`) — RFC-075 is the viewer-overlay path, RFC-097 is the deterministic KG-typed-connectivity path; they coexist.
 - **Authors**: Engineering (podcast_scraper)
 - **Stakeholders**: Viewer / server maintainers, search and CIL owners
 - **Related PRDs**:

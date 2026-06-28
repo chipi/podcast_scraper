@@ -117,3 +117,22 @@ generate_metadata: true
 generate_summaries: true
 language: en
 log_level: INFO
+
+# -----------------------------------------------------------------------------
+# RFC-088 chunk-7 enricher set (advisory mirror of profile_sets.py)
+# -----------------------------------------------------------------------------
+# The Python matrix at src/podcast_scraper/enrichment/profile_sets.py is
+# the source of truth; this block reflects the 'prod_dgx_full_with_fallback' row so
+# operators can discover the active set without reading code.
+# Per-enricher knobs (cost caps, thresholds) live under enrichers.<id>.
+enrichment:
+  enabled: true
+  enrichers:
+    topic_cooccurrence: {}
+    topic_cooccurrence_corpus: {}
+    temporal_velocity: {}
+    grounding_rate: {}
+    guest_coappearance: {}
+    insight_density: {}
+    topic_similarity: {}
+    nli_contradiction: {}

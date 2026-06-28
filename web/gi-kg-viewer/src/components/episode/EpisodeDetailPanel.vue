@@ -14,6 +14,7 @@ import { copyTextToClipboard } from '../../utils/clipboard'
 import CilTopicPillsRow from '../shared/CilTopicPillsRow.vue'
 import DiagnosticRow from '../shared/DiagnosticRow.vue'
 import EpisodeBridgePartition from './EpisodeBridgePartition.vue'
+import EpisodeEnrichmentSection from './EpisodeEnrichmentSection.vue'
 import HelpTip from '../shared/HelpTip.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
@@ -806,6 +807,13 @@ watch(
         don't render an empty placeholder.
       -->
       <EpisodeBridgePartition :partition="detail.bridge_partition" />
+      <!-- RFC-088 chunk-9: episode-scope enrichment signals (insight density
+           bars + per-episode topic-pair chips). The component hides itself
+           when neither envelope is present. -->
+      <EpisodeEnrichmentSection
+        :corpus-path="shell.corpusPath"
+        :metadata-relpath="detail.metadata_relative_path || ''"
+      />
       <p
         v-if="detail.summary_text"
         class="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-muted"

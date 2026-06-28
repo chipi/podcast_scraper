@@ -1,7 +1,19 @@
 # RFC-088: Enrichment Layer Architecture
 
-- **Status**: Draft
+- **Status**: Completed (2026-06-27) — Epic [#1101](https://github.com/chipi/podcast_scraper/issues/1101) shipped all 9 chunks: chunk 0 (ADR-104 Accepted), chunk 1 (foundation: protocol, resilience + cost-cap, health, metrics, status, JSONL events, observability, executor, CLI + JSON Schema, jobs API + HTTP routes, MCP enrichment source + 8 tools, mock scorers + resilience integration tests, stack-test E2E specs, `docs/api/ENRICHMENT_LAYER_API.md`), chunk 2 (6 deterministic enrichers), chunk 3 (topic_similarity embedding tier), chunk 4 (nli_contradiction ML tier), chunk 5 (QueryEnricher protocol + query_topic_relatedness + /api/search enrich_results wiring), chunk 6 (user-facing corpus_enrichments routes + viewer Configuration popup Enrichment tab + Dashboard pipeline-runs kind filter + Topic / Person rail enrichment signals), chunk 7 (profile-preset matrix + CLI --enrichers/--no-enrichers/--opt-in/--profile overrides + drift gate), chunk 8 (this promotion + ADR-104 Accepted + `docs/guides/ENRICHMENT_LAYER_GUIDE.md`). Plan: `docs/wip/RFC-088-ENRICHMENT-LAYER-IMPLEMENTATION-PLAN.md`; lock audit: `docs/wip/RFC-088-CHUNK1-LOCK-AUDIT.md`; chunks 2-8 replan: `docs/wip/RFC-088-CHUNKS-2-8-REPLAN.md`.
 - **v2 cross-reference (RFC-097, 2026-06-20)**: enricher input data (`bridge.json` + typed Person/Org/Podcast nodes + descriptive ABOUT/MENTIONS_* edges) shipped per-artifact via RFC-097 v2. QueryEnricher protocol (Phase 4), typed contradiction enricher output (needs CONTRADICTS edges, v3), and LLM tier enrichers remain open. See [RFC-097](RFC-097-unified-kg-gi-ontology-v2.md).
+- **v2 config surface delta (2026-06-28)**: the *configuration* surface evolved after this RFC was first written. Key deltas the body sections below do NOT yet reflect:
+  - **Shape B YAML** — ``enrichment.enrichers:`` is a per-enricher dict (``temporal_velocity: {alpha: 0.7}``), NOT the list-of-dicts the body shows. Block-present = enabled (implicit ``enabled: true``); explicit ``enabled: false`` opts an enricher out without losing its knobs.
+  - **EnricherManifest extended** with two fields the body's `protocol.py` snippet pre-dates: ``config_schema: dict | None`` (JSON-Schema fragment describing per-run knobs) and ``provider_requirement: ProviderRequirement | None`` (names the injectable protocol an enricher needs). Together they make YAML validation + UI form generation data-driven per enricher.
+  - **Provider-type registry** at ``enrichment/provider_types/`` maps string ``provider.type`` names to factories. Shipped types: ``fake_for_test`` / ``sentence_transformer_local`` (EmbeddingProvider), ``fixed_scripted`` / ``deberta_local`` (NliScorer). Adding a new type is a new file + a ``register_provider_type()`` call; no per-type wiring in the CLI / executor.
+  - **CLI ``--with-ml`` flag** + ``enrichment/ml_wiring.py`` walk the active EnricherSet, look up each ML enricher's provider block, instantiate via the registry, register the enricher. Workflow auto-passes ``--with-ml`` when the resolved profile enables an enricher whose manifest declares ``provider_requirement`` (or when the operator YAML carries an explicit ``provider:`` sub-block).
+  - **REST surface** at ``/api/enrichment/config`` (GET resolved view + PUT operator override + GET composed JSON Schema + GET provider-types catalogue) + viewer ``EnrichmentConfigEditor.vue`` (two-tier toggle + data-driven knob forms + per-row provider dropdown). The composed schema is the authoritative validator on PUT — typos like ``alphaa`` instead of ``alpha`` and unknown provider types are rejected at write time, not at runtime.
+  - **Resolution model**: profile name → ``enricher_set_for_profile()`` returns the BASE EnricherSet (including ``per_enricher_config`` read from the profile YAML). Operator YAML deep-merges on top. CLI overrides (``--only`` / ``--skip`` / ``--opt-in`` / ``--no-enrichers``) layer last.
+  - **Spawn mode** — ``_maybe_spawn_enrichment_after_pipeline()`` (in ``workflow/orchestration.py``) detaches the CLI as a subprocess after every successful pipeline run when ``cfg.enrichment.enabled`` (RFC-088 chunk 9 / Mode B). Failures inside the spawn never break the pipeline.
+
+  Treat the body sections below as **historical context** for the original architecture. For the current API + operator interface, see [Enrichment Layer Guide](../guides/ENRICHMENT_LAYER_GUIDE.md) (per-enricher reference + Configuration + Provider-type registry sections) and [Enrichment Layer API](../api/ENRICHMENT_LAYER_API.md) (the four new ``/api/enrichment/config*`` routes + ``--with-ml`` CLI).
+- **Boundary clarification (ADR-104, 2026-06-26)**: Key Decision #1 ("Enrichers never modify core artifacts") is amended — the rule is **enrichers never modify core artifacts produced by core pipeline stages**. RFC-097 chunk 9's cross-show Topic clustering (`concept:topic-{slug}` Topic nodes + `RELATED_TO` edges) runs in `workflow/orchestration.py`, conforms to KG v2.0, and is therefore part of the **core pipeline** — not an enrichment-layer violation. Enrichment outputs live under `enrichments/`, are read-only from the perspective of core artifacts, and serve ranking / scoring / UI consumption / autoresearch sweeps. The same underlying signal (e.g. topic relatedness) can have one output in core (typed `RELATED_TO` for traversal + LLM grounding, per chunk 9) and one in enrichments (cosine scores + top-K ranking for UI + autoresearch, per RFC-088 chunk 3 `topic_similarity`); both are correct, neither is redundant. Rubric: traversal → core, ranking → enrichments. See [ADR-104](../adr/ADR-104-enrichment-layer-boundary-vs-kg-direct.md).
+- **Implementation tracking (Epic #1101)**: 9-chunk implementation plan with full eval coverage + profile-preset wiring. See `docs/wip/RFC-088-ENRICHMENT-LAYER-IMPLEMENTATION-PLAN.md`.
 - **Authors**: Marko
 - **Stakeholders**: Core team
 - **Target Release**: TBD
@@ -160,10 +172,23 @@ are single-method, stateless units with no lifecycle (no `initialize` / `cleanup
 This justifies a simpler module-attribute discovery rather than per-capability factory
 functions.
 
+> **Async amendment (chunk 1, 2026-06-26):** the original `def enrich(...) -> dict`
+> signature is replaced with `async def enrich(...) -> EnricherResult` to match
+> the async-executor implementation shipping in Epic [#1101](https://github.com/chipi/podcast_scraper/issues/1101).
+> Sync deterministic enricher bodies are supported via the
+> `@sync_enricher` decorator (runs in the default thread executor) — authors
+> of deterministic enrichers don't pay the async ceremony tax; the executor pays
+> it for them. The new `EnricherResult` frozen dataclass is the canonical
+> return shape — encapsulates `status / data / error / error_class /
+> retry_count / circuit_state / duration_ms / records_written`. See chunk-1
+> lock audit (`docs/wip/RFC-088-CHUNK1-LOCK-AUDIT.md`) §B1–§B2 for context.
+
 ```python
 # podcast_scraper/enrichment/protocol.py
 
-from dataclasses import dataclass
+from __future__ import annotations
+import asyncio
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Protocol, runtime_checkable
@@ -176,7 +201,7 @@ class EnricherScope(Enum):
 
 class EnricherTier(Enum):
     DETERMINISTIC = "deterministic"  # pure arithmetic / graph traversal, no model
-    EMBEDDING = "embedding"          # uses vector embeddings (FAISS)
+    EMBEDDING = "embedding"          # uses vector embeddings (FAISS / LanceDB)
     ML = "ml"                        # uses a local ML model (NLI, classifier)
     LLM = "llm"                      # calls an LLM API -- requires explicit opt-in
 
@@ -199,10 +224,50 @@ class EnricherManifest:
     version: str              # semver e.g. "1.0.0"
     scope: EnricherScope
     tier: EnricherTier
-    reads: list[str]          # artifact suffixes consumed e.g. [".kg.json", ".bridge.json"]
+    reads: list[str]          # artifact suffixes consumed
     writes: str               # output filename e.g. "topic_cooccurrence.json"
     description: str
     requires_opt_in: bool     # True for LLM tier enrichers
+    # Cost-cap fields (O1 decision): both per-enricher and run-wide caps
+    # are supported. None means unbounded for that scope.
+    max_cost_usd_per_run: float | None = None  # per-enricher soft budget;
+                                               # exceeded → quarantine that
+                                               # enricher only
+    expected_duration_s: int | None = None     # heartbeat watchdog uses this
+
+
+@dataclass(frozen=True)
+class RunContext:
+    """Correlation envelope passed into every enricher.enrich() call."""
+
+    run_id: str                                # outermost identifier
+    parent_run_id: str | None                  # pipeline run_id if attached;
+                                               # None if standalone
+    enricher_id: str                           # this enricher
+    enricher_version: str
+    tier: str                                  # serialized EnricherTier
+    attempt: int                               # 1-indexed; bumps on retry
+    job_id: str                                # jobs-API record id
+    cancel_event: asyncio.Event                # cooperative cancel signal
+                                               # (shared across parallel
+                                               # enrichers in the same run)
+
+
+@dataclass(frozen=True)
+class EnricherResult:
+    """Canonical return shape — never raises out of enrich()."""
+
+    status: str                                # "ok" | "failed" | "timeout"
+                                               # | "quarantined" | "cancelled"
+                                               # | "skipped"
+    data: dict | None = None                   # output dict when status=="ok";
+                                               # None otherwise
+    error: str | None = None                   # short reason; None when ok
+    error_class: str | None = None             # e.g. "OutOfMemoryError"
+    retry_count: int = 0
+    circuit_state: str | None = None           # at result time
+    duration_ms: int = 0
+    records_written: int = 0                   # meaningful when status=="ok"
 
 
 @runtime_checkable
@@ -213,22 +278,28 @@ class Enricher(Protocol):
         """Declare inputs, outputs, tier, and scope."""
         ...
 
-    def enrich(
+    async def enrich(
         self,
         *,
         bundle: EpisodeArtifactBundle | None,  # set for EPISODE scope
         corpus_root: Path,                     # output root (contains metadata/)
         all_bundles: list[EpisodeArtifactBundle] | None,  # set for CORPUS scope
         config: dict,                          # enricher-specific config from YAML
-    ) -> dict:
+        ctx: RunContext,                       # correlation envelope
+    ) -> EnricherResult:
         """
-        Compute enrichment. Return the output dict to be written.
-        Must not raise -- catch exceptions internally and return
-        a result with status: "failed" and error details.
-        Never modify any core artifact file.
+        Compute enrichment. Return an EnricherResult — never raise.
 
-        Note: the runner wraps each call in try/except as a safety
-        net, but enrichers should still handle their own errors.
+        Catch exceptions internally and return result.status == "failed"
+        with error / error_class set. Never modify any core artifact file.
+
+        Note: the executor wraps each call in try/except as a safety net,
+        but enrichers should still handle their own errors. Long-running
+        bodies must check ``ctx.cancel_event.is_set()`` between batches
+        and bail with status == "cancelled" + partial-output preservation.
+
+        For sync deterministic bodies, decorate with @sync_enricher —
+        the decorator runs the function in the default thread executor.
         """
         ...
 ```

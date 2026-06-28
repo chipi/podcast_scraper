@@ -1,6 +1,6 @@
 # RFC-078: Ephemeral Acceptance Smoke Test (Post-Build Full-Stack Validation)
 
-- **Status**: Implemented (Phase 1 — CI harness + Make targets + Playwright; follow-ups tracked as GitHub issues, see below)
+- **Status**: Completed (v2.6.0–v2.7) — Phase 1 shipped: `compose/docker-compose.stack-test.yml`, `tests/stack-test/` Playwright suite, `make stack-test-*` targets, `.github/workflows/stack-test.yml`. Follow-ups (`workflow_run`, merge policy, BuildKit cache) tracked as separate GitHub issues per the materialization rule below.
 - **Authors**: Marko
 - **Created**: 2026-04-21
 - **Domain**: Infrastructure / DevOps

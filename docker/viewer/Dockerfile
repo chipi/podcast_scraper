@@ -39,6 +39,16 @@ ENV VITE_POSTHOG_PROJECT_TOKEN=${VITE_POSTHOG_PROJECT_TOKEN}
 ARG VITE_POSTHOG_HOST
 ENV VITE_POSTHOG_HOST=${VITE_POSTHOG_HOST}
 
+# E2E hooks (Playwright stack-test). Opt-in: build with
+# ``--build-arg VITE_E2E_HOOKS=true`` to keep the ``window.__GIKG_SUBJECT__``
+# / ``__GIKG_FSM__`` / etc. dev hooks in the production-mode bundle. The
+# stack-test compose layer sets this; real production builds leave it
+# unset and the gated code is stripped at build time. Without this flag,
+# stack-test specs that drive the subject store via the window hook fail
+# with ``__GIKG_SUBJECT__.focusPerson hook unavailable``.
+ARG VITE_E2E_HOOKS
+ENV VITE_E2E_HOOKS=${VITE_E2E_HOOKS}
+
 COPY web/gi-kg-viewer/package.json web/gi-kg-viewer/package-lock.json ./
 RUN npm ci
 

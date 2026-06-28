@@ -10,7 +10,7 @@ import io
 import os
 from pathlib import Path
 
-from podcast_scraper.server.pipeline_jobs import get_job
+from podcast_scraper.server.jobs import get_job
 from podcast_scraper.utils.path_validation import (
     normpath_if_under_root,
     safe_relpath_under_corpus_root,

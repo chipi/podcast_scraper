@@ -32,7 +32,7 @@ item in the prior analysis — per-user corpus tenancy. That stays out.
 | Corpus library/catalog reads | `routes/corpus_library.py` | episodes, feeds, similar, digest, topic-clusters, coverage, top persons. |
 | Transcript / segments artifacts | `routes/corpus_text_file.py`, `*.segments.json` | Segment timing + speaker IDs produced by the pipeline. |
 | GI / KG / bridge artifacts | `routes/artifacts.py`, `metadata/*.{gi,kg,bridge}.json` | Grounded insights + quotes + entities; read-only. |
-| Job queue / scrape | `server/pipeline_jobs.py`, `pipeline_job_registry.py`, `.viewer/jobs.jsonl` | Enqueue, status, file-locked registry, concurrency cap (`PODCAST_VIEWER_MAX_PIPELINE_JOBS`, default 1), stale reconcile, scheduled sweeps (APScheduler). Flag-gated (`--enable-jobs-api`), **unguarded**. |
+| Job queue / scrape | `server/jobs.py` (renamed from `pipeline_jobs.py` in #1101 chunk 1), `pipeline_job_registry.py`, `.viewer/jobs.jsonl` | Enqueue, status, file-locked registry, concurrency cap (`PODCAST_VIEWER_MAX_PIPELINE_JOBS`, default 1), stale reconcile, scheduled sweeps (APScheduler). Flag-gated (`--enable-jobs-api`), **unguarded**. |
 | Audio (local) | `routes/corpus_media.py` (`GET /api/corpus/media`) | Streams **local file bytes** from `media/`. This is operator-internal — **not** the consumer bridge. |
 | Config split | CLI flags + env + `viewer_operator.yaml` | Operator vs runtime separation already exists. |
 | Test infra incl. LLM-free guarantee | `tests/{unit,integration,e2e}/server/` | `importorskip` + mocked `/api/*`; CI never calls a real LLM. |
@@ -52,7 +52,7 @@ rough (S/M/L). Phase = where it lands (P0–P3 from PRD-035).
 | G4 | **Stable episode slug contract** — corpus addresses episodes by `episode_id` (UUID/string), not a slug; `segments.json` contract uses `episode_slug`. Need a canonical, stable, URL-safe slug ↔ episode_id mapping | PARTIAL | every `/api/app/episodes/{slug}/*` route | P0 | M |
 | G5 | **Audio bridge subsystem** — a dedicated new subsystem (own RFC-E, complete new work), not a metadata field. Must: map episode→origin enclosure, keep URLs fresh (expiry/redirect/tracking-prefix handling), validate playability, hand the client a ready-to-play URL, optionally pass-through-proxy *without storing* only where a host forces it (mixed-content/CORS/signed URLs), and stay fully decoupled from the pipeline-internal `media/` bytes. Today: only local-byte serving (`/api/corpus/media`), no origin concept | ABSENT | Player (Principle 4) | P0/P1 | L |
 | G6 | **`segments.json` serving in contract shape** — segments exist as artifacts; a clean `GET …/segments` returning the frozen PRD-036 shape (by slug) is not established | PARTIAL | Player transcript sync | P0 | S–M |
-| G7 | **Consumer scrape-on-demand** — job queue exists but is operator-flagged, unguarded, single-concurrency. Need consumer enqueue with global dedup + per-user quota + status, reusing `pipeline_jobs.py` | PARTIAL | Discovery/Catalog | P1 | M |
+| G7 | **Consumer scrape-on-demand** — job queue exists but is operator-flagged, unguarded, single-concurrency. Need consumer enqueue with global dedup + per-user quota + status, reusing `jobs.py` (renamed from `pipeline_jobs.py` in #1101 chunk 1) | PARTIAL | Discovery/Catalog | P1 | M |
 | G8 | **Discovery source (Podcast Index)** — no external catalog integration; needs server-side proxy + key handling + `DiscoverySource` abstraction | ABSENT | Discovery | P1 | M |
 | G9 | **Per-user library + status join** — catalog reads exist but must be filtered to the user's subscriptions and joined with job state to compute ready/pending/not-scraped | PARTIAL | Catalog | P1 | M |
 | G10 | **Playback position + queue state** | ABSENT (needs G2) | Player resume + queue | P1 | S |
@@ -118,7 +118,7 @@ needing their own RFC.
 
 - `docs/prd/PRD-035-learning-platform.md` (+ child PRDs 036–041)
 - `docs/wip/MULTI-USER-AND-GRAPH-FSM-ANALYSIS.md`
-- `src/podcast_scraper/server/` (app.py, routes/, pipeline_jobs.py)
+- `src/podcast_scraper/server/` (app.py, routes/, jobs.py)
 - `docs/api/HTTP_API.md`, `docs/guides/SERVER_GUIDE.md`
 - `docs/rfc/RFC-090-hybrid-retrieval.md`, `RFC-094-search-powered-surfaces-query-layer.md`,
   `RFC-096-audio-pipeline-separation-and-viewer-media.md`

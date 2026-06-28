@@ -47,3 +47,22 @@ language: en
 # add cost with no bearing on the comparison. Search-serving profiles
 # (local_dgx_balanced, cloud_*, prod_*) set vector_search: true instead.
 vector_search: false
+
+# -----------------------------------------------------------------------------
+# RFC-088 chunk-7 enricher set (advisory mirror of profile_sets.py)
+# -----------------------------------------------------------------------------
+# The Python matrix at src/podcast_scraper/enrichment/profile_sets.py is
+# the source of truth; this block reflects the 'local_dgx_full' row so
+# operators can discover the active set without reading code.
+# Per-enricher knobs (cost caps, thresholds) live under enrichers.<id>.
+enrichment:
+  enabled: true
+  enrichers:
+    topic_cooccurrence: {}
+    topic_cooccurrence_corpus: {}
+    temporal_velocity: {}
+    grounding_rate: {}
+    guest_coappearance: {}
+    insight_density: {}
+    topic_similarity: {}
+    nli_contradiction: {}

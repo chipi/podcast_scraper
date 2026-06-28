@@ -124,7 +124,12 @@ jobs:
             -f compose/docker-compose.stack.yml \
             -f compose/docker-compose.prod.yml \
             down -v --remove-orphans || true
-          rm -rf "${RESTORE_ROOT}" compose/.env.verify-restore
+          # Compose containers wrote files under ${RESTORE_ROOT} as root
+          # (uid 0); the runner user (uid 1001) can't ``rm`` them without
+          # sudo. GitHub-hosted runners have passwordless sudo. Without
+          # this the cleanup step floods the log with "Permission denied"
+          # lines and exits 1 (#798 / 2026-06-28 schedule failures).
+          sudo rm -rf "${RESTORE_ROOT}" compose/.env.verify-restore
 
       - name: Webhook alert on failure
         if: failure()

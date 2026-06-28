@@ -17,6 +17,7 @@ import { mergeOperatorYamlProfile, splitOperatorYamlProfile } from '../../utils/
 import { toggleScheduledJobEnabled } from '../../utils/scheduledJobsYaml'
 import AppDialog from '../shared/AppDialog.vue'
 import CronSchedulePreview from './CronSchedulePreview.vue'
+import EnrichmentPanel from './EnrichmentPanel.vue'
 import IndexTimeseriesChart from './IndexTimeseriesChart.vue'
 import type { TimeseriesSeries } from './timeseriesChart'
 import FeedOverrideEditor from './FeedOverrideEditor.vue'
@@ -33,7 +34,7 @@ const localFileInputRef = useTemplateRef<HTMLInputElement>('localFileInputRef')
 const artifactListDialogOpen = ref(false)
 const sourcesDialogOpen = ref(false)
 
-type SourcesDialogTab = 'feeds' | 'operator' | 'scheduled' | 'index' | 'health'
+type SourcesDialogTab = 'feeds' | 'enrichment' | 'operator' | 'scheduled' | 'index' | 'health'
 
 const sourcesTab = ref<SourcesDialogTab>('feeds')
 /** In-memory feed list (mirrors ``GET/PUT /api/feeds``); last write wins. */
@@ -346,8 +347,8 @@ async function onLocalFilesChange(ev: Event): Promise<void> {
 
 /** Load only the active tab so a broken operator file does not block the Feeds editor. */
 async function loadSourcesTab(tab: SourcesDialogTab): Promise<void> {
-  if (tab === 'health' || tab === 'scheduled') {
-    // Health is static; the Scheduled section fetches its own data on activation.
+  if (tab === 'health' || tab === 'scheduled' || tab === 'enrichment') {
+    // Health is static; Scheduled + Enrichment panels fetch their own data on activation.
     return
   }
   if (tab === 'index') {
@@ -888,6 +889,15 @@ async function onScheduledToggle(name: string, enabled: boolean): Promise<void> 
           Feeds
         </button>
         <button
+          type="button"
+          class="w-full truncate rounded px-2 py-1 text-left text-[11px] hover:bg-overlay"
+          :class="sourcesTab === 'enrichment' ? 'bg-overlay font-medium' : 'text-muted'"
+          data-testid="sources-dialog-tab-enrichment"
+          @click="void selectSourcesTab('enrichment')"
+        >
+          Enrichment
+        </button>
+        <button
           v-if="shell.operatorConfigApiAvailable"
           type="button"
           class="w-full truncate rounded px-2 py-1 text-left text-[11px] hover:bg-overlay"
@@ -1158,6 +1168,13 @@ async function onScheduledToggle(name: string, enabled: boolean): Promise<void> 
           Reload from server
         </button>
       </div>
+    </div>
+    <!-- Enrichment tab: per-enricher health + last-run + run/re-enable controls (RFC-088). -->
+    <div
+      v-show="sourcesTab === 'enrichment'"
+      class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto"
+    >
+      <EnrichmentPanel :corpus-path="shell.corpusPath" />
     </div>
     <div
       v-show="sourcesTab === 'operator' && shell.operatorConfigApiAvailable"

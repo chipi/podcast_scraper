@@ -1,6 +1,6 @@
 # RFC-079: Full-Stack Docker Compose Topology
 
-- **Status**: Implemented
+- **Status**: Completed (v2.6.0–v2.7) — Phase 1 (#659) shipped `compose/docker-compose.stack.yml`, viewer + API + pipeline images, Makefile `stack-*` targets, `config/examples/docker-stack.example.yaml`, and DOCKER_SERVICE_GUIDE. Phase 2 (#660) shipped Docker job execution via the Jobs API factory (`PODCAST_PIPELINE_EXEC_MODE=docker`). Optional doc polish follow-ups tracked as the RFC's own issues.
 - **Authors**: Marko
 - **Created**: 2026-04-22
 - **Domain**: Infrastructure / DevOps
@@ -406,7 +406,7 @@ stack-logs:
 
 RFC-077 defines **`POST /api/jobs`**: enqueue a pipeline job, persist registry rows under the
 corpus (e.g. `.viewer/jobs/`), stream logs, cancel, reconcile. The **spawn** path today is
-implemented in `src/podcast_scraper/server/pipeline_jobs.py`:
+implemented in `src/podcast_scraper/server/jobs.py` (renamed from `pipeline_jobs.py` in Epic #1101 chunk 1):
 
 1. **`build_pipeline_argv`** builds argv:
    `[sys.executable, "-m", "podcast_scraper.cli", "--output-dir", <corpus>, … "--config", <operator.yaml>, …]`.

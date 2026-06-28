@@ -9,6 +9,14 @@ from pathlib import Path
 from fastapi import APIRouter, BackgroundTasks, FastAPI, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse
 
+from podcast_scraper.server.jobs import (
+    apply_reconcile,
+    cancel_job,
+    enqueue_pipeline_job,
+    get_job,
+    list_jobs_snapshot,
+    schedule_post_submit,
+)
 from podcast_scraper.server.jobs_log_path import (
     JobLogPathError,
     read_job_log_tail_utf8 as _read_job_log_tail_utf8,
@@ -19,14 +27,6 @@ from podcast_scraper.server.operator_paths import (
     viewer_operator_yaml_path,
 )
 from podcast_scraper.server.pipeline_docker_factory import validate_operator_pipeline_extras
-from podcast_scraper.server.pipeline_jobs import (
-    apply_reconcile,
-    cancel_job,
-    enqueue_pipeline_job,
-    get_job,
-    list_jobs_snapshot,
-    schedule_post_submit,
-)
 from podcast_scraper.server.profile_presets import validate_operator_profile_allowed
 from podcast_scraper.server.routes.index_rebuild import _resolve_corpus_root
 from podcast_scraper.server.schemas import (

@@ -144,15 +144,17 @@ def test_recent_errors_run_id_filters_query(monkeypatch: pytest.MonkeyPatch) -> 
 
 
 def test_correlate_joins_and_degrades_per_source(monkeypatch: pytest.MonkeyPatch) -> None:
-    # langfuse configured (mock the trace), loki + sentry NOT configured.
+    # langfuse configured (mock the trace), loki + sentry + enrichment NOT configured.
     monkeypatch.setattr(langfuse, "get_json", lambda url, **_: {"name": "t", "observations": []})
     res = aggregate.correlate(_lf(), "run-1")
     assert res["ok"] is True
     d = res["data"]
     assert d["run_id"] == "run-1"
-    assert set(d["signals"].keys()) == {"trace", "cost", "errors", "logs"}
+    assert set(d["signals"].keys()) == {"trace", "cost", "errors", "logs", "enrichment_events"}
     assert "trace" in d["live"]  # langfuse answered
-    assert {"cost", "errors", "logs"} <= set(d["unconfigured"])  # degraded independently
+    assert {"cost", "errors", "logs", "enrichment_events"} <= set(
+        d["unconfigured"]
+    )  # all degraded independently
 
 
 def test_correlate_one_bad_source_does_not_break_the_join(monkeypatch: pytest.MonkeyPatch) -> None:

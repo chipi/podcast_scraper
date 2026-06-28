@@ -90,3 +90,130 @@ exactly the o11y you chose.
 You deploy your own images, so that's where 3rd-party o11y belongs — opted in per image.
 Anyone consuming the library (or running the light control-plane container) gets none of
 it by default and can add only what they want. One principle, no special cases.
+
+## Operator alerting — Sentry + Grafana
+
+Alerts are configured **operator-side, on the o11y vendor**, not in this codebase. The
+deployed images already emit everything alerts need; you only wire the thresholds on the
+vendor that owns the signal. This is the path RFC-043 redirected to: keep the codebase
+neutral, let operators tune alert rules where they belong.
+
+### What gets emitted today
+
+| Signal | Surface | Source |
+| --- | --- | --- |
+| Unhandled exceptions (api + pipeline) | Sentry | `[sentry]` extra + `PODCAST_SENTRY_DSN_*` |
+| LLM call spans (latency, tokens, model, cost) | Langfuse | `[langfuse]` extra + Langfuse keys |
+| Metric snapshots (`metrics/latest.json`, `nightly-latest.json`) | GitHub Pages JSON | `scripts/dashboard/generate_metrics.py` (always on in CI) |
+| Nightly regression alerts (`alerts[]` array in nightly bundle) | GHA job summary | `detect_deviations()` in `generate_metrics.py` |
+
+The Grafana control plane (`docker/observability`) reads from Sentry / Loki / Langfuse /
+the GitHub Pages JSON — it doesn't host its own metric store. Alert rules live in Grafana
+panels and Sentry projects.
+
+### Sentry — error and performance alerts
+
+Sentry handles **unhandled exceptions** and **performance regressions** on the API and
+pipeline images.
+
+1. Enable for the image:
+
+   ```bash
+   pip install -e '.[sentry]'
+   export PODCAST_SENTRY_DSN_API=https://...        # FastAPI image
+   export PODCAST_SENTRY_DSN_PIPELINE=https://...   # pipeline image
+   ```
+
+2. In Sentry → **Alerts → Create Alert Rule**:
+
+   - **Issue alerts** — fire on `An issue is created` for the project, route to
+     email / Slack / PagerDuty. This is the high-signal error-rate alert.
+   - **Metric alerts** — fire on `Number of errors` > N in M minutes, or on
+     `Failure rate` > X% over a rolling window. Use these to catch regression
+     spikes without waiting for someone to triage individual issues.
+   - **Performance alerts** — fire on transaction p95 latency exceeding a baseline.
+     Useful for the FastAPI image (`/api/*` routes) once a baseline is established.
+
+3. Set environments to `prod` and `pre-prod` so non-deployed test failures don't page.
+
+No code change needed — the Sentry SDK is already initialised conditionally on DSN
+presence.
+
+### Grafana — metric trend alerts
+
+Grafana handles **trend-over-time alerts** on the JSON metric series the dashboard
+already pulls.
+
+1. Add a Grafana panel sourced from
+   `https://<gh-pages-host>/metrics/history.jsonl` (the file the dashboard already
+   reads). Use the JSON datasource or the Infinity plugin.
+
+2. On the panel → **Alert → Create alert rule**:
+
+   - **Coverage drop** — `combined_coverage_pct` decreasing by > 1pp vs. 7-day average.
+   - **Test runtime regression** — `ci_total_seconds` increasing by > 20% vs. baseline.
+   - **Test failures on main** — `failed_tests_total > 0` on `branch == main`.
+   - **Nightly alert count spike** — `len(alerts) > 0` (the field
+     `detect_deviations()` already populates).
+
+3. Route via Grafana **Notification Policies** → Slack / email / PagerDuty.
+
+The `metrics/history.jsonl` file is append-only and committed to `gh-pages`, so the
+alert rule reads a stable, versioned source. Alert thresholds live in Grafana, not in
+the repo — operator tunes them per environment.
+
+### LLM cost alerts
+
+Langfuse traces every LLM call with model / token / cost dimensions. In Langfuse →
+**Alerts**, set thresholds on:
+
+- Daily cost per model exceeding `$X`.
+- Average latency per model exceeding `Y ms` over a 1-hour window.
+- Error rate per provider (e.g. OpenAI 429s spiking).
+
+This is the right place for cost alerts because Langfuse already has the dimensional
+data; replicating it in Sentry or Grafana would require shipping the same spans twice.
+
+### Why not PR comments + webhook scripts
+
+The original RFC-043 plan was to ship `scripts/generate_pr_comment.py` and
+`scripts/send_webhook_alert.py`. That path was abandoned because:
+
+- Sentry + Grafana already cover the **production** alerting need (errors, latency,
+  cost, metric trends).
+- PR comments on metric drift would duplicate the GHA job summary the dashboard
+  already renders — adding cognitive noise without adding signal.
+- Webhook scripts would have been a third place to maintain alert rules; keeping
+  thresholds in the vendor that owns the signal is simpler.
+
+If a future need surfaces for an automated PR-comment narration (e.g. coverage
+deltas summarised on each PR), revisit it then. The o11y surface here is sufficient
+for the proactive-alerting goal.
+
+## RFC-088 enrichment-layer MCP tools
+
+The `podcast_obs` control plane (read-only) ships eight MCP tools that
+operate on the same enrichment surface the viewer Configuration popup
+consumes. Available wherever `podcast-obs serve` runs (stdio / sse /
+streamable-http):
+
+| Tool | What it answers | HTTP backend |
+| ---- | --------------- | ------------ |
+| `enrichment_run_status` | Last enrichment status snapshot | `GET /api/enrichment/status` |
+| `enrichment_recent_runs(limit=10)` | Newest enrichment-only jobs | `GET /api/jobs` filtered to `command_type=corpus_enrichment` |
+| `enrichment_health(enricher_id?)` | Per-enricher health (or a single record) | `GET /api/enrichment/health` |
+| `enrichment_metrics(window="24h")` | Rollup metrics window | `GET /api/enrichment/metrics` |
+| `enrichment_recent_events(enricher_id?, event_type?, limit=50)` | JSONL event tail | `GET /api/enrichment/events` |
+| `enrichment_eval_history(eval_root?, limit=10)` | Enrichment-tagged eval runs on disk | local scan (operator-side; eval artefacts are frozen-once-written) |
+| `enrichment_re_enable(enricher_id, reason)` | Operator manual recovery | `POST /api/enrichment/health/{id}/re-enable` |
+| `enrichment_cancel(job_id)` | Cancel a running/queued enrichment job | `POST /api/jobs/{id}/cancel` |
+
+`prod_correlate(run_id)` joins enrichment events for a `run_id` into
+its cross-layer view (pipeline trace + Langfuse + Loki + Sentry +
+enrichment). `prod_summary` adds three enrichment subsections
+(`enrichment_status`, `enrichment_health`, `enrichment_events`) so a
+half-configured deploy still gives a useful glance.
+
+See [Enrichment Layer Guide](./ENRICHMENT_LAYER_GUIDE.md) for the
+operator runbook (auto-disabled recovery, cost cap behaviour, adding a
+new enricher / profile).

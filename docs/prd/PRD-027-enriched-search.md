@@ -1,6 +1,6 @@
 # PRD-027: Enriched Search
 
-- **Status**: Draft
+- **Status**: Partial (RFC-088 chunks 5 + 6, 2026-06-27) — The `QueryEnricher` protocol + `query_topic_relatedness` enricher (chunk 5) + `/api/search?enrich_results=true` wiring (chunk-5 follow-up) ship the query-time chain. Operator-curated `enrichment:` blocks in `viewer_operator.yaml` (chunk 7) let per-deployment tuning. **Open scope**: char-offset alignment verification (RFC-072 KL1) and additional LLM-tier query enrichers (separate follow-on RFC) remain.
 - **v2 enablement (RFC-097, 2026-06-20)**: chunk-to-Insight lift foundation (RFC-072 Phase 5 prereq) + synthesis quality inputs (`insight_type` + `position_hint`) ship per-artifact via RFC-097 v2. QueryEnricher protocol (RFC-088 Phase 4), Enriched Search UI, and char-offset alignment verification (RFC-072 KL1) remain open. See [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md).
 - **Authors**: Marko
 - **Target Release**: TBD

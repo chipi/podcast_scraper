@@ -186,7 +186,7 @@ def _observe_metrics_mapping(metrics: Mapping[str, Any]) -> None:
 
 
 def observe_pipeline_terminal_metrics(corpus_root: Path, job: Mapping[str, Any]) -> None:
-    """Record Prometheus samples after ``pipeline_jobs._finalize_job`` updates *job*."""
+    """Record Prometheus samples after ``jobs._finalize_job`` updates *job*."""
     if not _env_metrics_enabled():
         return
     _ensure_prom_hist()

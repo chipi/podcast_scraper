@@ -19,7 +19,7 @@ from typing import Any, Callable, Optional
 from .aggregate import correlate as _correlate, summary as _summary
 from .config import ObservabilityConfig, ObservabilityConfigError, TargetConfig
 from .result import err
-from .sources import github, grafana, langfuse, loki, prod_api, sentry
+from .sources import enrichment, github, grafana, langfuse, loki, prod_api, sentry
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8848
@@ -113,8 +113,79 @@ def _build_tools(config: ObservabilityConfig) -> list[Callable[..., dict]]:
 
     def prod_correlate(run_id: str, target: Optional[str] = None) -> dict:
         """Every signal for ONE run_id, joined: Langfuse trace (per-call model/cost/tokens) +
-        Loki llm_cost events + Sentry errors. The cross-layer view for a single run (#1053)."""
+        Loki llm_cost events + Sentry errors + enrichment health snapshot. The cross-layer
+        view for a single run (#1053 + RFC-088)."""
         return _run(config, target, lambda t: _correlate(t, run_id))
+
+    # --- RFC-088 enrichment-layer tools --------------------------------------------
+
+    def enrichment_run_status(target: Optional[str] = None) -> dict:
+        """Last enrichment-layer status snapshot for the deploy's corpus."""
+        return _run(config, target, enrichment.run_status)
+
+    def enrichment_recent_runs(target: Optional[str] = None, limit: int = 10) -> dict:
+        """Recent enrichment jobs (`command_type=corpus_enrichment`), newest first."""
+        return _run(config, target, enrichment.recent_runs, limit=limit)
+
+    def enrichment_health(target: Optional[str] = None, enricher_id: Optional[str] = None) -> dict:
+        """Per-enricher health: consecutive_failures, auto_disabled, last_error.
+        Pass `enricher_id` to drill into a single enricher's record."""
+        return _run(config, target, enrichment.health, enricher_id=enricher_id)
+
+    def enrichment_metrics(target: Optional[str] = None, window: str = "24h") -> dict:
+        """Rollup metrics over a window (default 24h): per-enricher success/duration/cost."""
+        return _run(config, target, enrichment.metrics, window=window)
+
+    def enrichment_recent_events(
+        target: Optional[str] = None,
+        enricher_id: Optional[str] = None,
+        event_type: Optional[str] = None,
+        limit: int = 50,
+    ) -> dict:
+        """JSONL event tail (filter by enricher_id / event_type, default last 50)."""
+        return _run(
+            config,
+            target,
+            enrichment.recent_events,
+            enricher_id=enricher_id,
+            event_type=event_type,
+            limit=limit,
+        )
+
+    def enrichment_eval_history(
+        target: Optional[str] = None,
+        eval_root: Optional[str] = None,
+        limit: int = 10,
+    ) -> dict:
+        """Recent enrichment-tagged eval runs from `data/eval/runs/` on disk
+        (operator-side; eval artefacts are frozen-once-written)."""
+        return _run(
+            config,
+            target,
+            enrichment.eval_history,
+            eval_root=eval_root,
+            limit=limit,
+        )
+
+    def enrichment_re_enable(
+        enricher_id: str,
+        target: Optional[str] = None,
+        reason: Optional[str] = None,
+    ) -> dict:
+        """Clear `auto_disabled` for an enricher and zero `consecutive_failures` after a
+        transient outage. `reason` is appended to the health audit trail."""
+        return _run(
+            config,
+            target,
+            enrichment.re_enable,
+            enricher_id=enricher_id,
+            reason=reason,
+        )
+
+    def enrichment_cancel(job_id: str, target: Optional[str] = None) -> dict:
+        """Cancel a running or queued enrichment job by id (command_type-agnostic
+        cancel — works because the jobs registry doesn't distinguish kinds)."""
+        return _run(config, target, enrichment.cancel, job_id=job_id)
 
     return [
         prod_health,
@@ -128,6 +199,14 @@ def _build_tools(config: ObservabilityConfig) -> list[Callable[..., dict]]:
         prod_recent_traces,
         prod_summary,
         prod_correlate,
+        enrichment_run_status,
+        enrichment_recent_runs,
+        enrichment_health,
+        enrichment_metrics,
+        enrichment_recent_events,
+        enrichment_eval_history,
+        enrichment_re_enable,
+        enrichment_cancel,
     ]
 
 

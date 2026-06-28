@@ -1,16 +1,18 @@
 # PRD-021: Semantic Corpus Search
 
-- **Status**: Implemented (v2.6.0)
+- **Status**: Implemented (v2.6.0–v2.7)
 - **Authors**: Podcast Scraper Team
 - **Related RFCs**:
-  - [RFC-061](../rfc/RFC-061-semantic-corpus-search.md) — semantic corpus search, FAISS + CLI (**Completed**)
-  - [RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md) — Qdrant / platform vector backends (**Draft**)
+  - [RFC-061](../rfc/RFC-061-semantic-corpus-search.md) — semantic corpus search, FAISS Phase 1 (**Completed**; FAISS retired by RFC-090)
+  - [RFC-090](../rfc/RFC-090-hybrid-retrieval.md) — LanceDB-first hybrid retrieval (BM25 + dense + RRF) (**Completed**; current retrieval pipeline)
+  - [RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md) — Qdrant / pgvector platform backends (**Superseded by RFC-090**; LanceDB replaces both)
+  - [RFC-075](../rfc/RFC-075-corpus-topic-clustering.md) — corpus topic clustering layer (**Completed**; viewer compound parents + `topic_clusters.json`)
   - [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md) — GI/KG viewer v2 (**complete**)
   - [RFC-049](../rfc/RFC-049-grounded-insight-layer-core.md) — GIL core (**complete**; prerequisite, indexable artifacts)
-  - [RFC-050](../rfc/RFC-050-grounded-insight-layer-use-cases.md) — GIL use cases (**open**; UC4/UC5 semantics)
-  - [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) — database projection (**open**; complementary SQL serving)
+  - [RFC-050](../rfc/RFC-050-grounded-insight-layer-use-cases.md) — GIL use cases (**complete**)
   - [RFC-055](../rfc/RFC-055-knowledge-graph-layer-core.md) — KG core (**complete**; indexable KG artifacts)
-  - [RFC-056](../rfc/RFC-056-knowledge-graph-layer-use-cases.md) — KG use cases (**open**)
+  - [RFC-056](../rfc/RFC-056-knowledge-graph-layer-use-cases.md) — KG use cases (**complete**)
+  - [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) — database projection (**Draft**; orthogonal SQL-serving scope)
 - **Related PRDs**:
   - [PRD-017: Grounded Insight Layer](PRD-017-grounded-insight-layer.md) (GIL artifacts are the primary search corpus)
   - [PRD-019: Knowledge Graph Layer](PRD-019-knowledge-graph-layer.md) (KG topics/entities benefit from semantic matching)

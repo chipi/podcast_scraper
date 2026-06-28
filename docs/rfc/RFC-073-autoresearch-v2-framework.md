@@ -1,6 +1,6 @@
 # RFC-073: Autoresearch v2 Framework — Dev/Held-Out Split, Fixed Judges, Cross-Approach Comparison
 
-- **Status**: Active
+- **Status**: Completed (v2.6.0) — v2 framework shipped end-to-end and adopted as the autoresearch methodology: dev/held-out dataset split (`curated_5feeds_dev_v1` + `curated_5feeds_benchmark_v2`), fraction-based contestation (40% threshold), Efficiency rubric replacing Conciseness, seed plumbing for OpenAI, prose extraction before judging (`autoresearch/JUDGING.md`). v2 reference card landed at `autoresearch/openai_v2_comparison_2026-04-14.md`. Cross-provider replication (Anthropic / Gemini / Mistral) and multi-run averaging are explicit Future Work — not gating items.
 - **Authors**: Podcast Scraper Team
 - **Stakeholders**: Core team
 - **Supersedes (in part)**: `docs/rfc/RFC-057-autoresearch-optimization-loop.md` (Track A prompt tuning methodology; RFC-057 remains authoritative for Track B ML parameter tuning)

@@ -1684,9 +1684,117 @@ def _finalize_pipeline(
     from .cost_monitoring import maybe_emit_run_cost_sentry_alert
 
     maybe_emit_run_cost_sentry_alert(cfg, pipeline_metrics)
+    # RFC-088 chunk-9 follow-up: spawn the enrichment-layer pass as a
+    # detached background subprocess. Mode B — the pipeline doesn't wait
+    # for enrichment to finish, so its existing wall-clock is unaffected;
+    # the enrichment job tracks itself via the shared jobs registry +
+    # JSONL + run_summary. Gated on cfg.enrichment.enabled (default off).
+    _maybe_spawn_enrichment_after_pipeline(cfg, effective_output_dir)
     return wf_helpers.generate_pipeline_summary(
         cfg, saved, transcription_resources, effective_output_dir, pipeline_metrics, episodes
     )
+
+
+def _maybe_spawn_enrichment_after_pipeline(cfg: config.Config, effective_output_dir: str) -> None:
+    """Spawn ``python -m podcast_scraper.enrichment.cli`` as a detached
+    background subprocess (RFC-088 chunk 9 — Mode B integration).
+
+    The pipeline doesn't block on enrichment. The subprocess writes its
+    JSONL + run_summary + envelopes under the same corpus root and tracks
+    itself via the shared jobs registry (``command_type=corpus_enrichment``)
+    so the viewer Dashboard's "Pipeline runs" strip surfaces it
+    automatically.
+
+    Gate: ``cfg.enrichment.enabled == True``. Default off — operators
+    opt in per-profile via the ``enrichment:`` block in
+    ``viewer_operator.yaml`` (or per-run via the CLI's --profile flag).
+
+    Failures inside the spawn (e.g. python not on PATH, output_dir
+    permissions) never break the pipeline — they're logged at WARNING
+    and the pipeline returns normally.
+    """
+    block = getattr(cfg, "enrichment", None) or {}
+    if not (isinstance(block, dict) and block.get("enabled")):
+        return
+    import subprocess
+    import sys as _sys
+
+    profile = getattr(cfg, "profile", None) or block.get("profile")
+    argv: list[str] = [
+        _sys.executable,
+        "-m",
+        "podcast_scraper.enrichment.cli",
+        "--output-dir",
+        str(effective_output_dir),
+    ]
+    if profile:
+        argv += ["--profile", str(profile)]
+    # Auto-pass --with-ml when the resolved enricher set includes any
+    # enricher that needs an injected provider (manifest.provider_requirement
+    # declared). Two detection paths:
+    #   1. Operator-side: the cfg.enrichment block carries an explicit
+    #      ``provider:`` sub-block under any enricher (operator opted into
+    #      a specific provider type).
+    #   2. Profile-side: the resolved profile's EnricherSet enables an
+    #      enricher whose manifest carries provider_requirement, even
+    #      though the operator YAML doesn't override anything. Without
+    #      this branch, operators running ``profile: cloud_thin`` (which
+    #      enables topic_similarity + nli_contradiction by default) would
+    #      see those silently warned-skipped — that's the bug the prior
+    #      Option-1 hinted warning surfaced.
+    enrichers_block = block.get("enrichers") if isinstance(block, dict) else None
+    operator_has_provider = isinstance(enrichers_block, dict) and any(
+        isinstance(cfg_block, dict) and isinstance(cfg_block.get("provider"), dict)
+        for cfg_block in enrichers_block.values()
+    )
+    profile_needs_ml = False
+    if profile and not operator_has_provider:
+        try:
+            from podcast_scraper.enrichment.enrichers import (
+                NliContradictionEnricher,
+                TopicSimilarityEnricher,
+            )
+            from podcast_scraper.enrichment.profile_sets import (
+                enricher_set_for_profile as _resolver,
+            )
+
+            _resolved = _resolver(str(profile))
+            _ml_manifests = {
+                m.manifest.id: m.manifest
+                for m in (TopicSimilarityEnricher, NliContradictionEnricher)
+            }
+            for eid in _resolved.enabled_enrichers:
+                m = _ml_manifests.get(eid)
+                if m is not None and getattr(m, "provider_requirement", None) is not None:
+                    profile_needs_ml = True
+                    break
+        except (ImportError, ValueError):
+            profile_needs_ml = False
+    if operator_has_provider or profile_needs_ml:
+        argv += ["--with-ml"]
+    log_path = os.path.join(effective_output_dir, ".viewer", "enrichment_pipeline_spawn.log")
+    try:
+        os.makedirs(os.path.dirname(log_path), exist_ok=True)
+        # Detached process: stdin closed, stdout/stderr go to a log file
+        # under .viewer/ so operators can `tail -f` if they want. The
+        # parent doesn't wait — Popen returns immediately.
+        # codeql[py/clear-text-logging-sensitive-data] — argv has no secrets
+        log_fh = open(log_path, "ab")
+        subprocess.Popen(  # noqa: S603 — argv is a fixed shape from the codebase
+            argv,
+            stdin=subprocess.DEVNULL,
+            stdout=log_fh,
+            stderr=subprocess.STDOUT,
+            close_fds=True,
+            start_new_session=True,  # detach so SIGINT to parent doesn't kill it
+        )
+        logger.info(
+            "enrichment: spawned background pass; argv=%s log=%s",
+            argv,
+            log_path,
+        )
+    except OSError as exc:
+        logger.warning("enrichment: background spawn failed (%s); pipeline returns normally", exc)
 
 
 def _maybe_build_topic_clusters_after_index(

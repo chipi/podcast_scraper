@@ -1,6 +1,6 @@
 # RFC-060: Diarization-Aware Commercial Detection & Cleaning
 
-- **Status**: Partial (Phase 1 landed in Wave 1 / #486; Phase 2 diarization signals in Wave 2 / #488)
+- **Status**: Completed (v2.6.0–v2.7) — Phase 1 (#486) + Phase 2 (#488) closed; diarization signals layer shipped (`src/podcast_scraper/cleaning/commercial/diarization_signals.py`), integrated with hybrid summarization triggers.
 - **Authors**: Architecture Review
 - **Stakeholders**: Core Pipeline, Summarization, GIL/KG Consumers
 - **Related PRDs**:

@@ -34,6 +34,7 @@ import {
   cachedFetchPersonProfile as fetchPersonProfile,
 } from '../../composables/useRelationalCache'
 import type { RelatedNode } from '../../api/relationalApi'
+import { fetchCachedCorpusEnvelope } from '../../composables/useEnrichmentEnvelopeCache'
 import { StaleGeneration } from '../../utils/staleGeneration'
 import {
   countPersonEntityIncidentEdges,
@@ -71,6 +72,145 @@ const subject = useSubjectStore()
 // per-topic drill-in (PRD-028, filled by follow-up #1049).
 type PersonTab = 'profile' | 'position_tracker'
 const activeTab = ref<PersonTab>('profile')
+
+// RFC-088 chunk 6c: enrichment-layer signals for the focused person.
+interface GroundingRateRow {
+  person_id: string
+  person_name?: string
+  total_insights: number
+  grounded_insights: number
+  rate: number
+}
+interface CoappearanceRow {
+  person_a_id: string
+  person_b_id: string
+  person_a_name?: string
+  person_b_name?: string
+  episode_count: number
+}
+interface CoGuestChip {
+  person_id: string
+  person_name?: string
+  episode_count: number
+}
+const groundingRow = ref<GroundingRateRow | null>(null)
+const coGuestChips = ref<CoGuestChip[]>([])
+const enrichmentLoaded = ref(false)
+const COGUEST_TOP_N = 6
+
+// RFC-088 chunk-9 follow-up: contradictions for the focused person from
+// the chunk-4 nli_contradiction envelope. Each row is "X contradicts Y
+// on topic Z" — click any of the 3 to pivot focus.
+interface ContradictionRow {
+  topic_id: string
+  partner_id: string
+  partner_name?: string
+  insight_a_id: string
+  insight_b_id: string
+  contradiction_score: number
+}
+const contradictionRows = ref<ContradictionRow[]>([])
+const CONTRADICTIONS_TOP_N = 8
+
+async function loadPersonEnrichmentSignals(focusedPersonId: string): Promise<void> {
+  const root = shell.corpusPath?.trim()
+  if (!focusedPersonId || !root) return
+  groundingRow.value = null
+  coGuestChips.value = []
+  contradictionRows.value = []
+  enrichmentLoaded.value = false
+  try {
+    const [grounding, coapp, contradictions] = await Promise.all([
+      fetchCachedCorpusEnvelope<{ persons: GroundingRateRow[] }>(root, 'grounding_rate').catch(
+        () => null,
+      ),
+      fetchCachedCorpusEnvelope<{ pairs: CoappearanceRow[] }>(
+        root,
+        'guest_coappearance',
+      ).catch(() => null),
+      // RFC-088 chunk-9: pull nli_contradiction so the rail shows
+      // "person contradicts X on topic Y" rows for the focused person.
+      fetchCachedCorpusEnvelope<{
+        contradictions: Array<{
+          topic_id: string
+          person_a_id: string
+          person_b_id: string
+          person_a_name?: string
+          person_b_name?: string
+          insight_a_id: string
+          insight_b_id: string
+          contradiction_score: number
+        }>
+      }>(root, 'nli_contradiction').catch(() => null),
+    ])
+    enrichmentLoaded.value = true
+    if (grounding?.data?.persons) {
+      groundingRow.value =
+        grounding.data.persons.find((p) => p.person_id === focusedPersonId) ?? null
+    }
+    if (coapp?.data?.pairs) {
+      const chips: CoGuestChip[] = []
+      for (const p of coapp.data.pairs) {
+        if (p.person_a_id === focusedPersonId) {
+          chips.push({
+            person_id: p.person_b_id,
+            person_name: p.person_b_name,
+            episode_count: p.episode_count,
+          })
+        } else if (p.person_b_id === focusedPersonId) {
+          chips.push({
+            person_id: p.person_a_id,
+            person_name: p.person_a_name,
+            episode_count: p.episode_count,
+          })
+        }
+      }
+      chips.sort((a, b) => b.episode_count - a.episode_count)
+      coGuestChips.value = chips.slice(0, COGUEST_TOP_N)
+    }
+    if (contradictions?.data?.contradictions) {
+      const rows: ContradictionRow[] = []
+      for (const c of contradictions.data.contradictions) {
+        if (c.person_a_id === focusedPersonId) {
+          rows.push({
+            topic_id: c.topic_id,
+            partner_id: c.person_b_id,
+            partner_name: c.person_b_name,
+            insight_a_id: c.insight_a_id,
+            insight_b_id: c.insight_b_id,
+            contradiction_score: c.contradiction_score,
+          })
+        } else if (c.person_b_id === focusedPersonId) {
+          rows.push({
+            topic_id: c.topic_id,
+            partner_id: c.person_a_id,
+            partner_name: c.person_a_name,
+            insight_a_id: c.insight_b_id,
+            insight_b_id: c.insight_a_id,
+            contradiction_score: c.contradiction_score,
+          })
+        }
+      }
+      rows.sort((a, b) => b.contradiction_score - a.contradiction_score)
+      contradictionRows.value = rows.slice(0, CONTRADICTIONS_TOP_N)
+    }
+  } catch {
+    /* enrichment is best-effort; never break the rail */
+  }
+}
+
+watch(
+  () => subject.personId,
+  (id) => {
+    if (id) void loadPersonEnrichmentSignals(id)
+    else {
+      groundingRow.value = null
+      coGuestChips.value = []
+      enrichmentLoaded.value = false
+    }
+  },
+  { immediate: true },
+)
 
 watch(
   () => subject.personId,
@@ -543,6 +683,84 @@ function onPickTopicForPositionTracker(topicId: string): void {
       >
         No graph links for this person yet — load the corpus graph to populate.
       </p>
+      <!-- RFC-088 chunk 6c: enrichment signals (grounding rate + co-guest chips). -->
+      <section
+        v-if="enrichmentLoaded && (groundingRow || coGuestChips.length || contradictionRows.length)"
+        class="w-full min-w-0 rounded border border-default bg-overlay/40 p-2"
+        aria-label="Enrichment signals"
+        data-testid="person-landing-enrichment-signals"
+      >
+        <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+          Enrichment signals
+        </h3>
+        <div
+          v-if="groundingRow"
+          class="mb-1 flex items-center gap-2 text-[10px]"
+          data-testid="person-landing-grounding-rate"
+        >
+          <span class="text-muted">Grounded:</span>
+          <span
+            class="rounded px-2 py-0.5 font-mono"
+            :class="groundingRow.rate >= 0.8 ? 'bg-emerald-700/30 text-emerald-300' : groundingRow.rate >= 0.5 ? 'bg-overlay text-muted' : 'bg-amber-700/30 text-amber-300'"
+          >{{ (groundingRow.rate * 100).toFixed(0) }}%</span>
+          <span class="text-muted">
+            · {{ groundingRow.grounded_insights }} / {{ groundingRow.total_insights }} insights
+          </span>
+        </div>
+        <div v-if="coGuestChips.length" data-testid="person-landing-coguests">
+          <p class="mb-1 text-[10px] text-muted">Often appears with</p>
+          <div class="flex flex-wrap gap-1">
+            <button
+              v-for="g in coGuestChips"
+              :key="g.person_id"
+              type="button"
+              class="rounded border border-default bg-overlay px-2 py-0.5 text-[10px] hover:bg-overlay-2"
+              :data-testid="`person-landing-coguest-${g.person_id}`"
+              @click="subject.focusPerson(g.person_id)"
+            >
+              {{ g.person_name || g.person_id }}
+              <span class="ml-1 text-muted">·{{ g.episode_count }}</span>
+            </button>
+          </div>
+        </div>
+        <!-- RFC-088 chunk-9: contradictions for the focused person.
+             Each row is "contradicts X on topic Y" — click any of the
+             three buttons to pivot focus. -->
+        <div
+          v-if="contradictionRows.length"
+          class="mt-2"
+          data-testid="person-landing-contradictions"
+        >
+          <p class="mb-1 text-[10px] text-muted">
+            Contradicts (cross-Person NLI · top {{ contradictionRows.length }})
+          </p>
+          <ul class="flex flex-col gap-1 text-[10px]">
+            <li
+              v-for="row in contradictionRows"
+              :key="`${row.insight_a_id}::${row.insight_b_id}`"
+              class="flex items-center gap-1 rounded border border-rose-700/50 bg-rose-900/20 px-2 py-0.5"
+              :data-testid="`person-landing-contra-${row.partner_id}--${row.topic_id}`"
+            >
+              <span class="text-muted">vs</span>
+              <button
+                type="button"
+                class="font-mono hover:underline"
+                @click="subject.focusPerson(row.partner_id)"
+              >{{ row.partner_name || row.partner_id }}</button>
+              <span class="text-muted">on</span>
+              <button
+                type="button"
+                class="font-mono hover:underline"
+                @click="subject.focusTopic(row.topic_id)"
+              >{{ row.topic_id }}</button>
+              <span
+                class="ml-auto rounded bg-rose-800/30 px-1 text-[9px] text-rose-200"
+                :title="`Contradiction score ${row.contradiction_score.toFixed(4)}`"
+              >{{ row.contradiction_score.toFixed(2) }}</span>
+            </li>
+          </ul>
+        </div>
+      </section>
       <section aria-label="Mentions by month">
         <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
           Mentions by month

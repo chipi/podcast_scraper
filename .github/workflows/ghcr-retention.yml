@@ -35,7 +35,12 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Confirm destructive apply
-        if: inputs.dry_run == false
+        # ``inputs.*`` is only set on ``workflow_dispatch``. On the
+        # scheduled cron run, ``inputs.dry_run`` is unset and compares
+        # equal to ``false``, so without the event-name guard the step
+        # used to fire and exit 1 with "Set confirm_apply=APPLY". Only
+        # gate when a human triggers the workflow with dry_run=false.
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run == false
         run: |
           if [ "${{ inputs.confirm_apply }}" != "APPLY" ]; then
             echo "::error::Set confirm_apply=APPLY when dry_run=false"

@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { listPipelineJobs, type PipelineJobRow } from '../../api/jobsApi'
+import {
+  COMMAND_CORPUS_ENRICHMENT,
+  COMMAND_FULL_INCREMENTAL_PIPELINE,
+  listPipelineJobs,
+  type PipelineJobRow,
+} from '../../api/jobsApi'
 import { useShellStore } from '../../stores/shell'
 import { usePipelineJobLogStore } from '../../stores/pipelineJobLog'
 import PipelineJobExplorePanel from './PipelineJobExplorePanel.vue'
@@ -21,6 +26,9 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const selectedJobId = ref('')
 const jobFilter = ref('')
+/** RFC-088: which command_types to show. "all" includes pipeline + enrichment + future. */
+type JobKindFilter = 'all' | 'pipeline' | 'enrichment'
+const jobKindFilter = ref<JobKindFilter>('all')
 
 /** When there are many jobs, list only the newest N until the user filters. */
 const DEFAULT_SELECT_CAP = 120
@@ -48,8 +56,16 @@ const finishedJobs = computed(() => {
   return list
 })
 
+function matchesKindFilter(j: PipelineJobRow): boolean {
+  if (jobKindFilter.value === 'all') return true
+  const ct = (j.command_type ?? '').toLowerCase()
+  if (jobKindFilter.value === 'enrichment') return ct === COMMAND_CORPUS_ENRICHMENT
+  if (jobKindFilter.value === 'pipeline') return ct === COMMAND_FULL_INCREMENTAL_PIPELINE
+  return true
+}
+
 const filteredJobs = computed(() => {
-  const base = finishedJobs.value
+  const base = finishedJobs.value.filter(matchesKindFilter)
   const q = jobFilter.value.trim().toLowerCase()
   if (!q) {
     if (base.length > DEFAULT_SELECT_CAP) {
@@ -144,6 +160,14 @@ function jobListStatusBarClass(j: PipelineJobRow): string {
   return 'bg-muted'
 }
 
+/** RFC-088: classify a job as enrichment vs pipeline by command_type. */
+function jobKindLabel(j: PipelineJobRow): string {
+  const ct = (j.command_type ?? '').toLowerCase()
+  if (ct === COMMAND_CORPUS_ENRICHMENT) return '[enrich]'
+  if (ct === COMMAND_FULL_INCREMENTAL_PIPELINE) return '[pipe]'
+  return '[job]'
+}
+
 /** One line per job row (newest-first list). */
 function jobOptionLabel(j: PipelineJobRow): string {
   const when = formatJobCreated(j.created_at) || '—'
@@ -151,7 +175,7 @@ function jobOptionLabel(j: PipelineJobRow): string {
   const id = j.job_id.length > 14 ? `${j.job_id.slice(0, 12)}…` : j.job_id
   const raw = (j.argv_summary ?? '').trim() || j.command_type || '—'
   const cmd = raw.length > 52 ? `${raw.slice(0, 50)}…` : raw
-  return `${when} · ${st} · ${id} · ${cmd}`
+  return `${when} · ${jobKindLabel(j)} · ${st} · ${id} · ${cmd}`
 }
 
 function formatJobCreated(iso: string | null | undefined): string {
@@ -340,6 +364,24 @@ watch(
         data-testid="pipeline-job-history-layout"
       >
         <div class="flex min-h-0 min-w-0 flex-col gap-2 lg:max-w-[min(100%,40rem)] lg:flex-[0_1_38%]">
+          <div
+            class="flex w-full items-center gap-1"
+            role="group"
+            aria-label="Job-kind filter"
+            data-testid="pipeline-job-kind-filter"
+          >
+            <button
+              v-for="kind in (['all', 'pipeline', 'enrichment'] as const)"
+              :key="kind"
+              type="button"
+              class="flex-1 rounded border border-border bg-surface px-2 py-1 text-[10px] hover:bg-overlay"
+              :class="jobKindFilter === kind ? 'bg-overlay font-medium' : 'text-muted'"
+              :data-testid="`pipeline-job-kind-filter-${kind}`"
+              @click="jobKindFilter = kind"
+            >
+              {{ kind === 'all' ? 'All' : kind === 'pipeline' ? 'Pipeline' : 'Enrichment' }}
+            </button>
+          </div>
           <input
             id="pipeline-job-history-filter"
             v-model="jobFilter"

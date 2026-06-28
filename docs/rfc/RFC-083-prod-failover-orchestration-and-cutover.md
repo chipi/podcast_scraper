@@ -1,6 +1,6 @@
 # RFC-083: Production Failover — Orchestration, Spare Stack, and Traffic Cutover
 
-- **Status**: Draft
+- **Status**: Completed (v2.6.0–v2.7) — #762/#763/#764 closed; ADR-089/090/091/092 Accepted; `prod-failover-stand-up.yml` orchestrator + 8 `drill-*.yml` workflows shipped.
 - **Authors**: Podcast Scraper Team
 - **Stakeholders**: Operator (infra), on-call (future)
 - **Related PRDs**: —

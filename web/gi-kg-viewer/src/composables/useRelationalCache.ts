@@ -37,6 +37,7 @@ import {
   fetchPersonTopics as _fetchPersonTopics,
   fetchPositions as _fetchPositions,
 } from '../api/relationalApi'
+import { e2eHooksEnabled } from '../utils/e2eHooks'
 
 /** Default TTL — 30 s feels instant for tab-switching, slow enough that
  *  background mutations propagate back within a human-scale wait. */
@@ -174,7 +175,7 @@ export function _cacheSizeForTest(): number {
 // from the subject store / FSM. Exposed so the operator can run
 // ``__GIKG_RELATIONAL_CACHE__.stats()`` from the browser devtools to
 // verify cache health when debugging a "tab feels slow" report.
-if (typeof window !== 'undefined' && import.meta.env?.DEV) {
+if (typeof window !== 'undefined' && e2eHooksEnabled) {
   ;(
     window as unknown as {
       __GIKG_RELATIONAL_CACHE__?: object

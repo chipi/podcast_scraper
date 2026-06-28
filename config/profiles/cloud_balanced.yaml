@@ -127,3 +127,22 @@ log_level: INFO
 cost_soft_cap_usd_per_run: 5.0
 cost_soft_cap_action: abort
 cost_daily_alert_usd: 10.0
+
+# -----------------------------------------------------------------------------
+# RFC-088 chunk-7 enricher set (advisory mirror of profile_sets.py)
+# -----------------------------------------------------------------------------
+# The Python matrix at src/podcast_scraper/enrichment/profile_sets.py is
+# the source of truth; this block reflects the 'cloud_balanced' row so
+# operators can discover the active set without reading code.
+# Per-enricher knobs (cost caps, thresholds) live under enrichers.<id>.
+enrichment:
+  enabled: true
+  enrichers:
+    topic_cooccurrence: {}
+    topic_cooccurrence_corpus: {}
+    temporal_velocity: {}
+    grounding_rate: {}
+    guest_coappearance: {}
+    insight_density: {}
+    topic_similarity: {}
+    nli_contradiction: {}

@@ -1,4 +1,4 @@
-"""Unit tests for ``pipeline_jobs.build_pipeline_argv``."""
+"""Unit tests for ``jobs.build_pipeline_argv``."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from podcast_scraper.rss.feeds_spec import FEEDS_SPEC_DEFAULT_BASENAME
-from podcast_scraper.server.pipeline_jobs import build_pipeline_argv
+from podcast_scraper.server.jobs import build_pipeline_argv
 
 pytestmark = pytest.mark.integration
 

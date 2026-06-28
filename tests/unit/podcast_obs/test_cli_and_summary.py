@@ -32,17 +32,32 @@ def test_summary_all_unconfigured_when_no_api_base() -> None:
         "errors",
         "alerts",
         "traces",
+        # RFC-088 surface (also needs api_base)
+        "enrichment_status",
+        "enrichment_health",
+        "enrichment_events",
     }
     assert data["failed"] == []
 
 
 def test_summary_prod_api_live_externals_unconfigured(monkeypatch: pytest.MonkeyPatch) -> None:
-    # api_base set (prod_api live) but no external tokens -> externals report not-configured.
-    monkeypatch.setattr(
-        prod_api, "get_json", lambda url, **_: {"status": "ok", "code_version": "1", "jobs": []}
-    )
+    # api_base set (prod_api + enrichment live) but no external tokens -> externals
+    # report not-configured. The fake patch covers both prod_api and enrichment since
+    # they're the only get_json call sites that hit the deploy's api_base.
+    from podcast_obs.sources import enrichment
+
+    payload = {"status": "ok", "code_version": "1", "jobs": []}
+    monkeypatch.setattr(prod_api, "get_json", lambda url, **_: payload)
+    monkeypatch.setattr(enrichment, "get_json", lambda url, **_: payload)
     data = aggregate.summary(TargetConfig(name="t", api_base="http://x"))["data"]
-    assert set(data["live"]) == {"health", "version", "runs"}
+    assert set(data["live"]) == {
+        "health",
+        "version",
+        "runs",
+        "enrichment_status",
+        "enrichment_health",
+        "enrichment_events",
+    }
     assert set(data["unconfigured"]) == {"deploys", "cost", "logs", "errors", "alerts", "traces"}
     assert data["failed"] == []
 

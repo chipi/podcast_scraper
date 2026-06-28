@@ -191,5 +191,102 @@ class TestSetRunTag(unittest.TestCase):
         fake.set_tag.assert_called_once_with("run_id", "run-1")
 
 
+class TestEnrichmentHelpers(unittest.TestCase):
+    """Enrichment-layer Sentry helpers (RFC-088 / Epic #1101 chunk 1).
+
+    All three helpers gracefully degrade to no-op when ``sentry-sdk``
+    isn't installed — Sentry is an optional o11y extension; enrichment
+    runs must succeed without it.
+    """
+
+    def test_set_correlation_tags_stamps_each_string_tag(self) -> None:
+        from podcast_scraper.utils.sentry_init import set_correlation_tags
+
+        fake = MagicMock()
+        with patch.dict(sys.modules, {"sentry_sdk": fake}):
+            set_correlation_tags(
+                {
+                    "run_id": "run-1",
+                    "enricher_id": "topic_similarity",
+                    "tier": "embedding",
+                    "attempt": "2",
+                }
+            )
+        fake.set_tag.assert_any_call("run_id", "run-1")
+        fake.set_tag.assert_any_call("enricher_id", "topic_similarity")
+        fake.set_tag.assert_any_call("tier", "embedding")
+        fake.set_tag.assert_any_call("attempt", "2")
+
+    def test_set_correlation_tags_skips_non_string_values(self) -> None:
+        from podcast_scraper.utils.sentry_init import set_correlation_tags
+
+        fake = MagicMock()
+        with patch.dict(sys.modules, {"sentry_sdk": fake}):
+            set_correlation_tags({"run_id": "r", "attempt": 2})  # int!
+        # ``attempt: 2`` (int) is silently skipped; only string tags land.
+        for call in fake.set_tag.call_args_list:
+            args = call.args
+            self.assertNotEqual(args[0], "attempt")
+
+    def test_set_correlation_tags_noop_when_empty(self) -> None:
+        from podcast_scraper.utils.sentry_init import set_correlation_tags
+
+        fake = MagicMock()
+        with patch.dict(sys.modules, {"sentry_sdk": fake}):
+            set_correlation_tags({})
+        fake.set_tag.assert_not_called()
+
+    def test_set_correlation_tags_noop_when_sdk_unimportable(self) -> None:
+        from podcast_scraper.utils.sentry_init import set_correlation_tags
+
+        with patch.dict(sys.modules, {"sentry_sdk": None}):
+            set_correlation_tags({"run_id": "r"})  # must not raise
+
+    def test_emit_enrichment_breadcrumb_calls_add_breadcrumb(self) -> None:
+        from podcast_scraper.utils.sentry_init import emit_enrichment_breadcrumb
+
+        fake = MagicMock()
+        with patch.dict(sys.modules, {"sentry_sdk": fake}):
+            emit_enrichment_breadcrumb(
+                "enrichment.circuit_opened",
+                "circuit opened for nli_contradiction",
+                level="warning",
+                data={"enricher_id": "nli_contradiction"},
+            )
+        fake.add_breadcrumb.assert_called_once()
+        kwargs = fake.add_breadcrumb.call_args.kwargs
+        self.assertEqual(kwargs["category"], "enrichment.circuit_opened")
+        self.assertEqual(kwargs["message"], "circuit opened for nli_contradiction")
+        self.assertEqual(kwargs["level"], "warning")
+
+    def test_emit_enrichment_breadcrumb_noop_when_sdk_unimportable(self) -> None:
+        from podcast_scraper.utils.sentry_init import emit_enrichment_breadcrumb
+
+        with patch.dict(sys.modules, {"sentry_sdk": None}):
+            emit_enrichment_breadcrumb("enrichment.auto_disabled", "x")  # must not raise
+
+    def test_capture_enrichment_message_calls_capture_with_tags(self) -> None:
+        from podcast_scraper.utils.sentry_init import capture_enrichment_message
+
+        fake = MagicMock()
+        with patch.dict(sys.modules, {"sentry_sdk": fake}):
+            capture_enrichment_message(
+                "nli_contradiction auto-disabled after 2 failed runs",
+                level="warning",
+                tags={"enricher_id": "nli_contradiction", "run_id": "job-1"},
+            )
+        fake.capture_message.assert_called_once()
+        self.assertEqual(
+            fake.capture_message.call_args.args[0],
+            "nli_contradiction auto-disabled after 2 failed runs",
+        )
+
+    def test_capture_enrichment_message_noop_when_sdk_unimportable(self) -> None:
+        from podcast_scraper.utils.sentry_init import capture_enrichment_message
+
+        with patch.dict(sys.modules, {"sentry_sdk": None}):
+            capture_enrichment_message("x")  # must not raise
+
+
 if __name__ == "__main__":
     unittest.main()

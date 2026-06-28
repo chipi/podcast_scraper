@@ -77,3 +77,16 @@ deepseek_summary_model: deepseek-chat
 # Ollama — 8B tier (TEST == PROD; pinned for transparency).
 ollama_speaker_model: llama3.1:8b
 ollama_summary_model: llama3.1:8b
+
+# -----------------------------------------------------------------------------
+# RFC-088 chunk-7 enricher set (advisory mirror of profile_sets.py)
+# -----------------------------------------------------------------------------
+# 'test_default' runs NO enrichers by default (CI isolation /
+# operator-side-only profile). The Python matrix at
+# src/podcast_scraper/enrichment/profile_sets.py is the source of truth.
+# Override per run via:
+#   python -m podcast_scraper.enrichment.cli --profile test_default \
+#     --enrichers topic_cooccurrence,topic_cooccurrence_corpus
+enrichment:
+  enabled: false
+  enrichers: {}

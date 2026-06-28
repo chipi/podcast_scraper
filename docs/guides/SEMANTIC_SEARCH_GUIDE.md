@@ -9,8 +9,9 @@ transcript segments + GIL insights — with **BM25 + dense vector fused via RRF*
 embedded **LanceDB** backend, plus **compound results** (a segment and its linked insight
 merged). FAISS was retired in #995 (ADR-099); LanceDB is now the only index and there is
 no fallback. See [Hybrid retrieval](#hybrid-retrieval-rfc-090) below. **Qdrant** and other
-remote/platform-scale backends remain future — **Draft**
-[RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md).
+remote/platform-scale backends are no longer planned —
+[RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md) was **Superseded** by
+[RFC-090](../rfc/RFC-090-hybrid-retrieval.md) (LanceDB-first hybrid).
 
 ## Hybrid retrieval (RFC-090) {#hybrid-retrieval-rfc-090}
 
@@ -308,9 +309,11 @@ Limitations).
 
 ## Related docs
 
-- **RFC-061 (FAISS, shipped):** [RFC-061](../rfc/RFC-061-semantic-corpus-search.md)
-- **RFC-072 (CIL, bridge, lift):** [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md)
-- **RFC-070 (platform / future, Draft):** [RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md)
+- **RFC-061 (FAISS Phase 1, retired):** [RFC-061](../rfc/RFC-061-semantic-corpus-search.md)
+- **RFC-090 (LanceDB-first hybrid, current):** [RFC-090](../rfc/RFC-090-hybrid-retrieval.md)
+- **RFC-072 (CIL, bridge, lift, complete):** [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md)
+- **RFC-075 (corpus topic clustering, complete):** [RFC-075](../rfc/RFC-075-corpus-topic-clustering.md)
+- **RFC-070 (platform / Superseded by RFC-090):** [RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md)
 - **PRD-021:** [PRD-021](../prd/PRD-021-semantic-corpus-search.md)
 - **GIL CLI:** [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md)
 - **Cross-layer map:** [GIL / KG / CIL cross-layer](GIL_KG_CIL_CROSS_LAYER.md)

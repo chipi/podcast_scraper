@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from podcast_scraper.server.pipeline_jobs import (
+from podcast_scraper.server.jobs import (
     reconcile_jobs_inplace,
     STATUS_FAILED,
     STATUS_RUNNING,

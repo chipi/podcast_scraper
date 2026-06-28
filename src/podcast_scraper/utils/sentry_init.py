@@ -143,3 +143,99 @@ def set_run_tag(run_id: Optional[str], episode_id: Optional[str] = None) -> None
             sentry_sdk.set_tag("episode_id", episode_id)
     except Exception:  # pragma: no cover - never break the run for a tag
         _LOGGER.debug("sentry set_run_tag skipped", exc_info=True)
+
+
+def set_correlation_tags(tags: dict) -> None:
+    """Tag the Sentry scope with a correlation envelope (RFC-088 enrichment layer).
+
+    Wider than ``set_run_tag``: accepts the full
+    ``correlation.sentry_tags_for_context(ctx)`` dict (run_id,
+    parent_run_id, enricher_id, enricher_version, tier, attempt).
+    Tags must be strings — the correlation helper coerces ``attempt``
+    and ``parent_run_id`` already.
+
+    True no-op when ``sentry-sdk`` isn't installed or Sentry wasn't
+    initialised — enrichment paths still work without the o11y extra.
+    """
+    if not tags:
+        return
+    try:
+        import sentry_sdk
+    except ImportError:
+        return
+    try:
+        for key, value in tags.items():
+            if isinstance(value, str):
+                sentry_sdk.set_tag(key, value)
+    except Exception:  # pragma: no cover - never break the run for a tag
+        _LOGGER.debug("sentry set_correlation_tags skipped", exc_info=True)
+
+
+def emit_enrichment_breadcrumb(
+    category: str,
+    message: str,
+    *,
+    level: str = "info",
+    data: Optional[dict] = None,
+) -> None:
+    """Fire a Sentry breadcrumb for an enrichment-layer event.
+
+    Used by ``enrichment/resilience.py`` for circuit-open / auto-disable
+    / stall-escalation event categories. Operators define their own
+    threshold alert rules in Sentry (e.g. "more than 5
+    enrichment.circuit_opened breadcrumbs per hour" → page).
+
+    Categories used by the enrichment layer:
+
+    * ``enrichment.circuit_opened`` — circuit breaker tripped for an
+      enricher within a run.
+    * ``enrichment.auto_disabled`` — N consecutive failed runs flipped
+      the enricher to auto-disabled.
+    * ``enrichment.stall_escalation`` — heartbeat watchdog escalated
+      to cancel.
+
+    True no-op when ``sentry-sdk`` isn't installed.
+    """
+    try:
+        import sentry_sdk
+    except ImportError:
+        return
+    try:
+        sentry_sdk.add_breadcrumb(
+            category=category,
+            message=message,
+            level=level,
+            data=data or {},
+        )
+    except Exception:  # pragma: no cover - never break the run for a breadcrumb
+        _LOGGER.debug("sentry emit_enrichment_breadcrumb skipped", exc_info=True)
+
+
+def capture_enrichment_message(
+    message: str,
+    *,
+    level: str = "warning",
+    tags: Optional[dict] = None,
+) -> None:
+    """Send a one-off Sentry message for a notable enrichment event.
+
+    Used for ``auto_disabled`` (warning level) and
+    ``stall_escalation`` (error level) — events that warrant their
+    own issue rather than just a breadcrumb on a future exception.
+
+    True no-op when ``sentry-sdk`` isn't installed.
+    """
+    try:
+        import sentry_sdk
+    except ImportError:
+        return
+    try:
+        with sentry_sdk.push_scope() as scope:
+            for key, value in (tags or {}).items():
+                if isinstance(value, str):
+                    scope.set_tag(key, value)
+            # ``level`` is typed as a narrow Literal in the SDK stubs; pass via
+            # the underlying API which accepts a plain string.
+            sentry_sdk.capture_message(message, level=level)  # type: ignore[arg-type]
+    except Exception:  # pragma: no cover - never break the run for a message
+        _LOGGER.debug("sentry capture_enrichment_message skipped", exc_info=True)

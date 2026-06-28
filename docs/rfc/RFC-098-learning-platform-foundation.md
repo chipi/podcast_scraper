@@ -89,7 +89,7 @@ server/
     episodes.py        # GET /episodes, /{slug}, /{slug}/segments|insights|entities|search
     library.py         # library subscriptions, catalog status join
     playback.py        # playback position + queue
-    scrape.py          # scrape-on-demand (wraps pipeline_jobs) + per-user quota
+    scrape.py          # scrape-on-demand (wraps jobs) + per-user quota
     slugs.py           # slug <-> episode_id resolution
     dto.py             # pydantic consumer response models
 ```
@@ -139,7 +139,7 @@ server/
 
 ### 6. Scrape-on-demand + guardrails
 
-- `POST /api/app/scrape` wraps the existing `pipeline_jobs` enqueue (already globally deduped) and adds a
+- `POST /api/app/scrape` wraps the existing `jobs` enqueue (already globally deduped) and adds a
   per-user **concurrent-scrape cap** + **token-bucket rate limit** (in-process, config-driven). `GET
   /api/app/scrape/{job_id}` proxies RFC-065 status. No new queue.
 
@@ -233,5 +233,5 @@ Part of the Learning Platform initiative (RFC-098–101):
 
 - **Related PRDs**: `docs/prd/PRD-035-learning-platform.md`, `docs/prd/PRD-036-foundation-identity.md`
 - **Related RFCs**: `docs/rfc/RFC-090-hybrid-retrieval.md`, `docs/rfc/RFC-094-search-powered-surfaces-query-layer.md`
-- **Source Code**: `src/podcast_scraper/server/` (app.py, routes/, pipeline_jobs.py)
+- **Source Code**: `src/podcast_scraper/server/` (app.py, routes/, jobs.py)
 - **Analysis**: `docs/wip/player/SERVER-SIDE-GAP-ANALYSIS.md`

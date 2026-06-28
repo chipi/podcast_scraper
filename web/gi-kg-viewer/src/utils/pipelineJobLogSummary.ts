@@ -69,6 +69,14 @@ function parseBalancedJson(s: string, start: number): unknown | null {
 }
 
 function extractAfterMarker(tail: string, marker: string): unknown | null {
+  // Defensive: a transient fetch failure can leave the caller's
+  // ``tailText.value`` undefined (response without a ``.text`` field).
+  // Without this guard the strip's job-explore reactive computation
+  // raises an unhandled rejection that fails vitest under CI even
+  // though the surrounding test assertions are green.
+  if (typeof tail !== 'string') {
+    return null
+  }
   const idx = tail.lastIndexOf(marker)
   if (idx < 0) {
     return null

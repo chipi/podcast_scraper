@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
+import EnrichmentEdgesPanel from './EnrichmentEdgesPanel.vue'
 import GraphCanvas from './GraphCanvas.vue'
 import HandoffErrorStrip from './HandoffErrorStrip.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useGraphExpansionStore } from '../../stores/graphExpansion'
+import { useShellStore } from '../../stores/shell'
 import { GRAPH_DEFAULT_EPISODE_CAP } from '../../utils/graphEpisodeSelection'
 
 const emit = defineEmits<{
@@ -14,6 +16,7 @@ const emit = defineEmits<{
 
 const artifacts = useArtifactsStore()
 const graphExpansion = useGraphExpansionStore()
+const shell = useShellStore()
 const { truncationLine: graphExpansionTruncationLine } = storeToRefs(graphExpansion)
 
 const graphCanvasRef = ref<InstanceType<typeof GraphCanvas> | null>(null)
@@ -53,6 +56,14 @@ defineExpose({
         Dismiss
       </button>
     </div>
+    <!-- RFC-088 chunk-9: enrichment-layer edges (topic_similarity + nli_contradiction).
+         Self-hides when no envelopes present. Above the canvas so it's scannable
+         without scrolling, but small footprint when populated. -->
+    <EnrichmentEdgesPanel
+      v-if="artifacts.displayArtifact"
+      :corpus-path="shell.corpusPath"
+      class="m-1 shrink-0"
+    />
     <GraphCanvas
       v-if="artifacts.displayArtifact"
       ref="graphCanvasRef"
