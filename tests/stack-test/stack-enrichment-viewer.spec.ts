@@ -14,8 +14,33 @@ import { expect, test } from '@playwright/test'
 
 const CORPUS = '/app/output'
 
+async function waitForHealthFlag(
+  request: import('@playwright/test').APIRequestContext,
+  key: 'feeds_api' | 'operator_config_api' | 'jobs_api',
+  timeoutMs: number,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    const res = await request.get('/api/health')
+    if (res.ok()) {
+      const body = (await res.json()) as Record<string, unknown>
+      if (body[key] === true) {
+        return
+      }
+    }
+    await new Promise((r) => setTimeout(r, 1500))
+  }
+  throw new Error(`timeout waiting for /api/health ${key}`)
+}
+
 test.describe('stack test — RFC-088 chunk 9 viewer surfaces', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, request }) => {
+    // The Configuration trigger renders only when the shell store
+    // sees the server's APIs as available (feeds_api OR
+    // operator_config_api). Wait for the health endpoint to flip
+    // first — otherwise the v-if hides the button and the
+    // `getByTestId('status-bar-sources-trigger')` times out.
+    await waitForHealthFlag(request, 'feeds_api', 60_000)
     // Land on the SPA shell with the corpus pre-set via query param
     // so the shell store picks it up.
     await page.goto(`/?path=${encodeURIComponent(CORPUS)}`)
