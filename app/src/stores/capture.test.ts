@@ -69,6 +69,27 @@ describe('capture store', () => {
     expect(c.savedSegmentIds.has('s5')).toBe(false)
   })
 
+  it('captureSegment() with a sub-range saves the exact phrase and always adds', async () => {
+    const seg: Segment = {
+      id: 's5', start: 10, end: 14, text: 'deep sleep consolidates memory', speaker: 'person:g',
+    }
+    const sub = { char_start: 5, char_end: 10, quote_text: 'sleep' }
+    const span = hl({ id: 'sp1', kind: 'span', segment_ids: ['s5'], quote_text: 'sleep' })
+    const create = vi.spyOn(api, 'createHighlight').mockResolvedValue(span)
+    const del = vi.spyOn(api, 'deleteHighlight')
+    const c = useCaptureStore()
+    await c.captureSegment('show-ep01', seg, sub)
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'span', segment_ids: ['s5'], char_start: 5, char_end: 10, quote_text: 'sleep',
+      }),
+    )
+    // a phrase capture never toggles off (you can keep several phrases per line)
+    await c.captureSegment('show-ep01', seg, sub)
+    expect(del).not.toHaveBeenCalled()
+    expect(c.forEpisode('show-ep01')).toHaveLength(2)
+  })
+
   it('captureInsight() saves by source_insight_id, then toggles off', async () => {
     const ins = hl({ id: 'i1', kind: 'insight', source_insight_id: 'gi-3', quote_text: 'claim' })
     vi.spyOn(api, 'createHighlight').mockResolvedValue(ins)

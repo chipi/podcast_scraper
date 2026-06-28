@@ -16,6 +16,7 @@ import {
   patchNote,
 } from '../services/api'
 import type { Highlight, Note, Segment } from '../services/types'
+import type { SubRange } from '../player/transcriptCapture'
 
 interface CaptureState {
   highlights: Highlight[]
@@ -82,12 +83,34 @@ export const useCaptureStore = defineStore('capture', {
         /* signed out / transient — next load reconciles */
       }
     },
-    /** Save a transcript segment as a span highlight (toggles off if already saved). */
-    async captureSegment(slug: string, seg: Segment): Promise<void> {
-      const existing = this.highlights.find(
-        (h) => h.kind === 'span' && h.segment_ids.includes(seg.id),
-      )
+    /**
+     * Save a transcript line as a span highlight. With a `sub` selection (PRD-040 FR1.2) it captures
+     * that exact phrase and always *adds* (a line can hold several phrase highlights). Without one it
+     * captures the whole line and *toggles* — a second tap on an already-saved line removes it.
+     */
+    async captureSegment(slug: string, seg: Segment, sub?: SubRange | null): Promise<void> {
       try {
+        if (sub) {
+          const h = await createHighlight({
+            episode_slug: slug,
+            kind: 'span',
+            start_ms: ms(seg.start),
+            end_ms: ms(seg.end),
+            segment_ids: [seg.id],
+            char_start: sub.char_start,
+            char_end: sub.char_end,
+            quote_text: sub.quote_text,
+            speaker: seg.speaker,
+          })
+          this.highlights = [...this.highlights, h]
+          this.loaded = true
+          return
+        }
+        // whole line: toggle (match the existing whole-line span by its verbatim text)
+        const existing = this.highlights.find(
+          (h) =>
+            h.kind === 'span' && h.segment_ids.includes(seg.id) && h.quote_text === seg.text,
+        )
         if (existing) {
           this._sync(await deleteHighlight(existing.id))
           return

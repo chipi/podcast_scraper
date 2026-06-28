@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import en from '../i18n/locales/en.json'
 import type { Segment } from '../services/types'
@@ -77,15 +77,37 @@ describe('TranscriptList', () => {
     expect(w.find('[aria-label="Save this line as a highlight"]').exists()).toBe(false)
   })
 
-  it('renders a save button per line when canCapture and emits capture on tap', async () => {
+  it('renders a save button per line when canCapture and emits a whole-line capture on tap', async () => {
     const w = mountList({ segments, activeIndex: 0, canCapture: true })
     const saves = w.findAll('[aria-label="Save this line as a highlight"]')
     expect(saves).toHaveLength(segments.length)
     await saves[1].trigger('click')
-    expect(w.emitted('capture')?.[0]).toEqual([segments[1]])
+    // no selection → whole-line capture (sub is null)
+    expect(w.emitted('capture')?.[0]).toEqual([{ segment: segments[1], sub: null }])
     // the seek button still works independently of the capture button
     await w.findAll('[data-testid="seg"]')[1].trigger('click')
     expect(w.emitted('seek')?.[0]).toEqual([2.5])
+  })
+
+  it('captures the selected phrase (sub-range) when text is selected within the line (FR1.2)', async () => {
+    const w = mountList({ segments, activeIndex: 0, canCapture: true })
+    // Select "world" (chars 6–11) within the first line's rendered text node.
+    const textEl = w.findAll('span.leading-relaxed')[0].element as HTMLElement
+    const textNode = textEl.querySelector('span')!.firstChild as Text
+    const range = document.createRange()
+    range.setStart(textNode, 6)
+    range.setEnd(textNode, 11)
+    vi.spyOn(window, 'getSelection').mockReturnValue({
+      isCollapsed: false,
+      rangeCount: 1,
+      getRangeAt: () => range,
+      toString: () => 'world',
+    } as unknown as Selection)
+    await w.findAll('[aria-label="Save this line as a highlight"]')[0].trigger('click')
+    expect(w.emitted('capture')?.[0]).toEqual([
+      { segment: segments[0], sub: { char_start: 6, char_end: 11, quote_text: 'world' } },
+    ])
+    vi.restoreAllMocks()
   })
 
   it('reflects saved state via aria-pressed + the saved label', () => {

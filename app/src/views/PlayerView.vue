@@ -21,6 +21,7 @@ import TranscriptList from '../components/TranscriptList.vue'
 import FavoriteButton from '../components/FavoriteButton.vue'
 import { activeInsightIndex, groundedSpansBySegment } from '../player/insights'
 import { activeSegmentIndex, PLAYBACK_RATES } from '../player/transcriptSync'
+import type { SubRange } from '../player/transcriptCapture'
 import {
   getAudioSource,
   getEntities,
@@ -271,7 +272,20 @@ function cycleRate(): void {
 }
 
 // --- capture (P2, PRD-040): mark a moment, save a transcript line ---
-const savedSegmentIds = computed(() => capture.savedSegmentIds)
+// The transcript bookmark's "saved" state reflects WHOLE-LINE saves only (a span whose quote is the
+// full segment text); phrase highlights (sub-selections) live independently and are managed in the
+// Library Highlights view, so they don't flip the per-line toggle.
+const savedSegmentIds = computed(() => {
+  const textById = new Map(segments.value.map((s) => [s.id, s.text]))
+  const ids = new Set<string>()
+  for (const h of capture.highlights) {
+    if (h.kind !== 'span') continue
+    for (const sid of h.segment_ids) {
+      if (textById.get(sid) === h.quote_text) ids.add(sid)
+    }
+  }
+  return ids
+})
 const momentFlash = ref(false)
 let flashTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -286,8 +300,8 @@ async function markMoment(): Promise<void> {
   }, 1500)
 }
 
-function onCaptureSegment(seg: Segment): void {
-  void capture.captureSegment(props.slug, seg)
+function onCaptureSegment(payload: { segment: Segment; sub: SubRange | null }): void {
+  void capture.captureSegment(props.slug, payload.segment, payload.sub)
 }
 
 function ensureCaptureLoaded(): void {

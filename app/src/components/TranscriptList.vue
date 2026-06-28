@@ -11,6 +11,7 @@ import type { Segment } from '../services/types'
 import type { GroundedSpan } from '../player/insights'
 import { quoteHighlight } from '../player/insights'
 import { formatTime } from '../player/transcriptSync'
+import { selectionSubRange, type SubRange } from '../player/transcriptCapture'
 import { speakerLabel } from '../utils/format'
 
 type Split = { pre: string; match: string; post: string }
@@ -31,7 +32,7 @@ const props = withDefaults(
 const emit = defineEmits<{
   (e: 'seek', start: number): void
   (e: 'insight', insightId: string): void
-  (e: 'capture', segment: Segment): void
+  (e: 'capture', payload: { segment: Segment; sub: SubRange | null }): void
 }>()
 const { t } = useI18n()
 
@@ -39,6 +40,15 @@ function onSegmentClick(i: number, seg: Segment): void {
   emit('seek', seg.start)
   const g = props.grounded[i]
   if (g) emit('insight', g.insightId)
+}
+
+// Per-segment text elements, so a "save" can read the live selection inside the tapped line and
+// capture the exact phrase (FR1.2) rather than the whole line.
+const textEls = ref<HTMLElement[]>([])
+function onCapture(i: number, seg: Segment): void {
+  const el = textEls.value[i]
+  const sub = el ? selectionSubRange(el) : null
+  emit('capture', { segment: seg, sub })
 }
 
 // Char-level highlight split per grounded segment (3.6); null → whole-segment underline fallback.
@@ -124,6 +134,7 @@ function showSpeaker(i: number): boolean {
             <span v-if="grounded[i]" aria-hidden="true" class="mr-0.5">●</span>{{ formatTime(seg.start) }}
           </span>
           <span
+            :ref="(el) => { if (el) textEls[i] = el as HTMLElement }"
             class="text-sm leading-relaxed"
             :class="i === activeIndex ? 'text-surface-foreground font-semibold' : 'text-muted'"
           >
@@ -146,7 +157,7 @@ function showSpeaker(i: number): boolean {
         :aria-pressed="savedSegmentIds.has(seg.id)"
         :aria-label="savedSegmentIds.has(seg.id) ? t('capture.savedLine') : t('capture.saveLine')"
         :title="savedSegmentIds.has(seg.id) ? t('capture.savedLine') : t('capture.saveLine')"
-        @click="emit('capture', seg)"
+        @click="onCapture(i, seg)"
       >
         <svg viewBox="0 0 24 24" :fill="savedSegmentIds.has(seg.id) ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true">
           <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
