@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
+import { signInIsolated } from './helpers'
 
 const serious = (vs: { impact?: string | null }[]) =>
   vs.filter((v) => v.impact === 'critical' || v.impact === 'serious')
@@ -18,11 +19,8 @@ const serious = (vs: { impact?: string | null }[]) =>
  */
 test('sign in → mark a moment + save a line → review in Library Highlights + add a note', async ({
   page,
-}) => {
-  await page.goto('/')
-  await page.getByRole('link', { name: 'Sign in' }).click()
-  await page.getByRole('button', { name: 'Sign in' }).click()
-  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
+}, testInfo) => {
+  await signInIsolated(page, 'capture', testInfo)
 
   // Open the episode and wait for its transcript (the real metadata → /segments path).
   await page.goto('/')

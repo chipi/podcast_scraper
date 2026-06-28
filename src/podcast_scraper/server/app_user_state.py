@@ -11,11 +11,25 @@ import json
 from pathlib import Path
 from typing import Any
 
+from filelock import FileLock
+
 from podcast_scraper.server.atomic_write import atomic_write_text
+
+# Read-modify-write mutations on one user's file must not interleave (a second writer reading the
+# pre-write state would lose the first's append). Each mutator holds a per-(user, file) lock over
+# its read+write; the timeout makes a stuck lock fail loudly rather than deadlock.
+_LOCK_TIMEOUT_S = 15.0
 
 
 def _state_path(data_dir: Path, user_id: str, name: str) -> Path:
     return data_dir / "users" / user_id / f"{name}.json"
+
+
+def _user_lock(data_dir: Path, user_id: str, name: str) -> FileLock:
+    """A per-(user, file) write lock; serialises concurrent read-modify-write on that file."""
+    path = _state_path(data_dir, user_id, name)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return FileLock(str(path.with_name(f".{name}.lock")), timeout=_LOCK_TIMEOUT_S)
 
 
 def _read(data_dir: Path, user_id: str, name: str, default: Any) -> Any:
@@ -48,13 +62,14 @@ def set_playback(
     data_dir: Path, user_id: str, slug: str, position_seconds: float, updated_at: int
 ) -> dict[str, Any]:
     """Save the playback position for an episode; return the stored record."""
-    data = _read(data_dir, user_id, "playback", {})
-    if not isinstance(data, dict):
-        data = {}
-    rec = {"position_seconds": position_seconds, "updated_at": updated_at}
-    data[slug] = rec
-    _write(data_dir, user_id, "playback", data)
-    return rec
+    with _user_lock(data_dir, user_id, "playback"):
+        data = _read(data_dir, user_id, "playback", {})
+        if not isinstance(data, dict):
+            data = {}
+        rec = {"position_seconds": position_seconds, "updated_at": updated_at}
+        data[slug] = rec
+        _write(data_dir, user_id, "playback", data)
+        return rec
 
 
 def list_playback(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
@@ -160,21 +175,27 @@ def get_favorites(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
 def add_favorite(data_dir: Path, user_id: str, item: dict[str, Any]) -> list[dict[str, Any]]:
     """Add/replace a favorite (idempotent on ``kind``+``ref``); appended newest-last."""
     kind, ref = item.get("kind"), item.get("ref")
-    favorites = [
-        x for x in get_favorites(data_dir, user_id) if (x.get("kind"), x.get("ref")) != (kind, ref)
-    ]
-    favorites.append(item)
-    _write(data_dir, user_id, "favorites", favorites)
-    return favorites
+    with _user_lock(data_dir, user_id, "favorites"):
+        favorites = [
+            x
+            for x in get_favorites(data_dir, user_id)
+            if (x.get("kind"), x.get("ref")) != (kind, ref)
+        ]
+        favorites.append(item)
+        _write(data_dir, user_id, "favorites", favorites)
+        return favorites
 
 
 def remove_favorite(data_dir: Path, user_id: str, kind: str, ref: str) -> list[dict[str, Any]]:
     """Remove a favorite by ``kind``+``ref`` (no-op if absent); return the remaining list."""
-    favorites = [
-        x for x in get_favorites(data_dir, user_id) if (x.get("kind"), x.get("ref")) != (kind, ref)
-    ]
-    _write(data_dir, user_id, "favorites", favorites)
-    return favorites
+    with _user_lock(data_dir, user_id, "favorites"):
+        favorites = [
+            x
+            for x in get_favorites(data_dir, user_id)
+            if (x.get("kind"), x.get("ref")) != (kind, ref)
+        ]
+        _write(data_dir, user_id, "favorites", favorites)
+        return favorites
 
 
 # --- interests (personalized discovery; ordered list of cluster ids) ---
@@ -201,14 +222,16 @@ def set_interests(data_dir: Path, user_id: str, cluster_ids: list[str]) -> list[
 
 def add_interest(data_dir: Path, user_id: str, token: str) -> list[str]:
     """Follow one interest token (cluster ``tc:``, topic ``topic:`` or person ``person:``)."""
-    return set_interests(data_dir, user_id, [*get_interests(data_dir, user_id), token])
+    with _user_lock(data_dir, user_id, "interests"):
+        return set_interests(data_dir, user_id, [*get_interests(data_dir, user_id), token])
 
 
 def remove_interest(data_dir: Path, user_id: str, token: str) -> list[str]:
     """Unfollow one interest token (no-op if absent); return the remaining list."""
-    return set_interests(
-        data_dir, user_id, [x for x in get_interests(data_dir, user_id) if x != token]
-    )
+    with _user_lock(data_dir, user_id, "interests"):
+        return set_interests(
+            data_dir, user_id, [x for x in get_interests(data_dir, user_id) if x != token]
+        )
 
 
 # --- library (subscriptions; list of {feed_id, feed_url?, title?, added_at?}) ---
@@ -223,17 +246,19 @@ def get_library(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
 def add_subscription(data_dir: Path, user_id: str, item: dict[str, Any]) -> list[dict[str, Any]]:
     """Add/replace a subscription by ``feed_id`` (idempotent on feed_id)."""
     feed_id = item.get("feed_id")
-    library = [x for x in get_library(data_dir, user_id) if x.get("feed_id") != feed_id]
-    library.append(item)
-    _write(data_dir, user_id, "library", library)
-    return library
+    with _user_lock(data_dir, user_id, "library"):
+        library = [x for x in get_library(data_dir, user_id) if x.get("feed_id") != feed_id]
+        library.append(item)
+        _write(data_dir, user_id, "library", library)
+        return library
 
 
 def remove_subscription(data_dir: Path, user_id: str, feed_id: str) -> list[dict[str, Any]]:
     """Remove a subscription by ``feed_id`` (no-op if absent); return the remaining list."""
-    library = [x for x in get_library(data_dir, user_id) if x.get("feed_id") != feed_id]
-    _write(data_dir, user_id, "library", library)
-    return library
+    with _user_lock(data_dir, user_id, "library"):
+        library = [x for x in get_library(data_dir, user_id) if x.get("feed_id") != feed_id]
+        _write(data_dir, user_id, "library", library)
+        return library
 
 
 # --- highlights (P2 Capture, PRD-040 / RFC-098 §7: "mark this moment" + transcript spans) ---
@@ -279,10 +304,11 @@ def get_highlights(
 def add_highlight(data_dir: Path, user_id: str, item: dict[str, Any]) -> list[dict[str, Any]]:
     """Add/replace a highlight (idempotent on ``id``); appended newest-last."""
     hid = item.get("id")
-    highlights = [x for x in get_highlights(data_dir, user_id) if x.get("id") != hid]
-    highlights.append(item)
-    _write(data_dir, user_id, "highlights", highlights)
-    return highlights
+    with _user_lock(data_dir, user_id, "highlights"):
+        highlights = [x for x in get_highlights(data_dir, user_id) if x.get("id") != hid]
+        highlights.append(item)
+        _write(data_dir, user_id, "highlights", highlights)
+        return highlights
 
 
 def update_highlight(
@@ -293,23 +319,27 @@ def update_highlight(
     Used for in-place edits (``color``, ``quote_text``) and persisting a re-anchor. ``id``,
     ``episode_slug`` and ``created_at`` are immutable and cannot be overwritten via ``fields``.
     """
-    highlights = get_highlights(data_dir, user_id)
-    updated: dict[str, Any] | None = None
-    for rec in highlights:
-        if rec.get("id") == highlight_id:
-            rec.update({k: v for k, v in fields.items() if k not in _IMMUTABLE_HIGHLIGHT_FIELDS})
-            updated = rec
-            break
-    if updated is not None:
-        _write(data_dir, user_id, "highlights", highlights)
-    return updated
+    with _user_lock(data_dir, user_id, "highlights"):
+        highlights = get_highlights(data_dir, user_id)
+        updated: dict[str, Any] | None = None
+        for rec in highlights:
+            if rec.get("id") == highlight_id:
+                rec.update(
+                    {k: v for k, v in fields.items() if k not in _IMMUTABLE_HIGHLIGHT_FIELDS}
+                )
+                updated = rec
+                break
+        if updated is not None:
+            _write(data_dir, user_id, "highlights", highlights)
+        return updated
 
 
 def remove_highlight(data_dir: Path, user_id: str, highlight_id: str) -> list[dict[str, Any]]:
     """Remove a highlight by ``id`` (no-op if absent); return the remaining list."""
-    highlights = [x for x in get_highlights(data_dir, user_id) if x.get("id") != highlight_id]
-    _write(data_dir, user_id, "highlights", highlights)
-    return highlights
+    with _user_lock(data_dir, user_id, "highlights"):
+        highlights = [x for x in get_highlights(data_dir, user_id) if x.get("id") != highlight_id]
+        _write(data_dir, user_id, "highlights", highlights)
+        return highlights
 
 
 def reanchor_highlight(highlight: dict[str, Any], segments: list[dict[str, Any]]) -> dict[str, Any]:
@@ -390,34 +420,37 @@ def get_notes(
 def add_note(data_dir: Path, user_id: str, item: dict[str, Any]) -> list[dict[str, Any]]:
     """Add/replace a note (idempotent on ``id``); appended newest-last."""
     nid = item.get("id")
-    notes = [x for x in get_notes(data_dir, user_id) if x.get("id") != nid]
-    notes.append(item)
-    _write(data_dir, user_id, "notes", notes)
-    return notes
+    with _user_lock(data_dir, user_id, "notes"):
+        notes = [x for x in get_notes(data_dir, user_id) if x.get("id") != nid]
+        notes.append(item)
+        _write(data_dir, user_id, "notes", notes)
+        return notes
 
 
 def update_note(
     data_dir: Path, user_id: str, note_id: str, text: str, updated_at: int
 ) -> dict[str, Any] | None:
     """Edit a note's ``text`` by ``id`` (no-op if absent); return the updated record."""
-    notes = get_notes(data_dir, user_id)
-    updated: dict[str, Any] | None = None
-    for rec in notes:
-        if rec.get("id") == note_id:
-            rec["text"] = text
-            rec["updated_at"] = updated_at
-            updated = rec
-            break
-    if updated is not None:
-        _write(data_dir, user_id, "notes", notes)
-    return updated
+    with _user_lock(data_dir, user_id, "notes"):
+        notes = get_notes(data_dir, user_id)
+        updated: dict[str, Any] | None = None
+        for rec in notes:
+            if rec.get("id") == note_id:
+                rec["text"] = text
+                rec["updated_at"] = updated_at
+                updated = rec
+                break
+        if updated is not None:
+            _write(data_dir, user_id, "notes", notes)
+        return updated
 
 
 def remove_note(data_dir: Path, user_id: str, note_id: str) -> list[dict[str, Any]]:
     """Remove a note by ``id`` (no-op if absent); return the remaining list."""
-    notes = [x for x in get_notes(data_dir, user_id) if x.get("id") != note_id]
-    _write(data_dir, user_id, "notes", notes)
-    return notes
+    with _user_lock(data_dir, user_id, "notes"):
+        notes = [x for x in get_notes(data_dir, user_id) if x.get("id") != note_id]
+        _write(data_dir, user_id, "notes", notes)
+        return notes
 
 
 # --- resurfacing state (P3 #1123): per-highlight {last_surfaced, count} + pacing settings ---
@@ -436,13 +469,14 @@ def get_resurfacing_state(data_dir: Path, user_id: str) -> dict[str, Any]:
 
 def mark_surfaced(data_dir: Path, user_id: str, highlight_id: str, ts: int) -> dict[str, Any]:
     """Record that a highlight was just surfaced (bumps ``count``, sets ``last_surfaced``)."""
-    data = get_resurfacing_state(data_dir, user_id)
-    prev = data.get(highlight_id)
-    count = int(prev.get("count", 0)) + 1 if isinstance(prev, dict) else 1
-    rec = {"last_surfaced": int(ts), "count": count}
-    data[highlight_id] = rec
-    _write(data_dir, user_id, "resurfacing", data)
-    return rec
+    with _user_lock(data_dir, user_id, "resurfacing"):
+        data = get_resurfacing_state(data_dir, user_id)
+        prev = data.get(highlight_id)
+        count = int(prev.get("count", 0)) + 1 if isinstance(prev, dict) else 1
+        rec = {"last_surfaced": int(ts), "count": count}
+        data[highlight_id] = rec
+        _write(data_dir, user_id, "resurfacing", data)
+        return rec
 
 
 def get_resurfacing_settings(data_dir: Path, user_id: str) -> dict[str, Any]:

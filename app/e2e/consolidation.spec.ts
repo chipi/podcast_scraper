@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { signInIsolated } from './helpers'
 
 /**
  * P3 Consolidation end-to-end — REAL API over the COMMITTED validation corpus (now carrying RFC-088
@@ -8,11 +9,8 @@ import { expect, test } from '@playwright/test'
  */
 test('enrichment read surface + recall toggle + your-corpus lens + Revisit inbox', async ({
   page,
-}) => {
-  await page.goto('/')
-  await page.getByRole('link', { name: 'Sign in' }).click()
-  await page.getByRole('button', { name: 'Sign in' }).click()
-  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
+}, testInfo) => {
+  await signInIsolated(page, 'consolidation', testInfo)
 
   // Open an episode and capture its slug from the URL.
   await page.goto('/')
@@ -39,25 +37,17 @@ test('enrichment read surface + recall toggle + your-corpus lens + Revisit inbox
     'true',
   )
 
-  // #1124: Recall — the search scope toggle switches to a corpus-scoped grounded search. (The
-  // mock user's corpus content varies across the shared e2e run, so assert the toggle is functional
-  // rather than a specific result set — recall semantics are unit-tested.)
+  // #1124: Recall — this isolated user has captured nothing, so My corpus is honest-empty.
   await page.goto('/search?q=index')
   const searchScope = page.getByRole('tablist', { name: 'Search scope' })
   await expect(searchScope).toBeVisible()
   await searchScope.getByRole('tab', { name: 'My corpus' }).click()
-  await expect(searchScope.getByRole('tab', { name: 'My corpus' })).toHaveAttribute(
-    'aria-selected',
-    'true',
-  )
+  await expect(page.getByText(/Nothing in your corpus on this yet/)).toBeVisible()
 
-  // #1125: the Revisit inbox + pacing control. (Pacing state is shared across the parallel e2e
-  // projects, so assert the toggle flips its label rather than a specific starting state.)
+  // #1125: the Revisit inbox — a fresh user has nothing due; the pacing control pauses.
   await page.goto('/library')
   await page.getByRole('button', { name: 'Revisit' }).click()
-  const pacing = page.getByRole('button', { name: /^(Pause|Resume)$/ })
-  await expect(pacing).toBeVisible()
-  const before = await pacing.textContent()
-  await pacing.click()
-  await expect(pacing).not.toHaveText(before ?? '')
+  await expect(page.getByText(/Nothing to revisit right now/)).toBeVisible()
+  await page.getByRole('button', { name: 'Pause' }).click()
+  await expect(page.getByText('Resurfacing is paused.')).toBeVisible()
 })

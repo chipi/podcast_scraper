@@ -45,6 +45,20 @@ def test_mock_exchange_code_returns_fixed_identity_regardless_of_code() -> None:
     assert ident.name == "Dev User"
 
 
+def test_mock_login_hint_yields_distinct_identity() -> None:
+    # The ?as= hint (dev/e2e) bakes into the code → a distinct per-hint identity (spec isolation).
+    p = MockOAuthProvider()
+    url = p.authorization_url(state="s", redirect_uri="http://t/cb", login_hint="Capture-Mobile!")
+    q = parse_qs(urlparse(url).query)
+    assert q["code"] == ["mock-auth-code:capture-mobile"]  # sanitised hint baked into the code
+    ident = p.exchange_code(code=q["code"][0], redirect_uri="http://t/cb")
+    assert ident.subject == "e2e-capture-mobile"
+    assert ident.email == "capture-mobile@e2e.local"
+    assert ident.name == "capture-mobile"
+    # a bare code (no hint) still returns the fixed dev identity
+    assert p.exchange_code(code="mock-auth-code", redirect_uri="http://t/cb").subject == "dev-local"
+
+
 def test_mock_from_env_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("APP_OAUTH_MOCK_EMAIL", "alice@dev.test")
     monkeypatch.setenv("APP_OAUTH_MOCK_SUBJECT", "alice-1")

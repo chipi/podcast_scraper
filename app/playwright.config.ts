@@ -8,14 +8,11 @@ import { defineConfig, devices } from '@playwright/test'
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
-  // All specs share one mock-OAuth identity (the provider returns a fixed subject) and run
-  // concurrently. The per-user store is deterministic + atomic, but a COLD first run (servers +
-  // app JIT still warming) can momentarily slow an auth-gated assertion; CI absorbs that with the
-  // retries below, and the 10s expect tolerance (up from 5s) covers heavy-parallel-load slowness.
-  // A warm run is reliably green. (A globalSetup warm-up was tried + dropped — the cold OAuth
-  // redirect was itself the slow path it was meant to fix.)
-  retries: process.env.CI ? 2 : 1,
-  expect: { timeout: 10_000 },
+  // The heavy auth-gated specs (capture, consolidation) sign in as ISOLATED per-(spec,project) mock
+  // identities (see e2e/helpers.ts) so they never share per-user files — eliminating the
+  // concurrency race at its source. auth-queue keeps the default mock user via the real Sign-in UI
+  // (its own 2-project scenario, reliable). No globalSetup / retry band-aid needed.
+  retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? 'github' : 'list',
   use: {
     baseURL: 'http://127.0.0.1:4174',

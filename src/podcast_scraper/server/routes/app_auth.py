@@ -70,14 +70,23 @@ def get_optional_user(request: Request) -> User | None:
 
 
 @router.get("/auth/login")
-async def app_auth_login(request: Request) -> RedirectResponse:
-    """Begin the OAuth flow: redirect to the provider with a CSRF state cookie."""
+async def app_auth_login(
+    request: Request,
+    as_: str | None = Query(default=None, alias="as", description="Mock identity hint (dev/e2e)."),
+) -> RedirectResponse:
+    """Begin the OAuth flow: redirect to the provider with a CSRF state cookie.
+
+    ``?as=<name>`` is an optional identity hint honoured **only by the mock provider** (dev/e2e) so
+    parallel e2e specs can sign in as isolated users; real providers ignore it.
+    """
     provider = _provider(request)
     secret = _secret(request)
     if provider is None or not secret:
         raise HTTPException(status_code=503, detail="Auth is not configured.")
     state = secrets.token_urlsafe(24)
-    url = provider.authorization_url(state=state, redirect_uri=_callback_uri(request))
+    url = provider.authorization_url(
+        state=state, redirect_uri=_callback_uri(request), login_hint=as_
+    )
     resp = RedirectResponse(url, status_code=307)
     resp.set_cookie(
         app_sessions.STATE_COOKIE,
