@@ -247,11 +247,16 @@ def test_every_real_profile_yaml_lands_in_an_explicit_branch(
 
 
 def test_yaml_enrichment_block_matches_python_matrix() -> None:
-    """D2 follow-up: the advisory `enrichment:` block in each
-    config/profiles/*.yaml MUST list the same enrichers as the Python
-    matrix. The Python matrix is the source of truth; the YAML block is
-    the operator-facing mirror. Drift between them is a bug — an
-    operator reading the YAML would get the wrong set.
+    """The advisory ``enrichment.enrichers`` dict in each
+    ``config/profiles/*.yaml`` MUST declare the same enrichers as the
+    Python matrix returns. The Python matrix is the source of truth;
+    the YAML block is the operator-facing mirror. Drift between them
+    is a bug.
+
+    Shape B (RFC-088 v2) accepts either:
+      - the legacy list-of-ids form (``enrichers: [id1, id2]``)
+      - the dict-of-blocks form (``enrichers: {id1: {...}, id2: {}}``)
+    The drift check normalises both to a set of ids before comparing.
     """
     import yaml
 
@@ -261,12 +266,14 @@ def test_yaml_enrichment_block_matches_python_matrix() -> None:
         body = yaml.safe_load(yaml_path.read_text(encoding="utf-8")) or {}
         yaml_block = body.get("enrichment")
         if yaml_block is None:
-            # No block — that's a deliberate choice for some legacy
-            # profiles, but the test catches *new* profiles that should
-            # have one. Allow absence for now; the next test enforces
-            # presence for the top-level set.
             continue
-        yaml_set = set(yaml_block.get("enrichers") or [])
+        raw = yaml_block.get("enrichers") or {}
+        if isinstance(raw, dict):
+            yaml_set = set(raw.keys())
+        elif isinstance(raw, list):
+            yaml_set = set(raw)
+        else:
+            yaml_set = set()
         py_set = set(enricher_set_for_profile(name).enabled_enrichers)
         assert yaml_set == py_set, (
             f"profile {name!r}: YAML enrichment.enrichers ({sorted(yaml_set)}) "

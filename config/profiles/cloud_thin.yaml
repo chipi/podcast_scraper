@@ -89,11 +89,11 @@ cost_daily_alert_usd: 10.0
 enrichment:
   enabled: true
   enrichers:
-    - topic_cooccurrence
-    - topic_cooccurrence_corpus
-    - temporal_velocity
-    - grounding_rate
-    - guest_coappearance
-    - insight_density
-    - topic_similarity
-    - nli_contradiction
+    topic_cooccurrence: {}
+    topic_cooccurrence_corpus: {}
+    temporal_velocity: {}
+    grounding_rate: {}
+    guest_coappearance: {}
+    insight_density: {}
+    topic_similarity: {}
+    nli_contradiction: {}
