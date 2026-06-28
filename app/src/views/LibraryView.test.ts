@@ -61,6 +61,8 @@ beforeEach(() => {
   // HighlightsView (embedded) hydrates the capture store on mount.
   vi.spyOn(api, 'getHighlights').mockResolvedValue([])
   vi.spyOn(api, 'getNotes').mockResolvedValue([])
+  // ResurfacingInbox (embedded) loads on mount.
+  vi.spyOn(api, 'getResurfacing').mockResolvedValue({ items: [], paused: false })
 })
 afterEach(() => vi.restoreAllMocks())
 
@@ -71,6 +73,7 @@ describe('LibraryView', () => {
     const labels = w.findAll('button').map((b) => b.text())
     expect(labels).toContain('Saved')
     expect(labels).toContain('Highlights')
+    expect(labels).toContain('Revisit')
     expect(labels).toContain('Knowledge')
     expect(labels).toContain('Queue')
     expect(labels).toContain('Recent')

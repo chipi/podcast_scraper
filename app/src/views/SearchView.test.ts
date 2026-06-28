@@ -92,7 +92,7 @@ describe('SearchView', () => {
     // Tapping it opens the full EntityCard overlay.
     await w.findAll('button').find((b) => b.text().includes('View'))!.trigger('click')
     await flushPromises()
-    expect(getPerson).toHaveBeenCalledWith('person:jane-doe')
+    expect(getPerson).toHaveBeenCalledWith('person:jane-doe', undefined)
     expect(w.find('[role="dialog"]').exists()).toBe(true)
   })
 

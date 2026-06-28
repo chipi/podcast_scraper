@@ -275,6 +275,22 @@ export interface NotesResponse {
   items: Note[]
 }
 
+// --- P3 Consolidation: spaced resurfacing (RFC-101 §5) ---
+
+export interface ResurfacingItem {
+  highlight: Highlight
+  reflection_prompt: string
+}
+
+export interface ResurfacingResponse {
+  items: ResurfacingItem[]
+  paused: boolean
+}
+
+export interface ResurfacingSettings {
+  paused: boolean
+}
+
 /** One selectable interest cluster (GET /api/app/clusters — AppInterestCluster). */
 export interface InterestCluster {
   id: string

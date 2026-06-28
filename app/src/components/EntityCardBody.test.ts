@@ -119,3 +119,32 @@ describe('EntityCardBody — Follow control', () => {
     expect(w.findAll('button').some((b) => /Follow|Following/.test(b.text()))).toBe(false)
   })
 })
+
+describe('EntityCardBody — your-corpus lens (P3 #1125)', () => {
+  beforeEach(() => {
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+  })
+
+  it('My corpus refetches the card scoped to the heard set', async () => {
+    const getPerson = vi.spyOn(api, 'getPersonCard').mockResolvedValue(personCard())
+    const w = mountAuthed({ kind: 'person', id: 'person:jane-doe' })
+    await flushPromises()
+    // default load is unscoped
+    expect(getPerson).toHaveBeenLastCalledWith('person:jane-doe', undefined)
+    // tap "My corpus" → refetch with scope=mine
+    await w.findAll('[role="tab"]').find((b) => b.text() === 'My corpus')!.trigger('click')
+    await flushPromises()
+    expect(getPerson).toHaveBeenLastCalledWith('person:jane-doe', 'mine')
+  })
+
+  it('hides the scope toggle when signed out', async () => {
+    setActivePinia(createPinia())
+    vi.spyOn(api, 'getPersonCard').mockResolvedValue(personCard())
+    const w = mount(EntityCardBody, {
+      props: { kind: 'person', id: 'person:jane-doe', variant: 'overlay' },
+      global: { plugins: [i18n, router] },
+    })
+    await flushPromises()
+    expect(w.find('[role="tablist"]').exists()).toBe(false)
+  })
+})

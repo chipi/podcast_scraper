@@ -114,7 +114,7 @@ describe('EntityCard', () => {
     // Tap the related AI topic chip → loads the topic card in place.
     await w.findAll('button').find((b) => b.text() === 'AI')!.trigger('click')
     await flushPromises()
-    expect(getTopic).toHaveBeenCalledWith('topic:ai')
+    expect(getTopic).toHaveBeenCalledWith('topic:ai', undefined)
     expect(w.text()).toContain('topics in this cluster') // topic view now shown
     // Back → returns to the person.
     await w.find('button[aria-label="Back"]').trigger('click')

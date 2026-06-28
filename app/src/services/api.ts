@@ -28,6 +28,8 @@ import type {
   PersonCard,
   PlaybackPosition,
   Podcast,
+  ResurfacingResponse,
+  ResurfacingSettings,
   SearchResponse,
   SegmentsResponse,
   TopicCard,
@@ -135,13 +137,14 @@ export function getRelated(slug: string, topK = 6): Promise<EpisodesPage> {
 }
 
 /** Person profile card — appears-in episodes + related people/topics (KG co-occurrence). */
-export function getPersonCard(id: string): Promise<PersonCard> {
-  return getJSON<PersonCard>(`/persons/${encodeURIComponent(id)}`)
+export function getPersonCard(id: string, scope?: 'all' | 'mine'): Promise<PersonCard> {
+  // scope='mine' = the guest across the episodes the signed-in user has heard (P3 #1122).
+  return getJSON<PersonCard>(`/persons/${encodeURIComponent(id)}`, { scope })
 }
 
 /** Topic card — episodes-about + cluster siblings + related people (KG-grounded). */
-export function getTopicCard(id: string): Promise<TopicCard> {
-  return getJSON<TopicCard>(`/topics/${encodeURIComponent(id)}`)
+export function getTopicCard(id: string, scope?: 'all' | 'mine'): Promise<TopicCard> {
+  return getJSON<TopicCard>(`/topics/${encodeURIComponent(id)}`, { scope })
 }
 
 /** Corpus-wide grounded search (Home "Ask your library"); empty when no index. */
@@ -442,4 +445,39 @@ export async function deleteNote(id: string): Promise<Note[]> {
 /** The URL for the Markdown export of all highlights (a download link / new tab). */
 export function highlightsExportUrl(): string {
   return `${BASE}/highlights/export.md`
+}
+
+// --- P3 Consolidation: spaced resurfacing (RFC-101 §5) ---
+
+/** Highlights due to resurface (+ reflection prompt + paused flag); empty signed out (401). */
+export async function getResurfacing(): Promise<ResurfacingResponse> {
+  try {
+    return await getJSON<ResurfacingResponse>('/resurfacing')
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) return { items: [], paused: false }
+    throw err
+  }
+}
+
+/** Record that the user has seen a resurfaced highlight (advances its ladder). Best-effort. */
+export async function markSurfaced(id: string): Promise<void> {
+  const resp = await fetch(`${BASE}/resurfacing/${encodeURIComponent(id)}/surfaced`, {
+    method: 'POST',
+    credentials: 'include',
+  })
+  if (!resp.ok && resp.status !== 401) {
+    throw new ApiError(resp.status, `POST /resurfacing/surfaced → ${resp.status}`)
+  }
+}
+
+/** Update resurfacing pacing (pause/resume); returns the stored settings. */
+export async function putResurfacingSettings(paused: boolean): Promise<ResurfacingSettings> {
+  const resp = await fetch(`${BASE}/resurfacing/settings`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ paused }),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `PUT /resurfacing/settings → ${resp.status}`)
+  return (await resp.json()) as ResurfacingSettings
 }

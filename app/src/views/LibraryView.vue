@@ -15,17 +15,19 @@ import { summaryFromDetail } from '../utils/episode'
 import EpisodeCard from '../components/EpisodeCard.vue'
 import QueueView from './QueueView.vue'
 import HighlightsView from './HighlightsView.vue'
+import ResurfacingInbox from './ResurfacingInbox.vue'
 
 const { t } = useI18n()
 const favorites = useFavoritesStore()
 
-// Tabs: Saved (episodes) · Highlights (captured moments/spans) · Knowledge (saved insights) ·
-// Queue (what's next) · Recent (heard). "Shows" returns once subscriptions are user-curated.
-type Tab = 'saved' | 'highlights' | 'knowledge' | 'queue' | 'recent'
+// Tabs: Saved · Highlights · Revisit (spaced resurfacing) · Knowledge · Queue · Recent.
+// "Shows" returns once subscriptions are user-curated.
+type Tab = 'saved' | 'highlights' | 'revisit' | 'knowledge' | 'queue' | 'recent'
 const tab = ref<Tab>('saved')
 const tabs: { key: Tab; label: string }[] = [
   { key: 'saved', label: 'library.saved' },
   { key: 'highlights', label: 'library.highlights' },
+  { key: 'revisit', label: 'library.revisit' },
   { key: 'knowledge', label: 'library.knowledge' },
   { key: 'queue', label: 'library.queue' },
   { key: 'recent', label: 'library.recent' },
@@ -77,6 +79,11 @@ onMounted(async () => {
     <!-- Highlights — captured moments / spans / saved insights, grouped by episode, with notes. -->
     <div v-show="tab === 'highlights'">
       <HighlightsView />
+    </div>
+
+    <!-- Revisit — spaced resurfacing of past highlights with reflection prompts. -->
+    <div v-show="tab === 'revisit'">
+      <ResurfacingInbox />
     </div>
 
     <!-- Knowledge — saved insights (snapshot text + jump-to-moment). -->

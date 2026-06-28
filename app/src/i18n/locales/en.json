@@ -145,6 +145,9 @@
     "dismiss": "Not now"
   },
   "ec": {
+    "scopeLabel": "Card scope",
+    "scopeAll": "All",
+    "scopeMine": "My corpus",
     "clusterSize": "{count} topic | {count} topics",
     "singleTopic": "Standalone topic — not part of a cluster",
     "person": "Person",
@@ -172,6 +175,17 @@
     "up": "Move up",
     "down": "Move down"
   },
+  "revisit": {
+    "intro": "Highlights worth a second look, on a spaced schedule.",
+    "empty": "Nothing to revisit right now — check back later.",
+    "paused": "Resurfacing is paused.",
+    "pause": "Pause",
+    "resume": "Resume",
+    "dismiss": "Got it",
+    "open": "Open",
+    "moment": "Marked moment",
+    "span": "Highlight"
+  },
   "capture": {
     "markMoment": "Mark this moment",
     "marked": "Moment saved",
@@ -196,6 +210,7 @@
     "title": "Library",
     "saved": "Saved",
     "highlights": "Highlights",
+    "revisit": "Revisit",
     "knowledge": "Knowledge",
     "queue": "Queue",
     "recent": "Recent",

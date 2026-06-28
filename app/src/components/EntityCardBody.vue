@@ -54,19 +54,30 @@ const topic = ref<TopicCard | null>(null)
 const loading = ref(false)
 const failed = ref(false)
 
+// "Your corpus" lens (P3 #1125): 'mine' restricts the card to the episodes the user has heard
+// ("you also heard them in …"). Auth-gated; a global card otherwise.
+const corpusScope = ref<'all' | 'mine'>('all')
+
 async function load(target: Target): Promise<void> {
   loading.value = true
   failed.value = false
   person.value = null
   topic.value = null
+  const scope = corpusScope.value === 'mine' ? 'mine' : undefined
   try {
-    if (target.kind === 'person') person.value = await getPersonCard(target.id)
-    else topic.value = await getTopicCard(target.id)
+    if (target.kind === 'person') person.value = await getPersonCard(target.id, scope)
+    else topic.value = await getTopicCard(target.id, scope)
   } catch {
     failed.value = true
   } finally {
     loading.value = false
   }
+}
+
+function setCorpusScope(s: 'all' | 'mine'): void {
+  if (corpusScope.value === s) return
+  corpusScope.value = s
+  void load(current.value)
 }
 
 // Re-open on a brand-new target (parent opened a different chip) — reset the stack.
@@ -138,6 +149,26 @@ function searchLibrary(): void {
         <span aria-hidden="true">{{ following ? '✓' : '+' }}</span>
         {{ following ? t('ec.following') : t('ec.follow') }}
       </button>
+      <!-- "Your corpus" lens (P3 #1125): all episodes, or just the ones you've heard. -->
+      <div
+        v-if="auth.isAuthenticated && label"
+        role="tablist"
+        :aria-label="t('ec.scopeLabel')"
+        class="mt-2 inline-flex gap-1 rounded-full border border-border p-0.5 text-xs"
+      >
+        <button
+          v-for="opt in (['all', 'mine'] as const)"
+          :key="opt"
+          type="button"
+          role="tab"
+          :aria-selected="corpusScope === opt"
+          class="rounded-full px-2.5 py-0.5 font-semibold transition"
+          :class="corpusScope === opt ? 'bg-accent text-accent-foreground' : 'text-muted hover:text-canvas-foreground'"
+          @click="setCorpusScope(opt)"
+        >
+          {{ opt === 'all' ? t('ec.scopeAll') : t('ec.scopeMine') }}
+        </button>
+      </div>
     </header>
 
     <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4">

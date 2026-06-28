@@ -111,7 +111,7 @@ describe('KnowledgePanel', () => {
     await w.findAll('button').find((b) => b.text() === 'Matthew Walker')!.trigger('click')
     await flushPromises()
     // Replace-in-panel (UXS-014): the card renders INLINE in the panel (no overlay), with a ‹ Back.
-    expect(getPerson).toHaveBeenCalledWith('person:matthew-walker')
+    expect(getPerson).toHaveBeenCalledWith('person:matthew-walker', undefined)
     expect(w.text()).toContain('Matthew Walker')
     expect(w.findAll('button').some((b) => b.text().includes('Back'))).toBe(true)
   })
@@ -132,7 +132,7 @@ describe('KnowledgePanel', () => {
     const w = mountPanel()
     await w.findAll('button').find((b) => b.text() === 'memory')!.trigger('click')
     await flushPromises()
-    expect(getTopic).toHaveBeenCalledWith('topic:memory')
+    expect(getTopic).toHaveBeenCalledWith('topic:memory', undefined)
     expect(push).not.toHaveBeenCalled() // search now lives inside the card, not on chip-tap
   })
 
