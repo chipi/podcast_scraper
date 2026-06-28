@@ -213,6 +213,28 @@ def _enrich_kg_with_people(kg: dict[str, Any], roster: list[dict[str, str]]) -> 
             edges.append({"type": "MENTIONS", "from": ep_node_id, "to": pid})
 
 
+# A fixed timestamp keeps the synthesized corpus byte-stable across rebuilds.
+_ENRICH_COMPUTED_AT = "2026-01-01T00:00:00Z"
+
+
+def _enrichment_envelope(enricher_id: str, data: dict[str, Any]) -> dict[str, Any]:
+    """An RFC-088 enricher output envelope (the shape the consumer read surface parses)."""
+    return {
+        "computed_at": _ENRICH_COMPUTED_AT,
+        "enricher_id": enricher_id,
+        "enricher_version": "1.0",
+        "schema_version": "1.0",
+        "status": "ok",
+        "data": data,
+        "error": None,
+        "error_class": None,
+        "retry_count": 0,
+        "circuit_state": None,
+        "duration_ms": 0,
+        "records_written": len(next(iter(data.values()), [])) if data else 0,
+    }
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--rss-dir", type=Path, default=Path("tests/fixtures/rss"))
@@ -238,6 +260,7 @@ def main() -> int:
 
     shows = APP_SHOWS[: args.max_feeds]
     episode_index: list[dict[str, Any]] = []  # for the regenerate-summary print
+    corpus_topic_counts: dict[str, int] = {}  # → corpus-scope temporal_velocity envelope
 
     for show_rss_stem, show_dir in shows:
         rss_path = args.rss_dir / f"{show_rss_stem}.xml"
@@ -308,6 +331,29 @@ def main() -> int:
             (run_meta_dir / f"{ep_label}.kg.json").write_text(
                 json.dumps(kg, indent=2, sort_keys=True) + "\n", encoding="utf-8"
             )
+
+            # Episode-scope enrichment envelope (RFC-088) so the consumer enrichment read surface
+            # (GET /api/app/episodes/{slug}/enrichment, P3 #1121) has real data in the e2e corpus.
+            # topic_cooccurrence: which of this episode's topics appear together (all pairs here).
+            topic_ids = [f"topic:{slug(lbl)}" for lbl in topics]
+            cooc = [
+                {"a": topic_ids[i], "b": topic_ids[j], "count": 1}
+                for i in range(len(topic_ids))
+                for j in range(i + 1, len(topic_ids))
+            ]
+            enrich_dir = run_meta_dir / "enrichments"
+            enrich_dir.mkdir(parents=True, exist_ok=True)
+            (enrich_dir / f"{ep_label}.topic_cooccurrence.json").write_text(
+                json.dumps(
+                    _enrichment_envelope("topic_cooccurrence", {"pairs": cooc}),
+                    indent=2,
+                    sort_keys=True,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            for tid in topic_ids:
+                corpus_topic_counts[tid] = corpus_topic_counts.get(tid, 0) + 1
 
             # Transcript text + RAW canonical segments (player contract).
             (run_tr_dir / f"{ep_label}.txt").write_text(raw_text, encoding="utf-8")
@@ -419,6 +465,25 @@ def main() -> int:
                 "topic_count": sum(len(c["members"]) for c in clusters),
                 "cluster_count": len(clusters),
             },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    # --- corpus-scope enrichment envelope (RFC-088) -------------------------
+    # temporal_velocity: a corpus-wide signal the consumer surface reads via
+    # GET /api/app/corpus/enrichment (P3 #1121). Rank topics by cross-episode prevalence.
+    trending = [
+        {"topic_id": tid, "episodes": n, "velocity": round(n / max(len(episode_index), 1), 3)}
+        for tid, n in sorted(corpus_topic_counts.items(), key=lambda kv: (-kv[1], kv[0]))
+    ]
+    corpus_enrich_dir = out / "enrichments"
+    corpus_enrich_dir.mkdir(parents=True, exist_ok=True)
+    (corpus_enrich_dir / "temporal_velocity.json").write_text(
+        json.dumps(
+            _enrichment_envelope("temporal_velocity", {"trending": trending}),
             indent=2,
             sort_keys=True,
         )

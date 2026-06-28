@@ -95,7 +95,7 @@ Reuses the hybrid index (RFC-090); answers are real ranked passages, never gener
 | Method | Path | Description |
 | --- | --- | --- |
 | GET | `/api/app/episodes/{slug}/search?q=&top_k=` | Episode-scoped: over-fetch by feed, narrow to this episode. |
-| GET | `/api/app/search?q=&top_k=&grounded_only=` | Library-wide (whole shared corpus for now; scoped to the user's library once that lands). Each hit's `metadata` is enriched with `episode_slug` / `episode_title` / `podcast_title` / `episode_artwork` (thumb) so the client can jump to the episode + moment (`/episode/{slug}?t=`) and render results like library cards. |
+| GET | `/api/app/search?q=&top_k=&grounded_only=&scope=` | Library-wide grounded search. `scope=all` (default) spans the shared corpus; **`scope=mine`** (P3 #1120, auth-gated — **401** signed out) is grounded **recall** over the user's heard∪captured set, with honest zero-coverage (empty, no global fallback). Each hit's `metadata` is enriched with `episode_slug` / `episode_title` / `podcast_title` / `episode_artwork` (thumb) so the client can jump to the episode + moment (`/episode/{slug}?t=`) and render results like library cards. |
 
 Both return the standard search shape (`{query, results[{doc_id, score, metadata, text,
 source_tier, supporting_quotes?, lifted?}], query_type, lift_stats?}`) and carry
@@ -170,6 +170,57 @@ the **public + anonymous** cross-user reach.
 | --- | --- | --- |
 | POST | `/api/app/listen/{slug}` | Append one "episode opened" event to the user's listen log (`<data_dir>/users/<id>/listen_events.jsonl`) for analytics. **204**; best-effort, never blocks playback. |
 | GET | `/api/app/me/stats` | The signed-in user's own listening summary: `{episodes, shows, listening_seconds, active_days, day_streak, daily[{date, count}]}` (`UserStatsResponse`). `daily` is a 14-day opens sparkline; `StatPoint` = `{date, count}`. |
+
+---
+
+## Knowledge cards (person / topic)
+
+KG-grounded person/topic cards (PRD-043; RFC-102). `scope=mine` (P3 #1122, auth-gated — **401**
+signed out) is the **"your corpus" lens**: the guest/topic restricted to the episodes the user has
+heard∪captured (the _appears-in_ list + `episode_count` are filtered).
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/api/app/persons/{id}?scope=` | Person card `{id, label, episode_count, episodes[…Summary], related_people[], related_topics[]}` (`AppPersonCard`); **404** when the person is in no KG. |
+| GET | `/api/app/topics/{id}?scope=` | Topic card `{id, label, cluster_*, sibling_topics[], episode_count, episodes[…], related_people[]}` (`AppTopicCard`); **404** when absent. |
+| GET | `/api/app/entities/search?q=` | Resolve a query to a person/topic card (exact/near-exact); `{query, entity}` or `entity:null`. |
+
+---
+
+## Capture — highlights & notes (P2; PRD-040 / RFC-098 §7)
+
+Per-user files (`highlights.json`, `notes.json`); all **auth-gated** (**401** signed out). The route
+mints opaque ids + timestamps; the timestamp is the stable anchor (re-anchors on re-scrape, never
+dropped).
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/api/app/highlights?episode=` | The user's highlights (`{items[Highlight]}`), optionally scoped to one episode slug. `Highlight` = `{id, episode_slug, kind(span\|moment\|insight), start_ms?, end_ms?, char_start?, char_end?, segment_ids[], quote_text?, speaker?, source_insight_id?, color?, created_at, anchor_status?}`. |
+| POST | `/api/app/highlights` | Capture a highlight (**201**); body `HighlightCreate`. |
+| PATCH | `/api/app/highlights/{id}` | Edit `color` / `quote_text` (`exclude_unset` — explicit `color:null` clears it); **404** if absent. |
+| DELETE | `/api/app/highlights/{id}` | Remove; returns the remaining `{items[]}`. |
+| GET, POST, PATCH, DELETE | `/api/app/notes` (+ `/{id}`) | Free-text notes targeting `highlight\|insight\|episode`. `GET ?target=&target_id=` scopes; `POST` (**201**) `{target, target_id, text}` (`text` min length 1 → **422**); `PATCH {text}`; `DELETE`. |
+| GET | `/api/app/highlights/export.md` | Markdown export of all highlights + attached notes (grouped by episode; `text/markdown` attachment). |
+
+---
+
+## Consolidation — recall, enrichment, resurfacing (P3; PRD-041 / RFC-101)
+
+Read-time projections over the user's heard∪captured corpus + the RFC-088 enrichment envelopes — **no
+request-time LLM (D6)**, **read-only over enrichments (ADR-104)**. The heard set = ≥30% played ∪ any
+capture (RFC-101 §1).
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/api/app/episodes/{slug}/enrichment` | Per-episode enrichment signals `{slug, signals{<enricher_id>: data}}` for the viewed episode (RFC-088 envelopes; only OK enrichers). **404** unknown slug. |
+| GET | `/api/app/corpus/enrichment` | Corpus-scope signals `{signals{<enricher_id>: data}}` (temporal velocity, topic similarity, …). |
+| GET | `/api/app/resurfacing` | Highlights due to resurface, most-overdue first: `{items[{highlight, reflection_prompt}], paused}`. Read-time ladder (2d/1w/1mo/3mo on `created_at`/`last_surfaced`); empty when paused. **Auth-gated.** |
+| POST | `/api/app/resurfacing/{id}/surfaced` | Record a resurfaced highlight as seen (advances its ladder). **204.** |
+| GET, PUT | `/api/app/resurfacing/settings` | Pacing `{paused}` (`PUT` to pause/resume). |
+| GET | `/api/app/interests/derived` | Implicit interests ranked by occurrence across the user's corpus: `{items[{token, kind, label, count}]}` — `person:`/`topic:` tokens, beside explicit follows. **Auth-gated.** |
+
+> Recall itself is `GET /api/app/search?scope=mine` (see **Search**) — grounded retrieval over the
+> heard set, not a separate endpoint.
 
 ---
 

@@ -7,6 +7,9 @@ import { defineConfig, devices } from '@playwright/test'
  */
 export default defineConfig({
   testDir: './e2e',
+  // Warm the shared mock-OAuth user before the parallel specs (avoids a first-login create race now
+  // that several auth-gated specs run concurrently).
+  globalSetup: './e2e/global-setup.ts',
   fullyParallel: true,
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? 'github' : 'list',

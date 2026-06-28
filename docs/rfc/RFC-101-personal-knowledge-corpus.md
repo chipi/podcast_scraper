@@ -1,6 +1,10 @@
 # RFC-101: Personal Knowledge Corpus
 
-- **Status**: Draft
+- **Status**: Shipped — v2.7 / Epic P3 (#1113; #1120–#1126). Built as specified: a **read-time
+  projection** (no persisted per-user graph), recall/connections as **`scope=mine`** flags on the
+  existing search + person/topic endpoints, resurfacing computed on read, all under `/api/app/*`,
+  consuming the shipped RFC-088 enrichment envelopes (ADR-104 read-only). See PRD-041 §"As shipped"
+  + `docs/api/PLATFORM_API.md`. The MCP "bring-your-own-agent" north-star (FR6.4) remains future.
 - **Authors**: Marko
 - **Stakeholders**: Server API, Search/Retrieval, Consumer App
 - **Related PRDs**:

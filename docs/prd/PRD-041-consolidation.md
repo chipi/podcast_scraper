@@ -1,6 +1,6 @@
 # PRD-041: Consolidation (personal knowledge corpus)
 
-- **Status**: Draft
+- **Status**: Shipped — v2.7 / Epic P3 (#1113; children #1120–#1126)
 - **Authors**: Marko
 - **Target Release**: v2.7 (Phase P3)
 - **Parent PRD**: `docs/prd/PRD-035-learning-platform.md`
@@ -106,14 +106,33 @@ consumed, with citations).
 
 ## API summary
 
+As shipped, all routes are under the consumer `/api/app/*` namespace (RFC-098) — **not** the
+`/api/user/*` paths this PRD sketched — and recall/connections are **scope flags on existing
+endpoints**, not new ones (unify, don't rebuild). Full reference: `docs/api/PLATFORM_API.md`.
+
 | Method | Path | Description |
 | --- | --- | --- |
-| `GET` | `/api/user/corpus/graph` | Personal knowledge graph projection |
-| `POST` | `/api/user/corpus/recall` | Grounded recall query over the user's corpus |
-| `GET` | `/api/user/corpus/person/{id}` | A person across the user's heard episodes |
-| `GET` | `/api/user/corpus/topic/{id}` | A topic across the user's heard episodes |
-| `GET` | `/api/user/resurfacing` | Due resurfacing items + reflection prompts |
-| `GET` | `/api/user/interests` | Personal interest profile |
+| `GET` | `/api/app/search?scope=mine` | **Recall** (FR2): grounded retrieval over the heard∪captured set; honest zero-coverage. |
+| `GET` | `/api/app/persons/{id}?scope=mine` · `/topics/{id}?scope=mine` | **Connections** (FR3): a guest/topic across the user's heard episodes. |
+| `GET` | `/api/app/episodes/{slug}/enrichment` · `/corpus/enrichment` | Consumer **enrichment** read surface (RFC-088 envelopes; #1121). |
+| `GET` | `/api/app/resurfacing` (+ `POST /{id}/surfaced`, `GET/PUT /settings`) | **Resurfacing** (FR4): due items + reflection prompt + pacing. |
+| `GET` | `/api/app/interests/derived` | **Interest profile** (FR5): implicit tokens from the user's corpus. |
+
+## As shipped (v2.7 / Epic P3)
+
+| FR | Shipped as | Where |
+| --- | --- | --- |
+| FR1 personal corpus | **Read-time projection** (no persisted per-user graph — RFC-101 decision 1): `user_episode_set()` = heard (≥30% played) ∪ captured, over the per-user files + canonical identity | `app_user_corpus.py`, #1120 |
+| FR2 grounded recall | `scope=mine` on `/api/app/search` (hybrid RFC-090 filtered to the set); no request-time LLM; zero-coverage honest; the **Recall** UI is the search "My corpus" toggle | `routes/app_search.py`, `SearchView.vue`, #1120/#1124 |
+| FR3 connections | `scope=mine` on the person/topic cards + the EntityCardBody "your corpus" toggle | `routes/app_relational.py`, `EntityCardBody.vue`, #1122/#1125 |
+| FR4 resurfacing | Read-time due ladder (2d/1w/1mo/3mo) + reflection prompt + jump + pacing; the Library **Revisit** inbox | `app_resurfacing.py`, `routes/app_consolidation.py`, `ResurfacingInbox.vue`, #1123/#1125 |
+| FR5 interest profile | `GET /interests/derived` (implicit, beside explicit follows); opt-in personalised ordering remains flag-gated (`rank_discover`) | `app_resurfacing.py`, #1123 |
+| Enrichment substrate | Consumer read surface over the shipped RFC-088 envelopes (ADR-104 read-only) | `routes/app_enrichment.py`, #1121 |
+
+**Tests:** unit (set derivation, resurfacing ladder, interest ranking, envelope parsing),
+integration (`/api/app/*` over a fixture corpus + multi-user isolation + no-LLM), component (recall
+toggle, scoped cards, Revisit inbox), and an e2e over the committed validation corpus (extended with
+enrichment envelopes) covering recall/connections/resurfacing (#1120–#1126).
 
 ## Success Metrics
 
