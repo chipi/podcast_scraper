@@ -545,6 +545,45 @@ mode. Half-wired features (Literal value with no dispatch arm, profile default
 with no live code path, method exists but pipeline still calls the old one)
 are regressions, not stubs. Don't ship them.
 
+### What "no LLM in CI" actually means (and doesn't)
+
+Repo rule, often cited as `[[feedback_no_llm_in_ci]]`. Stated precisely so
+future agents don't over-apply it:
+
+**What it bans.** Calling a real, **paid**, external LLM API (OpenAI,
+Anthropic, Gemini, Mistral, Deepgram, etc.) from `tests/` or any CI
+workflow step. Cost-bearing network calls to a remote inference endpoint.
+Same logic covers cloud embedding APIs.
+
+**Why.** Cost (a flaky retry loop can burn real money on every PR), flakiness
+(rate limits, vendor outages), and reproducibility (model versions drift
+silently). The `airgapped*` profile families exist precisely so the deterministic
+path is the CI-safe one; `cloud_thin` / `cloud_balanced` / `cloud_quality` are
+local / manual / nightly only. See `#1055` / `#1058`.
+
+**What it does NOT ban.**
+
+- **Local ML models loaded via sentence-transformers / transformers /
+  pyannote / Whisper / llama-cpp-python / spaCy / etc.** Those are
+  installed via `[ml]` / `[search]` extras, run on CPU or local GPU,
+  cost nothing per call, and ARE used by CI for semantic search, GI
+  grounding, NER, diarization, summarisation, and more. The lazy-import
+  pattern (`from sentence_transformers import SentenceTransformer` inside
+  a function, not at module top) is the established way to keep modules
+  importable on `.[dev]`-only installs.
+- **Heavy local models that download large weights on first run.** Those
+  should be gated behind the `ml_models` pytest marker (CI's default suite
+  deselects it). The marker is about avoiding a multi-hundred-MB download
+  in every CI run, not about LLM cost. Example: `tests/integration/enrichment/test_deberta_real_model_optin.py`.
+- **Deterministic / scripted fakes that share the LLM provider protocol.**
+  These are how CI exercises pipeline branches that would otherwise call a
+  paid LLM in production — exactly the substitution the rule wants.
+
+**Decision rubric for a new test.** Ask: "does this make a remote API call
+to a paid inference endpoint?" Yes → must be stubbed in CI. No → fine to
+run, even if it pulls in `sentence-transformers` (provided the workflow
+installs `[ml]` / `[search]`).
+
 ### Document location
 
 - **Agent journal** (`.journal/`, git-ignored, survives `/clear`): EVERY agent keeps
