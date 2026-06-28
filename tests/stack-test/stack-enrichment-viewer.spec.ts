@@ -22,12 +22,17 @@ test.describe('stack test — RFC-088 chunk 9 viewer surfaces', () => {
   })
 
   test('Configuration popup → Enrichment tab is mountable + renders the panel', async ({ page }) => {
-    // Open the Configuration popup from the StatusBar.
-    const sourcesBtn = page.getByTestId('status-bar-sources-btn')
-    if (await sourcesBtn.isVisible({ timeout: 5000 })) {
-      await sourcesBtn.click()
-    }
-    // Click the new Enrichment tab.
+    // Open the Configuration popup from the StatusBar. The trigger
+    // is gated on the corpus path resolving + the feeds / operator
+    // config APIs reporting available (see StatusBar.vue around the
+    // ``status-bar-sources-trigger`` button) — wait for it explicitly
+    // rather than skipping silently when it isn't ready yet.
+    const sourcesBtn = page.getByTestId('status-bar-sources-trigger')
+    await expect(sourcesBtn).toBeVisible({ timeout: 60_000 })
+    await sourcesBtn.click()
+    await expect(page.getByTestId('status-bar-sources-dialog')).toBeVisible({
+      timeout: 10_000,
+    })
     const tab = page.getByTestId('sources-dialog-tab-enrichment')
     await expect(tab).toBeVisible({ timeout: 10_000 })
     await tab.click()
@@ -67,7 +72,7 @@ test.describe('stack test — RFC-088 chunk 9 viewer surfaces', () => {
     // RFC-088 v2 — the Configuration → Enrichment tab now embeds a
     // collapsible Configuration editor. Smoke-check that the toggle
     // expands the editor + the data-driven form hooks render.
-    const sourcesBtn = page.getByTestId('status-bar-sources-btn')
+    const sourcesBtn = page.getByTestId('status-bar-sources-trigger')
     if (await sourcesBtn.isVisible({ timeout: 5000 })) {
       await sourcesBtn.click()
     }
