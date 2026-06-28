@@ -14,11 +14,17 @@ import type { EntityRef, SearchHit } from '../services/types'
 import { hitStartSeconds } from '../player/insights'
 import { formatTime } from '../player/transcriptSync'
 import { formatPublishDate } from '../utils/format'
+import { useAuthStore } from '../stores/auth'
 import EntityCard from '../components/EntityCard.vue'
 
 const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
+
+// Scope (P3 Recall, #1124): 'all' = whole library; 'mine' = grounded recall over the user's
+// heard∪captured corpus ("what have I learned about X"). The toggle only shows when signed in.
+const scope = ref<'all' | 'mine'>(route.query.scope === 'mine' ? 'mine' : 'all')
 
 const query = ref(String(route.query.q ?? ''))
 const results = ref<SearchHit[]>([])
@@ -89,14 +95,17 @@ async function run(q: string): Promise<void> {
   }
   searching.value = true
   error.value = false
-  // Resolve a person/topic entity match in parallel with the passage search (3.4); a failed
-  // resolution never blocks the passages — the entity card simply doesn't appear.
-  const entityP = resolveEntity(term).then(
-    (r) => (entity.value = r.entity),
-    () => (entity.value = null),
-  )
+  const recall = scope.value === 'mine'
+  // Resolve a person/topic entity match in parallel with the passage search (3.4) — but only in the
+  // whole-library scope; recall is about the user's own passages, not a global entity card.
+  const entityP = recall
+    ? Promise.resolve((entity.value = null))
+    : resolveEntity(term).then(
+        (r) => (entity.value = r.entity),
+        () => (entity.value = null),
+      )
   try {
-    const resp = await searchCorpus(term)
+    const resp = await searchCorpus(term, 12, recall ? 'mine' : 'all')
     results.value = resp.results
     error.value = Boolean(resp.error)
   } catch {
@@ -108,12 +117,20 @@ async function run(q: string): Promise<void> {
   }
 }
 
+function setScope(s: 'all' | 'mine'): void {
+  if (scope.value === s) return
+  scope.value = s
+  void router.replace({ name: 'search', query: { q: query.value.trim() || undefined, scope: s } })
+  void run(query.value)
+}
+
 function openEntity(): void {
   if (entity.value) cardTarget.value = { kind: entity.value.kind, id: entity.value.id }
 }
 
 function submit(): void {
-  void router.replace({ name: 'search', query: { q: query.value.trim() } })
+  const q = query.value.trim() || undefined
+  void router.replace({ name: 'search', query: { q, scope: scope.value } })
 }
 
 function openEpisode(slug: string | null, hit?: SearchHit): void {
@@ -156,6 +173,27 @@ const showEmpty = computed(
       </button>
     </form>
 
+    <!-- Recall scope (P3 #1124): search everything, or just your corpus. Auth-gated. -->
+    <div
+      v-if="auth.isAuthenticated"
+      role="tablist"
+      :aria-label="t('search.scopeLabel')"
+      class="mt-3 inline-flex gap-1 rounded-full border border-border bg-surface p-0.5 text-sm"
+    >
+      <button
+        v-for="opt in (['all', 'mine'] as const)"
+        :key="opt"
+        type="button"
+        role="tab"
+        :aria-selected="scope === opt"
+        class="rounded-full px-3 py-1 font-semibold transition"
+        :class="scope === opt ? 'bg-accent text-accent-foreground' : 'text-muted hover:text-canvas-foreground'"
+        @click="setScope(opt)"
+      >
+        {{ opt === 'all' ? t('search.scopeAll') : t('search.scopeMine') }}
+      </button>
+    </div>
+
     <!-- Entity match (3.4): a person/topic card above the passages, opening the full card on tap. -->
     <button
       v-if="entity && !searching"
@@ -173,6 +211,7 @@ const showEmpty = computed(
 
     <p v-if="searching" class="mt-4 text-muted">{{ t('search.searching') }}</p>
     <p v-else-if="error" class="mt-4 text-muted">{{ t('search.error') }}</p>
+    <p v-else-if="showEmpty && scope === 'mine'" class="mt-4 text-muted">{{ t('search.recallEmpty') }}</p>
     <p v-else-if="showEmpty" class="mt-4 text-muted">{{ t('search.noResults') }}</p>
 
     <template v-else-if="results.length">

@@ -145,8 +145,13 @@ export function getTopicCard(id: string): Promise<TopicCard> {
 }
 
 /** Corpus-wide grounded search (Home "Ask your library"); empty when no index. */
-export function searchCorpus(q: string, topK = 12): Promise<SearchResponse> {
-  return getJSON<SearchResponse>('/search', { q, top_k: topK })
+export function searchCorpus(
+  q: string,
+  topK = 12,
+  scope?: 'all' | 'mine',
+): Promise<SearchResponse> {
+  // scope='mine' = grounded recall over the signed-in user's heard∪captured corpus (P3 #1120).
+  return getJSON<SearchResponse>('/search', { q, top_k: topK, scope })
 }
 
 /** Resolve a query to a person/topic card (exact/near-exact); `entity: null` when none. */
