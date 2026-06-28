@@ -412,3 +412,42 @@ def remove_note(data_dir: Path, user_id: str, note_id: str) -> list[dict[str, An
     notes = [x for x in get_notes(data_dir, user_id) if x.get("id") != note_id]
     _write(data_dir, user_id, "notes", notes)
     return notes
+
+
+# --- resurfacing state (P3 #1123): per-highlight {last_surfaced, count} + pacing settings ---
+#
+# Read-time spaced resurfacing (RFC-101 §5) needs only to remember, per highlight, when it was last
+# shown and how many times — the due ladder is computed on read (``app_resurfacing.select_due``).
+# ``resurfacing.json`` = {highlight_id: {last_surfaced, count}}; ``resurfacing_settings.json`` =
+# {paused}. No scheduler.
+
+
+def get_resurfacing_state(data_dir: Path, user_id: str) -> dict[str, Any]:
+    """Per-highlight resurfacing bookkeeping ({highlight_id: {last_surfaced, count}})."""
+    data = _read(data_dir, user_id, "resurfacing", {})
+    return data if isinstance(data, dict) else {}
+
+
+def mark_surfaced(data_dir: Path, user_id: str, highlight_id: str, ts: int) -> dict[str, Any]:
+    """Record that a highlight was just surfaced (bumps ``count``, sets ``last_surfaced``)."""
+    data = get_resurfacing_state(data_dir, user_id)
+    prev = data.get(highlight_id)
+    count = int(prev.get("count", 0)) + 1 if isinstance(prev, dict) else 1
+    rec = {"last_surfaced": int(ts), "count": count}
+    data[highlight_id] = rec
+    _write(data_dir, user_id, "resurfacing", data)
+    return rec
+
+
+def get_resurfacing_settings(data_dir: Path, user_id: str) -> dict[str, Any]:
+    """Pacing settings ({paused}); defaults to not-paused when unset."""
+    data = _read(data_dir, user_id, "resurfacing_settings", {})
+    paused = bool(data.get("paused")) if isinstance(data, dict) else False
+    return {"paused": paused}
+
+
+def set_resurfacing_settings(data_dir: Path, user_id: str, *, paused: bool) -> dict[str, Any]:
+    """Replace the pacing settings; return the stored record."""
+    settings = {"paused": bool(paused)}
+    _write(data_dir, user_id, "resurfacing_settings", settings)
+    return settings

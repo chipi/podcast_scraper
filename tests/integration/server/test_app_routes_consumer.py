@@ -591,6 +591,67 @@ def test_topic_card_scope_mine_filters_to_heard_corpus(tmp_path: Path) -> None:
     assert mine["episode_count"] == 1
 
 
+# --------------------------------------------------------------------------- #
+# resurfacing + derived interests (#1123)
+# --------------------------------------------------------------------------- #
+
+
+def test_resurfacing_requires_auth(tmp_path: Path) -> None:
+    assert _client(tmp_path).get("/api/app/resurfacing").status_code == 401
+    assert _client(tmp_path).get("/api/app/interests/derived").status_code == 401
+
+
+def test_resurfacing_due_then_pause_then_mark_surfaced(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    client = _authed(tmp_path)
+    # An old highlight (created well in the past) is due; a brand-new one is not.
+    old = client.post(
+        "/api/app/highlights", json={"episode_slug": "show-ep01", "kind": "moment", "start_ms": 0}
+    ).json()
+    # Backdate the highlight's created_at so it clears the 2-day first step.
+    import json as _json
+
+    hpath = tmp_path / "appdata" / "users"
+    user_dir = next(hpath.iterdir())
+    hl_file = user_dir / "highlights.json"
+    rows = _json.loads(hl_file.read_text())
+    rows[0]["created_at"] = 1  # epoch → far past
+    hl_file.write_text(_json.dumps(rows))
+
+    due = client.get("/api/app/resurfacing").json()
+    assert [i["highlight"]["id"] for i in due["items"]] == [old["id"]]
+    assert due["items"][0]["reflection_prompt"]  # a prompt is attached
+
+    # Pausing hides everything.
+    assert (
+        client.put("/api/app/resurfacing/settings", json={"paused": True}).json()["paused"] is True
+    )
+    paused = client.get("/api/app/resurfacing").json()
+    assert paused["items"] == [] and paused["paused"] is True
+
+    # Resume + mark surfaced advances the ladder (count becomes 1).
+    client.put("/api/app/resurfacing/settings", json={"paused": False})
+    assert client.post(f"/api/app/resurfacing/{old['id']}/surfaced").status_code == 204
+    state = _json.loads((user_dir / "resurfacing.json").read_text())
+    assert state[old["id"]]["count"] == 1
+
+
+def test_derived_interests_rank_corpus_entities(tmp_path: Path) -> None:
+    _corpus(tmp_path)  # ep1 + ep2 both feature person:jane-doe; ep1 also bob; topics ai/ml
+    client = _authed(tmp_path)
+    for eid in ("ep1", "ep2"):
+        client.post(
+            "/api/app/highlights",
+            json={"episode_slug": _slug(tmp_path, eid), "kind": "moment", "start_ms": 0},
+        )
+    items = client.get("/api/app/interests/derived").json()["items"]
+    by_token = {i["token"]: i for i in items}
+    # jane-doe occurs in both captured episodes → count 2, ranked first.
+    assert by_token["person:person:jane-doe"]["count"] == 2
+    assert items[0]["token"] == "person:person:jane-doe"
+    assert "topic:topic:ai" in by_token
+
+
 def test_highlights_export_falls_back_to_slug_when_episode_unknown(tmp_path: Path) -> None:
     # A highlight on a slug that resolves to no corpus episode → the export still renders, using the
     # bare slug as the heading (title hydration is best-effort, never breaks export).

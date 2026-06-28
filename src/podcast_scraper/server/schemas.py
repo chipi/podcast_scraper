@@ -474,6 +474,44 @@ class AppCorpusEnrichmentResponse(BaseModel):
     )
 
 
+# --- P3 Consolidation: spaced resurfacing + derived interests (RFC-101 §5-6 / #1123) ---
+
+
+class ResurfacingItem(BaseModel):
+    """A highlight due to resurface, with a reflection prompt (GET /api/app/resurfacing)."""
+
+    highlight: Highlight = Field(description="The due highlight (jump-to-moment via its anchor).")
+    reflection_prompt: str = Field(description="A deterministic, no-LLM reflection prompt.")
+
+
+class ResurfacingResponse(BaseModel):
+    """Due resurfacing items, most-overdue first (empty when paused / nothing due)."""
+
+    items: list[ResurfacingItem] = Field(default_factory=list)
+    paused: bool = Field(default=False, description="Whether the user has paused resurfacing.")
+
+
+class ResurfacingSettings(BaseModel):
+    """Pacing settings (GET/PUT /api/app/resurfacing/settings)."""
+
+    paused: bool = Field(default=False, description="Pause all resurfacing.")
+
+
+class DerivedInterest(BaseModel):
+    """An implicit interest token derived from the user's corpus (RFC-101 §6)."""
+
+    token: str = Field(description="`person:<id>` / `topic:<id>` — same scheme as explicit follows")
+    kind: Literal["person", "topic"] = Field(description="Entity kind.")
+    label: str = Field(description="Display label.")
+    count: int = Field(ge=1, description="How many heard∪captured episodes it occurs in.")
+
+
+class DerivedInterestsResponse(BaseModel):
+    """Ranked implicit interests (GET /api/app/interests/derived)."""
+
+    items: list[DerivedInterest] = Field(default_factory=list)
+
+
 class PlaybackPosition(BaseModel):
     """Per-user playback position for one episode."""
 
