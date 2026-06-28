@@ -16,6 +16,9 @@ import {
   type EnrichmentStatusResponse,
 } from '../../api/enrichmentApi'
 import { invalidateEnrichmentCache } from '../../composables/useEnrichmentEnvelopeCache'
+import EnrichmentConfigEditor from './EnrichmentConfigEditor.vue'
+
+const configExpanded = ref(false)
 
 interface Props {
   corpusPath: string
@@ -294,8 +297,24 @@ onMounted(refresh)
       </table>
     </div>
 
+    <!-- Configuration sub-section — RFC-088 v2 editor -->
+    <div class="rounded border border-default" data-testid="enrichment-panel-config-section">
+      <button
+        type="button"
+        class="flex w-full items-center justify-between gap-2 bg-overlay px-2 py-1.5 text-left text-[11px] hover:bg-overlay-2"
+        data-testid="enrichment-panel-config-toggle"
+        @click="configExpanded = !configExpanded"
+      >
+        <span class="font-semibold">Configuration</span>
+        <span class="text-muted">{{ configExpanded ? '−' : '+' }}</span>
+      </button>
+      <div v-if="configExpanded" class="border-t border-default p-2">
+        <EnrichmentConfigEditor :corpus-path="props.corpusPath" />
+      </div>
+    </div>
+
     <p class="text-muted text-[10px]">
-      Source endpoints: <code>/api/enrichment/{health,metrics,status,run-summary}</code> +
+      Source endpoints: <code>/api/enrichment/{health,metrics,status,run-summary,config}</code> +
       <code>/api/corpus/enrichments</code>. Submit
       <code>POST /api/jobs/enrichment</code>. Re-enable
       <code>POST /api/enrichment/health/&lt;id&gt;/re-enable</code>.
