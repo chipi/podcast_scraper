@@ -677,7 +677,6 @@ class EnrichmentExecutor:
                 bundle=bundle,
                 result=final_result,
                 schema_version=schema_version,
-                metrics=metrics,
             )
 
         # Per-enricher cost cap check.
@@ -820,9 +819,14 @@ class EnrichmentExecutor:
         bundle: EpisodeArtifactBundle | None,
         result: EnricherResult,
         schema_version: str,
-        metrics: EnrichmentMetrics,
     ) -> None:
-        """Build + write the on-disk envelope for a successful result."""
+        """Build + write the on-disk envelope for a successful result.
+
+        ``records_written`` accounting lives on ``EnrichmentMetrics``
+        (the upstream ``record_result`` call already counted it from
+        ``result.records_written``) — this method is purely the
+        on-disk write.
+        """
         manifest = enricher.manifest
         envelope = build_envelope(
             result=result,
@@ -845,11 +849,6 @@ class EnrichmentExecutor:
                 manifest.id,
                 path,
             )
-            return
-        # On a successful write, surface ``records_written`` via metrics
-        # (the enricher already returned it; this is a sanity check).
-        _ = metrics  # placeholder to keep the variable in scope; the
-        # ``record_result`` call upstream already accounted records.
 
     @staticmethod
     def _mark_quarantined(metrics: EnrichmentMetrics, *, reason: str) -> None:

@@ -47,6 +47,16 @@ describe('TopicEntityView.vue — RFC-088 chunk 6c enrichment signals', () => {
   it('co-occurrence chip click pivots subject focus to the partner topic', () => {
     expect(src).toContain('@click="subject.focusTopic(r.topic_id)"')
   })
+
+  it('surfaces effective_last_month when the corpus lags the current month', () => {
+    // The temporal_velocity envelope now carries ``effective_last_month``
+    // (RFC-088 real-corpus validation Bug 2). When the corpus's most
+    // recent activity isn't in the current calendar month, the velocity
+    // badge gets an "as of YYYY-MM" caption so operators don't read a
+    // stale window as a current-month signal.
+    expect(src).toContain('data-testid="topic-entity-view-velocity-as-of"')
+    expect(src).toContain('effective_last_month')
+  })
 })
 
 describe('PersonLandingView.vue — RFC-088 chunk 6c enrichment signals', () => {

@@ -86,7 +86,15 @@ interface VelocityRow {
 }
 const cooccurrenceRows = ref<CoOccurrenceRow[]>([])
 const velocityRow = ref<VelocityRow | null>(null)
+const velocityEffectiveLastMonth = ref<string | null>(null)
 const enrichmentLoaded = ref(false)
+
+function currentYearMonthUtc(): string {
+  const d = new Date()
+  const y = d.getUTCFullYear()
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+  return `${y}-${m}`
+}
 const COOCC_TOP_N = 8
 
 function shortId(id: string): string {
@@ -102,6 +110,7 @@ function resetRelational(): void {
   relatedTopicRows.value = []
   cooccurrenceRows.value = []
   velocityRow.value = null
+  velocityEffectiveLastMonth.value = null
   enrichmentLoaded.value = false
 }
 
@@ -114,7 +123,10 @@ async function loadEnrichmentSignals(topicId: string): Promise<void> {
         root,
         'topic_cooccurrence_corpus',
       ).catch(() => null),
-      fetchCachedCorpusEnvelope<{ topics: VelocityRow[] }>(root, 'temporal_velocity').catch(() => null),
+      fetchCachedCorpusEnvelope<{ topics: VelocityRow[]; effective_last_month?: string | null }>(
+        root,
+        'temporal_velocity',
+      ).catch(() => null),
     ])
     enrichmentLoaded.value = true
     if (coOcc?.data?.pairs) {
@@ -131,6 +143,7 @@ async function loadEnrichmentSignals(topicId: string): Promise<void> {
     }
     if (velocity?.data?.topics) {
       velocityRow.value = velocity.data.topics.find((t) => t.topic_id === topicId) ?? null
+      velocityEffectiveLastMonth.value = velocity.data.effective_last_month ?? null
     }
   } catch {
     /* enrichment signals are best-effort; never break the rail */
@@ -376,6 +389,12 @@ function onPrefillSearch(): void {
             :class="velocityRow.velocity_last_over_6mo > 1.5 ? 'bg-emerald-700/30 text-emerald-300' : velocityRow.velocity_last_over_6mo < 0.5 ? 'bg-rose-700/30 text-rose-300' : 'bg-overlay text-muted'"
           >{{ velocityRow.velocity_last_over_6mo.toFixed(2) }}×</span>
           <span class="text-muted">· {{ velocityRow.total }} mentions / 12-mo</span>
+          <span
+            v-if="velocityEffectiveLastMonth && velocityEffectiveLastMonth !== currentYearMonthUtc()"
+            class="text-muted italic"
+            data-testid="topic-entity-view-velocity-as-of"
+            :title="`Corpus data ends at ${velocityEffectiveLastMonth}; velocity is computed against that month rather than the current calendar month.`"
+          >· as of {{ velocityEffectiveLastMonth }}</span>
         </div>
         <div v-if="cooccurrenceRows.length" data-testid="topic-entity-view-cooccurrence">
           <p class="mb-1 text-[10px] text-muted">Co-occurs with</p>
