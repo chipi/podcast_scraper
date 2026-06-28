@@ -361,6 +361,98 @@ class InterestsUpdate(BaseModel):
     items: list[str] = Field(default_factory=list, description="Cluster ids to save.")
 
 
+# --- P2 Capture: highlights + notes (PRD-040 / RFC-098 §7) ---
+
+
+class HighlightCreate(BaseModel):
+    """Body for POST /api/app/highlights — capture a moment, span, or saved insight."""
+
+    episode_slug: str = Field(description="Episode the highlight belongs to.")
+    kind: Literal["span", "moment", "insight"] = Field(description="Capture kind.")
+    start_ms: int | None = Field(
+        default=None, ge=0, description="Anchor start (ms); the stable key."
+    )
+    end_ms: int | None = Field(
+        default=None, ge=0, description="Anchor end (ms); None for a moment."
+    )
+    char_start: int | None = Field(default=None, ge=0, description="Transcript char offset start.")
+    char_end: int | None = Field(default=None, ge=0, description="Transcript char offset end.")
+    segment_ids: list[str] = Field(default_factory=list, description="Overlapping segment ids.")
+    quote_text: str | None = Field(default=None, description="Captured verbatim text (spans).")
+    speaker: str | None = Field(default=None, description="Speaker label when known.")
+    source_insight_id: str | None = Field(
+        default=None, description="GIL insight id (insight kind)."
+    )
+    color: str | None = Field(default=None, description="Highlight colour/label token.")
+
+
+class HighlightUpdate(BaseModel):
+    """Body for PATCH /api/app/highlights/{id} — edit colour / captured text (all optional)."""
+
+    color: str | None = Field(default=None, description="New colour/label token.")
+    quote_text: str | None = Field(default=None, description="Edited captured text.")
+
+
+class Highlight(BaseModel):
+    """A saved highlight (response item)."""
+
+    id: str = Field(description="Opaque highlight id.")
+    episode_slug: str = Field(description="Episode the highlight belongs to.")
+    kind: Literal["span", "moment", "insight"] = Field(description="Capture kind.")
+    start_ms: int | None = Field(default=None, description="Anchor start (ms).")
+    end_ms: int | None = Field(default=None, description="Anchor end (ms).")
+    char_start: int | None = Field(default=None, description="Transcript char offset start.")
+    char_end: int | None = Field(default=None, description="Transcript char offset end.")
+    segment_ids: list[str] = Field(default_factory=list, description="Overlapping segment ids.")
+    quote_text: str | None = Field(default=None, description="Captured verbatim text.")
+    speaker: str | None = Field(default=None, description="Speaker label when known.")
+    source_insight_id: str | None = Field(
+        default=None, description="GIL insight id (insight kind)."
+    )
+    color: str | None = Field(default=None, description="Highlight colour/label token.")
+    created_at: int = Field(description="Unix time captured.")
+    anchor_status: str | None = Field(
+        default=None, description="'anchored' | 'drifted' after a re-anchor; None until re-scraped."
+    )
+
+
+class HighlightsResponse(BaseModel):
+    """The user's highlights (GET/POST/PATCH/DELETE /api/app/highlights)."""
+
+    items: list[Highlight] = Field(default_factory=list)
+
+
+class NoteCreate(BaseModel):
+    """Body for POST /api/app/notes — attach free text to a highlight, insight, or episode."""
+
+    target: Literal["highlight", "insight", "episode"] = Field(description="What the note is on.")
+    target_id: str = Field(description="Id/slug of the target.")
+    text: str = Field(min_length=1, description="Note body.")
+
+
+class NoteUpdate(BaseModel):
+    """Body for PATCH /api/app/notes/{id}."""
+
+    text: str = Field(min_length=1, description="Edited note body.")
+
+
+class Note(BaseModel):
+    """A saved note (response item)."""
+
+    id: str = Field(description="Opaque note id.")
+    target: Literal["highlight", "insight", "episode"] = Field(description="What the note is on.")
+    target_id: str = Field(description="Id/slug of the target.")
+    text: str = Field(description="Note body.")
+    created_at: int = Field(description="Unix time created.")
+    updated_at: int = Field(description="Unix time last edited.")
+
+
+class NotesResponse(BaseModel):
+    """The user's notes (GET/POST/PATCH/DELETE /api/app/notes)."""
+
+    items: list[Note] = Field(default_factory=list)
+
+
 class PlaybackPosition(BaseModel):
     """Per-user playback position for one episode."""
 

@@ -379,3 +379,106 @@ def test_library_add_list_remove_through_routes(tmp_path: Path) -> None:
     client.post("/api/app/library", json={"feed_id": "f1", "title": "One"})
     assert [i["feed_id"] for i in client.get("/api/app/library").json()["items"]] == ["f1"]
     assert client.delete("/api/app/library/f1").json()["items"] == []
+
+
+# --------------------------------------------------------------------------- #
+# capture routes (auth-gated): highlights + notes + Markdown export (#1115)
+# --------------------------------------------------------------------------- #
+
+
+def test_capture_routes_require_auth(tmp_path: Path) -> None:
+    client = _client(tmp_path)  # signed-out
+    assert client.get("/api/app/highlights").status_code == 401
+    assert client.post("/api/app/notes", json={"target": "episode", "target_id": "x", "text": "n"})
+    assert client.get("/api/app/highlights/export.md").status_code == 401
+
+
+def test_highlight_create_list_patch_delete(tmp_path: Path) -> None:
+    client = _authed(tmp_path)
+    assert client.get("/api/app/highlights").json()["items"] == []
+    created = client.post(
+        "/api/app/highlights",
+        json={
+            "episode_slug": "show-ep01",
+            "kind": "span",
+            "start_ms": 10_000,
+            "end_ms": 14_000,
+            "quote_text": "the anchor is the timestamp",
+            "color": "amber",
+        },
+    )
+    assert created.status_code == 201, created.text
+    hid = created.json()["id"]
+    assert hid.startswith("h_") and created.json()["created_at"] > 0
+    # scoped list
+    assert [
+        h["id"] for h in client.get("/api/app/highlights?episode=show-ep01").json()["items"]
+    ] == [hid]
+    assert client.get("/api/app/highlights?episode=other").json()["items"] == []
+    # patch colour, immutable slug preserved
+    patched = client.patch(f"/api/app/highlights/{hid}", json={"color": "rose"}).json()
+    assert patched["color"] == "rose" and patched["episode_slug"] == "show-ep01"
+    assert client.patch("/api/app/highlights/ghost", json={"color": "x"}).status_code == 404
+    # delete
+    assert client.delete(f"/api/app/highlights/{hid}").json()["items"] == []
+
+
+def test_note_create_list_patch_delete(tmp_path: Path) -> None:
+    client = _authed(tmp_path)
+    created = client.post(
+        "/api/app/notes",
+        json={"target": "highlight", "target_id": "h_abc", "text": "reframed my thinking"},
+    )
+    assert created.status_code == 201, created.text
+    nid = created.json()["id"]
+    assert nid.startswith("n_")
+    assert created.json()["created_at"] == created.json()["updated_at"]
+    # scoped list
+    scoped = client.get("/api/app/notes?target=highlight&target_id=h_abc").json()["items"]
+    assert [n["id"] for n in scoped] == [nid]
+    # patch bumps updated_at text
+    patched = client.patch(f"/api/app/notes/{nid}", json={"text": "second thoughts"}).json()
+    assert patched["text"] == "second thoughts"
+    assert client.patch("/api/app/notes/ghost", json={"text": "x"}).status_code == 404
+    # empty text rejected by the schema (min_length=1)
+    assert (
+        client.post(
+            "/api/app/notes", json={"target": "episode", "target_id": "e", "text": ""}
+        ).status_code
+        == 422
+    )
+    assert client.delete(f"/api/app/notes/{nid}").json()["items"] == []
+
+
+def test_highlights_markdown_export_groups_and_resolves_titles(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    slug = _slug(tmp_path, "ep1")
+    client = _authed(tmp_path)
+    h = client.post(
+        "/api/app/highlights",
+        json={
+            "episode_slug": slug,
+            "kind": "span",
+            "start_ms": 90_000,
+            "quote_text": "deep sleep consolidates memory",
+        },
+    ).json()
+    client.post(
+        "/api/app/notes",
+        json={"target": "highlight", "target_id": h["id"], "text": "remember this"},
+    )
+    resp = client.get("/api/app/highlights/export.md")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/markdown")
+    assert "attachment" in resp.headers.get("content-disposition", "")
+    body = resp.text
+    assert "# My Highlights" in body
+    assert "Episode ep1" in body  # episode_title resolved through the corpus
+    assert '"deep sleep consolidates memory"' in body
+    assert "_note:_ remember this" in body
+
+
+def test_highlights_markdown_export_empty(tmp_path: Path) -> None:
+    client = _authed(tmp_path)
+    body = client.get("/api/app/highlights/export.md").text
+    assert "_No highlights captured yet._" in body
