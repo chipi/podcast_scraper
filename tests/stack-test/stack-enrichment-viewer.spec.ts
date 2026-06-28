@@ -73,9 +73,11 @@ test.describe('stack test — RFC-088 chunk 9 viewer surfaces', () => {
     // collapsible Configuration editor. Smoke-check that the toggle
     // expands the editor + the data-driven form hooks render.
     const sourcesBtn = page.getByTestId('status-bar-sources-trigger')
-    if (await sourcesBtn.isVisible({ timeout: 5000 })) {
-      await sourcesBtn.click()
-    }
+    await expect(sourcesBtn).toBeVisible({ timeout: 60_000 })
+    await sourcesBtn.click()
+    await expect(page.getByTestId('status-bar-sources-dialog')).toBeVisible({
+      timeout: 10_000,
+    })
     const tab = page.getByTestId('sources-dialog-tab-enrichment')
     await expect(tab).toBeVisible({ timeout: 10_000 })
     await tab.click()
