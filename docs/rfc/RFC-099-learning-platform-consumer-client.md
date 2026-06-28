@@ -191,6 +191,17 @@ Home (`/`) is the launch surface; the full catalog moves to `/catalog`. Routes: 
 
 - One-tap "highlight current moment" (anchors to active segment); transcript span selection; "save insight".
 - Notes attach to highlight/insight/episode. Persisted via PRD-040 routes on `/api/app/*`.
+- **Shipped (v2.7 / Epic P2, #1112).** A `capture` Pinia store (`stores/capture.ts`) mirrors
+  `GET/POST/PATCH/DELETE /api/app/highlights` + `…/notes` (server-authoritative, like `favorites`;
+  no-ops + empty signed-out). Three capture surfaces, all auth-gated: a **mark-moment** control in
+  the player hero (`PlayerView`), a **per-line save** in the transcript (`TranscriptList` behind a
+  `canCapture` prop so the signed-out transcript is unchanged), and **save-to-highlights** on each
+  insight card (`KnowledgePanel`, distinct from the favorites heart — highlights feed the P3 corpus).
+  Review lives in a Library **Highlights** tab (`HighlightsView`): grouped by episode, jump-to-moment,
+  inline notes, a drift badge (timestamp re-anchor, RFC-098 §7), and a **Markdown export** link
+  (`GET /api/app/highlights/export.md`). Transcript capture is **segment-granular** today;
+  sub-segment character selection and a colour picker (+ its filters) are the tracked refinements
+  (PRD-040 §"As shipped").
 
 ### 7. Accessibility & i18n
 
