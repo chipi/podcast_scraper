@@ -81,4 +81,4 @@ log_level: INFO
 #     --enrichers topic_cooccurrence,topic_cooccurrence_corpus
 enrichment:
   enabled: false
-  enrichers: []
+  enrichers: {}

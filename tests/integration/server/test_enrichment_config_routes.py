@@ -109,6 +109,75 @@ def test_put_config_validates_block_and_rejects_garbage(client: TestClient, tmp_
     assert "invalid enrichment block" in r.json()["detail"]
 
 
+def test_put_config_rejects_unknown_provider_type(client: TestClient, tmp_path: Path) -> None:
+    """Composed-schema validation: ``provider.type`` must match a
+    registered provider type. Unknown names get rejected at PUT time,
+    not silently at runtime."""
+    block = {
+        "enrichers": {
+            "topic_similarity": {"provider": {"type": "not_a_real_provider"}},
+        },
+    }
+    r = client.put(
+        f"/api/enrichment/config?path={tmp_path}",
+        json={"enrichment_block": block},
+    )
+    assert r.status_code == 400, r.text
+    assert "not valid" in r.json()["detail"] or "is not valid" in r.json()["detail"]
+
+
+def test_put_config_rejects_missing_required_provider_param(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """``sentence_transformer_local`` requires ``model``. Omitting it must
+    fail validation at PUT time."""
+    block = {
+        "enrichers": {
+            "topic_similarity": {
+                "provider": {"type": "sentence_transformer_local"},  # missing model
+            },
+        },
+    }
+    r = client.put(
+        f"/api/enrichment/config?path={tmp_path}",
+        json={"enrichment_block": block},
+    )
+    assert r.status_code == 400, r.text
+
+
+def test_put_config_rejects_typoed_knob(client: TestClient, tmp_path: Path) -> None:
+    """Typo'd knob names (``alphaa`` instead of ``alpha``) must fail
+    validation rather than silently being ignored at runtime."""
+    block = {
+        "enrichers": {
+            "temporal_velocity": {"alphaa": 0.7},
+        },
+    }
+    r = client.put(
+        f"/api/enrichment/config?path={tmp_path}",
+        json={"enrichment_block": block},
+    )
+    assert r.status_code == 400, r.text
+
+
+def test_put_config_rejects_provider_on_deterministic_enricher(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """``temporal_velocity`` has no ``provider_requirement`` on its
+    manifest. Adding a ``provider:`` block to it must fail validation —
+    the operator is confused about what kind of enricher this is."""
+    block = {
+        "enrichers": {
+            "temporal_velocity": {"provider": {"type": "fake_for_test"}},
+        },
+    }
+    r = client.put(
+        f"/api/enrichment/config?path={tmp_path}",
+        json={"enrichment_block": block},
+    )
+    assert r.status_code == 400, r.text
+
+
 def test_put_config_preserves_unrelated_yaml_keys(client: TestClient, tmp_path: Path) -> None:
     # Seed viewer_operator.yaml with an unrelated top-level key.
     (tmp_path / "viewer_operator.yaml").write_text(

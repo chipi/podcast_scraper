@@ -34,6 +34,50 @@ from podcast_scraper.enrichment.protocol import EnricherSet
 
 logger = logging.getLogger(__name__)
 
+
+def _read_profile_yaml_enrichers(profile: str) -> dict[str, dict[str, Any]]:
+    """Read per-enricher knob/provider configs from a profile YAML.
+
+    Profile YAMLs (under ``config/profiles/<profile>.yaml``) carry the
+    canonical Shape B ``enrichment.enrichers:`` dict — empty blocks
+    (``temporal_velocity: {}``) by default, but operators can ship
+    profile-side knob defaults (``temporal_velocity: {alpha: 0.7}``)
+    or default provider blocks for the ML enrichers
+    (``topic_similarity: {provider: {...}}``) without having to
+    duplicate them in every corpus's ``viewer_operator.yaml``.
+
+    Returns ``{}`` on missing / unparsable / non-dict block. Schema
+    validation lives on the operator path (the v2 composed schema
+    is the strict gate); this reader is permissive so a slightly
+    malformed profile YAML doesn't make the matrix call collapse.
+    """
+    profiles_dir = Path(__file__).resolve().parents[3] / "config" / "profiles"
+    yaml_path = profiles_dir / f"{profile}.yaml"
+    if not yaml_path.is_file():
+        return {}
+    try:
+        import yaml  # type: ignore[import-untyped]
+    except ImportError:
+        return {}
+    try:
+        raw = yaml.safe_load(yaml_path.read_text(encoding="utf-8")) or {}
+    except (OSError, yaml.YAMLError):
+        return {}
+    if not isinstance(raw, dict):
+        return {}
+    block = raw.get("enrichment")
+    if not isinstance(block, dict):
+        return {}
+    enrichers = block.get("enrichers")
+    if not isinstance(enrichers, dict):
+        return {}
+    out: dict[str, dict[str, Any]] = {}
+    for eid, cfg in enrichers.items():
+        if isinstance(cfg, dict):
+            out[eid] = cfg
+    return out
+
+
 # Profile presets that currently get the no-enricher set (mostly the
 # leaf "freeze" profiles + the test_default).
 _NO_ENRICHERS_PROFILES: frozenset[str] = frozenset(
@@ -74,24 +118,35 @@ def enricher_set_for_profile(profile: str | None) -> EnricherSet:
     """Return the canonical EnricherSet for *profile*.
 
     Unknown / None profiles return the empty no-enricher set — safe
-    default that matches ``test_default``.
+    default that matches ``test_default``. The profile YAML's
+    ``enrichment.enrichers:`` dict is read for per-enricher knob +
+    provider config so operators can ship profile-side defaults
+    (e.g. ``temporal_velocity: {alpha: 0.7}``) without per-corpus
+    YAML duplication. The Python matrix below remains the source of
+    truth for which ids are ENABLED — the YAML supplies CONFIG only.
     """
     if not profile or profile.strip() in _NO_ENRICHERS_PROFILES:
         return EnricherSet()
     name = profile.strip()
+    per_enricher_config = _read_profile_yaml_enrichers(name)
 
     if name == "airgapped_thin":
-        return EnricherSet(enabled_enrichers=_deterministic_only())
+        return EnricherSet(
+            enabled_enrichers=_deterministic_only(),
+            per_enricher_config=per_enricher_config,
+        )
 
     if name in ("airgapped",):
         return EnricherSet(
             enabled_enrichers=_with_topic_similarity(),
+            per_enricher_config=per_enricher_config,
             opt_in_flags=dict(_DEFAULT_OPT_IN_FLAGS),
         )
 
     if name in ("cloud_thin", "cloud_balanced", "cloud_quality"):
         return EnricherSet(
             enabled_enrichers=_with_nli_too(),
+            per_enricher_config=per_enricher_config,
             opt_in_flags=dict(_DEFAULT_OPT_IN_FLAGS),
         )
 
@@ -113,6 +168,7 @@ def enricher_set_for_profile(profile: str | None) -> EnricherSet:
     ):
         return EnricherSet(
             enabled_enrichers=_with_nli_too(),
+            per_enricher_config=per_enricher_config,
             opt_in_flags=dict(_DEFAULT_OPT_IN_FLAGS),
         )
 

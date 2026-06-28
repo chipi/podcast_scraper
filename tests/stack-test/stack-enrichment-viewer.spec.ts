@@ -63,6 +63,30 @@ test.describe('stack test — RFC-088 chunk 9 viewer surfaces', () => {
     }
   })
 
+  test('Configuration sub-section mounts the EnrichmentConfigEditor', async ({ page }) => {
+    // RFC-088 v2 — the Configuration → Enrichment tab now embeds a
+    // collapsible Configuration editor. Smoke-check that the toggle
+    // expands the editor + the data-driven form hooks render.
+    const sourcesBtn = page.getByTestId('status-bar-sources-btn')
+    if (await sourcesBtn.isVisible({ timeout: 5000 })) {
+      await sourcesBtn.click()
+    }
+    const tab = page.getByTestId('sources-dialog-tab-enrichment')
+    await expect(tab).toBeVisible({ timeout: 10_000 })
+    await tab.click()
+    const toggle = page.getByTestId('enrichment-panel-config-toggle')
+    await expect(toggle).toBeVisible()
+    await toggle.click()
+    // Editor surface is now visible
+    await expect(page.getByTestId('enrichment-config-editor')).toBeVisible()
+    await expect(page.getByTestId('enrichment-config-global-enabled')).toBeVisible()
+    await expect(page.getByTestId('enrichment-config-enricher-list')).toBeVisible()
+    // Action buttons render — Save starts disabled (no edits yet)
+    await expect(page.getByTestId('enrichment-config-save-btn')).toBeVisible()
+    await expect(page.getByTestId('enrichment-config-reset-btn')).toBeVisible()
+    await expect(page.getByTestId('enrichment-config-refresh-btn')).toBeVisible()
+  })
+
   test('Graph tab renders without console errors when the canvas mounts', async ({ page }) => {
     // Console-error gate: navigating to the graph tab + waiting for
     // canvas mount must NOT print red errors from EnrichmentEdgesPanel.

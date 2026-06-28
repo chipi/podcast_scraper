@@ -316,6 +316,39 @@ Resolution model:
 4. ``--with-ml`` registers ML enrichers from their `provider:`
    blocks via the [provider-type registry](#provider-type-registry).
 
+### Migrating from the older shape
+
+The Shape B reader still accepts the older explicit ``enabled: true``
+form on every block (the implicit-default rule treats them as
+equivalent), so an existing ``viewer_operator.yaml`` with:
+
+```yaml
+enrichment:
+  enrichers:
+    temporal_velocity:
+      enabled: true
+      alpha: 0.5
+```
+
+behaves the same as a Shape B block:
+
+```yaml
+enrichment:
+  enrichers:
+    temporal_velocity:
+      alpha: 0.5
+```
+
+The viewer's editor writes the canonical Shape B form on next Save.
+Operators who'd been relying on the legacy ``enabled_enrichers: [list]``
+top-level key need to migrate to per-block; the legacy form is no
+longer read by either the CLI or the server. The 12 shipped profile
+YAMLs were migrated in the same change; the drift test
+(``test_yaml_enrichment_block_matches_python_matrix``) accepts both
+shapes for back-compat in operator overrides.
+
+### Editing in the viewer
+
 The viewer's **Configuration → Enrichment tab → Configuration**
 section is a UI editor for the operator-side block. Every form
 field is generated from ``GET /api/enrichment/config/schema``, so
@@ -336,12 +369,18 @@ itself at import time.
 
 Shipped types:
 
-| name | protocol | notes |
-| ---- | -------- | ----- |
-| `fake_for_test` | EmbeddingProvider | Deterministic hash embedder. CI-safe. |
-| `sentence_transformer_local` | EmbeddingProvider | sentence-transformers local model. Requires `[ml]` / `[search]` extras. Lazy-loaded. |
-| `fixed_scripted` | NliScorer | Fixed-score NLI. CI-safe. |
-| `deberta_local` | NliScorer | `cross-encoder/nli-deberta-v3-small`. Requires `[ml]` extra. Lazy-loaded. |
+| name | protocol | params | notes |
+| ---- | -------- | ------ | ----- |
+| `fake_for_test` | EmbeddingProvider | `dim` (int 4–1024, default 32) | Deterministic hash embedder. CI-safe. |
+| `sentence_transformer_local` | EmbeddingProvider | `model` (string, required); `device` ("cpu"/"cuda"/"mps", optional) | sentence-transformers local model. Requires `[ml]` / `[search]` extras. Lazy-loaded. |
+| `fixed_scripted` | NliScorer | `default_contradiction`/`default_neutral`/`default_entailment` (floats 0–1, defaults 0.05/0.85/0.10) | Fixed-score NLI. CI-safe. |
+| `deberta_local` | NliScorer | `model` (string, default `cross-encoder/nli-deberta-v3-small`) | Lazy-loaded; requires `[ml]` extra. |
+
+The PUT `/api/enrichment/config` route validates these params (unknown
+type names, missing required params like `model` for
+`sentence_transformer_local`, typo'd knob names like `alphaa`, and
+`provider:` blocks on deterministic enrichers — all rejected at write
+time, not at runtime).
 
 The viewer's per-row Provider dropdown is populated from
 ``GET /api/enrichment/provider-types`` so adding a new type
@@ -440,12 +479,24 @@ For deterministic enrichers, add to
 
 For embedding / ML / LLM enrichers (which take an injected provider /
 scorer), add a builder to ``src/podcast_scraper/enrichment/ml_wiring.py``'s
-``_ML_ENRICHER_BUILDERS`` map. The builder takes ``(provider, knobs)``
-and returns the constructed enricher. When the CLI sees ``--with-ml``
-or the workflow auto-passes it, ``register_ml_enrichers()`` walks
-the active EnricherSet, looks up the matching builder, instantiates
-the provider via the [provider-type registry](#provider-type-registry),
-and registers the enricher.
+``_ML_ENRICHER_BUILDERS`` map. The builder signature is
+``(provider_instance, knobs: dict) -> Enricher`` — ``knobs`` is the
+per-enricher config dict with ``provider`` / ``enabled`` / ``opt_in``
+already stripped, so a builder only sees the actual tunable knobs:
+
+```python
+def _build_my_enricher(provider: Any, knobs: dict[str, Any]) -> MyEnricher:
+    threshold = float(knobs.get("threshold", 0.5))
+    return MyEnricher(provider=provider, threshold=threshold)
+
+_ML_ENRICHER_BUILDERS["my_enricher"] = _build_my_enricher
+```
+
+When the CLI sees ``--with-ml`` or the workflow auto-passes it,
+``register_ml_enrichers()`` walks the active EnricherSet, looks up
+the matching builder, instantiates the provider via the
+[provider-type registry](#provider-type-registry), and registers the
+enricher.
 
 ### 4. Add it to the profile matrix
 
@@ -463,8 +514,11 @@ profile YAML still produces an EnricherSet.
   metrics ok, and JSONL audit events.
 - **Resilience**: drive failure scenarios via the chunk-1
   `MockEmbeddingProvider` / `MockNliScorer` / a `ScriptedEnricher`
-  (under `tests/fixtures/enrichment/mock_scorers.py`) — no real
-  models in CI ([[feedback_no_llm_in_ci]]).
+  (under `tests/fixtures/enrichment/mock_scorers.py`) — no paid
+  remote LLM calls in CI (project rule documented in `AGENTS.md`'s
+  "What 'no LLM in CI' actually means" section). Heavy local model
+  downloads (DeBERTa, sentence-transformers checkpoints) gate behind
+  the ``ml_models`` pytest marker.
 
 ### 6. Add an eval row (optional)
 

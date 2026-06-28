@@ -364,13 +364,9 @@ def build_enricher_set_from_yaml(config_path: Path | None) -> EnricherSet:
     per_enricher_config: dict[str, dict[str, Any]] = {}
     opt_in_flags: dict[str, bool] = {}
     if not isinstance(enrichers_raw, dict):
-        # Defensive: a list shape leaked into operator YAML by accident
-        # / legacy migration. Honour it as "enable these, no config",
-        # but the schema rejects it on validation so this branch is
-        # rarely hit.
-        if isinstance(enrichers_raw, list):
-            enabled = [eid for eid in enrichers_raw if isinstance(eid, str)]
-            return EnricherSet(enabled_enrichers=enabled)
+        # Schema rejects non-dict shapes upstream; this branch is for the
+        # unvalidated edge cases (e.g. cli.py loaded a YAML that bypassed
+        # validate_enrichment_block via a deprecated path). Treat as empty.
         return EnricherSet()
     for eid, cfg in enrichers_raw.items():
         if not isinstance(cfg, dict):

@@ -69,8 +69,7 @@ register_provider_type(
     name="sentence_transformer_local",
     protocol="EmbeddingProvider",
     description=(
-        "Local sentence-transformers checkpoint (lazy-loaded, "
-        "requires [ml] / [search] extras)."
+        "Local sentence-transformers checkpoint (lazy-loaded, " "requires [ml] / [search] extras)."
     ),
     params_schema={
         "type": "object",

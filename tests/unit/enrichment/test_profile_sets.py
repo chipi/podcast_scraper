@@ -298,3 +298,33 @@ def test_top_level_profiles_have_an_enrichment_block() -> None:
         if body.get("enrichment") is None:
             missing.append(name)
     assert not missing, f"profiles missing `enrichment:` block: {missing}"
+
+
+# ---------------------------------------------------------------------------
+# Profile YAML reads (v2: knobs + provider configs flow through)
+# ---------------------------------------------------------------------------
+
+
+def test_profile_yaml_knobs_flow_into_enricher_set(tmp_path: Path) -> None:
+    """Profile YAMLs carry per-enricher knob / provider config under
+    Shape B; ``enricher_set_for_profile()`` returns them as
+    ``per_enricher_config`` so the executor sees the same defaults
+    as the operator reading the YAML."""
+    from podcast_scraper.enrichment.profile_sets import (
+        enricher_set_for_profile,
+    )
+
+    s = enricher_set_for_profile("airgapped_thin")
+    # config/profiles/airgapped_thin.yaml ships ``temporal_velocity: {}``;
+    # presence in the dict round-trips even if empty.
+    assert "temporal_velocity" in s.per_enricher_config
+    assert s.per_enricher_config["temporal_velocity"] == {}
+
+
+def test_profile_yaml_with_no_block_returns_empty_per_enricher_config() -> None:
+    from podcast_scraper.enrichment.profile_sets import (
+        enricher_set_for_profile,
+    )
+
+    s = enricher_set_for_profile("test_default")  # in _NO_ENRICHERS_PROFILES
+    assert s.per_enricher_config == {}

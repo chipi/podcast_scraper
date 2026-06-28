@@ -108,9 +108,9 @@ class ProviderTypesResponse(BaseModel):
 def _deep_merge(base: dict[str, Any], over: dict[str, Any]) -> dict[str, Any]:
     """Recursively merge *over* into *base*. ``over`` wins per leaf key.
 
-    Non-dict values replace wholesale. Lists are NOT deep-merged
-    (they're replaced); that's intentional for legacy
-    ``enabled_enrichers: [list]`` overrides.
+    Non-dict values replace wholesale. Lists are NOT deep-merged —
+    they're replaced (e.g. a future ``enrichment.priority_order: [...]``
+    operator override).
     """
     out = copy.deepcopy(base)
     for k, v in over.items():
@@ -201,9 +201,16 @@ async def put_enrichment_config(
     anchor = getattr(request.app.state, "output_dir", None)
     corpus_root = resolve_corpus_path_param(path, anchor, must_be_dir=False)
     block = body.enrichment_block
-    # Validate the block before persisting.
+    # Validate against the BASE schema first (catches structural mistakes
+    # like `enabled: "yes please"`), then against the COMPOSED schema
+    # (catches unknown provider types, missing required provider params,
+    # typo'd knob names, providers on deterministic enrichers).
     try:
         validate_enrichment_block(block)
+    except ConfigSchemaError as exc:
+        raise HTTPException(status_code=400, detail=f"invalid enrichment block: {exc}") from exc
+    try:
+        _validate_against_composed_schema(block)
     except ConfigSchemaError as exc:
         raise HTTPException(status_code=400, detail=f"invalid enrichment block: {exc}") from exc
     operator_yaml = _read_operator_yaml(corpus_root)
@@ -212,6 +219,65 @@ async def put_enrichment_config(
     atomic_write_text(_viewer_operator_yaml_path(corpus_root), serialised)
     # Return the fresh resolved view (consistent with GET).
     return await get_enrichment_config(request=request, path=path)
+
+
+def _build_composed_schema() -> dict[str, Any]:
+    """Compose base + per-enricher fragments + provider params. Shared by
+    the /schema GET route and PUT-time validation so the operator and
+    the server agree on exactly what's accepted.
+    """
+    from podcast_scraper.enrichment.config_schema import load_schema
+    from podcast_scraper.enrichment.enrichers.nli_contradiction import (
+        NliContradictionEnricher,
+    )
+    from podcast_scraper.enrichment.enrichers.topic_similarity import (
+        TopicSimilarityEnricher,
+    )
+
+    base = load_schema()
+    enricher_blocks: dict[str, Any] = {}
+    reg = EnricherRegistry()
+    register_deterministic_enrichers(reg)
+    for eid in reg.all_ids():
+        m = reg.get(eid).manifest
+        enricher_blocks[m.id] = _per_enricher_schema(m)
+    for cls in (TopicSimilarityEnricher, NliContradictionEnricher):
+        m = cls.manifest  # type: ignore[attr-defined]
+        enricher_blocks[m.id] = _per_enricher_schema(m)
+    out = copy.deepcopy(base)
+    enrichers_prop = out.setdefault("properties", {}).setdefault("enrichers", {})
+    enrichers_prop["properties"] = enricher_blocks
+    # Tighten: when the YAML names an enricher key not in the registry,
+    # validation should reject it. The composed schema's per-enricher
+    # blocks each set additionalProperties on the BLOCK; the outer
+    # ``enrichers`` map keeps additionalProperties open so legacy
+    # operator YAMLs with unknown ids don't 400 the route, but the schema
+    # GET surface still teaches the canonical set via ``properties``.
+    return out
+
+
+def _validate_against_composed_schema(block: dict[str, Any]) -> None:
+    """Validate *block* against the composed schema. Raises
+    :class:`ConfigSchemaError` on failure.
+
+    Catches everything the base schema misses: unknown provider types,
+    missing required provider params (e.g.
+    ``sentence_transformer_local`` requires ``model``), typo'd knob
+    names (``alphaa`` instead of ``alpha``), and provider blocks on
+    deterministic enrichers (their composed fragment doesn't include a
+    ``provider`` property).
+    """
+    try:
+        import jsonschema  # type: ignore[import-untyped]
+    except ImportError:  # pragma: no cover — jsonschema is in [dev]
+        return
+    composed = _build_composed_schema()
+    try:
+        jsonschema.validate(block, composed)
+    except jsonschema.ValidationError as exc:
+        # Format: "{path}: {message}" — easier to act on than the default.
+        path = "/".join(str(p) for p in exc.absolute_path) or "(root)"
+        raise ConfigSchemaError(f"{path}: {exc.message}") from exc
 
 
 @router.get("/enrichment/config/schema")
@@ -225,38 +291,10 @@ async def get_enrichment_config_schema() -> dict[str, Any]:
       - each provider type's ``params_schema`` (referenced via
         ``oneOf`` so the UI can pick the right form per type)
     """
-    from podcast_scraper.enrichment.config_schema import load_schema
-
     try:
-        base = load_schema()
+        return _build_composed_schema()
     except ConfigSchemaError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
-
-    # Compose per-enricher knobs from registered manifests.
-    enricher_blocks: dict[str, Any] = {}
-    reg = EnricherRegistry()
-    register_deterministic_enrichers(reg)
-    # ML enrichers — pull the manifest off the class itself; we don't
-    # need a constructed instance, just the manifest.
-    from podcast_scraper.enrichment.enrichers.nli_contradiction import (
-        NliContradictionEnricher,
-    )
-    from podcast_scraper.enrichment.enrichers.topic_similarity import (
-        TopicSimilarityEnricher,
-    )
-
-    for eid in reg.all_ids():
-        m = reg.get(eid).manifest
-        enricher_blocks[m.id] = _per_enricher_schema(m)
-    for cls in (TopicSimilarityEnricher, NliContradictionEnricher):
-        m = cls.manifest  # type: ignore[attr-defined]
-        enricher_blocks[m.id] = _per_enricher_schema(m)
-
-    # Splice the per-enricher map into the base schema.
-    out = copy.deepcopy(base)
-    enrichers_prop = out.setdefault("properties", {}).setdefault("enrichers", {})
-    enrichers_prop["properties"] = enricher_blocks
-    return out
 
 
 def _per_enricher_schema(manifest: Any) -> dict[str, Any]:
@@ -266,17 +304,19 @@ def _per_enricher_schema(manifest: Any) -> dict[str, Any]:
         "enabled": {
             "type": "boolean",
             "description": (
-                "Defaults true when omitted. Set false to opt out without "
-                "removing the block."
+                "Defaults true when omitted. Set false to opt out without " "removing the block."
             ),
         },
         "opt_in": {"type": "boolean"},
         "max_cost_usd_per_run": {"type": "number", "minimum": 0},
         "expected_duration_s": {"type": "integer", "minimum": 1},
     }
+    # ``additionalProperties: false`` catches typo'd knob names + provider
+    # blocks on deterministic enrichers (manifest.provider_requirement is
+    # None → ``provider`` isn't added to base_props → schema rejects it).
     block: dict[str, Any] = {
         "type": "object",
-        "additionalProperties": True,
+        "additionalProperties": False,
         "properties": base_props,
     }
     cs = getattr(manifest, "config_schema", None)

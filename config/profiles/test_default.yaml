@@ -89,4 +89,4 @@ ollama_summary_model: llama3.1:8b
 #     --enrichers topic_cooccurrence,topic_cooccurrence_corpus
 enrichment:
   enabled: false
-  enrichers: []
+  enrichers: {}
