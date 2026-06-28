@@ -83,6 +83,66 @@ All three emit the same `enrichment.health.re_enabled` event so the
 JSONL audit trail is complete regardless of which surface the
 operator used.
 
+## Architecture at a glance
+
+```text
+                    ┌─────────────────────────────────────────────────┐
+                    │  CONFIG SOURCES (Shape B, RFC-088 v2)            │
+                    │                                                 │
+                    │  config/profiles/<name>.yaml      ← base set    │
+                    │           +                                     │
+                    │  <corpus>/viewer_operator.yaml    ← override    │
+                    │           (deep-merged per key)                 │
+                    └─────────────────────┬───────────────────────────┘
+                                          │
+                                          ▼
+              ┌────────────────────────────────────────────────────┐
+              │  RESOLUTION                                        │
+              │  enricher_set_for_profile(profile)                 │
+              │  + build_enricher_set_from_yaml(operator yaml)     │
+              │  + apply_cli_overrides(--only / --skip / ...)      │
+              │  → EnricherSet { enabled_enrichers, per_enricher_  │
+              │                  config, opt_in_flags }            │
+              └─────────────┬──────────────────────────────────────┘
+                            │
+       ┌────────────────────┴────────────────────┐
+       ▼                                         ▼
+┌─────────────────┐                  ┌────────────────────────────┐
+│  EnricherRegistry│                 │  --with-ml ?               │
+│  (deterministic) │                 │   register_ml_enrichers()  │
+│                  │                 │   ↳ provider_types registry│
+│ + topic_cooccurrence       …       │   ↳ instantiate provider   │
+│ + grounding_rate                   │   ↳ build enricher with    │
+│ + … (6 deterministic)              │      provider + knobs      │
+└─────────┬────────┘                 └──────────────┬─────────────┘
+          │                                         │
+          └────────────────┬────────────────────────┘
+                           ▼
+           ┌──────────────────────────────────┐
+           │  EnrichmentExecutor              │
+           │  (tier-aware retry / circuit /   │
+           │   auto-disable / heartbeat /     │
+           │   cost cap per-enricher + run)   │
+           └──────────────┬───────────────────┘
+                          │
+                          ▼
+           ┌──────────────────────────────────┐
+           │  Envelopes on disk + JSONL events│
+           │  + run_summary + status + health │
+           └──────────────────────────────────┘
+                          │
+                          ▼
+           ┌──────────────────────────────────┐
+           │  Read surfaces                   │
+           │   GET /api/corpus/enrichments/*  │
+           │   GET /api/enrichment/{status,   │
+           │     health,metrics,events,       │
+           │     run-summary,config,...}      │
+           │   Viewer Configuration tab       │
+           │   MCP tools (prod_correlate)     │
+           └──────────────────────────────────┘
+```
+
 ## The shipped enrichers
 
 | Tier | id | Scope | Reads | Writes |
@@ -111,7 +171,181 @@ which set runs by default per profile:
 
 CLI flags layer on top: `--profile <name>` (sets the base set per the
 matrix above) / `--enrichers <id,id>` (alias for `--only`) /
-`--no-enrichers` / `--opt-in <id,id>` / `--skip <id,id>` / `--only <id,id>`.
+`--no-enrichers` / `--opt-in <id,id>` / `--skip <id,id>` / `--only <id,id>` /
+`--with-ml` (registers ML / embedding / NLI enrichers from their
+provider blocks — see [Configuration](#configuration) below).
+
+## Per-enricher reference
+
+Each shipped enricher's algorithm, inputs, output shape, and tunable
+knobs. Knob keys map 1:1 to ``enrichers.<id>.<knob>:`` in the YAML
+and to form fields in the viewer Configuration → Enrichment editor.
+
+### `topic_cooccurrence` (deterministic, episode scope)
+
+Pairs every unordered combination of Topic nodes in an episode's KG.
+**Reads:** `.kg.json`. **Writes:** `metadata/enrichments/{stem}.topic_cooccurrence.json`.
+**Output:** `{ pairs: [{topic_a_id, topic_b_id, topic_a_label, topic_b_label}], episode_count }`.
+**Knobs:** none today.
+
+### `topic_cooccurrence_corpus` (deterministic, corpus scope)
+
+Aggregates ``topic_cooccurrence`` across every episode bundle:
+counts shared episodes per Topic pair, sorts descending. **Reads:**
+`.kg.json` (all bundles). **Writes:** `enrichments/topic_cooccurrence_corpus.json`.
+**Output:** `{ pairs: [{topic_a_id, topic_b_id, topic_a_label, topic_b_label, episode_count}], episode_count }`.
+**Knobs:** none today.
+
+### `temporal_velocity` (deterministic, corpus scope)
+
+Per-Topic monthly mention counts over a trailing window, plus EWMA
+trend and a “last completed month / 6-month average” velocity
+signal. The "last month" is the most recent month with corpus-wide
+activity (handles stale / partial current-month data — see
+[real-corpus validation findings](../wip/RFC-088-real-corpus-validation-findings.md#bug-2--temporal_velocityvelocity_last_over_6mo-is-always-00--fixed)).
+**Reads:** `.kg.json` (Episode publish_date + Topic nodes).
+**Writes:** `enrichments/temporal_velocity.json`. **Output:**
+`{ window_months: [YYYY-MM, ...], now, alpha, effective_last_month, topics: [{topic_id, topic_label, monthly_counts, ewma, velocity_last_over_6mo, total}] }`.
+**Knobs:**
+
+- ``alpha`` (float, 0 < α ≤ 1, default 0.5) — EWMA smoothing.
+- ``window_months`` (int, 1–36, default 12) — trailing window size.
+
+### `grounding_rate` (deterministic, corpus scope)
+
+Per-Person ratio of grounded Insights they support across the
+corpus. **Reads:** `.gi.json` (Person / Insight / Quote / SPOKEN_BY /
+SUPPORTED_BY). **Writes:** `enrichments/grounding_rate.json`.
+**Output:** `{ persons: [{person_id, person_name, total_insights, grounded_insights, rate}], episode_count }`,
+sorted by `rate` then `total_insights`. **Knobs:** none today.
+Unresolved diarization placeholders (``SPEAKER_NN`` /
+``person:speaker-NN``) are filtered out before aggregation.
+
+### `guest_coappearance` (deterministic, corpus scope)
+
+Person pairs by shared episodes. **Reads:** `.gi.json` (Person +
+SPOKEN_BY). **Writes:** `enrichments/guest_coappearance.json`.
+**Output:** `{ pairs: [{person_a_id, person_b_id, person_a_name, person_b_name, episode_count}], episode_count }`.
+**Knobs:** none today. Same SPEAKER_NN filter as `grounding_rate`.
+
+### `insight_density` (deterministic, episode scope)
+
+Insight count per (early / mid / late) third of the episode duration,
+based on supporting Quote start times. Falls back to even-thirds-
+by-count when timing is missing. **Reads:** `.gi.json` (Insight,
+Quote with `start_s`/`start_seconds`/`start`/`timestamp_start_ms`,
+SUPPORTED_BY) + `.metadata.json` (`duration_seconds` top-level or
+nested under `episode.`). **Writes:**
+`metadata/enrichments/{stem}.insight_density.json`. **Output:**
+`{ episode_id, duration_seconds, has_timing, counts: {early, mid, late, unknown}, total_insights, insight_segments }`.
+**Knobs:** none today.
+
+### `topic_similarity` (embedding, corpus scope)
+
+Per-Topic Top-K cosine-similar neighbours via the injected
+``EmbeddingProvider``. **Reads:** `.kg.json` (Topic nodes).
+**Writes:** `enrichments/topic_similarity.json`. **Output:**
+`{ topics: [{topic_id, topic_label, top_k, neighbours: [{topic_id, topic_label, similarity}]}], top_k, topic_count, missing_topic_ids }`.
+**Knobs:**
+
+- ``top_k`` (int, 1–100, default 10) — neighbours per topic.
+
+**Provider requirement:** `EmbeddingProvider`. Set
+`enrichers.topic_similarity.provider.type` to one of the registered
+types (`sentence_transformer_local`, `fake_for_test`, ...) — see
+[Provider-type registry](#provider-type-registry).
+
+### `nli_contradiction` (ml, corpus scope)
+
+Cross-Person Insight contradiction pairs per Topic via the injected
+``NliScorer``. **Reads:** `.gi.json` (Insight / Person / SPOKEN_BY /
+ABOUT). **Writes:** `enrichments/nli_contradiction.json`.
+**Output:** `{ contradictions: [{topic_id, insight_a_id, insight_b_id, person_a_id, person_b_id, contradiction_score}], threshold, model_id, model_version }`.
+**Knobs:**
+
+- ``threshold`` (float, 0–1, default 0.5) — contradiction probability
+  cutoff (inclusive lower bound) for emitting a pair.
+
+**Provider requirement:** `NliScorer`. Set
+`enrichers.nli_contradiction.provider.type` to one of `deberta_local`
+(real DeBERTa, requires `[ml]` extra) or `fixed_scripted` (test fixture).
+
+### `query_topic_relatedness` (query enricher, per-request)
+
+Decorates search hits with `topic_similarity` Top-K when the
+corpus has an `enrichments/topic_similarity.json` envelope. Not a
+batch enricher; the search route opt-in calls it inline.
+
+## Configuration
+
+The ``enrichment:`` block in ``viewer_operator.yaml`` (or any
+``--config <yaml>``) uses **Shape B**: per-enricher block under
+``enrichers.<id>:``. Presence of the block is the enable; add
+``enabled: false`` to opt out without removing the block.
+
+```yaml
+enrichment:
+  enabled: true                    # master switch (Tier 1)
+  max_total_cost_usd_per_run: 5.0  # optional run-wide cost cap
+  enrichers:
+    temporal_velocity:             # block present = enabled (Tier 2)
+      alpha: 0.7
+      window_months: 6
+    topic_similarity:
+      top_k: 10
+      provider:                    # ML enrichers declare a provider
+        type: sentence_transformer_local
+        model: all-MiniLM-L6-v2
+    nli_contradiction:
+      threshold: 0.6
+      provider:
+        type: deberta_local
+    grounding_rate: {}             # empty block = enabled, no knobs
+    insight_density:
+      enabled: false               # explicit opt-out (preserves block)
+```
+
+Resolution model:
+
+1. Profile YAML (under ``config/profiles/<name>.yaml``) provides the
+   BASE enrichment block.
+2. ``viewer_operator.yaml``'s enrichment block deep-merges on top
+   (operator wins per key).
+3. CLI flags layer on top of the resolved set
+   (``--only`` / ``--skip`` / ``--opt-in`` / ``--no-enrichers``).
+4. ``--with-ml`` registers ML enrichers from their `provider:`
+   blocks via the [provider-type registry](#provider-type-registry).
+
+The viewer's **Configuration → Enrichment tab → Configuration**
+section is a UI editor for the operator-side block. Every form
+field is generated from ``GET /api/enrichment/config/schema``, so
+adding a knob to a manifest's ``config_schema`` makes it editable
+in the UI without any viewer code change. Save writes via
+``PUT /api/enrichment/config`` (atomic; preserves unrelated YAML
+keys like ``profile``, ``feeds``, etc.).
+
+## Provider-type registry
+
+ML / embedding / NLI enrichers declare a
+``ProviderRequirement(protocol="...", description=...)`` on their
+manifest. At runtime, the provider is constructed by name from the
+process-scoped registry in
+``src/podcast_scraper/enrichment/provider_types/``. Each shipped type
+lives under ``provider_types/<protocol>/<name>.py`` and registers
+itself at import time.
+
+Shipped types:
+
+| name | protocol | notes |
+| ---- | -------- | ----- |
+| `fake_for_test` | EmbeddingProvider | Deterministic hash embedder. CI-safe. |
+| `sentence_transformer_local` | EmbeddingProvider | sentence-transformers local model. Requires `[ml]` / `[search]` extras. Lazy-loaded. |
+| `fixed_scripted` | NliScorer | Fixed-score NLI. CI-safe. |
+| `deberta_local` | NliScorer | `cross-encoder/nli-deberta-v3-small`. Requires `[ml]` extra. Lazy-loaded. |
+
+The viewer's per-row Provider dropdown is populated from
+``GET /api/enrichment/provider-types`` so adding a new type
+automatically shows up in the UI.
 
 ## Writing a new enricher
 
@@ -129,14 +363,16 @@ matrix above) / `--enrichers <id,id>` (alias for `--only`) /
 ```python
 from podcast_scraper.enrichment.protocol import (
     EnricherManifest, EnricherResult, EnricherScope, EnricherTier,
-    EpisodeArtifactBundle, RunContext, STATUS_OK, sync_enricher,
+    EpisodeArtifactBundle, ProviderRequirement, RunContext,
+    STATUS_OK, sync_enricher,
 )
 
 
 def _compute(bundle, corpus_root, all_bundles, config, ctx):
-    # Sync body; @sync_enricher wraps it.
+    # Sync body; @sync_enricher wraps it. Read knobs from `config`.
+    threshold = float(config.get("threshold", 0.5))
     ...
-    return {"my_result_key": ...}
+    return {"my_result_key": [...], "threshold": threshold}
 
 
 _enrich_async = sync_enricher(_compute)
@@ -152,6 +388,29 @@ class MyEnricher:
         writes="my_enricher.json",
         description="What this enricher does.",
         expected_duration_s=30,
+        # NEW (RFC-088 v2): declare your tunable knobs so the UI's
+        # Configuration → Enrichment editor generates form fields
+        # automatically — no per-enricher viewer code.
+        config_schema={
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "threshold": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "default": 0.5,
+                    "description": "Cutoff for emitting a record.",
+                },
+            },
+        },
+        # Only set if your enricher takes an injected provider /
+        # scorer (EmbeddingProvider / NliScorer / ...). Omit for
+        # deterministic enrichers.
+        # provider_requirement=ProviderRequirement(
+        #     protocol="EmbeddingProvider",
+        #     description="Embedding source for the topic vectors.",
+        # ),
     )
 
     async def enrich(self, *, bundle, corpus_root, all_bundles, config, ctx):
@@ -179,9 +438,14 @@ For deterministic enrichers, add to
 `src/podcast_scraper/enrichment/enrichers/__init__.py`'s
 `register_deterministic_enrichers()` helper + `ALL_DETERMINISTIC_ENRICHER_IDS`.
 
-For embedding / ML / LLM enrichers (which take an injected scorer),
-the operator constructs the enricher and registers it explicitly —
-the executor consumes the registry as-is.
+For embedding / ML / LLM enrichers (which take an injected provider /
+scorer), add a builder to ``src/podcast_scraper/enrichment/ml_wiring.py``'s
+``_ML_ENRICHER_BUILDERS`` map. The builder takes ``(provider, knobs)``
+and returns the constructed enricher. When the CLI sees ``--with-ml``
+or the workflow auto-passes it, ``register_ml_enrichers()`` walks
+the active EnricherSet, looks up the matching builder, instantiates
+the provider via the [provider-type registry](#provider-type-registry),
+and registers the enricher.
 
 ### 4. Add it to the profile matrix
 
@@ -232,6 +496,63 @@ Mirror the shape of the existing
 expose the actual backend call as an injected callable so tests can
 swap in a `HashEmbedder` / `FixedNliScorer` without loading model
 weights.
+
+## Writing a new provider type
+
+Provider types let operators pick a backend by string name in the
+YAML (e.g. ``provider.type: sentence_transformer_local``) without
+touching Python. Add a new type by:
+
+1. **Create the module** under
+   ``src/podcast_scraper/enrichment/provider_types/<protocol>/<name>.py``
+   (the existing protocols are ``embedding/`` and ``nli/``; add a new
+   subdirectory if you're introducing a new protocol).
+
+2. **Register at import time** with a JSON-Schema fragment for the
+   params + a factory:
+
+   ```python
+   from podcast_scraper.enrichment.provider_types.registry import (
+       register_provider_type,
+   )
+
+   def _make_my_provider(params: dict) -> MyProviderImpl:
+       return MyProviderImpl(
+           model=params["model"],
+           device=params.get("device", "cpu"),
+       )
+
+   register_provider_type(
+       name="my_provider_local",
+       protocol="EmbeddingProvider",
+       description="One-line UI label.",
+       params_schema={
+           "type": "object",
+           "additionalProperties": False,
+           "required": ["model"],
+           "properties": {
+               "model": {"type": "string", "description": "Model id."},
+               "device": {"type": "string", "enum": ["cpu", "cuda"]},
+           },
+       },
+       factory=_make_my_provider,
+   )
+   ```
+
+3. **Add the import** to the protocol subpackage's ``__init__.py``
+   (e.g. ``provider_types/embedding/__init__.py``) so registration
+   fires on package import.
+
+The viewer's provider dropdown is fed by
+``GET /api/enrichment/provider-types`` — it picks up the new type
+automatically on next page load. The form fields below the dropdown
+are generated from the ``params_schema`` you declared, so adding new
+params is also zero viewer code.
+
+**CI-safety:** any provider type that pulls in heavy ML extras
+(sentence-transformers, transformers, torch, ...) MUST import them
+**lazily** inside the factory or instance method. Module-top
+imports break ``.[dev]``-only CI installs.
 
 ## Interpreting health + JSONL events
 

@@ -2453,7 +2453,7 @@ This is a **v3.0 effort** -- after podcast capabilities are fully solid:
 | GI/KG Viewer v2 (RFC-062) | Shipped |
 | Canonical Identity Layer + bridge (RFC-072) | Shipped |
 | Semantic search (RFC-061) | Shipped |
-| Enrichment layer (RFC-088) | In progress |
+| Enrichment layer (RFC-088 + v2 config surface) | Shipped |
 | Postgres projection (RFC-051) | Next major infrastructure |
 | Adaptive routing (RFC-053) | Planned |
 | Platform blueprint v1 operational (workers, queues) | This document |

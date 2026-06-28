@@ -37,6 +37,19 @@ plan lives in
 | GET | `/api/enrichment/events` | JSONL tail. `{ events: [...], count }`. Filters: `?enricher_id=`, `?event_type=`, `?limit=` (default 50). |
 | POST | `/api/enrichment/health/{enricher_id}/re-enable` | Clear `auto_disabled` + zero `consecutive_failures` after a transient outage. Body (optional): `{ reason }` — appended to the health audit trail. Returns the updated health record. |
 
+### Enrichment-config surface (RFC-088 v2)
+
+Editable enrichment config — read/write the operator-side
+``enrichment:`` block via fine-grained REST, with a JSON-Schema
+companion for UI form generation.
+
+| Method | Path | Description |
+| ------ | ---- | ----------- |
+| GET | `/api/enrichment/config?path=<corpus>` | Resolved view of the enrichment block. Response: `{ corpus_path, profile, profile_block, operator_block, resolved_block }` — profile block + operator override + their deep-merge. Operators / the UI see what's inherited vs what's been customised. |
+| PUT | `/api/enrichment/config?path=<corpus>` | Persist the operator-side block to `<corpus>/viewer_operator.yaml`. Body: `{ enrichment_block: {...} }`. Validates against the JSON Schema first (400 on validation error). Atomic write; preserves every unrelated top-level key (e.g. `profile`, `feeds`). Returns the fresh resolved view. |
+| GET | `/api/enrichment/config/schema` | Full JSON Schema for the `enrichment:` block, composed from the base schema + each enricher's `manifest.config_schema` (under `enrichers.<id>.properties`) + each provider type's `params_schema` (oneOf under `enrichers.<id>.provider`). The viewer's Configuration → Enrichment editor reads this and renders all form fields data-driven. |
+| GET | `/api/enrichment/provider-types` | Registered provider types grouped by protocol: `{ by_protocol: { EmbeddingProvider: [{name, protocol, description, params_schema}, ...], NliScorer: [...] } }`. UI populates per-row provider dropdowns from this. |
+
 All routes are gated by `app.state.jobs_api_enabled`. When the router
 is mounted but the flag is `false`, GETs return **500** with
 `detail: "...jobs_api..."` so a misconfigured deploy is loud.
@@ -138,19 +151,40 @@ enrichment:
   enabled: true
   max_total_cost_usd_per_run: 5.00       # run-wide cost cap (USD)
   fail_on_run_cost_cap: true             # set cancel_event when cap fires
-  enrichers:
+  enrichers:                             # Shape B: per-enricher block,
+                                         # block-present = enabled
     topic_cooccurrence:
-      enabled: true
       max_cost_usd_per_run: 0.10
       expected_duration_s: 30
+    temporal_velocity:
+      alpha: 0.7                         # per-enricher knob
+      window_months: 6
+    topic_similarity:
+      top_k: 10
+      provider:                          # ML enrichers declare provider
+        type: sentence_transformer_local
+        model: all-MiniLM-L6-v2
     nli_contradiction:
-      enabled: true
+      threshold: 0.5
       opt_in: false                      # LLM tier: double opt-in
+      provider:
+        type: deberta_local
+    insight_density:
+      enabled: false                     # explicit opt-out (preserves block)
 ```
+
+Presence of a block is the enable; ``enabled: false`` opts out
+without losing the configuration (Shape B, RFC-088 v2). Knob keys
+match each enricher's ``manifest.config_schema`` properties — see
+[Enrichment Layer Guide → Per-enricher reference](../guides/ENRICHMENT_LAYER_GUIDE.md#per-enricher-reference).
 
 JSON Schema draft 2020-12 validation:
 [`config/schema/enrichment.schema.json`](https://github.com/chipi/podcast_scraper/blob/main/config/schema/enrichment.schema.json).
-The CLI exits non-zero on invalid config.
+The CLI exits non-zero on invalid config. The viewer's
+Configuration → Enrichment editor reads
+[GET `/api/enrichment/config/schema`](#enrichment-config-surface-rfc-088-v2)
+(which composes per-enricher fragments at request time) for form
+generation.
 
 ## CLI
 
@@ -163,18 +197,33 @@ python -m podcast_scraper.enrichment.cli \
   [--skip nli_contradiction] \
   [--no-enrichers]                                      # disable everything \
   [--opt-in <id,id>]                                    # for requires_opt_in enrichers \
+  [--with-ml]                                           # wire ML enrichers from provider blocks \
   [--corpus-only] \
   [--re-enable nli_contradiction --re-enable-reason "transient HF outage"] \
   [--config viewer_operator.yaml] \
   [--log-level INFO]
 ```
 
-Resolution order (chunk 7): YAML `enrichment:` block wins on per-enricher
-config; `--profile` provides the default set if the YAML doesn't list
-enrichers; `--no-enrichers` / `--enrichers` / `--only` / `--skip` /
-`--opt-in` layer on top. See
-[Enrichment Layer Guide](../guides/ENRICHMENT_LAYER_GUIDE.md) for the
-operator runbook.
+Resolution order (RFC-088 v2):
+
+1. ``--profile`` provides the BASE EnricherSet from
+   ``enricher_set_for_profile()``.
+2. ``--config <yaml>`` deep-merges the operator-side ``enrichment:``
+   block on top (Shape B: per-enricher dict with implicit-enabled
+   default — see [Enrichment Layer Guide → Configuration](../guides/ENRICHMENT_LAYER_GUIDE.md#configuration)).
+3. ``--no-enrichers`` / ``--enrichers`` / ``--only`` / ``--skip`` /
+   ``--opt-in`` layer on top.
+4. ``--with-ml``: walks the resolved EnricherSet and registers any
+   enricher whose manifest declares a ``provider_requirement``,
+   using the provider type named in
+   ``enrichers.<id>.provider.type``. Without this flag, ML enrichers
+   are skipped with a hinted WARNING (see the
+   [provider-type registry](../guides/ENRICHMENT_LAYER_GUIDE.md#provider-type-registry)).
+
+The workflow auto-passes ``--with-ml`` to the spawned-from-pipeline
+CLI when ANY enricher in the resolved YAML has a ``provider:`` block.
+Deterministic-only profiles get a plain spawn so the spawn log stays
+honest about what runs.
 
 The viewer surfaces the same CLI as the `POST /api/jobs/enrichment`
 handler (spawns `python -m podcast_scraper.enrichment.cli` in a
