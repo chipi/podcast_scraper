@@ -72,6 +72,24 @@ class EpisodeArtifactBundle:
 
 
 @dataclass(frozen=True)
+class ProviderRequirement:
+    """An enricher's required injectable provider/scorer.
+
+    Drives the UI's "Provider" form section (which dropdown of types
+    to show) and the workflow's ``--with-ml`` decision (whether the
+    spawned CLI needs to wire a provider for this enricher).
+
+    Deterministic enrichers omit this entirely. ML / embedding / NLI
+    enrichers declare exactly one — the protocol name (a stable
+    string like ``"EmbeddingProvider"`` or ``"NliScorer"``) and a
+    short description for the form label.
+    """
+
+    protocol: str  # e.g. "EmbeddingProvider", "NliScorer"
+    description: str  # human-facing label for the UI
+
+
+@dataclass(frozen=True)
 class EnricherManifest:
     """Declares an enricher's inputs, outputs, tier, scope, and cost caps."""
 
@@ -90,6 +108,18 @@ class EnricherManifest:
     # corpus for CORPUS scope). Used by the heartbeat watchdog to
     # detect stalls; ``None`` disables.
     expected_duration_s: int | None = None
+    # JSON-Schema fragment describing this enricher's per-run knobs
+    # (top_k, threshold, alpha, window_months, …). Used by both YAML
+    # validation and the UI's form generation — adding a knob here +
+    # reading it from ``config.get(name, default)`` in ``_compute``
+    # makes it operator-tunable end-to-end with no UI code change.
+    # ``None`` means "no tunable knobs"; ``{}`` is allowed if the
+    # enricher accepts arbitrary keys but doesn't constrain them.
+    config_schema: dict[str, Any] | None = None
+    # Optional provider injection requirement. Drives ``--with-ml``
+    # CLI flag wiring + the UI's per-row Provider form section.
+    # Deterministic enrichers leave this ``None``.
+    provider_requirement: ProviderRequirement | None = None
 
 
 @dataclass(frozen=True)

@@ -27,6 +27,7 @@ from podcast_scraper.enrichment.protocol import (
     EnricherScope,
     EnricherTier,
     EpisodeArtifactBundle,
+    ProviderRequirement,
     RunContext,
     STATUS_OK,
 )
@@ -82,6 +83,23 @@ class TopicSimilarityEnricher:
         writes="topic_similarity.json",
         description="Per-Topic top-K cosine-similar neighbours via injected EmbeddingProvider.",
         expected_duration_s=120,
+        config_schema={
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "top_k": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100,
+                    "default": 10,
+                    "description": "Number of nearest-neighbour topics to emit per topic.",
+                },
+            },
+        },
+        provider_requirement=ProviderRequirement(
+            protocol="EmbeddingProvider",
+            description="Embedding source (sentence-transformers checkpoint, embeddings API, …).",
+        ),
     )
 
     def __init__(self, provider: EmbeddingProvider, *, top_k: int = 10) -> None:

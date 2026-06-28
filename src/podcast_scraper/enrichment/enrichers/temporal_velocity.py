@@ -41,8 +41,8 @@ from podcast_scraper.enrichment.protocol import (
     sync_enricher,
 )
 
-_ALPHA = 0.5
-_WINDOW_MONTHS = 12
+_DEFAULT_ALPHA = 0.5
+_DEFAULT_WINDOW_MONTHS = 12
 
 
 def _month_key(date_str: str) -> str | None:
@@ -53,11 +53,11 @@ def _month_key(date_str: str) -> str | None:
         return None
 
 
-def _twelve_month_window(now: datetime) -> list[str]:
-    """Return the 12 month-keys ending at *now*, oldest first."""
+def _window_months(now: datetime, window: int) -> list[str]:
+    """Return the *window* most-recent month-keys ending at *now*, oldest first."""
     months: list[str] = []
     year, month = now.year, now.month
-    for _ in range(_WINDOW_MONTHS):
+    for _ in range(window):
         months.append(f"{year:04d}-{month:02d}")
         month -= 1
         if month == 0:
@@ -67,12 +67,12 @@ def _twelve_month_window(now: datetime) -> list[str]:
     return months
 
 
-def _ewma(series: list[int]) -> list[float]:
-    """Compute α=0.5 EWMA over the monthly series."""
+def _ewma(series: list[int], alpha: float) -> list[float]:
+    """Compute the EWMA over *series* with smoothing factor *alpha*."""
     out: list[float] = []
     prev = 0.0
     for x in series:
-        prev = _ALPHA * x + (1 - _ALPHA) * prev
+        prev = alpha * x + (1 - alpha) * prev
         out.append(round(prev, 4))
     return out
 
@@ -134,6 +134,28 @@ def _now_utc(config: dict[str, Any]) -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _read_alpha(config: dict[str, Any]) -> float:
+    raw = config.get("alpha", _DEFAULT_ALPHA)
+    try:
+        v = float(raw)
+    except (TypeError, ValueError):
+        return _DEFAULT_ALPHA
+    if not 0.0 < v <= 1.0:
+        return _DEFAULT_ALPHA
+    return v
+
+
+def _read_window_months(config: dict[str, Any]) -> int:
+    raw = config.get("window_months", _DEFAULT_WINDOW_MONTHS)
+    try:
+        v = int(raw)
+    except (TypeError, ValueError):
+        return _DEFAULT_WINDOW_MONTHS
+    if v < 1 or v > 36:
+        return _DEFAULT_WINDOW_MONTHS
+    return v
+
+
 def _compute(
     bundle: EpisodeArtifactBundle | None,
     corpus_root: Path,
@@ -141,8 +163,10 @@ def _compute(
     config: dict[str, Any],
     ctx: RunContext,
 ) -> dict[str, Any]:
+    alpha = _read_alpha(config)
+    window = _read_window_months(config)
     now = _now_utc(config)
-    months = _twelve_month_window(now)
+    months = _window_months(now, window)
     counts_by_topic: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     labels: dict[str, str] = {}
     bundles = all_bundles or []
@@ -170,7 +194,7 @@ def _compute(
                 "topic_id": tid,
                 "topic_label": labels.get(tid, tid),
                 "monthly_counts": dict(zip(months, series)),
-                "ewma": dict(zip(months, _ewma(series))),
+                "ewma": dict(zip(months, _ewma(series, alpha))),
                 "velocity_last_over_6mo": _velocity(series, last_idx=effective_idx),
                 "total": sum(series),
             }
@@ -179,7 +203,7 @@ def _compute(
     return {
         "window_months": months,
         "now": now.isoformat(),
-        "alpha": _ALPHA,
+        "alpha": alpha,
         "effective_last_month": months[effective_idx] if months else None,
         "topics": topics_out,
     }
@@ -198,8 +222,31 @@ class TemporalVelocityEnricher:
         tier=EnricherTier.DETERMINISTIC,
         reads=[".kg.json"],
         writes="temporal_velocity.json",
-        description="Monthly Topic mention counts over a 12-month window + EWMA trend.",
+        description="Monthly Topic mention counts over a rolling window + EWMA trend.",
         expected_duration_s=30,
+        config_schema={
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "alpha": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 1,
+                    "default": _DEFAULT_ALPHA,
+                    "description": (
+                        "EWMA smoothing factor (0 < α ≤ 1). "
+                        "Higher = more weight on recent months."
+                    ),
+                },
+                "window_months": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 36,
+                    "default": _DEFAULT_WINDOW_MONTHS,
+                    "description": "Trailing window size in months for monthly counts + EWMA.",
+                },
+            },
+        },
     )
 
     async def enrich(

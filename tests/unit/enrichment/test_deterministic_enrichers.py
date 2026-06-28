@@ -511,6 +511,121 @@ def test_temporal_velocity_full_window_uses_actual_last_month(tmp_path: Path) ->
     assert data["effective_last_month"] == "2026-06"
 
 
+def test_temporal_velocity_alpha_and_window_months_read_from_config(tmp_path: Path) -> None:
+    """Externalised knobs: ``alpha`` + ``window_months`` accepted via per-enricher config.
+
+    Pre-change: ``_ALPHA`` and ``_WINDOW_MONTHS`` were module constants
+    (0.5 / 12). Post-change: read from ``config`` with the same defaults.
+    """
+
+    def _ep(stem: str, date: str) -> EpisodeArtifactBundle:
+        return _bundle(
+            tmp_path / "metadata",
+            stem,
+            kg={
+                "nodes": [
+                    {"type": "Episode", "id": "ep:" + stem, "properties": {"publish_date": date}},
+                    {"type": "Topic", "id": "topic:a", "properties": {"label": "A"}},
+                ],
+                "edges": [],
+            },
+        )
+
+    bundles = [_ep("a", "2026-04-15T00:00:00Z"), _ep("b", "2026-05-15T00:00:00Z")]
+    # Default alpha = 0.5 (verify by inspecting the envelope's reported alpha)
+    data_default = _run(
+        TemporalVelocityEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=bundles,
+        config={"now": "2026-05-30T00:00:00Z"},
+        ctx=_ctx("temporal_velocity"),
+    )
+    assert data_default["alpha"] == 0.5
+    assert len(data_default["window_months"]) == 12
+
+    # Override knobs via config
+    data_tuned = _run(
+        TemporalVelocityEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=bundles,
+        config={"now": "2026-05-30T00:00:00Z", "alpha": 0.9, "window_months": 6},
+        ctx=_ctx("temporal_velocity"),
+    )
+    assert data_tuned["alpha"] == 0.9
+    assert len(data_tuned["window_months"]) == 6
+
+
+def test_temporal_velocity_invalid_knobs_fall_back_to_defaults(tmp_path: Path) -> None:
+    """Out-of-range / non-numeric knob values silently fall back to defaults."""
+
+    def _ep(stem: str, date: str) -> EpisodeArtifactBundle:
+        return _bundle(
+            tmp_path / "metadata",
+            stem,
+            kg={
+                "nodes": [
+                    {"type": "Episode", "id": "ep:" + stem, "properties": {"publish_date": date}},
+                    {"type": "Topic", "id": "topic:a"},
+                ],
+                "edges": [],
+            },
+        )
+
+    bundles = [_ep("a", "2026-05-15T00:00:00Z")]
+    for bad_config in (
+        {"alpha": -1, "window_months": 12},  # alpha out of range
+        {"alpha": 2.0, "window_months": 12},  # alpha > 1
+        {"alpha": "high", "window_months": 12},  # non-numeric alpha
+        {"alpha": 0.5, "window_months": 0},  # window too small
+        {"alpha": 0.5, "window_months": 500},  # window too large
+        {"alpha": 0.5, "window_months": "twelve"},  # non-integer window
+    ):
+        data = _run(
+            TemporalVelocityEnricher(),
+            bundle=None,
+            corpus_root=tmp_path,
+            all_bundles=bundles,
+            config={"now": "2026-05-30T00:00:00Z", **bad_config},
+            ctx=_ctx("temporal_velocity"),
+        )
+        assert data["alpha"] == 0.5, bad_config
+        assert len(data["window_months"]) == 12, bad_config
+
+
+def test_enricher_manifest_carries_config_schema_and_provider_requirement() -> None:
+    """Per-RFC-088 v2 schema: manifests declare per-enricher knob schema
+    (for UI form generation + YAML validation) and provider injection
+    requirements (for --with-ml wiring). Deterministic enrichers without
+    knobs leave config_schema=None; enrichers without dependencies leave
+    provider_requirement=None."""
+    tv = TemporalVelocityEnricher().manifest
+    assert tv.config_schema is not None
+    assert "alpha" in tv.config_schema["properties"]
+    assert "window_months" in tv.config_schema["properties"]
+    assert tv.provider_requirement is None
+
+    from podcast_scraper.enrichment.enrichers.nli_contradiction import (
+        NliContradictionEnricher,
+    )
+    from podcast_scraper.enrichment.enrichers.topic_similarity import (
+        TopicSimilarityEnricher,
+    )
+
+    ts = TopicSimilarityEnricher.manifest
+    assert ts.provider_requirement is not None
+    assert ts.provider_requirement.protocol == "EmbeddingProvider"
+    assert ts.config_schema is not None
+    assert "top_k" in ts.config_schema["properties"]
+
+    nc = NliContradictionEnricher.manifest
+    assert nc.provider_requirement is not None
+    assert nc.provider_requirement.protocol == "NliScorer"
+    assert nc.config_schema is not None
+    assert "threshold" in nc.config_schema["properties"]
+
+
 def test_guest_coappearance_filters_speaker_placeholders(tmp_path: Path) -> None:
     """Bug 3 — SPEAKER_NN placeholder Persons must not produce pairs.
 

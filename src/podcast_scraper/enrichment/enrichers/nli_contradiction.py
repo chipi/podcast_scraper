@@ -31,6 +31,7 @@ from podcast_scraper.enrichment.protocol import (
     EnricherScope,
     EnricherTier,
     EpisodeArtifactBundle,
+    ProviderRequirement,
     RunContext,
     STATUS_CANCELLED,
     STATUS_OK,
@@ -106,6 +107,26 @@ class NliContradictionEnricher:
             "(default threshold 0.5)."
         ),
         expected_duration_s=300,
+        config_schema={
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "threshold": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "default": 0.5,
+                    "description": (
+                        "Contradiction probability cutoff (inclusive lower "
+                        "bound) for emitting a pair."
+                    ),
+                },
+            },
+        },
+        provider_requirement=ProviderRequirement(
+            protocol="NliScorer",
+            description="NLI scorer (DeBERTa local, scripted fixture, or future hosted NLI API).",
+        ),
     )
 
     def __init__(
