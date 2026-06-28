@@ -7,14 +7,13 @@
 - **Depends on**: PRD-036 / RFC-098 §3 (per-user files), PRD-039 (capture entry points)
 - **Feeds**: PRD-041 (Consolidation)
 
-> **As-shipped note (v2.7).** This PRD is reconciled with what landed. The data model (FR3) shipped
-> as specified. Deltas to call out, honestly: transcript capture shipped at **segment (line)
-> granularity** — saving a transcript line as a span with `char_start/end` covering the whole
-> segment — not yet Kindle-style **sub-segment character selection** (FR1.2); the highlight `color`
-> field exists in the model + API but **no colour picker is surfaced yet** (FR1.4), so the global
-> view's colour/topic **filters** (FR4.2) are not yet built; and **Markdown export shipped** (it had
-> been a v2.7 non-goal — see the revised Non-Goals). Everything else in FR1–FR4 is live. See
-> **§"As shipped"** for the FR→code map.
+> **As-shipped note (v2.7).** This PRD is reconciled with what landed; FR1–FR4 are live. The data
+> model (FR3) shipped as specified. **Markdown export shipped** (it had been a v2.7 non-goal — see
+> the revised Non-Goals). Transcript capture supports both whole-line and **sub-segment character
+> selection** (FR1.2 — select a phrase, tap save). A fixed-palette **colour picker + colour filter**
+> shipped (FR1.4 / FR4.2). The one remaining gap, called out honestly: the global view's **topic**
+> filter (part of FR4.2) is not built — highlights don't carry topic metadata, so it needs a
+> per-highlight topic projection (tracked, P2+). See **§"As shipped"** for the FR→code map.
 
 ---
 
@@ -56,12 +55,12 @@ offsets, so it can be replayed, cited, and later woven into the user's personal 
 
 ## User Stories
 
-- _As a listener, I can tap once to highlight the moment I'm hearing right now._
-- _As a reader, I can select a transcript passage and save it as a highlight._
-- _As a learner, I can save a pipeline insight to my highlights with one tap._
-- _As a note-taker, I can attach a thought to a highlight or to the whole episode._
-- _As a returning user, I can see all my highlights for an episode, and across everything, and jump back
-  to the exact audio moment of any of them._
+- *As a listener, I can tap once to highlight the moment I'm hearing right now.*
+- *As a reader, I can select a transcript passage and save it as a highlight.*
+- *As a learner, I can save a pipeline insight to my highlights with one tap.*
+- *As a note-taker, I can attach a thought to a highlight or to the whole episode.*
+- *As a returning user, I can see all my highlights for an episode, and across everything, and jump
+  back to the exact audio moment of any of them.*
 
 ## Functional Requirements
 
@@ -123,14 +122,14 @@ query parameter, not a path segment. As shipped (`src/podcast_scraper/server/rou
 | FR | Shipped as | Where |
 | --- | --- | --- |
 | FR1.1 moment | One-tap "mark this moment" in the player hero (tags the active speaker) | `app/src/views/PlayerView.vue`, `#1116` |
-| FR1.2 span | Save a transcript **line** as a span (segment-granular; char range = whole segment). Sub-segment character selection is a future refinement. | `app/src/components/TranscriptList.vue` (`canCapture`), `#1116` |
+| FR1.2 span | Save a transcript **line** (segment-granular) **or a selected phrase** — `selectionSubRange()` reads the live selection for exact char offsets + verbatim quote | `TranscriptList.vue` (`canCapture`) + `player/transcriptCapture.ts`, `#1116` + delta |
 | FR1.3 insight | "Save to highlights" on each Knowledge-panel insight card (keeps `source_insight_id` grounding) | `app/src/components/KnowledgePanel.vue`, `#1116` |
-| FR1.4 colour | `color` field exists in the model + `PATCH` API; **no colour picker surfaced yet** | model only |
+| FR1.4 colour | Fixed palette (amber/rose/sky/emerald/violet): per-highlight swatch picker + coloured card border; `color` via `PATCH` | `HighlightsView.vue` + `utils/highlightColors.ts`, delta |
 | FR2 notes | Add / edit / delete plain-text notes per highlight in the Library view | `app/src/views/HighlightsView.vue`, `#1117` |
 | FR3 grounding | `highlight` + `note` records exactly per FR3.1/FR3.2; per-user JSON files | `src/podcast_scraper/server/app_user_state.py`, `#1114` |
 | FR3.1a re-anchor | `reanchor_highlight()` re-locates positional fields by timestamp; a drifted span is flagged (`anchor_status`), never dropped (RFC-098 §7) | `app_user_state.py`, `#1114` |
 | FR4.1 per-episode | Highlights grouped by episode with jump-to-moment (`?t=`) | `HighlightsView.vue`, `#1117` |
-| FR4.2 global view | Global Library "Highlights" tab (grouped by episode). **Podcast/topic/colour filters not yet surfaced.** | `LibraryView.vue`, `#1117` |
+| FR4.2 global view | Global Library "Highlights" tab (grouped by episode) + a **colour filter**. Podcast scoping is the grouping; a **topic** filter is the one remaining gap (highlights carry no topic metadata yet). | `LibraryView.vue` / `HighlightsView.vue`, `#1117` + delta |
 | FR4.3 edit/delete | Delete highlights; add/edit/delete notes | `#1117` |
 | FR4.4 → Consolidation | Highlights + notes are the per-user corpus P3 (PRD-041) reads | feeds PRD-041 |
 | Export | `GET /highlights/export.md` + a Library "Export Markdown" link | `app_capture_export.py`, `#1115` |
@@ -155,10 +154,11 @@ listen→capture→review loop on the committed validation corpus (`#1114`–`#1
 
 - ~~Export to external tools (Readwise/Obsidian/Markdown)~~ — **Markdown export shipped** in v2.7;
   third-party integrations (Readwise/Obsidian) remain a follow-up PRD.
-- Tag taxonomy: free tags vs. fixed colours/labels. The `color` field exists but no picker shipped;
-  surfacing colour (+ the global filters that depend on it) is the open v2.7+ refinement.
-- Sub-segment character-range selection in the transcript (FR1.2) — shipped at line granularity;
-  Kindle-style mid-segment selection is the remaining refinement.
+- ~~Tag taxonomy: free tags vs. fixed colours/labels~~ — **fixed colour palette shipped** (picker +
+  colour filter); free-text tags remain a possible later addition.
+- ~~Sub-segment character-range selection (FR1.2)~~ — **shipped** (select a phrase, tap save).
+- Remaining: a **topic** filter on the global Highlights view needs a per-highlight topic projection
+  (highlights carry no topic metadata today) — tracked for P2+.
 
 ## References
 

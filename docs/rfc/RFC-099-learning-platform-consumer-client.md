@@ -199,8 +199,9 @@ Home (`/`) is the launch surface; the full catalog moves to `/catalog`. Routes: 
   insight card (`KnowledgePanel`, distinct from the favorites heart — highlights feed the P3 corpus).
   Review lives in a Library **Highlights** tab (`HighlightsView`): grouped by episode, jump-to-moment,
   inline notes, a drift badge (timestamp re-anchor, RFC-098 §7), and a **Markdown export** link
-  (`GET /api/app/highlights/export.md`). Transcript capture is **segment-granular** today;
-  sub-segment character selection and a colour picker (+ its filters) are the tracked refinements
+  (`GET /api/app/highlights/export.md`). Transcript capture supports **whole-line or a selected
+  phrase** (sub-segment char offsets via `selectionSubRange`), and highlights carry a fixed-palette
+  **colour** (picker + colour filter). The one tracked gap is a **topic** filter on the global view
   (PRD-040 §"As shipped").
 
 ### 7. Accessibility & i18n
