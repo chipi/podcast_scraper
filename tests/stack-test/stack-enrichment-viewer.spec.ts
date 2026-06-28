@@ -35,15 +35,19 @@ async function waitForHealthFlag(
 
 test.describe('stack test — RFC-088 chunk 9 viewer surfaces', () => {
   test.beforeEach(async ({ page, request }) => {
-    // The Configuration trigger renders only when the shell store
-    // sees the server's APIs as available (feeds_api OR
-    // operator_config_api). Wait for the health endpoint to flip
-    // first — otherwise the v-if hides the button and the
-    // `getByTestId('status-bar-sources-trigger')` times out.
+    // The Configuration trigger renders only when the shell store sees
+    // ALL three of: healthStatus + hasCorpusPath + (feedsApiAvailable
+    // || operatorConfigApiAvailable). Wait for the server's health
+    // flags first, then navigate AND fill the corpus path field —
+    // the shell store reads it from localStorage / VITE env / runtime
+    // injection, NOT from the URL query param (that's a SPA pattern
+    // I assumed but it's not how this viewer works). Match
+    // ``operator-first-run.spec.ts`` ordering.
     await waitForHealthFlag(request, 'feeds_api', 60_000)
-    // Land on the SPA shell with the corpus pre-set via query param
-    // so the shell store picks it up.
-    await page.goto(`/?path=${encodeURIComponent(CORPUS)}`)
+    await page.goto('/')
+    await page.getByTestId('status-bar-corpus-path').fill(CORPUS)
+    await page.getByTestId('status-bar-corpus-path').press('Tab')
+    await page.waitForTimeout(500)
   })
 
   test('Configuration popup → Enrichment tab is mountable + renders the panel', async ({ page }) => {

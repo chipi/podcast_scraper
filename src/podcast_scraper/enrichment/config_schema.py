@@ -17,13 +17,30 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-# Path to the schema file relative to this module's parent (src/...).
-_SCHEMA_PATH = (
+# Resolve the schema robustly across dev (editable install with source
+# tree at ``<repo>/config/schema/...``) and prod (wheel install with no
+# repo-side path). The package-data copy under
+# ``enrichment/_schema/enrichment.schema.json`` is the canonical source;
+# the legacy ``<repo>/config/schema/...`` path is kept as a fallback so
+# editable installs that haven't rebuilt the package still resolve.
+_PACKAGE_SCHEMA_PATH = (
+    Path(__file__).resolve().parent / "_schema" / "enrichment.schema.json"
+)
+_LEGACY_REPO_SCHEMA_PATH = (
     Path(__file__).resolve().parent.parent.parent.parent
     / "config"
     / "schema"
     / "enrichment.schema.json"
 )
+
+
+def _resolve_schema_path() -> Path:
+    if _PACKAGE_SCHEMA_PATH.is_file():
+        return _PACKAGE_SCHEMA_PATH
+    return _LEGACY_REPO_SCHEMA_PATH
+
+
+_SCHEMA_PATH = _resolve_schema_path()
 
 
 class ConfigSchemaError(ValueError):

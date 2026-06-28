@@ -246,7 +246,12 @@ package-dir = {"" = "src"}
 # tree). Glob covers the prompts/ subtree which is the only non-Python
 # resource we ship today.
 [tool.setuptools.package-data]
-podcast_scraper = ["prompts/**/*.j2", "prompts/**/*.md", "data/pricing_assumptions.yaml"]
+podcast_scraper = [
+    "prompts/**/*.j2",
+    "prompts/**/*.md",
+    "data/pricing_assumptions.yaml",
+    "enrichment/_schema/*.json",
+]
 
 [tool.black]
 line-length = 100
