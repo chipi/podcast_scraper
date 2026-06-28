@@ -554,6 +554,43 @@ def test_corpus_enrichment_surfaces_corpus_scope_envelopes(tmp_path: Path) -> No
     assert "run_summary" not in body["signals"]
 
 
+# --------------------------------------------------------------------------- #
+# your-corpus lens on person/topic cards (#1122)
+# --------------------------------------------------------------------------- #
+
+
+def test_person_card_scope_mine_requires_auth(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    resp = _client(tmp_path).get("/api/app/persons/person:jane-doe", params={"scope": "mine"})
+    assert resp.status_code == 401
+
+
+def test_person_card_scope_mine_filters_to_heard_corpus(tmp_path: Path) -> None:
+    _corpus(tmp_path)  # jane-doe appears in ep1 AND ep2
+    client = _authed(tmp_path)
+    ep1 = _slug(tmp_path, "ep1")
+    # scope=all → both episodes; scope=mine (nothing captured yet) → zero, honest empty card
+    assert client.get("/api/app/persons/person:jane-doe").json()["episode_count"] == 2
+    empty = client.get("/api/app/persons/person:jane-doe", params={"scope": "mine"}).json()
+    assert empty["episode_count"] == 0 and empty["episodes"] == []
+    # capture ep1 → the lens now shows just that episode ("you heard her in …")
+    client.post("/api/app/highlights", json={"episode_slug": ep1, "kind": "moment", "start_ms": 0})
+    mine = client.get("/api/app/persons/person:jane-doe", params={"scope": "mine"}).json()
+    assert mine["episode_count"] == 1
+    assert [e["slug"] for e in mine["episodes"]] == [ep1]
+
+
+def test_topic_card_scope_mine_filters_to_heard_corpus(tmp_path: Path) -> None:
+    _corpus(tmp_path)  # topic:ai appears in ep1 AND ep2
+    _write_clusters(tmp_path)
+    client = _authed(tmp_path)
+    ep2 = _slug(tmp_path, "ep2")
+    client.post("/api/app/highlights", json={"episode_slug": ep2, "kind": "moment", "start_ms": 0})
+    mine = client.get("/api/app/topics/topic:ai", params={"scope": "mine"}).json()
+    assert [e["slug"] for e in mine["episodes"]] == [ep2]
+    assert mine["episode_count"] == 1
+
+
 def test_highlights_export_falls_back_to_slug_when_episode_unknown(tmp_path: Path) -> None:
     # A highlight on a slug that resolves to no corpus episode → the export still renders, using the
     # bare slug as the heading (title hydration is best-effort, never breaks export).
