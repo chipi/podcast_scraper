@@ -271,6 +271,20 @@ number, file, line, date, and a short comment.
 | 1 | #382 | server/routes/index_stats.py | 145 | 2026-06-20 | Type 1: ``GET /index/timeseries`` builds ``search/lance_index`` (constant suffix) on a corpus path sanitised by ``resolve_corpus_path_param`` (normpath + startswith-anchor). Mirrors #166. PR #1038 |
 | 1 | #383 | search/lance_index_stats.py | 102 | 2026-06-20 | Type 1: ``read_lance_doc_type_by_month`` is_dir/LanceDB open on a validated lance_dir; sanitised upstream. Mirrors #376/#377. PR #1038 |
 | 1 | #384 | search/corpus_graph.py | 414 | 2026-06-23 | Type 1: re-fire of #347 — ``get_corpus_graph`` cache/build on the route-confined corpus root (``resolve_corpus_path_param`` raises on anchor escape); reads only ``<corpus>`` artifacts. The ``reconcile_hosts`` (#1056) cache-key addition shifted the sink line 277→414, so CodeQL re-attributed the already-dismissed false positive to the PR. Sanitiser chain unchanged. Dismissed ``gh api`` (PR #1059) |
+| 1 | #388 | server/routes/corpus_enrichments.py | 61 | 2026-06-28 | Type 1: ``_read_envelope`` ``is_file()`` sink on a path built from ``safe_relpath_under_corpus_root`` after corpus root sanitised by ``resolve_corpus_path_param``. Cross-fn taint gap. Dismissed ``gh api`` (PR #1127) |
+| 1 | #389 | server/routes/corpus_enrichments.py | 66 | 2026-06-28 | Type 1: same chain, ``read_text`` sink in ``_read_envelope`` (PR #1127) |
+| 1 | #390 | server/routes/corpus_enrichments.py | 91 | 2026-06-28 | Type 1: ``list_corpus_enrichments`` ``is_dir()`` on ``root / "enrichments"`` (constant suffix) on the sanitised root. Same shape as #131-#136 corpus_catalog. Dismissed ``gh api`` (PR #1127) |
+| 1 | #391 | server/routes/corpus_enrichments.py | 94 | 2026-06-28 | Type 1: same chain, ``glob("*.json")`` sink (PR #1127) |
+| 1 | #392 | server/routes/corpus_library.py | 83 | 2026-06-28 | Type 1: re-fire of dismissed corpus_library batch (#147 / #149 / #162 / #163 / #236 / #306 / #307) — same ``resolve_corpus_path_param`` chain, line drifted post-merge. Dismissed ``gh api`` (PR #1127) |
+| 1 | #393 | server/routes/enrichment.py | 155 | 2026-06-28 | Type 1: ``corpus_root`` from ``resolve_corpus_path_param`` before status-file ``is_file()`` / ``read_text`` chain (RFC-088 chunk 1 surface). Same shape as #244-#297 batch. Dismissed ``gh api`` (PR #1127) |
+| 1 | #394 | server/routes/enrichment_config.py | 130 | 2026-06-28 | Type 1: ``_read_operator_yaml(corpus_root)`` ``is_file()`` sink — ``corpus_root`` from ``resolve_corpus_path_param`` (normpath + startswith anchor), path built as ``corpus_root / "viewer_operator.yaml"`` (constant suffix). RFC-088 v2 config surface (GET /api/enrichment/config). Dismissed ``gh api`` (PR #1127) |
+| 1 | #395 | server/routes/enrichment_config.py | 133 | 2026-06-28 | Type 1: same chain, ``read_text`` sink on the same path (PR #1127) |
+| 1 | #396 | server/jobs.py | 136 | 2026-06-28 | Type 1: re-fire of dismissed ``server/jobs.py`` batch (#244-#297 / #305) — same ``jobs_log_path.resolve_pipeline_job_log_path`` (``safe_resolve_directory`` + ``safe_relpath_under_corpus_root`` + ``normpath_if_under_root``) sanitiser chain; line drifted post-merge. Dismissed ``gh api`` (PR #1127) |
+| 1 | #397 | server/jobs.py | 141 | 2026-06-28 | Type 1: same chain (PR #1127) |
+| 1 | #398 | server/jobs.py | 212 | 2026-06-28 | Type 1: same chain (PR #1127) |
+| 1 | #399 | server/jobs.py | 225 | 2026-06-28 | Type 1: same chain (PR #1127) |
+| 1 | #400 | server/jobs.py | 226 | 2026-06-28 | Type 1: same chain (PR #1127) |
+| 1 | #401 | server/jobs.py | 586 | 2026-06-28 | Type 1: same chain (PR #1127) |
 
 ## Still open (not yet dismissed)
 
