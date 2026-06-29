@@ -76,14 +76,16 @@ def test_status_then_run_then_verify(tmp_path):
     assert _run(corpus, "status") == 2
 
     # run --yes applies the chain: 0001 is a no-op (FAISS retired), 0002 builds the
-    # two-tier LanceDB index natively from the corpus artifacts.
+    # two-tier LanceDB index natively from the corpus artifacts, 0003 is a no-op
+    # on a tiny corpus with no .gi.json files (still records to the ledger).
     assert _run(corpus, "run", "--yes") == 0
     store = FilesystemStateStore(corpus)
     assert store.applied_migration_ids() == {
         "0001_faiss_to_lance",
         "0002_two_tier_native_reindex",
+        "0003_gi_v3_typed_mentions",
     }
-    assert store.current_version() == "2.7.0"
+    assert store.current_version() == "2.7.1"
     assert (corpus / "search" / "lance_index").exists()
 
     # status after: up to date → exit 0.
@@ -94,7 +96,7 @@ def test_status_then_run_then_verify(tmp_path):
 
     # idempotent: a second run is a no-op (still exit 0, ledger unchanged).
     assert _run(corpus, "run", "--yes") == 0
-    assert len(store.applied_records()) == 2
+    assert len(store.applied_records()) == 3
 
 
 def test_run_dry_run_writes_nothing(tmp_path):
@@ -113,7 +115,9 @@ def test_no_faiss_index_is_clean_noop(tmp_path):
     (corpus / "corpus_manifest.json").write_text(
         '{"produced_by": {"code_version": "2.6.0"}}', encoding="utf-8"
     )
-    # No FAISS index → migration applies as a no-op, version still advances.
+    # No FAISS index → 0001 no-ops, 0002 builds natively, 0003 no-ops (no
+    # .gi.json files in this tiny corpus). Version advances to the last
+    # migration's to_version.
     assert _run(corpus, "run", "--yes") == 0
-    assert FilesystemStateStore(corpus).current_version() == "2.7.0"
+    assert FilesystemStateStore(corpus).current_version() == "2.7.1"
     assert _run(corpus, "verify") == 0  # no-op verifies ok
