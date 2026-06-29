@@ -72,26 +72,26 @@ jobs:
           curl -fsS --max-time 5 "http://${host}:11434/api/tags" | head -c 200
           echo
 
-      - name: DGX → idle mode (stop vllm-autoresearch, free ~73 GB for Ollama)
-        # Without this, the persistent vllm-autoresearch container holds
-        # 73 GB of the 128 GB GPU 24/7, leaving only ~55 GB for Ollama
-        # (judges + candidates), which causes CUDA OOM cascades across
-        # the cohort. ``idle`` mode brings vLLM down; matching ``research``
-        # step at the END (always-run) restores it. ~1 hr/week of vLLM
-        # downtime during the Monday sweep window — accepted trade-off.
+      - name: Stop vllm-autoresearch (free ~73 GB for Ollama)
+        # The persistent vllm-autoresearch container holds 73 GB of the
+        # 128 GB GPU 24/7, leaving only ~55 GB for Ollama which causes
+        # CUDA OOM cascades across the cohort. Stop it for the duration
+        # of the sweep; restore in the matching always-run step below.
         #
-        # gha-runner's $HOME is /opt/actions-runner so it can't read the
-        # operator's ~/.config/gpu-mode.env defaults; pass the compose
-        # dir + docker prefix explicitly. The runner is in the docker
-        # group, so ``docker`` (no sudo) works (NoNewPrivileges=true on
-        # the systemd unit blocks sudo elevation either way).
-        env:
-          GPU_MODE_DOCKER: docker
-          GPU_MODE_RESEARCH_DIR: /home/markodragoljevic/agentic-ai-homelab/infra/vllm/autoresearch
-          GPU_MODE_CODER_DIR: /home/markodragoljevic/agentic-ai-homelab/infra/vllm/coder-next
+        # We can't use gpu-mode-swap.sh because that uses ``docker compose
+        # down`` which finds nothing (the container has no compose labels
+        # — it was started via ``docker run``, not ``docker compose up``).
+        # Just stop+start by container name directly. gha-runner is in
+        # the docker group so it can manage containers without sudo.
         run: |
-          bash ~markodragoljevic/bin/gpu-mode-swap.sh idle
-          bash ~markodragoljevic/bin/gpu-mode-swap.sh status
+          echo "  before:"
+          docker container inspect vllm-autoresearch --format '{{.State.Status}}'
+          nvidia-smi --query-gpu=memory.used,memory.free --format=csv,noheader
+          docker stop vllm-autoresearch
+          echo "  after stop:"
+          docker container inspect vllm-autoresearch --format '{{.State.Status}}'
+          sleep 8
+          nvidia-smi --query-gpu=memory.used,memory.free --format=csv,noheader
 
       - name: Materialize smoke dataset
         # curated_5feeds_smoke_v2 is the dataset every cohort candidate
@@ -205,17 +205,27 @@ jobs:
           echo "::error::push still failing after 3 rebase attempts"
           exit 1
 
-      - name: DGX → research mode (restore vllm-autoresearch, free Ollama GPU back)
+      - name: Start vllm-autoresearch (restore vLLM, free Ollama GPU back)
         # ``if: always()`` so even a failed sweep restores vLLM — other
         # autoresearch consumers shouldn't pay for our sweep's failure.
         if: always()
-        env:
-          GPU_MODE_DOCKER: docker
-          GPU_MODE_RESEARCH_DIR: /home/markodragoljevic/agentic-ai-homelab/infra/vllm/autoresearch
-          GPU_MODE_CODER_DIR: /home/markodragoljevic/agentic-ai-homelab/infra/vllm/coder-next
         run: |
-          bash ~markodragoljevic/bin/gpu-mode-swap.sh research
-          bash ~markodragoljevic/bin/gpu-mode-swap.sh status
+          echo "  current container state:"
+          docker container inspect vllm-autoresearch --format '{{.State.Status}}'
+          docker start vllm-autoresearch
+          echo "  after start:"
+          docker container inspect vllm-autoresearch --format '{{.State.Status}}'
+          # vLLM takes ~30-60s to load model + serve; wait but don't fail
+          # the workflow if it's not ready by the timeout (the post-sweep
+          # restore is best-effort).
+          for i in $(seq 1 30); do
+            if curl -fsS --max-time 2 http://localhost:8003/health >/dev/null 2>&1; then
+              echo "  vLLM healthy after ${i}×2s"
+              break
+            fi
+            sleep 2
+          done
+          nvidia-smi --query-gpu=memory.used,memory.free --format=csv,noheader
 
       - name: Upload sweep ledger artifact
         if: always()
