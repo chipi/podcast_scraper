@@ -50,7 +50,7 @@ def _parse_score(text: str) -> float:
     """Extract a float in [0, 10] from the model's reply.
 
     Accepts JSON like ``{"score": 7.5}`` or bare floats like ``"7.5"``.
-    Clips to [0, 10]. Raises on unparseable replies.
+    Clips to [0, 10]. Raises on unparsable replies.
     """
     text = text.strip()
     try:
