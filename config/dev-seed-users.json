@@ -1,0 +1,7 @@
+[
+  { "hint": "ada-admin", "name": "Ada Admin", "role": "admin" },
+  { "hint": "cory-creator", "name": "Cory Creator", "role": "creator" },
+  { "hint": "cleo-creator", "name": "Cleo Creator", "role": "creator" },
+  { "hint": "pat-player", "name": "Pat Player", "role": "listener" },
+  { "hint": "pip-player", "name": "Pip Player", "role": "listener" }
+]

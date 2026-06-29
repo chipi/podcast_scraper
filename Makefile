@@ -652,7 +652,9 @@ serve-app:
 serve-app-dev:
 	@echo "Running the consumer API (mock OAuth) + the Learning Player app in parallel (Ctrl+C stops both)."
 	@APP_OAUTH_PROVIDER=mock APP_SESSION_SECRET=$${APP_SESSION_SECRET:-dev-secret} \
-		APP_ADMIN_EMAILS=$${APP_ADMIN_EMAILS:-dev@localhost} $(MAKE) -j2 serve-api serve-app
+		APP_ADMIN_EMAILS=$${APP_ADMIN_EMAILS:-dev@localhost} \
+		APP_SEED_USERS_FILE=$${APP_SEED_USERS_FILE:-config/dev-seed-users.json} \
+		$(MAKE) -j2 serve-api serve-app
 
 # E2E fixture HTTP server (RSS + mock API paths); use --feeds-spec with URLs on this port.
 serve-e2e-mock:

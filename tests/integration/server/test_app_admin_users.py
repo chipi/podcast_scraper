@@ -8,6 +8,7 @@ self-lockout guards (an admin can't demote / deactivate / delete themselves) are
 
 from __future__ import annotations
 
+import json
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -194,3 +195,39 @@ def test_same_user_concurrent_role_flips_converge(tmp_path: Path) -> None:
     final = admin.get("/api/app/admin/users").json()
     role = {r["user_id"]: r["role"] for r in final}[target]
     assert role in ("admin", "creator")
+
+
+def test_seeded_roster_appears_in_admin_users(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A fixed roster (1 admin / 2 creators / 2 listeners) seeded at startup must show up in the
+    # admin user-management list, hooked to the mock ?as login (signing in as 'ada-admin' resolves
+    # to the seeded admin).
+    roster = [
+        {"hint": "ada-admin", "name": "Ada Admin", "role": "admin"},
+        {"hint": "cory-creator", "name": "Cory Creator", "role": "creator"},
+        {"hint": "cleo-creator", "name": "Cleo Creator", "role": "creator"},
+        {"hint": "pat-player", "name": "Pat Player", "role": "listener"},
+        {"hint": "pip-player", "name": "Pip Player", "role": "listener"},
+    ]
+    seed_file = tmp_path / "seed.json"
+    seed_file.write_text(json.dumps(roster), encoding="utf-8")
+    monkeypatch.setenv("APP_DATA_DIR", str(tmp_path / "appdata"))
+    monkeypatch.setenv("APP_SEED_USERS_FILE", str(seed_file))
+
+    # create_app seeds during _configure_platform_auth (from the env above) — before any login.
+    app = create_app(tmp_path, static_dir=False)
+    app.state.session_secret = "test-secret"
+    app.state.access_policy = AccessPolicy("open", frozenset(), frozenset())
+    app.state.oauth_provider = MockOAuthProvider()
+
+    admin = _login(app, "ada-admin")  # the seeded admin (no grant needed — already admin)
+    assert admin.get("/api/app/me").json()["role"] == "admin"
+
+    rows = admin.get("/api/app/admin/users").json()
+    by_email = {r["email"]: r["role"] for r in rows}
+    assert by_email["ada-admin@e2e.local"] == "admin"
+    assert by_email["cory-creator@e2e.local"] == "creator"
+    assert by_email["pip-player@e2e.local"] == "listener"
+    seeded_roles = sorted(r["role"] for r in rows if r["email"].endswith("@e2e.local"))
+    assert seeded_roles == ["admin", "creator", "creator", "listener", "listener"]

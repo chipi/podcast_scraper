@@ -19,6 +19,7 @@ from podcast_scraper.server import app_roles
 from podcast_scraper.server.app_access import policy_from_env
 from podcast_scraper.server.app_oauth import provider_from_env
 from podcast_scraper.server.app_operator_guard import OperatorWriteGuard
+from podcast_scraper.server.app_user_seed import seed_from_env
 from podcast_scraper.server.pathutil import CorpusPathRequestError
 from podcast_scraper.server.routes import (
     app_admin,
@@ -98,6 +99,9 @@ def _configure_platform_auth(app: FastAPI, resolved_output: Path | None) -> None
     app.state.oauth_provider = provider_from_env()
     app.state.access_policy = policy_from_env()
     app.state.admin_emails = app_roles.admin_emails_from_env()
+    # Seed a fixed dev roster (1 admin / 2 creators / 2 listeners, mock identities) when
+    # APP_SEED_USERS_FILE is set — so a fresh local platform has known users in the admin surface.
+    seed_from_env(app.state.app_data_dir)
     # Personalized discovery ranking (PRD-043 FR4 / #1098) — OFF by default; the discovery feed
     # falls back to recency until this toggle is flipped (gated until the score is tuned).
     app.state.personalized_ranking = _env_truthy("APP_PERSONALIZED_RANKING")
