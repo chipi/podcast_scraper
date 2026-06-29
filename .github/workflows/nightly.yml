@@ -4,7 +4,7 @@
 # See docs/ci/METRICS.md — test metrics and health tracking (Layer 3)
 #
 # Note: Linter warnings about "Unable to resolve action" for actions/checkout@v7
-# and actions/cache@v5 are false positives - these are standard GitHub Actions
+# and actions/cache@v6 are false positives - these are standard GitHub Actions
 # that exist in the marketplace but the linter cannot resolve them offline.
 #
 # Structure mirrors python-app.yml with separate jobs for isolation:
@@ -78,7 +78,7 @@ jobs:
         df -h
 
     - name: Cache ML models (production + test models for nightly)
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       id: cache-models
       with:
         path: |
@@ -650,7 +650,7 @@ jobs:
           .venv/bin/python scripts/build_synthetic_validation_corpus.py
 
       - name: Cache HuggingFace hub (sentence-transformers MiniLM-L6-v2 ~80MB)
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.cache/huggingface
           key: hf-hub-minilm-l6-v2
