@@ -106,7 +106,7 @@ ml = [
   # numpy 2: spaCy 3.8 + thinc 8.3 (above) support it — the migration the previous
   # numpy<2 pin (#899) was waiting for — and pyannote.audio 4.x REQUIRES numpy 2.
   # The old thinc 8.2 ABI crash is gone with thinc 8.3.
-  "numpy>=2.0,<3.0",
+  "numpy>=2.2.6,<3.0",
   # sentence-transformers 5.x allows transformers 4.41–5.x; keep <5 until we vendor
   # extractive QA: transformers 5 removed the ``question-answering`` pipeline task (CI preload).
   # CVE-2026-1839 (Trainer rng_state / torch.load): fixed in 5.0.0rc3+ only; pip-audit ignore in Makefile until 5.x stable.
