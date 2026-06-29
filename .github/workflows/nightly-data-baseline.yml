@@ -72,8 +72,13 @@ jobs:
             echo '```'
           } >> "${GITHUB_STEP_SUMMARY}"
 
-      - name: Prepare smoke dataset
-        run: make dataset-smoke
+      - name: Prepare benchmark dataset (materialize transcripts)
+        # The smoke config (baseline_ml_dev_authority_benchmark_v1.yaml) references
+        # ``curated_5feeds_benchmark_v1``; ``data/eval/materialized/`` is gitignored,
+        # so it must be rebuilt from the (tracked) sources before experiment-run.
+        run: |
+          make dataset-benchmark
+          make dataset-materialize DATASET_ID=curated_5feeds_benchmark_v1
 
       - name: Run experiment (smoke)
         # HF_HOME / HF_HUB_CACHE pin the cache path so the model_loader
