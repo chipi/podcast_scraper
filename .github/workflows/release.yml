@@ -94,14 +94,14 @@ jobs:
           python-version: '3.11.8'
 
       - name: Download experiment artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: experiment-run-*
           path: /tmp/artifacts/experiment
           merge-multiple: true
 
       - name: Download benchmark artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: ml-benchmark-*
           path: /tmp/artifacts/benchmark
