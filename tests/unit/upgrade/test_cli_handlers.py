@@ -75,7 +75,11 @@ def test_run_yes_json_on_empty_corpus(tmp_path, capsys):
     rc = _run(tmp_path, "run", "--yes", "--json")
     assert rc == 0
     payload = _json.loads(capsys.readouterr().out)
-    assert {r["id"] for r in payload} == {"0001_faiss_to_lance", "0002_two_tier_native_reindex"}
+    assert {r["id"] for r in payload} == {
+        "0001_faiss_to_lance",
+        "0002_two_tier_native_reindex",
+        "0003_gi_v3_typed_mentions",
+    }
 
 
 def test_unknown_subcommand_errors(tmp_path):

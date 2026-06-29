@@ -65,12 +65,12 @@ class GiV3TypedMentionsMigration(Migration):
         files = list(_iter_gi_files(ctx.corpus_root))
         if not files:
             return "no .gi.json files under corpus — nothing to migrate"
-        would_change = mp_total = mo_total = unparseable = 0
+        would_change = mp_total = mo_total = unparsable = 0
         for f in files:
             try:
                 before = json.loads(f.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError):
-                unparseable += 1
+                unparsable += 1
                 continue
             after = migrate_gi_document_v3(copy.deepcopy(before))
             changed, mp, mo = _classify(before, after)
@@ -82,7 +82,7 @@ class GiV3TypedMentionsMigration(Migration):
             f"GI v3 migration plan: {len(files)} files scanned, "
             f"{would_change} would change "
             f"({mp_total} MENTIONS→MENTIONS_PERSON, {mo_total} MENTIONS→MENTIONS_ORG), "
-            f"{unparseable} unparseable (will be skipped)"
+            f"{unparsable} unparsable (will be skipped)"
         )
 
     def apply(self, ctx: MigrationContext) -> MigrationResult:
@@ -106,13 +106,13 @@ class GiV3TypedMentionsMigration(Migration):
 
         changed_files: list[str] = []
         unchanged = mp_total = mo_total = 0
-        unparseable: list[str] = []
+        unparsable: list[str] = []
 
         for f in files:
             try:
                 before = json.loads(f.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError) as exc:
-                unparseable.append(f"{f}: {exc.__class__.__name__}")
+                unparsable.append(f"{f}: {exc.__class__.__name__}")
                 continue
             after = migrate_gi_document_v3(copy.deepcopy(before))
             changed, mp, mo = _classify(before, after)
@@ -131,14 +131,14 @@ class GiV3TypedMentionsMigration(Migration):
         message = (
             f"{'would write' if ctx.dry_run else 'wrote'} {len(changed_files)} files "
             f"({mp_total} MENTIONS_PERSON, {mo_total} MENTIONS_ORG); "
-            f"{unchanged} already-current, {len(unparseable)} unparseable"
+            f"{unchanged} already-current, {len(unparsable)} unparsable"
         )
         ctx.log(message)
         details: dict = {
             "files_scanned": len(files),
             "files_changed": len(changed_files),
             "files_unchanged": unchanged,
-            "files_unparseable": len(unparseable),
+            "files_unparsable": len(unparsable),
             "mentions_person_typed": mp_total,
             "mentions_org_typed": mo_total,
         }
@@ -146,8 +146,8 @@ class GiV3TypedMentionsMigration(Migration):
         # the ledger and CLI output without buying anything an operator reads.
         if len(changed_files) <= 50:
             details["changed_files"] = changed_files
-        if unparseable:
-            details["unparseable_samples"] = unparseable[:10]
+        if unparsable:
+            details["unparsable_samples"] = unparsable[:10]
         return MigrationResult(
             self.id,
             applied=True,
