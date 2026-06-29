@@ -61,7 +61,44 @@ Default safe play: migrate the top four. Skip the rest.
 
 ## Step-by-step
 
-### 1. Dry-run each corpus first (read-only sanity check)
+### Update 2026-06-29 — use the framework, not the standalone script
+
+The RFC-097 v3 migration is now **registered as `m0003_gi_v3_typed_mentions`** in
+the #862 corpus-upgrade framework (commit `fb2b074d` on main). The standalone
+`scripts/migrate_gi_to_v3.py` still works, but the framework path is preferred —
+it records the migration in the corpus's ledger so `upgrade verify` knows it
+ran, and `upgrade status` won't keep nagging.
+
+After rebasing your worktree onto main (or cherry-picking `fb2b074d`), use:
+
+```bash
+export CORPUS_DIR=.test_outputs/manual/prod-v2
+
+# what's pending?
+make upgrade-status CORPUS_DIR=$CORPUS_DIR
+
+# preview — writes nothing
+make upgrade-dry-run CORPUS_DIR=$CORPUS_DIR
+
+# apply (non-interactive)
+make upgrade-corpus CORPUS_DIR=$CORPUS_DIR
+
+# verify post-apply
+make upgrade-verify CORPUS_DIR=$CORPUS_DIR
+```
+
+The framework will run `m0001` (no-op for fresh corpora), `m0002` (rebuilds the
+LanceDB two-tier index if needed), AND `m0003` (the GI v3 schema migration we
+care about) in order. Repeat with `CORPUS_DIR` swapped for each corpus you want
+to migrate.
+
+The standalone-script path below (sections 1-4) remains for reference / fallback
+if the framework path hits an issue you'd rather diagnose in isolation. They do
+the same thing for the GI side.
+
+---
+
+### 1. Dry-run each corpus first (read-only sanity check) — standalone path
 
 Save this as `scripts/_dry_run_v3.py` (local, don't commit) or run inline:
 
