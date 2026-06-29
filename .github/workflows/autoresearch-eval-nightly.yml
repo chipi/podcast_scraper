@@ -30,10 +30,15 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
 
-      - name: Install package (dev)
+      - name: Install package (dev + llm)
+        # [llm] carries openai/anthropic/google-genai/mistralai/httpx —
+        # the OpenAI SDK is what OllamaProvider uses to talk to Ollama's
+        # OpenAI-compatible /v1 endpoint. [dev] alone is too thin.
+        # NOT [ml] (torch/transformers/spacy — heavy, not needed for an
+        # Ollama-only smoke that does no local inference).
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          pip install -e ".[dev,llm]"
 
       - name: Ollama health (tailnet)
         env:
