@@ -25,7 +25,9 @@ pytestmark = [pytest.mark.integration]
 class _StubProvider:
     name = "stub"
 
-    def authorization_url(self, *, state: str, redirect_uri: str) -> str:
+    def authorization_url(
+        self, *, state: str, redirect_uri: str, login_hint: str | None = None
+    ) -> str:
         return f"https://stub.example/authorize?state={state}"
 
     def exchange_code(self, *, code: str, redirect_uri: str) -> OAuthIdentity:

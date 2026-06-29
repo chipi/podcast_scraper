@@ -10,14 +10,15 @@ from __future__ import annotations
 
 import secrets
 import time
+from dataclasses import replace
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import RedirectResponse
 
-from podcast_scraper.server import app_sessions
+from podcast_scraper.server import app_roles, app_sessions
 from podcast_scraper.server.app_oauth import OAuthError, OAuthProvider
-from podcast_scraper.server.app_user_store import get_or_create_user, get_user, User
+from podcast_scraper.server.app_user_store import get_or_create_user, get_user, set_role, User
 
 router = APIRouter(tags=["app"])
 
@@ -69,15 +70,29 @@ def get_optional_user(request: Request) -> User | None:
         return None
 
 
+def get_admin_user(request: Request) -> User:
+    """Like :func:`get_current_user` but requires the ``admin`` role (403 otherwise)."""
+    user = get_current_user(request)
+    if not app_roles.is_admin(user.role):
+        raise HTTPException(status_code=403, detail="Admin role required.")
+    return user
+
+
 @router.get("/auth/login")
 async def app_auth_login(
     request: Request,
     as_: str | None = Query(default=None, alias="as", description="Mock identity hint (dev/e2e)."),
+    grant: str | None = Query(
+        default=None, description="Role hint for new users; only 'creator' is honoured."
+    ),
 ) -> RedirectResponse:
     """Begin the OAuth flow: redirect to the provider with a CSRF state cookie.
 
     ``?as=<name>`` is an optional identity hint honoured **only by the mock provider** (dev/e2e) so
     parallel e2e specs can sign in as isolated users; real providers ignore it.
+
+    ``?grant=creator`` is the viewer's login hint: a *new* (or ``listener``) user is promoted to
+    ``creator`` on callback. Only ``creator`` is ever granted this way — never ``admin``.
     """
     provider = _provider(request)
     secret = _secret(request)
@@ -90,7 +105,7 @@ async def app_auth_login(
     resp = RedirectResponse(url, status_code=307)
     resp.set_cookie(
         app_sessions.STATE_COOKIE,
-        app_sessions.sign({"state": state, "iat": int(time.time())}, secret),
+        app_sessions.sign({"state": state, "iat": int(time.time()), "grant": grant or ""}, secret),
         max_age=600,
         httponly=True,
         samesite="lax",
@@ -128,6 +143,14 @@ async def app_auth_callback(
         email=identity.email,
         name=identity.name,
     )
+    # Apply the role policy: admin allowlist > creator grant > existing role (never downgraded).
+    admin_emails: frozenset[str] = getattr(request.app.state, "admin_emails", frozenset())
+    effective = app_roles.resolve_login_role(
+        user.role, email=user.email, grant=saved.get("grant"), admin_emails=admin_emails
+    )
+    if effective != user.role:
+        set_role(data_dir, user.user_id, effective)
+        user = replace(user, role=effective)
     resp = RedirectResponse("/", status_code=307)
     resp.set_cookie(
         app_sessions.SESSION_COOKIE,
@@ -150,6 +173,12 @@ async def app_auth_logout() -> Response:
 
 
 @router.get("/me")
-async def app_me(user: User = Depends(get_current_user)) -> dict[str, str]:
-    """Return the signed-in user's basic profile (401 when not authenticated)."""
-    return {"user_id": user.user_id, "email": user.email, "name": user.name}
+async def app_me(user: User = Depends(get_current_user)) -> dict[str, object]:
+    """Return the signed-in user's basic profile + role (401 when not authenticated)."""
+    return {
+        "user_id": user.user_id,
+        "email": user.email,
+        "name": user.name,
+        "role": user.role,
+        "disabled": user.disabled,
+    }
