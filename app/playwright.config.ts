@@ -49,6 +49,10 @@ export default defineConfig({
         APP_SESSION_SECRET: 'e2e-secret',
         // Allow the mock dev identity through the access policy (default is allowlist/deny).
         APP_SIGNUP_MODE: 'open',
+        // Personalized discovery ON so the recommender A/B (recommendation.spec) can assert the feed
+        // re-ranks toward a followed interest. With no interests the feed is recency (unchanged), so
+        // this is inert for every other spec.
+        APP_PERSONALIZED_RANKING: 'true',
         // Keep per-user writes (queue/profile/interests) OUT of the committed corpus tree.
         // Relative to the webServer cwd (app/); the server resolve()s it against cwd.
         APP_DATA_DIR: 'e2e/.app-state',
