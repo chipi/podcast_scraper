@@ -17,11 +17,12 @@ import json
 import logging
 import os
 import re
-from typing import Optional
+from typing import Any, cast, Optional
 
 import httpx
 
 from podcast_scraper.evaluation.judges.base import JudgeUnavailableError
+from podcast_scraper.utils.retry import retry_with_exponential_backoff
 
 logger = logging.getLogger(__name__)
 
@@ -81,25 +82,55 @@ class OllamaChatJudge:
         self.request_timeout_s = request_timeout_s
         self._client = client
 
-    def score(self, *, user_content: str) -> float:
-        """POST to /chat/completions; return the parsed float."""
+    def _do_request(self, *, user_content: str) -> dict[str, Any]:
         url = f"{self.api_base}/chat/completions"
         payload = {
             "model": self.model,
             "messages": [{"role": "user", "content": user_content}],
             "temperature": 0.0,
         }
+        if self._client is not None:
+            return cast(
+                dict, self._client.post(url, json=payload).json()  # type: ignore[attr-defined]
+            )
+        with httpx.Client(timeout=self.request_timeout_s) as client:
+            resp = client.post(url, json=payload)
+            # 5xx + 408/429 = transient (server load, brief Ollama model
+            # swap, rate limit). 4xx = client bug, don't retry.
+            resp.raise_for_status()
+            return cast(dict, resp.json())
+
+    def score(self, *, user_content: str) -> float:
+        """POST to /chat/completions; return the parsed float.
+
+        Retries on transient HTTP errors (5xx, 408, 429) and network/IO
+        errors with exponential backoff. A single brittle Ollama hiccup
+        shouldn't kill a 10-judge-call sweep; this matters more as cohort
+        size grows.
+        """
+        # Only retry on transient errors. httpx.HTTPStatusError for 4xx
+        # is NOT retried (we let it pop out of the retry helper untouched
+        # by re-raising as a non-retryable type).
+        retryable = (
+            httpx.RequestError,
+            httpx.ConnectError,
+            httpx.ReadTimeout,
+            httpx.RemoteProtocolError,
+            httpx.HTTPStatusError,
+            OSError,
+        )
         try:
-            if self._client is not None:
-                reply = self._client.post(url, json=payload).json()  # type: ignore[attr-defined]
-            else:
-                with httpx.Client(timeout=self.request_timeout_s) as client:
-                    resp = client.post(url, json=payload)
-                    resp.raise_for_status()
-                    reply = resp.json()
+            reply = retry_with_exponential_backoff(
+                lambda: self._do_request(user_content=user_content),
+                max_retries=3,
+                initial_delay=2.0,
+                max_delay=15.0,
+                retryable_exceptions=retryable,
+            )
         except (httpx.HTTPError, OSError) as exc:
             raise JudgeUnavailableError(
-                f"Ollama judge ({self.model} at {self.api_base}) unreachable: {exc}"
+                f"Ollama judge ({self.model} at {self.api_base}) unreachable "
+                f"after retries: {exc}"
             ) from exc
 
         choices = reply.get("choices") or []

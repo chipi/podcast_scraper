@@ -33,6 +33,10 @@ jobs:
     name: DGX autoresearch sweep (allow-listed)
     runs-on: [self-hosted, dgx-spark]
     timeout-minutes: 120
+    # Same env as nightly-data-baseline — gives this workflow access to
+    # INFRA_STATE_COMMIT_TOKEN (the fine-grained PAT that bypasses main's
+    # pull_request rule). One env, two consumers, single secret to rotate.
+    environment: baselines
     steps:
       - uses: actions/checkout@v7
         # Same persist-credentials trick as nightly-data-baseline.yml —
@@ -131,19 +135,22 @@ jobs:
           PY
 
       - name: Commit weekly ledger to main
-        # Same scoped-bypass pattern as nightly-data-baseline.yml: stage
-        # only data/autoresearch_baselines/, refuse if anything else slipped
-        # in, push via GITHUB_TOKEN (github-actions[bot] is — well, would
-        # be a ruleset bypass actor; for now this token push will succeed
-        # because the runner here is the operator-controlled DGX which
-        # has the same bypass identity, OR we accept the same fallback as
-        # other workflows).
+        # Pushes via INFRA_STATE_COMMIT_TOKEN — fine-grained PAT scoped to
+        # this repo, bypass actor on the main ruleset. Same pattern as
+        # nightly-data-baseline.yml. The actions/checkout step above has
+        # ``persist-credentials: false`` so the default GITHUB_TOKEN
+        # extraheader doesn't shadow this PAT (the bug that wasted half
+        # a session earlier today).
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INFRA_STATE_COMMIT_TOKEN: ${{ secrets.INFRA_STATE_COMMIT_TOKEN }}
         run: |
           set -e
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -z "${INFRA_STATE_COMMIT_TOKEN:-}" ]; then
+            echo "::error::INFRA_STATE_COMMIT_TOKEN missing in 'baselines' env."
+            exit 1
+          fi
+          git config user.name  "baselines-commit-bot"
+          git config user.email "baselines-commit-bot@noreply.github.com"
           if [ -z "$(git status --porcelain -- data/autoresearch_baselines/)" ]; then
             echo "no changes under data/autoresearch_baselines/; skipping commit"
             exit 0
@@ -157,7 +164,7 @@ jobs:
             exit 1
           fi
           git commit -m "chore(autoresearch): weekly sweep ledger ${WEEK}"
-          REMOTE="https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
+          REMOTE="https://x-access-token:${INFRA_STATE_COMMIT_TOKEN}@github.com/${{ github.repository }}.git"
           for attempt in 1 2 3; do
             if git push "$REMOTE" HEAD:main 2>&1; then
               echo "push succeeded on attempt ${attempt}"
