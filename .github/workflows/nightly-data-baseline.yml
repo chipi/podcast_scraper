@@ -41,13 +41,20 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
 
+      - name: Install ffmpeg (torchcodec via [ml] needs libav* shared libs to import)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+
       - name: Install package (dev + ml)
         # The smoke experiment config references the ml baseline
         # (``baseline_ml_dev_authority_benchmark_v1.yaml``), which loads
         # the summarization + NLI models via the ml provider on import
         # — needs ``transformers`` / ``torch`` / ``spacy`` from the
         # ``[ml]`` extra. ``.[dev]`` alone hits
-        # ``ModuleNotFoundError: No module named 'transformers'``.
+        # ``ModuleNotFoundError: No module named 'transformers'``;
+        # ``[ml]`` pulls torchaudio→torchcodec, which needs ffmpeg's
+        # libav* shared libs at import time (installed in the prior step).
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev,ml]"
