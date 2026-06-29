@@ -3103,7 +3103,7 @@ autoresearch-score:
 	@# Loads .env and optional .env.autoresearch from repo root (see autoresearch_track_a.load_local_dotenv_files).
 	@# Env: AUTORESEARCH_EXPERIMENT_OPENAI_API_KEY, AUTORESEARCH_JUDGE_* keys; optional AUTORESEARCH_ALLOW_PRODUCTION_KEYS=1
 	@# Optional: AUTORESEARCH_EVAL_N, AUTORESEARCH_SCORE_ROUGE_WEIGHT
-	@cmd="$(PYTHON) autoresearch/prompt_tuning/eval/score.py"; \
+	@cmd="$(PYTHON) autoresearch/initial_prompt_tuning/prompt_tuning/eval/score.py"; \
 	if [ -n "$(CONFIG)" ]; then \
 		echo "  Config: $(CONFIG)"; \
 		cmd="$$cmd --config $(CONFIG)"; \
