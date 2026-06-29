@@ -163,6 +163,16 @@ def main() -> int:
         default="INFO",
         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
     )
+    parser.add_argument(
+        "--output-json",
+        type=Path,
+        default=None,
+        help=(
+            "Write the structured run breakdown (scalar + per-judge means + "
+            "latency + intrinsic gates) to this JSON file. Used by the "
+            "autoresearch sweep driver to aggregate per-candidate results."
+        ),
+    )
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -251,6 +261,7 @@ def main() -> int:
 
         judge_mean = None
         contested = False
+        _outs = None
         if not args.dry_run:
             # Only resolve keys for providers the judge_config actually uses.
             # An all-ollama judge cohort needs zero cloud keys; an openai-only
@@ -297,6 +308,18 @@ def main() -> int:
             contested=contested,
             rouge_weight=rw,
         )
+        # Per-judge breakdown — useful for cross-family bias visibility in
+        # the leaderboard (a row where judge_a >> judge_b on a candidate
+        # from judge_a's family is the same-family-bias smoke signal).
+        judge_a_mean: float | None = None
+        judge_b_mean: float | None = None
+        contested_count = 0
+        episodes_judged = 0
+        if _outs:
+            episodes_judged = len(_outs)
+            judge_a_mean = sum(o.judge_a for o in _outs) / episodes_judged
+            judge_b_mean = sum(o.judge_b for o in _outs) / episodes_judged
+            contested_count = sum(1 for o in _outs if o.contested)
         logger.info(
             "rougeL_f1=%.4f judge_mean=%s contested=%s rouge_weight=%.2f final=%.6f",
             rouge,
@@ -306,6 +329,68 @@ def main() -> int:
             final,
         )
         print(f"{final:.6f}")
+
+        if args.output_json is not None:
+            perf = (metrics.get("intrinsic") or {}).get("performance") or {}
+            length = (metrics.get("intrinsic") or {}).get("length") or {}
+            gates = (metrics.get("intrinsic") or {}).get("gates") or {}
+            output = {
+                "candidate": {
+                    "model": cfg.backend.model,
+                    "backend_type": cfg.backend.type,
+                },
+                "judges": {
+                    "judge_a": {
+                        "provider": ja.get("provider"),
+                        "model": ja.get("model"),
+                    },
+                    "judge_b": {
+                        "provider": jb.get("provider"),
+                        "model": jb.get("model"),
+                    },
+                },
+                "silver": args.reference,
+                "dataset": cfg.data.dataset_id,
+                "scores": {
+                    "final": final,
+                    "rougeL_f1": rouge,
+                    "judge_mean": judge_mean,
+                    "judge_a_mean": judge_a_mean,
+                    "judge_b_mean": judge_b_mean,
+                    "judges_delta": (
+                        abs(judge_a_mean - judge_b_mean)
+                        if (judge_a_mean is not None and judge_b_mean is not None)
+                        else None
+                    ),
+                    "contested_rate": (
+                        contested_count / episodes_judged if episodes_judged else 0.0
+                    ),
+                    "rouge_weight": rw,
+                },
+                "latency_ms": {
+                    "median": perf.get("median_latency_ms"),
+                    "p95": perf.get("p95_latency_ms"),
+                    "avg": perf.get("avg_latency_ms"),
+                },
+                "intrinsic": {
+                    "avg_tokens": length.get("avg_tokens"),
+                    "min_tokens": length.get("min_tokens"),
+                    "max_tokens": length.get("max_tokens"),
+                    "gates_clean": all(
+                        float(gates.get(k, 0.0) or 0.0) == 0.0
+                        for k in (
+                            "boilerplate_leak_rate",
+                            "speaker_label_leak_rate",
+                            "truncation_rate",
+                        )
+                    )
+                    and not (gates.get("failed_episodes") or []),
+                },
+                "episodes": int(metrics.get("episode_count") or 0),
+            }
+            args.output_json.parent.mkdir(parents=True, exist_ok=True)
+            args.output_json.write_text(json.dumps(output, indent=2), encoding="utf-8")
+            logger.info("Wrote run breakdown to %s", args.output_json)
         return 0
     finally:
         merged_path.unlink(missing_ok=True)

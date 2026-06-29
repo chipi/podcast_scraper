@@ -3120,6 +3120,10 @@ autoresearch-score:
 		echo "  Reference: $(REFERENCE)"; \
 		cmd="$$cmd --reference $(REFERENCE)"; \
 	fi; \
+	if [ -n "$(OUTPUT_JSON)" ]; then \
+		echo "  Output JSON: $(OUTPUT_JSON)"; \
+		cmd="$$cmd --output-json $(OUTPUT_JSON)"; \
+	fi; \
 	if [ -n "$(LOG_LEVEL)" ]; then \
 		cmd="$$cmd --log-level $(LOG_LEVEL)"; \
 	fi; \

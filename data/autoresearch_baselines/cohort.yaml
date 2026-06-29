@@ -1,0 +1,41 @@
+# Weekly autoresearch sweep cohort — source of truth for which candidates
+# get scored on DGX Ollama every Monday. Edit here to add/remove models;
+# the workflow + sweep script auto-pick up changes.
+#
+# Constraints:
+# - Each candidate must be pulled on DGX Ollama (verify via /api/tags
+#   before adding — first-run pulls would blow the workflow timeout).
+# - Bias visibility: candidates from a judge's family (Google, Mistral AI)
+#   will get a ``same_family_judge`` flag in the leaderboard, so operator
+#   sees the bias risk explicitly. Two judges dilute (but don't eliminate)
+#   same-family inflation; the flag column makes it audit-friendly.
+# - Order in this list is the order rows appear in the leaderboard.
+
+# Phased rollout. Start with N=1 (the same candidate from the first
+# end-to-end smoke), validate week-over-week drift behavior, then set
+# this to ``null`` to run the full cohort.
+default_limit: 1
+
+candidates:
+  - model: llama3.1:8b           # 4.6 GB
+    family: Meta
+  - model: hermes3:8b            # 4.3 GB — Llama-3.1 fine-tune
+    family: Nous
+  - model: mistral:7b            # 4.1 GB
+    family: Mistral AI            # ⚠ same family as judge_b → bias-flag in report
+  - model: gemma2:9b             # 5.1 GB
+    family: Google                # ⚠ same family as judge_a → bias-flag in report
+  - model: qwen3.5:9b            # 6.1 GB
+    family: Alibaba
+  - model: phi4:14b              # 8.4 GB
+    family: Microsoft
+  - model: qwen2.5:32b           # 18.5 GB
+    family: Alibaba
+
+# Judges (single source of truth — workflow + sweep both read this).
+# Same content as autoresearch/initial_prompt_tuning/prompt_tuning/eval/
+# judge_config_ollama.yaml; duplicated here for the sweep script to
+# attach the family-bias flag without a second YAML read.
+judge_families:
+  - Google      # judge_a: gemma3:27b-it-q8_0
+  - Mistral AI  # judge_b: mistral-small:24b

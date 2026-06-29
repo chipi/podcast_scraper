@@ -1,5 +1,17 @@
-# Nightly autoresearch smoke on DGX self-hosted runner when registered (RFC-089 P3).
-# Until the ephemeral dgx-spark runner exists, the job queues; register per DGX_RUNBOOK.
+# Weekly autoresearch sweep on DGX self-hosted runner (RFC-089 P3).
+#
+# Three phases:
+#   1. setup   — checkout, install [dev,llm], probe Ollama, materialize dataset
+#   2. sweep   — run the cohort (data/autoresearch_baselines/cohort.yaml),
+#                produce per-candidate breakdown JSONs, write the weekly
+#                ledger autoresearch-YYYY-WNN.json, commit it back to main
+#   3. drift   — compare this week's ledger to last week's, open/update/close
+#                a single "autoresearch drift detected" GH issue per week
+#
+# Mirrors nightly-data-baseline.yml's setup → snapshot → drift → issue
+# pattern. The cohort + thresholds + judge models are all data-driven via
+# YAML in data/autoresearch_baselines/; edit those to scope without
+# touching this workflow.
 
 name: Autoresearch eval nightly (DGX)
 
@@ -9,19 +21,26 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write   # commits the weekly ledger back to main
+  issues: write     # open/update/close the weekly drift issue
 
 concurrency:
   group: autoresearch-eval-nightly
   cancel-in-progress: true
 
 jobs:
-  dgx-smoke:
-    name: DGX autoresearch smoke (allow-listed)
+  dgx-sweep:
+    name: DGX autoresearch sweep (allow-listed)
     runs-on: [self-hosted, dgx-spark]
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
+        # Same persist-credentials trick as nightly-data-baseline.yml —
+        # the commit-snapshot step pushes via INFRA_STATE_COMMIT_TOKEN-like
+        # pattern (here just GITHUB_TOKEN scoped to contents:write); a
+        # persisted credential would shadow it.
+        with:
+          persist-credentials: false
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v6
@@ -32,10 +51,7 @@ jobs:
 
       - name: Install package (dev + llm)
         # [llm] carries openai/anthropic/google-genai/mistralai/httpx —
-        # the OpenAI SDK is what OllamaProvider uses to talk to Ollama's
-        # OpenAI-compatible /v1 endpoint. [dev] alone is too thin.
-        # NOT [ml] (torch/transformers/spacy — heavy, not needed for an
-        # Ollama-only smoke that does no local inference).
+        # OllamaProvider uses the OpenAI SDK against Ollama's /v1 endpoint.
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev,llm]"
@@ -45,75 +61,233 @@ jobs:
           DGX_TAILNET_FQDN: ${{ vars.DGX_TAILNET_FQDN }}
         run: |
           if [ -z "${DGX_TAILNET_FQDN}" ]; then
-            echo "DGX_TAILNET_FQDN repo variable unset; skipping tailnet probe"
-            exit 0
+            echo "DGX_TAILNET_FQDN repo variable unset; sweep cannot proceed"
+            exit 1
           fi
           host=$(bash scripts/ops/resolve_dgx_tailnet_host.sh)
           curl -fsS --max-time 5 "http://${host}:11434/api/tags" | head -c 200
+          echo
 
-      - name: Autoresearch score smoke (Ollama-only on DGX)
-        # Pure-Ollama variant: candidate, judge A, judge B all run on the
-        # DGX Ollama instance — zero cloud API keys, zero $ cost, exercise
-        # the whole harness end-to-end on the local stack.
-        #
-        # Three different model families (vendor-bias-mitigation rule still
-        # applies even within Ollama):
-        #   Candidate ("aiming"):  llama3.1:8b           (Meta)
-        #   Judge A:               gemma3:27b-it-q8_0    (Google)
-        #   Judge B:               mistral-small:24b     (Mistral)
-        # Both configs are CHECKED IN — edit data/eval/configs/summarization_bullets/
-        # autoresearch_prompt_ollama_smoke_bullets_v1.yaml and
-        # autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_config_ollama.yaml
-        # to swap models without touching this workflow.
+      - name: Materialize smoke dataset
+        # curated_5feeds_smoke_v2 is the dataset every cohort candidate
+        # scores against. Materialized tree is gitignored; sources are
+        # tracked — same pattern as nightly-data-baseline.yml.
+        run: |
+          make dataset-materialize DATASET_ID=curated_5feeds_smoke_v2
+
+      - name: Run sweep across cohort
         env:
           OLLAMA_API_BASE: ${{ vars.DGX_OLLAMA_API_BASE }}
         run: |
           if [ -z "${OLLAMA_API_BASE}" ]; then
-            echo "DGX_OLLAMA_API_BASE unset; smoke skipped until operator configures vars"
-            exit 0
+            echo "DGX_OLLAMA_API_BASE unset; sweep cannot proceed"
+            exit 1
           fi
 
-          EXP_CONFIG=data/eval/configs/summarization_bullets/autoresearch_prompt_ollama_smoke_bullets_v1.yaml
-          JUDGE_CONFIG=autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_config_ollama.yaml
-          # Silver reference: Sonnet 4.6 on curated_5feeds_smoke_v2 bullets.
-          # Anthropic family — distinct from candidate (Meta) and judges
-          # (Google + Mistral). Update both EXP_CONFIG's dataset_id and
-          # this REFERENCE_ID together if swapping silver.
-          REFERENCE_ID=silver_sonnet46_smoke_v2_bullets
-          DATASET_ID=curated_5feeds_smoke_v2
+          # The sweep driver reads data/autoresearch_baselines/cohort.yaml
+          # for candidates + default_limit. To override the phased rollout
+          # limit on a manual dispatch, set AUTORESEARCH_SWEEP_LIMIT in env.
+          if [ -n "${AUTORESEARCH_SWEEP_LIMIT:-}" ]; then
+            python3 scripts/baselines/autoresearch_sweep.py \
+              --limit "${AUTORESEARCH_SWEEP_LIMIT}"
+          else
+            python3 scripts/baselines/autoresearch_sweep.py
+          fi
 
-          # Pull model assignments out of YAML for visible attribution.
-          # Uses python+pyyaml (already a dep) — no extra installs.
-          CAND_MODEL=$(python3 -c "import yaml,sys;d=yaml.safe_load(open('$EXP_CONFIG'));print(d.get('backend',{}).get('model','?'))")
-          JA_MODEL=$(python3 -c "import yaml,sys;d=yaml.safe_load(open('$JUDGE_CONFIG'));print((d.get('judge_a') or {}).get('model','?'))")
-          JB_MODEL=$(python3 -c "import yaml,sys;d=yaml.safe_load(open('$JUDGE_CONFIG'));print((d.get('judge_b') or {}).get('model','?'))")
+          # Surface the cohort attribution table in the job summary.
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import datetime as dt, json, glob, os
+          files = sorted(glob.glob("data/autoresearch_baselines/autoresearch-*.json"))
+          if not files:
+              print("(no ledger written)"); raise SystemExit(0)
+          d = json.load(open(files[-1]))
+          ja, jb = d["judges"]["judge_a"], d["judges"]["judge_b"]
+          print(f"## Autoresearch weekly sweep — {d['week_id']}")
+          print()
+          print(f"**Silver:** `{d['silver']}`  (Anthropic)")
+          print(f"**Dataset:** `{d['dataset']}`")
+          print(f"**Judge A:** `{ja.get('model')}`  (provider=`{ja.get('provider')}`)")
+          print(f"**Judge B:** `{jb.get('model')}`  (provider=`{jb.get('provider')}`)")
+          print()
+          print("### Leaderboard")
+          print()
+          print("| candidate | family | final | rougeL | jA | jB | Δjudges | p95 (ms) | flag |")
+          print("|---|---|---:|---:|---:|---:|---:|---:|---|")
+          for r in sorted(d["cohort"], key=lambda x: -(x.get("scores",{}).get("final") or -1)):
+              sc = r.get("scores") or {}; lat = r.get("latency_ms") or {}
+              if r.get("status") != "ok":
+                  print(f"| `{r['model']}` | {r.get('family','?')} | — | — | — | — | — | — | ⚠ {r.get('status')} |"); continue
+              flag = ""
+              if r.get("same_family_judge"):
+                  ja_v, jb_v = sc.get("judge_a_mean"), sc.get("judge_b_mean")
+                  if ja_v is not None and jb_v is not None:
+                      if r.get("family") == ja.get("model","").split(":")[0].split("-")[0].title() or "gemma" in r.get("family","").lower():
+                          flag = "⚠ jA same-family"
+                      else:
+                          flag = "⚠ jB same-family"
+                  else:
+                      flag = "⚠ same-family"
+              print(f"| `{r['model']}` | {r.get('family','?')} | {sc.get('final',0):.4f} | {sc.get('rougeL_f1',0):.4f} | {sc.get('judge_a_mean') or 0:.3f} | {sc.get('judge_b_mean') or 0:.3f} | {sc.get('judges_delta') or 0:.3f} | {lat.get('p95') or 0:.0f} | {flag} |")
+          PY
+
+      - name: Commit weekly ledger to main
+        # Same scoped-bypass pattern as nightly-data-baseline.yml: stage
+        # only data/autoresearch_baselines/, refuse if anything else slipped
+        # in, push via GITHUB_TOKEN (github-actions[bot] is — well, would
+        # be a ruleset bypass actor; for now this token push will succeed
+        # because the runner here is the operator-controlled DGX which
+        # has the same bypass identity, OR we accept the same fallback as
+        # other workflows).
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -z "$(git status --porcelain -- data/autoresearch_baselines/)" ]; then
+            echo "no changes under data/autoresearch_baselines/; skipping commit"
+            exit 0
+          fi
+          WEEK=$(date -u +'%G-W%V')
+          git add data/autoresearch_baselines/
+          OUTSIDE=$(git diff --cached --name-only | grep -v '^data/autoresearch_baselines/' || true)
+          if [ -n "$OUTSIDE" ]; then
+            echo "::error::staged paths outside data/autoresearch_baselines/ — refusing to push:"
+            echo "$OUTSIDE"
+            exit 1
+          fi
+          git commit -m "chore(autoresearch): weekly sweep ledger ${WEEK}"
+          REMOTE="https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
+          for attempt in 1 2 3; do
+            if git push "$REMOTE" HEAD:main 2>&1; then
+              echo "push succeeded on attempt ${attempt}"
+              exit 0
+            fi
+            echo "push rejected — fetch + rebase (attempt ${attempt})"
+            git fetch "$REMOTE" main
+            git stash push -u -m "autoresearch-rebase-${attempt}" --quiet || true
+            if ! git rebase FETCH_HEAD; then
+              echo "::error::rebase conflict under data/autoresearch_baselines/"
+              git rebase --abort
+              git stash drop --quiet || true
+              exit 1
+            fi
+            git stash drop --quiet || true
+          done
+          echo "::error::push still failing after 3 rebase attempts"
+          exit 1
+
+      - name: Check drift vs previous week
+        # Always exits 0; the next step inspects the report to decide
+        # whether to open/update/close the GH issue.
+        id: drift
+        run: |
+          git fetch origin main --quiet || true
+          git checkout origin/main -- data/autoresearch_baselines/ || true
+          python3 scripts/baselines/check_autoresearch_drift.py \
+            --ledger-dir data/autoresearch_baselines \
+            --thresholds data/autoresearch_baselines/drift_thresholds.yaml \
+            --output /tmp/autoresearch-drift-report.json
+          BREACH_COUNT=$(jq '.breaches | length' /tmp/autoresearch-drift-report.json)
+          STATUS=$(jq -r '.status' /tmp/autoresearch-drift-report.json)
+          echo "status=${STATUS}"            >> "$GITHUB_OUTPUT"
+          echo "breach_count=${BREACH_COUNT}" >> "$GITHUB_OUTPUT"
           {
-            echo "## Autoresearch model assignment"
+            echo "## Autoresearch drift check"
             echo
-            echo "| Role | Model | Family | Source config |"
-            echo "|---|---|---|---|"
-            echo "| Candidate (\"aiming\") | \`${CAND_MODEL}\` | Meta | \`${EXP_CONFIG}\` |"
-            echo "| Judge A (\"evaluation\") | \`${JA_MODEL}\` | Google | \`${JUDGE_CONFIG}\` |"
-            echo "| Judge B (\"evaluation\") | \`${JB_MODEL}\` | Mistral AI | \`${JUDGE_CONFIG}\` |"
-            echo "| Silver reference | \`${REFERENCE_ID}\` | Anthropic | fixed (pre-baked) |"
+            echo "- status: \`${STATUS}\`"
+            echo "- breaches: ${BREACH_COUNT}"
             echo
-            echo "Dataset: \`${DATASET_ID}\` (materialized just-in-time from sources)"
-            echo "Ollama endpoint: \`${OLLAMA_API_BASE}\`"
+            echo "<details><summary>Full drift report</summary>"
+            echo
+            echo '```json'
+            cat /tmp/autoresearch-drift-report.json
+            echo '```'
+            echo "</details>"
           } >> "$GITHUB_STEP_SUMMARY"
-          echo "Candidate:        ${CAND_MODEL}"
-          echo "Judge A:          ${JA_MODEL}"
-          echo "Judge B:          ${JB_MODEL}"
-          echo "Silver reference: ${REFERENCE_ID}"
-          echo "Dataset:          ${DATASET_ID}"
 
-          # Materialize the dataset (gitignored on disk; rebuilt from tracked
-          # sources). Same pattern nightly-data-baseline.yml uses for its
-          # benchmark dataset.
-          make dataset-materialize DATASET_ID="${DATASET_ID}"
+      - name: Open / update / close drift issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO:    ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          DRIFT_STATUS:       ${{ steps.drift.outputs.status }}
+          DRIFT_BREACH_COUNT: ${{ steps.drift.outputs.breach_count }}
+        run: |
+          set -euo pipefail
+          OPEN_NUM=$(gh issue list --repo "$REPO" --state open \
+            --search 'in:title "autoresearch drift detected:"' --json number --limit 1 \
+            | jq -r '.[0].number // empty')
+          case "$DRIFT_STATUS" in
+            no_breaches)
+              if [ -n "$OPEN_NUM" ]; then
+                gh issue close "$OPEN_NUM" --repo "$REPO" \
+                  --comment "Autoresearch drift resolved on $(date -u +%Y-%m-%dT%H:%MZ). Run: ${RUN_URL}"
+              else
+                echo "no drift, no open issue — nothing to do"
+              fi
+              ;;
+            first_week|no_ledger)
+              echo "skipping issue management: status=${DRIFT_STATUS}"
+              ;;
+            breaches)
+              BODY_FILE=$(mktemp)
+              python3 - <<'PY' > "$BODY_FILE"
+          import json, os
+          r = json.load(open("/tmp/autoresearch-drift-report.json"))
+          print("**Autoresearch drift detected** by scheduled weekly sweep.")
+          print()
+          print(f"- This week: `{r.get('this_week_id')}` (`{r.get('this_path')}`)")
+          print(f"- Prev week: `{r.get('prev_week_id')}` (`{r.get('prev_path')}`)")
+          print(f"- Workflow run: {os.environ['RUN_URL']}")
+          print()
+          print("## Breaches by candidate")
+          print()
+          by_model = {}
+          for b in r["breaches"]:
+              by_model.setdefault(b.get("model","?"), []).append(b)
+          for model, breaches in by_model.items():
+              print(f"### `{model}`")
+              print()
+              for b in breaches:
+                  sev = b.get("severity","low")
+                  print(f"- **{b['category']}** ({sev}) — {b['message']}")
+                  for k in ("drop_ratio","growth_ratio"):
+                      if k in b: print(f"  - `{k}` = `{b[k]}`")
+                  print()
+          notes = r.get("informational") or []
+          if notes:
+              print("## Informational")
+              print()
+              for n in notes: print(f"- {n}")
+              print()
+          print("---")
+          print("_Auto-managed by `autoresearch-eval-nightly.yml`. Tune thresholds at `data/autoresearch_baselines/drift_thresholds.yaml`. Edit cohort at `data/autoresearch_baselines/cohort.yaml`._")
+          PY
+              if [ -n "$OPEN_NUM" ]; then
+                gh issue edit "$OPEN_NUM" --repo "$REPO" \
+                  --title "autoresearch drift detected: $(date -u +%Y-%m-%d)" \
+                  --body-file "$BODY_FILE"
+                gh issue comment "$OPEN_NUM" --repo "$REPO" \
+                  --body "Drift re-detected (${DRIFT_BREACH_COUNT} breaches). Run: ${RUN_URL}"
+              else
+                gh issue create --repo "$REPO" \
+                  --title "autoresearch drift detected: $(date -u +%Y-%m-%d)" \
+                  --body-file "$BODY_FILE" \
+                  --label "autoresearch,observability" 2>&1 || \
+                gh issue create --repo "$REPO" \
+                  --title "autoresearch drift detected: $(date -u +%Y-%m-%d)" \
+                  --body-file "$BODY_FILE"
+              fi
+              rm -f "$BODY_FILE"
+              ;;
+          esac
 
-          # No ``|| true`` — let the workflow fail if the smoke is broken.
-          # Loud failures > silent green (which hid this exact bug for weeks).
-          make autoresearch-score \
-            CONFIG="${EXP_CONFIG}" \
-            JUDGE_CONFIG="${JUDGE_CONFIG}" \
-            REFERENCE="${REFERENCE_ID}"
+      - name: Upload sweep ledger artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: autoresearch-sweep-${{ github.run_id }}
+          path: data/autoresearch_baselines/
+          if-no-files-found: warn
+          retention-days: 90

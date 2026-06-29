@@ -1,0 +1,32 @@
+# Tunable thresholds for the weekly autoresearch drift check.
+# Mirror of data/baselines/drift_thresholds.yaml — same idempotent
+# open/update/close issue pattern, different metric set.
+#
+# A breach = open/update an "autoresearch drift detected: YYYY-MM-DD"
+# issue. No breaches across the cohort = close the open issue if any.
+
+# Per-candidate scalar drop — the headline metric.
+# breach if (prev - this) / prev > ratio
+final_score:
+  max_drop_ratio: 0.05  # 5%
+
+# Component metrics — finer-grained signal.
+rouge_l_f1:
+  max_drop_ratio: 0.10  # 10%
+
+judge_mean:
+  max_drop_ratio: 0.10  # 10%
+
+# Latency regression — sanity check on the Ollama serving stack itself
+# (a slowdown across all candidates means DGX-side, not model-specific).
+p95_latency_ms:
+  max_growth_ratio: 1.50  # breach if p95 grows >50% week-over-week
+
+# Judge disagreement — high contestation rate hints prompt/model
+# producing inconsistent outputs.
+contested_rate:
+  max_absolute_increase: 0.20  # breach if rate jumps by >20pp
+
+# Quality gates — any going non-zero is always a breach.
+quality_gates:
+  fail_on_gates_not_clean: true
