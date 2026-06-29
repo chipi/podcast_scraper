@@ -115,7 +115,11 @@ jobs:
           set -e
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet --exit-code -- data/baselines/; then
+          # Use ``git status --porcelain`` (covers untracked + modified) instead
+          # of ``git diff`` (tracked-only). A brand-new baseline file is
+          # untracked, so the old ``git diff --quiet`` check skipped the
+          # commit on every fresh-week run.
+          if [ -z "$(git status --porcelain -- data/baselines/)" ]; then
             echo "no changes under data/baselines/; skipping commit"
             exit 0
           fi
