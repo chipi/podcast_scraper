@@ -1,0 +1,52 @@
+# Tunable thresholds for the weekly baseline drift check (scripts/baselines/check_drift.py).
+# Edit values here — no Python change needed.
+#
+# Reads the two most recent data/baselines/baseline-*.json snapshots and
+# compares this-week vs prev-week. Breaches → one GH issue per week
+# listing every breach with full context; informational signals are
+# included in the body but don't count as breaches.
+
+# Always-loud signals (a non-zero gate or any failed episode = real
+# quality regression, not "metric wobble").
+quality_gates:
+  # Watched intrinsic.gates fields under experiment_run.metrics.intrinsic.gates.
+  # Any field listed here that goes from 0.0 → >0.0 is a breach.
+  watch:
+    - boilerplate_leak_rate
+    - speaker_label_leak_rate
+    - truncation_rate
+  # Also watch warnings.* (same idea, lives under intrinsic.warnings).
+  watch_warnings:
+    - speaker_name_leak_rate
+  # If experiment_run.metrics.intrinsic.gates.failed_episodes is non-empty → breach.
+  fail_on_failed_episodes_non_empty: true
+
+# Performance signals (intrinsic.performance.*).
+performance:
+  # p95 latency regression: breach if this_week / prev_week > this ratio.
+  # Default 1.20 = 20% slower than prev week.
+  p95_latency_max_ratio: 1.20
+  # Same gate for median latency (catches widespread slowdowns p95 might miss).
+  median_latency_max_ratio: 1.20
+
+# Length signals (intrinsic.length.*).
+length:
+  # avg_tokens drift, either direction (catches both truncation and runaway).
+  # Default 0.15 = breach if |this - prev| / prev > 15%.
+  avg_tokens_max_drift_ratio: 0.15
+
+# Dataset signals (setup_probe.datasets.*).
+datasets:
+  # Any tracked dataset losing episodes between snapshots = breach.
+  # (New datasets, datasets gaining episodes — informational only.)
+  episodes_must_not_decrease: true
+
+# Informational signals — listed in issue body for context, do NOT count
+# as breaches. Useful for explaining a real breach (e.g. p95 jumped
+# because the model registry hash changed).
+informational:
+  - fingerprint_hash_change       # experiment_run.fingerprint_hash differs
+  - new_profile_names             # setup_probe.profiles.names gained entries
+  - new_dataset_ids               # setup_probe.datasets gained entries
+  - model_registry_hash_change    # setup_probe.model_registry.preset_hash differs
+  - git_commit_change             # setup_probe.git.commit differs (always does — sanity check only)

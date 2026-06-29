@@ -17,6 +17,7 @@ on:
 
 permissions:
   contents: write   # commits the snapshot back to main
+  issues: write     # open/update/close the weekly baseline-drift issue
 
 concurrency:
   group: weekly-data-baseline
@@ -186,6 +187,136 @@ jobs:
           done
           echo "::error::push still failing after 3 rebase attempts"
           exit 1
+
+      - name: Check drift vs previous baseline
+        # Runs AFTER the commit step so this-week + prev-week both live
+        # under data/baselines/ in the workspace. Always exits 0 — the
+        # next step inspects the JSON report to decide issue actions.
+        id: drift
+        run: |
+          # Pull origin/main with rebase first — the commit step's push
+          # already landed our snapshot remotely; make sure our local tree
+          # reflects that before counting "the two most recent" files.
+          git fetch origin main --quiet || true
+          # Refresh data/baselines/ from the just-pushed remote (commit
+          # step pushed via the PAT URL; local tree may lack the new SHA).
+          git checkout origin/main -- data/baselines/ || true
+          python3 scripts/baselines/check_drift.py \
+            --baselines-dir data/baselines \
+            --thresholds data/baselines/drift_thresholds.yaml \
+            --output /tmp/drift-report.json
+          BREACH_COUNT=$(jq '.breaches | length' /tmp/drift-report.json)
+          STATUS=$(jq -r '.status' /tmp/drift-report.json)
+          echo "status=${STATUS}"           >> "$GITHUB_OUTPUT"
+          echo "breach_count=${BREACH_COUNT}" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Baseline drift check"
+            echo
+            echo "- status: \`${STATUS}\`"
+            echo "- breaches: ${BREACH_COUNT}"
+            echo
+            echo "<details><summary>Full drift report</summary>"
+            echo
+            echo '```json'
+            cat /tmp/drift-report.json
+            echo '```'
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open / update / close weekly drift issue
+        # Mirrors infra-drift.yml's idempotent pattern:
+        # - status=breaches → open new issue OR update the existing open one
+        # - status=no_breaches → close the open issue (if any) with "resolved"
+        # - status=first_snapshot / no_snapshot → no-op
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO:    ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          DRIFT_STATUS:       ${{ steps.drift.outputs.status }}
+          DRIFT_BREACH_COUNT: ${{ steps.drift.outputs.breach_count }}
+        run: |
+          set -euo pipefail
+          OPEN_NUM=$(gh issue list --repo "$REPO" --state open \
+            --search 'in:title "baseline drift detected:"' --json number --limit 1 \
+            | jq -r '.[0].number // empty')
+          case "$DRIFT_STATUS" in
+            no_breaches)
+              if [ -n "$OPEN_NUM" ]; then
+                echo "drift resolved — closing #${OPEN_NUM}"
+                gh issue close "$OPEN_NUM" --repo "$REPO" \
+                  --comment "Baseline drift resolved on $(date -u +%Y-%m-%dT%H:%MZ). Closing automatically. Run: ${RUN_URL}"
+              else
+                echo "no drift, no open issue — nothing to do"
+              fi
+              ;;
+            first_snapshot|no_snapshot)
+              echo "skipping issue management: status=${DRIFT_STATUS}"
+              ;;
+            breaches)
+              BODY_FILE=$(mktemp)
+              python3 - <<'PY' > "$BODY_FILE"
+          import json, os
+          r = json.load(open("/tmp/drift-report.json"))
+          print(f"**Baseline drift detected** by scheduled `nightly-data-baseline.yml`.")
+          print()
+          print(f"- This week: `{r.get('this_week_id')}` (`{r.get('this_path')}`)")
+          print(f"- Prev week: `{r.get('prev_week_id')}` (`{r.get('prev_path')}`)")
+          print(f"- Workflow run: {os.environ['RUN_URL']}")
+          print()
+          print("## Breaches to investigate")
+          print()
+          # Group by category, ordered by severity.
+          severities = {"high": [], "medium": [], "low": []}
+          for b in r["breaches"]:
+              severities.setdefault(b.get("severity", "low"), []).append(b)
+          for sev in ("high", "medium", "low"):
+              for b in severities[sev]:
+                  print(f"### `{b['category']}` / `{b['signal']}`  ({sev})")
+                  print()
+                  print(b["message"])
+                  print()
+                  print(f"- This week: `{b.get('this_value')}`")
+                  print(f"- Prev week: `{b.get('prev_value')}`")
+                  for k in ("ratio", "drift_ratio", "threshold_ratio"):
+                      if k in b:
+                          print(f"- `{k}`: `{b[k]}`")
+                  print()
+          notes = r.get("informational") or []
+          if notes:
+              print("## Informational context (not breaches)")
+              print()
+              for n in notes:
+                  print(f"- {n}")
+              print()
+          print("---")
+          print()
+          print("_Auto-managed by `nightly-data-baseline.yml` → `scripts/baselines/check_drift.py`._")
+          print("_Updated weekly while drift persists; auto-closes when next snapshot clears all thresholds._")
+          print("_Tune thresholds at `data/baselines/drift_thresholds.yaml`._")
+          PY
+              if [ -n "$OPEN_NUM" ]; then
+                echo "updating existing drift issue #${OPEN_NUM}"
+                gh issue edit "$OPEN_NUM" --repo "$REPO" \
+                  --title "baseline drift detected: $(date -u +%Y-%m-%d)" \
+                  --body-file "$BODY_FILE"
+                gh issue comment "$OPEN_NUM" --repo "$REPO" \
+                  --body "Drift re-detected on scheduled run (${DRIFT_BREACH_COUNT} breaches). Run: ${RUN_URL}"
+              else
+                echo "opening new drift issue (${DRIFT_BREACH_COUNT} breaches)"
+                gh issue create --repo "$REPO" \
+                  --title "baseline drift detected: $(date -u +%Y-%m-%d)" \
+                  --body-file "$BODY_FILE" \
+                  --label "baselines,observability" 2>&1 | tee /tmp/issue-create.log || \
+                gh issue create --repo "$REPO" \
+                  --title "baseline drift detected: $(date -u +%Y-%m-%d)" \
+                  --body-file "$BODY_FILE"
+              fi
+              rm -f "$BODY_FILE"
+              ;;
+            *)
+              echo "::warning::unknown drift status '${DRIFT_STATUS}' — skipping"
+              ;;
+          esac
 
       - name: Upload snapshot artifact
         if: always()
