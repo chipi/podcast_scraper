@@ -646,10 +646,13 @@ serve-app:
 
 # One-command local app environment: the consumer API (with the dev/e2e mock OAuth provider
 # + a dev session secret) and the Learning Player app, in parallel (Ctrl+C stops both).
+# APP_ADMIN_EMAILS bootstraps the dev operator as admin (#1128) — the mock provider's default
+# identity is ``dev@localhost``, so a plain viewer login lands as admin locally.
 # NEVER use APP_OAUTH_PROVIDER=mock outside local dev.
 serve-app-dev:
 	@echo "Running the consumer API (mock OAuth) + the Learning Player app in parallel (Ctrl+C stops both)."
-	@APP_OAUTH_PROVIDER=mock APP_SESSION_SECRET=$${APP_SESSION_SECRET:-dev-secret} $(MAKE) -j2 serve-api serve-app
+	@APP_OAUTH_PROVIDER=mock APP_SESSION_SECRET=$${APP_SESSION_SECRET:-dev-secret} \
+		APP_ADMIN_EMAILS=$${APP_ADMIN_EMAILS:-dev@localhost} $(MAKE) -j2 serve-api serve-app
 
 # E2E fixture HTTP server (RSS + mock API paths); use --feeds-spec with URLs on this port.
 serve-e2e-mock:

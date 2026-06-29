@@ -11,7 +11,7 @@ import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useSubjectStore } from '../../stores/subject'
 
 const props = defineProps<{
-  mainTab: 'digest' | 'library' | 'graph' | 'dashboard' | 'ops'
+  mainTab: 'digest' | 'library' | 'graph' | 'dashboard' | 'ops' | 'admin'
 }>()
 
 const subject = useSubjectStore()
