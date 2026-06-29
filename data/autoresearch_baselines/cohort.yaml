@@ -30,8 +30,11 @@ candidates:
     family: Alibaba
   - model: phi4:14b              # 8.4 GB
     family: Microsoft
-  - model: qwen2.5:32b           # 18.5 GB
-    family: Alibaba
+  # Dropped 2026-06-29 after first N=7 run: qwen2.5:32b (18.5 GB) hit
+  # CUDA OOM alongside the two judges (~40 GB resident). Considering
+  # re-adding if a smaller judge cohort lands later.
+  # - model: qwen2.5:32b           # 18.5 GB
+  #   family: Alibaba
 
 # Judges (single source of truth — workflow + sweep both read this).
 # Same content as autoresearch/initial_prompt_tuning/prompt_tuning/eval/
