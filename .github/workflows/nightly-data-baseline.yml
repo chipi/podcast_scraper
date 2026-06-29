@@ -76,6 +76,8 @@ jobs:
         run: make dataset-smoke
 
       - name: Run experiment (smoke)
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           make experiment-run \
               CONFIG=data/eval/configs/ml/baseline_ml_dev_authority_benchmark_v1.yaml
