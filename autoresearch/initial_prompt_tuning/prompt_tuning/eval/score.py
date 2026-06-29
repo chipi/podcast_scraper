@@ -25,8 +25,11 @@ import sys
 import tempfile
 from pathlib import Path
 
-# Repo root: autoresearch/prompt_tuning/eval/score.py -> parents[3]
-REPO_ROOT = Path(__file__).resolve().parents[3]
+# Repo root: autoresearch/initial_prompt_tuning/prompt_tuning/eval/score.py -> parents[4].
+# (Was parents[3] before the prompt_tuning reorg; the file moved one level
+# deeper and the offset was never updated — every REPO_ROOT-relative path
+# silently resolved under autoresearch/ instead of repo root.)
+REPO_ROOT = Path(__file__).resolve().parents[4]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 

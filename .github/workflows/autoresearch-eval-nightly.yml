@@ -92,7 +92,10 @@ jobs:
           echo "Judge A:    ${JA_MODEL}"
           echo "Judge B:    ${JB_MODEL}"
 
+          # No ``|| true`` — let the workflow fail if the smoke is broken.
+          # The previous swallow-failures pattern hid a stale path bug for
+          # weeks: the workflow showed green while the smoke produced zero
+          # signal. Loud failures > silent green.
           make autoresearch-score \
             CONFIG="${EXP_CONFIG}" \
-            JUDGE_CONFIG="${JUDGE_CONFIG}" \
-            || true
+            JUDGE_CONFIG="${JUDGE_CONFIG}"
