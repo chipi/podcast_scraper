@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "week_id": "2026-W27",
-  "captured_at": "2026-06-29T14:49:03Z",
+  "captured_at": "2026-06-29T20:25:21Z",
   "judges": {
     "judge_a": {
       "provider": "ollama",
@@ -17,50 +17,296 @@
   "cohort": [
     {
       "model": "llama3.1:8b",
+      "backend_type": "ollama",
+      "judges": {
+        "judge_a": {
+          "provider": "ollama",
+          "model": "gemma3:27b-it-q8_0"
+        },
+        "judge_b": {
+          "provider": "ollama",
+          "model": "mistral-small:24b"
+        }
+      },
+      "silver": "silver_sonnet46_smoke_v2_bullets",
+      "dataset": "curated_5feeds_smoke_v2",
+      "scores": {
+        "final": 0.7621098428282671,
+        "rougeL_f1": 0.4427746070706678,
+        "judge_mean": 0.975,
+        "judge_a_mean": 0.9700000000000001,
+        "judge_b_mean": 0.9800000000000001,
+        "judges_delta": 0.010000000000000009,
+        "contested_rate": 0.0,
+        "rouge_weight": 0.4
+      },
+      "latency_ms": {
+        "median": 4589.629411697388,
+        "p95": 14122.865676879883,
+        "avg": 6493.805027008057
+      },
+      "intrinsic": {
+        "avg_tokens": 173.8,
+        "min_tokens": 157,
+        "max_tokens": 193,
+        "gates_clean": true
+      },
+      "episodes": 5,
+      "status": "ok",
+      "wall_clock_s": 164.9,
       "family": "Meta",
-      "status": "failed",
-      "exit_code": 2,
-      "wall_clock_s": 659.4,
       "same_family_judge": false
     },
     {
       "model": "hermes3:8b",
+      "backend_type": "ollama",
+      "judges": {
+        "judge_a": {
+          "provider": "ollama",
+          "model": "gemma3:27b-it-q8_0"
+        },
+        "judge_b": {
+          "provider": "ollama",
+          "model": "mistral-small:24b"
+        }
+      },
+      "silver": "silver_sonnet46_smoke_v2_bullets",
+      "dataset": "curated_5feeds_smoke_v2",
+      "scores": {
+        "final": 0.6940084694338567,
+        "rougeL_f1": 0.34752117358464174,
+        "judge_mean": 0.925,
+        "judge_a_mean": 0.9099999999999999,
+        "judge_b_mean": 0.9400000000000001,
+        "judges_delta": 0.030000000000000138,
+        "contested_rate": 0.0,
+        "rouge_weight": 0.4
+      },
+      "latency_ms": {
+        "median": 3718.3194160461426,
+        "p95": 13008.05401802063,
+        "avg": 5323.510408401489
+      },
+      "intrinsic": {
+        "avg_tokens": 135.4,
+        "min_tokens": 80,
+        "max_tokens": 186,
+        "gates_clean": true
+      },
+      "episodes": 5,
+      "status": "ok",
+      "wall_clock_s": 142.4,
       "family": "Nous",
-      "status": "failed",
-      "exit_code": 2,
-      "wall_clock_s": 16.4,
       "same_family_judge": false
     },
     {
       "model": "mistral:7b",
+      "backend_type": "ollama",
+      "judges": {
+        "judge_a": {
+          "provider": "ollama",
+          "model": "gemma3:27b-it-q8_0"
+        },
+        "judge_b": {
+          "provider": "ollama",
+          "model": "mistral-small:24b"
+        }
+      },
+      "silver": "silver_sonnet46_smoke_v2_bullets",
+      "dataset": "curated_5feeds_smoke_v2",
+      "scores": {
+        "final": 0.7284258817204794,
+        "rougeL_f1": 0.38856470430119844,
+        "judge_mean": 0.9550000000000001,
+        "judge_a_mean": 0.95,
+        "judge_b_mean": 0.96,
+        "judges_delta": 0.010000000000000009,
+        "contested_rate": 0.0,
+        "rouge_weight": 0.4
+      },
+      "latency_ms": {
+        "median": 5290.662527084351,
+        "p95": 12820.194482803345,
+        "avg": 6636.029815673828
+      },
+      "intrinsic": {
+        "avg_tokens": 204.0,
+        "min_tokens": 171,
+        "max_tokens": 237,
+        "gates_clean": true
+      },
+      "episodes": 5,
+      "status": "ok",
+      "wall_clock_s": 127.2,
       "family": "Mistral AI",
-      "status": "failed",
-      "exit_code": 2,
-      "wall_clock_s": 12.1,
       "same_family_judge": true
     },
     {
       "model": "gemma2:9b",
+      "backend_type": "ollama",
+      "judges": {
+        "judge_a": {
+          "provider": "ollama",
+          "model": "gemma3:27b-it-q8_0"
+        },
+        "judge_b": {
+          "provider": "ollama",
+          "model": "mistral-small:24b"
+        }
+      },
+      "silver": "silver_sonnet46_smoke_v2_bullets",
+      "dataset": "curated_5feeds_smoke_v2",
+      "scores": {
+        "final": 0.7607019414917822,
+        "rougeL_f1": 0.43925485372945544,
+        "judge_mean": 0.975,
+        "judge_a_mean": 0.9700000000000001,
+        "judge_b_mean": 0.9800000000000001,
+        "judges_delta": 0.010000000000000009,
+        "contested_rate": 0.0,
+        "rouge_weight": 0.4
+      },
+      "latency_ms": {
+        "median": 6418.923854827881,
+        "p95": 12041.224002838135,
+        "avg": 7433.989000320435
+      },
+      "intrinsic": {
+        "avg_tokens": 209.2,
+        "min_tokens": 188,
+        "max_tokens": 251,
+        "gates_clean": true
+      },
+      "episodes": 5,
+      "status": "ok",
+      "wall_clock_s": 170.9,
       "family": "Google",
-      "status": "failed",
-      "exit_code": 2,
-      "wall_clock_s": 12.8,
       "same_family_judge": true
     },
     {
       "model": "qwen3.5:9b",
+      "backend_type": "ollama",
+      "judges": {
+        "judge_a": {
+          "provider": "ollama",
+          "model": "gemma3:27b-it-q8_0"
+        },
+        "judge_b": {
+          "provider": "ollama",
+          "model": "mistral-small:24b"
+        }
+      },
+      "silver": "silver_sonnet46_smoke_v2_bullets",
+      "dataset": "curated_5feeds_smoke_v2",
+      "scores": {
+        "final": 0.7586984418967171,
+        "rougeL_f1": 0.44174610474179293,
+        "judge_mean": 0.97,
+        "judge_a_mean": 0.96,
+        "judge_b_mean": 0.9800000000000001,
+        "judges_delta": 0.02000000000000013,
+        "contested_rate": 0.0,
+        "rouge_weight": 0.4
+      },
+      "latency_ms": {
+        "median": 5994.924068450928,
+        "p95": 22230.616807937622,
+        "avg": 9163.558149337769
+      },
+      "intrinsic": {
+        "avg_tokens": 232.8,
+        "min_tokens": 159,
+        "max_tokens": 320,
+        "gates_clean": true
+      },
+      "episodes": 5,
+      "status": "ok",
+      "wall_clock_s": 174.1,
       "family": "Alibaba",
-      "status": "failed",
-      "exit_code": 2,
-      "wall_clock_s": 13.4,
       "same_family_judge": false
     },
     {
       "model": "phi4:14b",
+      "backend_type": "ollama",
+      "judges": {
+        "judge_a": {
+          "provider": "ollama",
+          "model": "gemma3:27b-it-q8_0"
+        },
+        "judge_b": {
+          "provider": "ollama",
+          "model": "mistral-small:24b"
+        }
+      },
+      "silver": "silver_sonnet46_smoke_v2_bullets",
+      "dataset": "curated_5feeds_smoke_v2",
+      "scores": {
+        "final": 0.7654058449277444,
+        "rougeL_f1": 0.45101461231936124,
+        "judge_mean": 0.975,
+        "judge_a_mean": 0.9700000000000001,
+        "judge_b_mean": 0.9800000000000001,
+        "judges_delta": 0.010000000000000009,
+        "contested_rate": 0.0,
+        "rouge_weight": 0.4
+      },
+      "latency_ms": {
+        "median": 8918.361186981201,
+        "p95": 24946.292400360107,
+        "avg": 12201.88422203064
+      },
+      "intrinsic": {
+        "avg_tokens": 201.8,
+        "min_tokens": 179,
+        "max_tokens": 219,
+        "gates_clean": true
+      },
+      "episodes": 5,
+      "status": "ok",
+      "wall_clock_s": 204.4,
       "family": "Microsoft",
-      "status": "failed",
-      "exit_code": 2,
-      "wall_clock_s": 12.6,
+      "same_family_judge": false
+    },
+    {
+      "model": "qwen2.5:32b",
+      "backend_type": "ollama",
+      "judges": {
+        "judge_a": {
+          "provider": "ollama",
+          "model": "gemma3:27b-it-q8_0"
+        },
+        "judge_b": {
+          "provider": "ollama",
+          "model": "mistral-small:24b"
+        }
+      },
+      "silver": "silver_sonnet46_smoke_v2_bullets",
+      "dataset": "curated_5feeds_smoke_v2",
+      "scores": {
+        "final": 0.7534691018549353,
+        "rougeL_f1": 0.42867275463733845,
+        "judge_mean": 0.97,
+        "judge_a_mean": 0.9800000000000001,
+        "judge_b_mean": 0.96,
+        "judges_delta": 0.02000000000000013,
+        "contested_rate": 0.0,
+        "rouge_weight": 0.4
+      },
+      "latency_ms": {
+        "median": 20429.79383468628,
+        "p95": 35919.09980773926,
+        "avg": 23634.939002990723
+      },
+      "intrinsic": {
+        "avg_tokens": 225.6,
+        "min_tokens": 205,
+        "max_tokens": 261,
+        "gates_clean": true
+      },
+      "episodes": 5,
+      "status": "ok",
+      "wall_clock_s": 288.8,
+      "family": "Alibaba",
       "same_family_judge": false
     }
   ]
