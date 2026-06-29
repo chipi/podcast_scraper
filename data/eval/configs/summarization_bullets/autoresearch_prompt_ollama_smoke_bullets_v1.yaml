@@ -1,12 +1,20 @@
 # Autoresearch Track A — bullet JSON summaries, Ollama backend (DGX smoke).
 #
 # Sibling of autoresearch_prompt_openai_smoke_bullets_v1.yaml — same prompts,
-# same dataset, same preprocessing, swapped backend. Used by
+# same preprocessing, swapped backend + dataset. Used by
 # autoresearch-eval-nightly.yml on the DGX self-hosted runner.
 #
-# Pair with judge config: judge_config_ollama.yaml (Gemma + Mistral judges).
-# Silver reference stays GPT-4o-generated (silver_gpt4o_smoke_bullets_v1) —
-# silver is a fixed target, generated once, not a live API call.
+# Pair with:
+#   judge config:     judge_config_ollama.yaml         (Gemma + Mistral)
+#   silver reference: silver_sonnet46_smoke_v2_bullets (Anthropic Sonnet 4.6)
+#
+# Four distinct vendor families across silver + candidate + 2 judges:
+#   silver:    sonnet-4-6      (Anthropic)
+#   candidate: llama3.1:8b     (Meta)        ← what we're tuning
+#   judge_a:   gemma3:27b      (Google)
+#   judge_b:   mistral-small:24b (Mistral AI)
+# Cross-family is what keeps a single vendor's style from dominating
+# the score — see operator memory ``feedback_silver_judge_vendor_bias``.
 
 id: "autoresearch_prompt_ollama_smoke_bullets_v1"
 task: "summarization"
@@ -14,7 +22,6 @@ task: "summarization"
 backend:
   type: "ollama"
   # Candidate ("aiming") model — what we're tuning the prompt against.
-  # Meta family; distinct from Gemma (judge_a) and Mistral (judge_b).
   model: "llama3.1:8b"
 
 prompts:
@@ -22,7 +29,11 @@ prompts:
   user: "shared/summarization/bullets_json_v1"
 
 data:
-  dataset_id: "curated_5feeds_smoke_v1"
+  # v2 pairs with the current silver (silver_sonnet46_smoke_v2_bullets);
+  # v1 is archived. The dataset descriptor is tracked but the materialized
+  # tree is gitignored — the workflow runs ``make dataset-materialize`` before
+  # the smoke to rebuild it from the (tracked) sources.
+  dataset_id: "curated_5feeds_smoke_v2"
 
 params:
   max_length: 800

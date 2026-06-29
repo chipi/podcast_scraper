@@ -70,6 +70,12 @@ jobs:
 
           EXP_CONFIG=data/eval/configs/summarization_bullets/autoresearch_prompt_ollama_smoke_bullets_v1.yaml
           JUDGE_CONFIG=autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_config_ollama.yaml
+          # Silver reference: Sonnet 4.6 on curated_5feeds_smoke_v2 bullets.
+          # Anthropic family — distinct from candidate (Meta) and judges
+          # (Google + Mistral). Update both EXP_CONFIG's dataset_id and
+          # this REFERENCE_ID together if swapping silver.
+          REFERENCE_ID=silver_sonnet46_smoke_v2_bullets
+          DATASET_ID=curated_5feeds_smoke_v2
 
           # Pull model assignments out of YAML for visible attribution.
           # Uses python+pyyaml (already a dep) — no extra installs.
@@ -79,23 +85,30 @@ jobs:
           {
             echo "## Autoresearch model assignment"
             echo
-            echo "| Role | Model | Source config |"
-            echo "|---|---|---|"
-            echo "| Candidate (\"aiming\") | \`${CAND_MODEL}\` | \`${EXP_CONFIG}\` |"
-            echo "| Judge A (\"evaluation\") | \`${JA_MODEL}\` | \`${JUDGE_CONFIG}\` |"
-            echo "| Judge B (\"evaluation\") | \`${JB_MODEL}\` | \`${JUDGE_CONFIG}\` |"
-            echo "| Silver reference | \`silver_gpt4o_smoke_bullets_v1\` (pre-baked, GPT-4o-generated) | fixed |"
+            echo "| Role | Model | Family | Source config |"
+            echo "|---|---|---|---|"
+            echo "| Candidate (\"aiming\") | \`${CAND_MODEL}\` | Meta | \`${EXP_CONFIG}\` |"
+            echo "| Judge A (\"evaluation\") | \`${JA_MODEL}\` | Google | \`${JUDGE_CONFIG}\` |"
+            echo "| Judge B (\"evaluation\") | \`${JB_MODEL}\` | Mistral AI | \`${JUDGE_CONFIG}\` |"
+            echo "| Silver reference | \`${REFERENCE_ID}\` | Anthropic | fixed (pre-baked) |"
             echo
+            echo "Dataset: \`${DATASET_ID}\` (materialized just-in-time from sources)"
             echo "Ollama endpoint: \`${OLLAMA_API_BASE}\`"
           } >> "$GITHUB_STEP_SUMMARY"
-          echo "Candidate:  ${CAND_MODEL}"
-          echo "Judge A:    ${JA_MODEL}"
-          echo "Judge B:    ${JB_MODEL}"
+          echo "Candidate:        ${CAND_MODEL}"
+          echo "Judge A:          ${JA_MODEL}"
+          echo "Judge B:          ${JB_MODEL}"
+          echo "Silver reference: ${REFERENCE_ID}"
+          echo "Dataset:          ${DATASET_ID}"
+
+          # Materialize the dataset (gitignored on disk; rebuilt from tracked
+          # sources). Same pattern nightly-data-baseline.yml uses for its
+          # benchmark dataset.
+          make dataset-materialize DATASET_ID="${DATASET_ID}"
 
           # No ``|| true`` — let the workflow fail if the smoke is broken.
-          # The previous swallow-failures pattern hid a stale path bug for
-          # weeks: the workflow showed green while the smoke produced zero
-          # signal. Loud failures > silent green.
+          # Loud failures > silent green (which hid this exact bug for weeks).
           make autoresearch-score \
             CONFIG="${EXP_CONFIG}" \
-            JUDGE_CONFIG="${JUDGE_CONFIG}"
+            JUDGE_CONFIG="${JUDGE_CONFIG}" \
+            REFERENCE="${REFERENCE_ID}"
