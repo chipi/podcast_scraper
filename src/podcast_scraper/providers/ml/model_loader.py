@@ -166,12 +166,18 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
 
             # Retry wrapper for tokenizer loading
             # Pegasus, LongT5, FLAN-T5 (pinned rev) may not have safetensors; use PyTorch
+            # LED is forced off safetensors at load time (summarizer.py:1263 — LED +
+            # safetensors triggers API calls even with local_files_only=True). Mirror
+            # the exclusion here so the preload fetches pytorch_model.bin, not the
+            # safetensors variant the offline load can't find → checkpoint_files=[None].
             model_lower = model_name.lower()
             use_safetensors = (
                 "pegasus" not in model_lower
                 and "long-t5" not in model_lower
                 and "longt5" not in model_lower
                 and "flan-t5" not in model_lower
+                and "led" not in model_lower
+                and "longformer" not in model_lower
             )
             from ...config_constants import get_pinned_revision_for_model
 
