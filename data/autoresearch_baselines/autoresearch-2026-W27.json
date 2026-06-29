@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "week_id": "2026-W27",
+  "captured_at": "2026-06-29T12:50:26Z",
+  "judges": {
+    "judge_a": {
+      "provider": "ollama",
+      "model": "gemma3:27b-it-q8_0"
+    },
+    "judge_b": {
+      "provider": "ollama",
+      "model": "mistral-small:24b"
+    }
+  },
+  "silver": "silver_sonnet46_smoke_v2_bullets",
+  "dataset": "curated_5feeds_smoke_v2",
+  "cohort": [
+    {
+      "model": "llama3.1:8b",
+      "backend_type": "ollama",
+      "judges": {
+        "judge_a": {
+          "provider": "ollama",
+          "model": "gemma3:27b-it-q8_0"
+        },
+        "judge_b": {
+          "provider": "ollama",
+          "model": "mistral-small:24b"
+        }
+      },
+      "silver": "silver_sonnet46_smoke_v2_bullets",
+      "dataset": "curated_5feeds_smoke_v2",
+      "scores": {
+        "final": 0.7534253260028108,
+        "rougeL_f1": 0.4285633150070268,
+        "judge_mean": 0.9700000000000001,
+        "judge_a_mean": 0.96,
+        "judge_b_mean": 0.9800000000000001,
+        "judges_delta": 0.02000000000000013,
+        "contested_rate": 0.0,
+        "rouge_weight": 0.4
+      },
+      "latency_ms": {
+        "median": 4781.745195388794,
+        "p95": 16466.97497367859,
+        "avg": 7005.049467086792
+      },
+      "intrinsic": {
+        "avg_tokens": 172.6,
+        "min_tokens": 151,
+        "max_tokens": 193,
+        "gates_clean": true
+      },
+      "episodes": 5,
+      "status": "ok",
+      "wall_clock_s": 824.7,
+      "family": "Meta",
+      "same_family_judge": false
+    }
+  ]
+}
