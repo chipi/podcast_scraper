@@ -2986,7 +2986,11 @@ experiment-run:
 		exit 1; \
 	fi
 	@echo "Running experiment: $(CONFIG)"
-	@cmd="$(PYTHON) scripts/eval/experiment/run_experiment.py $(CONFIG)"; \
+	@# scripts/eval/experiment/run_experiment.py does ``from scripts.eval.data...``
+	@# so the repo root must be on sys.path. Mirror the pattern used by every
+	@# other ``scripts/`` invocation in this Makefile (mypy / e2e mock / etc).
+	@export PYTHONPATH="$$PYTHONPATH:$(PWD)"; \
+	cmd="$(PYTHON) scripts/eval/experiment/run_experiment.py $(CONFIG)"; \
 	if [ -n "$(BASELINE)" ]; then \
 		echo "  Baseline: $(BASELINE)"; \
 		cmd="$$cmd --baseline $(BASELINE)"; \
