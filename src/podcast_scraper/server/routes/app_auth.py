@@ -172,9 +172,7 @@ async def app_auth_logout() -> Response:
     return resp
 
 
-@router.get("/me")
-async def app_me(user: User = Depends(get_current_user)) -> dict[str, object]:
-    """Return the signed-in user's basic profile + role (401 when not authenticated)."""
+def _user_dict(user: User) -> dict[str, object]:
     return {
         "user_id": user.user_id,
         "email": user.email,
@@ -182,3 +180,22 @@ async def app_me(user: User = Depends(get_current_user)) -> dict[str, object]:
         "role": user.role,
         "disabled": user.disabled,
     }
+
+
+@router.get("/me")
+async def app_me(user: User = Depends(get_current_user)) -> dict[str, object]:
+    """Return the signed-in user's basic profile + role (401 when not authenticated)."""
+    return _user_dict(user)
+
+
+@router.get("/auth/status")
+async def app_auth_status(request: Request) -> dict[str, object]:
+    """Whether platform auth is *configured*, plus the signed-in user (if any) — never 401s.
+
+    The viewer gates its UI on this: when auth is not configured (no session secret / provider /
+    data dir — e.g. a bare deployment or a backend-less e2e), the app renders **open**, preserving
+    the pre-auth behaviour. Only when auth is enabled does an anonymous request get the login gate.
+    """
+    enabled = bool(_secret(request) and _provider(request) is not None and _data_dir(request))
+    user = get_optional_user(request) if enabled else None
+    return {"enabled": enabled, "user": _user_dict(user) if user is not None else None}

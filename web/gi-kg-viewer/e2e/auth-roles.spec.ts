@@ -19,20 +19,20 @@ const USER = (role: Role) => ({
 /** Host-rooted `/api/` only — must NOT match the viewer's own `/src/api/*.ts` module URLs. */
 const API_FALLBACK = /^https?:\/\/[^/]+\/api\//
 
-/** Mock the minimal API surface: a generic ok fallback, then a role-specific (or anon) /me. */
+/** Mock the minimal API surface: a generic ok fallback, then auth/status (enabled, role-specific). */
 async function signInAs(page: Page, role: Role | null): Promise<void> {
   // Fallback first (least specific) — keeps boot calls (health, digest, artifacts) from hanging.
   await page.route(API_FALLBACK, (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
   )
-  await page.route('**/api/app/me', (route) => {
-    if (role === null) return route.fulfill({ status: 401, body: '{}' })
-    return route.fulfill({
+  // Auth IS enabled here (the gate is under test); `user` is null for anon, else the role's user.
+  await page.route('**/api/app/auth/status', (route) =>
+    route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(USER(role)),
-    })
-  })
+      body: JSON.stringify({ enabled: true, user: role === null ? null : USER(role) }),
+    }),
+  )
   await page.route('**/api/app/admin/users', (route) =>
     route.fulfill({
       status: 200,

@@ -7,26 +7,27 @@
  */
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { getMe, loginUrl, logout as apiLogout, type Me, type Role } from '../api/authApi'
+import { getAuthStatus, loginUrl, logout as apiLogout, type Me, type Role } from '../api/authApi'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<Me | null>(null)
   const loaded = ref(false)
+  /** Whether the backend has auth configured. When false, the viewer renders open (no gate). */
+  const enabled = ref(false)
 
   const isAuthenticated = computed(() => user.value !== null)
   const role = computed<Role | null>(() => user.value?.role ?? null)
   const isAdmin = computed(() => role.value === 'admin')
   /** Creator or admin — the gate for any viewer access at all. */
   const canUseViewer = computed(() => role.value === 'creator' || role.value === 'admin')
+  /** Gate the login/no-access screens: only when auth is enabled AND the user can't use the viewer. */
+  const gated = computed(() => enabled.value && !canUseViewer.value)
 
   async function refresh(): Promise<void> {
-    try {
-      user.value = await getMe()
-    } catch {
-      user.value = null
-    } finally {
-      loaded.value = true
-    }
+    const status = await getAuthStatus()
+    enabled.value = status.enabled
+    user.value = status.user
+    loaded.value = true
   }
 
   async function ensureLoaded(): Promise<void> {
@@ -48,10 +49,12 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     user,
     loaded,
+    enabled,
     isAuthenticated,
     role,
     isAdmin,
     canUseViewer,
+    gated,
     refresh,
     ensureLoaded,
     login,

@@ -5,7 +5,7 @@ vi.mock('./httpClient', () => ({
   fetchWithTimeout: (...a: unknown[]) => fetchMock(...a),
 }))
 
-import { createUser, deleteUser, getMe, loginUrl, patchUser } from './authApi'
+import { createUser, deleteUser, getAuthStatus, loginUrl, patchUser } from './authApi'
 
 function res(status: number, body: unknown): Response {
   return {
@@ -24,11 +24,23 @@ describe('authApi', () => {
     expect(loginUrl(null)).toBe('/api/app/auth/login')
   })
 
-  it('getMe returns the user, or null on 401', async () => {
-    fetchMock.mockResolvedValueOnce(res(200, { user_id: 'u1', role: 'admin' }))
-    expect((await getMe())?.role).toBe('admin')
-    fetchMock.mockResolvedValueOnce(res(401, {}))
-    expect(await getMe()).toBeNull()
+  it('getAuthStatus reports enabled + user; degrades to {enabled:false} on any failure', async () => {
+    fetchMock.mockResolvedValueOnce(res(200, { enabled: true, user: { user_id: 'u1', role: 'admin' } }))
+    const ok = await getAuthStatus()
+    expect(ok.enabled).toBe(true)
+    expect(ok.user?.role).toBe('admin')
+
+    // anonymous but auth enabled
+    fetchMock.mockResolvedValueOnce(res(200, { enabled: true, user: null }))
+    expect(await getAuthStatus()).toEqual({ enabled: true, user: null })
+
+    // no auth backend / non-2xx → open
+    fetchMock.mockResolvedValueOnce(res(404, {}))
+    expect(await getAuthStatus()).toEqual({ enabled: false, user: null })
+
+    // network throw → open (never throws)
+    fetchMock.mockRejectedValueOnce(new Error('refused'))
+    expect(await getAuthStatus()).toEqual({ enabled: false, user: null })
   })
 
   it('createUser posts the body and returns the created user', async () => {

@@ -28,12 +28,26 @@ export interface AdminUser {
 
 const BASE = '/api/app'
 
-/** The current user, or `null` when not signed in (the `/me` route 401s for anonymous). */
-export async function getMe(): Promise<Me | null> {
-  const res = await fetchWithTimeout(`${BASE}/me`)
-  if (res.status === 401) return null
-  if (!res.ok) throw new Error(`GET /me failed: ${res.status}`)
-  return (await res.json()) as Me
+export interface AuthStatus {
+  /** True when platform auth is configured on the backend. When false, the viewer renders open. */
+  enabled: boolean
+  user: Me | null
+}
+
+/**
+ * Probe whether auth is enabled + who's signed in. Never throws: any failure (no auth backend, a
+ * backend-less e2e, a network blip) resolves to `{ enabled: false }` so the viewer renders open
+ * rather than trapping the user behind a login it can't complete.
+ */
+export async function getAuthStatus(): Promise<AuthStatus> {
+  try {
+    const res = await fetchWithTimeout(`${BASE}/auth/status`)
+    if (!res.ok) return { enabled: false, user: null }
+    const body = (await res.json()) as Partial<AuthStatus>
+    return { enabled: body.enabled === true, user: body.user ?? null }
+  } catch {
+    return { enabled: false, user: null }
+  }
 }
 
 /** Full-page login URL. The viewer grants `creator` to new users by default. */

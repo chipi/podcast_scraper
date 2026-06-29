@@ -7,7 +7,7 @@ const logout = vi.fn()
 vi.mock('../../api/authApi', () => ({
   logout: (...a: unknown[]) => logout(...a),
   loginUrl: () => '/api/app/auth/login?grant=creator',
-  getMe: vi.fn(),
+  getAuthStatus: vi.fn(),
 }))
 
 import { useAuthStore } from '../../stores/auth'

@@ -549,10 +549,11 @@ watch(
 </script>
 
 <template>
-  <!-- Auth gate (#1128): login when anonymous, no-access when a signed-in listener; the shell
-       renders only for creator/admin. A blank canvas covers the brief pre-load. -->
-  <LoginView v-if="auth.loaded && !auth.isAuthenticated" />
-  <NoAccessView v-else-if="auth.loaded && !auth.canUseViewer" />
+  <!-- Auth gate (#1128): ONLY when auth is enabled on the backend. Login when anonymous, no-access
+       when a signed-in listener; the shell renders for creator/admin — or for everyone when auth is
+       not configured (open, pre-auth behaviour). A blank canvas covers the brief pre-load. -->
+  <LoginView v-if="auth.loaded && auth.enabled && !auth.isAuthenticated" />
+  <NoAccessView v-else-if="auth.loaded && auth.enabled && !auth.canUseViewer" />
   <div
     v-else-if="auth.loaded"
     class="flex min-h-0 min-w-0 flex-col overflow-hidden bg-canvas text-canvas-foreground h-dvh max-h-dvh"
@@ -615,14 +616,14 @@ watch(
                   ? 'bg-primary text-primary-foreground'
                   : 'text-elevated-foreground hover:bg-overlay'
               "
-              v-if="auth.isAdmin"
+              v-if="!auth.enabled || auth.isAdmin"
               data-testid="main-tab-dashboard"
               @click="mainTab = 'dashboard'"
             >
               Dashboard
             </button>
             <button
-              v-if="auth.isAdmin"
+              v-if="!auth.enabled || auth.isAdmin"
               type="button"
               class="rounded px-3 py-1"
               :class="
@@ -710,7 +711,7 @@ watch(
             <kbd class="rounded border border-border bg-surface px-1 font-mono text-surface-foreground">Esc</kbd>
             clear
           </span>
-          <UserMenu />
+          <UserMenu v-if="auth.enabled" />
         </div>
       </div>
     </header>
@@ -805,7 +806,7 @@ watch(
             />
           </keep-alive>
           <div
-            v-if="mainTab === 'dashboard' && auth.isAdmin"
+            v-if="mainTab === 'dashboard' && (!auth.enabled || auth.isAdmin)"
             class="h-full min-h-0 max-w-full flex-1 overflow-x-hidden overflow-y-auto p-3"
           >
             <DashboardView
@@ -815,7 +816,7 @@ watch(
             />
           </div>
           <div
-            v-if="mainTab === 'ops' && auth.isAdmin"
+            v-if="mainTab === 'ops' && (!auth.enabled || auth.isAdmin)"
             class="h-full min-h-0 max-w-full flex-1 overflow-x-hidden overflow-y-auto p-3"
           >
             <OpsView />
