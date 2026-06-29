@@ -335,10 +335,11 @@ def main() -> int:
             length = (metrics.get("intrinsic") or {}).get("length") or {}
             gates = (metrics.get("intrinsic") or {}).get("gates") or {}
             output = {
-                "candidate": {
-                    "model": cfg.backend.model,
-                    "backend_type": cfg.backend.type,
-                },
+                # Flat top-level model/backend_type — sweep driver,
+                # leaderboard renderer, and drift script all key on
+                # ``row["model"]``. Nested form is gone (was redundant).
+                "model": cfg.backend.model,
+                "backend_type": cfg.backend.type,
                 "judges": {
                     "judge_a": {
                         "provider": ja.get("provider"),
