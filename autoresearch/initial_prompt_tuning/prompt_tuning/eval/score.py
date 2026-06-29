@@ -89,6 +89,15 @@ def _run_subprocess(
         cmd.append("--force")
 
     env = os.environ.copy()
+    # run_experiment.py imports ``scripts.eval.data.materialize_baseline``
+    # — a package-style import that needs the repo root on PYTHONPATH.
+    # Subprocess inherits os.environ but cwd is set to REPO_ROOT below;
+    # cwd alone isn't enough for ``from scripts.* import ...`` to resolve.
+    env["PYTHONPATH"] = (
+        f"{REPO_ROOT}{os.pathsep}{env.get('PYTHONPATH', '')}"
+        if env.get("PYTHONPATH")
+        else str(REPO_ROOT)
+    )
     if backend_type == "ollama":
         # Ollama backend reads OLLAMA_API_BASE (inherited from os.environ above).
         # No API key injection needed; judges are called from the parent process
