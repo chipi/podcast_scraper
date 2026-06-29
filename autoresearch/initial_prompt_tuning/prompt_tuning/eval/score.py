@@ -252,9 +252,20 @@ def main() -> int:
         judge_mean = None
         contested = False
         if not args.dry_run:
+            # Only resolve keys for providers the judge_config actually uses.
+            # An all-ollama judge cohort needs zero cloud keys; an openai-only
+            # cohort needs OPENAI but not ANTHROPIC; etc.
+            providers_used = {
+                str(ja.get("provider", "")).lower(),
+                str(jb.get("provider", "")).lower(),
+            }
+            oai_j = ""
+            ant_j = ""
             try:
-                oai_j = resolve_judge_openai_key()
-                ant_j = resolve_judge_anthropic_key()
+                if "openai" in providers_used:
+                    oai_j = resolve_judge_openai_key()
+                if "anthropic" in providers_used:
+                    ant_j = resolve_judge_anthropic_key()
             except AutoresearchConfigError as e:
                 logger.error("%s", e)
                 return 1
