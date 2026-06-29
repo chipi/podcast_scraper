@@ -11,10 +11,11 @@
 #   same-family inflation; the flag column makes it audit-friendly.
 # - Order in this list is the order rows appear in the leaderboard.
 
-# Phased rollout. Start with N=1 (the same candidate from the first
-# end-to-end smoke), validate week-over-week drift behavior, then set
-# this to ``null`` to run the full cohort.
-default_limit: 1
+# Phased rollout. Started at N=1 (llama3.1:8b only) on 2026-06-29 to
+# validate the sweep + drift + issue machinery; W27 ledger shipped clean
+# with final=0.7621, contested=0, gates clean. Expanded to N=7 (full
+# cohort) on the same date.
+default_limit: null
 
 candidates:
   - model: llama3.1:8b           # 4.6 GB
