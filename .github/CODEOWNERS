@@ -11,9 +11,13 @@
 # Default: anyone can review. Specific gated paths below.
 *  @chipi
 
-# Baseline workflow + scripts — gate against tampering that would expand
-# the bot's write surface beyond data/baselines/*.
-.github/workflows/nightly-data-baseline.yml  @chipi
+# All workflow files — github-actions[bot] is a bypass actor on main, so
+# any workflow with ``permissions: contents: write`` can push direct.
+# Gate every workflow change behind operator review so a malicious or
+# accidental PR can't add a new bypass-capable workflow.
+.github/workflows/**                          @chipi
+
+# Baseline scripts — paired with the baseline workflow; same scope.
 scripts/baselines/**                          @chipi
 
 # CODEOWNERS itself — don't let it edit itself away.

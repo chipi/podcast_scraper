@@ -27,11 +27,6 @@ jobs:
     name: Capture weekly snapshot
     runs-on: ubuntu-latest
     timeout-minutes: 120
-    # ``baselines`` env scopes access to INFRA_STATE_COMMIT_TOKEN (the
-    # fine-grained PAT that bypasses main's pull_request rule). Distinct
-    # from ``prod`` (which has required_reviewers and would block this
-    # scheduled job behind a manual approval click every Monday).
-    environment: baselines
     steps:
       - name: Checkout main
         uses: actions/checkout@v7
@@ -114,29 +109,21 @@ jobs:
               --benchmark-run-dir "${{ steps.latest_run.outputs.path }}"
 
       - name: Commit snapshot to main
-        # Reuses the existing INFRA_STATE_COMMIT_TOKEN PAT (already a
-        # ruleset bypass actor on main) — scoped to this job by the
-        # ``environment: baselines`` declaration above, which is the
-        # only env this secret value is also stored in. Mirrors the
-        # pattern infra-apply.yml uses (which scopes the same PAT to
-        # the ``prod`` env).
+        # Uses the default GITHUB_TOKEN. ``github-actions[bot]`` is a
+        # bypass actor on the main ruleset (Integration actor type), so
+        # this token can push direct without going through PR review.
         #
-        # Path-scoping is enforced HERE in code (fine-grained PATs
-        # don't support path restrictions natively): the staged-paths
-        # guard below fails the job if anything outside data/baselines/
-        # slipped into staging. Combined with the CODEOWNERS gate on
-        # this workflow file (.github/CODEOWNERS), the only way to
+        # Path-scoping is enforced HERE in code: the staged-paths guard
+        # below fails the job if anything outside data/baselines/ slipped
+        # into staging. Combined with the CODEOWNERS gate on
+        # .github/workflows/** (.github/CODEOWNERS), the only way to
         # expand the bot's write surface is a PR you approve.
         env:
-          INFRA_STATE_COMMIT_TOKEN: ${{ secrets.INFRA_STATE_COMMIT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
-          if [ -z "${INFRA_STATE_COMMIT_TOKEN:-}" ]; then
-            echo "::error::INFRA_STATE_COMMIT_TOKEN secret missing in the 'baselines' environment. Operator: copy the existing PAT value from Settings → Environments → prod → INFRA_STATE_COMMIT_TOKEN into Settings → Environments → baselines → INFRA_STATE_COMMIT_TOKEN."
-            exit 1
-          fi
-          git config user.name  "baselines-commit-bot"
-          git config user.email "baselines-commit-bot@noreply.github.com"
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # ``git status --porcelain`` covers untracked + modified; ``git diff``
           # alone (tracked-only) silently skips brand-new snapshot files.
           if [ -z "$(git status --porcelain -- data/baselines/)" ]; then
@@ -156,8 +143,12 @@ jobs:
             exit 1
           fi
           git commit -m "chore(baselines): weekly snapshot ${WEEK}"
-          REMOTE="https://x-access-token:${INFRA_STATE_COMMIT_TOKEN}@github.com/${{ github.repository }}.git"
+          REMOTE="https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
           # Rebase-on-conflict (concurrent commits to main during our compose).
+          # Stash any working-tree changes the earlier pipeline steps left
+          # behind (e.g. regenerated dataset descriptors) — ``git rebase``
+          # refuses with "cannot rebase: You have unstaged changes" if the
+          # working tree isn't clean. The stash is dropped after.
           for attempt in 1 2 3; do
             if git push "$REMOTE" HEAD:main 2>&1; then
               echo "push succeeded on attempt ${attempt}"
@@ -165,11 +156,14 @@ jobs:
             fi
             echo "push rejected — pulling main with rebase (attempt ${attempt})"
             git fetch "$REMOTE" main
+            git stash push -u -m "baseline-rebase-${attempt}" --quiet || true
             if ! git rebase FETCH_HEAD; then
               echo "::error::rebase conflict under data/baselines/ — another snapshot pushed concurrently. Aborting."
               git rebase --abort
+              git stash drop --quiet || true
               exit 1
             fi
+            git stash drop --quiet || true
           done
           echo "::error::push still failing after 3 rebase attempts"
           exit 1
