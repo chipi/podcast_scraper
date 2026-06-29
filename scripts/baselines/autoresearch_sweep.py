@@ -78,14 +78,18 @@ def _run_candidate(
     # Invoke through the Makefile target — same surface anyone would use
     # manually (``make autoresearch-score CONFIG=... OUTPUT_JSON=...``)
     # so debugging the sweep is "just" running the same make invocation.
+    # Use absolute paths: temp dir is under /tmp (outside REPO_ROOT), so
+    # .relative_to(REPO_ROOT) would raise. score.py already accepts both
+    # absolute and relative paths for --config / --judge-config /
+    # --output-json.
     proc = subprocess.run(
         [
             "make",
             "autoresearch-score",
-            f"CONFIG={cfg_path.relative_to(REPO_ROOT)}",
-            f"JUDGE_CONFIG={judge_config_path.relative_to(REPO_ROOT)}",
+            f"CONFIG={cfg_path}",
+            f"JUDGE_CONFIG={judge_config_path}",
             f"REFERENCE={reference_id}",
-            f"OUTPUT_JSON={output_json.relative_to(REPO_ROOT)}",
+            f"OUTPUT_JSON={output_json}",
         ],
         cwd=str(REPO_ROOT),
         check=False,
