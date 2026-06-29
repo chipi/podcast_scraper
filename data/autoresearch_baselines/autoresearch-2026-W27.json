@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "week_id": "2026-W27",
-  "captured_at": "2026-06-29T12:50:26Z",
+  "captured_at": "2026-06-29T13:09:22Z",
   "judges": {
     "judge_a": {
       "provider": "ollama",
@@ -31,29 +31,29 @@
       "silver": "silver_sonnet46_smoke_v2_bullets",
       "dataset": "curated_5feeds_smoke_v2",
       "scores": {
-        "final": 0.7534253260028108,
-        "rougeL_f1": 0.4285633150070268,
-        "judge_mean": 0.9700000000000001,
-        "judge_a_mean": 0.96,
+        "final": 0.7621098428282671,
+        "rougeL_f1": 0.4427746070706678,
+        "judge_mean": 0.975,
+        "judge_a_mean": 0.9700000000000001,
         "judge_b_mean": 0.9800000000000001,
-        "judges_delta": 0.02000000000000013,
+        "judges_delta": 0.010000000000000009,
         "contested_rate": 0.0,
         "rouge_weight": 0.4
       },
       "latency_ms": {
-        "median": 4781.745195388794,
-        "p95": 16466.97497367859,
-        "avg": 7005.049467086792
+        "median": 4744.531631469727,
+        "p95": 14232.270002365112,
+        "avg": 6553.57551574707
       },
       "intrinsic": {
-        "avg_tokens": 172.6,
-        "min_tokens": 151,
+        "avg_tokens": 173.8,
+        "min_tokens": 157,
         "max_tokens": 193,
         "gates_clean": true
       },
       "episodes": 5,
       "status": "ok",
-      "wall_clock_s": 824.7,
+      "wall_clock_s": 795.3,
       "family": "Meta",
       "same_family_judge": false
     }
