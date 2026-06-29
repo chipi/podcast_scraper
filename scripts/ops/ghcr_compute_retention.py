@@ -46,13 +46,31 @@ def _gh_json(args: List[str]) -> Any:
 
 
 def _list_versions(image: str) -> List[Dict[str, Any]]:
-    data = _gh_json(
-        [
-            "api",
-            f"/users/{OWNER}/packages/container/{image}/versions",
-            "--paginate",
-        ]
-    )
+    """Return every published version of *image* — empty list when the
+    package has never been published (HTTP 404).
+
+    The IMAGES tuple lists every container our deploy flow MAY push;
+    some (e.g. ``podcast-scraper-stack-pipeline-ml``) aren't actually
+    published yet because the corresponding deploy variant hasn't run.
+    Treat "package not found" as "nothing to keep / nothing to delete"
+    instead of failing the whole retention pass.
+    """
+    try:
+        data = _gh_json(
+            [
+                "api",
+                f"/users/{OWNER}/packages/container/{image}/versions",
+                "--paginate",
+            ]
+        )
+    except RuntimeError as exc:
+        if "Package not found" in str(exc) or "404" in str(exc):
+            print(
+                f"# warn: package {image!r} not published yet; skipping",
+                file=sys.stderr,
+            )
+            return []
+        raise
     if not isinstance(data, list):
         return []
     return [v for v in data if isinstance(v, dict)]
