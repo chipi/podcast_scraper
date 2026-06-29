@@ -41,10 +41,16 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
 
-      - name: Install package (dev)
+      - name: Install package (dev + ml)
+        # The smoke experiment config references the ml baseline
+        # (``baseline_ml_dev_authority_benchmark_v1.yaml``), which loads
+        # the summarization + NLI models via the ml provider on import
+        # — needs ``transformers`` / ``torch`` / ``spacy`` from the
+        # ``[ml]`` extra. ``.[dev]`` alone hits
+        # ``ModuleNotFoundError: No module named 'transformers'``.
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          pip install -e ".[dev,ml]"
 
       - name: Setup probe (data + config + git state)
         env:
