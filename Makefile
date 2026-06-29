@@ -622,7 +622,7 @@ validate-kg-schema:
 	fi
 
 # GI/KG viewer v2 (#489): FastAPI + Vite. ``make init`` includes FastAPI via ``[dev]``; cd $(WEB_VIEWER_DIR) && npm install
-.PHONY: serve serve-api serve-ui serve-app serve-app-dev serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod reprocess-corpus-from-transcripts corpus-compat-check index-two-tier enrich-relational-edges redo-diarization upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify smoke-prod corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
+.PHONY: serve serve-api serve-ui serve-app serve-app-dev serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod reprocess-corpus-from-transcripts corpus-compat-check index-two-tier enrich-relational-edges redo-diarization upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify enrich smoke-prod corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
 SERVE_OUTPUT_DIR ?= ./output
 # Optional corpus-editing + jobs routes (health shows green when on). Override with SERVE_ARGS= to disable.
 SERVE_ARGS ?= --enable-feeds-api --enable-operator-config-api --enable-jobs-api
@@ -1199,6 +1199,31 @@ upgrade-corpus:
 upgrade-verify:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
 	$(PYTHON) -m podcast_scraper.cli upgrade verify --corpus-dir "$${CORPUS_DIR}"
+
+# Run the RFC-088 enrichment layer over a corpus (#1127). Wraps the standalone
+# `podcast_scraper.enrichment.cli` runner. Deterministic enrichers run by default;
+# WITH_ML=1 wires the embedding/NLI enrichers (needs the `[ml]` extra + `provider`
+# blocks in the operator YAML). Results land under <CORPUS>/enrichments/ +
+# <CORPUS>/metadata/enrichments/, with a run_summary.json + run.jsonl audit trail.
+#
+#   make enrich CORPUS=<corpus output dir> \
+#       [WITH_ML=1] [ONLY=id,id] [SKIP=id,id] [OPT_IN=id,id] \
+#       [PROFILE=name] [CONFIG=operator.yaml] [CORPUS_ONLY=1] [LOG_LEVEL=INFO]
+#
+# e.g.  make enrich CORPUS=.test_outputs/manual/prod-pilot/corpus           # deterministic only
+#       make enrich CORPUS=.test_outputs/manual/prod-v2/corpus WITH_ML=1    # + embedding/NLI
+enrich:
+	@test -n "$(CORPUS)" || { echo "CORPUS required — corpus output dir, e.g. .test_outputs/manual/prod-pilot/corpus"; exit 1; }
+	@export PYTHONPATH="$(PWD)/src:$${PYTHONPATH}" && $(PYTHON) -m $(PACKAGE).enrichment.cli \
+		--output-dir "$(CORPUS)" \
+		$(if $(WITH_ML),--with-ml) \
+		$(if $(ONLY),--only "$(ONLY)") \
+		$(if $(SKIP),--skip "$(SKIP)") \
+		$(if $(OPT_IN),--opt-in "$(OPT_IN)") \
+		$(if $(PROFILE),--profile "$(PROFILE)") \
+		$(if $(CONFIG),--config "$(CONFIG)") \
+		$(if $(LOG_LEVEL),--log-level "$(LOG_LEVEL)") \
+		$(if $(CORPUS_ONLY),--corpus-only)
 
 # Post-deploy prod smoke over Tailscale HTTPS (#797). Requires PROD_TAILNET_FQDN.
 # Optional: SMOKE_CORPUS_PATH (in-container corpus root for API path=, e.g. /app/output on prod).
