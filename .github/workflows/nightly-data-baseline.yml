@@ -76,8 +76,14 @@ jobs:
         run: make dataset-smoke
 
       - name: Run experiment (smoke)
+        # HF_HOME / HF_HUB_CACHE pin the cache path so the model_loader
+        # preload and transformers from_pretrained agree (otherwise
+        # local_files_only=True load misses → checkpoint_files=[None] →
+        # AttributeError at modeling_utils.py:4924). Mirrors nightly.yml.
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_HOME: /home/runner/.cache/huggingface
+          HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
         run: |
           make experiment-run \
               CONFIG=data/eval/configs/ml/baseline_ml_dev_authority_benchmark_v1.yaml
