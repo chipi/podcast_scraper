@@ -83,7 +83,7 @@ langfuse = [
 
 # Heavy ML dependencies - only install when needed
 ml = [
-  "openai-whisper>=20231117",
+  "openai-whisper>=20250625",
   # spaCy 3.8 / thinc 8.3 for numpy 2.x compatibility (required by pyannote.audio 4.x).
   "spacy>=3.8.0,<4.0.0",
   # spaCy's CLI imports ``click`` via typer (``spacy/cli/_util.py``).
