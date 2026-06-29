@@ -126,6 +126,16 @@ def main() -> int:
         help="Skip judges; use --score-only (requires existing predictions for run id)",
     )
     parser.add_argument(
+        "--judge-config",
+        type=Path,
+        default=None,
+        help=(
+            "Path to judge YAML (judge_a/judge_b provider+model). Defaults to "
+            "judge_config.yaml next to this script. Use judge_config_ollama.yaml "
+            "for the DGX Ollama-only smoke (provider: ollama for both judges)."
+        ),
+    )
+    parser.add_argument(
         "--log-level",
         default="INFO",
         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
@@ -151,17 +161,34 @@ def main() -> int:
         return 1
 
     rubric_path = EVAL_DIR / "rubric.md"
-    judge_path = EVAL_DIR / "judge_config.yaml"
+    if args.judge_config is not None:
+        judge_path = (
+            args.judge_config if args.judge_config.is_absolute() else REPO_ROOT / args.judge_config
+        )
+    else:
+        judge_path = EVAL_DIR / "judge_config.yaml"
     if not rubric_path.is_file() or not judge_path.is_file():
-        logger.error("Missing rubric.md or judge_config.yaml under %s", EVAL_DIR)
+        logger.error("Missing rubric.md (%s) or judge config (%s)", rubric_path, judge_path)
         return 1
 
     rubric_text = rubric_path.read_text(encoding="utf-8")
     try:
         judge_cfg = load_judge_config(judge_path)
     except Exception as e:
-        logger.error("Invalid judge_config.yaml: %s", e)
+        logger.error("Invalid judge config %s: %s", judge_path, e)
         return 1
+    # Surface the chosen judge models — useful in CI job summaries to see at
+    # a glance which models judged this run, especially when juggling several
+    # Ollama variants for the DGX smoke.
+    ja = judge_cfg.get("judge_a") or {}
+    jb = judge_cfg.get("judge_b") or {}
+    logger.info(
+        "Judge A: provider=%s model=%s | Judge B: provider=%s model=%s",
+        ja.get("provider", "?"),
+        ja.get("model", "?"),
+        jb.get("provider", "?"),
+        jb.get("model", "?"),
+    )
 
     with tempfile.NamedTemporaryFile(
         suffix=".yaml", delete=False, dir=str(EVAL_DIR), prefix="autoresearch_cfg_"

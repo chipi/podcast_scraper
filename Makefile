@@ -3110,6 +3110,12 @@ autoresearch-score:
 	else \
 		echo "  Config: (default autoresearch_prompt_openai_smoke_bullets_v1.yaml)"; \
 	fi; \
+	if [ -n "$(JUDGE_CONFIG)" ]; then \
+		echo "  Judge config: $(JUDGE_CONFIG)"; \
+		cmd="$$cmd --judge-config $(JUDGE_CONFIG)"; \
+	else \
+		echo "  Judge config: (default judge_config.yaml — OpenAI + Anthropic)"; \
+	fi; \
 	if [ -n "$(REFERENCE)" ]; then \
 		echo "  Reference: $(REFERENCE)"; \
 		cmd="$$cmd --reference $(REFERENCE)"; \

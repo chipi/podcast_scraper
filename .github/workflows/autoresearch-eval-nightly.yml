@@ -46,7 +46,20 @@ jobs:
           host=$(bash scripts/ops/resolve_dgx_tailnet_host.sh)
           curl -fsS --max-time 5 "http://${host}:11434/api/tags" | head -c 200
 
-      - name: Autoresearch score smoke (optional)
+      - name: Autoresearch score smoke (Ollama-only on DGX)
+        # Pure-Ollama variant: candidate, judge A, judge B all run on the
+        # DGX Ollama instance — zero cloud API keys, zero $ cost, exercise
+        # the whole harness end-to-end on the local stack.
+        #
+        # Three different model families (vendor-bias-mitigation rule still
+        # applies even within Ollama):
+        #   Candidate ("aiming"):  llama3.1:8b           (Meta)
+        #   Judge A:               gemma3:27b-it-q8_0    (Google)
+        #   Judge B:               mistral-small:24b     (Mistral)
+        # Both configs are CHECKED IN — edit data/eval/configs/summarization_bullets/
+        # autoresearch_prompt_ollama_smoke_bullets_v1.yaml and
+        # autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_config_ollama.yaml
+        # to swap models without touching this workflow.
         env:
           OLLAMA_API_BASE: ${{ vars.DGX_OLLAMA_API_BASE }}
         run: |
@@ -54,4 +67,32 @@ jobs:
             echo "DGX_OLLAMA_API_BASE unset; smoke skipped until operator configures vars"
             exit 0
           fi
-          make autoresearch-score SMOKE=1 || true
+
+          EXP_CONFIG=data/eval/configs/summarization_bullets/autoresearch_prompt_ollama_smoke_bullets_v1.yaml
+          JUDGE_CONFIG=autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_config_ollama.yaml
+
+          # Pull model assignments out of YAML for visible attribution.
+          # Uses python+pyyaml (already a dep) — no extra installs.
+          CAND_MODEL=$(python3 -c "import yaml,sys;d=yaml.safe_load(open('$EXP_CONFIG'));print(d.get('backend',{}).get('model','?'))")
+          JA_MODEL=$(python3 -c "import yaml,sys;d=yaml.safe_load(open('$JUDGE_CONFIG'));print((d.get('judge_a') or {}).get('model','?'))")
+          JB_MODEL=$(python3 -c "import yaml,sys;d=yaml.safe_load(open('$JUDGE_CONFIG'));print((d.get('judge_b') or {}).get('model','?'))")
+          {
+            echo "## Autoresearch model assignment"
+            echo
+            echo "| Role | Model | Source config |"
+            echo "|---|---|---|"
+            echo "| Candidate (\"aiming\") | \`${CAND_MODEL}\` | \`${EXP_CONFIG}\` |"
+            echo "| Judge A (\"evaluation\") | \`${JA_MODEL}\` | \`${JUDGE_CONFIG}\` |"
+            echo "| Judge B (\"evaluation\") | \`${JB_MODEL}\` | \`${JUDGE_CONFIG}\` |"
+            echo "| Silver reference | \`silver_gpt4o_smoke_bullets_v1\` (pre-baked, GPT-4o-generated) | fixed |"
+            echo
+            echo "Ollama endpoint: \`${OLLAMA_API_BASE}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Candidate:  ${CAND_MODEL}"
+          echo "Judge A:    ${JA_MODEL}"
+          echo "Judge B:    ${JB_MODEL}"
+
+          make autoresearch-score \
+            CONFIG="${EXP_CONFIG}" \
+            JUDGE_CONFIG="${JUDGE_CONFIG}" \
+            || true

@@ -413,6 +413,36 @@ class JudgeOutcome:
     contested: bool
 
 
+def _call_judge(
+    provider: str,
+    *,
+    model: str,
+    user_content: str,
+    openai_key: str,
+    anthropic_key: str,
+) -> float:
+    """Dispatch a single judge call by provider name.
+
+    Supported providers:
+    - ``openai`` — cloud API, needs ``openai_key``
+    - ``anthropic`` — cloud API, needs ``anthropic_key``
+    - ``ollama`` — local Ollama via ``OLLAMA_API_BASE`` / ``DGX_TAILNET_FQDN``,
+      no key required (the runner reaches Ollama over the tailnet)
+    """
+    if provider == "openai":
+        return call_openai_judge(api_key=openai_key, model=model, user_content=user_content)
+    if provider == "anthropic":
+        return call_anthropic_judge(api_key=anthropic_key, model=model, user_content=user_content)
+    if provider == "ollama":
+        # Imported lazily so test_unit-only envs without httpx don't need it.
+        from podcast_scraper.evaluation.judges.ollama_chat import OllamaChatJudge
+
+        return OllamaChatJudge(model=model).score(user_content=user_content)
+    raise ValueError(
+        f"unsupported judge provider: {provider!r} " f"(supported: openai, anthropic, ollama)"
+    )
+
+
 def judge_one_episode(
     *,
     rubric: str,
@@ -425,14 +455,29 @@ def judge_one_episode(
     openai_key: str,
     anthropic_key: str,
 ) -> JudgeOutcome:
-    """Score one summary with OpenAI + Anthropic judges; mark contested if scores diverge."""
+    """Score one summary with two judges; mark contested if scores diverge.
+
+    Providers per judge are configurable via ``judge_config*.yaml``. Cross-
+    vendor diversity (see ``feedback_silver_judge_vendor_bias`` in operator
+    memory) requires the two providers to come from different model families
+    than any single candidate. For Ollama-only smokes that means picking
+    judges from different Ollama model families than the candidate.
+    """
     user_msg = _judge_user_message(rubric=rubric, transcript=transcript, summary=summary)
-    if judge_a_provider != "openai":
-        raise ValueError(f"judge_a unsupported provider: {judge_a_provider}")
-    if judge_b_provider != "anthropic":
-        raise ValueError(f"judge_b unsupported provider: {judge_b_provider}")
-    s_a = call_openai_judge(api_key=openai_key, model=judge_a_model, user_content=user_msg)
-    s_b = call_anthropic_judge(api_key=anthropic_key, model=judge_b_model, user_content=user_msg)
+    s_a = _call_judge(
+        judge_a_provider,
+        model=judge_a_model,
+        user_content=user_msg,
+        openai_key=openai_key,
+        anthropic_key=anthropic_key,
+    )
+    s_b = _call_judge(
+        judge_b_provider,
+        model=judge_b_model,
+        user_content=user_msg,
+        openai_key=openai_key,
+        anthropic_key=anthropic_key,
+    )
     contested = abs(s_a - s_b) > DIVERGENCE_THRESHOLD
     return JudgeOutcome(judge_a=s_a, judge_b=s_b, contested=contested)
 
