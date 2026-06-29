@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Autoresearch Track A: run summarization eval + optional dual LLM judges, emit one scalar.
 
-Runs ``scripts/eval/run_experiment.py`` from the repo root (reuse metrics stack).
+Runs ``scripts/eval/experiment/run_experiment.py`` from the repo root (reuse metrics stack).
 ``--dry-run`` skips judge API calls and re-scores an existing run (``--score-only``).
 
 Environment (see ``config/examples/.env.example``):
@@ -76,7 +76,7 @@ def _run_subprocess(
 ) -> None:
     cmd = [
         sys.executable,
-        str(REPO_ROOT / "scripts/eval/run_experiment.py"),
+        str(REPO_ROOT / "scripts/eval/experiment/run_experiment.py"),
         str(merged_config),
         "--reference",
         reference_id,
