@@ -83,6 +83,12 @@ jobs:
         # Uses ~markodragoljevic/bin/gpu-mode-swap.sh (the runner's
         # gha-runner user has docker-group membership + read access to
         # the script, set up out-of-band on the DGX host).
+        # GPU_MODE_DOCKER=docker — the script defaults to ``sudo docker``,
+        # but the runner's systemd unit has NoNewPrivileges=true which
+        # blocks sudo. gha-runner is in the docker group, so the bare
+        # ``docker`` command works without sudo.
+        env:
+          GPU_MODE_DOCKER: docker
         run: |
           bash ~markodragoljevic/bin/gpu-mode-swap.sh idle
           bash ~markodragoljevic/bin/gpu-mode-swap.sh status
@@ -203,6 +209,8 @@ jobs:
         # ``if: always()`` so even a failed sweep restores vLLM — other
         # autoresearch consumers shouldn't pay for our sweep's failure.
         if: always()
+        env:
+          GPU_MODE_DOCKER: docker
         run: |
           bash ~markodragoljevic/bin/gpu-mode-swap.sh research
           bash ~markodragoljevic/bin/gpu-mode-swap.sh status
