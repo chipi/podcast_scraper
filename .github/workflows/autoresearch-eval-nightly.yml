@@ -72,6 +72,21 @@ jobs:
           curl -fsS --max-time 5 "http://${host}:11434/api/tags" | head -c 200
           echo
 
+      - name: DGX → idle mode (stop vllm-autoresearch, free ~73 GB for Ollama)
+        # Without this, the persistent vllm-autoresearch container holds
+        # 73 GB of the 128 GB GPU 24/7, leaving only ~55 GB for Ollama
+        # (judges + candidates), which causes CUDA OOM cascades across
+        # the cohort. ``idle`` mode brings vLLM down; matching ``research``
+        # step at the END (always-run) restores it. ~1 hr/week of vLLM
+        # downtime during the Monday sweep window — accepted trade-off.
+        #
+        # Uses ~markodragoljevic/bin/gpu-mode-swap.sh (the runner's
+        # gha-runner user has docker-group membership + read access to
+        # the script, set up out-of-band on the DGX host).
+        run: |
+          bash ~markodragoljevic/bin/gpu-mode-swap.sh idle
+          bash ~markodragoljevic/bin/gpu-mode-swap.sh status
+
       - name: Materialize smoke dataset
         # curated_5feeds_smoke_v2 is the dataset every cohort candidate
         # scores against. Materialized tree is gitignored; sources are
@@ -183,6 +198,14 @@ jobs:
           done
           echo "::error::push still failing after 3 rebase attempts"
           exit 1
+
+      - name: DGX → research mode (restore vllm-autoresearch, free Ollama GPU back)
+        # ``if: always()`` so even a failed sweep restores vLLM — other
+        # autoresearch consumers shouldn't pay for our sweep's failure.
+        if: always()
+        run: |
+          bash ~markodragoljevic/bin/gpu-mode-swap.sh research
+          bash ~markodragoljevic/bin/gpu-mode-swap.sh status
 
       - name: Upload sweep ledger artifact
         if: always()

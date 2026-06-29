@@ -1,14 +1,17 @@
-# Ollama-only judge config — used by the DGX autoresearch smoke.
+# Ollama-only judge config — used by the DGX autoresearch sweep.
 #
-# Cross-family choice (preserves the vendor-bias-mitigation spirit even
-# within Ollama): judge_a is Google's Gemma, judge_b is Mistral. The
-# candidate (in autoresearch_prompt_ollama_smoke_bullets_v1.yaml) is
-# Meta's Llama. Three different model families → judge disagreement is
-# meaningful signal, not style mirroring.
+# Cross-family choice (preserves vendor-bias-mitigation): Gemma 27B
+# (Google) and Mistral Small 24B (Mistral AI). Mid-size, high-fidelity.
 #
-# Both judges run on the DGX Ollama instance (OLLAMA_API_BASE env var
-# resolves to http://dgx-llm-1.tail6d0ed4.ts.net:11434/v1 in CI).
-# No API keys needed.
+# The workflow swaps DGX into ``idle`` mode (gpu-mode-swap.sh idle)
+# BEFORE the sweep — this stops the vllm-autoresearch container which
+# normally holds ~73 GB of the 128 GB GPU 24/7. With vLLM down, Ollama
+# has the whole GPU, so even the big judges + a 32 GB candidate fit.
+# After the sweep, the workflow restores ``research`` mode (vLLM back
+# up) — minimal disruption to other autoresearch consumers (~1 hr/week
+# of vLLM downtime during the Monday sweep window).
+#
+# Both judges run on DGX Ollama via OpenAI-compat /v1 endpoint.
 
 judge_a:
   provider: ollama
