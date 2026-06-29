@@ -62,11 +62,15 @@ test.describe('viewer auth + roles (mocked API)', () => {
     await expect(page.getByTestId('main-tab-digest')).toHaveCount(0)
   })
 
-  test('creator → shell with Dashboard, but no Ops/Admin tabs', async ({ page }) => {
+  test('creator → base shell only (digest/library/graph); no Dashboard/Ops/Admin', async ({
+    page,
+  }) => {
     await signInAs(page, 'creator')
     await page.goto('/')
     await expect(page.getByTestId('main-tab-digest')).toBeVisible()
-    await expect(page.getByTestId('main-tab-dashboard')).toBeVisible()
+    await expect(page.getByTestId('main-tab-library')).toBeVisible()
+    await expect(page.getByTestId('main-tab-graph')).toBeVisible()
+    await expect(page.getByTestId('main-tab-dashboard')).toHaveCount(0)
     await expect(page.getByTestId('main-tab-ops')).toHaveCount(0)
     await expect(page.getByTestId('main-tab-admin')).toHaveCount(0)
     // user menu shows the role
@@ -74,9 +78,10 @@ test.describe('viewer auth + roles (mocked API)', () => {
     await expect(page.getByTestId('user-menu-role')).toHaveText('Creator')
   })
 
-  test('admin → Ops + Admin tabs; Admin opens the user table', async ({ page }) => {
+  test('admin → Dashboard + Ops + Admin tabs; Admin opens the user table', async ({ page }) => {
     await signInAs(page, 'admin')
     await page.goto('/')
+    await expect(page.getByTestId('main-tab-dashboard')).toBeVisible()
     await expect(page.getByTestId('main-tab-ops')).toBeVisible()
     const adminTab = page.getByTestId('main-tab-admin')
     await expect(adminTab).toBeVisible()

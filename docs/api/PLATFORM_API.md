@@ -224,14 +224,22 @@ capture (RFC-101 §1).
 
 ---
 
-## Operator API hardening (separate surface)
+## Operator API — admin-only (separate surface)
 
-The operator write routes (`PUT /api/feeds`, `PUT /api/operator-config`, `POST /api/jobs*`,
-`POST /api/index/rebuild`) gain optional **API-key auth** + an **audit trail** (#1071):
+The operator API backs the viewer's **admin-only** surfaces (Dashboard, Ops, Configuration). It
+covers `/api/feeds`, `/api/operator-config`, `/api/ops`, `/api/jobs*`, `/api/scheduled-jobs`,
+`/api/enrichment/config`, `/api/index/rebuild` — **reads and writes** (#1071, admin gating #1128):
 
-- `APP_OPERATOR_API_KEY` set → those routes require a matching `X-Operator-Key` header (else
-  **401**); unset → key check skipped (Tailscale-only model, backward-compatible).
+- **Access rule:** a request is allowed with a valid **admin session** (the shared `lp_session`
+  cookie → `role == admin`) **OR** a valid operator **key** (`X-Operator-Key` matching
+  `APP_OPERATOR_API_KEY`). Otherwise **403**. Either credential grants access — browser admins use
+  their session; headless automation can use the key.
+- **Enforced only when it can be:** the gate activates when platform auth is configured (a session
+  secret + per-user data dir) **or** a key is set. A bare deployment with neither keeps the prior
+  network-only (Tailscale, RFC-082) behavior — no lockout on upgrade.
 - Every mutating operator request is appended to `<APP_DATA_DIR>/audit.jsonl` (best-effort).
+- Roles: `listener` (player only) < `creator` (viewer base) < `admin` (+ Dashboard/Ops/Config/users).
+  Bootstrap admins via `APP_ADMIN_EMAILS`.
 
 ---
 
@@ -246,7 +254,8 @@ The operator write routes (`PUT /api/feeds`, `PUT /api/operator-config`, `POST /
 | `APP_OAUTH_GOOGLE_CLIENT_ID` / `_SECRET` | _(unset → login 503)_ | Google OAuth app credentials. |
 | `APP_OAUTH_MOCK_EMAIL` / `_SUBJECT` / `_NAME` | `dev@localhost` / `dev-local` / `Dev User` | Override the mock provider's dev identity (only when `APP_OAUTH_PROVIDER=mock`). |
 | `APP_SIGNUP_MODE` / `APP_ALLOWED_EMAILS` / `APP_ALLOWED_DOMAINS` | `allowlist` / — / — | Access control. |
-| `APP_OPERATOR_API_KEY` | _(unset → no key check)_ | Operator write-path API key. |
+| `APP_ADMIN_EMAILS` | _(unset → no bootstrap admins)_ | CSV of emails granted `admin` on login. |
+| `APP_OPERATOR_API_KEY` | _(unset)_ | Operator API key — an alternative to an admin session for the admin-only operator routes. |
 
 ---
 

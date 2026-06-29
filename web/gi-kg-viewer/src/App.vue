@@ -615,7 +615,7 @@ watch(
                   ? 'bg-primary text-primary-foreground'
                   : 'text-elevated-foreground hover:bg-overlay'
               "
-              v-if="auth.role === 'creator' || auth.isAdmin"
+              v-if="auth.isAdmin"
               data-testid="main-tab-dashboard"
               @click="mainTab = 'dashboard'"
             >
@@ -805,7 +805,7 @@ watch(
             />
           </keep-alive>
           <div
-            v-if="mainTab === 'dashboard' && (auth.role === 'creator' || auth.isAdmin)"
+            v-if="mainTab === 'dashboard' && auth.isAdmin"
             class="h-full min-h-0 max-w-full flex-1 overflow-x-hidden overflow-y-auto p-3"
           >
             <DashboardView
