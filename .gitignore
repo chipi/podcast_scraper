@@ -181,8 +181,11 @@ data/eval-old/
 # Evaluation results
 data/results-old/
 
-# Evaluation materialized outputs
-data/eval/materialized/
+# Evaluation materialized outputs (ignore contents, but track the README
+# template — dataset-materialize requires it on disk to write per-dataset
+# README files; without it CI fails before any model load runs).
+data/eval/materialized/*
+!data/eval/materialized/MATERIALIZED_DATASET_README_TEMPLATE.md
 
 # Evaluation runs (ignore contents, but the marker note IS tracked).
 # The marker warns future-you about the pre-fix scoreboards captured during
