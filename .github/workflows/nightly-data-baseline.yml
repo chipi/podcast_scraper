@@ -109,24 +109,63 @@ jobs:
               --benchmark-run-dir "${{ steps.latest_run.outputs.path }}"
 
       - name: Commit snapshot to main
+        # Uses a dedicated BASELINES_COMMIT_TOKEN (fine-grained PAT with
+        # Contents:write on this repo), added as a ruleset bypass actor
+        # so the bot can push direct without going through PR review.
+        # Mirrors the pattern infra-apply.yml uses for terraform.tfstate.enc.
+        #
+        # Path-scoping is enforced HERE in code (not by token capability —
+        # fine-grained PATs don't support path restrictions natively):
+        # the staged-paths guard below fails the job if anything outside
+        # data/baselines/ slipped into the staging area. Combined with the
+        # CODEOWNERS gate on this workflow file (.github/CODEOWNERS), the
+        # only way to expand the bot's write surface is a PR you approve.
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASELINES_COMMIT_TOKEN: ${{ secrets.BASELINES_COMMIT_TOKEN }}
         run: |
           set -e
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Use ``git status --porcelain`` (covers untracked + modified) instead
-          # of ``git diff`` (tracked-only). A brand-new baseline file is
-          # untracked, so the old ``git diff --quiet`` check skipped the
-          # commit on every fresh-week run.
+          if [ -z "${BASELINES_COMMIT_TOKEN:-}" ]; then
+            echo "::error::BASELINES_COMMIT_TOKEN secret not set — operator must create a fine-grained PAT (Contents:write on this repo) and register it as a ruleset bypass actor. See docs."
+            exit 1
+          fi
+          git config user.name  "baselines-commit-bot"
+          git config user.email "baselines-commit-bot@noreply.github.com"
+          # ``git status --porcelain`` covers untracked + modified; ``git diff``
+          # alone (tracked-only) silently skips brand-new snapshot files.
           if [ -z "$(git status --porcelain -- data/baselines/)" ]; then
             echo "no changes under data/baselines/; skipping commit"
             exit 0
           fi
           WEEK=$(date -u +'%G-W%V')
           git add data/baselines/
+          # Defense-in-depth: refuse to push anything outside data/baselines/.
+          # The only legitimate side-effect of this job is a new baseline
+          # JSON. If staging picked up anything else, that's a tamper signal
+          # — fail loudly before we ever talk to GitHub.
+          OUTSIDE=$(git diff --cached --name-only | grep -v '^data/baselines/' || true)
+          if [ -n "$OUTSIDE" ]; then
+            echo "::error::staged paths outside data/baselines/ — refusing to push:"
+            echo "$OUTSIDE"
+            exit 1
+          fi
           git commit -m "chore(baselines): weekly snapshot ${WEEK}"
-          git push origin HEAD:main
+          REMOTE="https://x-access-token:${BASELINES_COMMIT_TOKEN}@github.com/${{ github.repository }}.git"
+          # Rebase-on-conflict (concurrent commits to main during our compose).
+          for attempt in 1 2 3; do
+            if git push "$REMOTE" HEAD:main 2>&1; then
+              echo "push succeeded on attempt ${attempt}"
+              exit 0
+            fi
+            echo "push rejected — pulling main with rebase (attempt ${attempt})"
+            git fetch "$REMOTE" main
+            if ! git rebase FETCH_HEAD; then
+              echo "::error::rebase conflict under data/baselines/ — another snapshot pushed concurrently. Aborting."
+              git rebase --abort
+              exit 1
+            fi
+          done
+          echo "::error::push still failing after 3 rebase attempts"
+          exit 1
 
       - name: Upload snapshot artifact
         if: always()

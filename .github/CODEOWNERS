@@ -1,0 +1,20 @@
+# CODEOWNERS — operator review required for paths listed below.
+#
+# Combined with the ``main`` ruleset (which requires PRs for direct pushes),
+# this is the gate that keeps the BASELINES_COMMIT_TOKEN-bypass bot from
+# escaping its data/baselines/* sandbox: any PR that would let the
+# nightly-data-baseline job stage non-baseline paths requires operator
+# approval before it can land.
+#
+# Pattern order matters — later entries override earlier ones.
+
+# Default: anyone can review. Specific gated paths below.
+*  @chipi
+
+# Baseline workflow + scripts — gate against tampering that would expand
+# the bot's write surface beyond data/baselines/*.
+.github/workflows/nightly-data-baseline.yml  @chipi
+scripts/baselines/**                          @chipi
+
+# CODEOWNERS itself — don't let it edit itself away.
+.github/CODEOWNERS                            @chipi
