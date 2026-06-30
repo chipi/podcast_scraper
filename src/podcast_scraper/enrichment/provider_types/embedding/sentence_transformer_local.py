@@ -78,11 +78,13 @@ register_provider_type(
         "properties": {
             "model": {
                 "type": "string",
+                "default": "all-MiniLM-L6-v2",
                 "description": "sentence-transformers model id (e.g. 'all-MiniLM-L6-v2').",
             },
             "device": {
                 "type": "string",
                 "enum": ["cpu", "cuda", "mps"],
+                "default": "cpu",
                 "description": "torch device. Omit to let sentence-transformers pick.",
             },
         },
