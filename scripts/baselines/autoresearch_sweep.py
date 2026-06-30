@@ -73,6 +73,50 @@ def _resolve_per_model_prompts(candidate_model: str) -> tuple[str, str] | None:
     return None
 
 
+def _print_leaderboard(ledger: dict[str, Any]) -> None:
+    """Print the markdown leaderboard to stdout, same shape as the GHA summary.
+
+    Operator runs the sweep locally with ``--print-leaderboard`` and sees the
+    table inline — no GHA round-trip required.
+    """
+    ja = ledger["judges"].get("judge_a") or {}
+    jb = ledger["judges"].get("judge_b") or {}
+    out = []
+    out.append(f"## Autoresearch sweep — {ledger.get('week_id')}")
+    out.append("")
+    out.append(f"**Silver:** `{ledger.get('silver')}`")
+    out.append(f"**Dataset:** `{ledger.get('dataset')}`")
+    out.append(f"**Judge A:** `{ja.get('model')}`  (provider=`{ja.get('provider')}`)")
+    out.append(f"**Judge B:** `{jb.get('model')}`  (provider=`{jb.get('provider')}`)")
+    out.append("")
+    out.append("### Leaderboard")
+    out.append("")
+    out.append(
+        "| candidate | family | prompts | final | rougeL | jA | jB | Δjudges " "| p95 (ms) | flag |"
+    )
+    out.append("|---|---|---|---:|---:|---:|---:|---:|---:|---|")
+    cohort = ledger.get("cohort") or []
+    for r in sorted(cohort, key=lambda x: -(x.get("scores", {}).get("final") or -1)):
+        sc = r.get("scores") or {}
+        lat = r.get("latency_ms") or {}
+        prompts = r.get("prompts_source", "?")
+        if r.get("status") != "ok":
+            out.append(
+                f"| `{r.get('model')}` | {r.get('family', '?')} | {prompts} "
+                f"| — | — | — | — | — | — | ⚠ {r.get('status')} |"
+            )
+            continue
+        flag = "⚠ same-family" if r.get("same_family_judge") else ""
+        out.append(
+            f"| `{r.get('model')}` | {r.get('family', '?')} | {prompts} "
+            f"| {sc.get('final', 0):.4f} | {sc.get('rougeL_f1', 0):.4f} "
+            f"| {sc.get('judge_a_mean') or 0:.3f} | {sc.get('judge_b_mean') or 0:.3f} "
+            f"| {sc.get('judges_delta') or 0:.3f} | {lat.get('p95') or 0:.0f} "
+            f"| {flag} |"
+        )
+    print("\n".join(out))
+
+
 def _materialize_candidate_config(
     base_config_path: Path, candidate_model: str, out_dir: Path
 ) -> tuple[Path, str] | tuple[None, str]:
@@ -231,6 +275,15 @@ def main() -> int:
         default=None,
         help="Run only first N candidates (overrides cohort.default_limit)",
     )
+    parser.add_argument(
+        "--print-leaderboard",
+        action="store_true",
+        help=(
+            "After the sweep, print the markdown leaderboard table to stdout "
+            "(same shape the GHA workflow prints to $GITHUB_STEP_SUMMARY). "
+            "Designed for local iteration — see ``make autoresearch-sweep-local``."
+        ),
+    )
     args = parser.parse_args()
 
     cohort_doc = load_yaml(args.cohort)
@@ -293,6 +346,10 @@ def main() -> int:
 
     ok_count = sum(1 for r in sweep_results if r.get("status") == "ok")
     logger.info("Cohort summary: %d/%d candidates OK", ok_count, len(sweep_results))
+
+    if args.print_leaderboard:
+        print()  # blank line between log lines and the markdown table
+        _print_leaderboard(ledger)
     # Exit 0 even on per-candidate failures — the ledger captures them as
     # ``status != ok`` rows and the drift check / issue management handles
     # surfacing them. Sweep exits non-zero only on driver-level errors

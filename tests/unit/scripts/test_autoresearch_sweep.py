@@ -116,3 +116,83 @@ def test_materialize_candidate_config_returns_none_when_prompts_missing(monkeypa
     cfg_path, source = sweep._materialize_candidate_config(base_config, "ghost:1b", out_dir)
     assert cfg_path is None
     assert source == "missing_prompts"
+
+
+def test_print_leaderboard_renders_markdown_table(capsys):
+    """``--print-leaderboard`` must render the same shape the GHA workflow
+    emits to $GITHUB_STEP_SUMMARY — local iteration sees identical output
+    to what nightly produces."""
+    ledger = {
+        "week_id": "2026-W27",
+        "silver": "silver_sonnet46_smoke_v2",
+        "dataset": "curated_5feeds_smoke_v2",
+        "judges": {
+            "judge_a": {"provider": "ollama", "model": "gemma3:27b-it-q8_0"},
+            "judge_b": {"provider": "ollama", "model": "mistral-small:24b"},
+        },
+        "cohort": [
+            {
+                "model": "phi4:14b",
+                "family": "Microsoft",
+                "status": "ok",
+                "prompts_source": "tuned",
+                "scores": {
+                    "final": 0.7654,
+                    "rougeL_f1": 0.451,
+                    "judge_a_mean": 0.97,
+                    "judge_b_mean": 0.98,
+                    "judges_delta": 0.01,
+                },
+                "latency_ms": {"p95": 24946.0},
+                "same_family_judge": False,
+            },
+            {
+                "model": "hermes3:8b",
+                "family": "Nous",
+                "status": "missing_prompts",
+                "prompts_source": "missing_prompts",
+            },
+        ],
+    }
+    sweep._print_leaderboard(ledger)
+    out = capsys.readouterr().out
+    assert "## Autoresearch sweep — 2026-W27" in out
+    assert "| candidate | family | prompts |" in out
+    # phi4 row — highest final score sorts first.
+    assert "`phi4:14b`" in out
+    assert "0.7654" in out
+    # missing_prompts row falls through to the failure path.
+    assert "⚠ missing_prompts" in out
+    # Order matters: phi4 (ok) appears before hermes3 (missing).
+    assert out.index("phi4:14b") < out.index("hermes3:8b")
+
+
+def test_print_leaderboard_sorts_descending_by_final(capsys):
+    """Two ok candidates with different final scores → higher one appears first."""
+    ledger = {
+        "week_id": "2026-W27",
+        "silver": "s",
+        "dataset": "d",
+        "judges": {"judge_a": {}, "judge_b": {}},
+        "cohort": [
+            {
+                "model": "lower:7b",
+                "family": "X",
+                "status": "ok",
+                "prompts_source": "tuned",
+                "scores": {"final": 0.50},
+                "latency_ms": {},
+            },
+            {
+                "model": "higher:8b",
+                "family": "Y",
+                "status": "ok",
+                "prompts_source": "tuned",
+                "scores": {"final": 0.80},
+                "latency_ms": {},
+            },
+        ],
+    }
+    sweep._print_leaderboard(ledger)
+    out = capsys.readouterr().out
+    assert out.index("higher:8b") < out.index("lower:7b")

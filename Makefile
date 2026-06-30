@@ -59,7 +59,7 @@ PYTEST_WORKERS ?= 2
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e build-viewer serve-app serve-app-dev test-app test-app-e2e build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
+.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-sweep-local autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e build-viewer serve-app serve-app-dev test-app test-app-e2e build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
 
 help:
 	@echo "Common developer commands:"
@@ -3096,6 +3096,51 @@ ml-param-sweep:
 	if [ -n "$(LOG_LEVEL)" ]; then cmd="$$cmd --log-level $(LOG_LEVEL)"; fi; \
 	echo "Running ML param sweep for MODEL=$(MODEL)..."; \
 	eval $$cmd
+
+autoresearch-sweep-local:
+	@# Run the full weekly autoresearch sweep from the laptop, without GHA
+	@# round-trip. Mirrors .github/workflows/autoresearch-eval-nightly.yml's
+	@# core phases (dataset materialize → sweep → drift check → leaderboard)
+	@# minus the docker stop/start (which needs DGX-runner privileges) and
+	@# minus the ledger commit (local iteration, don't pollute git).
+	@#
+	@# Usage:
+	@#   make autoresearch-sweep-local                # full cohort
+	@#   make autoresearch-sweep-local LIMIT=1        # smoke first candidate only
+	@#   make autoresearch-sweep-local LIMIT=3        # smoke first 3
+	@#
+	@# Required env (on tailnet to reach DGX):
+	@#   OLLAMA_API_BASE=http://<dgx-tailnet>:11434/v1  OR
+	@#   DGX_TAILNET_FQDN=<dgx-tailnet-fqdn>           (resolved → :11434/v1)
+	@#
+	@# Sweep contends with vLLM if it's up — stop ``vllm-autoresearch`` on
+	@# DGX first for clean numbers (operator step, since laptop typically
+	@# lacks docker access to DGX).
+	@if [ -z "$$OLLAMA_API_BASE" ] && [ -z "$$DGX_TAILNET_FQDN" ]; then \
+		echo "❌ Set OLLAMA_API_BASE or DGX_TAILNET_FQDN (must be on tailnet)."; \
+		exit 1; \
+	fi
+	@echo "→ Materializing curated_5feeds_smoke_v2 dataset"
+	@$(MAKE) dataset-materialize DATASET_ID=curated_5feeds_smoke_v2
+	@echo ""
+	@echo "→ Running cohort sweep (per-model tuned paragraph prompts + Ollama judges)"
+	@if [ -n "$(LIMIT)" ]; then \
+		echo "  Limit: first $(LIMIT) candidate(s)"; \
+		$(PYTHON) scripts/baselines/autoresearch_sweep.py --limit $(LIMIT) --print-leaderboard; \
+	else \
+		echo "  Limit: full cohort (or cohort.default_limit)"; \
+		$(PYTHON) scripts/baselines/autoresearch_sweep.py --print-leaderboard; \
+	fi
+	@echo ""
+	@echo "→ Drift check vs previous week's ledger"
+	@$(PYTHON) scripts/baselines/check_autoresearch_drift.py \
+		--ledger-dir data/autoresearch_baselines \
+		--thresholds data/autoresearch_baselines/drift_thresholds.yaml \
+		--output /tmp/autoresearch-drift-local.json 2>&1 | tail -10 || true
+	@echo ""
+	@echo "✓ Local sweep complete. Ledger: data/autoresearch_baselines/autoresearch-$$(date -u +'%G-W%V').json"
+	@echo "  Drift report: /tmp/autoresearch-drift-local.json"
+	@echo "  Ledger NOT committed — review + git add manually if you want to persist."
 
 autoresearch-score:
 	@# Autoresearch Track A: reuse run_experiment + metrics, then optional LLM judges; final scalar on stdout.
