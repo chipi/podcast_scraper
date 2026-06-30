@@ -1,0 +1,48 @@
+# Autoresearch Track A — paragraph summaries, Ollama backend, weekly DGX sweep.
+#
+# Base config for ``scripts/baselines/autoresearch_sweep.py``. The sweep
+# materializes a per-candidate copy and overrides both ``backend.model`` AND
+# ``prompts.{system,user}`` to point at the candidate's per-model tuned
+# templates under ``src/podcast_scraper/prompts/ollama/<model>/summarization/``.
+#
+# Why paragraph (not bullets): the per-model templates we ship in production
+# are paragraph-format (see EVAL_FINALE_SMOKE_V2_2026_06.md). Running the
+# sweep on bullets-JSON with the generic shared prompt — which is what W27
+# did — measured every candidate on someone else's prompt and saturated the
+# judges. The paragraph + tuned-prompts harness mirrors the production
+# inference path, so the sweep result actually maps to "is this model still
+# good at the task we ship it for".
+#
+# Pair with:
+#   judge config:     judge_config_dgx.yaml             (vLLM pairwise — Q3.5-35B-A3B + L3.3-70B-NVFP4)
+#   silver reference: silver_sonnet46_smoke_v2          (Anthropic Sonnet 4.6, paragraph)
+#
+# Cross-vendor stays the same — silver (Anthropic) is disjoint from any single
+# candidate AND from both vLLM judges (Alibaba + Meta). See operator memory
+# ``feedback_silver_judge_vendor_bias``.
+
+id: "autoresearch_prompt_ollama_smoke_paragraph_sweep_v1"
+task: "summarization"
+
+backend:
+  type: "ollama"
+  # Placeholder — sweep script overrides this per candidate.
+  model: "llama3.1:8b"
+
+prompts:
+  # Placeholder — sweep script overrides both to the per-model tuned templates
+  # under ollama/<model_safe>/summarization/{system,long}_v1.j2. A candidate
+  # without tuned prompts fails fast (status: missing_prompts) rather than
+  # silently using a foreign prompt — see scripts/baselines/autoresearch_sweep.py.
+  system: "ollama/llama3.1_8b/summarization/system_v1"
+  user: "ollama/llama3.1_8b/summarization/long_v1"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v2"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

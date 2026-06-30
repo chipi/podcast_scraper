@@ -9,11 +9,18 @@ one weekly ledger ``data/autoresearch_baselines/autoresearch-YYYY-WNN.json``.
 The ledger is what ``check_autoresearch_drift.py`` consumes to detect
 week-over-week regressions per candidate.
 
+Each candidate's per-model tuned paragraph templates
+(``src/podcast_scraper/prompts/ollama/<model>/summarization/{system,long}_v1.j2``)
+are wired into the materialized config — the sweep measures every candidate
+on the prompt we'd actually ship it with, not on someone else's shared prompt.
+A candidate that lacks tuned prompts fails fast (``status: missing_prompts``)
+rather than silently degrading on a foreign prompt.
+
 CLI:
   --cohort PATH            Cohort YAML (default: data/autoresearch_baselines/cohort.yaml)
-  --base-config PATH       Base experiment YAML (default: Ollama smoke bullets v1)
+  --base-config PATH       Base experiment YAML (default: Ollama smoke paragraph sweep v1)
   --judge-config PATH      Judge config (default: judge_config_ollama.yaml)
-  --reference ID           Silver reference id (default: silver_sonnet46_smoke_v2_bullets)
+  --reference ID           Silver reference id (default: silver_sonnet46_smoke_v2)
   --output PATH            Weekly ledger output (default: autoresearch-<week>.json)
   --limit N                Run only the first N candidates (overrides cohort.default_limit)
 """
@@ -43,17 +50,53 @@ def load_yaml(path: Path) -> dict[str, Any]:
     return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
 
 
+def _resolve_per_model_prompts(candidate_model: str) -> tuple[str, str] | None:
+    """Return (system_prompt_id, user_prompt_id) for the candidate's tuned
+    paragraph templates if both exist on disk, else None.
+
+    Convention: ``src/podcast_scraper/prompts/ollama/<model_safe>/summarization/
+    {system_v1,long_v1}.j2`` — same dir naming the production summarization
+    factory uses. ``model_safe`` replaces ``:`` with ``_`` but preserves dots
+    so it matches the existing dir layout (e.g. ``qwen3.5:9b`` → ``qwen3.5_9b``).
+
+    See [[project_autoresearch]] for the harness contract.
+    """
+    safe = candidate_model.replace(":", "_").replace("/", "_")
+    prompt_dir = REPO_ROOT / "src/podcast_scraper/prompts/ollama" / safe / "summarization"
+    system_file = prompt_dir / "system_v1.j2"
+    user_file = prompt_dir / "long_v1.j2"
+    if system_file.is_file() and user_file.is_file():
+        return (
+            f"ollama/{safe}/summarization/system_v1",
+            f"ollama/{safe}/summarization/long_v1",
+        )
+    return None
+
+
 def _materialize_candidate_config(
     base_config_path: Path, candidate_model: str, out_dir: Path
-) -> Path:
-    """Read base config, override backend.model + id, write to out_dir."""
+) -> tuple[Path, str] | tuple[None, str]:
+    """Read base config, override backend.model + prompts + id, write to out_dir.
+
+    Returns ``(config_path, "tuned")`` when the candidate's per-model paragraph
+    prompts exist (the normal sweep case — see _resolve_per_model_prompts).
+    Returns ``(None, "missing_prompts")`` when they don't, so the caller can
+    record a clean failure row instead of silently scoring the candidate on
+    someone else's prompt (the W27 problem).
+    """
+    resolved = _resolve_per_model_prompts(candidate_model)
+    if resolved is None:
+        return None, "missing_prompts"
+    system_id, user_id = resolved
+
     base = load_yaml(base_config_path)
     base["backend"]["model"] = candidate_model
+    base["prompts"] = {"system": system_id, "user": user_id}
     safe = candidate_model.replace(":", "_").replace("/", "_").replace(".", "_")
-    base["id"] = f"autoresearch_prompt_ollama_{safe}_smoke_bullets_sweep"
+    base["id"] = f"autoresearch_prompt_ollama_{safe}_smoke_paragraph_sweep"
     out_path = out_dir / f"config_{safe}.yaml"
     out_path.write_text(yaml.safe_dump(base, sort_keys=False), encoding="utf-8")
-    return out_path
+    return out_path, "tuned"
 
 
 def _run_candidate(
@@ -71,7 +114,25 @@ def _run_candidate(
     logger.info("Candidate: %s (%s)", model, family)
     logger.info("=" * 70)
 
-    cfg_path = _materialize_candidate_config(base_config_path, model, tmp_dir)
+    cfg_path, prompts_source = _materialize_candidate_config(base_config_path, model, tmp_dir)
+    if cfg_path is None:
+        # Per-model tuned prompts missing — fail fast so the operator gets a
+        # clean signal instead of a quietly-degraded score. New cohort members
+        # should ship their tuned templates first; see [[project_autoresearch]].
+        logger.error(
+            "Candidate %s: no tuned prompts under "
+            "src/podcast_scraper/prompts/ollama/%s/summarization/; "
+            "skipping (status=missing_prompts)",
+            model,
+            model.replace(":", "_").replace("/", "_"),
+        )
+        return {
+            "model": model,
+            "family": family,
+            "status": "missing_prompts",
+            "prompts_source": prompts_source,
+            "wall_clock_s": 0.0,
+        }
     output_json = tmp_dir / f"output_{model.replace(':', '_')}.json"
 
     started = time.time()
@@ -103,6 +164,7 @@ def _run_candidate(
             "family": family,
             "status": "failed",
             "exit_code": proc.returncode,
+            "prompts_source": prompts_source,
             "wall_clock_s": round(elapsed, 1),
         }
 
@@ -112,6 +174,7 @@ def _run_candidate(
             "model": model,
             "family": family,
             "status": "no_output",
+            "prompts_source": prompts_source,
             "wall_clock_s": round(elapsed, 1),
         }
 
@@ -119,6 +182,7 @@ def _run_candidate(
     breakdown["status"] = "ok"
     breakdown["wall_clock_s"] = round(elapsed, 1)
     breakdown["family"] = family
+    breakdown["prompts_source"] = prompts_source
     return breakdown
 
 
@@ -140,8 +204,8 @@ def main() -> int:
         type=Path,
         default=(
             REPO_ROOT
-            / "data/eval/configs/summarization_bullets"
-            / "autoresearch_prompt_ollama_smoke_bullets_v1.yaml"
+            / "data/eval/configs/summarization"
+            / "autoresearch_prompt_ollama_smoke_paragraph_sweep_v1.yaml"
         ),
     )
     parser.add_argument(
@@ -153,7 +217,7 @@ def main() -> int:
     parser.add_argument(
         "--reference",
         type=str,
-        default="silver_sonnet46_smoke_v2_bullets",
+        default="silver_sonnet46_smoke_v2",
     )
     parser.add_argument(
         "--output",
