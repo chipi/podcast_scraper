@@ -428,6 +428,10 @@ def _call_judge(
     - ``anthropic`` — cloud API, needs ``anthropic_key``
     - ``ollama`` — local Ollama via ``OLLAMA_API_BASE`` / ``DGX_TAILNET_FQDN``,
       no key required (the runner reaches Ollama over the tailnet)
+    - ``vllm`` — local vLLM on DGX autoresearch container via ``VLLM_API_BASE`` /
+      ``DGX_TAILNET_FQDN`` (port 8003 — the autoresearch slot, NOT the
+      ``coder-next`` IDE slot which is operator-only per
+      [[project_dgx_vllm_distinction]]). No key required.
     """
     if provider == "openai":
         return call_openai_judge(api_key=openai_key, model=model, user_content=user_content)
@@ -438,8 +442,12 @@ def _call_judge(
         from podcast_scraper.evaluation.judges.ollama_chat import OllamaChatJudge
 
         return OllamaChatJudge(model=model).score(user_content=user_content)
+    if provider == "vllm":
+        from podcast_scraper.evaluation.judges.vllm_chat import VllmChatJudge
+
+        return VllmChatJudge(model=model).score(user_content=user_content)
     raise ValueError(
-        f"unsupported judge provider: {provider!r} " f"(supported: openai, anthropic, ollama)"
+        f"unsupported judge provider: {provider!r} " f"(supported: openai, anthropic, ollama, vllm)"
     )
 
 
