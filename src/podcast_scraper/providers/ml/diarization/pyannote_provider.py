@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import logging
 from typing import Any, Optional
 
@@ -112,6 +113,21 @@ class PyAnnoteDiarizationProvider:
             params["max_speakers"] = max_speakers
 
         diarization = self._pipeline({"waveform": waveform, "sample_rate": sample_rate}, **params)
+        # pyannote 4.0.6 regression: ``Pipeline.__call__`` added a batch-input branch
+        # with ``yield``, making the whole method a generator function — even for
+        # single-file input, where it still does ``return prediction`` at the bottom.
+        # In a generator that becomes ``StopIteration(prediction)`` on first next().
+        # Unwrap so 4.0.4 / 4.0.5 (plain return) and 4.0.6+ (generator return) both work.
+        if inspect.isgenerator(diarization):
+            try:
+                next(diarization)
+            except StopIteration as stop:
+                diarization = stop.value
+            else:
+                raise RuntimeError(
+                    "pyannote Pipeline.__call__ yielded for single-file input; "
+                    "expected a single prediction (DiarizeOutput or Annotation)."
+                )
         # pyannote 4.x returns a DiarizeOutput wrapper; its ``speaker_diarization``
         # is the Annotation. pyannote 3.x returned the Annotation directly.
         annotation = getattr(diarization, "speaker_diarization", diarization)
