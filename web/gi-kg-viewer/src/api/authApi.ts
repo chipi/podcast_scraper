@@ -63,6 +63,27 @@ export async function logout(): Promise<void> {
   await fetchWithTimeout(`${BASE}/auth/logout`, { method: 'POST' })
 }
 
+export interface DevUser {
+  hint: string
+  name: string
+  role: Role
+}
+
+/**
+ * Predefined dev identities for the sign-in picker — populated only when the MOCK provider is on.
+ * Never throws: any failure → `{ enabled: false }` (the UI falls back to the normal provider button).
+ */
+export async function getDevUsers(): Promise<{ enabled: boolean; users: DevUser[] }> {
+  try {
+    const res = await fetchWithTimeout(`${BASE}/auth/dev-users`)
+    if (!res.ok) return { enabled: false, users: [] }
+    const body = (await res.json()) as { enabled?: boolean; users?: DevUser[] }
+    return { enabled: body.enabled === true, users: Array.isArray(body.users) ? body.users : [] }
+  } catch {
+    return { enabled: false, users: [] }
+  }
+}
+
 // --- admin (role-gated; 403 for non-admins) -----------------------------------------------------
 
 export async function listUsers(): Promise<AdminUser[]> {

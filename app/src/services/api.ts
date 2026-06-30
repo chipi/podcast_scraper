@@ -340,8 +340,29 @@ export async function getEpisodeStats(slug: string): Promise<EpisodeStats> {
 }
 
 /** Begin the OAuth login flow (full-page redirect; Google in prod, mock in dev/e2e). */
-export function loginUrl(): string {
-  return `${BASE}/auth/login`
+export function loginUrl(as?: string): string {
+  return as ? `${BASE}/auth/login?as=${encodeURIComponent(as)}` : `${BASE}/auth/login`
+}
+
+export interface DevUser {
+  hint: string
+  name: string
+  role: string
+}
+
+/**
+ * Predefined dev identities for the sign-in picker — populated only when the MOCK provider is on.
+ * Never throws: any failure → `{ enabled: false }` (the UI shows the normal sign-in button).
+ */
+export async function getDevUsers(): Promise<{ enabled: boolean; users: DevUser[] }> {
+  try {
+    const res = await fetch(`${BASE}/auth/dev-users`, { credentials: 'include' })
+    if (!res.ok) return { enabled: false, users: [] }
+    const body = (await res.json()) as { enabled?: boolean; users?: DevUser[] }
+    return { enabled: body.enabled === true, users: Array.isArray(body.users) ? body.users : [] }
+  } catch {
+    return { enabled: false, users: [] }
+  }
 }
 
 /** Clear the session server-side (deletes the cookie). Best-effort; resolves on 204. */

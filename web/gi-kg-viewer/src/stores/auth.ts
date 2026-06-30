@@ -39,6 +39,11 @@ export const useAuthStore = defineStore('auth', () => {
     window.location.assign(loginUrl('creator', as))
   }
 
+  /** Sign in as a specific identity. `grant` null preserves an existing/seeded role (dev picker). */
+  function loginAs(hint: string, grant: Role | null = null): void {
+    window.location.assign(loginUrl(grant, hint))
+  }
+
   async function logout(): Promise<void> {
     await apiLogout()
     user.value = null
@@ -58,6 +63,7 @@ export const useAuthStore = defineStore('auth', () => {
     refresh,
     ensureLoaded,
     login,
+    loginAs,
     logout,
   }
 })

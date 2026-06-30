@@ -188,6 +188,35 @@ async def app_me(user: User = Depends(get_current_user)) -> dict[str, object]:
     return _user_dict(user)
 
 
+@router.get("/auth/dev-users")
+async def app_auth_dev_users(request: Request) -> dict[str, object]:
+    """Predefined dev identities for the sign-in picker — only when the MOCK provider is active.
+
+    With the fake (mock) OAuth provider on, the sign-in UI lets you pick a seeded user (or type a
+    custom name) and signs in as ``?as=<hint>``. With a real provider (Google), ``enabled`` is
+    ``False`` and the UI shows the normal provider button instead.
+    """
+    provider = _provider(request)
+    is_mock = getattr(provider, "name", "") == "mock"
+    users: list[dict[str, str]] = []
+    if is_mock:
+        from podcast_scraper.server.app_oauth import _safe_hint
+        from podcast_scraper.server.app_user_seed import seeds_from_env
+
+        for seed in seeds_from_env():
+            hint = _safe_hint(str(seed.get("hint", "")))
+            if not hint:
+                continue
+            users.append(
+                {
+                    "hint": hint,
+                    "name": str(seed.get("name") or hint),
+                    "role": app_roles.normalize_role(seed.get("role")),
+                }
+            )
+    return {"enabled": is_mock, "users": users}
+
+
 @router.get("/auth/status")
 async def app_auth_status(request: Request) -> dict[str, object]:
     """Whether platform auth is *configured*, plus the signed-in user (if any) — never 401s.

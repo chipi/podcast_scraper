@@ -13,9 +13,11 @@ import { expect, test } from '@playwright/test'
 test('sign in (mock OAuth), add to queue, see it in the queue view', async ({ page }) => {
   await page.goto('/')
 
-  // Real sign-in: Sign in link → login page → the actual OAuth flow (mock provider).
+  // Real sign-in: Sign in link → login page → the dev picker (mock provider) → sign in as a
+  // custom identity, which drives the actual OAuth flow (login → callback → session).
   await page.getByRole('link', { name: 'Sign in' }).click()
-  await page.getByRole('button', { name: 'Sign in' }).click()
+  await page.getByTestId('dev-custom-input').fill('queue-user')
+  await page.getByTestId('dev-custom-submit').click()
 
   // Back signed-in: the header now offers Sign out (auth-gated nav rehydrated).
   await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
