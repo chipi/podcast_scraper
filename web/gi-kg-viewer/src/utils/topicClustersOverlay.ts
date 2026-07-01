@@ -370,3 +370,63 @@ export function withTopicClustersOnDisplay(
     data: nextData,
   }
 }
+
+/**
+ * Tag Topic nodes with their THEME cluster id (co-occurrence "discussed together").
+ * Unlike the semantic clusters, theme membership is a NODE decoration (a teal ring),
+ * NOT a compound parent — Cytoscape allows only one parent per node, so themes
+ * coexist with the semantic compound boxes as a border instead. Sets
+ * ``node.themeClusterId``; ``toCytoElements`` turns that into a ``theme-member``
+ * class the stylesheet paints. Same teal ring as the player pills (--lp-theme).
+ */
+export function applyThemeClustersOverlay(
+  data: ArtifactData,
+  doc: TopicClustersDocument | null | undefined,
+): ArtifactData {
+  if (!doc || !Array.isArray(doc.clusters) || doc.clusters.length === 0) {
+    return data
+  }
+  // topic_id (bare, e.g. "topic:oil-prices") → theme cluster id ("thc:…").
+  const memberToCluster = new Map<string, string>()
+  for (const cl of doc.clusters) {
+    if (!cl || typeof cl !== 'object') {
+      continue
+    }
+    const clusterId = graphCompoundParentIdFromCluster(cl)
+    if (!clusterId) {
+      continue
+    }
+    const members = Array.isArray(cl.members) ? cl.members : []
+    for (const m of members) {
+      const tid = m && typeof m.topic_id === 'string' ? m.topic_id.trim() : ''
+      if (tid) {
+        memberToCluster.set(tid, clusterId)
+      }
+    }
+  }
+  if (memberToCluster.size === 0) {
+    return data
+  }
+  const nodes = Array.isArray(data.nodes) ? data.nodes.map((n) => ({ ...n })) : []
+  for (const n of nodes) {
+    if (!n || n.type !== 'Topic' || n.id == null) {
+      continue
+    }
+    const clusterId = memberToCluster.get(stripLayerPrefixesForCil(String(n.id)))
+    if (clusterId) {
+      ;(n as RawGraphNode & { themeClusterId?: string }).themeClusterId = clusterId
+    }
+  }
+  return { ...data, nodes }
+}
+
+/** Tag the display artifact's Topic nodes with theme-cluster ids (teal rings) when *doc* is set. */
+export function withThemeClustersOnDisplay(
+  art: ParsedArtifact | null,
+  doc: TopicClustersDocument | null | undefined,
+): ParsedArtifact | null {
+  if (!art || !doc) {
+    return art
+  }
+  return { ...art, data: applyThemeClustersOverlay(art.data, doc) }
+}

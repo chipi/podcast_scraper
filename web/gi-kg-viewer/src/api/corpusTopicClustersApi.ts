@@ -107,6 +107,34 @@ export async function fetchTopicClustersFromApi(corpusPath: string): Promise<Top
 }
 
 /**
+ * Fetch corpus ``topic_theme_clusters.json`` (co-occurrence THEME clusters) via
+ * the viewer API. Same document shape as the semantic clusters. ``missing`` on 404
+ * so the caller degrades to "no theme rings on the graph".
+ */
+export async function fetchThemeClustersFromApi(
+  corpusPath: string,
+): Promise<TopicClustersFetchResult> {
+  const url = `/api/corpus/theme-clusters${corpusQuery(corpusPath)}`
+  try {
+    const res = await dedupeInFlight(url, () =>
+      fetchWithTimeout(url, undefined, { timeoutDetail: 'corpus/theme-clusters' }),
+    )
+    if (res.status === 404) {
+      return { status: 'missing' }
+    }
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      return { status: 'error', message: text.trim() || `HTTP ${res.status} theme-clusters` }
+    }
+    const document = (await res.json()) as TopicClustersDocument
+    return { status: 'ok', document }
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e)
+    return { status: 'error', message }
+  }
+}
+
+/**
  * Fetch corpus ``topic_clusters.json`` via the viewer API. Returns null on 404; throws on other errors.
  * @deprecated Prefer :func:`fetchTopicClustersFromApi` for load status and schema warnings.
  */

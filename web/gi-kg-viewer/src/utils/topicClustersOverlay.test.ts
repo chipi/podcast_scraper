@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ParsedArtifact } from '../types/artifact'
 import { filterArtifactEgoOneHop } from './parsing'
 import {
+  applyThemeClustersOverlay,
   applyTopicClustersOverlay,
   clusterTimelineCilTopicIdsForCluster,
   clusterTimelineCilTopicIdsFromMemberRows,
@@ -57,6 +58,47 @@ describe('applyTopicClustersOverlay', () => {
     const data = { nodes: [], edges: [] }
     expect(applyTopicClustersOverlay(data, null)).toBe(data)
     expect(applyTopicClustersOverlay(data, {})).toEqual(data)
+  })
+})
+
+describe('applyThemeClustersOverlay', () => {
+  it('tags member Topic nodes with themeClusterId (a ring, NOT a compound parent)', () => {
+    const data = {
+      nodes: [
+        { id: 'k:topic:alpha', type: 'Topic', properties: { label: 'Alpha' } },
+        { id: 'k:topic:beta', type: 'Topic', properties: { label: 'Beta' } },
+      ],
+      edges: [],
+    }
+    const doc = {
+      clusters: [
+        {
+          cluster_type: 'theme',
+          graph_compound_parent_id: 'thc:energy',
+          canonical_label: 'energy',
+          members: [{ topic_id: 'topic:alpha' }],
+        },
+      ],
+    }
+    const out = applyThemeClustersOverlay(data, doc)
+    // No new nodes added (unlike the semantic compound parents) — just a decoration.
+    expect(out.nodes?.length).toBe(2)
+    const alpha = out.nodes?.find((n) => String(n.id) === 'k:topic:alpha') as {
+      themeClusterId?: string
+    }
+    expect(alpha?.themeClusterId).toBe('thc:energy')
+    const beta = out.nodes?.find((n) => String(n.id) === 'k:topic:beta') as {
+      themeClusterId?: string
+    }
+    expect(beta?.themeClusterId).toBeUndefined()
+    // The member node is NOT re-parented (coexists with any semantic box).
+    expect((out.nodes?.[0] as { parent?: string })?.parent).toBeUndefined()
+  })
+
+  it('returns data unchanged when doc empty', () => {
+    const data = { nodes: [], edges: [] }
+    expect(applyThemeClustersOverlay(data, null)).toBe(data)
+    expect(applyThemeClustersOverlay(data, {})).toEqual(data)
   })
 })
 
