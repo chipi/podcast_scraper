@@ -19,7 +19,7 @@ The CLI:
 1. Loads the operator YAML and validates the ``enrichment:`` block
    against ``config/schema/enrichment.schema.json``.
 2. Builds an EnricherSet from the YAML.
-3. Registers the six deterministic enrichers via
+3. Registers the seven deterministic enrichers via
    :func:`enrichers.register_deterministic_enrichers`. ML / external
    enrichers (topic_similarity, nli_contradiction) need provider /
    scorer wiring and are registered by callers that supply it.

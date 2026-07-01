@@ -39,7 +39,7 @@ ALL_DETERMINISTIC_ENRICHER_IDS: tuple[str, ...] = (
 
 
 def register_deterministic_enrichers(registry: EnricherRegistry) -> None:
-    """Register all six deterministic enrichers on *registry*.
+    """Register all seven deterministic enrichers on *registry*.
 
     Idempotent in the sense that the registry's ``register()`` raises
     on duplicate ids — call once per registry instance.
