@@ -20,6 +20,7 @@ import PlayerControls from '../components/PlayerControls.vue'
 import TranscriptList from '../components/TranscriptList.vue'
 import FavoriteButton from '../components/FavoriteButton.vue'
 import { activeInsightIndex, groundedSpansBySegment } from '../player/insights'
+import { insightScrubberMarkers } from '../player/insightMarkers'
 import { activeSegmentIndex, PLAYBACK_RATES } from '../player/transcriptSync'
 import type { ParagraphSpan } from '../player/transcriptCapture'
 import {
@@ -79,6 +80,8 @@ const compact = (n: number): string =>
 
 // Transcript ↔ insight bridge: which segments back a grounded insight (highlight + tap-through).
 const groundedSpans = computed(() => groundedSpansBySegment(segments.value, insights.value))
+// #1140: insight-density ticks for the scrubber ("skip guide" — where the substance is).
+const insightMarkers = computed(() => insightScrubberMarkers(insights.value, duration.value))
 
 function openInsight(insightId: string): void {
   panelOpen.value = true
@@ -485,6 +488,7 @@ onBeforeUnmount(() => {
           :current-time="currentTime"
           :duration="duration"
           :rate="rate"
+          :markers="insightMarkers"
           @toggle="toggle"
           @seek="seek"
           @skip="skip"

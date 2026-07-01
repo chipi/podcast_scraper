@@ -6,6 +6,7 @@
  */
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import type { InsightMarker } from '../player/insightMarkers'
 import { formatTime, PLAYBACK_RATES } from '../player/transcriptSync'
 
 const props = defineProps<{
@@ -13,6 +14,8 @@ const props = defineProps<{
   currentTime: number
   duration: number
   rate: number
+  /** Insight density ticks (#1140 skip-guide) — where the substance is. */
+  markers?: InsightMarker[]
 }>()
 const emit = defineEmits<{
   (e: 'toggle'): void
@@ -31,6 +34,23 @@ function onScrub(ev: Event): void {
 
 <template>
   <div class="rounded-2xl border border-border bg-surface p-4">
+    <!-- Insight density (#1140 "skip guide"): a tick per insight at its moment; clusters show
+         where the substance is. Grounded → accent colour; opacity = confidence (the "weight"). -->
+    <div
+      v-if="(markers?.length ?? 0) > 0"
+      class="relative mb-1 h-2.5 w-full"
+      role="img"
+      data-testid="player-insight-density"
+      :aria-label="t('player.insightDensity', { count: markers?.length ?? 0 })"
+    >
+      <span
+        v-for="m in markers"
+        :key="m.id"
+        class="absolute top-0 h-2.5 w-[2px] -translate-x-1/2 rounded-full"
+        :class="m.grounded ? 'bg-accent' : 'bg-muted'"
+        :style="{ left: m.pct + '%', opacity: m.weight }"
+      />
+    </div>
     <input
       type="range"
       min="0"

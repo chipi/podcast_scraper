@@ -98,6 +98,7 @@
     "forward30": "Skip forward 30 seconds",
     "speed": "Playback speed",
     "scrubber": "Seek",
+    "insightDensity": "Insight density — {count} insights marked at their moments in the episode",
     "speakingNow": "Speaking now",
     "insightNow": "Insight now",
     "grounded": "Grounded",
