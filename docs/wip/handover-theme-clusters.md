@@ -98,12 +98,46 @@ sibling for themes:
 
 ---
 
+## Cluster-member timeline for theme clusters (operator Q, 2026-07-01)
+Semantic clusters have a member timeline ("when/how a topic landed in the
+cluster"). **Do the same for theme clusters — and it's a better fit:**
+- Semantic membership is ~timeless (topics that *mean* alike don't change).
+- A **theme is a storyline** — it emerges, peaks, fades. So "when was this theme
+  live" is genuinely informative and maps onto `temporal_velocity`.
+- **Data already exists:** each theme-cluster member carries `episode_ids`
+  (emitted by `topic_theme_clusters`). Map those → episode `publish_date` → a
+  per-member / per-theme timeline. No new producer work; just the consumer view.
+- Build it alongside the semantic timeline (reuse that component), keyed on
+  `theme_cluster_id`. Deferred with the rest of the consumer surfaces.
+
+## Player theme rendering — DONE (2026-07-01, commits 316af454, 52b44d50)
+- `--lp-theme` token + tailwind `theme` colour; "Theme→Similar" rename.
+- Server: `AppTopic.theme_cluster_*` + `consumer_theme_cluster_map` +
+  `episode_entities` attaches both cluster identities.
+- Player `KnowledgePanel`: dominant-theme "Theme ·" lead-in + **theme-member
+  pills ringed `ring-theme`**. Full-stack tested with seeded theme data.
+- STILL TODO: EntityCardBody theme section; entity/relational-view attach
+  (`app_relational_view.py:120/171`); **graph `thc:` node theming (viewer)**;
+  member timeline (above); the value-test on real data.
+
 ## Also parked (unchanged)
 - Orphaned episode-scope `topic_cooccurrence` enricher (no consumer; aggregator
   recomputes from KGs). Leave / disable — operator's call.
 - **#1140** insight_density → player skip-line/guide (weight viz). NOT started —
   same "large player-UX, validate-with-operator" reasoning; `insight_density`
   data does exist (prod-pilot), so it's more buildable than theme rendering.
+  **Operator brainstorm (2026-07-01, refine when we get there):**
+  - **Insight markers on the transcript/player timeline** — dots/ticks at the
+    timestamps where insights occur.
+  - **Colour-coded** — different colours per insight (by type? grounded-vs-not?
+    weight?). Decide the encoding when we design it.
+  - **Reserve a colour for the CURRENT USER's saved insights** (ties into the
+    consumer-remember/save feature — a user's own saved moments get a distinct
+    marker on the timeline).
+  - These markers **fold into a graphical read of insight *density* over the
+    timeline** — the skip-guide "where the substance is" (early/mid/late from
+    `insight_density`, but continuous along the scrubber, not just 3 buckets).
+  - Visual is open — brainstorm the exact look together before building.
 
 ## Pre-push checklist (when operator returns)
 `git fetch origin main && git rebase origin/main`; `make docs` (md changed);
