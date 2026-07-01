@@ -215,6 +215,25 @@ def re_enable_enricher(
     }
 
 
+def _resolve_config_path(explicit: Path | None, corpus_root: Path) -> Path | None:
+    """Resolve the operator config path for a run.
+
+    An explicit ``--config`` wins. Otherwise default to the corpus's stored
+    ``viewer_operator.yaml`` so CLI + MCP runs pick up the operator's enrichment
+    block — including the ML provider wiring (topic_similarity / nli_contradiction
+    providers) — without an explicit flag. Parity with the server/API path, which
+    always reads the corpus's stored config. Returns ``None`` when neither exists
+    (the caller then falls back to the ``--profile`` matrix).
+    """
+    if explicit is not None:
+        return explicit
+    stored = corpus_root / "viewer_operator.yaml"
+    if stored.is_file():
+        logger.info("enrichment: using stored config %s", stored)
+        return stored
+    return None
+
+
 async def run_cli(args: argparse.Namespace) -> int:
     """Async entry point shared by ``main()`` and tests."""
     corpus_root: Path = args.output_dir
@@ -249,7 +268,7 @@ async def run_cli(args: argparse.Namespace) -> int:
     # nli_contradiction) need provider/scorer wiring and are registered
     # by the call site that supplies that wiring.
     register_deterministic_enrichers(registry)
-    yaml_set = build_enricher_set_from_yaml(args.config)
+    yaml_set = build_enricher_set_from_yaml(_resolve_config_path(args.config, corpus_root))
     profile_set = enricher_set_for_profile(args.profile)
     base_enabled = list(yaml_set.enabled_enrichers) or list(profile_set.enabled_enrichers)
     base_set = EnricherSet(
