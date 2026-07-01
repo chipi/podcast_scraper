@@ -223,6 +223,11 @@ autoresearch/**/eval/autoresearch_cfg_*.yaml
 autoresearch/logs/
 logs/
 
+# Autoresearch local sweep ledgers — laptop iteration output; the weekly
+# ledger (autoresearch-YYYY-WNN.json) stays tracked, but per-run local
+# artifacts are transient (see ``make autoresearch-sweep-local``).
+data/autoresearch_baselines/autoresearch-local-*.json
+
 # pyinfra deploy debug log (transient per `make dgx-deploy` run)
 infra/dgx/converge/pyinfra-debug.log
 

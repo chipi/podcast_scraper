@@ -1,0 +1,44 @@
+# vLLM judge config — bigger, cross-vendor judges served on DGX autoresearch
+# port 8003 (NOT coder-next; per [[project_dgx_vllm_distinction]]).
+#
+# Why bigger judges: the W27 Ollama judges (gemma3:27b-it-q8_0 +
+# mistral-small:24b) produced judge_mean in [0.925, 0.975] across the
+# entire 7-candidate cohort — a 0.05 spread that near-saturates the
+# discriminative axis. Larger models at full precision (70B + 35B) plus
+# vLLM's serving stack are the discrimination boost we need to close the
+# gap toward OpenAI/Anthropic-class judging without leaving DGX.
+#
+# Cross-family layout:
+#   silver:    sonnet-4-6           (Anthropic)
+#   judge_a:   Llama-3.3-70B-NVFP4  (Meta, 70B) — neutral per Round 3
+#                                    measurements in MODEL_PLAYBOOK.md
+#                                    (Δ=+0.6 ROUGE-1, noise-level)
+#   judge_b:   Qwen3.5-35B-A3B      (Alibaba, 35B MoE) — Sonnet-lean per
+#                                    Round 3 (Δ=+3.6 vs Opus), useful as
+#                                    a Sonnet-style proxy
+#
+# Same-family flag will fire for:
+#   llama3.1:8b + hermes3:8b (Meta / Nous-Llama fine-tune) ↔ judge_a
+#   qwen3.5:9b + qwen2.5:32b (Alibaba)                    ↔ judge_b
+# All visible in the leaderboard's ``flag`` column — the audit surface
+# stays honest even though we accept the overlap to get bigger judges.
+#
+# Prerequisites at runtime:
+#   1. vllm-autoresearch container UP on DGX port 8003 (docker start
+#      vllm-autoresearch, or gpu-mode-swap.sh research).
+#   2. vLLM must be SERVING the model IDs below. If the currently-deployed
+#      model is different (see project memory for the live vLLM model),
+#      either swap the deployment or edit ``model:`` here to match.
+#      A model mismatch surfaces as ``JudgeUnavailableError`` from
+#      VllmChatJudge, not a silent degradation.
+#
+# Env: VLLM_API_BASE (or DGX_TAILNET_FQDN → :8003/v1 auto-derived). No
+# API key needed — tailnet reach is the auth boundary.
+
+judge_a:
+  provider: vllm
+  model: meta-llama/Llama-3.3-70B-Instruct
+
+judge_b:
+  provider: vllm
+  model: Qwen/Qwen3.5-35B-A3B

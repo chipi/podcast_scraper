@@ -3104,43 +3104,71 @@ autoresearch-sweep-local:
 	@# minus the docker stop/start (which needs DGX-runner privileges) and
 	@# minus the ledger commit (local iteration, don't pollute git).
 	@#
+	@# Writes the ledger to
+	@#   data/autoresearch_baselines/autoresearch-local-<utc-timestamp>.json
+	@# (gitignored) — NOT autoresearch-YYYY-WNN.json — so it never
+	@# collides with what the nightly GHA workflow writes.
+	@#
 	@# Usage:
-	@#   make autoresearch-sweep-local                # full cohort
-	@#   make autoresearch-sweep-local LIMIT=1        # smoke first candidate only
-	@#   make autoresearch-sweep-local LIMIT=3        # smoke first 3
+	@#   make autoresearch-sweep-local                        # full cohort, vLLM judges (default)
+	@#   make autoresearch-sweep-local LIMIT=1                # smoke first candidate
+	@#   make autoresearch-sweep-local JUDGES=ollama          # stick with the current Ollama judges
+	@#   make autoresearch-sweep-local LIMIT=3 JUDGES=vllm    # 3 candidates + bigger vLLM judges
 	@#
 	@# Required env (on tailnet to reach DGX):
 	@#   OLLAMA_API_BASE=http://<dgx-tailnet>:11434/v1  OR
 	@#   DGX_TAILNET_FQDN=<dgx-tailnet-fqdn>           (resolved → :11434/v1)
+	@# For JUDGES=vllm, also VLLM_API_BASE (or reuse DGX_TAILNET_FQDN → :8003/v1)
+	@# AND ``vllm-autoresearch`` container UP with the models declared in
+	@# judge_config_vllm.yaml actually being served.
 	@#
-	@# Sweep contends with vLLM if it's up — stop ``vllm-autoresearch`` on
-	@# DGX first for clean numbers (operator step, since laptop typically
-	@# lacks docker access to DGX).
+	@# Sweep contends with vLLM if it's up (JUDGES=ollama) — stop
+	@# ``vllm-autoresearch`` on DGX first for clean Ollama numbers.
 	@if [ -z "$$OLLAMA_API_BASE" ] && [ -z "$$DGX_TAILNET_FQDN" ]; then \
 		echo "❌ Set OLLAMA_API_BASE or DGX_TAILNET_FQDN (must be on tailnet)."; \
 		exit 1; \
 	fi
-	@echo "→ Materializing curated_5feeds_smoke_v2 dataset"
-	@$(MAKE) dataset-materialize DATASET_ID=curated_5feeds_smoke_v2
-	@echo ""
-	@echo "→ Running cohort sweep (per-model tuned paragraph prompts + Ollama judges)"
-	@if [ -n "$(LIMIT)" ]; then \
+	@JUDGES=$${JUDGES:-vllm}; \
+	case "$$JUDGES" in \
+		ollama) \
+			JUDGE_CONFIG_PATH="autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_config_ollama.yaml"; \
+			echo "  Judges: Ollama (gemma3:27b-q8 + mistral-small:24b) — smaller, may saturate"; \
+			;; \
+		vllm) \
+			JUDGE_CONFIG_PATH="autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_config_vllm.yaml"; \
+			echo "  Judges: vLLM (Llama-3.3-70B + Qwen3.5-35B-A3B) — bigger, cross-vendor"; \
+			;; \
+		*) \
+			echo "❌ JUDGES=$$JUDGES not recognised. Use JUDGES=ollama or JUDGES=vllm."; \
+			exit 1; \
+			;; \
+	esac; \
+	TIMESTAMP=$$(date -u +'%Y%m%dT%H%M%SZ'); \
+	OUT_PATH="data/autoresearch_baselines/autoresearch-local-$$TIMESTAMP.json"; \
+	echo "  Ledger: $$OUT_PATH  (gitignored, so no collision with the weekly GHA ledger)"; \
+	echo ""; \
+	echo "→ Materializing curated_5feeds_smoke_v2 dataset"; \
+	$(MAKE) dataset-materialize DATASET_ID=curated_5feeds_smoke_v2; \
+	echo ""; \
+	echo "→ Running cohort sweep (per-model tuned paragraph prompts)"; \
+	if [ -n "$(LIMIT)" ]; then \
 		echo "  Limit: first $(LIMIT) candidate(s)"; \
-		$(PYTHON) scripts/baselines/autoresearch_sweep.py --limit $(LIMIT) --print-leaderboard; \
+		$(PYTHON) scripts/baselines/autoresearch_sweep.py \
+			--judge-config "$$JUDGE_CONFIG_PATH" \
+			--output "$$OUT_PATH" \
+			--limit $(LIMIT) --print-leaderboard; \
 	else \
 		echo "  Limit: full cohort (or cohort.default_limit)"; \
-		$(PYTHON) scripts/baselines/autoresearch_sweep.py --print-leaderboard; \
-	fi
-	@echo ""
-	@echo "→ Drift check vs previous week's ledger"
-	@$(PYTHON) scripts/baselines/check_autoresearch_drift.py \
-		--ledger-dir data/autoresearch_baselines \
-		--thresholds data/autoresearch_baselines/drift_thresholds.yaml \
-		--output /tmp/autoresearch-drift-local.json 2>&1 | tail -10 || true
-	@echo ""
-	@echo "✓ Local sweep complete. Ledger: data/autoresearch_baselines/autoresearch-$$(date -u +'%G-W%V').json"
-	@echo "  Drift report: /tmp/autoresearch-drift-local.json"
-	@echo "  Ledger NOT committed — review + git add manually if you want to persist."
+		$(PYTHON) scripts/baselines/autoresearch_sweep.py \
+			--judge-config "$$JUDGE_CONFIG_PATH" \
+			--output "$$OUT_PATH" \
+			--print-leaderboard; \
+	fi; \
+	echo ""; \
+	echo "✓ Local sweep complete."; \
+	echo "  Ledger: $$OUT_PATH"; \
+	echo "  Ledger is gitignored — inspect with jq / git-diff-safe."; \
+	echo "  Drift check skipped for local runs (no weekly-week alignment)."
 
 autoresearch-score:
 	@# Autoresearch Track A: reuse run_experiment + metrics, then optional LLM judges; final scalar on stdout.
