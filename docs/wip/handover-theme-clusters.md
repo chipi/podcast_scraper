@@ -83,14 +83,24 @@ sibling for themes:
   co-occurrence THEME; add `kp.similar` for the semantic cluster. Update all
   locale files + the KnowledgePanel/EntityCard tests that assert these strings.
 
-### 4. Design token (define ONCE, apply everywhere)
-- Player: add `--lp-theme` alongside `--lp-topic`/`--lp-person` (UXS-011 tokens,
-  `app/src/theme/theme.ts` + CSS). Apply to theme chips + wide-row lead-in.
-- Viewer: matching token; apply to graph **`thc:` compound nodes** (mirror the
-  `tc:` compound-node styling — find it in the viewer graph/cytoscape layer)
-  and consume `GET /api/corpus/theme-clusters`.
+### 4. Design token — player DONE; viewer graph is a big subsystem
+- Player token `--lp-theme` + tailwind `theme` colour: DONE (316af454).
+- **Viewer graph `thc:` compound nodes — LARGE, deferred.** The semantic `tc:`
+  clusters are a deep Cytoscape subsystem, not just a style rule. To mirror for
+  `thc:` you must touch:
+  - `web/gi-kg-viewer/src/stores/artifacts.ts` — memoized fetch of
+    `/api/corpus/topic-clusters` (~L101-141), building `tc:` compound nodes +
+    `ensureTopicClusterCompoundVisible` / catalog member-episode loading
+    (~L525-730). Need a parallel `theme-clusters` fetch + `thc:` compound build.
+  - `web/gi-kg-viewer/src/stores/graphNavigation.ts` — `tc:` collapse
+    state (`toggleTopicClusterCanvasCollapsed`, ~L35-51) → `thc:` analog.
+  - `App.vue` (~L155) — cy-id routing opens NodeDetail for `tc:`/compound ids.
+  - Cytoscape stylesheet — add a `thc:`/`cluster_type=theme` compound style
+    using the theme colour (find the `tc:` compound style rule).
+  - This is ~a feature on its own; do it with real data + operator, after the
+    value test. The `--lp-theme` token / a viewer CSS var is the only cheap part.
 - Operator's rule [[feedback_consumer_ux_consistency]]: define the theme
-  style once (a shared class/token like `.lp-*`), not per-element.
+  style once (shared token), not per-element.
 
 ### 5. Docs
 - UXS-013 + RFC-102 update: document the two cluster types + the "Theme/Similar"
