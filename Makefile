@@ -634,7 +634,11 @@ serve:
 	@$(MAKE) -j2 serve-api serve-ui
 
 serve-api:
-	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) -m $(PACKAGE).cli serve --output-dir "$(SERVE_OUTPUT_DIR)" $(SERVE_ARGS)
+	@# KMP_DUPLICATE_LIB_OK: with the [ml] extra installed, hybrid search loads torch (query
+	@# embedder) alongside faiss, and on macOS the duplicate OpenMP runtime aborts the process
+	@# ("Abort trap: 6") the first time /api/corpus/digest or /api/search runs — the API dies and
+	@# the viewer goes blank. Allowing the duplicate is the standard local workaround; no-op on Linux.
+	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && export KMP_DUPLICATE_LIB_OK=$${KMP_DUPLICATE_LIB_OK:-TRUE} && $(PYTHON) -m $(PACKAGE).cli serve --output-dir "$(SERVE_OUTPUT_DIR)" $(SERVE_ARGS)
 
 serve-ui:
 	@cd $(WEB_VIEWER_DIR) && npm run dev
