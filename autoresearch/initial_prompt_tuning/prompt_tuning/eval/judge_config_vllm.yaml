@@ -39,6 +39,8 @@
 # OLLAMA_API_BASE (or DGX_TAILNET_FQDN → :11434/v1) for judge_b.
 # No API keys — tailnet reach is the auth boundary.
 
+mode: pairwise
+
 judge_a:
   provider: vllm
   model: Qwen/Qwen3-30B-A3B-Instruct-2507

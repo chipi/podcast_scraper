@@ -262,10 +262,16 @@ def main() -> int:
         judge_mean = None
         contested = False
         _outs = None
+        pairwise_summary: dict | None = None
+        # Mode dispatch — ``mode: pairwise`` in the judge_config swaps the
+        # scalar G-Eval scorer for a candidate-vs-silver pairwise scorer.
+        # Missing / ``scalar`` keeps the historical scalar path.
+        judge_mode = str(judge_cfg.get("mode", "scalar")).lower()
         if not args.dry_run:
             # Only resolve keys for providers the judge_config actually uses.
             # An all-ollama judge cohort needs zero cloud keys; an openai-only
-            # cohort needs OPENAI but not ANTHROPIC; etc.
+            # cohort needs OPENAI but not ANTHROPIC; etc. Pairwise mode is
+            # DGX-only (ollama + vllm) so neither cloud key is needed.
             providers_used = {
                 str(ja.get("provider", "")).lower(),
                 str(jb.get("provider", "")).lower(),
@@ -273,10 +279,11 @@ def main() -> int:
             oai_j = ""
             ant_j = ""
             try:
-                if "openai" in providers_used:
-                    oai_j = resolve_judge_openai_key()
-                if "anthropic" in providers_used:
-                    ant_j = resolve_judge_anthropic_key()
+                if judge_mode != "pairwise":
+                    if "openai" in providers_used:
+                        oai_j = resolve_judge_openai_key()
+                    if "anthropic" in providers_used:
+                        ant_j = resolve_judge_anthropic_key()
             except AutoresearchConfigError as e:
                 logger.error("%s", e)
                 return 1
@@ -284,15 +291,29 @@ def main() -> int:
             preds = load_predictions(results_dir / "predictions.jsonl")
             dataset_id = str(metrics.get("dataset_id") or cfg.data.dataset_id)
             try:
-                judge_mean, contested, _outs = mean_judge_scores(
-                    predictions=preds,
-                    rubric=rubric_text,
-                    judge_cfg=judge_cfg,
-                    dataset_id=dataset_id,
-                    eval_root=REPO_ROOT / "data/eval",
-                    openai_key=oai_j,
-                    anthropic_key=ant_j,
-                )
+                if judge_mode == "pairwise":
+                    from podcast_scraper.evaluation.autoresearch_track_a import (
+                        mean_pairwise_scores,
+                    )
+
+                    silver_ref = REPO_ROOT / "data/eval/references/silver" / str(args.reference)
+                    judge_mean, contested, pairwise_summary = mean_pairwise_scores(
+                        predictions=preds,
+                        judge_cfg=judge_cfg,
+                        dataset_id=dataset_id,
+                        eval_root=REPO_ROOT / "data/eval",
+                        silver_reference_path=silver_ref,
+                    )
+                else:
+                    judge_mean, contested, _outs = mean_judge_scores(
+                        predictions=preds,
+                        rubric=rubric_text,
+                        judge_cfg=judge_cfg,
+                        dataset_id=dataset_id,
+                        eval_root=REPO_ROOT / "data/eval",
+                        openai_key=oai_j,
+                        anthropic_key=ant_j,
+                    )
             except Exception as e:
                 logger.error("Judge scoring failed: %s", e, exc_info=True)
                 return 1
@@ -311,6 +332,10 @@ def main() -> int:
         # Per-judge breakdown — useful for cross-family bias visibility in
         # the leaderboard (a row where judge_a >> judge_b on a candidate
         # from judge_a's family is the same-family-bias smoke signal).
+        # Scalar mode: mean of per-episode judge scores.
+        # Pairwise mode: mean of per-episode pairwise scores (already in [0,1]
+        # via ``pairwise_verdict_to_score``); win_rate / tie_rate / decisive_rate
+        # go in the JSON below for the leaderboard audit column.
         judge_a_mean: float | None = None
         judge_b_mean: float | None = None
         contested_count = 0
@@ -320,8 +345,14 @@ def main() -> int:
             judge_a_mean = sum(o.judge_a for o in _outs) / episodes_judged
             judge_b_mean = sum(o.judge_b for o in _outs) / episodes_judged
             contested_count = sum(1 for o in _outs if o.contested)
+        elif pairwise_summary is not None:
+            episodes_judged = int(pairwise_summary.get("episodes") or 0)
+            judge_a_mean = (pairwise_summary.get("judge_a") or {}).get("mean_score")
+            judge_b_mean = (pairwise_summary.get("judge_b") or {}).get("mean_score")
+            contested_count = int(pairwise_summary.get("contested_count") or 0)
         logger.info(
-            "rougeL_f1=%.4f judge_mean=%s contested=%s rouge_weight=%.2f final=%.6f",
+            "mode=%s rougeL_f1=%.4f judge_mean=%s contested=%s rouge_weight=%.2f final=%.6f",
+            judge_mode,
             rouge,
             f"{judge_mean:.4f}" if judge_mean is not None else "n/a",
             contested,
@@ -352,6 +383,7 @@ def main() -> int:
                 },
                 "silver": args.reference,
                 "dataset": cfg.data.dataset_id,
+                "judge_mode": judge_mode,
                 "scores": {
                     "final": final,
                     "rougeL_f1": rouge,
@@ -367,6 +399,9 @@ def main() -> int:
                         contested_count / episodes_judged if episodes_judged else 0.0
                     ),
                     "rouge_weight": rw,
+                    # Pairwise-only audit fields. Null under scalar mode so
+                    # downstream readers can safely branch on presence.
+                    "pairwise": pairwise_summary,
                 },
                 "latency_ms": {
                     "median": perf.get("median_latency_ms"),
