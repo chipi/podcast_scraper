@@ -40,6 +40,59 @@ Judge models are pinned in `bundled_prompt_tuning/eval/judge_config.yaml` and
 
 ---
 
+## Judge modes: scalar vs pairwise
+
+The judge_config's optional top-level `mode:` field picks between two
+scoring paths. Default is scalar (backward-compatible with every existing
+config); `mode: pairwise` opts into the discrimination-boosted variant.
+
+**Scalar (default):**
+
++ Prompt: rubric + transcript + **candidate summary** → judge scores 0–1
++ Reply schema: `{"score": 0.85, "notes": "..."}`
++ Judge saturation: prone on smoke sets (W27 saw judge_mean in
+  [0.925, 0.975] across every candidate)
++ Contest fires when abs(judge_a - judge_b) > 0.25 on ≥40% of episodes
+  (magnitude disagreement)
++ Silver not directly required — ROUGE-L handles the reference axis
++ Provider support: openai / anthropic / ollama / vllm
+
+**Pairwise:**
+
++ Prompt: rubric + transcript + **Summary A** + **Summary B** → judge
+  picks preference + magnitude
++ Slot randomization: candidate randomized into A or B per episode via
+  `hash(episode_id)` — kills first-slot bias
++ Reply schema: `{"preference": "A" or "B" or "tie", "magnitude": 1-5, "rationale": "..."}`
++ Discrimination: direction is binary → judges can't hide in the top of
+  a 5-point scale
++ Contest fires when both judges pick OPPOSITE parties on ≥40% of
+  episodes (directional disagreement — magnitude alone doesn't count)
++ Silver **required** — silver `predictions.jsonl` loaded per episode;
+  pairwise fails loudly if missing
++ Provider support: ollama / vllm only (DGX-focused). Cloud-API pairwise
+  raises NotImplementedError
+
+Both modes feed into the same
+`final = rouge_weight * ROUGE-L + (1 - rouge_weight) * judge_mean`
+scoring formula. In pairwise mode `judge_mean` is the mean of per-episode
+pairwise scores (candidate + magnitude → [0.6, 1.0]; silver + magnitude
+→ [0.0, 0.4]; tie → 0.5).
+
+The pairwise summary (per-judge `win_rate` / `tie_rate` / `decisive_rate`)
+lands under `scores.pairwise` in the output JSON for the leaderboard audit
+column. Under scalar mode `scores.pairwise` is null.
+
+Implementation:
+
++ `src/podcast_scraper/evaluation/pairwise.py` — primitives
++ `autoresearch_track_a.mean_pairwise_scores` — dispatch
++ `mode: pairwise` in the judge_config yaml
++ `judge_config_vllm.yaml` — working pairwise config
+  (Qwen3-30B-A3B via vLLM + llama3.3:70b via Ollama)
+
+---
+
 ## Rubric
 
 Rubric file: `bundled_prompt_tuning/eval/rubric.md`
@@ -156,10 +209,10 @@ Non-bundled and bundled paths both pass the seed. See
 
 OpenAI's seed is *approximately* deterministic, per their API docs. Tested during v2:
 
-- Stable `system_fingerprint` across runs → good sign.
-- `predictions.jsonl` md5 still differs between two seeded runs → seed does NOT give
++ Stable `system_fingerprint` across runs → good sign.
++ `predictions.jsonl` md5 still differs between two seeded runs → seed does NOT give
   byte-identical outputs.
-- Final score variance reduced but not eliminated — roughly ~5% swing remains from API
++ Final score variance reduced but not eliminated — roughly ~5% swing remains from API
   non-determinism alone, before judge variance.
 
 **Practical implication**: seed helps but does not fix the fundamental problem. For a
@@ -194,18 +247,18 @@ Sonnet silver and mid-pack against Opus.
 
 1. For any cross-vendor candidate cohort, generate **two silver references** with
    models from disjoint vendor families:
-   - Anthropic side: Opus 4.7 (`silver_candidate_anthropic_opus47_*`)
-   - OpenAI side: GPT-5.4 or GPT-4o (`silver_candidate_openai_gpt54_*`)
-   - (Google Gemini silver optional — we don't use it as silver because Gemini
+   + Anthropic side: Opus 4.7 (`silver_candidate_anthropic_opus47_*`)
+   + OpenAI side: GPT-5.4 or GPT-4o (`silver_candidate_openai_gpt54_*`)
+   + (Google Gemini silver optional — we don't use it as silver because Gemini
      2.5 Pro is on the judge panel.)
 2. Run the candidates' predictions through `rescore_against_silver.py` for BOTH
    silvers and report ROUGE side-by-side. Disagreements between the two silvers
    are diagnostic — they identify candidates that are silver-style-mimicking
    rather than genuinely better.
 3. The **judge panel** for the finale tier should likewise be cross-vendor:
-   - Primary: Sonnet 4.6 (high precision, low cost)
-   - Cross-check: GPT-5.4 (cross-vendor)
-   - Optional second cross-check: Gemini 2.5 Pro (third vendor) — adds cost but
+   + Primary: Sonnet 4.6 (high precision, low cost)
+   + Cross-check: GPT-5.4 (cross-vendor)
+   + Optional second cross-check: Gemini 2.5 Pro (third vendor) — adds cost but
      necessary when one of the candidates IS a Gemini family member.
 
 This rule applies to **all autoresearch tiers** that compare cross-vendor
@@ -240,11 +293,11 @@ candidate            N  min  p50  mean  p95  max  spread(max/min)  cv(sd/mean)
 example_vllm        10  17s  22s   22s  27s  27s  1.6×              0.15
 ```
 
-- **spread > 3× or cv > 0.5** → flag a suspicious data point. Investigate
++ **spread > 3× or cv > 0.5** → flag a suspicious data point. Investigate
   the outlier episode before drawing conclusions.
-- **mean diverges from p50 by > 30%** → the mean is being dragged by an
++ **mean diverges from p50 by > 30%** → the mean is being dragged by an
   outlier. Use p50 as the primary headline, mean as secondary.
-- **Always tag the dataset / config version** the numbers came from so a
++ **Always tag the dataset / config version** the numbers came from so a
   later session can't mix prior-run timings into a new-run table.
 
 ### 2. Validate output size against spec on every prediction
@@ -261,10 +314,10 @@ Required per-prediction-set table:
 | example   | 800-3200     | 1800   | 2100   | 2150    | 2400   | ✓        |
 | broken    | 800-3200     | 3000   | 4200   | 4400    | 5500   | ✗ over   |
 
-- **mean chars > 1.5 × upper-spec** → there's a clamp, a floor, or a
++ **mean chars > 1.5 × upper-spec** → there's a clamp, a floor, or a
   prompt issue. Diagnose before scoring; running judges on out-of-spec
   outputs invalidates the comparison.
-- **mean chars < 0.5 × lower-spec** → model is terminating early. Could
++ **mean chars < 0.5 × lower-spec** → model is terminating early. Could
   be EOS injection, prompt issue, or quantization-induced premature
   stopping. Diagnose before scoring.
 
@@ -273,14 +326,14 @@ Required per-prediction-set table:
 Before publishing G-Eval results, eyeball at least 1 sample per candidate.
 Look for:
 
-- Reasoning preamble leaking through (e.g. `<think>` blocks in DeepSeek-R1,
++ Reasoning preamble leaking through (e.g. `<think>` blocks in DeepSeek-R1,
   reasoning prose in Qwen3 family if `enable_thinking=False` isn't honored).
-- Byte-level BPE artifacts (`Ġ`, `Ċ`, `âĢĻ` in DeepSeek-R1 on vLLM 26.05).
-- Markdown / JSON in plain-text-spec outputs (prompt says "plain text only"
++ Byte-level BPE artifacts (`Ġ`, `Ċ`, `âĢĻ` in DeepSeek-R1 on vLLM 26.05).
++ Markdown / JSON in plain-text-spec outputs (prompt says "plain text only"
   but model returns bullets or `**bold**`).
-- Truncated mid-sentence outputs (finish_reason="length" → max_tokens hit
++ Truncated mid-sentence outputs (finish_reason="length" → max_tokens hit
   before natural EOS; output is incomplete and shouldn't be scored).
-- Same / templated openings across episodes (model is over-relying on
++ Same / templated openings across episodes (model is over-relying on
   prompt scaffolding rather than the transcript).
 
 If any of these are present in the sample, the cohort's judge scores are

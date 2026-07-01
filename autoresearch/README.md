@@ -128,6 +128,46 @@ Not sufficient to evaluate a *new* prompt — judges don't run. Run the full har
 
 ---
 
+## Local iteration (weekly sweep, no GHA round-trip)
+
+The nightly weekly sweep (`.github/workflows/autoresearch-eval-nightly.yml`)
+can also be driven directly from a laptop on the tailnet — useful for
+iterating on cohort / prompts / judges without pushing to `main` and
+waiting for the workflow.
+
+```bash
+# Full 7-candidate cohort, hybrid vLLM+Ollama pairwise judges (default)
+DGX_TAILNET_FQDN=<dgx-tailnet-fqdn> make autoresearch-sweep-local
+
+# Smoke first candidate only (~13 min)
+DGX_TAILNET_FQDN=<dgx-tailnet-fqdn> make autoresearch-sweep-local LIMIT=1
+
+# Fall back to the previous Ollama-only scalar judges
+DGX_TAILNET_FQDN=<dgx-tailnet-fqdn> make autoresearch-sweep-local JUDGES=ollama
+```
+
+Writes to `data/autoresearch_baselines/autoresearch-local-<utc>.json`
+(gitignored — no collision with the weekly `autoresearch-YYYY-WNN.json`
+the GHA workflow commits). Prints the leaderboard inline via
+`--print-leaderboard`.
+
+Prereqs for `JUDGES=vllm` (the default): `vllm-autoresearch` container UP
+on DGX port 8003 serving the model IDs in
+`initial_prompt_tuning/prompt_tuning/eval/judge_config_vllm.yaml`. If it
+was stopped for an Ollama-only sweep, `docker start vllm-autoresearch` on
+DGX (or `gpu-mode-swap.sh research`).
+
+### Per-model tuned prompts (default in the sweep)
+
+Every cohort candidate is scored on ITS OWN tuned prompt from
+`src/podcast_scraper/prompts/ollama/<model>/summarization/{system,long}_v1.j2`
+— same convention the production summarization factory uses. Candidates
+without tuned prompts fail fast with `status: missing_prompts` in the
+ledger rather than silently degrading on someone else's prompt. New
+cohort entries must ship their tuned templates first.
+
+---
+
 ## Allowlisted files for prompt tuning
 
 ### Bundled mode
