@@ -62,6 +62,7 @@ import {
   topicClusterMemberRowsForDetail,
 } from '../../utils/topicClustersOverlay'
 import GraphConnectionsSection from './GraphConnectionsSection.vue'
+import NodeEnrichmentSection from './NodeEnrichmentSection.vue'
 import TranscriptViewerDialog from '../shared/TranscriptViewerDialog.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
 import {
@@ -1218,9 +1219,20 @@ const topicClusterContext = computed(() => {
   return findTopicClusterContextForGraphNode(props.nodeId, artifacts.topicClustersDoc)
 })
 
-type GraphRailDetailTab = 'details' | 'neighbourhood'
+type GraphRailDetailTab = 'details' | 'enrichment' | 'neighbourhood'
 
 const graphRailDetailTab = ref<GraphRailDetailTab>('details')
+
+// The Enrichment tab only exists when the focused node actually has signals;
+// NodeEnrichmentSection reports this after it loads. Empty is the common case
+// for graph nodes, so we hide the tab rather than surface a dead panel. If the
+// user is on the tab when it empties (node switch), fall back to Details.
+const enrichmentHasContent = ref(false)
+watch(enrichmentHasContent, (has) => {
+  if (!has && graphRailDetailTab.value === 'enrichment') {
+    graphRailDetailTab.value = 'details'
+  }
+})
 
 watch(
   () => props.nodeId,
@@ -1400,6 +1412,25 @@ const graphConnectionsCenterInView = computed((): boolean => {
         @click="graphRailDetailTab = 'details'"
       >
         Details
+      </button>
+      <button
+        v-if="enrichmentHasContent"
+        id="node-detail-rail-tab-enrichment"
+        type="button"
+        role="tab"
+        class="flex-1 rounded px-2 py-1 text-center text-xs font-medium transition-colors"
+        :class="
+          graphRailDetailTab === 'enrichment'
+            ? 'bg-primary text-primary-foreground'
+            : 'text-elevated-foreground hover:bg-overlay'
+        "
+        :aria-selected="graphRailDetailTab === 'enrichment'"
+        aria-controls="node-detail-rail-panel-enrichment"
+        data-testid="node-detail-rail-tab-enrichment"
+        :tabindex="graphRailDetailTab === 'enrichment' ? 0 : -1"
+        @click="graphRailDetailTab = 'enrichment'"
+      >
+        Enrichment
       </button>
       <button
         id="node-detail-rail-tab-neighbourhood"
@@ -2127,6 +2158,25 @@ const graphConnectionsCenterInView = computed((): boolean => {
           </dd>
         </template>
       </dl>
+      </div>
+
+      <!-- Mounted whenever the rail is shown (not just when the tab is active) so
+           NodeEnrichmentSection can report has-content up-front; the tab button
+           only appears once it does. v-show keeps it hidden until selected. -->
+      <div
+        v-if="props.embedInRail"
+        v-show="graphRailDetailTab === 'enrichment'"
+        id="node-detail-rail-panel-enrichment"
+        class="min-h-0"
+        role="tabpanel"
+        aria-labelledby="node-detail-rail-tab-enrichment"
+        :tabindex="-1"
+      >
+        <NodeEnrichmentSection
+          :node-id="props.nodeId ?? ''"
+          :node-type="nodeType"
+          @has-content="enrichmentHasContent = $event"
+        />
       </div>
 
       <div

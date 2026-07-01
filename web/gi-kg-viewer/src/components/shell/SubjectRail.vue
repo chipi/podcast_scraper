@@ -46,13 +46,24 @@ const episodeSubjectNeighbourhoodEnabled = computed(
   () => props.mainTab === 'graph' && Boolean(subject.graphConnectionsCyId?.trim()),
 )
 
-type EpisodeSubjectDetailTab = 'details' | 'neighbourhood'
+type EpisodeSubjectDetailTab = 'details' | 'enrichment' | 'neighbourhood'
 const episodeSubjectDetailTab = ref<EpisodeSubjectDetailTab>('details')
+
+// EpisodeDetailPanel bubbles this up once EpisodeEnrichmentSection has probed
+// the envelopes; the Enrichment tab is hidden until an episode actually has
+// signals. Falls back to Details if the tab empties while it's active.
+const episodeEnrichmentHasContent = ref(false)
+watch(episodeEnrichmentHasContent, (has) => {
+  if (!has && episodeSubjectDetailTab.value === 'enrichment') {
+    episodeSubjectDetailTab.value = 'details'
+  }
+})
 
 watch(
   () => subject.episodeMetadataPath,
   () => {
     episodeSubjectDetailTab.value = 'details'
+    episodeEnrichmentHasContent.value = false
   },
 )
 
@@ -117,10 +128,11 @@ const emptyHint =
             :rail-detail-tab="episodeSubjectDetailTab"
             @focus-search="emit('focusSearchHandoff', $event)"
             @switch-main-tab="emit('switchMainTab', $event)"
+            @enrichment-has-content="episodeEnrichmentHasContent = $event"
           >
             <template #episode-rail-tabs>
               <nav
-                v-if="episodeSubjectNeighbourhoodEnabled"
+                v-if="episodeSubjectNeighbourhoodEnabled || episodeEnrichmentHasContent"
                 class="flex shrink-0 gap-1 border-b border-border bg-elevated/50 px-2 py-1.5"
                 role="tablist"
                 aria-label="Episode detail sections"
@@ -144,6 +156,26 @@ const emptyHint =
                   Details
                 </button>
                 <button
+                  v-if="episodeEnrichmentHasContent"
+                  id="episode-detail-rail-tab-enrichment"
+                  type="button"
+                  role="tab"
+                  class="flex-1 rounded px-2 py-1 text-center text-xs font-medium transition-colors"
+                  :class="
+                    episodeSubjectDetailTab === 'enrichment'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-elevated-foreground hover:bg-overlay'
+                  "
+                  :aria-selected="episodeSubjectDetailTab === 'enrichment'"
+                  aria-controls="episode-detail-rail-panel-enrichment"
+                  data-testid="episode-detail-rail-tab-enrichment"
+                  :tabindex="episodeSubjectDetailTab === 'enrichment' ? 0 : -1"
+                  @click="episodeSubjectDetailTab = 'enrichment'"
+                >
+                  Enrichment
+                </button>
+                <button
+                  v-if="episodeSubjectNeighbourhoodEnabled"
                   id="episode-detail-rail-tab-neighbourhood"
                   type="button"
                   role="tab"

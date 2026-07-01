@@ -53,16 +53,14 @@ describe('Gap 2 — EpisodeDetailPanel mounts EpisodeEnrichmentSection', () => {
     expect(detail).toContain('<EpisodeEnrichmentSection')
   })
 
-  it('section reads both episode-scope envelopes via getEpisodeEnrichmentEnvelope', () => {
+  it('section reads the insight_density envelope via getEpisodeEnrichmentEnvelope', () => {
     expect(section).toContain('getEpisodeEnrichmentEnvelope')
     expect(section).toContain("'insight_density'")
-    expect(section).toContain("'topic_cooccurrence'")
   })
 
-  it('section has the data-testid hooks for density + co-occurrence', () => {
+  it('section has the data-testid hooks for density', () => {
     expect(section).toContain('data-testid="episode-enrichment-section"')
     expect(section).toContain('data-testid="episode-enrichment-density"')
-    expect(section).toContain('data-testid="episode-enrichment-cooccurrence"')
   })
 
   it('section has no v-html sink', () => {
