@@ -37,8 +37,21 @@ jobs:
     # INFRA_STATE_COMMIT_TOKEN (the fine-grained PAT that bypasses main's
     # pull_request rule). One env, two consumers, single secret to rotate.
     environment: baselines
+    # Each step below carries an explicit ``timeout-minutes`` so a wedged
+    # phase surfaces as a step failure with a clear name instead of
+    # eating the full 120-min job budget. Modular breakdown:
+    #   [Setup]   checkout, install deps, probe Ollama    ~20 min budget
+    #   [GPU]     stop vLLM (Ollama needs the whole GPU)   ~5  min budget
+    #   [Data]    materialize the smoke dataset            ~5  min budget
+    #   [Sweep]   run the cohort + render leaderboard      ~95 min budget
+    #   [Persist] commit ledger to main + upload artifact  ~8  min budget
+    #   [GPU]     restart vLLM (always run)                ~8  min budget
     steps:
-      - uses: actions/checkout@v7
+      # --- [Setup] ---------------------------------------------------
+      - name: '[Setup] Checkout repo'
+        id: checkout
+        timeout-minutes: 3
+        uses: actions/checkout@v7
         # Same persist-credentials trick as nightly-data-baseline.yml —
         # the commit-snapshot step pushes via INFRA_STATE_COMMIT_TOKEN-like
         # pattern (here just GITHUB_TOKEN scoped to contents:write); a
@@ -46,21 +59,27 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Python 3.11
+      - name: '[Setup] Set up Python 3.11'
+        id: setup_python
+        timeout-minutes: 3
         uses: actions/setup-python@v6
         with:
           python-version: "3.11.8"
           cache: pip
           cache-dependency-path: pyproject.toml
 
-      - name: Install package (dev + llm)
+      - name: '[Setup] Install package (dev + llm)'
+        id: install
+        timeout-minutes: 15
         # [llm] carries openai/anthropic/google-genai/mistralai/httpx —
         # OllamaProvider uses the OpenAI SDK against Ollama's /v1 endpoint.
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev,llm]"
 
-      - name: Ollama health (tailnet)
+      - name: '[Setup] Ollama health (tailnet)'
+        id: ollama_health
+        timeout-minutes: 2
         env:
           DGX_TAILNET_FQDN: ${{ vars.DGX_TAILNET_FQDN }}
         run: |
@@ -72,7 +91,9 @@ jobs:
           curl -fsS --max-time 5 "http://${host}:11434/api/tags" | head -c 200
           echo
 
-      - name: Stop vllm-autoresearch (free ~73 GB for Ollama)
+      # --- [GPU] Ollama gets the whole GPU during the sweep ----------
+      - name: '[GPU] Stop vllm-autoresearch (free ~73 GB for Ollama)'
+        id: stop_vllm
         # The persistent vllm-autoresearch container holds 73 GB of the
         # 128 GB GPU 24/7, leaving only ~55 GB for Ollama which causes
         # CUDA OOM cascades across the cohort. Stop it for the duration
@@ -83,6 +104,7 @@ jobs:
         # — it was started via ``docker run``, not ``docker compose up``).
         # Just stop+start by container name directly. gha-runner is in
         # the docker group so it can manage containers without sudo.
+        timeout-minutes: 3
         run: |
           echo "  before:"
           docker container inspect vllm-autoresearch --format '{{.State.Status}}'
@@ -93,14 +115,27 @@ jobs:
           sleep 8
           nvidia-smi --query-gpu=memory.used,memory.free --format=csv,noheader
 
-      - name: Materialize smoke dataset
+      # --- [Data] Prepare the dataset the cohort scores against ------
+      - name: '[Data] Materialize smoke dataset'
+        id: materialize
+        timeout-minutes: 5
         # curated_5feeds_smoke_v2 is the dataset every cohort candidate
         # scores against. Materialized tree is gitignored; sources are
         # tracked — same pattern as nightly-data-baseline.yml.
         run: |
           make dataset-materialize DATASET_ID=curated_5feeds_smoke_v2
 
-      - name: Run sweep across cohort
+      # --- [Sweep] Run the cohort ------------------------------------
+      # Split from leaderboard rendering so a wedged/OOM'd sweep doesn't
+      # eat the leaderboard step's short timeout (the rendering is what
+      # populates the GH job summary — it's cheap and should complete
+      # even if the sweep partially succeeded).
+      - name: '[Sweep] Run sweep across cohort'
+        id: sweep
+        # 95 min covers the full 7-candidate cohort at the current
+        # scalar Ollama pace (~13 min/candidate). Pairwise + bigger
+        # judges will push this — bump if needed after the next real run.
+        timeout-minutes: 95
         env:
           OLLAMA_API_BASE: ${{ vars.DGX_OLLAMA_API_BASE }}
         run: |
@@ -119,6 +154,16 @@ jobs:
             python3 scripts/baselines/autoresearch_sweep.py
           fi
 
+      - name: '[Sweep] Render leaderboard summary'
+        id: leaderboard
+        # ``if: always()`` so we still get the leaderboard even when
+        # the sweep partially failed — per-candidate ``status`` rows in
+        # the ledger are exactly what the operator wants to see in that
+        # case (which candidates ran, which failed, what the ok ones
+        # scored).
+        if: always()
+        timeout-minutes: 2
+        run: |
           # Surface the cohort attribution table in the job summary.
           python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import datetime as dt, json, glob, os
@@ -155,7 +200,10 @@ jobs:
               print(f"| `{r['model']}` | {r.get('family','?')} | {sc.get('final',0):.4f} | {sc.get('rougeL_f1',0):.4f} | {sc.get('judge_a_mean') or 0:.3f} | {sc.get('judge_b_mean') or 0:.3f} | {sc.get('judges_delta') or 0:.3f} | {lat.get('p95') or 0:.0f} | {flag} |")
           PY
 
-      - name: Commit weekly ledger to main
+      # --- [Persist] Commit ledger + artifact -----------------------
+      - name: '[Persist] Commit weekly ledger to main'
+        id: commit_ledger
+        timeout-minutes: 5
         # Pushes via INFRA_STATE_COMMIT_TOKEN — fine-grained PAT scoped to
         # this repo, bypass actor on the main ruleset. Same pattern as
         # nightly-data-baseline.yml. The actions/checkout step above has
@@ -205,10 +253,13 @@ jobs:
           echo "::error::push still failing after 3 rebase attempts"
           exit 1
 
-      - name: Start vllm-autoresearch (restore vLLM, free Ollama GPU back)
+      # --- [GPU] Restore vLLM regardless of sweep outcome ------------
+      - name: '[GPU] Start vllm-autoresearch (restore vLLM, free Ollama GPU back)'
+        id: start_vllm
         # ``if: always()`` so even a failed sweep restores vLLM — other
         # autoresearch consumers shouldn't pay for our sweep's failure.
         if: always()
+        timeout-minutes: 5
         run: |
           echo "  current container state:"
           docker container inspect vllm-autoresearch --format '{{.State.Status}}'
@@ -227,8 +278,10 @@ jobs:
           done
           nvidia-smi --query-gpu=memory.used,memory.free --format=csv,noheader
 
-      - name: Upload sweep ledger artifact
+      - name: '[Persist] Upload sweep ledger artifact'
+        id: upload_artifact
         if: always()
+        timeout-minutes: 3
         uses: actions/upload-artifact@v4
         with:
           name: autoresearch-sweep-${{ github.run_id }}
@@ -248,25 +301,33 @@ jobs:
     needs: dgx-sweep
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - name: '[Setup] Checkout main'
+        id: checkout
+        timeout-minutes: 2
+        uses: actions/checkout@v7
         with:
           ref: main
           fetch-depth: 1
 
-      - name: Set up Python 3.11
+      - name: '[Setup] Set up Python 3.11'
+        id: setup_python
+        timeout-minutes: 2
         uses: actions/setup-python@v6
         with:
           python-version: "3.11.8"
 
-      - name: Install drift-script deps only (no [llm], no [ml])
+      - name: '[Setup] Install drift-script deps only (no [llm], no [ml])'
+        id: install
+        timeout-minutes: 2
         # check_autoresearch_drift.py only needs pyyaml — keep this job
         # fast (don't pull the LLM SDK extras that dgx-sweep needs).
         run: |
           python -m pip install --upgrade pip
           pip install pyyaml
 
-      - name: Check drift vs previous week
+      - name: '[Drift] Check drift vs previous week'
         id: drift
+        timeout-minutes: 2
         run: |
           python3 scripts/baselines/check_autoresearch_drift.py \
             --ledger-dir data/autoresearch_baselines \
@@ -290,7 +351,9 @@ jobs:
             echo "</details>"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Open / update / close drift issue
+      - name: '[Drift] Open / update / close drift issue'
+        id: manage_issue
+        timeout-minutes: 3
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO:    ${{ github.repository }}
