@@ -110,6 +110,10 @@ const siblings = computed<Topic[]>(() => topic.value?.sibling_topics ?? [])
 const episodeCount = computed(() => person.value?.episode_count ?? topic.value?.episode_count ?? 0)
 const themeLabel = computed(() => topic.value?.cluster_label ?? null)
 const clusterSize = computed(() => topic.value?.cluster_size ?? 0)
+// Theme cluster (co-occurrence "discussed together") — distinct from the semantic cluster above.
+const themeClusterLabel = computed(() => topic.value?.theme_cluster_label ?? null)
+const themeClusterSize = computed(() => topic.value?.theme_cluster_size ?? 0)
+const themeSiblings = computed<Topic[]>(() => topic.value?.theme_sibling_topics ?? [])
 const isTopic = computed(() => current.value.kind === 'topic')
 
 const epArt = episodeArtwork
@@ -176,12 +180,18 @@ function searchLibrary(): void {
       <p v-else-if="failed || (!person && !topic)" class="text-sm text-muted">{{ t('ec.notFound') }}</p>
 
       <template v-else>
-        <!-- Cluster identity: is this topic part of a multi-topic theme (and how big), or standalone? -->
+        <!-- Cluster identity: theme (co-occurrence "Theme") + semantic ("Similar"), or standalone. -->
+        <p v-if="themeClusterLabel" class="mb-1 text-xs text-theme">
+          {{ t('kp.theme', { cluster: themeClusterLabel })
+          }}<span v-if="themeClusterSize"> · {{ t('ec.clusterSize', themeClusterSize, { named: { count: themeClusterSize } }) }}</span>
+        </p>
         <p v-if="themeLabel" class="mb-3 text-xs text-topic">
           {{ t('kp.similar', { cluster: themeLabel })
           }}<span v-if="clusterSize"> · {{ t('ec.clusterSize', clusterSize, { named: { count: clusterSize } }) }}</span>
         </p>
-        <p v-else-if="isTopic" class="mb-3 text-xs text-muted">{{ t('ec.singleTopic') }}</p>
+        <p v-if="isTopic && !themeLabel && !themeClusterLabel" class="mb-3 text-xs text-muted">
+          {{ t('ec.singleTopic') }}
+        </p>
 
         <button
           type="button"
@@ -205,6 +215,25 @@ function searchLibrary(): void {
               :key="s.id"
               type="button"
               class="rounded-full bg-overlay px-2.5 py-1 text-xs text-topic transition hover:bg-elevated"
+              @click="open('topic', s.id)"
+            >{{ s.label }}</button>
+          </div>
+        </section>
+
+        <!-- Theme-cluster members (co-occurrence): topics discussed together with this one. -->
+        <section v-if="themeSiblings.length" class="mb-4" data-testid="ec-theme-members">
+          <h3 class="lp-section mb-2">
+            {{ t('ec.themeMembers', themeSiblings.length + 1, { named: { count: themeSiblings.length + 1 } }) }}
+          </h3>
+          <div class="flex flex-wrap gap-1.5">
+            <span class="rounded-full bg-overlay px-2.5 py-1 text-xs font-semibold text-theme ring-1 ring-theme">
+              {{ label }}
+            </span>
+            <button
+              v-for="s in themeSiblings"
+              :key="s.id"
+              type="button"
+              class="rounded-full bg-overlay px-2.5 py-1 text-xs text-theme transition hover:bg-elevated"
               @click="open('topic', s.id)"
             >{{ s.label }}</button>
           </div>

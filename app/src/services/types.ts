@@ -333,6 +333,10 @@ export interface TopicCard {
   cluster_label: string | null
   cluster_size: number
   sibling_topics: Topic[]
+  theme_cluster_id?: string | null
+  theme_cluster_label?: string | null
+  theme_cluster_size?: number
+  theme_sibling_topics?: Topic[]
   episode_count: number
   episodes: EpisodeSummary[]
   related_people: Entity[]

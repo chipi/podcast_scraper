@@ -108,6 +108,36 @@ describe('EntityCardBody — Follow control', () => {
     expect(followBtn(w).attributes('aria-pressed')).toBe('false')
   })
 
+  it('renders the theme-cluster identity + theme members (co-occurrence)', async () => {
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+    vi.spyOn(api, 'getTopicCard').mockResolvedValue(
+      topicCard({
+        cluster_id: null,
+        cluster_label: null,
+        cluster_size: 0,
+        theme_cluster_id: 'thc:sanctions',
+        theme_cluster_label: 'sanctions',
+        theme_cluster_size: 3,
+        theme_sibling_topics: [
+          {
+            id: 'topic:oil',
+            label: 'oil',
+            cluster_id: null,
+            cluster_label: null,
+            cluster_size: 0,
+          },
+        ],
+      }),
+    )
+    const w = mountAuthed({ kind: 'topic', id: 'topic:ai' })
+    await flushPromises()
+    // "Theme ·" identity line — distinct from the semantic "Similar ·".
+    expect(w.text()).toContain('Theme · sanctions')
+    const themeMembers = w.find('[data-testid="ec-theme-members"]')
+    expect(themeMembers.exists()).toBe(true)
+    expect(themeMembers.text()).toContain('oil')
+  })
+
   it('hides the Follow control when signed out', async () => {
     setActivePinia(createPinia()) // fresh pinia, no user → signed out
     vi.spyOn(api, 'getPersonCard').mockResolvedValue(personCard())

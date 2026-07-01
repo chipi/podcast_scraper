@@ -308,7 +308,23 @@ class AppTopicCard(BaseModel):
         default=0, ge=0, description="Cross-corpus member count of the topic's cluster (0 if none)."
     )
     sibling_topics: list[AppTopic] = Field(
-        default_factory=list, description="Other topics in the same cluster (the theme's siblings)."
+        default_factory=list,
+        description="Other topics in the same SEMANTIC ('Similar') cluster.",
+    )
+    theme_cluster_id: str | None = Field(
+        default=None,
+        description="Corpus THEME-cluster id (thc:{slug}) — topics discussed together "
+        "(co-occurrence), distinct from the semantic cluster_id.",
+    )
+    theme_cluster_label: str | None = Field(
+        default=None, description="Canonical label of the topic's theme cluster, when in one."
+    )
+    theme_cluster_size: int = Field(
+        default=0, ge=0, description="Member count of the topic's theme cluster (0 if none)."
+    )
+    theme_sibling_topics: list[AppTopic] = Field(
+        default_factory=list,
+        description="Other topics in the same THEME ('discussed together') cluster.",
     )
     episode_count: int = Field(ge=0, description="Episodes this topic is discussed in.")
     episodes: list[AppEpisodeSummary] = Field(

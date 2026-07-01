@@ -162,6 +162,7 @@
     "personEpisodes": "In {count} episode | In {count} episodes",
     "topicEpisodes": "Discussed in {count} episode | Discussed in {count} episodes",
     "clusterMembers": "{count} topic in this cluster | {count} topics in this cluster",
+    "themeMembers": "{count} topic in this theme | {count} topics in this theme",
     "relatedPeople": "Related people",
     "relatedTopics": "Related topics",
     "follow": "Follow",

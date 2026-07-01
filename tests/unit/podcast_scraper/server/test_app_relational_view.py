@@ -76,6 +76,29 @@ def _write_clusters(root: Path) -> None:
     (root / "search" / "topic_clusters.json").write_text(json.dumps(payload), encoding="utf-8")
 
 
+def _write_theme_clusters(root: Path) -> None:
+    (root / "enrichments").mkdir(parents=True, exist_ok=True)
+    payload = {
+        "schema_version": "1",
+        "method": "cooccurrence_lift",
+        "clusters": [
+            {
+                "cluster_type": "theme",
+                "graph_compound_parent_id": "thc:ai-safety",
+                "canonical_label": "ai safety",
+                "member_count": 2,
+                "members": [
+                    {"topic_id": "topic:ai", "label": "AI"},
+                    {"topic_id": "topic:ml", "label": "Machine Learning"},
+                ],
+            }
+        ],
+    }
+    (root / "enrichments" / "topic_theme_clusters.json").write_text(
+        json.dumps(payload), encoding="utf-8"
+    )
+
+
 def _two_episode_corpus(root: Path) -> None:
     _write_episode(
         root,
@@ -138,6 +161,23 @@ def test_build_topic_card_episodes_siblings_people(tmp_path: Path) -> None:
         "person:bob",
         "person:carol",
     }
+
+
+def test_build_topic_card_carries_theme_cluster_and_siblings(tmp_path: Path) -> None:
+    _two_episode_corpus(tmp_path)
+    _write_theme_clusters(tmp_path)
+    card = build_topic_card(tmp_path, "topic:ai")
+    assert card is not None
+    assert card.theme_cluster_id == "thc:ai-safety"
+    assert card.theme_cluster_label == "ai safety"
+    assert card.theme_cluster_size == 2
+    assert {s.id for s in card.theme_sibling_topics} == {"topic:ml"}
+    # Semantic + theme are independent — no semantic cluster written here.
+    assert card.cluster_id is None
+    assert card.sibling_topics == []
+    # The theme sibling itself carries theme identity (via _enrich_topic).
+    ml = next(s for s in card.theme_sibling_topics if s.id == "topic:ml")
+    assert ml.theme_cluster_id == "thc:ai-safety"
 
 
 def test_build_topic_card_without_clusters_has_no_siblings(tmp_path: Path) -> None:
