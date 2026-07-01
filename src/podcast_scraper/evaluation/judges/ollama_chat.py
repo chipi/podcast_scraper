@@ -100,17 +100,14 @@ class OllamaChatJudge:
             resp.raise_for_status()
             return cast(dict, resp.json())
 
-    def score(self, *, user_content: str) -> float:
-        """POST to /chat/completions; return the parsed float.
+    def raw(self, *, user_content: str) -> str:
+        """POST to /chat/completions; return the raw assistant text.
 
-        Retries on transient HTTP errors (5xx, 408, 429) and network/IO
-        errors with exponential backoff. A single brittle Ollama hiccup
-        shouldn't kill a 10-judge-call sweep; this matters more as cohort
-        size grows.
+        Same retry policy as ``score`` — pairwise judging (which parses
+        its own JSON schema) needs the raw text, not a float. Both
+        ``score`` and ``raw`` share this transport so scalar and pairwise
+        modes use identical retry, error-wrapping, and timeouts.
         """
-        # Only retry on transient errors. httpx.HTTPStatusError for 4xx
-        # is NOT retried (we let it pop out of the retry helper untouched
-        # by re-raising as a non-retryable type).
         retryable = (
             httpx.RequestError,
             httpx.ConnectError,
@@ -136,5 +133,13 @@ class OllamaChatJudge:
         choices = reply.get("choices") or []
         if not choices:
             raise JudgeUnavailableError(f"Ollama judge ({self.model}) returned no choices")
-        text = (choices[0].get("message") or {}).get("content") or ""
-        return _parse_score(text)
+        return (choices[0].get("message") or {}).get("content") or ""
+
+    def score(self, *, user_content: str) -> float:
+        """POST to /chat/completions; return the parsed float.
+
+        Thin wrapper over :meth:`raw` that runs :func:`_parse_score` on
+        the reply. Scalar-mode callers use this; pairwise-mode callers
+        use ``raw`` directly.
+        """
+        return _parse_score(self.raw(user_content=user_content))

@@ -94,13 +94,12 @@ class VllmChatJudge:
             resp.raise_for_status()
             return cast(dict, resp.json())
 
-    def score(self, *, user_content: str) -> float:
-        """POST to ``/chat/completions``; return the parsed float in [0, 10].
+    def raw(self, *, user_content: str) -> str:
+        """POST to ``/chat/completions``; return the raw assistant text.
 
-        Retries on transient HTTP errors (5xx / 408 / 429) and network
-        errors with exponential backoff. vLLM tends to hiccup briefly on
-        model swaps or queue saturation; one bad call shouldn't kill a
-        cohort sweep.
+        Same retry policy as ``score``. Pairwise judging (which parses
+        its own JSON schema — see :mod:`podcast_scraper.evaluation.pairwise`)
+        uses this directly; scalar callers go through ``score``.
         """
         retryable = (
             httpx.RequestError,
@@ -126,5 +125,12 @@ class VllmChatJudge:
         choices = reply.get("choices") or []
         if not choices:
             raise JudgeUnavailableError(f"vLLM judge ({self.model}) returned no choices")
-        text = (choices[0].get("message") or {}).get("content") or ""
-        return _parse_score(text)
+        return (choices[0].get("message") or {}).get("content") or ""
+
+    def score(self, *, user_content: str) -> float:
+        """POST to ``/chat/completions``; return the parsed float in [0, 10].
+
+        Thin wrapper over :meth:`raw`. Scalar callers use this; pairwise
+        callers use ``raw`` directly.
+        """
+        return _parse_score(self.raw(user_content=user_content))

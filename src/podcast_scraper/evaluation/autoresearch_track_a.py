@@ -579,6 +579,242 @@ def mean_judge_scores(
     return sum(mids) / len(mids), any_contested, outcomes
 
 
+def _silver_text_from_record(rec: Dict[str, Any]) -> str:
+    """Extract the silver summary string from one predictions.jsonl record.
+
+    Handles both dict-shaped ``output`` (with ``summary_final`` /
+    ``summary_long`` keys) and plain-string ``output`` shapes. Returns an
+    empty string when neither shape yields text — the caller filters those.
+    """
+    out = rec.get("output") or {}
+    if isinstance(out, str):
+        return out
+    if isinstance(out, dict):
+        return out.get("summary_final") or out.get("summary_long") or ""
+    return ""
+
+
+def _load_silver_summaries(silver_reference_path: Path) -> Dict[str, str]:
+    """Load per-episode silver summary strings from ``predictions.jsonl``.
+
+    The pairwise judge compares each candidate summary against the same
+    silver reference the scalar judge uses via ROUGE-L. Extracting the
+    prose here mirrors :func:`_extract_summary_prose` so the judge sees
+    the same shape it would for the candidate.
+    """
+    predictions = silver_reference_path / "predictions.jsonl"
+    if not predictions.is_file():
+        raise FileNotFoundError(
+            f"Pairwise scoring requires a silver predictions.jsonl at "
+            f"{predictions}; add the silver reference or run scalar mode."
+        )
+    by_id: Dict[str, str] = {}
+    for line in predictions.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        eid = rec.get("episode_id")
+        text = _silver_text_from_record(rec)
+        if eid and text:
+            by_id[str(eid)] = _extract_summary_prose(text)
+    return by_id
+
+
+def _call_pairwise_judge(
+    provider: str,
+    *,
+    model: str,
+    user_content: str,
+    candidate_slot: "CandidateSlot",  # type: ignore[name-defined]  # noqa: F821
+) -> "PairwiseVerdict":  # type: ignore[name-defined]  # noqa: F821
+    """Dispatch one pairwise judge call by provider name.
+
+    Only ``ollama`` and ``vllm`` are supported — DGX judging is the
+    intended surface for pairwise. ``openai`` / ``anthropic`` pairwise
+    aren't implemented (the DGX judge_config never uses them); if you
+    need them, add ``call_openai_judge_raw`` + ``call_anthropic_judge_raw``
+    sibling functions and route here.
+    """
+    from podcast_scraper.evaluation.pairwise import parse_pairwise_verdict
+
+    if provider == "ollama":
+        from podcast_scraper.evaluation.judges.ollama_chat import OllamaChatJudge
+
+        text = OllamaChatJudge(model=model).raw(user_content=user_content)
+        return parse_pairwise_verdict(text, candidate_slot=candidate_slot)
+    if provider == "vllm":
+        from podcast_scraper.evaluation.judges.vllm_chat import VllmChatJudge
+
+        text = VllmChatJudge(model=model).raw(user_content=user_content)
+        return parse_pairwise_verdict(text, candidate_slot=candidate_slot)
+    raise NotImplementedError(
+        f"Pairwise dispatch not implemented for provider={provider!r}. "
+        "Currently supported: ollama, vllm. Route through a scalar judge or "
+        "add raw()-returning openai/anthropic callers."
+    )
+
+
+def judge_one_episode_pairwise(
+    *,
+    transcript: str,
+    candidate_summary: str,
+    silver_summary: str,
+    episode_id: str,
+    judge_a_provider: str,
+    judge_a_model: str,
+    judge_b_provider: str,
+    judge_b_model: str,
+) -> "PairwiseOutcome":  # type: ignore[name-defined]  # noqa: F821
+    """Score one (candidate, silver) pair through both pairwise judges.
+
+    Position-randomizes the candidate into slot A or B once via
+    :func:`prepare_slots`, then routes the SAME slotted message through
+    both judges — no double-shuffling. Contest fires only on directional
+    disagreement (see :func:`podcast_scraper.evaluation.pairwise.is_contested`).
+    """
+    from podcast_scraper.evaluation.pairwise import (
+        build_pairwise_user_message,
+        is_contested,
+        PAIRWISE_RUBRIC,
+        PairwiseOutcome,
+        prepare_slots,
+    )
+
+    slot, slot_a, slot_b = prepare_slots(
+        episode_id=episode_id,
+        candidate_summary=candidate_summary,
+        silver_summary=silver_summary,
+    )
+    user_msg = build_pairwise_user_message(
+        rubric=PAIRWISE_RUBRIC,
+        transcript=transcript,
+        slot_a_summary=slot_a,
+        slot_b_summary=slot_b,
+    )
+    v_a = _call_pairwise_judge(
+        judge_a_provider,
+        model=judge_a_model,
+        user_content=user_msg,
+        candidate_slot=slot,
+    )
+    v_b = _call_pairwise_judge(
+        judge_b_provider,
+        model=judge_b_model,
+        user_content=user_msg,
+        candidate_slot=slot,
+    )
+    return PairwiseOutcome(judge_a=v_a, judge_b=v_b, contested=is_contested(v_a, v_b))
+
+
+def mean_pairwise_scores(
+    *,
+    predictions: List[Dict[str, Any]],
+    judge_cfg: Dict[str, Any],
+    dataset_id: str,
+    eval_root: Path,
+    silver_reference_path: Path,
+) -> Tuple[float, bool, Dict[str, Any]]:
+    """Pairwise counterpart to :func:`mean_judge_scores`.
+
+    Returns:
+        mean_score: candidate quality proxy in [0, 1] — mean of
+            :func:`pairwise_verdict_to_score` across both judges and all
+            episodes. Aggregating both judges' scores here (rather than
+            reporting them separately) mirrors ``mean_judge_scores``'s
+            midpoint aggregation so the scoring formula
+            ``rouge_weight * rougeL + (1 - rouge_weight) * mean_score``
+            keeps its shape.
+        any_contested: contested if a meaningful fraction of episodes had
+            directional judge disagreement (same
+            ``CONTEST_FRACTION_THRESHOLD`` as scalar).
+        summary: dict with per-judge win_rate / tie_rate / decisive_rate
+            for the leaderboard audit column.
+    """
+    from podcast_scraper.evaluation.pairwise import (
+        pairwise_verdict_to_score,
+        summarize_pairwise_run,
+    )
+
+    ja = judge_cfg.get("judge_a") or {}
+    jb = judge_cfg.get("judge_b") or {}
+    j_a_prov = str(ja.get("provider", "ollama"))
+    j_a_model = str(ja["model"])
+    j_b_prov = str(jb.get("provider", "ollama"))
+    j_b_model = str(jb["model"])
+
+    eids = [str(p.get("episode_id")) for p in predictions if p.get("episode_id")]
+    transcripts = transcripts_by_episode_id(
+        dataset_id=dataset_id, episode_ids=eids, eval_root=eval_root
+    )
+    silvers = _load_silver_summaries(silver_reference_path)
+
+    judge_a_verdicts = []
+    judge_b_verdicts = []
+    per_episode_scores: List[float] = []
+    contested_count = 0
+
+    for pred in predictions:
+        eid = pred.get("episode_id")
+        if not eid:
+            continue
+        candidate = summary_text_from_prediction(pred)
+        if not candidate.strip():
+            logger.warning("Skipping pairwise judge for episode %s: empty summary", eid)
+            continue
+        silver = silvers.get(str(eid), "")
+        if not silver.strip():
+            logger.warning("Skipping pairwise judge for episode %s: no silver summary", eid)
+            continue
+        tr = transcripts.get(str(eid), "")
+
+        outcome = judge_one_episode_pairwise(
+            transcript=tr,
+            candidate_summary=candidate,
+            silver_summary=silver,
+            episode_id=str(eid),
+            judge_a_provider=j_a_prov,
+            judge_a_model=j_a_model,
+            judge_b_provider=j_b_prov,
+            judge_b_model=j_b_model,
+        )
+        judge_a_verdicts.append(outcome.judge_a)
+        judge_b_verdicts.append(outcome.judge_b)
+        per_episode_scores.append(
+            (
+                pairwise_verdict_to_score(outcome.judge_a)
+                + pairwise_verdict_to_score(outcome.judge_b)
+            )
+            / 2.0
+        )
+        if outcome.contested:
+            contested_count += 1
+
+    if not per_episode_scores:
+        raise RuntimeError("No episodes scored by pairwise judges")
+
+    any_contested = (contested_count / len(per_episode_scores)) > CONTEST_FRACTION_THRESHOLD
+    logger.info(
+        "Pairwise judge contestation: %d/%d episodes directionally contested "
+        "(threshold %.0f%%) → contested=%s",
+        contested_count,
+        len(per_episode_scores),
+        CONTEST_FRACTION_THRESHOLD * 100,
+        any_contested,
+    )
+
+    summary = {
+        "judge_a": summarize_pairwise_run(judge_a_verdicts),
+        "judge_b": summarize_pairwise_run(judge_b_verdicts),
+        "contested_count": contested_count,
+        "episodes": len(per_episode_scores),
+    }
+    return sum(per_episode_scores) / len(per_episode_scores), any_contested, summary
+
+
 def combine_track_a_scalar(
     *,
     rouge_l_f1: Optional[float],
