@@ -223,6 +223,18 @@ class AppTopic(BaseModel):
     cluster_size: int = Field(
         default=0, ge=0, description="Cross-corpus member count of the topic's cluster (0 if none)."
     )
+    theme_cluster_id: str | None = Field(
+        default=None,
+        description="Corpus THEME-cluster id (thc:{slug}) — topics discussed together "
+        "(co-occurrence), distinct from the semantic cluster_id. Null when not in a theme. "
+        "From enrichments/topic_theme_clusters.json.",
+    )
+    theme_cluster_label: str | None = Field(
+        default=None, description="Canonical label of the topic's theme cluster, when in one."
+    )
+    theme_cluster_size: int = Field(
+        default=0, ge=0, description="Member count of the topic's theme cluster (0 if none)."
+    )
 
 
 class AppEntitiesResponse(BaseModel):

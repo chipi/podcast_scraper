@@ -71,7 +71,13 @@ const hasAnything = computed(
 )
 
 // --- Topics + People as one compact, expandable row; topics cluster-first (RFC-102) ---
-type Tag = { key: string; label: string; kind: 'topic' | 'person'; dominant: boolean }
+type Tag = {
+  key: string
+  label: string
+  kind: 'topic' | 'person'
+  dominant: boolean
+  themeMember: boolean
+}
 
 // Tapping a chip opens its entity card (PRD-043; library search now lives inside the card).
 const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
@@ -106,6 +112,36 @@ const dominantClusterId = computed<string | null>(() => {
 const dominantClusterLabel = computed(
   () => props.topics.find((t) => t.cluster_id === dominantClusterId.value)?.cluster_label ?? null,
 )
+
+// Theme clusters (co-occurrence "discussed together") — parallel to the semantic dominant above.
+// Marked on the pills (theme ring) + a "Theme ·" lead-in. No-op when topics carry no theme_cluster_id.
+const themeClusterCounts = computed<Record<string, number>>(() => {
+  const c: Record<string, number> = {}
+  for (const t of props.topics)
+    if (t.theme_cluster_id) c[t.theme_cluster_id] = (c[t.theme_cluster_id] ?? 0) + 1
+  return c
+})
+const themeDominantId = computed<string | null>(() => {
+  const counts = themeClusterCounts.value
+  let best: string | null = null
+  let bestCount = 1
+  let bestSize = -1
+  for (const t of props.topics) {
+    if (!t.theme_cluster_id) continue
+    const n = counts[t.theme_cluster_id] ?? 0
+    if (n > bestCount || (n === bestCount && (t.theme_cluster_size ?? 0) > bestSize)) {
+      best = t.theme_cluster_id
+      bestCount = n
+      bestSize = t.theme_cluster_size ?? 0
+    }
+  }
+  return best
+})
+const themeDominantLabel = computed(
+  () =>
+    props.topics.find((t) => t.theme_cluster_id === themeDominantId.value)?.theme_cluster_label ??
+    null,
+)
 const allTags = computed<Tag[]>(() => {
   const counts = topicClusterCounts.value
   const dom = dominantClusterId.value
@@ -120,12 +156,14 @@ const allTags = computed<Tag[]>(() => {
       label: tp.label,
       kind: 'topic' as const,
       dominant: Boolean(dom) && tp.cluster_id === dom,
+      themeMember: Boolean(tp.theme_cluster_id),
     })),
     ...props.persons.map((p) => ({
       key: p.id,
       label: p.name,
       kind: 'person' as const,
       dominant: false,
+      themeMember: false,
     })),
   ]
 })
@@ -296,8 +334,16 @@ watch(
       <section v-if="allTags.length" class="mb-5">
         <div class="mb-2 flex items-baseline justify-between gap-2">
           <h3 class="lp-section">{{ t('kp.tags') }}</h3>
-          <span v-if="dominantClusterLabel" class="truncate text-xs text-topic">
-            {{ t('kp.similar', { cluster: dominantClusterLabel }) }}
+          <span
+            v-if="themeDominantLabel || dominantClusterLabel"
+            class="flex min-w-0 flex-col items-end text-xs leading-tight"
+          >
+            <span v-if="themeDominantLabel" class="truncate text-theme">
+              {{ t('kp.theme', { cluster: themeDominantLabel }) }}
+            </span>
+            <span v-if="dominantClusterLabel" class="truncate text-topic">
+              {{ t('kp.similar', { cluster: dominantClusterLabel }) }}
+            </span>
           </span>
         </div>
         <div class="flex flex-wrap gap-1.5">
@@ -308,7 +354,11 @@ watch(
             class="rounded-full bg-overlay px-2.5 py-1 text-xs transition hover:bg-elevated"
             :class="[
               tag.kind === 'topic' ? 'text-topic' : 'text-person',
-              tag.dominant ? 'ring-1 ring-topic' : '',
+              tag.themeMember
+                ? 'ring-1 ring-theme'
+                : tag.dominant
+                  ? 'ring-1 ring-topic'
+                  : '',
             ]"
             :aria-label="t('kp.openEntity', { term: tag.label })"
             @click="openCard(tag)"

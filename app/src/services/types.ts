@@ -155,13 +155,17 @@ export interface Entity {
   kind: 'person' | 'org'
 }
 
-/** A KG topic. Cluster fields (RFC-102) drive cluster-first grouping; null/0 = singleton/no artifact. */
+/** A KG topic. Cluster fields (RFC-102) drive cluster-first grouping; null/0 = singleton/no artifact.
+ *  `cluster_*` = semantic ("Similar"); `theme_cluster_*` = co-occurrence ("Theme"). */
 export interface Topic {
   id: string
   label: string
   cluster_id: string | null
   cluster_label: string | null
   cluster_size: number
+  theme_cluster_id?: string | null
+  theme_cluster_label?: string | null
+  theme_cluster_size?: number
 }
 
 export interface EntitiesResponse {

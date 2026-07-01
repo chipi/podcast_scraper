@@ -154,6 +154,40 @@ describe('KnowledgePanel', () => {
     expect(chips[2].classes()).not.toContain('ring-topic')
   })
 
+  it('marks theme-cluster topics with a "Theme ·" lead-in and theme ring (co-occurrence)', () => {
+    const topics: Topic[] = [
+      {
+        id: 'topic:oil',
+        label: 'oil',
+        cluster_id: null,
+        cluster_label: null,
+        cluster_size: 0,
+        theme_cluster_id: 'thc:sanctions',
+        theme_cluster_label: 'sanctions',
+        theme_cluster_size: 3,
+      },
+      {
+        id: 'topic:sf',
+        label: 'shadow fleet',
+        cluster_id: null,
+        cluster_label: null,
+        cluster_size: 0,
+        theme_cluster_id: 'thc:sanctions',
+        theme_cluster_label: 'sanctions',
+        theme_cluster_size: 3,
+      },
+      { id: 'topic:z', label: 'zulu', cluster_id: null, cluster_label: null, cluster_size: 0 },
+    ]
+    const w = mountPanel({ topics, persons: [] })
+    // Dominant theme (co-occurrence) surfaces as the "Theme ·" lead-in — distinct from "Similar ·".
+    expect(w.text()).toContain('Theme · sanctions')
+    // Theme-member chips carry the theme ring; the non-member does not.
+    const oil = w.findAll('button').find((b) => b.text() === 'oil')!
+    const zulu = w.findAll('button').find((b) => b.text() === 'zulu')!
+    expect(oil.classes()).toContain('ring-theme')
+    expect(zulu.classes()).not.toContain('ring-theme')
+  })
+
   it('runs episode-scoped search and renders grounded results', async () => {
     const api = await import('../services/api')
     vi.spyOn(api, 'searchEpisode').mockResolvedValue({
