@@ -3136,7 +3136,8 @@ autoresearch-sweep-local:
 			;; \
 		vllm) \
 			JUDGE_CONFIG_PATH="autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_config_vllm.yaml"; \
-			echo "  Judges: vLLM (Llama-3.3-70B + Qwen3.5-35B-A3B) — bigger, cross-vendor"; \
+			echo "  Judges: hybrid vLLM(Qwen3-30B-A3B-Instruct-2507) + Ollama(llama3.3:70b)"; \
+			echo "          — bigger than W27, gemma/mistral candidates unflagged"; \
 			;; \
 		*) \
 			echo "❌ JUDGES=$$JUDGES not recognised. Use JUDGES=ollama or JUDGES=vllm."; \
