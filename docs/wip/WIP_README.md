@@ -56,6 +56,8 @@ WIP file is removed.
 | `player/mockups/` | Phone mockups (HTML + PNG) of the three explored Player aesthetics; **Direction B (Editorial Bold)** adopted → UXS-011. Design aids, not shipped assets. | Reference |
 | `MENTIONS_PERSON_DETERMINISM_INVESTIGATION.md` | #1076 chunk 4 path-A/B decision doc + post-shipment status banner: NER pass validated via 50-row operator-labelled sample (47 TP / 3 AMBIGUOUS / 0 FP), enabled in airgapped + airgapped_thin profiles, prod-v2 retro sweep landed (marker `#1076-ner-2026-06-24`) | Closed |
 | `NER_FP_SAMPLE_LABELLED_2026-06-24.json` | Operator-labellable 50-row sample produced by `scripts/dev/measure_ner_mentions_diff.py` against the prod-v2 corpus; backs the TP/FP claim in the determinism investigation doc | Reference |
+| `enrichment-visual-inspection-plan.md` | 4-stage plan for restarting the viewer against a freshly-enriched small corpus and inspecting where each RFC-088 enrichment signal surfaces in the player/viewer UI (uncovering UX gaps). | Active |
+| `handover-enrichment-tabs-session.md` | Session handover (2026-07-01): Enrichment 3rd-tab (Details·Enrichment·Neighbourhood) added to graph topic/person cards (`NodeDetail` + new `NodeEnrichmentSection`) and the episode rail (`SubjectRail` + `EpisodeDetailPanel`), typecheck + 84 vitests green, uncommitted awaiting operator visual check. Also captures branch `feat/consumer-remember` state (#1128 auth epic + enrichment + serve fix, NOT pushed), the open `topic_cooccurrence` PMI/lift enhancement thread, and pre-push checklist. | Active |
 
 ## Guidelines
 
