@@ -202,6 +202,9 @@ class NliContradictionEnricher:
                 "pairs_scored": pairs_scored,
                 "contradictions": contradictions,
             },
+            # Async enrichers return EnricherResult directly (no @sync_enricher wrapper), so they
+            # must set records_written themselves — one record per contradiction pair kept.
+            records_written=len(contradictions),
         )
 
 
