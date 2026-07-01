@@ -167,6 +167,22 @@ def test_print_leaderboard_renders_markdown_table(capsys):
     assert out.index("phi4:14b") < out.index("hermes3:8b")
 
 
+def test_phase_name_strips_judge_config_prefix() -> None:
+    """Multi-phase v2 ledger keys candidate scores by phase name derived
+    from the judge_config filename. The prefix must be stripped so the
+    operator sees ``ollama`` / ``vllm`` in the JSON, not
+    ``judge_config_ollama`` / ``judge_config_vllm``."""
+    assert sweep._phase_name_from_judge_config(Path("judge_config_ollama.yaml")) == "ollama"
+    assert sweep._phase_name_from_judge_config(Path("judge_config_vllm.yaml")) == "vllm"
+
+
+def test_phase_name_falls_back_to_stem() -> None:
+    assert sweep._phase_name_from_judge_config(Path("foo.yaml")) == "foo"
+    assert (
+        sweep._phase_name_from_judge_config(Path("/abs/path/custom_judges.yaml")) == "custom_judges"
+    )
+
+
 def test_print_leaderboard_sorts_descending_by_final(capsys):
     """Two ok candidates with different final scores → higher one appears first."""
     ledger = {

@@ -59,7 +59,7 @@ PYTEST_WORKERS ?= 2
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-sweep-local autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e build-viewer serve-app serve-app-dev test-app test-app-e2e build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
+.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-sweep-local autoresearch-sweep-multi autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e build-viewer serve-app serve-app-dev test-app test-app-e2e build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
 
 help:
 	@echo "Common developer commands:"
@@ -3097,6 +3097,78 @@ ml-param-sweep:
 	echo "Running ML param sweep for MODEL=$(MODEL)..."; \
 	eval $$cmd
 
+autoresearch-sweep-multi:
+	@# Multi-judge sweep with vLLM model swaps between phases.
+	@#
+	@# Phase 1: Ollama judges (fast, cheap baseline — the current W27 config).
+	@# Phase 2: vLLM judge #1 (e.g. Qwen3-30B-A3B, whatever vLLM is serving
+	@#          when you bring it up).
+	@# Phase 3: vLLM judge #2 (swap vLLM to a different model, e.g.
+	@#          llama3.3:70b via Ollama sibling — or a second vLLM model).
+	@#
+	@# Predictions generated ONCE (phase 1); phases 2-3 use --rejudge so
+	@# each candidate's summary stays identical across all three judge panels.
+	@# That's the 3-column comparison ledger the operator asked for.
+	@#
+	@# Between phases this target PAUSES and prints instructions for
+	@# swapping vLLM's served model — the operator or a homelab script
+	@# performs the swap (this repo can't docker-manage DGX from the
+	@# laptop), then presses Enter to continue.
+	@#
+	@# Usage:
+	@#   make autoresearch-sweep-multi                        # full cohort, 3 phases
+	@#   make autoresearch-sweep-multi LIMIT=1                # smoke first candidate
+	@#   make autoresearch-sweep-multi \
+	@#     PHASE_CONFIGS="path/a.yaml,path/b.yaml,path/c.yaml"  # custom judge configs
+	@#
+	@# Default PHASE_CONFIGS: judge_config_ollama, judge_config_vllm.
+	@# Set to a longer comma-list to fan out to 3+ phases; the operator
+	@# gets prompted before phase 2..N to swap the vLLM served model.
+	@if [ -z "$$OLLAMA_API_BASE" ] && [ -z "$$DGX_TAILNET_FQDN" ]; then \
+		echo "❌ Set OLLAMA_API_BASE or DGX_TAILNET_FQDN (must be on tailnet)."; \
+		exit 1; \
+	fi
+	@if [ -z "$$VLLM_API_KEY" ]; then \
+		echo "❌ Set VLLM_API_KEY. The DGX judge vLLMs serve under --api-key;"; \
+		echo "   requests without a matching Authorization: Bearer header get 401."; \
+		echo "   Current homelab default: buddy-is-the-king"; \
+		exit 1; \
+	fi
+	@PHASE_CONFIGS_DEFAULT="autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_config_ollama.yaml,autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_config_vllm_a.yaml,autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_config_vllm_b.yaml"; \
+	PHASE_CONFIGS="$${PHASE_CONFIGS:-$$PHASE_CONFIGS_DEFAULT}"; \
+	TIMESTAMP=$$(date -u +'%Y%m%dT%H%M%SZ'); \
+	OUT_PATH="data/autoresearch_baselines/autoresearch-local-multi-$$TIMESTAMP.json"; \
+	echo "→ Multi-judge sweep"; \
+	echo "  Phase configs: $$PHASE_CONFIGS"; \
+	echo "  Ledger: $$OUT_PATH  (gitignored)"; \
+	echo ""; \
+	echo "→ Materializing curated_5feeds_smoke_v2 dataset"; \
+	$(MAKE) dataset-materialize DATASET_ID=curated_5feeds_smoke_v2; \
+	echo ""; \
+	if [ -n "$(LIMIT)" ]; then \
+		echo "  Limit: first $(LIMIT) candidate(s)"; \
+		LIMIT_ARG="--limit $(LIMIT)"; \
+	else \
+		echo "  Limit: full cohort (or cohort.default_limit)"; \
+		LIMIT_ARG=""; \
+	fi; \
+	echo ""; \
+	echo "→ Ensuring GPU is idle before phase 1 (Ollama needs full GPU)"; \
+	scripts/ops/dgx_gpu_mode.sh idle || { echo "❌ dgx_gpu_mode.sh idle failed"; exit 1; }; \
+	echo ""; \
+	echo "→ Running multi-phase sweep. Phase transitions run their own"; \
+	echo "  prep_cmd (gpu-mode-swap.sh judging {a,b}) — no manual swap needed."; \
+	echo ""; \
+	$(PYTHON) scripts/baselines/autoresearch_sweep.py \
+		--judge-configs "$$PHASE_CONFIGS" \
+		--output "$$OUT_PATH" \
+		$$LIMIT_ARG \
+		--print-leaderboard; \
+	echo ""; \
+	echo "✓ Multi-judge sweep complete."; \
+	echo "  Ledger: $$OUT_PATH"; \
+	echo "  Inspect with: jq '.cohort[].scores_by_phase' $$OUT_PATH"
+
 autoresearch-sweep-local:
 	@# Run the full weekly autoresearch sweep from the laptop, without GHA
 	@# round-trip. Mirrors .github/workflows/autoresearch-eval-nightly.yml's
@@ -3204,6 +3276,10 @@ autoresearch-score:
 	if [ "$(DRY_RUN)" = "1" ]; then \
 		echo "  Mode: dry-run (ROUGE only via score-only, no judges)"; \
 		cmd="$$cmd --dry-run"; \
+	fi; \
+	if [ "$(REJUDGE)" = "1" ]; then \
+		echo "  Mode: rejudge (reuse existing predictions; run judges only)"; \
+		cmd="$$cmd --rejudge"; \
 	fi; \
 	echo "Running autoresearch score harness..."; \
 	eval $$cmd; \

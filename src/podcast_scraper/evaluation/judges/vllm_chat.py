@@ -47,6 +47,15 @@ def _resolve_vllm_base() -> str:
     return "http://localhost:8003/v1"
 
 
+def _resolve_vllm_api_key() -> str:
+    """Resolve the vLLM API key from ``VLLM_API_KEY``. Empty string when
+    unset — the transport then omits the Authorization header entirely,
+    which is what a no-auth vLLM (local dev, unauthenticated tests) wants.
+    Homelab vLLM autoresearch on DGX serves under ``--api-key <token>``;
+    export that token as ``VLLM_API_KEY`` in the shell / GHA env / .env."""
+    return os.environ.get("VLLM_API_KEY", "").strip()
+
+
 class VllmChatJudge:
     """vLLM judge over OpenAI-compatible ``/chat/completions``.
 
@@ -61,16 +70,27 @@ class VllmChatJudge:
         self,
         *,
         api_base: Optional[str] = None,
+        api_key: Optional[str] = None,
         model: str,
         request_timeout_s: float = 600.0,
         thinking: bool = False,
         client: object | None = None,
     ) -> None:
         self.api_base = (api_base or _resolve_vllm_base()).rstrip("/")
+        self.api_key = api_key if api_key is not None else _resolve_vllm_api_key()
         self.model = model
         self.request_timeout_s = request_timeout_s
         self.thinking = thinking
         self._client = client
+
+    def _headers(self) -> dict[str, str]:
+        """Bearer-token auth when ``api_key`` is set; empty when not.
+        Homelab vLLM autoresearch on DGX serves under ``--api-key <token>``
+        so requests without the header return 401; local no-auth vLLM
+        (dev / test) returns fine either way."""
+        if self.api_key:
+            return {"Authorization": f"Bearer {self.api_key}"}
+        return {}
 
     def _do_request(self, *, user_content: str) -> dict[str, Any]:
         url = f"{self.api_base}/chat/completions"
@@ -85,12 +105,16 @@ class VllmChatJudge:
             # ``enable_thinking`` there; other reasoning-capable models
             # accept the same flag. No-op for models that don't read it.
             payload["chat_template_kwargs"] = {"enable_thinking": True}
+        headers = self._headers()
         if self._client is not None:
             return cast(
-                dict, self._client.post(url, json=payload).json()  # type: ignore[attr-defined]
+                dict,
+                self._client.post(  # type: ignore[attr-defined]
+                    url, json=payload, headers=headers
+                ).json(),
             )
         with httpx.Client(timeout=self.request_timeout_s) as client:
-            resp = client.post(url, json=payload)
+            resp = client.post(url, json=payload, headers=headers)
             resp.raise_for_status()
             return cast(dict, resp.json())
 

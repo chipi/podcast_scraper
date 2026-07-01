@@ -624,12 +624,25 @@ def _load_silver_summaries(silver_reference_path: Path) -> Dict[str, str]:
     return by_id
 
 
+def _expand_env_in_url(raw: Optional[str]) -> Optional[str]:
+    """Expand ``${VAR}`` placeholders in a URL against ``os.environ``.
+
+    Judge configs write ``api_base: http://${DGX_TAILNET_FQDN}:8004/v1``
+    so the hostname isn't hardcoded across dev / CI / homelab. Returns
+    None for None input; passes plain URLs through unchanged.
+    """
+    if raw is None:
+        return None
+    return os.path.expandvars(str(raw))
+
+
 def _call_pairwise_judge(
     provider: str,
     *,
     model: str,
     user_content: str,
     candidate_slot: "CandidateSlot",  # type: ignore[name-defined]  # noqa: F821
+    api_base: Optional[str] = None,
 ) -> "PairwiseVerdict":  # type: ignore[name-defined]  # noqa: F821
     """Dispatch one pairwise judge call by provider name.
 
@@ -638,18 +651,23 @@ def _call_pairwise_judge(
     aren't implemented (the DGX judge_config never uses them); if you
     need them, add ``call_openai_judge_raw`` + ``call_anthropic_judge_raw``
     sibling functions and route here.
+
+    ``api_base`` (optional): override the transport's base URL. Used by
+    the multi-phase sweep to route each phase's judge to its own
+    vLLM port (judge-a on :8004, judge-b on :8005). When None the
+    transport falls back to its env-var precedence.
     """
     from podcast_scraper.evaluation.pairwise import parse_pairwise_verdict
 
     if provider == "ollama":
         from podcast_scraper.evaluation.judges.ollama_chat import OllamaChatJudge
 
-        text = OllamaChatJudge(model=model).raw(user_content=user_content)
+        text = OllamaChatJudge(model=model, api_base=api_base).raw(user_content=user_content)
         return parse_pairwise_verdict(text, candidate_slot=candidate_slot)
     if provider == "vllm":
         from podcast_scraper.evaluation.judges.vllm_chat import VllmChatJudge
 
-        text = VllmChatJudge(model=model).raw(user_content=user_content)
+        text = VllmChatJudge(model=model, api_base=api_base).raw(user_content=user_content)
         return parse_pairwise_verdict(text, candidate_slot=candidate_slot)
     raise NotImplementedError(
         f"Pairwise dispatch not implemented for provider={provider!r}. "
@@ -666,8 +684,10 @@ def judge_one_episode_pairwise(
     episode_id: str,
     judge_a_provider: str,
     judge_a_model: str,
-    judge_b_provider: str,
-    judge_b_model: str,
+    judge_a_api_base: Optional[str] = None,
+    judge_b_provider: Optional[str] = None,
+    judge_b_model: Optional[str] = None,
+    judge_b_api_base: Optional[str] = None,
 ) -> "PairwiseOutcome":  # type: ignore[name-defined]  # noqa: F821
     """Score one (candidate, silver) pair through both pairwise judges.
 
@@ -675,6 +695,13 @@ def judge_one_episode_pairwise(
     :func:`prepare_slots`, then routes the SAME slotted message through
     both judges — no double-shuffling. Contest fires only on directional
     disagreement (see :func:`podcast_scraper.evaluation.pairwise.is_contested`).
+
+    Single-judge mode: when ``judge_b_provider`` (and model) are None,
+    only judge_a is called. The outcome mirrors judge_a's verdict into
+    judge_b for shape compatibility with dual-judge callers; contest
+    never fires (a judge trivially agrees with itself). Used by the
+    ``judging a`` / ``judging b`` phases in the multi-phase sweep where
+    each phase runs one vLLM as the sole judge.
     """
     from podcast_scraper.evaluation.pairwise import (
         build_pairwise_user_message,
@@ -700,12 +727,17 @@ def judge_one_episode_pairwise(
         model=judge_a_model,
         user_content=user_msg,
         candidate_slot=slot,
+        api_base=judge_a_api_base,
     )
+    if judge_b_provider is None or judge_b_model is None:
+        # Single-judge phase — mirror v_a into judge_b for shape compat.
+        return PairwiseOutcome(judge_a=v_a, judge_b=v_a, contested=False)
     v_b = _call_pairwise_judge(
         judge_b_provider,
         model=judge_b_model,
         user_content=user_msg,
         candidate_slot=slot,
+        api_base=judge_b_api_base,
     )
     return PairwiseOutcome(judge_a=v_a, judge_b=v_b, contested=is_contested(v_a, v_b))
 
@@ -743,8 +775,18 @@ def mean_pairwise_scores(
     jb = judge_cfg.get("judge_b") or {}
     j_a_prov = str(ja.get("provider", "ollama"))
     j_a_model = str(ja["model"])
-    j_b_prov = str(jb.get("provider", "ollama"))
-    j_b_model = str(jb["model"])
+    j_a_api_base = _expand_env_in_url(ja.get("api_base"))
+    # Single-judge phase support — when judge_b is absent from the config,
+    # skip its call. Used by the per-phase vLLM judges in the multi-phase
+    # sweep (``judging a`` and ``judging b`` each run one vLLM as sole judge).
+    if jb:
+        j_b_prov: Optional[str] = str(jb.get("provider", "ollama"))
+        j_b_model: Optional[str] = str(jb["model"])
+        j_b_api_base: Optional[str] = _expand_env_in_url(jb.get("api_base"))
+    else:
+        j_b_prov = None
+        j_b_model = None
+        j_b_api_base = None
 
     eids = [str(p.get("episode_id")) for p in predictions if p.get("episode_id")]
     transcripts = transcripts_by_episode_id(
@@ -778,8 +820,10 @@ def mean_pairwise_scores(
             episode_id=str(eid),
             judge_a_provider=j_a_prov,
             judge_a_model=j_a_model,
+            judge_a_api_base=j_a_api_base,
             judge_b_provider=j_b_prov,
             judge_b_model=j_b_model,
+            judge_b_api_base=j_b_api_base,
         )
         judge_a_verdicts.append(outcome.judge_a)
         judge_b_verdicts.append(outcome.judge_b)

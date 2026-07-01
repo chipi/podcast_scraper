@@ -43,6 +43,32 @@ def _by_model(cohort: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     return {row["model"]: row for row in cohort if "model" in row}
 
 
+_PRIMARY_PHASE = "ollama"
+
+
+def _primary_scores_and_latency(row: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Return (scores, latency_ms) for the primary drift-check phase.
+
+    v1 ledgers (schema_version=1) key scores at the top of the row:
+        row.scores.final / row.scores.rougeL_f1 / ...
+        row.latency_ms.p95
+
+    v2 ledgers (schema_version=2, multi-phase) key scores by phase name:
+        row.scores_by_phase[phase].scores.final / ...
+        row.scores_by_phase[phase].latency_ms.p95
+
+    The multi-judge sweep still runs an Ollama scalar phase (name
+    ``ollama``) that mirrors the pre-v2 shape, so we drift-check against
+    that phase to preserve week-over-week comparability across the
+    schema bump. Multi-judge divergence detection (per-phase drift) is a
+    follow-up on top.
+    """
+    if "scores" in row:
+        return row.get("scores") or {}, row.get("latency_ms") or {}
+    phase = (row.get("scores_by_phase") or {}).get(_PRIMARY_PHASE) or {}
+    return phase.get("scores") or {}, phase.get("latency_ms") or {}
+
+
 def _drop_ratio(prev: float, this: float) -> float | None:
     if prev is None or this is None or prev <= 0:
         return None
@@ -79,10 +105,13 @@ def check_candidate(
         # Skip metric comparisons on failed candidates.
         return breaches
 
-    this_scores = this_row.get("scores") or {}
-    prev_scores = prev_row.get("scores") or {}
-    this_perf = this_row.get("latency_ms") or {}
-    prev_perf = prev_row.get("latency_ms") or {}
+    # v1 ledger: row.scores / row.latency_ms at the top.
+    # v2 ledger (multi-phase): row.scores_by_phase[phase].{scores,latency_ms}.
+    # For drift, compare the "primary" phase (ollama by convention — matches
+    # the historical single-phase ledgers so week-over-week diffs stay
+    # meaningful across the schema bump). Multi-judge drift is a follow-up.
+    this_scores, this_perf = _primary_scores_and_latency(this_row)
+    prev_scores, prev_perf = _primary_scores_and_latency(prev_row)
 
     # Headline scalar.
     fs = cfg.get("final_score") or {}

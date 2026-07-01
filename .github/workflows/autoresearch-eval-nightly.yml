@@ -2,16 +2,22 @@
 #
 # Three phases:
 #   1. setup   — checkout, install [dev,llm], probe Ollama, materialize dataset
-#   2. sweep   — run the cohort (data/autoresearch_baselines/cohort.yaml),
-#                produce per-candidate breakdown JSONs, write the weekly
-#                ledger autoresearch-YYYY-WNN.json, commit it back to main
-#   3. drift   — compare this week's ledger to last week's, open/update/close
-#                a single "autoresearch drift detected" GH issue per week
+#   2. sweep   — run the cohort (data/autoresearch_baselines/cohort.yaml)
+#                across three judge panels (multi-phase, v2 ledger):
+#                  * Phase 1  Ollama scalar (gemma3:27b + mistral-small:24b)
+#                  * Phase 2  vLLM judge-a  (Qwen3-30B-A3B-Instruct-2507)
+#                  * Phase 3  vLLM judge-b  (Llama-3.3-70B-Instruct-NVFP4)
+#                Predictions are generated once (phase 1); phases 2-3 rejudge
+#                the same predictions.jsonl. gpu-mode-swap.sh enforces
+#                single-owner-at-a-time on the GB10 GPU.
+#   3. drift   — compare this week's ledger to last week's on the primary
+#                (ollama) phase, open/update/close a "autoresearch drift
+#                detected" GH issue per week
 #
 # Mirrors nightly-data-baseline.yml's setup → snapshot → drift → issue
 # pattern. The cohort + thresholds + judge models are all data-driven via
-# YAML in data/autoresearch_baselines/; edit those to scope without
-# touching this workflow.
+# YAML in data/autoresearch_baselines/ and autoresearch/initial_prompt_tuning/;
+# edit those to scope without touching this workflow.
 
 name: Autoresearch eval nightly (DGX)
 
@@ -125,34 +131,57 @@ jobs:
         run: |
           make dataset-materialize DATASET_ID=curated_5feeds_smoke_v2
 
-      # --- [Sweep] Run the cohort ------------------------------------
+      # --- [Sweep] Run the cohort across all three judge panels ------
       # Split from leaderboard rendering so a wedged/OOM'd sweep doesn't
       # eat the leaderboard step's short timeout (the rendering is what
       # populates the GH job summary — it's cheap and should complete
       # even if the sweep partially succeeded).
-      - name: '[Sweep] Run sweep across cohort'
+      - name: '[Sweep] Run 3-phase sweep across cohort'
         id: sweep
-        # 95 min covers the full 7-candidate cohort at the current
-        # scalar Ollama pace (~13 min/candidate). Pairwise + bigger
-        # judges will push this — bump if needed after the next real run.
-        timeout-minutes: 95
+        # 110 min covers the full 7-candidate cohort at:
+        #   Ollama scalar   ~13 min/candidate × 7 = ~91 min
+        #   vLLM_a rejudge  ~1  min/candidate × 7 = ~7  min
+        #   vLLM_b rejudge  ~1  min/candidate × 7 = ~7  min
+        #   Swaps           ~3  min (judge-a cold) + ~7 min (judge-b cold)
+        # Bump if the cohort grows or the vLLM judges get slower.
+        timeout-minutes: 110
         env:
           OLLAMA_API_BASE: ${{ vars.DGX_OLLAMA_API_BASE }}
+          DGX_TAILNET_FQDN: ${{ vars.DGX_TAILNET_FQDN }}
+          # VLLM_API_KEY — vLLM judge containers serve under --api-key;
+          # requests without a matching Authorization: Bearer header get
+          # 401. Stored in the ``baselines`` env alongside INFRA_STATE_
+          # COMMIT_TOKEN so both live in one secret rotation surface.
+          VLLM_API_KEY: ${{ secrets.VLLM_API_KEY }}
+          # dgx_gpu_mode.sh consults this — 1 = exec gpu-mode-swap.sh
+          # locally (we ARE the DGX); unset/0 = SSH out (dev laptop).
+          DGX_LOCAL_MODE: "1"
         run: |
           if [ -z "${OLLAMA_API_BASE}" ]; then
-            echo "DGX_OLLAMA_API_BASE unset; sweep cannot proceed"
+            echo "::error::DGX_OLLAMA_API_BASE unset; sweep cannot proceed"
+            exit 1
+          fi
+          if [ -z "${VLLM_API_KEY}" ]; then
+            echo "::error::VLLM_API_KEY secret missing in 'baselines' env"
             exit 1
           fi
 
           # The sweep driver reads data/autoresearch_baselines/cohort.yaml
           # for candidates + default_limit. To override the phased rollout
-          # limit on a manual dispatch, set AUTORESEARCH_SWEEP_LIMIT in env.
+          # limit on a manual dispatch, set AUTORESEARCH_SWEEP_LIMIT.
+          PHASE_CONFIGS="autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_config_ollama.yaml,autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_config_vllm_a.yaml,autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_config_vllm_b.yaml"
+          # Use an array so the empty case doesn't produce a stray token
+          # (SC2086) and non-empty splits the two args cleanly.
+          LIMIT_ARGS=()
           if [ -n "${AUTORESEARCH_SWEEP_LIMIT:-}" ]; then
-            python3 scripts/baselines/autoresearch_sweep.py \
-              --limit "${AUTORESEARCH_SWEEP_LIMIT}"
-          else
-            python3 scripts/baselines/autoresearch_sweep.py
+            LIMIT_ARGS=(--limit "${AUTORESEARCH_SWEEP_LIMIT}")
           fi
+
+          python3 scripts/baselines/autoresearch_sweep.py \
+            --judge-configs "$PHASE_CONFIGS" \
+            "${LIMIT_ARGS[@]}" \
+            --print-leaderboard \
+            | tee /tmp/leaderboard.md
 
       - name: '[Sweep] Render leaderboard summary'
         id: leaderboard
@@ -160,44 +189,26 @@ jobs:
         # the sweep partially failed — per-candidate ``status`` rows in
         # the ledger are exactly what the operator wants to see in that
         # case (which candidates ran, which failed, what the ok ones
-        # scored).
+        # scored). The sweep step tees its ``--print-leaderboard`` output
+        # to /tmp/leaderboard.md; we just append that to the job summary.
+        # Fallback re-renders from the last ledger on disk when the
+        # sweep died before printing (or /tmp got wiped).
         if: always()
         timeout-minutes: 2
         run: |
-          # Surface the cohort attribution table in the job summary.
+          if [ -s /tmp/leaderboard.md ]; then
+            cat /tmp/leaderboard.md >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
-          import datetime as dt, json, glob, os
+          import glob, json, sys
+          sys.path.insert(0, "scripts/baselines")
+          from autoresearch_sweep import _print_leaderboard
           files = sorted(glob.glob("data/autoresearch_baselines/autoresearch-*.json"))
           if not files:
-              print("(no ledger written)"); raise SystemExit(0)
-          d = json.load(open(files[-1]))
-          ja, jb = d["judges"]["judge_a"], d["judges"]["judge_b"]
-          print(f"## Autoresearch weekly sweep — {d['week_id']}")
-          print()
-          print(f"**Silver:** `{d['silver']}`  (Anthropic)")
-          print(f"**Dataset:** `{d['dataset']}`")
-          print(f"**Judge A:** `{ja.get('model')}`  (provider=`{ja.get('provider')}`)")
-          print(f"**Judge B:** `{jb.get('model')}`  (provider=`{jb.get('provider')}`)")
-          print()
-          print("### Leaderboard")
-          print()
-          print("| candidate | family | final | rougeL | jA | jB | Δjudges | p95 (ms) | flag |")
-          print("|---|---|---:|---:|---:|---:|---:|---:|---|")
-          for r in sorted(d["cohort"], key=lambda x: -(x.get("scores",{}).get("final") or -1)):
-              sc = r.get("scores") or {}; lat = r.get("latency_ms") or {}
-              if r.get("status") != "ok":
-                  print(f"| `{r['model']}` | {r.get('family','?')} | — | — | — | — | — | — | ⚠ {r.get('status')} |"); continue
-              flag = ""
-              if r.get("same_family_judge"):
-                  ja_v, jb_v = sc.get("judge_a_mean"), sc.get("judge_b_mean")
-                  if ja_v is not None and jb_v is not None:
-                      if r.get("family") == ja.get("model","").split(":")[0].split("-")[0].title() or "gemma" in r.get("family","").lower():
-                          flag = "⚠ jA same-family"
-                      else:
-                          flag = "⚠ jB same-family"
-                  else:
-                      flag = "⚠ same-family"
-              print(f"| `{r['model']}` | {r.get('family','?')} | {sc.get('final',0):.4f} | {sc.get('rougeL_f1',0):.4f} | {sc.get('judge_a_mean') or 0:.3f} | {sc.get('judge_b_mean') or 0:.3f} | {sc.get('judges_delta') or 0:.3f} | {lat.get('p95') or 0:.0f} | {flag} |")
+              print("(no ledger written)")
+              raise SystemExit(0)
+          _print_leaderboard(json.load(open(files[-1])))
           PY
 
       # --- [Persist] Commit ledger + artifact -----------------------
@@ -259,8 +270,16 @@ jobs:
         # ``if: always()`` so even a failed sweep restores vLLM — other
         # autoresearch consumers shouldn't pay for our sweep's failure.
         if: always()
-        timeout-minutes: 5
+        timeout-minutes: 8
+        env:
+          DGX_LOCAL_MODE: "1"
         run: |
+          # A mid-phase sweep failure can leave one of the judge composes
+          # up — that would fight vllm-autoresearch for port 8003 and the
+          # GPU. Bring everything down first via gpu-mode-swap.sh idle
+          # (best-effort — don't fail the workflow on this).
+          scripts/ops/dgx_gpu_mode.sh idle || echo "::warning::gpu-mode idle failed; proceeding anyway"
+
           echo "  current container state:"
           docker container inspect vllm-autoresearch --format '{{.State.Status}}'
           docker start vllm-autoresearch

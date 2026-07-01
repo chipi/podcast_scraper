@@ -125,7 +125,7 @@ def test_call_pairwise_judge_routes_to_ollama_raw() -> None:
             user_content="rubric...",
             candidate_slot="A",
         )
-    MockCls.assert_called_once_with(model="gemma3:27b-it-q8_0")
+    MockCls.assert_called_once_with(model="gemma3:27b-it-q8_0", api_base=None)
     instance.raw.assert_called_once_with(user_content="rubric...")
     assert verdict.preference == "candidate"
     assert verdict.magnitude == 3
@@ -141,9 +141,26 @@ def test_call_pairwise_judge_routes_to_vllm_raw() -> None:
             user_content="rubric...",
             candidate_slot="B",
         )
-    MockCls.assert_called_once_with(model="Qwen/Qwen3-30B-A3B-Instruct-2507")
+    MockCls.assert_called_once_with(model="Qwen/Qwen3-30B-A3B-Instruct-2507", api_base=None)
     assert verdict.preference == "candidate"
     assert verdict.magnitude == 5
+
+
+def test_call_pairwise_judge_forwards_api_base_override() -> None:
+    """Multi-phase sweep passes a per-phase ``api_base`` so judge-a hits
+    :8004 and judge-b hits :8005. The dispatcher must plumb it through
+    to the transport."""
+    with patch("podcast_scraper.evaluation.judges.vllm_chat.VllmChatJudge") as MockCls:
+        instance = MockCls.return_value
+        instance.raw.return_value = '{"preference": "A", "magnitude": 2, "rationale": "x"}'
+        _call_pairwise_judge(
+            "vllm",
+            model="judge-a",
+            user_content="...",
+            candidate_slot="A",
+            api_base="http://dgx:8004/v1",
+        )
+    MockCls.assert_called_once_with(model="judge-a", api_base="http://dgx:8004/v1")
 
 
 def test_call_pairwise_judge_raises_for_openai_provider() -> None:
@@ -180,7 +197,7 @@ def test_judge_one_episode_pairwise_calls_both_judges_with_slotted_message() -> 
     meaningless."""
     calls = []
 
-    def fake_call(provider, *, model, user_content, candidate_slot):
+    def fake_call(provider, *, model, user_content, candidate_slot, api_base=None):
         calls.append((provider, model, candidate_slot, user_content))
         return PairwiseVerdict("candidate", 3, "stub")
 
@@ -294,7 +311,7 @@ def test_mean_pairwise_scores_flags_contested_run(tmp_path: Path) -> None:
     # Judge A always says candidate; judge B says silver on 3 of 4 → 3 contests.
     call_count = {"n": 0}
 
-    def alternating(provider, *, model, user_content, candidate_slot):
+    def alternating(provider, *, model, user_content, candidate_slot, api_base=None):
         # judge_a call precedes judge_b for each episode.
         call_count["n"] += 1
         idx = call_count["n"] - 1

@@ -127,6 +127,94 @@ def _run_subprocess(
         raise RuntimeError(f"run_experiment exited with code {proc.returncode}")
 
 
+def _score_with_judges(
+    *,
+    judge_cfg: dict,
+    ja: dict,
+    jb: dict,
+    rubric_text: str,
+    results_dir: Path,
+    metrics: dict,
+    cfg: object,
+    reference_id: str,
+    dry_run: bool,
+) -> dict | None:
+    """Run the judge-scoring path (scalar or pairwise) and return a result
+    dict with all fields the caller needs to build the final scalar + JSON.
+
+    Returns None to signal the caller should exit 1 (missing keys /
+    scoring exception — errors are already logged here). Extracted from
+    ``main`` to keep its cognitive complexity under the flake8 threshold.
+    """
+    if dry_run:
+        return {
+            "judge_mean": None,
+            "contested": False,
+            "_outs": None,
+            "pairwise_summary": None,
+            "judge_mode": "scalar",
+        }
+    judge_mode = str(judge_cfg.get("mode", "scalar")).lower()
+    providers_used = {
+        str(ja.get("provider", "")).lower(),
+        str(jb.get("provider", "")).lower(),
+    }
+    oai_j = ""
+    ant_j = ""
+    try:
+        if judge_mode != "pairwise":
+            if "openai" in providers_used:
+                oai_j = resolve_judge_openai_key()
+            if "anthropic" in providers_used:
+                ant_j = resolve_judge_anthropic_key()
+    except AutoresearchConfigError as e:
+        logger.error("%s", e)
+        return None
+
+    preds = load_predictions(results_dir / "predictions.jsonl")
+    dataset_id = str(metrics.get("dataset_id") or cfg.data.dataset_id)  # type: ignore[attr-defined]
+    try:
+        if judge_mode == "pairwise":
+            from podcast_scraper.evaluation.autoresearch_track_a import (
+                mean_pairwise_scores,
+            )
+
+            silver_ref = REPO_ROOT / "data/eval/references/silver" / str(reference_id)
+            judge_mean, contested, pairwise_summary = mean_pairwise_scores(
+                predictions=preds,
+                judge_cfg=judge_cfg,
+                dataset_id=dataset_id,
+                eval_root=REPO_ROOT / "data/eval",
+                silver_reference_path=silver_ref,
+            )
+            return {
+                "judge_mean": judge_mean,
+                "contested": contested,
+                "_outs": None,
+                "pairwise_summary": pairwise_summary,
+                "judge_mode": judge_mode,
+            }
+        judge_mean, contested, _outs = mean_judge_scores(
+            predictions=preds,
+            rubric=rubric_text,
+            judge_cfg=judge_cfg,
+            dataset_id=dataset_id,
+            eval_root=REPO_ROOT / "data/eval",
+            openai_key=oai_j,
+            anthropic_key=ant_j,
+        )
+        return {
+            "judge_mean": judge_mean,
+            "contested": contested,
+            "_outs": _outs,
+            "pairwise_summary": None,
+            "judge_mode": judge_mode,
+        }
+    except Exception as e:
+        logger.error("Judge scoring failed: %s", e, exc_info=True)
+        return None
+
+
 def main() -> int:
     load_local_dotenv_files(REPO_ROOT)
 
@@ -147,6 +235,18 @@ def main() -> int:
         "--dry-run",
         action="store_true",
         help="Skip judges; use --score-only (requires existing predictions for run id)",
+    )
+    parser.add_argument(
+        "--rejudge",
+        action="store_true",
+        help=(
+            "Reuse existing predictions.jsonl (no generation subprocess) and "
+            "run ONLY the judges. Enables re-scoring the same candidate output "
+            "under a different judge_config — the design behind the multi-judge "
+            "sweep (see ``make autoresearch-sweep-local`` with --judge-configs). "
+            "Fails if predictions.jsonl doesn't exist yet — run once without "
+            "--rejudge first to populate it. Mutually exclusive with --dry-run."
+        ),
     )
     parser.add_argument(
         "--judge-config",
@@ -180,6 +280,10 @@ def main() -> int:
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
         stream=sys.stderr,
     )
+
+    if args.dry_run and args.rejudge:
+        logger.error("--dry-run and --rejudge are mutually exclusive")
+        return 1
 
     base_config = args.config if args.config.is_absolute() else REPO_ROOT / args.config
     if not base_config.is_file():
@@ -234,19 +338,30 @@ def main() -> int:
         run_id = cfg.id
         results_dir = REPO_ROOT / "data/eval/runs" / run_id
 
-        if args.dry_run and not (results_dir / "predictions.jsonl").is_file():
+        if (args.dry_run or args.rejudge) and not (results_dir / "predictions.jsonl").is_file():
+            mode = "--dry-run" if args.dry_run else "--rejudge"
             logger.error(
-                "Dry-run requires existing predictions at %s — run once without --dry-run",
+                "%s requires existing predictions at %s — run once without %s first",
+                mode,
                 results_dir / "predictions.jsonl",
+                mode,
             )
             return 1
 
-        _run_subprocess(
-            merged_config=merged_path,
-            dry_run=args.dry_run,
-            reference_id=args.reference,
-            backend_type=cfg.backend.type,
-        )
+        if args.rejudge:
+            # Skip the experiment subprocess entirely — predictions and metrics
+            # already exist on disk from a prior run. We only re-run the judges.
+            logger.info(
+                "--rejudge: reusing predictions at %s (skipping experiment subprocess)",
+                results_dir / "predictions.jsonl",
+            )
+        else:
+            _run_subprocess(
+                merged_config=merged_path,
+                dry_run=args.dry_run,
+                reference_id=args.reference,
+                backend_type=cfg.backend.type,
+            )
 
         metrics_path = results_dir / "metrics.json"
         if not metrics_path.is_file():
@@ -259,69 +374,31 @@ def main() -> int:
             logger.error("Could not read rougeL_f1 from metrics vs_reference")
             return 1
 
-        judge_mean = None
-        contested = False
-        _outs = None
-        pairwise_summary: dict | None = None
-        # Mode dispatch — ``mode: pairwise`` in the judge_config swaps the
-        # scalar G-Eval scorer for a candidate-vs-silver pairwise scorer.
-        # Missing / ``scalar`` keeps the historical scalar path.
-        judge_mode = str(judge_cfg.get("mode", "scalar")).lower()
-        if not args.dry_run:
-            # Only resolve keys for providers the judge_config actually uses.
-            # An all-ollama judge cohort needs zero cloud keys; an openai-only
-            # cohort needs OPENAI but not ANTHROPIC; etc. Pairwise mode is
-            # DGX-only (ollama + vllm) so neither cloud key is needed.
-            providers_used = {
-                str(ja.get("provider", "")).lower(),
-                str(jb.get("provider", "")).lower(),
-            }
-            oai_j = ""
-            ant_j = ""
-            try:
-                if judge_mode != "pairwise":
-                    if "openai" in providers_used:
-                        oai_j = resolve_judge_openai_key()
-                    if "anthropic" in providers_used:
-                        ant_j = resolve_judge_anthropic_key()
-            except AutoresearchConfigError as e:
-                logger.error("%s", e)
-                return 1
-
-            preds = load_predictions(results_dir / "predictions.jsonl")
-            dataset_id = str(metrics.get("dataset_id") or cfg.data.dataset_id)
-            try:
-                if judge_mode == "pairwise":
-                    from podcast_scraper.evaluation.autoresearch_track_a import (
-                        mean_pairwise_scores,
-                    )
-
-                    silver_ref = REPO_ROOT / "data/eval/references/silver" / str(args.reference)
-                    judge_mean, contested, pairwise_summary = mean_pairwise_scores(
-                        predictions=preds,
-                        judge_cfg=judge_cfg,
-                        dataset_id=dataset_id,
-                        eval_root=REPO_ROOT / "data/eval",
-                        silver_reference_path=silver_ref,
-                    )
-                else:
-                    judge_mean, contested, _outs = mean_judge_scores(
-                        predictions=preds,
-                        rubric=rubric_text,
-                        judge_cfg=judge_cfg,
-                        dataset_id=dataset_id,
-                        eval_root=REPO_ROOT / "data/eval",
-                        openai_key=oai_j,
-                        anthropic_key=ant_j,
-                    )
-            except Exception as e:
-                logger.error("Judge scoring failed: %s", e, exc_info=True)
-                return 1
-            if contested:
-                logger.warning(
-                    "Judges diverged by > %.2f on at least one episode — using ROUGE-only blend",
-                    0.15,
-                )
+        # Judge scoring path (scalar or pairwise) extracted into a helper
+        # to keep main() under the flake8 complexity ceiling.
+        judge_result = _score_with_judges(
+            judge_cfg=judge_cfg,
+            ja=ja,
+            jb=jb,
+            rubric_text=rubric_text,
+            results_dir=results_dir,
+            metrics=metrics,
+            cfg=cfg,
+            reference_id=args.reference,
+            dry_run=args.dry_run,
+        )
+        if judge_result is None:
+            return 1
+        judge_mean = judge_result["judge_mean"]
+        contested = judge_result["contested"]
+        _outs = judge_result["_outs"]
+        pairwise_summary = judge_result["pairwise_summary"]
+        judge_mode = judge_result["judge_mode"]
+        if contested:
+            logger.warning(
+                "Judges diverged by > %.2f on at least one episode — using ROUGE-only blend",
+                0.15,
+            )
 
         final = combine_track_a_scalar(
             rouge_l_f1=rouge,

@@ -108,3 +108,34 @@ def test_no_choices_raises_judge_unavailable() -> None:
     judge = VllmChatJudge(model="any", api_base="http://stub:8003/v1", client=client)
     with pytest.raises(JudgeUnavailableError, match="returned no choices"):
         judge.score(user_content="rubric")
+
+
+def test_api_key_sets_bearer_auth_header() -> None:
+    """DGX vLLM autoresearch serves under ``--api-key <token>``; requests
+    without the header get 401. Env-var / constructor VLLM_API_KEY plumbs
+    the token into an Authorization: Bearer header."""
+    client = _stub_client('{"score": 5}')
+    judge = VllmChatJudge(
+        model="autoresearch",
+        api_base="http://stub:8003/v1",
+        api_key="buddy-is-the-king",
+        client=client,
+    )
+    judge.score(user_content="rubric")
+    sent_headers = client.post.call_args.kwargs.get("headers") or {}
+    assert sent_headers.get("Authorization") == "Bearer buddy-is-the-king"
+
+
+def test_no_api_key_omits_auth_header() -> None:
+    """No key set → no Authorization header. Keeps the transport usable
+    against a bare local no-auth vLLM (dev, tests) without a stub header."""
+    client = _stub_client('{"score": 5}')
+    judge = VllmChatJudge(
+        model="any",
+        api_base="http://stub:8003/v1",
+        api_key="",
+        client=client,
+    )
+    judge.score(user_content="rubric")
+    sent_headers = client.post.call_args.kwargs.get("headers") or {}
+    assert "Authorization" not in sent_headers

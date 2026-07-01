@@ -1,0 +1,52 @@
+# vLLM judge A — one of two sequential single-judge phases in the
+# multi-judge autoresearch sweep. Paired with judge_config_vllm_b.yaml.
+#
+# Physical setup (homelab):
+#   Container:      vllm-judge-a  (~/agentic-ai-homelab/infra/vllm/judge-a/)
+#   Port:           8003  (shared with autoresearch + judge-b — see below)
+#   Served model:   NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
+#   Served alias:   judge-a  (declared via ``--served-model-name``)
+#
+# Only ONE vLLM may own the GB10 GPU at a time — coder-next (:9000),
+# autoresearch / judge-a / judge-b (all :8003). The sweep switches between
+# them via ``gpu-mode-swap.sh judging {a,b}`` before the corresponding
+# phase. The three research-side vLLMs multiplex on port 8003 because the
+# DGX's tailscale ACL only permits 8003 + 11434 out to the mac —
+# gpu-mode-swap.sh enforces the single-owner invariant so the port re-use
+# is safe (detection is by ``docker ps`` container name, not port).
+#
+# Single-judge phase: judge_b is intentionally absent. Contest fraction
+# is not applicable (see ``judge_one_episode_pairwise`` single-judge
+# branch in ``autoresearch_track_a.py``).
+#
+# Env: VLLM_API_BASE (or DGX_TAILNET_FQDN → :8004/v1); VLLM_API_KEY
+# for the ``--api-key`` the container serves under.
+
+mode: pairwise
+
+# Prep command — run by the multi-phase sweep BEFORE starting this
+# phase's judging. Invokes ``gpu-mode-swap.sh judging a`` on the DGX via
+# ``scripts/ops/dgx_gpu_mode.sh``, which stops any other vLLM compose
+# (autoresearch, coder-next, judge-b) and brings vllm-judge-a up.
+# gpu-mode-swap.sh also flushes Ollama's GPU-resident models via
+# systemctl restart so the vLLM boot doesn't OOM. Sweep waits for the
+# /health endpoint on port 8003 before proceeding.
+#
+# The shim ``dgx_gpu_mode.sh`` picks the transport: from a developer
+# laptop it SSHes; from the DGX self-hosted GHA runner (which sets
+# ``DGX_LOCAL_MODE=1``) it execs locally.
+#
+# GPU_MODE_START_TIMEOUT=600 gives the vLLM boot up to 10 min to serve
+# /health. NVFP4 Qwen3-30B typically loads in 3-5 min but the first cold
+# boot can be longer.
+prep_cmd: GPU_MODE_START_TIMEOUT=600 scripts/ops/dgx_gpu_mode.sh judging a
+
+judge_a:
+  provider: vllm
+  model: judge-a
+  # Port 8003 (shared with autoresearch + judge-b — single-owner enforced
+  # by gpu-mode-swap.sh). The transport uses this ``api_base`` verbatim
+  # when set, bypassing the ``VLLM_API_BASE`` env var fallback. Hostname
+  # is templated from ``DGX_TAILNET_FQDN`` at runtime — the sweep script
+  # substitutes ``${DGX_TAILNET_FQDN}`` before invoking score.py.
+  api_base: http://${DGX_TAILNET_FQDN}:8003/v1
