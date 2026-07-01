@@ -430,3 +430,29 @@ export function withThemeClustersOnDisplay(
   }
   return { ...art, data: applyThemeClustersOverlay(art.data, doc) }
 }
+
+/**
+ * Member topic ids of the THEME cluster that contains *topicNodeId* (bare-matched),
+ * for the inline "Theme timeline" (merged mentions of all members over time — a
+ * theme is a storyline, so its members' activity is the theme's lifespan). Empty
+ * when the topic is in no theme cluster or the doc is absent.
+ */
+export function themeClusterMemberTopicIdsForTopic(
+  doc: TopicClustersDocument | null | undefined,
+  topicNodeId: string,
+): string[] {
+  if (!doc || !Array.isArray(doc.clusters) || !topicNodeId.trim()) {
+    return []
+  }
+  const bare = stripLayerPrefixesForCil(topicNodeId)
+  for (const cl of doc.clusters) {
+    const members = Array.isArray(cl?.members) ? cl.members : []
+    const ids = members
+      .map((m) => (m && typeof m.topic_id === 'string' ? m.topic_id.trim() : ''))
+      .filter((s): s is string => s.length > 0)
+    if (ids.includes(bare)) {
+      return ids
+    }
+  }
+  return []
+}

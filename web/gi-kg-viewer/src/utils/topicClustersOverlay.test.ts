@@ -4,6 +4,7 @@ import { filterArtifactEgoOneHop } from './parsing'
 import {
   applyThemeClustersOverlay,
   applyTopicClustersOverlay,
+  themeClusterMemberTopicIdsForTopic,
   clusterTimelineCilTopicIdsForCluster,
   clusterTimelineCilTopicIdsFromMemberRows,
   expandFilteredArtifactEgoWithTopicClusterNeighbors,
@@ -99,6 +100,28 @@ describe('applyThemeClustersOverlay', () => {
     const data = { nodes: [], edges: [] }
     expect(applyThemeClustersOverlay(data, null)).toBe(data)
     expect(applyThemeClustersOverlay(data, {})).toEqual(data)
+  })
+})
+
+describe('themeClusterMemberTopicIdsForTopic', () => {
+  const doc = {
+    clusters: [
+      {
+        graph_compound_parent_id: 'thc:energy',
+        members: [{ topic_id: 'topic:oil' }, { topic_id: 'topic:lng' }],
+      },
+      { graph_compound_parent_id: 'thc:ai', members: [{ topic_id: 'topic:ml' }] },
+    ],
+  }
+
+  it('returns the theme members for a member topic (bare-matched from a prefixed id)', () => {
+    expect(themeClusterMemberTopicIdsForTopic(doc, 'k:topic:oil')).toEqual(['topic:oil', 'topic:lng'])
+  })
+
+  it('returns [] for a non-member topic, empty doc, or empty id', () => {
+    expect(themeClusterMemberTopicIdsForTopic(doc, 'k:topic:none')).toEqual([])
+    expect(themeClusterMemberTopicIdsForTopic(null, 'k:topic:oil')).toEqual([])
+    expect(themeClusterMemberTopicIdsForTopic(doc, '')).toEqual([])
   })
 })
 

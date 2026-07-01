@@ -59,6 +59,7 @@ import {
   findClusterByCompoundId,
   findTopicClusterContextForGraphNode,
   clusterTimelineCilTopicIdsForCluster,
+  themeClusterMemberTopicIdsForTopic,
   topicClusterMemberRowsForDetail,
 } from '../../utils/topicClustersOverlay'
 import GraphConnectionsSection from './GraphConnectionsSection.vue'
@@ -813,6 +814,18 @@ const showInlineClusterTimeline = computed(
   () => (hasTopicClusterJson.value || isTopicClusterNode.value) && clusterTimelineTopicIds.value.length > 0,
 )
 
+// Theme-cluster timeline (co-occurrence): a topic node can toggle its inline
+// timeline from just-this-topic to the whole THEME's members merged over time —
+// a theme is a storyline, so its members' activity is the theme's lifespan.
+// Reuses the cluster-mode merge path with the theme members' topic ids.
+const themeTimelineMemberTopicIds = computed((): string[] =>
+  themeClusterMemberTopicIdsForTopic(artifacts.themeClustersDoc, props.nodeId ?? ''),
+)
+const hasThemeTimeline = computed(
+  () => showInlineTopicTimeline.value && themeTimelineMemberTopicIds.value.length > 1,
+)
+const timelineShowTheme = ref(false)
+
 function insightLine(ins: Record<string, unknown>): string {
   return primaryTextFromLooseGiNode(ins).trim() || '(no text)'
 }
@@ -1238,6 +1251,7 @@ watch(
   () => props.nodeId,
   () => {
     graphRailDetailTab.value = 'details'
+    timelineShowTheme.value = false
   },
 )
 
@@ -1250,15 +1264,25 @@ watch(
       shell.healthStatus,
       shell.cilQueriesApiAvailable,
       clusterTimelineTopicIds.value.join('|'),
+      timelineShowTheme.value,
+      themeTimelineMemberTopicIds.value.join('|'),
     ] as const,
   () => {
     inlineTimelineSortOrder.value = 'desc'
     inlineTimelineError.value = null
     inlineTimelinePayload.value = null
     if (showInlineTopicTimeline.value) {
-      inlineTimelineMode.value = 'single'
-      inlineTimelineTopicId.value = props.nodeId?.trim() ?? ''
-      inlineTimelineClusterTopicIds.value = []
+      // Theme toggle on → merge the theme cluster's members over time (the theme's
+      // lifespan); otherwise the single focused topic.
+      if (timelineShowTheme.value && themeTimelineMemberTopicIds.value.length > 1) {
+        inlineTimelineMode.value = 'cluster'
+        inlineTimelineTopicId.value = ''
+        inlineTimelineClusterTopicIds.value = [...themeTimelineMemberTopicIds.value]
+      } else {
+        inlineTimelineMode.value = 'single'
+        inlineTimelineTopicId.value = props.nodeId?.trim() ?? ''
+        inlineTimelineClusterTopicIds.value = []
+      }
       void loadInlineTimeline()
       return
     }
@@ -1940,8 +1964,31 @@ const graphConnectionsCenterInView = computed((): boolean => {
         <div class="mb-2 flex items-center justify-between gap-2">
           <div class="flex min-w-0 items-center gap-1.5">
             <h4 class="truncate text-[10px] font-semibold uppercase tracking-wide text-muted">
-              {{ showInlineClusterTimeline ? 'Cluster timeline' : 'Topic timeline' }}
+              {{
+                showInlineClusterTimeline
+                  ? 'Cluster timeline'
+                  : timelineShowTheme && hasThemeTimeline
+                    ? 'Theme timeline'
+                    : 'Topic timeline'
+              }}
             </h4>
+            <button
+              v-if="hasThemeTimeline"
+              type="button"
+              class="shrink-0 rounded border border-default px-1.5 py-0.5 text-[10px] transition hover:bg-overlay"
+              :class="{ 'bg-overlay': timelineShowTheme }"
+              :style="timelineShowTheme ? { color: '#7dd3c0', borderColor: '#7dd3c0' } : {}"
+              data-testid="node-detail-timeline-theme-toggle"
+              :aria-pressed="timelineShowTheme"
+              :title="
+                timelineShowTheme
+                  ? 'Showing the whole theme over time; click for just this topic'
+                  : 'Show the whole theme over time (all member topics merged)'
+              "
+              @click="timelineShowTheme = !timelineShowTheme"
+            >
+              Theme
+            </button>
             <HelpTip
               class="shrink-0"
               :pref-width="360"

@@ -786,6 +786,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     parsedList,
     bridgeDocument,
     topicClustersDoc,
+    themeClustersDoc,
     topicClustersLoadState,
     topicClustersErrorDetail,
     topicClustersSchemaWarning,
