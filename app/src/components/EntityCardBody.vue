@@ -178,7 +178,7 @@ function searchLibrary(): void {
       <template v-else>
         <!-- Cluster identity: is this topic part of a multi-topic theme (and how big), or standalone? -->
         <p v-if="themeLabel" class="mb-3 text-xs text-topic">
-          {{ t('kp.theme', { cluster: themeLabel })
+          {{ t('kp.similar', { cluster: themeLabel })
           }}<span v-if="clusterSize"> · {{ t('ec.clusterSize', clusterSize, { named: { count: clusterSize } }) }}</span>
         </p>
         <p v-else-if="isTopic" class="mb-3 text-xs text-muted">{{ t('ec.singleTopic') }}</p>

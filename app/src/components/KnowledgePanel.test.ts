@@ -143,8 +143,9 @@ describe('KnowledgePanel', () => {
       { id: 'topic:ml', label: 'ml', cluster_id: 'tc:ml', cluster_label: 'machine learning', cluster_size: 5 },
     ]
     const w = mountPanel({ topics, persons: [] })
-    // Dominant-cluster label surfaces as the "Theme" lead-in.
-    expect(w.text()).toContain('machine learning')
+    // Dominant semantic-cluster label surfaces as the "Similar ·" lead-in
+    // (renamed from "Theme ·" — "Theme" is now reserved for co-occurrence clusters).
+    expect(w.text()).toContain('Similar · machine learning')
     // Dominant-cluster topics lead (ai, ml), the singleton (zulu) trails.
     const chips = w.findAll('button').filter((b) => ['ai', 'ml', 'zulu'].includes(b.text()))
     expect(chips.map((c) => c.text())).toEqual(['ai', 'ml', 'zulu'])

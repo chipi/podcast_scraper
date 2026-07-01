@@ -123,6 +123,7 @@
     "summary": "Summary",
     "tags": "Topics & People",
     "theme": "Theme · {cluster}",
+    "similar": "Similar · {cluster}",
     "groundedHint": "Grounded — sourced to a moment in the audio",
     "insights": "Insights",
     "related": "More like this",

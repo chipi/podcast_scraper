@@ -39,6 +39,10 @@
   --lp-grounded: #7be6b0;
   --lp-topic: #c9b6ff;
   --lp-person: #ffb37a;
+  /* Theme cluster (co-occurrence "discussed together") — distinct from --lp-topic
+     (semantic "Similar") so the two cluster types read apart across pills, wide
+     rows, and graph nodes. Teal vs the topic purple / person orange. */
+  --lp-theme: #7dd3c0;
 
   /* Typography */
   --lp-font-display: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;

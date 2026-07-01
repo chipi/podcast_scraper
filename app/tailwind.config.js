@@ -33,6 +33,7 @@ export default {
         grounded: 'var(--lp-grounded)',
         topic: 'var(--lp-topic)',
         person: 'var(--lp-person)',
+        theme: 'var(--lp-theme)',
       },
       fontFamily: {
         display: 'var(--lp-font-display)',

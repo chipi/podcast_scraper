@@ -297,7 +297,7 @@ watch(
         <div class="mb-2 flex items-baseline justify-between gap-2">
           <h3 class="lp-section">{{ t('kp.tags') }}</h3>
           <span v-if="dominantClusterLabel" class="truncate text-xs text-topic">
-            {{ t('kp.theme', { cluster: dominantClusterLabel }) }}
+            {{ t('kp.similar', { cluster: dominantClusterLabel }) }}
           </span>
         </div>
         <div class="flex flex-wrap gap-1.5">
