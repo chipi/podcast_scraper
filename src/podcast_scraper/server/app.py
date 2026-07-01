@@ -44,6 +44,7 @@ from podcast_scraper.server.routes import (
     corpus_metrics,
     corpus_persons,
     corpus_text_file,
+    corpus_theme_clusters,
     corpus_topic_clusters,
     enrichment as enrichment_route,
     enrichment_config as enrichment_config_route,
@@ -247,6 +248,7 @@ def create_app(
     app.include_router(corpus_digest.router, prefix="/api")
     app.include_router(corpus_enrichments.router, prefix="/api")
     app.include_router(corpus_topic_clusters.router, prefix="/api")
+    app.include_router(corpus_theme_clusters.router, prefix="/api")
     app.include_router(cil.router, prefix="/api")
     app.include_router(ops.router, prefix="/api")
     # Consumer Learning Platform API (RFC-098): slug-addressed read routes under their
