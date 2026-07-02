@@ -32,6 +32,8 @@ import datetime as dt
 import json
 import logging
 import os
+import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -221,6 +223,36 @@ def _materialize_candidate_config(
     out_path = out_dir / f"config_{safe}.yaml"
     out_path.write_text(yaml.safe_dump(base, sort_keys=False), encoding="utf-8")
     return out_path, "tuned"
+
+
+_ENV_VAR_ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+
+
+def _parse_prep_cmd(prep_cmd: str) -> tuple[dict[str, str], list[str]]:
+    """Split ``prep_cmd`` into (env-overrides, argv) — no shell.
+
+    yaml prep_cmd values look like ``KEY=VAL scripts/ops/foo.sh arg1 arg2``.
+    We split on shell tokens (shlex), promote leading ``KEY=VAL`` tokens to
+    the child's environment, and keep the rest as argv. This lets us call
+    ``subprocess.run(argv, env=...)`` with ``shell=False`` — no arbitrary
+    command execution surface (bandit B602), operator-authored yaml is
+    still fully expressive.
+
+    Not intended to be a shell reimplementation: unquoted globs, pipes,
+    backticks, and ``$VAR`` substitution are NOT supported. Every real
+    prep_cmd is a single command with args (see judge_config_vllm_*.yaml).
+    """
+    tokens = shlex.split(prep_cmd)
+    env: dict[str, str] = {}
+    i = 0
+    while i < len(tokens) and _ENV_VAR_ASSIGN.match(tokens[i]):
+        key, _, value = tokens[i].partition("=")
+        env[key] = value
+        i += 1
+    argv = tokens[i:]
+    if not argv:
+        raise ValueError(f"prep_cmd has no command after env assignments: {prep_cmd!r}")
+    return env, argv
 
 
 def _phase_name_from_judge_config(judge_config_path: Path) -> str:
@@ -548,7 +580,13 @@ def main() -> int:
             prep_cmd = (judge_cfgs[phase_idx].get("prep_cmd") or "").strip()
             if prep_cmd:
                 logger.info("Phase %d prep: %s", phase_idx + 1, prep_cmd)
-                prep_proc = subprocess.run(prep_cmd, shell=True, check=False, cwd=str(REPO_ROOT))
+                prep_env, prep_argv = _parse_prep_cmd(prep_cmd)
+                prep_proc = subprocess.run(
+                    prep_argv,
+                    env={**os.environ, **prep_env},
+                    check=False,
+                    cwd=str(REPO_ROOT),
+                )
                 if prep_proc.returncode != 0:
                     logger.error(
                         "Phase %d prep_cmd failed (exit %d): %s",

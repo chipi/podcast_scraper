@@ -16,6 +16,10 @@
 # Envs:
 #   DGX_LOCAL_MODE           1 = local exec, 0 (or unset) = SSH out
 #   GPU_MODE_START_TIMEOUT   Forwarded to gpu-mode-swap.sh (defaults 600)
+#   GPU_MODE_SWAP_BIN        Explicit path to gpu-mode-swap.sh (for the
+#                            gha-runner where $HOME is /opt/actions-runner
+#                            not the operator's home). Defaults to
+#                            ``$HOME/bin/gpu-mode-swap.sh``.
 #
 # Args are passed through verbatim to gpu-mode-swap.sh, e.g.:
 #   scripts/ops/dgx_gpu_mode.sh judging a
@@ -28,7 +32,13 @@ TIMEOUT="${GPU_MODE_START_TIMEOUT:-600}"
 
 if [ "${DGX_LOCAL_MODE:-0}" = "1" ]; then
     export GPU_MODE_START_TIMEOUT="$TIMEOUT"
-    exec "${HOME}/bin/gpu-mode-swap.sh" "$@"
+    SWAP_BIN="${GPU_MODE_SWAP_BIN:-${HOME}/bin/gpu-mode-swap.sh}"
+    if [ ! -x "$SWAP_BIN" ]; then
+        echo "dgx_gpu_mode: $SWAP_BIN not executable" >&2
+        echo "  set GPU_MODE_SWAP_BIN to the operator's gpu-mode-swap.sh path" >&2
+        exit 1
+    fi
+    exec "$SWAP_BIN" "$@"
 fi
 
 # Off-host caller — pack the whole remote command into one SSH argument

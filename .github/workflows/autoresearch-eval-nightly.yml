@@ -25,6 +25,14 @@ on:
   schedule:
     - cron: "0 3 * * 1"
   workflow_dispatch:
+    inputs:
+      limit:
+        description: >-
+          Run only the first N candidates (LIMIT=1..N smoke test).
+          Leave empty for the full cohort (or cohort.default_limit).
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: write   # commits the weekly ledger back to main
@@ -98,28 +106,24 @@ jobs:
           echo
 
       # --- [GPU] Ollama gets the whole GPU during the sweep ----------
-      - name: '[GPU] Stop vllm-autoresearch (free ~73 GB for Ollama)'
+      - name: '[GPU] Free GPU (bring all vLLM composes down)'
         id: stop_vllm
-        # The persistent vllm-autoresearch container holds 73 GB of the
-        # 128 GB GPU 24/7, leaving only ~55 GB for Ollama which causes
-        # CUDA OOM cascades across the cohort. Stop it for the duration
-        # of the sweep; restore in the matching always-run step below.
-        #
-        # We can't use gpu-mode-swap.sh because that uses ``docker compose
-        # down`` which finds nothing (the container has no compose labels
-        # — it was started via ``docker run``, not ``docker compose up``).
-        # Just stop+start by container name directly. gha-runner is in
-        # the docker group so it can manage containers without sudo.
-        timeout-minutes: 3
+        # Phase 1 (Ollama) needs the whole 128 GB GPU. Any vLLM compose
+        # still up would either OOM Ollama or leak into the sweep. Use
+        # gpu-mode-swap.sh idle — it composes down every known slot
+        # (coder-next, autoresearch, judge-a, judge-b). Idempotent: no-op
+        # if everything is already down. gha-runner is in the docker
+        # group so it can manage containers without sudo.
+        timeout-minutes: 5
+        env:
+          DGX_LOCAL_MODE: "1"
+          GPU_MODE_SWAP_BIN: /home/markodragoljevic/bin/gpu-mode-swap.sh
         run: |
-          echo "  before:"
-          docker container inspect vllm-autoresearch --format '{{.State.Status}}'
-          nvidia-smi --query-gpu=memory.used,memory.free --format=csv,noheader
-          docker stop vllm-autoresearch
-          echo "  after stop:"
-          docker container inspect vllm-autoresearch --format '{{.State.Status}}'
-          sleep 8
-          nvidia-smi --query-gpu=memory.used,memory.free --format=csv,noheader
+          echo "  GPU before:"
+          nvidia-smi --query-gpu=memory.used,memory.free --format=csv,noheader || true
+          scripts/ops/dgx_gpu_mode.sh idle
+          echo "  GPU after:"
+          nvidia-smi --query-gpu=memory.used,memory.free --format=csv,noheader || true
 
       # --- [Data] Prepare the dataset the cohort scores against ------
       - name: '[Data] Materialize smoke dataset'
@@ -156,6 +160,13 @@ jobs:
           # dgx_gpu_mode.sh consults this — 1 = exec gpu-mode-swap.sh
           # locally (we ARE the DGX); unset/0 = SSH out (dev laptop).
           DGX_LOCAL_MODE: "1"
+          # Point the shim at the operator's gpu-mode-swap.sh (the gha-
+          # runner's $HOME is /opt/actions-runner, not the operator's
+          # home dir where the swap script actually lives).
+          GPU_MODE_SWAP_BIN: /home/markodragoljevic/bin/gpu-mode-swap.sh
+          # Manual-dispatch smoke: operator picks a LIMIT via
+          # workflow_dispatch input; empty = full cohort.
+          AUTORESEARCH_SWEEP_LIMIT: ${{ inputs.limit }}
         run: |
           if [ -z "${OLLAMA_API_BASE}" ]; then
             echo "::error::DGX_OLLAMA_API_BASE unset; sweep cannot proceed"
@@ -264,38 +275,28 @@ jobs:
           echo "::error::push still failing after 3 rebase attempts"
           exit 1
 
-      # --- [GPU] Restore vLLM regardless of sweep outcome ------------
-      - name: '[GPU] Start vllm-autoresearch (restore vLLM, free Ollama GPU back)'
+      # --- [GPU] Restore autoresearch vLLM regardless of sweep outcome
+      - name: '[GPU] Restore autoresearch vLLM (gpu-mode research)'
         id: start_vllm
-        # ``if: always()`` so even a failed sweep restores vLLM — other
-        # autoresearch consumers shouldn't pay for our sweep's failure.
+        # ``if: always()`` so even a failed sweep restores autoresearch
+        # — other consumers shouldn't pay for our sweep's failure.
+        # gpu-mode-swap.sh research does the right thing regardless of
+        # the pre-existing state: it composes-down anything still up
+        # and brings autoresearch's compose stack up (waiting for
+        # /health). Best-effort — the workflow doesn't fail on it.
         if: always()
-        timeout-minutes: 8
+        timeout-minutes: 10
         env:
           DGX_LOCAL_MODE: "1"
+          GPU_MODE_SWAP_BIN: /home/markodragoljevic/bin/gpu-mode-swap.sh
+          # Autoresearch loads in ~3-5 min but the first cold boot can
+          # be longer; give the swap script room without eating the
+          # whole step budget.
+          GPU_MODE_START_TIMEOUT: "480"
         run: |
-          # A mid-phase sweep failure can leave one of the judge composes
-          # up — that would fight vllm-autoresearch for port 8003 and the
-          # GPU. Bring everything down first via gpu-mode-swap.sh idle
-          # (best-effort — don't fail the workflow on this).
-          scripts/ops/dgx_gpu_mode.sh idle || echo "::warning::gpu-mode idle failed; proceeding anyway"
-
-          echo "  current container state:"
-          docker container inspect vllm-autoresearch --format '{{.State.Status}}'
-          docker start vllm-autoresearch
-          echo "  after start:"
-          docker container inspect vllm-autoresearch --format '{{.State.Status}}'
-          # vLLM takes ~30-60s to load model + serve; wait but don't fail
-          # the workflow if it's not ready by the timeout (the post-sweep
-          # restore is best-effort).
-          for i in $(seq 1 30); do
-            if curl -fsS --max-time 2 http://localhost:8003/health >/dev/null 2>&1; then
-              echo "  vLLM healthy after ${i}×2s"
-              break
-            fi
-            sleep 2
-          done
-          nvidia-smi --query-gpu=memory.used,memory.free --format=csv,noheader
+          scripts/ops/dgx_gpu_mode.sh research \
+            || echo "::warning::gpu-mode research failed; leaving GPU idle"
+          nvidia-smi --query-gpu=memory.used,memory.free --format=csv,noheader || true
 
       - name: '[Persist] Upload sweep ledger artifact'
         id: upload_artifact
