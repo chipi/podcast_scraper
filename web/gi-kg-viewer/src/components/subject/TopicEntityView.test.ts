@@ -193,8 +193,8 @@ describe('TopicEntityView.vue', () => {
     const voice = w.get('[data-testid="tev-voice-link"]')
     expect(voice.text()).toContain('ada')
     await voice.trigger('click')
-    expect(subject.kind).toBe('person')
-    expect(subject.personId).toBe('person:ada')
+    expect(subject.kind).toBe('graph-node')
+    expect(subject.graphNodeCyId).toBe('person:ada')
   })
 
   it('renders entity chips and focuses an entity on click', async () => {

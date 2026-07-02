@@ -18,7 +18,6 @@ import {
   type CilTopicTimelineResponse,
 } from '../../api/cilApi'
 import {
-  countPersonEntityIncidentEdges,
   findRawNodeInArtifact,
   findRawNodeInArtifactByIdOrPrefixed,
   fullPrimaryNodeLabel,
@@ -66,6 +65,8 @@ import {
 import GraphConnectionsSection from './GraphConnectionsSection.vue'
 import NodeEnrichmentSection from './NodeEnrichmentSection.vue'
 import TopicEntityView from '../subject/TopicEntityView.vue'
+import PersonLandingView from '../subject/PersonLandingView.vue'
+import PositionTrackerPanel from '../subject/PositionTrackerPanel.vue'
 import SubjectTimelineChart from '../subject/SubjectTimelineChart.vue'
 import { buildSubjectMentionsTimeline } from '../../utils/subjectMentionsTimeline'
 import TranscriptViewerDialog from '../shared/TranscriptViewerDialog.vue'
@@ -103,23 +104,6 @@ const artifacts = useArtifactsStore()
 const graphFilters = useGraphFilterStore()
 const graphHandoff = useGraphHandoffStore()
 const subject = useSubjectStore()
-
-/**
- * PRD-033 FR5.3 — from a graph topic/person/entity node, open the populated FR4
- * Detail panel (Topic Entity View / Person Landing) instead of dead-ending in the
- * graph-node detail. The cy node id is the canonical prefixed id those panels resolve.
- */
-function openFullProfile(): void {
-  const id = props.nodeId?.trim()
-  if (!id) return
-  if (isTopicNode.value) {
-    subject.focusTopic(id)
-    return
-  }
-  const t = nodeType.value.trim().toLowerCase()
-  if (t === 'person' || t === 'speaker') subject.focusPerson(id)
-  else subject.focusEntity(id)
-}
 
 /** Merged GI/KG before per-type visibility filters (quotes/speakers/episodes off by default on canvas). */
 const fullMergedArtifactForMetadata = computed(
@@ -562,38 +546,6 @@ const personEntitySemanticSearchQuery = computed((): string => {
     displayName.value.trim(),
     PERSON_ENTITY_SEMANTIC_SEARCH_MAX_CHARS,
   )
-})
-
-const personEntityAliasesLine = computed((): string | null => {
-  if (!isPersonEntityRailNode.value) return null
-  const a = node.value?.properties?.aliases
-  if (!Array.isArray(a) || a.length === 0) return null
-  const parts = a
-    .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
-    .map((x) => x.trim())
-  return parts.length > 0 ? parts.join(', ') : null
-})
-
-const personEntityEdgeCounts = computed(() =>
-  countPersonEntityIncidentEdges(props.viewArtifact, props.nodeId),
-)
-
-const personEntityRoleSummaryLine = computed((): string | null => {
-  if (!isPersonEntityRailNode.value) return null
-  const { spokenByQuotes, spokeInEpisodes } = personEntityEdgeCounts.value
-  const parts: string[] = []
-  if (spokenByQuotes > 0) {
-    parts.push(
-      `${spokenByQuotes} attributed quote${spokenByQuotes === 1 ? '' : 's'}`,
-    )
-  }
-  if (spokeInEpisodes > 0) {
-    parts.push(
-      `${spokeInEpisodes} episode link${spokeInEpisodes === 1 ? '' : 's'}`,
-    )
-  }
-  if (parts.length === 0) return null
-  return `In this graph: ${parts.join(' · ')}.`
 })
 
 function emitPersonEntityPrefillSearch(): void {
@@ -1373,7 +1325,12 @@ const topicClusterContext = computed(() => {
   return findTopicClusterContextForGraphNode(props.nodeId, artifacts.topicClustersDoc)
 })
 
-type GraphRailDetailTab = 'details' | 'timeline' | 'enrichment' | 'neighbourhood'
+type GraphRailDetailTab =
+  | 'details'
+  | 'timeline'
+  | 'position_tracker'
+  | 'enrichment'
+  | 'neighbourhood'
 
 const graphRailDetailTab = ref<GraphRailDetailTab>('details')
 
@@ -1386,6 +1343,15 @@ const hasTimelineTab = computed(
 )
 watch(hasTimelineTab, (has) => {
   if (!has && graphRailDetailTab.value === 'timeline') {
+    graphRailDetailTab.value = 'details'
+  }
+})
+
+// Person nodes get a top-level Position Tracker tab (the PLV Position Tracker,
+// promoted from a nested sub-tab). Fall back to Details if it empties.
+const hasPositionTrackerTab = computed(() => isPersonNode.value)
+watch(hasPositionTrackerTab, (has) => {
+  if (!has && graphRailDetailTab.value === 'position_tracker') {
     graphRailDetailTab.value = 'details'
   }
 })
@@ -1623,6 +1589,25 @@ const graphConnectionsCenterInView = computed((): boolean => {
         @click="graphRailDetailTab = 'timeline'"
       >
         Timeline
+      </button>
+      <button
+        v-if="hasPositionTrackerTab"
+        id="node-detail-rail-tab-position-tracker"
+        type="button"
+        role="tab"
+        class="flex-1 rounded px-2 py-1 text-center text-xs font-medium transition-colors"
+        :class="
+          graphRailDetailTab === 'position_tracker'
+            ? 'bg-primary text-primary-foreground'
+            : 'text-elevated-foreground hover:bg-overlay'
+        "
+        :aria-selected="graphRailDetailTab === 'position_tracker'"
+        aria-controls="node-detail-rail-panel-position-tracker"
+        data-testid="node-detail-rail-tab-position-tracker"
+        :tabindex="graphRailDetailTab === 'position_tracker' ? 0 : -1"
+        @click="graphRailDetailTab = 'position_tracker'"
+      >
+        Position Tracker
       </button>
       <button
         v-if="signalsTabHasContent"
@@ -1896,30 +1881,6 @@ const graphConnectionsCenterInView = computed((): boolean => {
       </template>
 
       <template v-if="isPersonEntityRailNode">
-        <p
-          v-if="personEntityRoleSummaryLine"
-          class="mb-2 text-[10px] leading-snug text-muted"
-          data-testid="node-detail-person-entity-role"
-        >
-          {{ personEntityRoleSummaryLine }}
-        </p>
-        <p
-          v-if="personEntityAliasesLine && isPersonNode"
-          class="mb-3 text-[10px] leading-snug text-muted"
-          data-testid="node-detail-person-entity-aliases"
-        >
-          <span class="font-medium text-surface-foreground/80">Aliases:</span>
-          {{ personEntityAliasesLine }}
-        </p>
-        <button
-          v-if="isPersonNode"
-          type="button"
-          class="mb-2 w-full rounded border border-primary/40 px-2 py-1.5 text-center text-xs font-medium text-primary hover:bg-primary/10"
-          data-testid="node-detail-open-person-profile"
-          @click="openFullProfile"
-        >
-          Open full Person profile →
-        </button>
         <div
           v-if="personEntityGatewayQuery"
           class="mb-3 flex items-center gap-2"
@@ -2213,6 +2174,16 @@ const graphConnectionsCenterInView = computed((): boolean => {
         embedded
         :subject-id-override="nodeId ?? ''"
         class="mb-1"
+      />
+
+      <!-- Person overview folds in directly too — PersonLandingView (profile +
+           Position Tracker) renders inline instead of a separate rail. -->
+      <PersonLandingView
+        v-if="isPersonNode"
+        embedded
+        :subject-id-override="nodeId ?? ''"
+        class="mb-1"
+        @pick-position-tracker-topic="graphRailDetailTab = 'position_tracker'"
       />
 
       </div>
@@ -2680,6 +2651,20 @@ const graphConnectionsCenterInView = computed((): boolean => {
         </template>
       </dl>
       </div>
+      </div>
+
+      <!-- Position Tracker (person nodes) — the PLV Position Tracker promoted to a
+           peer node-view tab; the pivot topic is set from the embedded profile. -->
+      <div
+        v-if="props.embedInRail && hasPositionTrackerTab"
+        v-show="graphRailDetailTab === 'position_tracker'"
+        id="node-detail-rail-panel-position-tracker"
+        class="min-h-0"
+        role="tabpanel"
+        aria-labelledby="node-detail-rail-tab-position-tracker"
+        :tabindex="-1"
+      >
+        <PositionTrackerPanel :person-id-override="nodeId ?? ''" />
       </div>
 
       <!-- Mounted whenever the rail is shown (not just when the tab is active) so

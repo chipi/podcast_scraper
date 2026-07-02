@@ -33,12 +33,33 @@ function rel(id: string, text: string, type: string) {
   return { id, type, text, show_id: '', episode_id: '' }
 }
 
+function makePersonArtifact(): ParsedArtifact {
+  return {
+    id: 'a1',
+    kind: 'gi',
+    data: {
+      nodes: [
+        { id: 'person:alice', type: 'Person', properties: { name: 'Alice' } },
+      ],
+      edges: [],
+    },
+  } as unknown as ParsedArtifact
+}
+
 async function mountWith(): Promise<ReturnType<typeof mount>> {
-  const w = mount(PersonLandingView, { attachTo: document.body, global: { stubs: STUBS } })
+  const personId = 'person:alice'
+  const artifacts = useArtifactsStore()
+  artifacts.parsedList = [makePersonArtifact()]
   const shell = useShellStore()
   shell.corpusPath = '/corpus'
   shell.healthStatus = 'ok'
-  useSubjectStore().focusPerson('person:alice')
+  const subject = useSubjectStore()
+  subject.focusPerson(personId)
+  const w = mount(PersonLandingView, {
+    attachTo: document.body,
+    props: { subjectIdOverride: personId },
+    global: { stubs: STUBS },
+  })
   await flushPromises()
   await flushPromises()
   return w
@@ -139,13 +160,19 @@ describe('PersonLandingView — #1048 shell (Person Profile + Position Tracker)'
   })
 
   async function mountWithArtifact(): Promise<ReturnType<typeof mount>> {
-    const w = mount(PersonLandingView, { attachTo: document.body, global: { stubs: STUBS } })
+    const personId = 'person:alice'
     const shell = useShellStore()
     shell.corpusPath = '/corpus'
     shell.healthStatus = 'ok'
     // Mirrors TopicEntityView.test.ts injection pattern.
     useArtifactsStore().parsedList = [makeArtifactWithPersonAndTopics()]
-    useSubjectStore().focusPerson('person:alice')
+    const subject = useSubjectStore()
+    subject.focusPerson(personId)
+    const w = mount(PersonLandingView, {
+      attachTo: document.body,
+      props: { subjectIdOverride: personId },
+      global: { stubs: STUBS },
+    })
     await flushPromises()
     await flushPromises()
     return w
@@ -278,12 +305,18 @@ describe('PersonLandingView — #1050 Person Profile aggregate (PRD-029 / UXS-01
   })
 
   async function mountWithProfileArt(): Promise<ReturnType<typeof mount>> {
-    const w = mount(PersonLandingView, { attachTo: document.body, global: { stubs: STUBS } })
+    const personId = 'person:alice'
     const shell = useShellStore()
     shell.corpusPath = '/corpus'
     shell.healthStatus = 'ok'
     useArtifactsStore().parsedList = [makeArtifactForPersonProfile()]
-    useSubjectStore().focusPerson('person:alice')
+    const subject = useSubjectStore()
+    subject.focusPerson(personId)
+    const w = mount(PersonLandingView, {
+      attachTo: document.body,
+      props: { subjectIdOverride: personId },
+      global: { stubs: STUBS },
+    })
     await flushPromises()
     await flushPromises()
     return w
@@ -350,10 +383,11 @@ describe('PersonLandingView — #1050 Person Profile aggregate (PRD-029 / UXS-01
     // episode. Pre-fix the header count used a raw edge tally and would
     // say "2 episodes" while the list (Set-deduped) shows 1. Both surfaces
     // now derive from the same personEpisodeAppearances helper.
-    const w = mount(PersonLandingView, { attachTo: document.body, global: { stubs: STUBS } })
+    const personId = 'person:a'
     const shell = useShellStore()
     shell.corpusPath = '/corpus'
     shell.healthStatus = 'ok'
+    const subject = useSubjectStore()
     useArtifactsStore().parsedList = [
       {
         id: 'dup',
@@ -370,7 +404,8 @@ describe('PersonLandingView — #1050 Person Profile aggregate (PRD-029 / UXS-01
         },
       } as unknown as ParsedArtifact,
     ]
-    useSubjectStore().focusPerson('person:a')
+    subject.focusPerson(personId)
+    const w = mount(PersonLandingView, { attachTo: document.body, props: { subjectIdOverride: personId }, global: { stubs: STUBS } })
     await flushPromises()
     await flushPromises()
     expect(w.get('[data-testid="person-landing-episode-count"]').text()).toBe('1 episode')
@@ -378,10 +413,11 @@ describe('PersonLandingView — #1050 Person Profile aggregate (PRD-029 / UXS-01
   })
 
   it('Episodes section is omitted when no SPOKE_IN edges exist', async () => {
-    const w = mount(PersonLandingView, { attachTo: document.body, global: { stubs: STUBS } })
+    const personId = 'person:bob'
     const shell = useShellStore()
     shell.corpusPath = '/corpus'
     shell.healthStatus = 'ok'
+    const subject = useSubjectStore()
     useArtifactsStore().parsedList = [
       {
         id: 'empty',
@@ -392,7 +428,8 @@ describe('PersonLandingView — #1050 Person Profile aggregate (PRD-029 / UXS-01
         },
       } as unknown as ParsedArtifact,
     ]
-    useSubjectStore().focusPerson('person:bob')
+    subject.focusPerson(personId)
+    const w = mount(PersonLandingView, { attachTo: document.body, props: { subjectIdOverride: personId }, global: { stubs: STUBS } })
     await flushPromises()
     await flushPromises()
     expect(w.find('[data-testid="person-landing-episodes-appeared"]').exists()).toBe(false)

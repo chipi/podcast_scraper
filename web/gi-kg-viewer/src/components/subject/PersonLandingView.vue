@@ -61,11 +61,25 @@ const emit = defineEmits<{
   goGraph: []
   closeSubject: []
   prefillSemanticSearch: [{ query: string }]
+  // Embedded: a topic was picked for the Position Tracker — the host (NodeDetail)
+  // owns that as a peer tab, so it switches to it.
+  pickPositionTrackerTopic: [topicId: string]
 }>()
+
+// Embeddable-flat: when folded into NodeDetail's Details tab, ``embedded`` hides
+// the standalone header/footer chrome and ``subjectIdOverride`` supplies the id
+// (the subject store now opens Person nodes through the unified node view).
+const props = withDefaults(
+  defineProps<{ embedded?: boolean; subjectIdOverride?: string }>(),
+  { embedded: false, subjectIdOverride: '' },
+)
 
 const artifacts = useArtifactsStore()
 const shell = useShellStore()
 const subject = useSubjectStore()
+
+/** Person subject id — from the embed prop (NodeDetail fold) or the store. */
+const personId = computed(() => props.subjectIdOverride?.trim() || subject.personId?.trim() || '')
 
 // #1048 — tab vocabulary aligned with PRD-028 / PRD-029. ``profile`` is the
 // aggregate Person Profile view (PRD-029); ``position_tracker`` is the
@@ -200,7 +214,7 @@ async function loadPersonEnrichmentSignals(focusedPersonId: string): Promise<voi
 }
 
 watch(
-  () => subject.personId,
+  personId,
   (id) => {
     if (id) void loadPersonEnrichmentSignals(id)
     else {
@@ -212,14 +226,9 @@ watch(
   { immediate: true },
 )
 
-watch(
-  () => subject.personId,
-  () => {
-    activeTab.value = 'profile'
-  },
-)
-
-const personId = computed(() => subject.personId?.trim() || '')
+watch(personId, () => {
+  activeTab.value = 'profile'
+})
 
 const personNode = computed<RawGraphNode | null>(() => {
   const art = artifacts.displayArtifact
@@ -551,19 +560,23 @@ function onPrefillSearch(): void {
 function onPickTopicForPositionTracker(topicId: string): void {
   if (!topicId.trim()) return
   subject.selectTopicForPositionTracker(topicId)
-  activeTab.value = 'position_tracker'
+  // Embedded in NodeDetail: the Position Tracker is a peer node-view tab, so ask
+  // the host to switch rather than PLV's (hidden) internal tab.
+  if (props.embedded) emit('pickPositionTrackerTopic', topicId)
+  else activeTab.value = 'position_tracker'
 }
 </script>
 
 <template>
   <div
-    class="mx-3 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+    class="flex min-h-0 min-w-0 flex-1 flex-col"
+    :class="props.embedded ? '' : 'mx-3 overflow-hidden'"
     role="region"
     aria-label="Person"
     data-testid="person-landing-view"
   >
     <div class="mt-1 shrink-0 border-b border-border pb-2">
-      <div class="flex items-baseline gap-2">
+      <div v-if="!props.embedded" class="flex items-baseline gap-2">
         <span
           class="text-[10px] font-semibold uppercase tracking-wider text-muted"
         >Person</span>
@@ -622,6 +635,7 @@ function onPickTopicForPositionTracker(topicId: string): void {
       </div>
     </div>
     <nav
+      v-if="!props.embedded"
       class="flex shrink-0 gap-1 border-b border-border bg-elevated/50 px-2 py-1.5"
       role="tablist"
       aria-label="Person sections"
@@ -654,7 +668,7 @@ function onPickTopicForPositionTracker(topicId: string): void {
       </button>
     </nav>
     <div
-      v-show="activeTab === 'profile'"
+      v-show="props.embedded || activeTab === 'profile'"
       id="person-landing-panel-profile"
       role="tabpanel"
       aria-labelledby="person-landing-tab-profile"
@@ -1097,7 +1111,7 @@ function onPickTopicForPositionTracker(topicId: string): void {
       >
         + {{ positionRows.length - PERSON_LANDING_POSITIONS_CAP }} more
       </p>
-      <div class="flex shrink-0 flex-wrap gap-2 pt-2">
+      <div v-if="!props.embedded" class="flex shrink-0 flex-wrap gap-2 pt-2">
         <button
           type="button"
           class="rounded border border-border px-2 py-1 text-[11px] font-medium hover:bg-overlay"
@@ -1116,8 +1130,10 @@ function onPickTopicForPositionTracker(topicId: string): void {
         </button>
       </div>
     </div>
-    <!-- #1049 — Position Tracker per PRD-028 / RFC-072 §5A. -->
+    <!-- #1049 — Position Tracker per PRD-028 / RFC-072 §5A. Embedded, this is a
+         peer node-view tab (NodeDetail owns it), so it renders only standalone. -->
     <div
+      v-if="!props.embedded"
       v-show="activeTab === 'position_tracker'"
       id="person-landing-panel-position-tracker"
       role="tabpanel"
@@ -1125,7 +1141,7 @@ function onPickTopicForPositionTracker(topicId: string): void {
       data-testid="person-landing-panel-position-tracker"
       class="flex min-h-0 flex-1 flex-col"
     >
-      <PositionTrackerPanel />
+      <PositionTrackerPanel :person-id-override="personId" />
     </div>
   </div>
 </template>

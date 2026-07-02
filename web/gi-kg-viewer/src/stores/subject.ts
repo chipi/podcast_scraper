@@ -127,15 +127,13 @@ export const useSubjectStore = defineStore('subject', () => {
     focusGraphNode(id)
   }
 
+  /**
+   * Focus a Person in the unified node view — opens the generic
+   * {@link focusGraphNode} → ``NodeDetail`` rail (with PersonLandingView folded
+   * into its Details tab); the standalone Person rail is retired.
+   */
   function focusPerson(id: string): void {
-    const t = id.trim()
-    clearFields()
-    if (!t) {
-      kind.value = null
-      return
-    }
-    kind.value = 'person'
-    personId.value = t
+    focusGraphNode(id)
   }
 
   /**
@@ -146,7 +144,10 @@ export const useSubjectStore = defineStore('subject', () => {
    */
   function selectTopicForPositionTracker(topicGraphId: string): void {
     const t = topicGraphId.trim()
-    if (kind.value !== 'person') return
+    // Persons now open through the unified node view (kind 'graph-node'); the
+    // Position Tracker only renders inside the embedded PersonLandingView, which
+    // is shown for person nodes only, so a graph-node subject is the valid state.
+    if (kind.value !== 'graph-node') return
     positionTrackerTopicId.value = t || null
   }
 

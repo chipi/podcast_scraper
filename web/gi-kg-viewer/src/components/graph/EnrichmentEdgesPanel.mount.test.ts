@@ -178,6 +178,6 @@ describe('EnrichmentEdgesPanel — mount + behaviour', () => {
     const buttons = row.findAll('button')
     // Buttons in order: person_a, person_b, topic — click person_b.
     await buttons[1].trigger('click')
-    expect(subject.personId).toBe('person:bob')
+    expect(subject.graphNodeCyId).toBe('person:bob')
   })
 })

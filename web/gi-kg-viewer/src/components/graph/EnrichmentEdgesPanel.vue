@@ -70,7 +70,12 @@ const focusedTopicId = computed(() => {
   const gn = subject.graphNodeCyId?.trim()
   return gn ? stripLayerPrefixesForCil(gn) : ''
 })
-const focusedPersonId = computed(() => subject.personId?.trim() || '')
+const focusedPersonId = computed(() => {
+  // Persons now focus as graph nodes too; derive the CIL person id from the cy id
+  // so the contradiction list still narrows to the focused person.
+  const gn = subject.graphNodeCyId?.trim()
+  return gn ? stripLayerPrefixesForCil(gn) : ''
+})
 
 const SIM_TOP_N = 5
 const CONTRADICTIONS_TOP_N = 10

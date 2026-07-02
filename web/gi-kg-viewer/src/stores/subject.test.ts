@@ -278,8 +278,8 @@ describe('useSubjectStore', () => {
     const s = useSubjectStore()
     s.focusTopic('topic:1')
     s.focusPerson('  person:9  ')
-    expect(s.kind).toBe('person')
-    expect(s.personId).toBe('person:9')
+    expect(s.kind).toBe('graph-node')
+    expect(s.graphNodeCyId).toBe('person:9')
     expect(s.topicId).toBeNull()
   })
 
@@ -308,8 +308,8 @@ describe('useSubjectStore', () => {
     expect(s.graphNodeCyId).toBe('topic:1')
 
     s.focusPerson('person:1')
-    expect(s.kind).toBe('person')
-    expect(s.graphNodeCyId).toBeNull()
+    expect(s.kind).toBe('graph-node')
+    expect(s.graphNodeCyId).toBe('person:1')
 
     s.clearSubject()
     expect(s.kind).toBeNull()
@@ -434,7 +434,7 @@ describe('useSubjectStore — DEV window hook (__GIKG_SUBJECT__)', () => {
     expect(hook.graphNodeCyId).toBe('topic:1')
 
     s.focusPerson('person:1')
-    expect(hook.personId).toBe('person:1')
+    expect(hook.graphNodeCyId).toBe('person:1')
   })
 
   it('hook mutators (focusTopic/focusEntity/clearSubject) drive the store', async () => {
@@ -471,7 +471,7 @@ describe('useSubjectStore — positionTrackerTopicId (#1049)', () => {
 
   it('selectTopicForPositionTracker is a no-op when no Person is focused', () => {
     const s = useSubjectStore()
-    s.focusTopic('topic:x')
+    s.focusEpisode('metadata/a.json')
     s.selectTopicForPositionTracker('topic:ai')
     expect(s.positionTrackerTopicId).toBeNull()
   })
@@ -490,8 +490,8 @@ describe('useSubjectStore — positionTrackerTopicId (#1049)', () => {
     s.selectTopicForPositionTracker('topic:ai')
     s.clearPositionTrackerTopic()
     expect(s.positionTrackerTopicId).toBeNull()
-    expect(s.kind).toBe('person')
-    expect(s.personId).toBe('person:alice')
+    expect(s.kind).toBe('graph-node')
+    expect(s.graphNodeCyId).toBe('person:alice')
   })
 
   it('focusPerson(new person) clears any stale Position Tracker topic', () => {
@@ -500,7 +500,7 @@ describe('useSubjectStore — positionTrackerTopicId (#1049)', () => {
     s.selectTopicForPositionTracker('topic:ai')
     s.focusPerson('person:bob')
     expect(s.positionTrackerTopicId).toBeNull()
-    expect(s.personId).toBe('person:bob')
+    expect(s.graphNodeCyId).toBe('person:bob')
   })
 
   it('clearSubject also clears the Position Tracker topic', () => {

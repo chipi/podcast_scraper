@@ -67,24 +67,9 @@ const EpisodeDetailPanelStub = {
   `,
 }
 
-const PersonLandingViewStub = {
-  name: 'PersonLandingView',
-  template: `
-    <div data-testid="stub-person-view">
-      <button data-testid="emit-person-go-graph" @click="$emit('go-graph')" />
-      <button data-testid="emit-person-close" @click="$emit('close-subject')" />
-      <button
-        data-testid="emit-person-prefill"
-        @click="$emit('prefill-semantic-search', { query: 'q' })"
-      />
-    </div>
-  `,
-}
-
 const STUBS = {
   GraphNodeRailPanel: GraphNodeRailPanelStub,
   EpisodeDetailPanel: EpisodeDetailPanelStub,
-  PersonLandingView: PersonLandingViewStub,
   // Neighbourhood child rendered only via the episode slot; stub to a marker.
   GraphConnectionsSection: {
     name: 'GraphConnectionsSection',
@@ -188,8 +173,8 @@ describe('SubjectRail', () => {
     const w = mountRail()
     useSubjectStore().focusPerson('person:ada')
     await w.vm.$nextTick()
-    expect(w.find('[data-testid="stub-person-view"]').exists()).toBe(true)
-    expect(w.find('[data-testid="stub-graph-node-rail"]').exists()).toBe(false)
+    expect(w.find('[data-testid="stub-graph-node-rail"]').exists()).toBe(true)
+    expect(w.find('[data-testid="stub-person-view"]').exists()).toBe(false)
   })
 
   // --- routing switches as the focused subject kind changes ------------------
@@ -209,8 +194,8 @@ describe('SubjectRail', () => {
 
     subject.focusPerson('person:y')
     await w.vm.$nextTick()
-    expect(w.find('[data-testid="stub-graph-node-rail"]').exists()).toBe(false)
-    expect(w.find('[data-testid="stub-person-view"]').exists()).toBe(true)
+    expect(w.find('[data-testid="stub-graph-node-rail"]').exists()).toBe(true)
+    expect(w.find('[data-testid="stub-person-view"]').exists()).toBe(false)
 
     subject.focusEpisode('feed/ep.json')
     await w.vm.$nextTick()
@@ -375,30 +360,5 @@ describe('SubjectRail', () => {
     })
   })
 
-  describe('person child event re-emission', () => {
-    async function mountPerson() {
-      const w = mountRail()
-      useSubjectStore().focusPerson('person:ada')
-      await w.vm.$nextTick()
-      return w
-    }
 
-    it('re-emits go-graph as goGraph', async () => {
-      const w = await mountPerson()
-      await w.get('[data-testid="emit-person-go-graph"]').trigger('click')
-      expect(w.emitted('goGraph')).toHaveLength(1)
-    })
-
-    it('re-emits close-subject as closeSubject', async () => {
-      const w = await mountPerson()
-      await w.get('[data-testid="emit-person-close"]').trigger('click')
-      expect(w.emitted('closeSubject')).toHaveLength(1)
-    })
-
-    it('re-emits prefill-semantic-search with payload', async () => {
-      const w = await mountPerson()
-      await w.get('[data-testid="emit-person-prefill"]').trigger('click')
-      expect(w.emitted('prefillSemanticSearch')![0]).toEqual([{ query: 'q' }])
-    })
-  })
 })

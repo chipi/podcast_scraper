@@ -11,6 +11,7 @@ import NodeDetail from './NodeDetail.vue'
 // Heavy / API-driven children are stubbed: GraphConnectionsSection (cytoscape
 // minimap), TranscriptViewerDialog, PodcastCover, and HelpTip (slot popover).
 const STUBS = {
+  PersonLandingView: { name: 'PersonLandingView', template: '<div data-testid="person-landing-view" />' },
   GraphConnectionsSection: true,
   TranscriptViewerDialog: true,
   PodcastCover: true,
@@ -161,34 +162,17 @@ describe('NodeDetail', () => {
     shell.healthStatus = 'ok'
     await w.vm.$nextTick()
 
-    expect(w.find('[data-testid="node-detail-person-entity-role"]').text()).toContain(
-      '1 attributed quote',
-    )
-    expect(w.find('[data-testid="node-detail-person-entity-role"]').text()).toContain(
-      '1 episode link',
-    )
-    expect(w.find('[data-testid="node-detail-person-entity-aliases"]').text()).toContain('Ada')
-    expect(w.find('[data-testid="node-detail-open-person-profile"]').text()).toContain(
-      'Open full Person profile',
-    )
-
+    // NodeDetail now embeds PersonLandingView with the person details
+    expect(w.find('[data-testid="person-landing-view"]').exists()).toBe(true)
+    // The standalone "Open full Person profile" button is gone
+    expect(w.find('[data-testid="node-detail-open-person-profile"]').exists()).toBe(false)
+    // Gateway buttons still present
     await w.get('[data-testid="node-detail-person-entity-prefill-search"]').trigger('click')
     expect(w.emitted('prefill-semantic-search')![0]).toEqual([{ query: 'Ada Lovelace' }])
 
     // Person (not org) routes the second button to the speaker filter.
     await w.get('[data-testid="node-detail-person-entity-explore-filter"]').trigger('click')
     expect(w.emitted('open-explore-speaker-filter')![0]).toEqual([{ speaker: 'Ada Lovelace' }])
-  })
-
-  it('Open full Person profile focuses the person subject', async () => {
-    const art = artifactOf([
-      { id: 'person:ada', type: 'Person', properties: { name: 'Ada' } },
-    ])
-    const w = mountDetail({ viewArtifact: art, nodeId: 'person:ada' })
-    const subject = useSubjectStore()
-    await w.get('[data-testid="node-detail-open-person-profile"]').trigger('click')
-    expect(subject.kind).toBe('person')
-    expect(subject.personId).toBe('person:ada')
   })
 
   // --- Insight branch --------------------------------------------------------

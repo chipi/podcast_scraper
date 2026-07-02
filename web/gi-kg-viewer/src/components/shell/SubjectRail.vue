@@ -4,7 +4,6 @@ import type { SearchHit } from '../../api/searchApi'
 import EpisodeDetailPanel from '../episode/EpisodeDetailPanel.vue'
 import GraphConnectionsSection from '../graph/GraphConnectionsSection.vue'
 import GraphNodeRailPanel from '../graph/GraphNodeRailPanel.vue'
-import PersonLandingView from '../subject/PersonLandingView.vue'
 import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useSubjectStore } from '../../stores/subject'
@@ -204,13 +203,6 @@ const emptyHint =
             </template>
           </EpisodeDetailPanel>
         </div>
-      </template>
-      <template v-else-if="subject.kind === 'person' && subject.personId?.trim()">
-        <PersonLandingView
-          @go-graph="emit('goGraph')"
-          @close-subject="emit('closeSubject')"
-          @prefill-semantic-search="emit('prefillSemanticSearch', $event)"
-        />
       </template>
     </template>
   </div>
