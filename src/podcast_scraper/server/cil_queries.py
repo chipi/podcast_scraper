@@ -464,6 +464,8 @@ def _cil_episode_metadata_fields(
         "episode_image_local_relpath": None,
         "feed_image_url": None,
         "feed_image_local_relpath": None,
+        "summary_title": None,
+        "summary_text": None,
     }
     corpus_root = Path(os.path.normpath(corpus_root_norm))
     parent = os.path.dirname(safe_bridge)
@@ -500,6 +502,16 @@ def _cil_episode_metadata_fields(
         out["episode_image_url"] = _optional_image_url(ep.get("image_url"))
         ep_loc_raw = _optional_relpath_field(ep.get("image_local_relpath"))
         out["episode_image_local_relpath"] = _verified_artwork_relpath(corpus_root, ep_loc_raw)
+    summary = data.get("summary")
+    if isinstance(summary, dict):
+        stitle = summary.get("title")
+        if isinstance(stitle, str) and stitle.strip():
+            out["summary_title"] = stitle.strip()
+        body = summary.get("raw_text")
+        if not (isinstance(body, str) and body.strip()):
+            body = summary.get("short_summary")
+        if isinstance(body, str) and body.strip():
+            out["summary_text"] = body.strip()
     return out
 
 

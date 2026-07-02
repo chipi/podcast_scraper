@@ -1775,6 +1775,8 @@ class CilArcEpisodeBlock(BaseModel):
     episode_image_local_relpath: str | None = None
     feed_image_url: str | None = None
     feed_image_local_relpath: str | None = None
+    summary_title: str | None = None
+    summary_text: str | None = None
     insights: list[dict[str, Any]] = Field(default_factory=list)
 
 

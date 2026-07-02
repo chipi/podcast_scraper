@@ -33,6 +33,8 @@ def _write_bundle(
     metadata_episode_number: int | None = None,
     metadata_episode_image_url: str | None = None,
     metadata_feed_image_url: str | None = None,
+    metadata_summary_title: str | None = None,
+    metadata_summary_text: str | None = None,
     # RFC-097 v3.0 chunk-4 additions — typed MENTIONS family + Org / Podcast
     # nodes. ``mention_org`` adds a ``MENTIONS_ORG`` edge from the insight to
     # a synthetic Organization node and emits the Organization in kg.json.
@@ -139,6 +141,8 @@ def _write_bundle(
         or metadata_episode_number is not None
         or metadata_episode_image_url is not None
         or metadata_feed_image_url is not None
+        or metadata_summary_title is not None
+        or metadata_summary_text is not None
     ):
         meta_doc: dict[str, Any] = {}
         feed_meta: dict[str, Any] = {}
@@ -157,6 +161,13 @@ def _write_bundle(
             ep_meta["image_url"] = metadata_episode_image_url
         if ep_meta:
             meta_doc["episode"] = ep_meta
+        summary_meta: dict[str, Any] = {}
+        if metadata_summary_title is not None:
+            summary_meta["title"] = metadata_summary_title
+        if metadata_summary_text is not None:
+            summary_meta["raw_text"] = metadata_summary_text
+        if summary_meta:
+            meta_doc["summary"] = summary_meta
         (directory / f"{stem}.metadata.json").write_text(
             json.dumps(meta_doc),
             encoding="utf-8",
@@ -318,6 +329,50 @@ def test_topic_timeline_resolves_episode_title_from_metadata(tmp_path: Path) -> 
     assert tl[0]["episode_number"] == 42
     assert tl[0]["episode_image_url"] == "https://example.com/art.png"
     assert tl[0]["feed_image_url"] == "https://example.com/feed.png"
+
+
+def test_topic_timeline_includes_summary_title_and_text(tmp_path: Path) -> None:
+    meta = tmp_path / "metadata"
+    _write_bundle(
+        meta,
+        "a",
+        episode_id="episode:a",
+        publish_date="2024-03-01",
+        person="person:alice",
+        topic="topic:taxes",
+        insight_id="insight-a",
+        quote_id="quote-a",
+        insight_text="Taxes rose",
+        metadata_episode_title="March tax episode",
+        metadata_summary_title="A one-line recap",
+        metadata_summary_text="The long-form summary prose for this episode.",
+    )
+    root = str(tmp_path)
+    tl = cil_queries.topic_timeline(root, root, "topic:taxes")
+    assert len(tl) == 1
+    assert tl[0]["summary_title"] == "A one-line recap"
+    assert tl[0]["summary_text"] == "The long-form summary prose for this episode."
+
+
+def test_topic_timeline_summary_fields_none_when_absent(tmp_path: Path) -> None:
+    meta = tmp_path / "metadata"
+    _write_bundle(
+        meta,
+        "a",
+        episode_id="episode:a",
+        publish_date="2024-03-01",
+        person="person:alice",
+        topic="topic:taxes",
+        insight_id="insight-a",
+        quote_id="quote-a",
+        insight_text="Taxes rose",
+        metadata_episode_title="March tax episode",
+    )
+    root = str(tmp_path)
+    tl = cil_queries.topic_timeline(root, root, "topic:taxes")
+    assert len(tl) == 1
+    assert tl[0]["summary_title"] is None
+    assert tl[0]["summary_text"] is None
 
 
 def test_topic_timeline_metadata_feed_without_episode_title(tmp_path: Path) -> None:
