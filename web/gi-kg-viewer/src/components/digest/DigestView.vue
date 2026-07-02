@@ -14,6 +14,7 @@ import CilTopicPillsRow from '../shared/CilTopicPillsRow.vue'
 import HelpTip from '../shared/HelpTip.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
+import { themeMemberTopicIdSet } from '../../utils/topicClustersOverlay'
 import { useCorpusLensStore } from '../../stores/corpusLens'
 import DateChip from '../shared/DateChip.vue'
 import { useSubjectStore } from '../../stores/subject'
@@ -48,6 +49,8 @@ const emit = defineEmits<{
 const shell = useShellStore()
 const dashboardNav = useDashboardNavStore()
 const artifacts = useArtifactsStore()
+// Topic ids in any co-occurrence THEME cluster — teal ring on the pills below.
+const themeMemberIds = computed(() => themeMemberTopicIdSet(artifacts.themeClustersDoc))
 const graphHandoff = useGraphHandoffStore()
 const graphNav = useGraphNavigationStore()
 
@@ -87,6 +90,9 @@ watch(digest, () => {
 })
 
 onActivated(() => {
+  // Ensure co-occurrence THEME clusters are loaded so topic pills show the teal
+  // theme ring even when the graph tab was never opened this session (memoized).
+  void artifacts.syncTopicClustersForCurrentCorpus()
   const h = dashboardNav.consumeHandoff()
   if (h?.kind === 'digest') {
     topicBandsExpanded.value = true
@@ -1217,6 +1223,7 @@ onBeforeUnmount(() => {
                     v-if="digestRecentCilPills(row).length"
                     class="mt-0.5"
                     cluster-member-appearance="kg"
+                    :theme-member-ids="themeMemberIds"
                     :pills="digestRecentCilPills(row)"
                     :max-pill-chars="RECENT_TOPIC_PILL_CHARS"
                     truncation="wrap"

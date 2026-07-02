@@ -181,11 +181,11 @@ describe('KnowledgePanel', () => {
     const w = mountPanel({ topics, persons: [] })
     // Dominant theme (co-occurrence) surfaces as the "Theme ·" lead-in — distinct from "Similar ·".
     expect(w.text()).toContain('Theme · sanctions')
-    // Theme-member chips carry the theme ring; the non-member does not.
+    // Theme-member chips carry the teal fill (lp-theme-chip); the non-member does not.
     const oil = w.findAll('button').find((b) => b.text() === 'oil')!
     const zulu = w.findAll('button').find((b) => b.text() === 'zulu')!
-    expect(oil.classes()).toContain('ring-theme')
-    expect(zulu.classes()).not.toContain('ring-theme')
+    expect(oil.classes()).toContain('lp-theme-chip')
+    expect(zulu.classes()).not.toContain('lp-theme-chip')
   })
 
   it('runs episode-scoped search and renders grounded results', async () => {

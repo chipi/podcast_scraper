@@ -78,7 +78,8 @@ describe('ResultCard — related_topics chip strip', () => {
       },
     })
     await w.get('[data-testid="search-result-related-topic-topic:ml"]').trigger('click')
-    expect(subject.topicId).toBe('topic:ml')
+    expect(subject.kind).toBe('graph-node')
+    expect(subject.graphNodeCyId).toBe('topic:ml')
   })
 
   it('skips chips with empty or non-string topic_id', () => {

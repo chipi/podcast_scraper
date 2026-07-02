@@ -431,6 +431,57 @@ export function withThemeClustersOnDisplay(
   return { ...art, data: applyThemeClustersOverlay(art.data, doc) }
 }
 
+/** All Topic ids (bare) in ANY theme cluster — teal-ring pill styling on Digest /
+ *  Episode surfaces, the same signal as the graph theme ring. */
+export function themeMemberTopicIdSet(
+  doc: TopicClustersDocument | null | undefined,
+): Set<string> {
+  const out = new Set<string>()
+  for (const cl of doc?.clusters ?? []) {
+    const members = Array.isArray(cl?.members) ? cl.members : []
+    for (const m of members) {
+      const tid = m && typeof m.topic_id === 'string' ? m.topic_id.trim() : ''
+      if (tid) out.add(tid)
+    }
+  }
+  return out
+}
+
+/**
+ * Theme-cluster identity for a topic node: the cluster's label + its OTHER member
+ * topics (the "discussed together" siblings). Powers the node-view Theme block,
+ * mirroring the player entity card. Null when the topic is in no theme cluster.
+ */
+export function themeClusterInfoForTopic(
+  doc: TopicClustersDocument | null | undefined,
+  topicNodeId: string,
+): { label: string; members: { topic_id: string; label: string }[] } | null {
+  if (!doc || !Array.isArray(doc.clusters) || !topicNodeId.trim()) {
+    return null
+  }
+  const bare = stripLayerPrefixesForCil(topicNodeId)
+  for (const cl of doc.clusters) {
+    const members = Array.isArray(cl?.members) ? cl.members : []
+    const ids = members.map((m) => (m && typeof m.topic_id === 'string' ? m.topic_id.trim() : ''))
+    if (!ids.includes(bare)) {
+      continue
+    }
+    const label =
+      typeof cl?.canonical_label === 'string' && cl.canonical_label.trim()
+        ? cl.canonical_label.trim()
+        : bare
+    const siblings = members
+      .filter((m) => m && typeof m.topic_id === 'string' && m.topic_id.trim() && m.topic_id.trim() !== bare)
+      .map((m) => {
+        const tid = (m.topic_id as string).trim()
+        const lbl = typeof m.label === 'string' && m.label.trim() ? m.label.trim() : tid
+        return { topic_id: tid, label: lbl }
+      })
+    return { label, members: siblings }
+  }
+  return null
+}
+
 /**
  * Member topic ids of the THEME cluster that contains *topicNodeId* (bare-matched),
  * for the inline "Theme timeline" (merged mentions of all members over time — a

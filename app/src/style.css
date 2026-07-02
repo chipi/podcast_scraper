@@ -87,6 +87,17 @@
     color: var(--lp-surface-foreground);
   }
 
+  /* Theme (co-occurrence "discussed together") chip — ONE canonical teal fill for a
+     theme-member topic pill, app-wide. Matches the KG viewer's theme fill so a themed
+     topic reads the same in player and viewer. Use INSTEAD of a bg utility (utilities
+     out-rank component classes) so the fill actually wins. */
+  .lp-theme-chip {
+    background-color: color-mix(in srgb, var(--lp-theme) 22%, transparent);
+  }
+  .lp-theme-chip:hover {
+    background-color: color-mix(in srgb, var(--lp-theme) 32%, transparent);
+  }
+
   /* Favorite (heart) toggle — ONE canonical affordance everywhere a thing can be saved (UXS-014). */
   .lp-fav {
     display: inline-flex;

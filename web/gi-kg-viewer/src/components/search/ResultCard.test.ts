@@ -198,8 +198,8 @@ describe('ResultCard', () => {
     expect(link.text()).toContain('Open Topic panel')
     const subject = useSubjectStore()
     await link.trigger('click')
-    expect(subject.kind).toBe('topic')
-    expect(subject.topicId).toBe('topic:ai')
+    expect(subject.kind).toBe('graph-node')
+    expect(subject.graphNodeCyId).toBe('topic:ai')
   })
 
   it('renders an "Open Person panel" link for a kg_entity hit and focuses the person subject', async () => {
@@ -268,8 +268,8 @@ describe('ResultCard', () => {
     const topicLink = w.get('[data-testid="search-result-lifted-topic-link"]')
     expect(topicLink.text()).toBe('AI')
     await topicLink.trigger('click')
-    expect(subject.kind).toBe('topic')
-    expect(subject.topicId).toBe('topic:ai')
+    expect(subject.kind).toBe('graph-node')
+    expect(subject.graphNodeCyId).toBe('topic:ai')
   })
 
   it('renders the lifted quote time range from start/end timestamps', () => {

@@ -584,6 +584,15 @@ function onPickTopicForPositionTracker(topicId: string): void {
         >
           {{ personRoleLabel }}
         </span>
+        <button
+          type="button"
+          class="shrink-0 self-center rounded border border-border px-1.5 py-0.5 text-xs font-medium text-elevated-foreground hover:bg-overlay"
+          data-testid="subject-rail-close"
+          aria-label="Close person detail"
+          @click="emit('closeSubject')"
+        >
+          ×
+        </button>
       </div>
       <!-- #1048 / #1050 — episode-count signal. Derives from the same
            personEpisodeAppearances list rendered below so the at-a-glance

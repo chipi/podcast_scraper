@@ -144,7 +144,7 @@ onMounted(refresh)
       <div>
         <h2 class="text-sm font-semibold">Enrichment layer</h2>
         <p class="text-muted text-[10px]">
-          RFC-088: per-enricher health + last-run status, drift signals, and re-enable.
+          Per-enricher health + last-run status, drift signals, and re-enable.
         </p>
       </div>
       <div class="flex items-center gap-2">

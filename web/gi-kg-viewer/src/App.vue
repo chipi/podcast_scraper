@@ -151,8 +151,9 @@ async function activateGraphTab(
   const target = targetNodeId?.trim()
   const fbTrim = focusFallbackId?.trim()
   if (target) {
-    // CIL corpus ids (`topic:…`) open TopicEntityView (Digest / Explore handoffs).
-    // Graph cy ids (`tc:…`, `g:…`, compound slugs from topic_clusters.json, …) open NodeDetail.
+    // Both CIL corpus ids (`topic:…`) and graph cy ids (`tc:…`, `g:…`, compound
+    // slugs from topic_clusters.json) now open the unified NodeDetail rail — the
+    // topic:/cy-id split below only controls how the graph itself bootstraps + focuses.
     if (target.startsWith('topic:')) {
       subject.focusTopic(target)
       graphHandoff.handoffRequested({

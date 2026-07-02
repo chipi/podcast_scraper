@@ -226,14 +226,14 @@ function searchLibrary(): void {
             {{ t('ec.themeMembers', themeSiblings.length + 1, { named: { count: themeSiblings.length + 1 } }) }}
           </h3>
           <div class="flex flex-wrap gap-1.5">
-            <span class="rounded-full bg-overlay px-2.5 py-1 text-xs font-semibold text-theme ring-1 ring-theme">
+            <span class="lp-theme-chip rounded-full px-2.5 py-1 text-xs font-semibold text-surface-foreground">
               {{ label }}
             </span>
             <button
               v-for="s in themeSiblings"
               :key="s.id"
               type="button"
-              class="rounded-full bg-overlay px-2.5 py-1 text-xs text-theme transition hover:bg-elevated"
+              class="lp-theme-chip rounded-full px-2.5 py-1 text-xs text-surface-foreground transition"
               @click="open('topic', s.id)"
             >{{ s.label }}</button>
           </div>

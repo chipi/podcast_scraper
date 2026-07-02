@@ -237,12 +237,13 @@ describe('useSubjectStore', () => {
 
   // --- focusTopic / focusEntity -------------------------------------------
 
-  it('focusTopic sets kind and topicId, clears other fields', () => {
+  it('focusTopic focuses the topic as a graph node (unified node view)', () => {
     const s = useSubjectStore()
     s.focusEpisode('metadata/a.json', { episodeId: 'ep-1' })
     s.focusTopic('  topic:42  ')
-    expect(s.kind).toBe('topic')
-    expect(s.topicId).toBe('topic:42')
+    expect(s.kind).toBe('graph-node')
+    expect(s.graphNodeCyId).toBe('topic:42')
+    expect(s.topicId).toBeNull()
     expect(s.episodeMetadataPath).toBeNull()
     expect(s.episodeId).toBeNull()
   })
@@ -255,11 +256,12 @@ describe('useSubjectStore', () => {
     expect(s.topicId).toBeNull()
   })
 
-  it('focusEntity routes through focusTopic (topic kind)', () => {
+  it('focusEntity focuses the entity as a graph node (unified node view)', () => {
     const s = useSubjectStore()
     s.focusEntity('  entity:7  ')
-    expect(s.kind).toBe('topic')
-    expect(s.topicId).toBe('entity:7')
+    expect(s.kind).toBe('graph-node')
+    expect(s.graphNodeCyId).toBe('entity:7')
+    expect(s.topicId).toBeNull()
   })
 
   it('focusEntity with blank id clears', () => {
@@ -302,12 +304,12 @@ describe('useSubjectStore', () => {
     expect(s.episodeId).toBeNull()
 
     s.focusTopic('topic:1')
-    expect(s.kind).toBe('topic')
-    expect(s.graphNodeCyId).toBeNull()
+    expect(s.kind).toBe('graph-node')
+    expect(s.graphNodeCyId).toBe('topic:1')
 
     s.focusPerson('person:1')
     expect(s.kind).toBe('person')
-    expect(s.topicId).toBeNull()
+    expect(s.graphNodeCyId).toBeNull()
 
     s.clearSubject()
     expect(s.kind).toBeNull()
@@ -429,7 +431,7 @@ describe('useSubjectStore — DEV window hook (__GIKG_SUBJECT__)', () => {
     expect(hook.graphNodeCyId).toBe('node:1')
 
     s.focusTopic('topic:1')
-    expect(hook.topicId).toBe('topic:1')
+    expect(hook.graphNodeCyId).toBe('topic:1')
 
     s.focusPerson('person:1')
     expect(hook.personId).toBe('person:1')
@@ -441,16 +443,16 @@ describe('useSubjectStore — DEV window hook (__GIKG_SUBJECT__)', () => {
     const hook = getHook()
 
     hook.focusTopic('topic:hooked')
-    expect(s.kind).toBe('topic')
-    expect(s.topicId).toBe('topic:hooked')
+    expect(s.kind).toBe('graph-node')
+    expect(s.graphNodeCyId).toBe('topic:hooked')
 
     hook.focusEntity('entity:hooked')
-    expect(s.kind).toBe('topic')
-    expect(s.topicId).toBe('entity:hooked')
+    expect(s.kind).toBe('graph-node')
+    expect(s.graphNodeCyId).toBe('entity:hooked')
 
     hook.clearSubject()
     expect(s.kind).toBeNull()
-    expect(s.topicId).toBeNull()
+    expect(s.graphNodeCyId).toBeNull()
   })
 })
 

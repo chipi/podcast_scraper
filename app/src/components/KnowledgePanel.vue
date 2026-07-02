@@ -351,14 +351,14 @@ watch(
             v-for="tag in visibleTags"
             :key="tag.key"
             type="button"
-            class="rounded-full bg-overlay px-2.5 py-1 text-xs transition hover:bg-elevated"
+            class="rounded-full px-2.5 py-1 text-xs transition"
             :class="[
               tag.kind === 'topic' ? 'text-topic' : 'text-person',
               tag.themeMember
-                ? 'ring-1 ring-theme'
+                ? 'lp-theme-chip'
                 : tag.dominant
-                  ? 'ring-1 ring-topic'
-                  : '',
+                  ? 'bg-overlay ring-1 ring-topic hover:bg-elevated'
+                  : 'bg-overlay hover:bg-elevated',
             ]"
             :aria-label="t('kp.openEntity', { term: tag.label })"
             @click="openCard(tag)"

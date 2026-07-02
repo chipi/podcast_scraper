@@ -77,14 +77,22 @@ async function mountTopic(
   topicId = 'topic:ai',
   opts: { health?: boolean } = {},
 ) {
-  const w = mount(TopicEntityView, { attachTo: document.body, global: { stubs: STUBS } })
+  // TopicEntityView is now embedded-only (the standalone rail was retired); it
+  // takes its subject id from the ``subjectIdOverride`` prop rather than the
+  // subject store (``focusTopic`` now opens the unified NodeDetail node view).
+  // Seed the artifacts + corpus path BEFORE mount so the immediate relational
+  // fetch (watch subjectId, {immediate:true}) sees the root on first run.
   const artifacts = useArtifactsStore()
   if (art) artifacts.parsedList = [art]
   const shell = useShellStore()
   shell.corpusPath = '/corpus'
   shell.healthStatus = opts.health === false ? null : 'ok'
   const subject = useSubjectStore()
-  subject.focusTopic(topicId)
+  const w = mount(TopicEntityView, {
+    attachTo: document.body,
+    props: { subjectIdOverride: topicId },
+    global: { stubs: STUBS },
+  })
   for (let i = 0; i < 8; i++) await w.vm.$nextTick()
   return { w, artifacts, shell, subject }
 }
@@ -139,30 +147,9 @@ describe('TopicEntityView.vue', () => {
     expect(w.get('[data-testid="topic-entity-view-name"]').text()).toBe('Acme Corp')
   })
 
-  it('computes the mentions stats line from the linked insight + quote', async () => {
-    const { w } = await mountTopic(topicWithMentions())
-    const stats = w.get('[data-testid="topic-entity-view-stats"]').text()
-    expect(stats).toContain('2 dated mentions')
-    expect(stats).toContain('1 insight')
-    expect(stats).toContain('1 quote')
-  })
-
-  it('renders the mentions list with type chips and episode metadata', async () => {
-    const { w } = await mountTopic(topicWithMentions())
-    const list = w.get('[data-testid="topic-entity-view-mentions"]')
-    expect(list.findAll('li')).toHaveLength(2)
-    expect(list.text()).toContain('AI is advancing fast.')
-    expect(list.text()).toContain('A quote about AI.')
-    expect(list.text()).toContain('Episode One')
-    expect(list.text()).toContain('2026-01-15')
-  })
-
-  it('renders the empty state when nothing links to the subject', async () => {
-    const art = artifactOf([{ id: 'topic:ai', type: 'Topic', properties: { label: 'AI' } }])
-    const { w } = await mountTopic(art)
-    expect(w.find('[data-testid="topic-entity-view-empty"]').exists()).toBe(true)
-    expect(w.find('[data-testid="topic-entity-view-mentions"]').exists()).toBe(false)
-  })
+  // NOTE: the graph-scoped mentions list/stats/empty-state were removed when the
+  // node view merged to ONE corpus-wide "Mentions" section (the API timeline).
+  // Typed-MENTIONS-edge resolution stays covered in subjectMentionsTimeline.test.ts.
 
   it('emits goGraph when "Open in graph" is clicked', async () => {
     const { w } = await mountTopic(topicWithMentions())
@@ -219,8 +206,8 @@ describe('TopicEntityView.vue', () => {
     const chip = w.get('[data-testid="tev-entity-chip"]')
     expect(chip.text()).toBe('OpenAI')
     await chip.trigger('click')
-    expect(subject.kind).toBe('topic') // focusEntity aliases focusTopic
-    expect(subject.topicId).toBe('org:openai')
+    expect(subject.kind).toBe('graph-node') // focusEntity opens the unified node view
+    expect(subject.graphNodeCyId).toBe('org:openai')
   })
 
   it('surfaces a relational error in the cross-show section', async () => {
@@ -256,119 +243,4 @@ describe('TopicEntityView.vue', () => {
     expect(w.find('[data-testid="tev-related-topics"]').exists()).toBe(false)
   })
 
-  // ---------------------------------------------------------------------------
-  // RFC-097 v3.0 typed MENTIONS family — when the subject is a Person or an
-  // Organization, the mentions list must surface insights linked via the
-  // typed variants (MENTIONS_PERSON / MENTIONS_ORG), not just legacy MENTIONS.
-  // ---------------------------------------------------------------------------
-
-  it('Person subject surfaces insights linked via typed MENTIONS_PERSON', async () => {
-    const art = artifactOf(
-      [
-        {
-          id: 'person:ada',
-          type: 'Person',
-          properties: { name: 'Ada Lovelace' },
-        },
-        {
-          id: 'insight:typed',
-          type: 'Insight',
-          properties: { text: 'Ada championed analytical engines.', episode_id: 'ep-x' },
-        },
-        {
-          id: '__unified_ep__:ep-x',
-          type: 'Episode',
-          properties: { episode_title: 'Computing Pioneers', publish_date: '2026-04-10' },
-        },
-      ],
-      // Typed variant (RFC-097 v3.0). Pre-v3 corpora would have used the
-      // legacy generic MENTIONS — the test below covers that fallback.
-      [{ from: 'insight:typed', to: 'person:ada', type: 'MENTIONS_PERSON' }],
-    )
-    const { w } = await mountTopic(art, 'person:ada')
-    const list = w.get('[data-testid="topic-entity-view-mentions"]')
-    expect(list.text()).toContain('Ada championed analytical engines.')
-    expect(list.text()).toContain('Computing Pioneers')
-    expect(list.text()).toContain('2026-04-10')
-  })
-
-  it('Organization subject surfaces insights linked via typed MENTIONS_ORG', async () => {
-    const art = artifactOf(
-      [
-        {
-          id: 'org:acme',
-          type: 'Organization',
-          properties: { name: 'Acme Corp' },
-        },
-        {
-          id: 'insight:org',
-          type: 'Insight',
-          properties: { text: 'Acme delivered Q3 outperformance.', episode_id: 'ep-y' },
-        },
-        {
-          id: '__unified_ep__:ep-y',
-          type: 'Episode',
-          properties: { episode_title: 'Earnings Recap', publish_date: '2026-05-22' },
-        },
-      ],
-      [{ from: 'insight:org', to: 'org:acme', type: 'MENTIONS_ORG' }],
-    )
-    const { w } = await mountTopic(art, 'org:acme')
-    const list = w.get('[data-testid="topic-entity-view-mentions"]')
-    expect(list.text()).toContain('Acme delivered Q3 outperformance.')
-    expect(list.text()).toContain('Earnings Recap')
-    expect(list.text()).toContain('2026-05-22')
-  })
-
-  it('mid-migration corpus: subject linked by BOTH typed AND legacy MENTIONS surfaces both insights', async () => {
-    /**
-     * Reflects a real-world mid-migration shape: one insight uses the
-     * typed variant, another still carries the legacy generic. The
-     * mentions list MUST surface both — the typed family is one
-     * semantic unit per the search-layer contract (see
-     * ``relational_queries._MENTIONS_FAMILY``).
-     */
-    const art = artifactOf(
-      [
-        {
-          id: 'person:linus',
-          type: 'Person',
-          properties: { name: 'Linus' },
-        },
-        {
-          id: 'insight:typed',
-          type: 'Insight',
-          properties: { text: 'Linus advocates strict review.', episode_id: 'ep-a' },
-        },
-        {
-          id: 'insight:legacy',
-          type: 'Insight',
-          properties: {
-            text: 'Linus mentioned a deprecated API.',
-            episode_id: 'ep-b',
-          },
-        },
-        {
-          id: '__unified_ep__:ep-a',
-          type: 'Episode',
-          properties: { episode_title: 'EpA', publish_date: '2026-06-01' },
-        },
-        {
-          id: '__unified_ep__:ep-b',
-          type: 'Episode',
-          properties: { episode_title: 'EpB', publish_date: '2026-06-02' },
-        },
-      ],
-      [
-        { from: 'insight:typed', to: 'person:linus', type: 'MENTIONS_PERSON' },
-        { from: 'insight:legacy', to: 'person:linus', type: 'MENTIONS' },
-      ],
-    )
-    const { w } = await mountTopic(art, 'person:linus')
-    const list = w.get('[data-testid="topic-entity-view-mentions"]')
-    const items = list.findAll('li')
-    expect(items.length).toBe(2)
-    expect(list.text()).toContain('Linus advocates strict review.')
-    expect(list.text()).toContain('Linus mentioned a deprecated API.')
-  })
 })

@@ -14,6 +14,8 @@ const STUBS = {
   GraphConnectionsSection: true,
   TranscriptViewerDialog: true,
   PodcastCover: true,
+  TopicEntityView: { name: 'TopicEntityView', template: '<div data-testid="topic-entity-view" />' },
+  NodeEnrichmentSection: true,
   // Keep HelpTip rendering its default slot so trigger labels are assertable,
   // but stub the popover machinery to a passthrough.
   HelpTip: {
@@ -110,8 +112,6 @@ describe('NodeDetail', () => {
     await w.vm.$nextTick()
 
     expect(w.find('[data-testid="node-detail-topic-aliases"]').text()).toContain('AI, ML')
-    expect(w.find('[data-testid="node-detail-open-topic-profile"]').exists()).toBe(true)
-
     await w.get('[data-testid="node-detail-topic-prefill-search"]').trigger('click')
     expect(w.emitted('prefill-semantic-search')![0]).toEqual([
       { query: 'Artificial Intelligence' },
@@ -123,15 +123,13 @@ describe('NodeDetail', () => {
     ])
   })
 
-  it('Open full Topic profile focuses the topic subject', async () => {
+  it('renders embedded TopicEntityView instead of "Open full Topic profile" button for topic nodes', () => {
     const art = artifactOf([
       { id: 'topic:ai', type: 'Topic', properties: { label: 'AI' } },
     ])
     const w = mountDetail({ viewArtifact: art, nodeId: 'topic:ai' })
-    const subject = useSubjectStore()
-    await w.get('[data-testid="node-detail-open-topic-profile"]').trigger('click')
-    expect(subject.kind).toBe('topic')
-    expect(subject.topicId).toBe('topic:ai')
+    expect(w.find('[data-testid="node-detail-open-topic-profile"]').exists()).toBe(false)
+    expect(w.find('[data-testid="topic-entity-view"]').exists()).toBe(true)
   })
 
   it('disables Topic gateway buttons until health is set', () => {
@@ -352,13 +350,13 @@ describe('NodeDetail', () => {
   })
 
   // --- RFC-097 v3.0 typed entity branch -------------------------------------
-  // Organization is a first-class KG node type. NodeDetail's Person/Entity
-  // branch handles both — the button copy adapts (Person profile vs Entity
-  // profile) and the connections section (stubbed here, tested separately in
-  // GraphConnectionsSection.test.ts) renders typed MENTIONS_PERSON /
-  // MENTIONS_ORG rows.
+  // Organization is a first-class KG node type. Non-person entities now fold
+  // their TopicEntityView overview inline (same as topics); the standalone
+  // "Open full Entity profile" button is retired. The connections section
+  // (stubbed here, tested separately in GraphConnectionsSection.test.ts) renders
+  // typed MENTIONS_PERSON / MENTIONS_ORG rows.
 
-  it('Organization node uses the Entity-profile rail copy (not Person)', async () => {
+  it('Organization node folds its TopicEntityView overview inline (no profile button)', async () => {
     const art = artifactOf(
       [
         { id: 'org:acme', type: 'Organization', properties: { name: 'Acme' } },
@@ -380,12 +378,10 @@ describe('NodeDetail', () => {
     await w.vm.$nextTick()
 
     expect(w.text()).toContain('Acme')
-    // The shared Person/Entity rail handles Organization too; the profile
-    // button copy switches from "Person profile" to "Entity profile".
-    const btn = w.find('[data-testid="node-detail-open-person-profile"]')
-    expect(btn.exists()).toBe(true)
-    expect(btn.text()).toContain('Entity profile')
-    expect(btn.text()).not.toContain('Person profile')
+    // Non-person entities fold their overview inline (embedded TopicEntityView),
+    // so there is no standalone "Open full profile" hop.
+    expect(w.find('[data-testid="topic-entity-view"]').exists()).toBe(true)
+    expect(w.find('[data-testid="node-detail-open-person-profile"]').exists()).toBe(false)
   })
 
   it('Organization node still invokes the GraphConnectionsSection with the right artifact + nodeId', async () => {

@@ -28,6 +28,40 @@ pairs co-occur once, below `min_pair=2`).
 
 ---
 
+## VALUE TEST — PASSED (2026-07-01, my-manual-run-10, 84 eps)
+
+Ran `topic_theme_clusters` on `.test_outputs/manual/my-manual-run-10` (84 eps,
+689 topics) → **11 theme clusters, genuinely meaningful:**
+- **[10] energy storyline**: crude oil, LNG, nuclear, renewables, Strait of
+  Hormuz, geopolitics, decarbonization, supply chain.
+- **[6] AI-and-jobs**: ai development, future of work, job displacement, labor
+  market, market disruption.
+- **[6] energy security**: china economy, middle east, oil prices, strategic
+  reserves, geopolitical risk.
+- 2-pairs mostly sensible: fed+monetary policy, interest rates+market volatility,
+  private markets+VC, commodity markets+global trade.
+
+**Verdict: co-occurrence clustering works — real storylines, not noise.** Building
+the graph/timeline surfaces is justified. Use `my-manual-run-10` as the build +
+eyeball corpus (prod-pilot too small; prod-v2 discovers 0 bundles — layout issue).
+`make enrich CORPUS=.test_outputs/manual/my-manual-run-10 ONLY=topic_theme_clusters CORPUS_ONLY=1`.
+
+## GRAPH CONSTRAINT — one parent per node (design fork, operator call)
+
+Cytoscape compound nodes are a **tree**: a Topic node can have exactly ONE
+`parent`. `applyTopicClustersOverlay` sets `node.parent = tc:id`. So **theme
+(`thc:`) and semantic (`tc:`) compound nodes cannot both wrap the same topic at
+once.** "Two coexisting cluster types" works for *pills* (a chip carries two
+rings) but NOT for graph compound nesting. Options:
+1. **Toggle** — graph shows semantic OR theme compound overlay (recommended;
+   default semantic = current behaviour; add a "cluster by: Similar | Theme"
+   control). Reversible, low-risk.
+2. Theme clusters as **hulls/regions** (not compound parents) — coexist with
+   semantic compounds, but needs a hull renderer (cytoscape plugin) — bigger.
+3. Theme as edge-colour halos only — weakest.
+Recommend (1). The timeline (`TopicTimelineDialog` cluster mode) rides on this:
+once `thc:` nodes exist, open the dialog with the theme members' topic ids.
+
 ## BLOCKED on validation data — read before building the frontend
 
 Theme clusters are **empty on every usable local corpus**:

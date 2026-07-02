@@ -5,7 +5,6 @@ import EpisodeDetailPanel from '../episode/EpisodeDetailPanel.vue'
 import GraphConnectionsSection from '../graph/GraphConnectionsSection.vue'
 import GraphNodeRailPanel from '../graph/GraphNodeRailPanel.vue'
 import PersonLandingView from '../subject/PersonLandingView.vue'
-import TopicEntityView from '../subject/TopicEntityView.vue'
 import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useSubjectStore } from '../../stores/subject'
@@ -88,17 +87,6 @@ const emptyHint =
       {{ emptyHint }}
     </div>
     <template v-else>
-      <div class="mx-3 mt-1 flex shrink-0 items-center justify-end border-b border-border pb-1">
-        <button
-          type="button"
-          class="rounded border border-border px-2 py-0.5 text-[10px] font-medium text-elevated-foreground hover:bg-overlay"
-          data-testid="subject-rail-close"
-          aria-label="Close subject panel"
-          @click="emit('closeSubject')"
-        >
-          ×
-        </button>
-      </div>
       <template v-if="subject.kind === 'graph-node' && subject.graphNodeCyId?.trim()">
         <GraphNodeRailPanel
           @go-graph="emit('goGraph')"
@@ -121,6 +109,15 @@ const emptyHint =
             <h2 class="text-xs font-semibold text-surface-foreground">
               Episode
             </h2>
+            <button
+              type="button"
+              class="shrink-0 self-center rounded border border-border px-1.5 py-0.5 text-xs font-medium text-elevated-foreground hover:bg-overlay"
+              data-testid="subject-rail-close"
+              aria-label="Close episode detail"
+              @click="emit('closeSubject')"
+            >
+              ×
+            </button>
           </div>
           <EpisodeDetailPanel
             class="min-h-0 min-w-0 flex-1"
@@ -207,14 +204,6 @@ const emptyHint =
             </template>
           </EpisodeDetailPanel>
         </div>
-      </template>
-      <template v-else-if="subject.kind === 'topic' && subject.topicId?.trim()">
-        <TopicEntityView
-          @go-graph="emit('goGraph')"
-          @close-subject="emit('closeSubject')"
-          @open-library-episode="emit('openLibraryEpisode', $event)"
-          @prefill-semantic-search="emit('prefillSemanticSearch', $event)"
-        />
       </template>
       <template v-else-if="subject.kind === 'person' && subject.personId?.trim()">
         <PersonLandingView

@@ -103,11 +103,12 @@ function onClose(): void {
       </h2>
       <button
         type="button"
-        class="shrink-0 rounded border border-border px-2 py-1 text-[10px] font-medium text-elevated-foreground hover:bg-overlay"
+        class="shrink-0 self-center rounded border border-border px-1.5 py-0.5 text-xs font-medium text-elevated-foreground hover:bg-overlay"
+        data-testid="subject-rail-close"
         aria-label="Close graph node detail"
         @click="onClose"
       >
-        Close
+        ×
       </button>
     </div>
     <NodeDetail
