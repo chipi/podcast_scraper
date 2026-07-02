@@ -202,13 +202,6 @@ const isPersonNode = computed(() => {
   return t === 'person' || t === 'speaker'
 })
 
-/** Non-person Entity (Organization / KG Entity) — its TopicEntityView overview
- *  folds inline here, same as topics; the standalone panel is retired. */
-const isOrgEntityNode = computed(() => {
-  const t = nodeType.value.trim().toLowerCase()
-  return t === 'entity' || t === 'organization'
-})
-
 const isTopicClusterNode = computed(
   () => nodeType.value.trim().toLowerCase() === 'topiccluster',
 )
@@ -2166,11 +2159,13 @@ const graphConnectionsCenterInView = computed((): boolean => {
         </HelpTip>
       </p>
 
-      <!-- Topic / non-person Entity overview folds in directly (no "open full
-           profile" hop) — the subject overview that used to live in the separate
-           TopicEntityView rail now renders inline in this Details tab. -->
+      <!-- Topic overview folds in directly (no "open full profile" hop) — the
+           subject overview that used to live in the separate TopicEntityView rail
+           now renders inline in this Details tab. (Non-person entities keep the
+           generic node view — TopicEntityView is topic-oriented and renders empty
+           for organizations, so there's nothing to fold.) -->
       <TopicEntityView
-        v-if="isTopicNode || isOrgEntityNode"
+        v-if="isTopicNode"
         embedded
         :subject-id-override="nodeId ?? ''"
         class="mb-1"

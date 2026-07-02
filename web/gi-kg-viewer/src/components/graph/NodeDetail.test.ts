@@ -340,7 +340,7 @@ describe('NodeDetail', () => {
   // (stubbed here, tested separately in GraphConnectionsSection.test.ts) renders
   // typed MENTIONS_PERSON / MENTIONS_ORG rows.
 
-  it('Organization node folds its TopicEntityView overview inline (no profile button)', async () => {
+  it('Organization node uses the generic node view (no TopicEntityView fold, no profile button)', async () => {
     const art = artifactOf(
       [
         { id: 'org:acme', type: 'Organization', properties: { name: 'Acme' } },
@@ -362,9 +362,10 @@ describe('NodeDetail', () => {
     await w.vm.$nextTick()
 
     expect(w.text()).toContain('Acme')
-    // Non-person entities fold their overview inline (embedded TopicEntityView),
-    // so there is no standalone "Open full profile" hop.
-    expect(w.find('[data-testid="topic-entity-view"]').exists()).toBe(true)
+    // Non-person entities use the generic node view — TopicEntityView is
+    // topic-oriented and renders empty for orgs, so it is not folded in; and
+    // there is no standalone "Open full profile" hop.
+    expect(w.find('[data-testid="topic-entity-view"]').exists()).toBe(false)
     expect(w.find('[data-testid="node-detail-open-person-profile"]').exists()).toBe(false)
   })
 
