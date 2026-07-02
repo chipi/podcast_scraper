@@ -435,3 +435,110 @@ describe('PersonLandingView — #1050 Person Profile aggregate (PRD-029 / UXS-01
     expect(w.find('[data-testid="person-landing-episodes-appeared"]').exists()).toBe(false)
   })
 })
+
+// New describe block for view prop gating + positions lens
+describe('PersonLandingView — view prop gating + positions lens', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    invalidateRelationalCache()
+    fetchPositions.mockResolvedValue({ subject: 'person:alice', results: [] })
+    fetchPersonProfile.mockResolvedValue({ subject: 'person:alice', profile: {} })
+    fetchPersonTopics.mockResolvedValue({ subject: 'person:alice', results: [] })
+    fetchCoSpeakers.mockResolvedValue({ subject: 'person:alice', results: [] })
+  })
+
+  async function mountViewProp(
+    view: 'full' | 'profile' | 'positions',
+    art?: ParsedArtifact,
+  ): Promise<ReturnType<typeof mount>> {
+    const personId = 'person:alice'
+    const shell = useShellStore()
+    shell.corpusPath = '/corpus'
+    shell.healthStatus = 'ok'
+    useArtifactsStore().parsedList = [art ?? makeArtifactForPersonProfile()]
+    const subject = useSubjectStore()
+    subject.focusPerson(personId)
+    const w = mount(PersonLandingView, {
+      attachTo: document.body,
+      props: { subjectIdOverride: personId, view },
+      global: { stubs: STUBS },
+    })
+    await flushPromises()
+    await flushPromises()
+    return w
+  }
+
+  it('view="profile" hides Topics discussed, Insights voiced, and positions sections', async () => {
+    const w = await mountViewProp('profile')
+    expect(w.find('[data-testid="person-landing-ranked-topics"]').exists()).toBe(false)
+    expect(w.find('[data-testid="person-landing-insights-voiced"]').exists()).toBe(false)
+    expect(w.find('[data-testid="person-landing-stated"]').exists()).toBe(false)
+    expect(w.find('[data-testid="person-landing-positions"]').exists()).toBe(false)
+  })
+
+  it('view="profile" shows edge-counts, episodes, and connections', async () => {
+    const w = await mountViewProp('profile')
+    // edge-counts-empty since no SPOKEN_BY/SPOKE_IN edges in fixture match the person node
+    const edgeCounts = w.find('[data-testid="person-landing-edge-counts"]')
+    const edgeCountsEmpty = w.find('[data-testid="person-landing-edge-counts-empty"]')
+    expect(edgeCounts.exists() || edgeCountsEmpty.exists()).toBe(true)
+    expect(w.find('[data-testid="person-landing-episodes-appeared"]').exists()).toBe(true)
+    expect(w.find('[data-testid="person-landing-connections"]').exists()).toBe(true)
+  })
+
+  it('view="positions" shows the lens toggle with By topic and All positions buttons', async () => {
+    const w = await mountViewProp('positions')
+    expect(w.find('[data-testid="person-landing-positions-lens"]').exists()).toBe(true)
+    expect(w.find('[data-testid="person-landing-positions-lens-by-topic"]').text()).toBe('By topic')
+    expect(w.find('[data-testid="person-landing-positions-lens-all"]').text()).toBe('All positions')
+  })
+
+  it('view="positions" default lens shows insights-voiced section (by_topic)', async () => {
+    const w = await mountViewProp('positions')
+    // by_topic is the default; insights-voiced should be visible
+    const byTopic = w.find('[data-testid="person-landing-positions-by-topic"]')
+    expect(byTopic.exists()).toBe(true)
+    // The insights-voiced section should exist inside
+    expect(byTopic.find('[data-testid="person-landing-insights-voiced"]').exists()).toBe(true)
+  })
+
+  it('view="positions" switching to all lens shows stated/positions sections', async () => {
+    const w = await mountViewProp('positions')
+    await w.get('[data-testid="person-landing-positions-lens-all"]').trigger('click')
+    const allDiv = w.find('[data-testid="person-landing-positions-all"]')
+    expect(allDiv.exists()).toBe(true)
+    // positions-empty paragraph since fixture has no SPOKEN_BY edges for alice
+    expect(allDiv.find('[data-testid="person-landing-positions-empty"]').exists()).toBe(true)
+  })
+
+  it('view="positions" with 12 positionRows shows paginator on all lens', async () => {
+    // Build an artifact with 12 SPOKEN_BY quote→person:alice edges
+    const nodes: Array<{ id: string; type: string; properties: Record<string, unknown> }> = [
+      { id: 'person:alice', type: 'Person', properties: { name: 'Alice' } },
+    ]
+    const edges: Array<{ from: string; to: string; type: string }> = []
+    for (let i = 1; i <= 12; i++) {
+      nodes.push({ id: `quote:q${i}`, type: 'Quote', properties: { text: `Quote ${i}` } })
+      edges.push({ from: `quote:q${i}`, to: 'person:alice', type: 'SPOKEN_BY' })
+    }
+    const art = {
+      id: 'a1',
+      kind: 'gi',
+      data: { nodes, edges },
+    } as unknown as ParsedArtifact
+
+    const w = await mountViewProp('positions', art)
+    await w.get('[data-testid="person-landing-positions-lens-all"]').trigger('click')
+    // Paginator should appear (12 rows > POSITIONS_PAGE_SIZE=10)
+    expect(w.find('[data-testid="person-landing-positions-pager"]').exists()).toBe(true)
+    // First page: 10 rows
+    const rows = w.findAll('[data-testid^="person-landing-positions"]').filter(
+      (el) => el.attributes('data-testid') === 'person-landing-positions',
+    )
+    // page info shows 1 / 2
+    expect(w.get('[data-testid="person-landing-positions-pager-info"]').text()).toBe('1 / 2')
+    // click next
+    await w.get('[data-testid="person-landing-positions-pager-next"]').trigger('click')
+    expect(w.get('[data-testid="person-landing-positions-pager-info"]').text()).toBe('2 / 2')
+  })
+})

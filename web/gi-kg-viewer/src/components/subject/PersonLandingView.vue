@@ -61,18 +61,30 @@ const emit = defineEmits<{
   goGraph: []
   closeSubject: []
   prefillSemanticSearch: [{ query: string }]
-  // Embedded: a topic was picked for the Position Tracker — the host (NodeDetail)
-  // owns that as a peer tab, so it switches to it.
-  pickPositionTrackerTopic: [topicId: string]
 }>()
 
 // Embeddable-flat: when folded into NodeDetail's Details tab, ``embedded`` hides
 // the standalone header/footer chrome and ``subjectIdOverride`` supplies the id
 // (the subject store now opens Person nodes through the unified node view).
 const props = withDefaults(
-  defineProps<{ embedded?: boolean; subjectIdOverride?: string }>(),
-  { embedded: false, subjectIdOverride: '' },
+  defineProps<{
+    embedded?: boolean
+    subjectIdOverride?: string
+    // Which slice to render when embedded in NodeDetail: 'profile' = slim
+    // identity/context for the Details tab; 'positions' = the two-lens
+    // (By topic · All positions) view for the Position Tracker tab. 'full' keeps
+    // the whole standalone layout (used by tests).
+    view?: 'full' | 'profile' | 'positions'
+  }>(),
+  { embedded: false, subjectIdOverride: '', view: 'full' },
 )
+
+// Position Tracker tab (view='positions') — two lenses mirroring the topic
+// Timeline tab's Episodes/Mentions. 'by_topic' = Insights voiced grouped;
+// 'all' = the flat Stated positions list, paginated.
+const positionsLens = ref<'by_topic' | 'all'>('by_topic')
+const POSITIONS_PAGE_SIZE = 10
+const positionsPage = ref(1)
 
 const artifacts = useArtifactsStore()
 const shell = useShellStore()
@@ -540,6 +552,21 @@ const positionRows = computed<PositionRow[]>(() => {
   return rows
 })
 
+// "All positions" lens — paginate the flat list so a prolific speaker doesn't
+// render hundreds of rows in one scroll (mirrors the topic Mentions pager).
+const positionsTotalPages = computed(() =>
+  Math.max(1, Math.ceil(positionRows.value.length / POSITIONS_PAGE_SIZE)),
+)
+const pagedPositionRows = computed<PositionRow[]>(() => {
+  const start = (positionsPage.value - 1) * POSITIONS_PAGE_SIZE
+  return positionRows.value.slice(start, start + POSITIONS_PAGE_SIZE)
+})
+watch(personGraphNodeId, () => {
+  positionsLens.value = 'by_topic'
+  positionsPage.value = 1
+})
+watch(positionsLens, () => { positionsPage.value = 1 })
+
 function tabClass(active: boolean): string {
   const base =
     'flex-1 rounded px-2 py-1 text-center text-xs font-medium transition-colors'
@@ -560,10 +587,8 @@ function onPrefillSearch(): void {
 function onPickTopicForPositionTracker(topicId: string): void {
   if (!topicId.trim()) return
   subject.selectTopicForPositionTracker(topicId)
-  // Embedded in NodeDetail: the Position Tracker is a peer node-view tab, so ask
-  // the host to switch rather than PLV's (hidden) internal tab.
-  if (props.embedded) emit('pickPositionTrackerTopic', topicId)
-  else activeTab.value = 'position_tracker'
+  // In positions view the arc renders inline; in full standalone, switch the internal tab.
+  if (props.view !== 'positions') activeTab.value = 'position_tracker'
 }
 </script>
 
@@ -675,37 +700,39 @@ function onPickTopicForPositionTracker(topicId: string): void {
       data-testid="person-landing-panel-profile"
       class="min-h-0 flex-1 space-y-3 overflow-y-auto px-1 py-2"
     >
-      <p
-        v-if="personAliases"
-        class="text-[11px] text-muted"
-        data-testid="person-landing-aliases"
-      >
-        Aliases: {{ personAliases }}
-      </p>
-      <p
-        v-if="personDescription"
-        class="text-[11px] leading-snug text-surface-foreground"
-        data-testid="person-landing-description"
-      >
-        {{ personDescription }}
-      </p>
-      <p
-        v-if="edgeCounts.spokenByQuotes > 0 || edgeCounts.spokeInEpisodes > 0"
-        class="text-[10px] text-muted"
-        data-testid="person-landing-edge-counts"
-      >
-        In this graph: {{ edgeCounts.spokenByQuotes }}
-        attributed quote{{ edgeCounts.spokenByQuotes === 1 ? '' : 's' }} ·
-        {{ edgeCounts.spokeInEpisodes }}
-        episode link{{ edgeCounts.spokeInEpisodes === 1 ? '' : 's' }}.
-      </p>
-      <p
-        v-else
-        class="text-[10px] text-muted"
-        data-testid="person-landing-edge-counts-empty"
-      >
-        No graph links for this person yet — load the corpus graph to populate.
-      </p>
+      <!-- Profile-only sections: hidden in positions view -->
+      <template v-if="props.view !== 'positions'">
+        <p
+          v-if="personAliases"
+          class="text-[11px] text-muted"
+          data-testid="person-landing-aliases"
+        >
+          Aliases: {{ personAliases }}
+        </p>
+        <p
+          v-if="personDescription"
+          class="text-[11px] leading-snug text-surface-foreground"
+          data-testid="person-landing-description"
+        >
+          {{ personDescription }}
+        </p>
+        <p
+          v-if="edgeCounts.spokenByQuotes > 0 || edgeCounts.spokeInEpisodes > 0"
+          class="text-[10px] text-muted"
+          data-testid="person-landing-edge-counts"
+        >
+          In this graph: {{ edgeCounts.spokenByQuotes }}
+          attributed quote{{ edgeCounts.spokenByQuotes === 1 ? '' : 's' }} ·
+          {{ edgeCounts.spokeInEpisodes }}
+          episode link{{ edgeCounts.spokeInEpisodes === 1 ? '' : 's' }}.
+        </p>
+        <p
+          v-else
+          class="text-[10px] text-muted"
+          data-testid="person-landing-edge-counts-empty"
+        >
+          No graph links for this person yet — load the corpus graph to populate.
+        </p>
       <!-- RFC-088 chunk 6c: enrichment signals (grounding rate + co-guest chips). -->
       <section
         v-if="enrichmentLoaded && (groundingRow || coGuestChips.length || contradictionRows.length)"
@@ -793,111 +820,6 @@ function onPickTopicForPositionTracker(topicId: string): void {
           aria-label="Mentions by month for this person"
         />
       </section>
-      <!-- #1050 — UXS-010 "Topics discussed" — ranked by ABOUT∩MENTIONS_PERSON
-           insight count. Each row is a button that pivots the Position
-           Tracker tab to (this Person, that Topic) — #1049 entry point. -->
-      <section
-        v-if="rankedTopics.length"
-        aria-label="Topics discussed"
-        data-testid="person-landing-ranked-topics"
-      >
-        <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
-          Topics discussed
-        </h3>
-        <ul class="space-y-0.5" data-testid="person-landing-ranked-topics-list">
-          <li
-            v-for="t in rankedTopics"
-            :key="t.id"
-            data-testid="person-landing-ranked-topic-row"
-          >
-            <button
-              type="button"
-              class="flex w-full items-baseline justify-between gap-2 rounded px-1 py-0.5 text-left text-[11px] text-surface-foreground hover:bg-overlay/60 focus-visible:bg-overlay/60 focus-visible:outline-none"
-              data-testid="person-landing-ranked-topic-button"
-              :title="`Open Position Tracker for ${t.name}`"
-              :aria-label="`Open Position Tracker for ${t.name}`"
-              @click="onPickTopicForPositionTracker(t.id)"
-            >
-              <span class="min-w-0 truncate">{{ t.name }}</span>
-              <span
-                class="shrink-0 rounded bg-overlay px-1.5 py-0.5 text-[10px] text-muted"
-                data-testid="person-landing-ranked-topic-count"
-              >{{ t.count }}</span>
-            </button>
-          </li>
-        </ul>
-      </section>
-      <!-- #1050 — UXS-010 "Insights voiced (grouped by Topic)". Each Topic
-           header is a button that opens the Position Tracker for the
-           (Person, Topic) pair — same entry point as the ranked-Topics
-           list above so the user has one consistent affordance. -->
-      <section
-        v-if="insightTopicGroups.length"
-        aria-label="Insights voiced grouped by topic"
-        data-testid="person-landing-insights-voiced"
-      >
-        <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
-          Insights voiced
-        </h3>
-        <ul
-          class="space-y-1.5"
-          data-testid="person-landing-insights-voiced-list"
-        >
-          <li
-            v-for="group in insightTopicGroups"
-            :key="group.topicId"
-            class="rounded border border-border bg-elevated/30 px-2 py-1.5"
-            data-testid="person-landing-insights-voiced-group"
-            :data-topic-id="group.topicId"
-          >
-            <button
-              type="button"
-              class="flex w-full items-baseline justify-between gap-2 text-left text-[11px] font-semibold text-surface-foreground hover:text-primary focus-visible:text-primary focus-visible:outline-none"
-              :aria-label="`${group.topicName} — ${group.count} insight${group.count === 1 ? '' : 's'}. Open Position Tracker.`"
-              data-testid="person-landing-insights-voiced-topic-button"
-              @click="onPickTopicForPositionTracker(group.topicId)"
-            >
-              <span class="min-w-0 truncate" :title="group.topicName">
-                {{ group.topicName }}
-              </span>
-              <span
-                class="shrink-0 rounded bg-overlay px-1.5 py-0.5 text-[10px] font-normal text-muted"
-                data-testid="person-landing-insights-voiced-topic-count"
-              >{{ group.count }}</span>
-            </button>
-            <button
-              type="button"
-              class="mt-0.5 text-[10px] text-muted underline-offset-2 hover:underline focus-visible:underline"
-              data-testid="person-landing-insights-voiced-toggle"
-              :aria-expanded="expandedTopicGroups.has(group.topicId)"
-              @click="toggleTopicGroup(group.topicId)"
-            >
-              {{ expandedTopicGroups.has(group.topicId) ? 'Hide insights' : 'Show insights' }}
-            </button>
-            <ul
-              v-if="expandedTopicGroups.has(group.topicId)"
-              class="mt-1 space-y-1"
-              data-testid="person-landing-insights-voiced-rows"
-            >
-              <li
-                v-for="ins in group.insights"
-                :key="ins.insightId"
-                class="rounded bg-elevated/60 px-2 py-1 text-[11px] leading-snug text-surface-foreground"
-                data-testid="person-landing-insights-voiced-row"
-                :data-insight-type="ins.insightType ?? 'unknown'"
-              >
-                <p
-                  v-if="ins.insightType"
-                  class="mb-0.5 text-[9px] uppercase tracking-wider text-muted"
-                  data-testid="person-landing-insights-voiced-row-type"
-                >{{ ins.insightType }}</p>
-                <p data-testid="person-landing-insights-voiced-row-text">{{ ins.text || ins.insightId }}</p>
-              </li>
-            </ul>
-          </li>
-        </ul>
-      </section>
-
       <!-- #1050 — UXS-010 "Episodes appeared in" — SPOKE_IN-derived list,
            newest-first. Replaces the prior numeric-only count signal in the
            identity header (we keep that count for at-a-glance, but expose
@@ -1027,90 +949,423 @@ function onPickTopicForPositionTracker(topicId: string): void {
           + {{ corpusQuotes.length - PERSON_LANDING_POSITIONS_CAP }} more
         </p>
       </section>
+      </template>
 
-      <!-- PRD-033 FR4.1 — synthesized positions this person stated (relational layer). -->
+      <!-- Topics discussed: only in full view -->
+      <!-- #1050 — UXS-010 "Topics discussed" — ranked by ABOUT∩MENTIONS_PERSON
+           insight count. Each row is a button that pivots the Position
+           Tracker tab to (this Person, that Topic) — #1049 entry point. -->
       <section
-        v-if="statedLoading || statedError || statedRows.length"
-        aria-label="Stated positions"
-        data-testid="person-landing-stated"
+        v-if="rankedTopics.length && props.view === 'full'"
+        aria-label="Topics discussed"
+        data-testid="person-landing-ranked-topics"
       >
         <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
-          Stated positions
+          Topics discussed
+        </h3>
+        <ul class="space-y-0.5" data-testid="person-landing-ranked-topics-list">
+          <li
+            v-for="t in rankedTopics"
+            :key="t.id"
+            data-testid="person-landing-ranked-topic-row"
+          >
+            <button
+              type="button"
+              class="flex w-full items-baseline justify-between gap-2 rounded px-1 py-0.5 text-left text-[11px] text-surface-foreground hover:bg-overlay/60 focus-visible:bg-overlay/60 focus-visible:outline-none"
+              data-testid="person-landing-ranked-topic-button"
+              :title="`Open Position Tracker for ${t.name}`"
+              :aria-label="`Open Position Tracker for ${t.name}`"
+              @click="onPickTopicForPositionTracker(t.id)"
+            >
+              <span class="min-w-0 truncate">{{ t.name }}</span>
+              <span
+                class="shrink-0 rounded bg-overlay px-1.5 py-0.5 text-[10px] text-muted"
+                data-testid="person-landing-ranked-topic-count"
+              >{{ t.count }}</span>
+            </button>
+          </li>
+        </ul>
+      </section>
+
+      <!-- Two-lens positions view (embedded in NodeDetail Position Tracker tab) -->
+      <template v-if="props.view === 'positions'">
+        <!-- Arc drill: topic selected → show arc, hide lens toggle -->
+        <template v-if="subject.positionTrackerTopicId">
+          <PositionTrackerPanel :person-id-override="personId" />
+        </template>
+        <template v-else>
+          <!-- Lens segmented toggle -->
+          <div
+            role="tablist"
+            aria-label="Positions view"
+            class="mb-2 inline-flex shrink-0 rounded-md border border-border p-0.5"
+            data-testid="person-landing-positions-lens"
+          >
+            <button
+              type="button"
+              role="tab"
+              class="rounded px-2 py-0.5 text-[10px] font-medium transition-colors"
+              :class="positionsLens === 'by_topic' ? 'bg-primary text-primary-foreground' : 'text-muted hover:bg-overlay'"
+              :aria-selected="positionsLens === 'by_topic'"
+              data-testid="person-landing-positions-lens-by-topic"
+              @click="positionsLens = 'by_topic'"
+            >
+              By topic
+            </button>
+            <button
+              type="button"
+              role="tab"
+              class="rounded px-2 py-0.5 text-[10px] font-medium transition-colors"
+              :class="positionsLens === 'all' ? 'bg-primary text-primary-foreground' : 'text-muted hover:bg-overlay'"
+              :aria-selected="positionsLens === 'all'"
+              data-testid="person-landing-positions-lens-all"
+              @click="positionsLens = 'all'"
+            >
+              All positions
+            </button>
+          </div>
+          <!-- By topic: Insights voiced (gated by lens) -->
+          <div v-show="positionsLens === 'by_topic'" data-testid="person-landing-positions-by-topic">
+            <!-- #1050 — UXS-010 "Insights voiced (grouped by Topic)". Each Topic
+                 header is a button that opens the Position Tracker for the
+                 (Person, Topic) pair — same entry point as the ranked-Topics
+                 list above so the user has one consistent affordance. -->
+            <section
+              v-if="insightTopicGroups.length"
+              aria-label="Insights voiced grouped by topic"
+              data-testid="person-landing-insights-voiced"
+            >
+              <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+                Insights voiced
+              </h3>
+              <ul
+                class="space-y-1.5"
+                data-testid="person-landing-insights-voiced-list"
+              >
+                <li
+                  v-for="group in insightTopicGroups"
+                  :key="group.topicId"
+                  class="rounded border border-border bg-elevated/30 px-2 py-1.5"
+                  data-testid="person-landing-insights-voiced-group"
+                  :data-topic-id="group.topicId"
+                >
+                  <button
+                    type="button"
+                    class="flex w-full items-baseline justify-between gap-2 text-left text-[11px] font-semibold text-surface-foreground hover:text-primary focus-visible:text-primary focus-visible:outline-none"
+                    :aria-label="`${group.topicName} — ${group.count} insight${group.count === 1 ? '' : 's'}. Open Position Tracker.`"
+                    data-testid="person-landing-insights-voiced-topic-button"
+                    @click="onPickTopicForPositionTracker(group.topicId)"
+                  >
+                    <span class="min-w-0 truncate" :title="group.topicName">
+                      {{ group.topicName }}
+                    </span>
+                    <span
+                      class="shrink-0 rounded bg-overlay px-1.5 py-0.5 text-[10px] font-normal text-muted"
+                      data-testid="person-landing-insights-voiced-topic-count"
+                    >{{ group.count }}</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="mt-0.5 text-[10px] text-muted underline-offset-2 hover:underline focus-visible:underline"
+                    data-testid="person-landing-insights-voiced-toggle"
+                    :aria-expanded="expandedTopicGroups.has(group.topicId)"
+                    @click="toggleTopicGroup(group.topicId)"
+                  >
+                    {{ expandedTopicGroups.has(group.topicId) ? 'Hide insights' : 'Show insights' }}
+                  </button>
+                  <ul
+                    v-if="expandedTopicGroups.has(group.topicId)"
+                    class="mt-1 space-y-1"
+                    data-testid="person-landing-insights-voiced-rows"
+                  >
+                    <li
+                      v-for="ins in group.insights"
+                      :key="ins.insightId"
+                      class="rounded bg-elevated/60 px-2 py-1 text-[11px] leading-snug text-surface-foreground"
+                      data-testid="person-landing-insights-voiced-row"
+                      :data-insight-type="ins.insightType ?? 'unknown'"
+                    >
+                      <p
+                        v-if="ins.insightType"
+                        class="mb-0.5 text-[9px] uppercase tracking-wider text-muted"
+                        data-testid="person-landing-insights-voiced-row-type"
+                      >{{ ins.insightType }}</p>
+                      <p data-testid="person-landing-insights-voiced-row-text">{{ ins.text || ins.insightId }}</p>
+                    </li>
+                  </ul>
+                </li>
+              </ul>
+            </section>
+          </div>
+          <!-- All positions: paginated stated + attributed quotes -->
+          <div v-show="positionsLens === 'all'" data-testid="person-landing-positions-all">
+            <!-- PRD-033 FR4.1 — synthesized positions this person stated (relational layer). -->
+            <section
+              v-if="statedLoading || statedError || statedRows.length"
+              aria-label="Stated positions"
+              data-testid="person-landing-stated"
+            >
+              <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+                Stated positions
+              </h3>
+              <p
+                v-if="statedLoading"
+                data-testid="person-landing-stated-loading"
+                class="text-[11px] text-muted"
+              >
+                Loading…
+              </p>
+              <p
+                v-else-if="statedError"
+                class="text-[11px] text-warning"
+              >
+                {{ statedError }}
+              </p>
+              <ul
+                v-else
+                class="space-y-1.5"
+                data-testid="person-landing-stated-list"
+              >
+                <li
+                  v-for="row in statedRows"
+                  :key="row.id"
+                  data-testid="person-landing-stated-row"
+                  class="rounded border border-border bg-elevated/40 px-2 py-1.5 text-[11px] leading-snug"
+                >
+                  <blockquote class="border-l-2 border-primary/40 pl-2 text-surface-foreground">
+                    {{ row.text || row.id }}
+                  </blockquote>
+                </li>
+              </ul>
+            </section>
+
+            <h3
+              v-if="statedRows.length || statedLoading"
+              class="mt-2 text-[10px] font-semibold uppercase tracking-wider text-muted"
+            >
+              Attributed quotes
+            </h3>
+            <p
+              v-if="positionRows.length === 0"
+              class="text-[11px] text-muted"
+              data-testid="person-landing-positions-empty"
+            >
+              No attributed quotes in the loaded graph.
+            </p>
+            <ul
+              v-else
+              class="space-y-1.5"
+              data-testid="person-landing-positions"
+            >
+              <li
+                v-for="row in pagedPositionRows"
+                :key="row.id"
+                class="rounded border border-border bg-elevated/40 px-2 py-1.5 text-[11px] leading-snug"
+              >
+                <blockquote class="border-l-2 border-primary/40 pl-2 text-surface-foreground">
+                  {{ row.text || row.id }}
+                </blockquote>
+                <p
+                  v-if="row.episodeTitle || row.publishDate"
+                  class="mt-0.5 text-[10px] text-muted"
+                >
+                  <span v-if="row.episodeTitle">{{ row.episodeTitle }}</span>
+                  <span v-if="row.episodeTitle && row.publishDate"> · </span>
+                  <span v-if="row.publishDate">{{ row.publishDate }}</span>
+                </p>
+              </li>
+            </ul>
+            <!-- Paginator -->
+            <div
+              v-if="positionsTotalPages > 1"
+              class="mt-2 flex items-center justify-between gap-2 text-[10px]"
+              data-testid="person-landing-positions-pager"
+            >
+              <button
+                type="button"
+                class="rounded border border-border px-2 py-0.5 text-muted hover:bg-overlay disabled:opacity-40"
+                :disabled="positionsPage === 1"
+                data-testid="person-landing-positions-pager-prev"
+                @click="positionsPage--"
+              >
+                ← Prev
+              </button>
+              <span class="text-muted" data-testid="person-landing-positions-pager-info">
+                {{ positionsPage }} / {{ positionsTotalPages }}
+              </span>
+              <button
+                type="button"
+                class="rounded border border-border px-2 py-0.5 text-muted hover:bg-overlay disabled:opacity-40"
+                :disabled="positionsPage >= positionsTotalPages"
+                data-testid="person-landing-positions-pager-next"
+                @click="positionsPage++"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        </template>
+      </template>
+
+      <!-- Full view: insights voiced + stated positions stacked (current layout preserved) -->
+      <template v-if="props.view === 'full'">
+        <!-- #1050 — UXS-010 "Insights voiced (grouped by Topic)". Each Topic
+             header is a button that opens the Position Tracker for the
+             (Person, Topic) pair — same entry point as the ranked-Topics
+             list above so the user has one consistent affordance. -->
+        <section
+          v-if="insightTopicGroups.length"
+          aria-label="Insights voiced grouped by topic"
+          data-testid="person-landing-insights-voiced"
+        >
+          <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+            Insights voiced
+          </h3>
+          <ul
+            class="space-y-1.5"
+            data-testid="person-landing-insights-voiced-list"
+          >
+            <li
+              v-for="group in insightTopicGroups"
+              :key="group.topicId"
+              class="rounded border border-border bg-elevated/30 px-2 py-1.5"
+              data-testid="person-landing-insights-voiced-group"
+              :data-topic-id="group.topicId"
+            >
+              <button
+                type="button"
+                class="flex w-full items-baseline justify-between gap-2 text-left text-[11px] font-semibold text-surface-foreground hover:text-primary focus-visible:text-primary focus-visible:outline-none"
+                :aria-label="`${group.topicName} — ${group.count} insight${group.count === 1 ? '' : 's'}. Open Position Tracker.`"
+                data-testid="person-landing-insights-voiced-topic-button"
+                @click="onPickTopicForPositionTracker(group.topicId)"
+              >
+                <span class="min-w-0 truncate" :title="group.topicName">
+                  {{ group.topicName }}
+                </span>
+                <span
+                  class="shrink-0 rounded bg-overlay px-1.5 py-0.5 text-[10px] font-normal text-muted"
+                  data-testid="person-landing-insights-voiced-topic-count"
+                >{{ group.count }}</span>
+              </button>
+              <button
+                type="button"
+                class="mt-0.5 text-[10px] text-muted underline-offset-2 hover:underline focus-visible:underline"
+                data-testid="person-landing-insights-voiced-toggle"
+                :aria-expanded="expandedTopicGroups.has(group.topicId)"
+                @click="toggleTopicGroup(group.topicId)"
+              >
+                {{ expandedTopicGroups.has(group.topicId) ? 'Hide insights' : 'Show insights' }}
+              </button>
+              <ul
+                v-if="expandedTopicGroups.has(group.topicId)"
+                class="mt-1 space-y-1"
+                data-testid="person-landing-insights-voiced-rows"
+              >
+                <li
+                  v-for="ins in group.insights"
+                  :key="ins.insightId"
+                  class="rounded bg-elevated/60 px-2 py-1 text-[11px] leading-snug text-surface-foreground"
+                  data-testid="person-landing-insights-voiced-row"
+                  :data-insight-type="ins.insightType ?? 'unknown'"
+                >
+                  <p
+                    v-if="ins.insightType"
+                    class="mb-0.5 text-[9px] uppercase tracking-wider text-muted"
+                    data-testid="person-landing-insights-voiced-row-type"
+                  >{{ ins.insightType }}</p>
+                  <p data-testid="person-landing-insights-voiced-row-text">{{ ins.text || ins.insightId }}</p>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </section>
+
+        <!-- #1050 — UXS-010 "Episodes appeared in" already in profile-only block above.
+             PRD-033 FR4.1 — synthesized positions this person stated (relational layer). -->
+        <section
+          v-if="statedLoading || statedError || statedRows.length"
+          aria-label="Stated positions"
+          data-testid="person-landing-stated"
+        >
+          <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+            Stated positions
+          </h3>
+          <p
+            v-if="statedLoading"
+            data-testid="person-landing-stated-loading"
+            class="text-[11px] text-muted"
+          >
+            Loading…
+          </p>
+          <p
+            v-else-if="statedError"
+            class="text-[11px] text-warning"
+          >
+            {{ statedError }}
+          </p>
+          <ul
+            v-else
+            class="space-y-1.5"
+            data-testid="person-landing-stated-list"
+          >
+            <li
+              v-for="row in statedRows"
+              :key="row.id"
+              data-testid="person-landing-stated-row"
+              class="rounded border border-border bg-elevated/40 px-2 py-1.5 text-[11px] leading-snug"
+            >
+              <blockquote class="border-l-2 border-primary/40 pl-2 text-surface-foreground">
+                {{ row.text || row.id }}
+              </blockquote>
+            </li>
+          </ul>
+        </section>
+
+        <h3
+          v-if="statedRows.length || statedLoading"
+          class="mt-2 text-[10px] font-semibold uppercase tracking-wider text-muted"
+        >
+          Attributed quotes
         </h3>
         <p
-          v-if="statedLoading"
-          data-testid="person-landing-stated-loading"
+          v-if="positionRows.length === 0"
           class="text-[11px] text-muted"
+          data-testid="person-landing-positions-empty"
         >
-          Loading…
-        </p>
-        <p
-          v-else-if="statedError"
-          class="text-[11px] text-warning"
-        >
-          {{ statedError }}
+          No attributed quotes in the loaded graph.
         </p>
         <ul
           v-else
           class="space-y-1.5"
-          data-testid="person-landing-stated-list"
+          data-testid="person-landing-positions"
         >
           <li
-            v-for="row in statedRows"
+            v-for="row in positionRows.slice(0, PERSON_LANDING_POSITIONS_CAP)"
             :key="row.id"
-            data-testid="person-landing-stated-row"
             class="rounded border border-border bg-elevated/40 px-2 py-1.5 text-[11px] leading-snug"
           >
             <blockquote class="border-l-2 border-primary/40 pl-2 text-surface-foreground">
               {{ row.text || row.id }}
             </blockquote>
+            <p
+              v-if="row.episodeTitle || row.publishDate"
+              class="mt-0.5 text-[10px] text-muted"
+            >
+              <span v-if="row.episodeTitle">{{ row.episodeTitle }}</span>
+              <span v-if="row.episodeTitle && row.publishDate"> · </span>
+              <span v-if="row.publishDate">{{ row.publishDate }}</span>
+            </p>
           </li>
         </ul>
-      </section>
-
-      <h3
-        v-if="statedRows.length || statedLoading"
-        class="mt-2 text-[10px] font-semibold uppercase tracking-wider text-muted"
-      >
-        Attributed quotes
-      </h3>
-      <p
-        v-if="positionRows.length === 0"
-        class="text-[11px] text-muted"
-        data-testid="person-landing-positions-empty"
-      >
-        No attributed quotes in the loaded graph.
-      </p>
-      <ul
-        v-else
-        class="space-y-1.5"
-        data-testid="person-landing-positions"
-      >
-        <li
-          v-for="row in positionRows.slice(0, PERSON_LANDING_POSITIONS_CAP)"
-          :key="row.id"
-          class="rounded border border-border bg-elevated/40 px-2 py-1.5 text-[11px] leading-snug"
+        <p
+          v-if="positionRows.length > PERSON_LANDING_POSITIONS_CAP"
+          class="text-[10px] text-muted"
+          data-testid="person-landing-positions-overflow"
         >
-          <blockquote class="border-l-2 border-primary/40 pl-2 text-surface-foreground">
-            {{ row.text || row.id }}
-          </blockquote>
-          <p
-            v-if="row.episodeTitle || row.publishDate"
-            class="mt-0.5 text-[10px] text-muted"
-          >
-            <span v-if="row.episodeTitle">{{ row.episodeTitle }}</span>
-            <span v-if="row.episodeTitle && row.publishDate"> · </span>
-            <span v-if="row.publishDate">{{ row.publishDate }}</span>
-          </p>
-        </li>
-      </ul>
-      <p
-        v-if="positionRows.length > PERSON_LANDING_POSITIONS_CAP"
-        class="text-[10px] text-muted"
-        data-testid="person-landing-positions-overflow"
-      >
-        + {{ positionRows.length - PERSON_LANDING_POSITIONS_CAP }} more
-      </p>
+          + {{ positionRows.length - PERSON_LANDING_POSITIONS_CAP }} more
+        </p>
+      </template>
+
       <div v-if="!props.embedded" class="flex shrink-0 flex-wrap gap-2 pt-2">
         <button
           type="button"

@@ -66,7 +66,6 @@ import GraphConnectionsSection from './GraphConnectionsSection.vue'
 import NodeEnrichmentSection from './NodeEnrichmentSection.vue'
 import TopicEntityView from '../subject/TopicEntityView.vue'
 import PersonLandingView from '../subject/PersonLandingView.vue'
-import PositionTrackerPanel from '../subject/PositionTrackerPanel.vue'
 import SubjectTimelineChart from '../subject/SubjectTimelineChart.vue'
 import { buildSubjectMentionsTimeline } from '../../utils/subjectMentionsTimeline'
 import TranscriptViewerDialog from '../shared/TranscriptViewerDialog.vue'
@@ -2176,9 +2175,9 @@ const graphConnectionsCenterInView = computed((): boolean => {
       <PersonLandingView
         v-if="isPersonNode"
         embedded
+        view="profile"
         :subject-id-override="nodeId ?? ''"
         class="mb-1"
-        @pick-position-tracker-topic="graphRailDetailTab = 'position_tracker'"
       />
 
       </div>
@@ -2659,7 +2658,12 @@ const graphConnectionsCenterInView = computed((): boolean => {
         aria-labelledby="node-detail-rail-tab-position-tracker"
         :tabindex="-1"
       >
-        <PositionTrackerPanel :person-id-override="nodeId ?? ''" />
+        <PersonLandingView
+          v-if="isPersonNode"
+          embedded
+          view="positions"
+          :subject-id-override="nodeId ?? ''"
+        />
       </div>
 
       <!-- Mounted whenever the rail is shown (not just when the tab is active) so

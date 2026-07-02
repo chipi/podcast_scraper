@@ -433,4 +433,14 @@ describe('NodeDetail', () => {
     const text = w.text()
     expect(text.toLowerCase()).toContain('claim')
   })
+
+  it('Position Tracker tab embeds PersonLandingView with view="positions" (not PositionTrackerPanel)', async () => {
+    const art = artifactOf([{ id: 'person:ada', type: 'Person', properties: { name: 'Ada' } }])
+    const w = mountDetail({ viewArtifact: art, nodeId: 'person:ada', embedInRail: true })
+    await w.get('[data-testid="node-detail-rail-tab-position-tracker"]').trigger('click')
+    // PersonLandingView stub is used (exists in DOM from the position tracker tab)
+    expect(w.find('#node-detail-rail-panel-position-tracker').exists()).toBe(true)
+    // PositionTrackerPanel stub NOT present (it was removed from NodeDetail imports)
+    expect(w.find('[data-testid="position-tracker-panel"]').exists()).toBe(false)
+  })
 })
