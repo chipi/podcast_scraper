@@ -91,6 +91,13 @@ async def corpus_theme_clusters(
             status_code=500,
             detail="topic_theme_clusters.json must be a JSON object.",
         )
+    # The enrichment framework wraps enricher output in an envelope
+    # ({derived, enricher_id, ..., data: {...}}). Serve the inner payload so the
+    # response matches the un-enveloped semantic /api/corpus/topic-clusters shape
+    # (clusters at top level). Tolerates an already-unwrapped file.
+    inner = payload.get("data")
+    if isinstance(inner, dict):
+        payload = inner
     _clusters = payload.get("clusters")
     _n = len(_clusters) if isinstance(_clusters, list) else None
     logger.debug(

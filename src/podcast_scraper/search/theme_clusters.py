@@ -42,7 +42,14 @@ def _load_theme_clusters_payload(corpus_root: Path) -> Optional[Dict[str, Any]]:
     except (OSError, json.JSONDecodeError) as exc:
         logger.warning("theme clusters: skip %s: %s", joined, exc)
         return None
-    return payload if isinstance(payload, dict) else None
+    if not isinstance(payload, dict):
+        return None
+    # The enrichment framework wraps enricher output in an envelope
+    # ({derived, enricher_id, ..., data: {...}}). Unwrap to the payload so callers
+    # read ``clusters`` at the top level (parity with the un-enveloped semantic
+    # topic_clusters.json). Tolerates an already-unwrapped payload.
+    inner = payload.get("data")
+    return inner if isinstance(inner, dict) else payload
 
 
 def consumer_theme_cluster_map(corpus_root: Path) -> Dict[str, Dict[str, Any]]:

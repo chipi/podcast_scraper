@@ -517,8 +517,10 @@ def test_entities_topics_carry_theme_cluster_info(tmp_path: Path) -> None:
             }
         ],
     }
+    # Written as the real enricher does — wrapped in the framework envelope.
     (tmp_path / "enrichments" / "topic_theme_clusters.json").write_text(
-        json.dumps(theme), encoding="utf-8"
+        json.dumps({"derived": True, "enricher_id": "topic_theme_clusters", "data": theme}),
+        encoding="utf-8",
     )
     slug = _only_slug(tmp_path)
     body = _client(tmp_path).get(f"/api/app/episodes/{slug}/entities").json()
