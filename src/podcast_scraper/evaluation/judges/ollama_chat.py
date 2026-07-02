@@ -67,7 +67,9 @@ def _parse_score(text: str) -> float:
 
 
 class OllamaChatJudge:
-    """Generic Ollama judge for non-reasoning chat models."""
+    """Generic Ollama judge — non-reasoning models by default; pass
+    ``reasoning_effort`` and ``max_tokens`` to support reasoning-tuned
+    models (gpt-oss:120b, qwen3.6, etc.)."""
 
     def __init__(
         self,
@@ -75,20 +77,42 @@ class OllamaChatJudge:
         api_base: Optional[str] = None,
         model: str,
         request_timeout_s: float = 300.0,
+        reasoning_effort: Optional[str] = None,
+        max_tokens: Optional[int] = None,
         client: object | None = None,
     ) -> None:
         self.api_base = (api_base or _resolve_ollama_base()).rstrip("/")
         self.model = model
         self.request_timeout_s = request_timeout_s
+        # For reasoning-tuned Ollama models (gpt-oss:120b, qwen3.6, etc.)
+        # Ollama routes CoT to a ``reasoning`` field and leaves ``content``
+        # empty by default. Pass reasoning_effort="low" (or "none") to
+        # keep CoT short + fit within max_tokens.
+        self.reasoning_effort = reasoning_effort
+        self.max_tokens = max_tokens
         self._client = client
 
     def _do_request(self, *, user_content: str) -> dict[str, Any]:
         url = f"{self.api_base}/chat/completions"
-        payload = {
+        payload: dict[str, Any] = {
             "model": self.model,
             "messages": [{"role": "user", "content": user_content}],
             "temperature": 0.0,
         }
+        # Explicit overrides win, else auto-detect reasoning models by name.
+        # Reasoning-tuned Ollama models leave content="" and route CoT to
+        # a ``reasoning`` field by default — reasoning_effort="low" keeps
+        # the CoT short so both fit within max_tokens.
+        effort = self.reasoning_effort
+        max_tok = self.max_tokens
+        if effort is None and ("gpt-oss" in self.model or "qwen3.6" in self.model):
+            effort = "low"
+        if max_tok is None and effort is not None:
+            max_tok = 1024
+        if effort is not None:
+            payload["reasoning_effort"] = effort
+        if max_tok is not None:
+            payload["max_tokens"] = max_tok
         if self._client is not None:
             return cast(
                 dict, self._client.post(url, json=payload).json()  # type: ignore[attr-defined]

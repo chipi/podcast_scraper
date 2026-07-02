@@ -1,0 +1,36 @@
+# Cloud-flagship judge — one-shot sanity check to validate the local vLLM
+# judges on anomalous cohort candidates.
+#
+# Judges:
+#   judge_a: OpenAI  gpt-5.4          — flagship tier
+#   judge_b: Anthropic claude-sonnet-4-6 — flagship tier, matches silver vendor
+#
+# NOT to be used in CI or the weekly sweep — `feedback_no_llm_in_ci` forbids
+# external paid LLM calls in CI. This yaml exists for manual, local-only,
+# ad-hoc sanity-checking of contested / anomalous candidates by rejudging
+# their existing predictions.
+#
+# Mode is scalar (0-5 rubric average, same as June G-Eval) — designed to
+# be directly comparable with the June qualifier + finale reports and
+# their absolute-scale numbers.
+#
+# Cost (approx): 4 dimensions × 5 episodes × 2 judges × ~$0.011/call
+# ≈ $0.44 per candidate. Cheap ground truth.
+#
+# Usage example (rejudge existing predictions):
+#
+#   .venv/bin/python autoresearch/initial_prompt_tuning/prompt_tuning/eval/score.py \\
+#     --config data/eval/configs/summarization/<candidate-cfg>.yaml \\
+#     --judge-config autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_cloud_flagship.yaml \\
+#     --reference silver_sonnet46_smoke_v2 \\
+#     --rejudge
+
+mode: scalar
+
+judge_a:
+  provider: openai
+  model: gpt-5.4
+
+judge_b:
+  provider: anthropic
+  model: claude-sonnet-4-6

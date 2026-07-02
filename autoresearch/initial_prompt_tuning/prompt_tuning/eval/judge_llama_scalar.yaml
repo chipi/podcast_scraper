@@ -1,0 +1,22 @@
+# vLLM Llama-70B judge — SCALAR mode variant of judge_llama.yaml.
+#
+# See judge_qwen_scalar.yaml for the design rationale. Scalar mode
+# yields June G-Eval-comparable absolute-quality scores; pairwise yields
+# preference-vs-silver.
+#
+# Container:      vllm-judge-b  (~/agentic-ai-homelab/infra/vllm/judge-b/)
+# Port:           8003
+# Served model:   RedHatAI/Llama-3.3-70B-Instruct-NVFP4
+# Served alias:   judge-b
+
+mode: scalar
+
+# NO prep_cmd here — the paired pairwise yaml owns the swap.
+
+judge_a:
+  provider: vllm
+  model: judge-b
+  api_base: http://${DGX_TAILNET_FQDN}:8003/v1
+
+judge_families:
+  - Meta

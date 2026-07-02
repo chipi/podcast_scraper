@@ -5,38 +5,60 @@
 # Constraints:
 # - Each candidate must be pulled on DGX Ollama (verify via /api/tags
 #   before adding — first-run pulls would blow the workflow timeout).
-# - Bias visibility: candidates from a judge's family (Google, Mistral AI)
-#   will get a ``same_family_judge`` flag in the leaderboard, so operator
-#   sees the bias risk explicitly. Two judges dilute (but don't eliminate)
-#   same-family inflation; the flag column makes it audit-friendly.
+# - Each candidate must have tuned templates at
+#   src/podcast_scraper/prompts/ollama/<model_safe>/summarization/{system,long}_v1.j2
+#   (missing → sweep marks status=missing_prompts and skips). The sweep
+#   strips ``:latest`` before deriving <model_safe> (Ollama's implicit
+#   default tag maps to the tag-less prompt dir).
+# - Bias visibility: ``same_family_judge`` bias flag now sourced per-phase
+#   from each judge yaml's own ``judge_families`` field (judge_qwen.yaml
+#   → Alibaba, judge_llama.yaml → Meta). Pre-fix (2026-07-02) this file
+#   carried a flat list that mis-fired across both phases.
 # - Order in this list is the order rows appear in the leaderboard.
+#
+# 2026-07-02: cohort re-based on the June smoke-v2 qualifier (top 10 by
+# ROUGE-L, see docs/guides/eval-reports/EVAL_SMOKE_V2_DGX_REFRESH_2026_06.md)
+# plus hermes3:8b (laptop-tier finale winner) + phi4:14b (Microsoft baseline).
+# Dropped from the prior cohort: qwen3.5:9b (June rank 12/18 + #912 bundled
+# flakiness), qwen2.5:32b (June rank 11/18, old Qwen family — replaced by
+# qwen3.5:27b/35b + qwen3.6:latest). llama3.3:70b intentionally excluded
+# (it IS the judge_llama vLLM model — testing candidates against themselves
+# is meaningless). gpt-oss:20b, deepseek-r1:* excluded (previously
+# operationally disqualified — reasoning-tuned, not summary-shaped).
 
-# Phased rollout. Started at N=1 (llama3.1:8b only) on 2026-06-29 to
-# validate the sweep + drift + issue machinery; W27 ledger shipped clean
-# with final=0.7621, contested=0, gates clean. Expanded to N=7 (full
-# cohort) on the same date.
 default_limit: null
 
 candidates:
-  - model: llama3.1:8b           # 4.6 GB
-    family: Meta
-  - model: hermes3:8b            # 4.3 GB — Llama-3.1 fine-tune
-    family: Nous
-  - model: mistral:7b            # 4.1 GB
-    family: Mistral AI            # ⚠ same family as judge_b → bias-flag in report
-  - model: gemma2:9b             # 5.1 GB
-    family: Google                # ⚠ same family as judge_a → bias-flag in report
-  - model: qwen3.5:9b            # 6.1 GB
-    family: Alibaba
-  - model: phi4:14b              # 8.4 GB
+  # ── laptop tier (≤14B) ─────────────────────────────────────────────
+  - model: llama3.1:8b            # 4.6 GB — June ROUGE 0.247
+    family: Meta                  # ⚠ same family as judge_llama
+  - model: hermes3:8b             # 4.3 GB — Llama-3.1 fine-tune; June finale ≤14B winner (Sonnet 4.25/5)
+    family: Nous                  # (base Llama-3.1 — same-vendor exposure to judge_llama; not flagged automatically)
+  - model: mistral:7b             # 4.1 GB — June ROUGE 0.260
+    family: Mistral AI
+  - model: llama3.2:3b            # 2.0 GB — June ROUGE 0.254
+    family: Meta                  # ⚠ same family as judge_llama
+  - model: gemma2:9b              # 5.1 GB — June ROUGE 0.249
+    family: Google
+  - model: phi4:14b               # 8.4 GB — Microsoft; not in June qualifier — new baseline entry
     family: Microsoft
-  - model: qwen2.5:32b           # 18.5 GB — fits now that workflow runs in DGX idle mode
-    family: Alibaba
+  - model: mistral-nemo:12b       # 7.0 GB — June ROUGE 0.241
+    family: Mistral AI
 
-# Judges (single source of truth — workflow + sweep both read this).
-# Same content as autoresearch/initial_prompt_tuning/prompt_tuning/eval/
-# judge_config_ollama.yaml; duplicated here so the sweep script attaches
-# the family-bias flag without a second YAML read.
-judge_families:
-  - Google      # judge_a: gemma3:27b-it-q8_0
-  - Mistral AI  # judge_b: mistral-small:24b
+  # ── mid tier (20-30B) ──────────────────────────────────────────────
+  - model: mistral-small:24b      # 14.0 GB — June ROUGE 0.257
+    family: Mistral AI
+  - model: mistral-small3.2:latest  # 14.0 GB — June ROUGE 0.249 (finale bronze DGX ≤40B)
+    family: Mistral AI
+
+  # ── DGX tier (>25B) ────────────────────────────────────────────────
+  - model: qwen3.5:27b            # 15.0 GB — June co-champion, ROUGE 0.271
+    family: Alibaba               # ⚠ same family as judge_qwen
+  - model: qwen3.6:latest         # 21.0 GB — June co-champion, ROUGE 0.271, fastest DGX (6.7s/ep)
+    family: Alibaba               # ⚠ same family as judge_qwen
+  - model: qwen3.5:35b            # 20.0 GB — June overall champion, finale G-Eval 5.00/5.00, prod default for local_dgx_balanced
+    family: Alibaba               # ⚠ same family as judge_qwen
+
+# NOTE: same_family_judge bias flag is sourced per-phase from each judge
+# yaml (judge_qwen.yaml → Alibaba, judge_llama.yaml → Meta). See the note
+# at the top for the pre-2026-07-02 mis-firing bug this design fixes.

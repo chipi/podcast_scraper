@@ -1,313 +1,5257 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "week_id": "2026-W27",
-  "captured_at": "2026-06-29T20:25:21Z",
+  "captured_at": "2026-07-02T19:04:01Z",
   "judges": {
-    "judge_a": {
-      "provider": "ollama",
-      "model": "gemma3:27b-it-q8_0"
-    },
-    "judge_b": {
-      "provider": "ollama",
-      "model": "mistral-small:24b"
-    }
+    "phases": [
+      {
+        "name": "generate",
+        "mode": "inference_only",
+        "judge_a": {},
+        "judge_b": {}
+      },
+      {
+        "name": "judge_qwen",
+        "mode": "pairwise",
+        "judge_a": {
+          "provider": "vllm",
+          "model": "judge-a",
+          "api_base": "http://${DGX_TAILNET_FQDN}:8003/v1"
+        },
+        "judge_b": {}
+      },
+      {
+        "name": "judge_qwen_scalar",
+        "mode": "scalar",
+        "judge_a": {
+          "provider": "vllm",
+          "model": "judge-a",
+          "api_base": "http://${DGX_TAILNET_FQDN}:8003/v1"
+        },
+        "judge_b": {}
+      },
+      {
+        "name": "judge_llama",
+        "mode": "pairwise",
+        "judge_a": {
+          "provider": "vllm",
+          "model": "judge-b",
+          "api_base": "http://${DGX_TAILNET_FQDN}:8003/v1"
+        },
+        "judge_b": {}
+      },
+      {
+        "name": "judge_llama_scalar",
+        "mode": "scalar",
+        "judge_a": {
+          "provider": "vllm",
+          "model": "judge-b",
+          "api_base": "http://${DGX_TAILNET_FQDN}:8003/v1"
+        },
+        "judge_b": {}
+      },
+      {
+        "name": "judge_gemma",
+        "mode": "pairwise",
+        "judge_a": {
+          "provider": "vllm",
+          "model": "judge-gemma",
+          "api_base": "http://${DGX_TAILNET_FQDN}:8003/v1"
+        },
+        "judge_b": {}
+      },
+      {
+        "name": "judge_gemma_scalar",
+        "mode": "scalar",
+        "judge_a": {
+          "provider": "vllm",
+          "model": "judge-gemma",
+          "api_base": "http://${DGX_TAILNET_FQDN}:8003/v1"
+        },
+        "judge_b": {}
+      },
+      {
+        "name": "judge_gpt_oss",
+        "mode": "pairwise",
+        "judge_a": {
+          "provider": "ollama",
+          "model": "gpt-oss:120b"
+        },
+        "judge_b": {}
+      },
+      {
+        "name": "judge_gpt_oss_scalar",
+        "mode": "scalar",
+        "judge_a": {
+          "provider": "ollama",
+          "model": "gpt-oss:120b"
+        },
+        "judge_b": {}
+      }
+    ]
   },
-  "silver": "silver_sonnet46_smoke_v2_bullets",
+  "silver": "silver_sonnet46_smoke_v2",
   "dataset": "curated_5feeds_smoke_v2",
   "cohort": [
     {
       "model": "llama3.1:8b",
-      "backend_type": "ollama",
-      "judges": {
-        "judge_a": {
-          "provider": "ollama",
-          "model": "gemma3:27b-it-q8_0"
+      "family": "Meta",
+      "status": "ok",
+      "prompts_source": "tuned",
+      "wall_clock_s": 411.6,
+      "wall_clock_by_phase": {
+        "generate": 71.5,
+        "judge_qwen": 10.6,
+        "judge_qwen_scalar": 9.6,
+        "judge_llama": 50.5,
+        "judge_llama_scalar": 61.5,
+        "judge_gemma": 20.2,
+        "judge_gemma_scalar": 19.6,
+        "judge_gpt_oss": 132.1,
+        "judge_gpt_oss_scalar": 36.0
+      },
+      "scores_by_phase": {
+        "judge_qwen": {
+          "model": "llama3.1:8b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-a"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.16348531242352912,
+            "rougeL_f1": 0.22497901774789875,
+            "judge_mean": 0.019999999999999997,
+            "judge_a_mean": 0.019999999999999997,
+            "judge_b_mean": 0.019999999999999997,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.019999999999999997,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.019999999999999997,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 11892.821073532104,
+            "p95": 16765.522956848145,
+            "avg": 12950.848007202148
+          },
+          "intrinsic": {
+            "avg_tokens": 611.0,
+            "min_tokens": 533,
+            "max_tokens": 641,
+            "gates_clean": true
+          },
+          "episodes": 5
         },
-        "judge_b": {
-          "provider": "ollama",
-          "model": "mistral-small:24b"
+        "judge_qwen_scalar": {
+          "model": "llama3.1:8b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-a"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.4474853124235292,
+            "rougeL_f1": 0.22497901774789875,
+            "judge_mean": 0.9666666666666668,
+            "judge_a_mean": 0.9666666666666668,
+            "judge_b_mean": 0.9666666666666668,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 11892.821073532104,
+            "p95": 16765.522956848145,
+            "avg": 12950.848007202148
+          },
+          "intrinsic": {
+            "avg_tokens": 611.0,
+            "min_tokens": 533,
+            "max_tokens": 641,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_llama": {
+          "model": "llama3.1:8b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.28348531242352915,
+            "rougeL_f1": 0.22497901774789875,
+            "judge_mean": 0.42000000000000004,
+            "judge_a_mean": 0.42000000000000004,
+            "judge_b_mean": 0.42000000000000004,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.42000000000000004,
+                "win_rate": 0.4,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.42000000000000004,
+                "win_rate": 0.4,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 11892.821073532104,
+            "p95": 16765.522956848145,
+            "avg": 12950.848007202148
+          },
+          "intrinsic": {
+            "avg_tokens": 611.0,
+            "min_tokens": 533,
+            "max_tokens": 641,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_llama_scalar": {
+          "model": "llama3.1:8b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.4250853124235292,
+            "rougeL_f1": 0.22497901774789875,
+            "judge_mean": 0.892,
+            "judge_a_mean": 0.892,
+            "judge_b_mean": 0.892,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 11892.821073532104,
+            "p95": 16765.522956848145,
+            "avg": 12950.848007202148
+          },
+          "intrinsic": {
+            "avg_tokens": 611.0,
+            "min_tokens": 533,
+            "max_tokens": 641,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gemma": {
+          "model": "llama3.1:8b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-gemma"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.19348531242352912,
+            "rougeL_f1": 0.22497901774789875,
+            "judge_mean": 0.11999999999999997,
+            "judge_a_mean": 0.11999999999999997,
+            "judge_b_mean": 0.11999999999999997,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.11999999999999997,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.8,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.11999999999999997,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.8,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 11892.821073532104,
+            "p95": 16765.522956848145,
+            "avg": 12950.848007202148
+          },
+          "intrinsic": {
+            "avg_tokens": 611.0,
+            "min_tokens": 533,
+            "max_tokens": 641,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gemma_scalar": {
+          "model": "llama3.1:8b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-gemma"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.4160853124235291,
+            "rougeL_f1": 0.22497901774789875,
+            "judge_mean": 0.8619999999999999,
+            "judge_a_mean": 0.8619999999999999,
+            "judge_b_mean": 0.8619999999999999,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 11892.821073532104,
+            "p95": 16765.522956848145,
+            "avg": 12950.848007202148
+          },
+          "intrinsic": {
+            "avg_tokens": 611.0,
+            "min_tokens": 533,
+            "max_tokens": 641,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gpt_oss": {
+          "model": "llama3.1:8b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "ollama",
+              "model": "gpt-oss:120b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.27748531242352914,
+            "rougeL_f1": 0.22497901774789875,
+            "judge_mean": 0.39999999999999997,
+            "judge_a_mean": 0.39999999999999997,
+            "judge_b_mean": 0.39999999999999997,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.39999999999999997,
+                "win_rate": 0.4,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.39999999999999997,
+                "win_rate": 0.4,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 11892.821073532104,
+            "p95": 16765.522956848145,
+            "avg": 12950.848007202148
+          },
+          "intrinsic": {
+            "avg_tokens": 611.0,
+            "min_tokens": 533,
+            "max_tokens": 641,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gpt_oss_scalar": {
+          "model": "llama3.1:8b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "ollama",
+              "model": "gpt-oss:120b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.4326853124255292,
+            "rougeL_f1": 0.22497901774789875,
+            "judge_mean": 0.91733333334,
+            "judge_a_mean": 0.91733333334,
+            "judge_b_mean": 0.91733333334,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 11892.821073532104,
+            "p95": 16765.522956848145,
+            "avg": 12950.848007202148
+          },
+          "intrinsic": {
+            "avg_tokens": 611.0,
+            "min_tokens": 533,
+            "max_tokens": 641,
+            "gates_clean": true
+          },
+          "episodes": 5
         }
       },
-      "silver": "silver_sonnet46_smoke_v2_bullets",
-      "dataset": "curated_5feeds_smoke_v2",
-      "scores": {
-        "final": 0.7621098428282671,
-        "rougeL_f1": 0.4427746070706678,
-        "judge_mean": 0.975,
-        "judge_a_mean": 0.9700000000000001,
-        "judge_b_mean": 0.9800000000000001,
-        "judges_delta": 0.010000000000000009,
-        "contested_rate": 0.0,
-        "rouge_weight": 0.4
+      "same_family_judge_by_phase": {
+        "judge_qwen": false,
+        "judge_qwen_scalar": false,
+        "judge_llama": true,
+        "judge_llama_scalar": true,
+        "judge_gemma": false,
+        "judge_gemma_scalar": false,
+        "judge_gpt_oss": false,
+        "judge_gpt_oss_scalar": false
       },
-      "latency_ms": {
-        "median": 4589.629411697388,
-        "p95": 14122.865676879883,
-        "avg": 6493.805027008057
+      "cross_phase_jA": {
+        "judge_qwen": 0.019999999999999997,
+        "judge_qwen_scalar": 0.9666666666666668,
+        "judge_llama": 0.42000000000000004,
+        "judge_llama_scalar": 0.892,
+        "judge_gemma": 0.11999999999999997,
+        "judge_gemma_scalar": 0.8619999999999999,
+        "judge_gpt_oss": 0.39999999999999997,
+        "judge_gpt_oss_scalar": 0.91733333334
       },
-      "intrinsic": {
-        "avg_tokens": 173.8,
-        "min_tokens": 157,
-        "max_tokens": 193,
-        "gates_clean": true
-      },
-      "episodes": 5,
-      "status": "ok",
-      "wall_clock_s": 164.9,
-      "family": "Meta",
-      "same_family_judge": false
+      "cross_phase_delta": 0.9467,
+      "cross_phase_contested": true
     },
     {
       "model": "hermes3:8b",
-      "backend_type": "ollama",
-      "judges": {
-        "judge_a": {
-          "provider": "ollama",
-          "model": "gemma3:27b-it-q8_0"
+      "family": "Nous",
+      "status": "ok",
+      "prompts_source": "tuned",
+      "wall_clock_s": 264.6,
+      "wall_clock_by_phase": {
+        "generate": 51.5,
+        "judge_qwen": 7.5,
+        "judge_qwen_scalar": 8.2,
+        "judge_llama": 42.7,
+        "judge_llama_scalar": 56.3,
+        "judge_gemma": 16.7,
+        "judge_gemma_scalar": 16.9,
+        "judge_gpt_oss": 30.4,
+        "judge_gpt_oss_scalar": 34.4
+      },
+      "scores_by_phase": {
+        "judge_qwen": {
+          "model": "hermes3:8b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-a"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.20668697243252546,
+            "rougeL_f1": 0.2952671034750364,
+            "judge_mean": 0.0,
+            "judge_a_mean": 0.0,
+            "judge_b_mean": 0.0,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.0,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.0,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 7670.337200164795,
+            "p95": 13768.450260162354,
+            "avg": 8794.326257705688
+          },
+          "intrinsic": {
+            "avg_tokens": 440.6,
+            "min_tokens": 348,
+            "max_tokens": 559,
+            "gates_clean": true
+          },
+          "episodes": 5
         },
-        "judge_b": {
-          "provider": "ollama",
-          "model": "mistral-small:24b"
+        "judge_qwen_scalar": {
+          "model": "hermes3:8b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-a"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.5016869724325255,
+            "rougeL_f1": 0.2952671034750364,
+            "judge_mean": 0.9833333333333334,
+            "judge_a_mean": 0.9833333333333334,
+            "judge_b_mean": 0.9833333333333334,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 7670.337200164795,
+            "p95": 13768.450260162354,
+            "avg": 8794.326257705688
+          },
+          "intrinsic": {
+            "avg_tokens": 440.6,
+            "min_tokens": 348,
+            "max_tokens": 559,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_llama": {
+          "model": "hermes3:8b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.23668697243252546,
+            "rougeL_f1": 0.2952671034750364,
+            "judge_mean": 0.09999999999999998,
+            "judge_a_mean": 0.09999999999999998,
+            "judge_b_mean": 0.09999999999999998,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.09999999999999998,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.09999999999999998,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 7670.337200164795,
+            "p95": 13768.450260162354,
+            "avg": 8794.326257705688
+          },
+          "intrinsic": {
+            "avg_tokens": 440.6,
+            "min_tokens": 348,
+            "max_tokens": 559,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_llama_scalar": {
+          "model": "hermes3:8b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.47788697243252554,
+            "rougeL_f1": 0.2952671034750364,
+            "judge_mean": 0.9040000000000001,
+            "judge_a_mean": 0.9040000000000001,
+            "judge_b_mean": 0.9040000000000001,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 7670.337200164795,
+            "p95": 13768.450260162354,
+            "avg": 8794.326257705688
+          },
+          "intrinsic": {
+            "avg_tokens": 440.6,
+            "min_tokens": 348,
+            "max_tokens": 559,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gemma": {
+          "model": "hermes3:8b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-gemma"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.2606869724325255,
+            "rougeL_f1": 0.2952671034750364,
+            "judge_mean": 0.18000000000000002,
+            "judge_a_mean": 0.18000000000000002,
+            "judge_b_mean": 0.18000000000000002,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.18000000000000002,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.2,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.18000000000000002,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.2,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 7670.337200164795,
+            "p95": 13768.450260162354,
+            "avg": 8794.326257705688
+          },
+          "intrinsic": {
+            "avg_tokens": 440.6,
+            "min_tokens": 348,
+            "max_tokens": 559,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gemma_scalar": {
+          "model": "hermes3:8b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-gemma"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.5012869724325255,
+            "rougeL_f1": 0.2952671034750364,
+            "judge_mean": 0.982,
+            "judge_a_mean": 0.982,
+            "judge_b_mean": 0.982,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 7670.337200164795,
+            "p95": 13768.450260162354,
+            "avg": 8794.326257705688
+          },
+          "intrinsic": {
+            "avg_tokens": 440.6,
+            "min_tokens": 348,
+            "max_tokens": 559,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gpt_oss": {
+          "model": "hermes3:8b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "ollama",
+              "model": "gpt-oss:120b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.3206869724325255,
+            "rougeL_f1": 0.2952671034750364,
+            "judge_mean": 0.38,
+            "judge_a_mean": 0.38,
+            "judge_b_mean": 0.38,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.38,
+                "win_rate": 0.4,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.2,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.38,
+                "win_rate": 0.4,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.2,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 7670.337200164795,
+            "p95": 13768.450260162354,
+            "avg": 8794.326257705688
+          },
+          "intrinsic": {
+            "avg_tokens": 440.6,
+            "min_tokens": 348,
+            "max_tokens": 559,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gpt_oss_scalar": {
+          "model": "hermes3:8b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "ollama",
+              "model": "gpt-oss:120b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.48428697243452545,
+            "rougeL_f1": 0.2952671034750364,
+            "judge_mean": 0.9253333333399999,
+            "judge_a_mean": 0.9253333333399999,
+            "judge_b_mean": 0.9253333333399999,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 7670.337200164795,
+            "p95": 13768.450260162354,
+            "avg": 8794.326257705688
+          },
+          "intrinsic": {
+            "avg_tokens": 440.6,
+            "min_tokens": 348,
+            "max_tokens": 559,
+            "gates_clean": true
+          },
+          "episodes": 5
         }
       },
-      "silver": "silver_sonnet46_smoke_v2_bullets",
-      "dataset": "curated_5feeds_smoke_v2",
-      "scores": {
-        "final": 0.6940084694338567,
-        "rougeL_f1": 0.34752117358464174,
-        "judge_mean": 0.925,
-        "judge_a_mean": 0.9099999999999999,
-        "judge_b_mean": 0.9400000000000001,
-        "judges_delta": 0.030000000000000138,
-        "contested_rate": 0.0,
-        "rouge_weight": 0.4
+      "same_family_judge_by_phase": {
+        "judge_qwen": false,
+        "judge_qwen_scalar": false,
+        "judge_llama": false,
+        "judge_llama_scalar": false,
+        "judge_gemma": false,
+        "judge_gemma_scalar": false,
+        "judge_gpt_oss": false,
+        "judge_gpt_oss_scalar": false
       },
-      "latency_ms": {
-        "median": 3718.3194160461426,
-        "p95": 13008.05401802063,
-        "avg": 5323.510408401489
+      "cross_phase_jA": {
+        "judge_qwen": 0.0,
+        "judge_qwen_scalar": 0.9833333333333334,
+        "judge_llama": 0.09999999999999998,
+        "judge_llama_scalar": 0.9040000000000001,
+        "judge_gemma": 0.18000000000000002,
+        "judge_gemma_scalar": 0.982,
+        "judge_gpt_oss": 0.38,
+        "judge_gpt_oss_scalar": 0.9253333333399999
       },
-      "intrinsic": {
-        "avg_tokens": 135.4,
-        "min_tokens": 80,
-        "max_tokens": 186,
-        "gates_clean": true
-      },
-      "episodes": 5,
-      "status": "ok",
-      "wall_clock_s": 142.4,
-      "family": "Nous",
-      "same_family_judge": false
+      "cross_phase_delta": 0.9833,
+      "cross_phase_contested": true
     },
     {
       "model": "mistral:7b",
-      "backend_type": "ollama",
-      "judges": {
-        "judge_a": {
-          "provider": "ollama",
-          "model": "gemma3:27b-it-q8_0"
+      "family": "Mistral AI",
+      "status": "ok",
+      "prompts_source": "tuned",
+      "wall_clock_s": 261.1,
+      "wall_clock_by_phase": {
+        "generate": 54.3,
+        "judge_qwen": 8.4,
+        "judge_qwen_scalar": 8.5,
+        "judge_llama": 41.9,
+        "judge_llama_scalar": 55.0,
+        "judge_gemma": 16.6,
+        "judge_gemma_scalar": 16.9,
+        "judge_gpt_oss": 28.8,
+        "judge_gpt_oss_scalar": 30.7
+      },
+      "scores_by_phase": {
+        "judge_qwen": {
+          "model": "mistral:7b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-a"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.19834207237429957,
+            "rougeL_f1": 0.28334581767757083,
+            "judge_mean": 0.0,
+            "judge_a_mean": 0.0,
+            "judge_b_mean": 0.0,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.0,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.0,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 8419.803857803345,
+            "p95": 13405.032873153687,
+            "avg": 9359.328699111938
+          },
+          "intrinsic": {
+            "avg_tokens": 414.4,
+            "min_tokens": 368,
+            "max_tokens": 482,
+            "gates_clean": true
+          },
+          "episodes": 5
         },
-        "judge_b": {
-          "provider": "ollama",
-          "model": "mistral-small:24b"
+        "judge_qwen_scalar": {
+          "model": "mistral:7b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-a"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.49234207237429956,
+            "rougeL_f1": 0.28334581767757083,
+            "judge_mean": 0.9799999999999999,
+            "judge_a_mean": 0.9799999999999999,
+            "judge_b_mean": 0.9799999999999999,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 8419.803857803345,
+            "p95": 13405.032873153687,
+            "avg": 9359.328699111938
+          },
+          "intrinsic": {
+            "avg_tokens": 414.4,
+            "min_tokens": 368,
+            "max_tokens": 482,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_llama": {
+          "model": "mistral:7b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.22834207237429957,
+            "rougeL_f1": 0.28334581767757083,
+            "judge_mean": 0.09999999999999998,
+            "judge_a_mean": 0.09999999999999998,
+            "judge_b_mean": 0.09999999999999998,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.09999999999999998,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.09999999999999998,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 8419.803857803345,
+            "p95": 13405.032873153687,
+            "avg": 9359.328699111938
+          },
+          "intrinsic": {
+            "avg_tokens": 414.4,
+            "min_tokens": 368,
+            "max_tokens": 482,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_llama_scalar": {
+          "model": "mistral:7b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.4641420723742996,
+            "rougeL_f1": 0.28334581767757083,
+            "judge_mean": 0.8859999999999999,
+            "judge_a_mean": 0.8859999999999999,
+            "judge_b_mean": 0.8859999999999999,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 8419.803857803345,
+            "p95": 13405.032873153687,
+            "avg": 9359.328699111938
+          },
+          "intrinsic": {
+            "avg_tokens": 414.4,
+            "min_tokens": 368,
+            "max_tokens": 482,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gemma": {
+          "model": "mistral:7b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-gemma"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.2763420723742996,
+            "rougeL_f1": 0.28334581767757083,
+            "judge_mean": 0.25999999999999995,
+            "judge_a_mean": 0.25999999999999995,
+            "judge_b_mean": 0.25999999999999995,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.25999999999999995,
+                "win_rate": 0.2,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.4,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.25999999999999995,
+                "win_rate": 0.2,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.4,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 8419.803857803345,
+            "p95": 13405.032873153687,
+            "avg": 9359.328699111938
+          },
+          "intrinsic": {
+            "avg_tokens": 414.4,
+            "min_tokens": 368,
+            "max_tokens": 482,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gemma_scalar": {
+          "model": "mistral:7b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-gemma"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.49474207237429957,
+            "rougeL_f1": 0.28334581767757083,
+            "judge_mean": 0.9879999999999999,
+            "judge_a_mean": 0.9879999999999999,
+            "judge_b_mean": 0.9879999999999999,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 8419.803857803345,
+            "p95": 13405.032873153687,
+            "avg": 9359.328699111938
+          },
+          "intrinsic": {
+            "avg_tokens": 414.4,
+            "min_tokens": 368,
+            "max_tokens": 482,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gpt_oss": {
+          "model": "mistral:7b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "ollama",
+              "model": "gpt-oss:120b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.31834207237429957,
+            "rougeL_f1": 0.28334581767757083,
+            "judge_mean": 0.4,
+            "judge_a_mean": 0.4,
+            "judge_b_mean": 0.4,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.4,
+                "win_rate": 0.4,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.2,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.4,
+                "win_rate": 0.4,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.2,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 8419.803857803345,
+            "p95": 13405.032873153687,
+            "avg": 9359.328699111938
+          },
+          "intrinsic": {
+            "avg_tokens": 414.4,
+            "min_tokens": 368,
+            "max_tokens": 482,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gpt_oss_scalar": {
+          "model": "mistral:7b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "ollama",
+              "model": "gpt-oss:120b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.4811420723782996,
+            "rougeL_f1": 0.28334581767757083,
+            "judge_mean": 0.9426666666799999,
+            "judge_a_mean": 0.9426666666799999,
+            "judge_b_mean": 0.9426666666799999,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 8419.803857803345,
+            "p95": 13405.032873153687,
+            "avg": 9359.328699111938
+          },
+          "intrinsic": {
+            "avg_tokens": 414.4,
+            "min_tokens": 368,
+            "max_tokens": 482,
+            "gates_clean": true
+          },
+          "episodes": 5
         }
       },
-      "silver": "silver_sonnet46_smoke_v2_bullets",
-      "dataset": "curated_5feeds_smoke_v2",
-      "scores": {
-        "final": 0.7284258817204794,
-        "rougeL_f1": 0.38856470430119844,
-        "judge_mean": 0.9550000000000001,
-        "judge_a_mean": 0.95,
-        "judge_b_mean": 0.96,
-        "judges_delta": 0.010000000000000009,
-        "contested_rate": 0.0,
-        "rouge_weight": 0.4
+      "same_family_judge_by_phase": {
+        "judge_qwen": false,
+        "judge_qwen_scalar": false,
+        "judge_llama": false,
+        "judge_llama_scalar": false,
+        "judge_gemma": false,
+        "judge_gemma_scalar": false,
+        "judge_gpt_oss": false,
+        "judge_gpt_oss_scalar": false
       },
-      "latency_ms": {
-        "median": 5290.662527084351,
-        "p95": 12820.194482803345,
-        "avg": 6636.029815673828
+      "cross_phase_jA": {
+        "judge_qwen": 0.0,
+        "judge_qwen_scalar": 0.9799999999999999,
+        "judge_llama": 0.09999999999999998,
+        "judge_llama_scalar": 0.8859999999999999,
+        "judge_gemma": 0.25999999999999995,
+        "judge_gemma_scalar": 0.9879999999999999,
+        "judge_gpt_oss": 0.4,
+        "judge_gpt_oss_scalar": 0.9426666666799999
       },
-      "intrinsic": {
-        "avg_tokens": 204.0,
-        "min_tokens": 171,
-        "max_tokens": 237,
-        "gates_clean": true
-      },
-      "episodes": 5,
+      "cross_phase_delta": 0.988,
+      "cross_phase_contested": true
+    },
+    {
+      "model": "llama3.2:3b",
+      "family": "Meta",
       "status": "ok",
-      "wall_clock_s": 127.2,
-      "family": "Mistral AI",
-      "same_family_judge": true
+      "prompts_source": "tuned",
+      "wall_clock_s": 267.8,
+      "wall_clock_by_phase": {
+        "generate": 45.2,
+        "judge_qwen": 8.0,
+        "judge_qwen_scalar": 8.7,
+        "judge_llama": 44.6,
+        "judge_llama_scalar": 55.9,
+        "judge_gemma": 14.6,
+        "judge_gemma_scalar": 18.4,
+        "judge_gpt_oss": 33.8,
+        "judge_gpt_oss_scalar": 38.6
+      },
+      "scores_by_phase": {
+        "judge_qwen": {
+          "model": "llama3.2:3b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-a"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.15886764927783753,
+            "rougeL_f1": 0.22695378468262506,
+            "judge_mean": 0.0,
+            "judge_a_mean": 0.0,
+            "judge_b_mean": 0.0,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.0,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.0,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 6799.371957778931,
+            "p95": 12207.305908203125,
+            "avg": 7552.352333068848
+          },
+          "intrinsic": {
+            "avg_tokens": 667.2,
+            "min_tokens": 510,
+            "max_tokens": 783,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_qwen_scalar": {
+          "model": "llama3.2:3b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-a"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.44892764927783757,
+            "rougeL_f1": 0.22695378468262506,
+            "judge_mean": 0.9668666666666667,
+            "judge_a_mean": 0.9668666666666667,
+            "judge_b_mean": 0.9668666666666667,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 6799.371957778931,
+            "p95": 12207.305908203125,
+            "avg": 7552.352333068848
+          },
+          "intrinsic": {
+            "avg_tokens": 667.2,
+            "min_tokens": 510,
+            "max_tokens": 783,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_llama": {
+          "model": "llama3.2:3b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.18886764927783753,
+            "rougeL_f1": 0.22695378468262506,
+            "judge_mean": 0.09999999999999998,
+            "judge_a_mean": 0.09999999999999998,
+            "judge_b_mean": 0.09999999999999998,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.09999999999999998,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.09999999999999998,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 6799.371957778931,
+            "p95": 12207.305908203125,
+            "avg": 7552.352333068848
+          },
+          "intrinsic": {
+            "avg_tokens": 667.2,
+            "min_tokens": 510,
+            "max_tokens": 783,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_llama_scalar": {
+          "model": "llama3.2:3b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.43006764927783764,
+            "rougeL_f1": 0.22695378468262506,
+            "judge_mean": 0.9040000000000001,
+            "judge_a_mean": 0.9040000000000001,
+            "judge_b_mean": 0.9040000000000001,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 6799.371957778931,
+            "p95": 12207.305908203125,
+            "avg": 7552.352333068848
+          },
+          "intrinsic": {
+            "avg_tokens": 667.2,
+            "min_tokens": 510,
+            "max_tokens": 783,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gemma": {
+          "model": "llama3.2:3b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-gemma"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.18886764927783753,
+            "rougeL_f1": 0.22695378468262506,
+            "judge_mean": 0.09999999999999998,
+            "judge_a_mean": 0.09999999999999998,
+            "judge_b_mean": 0.09999999999999998,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.09999999999999998,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.09999999999999998,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 6799.371957778931,
+            "p95": 12207.305908203125,
+            "avg": 7552.352333068848
+          },
+          "intrinsic": {
+            "avg_tokens": 667.2,
+            "min_tokens": 510,
+            "max_tokens": 783,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gemma_scalar": {
+          "model": "llama3.2:3b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-gemma"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.39286764927783757,
+            "rougeL_f1": 0.22695378468262506,
+            "judge_mean": 0.78,
+            "judge_a_mean": 0.78,
+            "judge_b_mean": 0.78,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 6799.371957778931,
+            "p95": 12207.305908203125,
+            "avg": 7552.352333068848
+          },
+          "intrinsic": {
+            "avg_tokens": 667.2,
+            "min_tokens": 510,
+            "max_tokens": 783,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gpt_oss": {
+          "model": "llama3.2:3b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "ollama",
+              "model": "gpt-oss:120b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.20686764927783755,
+            "rougeL_f1": 0.22695378468262506,
+            "judge_mean": 0.16,
+            "judge_a_mean": 0.16,
+            "judge_b_mean": 0.16,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.16,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.4,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.16,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.4,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 6799.371957778931,
+            "p95": 12207.305908203125,
+            "avg": 7552.352333068848
+          },
+          "intrinsic": {
+            "avg_tokens": 667.2,
+            "min_tokens": 510,
+            "max_tokens": 783,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gpt_oss_scalar": {
+          "model": "llama3.2:3b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "ollama",
+              "model": "gpt-oss:120b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.42166764927783756,
+            "rougeL_f1": 0.22695378468262506,
+            "judge_mean": 0.876,
+            "judge_a_mean": 0.876,
+            "judge_b_mean": 0.876,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 6799.371957778931,
+            "p95": 12207.305908203125,
+            "avg": 7552.352333068848
+          },
+          "intrinsic": {
+            "avg_tokens": 667.2,
+            "min_tokens": 510,
+            "max_tokens": 783,
+            "gates_clean": true
+          },
+          "episodes": 5
+        }
+      },
+      "same_family_judge_by_phase": {
+        "judge_qwen": false,
+        "judge_qwen_scalar": false,
+        "judge_llama": true,
+        "judge_llama_scalar": true,
+        "judge_gemma": false,
+        "judge_gemma_scalar": false,
+        "judge_gpt_oss": false,
+        "judge_gpt_oss_scalar": false
+      },
+      "cross_phase_jA": {
+        "judge_qwen": 0.0,
+        "judge_qwen_scalar": 0.9668666666666667,
+        "judge_llama": 0.09999999999999998,
+        "judge_llama_scalar": 0.9040000000000001,
+        "judge_gemma": 0.09999999999999998,
+        "judge_gemma_scalar": 0.78,
+        "judge_gpt_oss": 0.16,
+        "judge_gpt_oss_scalar": 0.876
+      },
+      "cross_phase_delta": 0.9669,
+      "cross_phase_contested": true
     },
     {
       "model": "gemma2:9b",
-      "backend_type": "ollama",
-      "judges": {
-        "judge_a": {
-          "provider": "ollama",
-          "model": "gemma3:27b-it-q8_0"
-        },
-        "judge_b": {
-          "provider": "ollama",
-          "model": "mistral-small:24b"
-        }
-      },
-      "silver": "silver_sonnet46_smoke_v2_bullets",
-      "dataset": "curated_5feeds_smoke_v2",
-      "scores": {
-        "final": 0.7607019414917822,
-        "rougeL_f1": 0.43925485372945544,
-        "judge_mean": 0.975,
-        "judge_a_mean": 0.9700000000000001,
-        "judge_b_mean": 0.9800000000000001,
-        "judges_delta": 0.010000000000000009,
-        "contested_rate": 0.0,
-        "rouge_weight": 0.4
-      },
-      "latency_ms": {
-        "median": 6418.923854827881,
-        "p95": 12041.224002838135,
-        "avg": 7433.989000320435
-      },
-      "intrinsic": {
-        "avg_tokens": 209.2,
-        "min_tokens": 188,
-        "max_tokens": 251,
-        "gates_clean": true
-      },
-      "episodes": 5,
-      "status": "ok",
-      "wall_clock_s": 170.9,
       "family": "Google",
-      "same_family_judge": true
-    },
-    {
-      "model": "qwen3.5:9b",
-      "backend_type": "ollama",
-      "judges": {
-        "judge_a": {
-          "provider": "ollama",
-          "model": "gemma3:27b-it-q8_0"
+      "status": "ok",
+      "prompts_source": "tuned",
+      "wall_clock_s": 269.5,
+      "wall_clock_by_phase": {
+        "generate": 62.2,
+        "judge_qwen": 7.8,
+        "judge_qwen_scalar": 8.2,
+        "judge_llama": 39.8,
+        "judge_llama_scalar": 56.6,
+        "judge_gemma": 17.5,
+        "judge_gemma_scalar": 16.6,
+        "judge_gpt_oss": 31.1,
+        "judge_gpt_oss_scalar": 29.7
+      },
+      "scores_by_phase": {
+        "judge_qwen": {
+          "model": "gemma2:9b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-a"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.14645524321009498,
+            "rougeL_f1": 0.2092217760144214,
+            "judge_mean": 0.0,
+            "judge_a_mean": 0.0,
+            "judge_b_mean": 0.0,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.0,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.0,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 9617.110013961792,
+            "p95": 16687.84999847412,
+            "avg": 11028.933954238892
+          },
+          "intrinsic": {
+            "avg_tokens": 428.2,
+            "min_tokens": 369,
+            "max_tokens": 507,
+            "gates_clean": true
+          },
+          "episodes": 5
         },
-        "judge_b": {
-          "provider": "ollama",
-          "model": "mistral-small:24b"
+        "judge_qwen_scalar": {
+          "model": "gemma2:9b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-a"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.444455243210095,
+            "rougeL_f1": 0.2092217760144214,
+            "judge_mean": 0.9933333333333334,
+            "judge_a_mean": 0.9933333333333334,
+            "judge_b_mean": 0.9933333333333334,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 9617.110013961792,
+            "p95": 16687.84999847412,
+            "avg": 11028.933954238892
+          },
+          "intrinsic": {
+            "avg_tokens": 428.2,
+            "min_tokens": 369,
+            "max_tokens": 507,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_llama": {
+          "model": "gemma2:9b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.17645524321009498,
+            "rougeL_f1": 0.2092217760144214,
+            "judge_mean": 0.09999999999999998,
+            "judge_a_mean": 0.09999999999999998,
+            "judge_b_mean": 0.09999999999999998,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.09999999999999998,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.09999999999999998,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 9617.110013961792,
+            "p95": 16687.84999847412,
+            "avg": 11028.933954238892
+          },
+          "intrinsic": {
+            "avg_tokens": 428.2,
+            "min_tokens": 369,
+            "max_tokens": 507,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_llama_scalar": {
+          "model": "gemma2:9b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.414055243210095,
+            "rougeL_f1": 0.2092217760144214,
+            "judge_mean": 0.892,
+            "judge_a_mean": 0.892,
+            "judge_b_mean": 0.892,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 9617.110013961792,
+            "p95": 16687.84999847412,
+            "avg": 11028.933954238892
+          },
+          "intrinsic": {
+            "avg_tokens": 428.2,
+            "min_tokens": 369,
+            "max_tokens": 507,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gemma": {
+          "model": "gemma2:9b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-gemma"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.23045524321009497,
+            "rougeL_f1": 0.2092217760144214,
+            "judge_mean": 0.27999999999999997,
+            "judge_a_mean": 0.27999999999999997,
+            "judge_b_mean": 0.27999999999999997,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.27999999999999997,
+                "win_rate": 0.2,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.2,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.27999999999999997,
+                "win_rate": 0.2,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.2,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 9617.110013961792,
+            "p95": 16687.84999847412,
+            "avg": 11028.933954238892
+          },
+          "intrinsic": {
+            "avg_tokens": 428.2,
+            "min_tokens": 369,
+            "max_tokens": 507,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gemma_scalar": {
+          "model": "gemma2:9b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-gemma"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.446455243210095,
+            "rougeL_f1": 0.2092217760144214,
+            "judge_mean": 1.0,
+            "judge_a_mean": 1.0,
+            "judge_b_mean": 1.0,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 9617.110013961792,
+            "p95": 16687.84999847412,
+            "avg": 11028.933954238892
+          },
+          "intrinsic": {
+            "avg_tokens": 428.2,
+            "min_tokens": 369,
+            "max_tokens": 507,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gpt_oss": {
+          "model": "gemma2:9b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "ollama",
+              "model": "gpt-oss:120b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.206455243210095,
+            "rougeL_f1": 0.2092217760144214,
+            "judge_mean": 0.2,
+            "judge_a_mean": 0.2,
+            "judge_b_mean": 0.2,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.2,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.2,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.2,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.2,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 9617.110013961792,
+            "p95": 16687.84999847412,
+            "avg": 11028.933954238892
+          },
+          "intrinsic": {
+            "avg_tokens": 428.2,
+            "min_tokens": 369,
+            "max_tokens": 507,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gpt_oss_scalar": {
+          "model": "gemma2:9b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "ollama",
+              "model": "gpt-oss:120b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.42805524321409505,
+            "rougeL_f1": 0.2092217760144214,
+            "judge_mean": 0.93866666668,
+            "judge_a_mean": 0.93866666668,
+            "judge_b_mean": 0.93866666668,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 9617.110013961792,
+            "p95": 16687.84999847412,
+            "avg": 11028.933954238892
+          },
+          "intrinsic": {
+            "avg_tokens": 428.2,
+            "min_tokens": 369,
+            "max_tokens": 507,
+            "gates_clean": true
+          },
+          "episodes": 5
         }
       },
-      "silver": "silver_sonnet46_smoke_v2_bullets",
-      "dataset": "curated_5feeds_smoke_v2",
-      "scores": {
-        "final": 0.7586984418967171,
-        "rougeL_f1": 0.44174610474179293,
-        "judge_mean": 0.97,
-        "judge_a_mean": 0.96,
-        "judge_b_mean": 0.9800000000000001,
-        "judges_delta": 0.02000000000000013,
-        "contested_rate": 0.0,
-        "rouge_weight": 0.4
+      "same_family_judge_by_phase": {
+        "judge_qwen": false,
+        "judge_qwen_scalar": false,
+        "judge_llama": false,
+        "judge_llama_scalar": false,
+        "judge_gemma": true,
+        "judge_gemma_scalar": true,
+        "judge_gpt_oss": false,
+        "judge_gpt_oss_scalar": false
       },
-      "latency_ms": {
-        "median": 5994.924068450928,
-        "p95": 22230.616807937622,
-        "avg": 9163.558149337769
+      "cross_phase_jA": {
+        "judge_qwen": 0.0,
+        "judge_qwen_scalar": 0.9933333333333334,
+        "judge_llama": 0.09999999999999998,
+        "judge_llama_scalar": 0.892,
+        "judge_gemma": 0.27999999999999997,
+        "judge_gemma_scalar": 1.0,
+        "judge_gpt_oss": 0.2,
+        "judge_gpt_oss_scalar": 0.93866666668
       },
-      "intrinsic": {
-        "avg_tokens": 232.8,
-        "min_tokens": 159,
-        "max_tokens": 320,
-        "gates_clean": true
-      },
-      "episodes": 5,
-      "status": "ok",
-      "wall_clock_s": 174.1,
-      "family": "Alibaba",
-      "same_family_judge": false
+      "cross_phase_delta": 1.0,
+      "cross_phase_contested": true
     },
     {
       "model": "phi4:14b",
-      "backend_type": "ollama",
-      "judges": {
-        "judge_a": {
-          "provider": "ollama",
-          "model": "gemma3:27b-it-q8_0"
+      "family": "Microsoft",
+      "status": "ok",
+      "prompts_source": "tuned",
+      "wall_clock_s": 305.4,
+      "wall_clock_by_phase": {
+        "generate": 92.9,
+        "judge_qwen": 7.8,
+        "judge_qwen_scalar": 8.0,
+        "judge_llama": 47.2,
+        "judge_llama_scalar": 55.6,
+        "judge_gemma": 16.3,
+        "judge_gemma_scalar": 16.4,
+        "judge_gpt_oss": 31.6,
+        "judge_gpt_oss_scalar": 29.6
+      },
+      "scores_by_phase": {
+        "judge_qwen": {
+          "model": "phi4:14b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-a"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.16779756909610902,
+            "rougeL_f1": 0.23971081299444147,
+            "judge_mean": 0.0,
+            "judge_a_mean": 0.0,
+            "judge_b_mean": 0.0,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.0,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.0,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 15831.902980804443,
+            "p95": 25163.273096084595,
+            "avg": 17047.03540802002
+          },
+          "intrinsic": {
+            "avg_tokens": 439.8,
+            "min_tokens": 391,
+            "max_tokens": 483,
+            "gates_clean": true
+          },
+          "episodes": 5
         },
-        "judge_b": {
-          "provider": "ollama",
-          "model": "mistral-small:24b"
+        "judge_qwen_scalar": {
+          "model": "phi4:14b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-a"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.46779756909610903,
+            "rougeL_f1": 0.23971081299444147,
+            "judge_mean": 1.0,
+            "judge_a_mean": 1.0,
+            "judge_b_mean": 1.0,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 15831.902980804443,
+            "p95": 25163.273096084595,
+            "avg": 17047.03540802002
+          },
+          "intrinsic": {
+            "avg_tokens": 439.8,
+            "min_tokens": 391,
+            "max_tokens": 483,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_llama": {
+          "model": "phi4:14b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.29379756909610905,
+            "rougeL_f1": 0.23971081299444147,
+            "judge_mean": 0.42000000000000004,
+            "judge_a_mean": 0.42000000000000004,
+            "judge_b_mean": 0.42000000000000004,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.42000000000000004,
+                "win_rate": 0.4,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.42000000000000004,
+                "win_rate": 0.4,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 15831.902980804443,
+            "p95": 25163.273096084595,
+            "avg": 17047.03540802002
+          },
+          "intrinsic": {
+            "avg_tokens": 439.8,
+            "min_tokens": 391,
+            "max_tokens": 483,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_llama_scalar": {
+          "model": "phi4:14b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.43539756909610905,
+            "rougeL_f1": 0.23971081299444147,
+            "judge_mean": 0.892,
+            "judge_a_mean": 0.892,
+            "judge_b_mean": 0.892,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 15831.902980804443,
+            "p95": 25163.273096084595,
+            "avg": 17047.03540802002
+          },
+          "intrinsic": {
+            "avg_tokens": 439.8,
+            "min_tokens": 391,
+            "max_tokens": 483,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gemma": {
+          "model": "phi4:14b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-gemma"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.257797569096109,
+            "rougeL_f1": 0.23971081299444147,
+            "judge_mean": 0.29999999999999993,
+            "judge_a_mean": 0.29999999999999993,
+            "judge_b_mean": 0.29999999999999993,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.29999999999999993,
+                "win_rate": 0.2,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.29999999999999993,
+                "win_rate": 0.2,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 15831.902980804443,
+            "p95": 25163.273096084595,
+            "avg": 17047.03540802002
+          },
+          "intrinsic": {
+            "avg_tokens": 439.8,
+            "min_tokens": 391,
+            "max_tokens": 483,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gemma_scalar": {
+          "model": "phi4:14b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-gemma"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.465997569096109,
+            "rougeL_f1": 0.23971081299444147,
+            "judge_mean": 0.994,
+            "judge_a_mean": 0.994,
+            "judge_b_mean": 0.994,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 15831.902980804443,
+            "p95": 25163.273096084595,
+            "avg": 17047.03540802002
+          },
+          "intrinsic": {
+            "avg_tokens": 439.8,
+            "min_tokens": 391,
+            "max_tokens": 483,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gpt_oss": {
+          "model": "phi4:14b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "ollama",
+              "model": "gpt-oss:120b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.31179756909610906,
+            "rougeL_f1": 0.23971081299444147,
+            "judge_mean": 0.4800000000000001,
+            "judge_a_mean": 0.4800000000000001,
+            "judge_b_mean": 0.4800000000000001,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.4800000000000001,
+                "win_rate": 0.6,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.4,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.4800000000000001,
+                "win_rate": 0.6,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.4,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 15831.902980804443,
+            "p95": 25163.273096084595,
+            "avg": 17047.03540802002
+          },
+          "intrinsic": {
+            "avg_tokens": 439.8,
+            "min_tokens": 391,
+            "max_tokens": 483,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gpt_oss_scalar": {
+          "model": "phi4:14b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "ollama",
+              "model": "gpt-oss:120b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.4511975691001091,
+            "rougeL_f1": 0.23971081299444147,
+            "judge_mean": 0.9446666666800001,
+            "judge_a_mean": 0.9446666666800001,
+            "judge_b_mean": 0.9446666666800001,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 15831.902980804443,
+            "p95": 25163.273096084595,
+            "avg": 17047.03540802002
+          },
+          "intrinsic": {
+            "avg_tokens": 439.8,
+            "min_tokens": 391,
+            "max_tokens": 483,
+            "gates_clean": true
+          },
+          "episodes": 5
         }
       },
-      "silver": "silver_sonnet46_smoke_v2_bullets",
-      "dataset": "curated_5feeds_smoke_v2",
-      "scores": {
-        "final": 0.7654058449277444,
-        "rougeL_f1": 0.45101461231936124,
-        "judge_mean": 0.975,
-        "judge_a_mean": 0.9700000000000001,
-        "judge_b_mean": 0.9800000000000001,
-        "judges_delta": 0.010000000000000009,
-        "contested_rate": 0.0,
-        "rouge_weight": 0.4
+      "same_family_judge_by_phase": {
+        "judge_qwen": false,
+        "judge_qwen_scalar": false,
+        "judge_llama": false,
+        "judge_llama_scalar": false,
+        "judge_gemma": false,
+        "judge_gemma_scalar": false,
+        "judge_gpt_oss": false,
+        "judge_gpt_oss_scalar": false
       },
-      "latency_ms": {
-        "median": 8918.361186981201,
-        "p95": 24946.292400360107,
-        "avg": 12201.88422203064
+      "cross_phase_jA": {
+        "judge_qwen": 0.0,
+        "judge_qwen_scalar": 1.0,
+        "judge_llama": 0.42000000000000004,
+        "judge_llama_scalar": 0.892,
+        "judge_gemma": 0.29999999999999993,
+        "judge_gemma_scalar": 0.994,
+        "judge_gpt_oss": 0.4800000000000001,
+        "judge_gpt_oss_scalar": 0.9446666666800001
       },
-      "intrinsic": {
-        "avg_tokens": 201.8,
-        "min_tokens": 179,
-        "max_tokens": 219,
-        "gates_clean": true
-      },
-      "episodes": 5,
-      "status": "ok",
-      "wall_clock_s": 204.4,
-      "family": "Microsoft",
-      "same_family_judge": false
+      "cross_phase_delta": 1.0,
+      "cross_phase_contested": true
     },
     {
-      "model": "qwen2.5:32b",
-      "backend_type": "ollama",
-      "judges": {
-        "judge_a": {
-          "provider": "ollama",
-          "model": "gemma3:27b-it-q8_0"
+      "model": "mistral-nemo:12b",
+      "family": "Mistral AI",
+      "status": "ok",
+      "prompts_source": "tuned",
+      "wall_clock_s": 303.0,
+      "wall_clock_by_phase": {
+        "generate": 95.5,
+        "judge_qwen": 8.0,
+        "judge_qwen_scalar": 8.0,
+        "judge_llama": 40.6,
+        "judge_llama_scalar": 55.9,
+        "judge_gemma": 17.9,
+        "judge_gemma_scalar": 16.3,
+        "judge_gpt_oss": 30.7,
+        "judge_gpt_oss_scalar": 30.1
+      },
+      "scores_by_phase": {
+        "judge_qwen": {
+          "model": "mistral-nemo:12b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-a"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.28844687817259473,
+            "rougeL_f1": 0.24920982596084965,
+            "judge_mean": 0.38,
+            "judge_a_mean": 0.38,
+            "judge_b_mean": 0.38,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.38,
+                "win_rate": 0.4,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.38,
+                "win_rate": 0.4,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 14664.338827133179,
+            "p95": 28781.21304512024,
+            "avg": 17582.053422927856
+          },
+          "intrinsic": {
+            "avg_tokens": 557.8,
+            "min_tokens": 515,
+            "max_tokens": 637,
+            "gates_clean": true
+          },
+          "episodes": 5
         },
-        "judge_b": {
-          "provider": "ollama",
-          "model": "mistral-small:24b"
+        "judge_qwen_scalar": {
+          "model": "mistral-nemo:12b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-a"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.4714468781725948,
+            "rougeL_f1": 0.24920982596084965,
+            "judge_mean": 0.99,
+            "judge_a_mean": 0.99,
+            "judge_b_mean": 0.99,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 14664.338827133179,
+            "p95": 28781.21304512024,
+            "avg": 17582.053422927856
+          },
+          "intrinsic": {
+            "avg_tokens": 557.8,
+            "min_tokens": 515,
+            "max_tokens": 637,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_llama": {
+          "model": "mistral-nemo:12b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.25244687817259476,
+            "rougeL_f1": 0.24920982596084965,
+            "judge_mean": 0.25999999999999995,
+            "judge_a_mean": 0.25999999999999995,
+            "judge_b_mean": 0.25999999999999995,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.25999999999999995,
+                "win_rate": 0.2,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.25999999999999995,
+                "win_rate": 0.2,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 14664.338827133179,
+            "p95": 28781.21304512024,
+            "avg": 17582.053422927856
+          },
+          "intrinsic": {
+            "avg_tokens": 557.8,
+            "min_tokens": 515,
+            "max_tokens": 637,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_llama_scalar": {
+          "model": "mistral-nemo:12b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.44564687817259485,
+            "rougeL_f1": 0.24920982596084965,
+            "judge_mean": 0.9040000000000001,
+            "judge_a_mean": 0.9040000000000001,
+            "judge_b_mean": 0.9040000000000001,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 14664.338827133179,
+            "p95": 28781.21304512024,
+            "avg": 17582.053422927856
+          },
+          "intrinsic": {
+            "avg_tokens": 557.8,
+            "min_tokens": 515,
+            "max_tokens": 637,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gemma": {
+          "model": "mistral-nemo:12b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-gemma"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.23444687817259474,
+            "rougeL_f1": 0.24920982596084965,
+            "judge_mean": 0.2,
+            "judge_a_mean": 0.2,
+            "judge_b_mean": 0.2,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.2,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.2,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.2,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.2,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 14664.338827133179,
+            "p95": 28781.21304512024,
+            "avg": 17582.053422927856
+          },
+          "intrinsic": {
+            "avg_tokens": 557.8,
+            "min_tokens": 515,
+            "max_tokens": 637,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gemma_scalar": {
+          "model": "mistral-nemo:12b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-gemma"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.47264687817259476,
+            "rougeL_f1": 0.24920982596084965,
+            "judge_mean": 0.994,
+            "judge_a_mean": 0.994,
+            "judge_b_mean": 0.994,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 14664.338827133179,
+            "p95": 28781.21304512024,
+            "avg": 17582.053422927856
+          },
+          "intrinsic": {
+            "avg_tokens": 557.8,
+            "min_tokens": 515,
+            "max_tokens": 637,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gpt_oss": {
+          "model": "mistral-nemo:12b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "ollama",
+              "model": "gpt-oss:120b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.25844687817259476,
+            "rougeL_f1": 0.24920982596084965,
+            "judge_mean": 0.28,
+            "judge_a_mean": 0.28,
+            "judge_b_mean": 0.28,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.28,
+                "win_rate": 0.0,
+                "tie_rate": 0.2,
+                "decisive_rate": 0.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.28,
+                "win_rate": 0.0,
+                "tie_rate": 0.2,
+                "decisive_rate": 0.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 14664.338827133179,
+            "p95": 28781.21304512024,
+            "avg": 17582.053422927856
+          },
+          "intrinsic": {
+            "avg_tokens": 557.8,
+            "min_tokens": 515,
+            "max_tokens": 637,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gpt_oss_scalar": {
+          "model": "mistral-nemo:12b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "ollama",
+              "model": "gpt-oss:120b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.4002468781705948,
+            "rougeL_f1": 0.24920982596084965,
+            "judge_mean": 0.7526666666599999,
+            "judge_a_mean": 0.7526666666599999,
+            "judge_b_mean": 0.7526666666599999,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 14664.338827133179,
+            "p95": 28781.21304512024,
+            "avg": 17582.053422927856
+          },
+          "intrinsic": {
+            "avg_tokens": 557.8,
+            "min_tokens": 515,
+            "max_tokens": 637,
+            "gates_clean": true
+          },
+          "episodes": 5
         }
       },
-      "silver": "silver_sonnet46_smoke_v2_bullets",
-      "dataset": "curated_5feeds_smoke_v2",
-      "scores": {
-        "final": 0.7534691018549353,
-        "rougeL_f1": 0.42867275463733845,
-        "judge_mean": 0.97,
-        "judge_a_mean": 0.9800000000000001,
-        "judge_b_mean": 0.96,
-        "judges_delta": 0.02000000000000013,
-        "contested_rate": 0.0,
-        "rouge_weight": 0.4
+      "same_family_judge_by_phase": {
+        "judge_qwen": false,
+        "judge_qwen_scalar": false,
+        "judge_llama": false,
+        "judge_llama_scalar": false,
+        "judge_gemma": false,
+        "judge_gemma_scalar": false,
+        "judge_gpt_oss": false,
+        "judge_gpt_oss_scalar": false
       },
-      "latency_ms": {
-        "median": 20429.79383468628,
-        "p95": 35919.09980773926,
-        "avg": 23634.939002990723
+      "cross_phase_jA": {
+        "judge_qwen": 0.38,
+        "judge_qwen_scalar": 0.99,
+        "judge_llama": 0.25999999999999995,
+        "judge_llama_scalar": 0.9040000000000001,
+        "judge_gemma": 0.2,
+        "judge_gemma_scalar": 0.994,
+        "judge_gpt_oss": 0.28,
+        "judge_gpt_oss_scalar": 0.7526666666599999
       },
-      "intrinsic": {
-        "avg_tokens": 225.6,
-        "min_tokens": 205,
-        "max_tokens": 261,
-        "gates_clean": true
-      },
-      "episodes": 5,
+      "cross_phase_delta": 0.794,
+      "cross_phase_contested": true
+    },
+    {
+      "model": "mistral-small:24b",
+      "family": "Mistral AI",
       "status": "ok",
-      "wall_clock_s": 288.8,
+      "prompts_source": "tuned",
+      "wall_clock_s": 342.0,
+      "wall_clock_by_phase": {
+        "generate": 135.6,
+        "judge_qwen": 8.2,
+        "judge_qwen_scalar": 8.3,
+        "judge_llama": 40.4,
+        "judge_llama_scalar": 55.9,
+        "judge_gemma": 16.9,
+        "judge_gemma_scalar": 16.5,
+        "judge_gpt_oss": 30.5,
+        "judge_gpt_oss_scalar": 29.7
+      },
+      "scores_by_phase": {
+        "judge_qwen": {
+          "model": "mistral-small:24b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-a"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.17216909559639532,
+            "rougeL_f1": 0.2459558508519933,
+            "judge_mean": 0.0,
+            "judge_a_mean": 0.0,
+            "judge_b_mean": 0.0,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.0,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.0,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 23686.877012252808,
+            "p95": 37668.59698295593,
+            "avg": 25628.076553344727
+          },
+          "intrinsic": {
+            "avg_tokens": 419.6,
+            "min_tokens": 346,
+            "max_tokens": 454,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_qwen_scalar": {
+          "model": "mistral-small:24b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-a"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.47216909559639536,
+            "rougeL_f1": 0.2459558508519933,
+            "judge_mean": 1.0,
+            "judge_a_mean": 1.0,
+            "judge_b_mean": 1.0,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 23686.877012252808,
+            "p95": 37668.59698295593,
+            "avg": 25628.076553344727
+          },
+          "intrinsic": {
+            "avg_tokens": 419.6,
+            "min_tokens": 346,
+            "max_tokens": 454,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_llama": {
+          "model": "mistral-small:24b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.20216909559639532,
+            "rougeL_f1": 0.2459558508519933,
+            "judge_mean": 0.09999999999999998,
+            "judge_a_mean": 0.09999999999999998,
+            "judge_b_mean": 0.09999999999999998,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.09999999999999998,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.09999999999999998,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 23686.877012252808,
+            "p95": 37668.59698295593,
+            "avg": 25628.076553344727
+          },
+          "intrinsic": {
+            "avg_tokens": 419.6,
+            "min_tokens": 346,
+            "max_tokens": 454,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_llama_scalar": {
+          "model": "mistral-small:24b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.4433690955963954,
+            "rougeL_f1": 0.2459558508519933,
+            "judge_mean": 0.9040000000000001,
+            "judge_a_mean": 0.9040000000000001,
+            "judge_b_mean": 0.9040000000000001,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 23686.877012252808,
+            "p95": 37668.59698295593,
+            "avg": 25628.076553344727
+          },
+          "intrinsic": {
+            "avg_tokens": 419.6,
+            "min_tokens": 346,
+            "max_tokens": 454,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gemma": {
+          "model": "mistral-small:24b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-gemma"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.26216909559639534,
+            "rougeL_f1": 0.2459558508519933,
+            "judge_mean": 0.29999999999999993,
+            "judge_a_mean": 0.29999999999999993,
+            "judge_b_mean": 0.29999999999999993,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.29999999999999993,
+                "win_rate": 0.2,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.29999999999999993,
+                "win_rate": 0.2,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 23686.877012252808,
+            "p95": 37668.59698295593,
+            "avg": 25628.076553344727
+          },
+          "intrinsic": {
+            "avg_tokens": 419.6,
+            "min_tokens": 346,
+            "max_tokens": 454,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gemma_scalar": {
+          "model": "mistral-small:24b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-gemma"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.47036909559639534,
+            "rougeL_f1": 0.2459558508519933,
+            "judge_mean": 0.994,
+            "judge_a_mean": 0.994,
+            "judge_b_mean": 0.994,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 23686.877012252808,
+            "p95": 37668.59698295593,
+            "avg": 25628.076553344727
+          },
+          "intrinsic": {
+            "avg_tokens": 419.6,
+            "min_tokens": 346,
+            "max_tokens": 454,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gpt_oss": {
+          "model": "mistral-small:24b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "ollama",
+              "model": "gpt-oss:120b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.28016909559639536,
+            "rougeL_f1": 0.2459558508519933,
+            "judge_mean": 0.36,
+            "judge_a_mean": 0.36,
+            "judge_b_mean": 0.36,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.36,
+                "win_rate": 0.2,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.36,
+                "win_rate": 0.2,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 23686.877012252808,
+            "p95": 37668.59698295593,
+            "avg": 25628.076553344727
+          },
+          "intrinsic": {
+            "avg_tokens": 419.6,
+            "min_tokens": 346,
+            "max_tokens": 454,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gpt_oss_scalar": {
+          "model": "mistral-small:24b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "ollama",
+              "model": "gpt-oss:120b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.4549690956003954,
+            "rougeL_f1": 0.2459558508519933,
+            "judge_mean": 0.9426666666800001,
+            "judge_a_mean": 0.9426666666800001,
+            "judge_b_mean": 0.9426666666800001,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 23686.877012252808,
+            "p95": 37668.59698295593,
+            "avg": 25628.076553344727
+          },
+          "intrinsic": {
+            "avg_tokens": 419.6,
+            "min_tokens": 346,
+            "max_tokens": 454,
+            "gates_clean": true
+          },
+          "episodes": 5
+        }
+      },
+      "same_family_judge_by_phase": {
+        "judge_qwen": false,
+        "judge_qwen_scalar": false,
+        "judge_llama": false,
+        "judge_llama_scalar": false,
+        "judge_gemma": false,
+        "judge_gemma_scalar": false,
+        "judge_gpt_oss": false,
+        "judge_gpt_oss_scalar": false
+      },
+      "cross_phase_jA": {
+        "judge_qwen": 0.0,
+        "judge_qwen_scalar": 1.0,
+        "judge_llama": 0.09999999999999998,
+        "judge_llama_scalar": 0.9040000000000001,
+        "judge_gemma": 0.29999999999999993,
+        "judge_gemma_scalar": 0.994,
+        "judge_gpt_oss": 0.36,
+        "judge_gpt_oss_scalar": 0.9426666666800001
+      },
+      "cross_phase_delta": 1.0,
+      "cross_phase_contested": true
+    },
+    {
+      "model": "mistral-small3.2:latest",
+      "family": "Mistral AI",
+      "status": "ok",
+      "prompts_source": "tuned",
+      "wall_clock_s": 359.2,
+      "wall_clock_by_phase": {
+        "generate": 155.5,
+        "judge_qwen": 7.5,
+        "judge_qwen_scalar": 8.3,
+        "judge_llama": 39.7,
+        "judge_llama_scalar": 55.8,
+        "judge_gemma": 16.2,
+        "judge_gemma_scalar": 16.2,
+        "judge_gpt_oss": 29.8,
+        "judge_gpt_oss_scalar": 30.2
+      },
+      "scores_by_phase": {
+        "judge_qwen": {
+          "model": "mistral-small3.2:latest",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-a"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.15456911388394998,
+            "rougeL_f1": 0.22081301983421428,
+            "judge_mean": 0.0,
+            "judge_a_mean": 0.0,
+            "judge_b_mean": 0.0,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.0,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.0,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 26175.38595199585,
+            "p95": 45254.09913063049,
+            "avg": 29596.421909332275
+          },
+          "intrinsic": {
+            "avg_tokens": 458.8,
+            "min_tokens": 390,
+            "max_tokens": 542,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_qwen_scalar": {
+          "model": "mistral-small3.2:latest",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-a"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.45456911388395005,
+            "rougeL_f1": 0.22081301983421428,
+            "judge_mean": 1.0,
+            "judge_a_mean": 1.0,
+            "judge_b_mean": 1.0,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 26175.38595199585,
+            "p95": 45254.09913063049,
+            "avg": 29596.421909332275
+          },
+          "intrinsic": {
+            "avg_tokens": 458.8,
+            "min_tokens": 390,
+            "max_tokens": 542,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_llama": {
+          "model": "mistral-small3.2:latest",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.23256911388395002,
+            "rougeL_f1": 0.22081301983421428,
+            "judge_mean": 0.26000000000000006,
+            "judge_a_mean": 0.26000000000000006,
+            "judge_b_mean": 0.26000000000000006,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.26000000000000006,
+                "win_rate": 0.2,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.26000000000000006,
+                "win_rate": 0.2,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 26175.38595199585,
+            "p95": 45254.09913063049,
+            "avg": 29596.421909332275
+          },
+          "intrinsic": {
+            "avg_tokens": 458.8,
+            "min_tokens": 390,
+            "max_tokens": 542,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_llama_scalar": {
+          "model": "mistral-small3.2:latest",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.42396911388395,
+            "rougeL_f1": 0.22081301983421428,
+            "judge_mean": 0.898,
+            "judge_a_mean": 0.898,
+            "judge_b_mean": 0.898,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 26175.38595199585,
+            "p95": 45254.09913063049,
+            "avg": 29596.421909332275
+          },
+          "intrinsic": {
+            "avg_tokens": 458.8,
+            "min_tokens": 390,
+            "max_tokens": 542,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gemma": {
+          "model": "mistral-small3.2:latest",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-gemma"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.25056911388395,
+            "rougeL_f1": 0.22081301983421428,
+            "judge_mean": 0.31999999999999995,
+            "judge_a_mean": 0.31999999999999995,
+            "judge_b_mean": 0.31999999999999995,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.31999999999999995,
+                "win_rate": 0.2,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.31999999999999995,
+                "win_rate": 0.2,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 26175.38595199585,
+            "p95": 45254.09913063049,
+            "avg": 29596.421909332275
+          },
+          "intrinsic": {
+            "avg_tokens": 458.8,
+            "min_tokens": 390,
+            "max_tokens": 542,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gemma_scalar": {
+          "model": "mistral-small3.2:latest",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-gemma"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.45276911388395,
+            "rougeL_f1": 0.22081301983421428,
+            "judge_mean": 0.994,
+            "judge_a_mean": 0.994,
+            "judge_b_mean": 0.994,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 26175.38595199585,
+            "p95": 45254.09913063049,
+            "avg": 29596.421909332275
+          },
+          "intrinsic": {
+            "avg_tokens": 458.8,
+            "min_tokens": 390,
+            "max_tokens": 542,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gpt_oss": {
+          "model": "mistral-small3.2:latest",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "ollama",
+              "model": "gpt-oss:120b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.27456911388395,
+            "rougeL_f1": 0.22081301983421428,
+            "judge_mean": 0.4,
+            "judge_a_mean": 0.4,
+            "judge_b_mean": 0.4,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.4,
+                "win_rate": 0.25,
+                "tie_rate": 0.2,
+                "decisive_rate": 0.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.4,
+                "win_rate": 0.25,
+                "tie_rate": 0.2,
+                "decisive_rate": 0.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 26175.38595199585,
+            "p95": 45254.09913063049,
+            "avg": 29596.421909332275
+          },
+          "intrinsic": {
+            "avg_tokens": 458.8,
+            "min_tokens": 390,
+            "max_tokens": 542,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gpt_oss_scalar": {
+          "model": "mistral-small3.2:latest",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "ollama",
+              "model": "gpt-oss:120b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.44096911388795,
+            "rougeL_f1": 0.22081301983421428,
+            "judge_mean": 0.95466666668,
+            "judge_a_mean": 0.95466666668,
+            "judge_b_mean": 0.95466666668,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 26175.38595199585,
+            "p95": 45254.09913063049,
+            "avg": 29596.421909332275
+          },
+          "intrinsic": {
+            "avg_tokens": 458.8,
+            "min_tokens": 390,
+            "max_tokens": 542,
+            "gates_clean": true
+          },
+          "episodes": 5
+        }
+      },
+      "same_family_judge_by_phase": {
+        "judge_qwen": false,
+        "judge_qwen_scalar": false,
+        "judge_llama": false,
+        "judge_llama_scalar": false,
+        "judge_gemma": false,
+        "judge_gemma_scalar": false,
+        "judge_gpt_oss": false,
+        "judge_gpt_oss_scalar": false
+      },
+      "cross_phase_jA": {
+        "judge_qwen": 0.0,
+        "judge_qwen_scalar": 1.0,
+        "judge_llama": 0.26000000000000006,
+        "judge_llama_scalar": 0.898,
+        "judge_gemma": 0.31999999999999995,
+        "judge_gemma_scalar": 0.994,
+        "judge_gpt_oss": 0.4,
+        "judge_gpt_oss_scalar": 0.95466666668
+      },
+      "cross_phase_delta": 1.0,
+      "cross_phase_contested": true
+    },
+    {
+      "model": "qwen3.5:27b",
       "family": "Alibaba",
-      "same_family_judge": false
+      "status": "ok",
+      "prompts_source": "tuned",
+      "wall_clock_s": 456.1,
+      "wall_clock_by_phase": {
+        "generate": 249.9,
+        "judge_qwen": 7.7,
+        "judge_qwen_scalar": 8.1,
+        "judge_llama": 42.8,
+        "judge_llama_scalar": 57.0,
+        "judge_gemma": 17.0,
+        "judge_gemma_scalar": 16.6,
+        "judge_gpt_oss": 27.2,
+        "judge_gpt_oss_scalar": 29.8
+      },
+      "scores_by_phase": {
+        "judge_qwen": {
+          "model": "qwen3.5:27b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-a"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.2831140522521594,
+            "rougeL_f1": 0.22444864607451342,
+            "judge_mean": 0.42000000000000004,
+            "judge_a_mean": 0.42000000000000004,
+            "judge_b_mean": 0.42000000000000004,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.42000000000000004,
+                "win_rate": 0.4,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.42000000000000004,
+                "win_rate": 0.4,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 43978.81078720093,
+            "p95": 73057.23810195923,
+            "avg": 48377.81023979187
+          },
+          "intrinsic": {
+            "avg_tokens": 759.4,
+            "min_tokens": 601,
+            "max_tokens": 922,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_qwen_scalar": {
+          "model": "qwen3.5:27b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-a"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.4571140522521594,
+            "rougeL_f1": 0.22444864607451342,
+            "judge_mean": 1.0,
+            "judge_a_mean": 1.0,
+            "judge_b_mean": 1.0,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 43978.81078720093,
+            "p95": 73057.23810195923,
+            "avg": 48377.81023979187
+          },
+          "intrinsic": {
+            "avg_tokens": 759.4,
+            "min_tokens": 601,
+            "max_tokens": 922,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_llama": {
+          "model": "qwen3.5:27b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.23511405225215937,
+            "rougeL_f1": 0.22444864607451342,
+            "judge_mean": 0.25999999999999995,
+            "judge_a_mean": 0.25999999999999995,
+            "judge_b_mean": 0.25999999999999995,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.25999999999999995,
+                "win_rate": 0.2,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.25999999999999995,
+                "win_rate": 0.2,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 43978.81078720093,
+            "p95": 73057.23810195923,
+            "avg": 48377.81023979187
+          },
+          "intrinsic": {
+            "avg_tokens": 759.4,
+            "min_tokens": 601,
+            "max_tokens": 922,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_llama_scalar": {
+          "model": "qwen3.5:27b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.4229140522521595,
+            "rougeL_f1": 0.22444864607451342,
+            "judge_mean": 0.8860000000000001,
+            "judge_a_mean": 0.8860000000000001,
+            "judge_b_mean": 0.8860000000000001,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 43978.81078720093,
+            "p95": 73057.23810195923,
+            "avg": 48377.81023979187
+          },
+          "intrinsic": {
+            "avg_tokens": 759.4,
+            "min_tokens": 601,
+            "max_tokens": 922,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gemma": {
+          "model": "qwen3.5:27b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-gemma"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.2651140522521594,
+            "rougeL_f1": 0.22444864607451342,
+            "judge_mean": 0.36,
+            "judge_a_mean": 0.36,
+            "judge_b_mean": 0.36,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.36,
+                "win_rate": 0.2,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.36,
+                "win_rate": 0.2,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 43978.81078720093,
+            "p95": 73057.23810195923,
+            "avg": 48377.81023979187
+          },
+          "intrinsic": {
+            "avg_tokens": 759.4,
+            "min_tokens": 601,
+            "max_tokens": 922,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gemma_scalar": {
+          "model": "qwen3.5:27b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-gemma"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.4499140522521594,
+            "rougeL_f1": 0.22444864607451342,
+            "judge_mean": 0.976,
+            "judge_a_mean": 0.976,
+            "judge_b_mean": 0.976,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 43978.81078720093,
+            "p95": 73057.23810195923,
+            "avg": 48377.81023979187
+          },
+          "intrinsic": {
+            "avg_tokens": 759.4,
+            "min_tokens": 601,
+            "max_tokens": 922,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gpt_oss": {
+          "model": "qwen3.5:27b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "ollama",
+              "model": "gpt-oss:120b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.3431140522521594,
+            "rougeL_f1": 0.22444864607451342,
+            "judge_mean": 0.6200000000000001,
+            "judge_a_mean": 0.6200000000000001,
+            "judge_b_mean": 0.6200000000000001,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.6200000000000001,
+                "win_rate": 0.75,
+                "tie_rate": 0.2,
+                "decisive_rate": 0.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.6200000000000001,
+                "win_rate": 0.75,
+                "tie_rate": 0.2,
+                "decisive_rate": 0.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 43978.81078720093,
+            "p95": 73057.23810195923,
+            "avg": 48377.81023979187
+          },
+          "intrinsic": {
+            "avg_tokens": 759.4,
+            "min_tokens": 601,
+            "max_tokens": 922,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gpt_oss_scalar": {
+          "model": "qwen3.5:27b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "ollama",
+              "model": "gpt-oss:120b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.4401140522561594,
+            "rougeL_f1": 0.22444864607451342,
+            "judge_mean": 0.9433333333466667,
+            "judge_a_mean": 0.9433333333466667,
+            "judge_b_mean": 0.9433333333466667,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 43978.81078720093,
+            "p95": 73057.23810195923,
+            "avg": 48377.81023979187
+          },
+          "intrinsic": {
+            "avg_tokens": 759.4,
+            "min_tokens": 601,
+            "max_tokens": 922,
+            "gates_clean": true
+          },
+          "episodes": 5
+        }
+      },
+      "same_family_judge_by_phase": {
+        "judge_qwen": true,
+        "judge_qwen_scalar": true,
+        "judge_llama": false,
+        "judge_llama_scalar": false,
+        "judge_gemma": false,
+        "judge_gemma_scalar": false,
+        "judge_gpt_oss": false,
+        "judge_gpt_oss_scalar": false
+      },
+      "cross_phase_jA": {
+        "judge_qwen": 0.42000000000000004,
+        "judge_qwen_scalar": 1.0,
+        "judge_llama": 0.25999999999999995,
+        "judge_llama_scalar": 0.8860000000000001,
+        "judge_gemma": 0.36,
+        "judge_gemma_scalar": 0.976,
+        "judge_gpt_oss": 0.6200000000000001,
+        "judge_gpt_oss_scalar": 0.9433333333466667
+      },
+      "cross_phase_delta": 0.74,
+      "cross_phase_contested": true
+    },
+    {
+      "model": "qwen3.6:latest",
+      "family": "Alibaba",
+      "status": "ok",
+      "prompts_source": "tuned",
+      "wall_clock_s": 280.8,
+      "wall_clock_by_phase": {
+        "generate": 70.5,
+        "judge_qwen": 8.0,
+        "judge_qwen_scalar": 8.6,
+        "judge_llama": 42.5,
+        "judge_llama_scalar": 56.4,
+        "judge_gemma": 16.3,
+        "judge_gemma_scalar": 17.0,
+        "judge_gpt_oss": 30.0,
+        "judge_gpt_oss_scalar": 31.5
+      },
+      "scores_by_phase": {
+        "judge_qwen": {
+          "model": "qwen3.6:latest",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-a"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.2135199336227619,
+            "rougeL_f1": 0.2193141908896598,
+            "judge_mean": 0.2,
+            "judge_a_mean": 0.2,
+            "judge_b_mean": 0.2,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.2,
+                "win_rate": 0.2,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.2,
+                "win_rate": 0.2,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 6991.827011108398,
+            "p95": 36938.99202346802,
+            "avg": 12560.216045379639
+          },
+          "intrinsic": {
+            "avg_tokens": 630.4,
+            "min_tokens": 484,
+            "max_tokens": 802,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_qwen_scalar": {
+          "model": "qwen3.6:latest",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-a"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.4535199336227619,
+            "rougeL_f1": 0.2193141908896598,
+            "judge_mean": 1.0,
+            "judge_a_mean": 1.0,
+            "judge_b_mean": 1.0,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 6991.827011108398,
+            "p95": 36938.99202346802,
+            "avg": 12560.216045379639
+          },
+          "intrinsic": {
+            "avg_tokens": 630.4,
+            "min_tokens": 484,
+            "max_tokens": 802,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_llama": {
+          "model": "qwen3.6:latest",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.3755199336227619,
+            "rougeL_f1": 0.2193141908896598,
+            "judge_mean": 0.74,
+            "judge_a_mean": 0.74,
+            "judge_b_mean": 0.74,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.74,
+                "win_rate": 0.8,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.74,
+                "win_rate": 0.8,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 6991.827011108398,
+            "p95": 36938.99202346802,
+            "avg": 12560.216045379639
+          },
+          "intrinsic": {
+            "avg_tokens": 630.4,
+            "min_tokens": 484,
+            "max_tokens": 802,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_llama_scalar": {
+          "model": "qwen3.6:latest",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.4229199336227619,
+            "rougeL_f1": 0.2193141908896598,
+            "judge_mean": 0.898,
+            "judge_a_mean": 0.898,
+            "judge_b_mean": 0.898,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 6991.827011108398,
+            "p95": 36938.99202346802,
+            "avg": 12560.216045379639
+          },
+          "intrinsic": {
+            "avg_tokens": 630.4,
+            "min_tokens": 484,
+            "max_tokens": 802,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gemma": {
+          "model": "qwen3.6:latest",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-gemma"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.2675199336227619,
+            "rougeL_f1": 0.2193141908896598,
+            "judge_mean": 0.38,
+            "judge_a_mean": 0.38,
+            "judge_b_mean": 0.38,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.38,
+                "win_rate": 0.2,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.38,
+                "win_rate": 0.2,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 6991.827011108398,
+            "p95": 36938.99202346802,
+            "avg": 12560.216045379639
+          },
+          "intrinsic": {
+            "avg_tokens": 630.4,
+            "min_tokens": 484,
+            "max_tokens": 802,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gemma_scalar": {
+          "model": "qwen3.6:latest",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-gemma"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.45171993362276186,
+            "rougeL_f1": 0.2193141908896598,
+            "judge_mean": 0.994,
+            "judge_a_mean": 0.994,
+            "judge_b_mean": 0.994,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 6991.827011108398,
+            "p95": 36938.99202346802,
+            "avg": 12560.216045379639
+          },
+          "intrinsic": {
+            "avg_tokens": 630.4,
+            "min_tokens": 484,
+            "max_tokens": 802,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gpt_oss": {
+          "model": "qwen3.6:latest",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "ollama",
+              "model": "gpt-oss:120b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.2615199336227619,
+            "rougeL_f1": 0.2193141908896598,
+            "judge_mean": 0.36,
+            "judge_a_mean": 0.36,
+            "judge_b_mean": 0.36,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.36,
+                "win_rate": 0.25,
+                "tie_rate": 0.2,
+                "decisive_rate": 0.4,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.36,
+                "win_rate": 0.25,
+                "tie_rate": 0.2,
+                "decisive_rate": 0.4,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 6991.827011108398,
+            "p95": 36938.99202346802,
+            "avg": 12560.216045379639
+          },
+          "intrinsic": {
+            "avg_tokens": 630.4,
+            "min_tokens": 484,
+            "max_tokens": 802,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gpt_oss_scalar": {
+          "model": "qwen3.6:latest",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "ollama",
+              "model": "gpt-oss:120b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.4373199336227619,
+            "rougeL_f1": 0.2193141908896598,
+            "judge_mean": 0.9460000000000001,
+            "judge_a_mean": 0.9460000000000001,
+            "judge_b_mean": 0.9460000000000001,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 6991.827011108398,
+            "p95": 36938.99202346802,
+            "avg": 12560.216045379639
+          },
+          "intrinsic": {
+            "avg_tokens": 630.4,
+            "min_tokens": 484,
+            "max_tokens": 802,
+            "gates_clean": true
+          },
+          "episodes": 5
+        }
+      },
+      "same_family_judge_by_phase": {
+        "judge_qwen": true,
+        "judge_qwen_scalar": true,
+        "judge_llama": false,
+        "judge_llama_scalar": false,
+        "judge_gemma": false,
+        "judge_gemma_scalar": false,
+        "judge_gpt_oss": false,
+        "judge_gpt_oss_scalar": false
+      },
+      "cross_phase_jA": {
+        "judge_qwen": 0.2,
+        "judge_qwen_scalar": 1.0,
+        "judge_llama": 0.74,
+        "judge_llama_scalar": 0.898,
+        "judge_gemma": 0.38,
+        "judge_gemma_scalar": 0.994,
+        "judge_gpt_oss": 0.36,
+        "judge_gpt_oss_scalar": 0.9460000000000001
+      },
+      "cross_phase_delta": 0.8,
+      "cross_phase_contested": true
+    },
+    {
+      "model": "qwen3.5:35b",
+      "family": "Alibaba",
+      "status": "ok",
+      "prompts_source": "tuned",
+      "wall_clock_s": 277.0,
+      "wall_clock_by_phase": {
+        "generate": 72.9,
+        "judge_qwen": 8.1,
+        "judge_qwen_scalar": 8.5,
+        "judge_llama": 40.4,
+        "judge_llama_scalar": 56.4,
+        "judge_gemma": 16.5,
+        "judge_gemma_scalar": 17.0,
+        "judge_gpt_oss": 28.4,
+        "judge_gpt_oss_scalar": 28.8
+      },
+      "scores_by_phase": {
+        "judge_qwen": {
+          "model": "qwen3.5:35b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-a"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.4113584515361099,
+            "rougeL_f1": 0.23622635933729982,
+            "judge_mean": 0.82,
+            "judge_a_mean": 0.82,
+            "judge_b_mean": 0.82,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.82,
+                "win_rate": 0.8,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.82,
+                "win_rate": 0.8,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 7738.401174545288,
+            "p95": 36687.15310096741,
+            "avg": 13043.550539016724
+          },
+          "intrinsic": {
+            "avg_tokens": 686.0,
+            "min_tokens": 534,
+            "max_tokens": 797,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_qwen_scalar": {
+          "model": "qwen3.5:35b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-a"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.4653584515361099,
+            "rougeL_f1": 0.23622635933729982,
+            "judge_mean": 1.0,
+            "judge_a_mean": 1.0,
+            "judge_b_mean": 1.0,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 7738.401174545288,
+            "p95": 36687.15310096741,
+            "avg": 13043.550539016724
+          },
+          "intrinsic": {
+            "avg_tokens": 686.0,
+            "min_tokens": 534,
+            "max_tokens": 797,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_llama": {
+          "model": "qwen3.5:35b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.19535845153610987,
+            "rougeL_f1": 0.23622635933729982,
+            "judge_mean": 0.09999999999999998,
+            "judge_a_mean": 0.09999999999999998,
+            "judge_b_mean": 0.09999999999999998,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.09999999999999998,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.09999999999999998,
+                "win_rate": 0.0,
+                "tie_rate": 0.0,
+                "decisive_rate": 1.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 7738.401174545288,
+            "p95": 36687.15310096741,
+            "avg": 13043.550539016724
+          },
+          "intrinsic": {
+            "avg_tokens": 686.0,
+            "min_tokens": 534,
+            "max_tokens": 797,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_llama_scalar": {
+          "model": "qwen3.5:35b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.4347584515361099,
+            "rougeL_f1": 0.23622635933729982,
+            "judge_mean": 0.898,
+            "judge_a_mean": 0.898,
+            "judge_b_mean": 0.898,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 7738.401174545288,
+            "p95": 36687.15310096741,
+            "avg": 13043.550539016724
+          },
+          "intrinsic": {
+            "avg_tokens": 686.0,
+            "min_tokens": 534,
+            "max_tokens": 797,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gemma": {
+          "model": "qwen3.5:35b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-gemma"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.3333584515361099,
+            "rougeL_f1": 0.23622635933729982,
+            "judge_mean": 0.5599999999999999,
+            "judge_a_mean": 0.5599999999999999,
+            "judge_b_mean": 0.5599999999999999,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.5599999999999999,
+                "win_rate": 0.6,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.0,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.5599999999999999,
+                "win_rate": 0.6,
+                "tie_rate": 0.0,
+                "decisive_rate": 0.0,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 7738.401174545288,
+            "p95": 36687.15310096741,
+            "avg": 13043.550539016724
+          },
+          "intrinsic": {
+            "avg_tokens": 686.0,
+            "min_tokens": 534,
+            "max_tokens": 797,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gemma_scalar": {
+          "model": "qwen3.5:35b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-gemma"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.46175845153610984,
+            "rougeL_f1": 0.23622635933729982,
+            "judge_mean": 0.9879999999999999,
+            "judge_a_mean": 0.9879999999999999,
+            "judge_b_mean": 0.9879999999999999,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 7738.401174545288,
+            "p95": 36687.15310096741,
+            "avg": 13043.550539016724
+          },
+          "intrinsic": {
+            "avg_tokens": 686.0,
+            "min_tokens": 534,
+            "max_tokens": 797,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gpt_oss": {
+          "model": "qwen3.5:35b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "ollama",
+              "model": "gpt-oss:120b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "pairwise",
+          "scores": {
+            "final": 0.23735845153610988,
+            "rougeL_f1": 0.23622635933729982,
+            "judge_mean": 0.24,
+            "judge_a_mean": 0.24,
+            "judge_b_mean": 0.24,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": {
+              "judge_a": {
+                "mean_score": 0.24,
+                "win_rate": 0.0,
+                "tie_rate": 0.2,
+                "decisive_rate": 0.2,
+                "n": 5
+              },
+              "judge_b": {
+                "mean_score": 0.24,
+                "win_rate": 0.0,
+                "tie_rate": 0.2,
+                "decisive_rate": 0.2,
+                "n": 5
+              },
+              "contested_count": 0,
+              "episodes": 5
+            }
+          },
+          "latency_ms": {
+            "median": 7738.401174545288,
+            "p95": 36687.15310096741,
+            "avg": 13043.550539016724
+          },
+          "intrinsic": {
+            "avg_tokens": 686.0,
+            "min_tokens": 534,
+            "max_tokens": 797,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_gpt_oss_scalar": {
+          "model": "qwen3.5:35b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "ollama",
+              "model": "gpt-oss:120b"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.4481584515401099,
+            "rougeL_f1": 0.23622635933729982,
+            "judge_mean": 0.9426666666799999,
+            "judge_a_mean": 0.9426666666799999,
+            "judge_b_mean": 0.9426666666799999,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.7,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 7738.401174545288,
+            "p95": 36687.15310096741,
+            "avg": 13043.550539016724
+          },
+          "intrinsic": {
+            "avg_tokens": 686.0,
+            "min_tokens": 534,
+            "max_tokens": 797,
+            "gates_clean": true
+          },
+          "episodes": 5
+        }
+      },
+      "same_family_judge_by_phase": {
+        "judge_qwen": true,
+        "judge_qwen_scalar": true,
+        "judge_llama": false,
+        "judge_llama_scalar": false,
+        "judge_gemma": false,
+        "judge_gemma_scalar": false,
+        "judge_gpt_oss": false,
+        "judge_gpt_oss_scalar": false
+      },
+      "cross_phase_jA": {
+        "judge_qwen": 0.82,
+        "judge_qwen_scalar": 1.0,
+        "judge_llama": 0.09999999999999998,
+        "judge_llama_scalar": 0.898,
+        "judge_gemma": 0.5599999999999999,
+        "judge_gemma_scalar": 0.9879999999999999,
+        "judge_gpt_oss": 0.24,
+        "judge_gpt_oss_scalar": 0.9426666666799999
+      },
+      "cross_phase_delta": 0.9,
+      "cross_phase_contested": true
     }
   ]
 }

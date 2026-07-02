@@ -135,15 +135,31 @@ can also be driven directly from a laptop on the tailnet — useful for
 iterating on cohort / prompts / judges without pushing to `main` and
 waiting for the workflow.
 
+Sweep design: **one generate stage + two vLLM judge stages** (see
+`JUDGING.md` for the rationale on dropping the Ollama judging step):
+
+1. `generate` — each cohort candidate runs Ollama inference-only (writes
+   `predictions.jsonl`, no scoring).
+2. `judge_qwen` — swap to Qwen3-30B-A3B on vLLM, pairwise re-judge every
+   candidate's predictions against silver. Cross-vendor to every current
+   candidate family and to the silver Anthropic reference. Primary phase
+   for drift.
+3. `judge_llama` — swap to Llama-3.3-70B-NVFP4 on vLLM, pairwise re-judge.
+   Strongest raw judge; note same-vendor bias for Meta candidates.
+
 ```bash
-# Full 7-candidate cohort, hybrid vLLM+Ollama pairwise judges (default)
-DGX_TAILNET_FQDN=<dgx-tailnet-fqdn> make autoresearch-sweep-local
+# Full cohort, generate + 2 vLLM judges
+DGX_TAILNET_FQDN=<dgx-tailnet-fqdn> VLLM_API_KEY=<key> \
+  make autoresearch-sweep-local
 
 # Smoke first candidate only (~13 min)
-DGX_TAILNET_FQDN=<dgx-tailnet-fqdn> make autoresearch-sweep-local LIMIT=1
+DGX_TAILNET_FQDN=<dgx-tailnet-fqdn> VLLM_API_KEY=<key> \
+  make autoresearch-sweep-local LIMIT=1
 
-# Fall back to the previous Ollama-only scalar judges
-DGX_TAILNET_FQDN=<dgx-tailnet-fqdn> make autoresearch-sweep-local JUDGES=ollama
+# Custom judge cohort
+DGX_TAILNET_FQDN=<dgx-tailnet-fqdn> VLLM_API_KEY=<key> \
+  make autoresearch-sweep-local \
+  JUDGE_CONFIGS=autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_qwen.yaml
 ```
 
 Writes to `data/autoresearch_baselines/autoresearch-local-<utc>.json`
@@ -151,11 +167,12 @@ Writes to `data/autoresearch_baselines/autoresearch-local-<utc>.json`
 the GHA workflow commits). Prints the leaderboard inline via
 `--print-leaderboard`.
 
-Prereqs for `JUDGES=vllm` (the default): `vllm-autoresearch` container UP
-on DGX port 8003 serving the model IDs in
-`initial_prompt_tuning/prompt_tuning/eval/judge_config_vllm.yaml`. If it
-was stopped for an Ollama-only sweep, `docker start vllm-autoresearch` on
-DGX (or `gpu-mode-swap.sh research`).
+The GPU swaps between phases run automatically via each judge yaml's
+`prep_cmd` (`scripts/ops/dgx_gpu_mode.sh judging {a,b}` →
+`gpu-mode-swap.sh` on the DGX). No manual `docker start / docker stop`
+needed. After the sweep the DGX is left `idle`; run
+`scripts/ops/dgx_gpu_mode.sh research` to bring `vllm-autoresearch`
+back up if any autoresearch consumer needs it.
 
 ### Per-model tuned prompts (default in the sweep)
 

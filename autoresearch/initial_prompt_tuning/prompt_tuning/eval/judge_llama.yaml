@@ -1,0 +1,59 @@
+# vLLM Llama-70B judge — second authoritative judge phase in the
+# multi-judge autoresearch sweep. Paired with judge_qwen.yaml.
+#
+# Design intent (see autoresearch/JUDGING.md): the sweep's Ollama phase
+# is generate-only. Real judging happens in the vLLM phases with judges
+# strictly bigger than any cohort candidate. Llama-3.3-70B is the
+# strongest raw judge available.
+#
+# Physical setup (homelab):
+#   Container:      vllm-judge-b  (~/agentic-ai-homelab/infra/vllm/judge-b/)
+#   Port:           8003  (shared with autoresearch + judge-qwen — see below)
+#   Served model:   RedHatAI/Llama-3.3-70B-Instruct-NVFP4
+#   Served alias:   judge-b  (declared via ``--served-model-name``)
+#
+# Only ONE vLLM may own the GB10 GPU at a time. The sweep swaps to
+# judge-b via ``gpu-mode-swap.sh judging b`` after the judge_qwen phase
+# completes. The three research-side vLLMs share port 8003 because the
+# DGX's tailscale ACL only permits 8003 + 11434 out to the mac —
+# gpu-mode-swap.sh enforces single-owner via container-name detection so
+# the port re-use is safe.
+#
+# Vendor-bias caveat: Llama-3.3-70B (Meta) sharing vendor with the Meta
+# candidates (llama3.1:8b, llama3.2:3b, llama3.3:70b) gives those
+# candidates a same-vendor style boost. Per feedback_silver_judge_vendor_
+# bias this contaminates their pairwise scores in THIS phase.
+# Drift-check primary is judge_qwen for that reason. Read judge_llama
+# scores as a strong-judge sanity check on cross-vendor candidates.
+#
+# Single-judge phase: judge_b is intentionally absent from THIS yaml
+# (confusingly-named — the alias ``judge-b`` refers to the vLLM
+# container serving as judge_a in this phase, not to a second judge
+# slot). Contest fraction is not applicable.
+
+mode: pairwise
+
+# Prep command — invokes ``gpu-mode-swap.sh judging b`` on the DGX via
+# ``scripts/ops/dgx_gpu_mode.sh``, swapping vllm-judge-a down and
+# vllm-judge-b up. See judge_qwen.yaml for the SSH-vs-local transport
+# picker.
+# GPU_MODE_START_TIMEOUT=900 — Llama-3.3-70B-NVFP4 is larger, expect
+# 5-8 min cold boot before /health returns 200.
+prep_cmd: GPU_MODE_START_TIMEOUT=900 scripts/ops/dgx_gpu_mode.sh judging b
+
+judge_a:
+  provider: vllm
+  model: judge-b
+  # Port 8003 (shared with autoresearch + judge-a — single-owner enforced
+  # by gpu-mode-swap.sh). Hostname templated from ``DGX_TAILNET_FQDN`` at
+  # runtime — the sweep script substitutes ``${DGX_TAILNET_FQDN}`` before
+  # invoking score.py.
+  api_base: http://${DGX_TAILNET_FQDN}:8003/v1
+
+# Candidate families flagged as ``same_family_judge`` under THIS phase.
+# Note: hermes3:8b is a Llama-3.1 fine-tune (family=Nous in cohort.yaml)
+# — semantically same-vendor as Meta but not listed here because the
+# base-model provenance is not the cohort-declared family. Consider
+# adding Nous if the operator wants stricter same-lineage flagging.
+judge_families:
+  - Meta

@@ -3,7 +3,9 @@
 
 Reads the two most recent ``data/autoresearch_baselines/autoresearch-*.json``
 ledgers; for each candidate present in BOTH weeks, applies thresholds from
-``drift_thresholds.yaml`` to the per-candidate metrics. Emits a structured
+``drift_thresholds.yaml`` (when present — the file is deleted at method
+boundaries to reset calibration, in which case this script emits a
+no_thresholds report and exits 0) to the per-candidate metrics. Emits a structured
 report (JSON) on stdout + to ``--output``. The workflow inspects the report
 to open/update/close the weekly drift issue.
 
@@ -43,25 +45,29 @@ def _by_model(cohort: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     return {row["model"]: row for row in cohort if "model" in row}
 
 
-_PRIMARY_PHASE = "ollama"
+# Primary phase for drift comparison. Points at the least vendor-biased
+# judge in the cohort (Qwen3-30B-A3B — Alibaba, disjoint from every
+# candidate family AND from the silver Anthropic reference). Post-2026-W27
+# refactor: Ollama used to run a scalar judge here but was retired
+# because the available Ollama judges (gemma3:27b, mistral-small:24b)
+# are same-tier as the candidates — peer review, not authoritative.
+# If the cohort ever picks up Alibaba candidates, switch primary here.
+_PRIMARY_PHASE = "judge_qwen"
 
 
 def _primary_scores_and_latency(row: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
     """Return (scores, latency_ms) for the primary drift-check phase.
 
-    v1 ledgers (schema_version=1) key scores at the top of the row:
-        row.scores.final / row.scores.rougeL_f1 / ...
-        row.latency_ms.p95
-
-    v2 ledgers (schema_version=2, multi-phase) key scores by phase name:
+    v2 ledgers (schema_version=2) key scores by phase name:
         row.scores_by_phase[phase].scores.final / ...
         row.scores_by_phase[phase].latency_ms.p95
 
-    The multi-judge sweep still runs an Ollama scalar phase (name
-    ``ollama``) that mirrors the pre-v2 shape, so we drift-check against
-    that phase to preserve week-over-week comparability across the
-    schema bump. Multi-judge divergence detection (per-phase drift) is a
-    follow-up on top.
+    v1 ledgers (pre-refactor, flat ``scores`` at the row root) are still
+    read for backward-compat while the last of them expire from the
+    committed history; new ledgers are v2-only. Pre-refactor v2 ledgers
+    that used ``ollama`` as the primary phase name will produce an
+    empty dict here — they were tainted anyway (same-tier judges) and
+    the operator opted to reset drift thresholds on the boundary.
     """
     if "scores" in row:
         return row.get("scores") or {}, row.get("latency_ms") or {}
@@ -107,9 +113,8 @@ def check_candidate(
 
     # v1 ledger: row.scores / row.latency_ms at the top.
     # v2 ledger (multi-phase): row.scores_by_phase[phase].{scores,latency_ms}.
-    # For drift, compare the "primary" phase (ollama by convention — matches
-    # the historical single-phase ledgers so week-over-week diffs stay
-    # meaningful across the schema bump). Multi-judge drift is a follow-up.
+    # For drift, compare the primary judge phase (judge_qwen — least vendor-biased,
+    # see _PRIMARY_PHASE). v1 ledger rows fall through to the top-of-row scores branch above.
     this_scores, this_perf = _primary_scores_and_latency(this_row)
     prev_scores, prev_perf = _primary_scores_and_latency(prev_row)
 
@@ -266,6 +271,31 @@ def main() -> int:
         default=Path("/tmp/autoresearch-drift-report.json"),
     )
     args = parser.parse_args()
+
+    # Thresholds file may be absent on purpose — operator resets it after
+    # methodology changes (e.g. mode/judge swap) that invalidate the
+    # calibrated per-candidate drop thresholds. Skip drift check cleanly
+    # when absent so the nightly workflow does not fail; drift will
+    # re-arm once the file is reintroduced.
+    if not args.thresholds.is_file():
+        report_missing = {
+            "status": "no_thresholds",
+            "informational": [
+                f"Thresholds file not found at {args.thresholds}. "
+                "Drift check SKIPPED — bootstrap needed. "
+                "Re-add data/autoresearch_baselines/drift_thresholds.yaml "
+                "to re-enable per-candidate breach detection."
+            ],
+            "breaches": [],
+        }
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(json.dumps(report_missing, indent=2), encoding="utf-8")
+        print(
+            f"Drift check skipped: no thresholds file at {args.thresholds}; "
+            f"report written to {args.output}",
+            file=sys.stderr,
+        )
+        return 0
 
     thresholds = load_yaml(args.thresholds)
     this_path, prev_path = latest_two_ledgers(args.ledger_dir)

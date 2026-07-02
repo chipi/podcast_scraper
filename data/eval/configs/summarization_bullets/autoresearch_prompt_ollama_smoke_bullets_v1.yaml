@@ -5,7 +5,7 @@
 # autoresearch-eval-nightly.yml on the DGX self-hosted runner.
 #
 # Pair with:
-#   judge config:     judge_config_ollama.yaml         (Gemma + Mistral)
+#   judge config:     (retired — Ollama scalar judges retired post-2026-W27)
 #   silver reference: silver_sonnet46_smoke_v2_bullets (Anthropic Sonnet 4.6)
 #
 # Four distinct vendor families across silver + candidate + 2 judges:

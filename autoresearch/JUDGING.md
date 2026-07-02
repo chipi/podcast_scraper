@@ -88,8 +88,8 @@ Implementation:
 + `src/podcast_scraper/evaluation/pairwise.py` — primitives
 + `autoresearch_track_a.mean_pairwise_scores` — dispatch
 + `mode: pairwise` in the judge_config yaml
-+ `judge_config_vllm.yaml` — working pairwise config
-  (Qwen3-30B-A3B via vLLM + llama3.3:70b via Ollama)
++ `judge_qwen.yaml`  — Qwen3-30B-A3B pairwise (primary drift phase)
++ `judge_llama.yaml` — Llama-3.3-70B-NVFP4 pairwise (strongest raw judge)
 
 ---
 
@@ -498,3 +498,73 @@ if any_contested or judge_mean is None:
 else:
     final = rouge_weight * rouge_l_f1 + (1 - rouge_weight) * judge_mean
 ```
+
+---
+
+## Sweep design (generate + judges)
+
+The weekly autoresearch sweep runs as a two-stage pipeline (see
+`.github/workflows/autoresearch-eval-nightly.yml` and
+`scripts/baselines/autoresearch_sweep.py`):
+
+**Stage 1 — `generate`.** Each cohort candidate is an Ollama model. We run
+`run_experiment.py --force` per candidate to materialize
+`predictions.jsonl`. Ollama-only. No `--smoke-inference-only` here — ROUGE is
+computed in this stage and consumed by the drift check. LLM judges are not
+called because the base config has no `judges:` section.
+
+The Ollama phase used to run a scalar judge cohort (gemma3:27b +
+mistral-small:24b) at this point. We retired that in favour of pure
+generate-only after 2026-W27: the available Ollama judges are same-tier
+as the candidates being tested (gemma3:27b judging mistral-small:24b),
+which is peer review, not authoritative judging.
+
+**Stage 2 — vLLM judges (one per candidate, serial swaps).** The DGX has a
+single GB10 GPU; the two vLLM judges (Qwen3-30B and Llama-3.3-70B-NVFP4)
+each need the whole GPU, so they run serially. For each judge in turn:
+
+1. Prep: `gpu-mode-swap.sh judging {a,b}` swaps the target vLLM up
+   (Ollama unloads its resident models via
+   `POST /api/generate {keep_alive: 0}` — no daemon restart).
+2. Rejudge: `score.py --rejudge` re-scores every candidate's stage-1
+   predictions against silver using this judge's yaml.
+
+The current judge cohort:
+
++ **`judge_qwen`** (Qwen3-30B-A3B-Instruct-2507-FP4, Alibaba). Cross-vendor
+  to every current candidate family (Meta, Mistral, Google, OpenAI-OSS)
+  and to the silver Anthropic reference. **Primary phase for drift
+  comparison** — the least vendor-biased judge in the cohort.
+
++ **`judge_llama`** (Llama-3.3-70B-Instruct-NVFP4, Meta). Strongest raw
+  judge. Same-vendor for Meta candidates (llama3.x) — read those scores
+  as noisy for those candidates (see `feedback_silver_judge_vendor_bias`
+  in operator memory). For non-Meta candidates the Llama-70B signal is
+  a cross-check on `judge_qwen`.
+
+**Ledger shape** (`data/autoresearch_baselines/autoresearch-YYYY-WNN.json`,
+`schema_version: 2`):
+
+```text
+judges.phases = [
+  { name: "generate",    mode: "inference_only" },  # no judges, no scores
+  { name: "judge_qwen",  mode: "pairwise", judge_a: {...} },
+  { name: "judge_llama", mode: "pairwise", judge_a: {...} },
+]
+
+cohort[i].scores_by_phase = {
+  # generate omitted — nothing was judged
+  "judge_qwen":  { scores: {...}, latency_ms: {...} },
+  "judge_llama": { scores: {...}, latency_ms: {...} },
+}
+
+cohort[i].wall_clock_by_phase = {
+  "generate":    <s>,   # inference wall-clock
+  "judge_qwen":  <s>,
+  "judge_llama": <s>,
+}
+```
+
+`check_autoresearch_drift.py` reads `judge_qwen` as the primary phase for
+week-over-week comparison. Multi-judge divergence detection is a
+follow-up on top.

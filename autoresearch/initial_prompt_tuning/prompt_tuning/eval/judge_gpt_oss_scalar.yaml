@@ -1,0 +1,14 @@
+# Ollama gpt-oss:120b — SCALAR mode variant of judge_gpt_oss.yaml.
+# Same physical Ollama model; sweep runs both modes back-to-back after
+# the pairwise phase\'s prep_cmd brought DGX to idle.
+
+mode: scalar
+
+# NO prep_cmd — paired pairwise yaml already brought DGX to idle.
+
+judge_a:
+  provider: ollama
+  model: gpt-oss:120b
+
+judge_families:
+  - OpenAI-OSS

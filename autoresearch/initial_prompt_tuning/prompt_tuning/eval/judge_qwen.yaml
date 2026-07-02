@@ -1,9 +1,16 @@
-# vLLM judge A — one of two sequential single-judge phases in the
-# multi-judge autoresearch sweep. Paired with judge_config_vllm_b.yaml.
+# vLLM Qwen judge — first authoritative judge phase in the multi-judge
+# autoresearch sweep. Paired with judge_llama.yaml.
+#
+# Design intent (see autoresearch/JUDGING.md): the sweep's Ollama phase
+# is generate-only (candidate inference, NO judging) because the Ollama
+# models on the DGX (gemma3:27b, mistral-small:24b) are same-tier as the
+# candidates being tested — peer review, not authoritative. Real judging
+# happens in the vLLM phases, where each judge is strictly bigger/
+# stronger than any cohort candidate.
 #
 # Physical setup (homelab):
 #   Container:      vllm-judge-a  (~/agentic-ai-homelab/infra/vllm/judge-a/)
-#   Port:           8003  (shared with autoresearch + judge-b — see below)
+#   Port:           8003  (shared with autoresearch + judge-llama — see below)
 #   Served model:   NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
 #   Served alias:   judge-a  (declared via ``--served-model-name``)
 #
@@ -15,22 +22,28 @@
 # gpu-mode-swap.sh enforces the single-owner invariant so the port re-use
 # is safe (detection is by ``docker ps`` container name, not port).
 #
+# Cross-vendor: Qwen (Alibaba) is disjoint from every cohort candidate
+# family (Meta, Mistral, Google, OpenAI-OSS) and from the silver
+# reference (Anthropic Sonnet46). No same-vendor style boost — this is
+# the drift-check primary phase.
+#
 # Single-judge phase: judge_b is intentionally absent. Contest fraction
 # is not applicable (see ``judge_one_episode_pairwise`` single-judge
 # branch in ``autoresearch_track_a.py``).
 #
-# Env: VLLM_API_BASE (or DGX_TAILNET_FQDN → :8004/v1); VLLM_API_KEY
+# Env: VLLM_API_BASE (or DGX_TAILNET_FQDN → :8003/v1); VLLM_API_KEY
 # for the ``--api-key`` the container serves under.
 
 mode: pairwise
 
-# Prep command — run by the multi-phase sweep BEFORE starting this
-# phase's judging. Invokes ``gpu-mode-swap.sh judging a`` on the DGX via
+# Prep command — run by the sweep BEFORE this judge phase's re-scoring.
+# Invokes ``gpu-mode-swap.sh judging a`` on the DGX via
 # ``scripts/ops/dgx_gpu_mode.sh``, which stops any other vLLM compose
 # (autoresearch, coder-next, judge-b) and brings vllm-judge-a up.
-# gpu-mode-swap.sh also flushes Ollama's GPU-resident models via
-# systemctl restart so the vLLM boot doesn't OOM. Sweep waits for the
-# /health endpoint on port 8003 before proceeding.
+# gpu-mode-swap.sh also flushes Ollama's GPU-resident models via the
+# Ollama /api/generate keep_alive=0 loop (no daemon restart, no root
+# needed) so the vLLM boot doesn't OOM. Sweep waits for the /health
+# endpoint on port 8003 before proceeding.
 #
 # The shim ``dgx_gpu_mode.sh`` picks the transport: from a developer
 # laptop it SSHes; from the DGX self-hosted GHA runner (which sets
@@ -50,3 +63,11 @@ judge_a:
   # is templated from ``DGX_TAILNET_FQDN`` at runtime — the sweep script
   # substitutes ``${DGX_TAILNET_FQDN}`` before invoking score.py.
   api_base: http://${DGX_TAILNET_FQDN}:8003/v1
+
+# Candidate families flagged as ``same_family_judge`` under THIS phase.
+# The sweep's leaderboard marks any cohort candidate whose family
+# matches an entry here with a ``⚠ same-family`` badge — visibility
+# on the vendor-bias risk the operator memory
+# ``feedback_silver_judge_vendor_bias`` warns about.
+judge_families:
+  - Alibaba

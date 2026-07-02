@@ -1,0 +1,32 @@
+# vLLM Qwen judge — SCALAR mode variant of judge_qwen.yaml.
+#
+# Paired mode with judge_qwen.yaml (pairwise). Scalar mode asks the judge to
+# score each summary on a 4-dimensional rubric (Coverage / Accuracy /
+# Efficiency / Coherence) 1-5 and returns the mean. Score is normalized
+# to [0, 1] via (mean - 1) / 4. This produces the ABSOLUTE-quality signal
+# comparable with the June G-Eval methodology, whereas pairwise mode
+# produces a PREFERENCE-vs-silver signal.
+#
+# Same physical vLLM as judge_qwen.yaml — the prep_cmd is identical, no
+# separate GPU swap needed. Scalar rejudge follows immediately after
+# pairwise rejudge in the same phase-b window when the sweep uses both.
+#
+# Container:      vllm-judge-a  (~/agentic-ai-homelab/infra/vllm/judge-a/)
+# Port:           8003
+# Served model:   NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
+# Served alias:   judge-a
+
+mode: scalar
+
+# NO prep_cmd here — the paired pairwise yaml owns the swap. When the sweep
+# runs BOTH pairwise + scalar back-to-back, the scalar yaml intentionally
+# omits prep_cmd so we don't re-swap between the two rejudges (both hit
+# the same vLLM).
+
+judge_a:
+  provider: vllm
+  model: judge-a
+  api_base: http://${DGX_TAILNET_FQDN}:8003/v1
+
+judge_families:
+  - Alibaba

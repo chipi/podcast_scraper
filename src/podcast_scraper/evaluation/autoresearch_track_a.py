@@ -525,13 +525,24 @@ def mean_judge_scores(
     openai_key: str,
     anthropic_key: str,
 ) -> Tuple[float, bool, List[JudgeOutcome]]:
-    """Return (mean of per-episode judge midpoints, any_contested, per_episode outcomes)."""
+    """Return (mean of per-episode judge midpoints, any_contested, per_episode outcomes).
+
+    Handles both dual-judge (traditional openai+anthropic) and single-judge
+    scalar mode (judge_b absent — the multi-judge sweep's per-phase yamls).
+    In single-judge mode, judge_a's score fills both slots so downstream
+    aggregation (a+b)/2 collapses to judge_a. contested is always False.
+    """
     ja = judge_cfg.get("judge_a") or {}
     jb = judge_cfg.get("judge_b") or {}
     j_a_prov = str(ja.get("provider", "openai"))
     j_a_model = str(ja["model"])
-    j_b_prov = str(jb.get("provider", "anthropic"))
-    j_b_model = str(jb["model"])
+    single_judge = not (jb and jb.get("model"))
+    if single_judge:
+        j_b_prov = j_a_prov
+        j_b_model = j_a_model
+    else:
+        j_b_prov = str(jb.get("provider", "anthropic"))
+        j_b_model = str(jb["model"])
 
     eids = [str(p.get("episode_id")) for p in predictions if p.get("episode_id")]
     transcripts = transcripts_by_episode_id(
@@ -549,17 +560,31 @@ def mean_judge_scores(
             logger.warning("Skipping judge for episode %s: empty summary", eid)
             continue
         tr = transcripts.get(str(eid), "")
-        o = judge_one_episode(
-            rubric=rubric,
-            transcript=tr,
-            summary=summary,
-            judge_a_provider=j_a_prov,
-            judge_a_model=j_a_model,
-            judge_b_provider=j_b_prov,
-            judge_b_model=j_b_model,
-            openai_key=openai_key,
-            anthropic_key=anthropic_key,
-        )
+        if single_judge:
+            # One judge call, replicated into both slots so (a+b)/2 collapses
+            # to judge_a. Saves the second call's cost — this is why we don't
+            # just alias jb=ja.
+            user_msg = _judge_user_message(rubric=rubric, transcript=tr, summary=summary)
+            s_a = _call_judge(
+                j_a_prov,
+                model=j_a_model,
+                user_content=user_msg,
+                openai_key=openai_key,
+                anthropic_key=anthropic_key,
+            )
+            o = JudgeOutcome(judge_a=s_a, judge_b=s_a, contested=False)
+        else:
+            o = judge_one_episode(
+                rubric=rubric,
+                transcript=tr,
+                summary=summary,
+                judge_a_provider=j_a_prov,
+                judge_a_model=j_a_model,
+                judge_b_provider=j_b_prov,
+                judge_b_model=j_b_model,
+                openai_key=openai_key,
+                anthropic_key=anthropic_key,
+            )
         outcomes.append(o)
         mids.append((o.judge_a + o.judge_b) / 2.0)
         if o.contested:

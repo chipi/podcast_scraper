@@ -3097,33 +3097,35 @@ ml-param-sweep:
 	echo "Running ML param sweep for MODEL=$(MODEL)..."; \
 	eval $$cmd
 
-autoresearch-sweep-multi:
-	@# Multi-judge sweep with vLLM model swaps between phases.
+autoresearch-sweep-local:
+	@# Run the weekly autoresearch sweep from a laptop, without GHA
+	@# round-trip. Mirrors .github/workflows/autoresearch-eval-nightly.yml
+	@# (dataset materialize → generate + 2 vLLM judges → leaderboard),
+	@# minus the ledger commit (local iteration, don't pollute git).
 	@#
-	@# Phase 1: Ollama judges (fast, cheap baseline — the current W27 config).
-	@# Phase 2: vLLM judge #1 (e.g. Qwen3-30B-A3B, whatever vLLM is serving
-	@#          when you bring it up).
-	@# Phase 3: vLLM judge #2 (swap vLLM to a different model, e.g.
-	@#          llama3.3:70b via Ollama sibling — or a second vLLM model).
+	@# Sweep design (see autoresearch/JUDGING.md):
+	@#   Stage 1 — generate:      Ollama inference-only per candidate.
+	@#   Stage 2 — judge_qwen:    swap to Qwen3-30B-A3B (vLLM), pairwise rejudge.
+	@#   Stage 3 — judge_llama:   swap to Llama-3.3-70B (vLLM), pairwise rejudge.
+	@#   Stage 4 — judge_gpt_oss: Ollama gpt-oss:120b (idle DGX), pairwise rejudge.
+	@# GPU swaps run automatically via each judge yaml's prep_cmd
+	@# (scripts/ops/dgx_gpu_mode.sh judging a|b → gpu-mode-swap.sh).
 	@#
-	@# Predictions generated ONCE (phase 1); phases 2-3 use --rejudge so
-	@# each candidate's summary stays identical across all three judge panels.
-	@# That's the 3-column comparison ledger the operator asked for.
-	@#
-	@# Between phases this target PAUSES and prints instructions for
-	@# swapping vLLM's served model — the operator or a homelab script
-	@# performs the swap (this repo can't docker-manage DGX from the
-	@# laptop), then presses Enter to continue.
+	@# Writes the ledger to
+	@#   data/autoresearch_baselines/autoresearch-local-<utc-timestamp>.json
+	@# (gitignored) — NOT autoresearch-YYYY-WNN.json — so it never collides
+	@# with what the nightly GHA workflow writes.
 	@#
 	@# Usage:
-	@#   make autoresearch-sweep-multi                        # full cohort, 3 phases
-	@#   make autoresearch-sweep-multi LIMIT=1                # smoke first candidate
-	@#   make autoresearch-sweep-multi \
-	@#     PHASE_CONFIGS="path/a.yaml,path/b.yaml,path/c.yaml"  # custom judge configs
+	@#   make autoresearch-sweep-local             # full cohort
+	@#   make autoresearch-sweep-local LIMIT=1     # smoke first candidate
+	@#   make autoresearch-sweep-local \
+	@#     JUDGE_CONFIGS="path/a.yaml,path/b.yaml" # custom judges
 	@#
-	@# Default PHASE_CONFIGS: judge_config_ollama, judge_config_vllm.
-	@# Set to a longer comma-list to fan out to 3+ phases; the operator
-	@# gets prompted before phase 2..N to swap the vLLM served model.
+	@# Required env (on tailnet to reach DGX):
+	@#   OLLAMA_API_BASE=http://<dgx-tailnet>:11434/v1  OR
+	@#   DGX_TAILNET_FQDN=<dgx-tailnet-fqdn>            (resolved → :11434/v1)
+	@#   VLLM_API_KEY=<key>                             (homelab default: buddy-is-the-king)
 	@if [ -z "$$OLLAMA_API_BASE" ] && [ -z "$$DGX_TAILNET_FQDN" ]; then \
 		echo "❌ Set OLLAMA_API_BASE or DGX_TAILNET_FQDN (must be on tailnet)."; \
 		exit 1; \
@@ -3134,12 +3136,12 @@ autoresearch-sweep-multi:
 		echo "   Current homelab default: buddy-is-the-king"; \
 		exit 1; \
 	fi
-	@PHASE_CONFIGS_DEFAULT="autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_config_ollama.yaml,autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_config_vllm_a.yaml,autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_config_vllm_b.yaml"; \
-	PHASE_CONFIGS="$${PHASE_CONFIGS:-$$PHASE_CONFIGS_DEFAULT}"; \
+	@JUDGE_CONFIGS_DEFAULT="autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_qwen.yaml,autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_llama.yaml,autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_gpt_oss.yaml"; \
+	JUDGE_CONFIGS="$${JUDGE_CONFIGS:-$$JUDGE_CONFIGS_DEFAULT}"; \
 	TIMESTAMP=$$(date -u +'%Y%m%dT%H%M%SZ'); \
-	OUT_PATH="data/autoresearch_baselines/autoresearch-local-multi-$$TIMESTAMP.json"; \
-	echo "→ Multi-judge sweep"; \
-	echo "  Phase configs: $$PHASE_CONFIGS"; \
+	OUT_PATH="data/autoresearch_baselines/autoresearch-local-$$TIMESTAMP.json"; \
+	echo "→ Autoresearch sweep (local)"; \
+	echo "  Judge configs: $$JUDGE_CONFIGS"; \
 	echo "  Ledger: $$OUT_PATH  (gitignored)"; \
 	echo ""; \
 	echo "→ Materializing curated_5feeds_smoke_v2 dataset"; \
@@ -3153,95 +3155,22 @@ autoresearch-sweep-multi:
 		LIMIT_ARG=""; \
 	fi; \
 	echo ""; \
-	echo "→ Ensuring GPU is idle before phase 1 (Ollama needs full GPU)"; \
+	echo "→ Ensuring GPU is idle before generate (Ollama needs full GPU)"; \
 	scripts/ops/dgx_gpu_mode.sh idle || { echo "❌ dgx_gpu_mode.sh idle failed"; exit 1; }; \
 	echo ""; \
-	echo "→ Running multi-phase sweep. Phase transitions run their own"; \
-	echo "  prep_cmd (gpu-mode-swap.sh judging {a,b}) — no manual swap needed."; \
+	echo "→ Running sweep. Phase transitions run their own prep_cmd"; \
+	echo "  (gpu-mode-swap.sh judging {a,b}) — no manual swap needed."; \
 	echo ""; \
 	$(PYTHON) scripts/baselines/autoresearch_sweep.py \
-		--judge-configs "$$PHASE_CONFIGS" \
+		--judge-configs "$$JUDGE_CONFIGS" \
 		--output "$$OUT_PATH" \
 		$$LIMIT_ARG \
 		--print-leaderboard; \
 	echo ""; \
-	echo "✓ Multi-judge sweep complete."; \
-	echo "  Ledger: $$OUT_PATH"; \
-	echo "  Inspect with: jq '.cohort[].scores_by_phase' $$OUT_PATH"
-
-autoresearch-sweep-local:
-	@# Run the full weekly autoresearch sweep from the laptop, without GHA
-	@# round-trip. Mirrors .github/workflows/autoresearch-eval-nightly.yml's
-	@# core phases (dataset materialize → sweep → drift check → leaderboard)
-	@# minus the docker stop/start (which needs DGX-runner privileges) and
-	@# minus the ledger commit (local iteration, don't pollute git).
-	@#
-	@# Writes the ledger to
-	@#   data/autoresearch_baselines/autoresearch-local-<utc-timestamp>.json
-	@# (gitignored) — NOT autoresearch-YYYY-WNN.json — so it never
-	@# collides with what the nightly GHA workflow writes.
-	@#
-	@# Usage:
-	@#   make autoresearch-sweep-local                        # full cohort, vLLM judges (default)
-	@#   make autoresearch-sweep-local LIMIT=1                # smoke first candidate
-	@#   make autoresearch-sweep-local JUDGES=ollama          # stick with the current Ollama judges
-	@#   make autoresearch-sweep-local LIMIT=3 JUDGES=vllm    # 3 candidates + bigger vLLM judges
-	@#
-	@# Required env (on tailnet to reach DGX):
-	@#   OLLAMA_API_BASE=http://<dgx-tailnet>:11434/v1  OR
-	@#   DGX_TAILNET_FQDN=<dgx-tailnet-fqdn>           (resolved → :11434/v1)
-	@# For JUDGES=vllm, also VLLM_API_BASE (or reuse DGX_TAILNET_FQDN → :8003/v1)
-	@# AND ``vllm-autoresearch`` container UP with the models declared in
-	@# judge_config_vllm.yaml actually being served.
-	@#
-	@# Sweep contends with vLLM if it's up (JUDGES=ollama) — stop
-	@# ``vllm-autoresearch`` on DGX first for clean Ollama numbers.
-	@if [ -z "$$OLLAMA_API_BASE" ] && [ -z "$$DGX_TAILNET_FQDN" ]; then \
-		echo "❌ Set OLLAMA_API_BASE or DGX_TAILNET_FQDN (must be on tailnet)."; \
-		exit 1; \
-	fi
-	@JUDGES=$${JUDGES:-vllm}; \
-	case "$$JUDGES" in \
-		ollama) \
-			JUDGE_CONFIG_PATH="autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_config_ollama.yaml"; \
-			echo "  Judges: Ollama (gemma3:27b-q8 + mistral-small:24b) — smaller, may saturate"; \
-			;; \
-		vllm) \
-			JUDGE_CONFIG_PATH="autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_config_vllm.yaml"; \
-			echo "  Judges: hybrid vLLM(Qwen3-30B-A3B-Instruct-2507) + Ollama(llama3.3:70b)"; \
-			echo "          — bigger than W27, gemma/mistral candidates unflagged"; \
-			;; \
-		*) \
-			echo "❌ JUDGES=$$JUDGES not recognised. Use JUDGES=ollama or JUDGES=vllm."; \
-			exit 1; \
-			;; \
-	esac; \
-	TIMESTAMP=$$(date -u +'%Y%m%dT%H%M%SZ'); \
-	OUT_PATH="data/autoresearch_baselines/autoresearch-local-$$TIMESTAMP.json"; \
-	echo "  Ledger: $$OUT_PATH  (gitignored, so no collision with the weekly GHA ledger)"; \
-	echo ""; \
-	echo "→ Materializing curated_5feeds_smoke_v2 dataset"; \
-	$(MAKE) dataset-materialize DATASET_ID=curated_5feeds_smoke_v2; \
-	echo ""; \
-	echo "→ Running cohort sweep (per-model tuned paragraph prompts)"; \
-	if [ -n "$(LIMIT)" ]; then \
-		echo "  Limit: first $(LIMIT) candidate(s)"; \
-		$(PYTHON) scripts/baselines/autoresearch_sweep.py \
-			--judge-config "$$JUDGE_CONFIG_PATH" \
-			--output "$$OUT_PATH" \
-			--limit $(LIMIT) --print-leaderboard; \
-	else \
-		echo "  Limit: full cohort (or cohort.default_limit)"; \
-		$(PYTHON) scripts/baselines/autoresearch_sweep.py \
-			--judge-config "$$JUDGE_CONFIG_PATH" \
-			--output "$$OUT_PATH" \
-			--print-leaderboard; \
-	fi; \
-	echo ""; \
-	echo "✓ Local sweep complete."; \
+	echo "✓ Autoresearch sweep complete."; \
 	echo "  Ledger: $$OUT_PATH"; \
 	echo "  Ledger is gitignored — inspect with jq / git-diff-safe."; \
-	echo "  Drift check skipped for local runs (no weekly-week alignment)."
+	echo "  Drift check skipped for local runs (no week-over-week alignment)."
 
 autoresearch-score:
 	@# Autoresearch Track A: reuse run_experiment + metrics, then optional LLM judges; final scalar on stdout.

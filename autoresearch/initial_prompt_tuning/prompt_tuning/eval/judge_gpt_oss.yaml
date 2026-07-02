@@ -1,0 +1,40 @@
+# Ollama gpt-oss:120b judge — fourth authoritative judge for the
+# multi-judge sweep. Different transport from the vLLM judges (Ollama on
+# port 11434 instead of vLLM on 8003).
+#
+# Model: gpt-oss:120b (OpenAI\'s open-weights release, MXFP4-quant on
+# Ollama, ~63 GB VRAM). Already pulled on DGX Ollama.
+#
+# Cross-vendor: OpenAI is disjoint from every current cohort candidate
+# family AND from the silver reference (Anthropic Sonnet 4.6). Also
+# disjoint from Qwen + Llama + Gemma judges, giving us the widest
+# vendor spread in the judge cohort.
+#
+# Transport reason: gpt-oss:120b IS available as vLLM/HuggingFace but
+# the Ollama-packaged MXFP4 quant is already downloaded and known to
+# work. Ollama-served judges are called via the same OpenAI-compatible
+# ``/v1/chat/completions`` API surface as vLLM, so the sweep\'s judge
+# transport code path is identical (see judges/ollama_chat.py).
+#
+# GPU coordination: because gpt-oss:120b lives on Ollama (port 11434,
+# NOT the vLLM :8003 slot), the prep_cmd runs ``gpu-mode-swap.sh idle``
+# to bring ALL vLLMs down. Ollama then owns the GPU during this phase\'s
+# judging window; the next phase\'s prep_cmd (a vLLM swap) will call
+# Ollama\'s /api/generate keep_alive=0 loop to unload gpt-oss and free
+# the GPU for vLLM.
+
+mode: pairwise
+
+# GPU_MODE_START_TIMEOUT is short — no vLLM cold boot; just wait for the
+# swap script\'s idle action to complete (compose-down of any current
+# vLLM). The FIRST Ollama call to gpt-oss:120b will incur a ~30-60s
+# cold load into GPU memory. That\'s inside the judging window, not in
+# prep.
+prep_cmd: GPU_MODE_START_TIMEOUT=60 scripts/ops/dgx_gpu_mode.sh idle
+
+judge_a:
+  provider: ollama
+  model: gpt-oss:120b
+
+judge_families:
+  - OpenAI-OSS  # not in our current cohort — no candidate flagged

@@ -254,8 +254,8 @@ def main() -> int:
         default=None,
         help=(
             "Path to judge YAML (judge_a/judge_b provider+model). Defaults to "
-            "judge_config.yaml next to this script. Use judge_config_ollama.yaml "
-            "for the DGX Ollama-only smoke (provider: ollama for both judges)."
+            "judge_config.yaml next to this script. Use judge_qwen.yaml / "
+            "judge_llama.yaml for the DGX vLLM judges consumed by the sweep."
         ),
     )
     parser.add_argument(

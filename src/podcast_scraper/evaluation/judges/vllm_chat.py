@@ -72,7 +72,7 @@ class VllmChatJudge:
         api_base: Optional[str] = None,
         api_key: Optional[str] = None,
         model: str,
-        request_timeout_s: float = 600.0,
+        request_timeout_s: float = 180.0,
         thinking: bool = False,
         client: object | None = None,
     ) -> None:

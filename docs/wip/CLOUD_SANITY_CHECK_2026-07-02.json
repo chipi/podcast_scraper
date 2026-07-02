@@ -1,0 +1,120 @@
+{
+  "mistral-nemo:12b": {
+    "elapsed_s": 36.0,
+    "scores": {
+      "final": 0.4282468781725948,
+      "rougeL_f1": 0.24920982596084965,
+      "judge_mean": 0.8460000000000001,
+      "judge_a_mean": 0.908,
+      "judge_b_mean": 0.784,
+      "judges_delta": 0.124,
+      "contested_rate": 0.0,
+      "rouge_weight": 0.7,
+      "pairwise": null
+    },
+    "latency_ms": {
+      "median": 14830.796718597412,
+      "p95": 26240.57412147522,
+      "avg": 17252.69980430603
+    },
+    "raw_breakdown": {
+      "model": "mistral-nemo:12b",
+      "backend_type": "ollama",
+      "judges": {
+        "judge_a": {
+          "provider": "openai",
+          "model": "gpt-5.4"
+        },
+        "judge_b": {
+          "provider": "anthropic",
+          "model": "claude-sonnet-4-6"
+        }
+      },
+      "silver": "silver_sonnet46_smoke_v2",
+      "dataset": "curated_5feeds_smoke_v2",
+      "judge_mode": "scalar",
+      "scores": {
+        "final": 0.4282468781725948,
+        "rougeL_f1": 0.24920982596084965,
+        "judge_mean": 0.8460000000000001,
+        "judge_a_mean": 0.908,
+        "judge_b_mean": 0.784,
+        "judges_delta": 0.124,
+        "contested_rate": 0.0,
+        "rouge_weight": 0.7,
+        "pairwise": null
+      },
+      "latency_ms": {
+        "median": 14830.796718597412,
+        "p95": 26240.57412147522,
+        "avg": 17252.69980430603
+      },
+      "intrinsic": {
+        "avg_tokens": 557.8,
+        "min_tokens": 515,
+        "max_tokens": 637,
+        "gates_clean": true
+      },
+      "episodes": 5
+    }
+  },
+  "mistral-small3.2:latest": {
+    "elapsed_s": 31.4,
+    "scores": {
+      "final": 0.41576911388395,
+      "rougeL_f1": 0.22081301983421428,
+      "judge_mean": 0.8706666666666667,
+      "judge_a_mean": 0.9213333333333333,
+      "judge_b_mean": 0.82,
+      "judges_delta": 0.10133333333333339,
+      "contested_rate": 0.0,
+      "rouge_weight": 0.7,
+      "pairwise": null
+    },
+    "latency_ms": {
+      "median": 25965.182065963745,
+      "p95": 35731.81486129761,
+      "avg": 27470.129251480103
+    },
+    "raw_breakdown": {
+      "model": "mistral-small3.2:latest",
+      "backend_type": "ollama",
+      "judges": {
+        "judge_a": {
+          "provider": "openai",
+          "model": "gpt-5.4"
+        },
+        "judge_b": {
+          "provider": "anthropic",
+          "model": "claude-sonnet-4-6"
+        }
+      },
+      "silver": "silver_sonnet46_smoke_v2",
+      "dataset": "curated_5feeds_smoke_v2",
+      "judge_mode": "scalar",
+      "scores": {
+        "final": 0.41576911388395,
+        "rougeL_f1": 0.22081301983421428,
+        "judge_mean": 0.8706666666666667,
+        "judge_a_mean": 0.9213333333333333,
+        "judge_b_mean": 0.82,
+        "judges_delta": 0.10133333333333339,
+        "contested_rate": 0.0,
+        "rouge_weight": 0.7,
+        "pairwise": null
+      },
+      "latency_ms": {
+        "median": 25965.182065963745,
+        "p95": 35731.81486129761,
+        "avg": 27470.129251480103
+      },
+      "intrinsic": {
+        "avg_tokens": 458.8,
+        "min_tokens": 390,
+        "max_tokens": 542,
+        "gates_clean": true
+      },
+      "episodes": 5
+    }
+  }
+}
