@@ -255,6 +255,46 @@ def _parse_prep_cmd(prep_cmd: str) -> tuple[dict[str, str], list[str]]:
     return env, argv
 
 
+def _run_phase_prep(
+    prep_cmd: str,
+    phase_idx: int,
+    phase_name: str,
+    order_of_candidates: list[dict[str, Any]],
+    per_model_state: dict[str, dict[str, Any]],
+) -> bool:
+    """Run a phase's ``prep_cmd`` (GPU-swap hook).
+
+    Returns True on success. On failure, marks every not-yet-failed
+    candidate as failed at this phase (so later phases short-circuit via
+    the existing ``failed_phase`` check) and returns False — the caller
+    should ``continue`` to the next phase or fall through to aggregation.
+    """
+    logger.info("Phase %d prep: %s", phase_idx + 1, prep_cmd)
+    prep_env, prep_argv = _parse_prep_cmd(prep_cmd)
+    prep_proc = subprocess.run(
+        prep_argv,
+        env={**os.environ, **prep_env},
+        check=False,
+        cwd=str(REPO_ROOT),
+    )
+    if prep_proc.returncode == 0:
+        return True
+    logger.error(
+        "Phase %d prep_cmd failed (exit %d): %s — "
+        "marking remaining candidates failed at phase %s",
+        phase_idx + 1,
+        prep_proc.returncode,
+        prep_cmd,
+        phase_name,
+    )
+    for cand in order_of_candidates:
+        st = per_model_state[cand["model"]]
+        if st["missing_row"] is None and st["failed_phase"] is None:
+            st["failed_phase"] = phase_name
+            st["failed_status"] = f"prep_cmd_failed (exit {prep_proc.returncode})"
+    return False
+
+
 def _phase_name_from_judge_config(judge_config_path: Path) -> str:
     """Derive a short phase name from the judge_config filename.
 
@@ -572,29 +612,18 @@ def main() -> int:
             )
             logger.info("=" * 70)
 
-            # Per-phase prep hook. Each judge_config yaml may declare a
-            # ``prep_cmd`` — typically the SSH gpu-mode-swap invocation
-            # that brings the target vLLM up and flushes competing GPU
-            # owners. Run BEFORE the phase's judging starts. Blocks until
-            # the swap script exits successfully (or fails the phase).
+            # Per-phase prep hook (GPU swap). See _run_phase_prep — failure
+            # marks the remaining candidates as failed at this phase and we
+            # fall through to the ledger write with prior-phase data intact.
             prep_cmd = (judge_cfgs[phase_idx].get("prep_cmd") or "").strip()
-            if prep_cmd:
-                logger.info("Phase %d prep: %s", phase_idx + 1, prep_cmd)
-                prep_env, prep_argv = _parse_prep_cmd(prep_cmd)
-                prep_proc = subprocess.run(
-                    prep_argv,
-                    env={**os.environ, **prep_env},
-                    check=False,
-                    cwd=str(REPO_ROOT),
-                )
-                if prep_proc.returncode != 0:
-                    logger.error(
-                        "Phase %d prep_cmd failed (exit %d): %s",
-                        phase_idx + 1,
-                        prep_proc.returncode,
-                        prep_cmd,
-                    )
-                    return 2
+            if prep_cmd and not _run_phase_prep(
+                prep_cmd,
+                phase_idx,
+                phase_name,
+                order_of_candidates,
+                per_model_state,
+            ):
+                continue
 
             # Optional interactive pause AFTER the prep hook (belt-and-braces
             # for the operator-driven local flow). GHA workflow leaves the

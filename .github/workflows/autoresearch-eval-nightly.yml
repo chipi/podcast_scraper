@@ -168,6 +168,11 @@ jobs:
           # workflow_dispatch input; empty = full cohort.
           AUTORESEARCH_SWEEP_LIMIT: ${{ inputs.limit }}
         run: |
+          # pipefail — without it, ``python … | tee`` masks a non-zero sweep
+          # exit as tee's 0 and this step reports green while the sweep
+          # actually aborted (e.g. prep_cmd failure on a Phase-2 GPU swap).
+          set -o pipefail
+
           if [ -z "${OLLAMA_API_BASE}" ]; then
             echo "::error::DGX_OLLAMA_API_BASE unset; sweep cannot proceed"
             exit 1
