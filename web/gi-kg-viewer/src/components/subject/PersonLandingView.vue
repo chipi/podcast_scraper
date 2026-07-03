@@ -49,8 +49,10 @@ import {
 } from '../../utils/parsing'
 import { logicalEpisodeIdFromGraphNodeId } from '../../utils/graphEpisodeMetadata'
 import { buildSubjectMentionsTimeline } from '../../utils/subjectMentionsTimeline'
+import { stripLayerPrefixesForCil } from '../../utils/mergeGiKg'
 import PositionTrackerPanel from './PositionTrackerPanel.vue'
 import SubjectTimelineChart from './SubjectTimelineChart.vue'
+import PersonInitialAvatar from '../shared/PersonInitialAvatar.vue'
 
 /** Positions list cap — Persons accumulate more attributed quotes than a
  *  Topic accumulates mentions, so the cap is higher than ``TopicEntityView``'s
@@ -319,7 +321,13 @@ async function loadConnections(rawId: string): Promise<void> {
   topicsRows.value = []
   coSpeakersRows.value = []
   try {
-    const [t, c] = await Promise.all([fetchPersonTopics(root, id), fetchCoSpeakers(root, id)])
+    // Relational endpoints canonicalize on the corpus id (person:…); strip the
+    // graph layer prefix (g:/k:) first or they return empty (id-format mismatch).
+    const canonical = stripLayerPrefixesForCil(id)
+    const [t, c] = await Promise.all([
+      fetchPersonTopics(root, canonical),
+      fetchCoSpeakers(root, canonical),
+    ])
     if (connectionsGate.isStale(seq)) return
     topicsRows.value = t.results ?? []
     coSpeakersRows.value = c.results ?? []
@@ -702,6 +710,53 @@ function onPickTopicForPositionTracker(topicId: string): void {
     >
       <!-- Profile-only sections: hidden in positions view -->
       <template v-if="props.view !== 'positions'">
+        <!-- Connections first: the substance (topics discussed + who they
+             speak with) sits at the top of the panel; identity/enrichment
+             metadata follows below. -->
+        <section aria-label="Connections" data-testid="person-landing-connections">
+          <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+            Topics
+          </h3>
+          <div
+            v-if="topicsRows.length"
+            class="flex flex-wrap gap-1"
+            data-testid="person-landing-topics"
+          >
+            <span
+              v-for="t in topicsRows"
+              :key="t.id"
+              class="rounded bg-overlay px-1.5 py-0.5 text-[10px] text-surface-foreground"
+              data-testid="person-landing-topic-chip"
+            >{{ t.text }}</span>
+          </div>
+          <p v-else class="text-[10px] text-muted" data-testid="person-landing-topics-empty">
+            No topics for this voice yet.
+          </p>
+          <h3 class="mb-1 mt-2 text-[10px] font-semibold uppercase tracking-wider text-muted">
+            In the same conversation
+          </h3>
+          <div
+            v-if="coSpeakersRows.length"
+            class="flex flex-wrap gap-1"
+            data-testid="person-landing-co-speakers"
+          >
+            <button
+              v-for="p in coSpeakersRows"
+              :key="p.id"
+              type="button"
+              class="inline-flex items-center gap-1 rounded bg-overlay py-0.5 pl-0.5 pr-1.5 text-[10px] text-surface-foreground hover:bg-overlay-2"
+              data-testid="person-landing-co-speaker-chip"
+              :title="`Open ${p.text}`"
+              @click="subject.focusPerson(p.id)"
+            >
+              <PersonInitialAvatar :name="p.text" />
+              {{ p.text }}
+            </button>
+          </div>
+          <p v-else class="text-[10px] text-muted" data-testid="person-landing-co-speakers-empty">
+            No co-speakers share a topic with this voice yet.
+          </p>
+        </section>
         <p
           v-if="personAliases"
           class="text-[11px] text-muted"
@@ -858,44 +913,6 @@ function onPickTopicForPositionTracker(topicId: string): void {
         </ul>
       </section>
 
-      <section aria-label="Connections" data-testid="person-landing-connections">
-        <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
-          Topics
-        </h3>
-        <div
-          v-if="topicsRows.length"
-          class="flex flex-wrap gap-1"
-          data-testid="person-landing-topics"
-        >
-          <span
-            v-for="t in topicsRows"
-            :key="t.id"
-            class="rounded bg-overlay px-1.5 py-0.5 text-[10px] text-surface-foreground"
-            data-testid="person-landing-topic-chip"
-          >{{ t.text }}</span>
-        </div>
-        <p v-else class="text-[10px] text-muted" data-testid="person-landing-topics-empty">
-          No topics for this voice yet.
-        </p>
-        <h3 class="mb-1 mt-2 text-[10px] font-semibold uppercase tracking-wider text-muted">
-          In the same conversation
-        </h3>
-        <div
-          v-if="coSpeakersRows.length"
-          class="flex flex-wrap gap-1"
-          data-testid="person-landing-co-speakers"
-        >
-          <span
-            v-for="p in coSpeakersRows"
-            :key="p.id"
-            class="rounded bg-overlay px-1.5 py-0.5 text-[10px] text-surface-foreground"
-            data-testid="person-landing-co-speaker-chip"
-          >{{ p.text }}</span>
-        </div>
-        <p v-else class="text-[10px] text-muted" data-testid="person-landing-co-speakers-empty">
-          No co-speakers share a topic with this voice yet.
-        </p>
-      </section>
       <!-- #909 / #1048 — corpus-wide quotes this person spoke across ALL episodes (CIL person_profile). -->
       <section
         v-if="corpusLoading || corpusError || corpusQuotes.length"

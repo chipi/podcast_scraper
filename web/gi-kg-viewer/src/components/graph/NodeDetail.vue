@@ -1599,7 +1599,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
         :tabindex="graphRailDetailTab === 'position_tracker' ? 0 : -1"
         @click="graphRailDetailTab = 'position_tracker'"
       >
-        Position Tracker
+        Positions
       </button>
       <button
         v-if="signalsTabHasContent"

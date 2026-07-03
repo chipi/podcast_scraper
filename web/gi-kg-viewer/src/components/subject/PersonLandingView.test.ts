@@ -33,23 +33,23 @@ function rel(id: string, text: string, type: string) {
   return { id, type, text, show_id: '', episode_id: '' }
 }
 
-function makePersonArtifact(): ParsedArtifact {
+function makePersonArtifact(nodeId = 'person:alice'): ParsedArtifact {
   return {
     id: 'a1',
     kind: 'gi',
     data: {
       nodes: [
-        { id: 'person:alice', type: 'Person', properties: { name: 'Alice' } },
+        { id: nodeId, type: 'Person', properties: { name: 'Alice' } },
       ],
       edges: [],
     },
   } as unknown as ParsedArtifact
 }
 
-async function mountWith(): Promise<ReturnType<typeof mount>> {
-  const personId = 'person:alice'
+async function mountWith(idOverride = 'person:alice'): Promise<ReturnType<typeof mount>> {
+  const personId = idOverride
   const artifacts = useArtifactsStore()
-  artifacts.parsedList = [makePersonArtifact()]
+  artifacts.parsedList = [makePersonArtifact(personId)]
   const shell = useShellStore()
   shell.corpusPath = '/corpus'
   shell.healthStatus = 'ok'
@@ -92,10 +92,14 @@ describe('PersonLandingView — connections (#1055)', () => {
     expect(topics.exists()).toBe(true)
   })
 
-  it('renders co-speakers as chips', async () => {
+  it('renders co-speakers as chips with a person letter avatar', async () => {
     const w = await mountWith()
     const chips = w.findAll('[data-testid="person-landing-co-speaker-chip"]')
-    expect(chips.map((c) => c.text())).toEqual(['Bob'])
+    expect(chips).toHaveLength(1)
+    expect(chips[0].text()).toContain('Bob')
+    const avatar = chips[0].find('[data-testid="person-initial-avatar"]')
+    expect(avatar.exists()).toBe(true)
+    expect(avatar.text()).toBe('B')
   })
 
   it('shows empty-state copy when there are no co-speakers', async () => {
@@ -107,6 +111,16 @@ describe('PersonLandingView — connections (#1055)', () => {
 
   it('queries the relational connection endpoints with the corpus path + person id', async () => {
     await mountWith()
+    expect(fetchPersonTopics).toHaveBeenCalledWith('/corpus', 'person:alice')
+    expect(fetchCoSpeakers).toHaveBeenCalledWith('/corpus', 'person:alice')
+  })
+
+  // Regression: the graph node id carries a layer prefix (g:/k:) but the
+  // relational endpoints canonicalize on the bare corpus id — passing the
+  // prefixed id returned 0 topics / 0 co-speakers (systematically empty
+  // Connections). loadConnections must strip the prefix first.
+  it('strips the graph layer prefix before querying relational endpoints', async () => {
+    await mountWith('g:person:alice')
     expect(fetchPersonTopics).toHaveBeenCalledWith('/corpus', 'person:alice')
     expect(fetchCoSpeakers).toHaveBeenCalledWith('/corpus', 'person:alice')
   })
