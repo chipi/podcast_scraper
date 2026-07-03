@@ -195,6 +195,26 @@ async function loadConnections(rawId: string): Promise<void> {
 
 watch(personGraphNodeId, (id) => void loadConnections(id ?? ''), { immediate: true })
 
+// Prolific speakers (esp. hosts) accumulate many topics + co-speakers. The
+// relational endpoints already return these ranked, so cap the display to a
+// preview and let the user expand. Collapse again on person change.
+const TOPICS_PREVIEW = 12
+const COSPEAKERS_PREVIEW = 8
+const topicsExpanded = ref(false)
+const coSpeakersExpanded = ref(false)
+const visibleTopics = computed(() =>
+  topicsExpanded.value ? topicsRows.value : topicsRows.value.slice(0, TOPICS_PREVIEW),
+)
+const visibleCoSpeakers = computed(() =>
+  coSpeakersExpanded.value
+    ? coSpeakersRows.value
+    : coSpeakersRows.value.slice(0, COSPEAKERS_PREVIEW),
+)
+watch(personGraphNodeId, () => {
+  topicsExpanded.value = false
+  coSpeakersExpanded.value = false
+})
+
 /**
  * #909 — corpus-wide quotes this person spoke across ALL episodes, from the CIL
  * ``person_profile`` endpoint (``GET /api/persons/{id}/brief``). Resolves the
@@ -522,11 +542,18 @@ function onPickTopicForPositionTracker(topicId: string): void {
             data-testid="person-landing-topics"
           >
             <span
-              v-for="t in topicsRows"
+              v-for="t in visibleTopics"
               :key="t.id"
               class="rounded bg-overlay px-1.5 py-0.5 text-[10px] text-surface-foreground"
               data-testid="person-landing-topic-chip"
             >{{ t.text }}</span>
+            <button
+              v-if="topicsRows.length > TOPICS_PREVIEW"
+              type="button"
+              class="rounded px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-overlay"
+              data-testid="person-landing-topics-toggle"
+              @click="topicsExpanded = !topicsExpanded"
+            >{{ topicsExpanded ? 'Show less' : `+${topicsRows.length - TOPICS_PREVIEW} more` }}</button>
           </div>
           <p v-else class="text-[10px] text-muted" data-testid="person-landing-topics-empty">
             No topics for this voice yet.
@@ -540,7 +567,7 @@ function onPickTopicForPositionTracker(topicId: string): void {
             data-testid="person-landing-co-speakers"
           >
             <button
-              v-for="p in coSpeakersRows"
+              v-for="p in visibleCoSpeakers"
               :key="p.id"
               type="button"
               class="inline-flex items-center gap-1 rounded bg-overlay py-0.5 pl-0.5 pr-1.5 text-[10px] text-surface-foreground hover:bg-overlay-2"
@@ -551,6 +578,13 @@ function onPickTopicForPositionTracker(topicId: string): void {
               <PersonInitialAvatar :name="p.text" />
               {{ p.text }}
             </button>
+            <button
+              v-if="coSpeakersRows.length > COSPEAKERS_PREVIEW"
+              type="button"
+              class="self-center rounded px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-overlay"
+              data-testid="person-landing-co-speakers-toggle"
+              @click="coSpeakersExpanded = !coSpeakersExpanded"
+            >{{ coSpeakersExpanded ? 'Show less' : `+${coSpeakersRows.length - COSPEAKERS_PREVIEW} more` }}</button>
           </div>
           <p v-else class="text-[10px] text-muted" data-testid="person-landing-co-speakers-empty">
             No co-speakers share a topic with this voice yet.
