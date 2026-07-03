@@ -79,6 +79,7 @@ const panelHeading = computed(() => {
       if (id.includes('person:')) return 'Person'
       if (id.includes('org:')) return 'Organization'
       if (id.includes('topic:')) return 'Topic'
+      if (id.includes('podcast:')) return 'Podcast'
     }
     return 'Node'
   }

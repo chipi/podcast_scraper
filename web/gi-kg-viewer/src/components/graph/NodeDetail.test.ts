@@ -12,6 +12,7 @@ import NodeDetail from './NodeDetail.vue'
 // minimap), TranscriptViewerDialog, PodcastCover, and HelpTip (slot popover).
 const STUBS = {
   PersonLandingView: { name: 'PersonLandingView', template: '<div data-testid="person-landing-view" />' },
+  PodcastNodeView: { name: 'PodcastNodeView', template: '<div data-testid="podcast-node-view" />' },
   GraphConnectionsSection: true,
   TranscriptViewerDialog: true,
   PodcastCover: true,
@@ -84,6 +85,17 @@ describe('NodeDetail', () => {
     expect(w.find('aside').exists()).toBe(true)
     expect(w.find('[data-testid="topic-entity-view"]').exists()).toBe(true)
     expect(w.find('.node-detail-primary-title').text()).toBe('Interest Rates')
+  })
+
+  it('renders the podcast view for a podcast id (real node or synthetic)', () => {
+    const w = mountDetail({
+      viewArtifact: artifactOf([]),
+      nodeId: 'g:podcast:planet-money',
+      embedInRail: true,
+    })
+    expect(w.find('aside').exists()).toBe(true)
+    expect(w.find('[data-testid="podcast-node-view"]').exists()).toBe(true)
+    expect(w.find('.node-detail-primary-title').text()).toBe('Planet Money')
   })
 
   it('renders the panel with the node display name and type chip for a generic node', () => {

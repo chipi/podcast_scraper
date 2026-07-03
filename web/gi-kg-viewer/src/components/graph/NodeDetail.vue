@@ -67,6 +67,7 @@ import GraphConnectionsSection from './GraphConnectionsSection.vue'
 import NodeEnrichmentSection from './NodeEnrichmentSection.vue'
 import TopicEntityView from '../subject/TopicEntityView.vue'
 import PersonLandingView from '../subject/PersonLandingView.vue'
+import PodcastNodeView from '../subject/PodcastNodeView.vue'
 import SubjectTimelineChart from '../subject/SubjectTimelineChart.vue'
 import { buildSubjectMentionsTimeline } from '../../utils/subjectMentionsTimeline'
 import TranscriptViewerDialog from '../shared/TranscriptViewerDialog.vue'
@@ -179,14 +180,17 @@ const node = computed(() => {
 // still renders the person / entity / topic view (all of which load from server
 // endpoints, independent of the viewer's graph slice) instead of an empty
 // "Node" shell.
-const inferredKindFromId = computed((): 'Person' | 'Organization' | 'Topic' | null => {
-  if (node.value) return null
-  const bare = stripLayerPrefixesForCil(props.nodeId ?? '')
-  if (bare.startsWith('person:')) return 'Person'
-  if (bare.startsWith('org:')) return 'Organization'
-  if (bare.startsWith('topic:')) return 'Topic'
-  return null
-})
+const inferredKindFromId = computed(
+  (): 'Person' | 'Organization' | 'Topic' | 'Podcast' | null => {
+    if (node.value) return null
+    const bare = stripLayerPrefixesForCil(props.nodeId ?? '')
+    if (bare.startsWith('person:')) return 'Person'
+    if (bare.startsWith('org:')) return 'Organization'
+    if (bare.startsWith('topic:')) return 'Topic'
+    if (bare.startsWith('podcast:')) return 'Podcast'
+    return null
+  },
+)
 
 const nodeType = computed(() => {
   const n = node.value
@@ -216,6 +220,9 @@ const isPersonNode = computed(() => {
   const t = nodeType.value.trim().toLowerCase()
   return t === 'person' || t === 'speaker'
 })
+
+/** Podcast / Show node — folds in the PodcastNodeView (basics + episode list). */
+const isPodcastNode = computed(() => nodeType.value.trim().toLowerCase() === 'podcast')
 
 const isTopicClusterNode = computed(
   () => nodeType.value.trim().toLowerCase() === 'topiccluster',
@@ -1099,6 +1106,7 @@ const visualType = computed(() => {
   if (!node.value && inferred) {
     if (inferred === 'Person') return 'Entity_person'
     if (inferred === 'Organization') return 'Entity_organization'
+    if (inferred === 'Podcast') return 'Podcast'
     return 'Topic'
   }
   return visualGroupForNode(node.value)
@@ -2225,6 +2233,13 @@ const graphConnectionsCenterInView = computed((): boolean => {
         v-if="isPersonNode"
         embedded
         view="profile"
+        :subject-id-override="nodeId ?? ''"
+        class="mb-1"
+      />
+
+      <!-- FB14 — Podcast/Show node: basics + episode list, from the corpus feed. -->
+      <PodcastNodeView
+        v-if="isPodcastNode"
         :subject-id-override="nodeId ?? ''"
         class="mb-1"
       />

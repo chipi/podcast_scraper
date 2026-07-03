@@ -358,7 +358,13 @@ function onPrefillSearch(): void {
             data-testid="tev-cross-show-row"
             class="min-w-0 text-[11px] leading-snug"
           >
-            <div class="flex w-full min-w-0 items-start gap-2">
+            <button
+              type="button"
+              class="flex w-full min-w-0 items-start gap-2 rounded text-left hover:bg-overlay/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              data-testid="tev-cross-show-open"
+              :title="`Open ${shortId(row.showId)}`"
+              @click="subject.focusGraphNode(row.showId)"
+            >
               <div class="shrink-0 self-start">
                 <PodcastCover
                   v-if="feedCoverFor(row.showId)"
@@ -378,7 +384,7 @@ function onPrefillSearch(): void {
                   {{ row.insight.text }}
                 </p>
               </div>
-            </div>
+            </button>
           </li>
         </ul>
       </section>
