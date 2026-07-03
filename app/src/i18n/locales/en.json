@@ -18,7 +18,10 @@
     "browseAll": "Browse all",
     "recommended": "Recommended for you",
     "shows": "All shows",
-    "resume": "Resume"
+    "resume": "Resume",
+    "trending": "Trending topics",
+    "trendingHint": "Heating up across the library lately",
+    "trendingChip": "{topic} — trending at {factor}× its recent average"
   },
   "rail": {
     "prev": "Scroll left",

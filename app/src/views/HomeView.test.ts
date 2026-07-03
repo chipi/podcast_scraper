@@ -32,6 +32,9 @@ function ep(slug: string, title: string): EpisodeSummary {
 
 beforeEach(() => {
   setActivePinia(createPinia())
+  // The embedded TrendingTopics fetches corpus enrichment; keep these tests off
+  // the network (its own coverage lives in TrendingTopics.test.ts).
+  vi.spyOn(api, 'getCorpusEnrichment').mockResolvedValue({})
   try {
     localStorage.removeItem('lp.interests.dismissed')
   } catch {

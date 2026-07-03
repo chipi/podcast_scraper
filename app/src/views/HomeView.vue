@@ -20,8 +20,10 @@ import { formatTime } from '../player/transcriptSync'
 import { formatDuration } from '../utils/format'
 import { episodeArtwork, showArtwork } from '../utils/episode'
 import { useAuthStore } from '../stores/auth'
+import EntityCard from '../components/EntityCard.vue'
 import InterestsPicker from '../components/InterestsPicker.vue'
 import QueueButton from '../components/QueueButton.vue'
+import TrendingTopics from '../components/TrendingTopics.vue'
 
 const INTERESTS_DISMISSED_KEY = 'lp.interests.dismissed'
 
@@ -34,6 +36,9 @@ const shows = ref<Podcast[]>([])
 const recommended = ref<EpisodeSummary[]>([])
 const continueItems = ref<{ detail: EpisodeDetail; position: number }[]>([])
 const query = ref('')
+
+// Trending-topic chip → open the topic entity card (overlay), same surface as Search.
+const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
 
 // First-Home dismissible "set your interests" card → opens the picker (PRD-043 FR4 / 3.5).
 const interestsDismissed = ref(false)
@@ -237,6 +242,9 @@ onMounted(async () => {
       </ul>
     </section>
 
+    <!-- Trending topics (Plan B): corpus-wide "heating up" from temporal_velocity. -->
+    <TrendingTopics @open="cardTarget = { kind: 'topic', id: $event }" />
+
     <!-- Recommended — no-scroll responsive grid -->
     <section v-if="recommended.length" class="mt-7">
       <h2 class="lp-section mb-3">{{ t('home.recommended') }}</h2>
@@ -268,5 +276,12 @@ onMounted(async () => {
         </li>
       </ul>
     </section>
+
+    <EntityCard
+      v-if="cardTarget"
+      :kind="cardTarget.kind"
+      :id="cardTarget.id"
+      @close="cardTarget = null"
+    />
   </section>
 </template>
