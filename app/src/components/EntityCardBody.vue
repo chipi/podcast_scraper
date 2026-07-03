@@ -12,6 +12,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 import { getPersonCard, getTopicCard } from '../services/api'
 import type { Entity, EpisodeSummary, PersonCard, Topic, TopicCard } from '../services/types'
+import EntitySignals from './EntitySignals.vue'
 import { useAuthStore } from '../stores/auth'
 import { useInterestsStore } from '../stores/interests'
 import { episodeArtwork } from '../utils/episode'
@@ -270,6 +271,14 @@ function searchLibrary(): void {
             </li>
           </ul>
         </section>
+
+        <!-- Enrichment signals (Plan B): grounding / co-appears / disagreements (person);
+             momentum / similar / discussed-alongside (topic). Hides itself when empty. -->
+        <EntitySignals
+          :kind="current.kind"
+          :id="current.id"
+          @open="(p) => open(p.kind, p.id)"
+        />
 
         <section v-if="relatedPeople.length" class="mb-4">
           <h3 class="lp-section mb-2">{{ t('ec.relatedPeople') }}</h3>

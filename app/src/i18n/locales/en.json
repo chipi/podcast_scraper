@@ -168,7 +168,17 @@
     "relatedTopics": "Related topics",
     "follow": "Follow",
     "following": "Following",
-    "followHint": "Add to your interests — shapes your recommendations"
+    "followHint": "Add to your interests — shapes your recommendations",
+    "sigGrounding": "Grounding",
+    "sigGroundedLine": "{grounded} of {total} claims backed by quotes ({pct}%)",
+    "sigCoappears": "Often appears with",
+    "sigDisagreements": "Where they disagree",
+    "sigOn": "on {topic}",
+    "sigMomentum": "Momentum",
+    "sig_rising": "Rising",
+    "sigVsAvg": "vs its 6-month average",
+    "sigSimilar": "Similar topics",
+    "sigAlongside": "Often discussed alongside"
   },
   "queue": {
     "title": "Queue",

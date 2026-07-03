@@ -342,6 +342,66 @@ export interface TopicCard {
   related_people: Entity[]
 }
 
+/** Corpus-scope enrichment signals (GET /api/app/corpus/enrichment → `signals`).
+ *  Enricher id → its envelope `data`. Every field is optional/best-effort: an
+ *  enricher that didn't run just doesn't appear. Only the fields the entity card
+ *  consumes are typed. */
+export interface CorpusEnrichmentSignals {
+  grounding_rate?: {
+    persons?: Array<{
+      person_id: string
+      person_name?: string
+      total_insights: number
+      grounded_insights: number
+      rate: number
+    }>
+  }
+  guest_coappearance?: {
+    pairs?: Array<{
+      person_a_id: string
+      person_b_id: string
+      person_a_name?: string
+      person_b_name?: string
+      episode_count: number
+    }>
+  }
+  nli_contradiction?: {
+    contradictions?: Array<{
+      topic_id: string
+      person_a_id: string
+      person_b_id: string
+      person_a_name?: string
+      person_b_name?: string
+      insight_a_text?: string
+      insight_b_text?: string
+    }>
+  }
+  temporal_velocity?: {
+    topics?: Array<{
+      topic_id: string
+      topic_label?: string
+      velocity_last_over_6mo?: number
+      total?: number
+    }>
+  }
+  topic_similarity?: {
+    topics?: Array<{
+      topic_id: string
+      top_k?: Array<{ topic_id: string; topic_label?: string; similarity: number }>
+    }>
+  }
+  topic_cooccurrence_corpus?: {
+    pairs?: Array<{
+      topic_a_id: string
+      topic_b_id: string
+      topic_a_label?: string
+      topic_b_label?: string
+      episode_count: number
+      lift?: number
+    }>
+  }
+}
+
 /** One grounded search hit (loosely typed — metadata/lifted vary by tier). */
 export interface SearchHit {
   doc_id: string

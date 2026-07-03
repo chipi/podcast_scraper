@@ -8,6 +8,7 @@
 
 import type {
   AudioSource,
+  CorpusEnrichmentSignals,
   EntitiesResponse,
   EntitySearchResponse,
   EpisodeDetail,
@@ -145,6 +146,24 @@ export function getPersonCard(id: string, scope?: 'all' | 'mine'): Promise<Perso
 /** Topic card — episodes-about + cluster siblings + related people (KG-grounded). */
 export function getTopicCard(id: string, scope?: 'all' | 'mine'): Promise<TopicCard> {
   return getJSON<TopicCard>(`/topics/${encodeURIComponent(id)}`, { scope })
+}
+
+// Corpus-scope enrichment is one static payload for the whole corpus, read by
+// every entity card — fetch it once per session and share the promise. On
+// failure the cache is cleared so a later card can retry.
+let _corpusEnrichment: Promise<CorpusEnrichmentSignals> | null = null
+/** Corpus-scope enrichment signals (RFC-088) — grounding / co-appearance /
+ *  contradictions / velocity / similarity / co-occurrence, keyed by enricher id. */
+export function getCorpusEnrichment(): Promise<CorpusEnrichmentSignals> {
+  if (!_corpusEnrichment) {
+    _corpusEnrichment = getJSON<{ signals: CorpusEnrichmentSignals }>('/corpus/enrichment')
+      .then((r) => r.signals ?? {})
+      .catch((err) => {
+        _corpusEnrichment = null
+        throw err
+      })
+  }
+  return _corpusEnrichment
 }
 
 /** Corpus-wide grounded search (Home "Ask your library"); empty when no index. */
