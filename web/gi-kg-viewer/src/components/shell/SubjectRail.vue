@@ -105,9 +105,21 @@ const emptyHint =
           data-testid="episode-detail-rail"
         >
           <div class="mt-1 flex shrink-0 items-center justify-between gap-2 border-b border-border pb-2">
-            <h2 class="text-xs font-semibold text-surface-foreground">
-              Episode
-            </h2>
+            <div class="flex min-w-0 items-center gap-1.5">
+              <button
+                v-if="subject.canGoBack"
+                type="button"
+                class="shrink-0 rounded border border-border px-1.5 py-0.5 text-xs font-medium text-elevated-foreground hover:bg-overlay"
+                data-testid="subject-rail-back"
+                aria-label="Back to previous node"
+                @click="subject.back()"
+              >
+                ←
+              </button>
+              <h2 class="min-w-0 truncate text-xs font-semibold text-surface-foreground">
+                Episode
+              </h2>
+            </div>
             <button
               type="button"
               class="shrink-0 self-center rounded border border-border px-1.5 py-0.5 text-xs font-medium text-elevated-foreground hover:bg-overlay"

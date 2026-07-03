@@ -132,6 +132,9 @@ export const useSubjectStore = defineStore('subject', () => {
     const sameEpisode =
       kind.value === 'episode' && episodeMetadataPath.value?.trim() === t
     if (!sameEpisode) {
+      // Record the prior graph-node subject for Back — e.g. podcast → episode
+      // should let you return to the podcast (the episode rail carries a Back).
+      if (kind.value === 'graph-node') pushHistory()
       clearFields()
     } else {
       graphNodeCyId.value = null

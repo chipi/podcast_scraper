@@ -227,6 +227,10 @@ const isPersonNode = computed(() => {
 /** Podcast / Show node — folds in the PodcastNodeView (basics + episode list). */
 const isPodcastNode = computed(() => nodeType.value.trim().toLowerCase() === 'podcast')
 
+// Show cover art emitted up by PodcastNodeView so the rail header avatar shows
+// the real cover for a podcast node instead of the generic "P" letter (P2).
+const podcastCover = ref<{ imageUrl: string | null; imageLocalRelpath: string | null } | null>(null)
+
 const isTopicClusterNode = computed(
   () => nodeType.value.trim().toLowerCase() === 'topiccluster',
 )
@@ -1506,12 +1510,25 @@ const graphConnectionsCenterInView = computed((): boolean => {
     >
       <div class="flex min-w-0 flex-1 gap-3">
         <div
-          class="flex h-[4.5rem] w-[4.5rem] shrink-0 items-center justify-center rounded-2xl font-black leading-none shadow-md ring-1 ring-black/15 dark:ring-white/15"
+          class="flex h-[4.5rem] w-[4.5rem] shrink-0 items-center justify-center overflow-hidden rounded-2xl font-black leading-none shadow-md ring-1 ring-black/15 dark:ring-white/15"
           :class="hasTopicClusterJson || isTopicClusterNode ? 'text-xl tracking-tight' : 'text-2xl'"
-          :style="nodeTypeAvatarStyle"
+          :style="
+            isPodcastNode && (podcastCover?.imageUrl || podcastCover?.imageLocalRelpath)
+              ? undefined
+              : nodeTypeAvatarStyle
+          "
           aria-hidden="true"
         >
-          {{ avatarLetter }}
+          <!-- P2 — podcast nodes show the real show cover instead of the "P" letter. -->
+          <PodcastCover
+            v-if="isPodcastNode && (podcastCover?.imageUrl || podcastCover?.imageLocalRelpath)"
+            :corpus-path="corpusPathForCovers"
+            :feed-image-url="podcastCover?.imageUrl ?? null"
+            :feed-image-local-relpath="podcastCover?.imageLocalRelpath ?? null"
+            alt=""
+            size-class="h-full w-full"
+          />
+          <template v-else>{{ avatarLetter }}</template>
         </div>
         <div class="min-h-0 min-w-0 flex-1 basis-0">
           <div class="flex min-w-0 items-start justify-between gap-1">
@@ -2240,6 +2257,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
         v-if="isPodcastNode"
         :subject-id-override="nodeId ?? ''"
         class="mb-1"
+        @cover="podcastCover = $event"
       />
 
       </div>
