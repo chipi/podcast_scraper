@@ -490,12 +490,8 @@ describe('PersonLandingView — view prop gating + positions lens', () => {
     expect(w.find('[data-testid="person-landing-positions"]').exists()).toBe(false)
   })
 
-  it('view="profile" shows edge-counts, episodes, and connections', async () => {
+  it('view="profile" shows episodes and connections', async () => {
     const w = await mountViewProp('profile')
-    // edge-counts-empty since no SPOKEN_BY/SPOKE_IN edges in fixture match the person node
-    const edgeCounts = w.find('[data-testid="person-landing-edge-counts"]')
-    const edgeCountsEmpty = w.find('[data-testid="person-landing-edge-counts-empty"]')
-    expect(edgeCounts.exists() || edgeCountsEmpty.exists()).toBe(true)
     expect(w.find('[data-testid="person-landing-episodes-appeared"]').exists()).toBe(true)
     expect(w.find('[data-testid="person-landing-connections"]').exists()).toBe(true)
   })

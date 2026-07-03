@@ -37,7 +37,6 @@ import {
 import type { RelatedNode } from '../../api/relationalApi'
 import { StaleGeneration } from '../../utils/staleGeneration'
 import {
-  countPersonEntityIncidentEdges,
   findRawNodeInArtifactByIdOrPrefixed,
   personEpisodeAppearances,
   personInsightsByTopic,
@@ -208,6 +207,18 @@ interface CorpusQuoteRow {
   id: string
   text: string
   episodeId: string | null
+  episodeTitle: string | null
+}
+
+/** Episode title embedded in a quote's transcript_ref, e.g.
+ *  ``transcripts/0006 - Trading disruption_20260613-…`` → ``Trading disruption``.
+ *  The /brief payload carries no episode title and the quote's episode_id is a
+ *  compact hex uuid that doesn't match the graph's dashed ids, so this is the
+ *  one readable episode label available client-side. */
+function episodeTitleFromTranscriptRef(ref: unknown): string | null {
+  if (typeof ref !== 'string') return null
+  const m = ref.match(/\/\d+\s*-\s*(.+?)_\d{6,}/)
+  return m ? m[1].trim() || null : null
 }
 const corpusLoading = ref(false)
 const corpusError = ref<string | null>(null)
@@ -246,7 +257,7 @@ async function loadCorpusQuotes(rawId: string): Promise<void> {
       const text = typeof p?.text === 'string' ? p.text.trim() : ''
       const episodeId =
         typeof r.episode_id === 'string' && r.episode_id.trim() ? r.episode_id.trim() : null
-      rows.push({ id: qid, text, episodeId })
+      rows.push({ id: qid, text, episodeId, episodeTitle: episodeTitleFromTranscriptRef(p?.transcript_ref) })
     }
     corpusQuotes.value = rows
   } catch (e) {
@@ -283,10 +294,6 @@ const personDescription = computed(() => {
   const d = personNode.value?.properties?.description
   return typeof d === 'string' && d.trim() ? d.trim() : ''
 })
-
-const edgeCounts = computed(() =>
-  countPersonEntityIncidentEdges(artifacts.displayArtifact, personGraphNodeId.value),
-)
 
 // #1048 — identity header additions per PRD-029.
 const personRole = computed(() => personRoleFromNode(personNode.value))
@@ -563,23 +570,6 @@ function onPickTopicForPositionTracker(topicId: string): void {
         >
           {{ personDescription }}
         </p>
-        <p
-          v-if="edgeCounts.spokenByQuotes > 0 || edgeCounts.spokeInEpisodes > 0"
-          class="text-[10px] text-muted"
-          data-testid="person-landing-edge-counts"
-        >
-          In this graph: {{ edgeCounts.spokenByQuotes }}
-          attributed quote{{ edgeCounts.spokenByQuotes === 1 ? '' : 's' }} ·
-          {{ edgeCounts.spokeInEpisodes }}
-          episode link{{ edgeCounts.spokeInEpisodes === 1 ? '' : 's' }}.
-        </p>
-        <p
-          v-else
-          class="text-[10px] text-muted"
-          data-testid="person-landing-edge-counts-empty"
-        >
-          No graph links for this person yet — load the corpus graph to populate.
-        </p>
       <!-- #1050 — UXS-010 "Episodes appeared in" — SPOKE_IN-derived list,
            newest-first. Replaces the prior numeric-only count signal in the
            identity header (we keep that count for at-a-glance, but expose
@@ -847,10 +837,10 @@ function onPickTopicForPositionTracker(topicId: string): void {
                   {{ row.text || row.id }}
                 </blockquote>
                 <p
-                  v-if="row.episodeId"
+                  v-if="row.episodeTitle"
                   class="mt-0.5 text-[10px] text-muted"
                 >
-                  {{ row.episodeId }}
+                  {{ row.episodeTitle }}
                 </p>
               </li>
             </ul>
@@ -1026,10 +1016,10 @@ function onPickTopicForPositionTracker(topicId: string): void {
               {{ row.text || row.id }}
             </blockquote>
             <p
-              v-if="row.episodeId"
+              v-if="row.episodeTitle"
               class="mt-0.5 text-[10px] text-muted"
             >
-              {{ row.episodeId }}
+              {{ row.episodeTitle }}
             </p>
           </li>
         </ul>

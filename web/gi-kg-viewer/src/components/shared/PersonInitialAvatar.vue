@@ -12,9 +12,16 @@ const props = defineProps<{ name: string; sizeClass?: string }>()
 
 const initial = computed((): string => {
   const raw = (props.name ?? '').trim()
-  // skip leading punctuation/emoji so "· Jay" → "J", "SPEAKER_03" → "S"
-  const ch = raw.replace(/^[^\p{L}\p{N}]+/u, '')[0]
-  return ch ? ch.toUpperCase() : '?'
+  // Up to two initials from the first two words ("Katie Martin" → "KM",
+  // "jay powell" → "JP"); single-word / speaker labels keep one ("Katie" → "K").
+  const words = raw
+    .split(/[\s.]+/)
+    .map((w) => w.replace(/^[^\p{L}\p{N}]+/u, ''))
+    .filter(Boolean)
+  if (words.length === 0) return '?'
+  const a = words[0][0] ?? ''
+  const b = words.length > 1 ? (words[1][0] ?? '') : ''
+  return (a + b).toUpperCase() || '?'
 })
 
 const chrome = graphNodeTypeStyles.Entity_person
