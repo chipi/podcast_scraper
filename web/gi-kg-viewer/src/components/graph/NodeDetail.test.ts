@@ -60,6 +60,21 @@ describe('NodeDetail', () => {
     expect(w.find('aside').exists()).toBe(false)
   })
 
+  it('renders the person view for an out-of-slice person id even when the node is absent', () => {
+    // A co-speaker sourced from the full server-side relational graph isn't in
+    // the current viewer slice → node lookup returns null. The rail must still
+    // render the person view (which loads from server endpoints) instead of an
+    // empty "Node" shell, with a name humanized from the id slug.
+    const w = mountDetail({
+      viewArtifact: artifactOf([]),
+      nodeId: 'g:person:robert-armstrong',
+      embedInRail: true,
+    })
+    expect(w.find('aside').exists()).toBe(true)
+    expect(w.find('[data-testid="person-landing-view"]').exists()).toBe(true)
+    expect(w.find('.node-detail-primary-title').text()).toBe('Robert Armstrong')
+  })
+
   it('renders the panel with the node display name and type chip for a generic node', () => {
     const art = artifactOf([
       { id: 'ep:1', type: 'Episode', properties: { title: 'My Episode' } },

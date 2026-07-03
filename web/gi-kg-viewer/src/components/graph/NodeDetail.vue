@@ -30,6 +30,7 @@ import {
 import { formatInsightPositionHintLine } from '../../utils/insightPositionHint'
 import { copyTextToClipboard } from '../../utils/clipboard'
 import { graphTypeAvatarLetter } from '../../utils/graphTypeAvatar'
+import { stripLayerPrefixesForCil } from '../../utils/mergeGiKg'
 import HelpTip from '../shared/HelpTip.vue'
 import {
   SEARCH_RESULT_COPY_TITLE_CHIP_CLASS,
@@ -172,9 +173,24 @@ const node = computed(() => {
   return full ? findRawNodeInArtifactByIdOrPrefixed(full, id) : null
 })
 
+// When the focused node isn't in the current graph slice — e.g. a co-speaker
+// or related entity sourced from the full server-side relational graph — the
+// artifact lookup above returns null. Infer the kind from the id so the rail
+// still renders the person / entity / topic view (all of which load from server
+// endpoints, independent of the viewer's graph slice) instead of an empty
+// "Node" shell.
+const inferredKindFromId = computed((): 'Person' | 'Organization' | 'Topic' | null => {
+  if (node.value) return null
+  const bare = stripLayerPrefixesForCil(props.nodeId ?? '')
+  if (bare.startsWith('person:')) return 'Person'
+  if (bare.startsWith('org:')) return 'Organization'
+  if (bare.startsWith('topic:')) return 'Topic'
+  return null
+})
+
 const nodeType = computed(() => {
   const n = node.value
-  if (!n) return '?'
+  if (!n) return inferredKindFromId.value ?? '?'
   return String(n.type ?? '?')
 })
 
@@ -340,6 +356,14 @@ const displayName = computed(() => {
   }
   const n = node.value
   if (!n) {
+    // Out-of-slice node (e.g. a co-speaker from the full relational graph):
+    // derive a readable name from the id slug so the header isn't blank while
+    // the person / topic view loads from server endpoints.
+    const bare = stripLayerPrefixesForCil(props.nodeId ?? '')
+    const slug = bare.replace(/^[a-z]+:/, '').trim()
+    if (slug) {
+      return slug.replace(/[-_]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+    }
     return ''
   }
   return fullPrimaryNodeLabel(n)
@@ -1053,7 +1077,15 @@ const railFullTextCopyTestId = computed((): string => {
   return 'node-detail-full-primary-copy'
 })
 
-const visualType = computed(() => visualGroupForNode(node.value))
+const visualType = computed(() => {
+  const inferred = inferredKindFromId.value
+  if (!node.value && inferred) {
+    if (inferred === 'Person') return 'Entity_person'
+    if (inferred === 'Organization') return 'Entity_organization'
+    return 'Topic'
+  }
+  return visualGroupForNode(node.value)
+})
 
 /** TC glyph when the row is a TopicCluster node or a corpus cluster member (JSON-backed). */
 const avatarVisualGroup = computed(() => {
@@ -1436,7 +1468,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
 
 <template>
   <aside
-    v-if="nodeId && (node || hasTopicClusterJson)"
+    v-if="nodeId && (node || hasTopicClusterJson || inferredKindFromId === 'Person')"
     class="relative z-20 text-surface-foreground"
     :class="
       props.embedInRail
