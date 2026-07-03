@@ -28,6 +28,8 @@ test('enrichment read surface + recall toggle + your-corpus lens + Revisit inbox
   // #1125: the entity-card "your corpus" lens — open a topic chip from the Insights panel, then
   // toggle to My corpus (the card refetches scoped to the heard set; it stays rendered).
   await page.getByRole('button', { name: 'Insights' }).first().click()
+  // insight_density strip renders at the head of the Insights list (Plan B #2).
+  await expect(page.getByTestId('episode-density')).toBeVisible()
   await page.locator('button.text-topic, button.text-person').first().click()
   const cardScope = page.getByRole('tablist', { name: 'Card scope' })
   await expect(cardScope).toBeVisible()
