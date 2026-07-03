@@ -1797,9 +1797,17 @@ const graphConnectionsCenterInView = computed((): boolean => {
           aria-label="Topic cluster members"
         >
           <div class="mb-1 flex flex-wrap items-center justify-between gap-2">
-            <p class="min-w-0 truncate text-[10px] font-semibold uppercase tracking-wide text-kg">
-              Cluster<template v-if="topicClusterContext?.canonicalLabel"> · {{ topicClusterContext.canonicalLabel }}</template>
-            </p>
+            <div class="flex min-w-0 items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-kg">
+              <span class="min-w-0 truncate">Cluster<template v-if="topicClusterContext?.canonicalLabel"> · {{ topicClusterContext.canonicalLabel }}</template></span>
+              <HelpTip :pref-width="270" button-aria-label="About topic clusters">
+                <p class="font-sans text-[10px] normal-case leading-snug tracking-normal text-muted">
+                  Topics grouped by <strong class="font-medium text-surface-foreground">semantic similarity</strong>
+                  — near-duplicate topics merged into one cluster in corpus clustering
+                  (<span class="font-mono">topic_clusters.json</span>). Distinct from
+                  <strong class="font-medium text-surface-foreground">Theme</strong> (discussed-together).
+                </p>
+              </HelpTip>
+            </div>
             <button
               type="button"
               class="shrink-0 rounded border border-border px-2 py-0.5 text-[10px] text-muted hover:bg-overlay"
@@ -2189,9 +2197,16 @@ const graphConnectionsCenterInView = computed((): boolean => {
         class="mb-2"
         data-testid="node-detail-theme-cluster"
       >
-        <p class="mb-1 text-[10px] font-semibold uppercase tracking-wide" style="color: #7dd3c0">
-          Theme · {{ themeClusterInfo.label }}
-        </p>
+        <div class="mb-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide" style="color: #7dd3c0">
+          <span class="min-w-0 truncate">Theme · {{ themeClusterInfo.label }}</span>
+          <HelpTip :pref-width="270" button-aria-label="About themes">
+            <p class="font-sans text-[10px] normal-case leading-snug tracking-normal text-muted">
+              Topics that are <strong class="font-medium text-surface-foreground">discussed together</strong>
+              (co-occurrence across episodes). Distinct from
+              <strong class="font-medium text-surface-foreground">Cluster</strong> (semantic near-duplicates).
+            </p>
+          </HelpTip>
+        </div>
         <div v-if="themeClusterInfo.members.length" class="flex flex-wrap gap-1.5">
           <button
             v-for="m in themeClusterInfo.members"
