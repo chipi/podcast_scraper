@@ -22,7 +22,10 @@ const EPISODE_DETAIL_PANEL = resolve(HERE, 'episode/EpisodeDetailPanel.vue')
 const EPISODE_ENRICHMENT_SECTION = resolve(HERE, 'episode/EpisodeEnrichmentSection.vue')
 const GRAPH_TAB_PANEL = resolve(HERE, 'graph/GraphTabPanel.vue')
 const ENRICHMENT_EDGES_PANEL = resolve(HERE, 'graph/EnrichmentEdgesPanel.vue')
-const PERSON_LANDING_VIEW = resolve(HERE, 'subject/PersonLandingView.vue')
+// RFC-088 chunk-9 contradictions moved out of PersonLandingView Details into
+// the Signals-tab NodeEnrichmentSection (de-duplicated with the rail's Signals
+// tab, which already loads the same nli_contradiction envelope).
+const NODE_ENRICHMENT_SECTION = resolve(HERE, 'graph/NodeEnrichmentSection.vue')
 
 
 describe('Gap 1 — ResultCard renders related_topics chips', () => {
@@ -101,26 +104,20 @@ describe('Gap 3 — GraphTabPanel mounts EnrichmentEdgesPanel', () => {
 })
 
 
-describe('Gap 4 — PersonLandingView surfaces contradiction rows', () => {
-  const src = readFileSync(PERSON_LANDING_VIEW, 'utf-8')
-
-  it('declares the ContradictionRow type and contradictionRows ref', () => {
-    expect(src).toContain('interface ContradictionRow')
-    expect(src).toContain('contradictionRows = ref')
-  })
+describe('Gap 4 — NodeEnrichmentSection surfaces contradiction rows', () => {
+  const src = readFileSync(NODE_ENRICHMENT_SECTION, 'utf-8')
 
   it('loads nli_contradiction via the cache composable', () => {
     expect(src).toContain("'nli_contradiction'")
     expect(src).toContain('fetchCachedCorpusEnvelope')
   })
 
-  it('template renders the contradictions row data-testid hook', () => {
-    expect(src).toContain('data-testid="person-landing-contradictions"')
-    expect(src).toContain('person-landing-contra-${row.partner_id}--${row.topic_id}')
+  it('template renders the contradictions data-testid hook', () => {
+    expect(src).toContain('data-testid="node-enrichment-contradictions"')
   })
 
   it('row clicks pivot subject focus to partner / topic', () => {
-    expect(src).toContain('subject.focusPerson(row.partner_id)')
-    expect(src).toContain('subject.focusTopic(row.topic_id)')
+    expect(src).toContain('subject.focusPerson(r.person_id)')
+    expect(src).toContain('subject.focusTopic(r.topic_id)')
   })
 })

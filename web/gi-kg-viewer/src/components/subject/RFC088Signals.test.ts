@@ -7,17 +7,16 @@ import { describe, expect, it } from 'vitest'
 /**
  * RFC-088 — guard the enrichment signals on the subject-rail views.
  *
- * TopicEntityView now delegates its enrichment signals to the shared
- * ``NodeEnrichmentSection`` behind a dedicated Enrichment tab (the signal
- * rendering itself — velocity, co-occurrence chips, focus-pivot clicks — is
- * covered by NodeEnrichmentSection.test.ts). PersonLandingView still inlines
- * its own signal section (migration pending), so its guards are unchanged.
+ * Both TopicEntityView and PersonLandingView now delegate their enrichment
+ * signals to the shared ``NodeEnrichmentSection`` in the node view's Signals
+ * tab (the signal rendering itself — velocity, co-occurrence, grounding,
+ * contradictions, focus-pivot clicks — is covered by NodeEnrichmentSection.test.ts).
+ * Neither view inlines its own enrichment section any more.
  *
  * Static-source guards. We check:
  *   - no v-html sinks (defence-in-depth)
- *   - TEV exposes the Overview | Enrichment tab hooks + delegates to
- *     NodeEnrichmentSection, gated on reported content
- *   - PLV still renders its inline signal section + focus-pivot clicks
+ *   - neither TEV nor PLV inlines enrichment / mentions-by-month; it lives in
+ *     the Signals tab (NodeEnrichmentSection + signalsTimeline) exactly once
  */
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -45,29 +44,30 @@ describe('TopicEntityView.vue — flat + embeddable node-view body', () => {
   })
 })
 
-describe('PersonLandingView.vue — RFC-088 chunk 6c enrichment signals', () => {
+describe('PersonLandingView.vue — enrichment signals moved to the Signals tab', () => {
   const src = readFileSync(PLV, 'utf-8')
 
   it('has no v-html sink', () => {
     expect(src).not.toMatch(/v-html\s*=/)
   })
 
-  it('renders the enrichment-signals testid hooks', () => {
+  it('no longer inlines the enrichment-signals section (grounding / co-guests / contradictions)', () => {
     for (const hook of [
       'person-landing-enrichment-signals',
       'person-landing-grounding-rate',
       'person-landing-coguests',
+      'person-landing-contradictions',
     ]) {
-      expect(src).toContain(`data-testid="${hook}"`)
+      expect(src).not.toContain(`data-testid="${hook}"`)
     }
   })
 
-  it('uses the chunk-8 cache composable (not the raw API helper)', () => {
-    expect(src).toContain('fetchCachedCorpusEnvelope')
-    expect(src).toContain("from '../../composables/useEnrichmentEnvelopeCache'")
+  it('no longer fetches the enrichment envelope (the Signals tab does)', () => {
+    expect(src).not.toContain('fetchCachedCorpusEnvelope')
+    expect(src).not.toContain("from '../../composables/useEnrichmentEnvelopeCache'")
   })
 
-  it('co-guest chip click pivots subject focus to the co-guest person', () => {
-    expect(src).toContain('@click="subject.focusPerson(g.person_id)"')
+  it('no longer renders the mentions-by-month timeline (lives in the Signals tab)', () => {
+    expect(src).not.toContain('SubjectTimelineChart')
   })
 })

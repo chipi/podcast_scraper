@@ -174,7 +174,7 @@ watch(() => props.nodeId, () => void load(), { immediate: true })
         </div>
       </div>
       <div v-if="contradictions.length" data-testid="node-enrichment-contradictions">
-        <p class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">Disagrees with</p>
+        <p class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">Contradictions</p>
         <ul class="space-y-1">
           <li v-for="(r, i) in contradictions" :key="i" class="rounded border border-border bg-elevated/40 px-2 py-1">
             <button type="button" class="font-semibold text-primary hover:underline" @click="subject.focusPerson(r.person_id)">{{ r.person_name || shortId(r.person_id) }}</button>
