@@ -822,11 +822,11 @@ function focusClusterMember(row: {
   graphNodeId: string | null
   label: string
 }): void {
-  if (row.graphNodeId) {
-    focusTopicClusterMember(row.graphNodeId)
-  } else if (row.topicId) {
-    subject.focusTopic(row.topicId)
-  }
+  // Unify with theme-member + related-topic clicks: always full-re-focus the
+  // rail onto the member topic (so it reloads the detail panel and Back works),
+  // rather than the prior in-graph expansion that only updated part of the view.
+  const id = row.topicId || row.graphNodeId
+  if (id) subject.focusTopic(id)
 }
 const hasThemeTimeline = computed(
   () => showInlineTopicTimeline.value && themeTimelineMemberTopicIds.value.length > 1,

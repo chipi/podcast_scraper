@@ -23,6 +23,11 @@ vi.mock('../../api/relationalApi', () => ({
   fetchRelatedTopics: (...a: unknown[]) => fetchRelatedTopics(...a),
 }))
 
+// Across-shows cover art loads feeds; stub it so tests don't hit the network.
+vi.mock('../../api/corpusLibraryApi', () => ({
+  fetchCorpusFeeds: () => Promise.resolve({ path: '/corpus', feeds: [] }),
+}))
+
 // SubjectTimelineChart wraps Chart.js (canvas) — stub to a passthrough.
 const STUBS = {
   SubjectTimelineChart: { name: 'SubjectTimelineChart', template: '<div data-stub="timeline-chart" />' },

@@ -27,8 +27,10 @@ import {
 import { StaleGeneration } from '../../utils/staleGeneration'
 import { findRawNodeInArtifactByIdOrPrefixed } from '../../utils/parsing'
 import { stripLayerPrefixesForCil } from '../../utils/mergeGiKg'
+import { fetchCorpusFeeds } from '../../api/corpusLibraryApi'
 import PersonInitialAvatar from '../shared/PersonInitialAvatar.vue'
 import ShowGlyph from '../shared/ShowGlyph.vue'
+import PodcastCover from '../shared/PodcastCover.vue'
 import HelpTip from '../shared/HelpTip.vue'
 
 
@@ -133,6 +135,43 @@ async function loadRelational(topicId: string): Promise<void> {
 
 watch(subjectId, (id) => void loadRelational(id), { immediate: true })
 
+// Show cover art for Across-shows rows (mirror the Timeline episode rows). The
+// cross-show showId is a podcast slug (podcast:planet-money); feeds key on
+// display_title, so match on the normalised title.
+interface ShowCover {
+  imageUrl: string | null
+  imageLocalRelpath: string | null
+}
+const showCoverByTitle = ref<Map<string, ShowCover>>(new Map())
+
+function normTitle(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
+async function loadFeedCovers(): Promise<void> {
+  const root = shell.corpusPath?.trim()
+  if (!root || !shell.healthStatus) {
+    showCoverByTitle.value = new Map()
+    return
+  }
+  try {
+    const body = await fetchCorpusFeeds(root)
+    const m = new Map<string, ShowCover>()
+    for (const f of body.feeds ?? []) {
+      const t = f.display_title ? normTitle(f.display_title) : ''
+      if (t) m.set(t, { imageUrl: f.image_url ?? null, imageLocalRelpath: f.image_local_relpath ?? null })
+    }
+    showCoverByTitle.value = m
+  } catch {
+    showCoverByTitle.value = new Map()
+  }
+}
+watch(() => shell.corpusPath, () => void loadFeedCovers(), { immediate: true })
+
+function feedCoverFor(showId: string): ShowCover | null {
+  return showCoverByTitle.value.get(normTitle(shortId(showId))) ?? null
+}
+
 function onClickVoice(personId: string): void {
   if (personId) subject.focusPerson(personId)
 }
@@ -195,7 +234,13 @@ function onPrefillSearch(): void {
 
 <template>
   <div
-    class="mx-3 flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden"
+    :class="[
+      'flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden',
+      // Embedded in NodeDetail's Details tab, the parent owns the horizontal
+      // gutter — the standalone-rail mx-3 would indent these sections past the
+      // cluster/theme header. Only apply it when rendering standalone.
+      embedded ? '' : 'mx-3',
+    ]"
     role="region"
     aria-label="Topic or entity"
     data-testid="topic-entity-view"
@@ -311,20 +356,29 @@ function onPrefillSearch(): void {
             v-for="row in crossShowRows"
             :key="row.showId"
             data-testid="tev-cross-show-row"
-            class="rounded border border-border bg-elevated/40 px-2 py-1.5 text-[11px] leading-snug"
+            class="min-w-0 text-[11px] leading-snug"
           >
-            <div class="flex items-center gap-1.5">
-              <ShowGlyph :name="shortId(row.showId)" />
-              <p class="min-w-0 truncate font-semibold text-surface-foreground" :title="shortId(row.showId)">
-                {{ shortId(row.showId) }}
-              </p>
+            <div class="flex w-full min-w-0 items-start gap-2">
+              <div class="shrink-0 self-start">
+                <PodcastCover
+                  v-if="feedCoverFor(row.showId)"
+                  :corpus-path="shell.corpusPath"
+                  :feed-image-url="feedCoverFor(row.showId)?.imageUrl ?? null"
+                  :feed-image-local-relpath="feedCoverFor(row.showId)?.imageLocalRelpath ?? null"
+                  :alt="`Cover for ${shortId(row.showId)}`"
+                  size-class="h-9 w-9"
+                />
+                <ShowGlyph v-else :name="shortId(row.showId)" size-class="h-9 w-9 rounded-lg text-sm" />
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="break-words font-semibold text-surface-foreground">
+                  {{ shortId(row.showId) }}
+                </p>
+                <p class="break-words text-[10px] text-muted line-clamp-2" :title="row.insight.text">
+                  {{ row.insight.text }}
+                </p>
+              </div>
             </div>
-            <p
-              class="mt-0.5 text-muted line-clamp-2"
-              :title="row.insight.text"
-            >
-              {{ row.insight.text }}
-            </p>
           </li>
         </ul>
       </section>
@@ -360,26 +414,29 @@ function onPrefillSearch(): void {
             v-for="row in voiceRows"
             :key="row.personId"
             data-testid="tev-voice-row"
-            class="rounded border border-border bg-elevated/40 px-2 py-1.5 text-[11px] leading-snug"
+            class="min-w-0 text-[11px] leading-snug"
           >
-            <div class="flex items-center gap-1.5">
-              <PersonInitialAvatar :name="shortId(row.personId)" />
-              <button
-                type="button"
-                data-testid="tev-voice-link"
-                class="min-w-0 truncate rounded font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                :title="`Open Person panel for ${shortId(row.personId)}`"
-                @click="onClickVoice(row.personId)"
-              >{{ shortId(row.personId) }}</button>
-              <span class="shrink-0 text-[10px] text-muted">({{ row.insights.length }})</span>
-            </div>
-            <p
-              v-if="row.insights[0]?.text"
-              class="mt-0.5 text-muted line-clamp-2"
-              :title="row.insights[0]?.text"
+            <button
+              type="button"
+              data-testid="tev-voice-link"
+              class="flex w-full min-w-0 items-start gap-2 rounded text-left hover:bg-overlay/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              :title="`Open Person panel for ${shortId(row.personId)}`"
+              @click="onClickVoice(row.personId)"
             >
-              {{ row.insights[0]?.text }}
-            </p>
+              <PersonInitialAvatar :name="shortId(row.personId)" size-class="h-9 w-9 text-sm" />
+              <div class="min-w-0 flex-1">
+                <p class="break-words font-semibold text-primary">
+                  {{ shortId(row.personId) }}
+                  <span class="font-normal text-muted">({{ row.insights.length }})</span>
+                </p>
+                <p
+                  v-if="row.insights[0]?.text"
+                  class="break-words text-[10px] text-muted line-clamp-2"
+                >
+                  {{ row.insights[0]?.text }}
+                </p>
+              </div>
+            </button>
           </li>
         </ul>
       </section>
