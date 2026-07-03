@@ -529,6 +529,18 @@ function onPickTopicForPositionTracker(topicId: string): void {
     >
       <!-- Profile-only sections: hidden in positions view -->
       <template v-if="props.view !== 'positions'">
+        <!-- Role badge (host / guest / mentioned) — the embedded header (owned
+             by NodeDetail) doesn't carry it, so surface it here so the reader
+             knows how this person relates to the corpus. Host stands out. -->
+        <span
+          v-if="personRoleLabel"
+          class="inline-flex items-center self-start rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
+          :class="personRole === 'host'
+            ? 'bg-primary text-primary-foreground'
+            : 'bg-overlay text-surface-foreground'"
+          data-testid="person-landing-role-embedded"
+          :data-role="personRole"
+        >{{ personRoleLabel }}</span>
         <!-- Connections first: the substance (topics discussed + who they
              speak with) sits at the top of the panel; identity/enrichment
              metadata follows below. -->
