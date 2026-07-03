@@ -24,6 +24,9 @@ beforeEach(() => {
   setActivePinia(createPinia()) // FavoriteButton (on insights) resolves the favorites/auth stores
   // Default: no related peers (index unavailable) so the section hides.
   vi.spyOn(api, 'getRelated').mockResolvedValue(emptyPage)
+  // The embedded EpisodeDensity fetches episode enrichment; keep tests off the
+  // network (its own coverage lives in EpisodeDensity.test.ts).
+  vi.spyOn(api, 'getEpisodeEnrichment').mockResolvedValue({})
 })
 afterEach(() => vi.restoreAllMocks())
 

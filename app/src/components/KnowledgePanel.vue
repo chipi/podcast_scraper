@@ -30,6 +30,7 @@ import { useAuthStore } from '../stores/auth'
 import { useQueueStore } from '../stores/queue'
 import { useCaptureStore } from '../stores/capture'
 import EntityCardBody from './EntityCardBody.vue'
+import EpisodeDensity from './EpisodeDensity.vue'
 import FavoriteButton from './FavoriteButton.vue'
 
 function favInsight(ins: Insight): FavoriteAdd {
@@ -381,6 +382,8 @@ watch(
         <div class="mb-2 flex items-center justify-between">
           <h3 class="lp-section">{{ t('kp.insights') }} · {{ insights.length }}</h3>
         </div>
+        <!-- Where the substance sits (early/mid/late), tap to jump. Hides if absent. -->
+        <EpisodeDensity :slug="slug" @seek="emit('seek', $event)" />
         <ul class="flex flex-col gap-3">
           <li
             v-for="ins in visibleInsights"

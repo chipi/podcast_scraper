@@ -11,6 +11,7 @@ import type {
   CorpusEnrichmentSignals,
   EntitiesResponse,
   EntitySearchResponse,
+  EpisodeEnrichmentSignals,
   EpisodeDetail,
   EpisodesPage,
   EpisodeStats,
@@ -164,6 +165,26 @@ export function getCorpusEnrichment(): Promise<CorpusEnrichmentSignals> {
       })
   }
   return _corpusEnrichment
+}
+
+// Per-episode enrichment (currently insight_density) — cached per slug so
+// re-opening the panel doesn't refetch. Cleared on failure so it can retry.
+const _episodeEnrichment = new Map<string, Promise<EpisodeEnrichmentSignals>>()
+/** Per-episode enrichment signals (RFC-088 episode-scope, e.g. insight_density). */
+export function getEpisodeEnrichment(slug: string): Promise<EpisodeEnrichmentSignals> {
+  let p = _episodeEnrichment.get(slug)
+  if (!p) {
+    p = getJSON<{ signals: EpisodeEnrichmentSignals }>(
+      `/episodes/${encodeURIComponent(slug)}/enrichment`,
+    )
+      .then((r) => r.signals ?? {})
+      .catch((err) => {
+        _episodeEnrichment.delete(slug)
+        throw err
+      })
+    _episodeEnrichment.set(slug, p)
+  }
+  return p
 }
 
 /** Corpus-wide grounded search (Home "Ask your library"); empty when no index. */

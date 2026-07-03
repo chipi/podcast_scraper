@@ -402,6 +402,17 @@ export interface CorpusEnrichmentSignals {
   }
 }
 
+/** Per-episode enrichment signals (GET /api/app/episodes/{slug}/enrichment → `signals`).
+ *  Only the fields the player consumes are typed. */
+export interface EpisodeEnrichmentSignals {
+  insight_density?: {
+    counts?: { early: number; mid: number; late: number; unknown?: number }
+    total_insights?: number
+    duration_seconds?: number
+    has_timing?: boolean
+  }
+}
+
 /** One grounded search hit (loosely typed — metadata/lifted vary by tier). */
 export interface SearchHit {
   doc_id: string
