@@ -526,3 +526,77 @@ describe('useSubjectStore — positionTrackerTopicId (#1049)', () => {
     expect(s.kind).toBe('episode')
   })
 })
+
+// Back navigation — node→node chains (topic → entity → person → co-speaker)
+// push the prior subject so the rail Back affordance can return to it.
+describe('useSubjectStore — Back navigation history', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  it('starts with empty history; the first node focus records nothing', () => {
+    const s = useSubjectStore()
+    expect(s.canGoBack).toBe(false)
+    s.focusTopic('topic:1')
+    expect(s.canGoBack).toBe(false)
+  })
+
+  it('node→node navigation records history and back() restores the previous node', () => {
+    const s = useSubjectStore()
+    s.focusTopic('topic:geopolitics')
+    s.focusEntity('entity:strait-of-hormuz')
+    expect(s.canGoBack).toBe(true)
+    expect(s.graphNodeCyId).toBe('entity:strait-of-hormuz')
+    s.back()
+    expect(s.kind).toBe('graph-node')
+    expect(s.graphNodeCyId).toBe('topic:geopolitics')
+    expect(s.canGoBack).toBe(false)
+  })
+
+  it('back() through a multi-step chain returns nodes in reverse order', () => {
+    const s = useSubjectStore()
+    s.focusTopic('topic:a')
+    s.focusEntity('entity:b')
+    s.focusPerson('person:c')
+    expect(s.graphNodeCyId).toBe('person:c')
+    s.back()
+    expect(s.graphNodeCyId).toBe('entity:b')
+    s.back()
+    expect(s.graphNodeCyId).toBe('topic:a')
+    expect(s.canGoBack).toBe(false)
+  })
+
+  it('re-focusing the same node does not push history', () => {
+    const s = useSubjectStore()
+    s.focusTopic('topic:1')
+    s.focusGraphNode('topic:1')
+    expect(s.canGoBack).toBe(false)
+  })
+
+  it('back() with empty history is a no-op', () => {
+    const s = useSubjectStore()
+    s.focusTopic('topic:1')
+    s.back()
+    expect(s.kind).toBe('graph-node')
+    expect(s.graphNodeCyId).toBe('topic:1')
+  })
+
+  it('clearSubject drops the Back history', () => {
+    const s = useSubjectStore()
+    s.focusTopic('topic:1')
+    s.focusPerson('person:2')
+    expect(s.canGoBack).toBe(true)
+    s.clearSubject()
+    expect(s.canGoBack).toBe(false)
+  })
+
+  it('back() restores the Position Tracker topic captured in the snapshot', () => {
+    const s = useSubjectStore()
+    s.focusPerson('person:alice')
+    s.selectTopicForPositionTracker('topic:ai')
+    s.focusPerson('person:bob')
+    s.back()
+    expect(s.graphNodeCyId).toBe('person:alice')
+    expect(s.positionTrackerTopicId).toBe('topic:ai')
+  })
+})

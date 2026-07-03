@@ -1,9 +1,22 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 import { e2eHooksEnabled } from '../utils/e2eHooks'
 
 export type SubjectKind = 'episode' | 'topic' | 'person' | 'graph-node' | null
+
+/** Full subject state captured for the rail's Back history. */
+interface SubjectSnapshot {
+  kind: SubjectKind
+  episodeMetadataPath: string | null
+  episodeUiLabel: string | null
+  episodeId: string | null
+  graphNodeCyId: string | null
+  graphConnectionsCyId: string | null
+  topicId: string | null
+  personId: string | null
+  positionTrackerTopicId: string | null
+}
 
 /**
  * Right-hand **subject** rail: one focused entity (episode, graph node, …).
@@ -44,6 +57,51 @@ export const useSubjectStore = defineStore('subject', () => {
    * never bleeds into a new one.
    */
   const positionTrackerTopicId = ref<string | null>(null)
+
+  // Back history for the subject rail. Node→node navigations (topic → entity →
+  // person → co-speaker) push the prior subject so the rail can offer a Back
+  // affordance; without it, drilling into a related entity is a dead end.
+  const history = ref<SubjectSnapshot[]>([])
+  const canGoBack = computed(() => history.value.length > 0)
+
+  function currentSnapshot(): SubjectSnapshot {
+    return {
+      kind: kind.value,
+      episodeMetadataPath: episodeMetadataPath.value,
+      episodeUiLabel: episodeUiLabel.value,
+      episodeId: episodeId.value,
+      graphNodeCyId: graphNodeCyId.value,
+      graphConnectionsCyId: graphConnectionsCyId.value,
+      topicId: topicId.value,
+      personId: personId.value,
+      positionTrackerTopicId: positionTrackerTopicId.value,
+    }
+  }
+
+  function pushHistory(): void {
+    if (kind.value == null) return
+    history.value.push(currentSnapshot())
+    // Bound the stack so a long browse session can't grow it without limit.
+    if (history.value.length > 50) history.value.shift()
+  }
+
+  function restoreSnapshot(s: SubjectSnapshot): void {
+    kind.value = s.kind
+    episodeMetadataPath.value = s.episodeMetadataPath
+    episodeUiLabel.value = s.episodeUiLabel
+    episodeId.value = s.episodeId
+    graphNodeCyId.value = s.graphNodeCyId
+    graphConnectionsCyId.value = s.graphConnectionsCyId
+    topicId.value = s.topicId
+    personId.value = s.personId
+    positionTrackerTopicId.value = s.positionTrackerTopicId
+  }
+
+  /** Pop the previous subject off the history and restore it (rail Back). */
+  function back(): void {
+    const s = history.value.pop()
+    if (s) restoreSnapshot(s)
+  }
 
   function clearFields(): void {
     episodeMetadataPath.value = null
@@ -102,11 +160,17 @@ export const useSubjectStore = defineStore('subject', () => {
 
   function focusGraphNode(cyNodeId: string): void {
     const t = cyNodeId.trim()
-    clearFields()
     if (!t) {
+      clearFields()
       kind.value = null
       return
     }
+    // Record the current graph node for Back — only node→node chains (and not a
+    // no-op re-focus of the same node), so Back stays within the node rail.
+    if (kind.value === 'graph-node' && graphNodeCyId.value !== t) {
+      pushHistory()
+    }
+    clearFields()
     kind.value = 'graph-node'
     graphNodeCyId.value = t
   }
@@ -158,6 +222,8 @@ export const useSubjectStore = defineStore('subject', () => {
   function clearSubject(): void {
     kind.value = null
     clearFields()
+    // Closing the rail ends the navigation session — drop the Back history.
+    history.value = []
   }
 
   /** Update graph strip label without re-running ``focusEpisode`` (e.g. **Open in graph**). */
@@ -199,6 +265,9 @@ export const useSubjectStore = defineStore('subject', () => {
       get positionTrackerTopicId() {
         return positionTrackerTopicId.value
       },
+      get canGoBack() {
+        return canGoBack.value
+      },
       // E2E-only mutators. The TEV contract Playwright spec drives the
       // panel via ``focusTopic`` after the V2 architectural change removed
       // the digest topic-band-title click affordance; other handoff specs
@@ -208,6 +277,7 @@ export const useSubjectStore = defineStore('subject', () => {
       focusPerson,
       clearSubject,
       selectTopicForPositionTracker,
+      back,
     }
   }
 
@@ -231,5 +301,7 @@ export const useSubjectStore = defineStore('subject', () => {
     setEpisodeId,
     selectTopicForPositionTracker,
     clearPositionTrackerTopic,
+    canGoBack,
+    back,
   }
 })
