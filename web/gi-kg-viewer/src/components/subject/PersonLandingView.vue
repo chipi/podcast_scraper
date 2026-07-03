@@ -1,14 +1,15 @@
 <script setup lang="ts">
 /**
  * #672 — Person Landing rail panel. Reads ``subject.personId`` and shows
- * a Profile / Positions tab pair: Profile holds basic identity info +
- * mentions timeline; Positions lists ``SPOKEN_BY`` quotes attributed to
- * this person with episode context.
+ * a Profile / Positions tab pair: Profile holds identity + Connections
+ * (topics / co-speakers from the relational layer); Positions lists the
+ * person's stated positions and quotes.
  *
- * #909 — the Positions tab also surfaces an "Across the corpus" section: the
- * person's quotes across ALL episodes (from the CIL ``person_profile`` endpoint),
- * not just the episodes currently merged into the loaded graph. This is the
- * corpus-wide "what X said across episodes" payoff of the #875/#876 diarization work.
+ * #909 — the Positions tab's "All positions" lens surfaces the person's quotes
+ * across ALL episodes (from the CIL ``person_profile`` endpoint), not just the
+ * episodes currently merged into the loaded graph — so it scales and resolves
+ * out-of-slice. This is the corpus-wide "what X said across episodes" payoff of
+ * the #875/#876 diarization work.
  *
  * #1048 — restructured to be the shared Person Landing shell per PRD-029.
  * Tabs are now "Person Profile" (the aggregate person view; inherits all
@@ -37,24 +38,17 @@ import type { RelatedNode } from '../../api/relationalApi'
 import { StaleGeneration } from '../../utils/staleGeneration'
 import {
   countPersonEntityIncidentEdges,
-  findRawNodeInArtifact,
   findRawNodeInArtifactByIdOrPrefixed,
-  normalizeGiEdgeType,
   personEpisodeAppearances,
   personInsightsByTopic,
   personRoleFromNode,
   rankedPersonOrganizations,
   rankedPersonTopicMentions,
 } from '../../utils/parsing'
-import { logicalEpisodeIdFromGraphNodeId } from '../../utils/graphEpisodeMetadata'
 import { stripLayerPrefixesForCil } from '../../utils/mergeGiKg'
 import PositionTrackerPanel from './PositionTrackerPanel.vue'
 import PersonInitialAvatar from '../shared/PersonInitialAvatar.vue'
 
-/** Positions list cap — Persons accumulate more attributed quotes than a
- *  Topic accumulates mentions, so the cap is higher than ``TopicEntityView``'s
- *  25; still bounded so the rail does not become a full-text wall. */
-const PERSON_LANDING_POSITIONS_CAP = 50
 
 const emit = defineEmits<{
   goGraph: []
@@ -204,10 +198,11 @@ watch(personGraphNodeId, (id) => void loadConnections(id ?? ''), { immediate: tr
 
 /**
  * #909 — corpus-wide quotes this person spoke across ALL episodes, from the CIL
- * ``person_profile`` endpoint (``GET /api/persons/{id}/brief``). Unlike ``positionRows``
- * below (which only sees the loaded/merged graph), this resolves the person across the
- * whole corpus (incl. #852 name variants). Async, skeleton-first, stale-gated; renders
- * only when an API corpus is connected (no-op in local-file mode).
+ * ``person_profile`` endpoint (``GET /api/persons/{id}/brief``). Resolves the
+ * person across the whole corpus (incl. #852 name variants), independent of the
+ * loaded graph slice — this is the source for the Positions "All positions"
+ * lens. Async, skeleton-first, stale-gated; renders only when an API corpus is
+ * connected (no-op in local-file mode).
  */
 interface CorpusQuoteRow {
   id: string
@@ -355,77 +350,16 @@ function toggleTopicGroup(topicId: string): void {
   expandedTopicGroups.value = next
 }
 
-interface PositionRow {
-  id: string
-  text: string
-  episodeId: string | null
-  episodeTitle: string | null
-  publishDate: string | null
-}
-
-const positionRows = computed<PositionRow[]>(() => {
-  const art = artifacts.displayArtifact
-  const pid = personGraphNodeId.value
-  if (!art || !pid) return []
-  const episodes = new Map<string, RawGraphNode>()
-  for (const n of art.data?.nodes ?? []) {
-    if (!n || String(n.type) !== 'Episode') continue
-    const lid = logicalEpisodeIdFromGraphNodeId(String(n.id ?? ''))
-    if (lid) episodes.set(lid, n)
-  }
-  const seen = new Set<string>()
-  const rows: PositionRow[] = []
-  for (const e of art.data?.edges ?? []) {
-    if (!e) continue
-    const ty = normalizeGiEdgeType(e.type)
-    if (ty !== 'spoken_by') continue
-    const to = String(e.to ?? '').trim()
-    if (to !== pid) continue
-    const quoteId = String(e.from ?? '').trim()
-    if (!quoteId || seen.has(quoteId)) continue
-    seen.add(quoteId)
-    const q = findRawNodeInArtifact(art, quoteId)
-    if (!q || String(q.type) !== 'Quote') continue
-    const p = q.properties as Record<string, unknown> | undefined
-    const text =
-      typeof p?.text === 'string' && p.text.trim() ? p.text.trim() : ''
-    const episodeId =
-      typeof p?.episode_id === 'string' && p.episode_id.trim()
-        ? p.episode_id.trim()
-        : null
-    const ep = episodeId ? episodes.get(episodeId) ?? null : null
-    const epP = ep?.properties as Record<string, unknown> | undefined
-    const episodeTitle =
-      typeof epP?.episode_title === 'string' && epP.episode_title.trim()
-        ? epP.episode_title.trim()
-        : typeof epP?.title === 'string' && epP.title.trim()
-          ? epP.title.trim()
-          : null
-    const pd =
-      typeof epP?.publish_date === 'string' && epP.publish_date.trim()
-        ? epP.publish_date.trim().slice(0, 10)
-        : null
-    rows.push({ id: quoteId, text, episodeId, episodeTitle, publishDate: pd })
-  }
-  rows.sort((a, b) => {
-    if (a.publishDate && b.publishDate) {
-      if (a.publishDate < b.publishDate) return 1
-      if (a.publishDate > b.publishDate) return -1
-    } else if (a.publishDate) return -1
-    else if (b.publishDate) return 1
-    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
-  })
-  return rows
-})
-
-// "All positions" lens — paginate the flat list so a prolific speaker doesn't
-// render hundreds of rows in one scroll (mirrors the topic Mentions pager).
+// "All positions" lens — paginate the corpus-wide quotes (server /brief) so a
+// prolific speaker doesn't render hundreds of rows in one scroll (mirrors the
+// topic Mentions pager). These scale and resolve out-of-slice, unlike the old
+// client-graph SPOKEN_BY walk that only saw the loaded graph.
 const positionsTotalPages = computed(() =>
-  Math.max(1, Math.ceil(positionRows.value.length / POSITIONS_PAGE_SIZE)),
+  Math.max(1, Math.ceil(corpusQuotes.value.length / POSITIONS_PAGE_SIZE)),
 )
-const pagedPositionRows = computed<PositionRow[]>(() => {
+const pagedCorpusQuotes = computed<CorpusQuoteRow[]>(() => {
   const start = (positionsPage.value - 1) * POSITIONS_PAGE_SIZE
-  return positionRows.value.slice(start, start + POSITIONS_PAGE_SIZE)
+  return corpusQuotes.value.slice(start, start + POSITIONS_PAGE_SIZE)
 })
 watch(personGraphNodeId, () => {
   positionsLens.value = 'by_topic'
@@ -684,59 +618,6 @@ function onPickTopicForPositionTracker(topicId: string): void {
         </ul>
       </section>
 
-      <!-- #909 / #1048 — corpus-wide quotes this person spoke across ALL episodes (CIL person_profile). -->
-      <section
-        v-if="corpusLoading || corpusError || corpusQuotes.length"
-        aria-label="Across the corpus"
-        data-testid="person-landing-corpus"
-      >
-        <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
-          Across the corpus<span v-if="corpusEpisodeCount">
-            · {{ corpusEpisodeCount }} episode{{ corpusEpisodeCount === 1 ? '' : 's' }}</span>
-        </h3>
-        <p
-          v-if="corpusLoading"
-          data-testid="person-landing-corpus-loading"
-          class="text-[11px] text-muted"
-        >
-          Loading…
-        </p>
-        <p
-          v-else-if="corpusError"
-          class="text-[11px] text-warning"
-        >
-          {{ corpusError }}
-        </p>
-        <ul
-          v-else
-          class="space-y-1.5"
-          data-testid="person-landing-corpus-list"
-        >
-          <li
-            v-for="row in corpusQuotes.slice(0, PERSON_LANDING_POSITIONS_CAP)"
-            :key="row.id"
-            data-testid="person-landing-corpus-row"
-            class="rounded border border-border bg-elevated/40 px-2 py-1.5 text-[11px] leading-snug"
-          >
-            <blockquote class="border-l-2 border-primary/40 pl-2 text-surface-foreground">
-              {{ row.text || row.id }}
-            </blockquote>
-            <p
-              v-if="row.episodeId"
-              class="mt-0.5 text-[10px] text-muted"
-            >
-              {{ row.episodeId }}
-            </p>
-          </li>
-        </ul>
-        <p
-          v-if="corpusQuotes.length > PERSON_LANDING_POSITIONS_CAP"
-          class="text-[10px] text-muted"
-          data-testid="person-landing-corpus-overflow"
-        >
-          + {{ corpusQuotes.length - PERSON_LANDING_POSITIONS_CAP }} more
-        </p>
-      </section>
       </template>
 
       <!-- Topics discussed: only in full view -->
@@ -927,18 +808,29 @@ function onPickTopicForPositionTracker(topicId: string): void {
               </ul>
             </section>
 
-            <h3
-              v-if="statedRows.length || statedLoading"
-              class="mt-2 text-[10px] font-semibold uppercase tracking-wider text-muted"
-            >
-              Attributed quotes
+            <h3 class="mt-2 text-[10px] font-semibold uppercase tracking-wider text-muted">
+              Quotes across the corpus<span v-if="corpusEpisodeCount">
+                · {{ corpusEpisodeCount }} episode{{ corpusEpisodeCount === 1 ? '' : 's' }}</span>
             </h3>
             <p
-              v-if="positionRows.length === 0"
+              v-if="corpusLoading"
+              class="text-[11px] text-muted"
+              data-testid="person-landing-corpus-loading"
+            >
+              Loading…
+            </p>
+            <p
+              v-else-if="corpusError"
+              class="text-[11px] text-warning"
+            >
+              {{ corpusError }}
+            </p>
+            <p
+              v-else-if="corpusQuotes.length === 0"
               class="text-[11px] text-muted"
               data-testid="person-landing-positions-empty"
             >
-              No attributed quotes in the loaded graph.
+              No attributed quotes for this voice yet.
             </p>
             <ul
               v-else
@@ -946,20 +838,19 @@ function onPickTopicForPositionTracker(topicId: string): void {
               data-testid="person-landing-positions"
             >
               <li
-                v-for="row in pagedPositionRows"
+                v-for="row in pagedCorpusQuotes"
                 :key="row.id"
+                data-testid="person-landing-corpus-row"
                 class="rounded border border-border bg-elevated/40 px-2 py-1.5 text-[11px] leading-snug"
               >
                 <blockquote class="border-l-2 border-primary/40 pl-2 text-surface-foreground">
                   {{ row.text || row.id }}
                 </blockquote>
                 <p
-                  v-if="row.episodeTitle || row.publishDate"
+                  v-if="row.episodeId"
                   class="mt-0.5 text-[10px] text-muted"
                 >
-                  <span v-if="row.episodeTitle">{{ row.episodeTitle }}</span>
-                  <span v-if="row.episodeTitle && row.publishDate"> · </span>
-                  <span v-if="row.publishDate">{{ row.publishDate }}</span>
+                  {{ row.episodeId }}
                 </p>
               </li>
             </ul>
@@ -1109,18 +1000,16 @@ function onPickTopicForPositionTracker(topicId: string): void {
           </ul>
         </section>
 
-        <h3
-          v-if="statedRows.length || statedLoading"
-          class="mt-2 text-[10px] font-semibold uppercase tracking-wider text-muted"
-        >
-          Attributed quotes
+        <h3 class="mt-2 text-[10px] font-semibold uppercase tracking-wider text-muted">
+          Quotes across the corpus<span v-if="corpusEpisodeCount">
+            · {{ corpusEpisodeCount }} episode{{ corpusEpisodeCount === 1 ? '' : 's' }}</span>
         </h3>
         <p
-          v-if="positionRows.length === 0"
+          v-if="corpusQuotes.length === 0"
           class="text-[11px] text-muted"
           data-testid="person-landing-positions-empty"
         >
-          No attributed quotes in the loaded graph.
+          No attributed quotes for this voice yet.
         </p>
         <ul
           v-else
@@ -1128,30 +1017,22 @@ function onPickTopicForPositionTracker(topicId: string): void {
           data-testid="person-landing-positions"
         >
           <li
-            v-for="row in positionRows.slice(0, PERSON_LANDING_POSITIONS_CAP)"
+            v-for="row in corpusQuotes"
             :key="row.id"
+            data-testid="person-landing-corpus-row"
             class="rounded border border-border bg-elevated/40 px-2 py-1.5 text-[11px] leading-snug"
           >
             <blockquote class="border-l-2 border-primary/40 pl-2 text-surface-foreground">
               {{ row.text || row.id }}
             </blockquote>
             <p
-              v-if="row.episodeTitle || row.publishDate"
+              v-if="row.episodeId"
               class="mt-0.5 text-[10px] text-muted"
             >
-              <span v-if="row.episodeTitle">{{ row.episodeTitle }}</span>
-              <span v-if="row.episodeTitle && row.publishDate"> · </span>
-              <span v-if="row.publishDate">{{ row.publishDate }}</span>
+              {{ row.episodeId }}
             </p>
           </li>
         </ul>
-        <p
-          v-if="positionRows.length > PERSON_LANDING_POSITIONS_CAP"
-          class="text-[10px] text-muted"
-          data-testid="person-landing-positions-overflow"
-        >
-          + {{ positionRows.length - PERSON_LANDING_POSITIONS_CAP }} more
-        </p>
       </template>
 
       <div v-if="!props.embedded" class="flex shrink-0 flex-wrap gap-2 pt-2">

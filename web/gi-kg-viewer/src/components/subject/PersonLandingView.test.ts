@@ -525,34 +525,26 @@ describe('PersonLandingView — view prop gating + positions lens', () => {
     expect(allDiv.find('[data-testid="person-landing-positions-empty"]').exists()).toBe(true)
   })
 
-  it('view="positions" with 12 positionRows shows paginator on all lens', async () => {
-    // Build an artifact with 12 SPOKEN_BY quote→person:alice edges
-    const nodes: Array<{ id: string; type: string; properties: Record<string, unknown> }> = [
-      { id: 'person:alice', type: 'Person', properties: { name: 'Alice' } },
-    ]
-    const edges: Array<{ from: string; to: string; type: string }> = []
-    for (let i = 1; i <= 12; i++) {
-      nodes.push({ id: `quote:q${i}`, type: 'Quote', properties: { text: `Quote ${i}` } })
-      edges.push({ from: `quote:q${i}`, to: 'person:alice', type: 'SPOKEN_BY' })
-    }
-    const art = {
-      id: 'a1',
-      kind: 'gi',
-      data: { nodes, edges },
-    } as unknown as ParsedArtifact
+  it('view="positions" with 12 corpus quotes shows paginator on all lens', async () => {
+    // The "All positions" lens paginates the corpus-wide quotes (server /brief),
+    // not the client-graph SPOKEN_BY walk — mock 12 quotes on the profile.
+    const quotes = Array.from({ length: 12 }, (_v, i) => ({
+      quote: { id: `quote:q${i + 1}`, properties: { text: `Quote ${i + 1}` } },
+      episode_id: `ep${i + 1}`,
+    }))
+    fetchPersonProfile.mockResolvedValue({ subject: 'person:alice', quotes })
 
-    const w = await mountViewProp('positions', art)
+    const w = await mountViewProp('positions')
     await w.get('[data-testid="person-landing-positions-lens-all"]').trigger('click')
     // Paginator should appear (12 rows > POSITIONS_PAGE_SIZE=10)
     expect(w.find('[data-testid="person-landing-positions-pager"]').exists()).toBe(true)
-    // First page: 10 rows
-    const rows = w.findAll('[data-testid^="person-landing-positions"]').filter(
-      (el) => el.attributes('data-testid') === 'person-landing-positions',
-    )
+    // First page shows 10 rows.
+    expect(w.findAll('[data-testid="person-landing-corpus-row"]').length).toBe(10)
     // page info shows 1 / 2
     expect(w.get('[data-testid="person-landing-positions-pager-info"]').text()).toBe('1 / 2')
     // click next
     await w.get('[data-testid="person-landing-positions-pager-next"]').trigger('click')
     expect(w.get('[data-testid="person-landing-positions-pager-info"]').text()).toBe('2 / 2')
+    expect(w.findAll('[data-testid="person-landing-corpus-row"]').length).toBe(2)
   })
 })
