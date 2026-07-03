@@ -165,6 +165,10 @@ def test_contradictions_above_threshold_kept(tmp_path: Path) -> None:
     assert row["topic_id"] == "topic:ai"
     assert row["contradiction_score"] == 0.92
     assert {row["person_a_id"], row["person_b_id"]} == {"person:alice", "person:bob"}
+    # v1.1.0 — the two opposing claims are persisted (paired with their speaker
+    # side) so a consumer can show *what* contradicts, no id → text lookup.
+    assert (row["insight_a_id"], row["insight_a_text"]) == ("insight:i1", "AI is safe")
+    assert (row["insight_b_id"], row["insight_b_text"]) == ("insight:i2", "AI is dangerous")
 
 
 def test_pairs_below_threshold_dropped(tmp_path: Path) -> None:

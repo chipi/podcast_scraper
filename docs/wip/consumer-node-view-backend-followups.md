@@ -70,24 +70,19 @@ The same endpoint would also let an out-of-slice **episode**'s insights render;
 episodes themselves already open via `focusEpisode` (Library panel) regardless of
 slice, so no episode-specific work is needed.
 
-### Also blocked on this endpoint: contradiction "what exactly" (N7)
+### Contradiction "what exactly" (N7) — SHIPPED (not via this endpoint)
 
-The person Signals **Contradictions** section (`NodeEnrichmentSection`) names the
-counterpart + topic, both click-through (person → focusPerson, topic →
-focusTopic → the topic's Key voices, which shows both takes with text). The
-operator asked to also show *what exactly* was said, inline. The
-`nli_contradiction` envelope carries `insight_a_id` + `insight_b_id` +
-`contradiction_score` but **not** the insight texts, and no existing endpoint
-resolves an arbitrary insight id → text corpus-wide:
+The person Signals **Contradictions** section (`NodeEnrichmentSection`) named the
+counterpart + topic but not the opposing statements. The fix turned out to be at
+the **producer**, not a new endpoint: the `nli_contradiction` enricher already
+reads both insight texts to feed the NLI scorer, but only persisted the two
+insight *ids* — dropping the texts it had in hand.
 
-- `who-said?topic=` returns per-person insights for a topic but caps at `k=20`
-  per person, so the specific contradicting insight isn't guaranteed to be in
-  the window — a viewer-only resolution would silently miss rows.
-- The `/brief` `topics` map only covers the **focused** person's own insights,
-  never the counterpart's.
+`nli_contradiction` v1.1.0 now persists `insight_a_text` / `insight_b_text` per
+record; `NodeEnrichmentSection` reads them (oriented to the focused person) and
+renders the two claims under each row. No id → text endpoint needed, no
+`who-said` k=20 truncation risk. Prod-v2's envelope was regenerated
+(`--only nli_contradiction --with-ml`, 660 records, all with both texts).
 
-The same `insight-detail?insight=<id>` endpoint from follow-up #2 resolves both
-sides reliably. Viewer change is then small: read `insight_a_id`/`insight_b_id`
-(already in the envelope), resolve each to text, render the two statements under
-the contradiction row. Until then the topic click-through is the "what exactly"
-path.
+Note the out-of-slice insight endpoint (#2) is still wanted for the *timeline
+mention drill* — that's a different consumer and remains open.

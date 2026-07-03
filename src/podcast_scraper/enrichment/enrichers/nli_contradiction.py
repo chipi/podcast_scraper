@@ -97,7 +97,7 @@ class NliContradictionEnricher:
 
     manifest = EnricherManifest(
         id="nli_contradiction",
-        version="1.0.0",
+        version="1.1.0",
         scope=EnricherScope.CORPUS,
         tier=EnricherTier.ML,
         reads=[".gi.json"],
@@ -184,6 +184,12 @@ class NliContradictionEnricher:
                                 "person_b_name": person_label.get(pid_b, pid_b),
                                 "insight_a_id": iid_a,
                                 "insight_b_id": iid_b,
+                                # The two opposing claims. The scorer already read
+                                # these to compute the score; persisting them lets a
+                                # consumer show *what* contradicts without a second
+                                # insight-id → text lookup (v1.1.0).
+                                "insight_a_text": text_a,
+                                "insight_b_text": text_b,
                                 "contradiction_score": round(score.contradiction, 6),
                                 "model_id": model_id,
                                 "model_version": model_version,

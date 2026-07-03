@@ -65,3 +65,61 @@ describe('NodeEnrichmentSection — has-content reporting', () => {
     expect(lastHasContent(w)).toBe(false)
   })
 })
+
+// N7 — the contradiction row shows the two opposing claims (persisted by the
+// nli_contradiction enricher v1.1.0), oriented to the focused person.
+function contradictionEnvelope() {
+  fetchEnvelope.mockImplementation((_root: string, enricher: string) => {
+    if (enricher === 'nli_contradiction') {
+      return Promise.resolve({
+        data: {
+          contradictions: [
+            {
+              topic_id: 'topic:venture-capital',
+              person_a_id: 'person:alice',
+              person_a_name: 'Alice',
+              person_b_id: 'person:bob',
+              person_b_name: 'Bob',
+              insight_a_text: 'VC returns concentrate in a few funds.',
+              insight_b_text: 'We built the company without venture capital.',
+            },
+          ],
+        },
+      } as never)
+    }
+    return Promise.resolve({ data: {} } as never)
+  })
+}
+
+describe('NodeEnrichmentSection — contradiction claims (N7)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    fetchEnvelope.mockReset()
+  })
+
+  it('renders both opposing claims, attributed, oriented to the focused person', async () => {
+    contradictionEnvelope()
+    const w = await mountFor({ nodeId: 'person:alice', nodeType: 'person' })
+    const claims = w.find('[data-testid="node-enrichment-contradiction-claims"]')
+    expect(claims.exists()).toBe(true)
+    const text = claims.text()
+    // Focused = person_a → self claim is insight_a_text; counterpart Bob's is insight_b_text.
+    expect(text).toContain('Alice:')
+    expect(text).toContain('VC returns concentrate in a few funds.')
+    expect(text).toContain('Bob:')
+    expect(text).toContain('We built the company without venture capital.')
+  })
+
+  it('flips claim orientation when the counterpart is focused', async () => {
+    contradictionEnvelope()
+    const w = await mountFor({ nodeId: 'person:bob', nodeType: 'person' })
+    const claims = w.find('[data-testid="node-enrichment-contradiction-claims"]')
+    expect(claims.exists()).toBe(true)
+    // Focused = person_b → their claim is insight_b_text; the row's counterpart is Alice.
+    const text = claims.text()
+    expect(text).toContain('Bob:')
+    expect(text).toContain('We built the company without venture capital.')
+    expect(text).toContain('Alice:')
+    expect(text).toContain('VC returns concentrate in a few funds.')
+  })
+})

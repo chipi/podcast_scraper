@@ -42,7 +42,19 @@ const cooccurByLift = computed(() =>
 // --- person signals ---
 const grounding = ref<{ grounded: number; total: number; rate: number } | null>(null)
 const coappearances = ref<Array<{ person_id: string; person_name?: string; episode_count: number }>>([])
-const contradictions = ref<Array<{ person_id: string; person_name?: string; topic_id: string }>>([])
+// N7 — each row carries the two opposing claims (oriented to the focused
+// person: ``selfText`` is their statement, ``otherText`` the counterpart's) so
+// the panel shows *what* contradicts, not just *who*.
+const contradictions = ref<
+  Array<{
+    person_id: string
+    person_name?: string
+    topic_id: string
+    selfName?: string
+    selfText?: string
+    otherText?: string
+  }>
+>([])
 
 function shortId(id: string): string {
   return id.replace(/^(podcast|person|topic|org):/, '').replace(/[-_]/g, ' ').trim() || id
@@ -96,7 +108,7 @@ async function load(): Promise<void> {
     const [gr, co, ct] = await Promise.all([
       fetchCachedCorpusEnvelope<{ persons: Array<{ person_id: string; grounded_insights: number; total_insights: number; rate: number }> }>(root, 'grounding_rate').catch(() => null),
       fetchCachedCorpusEnvelope<{ pairs: Array<{ person_a_id: string; person_b_id: string; person_a_name?: string; person_b_name?: string; episode_count: number }> }>(root, 'guest_coappearance').catch(() => null),
-      fetchCachedCorpusEnvelope<{ contradictions: Array<{ topic_id: string; person_a_id: string; person_b_id: string; person_a_name?: string; person_b_name?: string }> }>(root, 'nli_contradiction').catch(() => null),
+      fetchCachedCorpusEnvelope<{ contradictions: Array<{ topic_id: string; person_a_id: string; person_b_id: string; person_a_name?: string; person_b_name?: string; insight_a_text?: string; insight_b_text?: string }> }>(root, 'nli_contradiction').catch(() => null),
     ])
     const grow = gr?.data?.persons?.find((p) => p.person_id === id) ?? null
     if (grow) grounding.value = { grounded: grow.grounded_insights, total: grow.total_insights, rate: grow.rate }
@@ -109,10 +121,27 @@ async function load(): Promise<void> {
       coappearances.value = out.sort((a, b) => b.episode_count - a.episode_count).slice(0, 8)
     }
     if (ct?.data?.contradictions) {
-      const out: Array<{ person_id: string; person_name?: string; topic_id: string }> = []
+      const out: typeof contradictions.value = []
       for (const c of ct.data.contradictions) {
-        if (c.person_a_id === id) out.push({ person_id: c.person_b_id, person_name: c.person_b_name, topic_id: c.topic_id })
-        else if (c.person_b_id === id) out.push({ person_id: c.person_a_id, person_name: c.person_a_name, topic_id: c.topic_id })
+        if (c.person_a_id === id) {
+          out.push({
+            person_id: c.person_b_id,
+            person_name: c.person_b_name,
+            topic_id: c.topic_id,
+            selfName: c.person_a_name,
+            selfText: c.insight_a_text,
+            otherText: c.insight_b_text,
+          })
+        } else if (c.person_b_id === id) {
+          out.push({
+            person_id: c.person_a_id,
+            person_name: c.person_a_name,
+            topic_id: c.topic_id,
+            selfName: c.person_b_name,
+            selfText: c.insight_b_text,
+            otherText: c.insight_a_text,
+          })
+        }
       }
       contradictions.value = out.slice(0, 8)
     }
@@ -182,6 +211,21 @@ watch(() => props.nodeId, () => void load(), { immediate: true })
             <button type="button" class="inline-flex items-center gap-1 align-middle font-semibold text-primary hover:underline" @click="subject.focusPerson(r.person_id)"><PersonInitialAvatar :name="r.person_name || shortId(r.person_id)" />{{ titleCaseWords(r.person_name || shortId(r.person_id)) }}</button>
             <span class="text-muted"> on </span>
             <button type="button" class="text-surface-foreground hover:underline" :title="`Open ${titleCaseWords(shortId(r.topic_id).replace(/[-_]+/g, ' '))} — see both takes under Key voices`" @click="subject.focusTopic(r.topic_id)">{{ titleCaseWords(shortId(r.topic_id).replace(/[-_]+/g, ' ')) }}</button>
+            <!-- N7 — the two opposing claims, so it's clear *what* contradicts. -->
+            <div
+              v-if="r.selfText || r.otherText"
+              class="mt-1 space-y-1"
+              data-testid="node-enrichment-contradiction-claims"
+            >
+              <p v-if="r.selfText" class="text-[10px] leading-snug text-muted">
+                <span class="font-medium text-surface-foreground">{{ titleCaseWords(r.selfName || shortId(props.nodeId)) }}:</span>
+                <span class="line-clamp-3">“{{ r.selfText }}”</span>
+              </p>
+              <p v-if="r.otherText" class="text-[10px] leading-snug text-muted">
+                <span class="font-medium text-surface-foreground">{{ titleCaseWords(r.person_name || shortId(r.person_id)) }}:</span>
+                <span class="line-clamp-3">“{{ r.otherText }}”</span>
+              </p>
+            </div>
           </li>
         </ul>
       </div>
