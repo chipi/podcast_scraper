@@ -25,6 +25,8 @@ tests/fixtures/multi-run-corpus/
 
 # Test outputs
 .test_outputs/
+# Throwaway UI verification screenshots (chrome-devtools captures)
+.wip-screenshots/
 # Local prod backup verification (scripts/ops/verify_prod_backup_snapshot.sh)
 .tmp_backup_verify/
 
