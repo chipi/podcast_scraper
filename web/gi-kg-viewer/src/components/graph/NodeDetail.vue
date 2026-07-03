@@ -1468,7 +1468,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
 
 <template>
   <aside
-    v-if="nodeId && (node || hasTopicClusterJson || inferredKindFromId === 'Person')"
+    v-if="nodeId && (node || hasTopicClusterJson || inferredKindFromId)"
     class="relative z-20 text-surface-foreground"
     :class="
       props.embedInRail

@@ -75,6 +75,17 @@ describe('NodeDetail', () => {
     expect(w.find('.node-detail-primary-title').text()).toBe('Robert Armstrong')
   })
 
+  it('renders the topic view for an out-of-slice topic id even when the node is absent', () => {
+    const w = mountDetail({
+      viewArtifact: artifactOf([]),
+      nodeId: 'g:topic:interest-rates',
+      embedInRail: true,
+    })
+    expect(w.find('aside').exists()).toBe(true)
+    expect(w.find('[data-testid="topic-entity-view"]').exists()).toBe(true)
+    expect(w.find('.node-detail-primary-title').text()).toBe('Interest Rates')
+  })
+
   it('renders the panel with the node display name and type chip for a generic node', () => {
     const art = artifactOf([
       { id: 'ep:1', type: 'Episode', properties: { title: 'My Episode' } },

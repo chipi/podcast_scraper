@@ -124,6 +124,17 @@ describe('TopicEntityView.vue', () => {
     expect(w.find('[data-testid="topic-entity-view-aliases"]').exists()).toBe(false)
   })
 
+  // Regression: NodeDetail passes the prefixed graph node id (g:topic:…) but the
+  // relational endpoints canonicalize on the bare corpus id — without stripping,
+  // every topic's Across-shows / Key-voices / Related-topics come back empty.
+  it('strips the graph layer prefix before the relational fetches', async () => {
+    await mountTopic(artifactOf([]), 'g:topic:ai')
+    expect(fetchCrossShow).toHaveBeenCalledWith('/corpus', 'topic:ai')
+    expect(fetchWhoSaid).toHaveBeenCalledWith('/corpus', 'topic:ai')
+    expect(fetchRelatedTopics).toHaveBeenCalledWith('/corpus', 'topic:ai')
+    expect(fetchTopicEntities).toHaveBeenCalledWith('/corpus', 'topic:ai')
+  })
+
   it('labels a Person/Entity node as "Entity"', async () => {
     const art = artifactOf([
       { id: 'person:ada', type: 'Person', properties: { name: 'Ada Lovelace' } },

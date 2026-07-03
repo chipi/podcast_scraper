@@ -72,10 +72,13 @@ const panelHeading = computed(() => {
   }
   const n = rawNode.value
   if (!n) {
-    // Out-of-slice person (e.g. a co-speaker from the full relational graph):
-    // NodeDetail still renders the person view, so title the rail "Person".
-    if (id && id.includes('person:')) {
-      return 'Person'
+    // Out-of-slice node (from the full relational graph): NodeDetail still
+    // renders the person / topic / entity view, so title the rail accordingly
+    // instead of a bare "Node".
+    if (id) {
+      if (id.includes('person:')) return 'Person'
+      if (id.includes('org:')) return 'Organization'
+      if (id.includes('topic:')) return 'Topic'
     }
     return 'Node'
   }

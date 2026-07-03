@@ -26,6 +26,7 @@ import {
 } from '../../api/relationalApi'
 import { StaleGeneration } from '../../utils/staleGeneration'
 import { findRawNodeInArtifactByIdOrPrefixed } from '../../utils/parsing'
+import { stripLayerPrefixesForCil } from '../../utils/mergeGiKg'
 import PersonInitialAvatar from '../shared/PersonInitialAvatar.vue'
 import ShowGlyph from '../shared/ShowGlyph.vue'
 
@@ -97,12 +98,17 @@ async function loadRelational(topicId: string): Promise<void> {
   voicesLoading.value = true
   entitiesLoading.value = true
   resetRelational()
+  // Relational endpoints canonicalize on the bare corpus id (topic:…); strip the
+  // graph layer prefix (g:/k:) first or they return empty — NodeDetail passes the
+  // prefixed node id, so without this every topic's sections are blank (same
+  // id-format mismatch fixed for the person Connections rail).
+  const canonical = stripLayerPrefixesForCil(topicId)
   try {
     const [cross, who, ents, related] = await Promise.all([
-      fetchCrossShow(root, topicId).catch((e) => ({ error: String(e?.message ?? e), groups: {} })),
-      fetchWhoSaid(root, topicId).catch((e) => ({ error: String(e?.message ?? e), groups: {} })),
-      fetchTopicEntities(root, topicId).catch(() => ({ results: [] as RelatedNode[] })),
-      fetchRelatedTopics(root, topicId).catch(() => ({ results: [] as RelatedNode[] })),
+      fetchCrossShow(root, canonical).catch((e) => ({ error: String(e?.message ?? e), groups: {} })),
+      fetchWhoSaid(root, canonical).catch((e) => ({ error: String(e?.message ?? e), groups: {} })),
+      fetchTopicEntities(root, canonical).catch(() => ({ results: [] as RelatedNode[] })),
+      fetchRelatedTopics(root, canonical).catch(() => ({ results: [] as RelatedNode[] })),
     ])
     if (relationalGate.isStale(seq)) return
     relatedTopicRows.value = related.results ?? []
