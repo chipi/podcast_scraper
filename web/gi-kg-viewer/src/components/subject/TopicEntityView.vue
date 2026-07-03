@@ -26,6 +26,8 @@ import {
 } from '../../api/relationalApi'
 import { StaleGeneration } from '../../utils/staleGeneration'
 import { findRawNodeInArtifactByIdOrPrefixed } from '../../utils/parsing'
+import PersonInitialAvatar from '../shared/PersonInitialAvatar.vue'
+import ShowGlyph from '../shared/ShowGlyph.vue'
 
 
 
@@ -264,11 +266,16 @@ function onPrefillSearch(): void {
             v-for="row in crossShowRows"
             :key="row.showId"
             data-testid="tev-cross-show-row"
-            class="rounded border-l-2 border-primary/40 pl-2 text-[11px] leading-snug"
+            class="rounded border border-border bg-elevated/40 px-2 py-1.5 text-[11px] leading-snug"
           >
-            <p class="font-semibold text-surface-foreground">{{ shortId(row.showId) }}</p>
+            <div class="flex items-center gap-1.5">
+              <ShowGlyph :name="shortId(row.showId)" />
+              <p class="min-w-0 truncate font-semibold text-surface-foreground" :title="shortId(row.showId)">
+                {{ shortId(row.showId) }}
+              </p>
+            </div>
             <p
-              class="text-muted line-clamp-2"
+              class="mt-0.5 text-muted line-clamp-2"
               :title="row.insight.text"
             >
               {{ row.insight.text }}
@@ -330,14 +337,17 @@ function onPrefillSearch(): void {
             data-testid="tev-voice-row"
             class="rounded border border-border bg-elevated/40 px-2 py-1.5 text-[11px] leading-snug"
           >
-            <button
-              type="button"
-              data-testid="tev-voice-link"
-              class="rounded font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              :title="`Open Person panel for ${shortId(row.personId)}`"
-              @click="onClickVoice(row.personId)"
-            >{{ shortId(row.personId) }}</button>
-            <span class="ml-1 text-[10px] text-muted">({{ row.insights.length }})</span>
+            <div class="flex items-center gap-1.5">
+              <PersonInitialAvatar :name="shortId(row.personId)" />
+              <button
+                type="button"
+                data-testid="tev-voice-link"
+                class="min-w-0 truncate rounded font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                :title="`Open Person panel for ${shortId(row.personId)}`"
+                @click="onClickVoice(row.personId)"
+              >{{ shortId(row.personId) }}</button>
+              <span class="shrink-0 text-[10px] text-muted">({{ row.insights.length }})</span>
+            </div>
             <p
               v-if="row.insights[0]?.text"
               class="mt-0.5 text-muted line-clamp-2"
