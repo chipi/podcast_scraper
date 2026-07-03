@@ -859,6 +859,8 @@ interface FlatMentionRow {
   text: string
   episodeTitle: string
   publishDate: string | null
+  /** Insight node id, so a mention can drill into the insight's node view. */
+  insightId: string | null
 }
 const flatMentions = computed<FlatMentionRow[]>(() => {
   const filter = mentionsEpisodeFilter.value
@@ -869,11 +871,17 @@ const flatMentions = computed<FlatMentionRow[]>(() => {
     const date = ep.publish_date
     const insights = ep.insights ?? []
     for (let ii = 0; ii < insights.length; ii++) {
+      const ins = insights[ii]
+      const insId =
+        ins && typeof ins === 'object' && (ins as Record<string, unknown>).id != null
+          ? String((ins as Record<string, unknown>).id)
+          : null
       rows.push({
         key: `${ep.episode_id ?? ei}-${ii}`,
-        text: insightLine(insights[ii]),
+        text: insightLine(ins),
         episodeTitle: title,
         publishDate: date,
+        insightId: insId,
       })
     }
   })
@@ -957,6 +965,15 @@ function openEpisodeMentions(ep: CilArcEpisodeBlock): void {
   mentionsEpisodeFilter.value = String(ep.episode_id ?? '')
   mentionsPage.value = 1
   timelineView.value = 'mentions'
+}
+
+// FB15 — drill from a timeline mention into the insight's own node view (with
+// Back). Resolves for insights in the loaded graph slice; corpus-wide CIL
+// mentions outside the slice fall back to the empty-node state (insight
+// out-of-slice rendering is a separate follow-up, like the person/topic gate).
+function openMentionInsight(insightId: string | null): void {
+  const id = insightId?.trim()
+  if (id) subject.focusGraphNode(id)
 }
 function episodeSummaryTitle(ep: CilArcEpisodeBlock): string {
   return ep.summary_title?.trim() ?? ''
@@ -2534,17 +2551,35 @@ const graphConnectionsCenterInView = computed((): boolean => {
             :key="m.key"
             class="min-w-0 border-b border-border/40 pb-1.5 last:border-b-0"
           >
-            <p class="break-words text-[11px] leading-snug text-surface-foreground">
-              {{ m.text }}
-            </p>
-            <p
-              v-if="m.episodeTitle || m.publishDate"
-              class="mt-0.5 break-words text-[10px] leading-snug text-muted"
+            <button
+              v-if="m.insightId"
+              type="button"
+              class="w-full min-w-0 rounded text-left hover:bg-overlay/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              data-testid="node-detail-mention-open"
+              title="Open this insight"
+              @click="openMentionInsight(m.insightId)"
             >
-              <span v-if="m.episodeTitle">{{ m.episodeTitle }}</span>
-              <span v-if="m.episodeTitle && m.publishDate"> · </span>
-              <span v-if="m.publishDate">{{ formatEpisodeDate(m.publishDate) }}</span>
-            </p>
+              <p class="break-words text-[11px] leading-snug text-surface-foreground">{{ m.text }}</p>
+              <p
+                v-if="m.episodeTitle || m.publishDate"
+                class="mt-0.5 break-words text-[10px] leading-snug text-muted"
+              >
+                <span v-if="m.episodeTitle">{{ m.episodeTitle }}</span>
+                <span v-if="m.episodeTitle && m.publishDate"> · </span>
+                <span v-if="m.publishDate">{{ formatEpisodeDate(m.publishDate) }}</span>
+              </p>
+            </button>
+            <template v-else>
+              <p class="break-words text-[11px] leading-snug text-surface-foreground">{{ m.text }}</p>
+              <p
+                v-if="m.episodeTitle || m.publishDate"
+                class="mt-0.5 break-words text-[10px] leading-snug text-muted"
+              >
+                <span v-if="m.episodeTitle">{{ m.episodeTitle }}</span>
+                <span v-if="m.episodeTitle && m.publishDate"> · </span>
+                <span v-if="m.publishDate">{{ formatEpisodeDate(m.publishDate) }}</span>
+              </p>
+            </template>
           </li>
         </ul>
         <nav
