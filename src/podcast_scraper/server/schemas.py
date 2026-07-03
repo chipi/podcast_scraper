@@ -1270,14 +1270,13 @@ class CorpusEpisodeListItem(BaseModel):
     has_kg: bool = Field(default=False, description="True when KG artifact exists on disk.")
     # RFC-088 chunk-8 follow-up: per-episode enrichment availability flags.
     # Populated from `metadata/enrichments/{stem}.{id}.json` presence for
-    # each episode-scope enricher (currently topic_cooccurrence +
-    # insight_density). Cheap probe — caller knows whether a drill-down
-    # to `/api/corpus/episode/enrichments/{id}` will return a 200 or 404.
+    # each episode-scope enricher (currently insight_density). Cheap probe —
+    # caller knows whether a drill-down to
+    # `/api/corpus/episode/enrichments/{id}` will return a 200 or 404.
     enrichments_available: dict[str, bool] = Field(
         default_factory=dict,
         description=(
-            "Per-enricher availability flags for episode-scope enrichers "
-            "(e.g. topic_cooccurrence, insight_density)."
+            "Per-enricher availability flags for episode-scope enrichers " "(e.g. insight_density)."
         ),
     )
 

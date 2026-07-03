@@ -93,12 +93,12 @@ class ProviderRequirement:
 class EnricherManifest:
     """Declares an enricher's inputs, outputs, tier, scope, and cost caps."""
 
-    id: str  # e.g. "topic_cooccurrence"
+    id: str  # e.g. "insight_density"
     version: str  # semver e.g. "1.0.0"
     scope: EnricherScope
     tier: EnricherTier
     reads: list[str]  # artifact suffixes consumed, e.g. [".kg.json", ".bridge.json"]
-    writes: str  # output filename, e.g. "topic_cooccurrence.json"
+    writes: str  # output filename, e.g. "insight_density.json"
     description: str
     requires_opt_in: bool = False  # True forces double-opt-in for LLM tier
     # Cost-cap fields (O1 decision): per-enricher soft budget; exceeded

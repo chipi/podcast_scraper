@@ -161,7 +161,7 @@ def test_executor_runs_all_six_deterministic_enrichers(tmp_path: Path) -> None:
 
     # Episode-scope envelopes for both episodes.
     for stem in ("ep1", "ep2"):
-        for writes in ("topic_cooccurrence.json", "insight_density.json"):
+        for writes in ("insight_density.json",):
             assert (tmp_path / "metadata" / "enrichments" / f"{stem}.{writes}").is_file(), (
                 stem,
                 writes,
@@ -184,4 +184,4 @@ def test_all_six_register_in_correct_scope() -> None:
         for eid in ALL_DETERMINISTIC_ENRICHER_IDS
         if registry.get(eid).manifest.scope is EnricherScope.EPISODE
     }
-    assert episode_ids == {"topic_cooccurrence", "insight_density"}
+    assert episode_ids == {"insight_density"}

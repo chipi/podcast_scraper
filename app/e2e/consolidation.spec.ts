@@ -21,7 +21,7 @@ test('enrichment read surface + recall toggle + your-corpus lens + Revisit inbox
   // #1121: the consumer enrichment read surface serves the committed envelopes.
   const epEnrich = await page.request.get(`/api/app/episodes/${slug}/enrichment`)
   expect(epEnrich.ok()).toBeTruthy()
-  expect((await epEnrich.json()).signals).toHaveProperty('topic_cooccurrence')
+  expect((await epEnrich.json()).signals).toHaveProperty('insight_density')
   const corpusEnrich = await page.request.get('/api/app/corpus/enrichment')
   expect((await corpusEnrich.json()).signals).toHaveProperty('temporal_velocity')
 

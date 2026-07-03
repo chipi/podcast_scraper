@@ -114,8 +114,8 @@ def test_profile_plus_only_narrows_to_subset(tmp_path: Path) -> None:
     )
 
     base = enricher_set_for_profile("airgapped_thin")
-    out = apply_cli_overrides(base, only=["topic_cooccurrence"])
-    assert out.enabled_enrichers == ["topic_cooccurrence"]
+    out = apply_cli_overrides(base, only=["topic_cooccurrence_corpus"])
+    assert out.enabled_enrichers == ["topic_cooccurrence_corpus"]
 
 
 def test_no_enrichers_beats_profile_and_only(tmp_path: Path) -> None:

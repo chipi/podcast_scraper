@@ -42,9 +42,8 @@ def test_schema_route_composes_per_enricher_blocks(client: TestClient) -> None:
     assert r.status_code == 200, r.text
     schema = r.json()
     enrichers = schema["properties"]["enrichers"]["properties"]
-    # All 8 known enrichers surface in the schema.
+    # The known enrichers surface in the schema.
     expected = {
-        "topic_cooccurrence",
         "topic_cooccurrence_corpus",
         "temporal_velocity",
         "grounding_rate",

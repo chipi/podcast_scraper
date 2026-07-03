@@ -21,7 +21,6 @@ from podcast_scraper.enrichment.enrichers import (
     register_deterministic_enrichers,
     TemporalVelocityEnricher,
     TopicCooccurrenceCorpusEnricher,
-    TopicCooccurrenceEnricher,
     TopicThemeClustersEnricher,
 )
 from podcast_scraper.enrichment.protocol import (
@@ -91,51 +90,6 @@ def _run(enricher: Any, **kw: Any) -> dict[str, Any]:
     assert result.status == STATUS_OK, f"status={result.status!r} error={result.error}"
     assert isinstance(result.data, dict)
     return result.data
-
-
-# ---------------------------------------------------------------------------
-# topic_cooccurrence (episode scope)
-# ---------------------------------------------------------------------------
-
-
-def test_topic_cooccurrence_lists_unordered_pairs(tmp_path: Path) -> None:
-    kg = {
-        "nodes": [
-            {"type": "Topic", "id": "topic:a", "properties": {"label": "Alpha"}},
-            {"type": "Topic", "id": "topic:b", "properties": {"label": "Beta"}},
-            {"type": "Topic", "id": "topic:c", "properties": {"label": "Gamma"}},
-            {"type": "Person", "id": "person:x"},  # ignored
-        ],
-        "edges": [],
-    }
-    bundle = _bundle(tmp_path / "metadata", "ep1", kg=kg)
-    data = _run(
-        TopicCooccurrenceEnricher(),
-        bundle=bundle,
-        corpus_root=tmp_path,
-        all_bundles=None,
-        config={},
-        ctx=_ctx("topic_cooccurrence"),
-    )
-    pairs = data["pairs"]
-    # 3 topics → C(3,2) = 3 pairs.
-    assert len(pairs) == 3
-    pair_ids = {(p["topic_a_id"], p["topic_b_id"]) for p in pairs}
-    assert pair_ids == {("topic:a", "topic:b"), ("topic:a", "topic:c"), ("topic:b", "topic:c")}
-    assert all(p["episode_count"] == 1 for p in pairs)
-
-
-def test_topic_cooccurrence_no_topics_emits_empty(tmp_path: Path) -> None:
-    bundle = _bundle(tmp_path / "metadata", "ep1", kg={"nodes": [], "edges": []})
-    data = _run(
-        TopicCooccurrenceEnricher(),
-        bundle=bundle,
-        corpus_root=tmp_path,
-        all_bundles=None,
-        config={},
-        ctx=_ctx("topic_cooccurrence"),
-    )
-    assert data["pairs"] == []
 
 
 # ---------------------------------------------------------------------------

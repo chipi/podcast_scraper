@@ -235,6 +235,38 @@ def _enrichment_envelope(enricher_id: str, data: dict[str, Any]) -> dict[str, An
     }
 
 
+def _insight_density_envelope(gi: dict[str, Any], episode_id: str) -> dict[str, Any]:
+    """An ``insight_density`` envelope: this episode's insights bucketed early/mid/late.
+
+    Round-robins the GI's Insight nodes across the three thirds (no timing) so the
+    consumer episode-enrichment read surface has a real episode-scope signal.
+    """
+    gi_nodes = (gi.get("data") or gi).get("nodes", []) if isinstance(gi, dict) else []
+    insight_ids = [
+        str(n.get("id"))
+        for n in gi_nodes
+        if isinstance(n, dict) and str(n.get("type")) == "Insight" and n.get("id")
+    ]
+    segs = ["early", "mid", "late"]
+    insight_segments = [
+        {"insight_id": iid, "segment": segs[i % 3]} for i, iid in enumerate(insight_ids)
+    ]
+    counts = {"early": 0, "mid": 0, "late": 0, "unknown": 0}
+    for seg in insight_segments:
+        counts[seg["segment"]] += 1
+    return _enrichment_envelope(
+        "insight_density",
+        {
+            "insight_segments": insight_segments,
+            "episode_id": episode_id,
+            "duration_seconds": 1800.0,
+            "has_timing": False,
+            "counts": counts,
+            "total_insights": len(insight_segments),
+        },
+    )
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--rss-dir", type=Path, default=Path("tests/fixtures/rss"))
@@ -334,21 +366,12 @@ def main() -> int:
 
             # Episode-scope enrichment envelope (RFC-088) so the consumer enrichment read surface
             # (GET /api/app/episodes/{slug}/enrichment, P3 #1121) has real data in the e2e corpus.
-            # topic_cooccurrence: which of this episode's topics appear together (all pairs here).
+            # insight_density (topic_cooccurrence was dropped — trivial at episode scope).
             topic_ids = [f"topic:{slug(lbl)}" for lbl in topics]
-            cooc = [
-                {"a": topic_ids[i], "b": topic_ids[j], "count": 1}
-                for i in range(len(topic_ids))
-                for j in range(i + 1, len(topic_ids))
-            ]
             enrich_dir = run_meta_dir / "enrichments"
             enrich_dir.mkdir(parents=True, exist_ok=True)
-            (enrich_dir / f"{ep_label}.topic_cooccurrence.json").write_text(
-                json.dumps(
-                    _enrichment_envelope("topic_cooccurrence", {"pairs": cooc}),
-                    indent=2,
-                    sort_keys=True,
-                )
+            (enrich_dir / f"{ep_label}.insight_density.json").write_text(
+                json.dumps(_insight_density_envelope(gi, episode_id), indent=2, sort_keys=True)
                 + "\n",
                 encoding="utf-8",
             )

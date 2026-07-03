@@ -16,7 +16,8 @@ timeline chart. **Supersedes** the 2026-07-01 prod-pilot version of this file
 
 ## The enricher roster (master reference)
 
-9 enrichers. Scope/tier read from the manifests; counts are prod-v2 reality on disk today.
+8 enrichers. Scope/tier read from the manifests; counts are prod-v2 reality on disk today.
+(The episode-scope `topic_cooccurrence` enricher was **removed** — see the note at the bottom.)
 
 | # | Enricher | Scope | Tier | Signal (one line) | prod-v2 count | Viewer surface | Player surface |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -25,13 +26,11 @@ timeline chart. **Supersedes** the 2026-07-01 prod-pilot version of this file
 | 3 | `insight_density` | **episode** | deterministic | Insights per early/mid/late third | 209 eps | Episode → Enrichment tab | — (scrubber ticks use `confidence`, not this) |
 | 4 | `nli_contradiction` | corpus | **ML** (NliScorer) | Cross-person opposing claims per topic | **660** (v1.1.0, w/ texts) | Signals tab (person) **+** graph EnrichmentEdgesPanel | — |
 | 5 | `temporal_velocity` | corpus | deterministic | Topic mentions/mo + EWMA + velocity ratio | 833 topics | Signals tab (topic) | — |
-| 6 | `topic_cooccurrence` | **episode** | deterministic | Per-episode topic pairs (`count`=1) | — | **orphaned** (removed from UI by design) | — |
-| 7 | `topic_cooccurrence_corpus` | corpus | deterministic | Corpus topic pairs + lift/PMI | 4 428 pairs | Signals tab (topic) | — |
-| 8 | `topic_similarity` | corpus | **embedding** | Top-K cosine-similar topics | 833 topics | graph EnrichmentEdgesPanel | — |
-| 9 | `topic_theme_clusters` | corpus | deterministic | THEME clusters (co-discussed topics, lift) | 6 clusters | **Details** tab (topic) | ✅ Knowledge panel / entity card |
+| 6 | `topic_cooccurrence_corpus` | corpus | deterministic | Corpus topic pairs + lift/PMI | 4 428 pairs | Signals tab (topic) | — |
+| 7 | `topic_similarity` | corpus | **embedding** | Top-K cosine-similar topics | 833 topics | graph EnrichmentEdgesPanel | — |
+| 8 | `topic_theme_clusters` | corpus | deterministic | THEME clusters (co-discussed topics, lift) | 6 clusters | **Details** tab (topic) | ✅ Knowledge panel / entity card |
 
-**Headline:** Viewer surfaces **8 / 9** (all but the intentionally-orphaned episode-scope `topic_cooccurrence`).
-Player surfaces **1 / 9** (`topic_theme_clusters`, and only via the `/entities` route, not the enrichment endpoints).
+**Headline:** Viewer surfaces **8 / 8**. Player surfaces **1 / 8** (`topic_theme_clusters`, and only via the `/entities` route, not the enrichment endpoints).
 
 ## What changed since the prod-pilot plan (the delta to re-test)
 
@@ -121,15 +120,19 @@ Part B is a product decision: which of these to wire into the player first (and 
 
 ## prod-v2 expectations & the co-occurrence A-vs-B check
 
-- All 9 producers ran; nothing is legitimately empty now (unlike prod-pilot). `nli_contradiction` = 660 with texts,
+- All 8 producers ran; nothing is legitimately empty now (unlike prod-pilot). `nli_contradiction` = 660 with texts,
   `guest_coappearance` = 87 — both were empty on the 6-episode pilot.
 - **Co-occurrence A vs B** (`topic_cooccurrence_corpus` v1.1.0 exposes both): the Signals chips rank by **lift/PMI**
   (distinctive pairs), not raw count. On 209 episodes (4 428 pairs) the lift ranking should visibly diverge from a
   raw-count ranking — this is the "does B earn its keep at scale" check the pilot couldn't run.
 
-## Orphan / decision (still open)
-- **Episode-scope `topic_cooccurrence`** is orphaned: the corpus aggregator recomputes from the KGs directly and the
-  per-episode UI chips were removed by design ("trivial on one episode"). Decide: leave (harmless), disable, or rewire.
+## Removed: episode-scope `topic_cooccurrence`
+
+The episode-scope `topic_cooccurrence` enricher was **deleted** (module + registration + all profiles + route +
+tests). It had zero readers: removed from the viewer by design ("trivial on one episode"), never consumed by the
+player, and the corpus aggregator (`topic_cooccurrence_corpus`) recomputes from the KGs directly rather than reading
+the per-episode envelopes. The app-validation e2e corpus now carries `insight_density` as its episode-scope signal.
+`topic_cooccurrence_corpus` (the corpus lift/PMI aggregator) is unaffected.
 
 ## Deliverables from this pass
 1. Per-viewer-surface UX notes (clarity, discoverability, empty/degraded states).
