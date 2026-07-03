@@ -202,8 +202,37 @@ const TOPICS_PREVIEW = 12
 const COSPEAKERS_PREVIEW = 8
 const topicsExpanded = ref(false)
 const coSpeakersExpanded = ref(false)
+// FB7 — flag which person topics are cluster compounds (from topic_clusters.json)
+// so the flat list distinguishes broad cluster topics from specific ones (Digest
+// parity). Themes are a per-focused-topic co-occurrence concept, not a per-topic
+// attribute, so they're not flagged here.
+// A topic is a "cluster" topic when it's a member of any topic_clusters.json
+// cluster — matched directly on member topic_id, not the graph-materialised
+// compound (which findTopicClusterContextForGraphNode requires and which most
+// clusters lack). Returns the cluster's canonical label for the tooltip.
+const topicClusterLabelById = computed(() => {
+  const m = new Map<string, string>()
+  for (const cl of artifacts.topicClustersDoc?.clusters ?? []) {
+    if (!cl || typeof cl !== 'object') continue
+    const label =
+      typeof cl.canonical_label === 'string' && cl.canonical_label.trim()
+        ? cl.canonical_label.trim()
+        : ''
+    for (const mem of Array.isArray(cl.members) ? cl.members : []) {
+      const tid = mem && typeof mem.topic_id === 'string' ? mem.topic_id.trim() : ''
+      if (tid && !m.has(tid)) m.set(tid, label || tid)
+    }
+  }
+  return m
+})
+const flaggedTopics = computed(() =>
+  topicsRows.value.map((t) => ({
+    ...t,
+    clusterLabel: topicClusterLabelById.value.get(t.id) ?? null,
+  })),
+)
 const visibleTopics = computed(() =>
-  topicsExpanded.value ? topicsRows.value : topicsRows.value.slice(0, TOPICS_PREVIEW),
+  topicsExpanded.value ? flaggedTopics.value : flaggedTopics.value.slice(0, TOPICS_PREVIEW),
 )
 const visibleCoSpeakers = computed(() =>
   coSpeakersExpanded.value
@@ -556,9 +585,13 @@ function onPickTopicForPositionTracker(topicId: string): void {
             <span
               v-for="t in visibleTopics"
               :key="t.id"
-              class="rounded bg-overlay px-1.5 py-0.5 text-[10px] text-surface-foreground"
+              class="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] text-surface-foreground"
+              :class="t.clusterLabel ? '' : 'bg-overlay'"
+              :style="t.clusterLabel ? { backgroundColor: 'color-mix(in srgb, var(--ps-kg) 22%, transparent)' } : undefined"
+              :title="t.clusterLabel ? `Topic cluster: ${t.clusterLabel}` : undefined"
+              :data-cluster="t.clusterLabel ? 'true' : undefined"
               data-testid="person-landing-topic-chip"
-            >{{ t.text }}</span>
+            ><span v-if="t.clusterLabel" aria-hidden="true" class="text-[9px] opacity-70">⧉</span>{{ t.text }}</span>
             <button
               v-if="topicsRows.length > TOPICS_PREVIEW"
               type="button"
