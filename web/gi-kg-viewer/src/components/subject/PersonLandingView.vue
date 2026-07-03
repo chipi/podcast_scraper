@@ -39,7 +39,6 @@ import { StaleGeneration } from '../../utils/staleGeneration'
 import {
   findRawNodeInArtifactByIdOrPrefixed,
   personEpisodeAppearances,
-  personInsightsByTopic,
   personRoleFromNode,
   rankedPersonOrganizations,
   rankedPersonTopicMentions,
@@ -283,17 +282,51 @@ const corpusEpisodeCount = computed(() => {
   return eps.size
 })
 
+// N2/N3/N6 — the person's insights grouped by topic, from the /brief
+// person_profile ``topics`` map (server-side, corpus-wide). Replaces the
+// client-graph ``personInsightsByTopic`` which is empty when the corpus lacks
+// mentions_person edges. Same shape the topic Key-voices uses server-side.
+interface BriefInsightRow {
+  insightId: string
+  text: string
+  insightType: string | null
+}
+interface BriefTopicGroup {
+  topicId: string
+  topicName: string
+  count: number
+  insights: BriefInsightRow[]
+}
+const briefTopicGroups = ref<BriefTopicGroup[]>([])
+
+/** Prefer the in-slice Topic node's label so the display name matches the topic
+ *  panel; fall back to a title-cased slug when the topic is out of the loaded
+ *  graph (the /brief map only carries topic ids). */
+function topicDisplayName(topicId: string): string {
+  const node = findRawNodeInArtifactByIdOrPrefixed(artifacts.displayArtifact, topicId)
+  const p = node?.properties as Record<string, unknown> | undefined
+  const label =
+    typeof p?.label === 'string' && p.label.trim()
+      ? p.label.trim()
+      : typeof p?.name === 'string' && p.name.trim()
+        ? p.name.trim()
+        : ''
+  return label || titleCaseWords(topicId.replace(/^topic:/, '').replace(/[-_]+/g, ' '))
+}
+
 async function loadCorpusQuotes(rawId: string): Promise<void> {
   const id = rawId.trim()
   const root = shell.corpusPath?.trim()
   if (!id || !root || !shell.healthStatus) {
     corpusQuotes.value = []
+    briefTopicGroups.value = []
     corpusError.value = null
     return
   }
   const seq = corpusGate.bump()
   corpusLoading.value = true
   corpusQuotes.value = []
+  briefTopicGroups.value = []
   corpusError.value = null
   try {
     const body = await fetchPersonProfile(root, id)
@@ -312,10 +345,48 @@ async function loadCorpusQuotes(rawId: string): Promise<void> {
       rows.push({ id: qid, text, episodeId, episodeTitle: episodeTitleFromTranscriptRef(p?.transcript_ref) })
     }
     corpusQuotes.value = rows
+
+    // N2/N3/N6 — the person's insights grouped by topic. The ``topics`` map is
+    // ``{ "topic:<slug>": [{ insight: { id, properties: { text, insight_type } } }] }``.
+    const topicsMap = (body as { topics?: Record<string, unknown> }).topics
+    const groups: BriefTopicGroup[] = []
+    if (topicsMap && typeof topicsMap === 'object') {
+      for (const [topicId, entries] of Object.entries(topicsMap)) {
+        if (!topicId || !Array.isArray(entries)) continue
+        const insights: BriefInsightRow[] = []
+        const seenIns = new Set<string>()
+        for (const e of entries) {
+          const ins = (e as Record<string, unknown>)?.insight as Record<string, unknown> | undefined
+          const iid = ins && ins.id != null ? String(ins.id) : ''
+          if (!iid || seenIns.has(iid)) continue
+          const ip = ins?.properties as Record<string, unknown> | undefined
+          const text = typeof ip?.text === 'string' ? ip.text.trim() : ''
+          if (!text) continue
+          seenIns.add(iid)
+          const rawType =
+            typeof ip?.insight_type === 'string'
+              ? ip.insight_type
+              : typeof (e as Record<string, unknown>)?.insight_type === 'string'
+                ? ((e as Record<string, unknown>).insight_type as string)
+                : null
+          insights.push({ insightId: iid, text, insightType: rawType })
+        }
+        if (!insights.length) continue
+        groups.push({
+          topicId,
+          topicName: topicDisplayName(topicId),
+          count: insights.length,
+          insights,
+        })
+      }
+      groups.sort((a, b) => b.count - a.count || a.topicName.localeCompare(b.topicName))
+    }
+    briefTopicGroups.value = groups
   } catch (e) {
     if (corpusGate.isStale(seq)) return
     corpusError.value = e instanceof Error ? e.message : String(e)
     corpusQuotes.value = []
+    briefTopicGroups.value = []
   } finally {
     if (corpusGate.isCurrent(seq)) corpusLoading.value = false
   }
@@ -453,10 +524,9 @@ const episodeAppearances = computed(() =>
 // #1050 — Insights voiced grouped by Topic (UXS-010 section). Each Topic
 // header reuses the #1049 entry point so the Profile tab is the canonical
 // way into the Position Tracker (chains naturally with the Top Topics
-// list above — same selectTopicForPositionTracker call).
-const insightTopicGroups = computed(() =>
-  personInsightsByTopic(artifacts.displayArtifact, personGraphNodeId.value),
-)
+// list above — same selectTopicForPositionTracker call). N2/N3/N6 — sourced
+// from the server /brief ``topics`` map (``briefTopicGroups``) so it's
+// populated corpus-wide, not the empty client-graph walk.
 // Per-group expand state (default collapsed so the Profile tab stays
 // scannable on first open; the count + topic name is the summary line).
 const expandedTopicGroups = ref<Set<string>>(new Set())
@@ -869,7 +939,7 @@ function onPickTopicForPositionTracker(topicId: string): void {
                  (Person, Topic) pair — same entry point as the ranked-Topics
                  list above so the user has one consistent affordance. -->
             <section
-              v-if="insightTopicGroups.length"
+              v-if="briefTopicGroups.length"
               aria-label="Insights voiced grouped by topic"
               data-testid="person-landing-insights-voiced"
             >
@@ -881,7 +951,7 @@ function onPickTopicForPositionTracker(topicId: string): void {
                 data-testid="person-landing-insights-voiced-list"
               >
                 <li
-                  v-for="group in insightTopicGroups"
+                  v-for="group in briefTopicGroups"
                   :key="group.topicId"
                   class="rounded border border-border bg-elevated/30 px-2 py-1.5"
                   data-testid="person-landing-insights-voiced-group"
@@ -1062,7 +1132,7 @@ function onPickTopicForPositionTracker(topicId: string): void {
              (Person, Topic) pair — same entry point as the ranked-Topics
              list above so the user has one consistent affordance. -->
         <section
-          v-if="insightTopicGroups.length"
+          v-if="briefTopicGroups.length"
           aria-label="Insights voiced grouped by topic"
           data-testid="person-landing-insights-voiced"
         >
@@ -1074,7 +1144,7 @@ function onPickTopicForPositionTracker(topicId: string): void {
             data-testid="person-landing-insights-voiced-list"
           >
             <li
-              v-for="group in insightTopicGroups"
+              v-for="group in briefTopicGroups"
               :key="group.topicId"
               class="rounded border border-border bg-elevated/30 px-2 py-1.5"
               data-testid="person-landing-insights-voiced-group"

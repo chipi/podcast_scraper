@@ -310,6 +310,21 @@ function makeArtifactForPersonProfile(): ParsedArtifact {
   } as unknown as ParsedArtifact
 }
 
+// N2/N3/N6 — the /brief ``topics`` map: the person's insights grouped by topic
+// (server-side, corpus-wide). Mirrors makeArtifactForPersonProfile's insights so
+// the graph fixture still supplies topic node labels ("AI ethics" / "AI regulation").
+function makePersonProfileTopics(): Record<string, unknown[]> {
+  return {
+    'topic:ai': [
+      { insight: { id: 'insight:i1', properties: { text: 'first', insight_type: 'claim' } } },
+      { insight: { id: 'insight:i2', properties: { text: 'second', insight_type: 'observation' } } },
+    ],
+    'topic:reg': [
+      { insight: { id: 'insight:i3', properties: { text: 'third', insight_type: 'recommendation' } } },
+    ],
+  }
+}
+
 describe('PersonLandingView — #1050 Person Profile aggregate (PRD-029 / UXS-010)', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -318,7 +333,11 @@ describe('PersonLandingView — #1050 Person Profile aggregate (PRD-029 / UXS-01
     // into the next test's mock setup.
     invalidateRelationalCache()
     fetchPositions.mockResolvedValue({ subject: 'person:alice', results: [] })
-    fetchPersonProfile.mockResolvedValue({ subject: 'person:alice', profile: {} })
+    fetchPersonProfile.mockResolvedValue({
+      subject: 'person:alice',
+      profile: {},
+      topics: makePersonProfileTopics(),
+    })
     fetchPersonTopics.mockResolvedValue({ subject: 'person:alice', results: [] })
     fetchCoSpeakers.mockResolvedValue({ subject: 'person:alice', results: [] })
   })
@@ -461,7 +480,11 @@ describe('PersonLandingView — view prop gating + positions lens', () => {
     setActivePinia(createPinia())
     invalidateRelationalCache()
     fetchPositions.mockResolvedValue({ subject: 'person:alice', results: [] })
-    fetchPersonProfile.mockResolvedValue({ subject: 'person:alice', profile: {} })
+    fetchPersonProfile.mockResolvedValue({
+      subject: 'person:alice',
+      profile: {},
+      topics: makePersonProfileTopics(),
+    })
     fetchPersonTopics.mockResolvedValue({ subject: 'person:alice', results: [] })
     fetchCoSpeakers.mockResolvedValue({ subject: 'person:alice', results: [] })
   })

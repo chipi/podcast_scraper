@@ -69,3 +69,25 @@ an insight, never the insight's **own** text/quotes.
 The same endpoint would also let an out-of-slice **episode**'s insights render;
 episodes themselves already open via `focusEpisode` (Library panel) regardless of
 slice, so no episode-specific work is needed.
+
+### Also blocked on this endpoint: contradiction "what exactly" (N7)
+
+The person Signals **Contradictions** section (`NodeEnrichmentSection`) names the
+counterpart + topic, both click-through (person → focusPerson, topic →
+focusTopic → the topic's Key voices, which shows both takes with text). The
+operator asked to also show *what exactly* was said, inline. The
+`nli_contradiction` envelope carries `insight_a_id` + `insight_b_id` +
+`contradiction_score` but **not** the insight texts, and no existing endpoint
+resolves an arbitrary insight id → text corpus-wide:
+
+- `who-said?topic=` returns per-person insights for a topic but caps at `k=20`
+  per person, so the specific contradicting insight isn't guaranteed to be in
+  the window — a viewer-only resolution would silently miss rows.
+- The `/brief` `topics` map only covers the **focused** person's own insights,
+  never the counterpart's.
+
+The same `insight-detail?insight=<id>` endpoint from follow-up #2 resolves both
+sides reliably. Viewer change is then small: read `insight_a_id`/`insight_b_id`
+(already in the envelope), resolve each to text, render the two statements under
+the contradiction row. Until then the topic click-through is the "what exactly"
+path.
