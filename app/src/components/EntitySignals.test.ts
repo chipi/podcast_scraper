@@ -38,7 +38,12 @@ const SIGNALS: CorpusEnrichmentSignals = {
     ],
   },
   temporal_velocity: {
-    topics: [{ topic_id: 'topic:ai', topic_label: 'AI', velocity_last_over_6mo: 2.1, total: 40 }],
+    topics: [
+      { topic_id: 'topic:ai', topic_label: 'AI', velocity_last_over_6mo: 2.1, total: 40 },
+      // Carries the real label so the contradiction topic resolves to "AI ethics",
+      // not the slug-cased "Ai Ethics".
+      { topic_id: 'topic:ai-ethics', topic_label: 'AI ethics', velocity_last_over_6mo: 0.2, total: 5 },
+    ],
   },
   topic_similarity: {
     topics: [
@@ -77,6 +82,8 @@ describe('EntitySignals — person', () => {
     // Disagreement: counterpart + both opposing claims, oriented to the focused person.
     const row = w.get('[data-testid="es-disagreement-row"]')
     expect(row.text()).toContain('Bob Lee')
+    // Real topic label resolved from the velocity signal (not slug-cased "Ai Ethics").
+    expect(row.text()).toContain('AI ethics')
     expect(row.text()).toContain('AI needs strict regulation.')
     expect(row.text()).toContain('Regulation will stifle AI progress.')
   })

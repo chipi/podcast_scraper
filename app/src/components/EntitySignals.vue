@@ -50,6 +50,30 @@ function nameOf(name: string | undefined, id: string): string {
   return name?.trim() ? name.trim() : titleCase(shortId(id))
 }
 
+// Real topic labels (e.g. "AI ethics", not slug-cased "Ai Ethics") harvested from
+// every signal that carries one — velocity covers the whole corpus, so a
+// contradiction's topic_id (which ships without a label) resolves cleanly.
+const topicLabels = computed(() => {
+  const m = new Map<string, string>()
+  const add = (id?: string, label?: string): void => {
+    const key = id ? norm(id) : ''
+    if (key && label?.trim() && !m.has(key)) m.set(key, label.trim())
+  }
+  for (const t of signals.value?.temporal_velocity?.topics ?? []) add(t.topic_id, t.topic_label)
+  for (const t of signals.value?.topic_similarity?.topics ?? [])
+    for (const k of t.top_k ?? []) add(k.topic_id, k.topic_label)
+  for (const p of signals.value?.topic_cooccurrence_corpus?.pairs ?? []) {
+    add(p.topic_a_id, p.topic_a_label)
+    add(p.topic_b_id, p.topic_b_label)
+  }
+  return m
+})
+// Topics render with their raw corpus label (lowercase in this corpus) to match
+// how every other topic chip in the player is shown — consistency over cosmetics.
+function topicName(id: string): string {
+  return topicLabels.value.get(norm(id)) || shortId(id)
+}
+
 // ── Person signals ───────────────────────────────────────────────────────────
 const grounding = computed(() => {
   if (props.kind !== 'person') return null
@@ -73,7 +97,7 @@ const disagreements = computed(() => {
     const isA = norm(c.person_a_id) === self.value
     const isB = norm(c.person_b_id) === self.value
     if (!isA && !isB) continue
-    const topic = titleCase(shortId(c.topic_id))
+    const topic = topicName(c.topic_id)
     if (isA) out.push({ otherId: c.person_b_id, otherName: nameOf(c.person_b_name, c.person_b_id), topic, selfText: c.insight_a_text ?? '', otherText: c.insight_b_text ?? '' })
     else out.push({ otherId: c.person_a_id, otherName: nameOf(c.person_a_name, c.person_a_id), topic, selfText: c.insight_b_text ?? '', otherText: c.insight_a_text ?? '' })
   }
@@ -94,7 +118,7 @@ const similarTopics = computed(() => {
   if (props.kind !== 'topic') return []
   const row = (signals.value?.topic_similarity?.topics ?? []).find((x) => norm(x.topic_id) === self.value)
   return (row?.top_k ?? [])
-    .map((k) => ({ id: k.topic_id, label: k.topic_label?.trim() || titleCase(shortId(k.topic_id)) }))
+    .map((k) => ({ id: k.topic_id, label: k.topic_label?.trim() || shortId(k.topic_id) }))
     .slice(0, MAX)
 })
 const alongside = computed(() => {
@@ -102,8 +126,8 @@ const alongside = computed(() => {
   const out: Array<{ id: string; label: string; lift: number }> = []
   for (const p of signals.value?.topic_cooccurrence_corpus?.pairs ?? []) {
     if ((p.episode_count ?? 0) < 2 || (p.lift ?? 0) <= 1) continue
-    if (norm(p.topic_a_id) === self.value) out.push({ id: p.topic_b_id, label: p.topic_b_label?.trim() || titleCase(shortId(p.topic_b_id)), lift: p.lift ?? 0 })
-    else if (norm(p.topic_b_id) === self.value) out.push({ id: p.topic_a_id, label: p.topic_a_label?.trim() || titleCase(shortId(p.topic_a_id)), lift: p.lift ?? 0 })
+    if (norm(p.topic_a_id) === self.value) out.push({ id: p.topic_b_id, label: p.topic_b_label?.trim() || shortId(p.topic_b_id), lift: p.lift ?? 0 })
+    else if (norm(p.topic_b_id) === self.value) out.push({ id: p.topic_a_id, label: p.topic_a_label?.trim() || shortId(p.topic_a_id), lift: p.lift ?? 0 })
   }
   return out.sort((a, b) => b.lift - a.lift).slice(0, MAX)
 })
@@ -158,7 +182,7 @@ const hasAny = computed(() =>
               class="font-semibold text-person hover:underline"
               @click="emit('open', { kind: 'person', id: d.otherId })"
             >{{ d.otherName }}</button>
-            <span class="text-muted"> {{ t('ec.sigOn', { topic: d.topic }) }}</span>
+            <span class="text-muted">{{ ' ' + t('ec.sigOn', { topic: d.topic }) }}</span>
           </p>
           <p v-if="d.selfText" class="mt-1 text-xs text-muted"><span class="text-canvas-foreground">“{{ d.selfText }}”</span></p>
           <p v-if="d.otherText" class="mt-0.5 text-xs text-muted">{{ d.otherName }}: “{{ d.otherText }}”</p>
