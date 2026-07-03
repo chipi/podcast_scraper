@@ -15,6 +15,13 @@ const props = defineProps<{
   timeline: SubjectMentionsTimeline
   /** Optional aria-label override; default "Mentions by month". */
   ariaLabel?: string
+  /** ``bar`` (default, vertical bars — person Signals) or ``dots`` (a compact
+   *  scatter-style time series, no bars — topic Timeline, review N8). */
+  variant?: 'bar' | 'dots'
+  /** Series noun for the tooltip; default "Mentions". */
+  valueLabel?: string
+  /** Empty-state copy; default assumes the graph-derived mentions timeline. */
+  emptyText?: string
 }>()
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
@@ -23,6 +30,9 @@ let chart: Chart | null = null
 const isEmpty = computed(() => props.timeline.months.length === 0)
 
 const chartHeightPx = computed(() => {
+  // Dots read as a horizontal time series — keep it short + fixed. Bars grow
+  // with column count (the existing person-Signals behaviour).
+  if (props.variant === 'dots') return 116
   const cols = props.timeline.months.length
   return Math.min(220, Math.max(80, 32 + cols * 18))
 })
@@ -45,19 +55,34 @@ function buildChart(): void {
   if (!ctx) return
   const labels = props.timeline.months.map((m) => m.ymd)
   const values = props.timeline.months.map((m) => m.count)
-  const barFill = rgbaFromToken('--ps-primary', 0.65)
-  const barStroke = rgbaFromToken('--ps-primary', 0.95)
+  const fill = rgbaFromToken('--ps-primary', 0.65)
+  const stroke = rgbaFromToken('--ps-primary', 0.95)
+  const noun = props.valueLabel ?? 'Mentions'
+  const isDots = props.variant === 'dots'
   chart = new Chart(ctx, {
-    type: 'bar',
+    type: isDots ? 'line' : 'bar',
     data: {
       labels,
       datasets: [
         {
-          label: 'Mentions',
+          // Empty label so the psEndLabel plugin (fires on any line chart)
+          // draws nothing at the last point; the noun lives in the tooltip.
+          label: isDots ? '' : noun,
           data: values,
-          backgroundColor: barFill,
-          borderColor: barStroke,
-          borderWidth: 1,
+          ...(isDots
+            ? {
+                showLine: false,
+                pointRadius: 3.5,
+                pointHoverRadius: 5.5,
+                pointBackgroundColor: fill,
+                pointBorderColor: stroke,
+                borderColor: stroke,
+              }
+            : {
+                backgroundColor: fill,
+                borderColor: stroke,
+                borderWidth: 1,
+              }),
         },
       ],
     },
@@ -71,7 +96,7 @@ function buildChart(): void {
           callbacks: {
             title: (items) => items[0]?.label ?? '',
             label: (item) =>
-              `Mentions: ${typeof item.parsed.y === 'number' ? item.parsed.y.toLocaleString() : String(item.parsed.y)}`,
+              `${noun}: ${typeof item.parsed.y === 'number' ? item.parsed.y.toLocaleString() : String(item.parsed.y)}`,
           },
         },
       },
@@ -119,7 +144,7 @@ onBeforeUnmount(() => {
       class="text-[11px] text-muted"
       data-testid="subject-timeline-chart-empty"
     >
-      No dated mentions in the loaded graph.
+      {{ props.emptyText ?? 'No dated mentions in the loaded graph.' }}
     </p>
     <div
       v-else

@@ -69,7 +69,10 @@ import TopicEntityView from '../subject/TopicEntityView.vue'
 import PersonLandingView from '../subject/PersonLandingView.vue'
 import PodcastNodeView from '../subject/PodcastNodeView.vue'
 import SubjectTimelineChart from '../subject/SubjectTimelineChart.vue'
-import { buildSubjectMentionsTimeline } from '../../utils/subjectMentionsTimeline'
+import {
+  buildSubjectMentionsTimeline,
+  type SubjectMentionsTimeline,
+} from '../../utils/subjectMentionsTimeline'
 import TranscriptViewerDialog from '../shared/TranscriptViewerDialog.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
 import {
@@ -946,6 +949,43 @@ function episodeContextLine(ep: CilArcEpisodeBlock): string | null {
 }
 
 const inlineTimelineEpisodeCount = computed(() => dedupedEpisodes.value.length)
+
+// N8 — a compact dot time-series above the Episodes/Mentions toggle. Buckets the
+// same CIL timeline data by YYYY-MM, following the active view: Episodes counts
+// distinct episodes per month, Mentions counts atomic mentions per month. Shaped
+// as a SubjectMentionsTimeline so it feeds the shared chart (dots variant).
+function timelineMonthOf(raw: string | null | undefined): string | null {
+  const m = (raw ?? '').trim().match(/^(\d{4})-(\d{2})/)
+  return m ? `${m[1]}-${m[2]}` : null
+}
+const timelineChartData = computed<SubjectMentionsTimeline>(() => {
+  const counts = new Map<string, number>()
+  let undated = 0
+  if (timelineView.value === 'mentions') {
+    for (const r of flatMentions.value) {
+      const ym = timelineMonthOf(r.publishDate)
+      if (!ym) { undated += 1; continue }
+      counts.set(ym, (counts.get(ym) ?? 0) + 1)
+    }
+  } else {
+    for (const ep of dedupedEpisodes.value) {
+      const ym = timelineMonthOf(ep.publish_date)
+      if (!ym) { undated += 1; continue }
+      counts.set(ym, (counts.get(ym) ?? 0) + 1)
+    }
+  }
+  const months = [...counts.entries()]
+    .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+    .map(([ymd, count]) => ({ ymd, count }))
+  return {
+    months,
+    total: months.reduce((s, m) => s + m.count, 0),
+    undated,
+    episodeCount: dedupedEpisodes.value.length,
+    insightIds: [],
+    quoteIds: [],
+  }
+})
 
 const inlineTimelineTopicIdsLabel = computed((): string => {
   if (inlineTimelineMode.value === 'cluster') {
@@ -2284,6 +2324,17 @@ const graphConnectionsCenterInView = computed((): boolean => {
         class="min-h-0"
         data-testid="node-detail-timeline-panel"
       >
+        <!-- N8 — compact dot time-series over the same CIL data, above the
+             segmented control; follows the active view (episodes vs mentions). -->
+        <SubjectTimelineChart
+          v-if="timelineChartData.months.length > 1"
+          :timeline="timelineChartData"
+          variant="dots"
+          :value-label="timelineView === 'mentions' ? 'Mentions' : 'Episodes'"
+          :aria-label="timelineView === 'mentions' ? 'Mentions over time' : 'Episodes over time'"
+          class="mb-2"
+          data-testid="node-detail-timeline-chart"
+        />
         <div class="mb-2 flex items-center justify-between gap-2">
           <div
             role="tablist"
