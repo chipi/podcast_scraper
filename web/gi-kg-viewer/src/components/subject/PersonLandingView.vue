@@ -324,41 +324,63 @@ watch(personId, (id) => void loadCorpusQuotes(id ?? ''), { immediate: true })
 
 // FB10 — the shows a person appears in, derived from their quotes' episodes
 // (episode_id → feed via the corpus episode list; both use the compact hex id).
-// Approximate: it's "appears in", not host-vs-guest per show — that needs a
-// pipeline person→hosts→show edge (follow-up). Clickable through to the show.
+// Host is inferred from episode coverage (a host recurs across most of a show's
+// episodes); we only claim "Host" when confident and never assert "Guest" (a
+// low-coverage person may be an under-sampled host). A precise per-show role
+// would come from a pipeline person→hosts→show edge. Clickable through to the show.
 const episodeShowTitle = ref<Map<string, string>>(new Map())
+const showTotalEpisodes = ref<Map<string, number>>(new Map())
 async function loadEpisodeShows(): Promise<void> {
   const root = shell.corpusPath?.trim()
   if (!root || !shell.healthStatus) {
     episodeShowTitle.value = new Map()
+    showTotalEpisodes.value = new Map()
     return
   }
   try {
     const body = await fetchCorpusEpisodes(root, { limit: 500 })
     const m = new Map<string, string>()
+    const totals = new Map<string, number>()
     for (const ep of body.items ?? []) {
       const eid = ep.episode_id?.trim()
       const title = (ep as { feed_display_title?: string }).feed_display_title?.trim()
+      if (title) totals.set(title, (totals.get(title) ?? 0) + 1)
       if (eid && title) m.set(eid, title)
     }
     episodeShowTitle.value = m
+    showTotalEpisodes.value = totals
   } catch {
     episodeShowTitle.value = new Map()
+    showTotalEpisodes.value = new Map()
   }
 }
 watch(() => shell.corpusPath, () => void loadEpisodeShows(), { immediate: true })
 
-const personShows = computed<string[]>(() => {
-  const seen = new Set<string>()
-  const out: string[] = []
+interface PersonShow {
+  title: string
+  episodes: number
+  total: number
+  isHost: boolean
+}
+const personShows = computed<PersonShow[]>(() => {
+  const perShow = new Map<string, Set<string>>()
   for (const q of corpusQuotes.value) {
     const t = q.episodeId ? episodeShowTitle.value.get(q.episodeId) : undefined
-    if (t && !seen.has(t)) {
-      seen.add(t)
-      out.push(t)
-    }
+    if (!t || !q.episodeId) continue
+    if (!perShow.has(t)) perShow.set(t, new Set())
+    perShow.get(t)?.add(q.episodeId)
   }
-  return out
+  const out: PersonShow[] = []
+  for (const [title, eps] of perShow) {
+    const total = showTotalEpisodes.value.get(title) ?? 0
+    const n = eps.size
+    // Coverage heuristic for host vs guest: a host recurs across most of a
+    // show's episodes; a guest appears in a few. (Approximate — a real per-show
+    // role would come from a pipeline person→hosts→show edge.)
+    const isHost = total > 0 && n >= 2 && n / total >= 0.5
+    out.push({ title, episodes: n, total, isHost })
+  }
+  return out.sort((a, b) => b.episodes - a.episodes)
 })
 function podcastIdForShow(title: string): string {
   return `podcast:${title.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')}`
@@ -627,15 +649,23 @@ function onPickTopicForPositionTracker(topicId: string): void {
           <div class="flex flex-wrap gap-1">
             <button
               v-for="show in personShows"
-              :key="show"
+              :key="show.title"
               type="button"
               class="inline-flex items-center gap-1 rounded bg-overlay py-0.5 pl-0.5 pr-1.5 text-[10px] text-surface-foreground hover:bg-overlay-2"
               data-testid="person-landing-show-chip"
-              :title="`Open ${show}`"
-              @click="subject.focusGraphNode(podcastIdForShow(show))"
+              :data-role="show.isHost ? 'host' : ''"
+              :title="`${show.isHost ? 'Likely host — ' : 'Appears in '}${show.episodes} of ${show.total} episode${show.total === 1 ? '' : 's'}`"
+              @click="subject.focusGraphNode(podcastIdForShow(show.title))"
             >
-              <ShowGlyph :name="show" />
-              {{ show }}
+              <ShowGlyph :name="show.title" />
+              {{ show.title }}
+              <!-- Only claim "Host" when coverage is confident. A low-coverage
+                   person may be a guest OR an under-sampled host, so we don't
+                   assert "Guest" (that needs the pipeline person→hosts→show edge). -->
+              <span
+                v-if="show.isHost"
+                class="ml-0.5 rounded bg-primary/25 px-1 text-[8px] font-semibold uppercase tracking-wide text-primary"
+              >Host</span>
             </button>
           </div>
         </section>
