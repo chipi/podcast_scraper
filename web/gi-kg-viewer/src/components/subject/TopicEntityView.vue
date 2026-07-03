@@ -29,6 +29,7 @@ import { findRawNodeInArtifactByIdOrPrefixed } from '../../utils/parsing'
 import { stripLayerPrefixesForCil } from '../../utils/mergeGiKg'
 import PersonInitialAvatar from '../shared/PersonInitialAvatar.vue'
 import ShowGlyph from '../shared/ShowGlyph.vue'
+import HelpTip from '../shared/HelpTip.vue'
 
 
 
@@ -240,6 +241,44 @@ function onPrefillSearch(): void {
       >
         {{ subjectDescription }}
       </p>
+      <!-- #1055 — related topics (topics that *share insights* with this one).
+           Sits right under NodeDetail's "Theme" (topics *discussed together*)
+           so the two co-topic signals are adjacent; a distinct colour (Topic
+           magenta vs Theme teal) and a HelpTip keep them apart. -->
+      <section
+        v-if="relatedTopicRows.length"
+        class="w-full min-w-0"
+        aria-label="Related topics"
+        data-testid="tev-related-topics"
+      >
+        <p
+          class="mb-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider"
+          style="color: #da77f2"
+        >
+          Related topics
+          <HelpTip :pref-width="260" button-aria-label="About related topics">
+            <p class="font-sans text-[10px] leading-snug text-muted">
+              Topics that
+              <strong class="font-medium text-surface-foreground">share insights</strong> with this one —
+              distinct from <strong class="font-medium text-surface-foreground">Theme</strong> above, which
+              groups topics <strong class="font-medium text-surface-foreground">discussed together</strong>
+              (co-occurrence).
+            </p>
+          </HelpTip>
+        </p>
+        <div class="flex flex-wrap gap-1.5">
+          <button
+            v-for="t in relatedTopicRows"
+            :key="t.id"
+            type="button"
+            class="rounded-full border border-transparent px-2 py-0.5 text-[10px] text-surface-foreground hover:opacity-90"
+            :style="{ backgroundColor: 'rgba(218,119,242,0.22)' }"
+            data-testid="tev-related-topic-chip"
+            :title="`Open ${t.text}`"
+            @click="subject.focusTopic(t.id)"
+          >{{ t.text }}</button>
+        </div>
+      </section>
       <!-- PRD-033 FR4.2 — cross-show coverage (the corpus differentiator). -->
       <section
         v-if="crossShowLoading || crossShowError || crossShowRows.length"
@@ -288,26 +327,6 @@ function onPrefillSearch(): void {
             </p>
           </li>
         </ul>
-      </section>
-
-      <!-- #1055 — related topics (topics that share insights with this one). -->
-      <section
-        v-if="relatedTopicRows.length"
-        class="w-full min-w-0"
-        aria-label="Related topics"
-        data-testid="tev-related-topics"
-      >
-        <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
-          Related topics
-        </h3>
-        <div class="flex flex-wrap gap-1">
-          <span
-            v-for="t in relatedTopicRows"
-            :key="t.id"
-            class="rounded bg-overlay px-1.5 py-0.5 text-[10px] text-surface-foreground"
-            data-testid="tev-related-topic-chip"
-          >{{ t.text }}</span>
-        </div>
       </section>
 
       <!-- PRD-033 FR4.2 — key voices (Person→Insight for this topic). -->
