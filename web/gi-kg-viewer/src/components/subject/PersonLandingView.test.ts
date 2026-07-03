@@ -25,6 +25,11 @@ vi.mock('../../api/cilApi', () => ({
   fetchPersonProfile: (...a: unknown[]) => fetchPersonProfile(...a),
 }))
 
+// FB10 "Appears in shows" loads the episode list; stub it so tests stay offline.
+vi.mock('../../api/corpusLibraryApi', () => ({
+  fetchCorpusEpisodes: () => Promise.resolve({ items: [] }),
+}))
+
 const STUBS = {
   SubjectTimelineChart: { name: 'SubjectTimelineChart', template: '<div data-stub="timeline" />' },
 }

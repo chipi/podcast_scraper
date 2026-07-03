@@ -45,8 +45,10 @@ import {
   rankedPersonTopicMentions,
 } from '../../utils/parsing'
 import { stripLayerPrefixesForCil } from '../../utils/mergeGiKg'
+import { fetchCorpusEpisodes } from '../../api/corpusLibraryApi'
 import PositionTrackerPanel from './PositionTrackerPanel.vue'
 import PersonInitialAvatar from '../shared/PersonInitialAvatar.vue'
+import ShowGlyph from '../shared/ShowGlyph.vue'
 
 
 const emit = defineEmits<{
@@ -320,6 +322,48 @@ async function loadCorpusQuotes(rawId: string): Promise<void> {
 
 watch(personId, (id) => void loadCorpusQuotes(id ?? ''), { immediate: true })
 
+// FB10 — the shows a person appears in, derived from their quotes' episodes
+// (episode_id → feed via the corpus episode list; both use the compact hex id).
+// Approximate: it's "appears in", not host-vs-guest per show — that needs a
+// pipeline person→hosts→show edge (follow-up). Clickable through to the show.
+const episodeShowTitle = ref<Map<string, string>>(new Map())
+async function loadEpisodeShows(): Promise<void> {
+  const root = shell.corpusPath?.trim()
+  if (!root || !shell.healthStatus) {
+    episodeShowTitle.value = new Map()
+    return
+  }
+  try {
+    const body = await fetchCorpusEpisodes(root, { limit: 500 })
+    const m = new Map<string, string>()
+    for (const ep of body.items ?? []) {
+      const eid = ep.episode_id?.trim()
+      const title = (ep as { feed_display_title?: string }).feed_display_title?.trim()
+      if (eid && title) m.set(eid, title)
+    }
+    episodeShowTitle.value = m
+  } catch {
+    episodeShowTitle.value = new Map()
+  }
+}
+watch(() => shell.corpusPath, () => void loadEpisodeShows(), { immediate: true })
+
+const personShows = computed<string[]>(() => {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const q of corpusQuotes.value) {
+    const t = q.episodeId ? episodeShowTitle.value.get(q.episodeId) : undefined
+    if (t && !seen.has(t)) {
+      seen.add(t)
+      out.push(t)
+    }
+  }
+  return out
+})
+function podcastIdForShow(title: string): string {
+  return `podcast:${title.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')}`
+}
+
 const personName = computed(() => {
   const n = personNode.value
   if (!n) return personId.value
@@ -570,6 +614,31 @@ function onPickTopicForPositionTracker(topicId: string): void {
           data-testid="person-landing-role-embedded"
           :data-role="personRole"
         >{{ personRoleLabel }}</span>
+        <!-- FB10 — shows this person appears in (from their quotes' episodes),
+             clickable through to the show. "Appears in", not host-vs-guest. -->
+        <section
+          v-if="personShows.length"
+          aria-label="Appears in shows"
+          data-testid="person-landing-shows"
+        >
+          <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+            Appears in
+          </h3>
+          <div class="flex flex-wrap gap-1">
+            <button
+              v-for="show in personShows"
+              :key="show"
+              type="button"
+              class="inline-flex items-center gap-1 rounded bg-overlay py-0.5 pl-0.5 pr-1.5 text-[10px] text-surface-foreground hover:bg-overlay-2"
+              data-testid="person-landing-show-chip"
+              :title="`Open ${show}`"
+              @click="subject.focusGraphNode(podcastIdForShow(show))"
+            >
+              <ShowGlyph :name="show" />
+              {{ show }}
+            </button>
+          </div>
+        </section>
         <!-- Connections first: the substance (topics discussed + who they
              speak with) sits at the top of the panel; identity/enrichment
              metadata follows below. -->
