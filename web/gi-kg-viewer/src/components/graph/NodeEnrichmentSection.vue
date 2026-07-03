@@ -8,6 +8,7 @@ import { computed, ref, watch } from 'vue'
 import { fetchCachedCorpusEnvelope } from '../../composables/useEnrichmentEnvelopeCache'
 import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
+import { titleCaseWords } from '../../utils/nameCase'
 import PersonInitialAvatar from '../shared/PersonInitialAvatar.vue'
 
 const props = defineProps<{ nodeId: string; nodeType: string }>()
@@ -171,14 +172,14 @@ watch(() => props.nodeId, () => void load(), { immediate: true })
             type="button"
             class="inline-flex items-center gap-1 rounded border border-default bg-overlay px-2 py-0.5 hover:bg-overlay-2"
             @click="subject.focusPerson(r.person_id)"
-          ><PersonInitialAvatar :name="r.person_name || shortId(r.person_id)" />{{ r.person_name || shortId(r.person_id) }}<span class="ml-1 text-muted">·{{ r.episode_count }}</span></button>
+          ><PersonInitialAvatar :name="r.person_name || shortId(r.person_id)" />{{ titleCaseWords(r.person_name || shortId(r.person_id)) }}<span class="ml-1 text-muted">·{{ r.episode_count }}</span></button>
         </div>
       </div>
       <div v-if="contradictions.length" data-testid="node-enrichment-contradictions">
         <p class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">Contradictions</p>
         <ul class="space-y-1">
           <li v-for="(r, i) in contradictions" :key="i" class="rounded border border-border bg-elevated/40 px-2 py-1">
-            <button type="button" class="inline-flex items-center gap-1 align-middle font-semibold text-primary hover:underline" @click="subject.focusPerson(r.person_id)"><PersonInitialAvatar :name="r.person_name || shortId(r.person_id)" />{{ r.person_name || shortId(r.person_id) }}</button>
+            <button type="button" class="inline-flex items-center gap-1 align-middle font-semibold text-primary hover:underline" @click="subject.focusPerson(r.person_id)"><PersonInitialAvatar :name="r.person_name || shortId(r.person_id)" />{{ titleCaseWords(r.person_name || shortId(r.person_id)) }}</button>
             <span class="text-muted"> on </span>
             <button type="button" class="text-surface-foreground hover:underline" @click="subject.focusTopic(r.topic_id)">{{ shortId(r.topic_id) }}</button>
           </li>

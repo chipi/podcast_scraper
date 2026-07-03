@@ -45,6 +45,7 @@ import {
   rankedPersonTopicMentions,
 } from '../../utils/parsing'
 import { stripLayerPrefixesForCil } from '../../utils/mergeGiKg'
+import { titleCaseWords } from '../../utils/nameCase'
 import { fetchCorpusEpisodes } from '../../api/corpusLibraryApi'
 import PositionTrackerPanel from './PositionTrackerPanel.vue'
 import PersonInitialAvatar from '../shared/PersonInitialAvatar.vue'
@@ -720,7 +721,7 @@ function onPickTopicForPositionTracker(topicId: string): void {
               @click="subject.focusPerson(p.id)"
             >
               <PersonInitialAvatar :name="p.text" />
-              {{ p.text }}
+              {{ titleCaseWords(p.text) }}
             </button>
             <button
               v-if="coSpeakersRows.length > COSPEAKERS_PREVIEW"

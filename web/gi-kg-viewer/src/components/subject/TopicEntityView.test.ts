@@ -207,7 +207,8 @@ describe('TopicEntityView.vue', () => {
     })
     const { w, subject } = await mountTopic(topicWithMentions())
     const voice = w.get('[data-testid="tev-voice-link"]')
-    expect(voice.text()).toContain('ada')
+    // Names are title-cased for display (ada → Ada).
+    expect(voice.text()).toContain('Ada')
     await voice.trigger('click')
     expect(subject.kind).toBe('graph-node')
     expect(subject.graphNodeCyId).toBe('person:ada')

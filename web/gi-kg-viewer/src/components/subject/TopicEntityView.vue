@@ -27,6 +27,7 @@ import {
 import { StaleGeneration } from '../../utils/staleGeneration'
 import { findRawNodeInArtifactByIdOrPrefixed } from '../../utils/parsing'
 import { stripLayerPrefixesForCil } from '../../utils/mergeGiKg'
+import { titleCaseWords } from '../../utils/nameCase'
 import { fetchCorpusFeeds } from '../../api/corpusLibraryApi'
 import PersonInitialAvatar from '../shared/PersonInitialAvatar.vue'
 import ShowGlyph from '../shared/ShowGlyph.vue'
@@ -378,7 +379,7 @@ function onPrefillSearch(): void {
               </div>
               <div class="min-w-0 flex-1">
                 <p class="break-words font-semibold text-surface-foreground">
-                  {{ shortId(row.showId) }}
+                  {{ titleCaseWords(shortId(row.showId)) }}
                 </p>
                 <p class="break-words text-[10px] text-muted line-clamp-2" :title="row.insight.text">
                   {{ row.insight.text }}
@@ -432,7 +433,7 @@ function onPrefillSearch(): void {
               <PersonInitialAvatar :name="shortId(row.personId)" size-class="h-9 w-9 text-sm" />
               <div class="min-w-0 flex-1">
                 <p class="break-words font-semibold text-primary">
-                  {{ shortId(row.personId) }}
+                  {{ titleCaseWords(shortId(row.personId)) }}
                   <span class="font-normal text-muted">({{ row.insights.length }})</span>
                 </p>
                 <p

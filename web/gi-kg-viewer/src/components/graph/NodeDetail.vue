@@ -135,6 +135,9 @@ const HIDDEN_PROPS = new Set([
   'description',
   'entity_kind',
   'kind',
+  // Person role is surfaced as the Host/Guest/Mentioned badge in the person
+  // view; the raw "Role: mentioned" property row is redundant.
+  'role',
 ])
 
 /** Shown in insight meta strip; omit from generic property list. */
@@ -1200,20 +1203,15 @@ const showEntityKindSubtitle = computed(() => {
   return true
 })
 
-/** Graph type + entity kind — top of **Details** body, not under the rail title. */
+// Graph type + entity kind. When embedded in the node rail, the rail header
+// already names the kind (Person / Topic / Podcast …), so the "PERSON · person"
+// kicker is pure redundancy — only show it standalone.
 const showNodeKindRowInDetails = computed(
-  () =>
-    showEntityKindSubtitle.value ||
-    (!props.embedInRail && Boolean(nodeType.value?.trim())) ||
-    (props.embedInRail &&
-      isPersonEntityRailNode.value &&
-      Boolean(nodeType.value?.trim())),
+  () => !props.embedInRail && (showEntityKindSubtitle.value || Boolean(nodeType.value?.trim())),
 )
 
 const showNodeTypeChipInDetails = computed(
-  () =>
-    (!props.embedInRail && Boolean(nodeType.value?.trim())) ||
-    (props.embedInRail && isPersonEntityRailNode.value && Boolean(nodeType.value?.trim())),
+  () => !props.embedInRail && Boolean(nodeType.value?.trim()),
 )
 
 const transcriptSourceSection = computed(() => {
