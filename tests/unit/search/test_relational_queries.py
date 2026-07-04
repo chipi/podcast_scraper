@@ -21,6 +21,7 @@ from podcast_scraper.search.relational_queries import (
     entities_in_topic,
     episode_related_insights,
     episodes_of,
+    insight_detail,
     insights_about,
     node_label,
     positions_of,
@@ -287,6 +288,46 @@ def test_co_speakers_finds_people_on_shared_topics(graph: FakeGraph) -> None:
 
 def test_topics_of_insight(graph: FakeGraph) -> None:
     assert [t.id for t in topics_of_insight(graph, "insight:1")] == ["topic:ai"]
+
+
+def test_insight_detail_resolves_own_text_quotes_topics_entities() -> None:
+    nodes: Dict[str, Tuple[str, Dict[str, object]]] = {
+        "insight:1": (
+            "insight",
+            {
+                "text": "AI will reshape work.",
+                "insight_type": "claim",
+                "grounded": True,
+                "episode_id": "ep-1",
+                "show_id": "show1",
+            },
+        ),
+        "quote:q1": ("quote", {"text": "The quote backing the claim."}),
+        "topic:ai": ("topic", {"label": "AI"}),
+        "org:acme": ("org", {"name": "Acme"}),
+    }
+    edges: List[Tuple[str, str, str]] = [
+        ("quote:q1", "insight:1", "SUPPORTED_BY"),
+        ("insight:1", "topic:ai", "ABOUT"),
+        ("insight:1", "org:acme", "MENTIONS_ORG"),
+    ]
+    d = insight_detail(FakeGraph(nodes, edges), "insight:1")
+    assert d is not None
+    assert (d.text, d.insight_type, d.grounded, d.episode_id) == (
+        "AI will reshape work.",
+        "claim",
+        True,
+        "ep-1",
+    )
+    assert [q.text for q in d.quotes] == ["The quote backing the claim."]
+    assert [t.id for t in d.topics] == ["topic:ai"]
+    assert [e.id for e in d.entities] == ["org:acme"]
+
+
+def test_insight_detail_none_for_non_insight_or_missing() -> None:
+    g = FakeGraph({"topic:ai": ("topic", {"label": "AI"})}, [])
+    assert insight_detail(g, "topic:ai") is None
+    assert insight_detail(g, "missing") is None
 
 
 def test_shared_topics_is_the_intersection(graph: FakeGraph) -> None:

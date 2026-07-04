@@ -84,6 +84,53 @@ def test_positions_returns_only_stated(client: TestClient) -> None:
     assert [r["id"] for r in body["results"]] == ["insight:1"]
 
 
+def test_insight_detail_returns_own_text_quotes_topics_entities(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    graph = _FakeGraph(
+        {
+            "insight:1": (
+                "insight",
+                {
+                    "text": "AI reshapes work.",
+                    "insight_type": "claim",
+                    "grounded": True,
+                    "episode_id": "ep-1",
+                },
+            ),
+            "quote:q1": ("quote", {"text": "The backing quote."}),
+            "topic:ai": ("topic", {"label": "AI"}),
+            "org:acme": ("org", {"name": "Acme"}),
+        },
+        [
+            ("quote:q1", "insight:1", "SUPPORTED_BY"),
+            ("insight:1", "topic:ai", "ABOUT"),
+            ("insight:1", "org:acme", "MENTIONS_ORG"),
+        ],
+    )
+    monkeypatch.setattr(
+        "podcast_scraper.server.routes.relational.get_corpus_graph", lambda *a, **k: graph
+    )
+    client = TestClient(create_app(tmp_path, static_dir=False))
+    body = client.get(
+        "/api/relational/insight-detail",
+        params={"insight": "insight:1", "path": str(tmp_path)},
+    ).json()
+    assert body["text"] == "AI reshapes work."
+    assert body["insight_type"] == "claim"
+    assert body["grounded"] is True
+    assert body["episode_id"] == "ep-1"
+    assert [q["text"] for q in body["quotes"]] == ["The backing quote."]
+    assert [t["id"] for t in body["topics"]] == ["topic:ai"]
+    assert [e["id"] for e in body["entities"]] == ["org:acme"]
+
+
+def test_insight_detail_not_found_for_non_insight(client: TestClient) -> None:
+    body = client.get("/api/relational/insight-detail", params={"insight": "topic:ai"}).json()
+    assert body["error"] == "not_found"
+    assert body["text"] == ""
+
+
 def test_positions_hybrid_reranks_by_relevance(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

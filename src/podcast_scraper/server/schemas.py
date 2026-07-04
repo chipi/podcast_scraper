@@ -1104,6 +1104,26 @@ class RelationalGroupedResponse(BaseModel):
     error: str | None = None
 
 
+class InsightDetailResponse(BaseModel):
+    """An insight's own content, resolved from the full corpus graph (out-of-slice).
+
+    Lets a viewer render an insight whose node isn't in the loaded artifact — e.g.
+    drilling into a corpus-wide timeline mention. ``error`` is set (results empty)
+    when no corpus is configured or the id isn't an insight.
+    """
+
+    subject: str = Field(description="The queried insight id.")
+    text: str = ""
+    insight_type: str = ""
+    grounded: bool = False
+    episode_id: str = ""
+    show_id: str = ""
+    quotes: list[RelatedNodeModel] = Field(default_factory=list)
+    topics: list[RelatedNodeModel] = Field(default_factory=list)
+    entities: list[RelatedNodeModel] = Field(default_factory=list)
+    error: str | None = None
+
+
 class QueryActivityBucket(BaseModel):
     """One day's search count (PRD-033 FR6.2)."""
 

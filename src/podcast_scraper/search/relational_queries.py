@@ -43,12 +43,14 @@ _MENTIONS_FAMILY: tuple = ("MENTIONS", "MENTIONS_PERSON", "MENTIONS_ORG")
 _ABOUT = "ABOUT"  # Insight -> Topic
 _HAS_INSIGHT = "HAS_INSIGHT"  # Episode -> Insight
 _HAS_EPISODE = "HAS_EPISODE"  # Podcast -> Episode
+_SUPPORTED_BY = "SUPPORTED_BY"  # Quote <-> Insight (the quotes grounding an insight)
 
 _INSIGHT = ("insight",)
 _ENTITY = ("person", "org")
 _PERSON = ("person",)
 _EPISODE = ("episode",)
 _PODCAST = ("podcast",)
+_QUOTE = ("quote",)
 
 
 class GraphLike(Protocol):
@@ -344,6 +346,52 @@ def co_speakers(graph: GraphLike, person_id: str, *, k: int = 20) -> List[Relate
 def topics_of_insight(graph: GraphLike, insight_id: str) -> List[RelatedNode]:
     """Topics an insight is `ABOUT` — lets results surface their topic links (#1054)."""
     return [_project(n) for n in _via(graph, insight_id, _ABOUT, _TOPIC)]
+
+
+@dataclass
+class InsightDetail:
+    """An insight's *own* content, resolved from the full corpus graph.
+
+    Unlike ``related_insights`` (structural neighbours), this is the insight itself:
+    its text + type + grounded flag, the quotes that ``SUPPORTED_BY`` it, the topics
+    it is ``ABOUT``, and the entities it ``MENTIONS``. Lets a viewer render an
+    out-of-slice insight (e.g. a corpus-wide timeline-mention drill) without the node
+    being in the loaded artifact.
+    """
+
+    id: str
+    type: str
+    text: str
+    insight_type: str
+    grounded: bool
+    episode_id: str
+    show_id: str
+    quotes: List[RelatedNode]
+    topics: List[RelatedNode]
+    entities: List[RelatedNode]
+
+
+def insight_detail(graph: GraphLike, insight_id: str) -> Optional[InsightDetail]:
+    """Resolve an insight's own text + supporting quotes + topics + mentions.
+
+    Returns ``None`` when the id isn't an insight node in the corpus graph.
+    """
+    node = graph.get_node(insight_id)
+    if node is None or node.type != "insight":
+        return None
+    props = node.payload or {}
+    return InsightDetail(
+        id=node.id,
+        type=node.type,
+        text=str(props.get("text") or "")[:2000],
+        insight_type=str(props.get("insight_type") or ""),
+        grounded=bool(props.get("grounded", False)),
+        episode_id=str(props.get("episode_id") or ""),
+        show_id=str(props.get("show_id") or props.get("podcast_id") or props.get("feed_id") or ""),
+        quotes=[_project(n) for n in _via(graph, insight_id, _SUPPORTED_BY, _QUOTE)],
+        topics=topics_of_insight(graph, insight_id),
+        entities=entities_in(graph, insight_id),
+    )
 
 
 def related_topics(graph: GraphLike, topic_id: str, *, k: int = 20) -> List[RelatedNode]:

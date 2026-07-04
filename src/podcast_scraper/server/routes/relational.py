@@ -21,6 +21,7 @@ from podcast_scraper.search.corpus_graph import get_corpus_graph
 from podcast_scraper.search.relational_capability import rerank_relational_insights
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.server.schemas import (
+    InsightDetailResponse,
     RelatedNodeModel,
     RelationalGroupedResponse,
     RelationalListResponse,
@@ -160,6 +161,36 @@ async def related_insights(
         return RelationalListResponse(subject=insight, error="no_corpus_path")
     nodes = _maybe_rerank(request, path, graph, insight, rq.related_insights(graph, insight, k=k))
     return RelationalListResponse(subject=insight, results=[_node(n) for n in nodes])
+
+
+@router.get("/relational/insight-detail", response_model=InsightDetailResponse)
+async def insight_detail(
+    request: Request,
+    insight: str = Query(min_length=1, description="Canonical insight id."),
+    path: str | None = Query(default=None, description="Corpus output dir; omit for default."),
+) -> InsightDetailResponse:
+    """An insight's own text + supporting quotes + topics + mentioned entities.
+
+    Resolves on the full corpus graph, so it works for an insight that isn't in the
+    viewer's loaded slice (e.g. a corpus-wide timeline-mention drill).
+    """
+    graph = _graph_or_none(request, path)
+    if graph is None:
+        return InsightDetailResponse(subject=insight, error="no_corpus_path")
+    detail = rq.insight_detail(graph, insight)
+    if detail is None:
+        return InsightDetailResponse(subject=insight, error="not_found")
+    return InsightDetailResponse(
+        subject=insight,
+        text=detail.text,
+        insight_type=detail.insight_type,
+        grounded=detail.grounded,
+        episode_id=detail.episode_id,
+        show_id=detail.show_id,
+        quotes=[_node(n) for n in detail.quotes],
+        topics=[_node(n) for n in detail.topics],
+        entities=[_node(n) for n in detail.entities],
+    )
 
 
 @router.get("/relational/episode-insights", response_model=RelationalListResponse)
