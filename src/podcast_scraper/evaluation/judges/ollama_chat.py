@@ -49,18 +49,37 @@ _NUMBER_RE = re.compile(r"-?\d+(?:\.\d+)?")
 def _parse_score(text: str) -> float:
     """Extract a float in [0, 10] from the model's reply.
 
-    Accepts JSON like ``{"score": 7.5}`` or bare floats like ``"7.5"``.
-    Clips to [0, 10]. Raises on unparsable replies.
+    Handles reasoning-model outputs that emit CoT before the JSON answer
+    (nemotron_h, gpt-oss, qwen3.x thinking). Strategy:
+
+    1. Try ``_extract_json_object`` to strip ``</think>`` prefix + code
+       fences and extract the first balanced ``{...}``. If the object
+       has a ``score`` key, return it.
+    2. If that fails (no JSON object), fall back to a regex scan for
+       the first number AFTER ``</think>`` (if present) — never grab
+       numbers from the reasoning trace itself.
+    3. Raise if nothing parseable found.
+
+    Clips to [0, 10]. Note: the current rubric emits 0.0-1.0 values;
+    the wider clip range preserves compatibility with older 0-10 rubric
+    judges (autoresearch_track_a.py::parse_judge_score_json enforces the
+    stricter [0, 1] check on top for the rubric flow).
     """
-    text = text.strip()
+    from podcast_scraper.evaluation.pairwise import _extract_json_object, _THINK_TAG_RE
+
+    # Try structured JSON first — handles both raw JSON and <think>-wrapped
     try:
-        obj = json.loads(text)
+        blob = _extract_json_object(text)
+        obj = json.loads(blob)
         if isinstance(obj, dict) and "score" in obj:
-            val = float(obj["score"])
-            return max(0.0, min(10.0, val))
-    except (json.JSONDecodeError, TypeError, ValueError):
+            return max(0.0, min(10.0, float(obj["score"])))
+    except (ValueError, json.JSONDecodeError, TypeError):
         pass
-    m = _NUMBER_RE.search(text)
+
+    # No JSON found — regex fallback, scoped to POST-</think> if present
+    m_think = _THINK_TAG_RE.search(text)
+    scan_from = text[m_think.end() :] if m_think else text
+    m = _NUMBER_RE.search(scan_from)
     if m is None:
         raise ValueError(f"could not parse score from judge reply: {text!r}")
     return max(0.0, min(10.0, float(m.group(0))))
