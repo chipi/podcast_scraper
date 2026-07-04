@@ -41,12 +41,14 @@ class RankingConfig:
     signals: tuple[RankingSignal, ...]
 
     def get(self, name: str) -> RankingSignal | None:
+        """The signal with this name, or ``None`` when the config has no such signal."""
         for s in self.signals:
             if s.name == name:
                 return s
         return None
 
     def is_enabled(self, name: str) -> bool:
+        """Whether the named signal exists and is enabled."""
         s = self.get(name)
         return bool(s and s.enabled)
 
@@ -56,6 +58,7 @@ class RankingConfig:
         return s.weight if (s is not None and s.enabled) else default
 
     def params_of(self, name: str) -> dict[str, Any]:
+        """A copy of the named signal's params, or an empty dict when there is no such signal."""
         s = self.get(name)
         return dict(s.params) if s is not None else {}
 
