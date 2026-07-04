@@ -2,6 +2,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useSubjectStore } from './subject'
+import { useGraphNavigationStore } from './graphNavigation'
 
 describe('useSubjectStore', () => {
   beforeEach(() => {
@@ -598,5 +599,23 @@ describe('useSubjectStore — Back navigation history', () => {
     s.back()
     expect(s.graphNodeCyId).toBe('person:alice')
     expect(s.positionTrackerTopicId).toBe('topic:ai')
+  })
+
+  it('focusTopic/focusPerson/focusEntity request a graph focus — 2-way sync (#6)', () => {
+    const s = useSubjectStore()
+    const nav = useGraphNavigationStore()
+    s.focusTopic('topic:ai')
+    expect(nav.pendingFocusNodeId).toBe('topic:ai')
+    s.focusPerson('person:alice')
+    expect(nav.pendingFocusNodeId).toBe('person:alice')
+    s.focusEntity('org:acme')
+    expect(nav.pendingFocusNodeId).toBe('org:acme')
+  })
+
+  it('a direct focusGraphNode (a graph click) does NOT re-request a graph focus (#6)', () => {
+    const s = useSubjectStore()
+    const nav = useGraphNavigationStore()
+    s.focusGraphNode('topic:ai') // graph-originated → the node is already selected there
+    expect(nav.pendingFocusNodeId).toBeNull()
   })
 })

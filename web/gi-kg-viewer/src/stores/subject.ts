@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
+import { useGraphNavigationStore } from './graphNavigation'
+
 import { e2eHooksEnabled } from '../utils/e2eHooks'
 
 export type SubjectKind = 'episode' | 'topic' | 'person' | 'graph-node' | null
@@ -161,7 +163,7 @@ export const useSubjectStore = defineStore('subject', () => {
     episodeId.value = t ? t : null
   }
 
-  function focusGraphNode(cyNodeId: string): void {
+  function focusGraphNode(cyNodeId: string, opts?: { syncGraph?: boolean }): void {
     const t = cyNodeId.trim()
     if (!t) {
       clearFields()
@@ -176,6 +178,13 @@ export const useSubjectStore = defineStore('subject', () => {
     clearFields()
     kind.value = 'graph-node'
     graphNodeCyId.value = t
+    // #6 two-way sync: when the navigation comes from the detail rail (not a graph click, which
+    // already has the node selected), ask the graph to select + centre this node so it reflects
+    // where the details went. In-slice nodes apply immediately; a node the graph is loading via a
+    // handoff is picked up the moment it appears (GraphCanvas' pendingFocusNodeId watcher).
+    if (opts?.syncGraph) {
+      useGraphNavigationStore().requestFocusNode(t)
+    }
   }
 
   /**
@@ -186,12 +195,12 @@ export const useSubjectStore = defineStore('subject', () => {
    * cy id (``g:…`` / ``tc:…``) — NodeDetail's lookups resolve either form.
    */
   function focusTopic(id: string): void {
-    focusGraphNode(id)
+    focusGraphNode(id, { syncGraph: true })
   }
 
   /** Alias of {@link focusTopic} for non-Person Entity subjects. Same node view. */
   function focusEntity(id: string): void {
-    focusGraphNode(id)
+    focusGraphNode(id, { syncGraph: true })
   }
 
   /**
@@ -200,7 +209,7 @@ export const useSubjectStore = defineStore('subject', () => {
    * into its Details tab); the standalone Person rail is retired.
    */
   function focusPerson(id: string): void {
-    focusGraphNode(id)
+    focusGraphNode(id, { syncGraph: true })
   }
 
   /**
