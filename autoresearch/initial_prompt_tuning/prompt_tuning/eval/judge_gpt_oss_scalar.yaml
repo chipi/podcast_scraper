@@ -1,10 +1,16 @@
-# Ollama gpt-oss:120b — SCALAR mode variant of judge_gpt_oss.yaml.
-# Same physical Ollama model; sweep runs both modes back-to-back after
-# the pairwise phase\'s prep_cmd brought DGX to idle.
+# Ollama gpt-oss:120b — SCALAR mode. Weekly-sweep panel member
+# (2026-07-04) — ρ = +0.937 vs cloud (Sonnet + GPT-5.4). Cross-vendor
+# to Alibaba/Nvidia panel members.
+#
+# See docs/guides/eval-reports/EVAL_AUTORESEARCH_JUDGE_TRUST_MATRIX_2026_07.md
+# for the full trust-matrix analysis.
+#
+# prep_cmd = idle brings all vLLM composes down so Ollama has the GPU
+# for gpt-oss:120b. Idempotent — no-op if DGX is already idle.
 
 mode: scalar
 
-# NO prep_cmd — paired pairwise yaml already brought DGX to idle.
+prep_cmd: GPU_MODE_START_TIMEOUT=60 scripts/ops/dgx_gpu_mode.sh idle
 
 judge_a:
   provider: ollama

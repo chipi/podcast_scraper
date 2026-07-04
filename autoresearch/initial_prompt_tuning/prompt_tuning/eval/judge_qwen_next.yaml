@@ -1,0 +1,26 @@
+# vLLM Qwen3-Next-80B judge — Round 3 iteration successor to judge_qwen.
+#
+# Model: nvidia/Qwen3-Next-80B-A3B-Instruct-NVFP4 (80B total / 3B active
+# MoE, same active-param count as Qwen3-30B-A3B but 2.6x more total
+# knowledge). Direct A/B test of "bigger judge, same inference cost".
+#
+# Deployment: ~/agentic-ai-homelab/infra/vllm/judge-qwen-next/, port
+# 8003 (shared, single-owner enforced by gpu-mode-swap.sh).
+#
+# Cross-vendor tag: Alibaba. Same as judge_qwen — retains same-vendor
+# bias flag against qwen3.x candidates. Kept alongside judge_qwen (not
+# replacing it) to isolate the "bigger judge" effect from other
+# variables.
+
+mode: pairwise
+
+# GPU_MODE_START_TIMEOUT=720 — 80B MoE, expect 4-6 min cold boot.
+prep_cmd: GPU_MODE_START_TIMEOUT=720 scripts/ops/dgx_gpu_mode.sh judging n
+
+judge_a:
+  provider: vllm
+  model: judge-qwen-next
+  api_base: http://${DGX_TAILNET_FQDN}:8003/v1
+
+judge_families:
+  - Alibaba

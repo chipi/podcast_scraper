@@ -3136,7 +3136,7 @@ autoresearch-sweep-local:
 		echo "   Current homelab default: buddy-is-the-king"; \
 		exit 1; \
 	fi
-	@JUDGE_CONFIGS_DEFAULT="autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_qwen.yaml,autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_llama.yaml,autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_gpt_oss.yaml"; \
+	@JUDGE_CONFIGS_DEFAULT="autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_qwen_next_scalar.yaml,autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_gpt_oss_scalar.yaml,autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_nemotron_scalar.yaml"; \
 	JUDGE_CONFIGS="$${JUDGE_CONFIGS:-$$JUDGE_CONFIGS_DEFAULT}"; \
 	TIMESTAMP=$$(date -u +'%Y%m%dT%H%M%SZ'); \
 	OUT_PATH="data/autoresearch_baselines/autoresearch-local-$$TIMESTAMP.json"; \

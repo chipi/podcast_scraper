@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-import re
+import re  # noqa: F401
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -266,11 +266,12 @@ def parse_judge_score_json(text: str) -> float:
     import logging as _logging
 
     _log = _logging.getLogger(__name__)
-    cleaned = text.strip()
-    if cleaned.startswith("```"):
-        cleaned = re.sub(r"^```[a-zA-Z0-9]*\s*", "", cleaned)
-        cleaned = re.sub(r"\s*```$", "", cleaned)
-    data = json.loads(cleaned)
+    # Reasoning-model support: strip <think>...</think> prefix + code-fences,
+    # then balanced-brace extract the first JSON object. Shared with
+    # parse_pairwise_verdict via pairwise._extract_json_object.
+    from podcast_scraper.evaluation.pairwise import _extract_json_object
+
+    data = json.loads(_extract_json_object(text))
     if not isinstance(data, dict):
         raise ValueError("Judge JSON must be an object")
 

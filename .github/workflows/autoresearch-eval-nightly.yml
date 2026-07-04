@@ -198,7 +198,7 @@ jobs:
           # The sweep driver reads data/autoresearch_baselines/cohort.yaml
           # for candidates + default_limit. To override the phased rollout
           # limit on a manual dispatch, set AUTORESEARCH_SWEEP_LIMIT.
-          JUDGE_CONFIGS="autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_qwen.yaml,autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_llama.yaml,autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_gpt_oss.yaml"
+          JUDGE_CONFIGS="autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_qwen_next_scalar.yaml,autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_gpt_oss_scalar.yaml,autoresearch/initial_prompt_tuning/prompt_tuning/eval/judge_nemotron_scalar.yaml"
           # Use an array so the empty case doesn't produce a stray token
           # (SC2086) and non-empty splits the two args cleanly.
           LIMIT_ARGS=()

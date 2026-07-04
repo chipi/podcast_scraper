@@ -1,0 +1,26 @@
+# vLLM Nemotron-3-Super judge — SCALAR mode. Weekly-sweep panel
+# member (2026-07-04) — ρ = +0.832 vs cloud (Sonnet + GPT-5.4). Nvidia
+# cross-vendor to Alibaba/OpenAI panel members.
+#
+# See docs/guides/eval-reports/EVAL_AUTORESEARCH_JUDGE_TRUST_MATRIX_2026_07.md
+# for the full trust-matrix analysis.
+#
+# Container: vllm-judge-nemotron
+#            (RedHatAI/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4,
+#            67.2B/12B active, nemotron_h hybrid arch).
+# Note: nemotron emits <think>...</think> reasoning before the JSON
+# answer. Handled transparently by pairwise._extract_json_object.
+#
+# prep_cmd is idempotent — safe in both standalone weekly-sweep runs
+# and paired pairwise+scalar invocations.
+
+mode: scalar
+
+prep_cmd: GPU_MODE_START_TIMEOUT=1500 scripts/ops/dgx_gpu_mode.sh judging x
+
+judge_a:
+  provider: vllm
+  model: judge-nemotron
+  api_base: http://${DGX_TAILNET_FQDN}:8003/v1
+
+judge_families: []

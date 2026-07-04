@@ -1,0 +1,26 @@
+# vLLM Qwen3-Next-80B judge — SCALAR mode. Promoted to weekly-sweep
+# primary phase (2026-07-04) — ρ = +0.958 vs cloud (Sonnet + GPT-5.4).
+#
+# See docs/guides/eval-reports/EVAL_AUTORESEARCH_JUDGE_TRUST_MATRIX_2026_07.md
+# for the full trust-matrix analysis that landed this as primary. Also
+# check_autoresearch_drift.py::_PRIMARY_PHASE = "judge_qwen_next_scalar".
+#
+# Container: vllm-judge-qwen-next
+#            (nvidia/Qwen3-Next-80B-A3B-Instruct-NVFP4, 80B/3B active MoE).
+# Deployed: ~/agentic-ai-homelab/infra/vllm/judge-qwen-next/.
+#
+# prep_cmd here is idempotent — if a paired pairwise yaml ran first and
+# already swapped to qwen-next, gpu-mode-swap.sh's same-mode no-op kicks
+# in and the redundant swap costs milliseconds.
+
+mode: scalar
+
+prep_cmd: GPU_MODE_START_TIMEOUT=720 scripts/ops/dgx_gpu_mode.sh judging n
+
+judge_a:
+  provider: vllm
+  model: judge-qwen-next
+  api_base: http://${DGX_TAILNET_FQDN}:8003/v1
+
+judge_families:
+  - Alibaba

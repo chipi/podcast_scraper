@@ -1,0 +1,33 @@
+# vLLM Nemotron-3-Super judge — Round 2 cross-vendor Nvidia-eval-tuned
+# judge for the multi-judge sweep. Replaces judge_gemma (dropped 2026-07-02
+# for redundancy with judge_qwen).
+#
+# Model: RedHatAI/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4 (67.2B total /
+# 12B active, nemotron_h latent-MoE arch). Trained on the Nvidia
+# nemotron-post-training-v3 dataset which emphasizes eval/critique
+# tasks — designed for exactly this use case.
+#
+# Deployment: ~/agentic-ai-homelab/infra/vllm/judge-nemotron/, port
+# 8003 (shared, single-owner enforced by gpu-mode-swap.sh).
+#
+# Cross-vendor: Nvidia. Disjoint from every current cohort candidate
+# family (Meta, Mistral, Google, Alibaba, Microsoft, Nous) AND from the
+# silver Anthropic reference AND from every other judge in the panel.
+# This is the "orthogonal preference distribution" we hoped Command R+
+# would provide (Command R+ has no NVFP4 quant).
+
+mode: pairwise
+
+# GPU_MODE_START_TIMEOUT=900 — 67B total is larger than Qwen3-30B; expect
+# 5-8 min cold boot. nemotron_h arch may need extra warmup.
+prep_cmd: GPU_MODE_START_TIMEOUT=900 scripts/ops/dgx_gpu_mode.sh judging x
+
+judge_a:
+  provider: vllm
+  model: judge-nemotron
+  api_base: http://${DGX_TAILNET_FQDN}:8003/v1
+
+# No same-vendor bias-flag entries here — Nvidia has no candidates in
+# the current cohort. Add "Nvidia" here if a Nemotron-based candidate
+# is ever added.
+judge_families: []

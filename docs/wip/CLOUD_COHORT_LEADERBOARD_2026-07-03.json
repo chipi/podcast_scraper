@@ -1,0 +1,266 @@
+{
+  "llama3.1:8b": {
+    "family": "Meta",
+    "elapsed_s": 30.3,
+    "final": 0.3799853124235292,
+    "rougeL_f1": 0.22497901774789875,
+    "judge_mean": 0.7416666666666667,
+    "judge_a_mean": 0.7953333333333334,
+    "judge_b_mean": 0.6880000000000001,
+    "judges_delta": 0.10733333333333339,
+    "contested_rate": 0.0,
+    "latency_ms": {
+      "median": 11892.821073532104,
+      "p95": 16765.522956848145,
+      "avg": 12950.848007202148
+    },
+    "intrinsic": {
+      "avg_tokens": 611.0,
+      "min_tokens": 533,
+      "max_tokens": 641,
+      "gates_clean": true
+    }
+  },
+  "hermes3:8b": {
+    "family": "Nous",
+    "elapsed_s": 29.1,
+    "final": 0.45329697243252554,
+    "rougeL_f1": 0.2952671034750364,
+    "judge_mean": 0.8220333333333334,
+    "judge_a_mean": 0.8926666666666667,
+    "judge_b_mean": 0.7514000000000001,
+    "judges_delta": 0.14126666666666665,
+    "contested_rate": 0.2,
+    "latency_ms": {
+      "median": 7670.337200164795,
+      "p95": 13768.450260162354,
+      "avg": 8794.326257705688
+    },
+    "intrinsic": {
+      "avg_tokens": 440.6,
+      "min_tokens": 348,
+      "max_tokens": 559,
+      "gates_clean": true
+    }
+  },
+  "mistral:7b": {
+    "family": "Mistral AI",
+    "elapsed_s": 27.1,
+    "final": 0.4500320723742996,
+    "rougeL_f1": 0.28334581767757083,
+    "judge_mean": 0.8389666666666666,
+    "judge_a_mean": 0.8893333333333334,
+    "judge_b_mean": 0.7886000000000001,
+    "judges_delta": 0.10073333333333334,
+    "contested_rate": 0.0,
+    "latency_ms": {
+      "median": 8419.803857803345,
+      "p95": 13405.032873153687,
+      "avg": 9359.328699111938
+    },
+    "intrinsic": {
+      "avg_tokens": 414.4,
+      "min_tokens": 368,
+      "max_tokens": 482,
+      "gates_clean": true
+    }
+  },
+  "llama3.2:3b": {
+    "family": "Meta",
+    "elapsed_s": 32.5,
+    "final": 0.35608764927783754,
+    "rougeL_f1": 0.22695378468262506,
+    "judge_mean": 0.6574,
+    "judge_a_mean": 0.7619999999999999,
+    "judge_b_mean": 0.5528000000000001,
+    "judges_delta": 0.20919999999999983,
+    "contested_rate": 0.2,
+    "latency_ms": {
+      "median": 6799.371957778931,
+      "p95": 12207.305908203125,
+      "avg": 7552.352333068848
+    },
+    "intrinsic": {
+      "avg_tokens": 667.2,
+      "min_tokens": 510,
+      "max_tokens": 783,
+      "gates_clean": true
+    }
+  },
+  "gemma2:9b": {
+    "family": "Google",
+    "elapsed_s": 27.4,
+    "final": 0.4084552432100951,
+    "rougeL_f1": 0.2092217760144214,
+    "judge_mean": 0.8733333333333334,
+    "judge_a_mean": 0.9226666666666666,
+    "judge_b_mean": 0.8240000000000001,
+    "judges_delta": 0.09866666666666657,
+    "contested_rate": 0.0,
+    "latency_ms": {
+      "median": 9617.110013961792,
+      "p95": 16687.84999847412,
+      "avg": 11028.933954238892
+    },
+    "intrinsic": {
+      "avg_tokens": 428.2,
+      "min_tokens": 369,
+      "max_tokens": 507,
+      "gates_clean": true
+    }
+  },
+  "phi4:14b": {
+    "family": "Microsoft",
+    "elapsed_s": 26.5,
+    "final": 0.4203075690961091,
+    "rougeL_f1": 0.23971081299444147,
+    "judge_mean": 0.8417000000000001,
+    "judge_a_mean": 0.9000000000000001,
+    "judge_b_mean": 0.7834000000000001,
+    "judges_delta": 0.11660000000000004,
+    "contested_rate": 0.0,
+    "latency_ms": {
+      "median": 15831.902980804443,
+      "p95": 25163.273096084595,
+      "avg": 17047.03540802002
+    },
+    "intrinsic": {
+      "avg_tokens": 439.8,
+      "min_tokens": 391,
+      "max_tokens": 483,
+      "gates_clean": true
+    }
+  },
+  "mistral-nemo:12b": {
+    "family": "Mistral AI",
+    "elapsed_s": 25.3,
+    "final": 0.4259568781725948,
+    "rougeL_f1": 0.24920982596084965,
+    "judge_mean": 0.8383666666666667,
+    "judge_a_mean": 0.8993333333333334,
+    "judge_b_mean": 0.7773999999999999,
+    "judges_delta": 0.12193333333333356,
+    "contested_rate": 0.0,
+    "latency_ms": {
+      "median": 14664.338827133179,
+      "p95": 28781.21304512024,
+      "avg": 17582.053422927856
+    },
+    "intrinsic": {
+      "avg_tokens": 557.8,
+      "min_tokens": 515,
+      "max_tokens": 637,
+      "gates_clean": true
+    }
+  },
+  "mistral-small:24b": {
+    "family": "Mistral AI",
+    "elapsed_s": 24.6,
+    "final": 0.43585909559639535,
+    "rougeL_f1": 0.2459558508519933,
+    "judge_mean": 0.8789666666666667,
+    "judge_a_mean": 0.9313333333333335,
+    "judge_b_mean": 0.8266,
+    "judges_delta": 0.10473333333333346,
+    "contested_rate": 0.0,
+    "latency_ms": {
+      "median": 23686.877012252808,
+      "p95": 37668.59698295593,
+      "avg": 25628.076553344727
+    },
+    "intrinsic": {
+      "avg_tokens": 419.6,
+      "min_tokens": 346,
+      "max_tokens": 454,
+      "gates_clean": true
+    }
+  },
+  "mistral-small3.2:latest": {
+    "family": "Mistral AI",
+    "elapsed_s": 26.6,
+    "final": 0.41346911388395,
+    "rougeL_f1": 0.22081301983421428,
+    "judge_mean": 0.8629999999999999,
+    "judge_a_mean": 0.916,
+    "judge_b_mean": 0.8099999999999999,
+    "judges_delta": 0.1060000000000001,
+    "contested_rate": 0.0,
+    "latency_ms": {
+      "median": 26175.38595199585,
+      "p95": 45254.09913063049,
+      "avg": 29596.421909332275
+    },
+    "intrinsic": {
+      "avg_tokens": 458.8,
+      "min_tokens": 390,
+      "max_tokens": 542,
+      "gates_clean": true
+    }
+  },
+  "qwen3.5:27b": {
+    "family": "Alibaba",
+    "elapsed_s": 27.0,
+    "final": 0.4185240522521595,
+    "rougeL_f1": 0.22444864607451342,
+    "judge_mean": 0.8713666666666668,
+    "judge_a_mean": 0.9133333333333334,
+    "judge_b_mean": 0.8294,
+    "judges_delta": 0.08393333333333342,
+    "contested_rate": 0.0,
+    "latency_ms": {
+      "median": 43978.81078720093,
+      "p95": 73057.23810195923,
+      "avg": 48377.81023979187
+    },
+    "intrinsic": {
+      "avg_tokens": 759.4,
+      "min_tokens": 601,
+      "max_tokens": 922,
+      "gates_clean": true
+    }
+  },
+  "qwen3.6:latest": {
+    "family": "Alibaba",
+    "elapsed_s": 24.4,
+    "final": 0.4207099336227619,
+    "rougeL_f1": 0.2193141908896598,
+    "judge_mean": 0.8906333333333333,
+    "judge_a_mean": 0.9226666666666666,
+    "judge_b_mean": 0.8586,
+    "judges_delta": 0.0640666666666666,
+    "contested_rate": 0.0,
+    "latency_ms": {
+      "median": 6991.827011108398,
+      "p95": 36938.99202346802,
+      "avg": 12560.216045379639
+    },
+    "intrinsic": {
+      "avg_tokens": 630.4,
+      "min_tokens": 484,
+      "max_tokens": 802,
+      "gates_clean": true
+    }
+  },
+  "qwen3.5:35b": {
+    "family": "Alibaba",
+    "elapsed_s": 26.6,
+    "final": 0.42337845153611,
+    "rougeL_f1": 0.23622635933729982,
+    "judge_mean": 0.8600666666666668,
+    "judge_a_mean": 0.9093333333333333,
+    "judge_b_mean": 0.8107999999999999,
+    "judges_delta": 0.09853333333333347,
+    "contested_rate": 0.0,
+    "latency_ms": {
+      "median": 7738.401174545288,
+      "p95": 36687.15310096741,
+      "avg": 13043.550539016724
+    },
+    "intrinsic": {
+      "avg_tokens": 686.0,
+      "min_tokens": 534,
+      "max_tokens": 797,
+      "gates_clean": true
+    }
+  }
+}

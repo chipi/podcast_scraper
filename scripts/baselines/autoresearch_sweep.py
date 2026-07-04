@@ -661,6 +661,10 @@ def _aggregate_rows(
             continue
         total_wall = round(sum(state["wall_clock_by_phase"].values()), 1)
         if state["failed_phase"] is not None:
+            # Preserve any scores from phases that succeeded BEFORE the
+            # failing phase — pre-fix these were silently discarded, which
+            # cost us ~6 phases of good data when nemotron's parser
+            # broke mid-sweep on 2026-07-04.
             rows.append(
                 {
                     "model": model,
@@ -670,6 +674,7 @@ def _aggregate_rows(
                     "prompts_source": state["prompts_source"],
                     "wall_clock_s": total_wall,
                     "wall_clock_by_phase": state["wall_clock_by_phase"],
+                    "scores_by_phase": state["phase_outputs"],
                 }
             )
             continue

@@ -52,7 +52,7 @@ def _by_model(cohort: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
 # because the available Ollama judges (gemma3:27b, mistral-small:24b)
 # are same-tier as the candidates — peer review, not authoritative.
 # If the cohort ever picks up Alibaba candidates, switch primary here.
-_PRIMARY_PHASE = "judge_qwen"
+_PRIMARY_PHASE = "judge_qwen_next_scalar"
 
 
 def _primary_scores_and_latency(row: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:

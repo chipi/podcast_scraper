@@ -109,6 +109,53 @@ def build_pairwise_user_message(
 
 
 _JSON_FENCE_RE = re.compile(r"^```[a-zA-Z0-9]*\s*|\s*```$")
+_THINK_TAG_RE = re.compile(r"</think\s*>", re.IGNORECASE)
+
+
+def _extract_json_object(text: str) -> str:
+    """Return the first balanced ``{...}`` JSON object substring in ``text``.
+
+    Handles reasoning-model outputs that emit a chain-of-thought free-text
+    block before the JSON answer (e.g. nemotron_h, gpt-oss, qwen3.x
+    thinking). Steps:
+
+    1. If the text contains ``</think>`` (case-insensitive), everything
+       before it is CoT — strip it.
+    2. Strip surrounding markdown code fences ``` ... ```.
+    3. Scan for the first ``{`` and walk forward tracking brace depth
+       (respecting string quoting) to find the matching closing ``}``.
+
+    Raises ``ValueError`` if no balanced object is found.
+    """
+    m = _THINK_TAG_RE.search(text)
+    if m:
+        text = text[m.end() :]
+    cleaned = _JSON_FENCE_RE.sub("", text.strip())
+    start = cleaned.find("{")
+    if start < 0:
+        raise ValueError("no JSON object found in judge reply")
+    depth = 0
+    in_str = False
+    escape = False
+    for i in range(start, len(cleaned)):
+        ch = cleaned[i]
+        if in_str:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return cleaned[start : i + 1]
+    raise ValueError("unterminated JSON object in judge reply")
 
 
 def parse_pairwise_verdict(
@@ -130,8 +177,7 @@ def parse_pairwise_verdict(
     scalar parser; a broken judge reply is a hard error, not a silent
     default.
     """
-    cleaned = _JSON_FENCE_RE.sub("", text.strip())
-    data = json.loads(cleaned)
+    data = json.loads(_extract_json_object(text))
     if not isinstance(data, dict):
         raise ValueError("Pairwise verdict JSON must be an object")
 
