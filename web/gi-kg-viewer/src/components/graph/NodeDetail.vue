@@ -1486,11 +1486,17 @@ watch(signalsTabHasContent, (has) => {
 
 watch(
   () => props.nodeId,
-  () => {
+  (newId) => {
     graphRailDetailTab.value = 'details'
     timelineView.value = 'episodes'
     mentionsEpisodeFilter.value = null
     timelineShowTheme.value = false
+    // #6 L0 — in the graph rail only, record each navigated-to node on the breadcrumb trail so the
+    // graph loads + shows it. addToTrail skips the pinned ego origin; a new origin resets the trail.
+    const t = newId?.trim()
+    if (props.embedInRail && t) {
+      graphNav.addToTrail(t)
+    }
   },
 )
 

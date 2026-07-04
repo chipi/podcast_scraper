@@ -3730,6 +3730,15 @@ watch(
   { flush: 'post' },
 )
 
+// #6 L0 — the breadcrumb trail grew (a node navigated-to in the graph rail): redraw so the trail
+// nodes viewWithEgo now unions in get rendered + connected. Guarded by the usual redraw scheduler.
+watch(
+  () => nav.trailNodeIds,
+  () => {
+    safeGraphWatch('trailChanged', () => scheduleRedraw())
+  },
+)
+
 watch(
   activeDegreeBucket,
   () => {

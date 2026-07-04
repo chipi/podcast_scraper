@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import type { ParsedArtifact, RawGraphNode } from '../../types/artifact'
 import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
+import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import NodeDetail from './NodeDetail.vue'
 
 // Heavy / API-driven children are stubbed: GraphConnectionsSection (cytoscape
@@ -497,5 +498,23 @@ describe('NodeDetail', () => {
     expect(w.find('#node-detail-rail-panel-position-tracker').exists()).toBe(true)
     // PositionTrackerPanel stub NOT present (it was removed from NodeDetail imports)
     expect(w.find('[data-testid="position-tracker-panel"]').exists()).toBe(false)
+  })
+
+  it('records graph-rail navigation on the breadcrumb trail (#6 L0)', async () => {
+    const nav = useGraphNavigationStore()
+    const w = mountDetail({
+      viewArtifact: artifactOf([]),
+      nodeId: 'g:topic:a',
+      embedInRail: true,
+    })
+    await w.setProps({ nodeId: 'g:topic:b' }) // navigate to a new node in the rail
+    expect(nav.trailNodeIds).toContain('g:topic:b')
+  })
+
+  it('does NOT record navigation on the trail outside the graph rail (#6)', async () => {
+    const nav = useGraphNavigationStore()
+    const w = mountDetail({ viewArtifact: artifactOf([]), nodeId: 'g:topic:a' }) // no embedInRail
+    await w.setProps({ nodeId: 'g:topic:b' })
+    expect(nav.trailNodeIds).not.toContain('g:topic:b')
   })
 })
