@@ -12,6 +12,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getCorpusEnrichment } from '../services/api'
 import type { RisingTopic } from './trending'
+import TrendingChips from './TrendingChips.vue'
 import TrendingSparkChips from './TrendingSparkChips.vue'
 import TrendingStream from './TrendingStream.vue'
 import TrendingMomentum from './TrendingMomentum.vue'
@@ -52,9 +53,10 @@ void getCorpusEnrichment()
     topics.value = []
   })
 
-type View = 'sparks' | 'stream' | 'momentum'
-const view = ref<View>('sparks')
+type View = 'chips' | 'sparks' | 'stream' | 'momentum'
+const view = ref<View>('chips')
 const VIEWS: Array<{ key: View; label: string }> = [
+  { key: 'chips', label: 'trendViewChips' },
   { key: 'sparks', label: 'trendViewSparks' },
   { key: 'stream', label: 'trendViewStream' },
   { key: 'momentum', label: 'trendViewMomentum' },
@@ -65,31 +67,30 @@ const hasAny = computed(() => topics.value.length > 0)
 
 <template>
   <section v-if="hasAny" class="mt-7" data-testid="home-trending">
-    <div class="mb-1 flex items-baseline justify-between gap-2">
-      <h2 class="lp-section">{{ t('home.trending') }}</h2>
-      <div
-        role="tablist"
-        :aria-label="t('home.trendViewLabel')"
-        class="inline-flex gap-0.5 rounded-full border border-border p-0.5 text-xs"
-      >
-        <button
-          v-for="opt in VIEWS"
-          :key="opt.key"
-          type="button"
-          role="tab"
-          :aria-selected="view === opt.key"
-          :data-testid="`trend-view-${opt.key}`"
-          class="rounded-full px-2.5 py-0.5 font-semibold transition"
-          :class="view === opt.key ? 'bg-accent text-accent-foreground' : 'text-muted hover:text-canvas-foreground'"
-          @click="view = opt.key"
-        >
-          {{ t(`home.${opt.label}`) }}
-        </button>
-      </div>
-    </div>
+    <h2 class="lp-section">{{ t('home.trending') }}</h2>
     <p class="mb-2 text-sm text-muted">{{ t('home.trendingHint') }}</p>
+    <div
+      role="tablist"
+      :aria-label="t('home.trendViewLabel')"
+      class="mb-3 inline-flex flex-wrap gap-0.5 rounded-full border border-border p-0.5 text-xs"
+    >
+      <button
+        v-for="opt in VIEWS"
+        :key="opt.key"
+        type="button"
+        role="tab"
+        :aria-selected="view === opt.key"
+        :data-testid="`trend-view-${opt.key}`"
+        class="rounded-full px-2.5 py-0.5 font-semibold transition"
+        :class="view === opt.key ? 'bg-accent text-accent-foreground' : 'text-muted hover:text-canvas-foreground'"
+        @click="view = opt.key"
+      >
+        {{ t(`home.${opt.label}`) }}
+      </button>
+    </div>
 
-    <TrendingSparkChips v-if="view === 'sparks'" :topics="topics" @open="emit('open', $event)" />
+    <TrendingChips v-if="view === 'chips'" :topics="topics" @open="emit('open', $event)" />
+    <TrendingSparkChips v-else-if="view === 'sparks'" :topics="topics" @open="emit('open', $event)" />
     <TrendingStream
       v-else-if="view === 'stream'"
       :topics="topics"

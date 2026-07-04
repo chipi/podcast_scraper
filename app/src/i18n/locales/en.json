@@ -23,6 +23,7 @@
     "trendingHint": "Heating up across the library lately",
     "trendingChip": "{topic} — trending at {factor}× its recent average",
     "trendViewLabel": "Trending view",
+    "trendViewChips": "Pills",
     "trendViewSparks": "Sparklines",
     "trendViewStream": "Over time",
     "trendViewMomentum": "Momentum"

@@ -24,23 +24,31 @@ const withVelocity = (tv = VELOCITY) =>
 afterEach(() => vi.restoreAllMocks())
 
 describe('TrendingTopics container', () => {
-  it('defaults to the Sparklines view with rising topics sorted by velocity', async () => {
+  it('defaults to the Pills view with rising topics sorted by velocity', async () => {
     withVelocity()
     const w = mountIt()
     await flushPromises()
-    const rows = w.findAll('[data-testid="trend-spark-row"]')
+    const chips = w.findAll('[data-testid="trend-chip"]')
     // policy (4x) before ai (2x); steady + noise excluded.
-    expect(rows).toHaveLength(2)
-    expect(rows[0].text()).toContain('foreign policy')
-    expect(rows[0].text()).toContain('4×')
+    expect(chips).toHaveLength(2)
+    expect(chips[0].text()).toContain('foreign policy')
+    expect(chips[0].text()).toContain('4×')
   })
 
-  it('emits open with the topic id from a sparkline row', async () => {
+  it('emits open with the topic id from a pill', async () => {
     withVelocity()
     const w = mountIt()
     await flushPromises()
-    await w.findAll('[data-testid="trend-spark-row"]')[0].trigger('click')
+    await w.findAll('[data-testid="trend-chip"]')[0].trigger('click')
     expect(w.emitted('open')![0]).toEqual(['topic:policy'])
+  })
+
+  it('switches to the Sparklines view (rows with mini series)', async () => {
+    withVelocity()
+    const w = mountIt()
+    await flushPromises()
+    await w.get('[data-testid="trend-view-sparks"]').trigger('click')
+    expect(w.findAll('[data-testid="trend-spark-row"]')).toHaveLength(2)
   })
 
   it('switches to the Over-time (stream) view with one band per rising topic', async () => {
