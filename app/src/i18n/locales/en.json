@@ -21,7 +21,11 @@
     "resume": "Resume",
     "trending": "Trending topics",
     "trendingHint": "Heating up across the library lately",
-    "trendingChip": "{topic} — trending at {factor}× its recent average"
+    "trendingChip": "{topic} — trending at {factor}× its recent average",
+    "trendViewLabel": "Trending view",
+    "trendViewSparks": "Sparklines",
+    "trendViewStream": "Over time",
+    "trendViewMomentum": "Momentum"
   },
   "rail": {
     "prev": "Scroll left",

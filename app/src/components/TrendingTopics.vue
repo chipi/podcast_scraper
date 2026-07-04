@@ -2,25 +2,41 @@
 /**
  * Trending topics (Plan B #4 — temporal_velocity on Home). Topics "heating up"
  * across the corpus: last month running >= 1.5x their 6-month average, with a
- * floor on total mentions to cut sample noise. Chips open the topic entity card
- * (whose Signals now show the same momentum). Reads the shared, memoized
- * /api/app/corpus/enrichment. Hides itself when nothing is rising.
+ * floor on total mentions to cut sample noise. Three views the operator can flip
+ * between to decide what to keep: Sparklines (shape), Over time (stacked stream),
+ * Momentum (velocity-vs-volume map). Reads the shared, memoized
+ * /api/app/corpus/enrichment; hides when nothing is rising. Chips/points open the
+ * topic entity card (whose Signals show the same momentum).
  */
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getCorpusEnrichment } from '../services/api'
+import type { RisingTopic } from './trending'
+import TrendingSparkChips from './TrendingSparkChips.vue'
+import TrendingStream from './TrendingStream.vue'
+import TrendingMomentum from './TrendingMomentum.vue'
 
 const emit = defineEmits<{ (e: 'open', id: string): void }>()
 const { t } = useI18n()
 
 const RISING = 1.5
 const MIN_TOTAL = 3
-const MAX = 10
+const MAX = 12
 
-const trending = ref<Array<{ id: string; label: string; v: number }>>([])
+const months = ref<string[]>([])
+const topics = ref<RisingTopic[]>([])
+
 void getCorpusEnrichment()
   .then((s) => {
-    trending.value = (s.temporal_velocity?.topics ?? [])
+    const tv = s.temporal_velocity
+    const rows = tv?.topics ?? []
+    // Month axis: the envelope's window_months, else the union of keys seen.
+    const axis =
+      tv?.window_months && tv.window_months.length
+        ? [...tv.window_months]
+        : [...new Set(rows.flatMap((r) => Object.keys(r.monthly_counts ?? {})))].sort()
+    months.value = axis
+    topics.value = rows
       .filter((x) => (x.velocity_last_over_6mo ?? 0) >= RISING && (x.total ?? 0) >= MIN_TOTAL)
       .sort((a, b) => (b.velocity_last_over_6mo ?? 0) - (a.velocity_last_over_6mo ?? 0))
       .slice(0, MAX)
@@ -28,30 +44,58 @@ void getCorpusEnrichment()
         id: x.topic_id,
         label: x.topic_label?.trim() || x.topic_id.replace(/^topic:/, '').replace(/[-_]+/g, ' '),
         v: Math.round((x.velocity_last_over_6mo ?? 0) * 10) / 10,
+        total: x.total ?? 0,
+        series: axis.map((m) => x.monthly_counts?.[m] ?? 0),
       }))
   })
   .catch(() => {
-    trending.value = []
+    topics.value = []
   })
+
+type View = 'sparks' | 'stream' | 'momentum'
+const view = ref<View>('sparks')
+const VIEWS: Array<{ key: View; label: string }> = [
+  { key: 'sparks', label: 'trendViewSparks' },
+  { key: 'stream', label: 'trendViewStream' },
+  { key: 'momentum', label: 'trendViewMomentum' },
+]
+
+const hasAny = computed(() => topics.value.length > 0)
 </script>
 
 <template>
-  <section v-if="trending.length" class="mt-7" data-testid="home-trending">
-    <h2 class="lp-section mb-1">{{ t('home.trending') }}</h2>
-    <p class="mb-2 text-sm text-muted">{{ t('home.trendingHint') }}</p>
-    <div class="flex flex-wrap gap-1.5">
-      <button
-        v-for="tp in trending"
-        :key="tp.id"
-        type="button"
-        class="inline-flex items-center gap-1.5 rounded-full bg-overlay px-3 py-1.5 text-sm text-topic transition hover:bg-elevated"
-        data-testid="home-trending-chip"
-        :aria-label="t('home.trendingChip', { topic: tp.label, factor: tp.v })"
-        @click="emit('open', tp.id)"
+  <section v-if="hasAny" class="mt-7" data-testid="home-trending">
+    <div class="mb-1 flex items-baseline justify-between gap-2">
+      <h2 class="lp-section">{{ t('home.trending') }}</h2>
+      <div
+        role="tablist"
+        :aria-label="t('home.trendViewLabel')"
+        class="inline-flex gap-0.5 rounded-full border border-border p-0.5 text-xs"
       >
-        {{ tp.label }}
-        <span class="text-xs font-semibold text-accent">↑ {{ tp.v }}×</span>
-      </button>
+        <button
+          v-for="opt in VIEWS"
+          :key="opt.key"
+          type="button"
+          role="tab"
+          :aria-selected="view === opt.key"
+          :data-testid="`trend-view-${opt.key}`"
+          class="rounded-full px-2.5 py-0.5 font-semibold transition"
+          :class="view === opt.key ? 'bg-accent text-accent-foreground' : 'text-muted hover:text-canvas-foreground'"
+          @click="view = opt.key"
+        >
+          {{ t(`home.${opt.label}`) }}
+        </button>
+      </div>
     </div>
+    <p class="mb-2 text-sm text-muted">{{ t('home.trendingHint') }}</p>
+
+    <TrendingSparkChips v-if="view === 'sparks'" :topics="topics" @open="emit('open', $event)" />
+    <TrendingStream
+      v-else-if="view === 'stream'"
+      :topics="topics"
+      :months="months"
+      @open="emit('open', $event)"
+    />
+    <TrendingMomentum v-else :topics="topics" @open="emit('open', $event)" />
   </section>
 </template>

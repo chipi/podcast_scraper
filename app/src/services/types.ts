@@ -377,11 +377,14 @@ export interface CorpusEnrichmentSignals {
     }>
   }
   temporal_velocity?: {
+    /** Ordered YYYY-MM axis the monthly_counts are keyed on. */
+    window_months?: string[]
     topics?: Array<{
       topic_id: string
       topic_label?: string
       velocity_last_over_6mo?: number
       total?: number
+      monthly_counts?: Record<string, number>
     }>
   }
   topic_similarity?: {
