@@ -401,6 +401,9 @@ function openLibraryFailures(): void {
           <div class="xl:col-span-2">
             <TopicLandscape @go-graph="(id, fb) => emit('go-graph', id, fb)" />
           </div>
+          <div class="xl:col-span-2">
+            <TopicLandscape source="themes" @go-graph="(id, fb) => emit('go-graph', id, fb)" />
+          </div>
           <div class="xl:col-span-2"><TopicBriefingCards :digest="digestIntel" /></div>
           <div class="xl:col-span-2"><TopicClustersStatusBlock /></div>
         </div>

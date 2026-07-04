@@ -5,12 +5,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import TopicLandscape from './TopicLandscape.vue'
 import { useShellStore } from '../../stores/shell'
-import { fetchTopicClustersFromApi } from '../../api/corpusTopicClustersApi'
+import {
+  fetchThemeClustersFromApi,
+  fetchTopicClustersFromApi,
+} from '../../api/corpusTopicClustersApi'
 
 vi.mock('../../api/corpusTopicClustersApi', () => ({
   fetchTopicClustersFromApi: vi.fn(),
+  fetchThemeClustersFromApi: vi.fn(),
 }))
 const fetchClusters = vi.mocked(fetchTopicClustersFromApi)
+const fetchThemes = vi.mocked(fetchThemeClustersFromApi)
 
 const DOC = {
   status: 'ok' as const,
@@ -50,6 +55,7 @@ describe('TopicLandscape', () => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
     fetchClusters.mockResolvedValue(DOC as never)
+    fetchThemes.mockResolvedValue(DOC as never)
   })
 
   it('defaults to the bubbles view with one bubble per cluster', async () => {
@@ -76,5 +82,17 @@ describe('TopicLandscape', () => {
     const w = await mountIt()
     await w.findAll('[data-testid="topic-landscape-bubbles"] button')[0].trigger('click')
     expect(w.emitted('go-graph')?.[0]?.[0]).toBe('tc:big')
+  })
+
+  it('source="themes" fetches theme clusters and renders the Theme landscape (#4)', async () => {
+    const shell = useShellStore()
+    shell.corpusPath = '/corpus'
+    shell.healthStatus = 'ok'
+    const w = mount(TopicLandscape, { props: { source: 'themes' } })
+    for (let i = 0; i < 8; i++) await w.vm.$nextTick()
+    expect(fetchThemes).toHaveBeenCalled()
+    expect(fetchClusters).not.toHaveBeenCalled()
+    expect(w.find('[data-testid="intelligence-theme-landscape"]').exists()).toBe(true)
+    expect(w.text()).toContain('Theme landscape')
   })
 })

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import {
+  fetchThemeClustersFromApi,
   fetchTopicClustersFromApi,
   type TopicClustersCluster,
 } from '../../api/corpusTopicClustersApi'
@@ -33,6 +34,13 @@ import { graphCompoundParentIdFromCluster } from '../../utils/topicClustersOverl
 const emit = defineEmits<{
   (e: 'go-graph', targetId?: string, focusFallbackId?: string): void
 }>()
+// #4 — the same component doubles as the THEME landscape (co-occurrence themes are the same
+// document shape as topic clusters), so the dashboard can pull out both as parallel lenses.
+const props = withDefaults(defineProps<{ source?: 'topics' | 'themes' }>(), { source: 'topics' })
+const isThemes = computed(() => props.source === 'themes')
+const headingId = computed(() => (isThemes.value ? 'theme-landscape-heading' : 'topic-landscape-heading'))
+const headingText = computed(() => (isThemes.value ? 'Theme landscape' : 'Topic landscape'))
+const clusterNoun = computed(() => (isThemes.value ? 'themes' : 'topic clusters'))
 
 const shell = useShellStore()
 const clusters = ref<TopicClustersCluster[] | null>(null)
@@ -51,7 +59,7 @@ async function load(): Promise<void> {
   status.value = 'loading'
   error.value = null
   schemaWarning.value = null
-  const r = await fetchTopicClustersFromApi(p)
+  const r = await (isThemes.value ? fetchThemeClustersFromApi : fetchTopicClustersFromApi)(p)
   if (r.status === 'missing') {
     clusters.value = null
     status.value = 'missing'
@@ -84,7 +92,7 @@ const insight = computed(() => {
     return undefined
   }
   const topics = c.reduce((n, cl) => n + (cl.members?.length ?? 0), 0)
-  return `${c.length} topic clusters covering ${topics} distinct topics.`
+  return `${c.length} ${clusterNoun.value} covering ${topics} distinct topics.`
 })
 
 const view = ref<'bubbles' | 'grid'>('bubbles')
@@ -134,14 +142,14 @@ function onClusterActivate(c: TopicClustersCluster): void {
 <template>
   <section
     class="rounded border border-border bg-surface p-3 text-surface-foreground"
-    data-testid="intelligence-topic-landscape"
-    aria-labelledby="topic-landscape-heading"
+    :data-testid="isThemes ? 'intelligence-theme-landscape' : 'intelligence-topic-landscape'"
+    :aria-labelledby="headingId"
   >
     <h3
-      id="topic-landscape-heading"
+      :id="headingId"
       class="mb-2 text-sm font-semibold"
     >
-      Topic landscape
+      {{ headingText }}
     </h3>
     <p
       v-if="schemaWarning"
@@ -160,7 +168,7 @@ function onClusterActivate(c: TopicClustersCluster): void {
       v-else-if="status === 'missing'"
       class="text-xs text-muted"
     >
-      Topic clusters not yet built for this corpus.
+      No {{ clusterNoun }} built for this corpus yet.
     </p>
     <p
       v-else-if="error"
