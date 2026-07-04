@@ -9,12 +9,18 @@ resurfacing — recall cites the user's own experience, never the global corpus.
 
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Iterable
 from pathlib import Path
 
 from podcast_scraper.server import app_user_state
+from podcast_scraper.server.app_corpus_access import load_json_artifact
+from podcast_scraper.server.app_kg_view import entities_from_kg
 from podcast_scraper.server.app_slugs import slug_for_row
-from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
+from podcast_scraper.server.corpus_catalog import (
+    build_catalog_rows_cumulative,
+    CatalogEpisodeRow,
+)
 
 HEARD_THRESHOLD = 0.30
 
@@ -78,3 +84,46 @@ def user_episode_set(root: Path, data_dir: Path, user_id: str) -> set[str]:
     # Durations are only needed to judge "heard"; skip the catalog scan when there's no playback.
     durations = slug_durations(root) if playback else {}
     return derive_episode_set(playback, captured, durations)
+
+
+def derive_interests(
+    root: Path,
+    data_dir: Path,
+    user_id: str,
+    *,
+    k: int = 8,
+    max_episodes: int = 40,
+) -> list[str]:
+    """Interest tokens inferred from the user's episode set — #1139.
+
+    Aggregates the topics + people across the episodes the user has heard/captured
+    (their :func:`user_episode_set`) and returns the top-``k`` by frequency as
+    interest tokens (``topic:…`` / ``person:…``). These feed discovery ranking the
+    same way an explicit follow does, so personalization works from behaviour alone
+    — no picker, no follows needed. Deterministic (frequency desc, id asc as a
+    stable tiebreak); bounded to ``max_episodes`` KG loads to keep ``/discover``
+    snappy. The ids come from the same :func:`entities_from_kg` the ranker reads,
+    so they match its topic/person id space exactly.
+    """
+    slugs = user_episode_set(root, data_dir, user_id)
+    if not slugs:
+        return []
+    rows_by_slug = {slug_for_row(r): r for r in build_catalog_rows_cumulative(root)}
+    counts: Counter[str] = Counter()
+    for slug in sorted(slugs)[:max_episodes]:
+        row = rows_by_slug.get(slug)
+        if row is not None:
+            counts.update(_episode_interest_tokens(root, row))
+    ranked = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+    return [token for token, _count in ranked[:k]]
+
+
+def _episode_interest_tokens(root: Path, row: CatalogEpisodeRow) -> list[str]:
+    """The topic + person ids one episode touches (empty when it has no KG)."""
+    if not row.has_kg:
+        return []
+    artifact = load_json_artifact(root, row.kg_relative_path)
+    if artifact is None:
+        return []
+    persons, _orgs, topics = entities_from_kg(artifact)
+    return [t.id for t in topics if t.id] + [p.id for p in persons if p.id]

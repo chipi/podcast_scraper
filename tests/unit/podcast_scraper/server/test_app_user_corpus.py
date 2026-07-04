@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+import pytest
+
 from podcast_scraper.server.app_user_corpus import derive_episode_set
 
 
@@ -80,3 +84,44 @@ def test_user_episode_set_heard_via_playback(tmp_path) -> None:  # type: ignore[
     app_user_state.set_playback(data_dir, "u1", slugs["ep-heard"], 400.0, 1)  # 40% → heard
     app_user_state.set_playback(data_dir, "u1", slugs["ep-skim"], 100.0, 1)  # 10% → not heard
     assert user_episode_set(root, data_dir, "u1") == {slugs["ep-heard"]}
+
+
+def test_derive_interests_aggregates_and_ranks_top_tokens(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # #1139: interest tokens are the topics/people of the user's episode set, ranked by
+    # frequency (id asc as a stable tiebreak). Stubs isolate the aggregation from KG IO.
+    import podcast_scraper.server.app_user_corpus as uc
+
+    monkeypatch.setattr(uc, "user_episode_set", lambda *a, **k: {"s1", "s2", "s3"})
+    monkeypatch.setattr(uc, "build_catalog_rows_cumulative", lambda root: ["r_s1", "r_s2", "r_s3"])
+    monkeypatch.setattr(uc, "slug_for_row", lambda r: r[2:])  # "r_s1" -> "s1"
+    per_episode = {
+        "r_s1": ["topic:ai", "person:jane"],
+        "r_s2": ["topic:ai", "topic:vc"],
+        "r_s3": [],  # no KG → contributes nothing
+    }
+    monkeypatch.setattr(uc, "_episode_interest_tokens", lambda root, row: per_episode[row])
+
+    got = uc.derive_interests(tmp_path, tmp_path, "u1", k=3)
+    assert got[0] == "topic:ai"  # frequency 2 → leads
+    assert set(got) == {"topic:ai", "person:jane", "topic:vc"}
+
+
+def test_derive_interests_respects_k_and_empty(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import podcast_scraper.server.app_user_corpus as uc
+
+    # No episodes → no derived interests.
+    monkeypatch.setattr(uc, "user_episode_set", lambda *a, **k: set())
+    assert uc.derive_interests(tmp_path, tmp_path, "u1") == []
+
+    # k caps the list; the most frequent survive.
+    monkeypatch.setattr(uc, "user_episode_set", lambda *a, **k: {"s1"})
+    monkeypatch.setattr(uc, "build_catalog_rows_cumulative", lambda root: ["r_s1"])
+    monkeypatch.setattr(uc, "slug_for_row", lambda r: r[2:])
+    monkeypatch.setattr(
+        uc, "_episode_interest_tokens", lambda root, row: ["topic:a", "topic:b", "topic:c"]
+    )
+    assert uc.derive_interests(tmp_path, tmp_path, "u1", k=2) == ["topic:a", "topic:b"]

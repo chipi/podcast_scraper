@@ -100,13 +100,27 @@ def _corpus(root: Path) -> None:
     (root / "search" / "topic_clusters.json").write_text(json.dumps(payload), encoding="utf-8")
 
 
-def _client(root: Path, *, personalized: bool) -> TestClient:
+def _client(root: Path, *, personalized: bool, derived: bool = False) -> TestClient:
     app = create_app(root, static_dir=False)
     app.state.session_secret = "test-secret"
     app.state.app_data_dir = root / "appdata"
     app.state.access_policy = AccessPolicy("open", frozenset(), frozenset())
     app.state.personalized_ranking = personalized
+    app.state.derived_interests = derived
     return TestClient(app)
+
+
+def _sign_in_heard(client: TestClient, root: Path, heard_episode_ids: list[str]) -> None:
+    """Sign in a user with NO explicit interests, but who has *heard* the given episodes."""
+    from podcast_scraper.server.app_slugs import slug_for_row
+    from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
+
+    _sign_in(client, root, [])  # same user (subject 's1'), no explicit interests
+    data_dir = root / "appdata"
+    user = get_or_create_user(data_dir, provider="stub", subject="s1", email="j@x.com", name="J")
+    slugs = {r.episode_id: slug_for_row(r) for r in build_catalog_rows_cumulative(root)}
+    for eid in heard_episode_ids:
+        app_user_state.set_playback(data_dir, user.user_id, slugs[eid], 400.0, 1)  # 40% → heard
 
 
 def _sign_in(client: TestClient, root: Path, interests: list[str]) -> None:
@@ -160,6 +174,27 @@ def test_discover_personalizes_by_followed_person(tmp_path: Path) -> None:
     _sign_in(client, tmp_path, ["person:jane"])  # Jane appears only in (older) epOld
     titles = [e["title"] for e in client.get("/api/app/discover").json()["items"]]
     assert titles == ["Episode old", "Episode new"]
+
+
+def test_discover_derives_interests_from_heard_episodes(tmp_path: Path) -> None:
+    # #1139: NO explicit interests, but the user has *heard* the (older) AI episode.
+    # Its entities (topic:ai / person:jane) become derived interests → epOld is lifted
+    # above the newer Health episode, personalizing from behaviour alone.
+    _corpus(tmp_path)
+    client = _client(tmp_path, personalized=True, derived=True)
+    _sign_in_heard(client, tmp_path, ["old"])
+    titles = [e["title"] for e in client.get("/api/app/discover").json()["items"]]
+    assert titles == ["Episode old", "Episode new"]
+
+
+def test_discover_derived_off_by_default_stays_recency(tmp_path: Path) -> None:
+    # Personalization on, but the derived-interests flag is OFF and there are no explicit
+    # interests → recency, unchanged. Guards the new signal behind its own toggle.
+    _corpus(tmp_path)
+    client = _client(tmp_path, personalized=True)  # derived defaults off
+    _sign_in_heard(client, tmp_path, ["old"])
+    titles = [e["title"] for e in client.get("/api/app/discover").json()["items"]]
+    assert titles == ["Episode new", "Episode old"]
 
 
 def test_discover_recency_when_flag_on_but_anonymous(tmp_path: Path) -> None:

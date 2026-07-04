@@ -16,6 +16,7 @@ from podcast_scraper.search.topic_clusters import top_clusters_by_member_count
 from podcast_scraper.server import app_user_state
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
 from podcast_scraper.server.app_discover_view import rank_discover
+from podcast_scraper.server.app_user_corpus import derive_interests
 from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
 from podcast_scraper.server.routes.app_auth import get_optional_user
@@ -58,6 +59,12 @@ async def discover(
         data_dir = getattr(request.app.state, "app_data_dir", None)
         if data_dir is not None:
             interests = app_user_state.get_interests(Path(data_dir), user.user_id)
+            # #1139: also fold in interests derived from what the user has heard/
+            # captured, so a user who never used the picker still gets personalized
+            # discovery. Explicit follows lead; derived tokens fill in behind them.
+            if bool(getattr(request.app.state, "derived_interests", False)):
+                derived = derive_interests(root, Path(data_dir), user.user_id)
+                interests = list(dict.fromkeys([*interests, *derived]))
 
     rows = build_catalog_rows_cumulative(root)
     rows.sort(key=lambda r: (r.publish_date or ""), reverse=True)

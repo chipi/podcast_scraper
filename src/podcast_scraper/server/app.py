@@ -106,6 +106,10 @@ def _configure_platform_auth(app: FastAPI, resolved_output: Path | None) -> None
     # Personalized discovery ranking (PRD-043 FR4 / #1098) — OFF by default; the discovery feed
     # falls back to recency until this toggle is flipped (gated until the score is tuned).
     app.state.personalized_ranking = _env_truthy("APP_PERSONALIZED_RANKING")
+    # Derived interests (#1139) — when ON (and personalization is on), discovery also ranks by
+    # interests inferred from what the user has heard/captured, not just explicit follows. OFF by
+    # default so explicit-only stays the baseline until the derived signal is tuned.
+    app.state.derived_interests = _env_truthy("APP_DERIVED_INTERESTS")
     app.state.operator_api_key = os.environ.get("APP_OPERATOR_API_KEY", "")
     app.state.audit_path = (
         (app.state.app_data_dir / "audit.jsonl") if app.state.app_data_dir is not None else None
