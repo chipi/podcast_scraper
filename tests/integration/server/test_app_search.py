@@ -41,8 +41,10 @@ def _authed(root: Path, subject: str = "s1") -> TestClient:
         data_dir, provider="stub", subject=subject, email=f"{subject}@x.com", name=subject
     )
     client = TestClient(app)
-    token = app_sessions.sign({"user_id": user.user_id, "iat": int(time.time())}, "test-secret")
-    client.cookies.set(app_sessions.SESSION_COOKIE, token)
+    signed_cookie = app_sessions.sign(
+        {"user_id": user.user_id, "iat": int(time.time())}, "test-secret"
+    )
+    client.cookies.set(app_sessions.SESSION_COOKIE, signed_cookie)
     return client
 
 

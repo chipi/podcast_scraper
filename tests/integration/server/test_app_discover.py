@@ -127,8 +127,10 @@ def _sign_in(client: TestClient, root: Path, interests: list[str]) -> None:
     data_dir = root / "appdata"
     user = get_or_create_user(data_dir, provider="stub", subject="s1", email="j@x.com", name="J")
     app_user_state.set_interests(data_dir, user.user_id, interests)
-    token = app_sessions.sign({"user_id": user.user_id, "iat": int(time.time())}, "test-secret")
-    client.cookies.set(app_sessions.SESSION_COOKIE, token)
+    signed_cookie = app_sessions.sign(
+        {"user_id": user.user_id, "iat": int(time.time())}, "test-secret"
+    )
+    client.cookies.set(app_sessions.SESSION_COOKIE, signed_cookie)
 
 
 def test_clusters_endpoint_returns_top_by_prevalence(tmp_path: Path) -> None:
@@ -253,8 +255,10 @@ def _sign_in_admin(client: TestClient, root: Path) -> None:
     data_dir = root / "appdata"
     user = get_or_create_user(data_dir, provider="stub", subject="s1", email="j@x.com", name="J")
     set_role(data_dir, user.user_id, "admin")
-    token = app_sessions.sign({"user_id": user.user_id, "iat": int(time.time())}, "test-secret")
-    client.cookies.set(app_sessions.SESSION_COOKIE, token)
+    signed_cookie = app_sessions.sign(
+        {"user_id": user.user_id, "iat": int(time.time())}, "test-secret"
+    )
+    client.cookies.set(app_sessions.SESSION_COOKIE, signed_cookie)
 
 
 def test_ranking_config_get_requires_admin(tmp_path: Path) -> None:
