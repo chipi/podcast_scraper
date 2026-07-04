@@ -2307,10 +2307,19 @@ serve-for-validation:
 	# The default ``make serve`` uses ``.test_outputs`` as the root; this
 	# target points at the repo root so ``tests/fixtures/viewer-validation-corpus``
 	# is reachable. Use a separate terminal: ``make serve-for-validation``.
-	@echo "Starting API + UI with SERVE_OUTPUT_DIR=$(PWD) (repo root)."
+	# APP_OAUTH_PROVIDER=none disables the auth gate for the validation walk.
+	# ``serve-api`` defaults to the mock OAuth provider (auth ON), which makes the
+	# app render LoginView instead of the shell until a user signs in — the Tier-3
+	# specs (real-corpus / handoff-matrix / person-profile) drive graph + corpus
+	# surfaces, not auth, and never sign in, so an enabled gate blocks every walk
+	# on the corpus-path input. Auth has its own unit + stack-test coverage; this
+	# harness runs auth-off (its pre-#14 behaviour). ``none`` is non-empty so
+	# serve-api's ``:-mock`` default does not re-enable it, and provider_from_env
+	# returns None for any non-``mock`` value without Google creds.
+	@echo "Starting API + UI with SERVE_OUTPUT_DIR=$(PWD) (repo root), auth disabled."
 	@echo "Synthetic validation corpus root (pass this as CORPUS=):"
 	@echo "  $(VIEWER_VALIDATION_CORPUS)"
-	@SERVE_OUTPUT_DIR=$(PWD) $(MAKE) -j2 serve-api serve-ui
+	@SERVE_OUTPUT_DIR=$(PWD) APP_OAUTH_PROVIDER=none $(MAKE) -j2 serve-api serve-ui
 
 build-validation-index:
 	# Build ALL search artifacts the Tier-3 walk needs, against the in-repo

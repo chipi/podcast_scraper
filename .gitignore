@@ -243,3 +243,8 @@ WORKTREE.md
 
 # Local dev-server runtime data (per-user files written while hand-testing the app)
 .devdata/
+
+# app_data_dir written at the repo root by ``make serve-for-validation``
+# (SERVE_OUTPUT_DIR=repo root → <root>/.app): sessions, per-user files, audit +
+# graph-analytics jsonl. Per-run runtime state, never committed.
+/.app/
