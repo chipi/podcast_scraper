@@ -100,6 +100,7 @@ export function clusterTimelineCilTopicIdsForCluster(
   art: ParsedArtifact | null,
   compoundId: string | null | undefined,
   memberRows: TopicClusterMemberDetailRow[],
+  docMembers?: readonly { topic_id?: unknown }[] | null,
 ): string[] {
   const cid = compoundId?.trim()
   if (cid) {
@@ -112,7 +113,25 @@ export function clusterTimelineCilTopicIdsForCluster(
   if (fromMembers.length > 0) {
     return fromMembers
   }
-  return cid ? topicIdsFromGraphClusterCompound(art, cid) : []
+  const fromGraphAgain = cid ? topicIdsFromGraphClusterCompound(art, cid) : []
+  if (fromGraphAgain.length > 0) {
+    return fromGraphAgain
+  }
+  // #5 last resort: the cluster DOC's own member topic ids. When the ego graph slice omits every
+  // member Topic node (``memberRows`` empty because the artifact had no nodes), the compound- and
+  // member-row paths both yield nothing and the timeline never loads — the bug where topic-cluster
+  // and cluster-member-topic Timeline tabs showed no chart while theme clusters (resolved from the
+  // full themeClustersDoc) did. The doc is always complete, so fall back to its member topic_ids.
+  const fromDoc: string[] = []
+  const seen = new Set<string>()
+  for (const m of docMembers ?? []) {
+    const tid = m && typeof m.topic_id === 'string' ? m.topic_id.trim() : ''
+    if (tid && !seen.has(tid)) {
+      seen.add(tid)
+      fromDoc.push(tid)
+    }
+  }
+  return fromDoc
 }
 
 export function topicIdsFromGraphClusterCompound(

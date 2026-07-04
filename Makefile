@@ -638,27 +638,33 @@ serve-api:
 	@# embedder) alongside faiss, and on macOS the duplicate OpenMP runtime aborts the process
 	@# ("Abort trap: 6") the first time /api/corpus/digest or /api/search runs — the API dies and
 	@# the viewer goes blank. Allowing the duplicate is the standard local workaround; no-op on Linux.
-	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && export KMP_DUPLICATE_LIB_OK=$${KMP_DUPLICATE_LIB_OK:-TRUE} && $(PYTHON) -m $(PACKAGE).cli serve --output-dir "$(SERVE_OUTPUT_DIR)" $(SERVE_ARGS)
+	@# Local dev auth: default to the mock OAuth provider + a dev session secret so player AND viewer
+	@# sign-in work out of the box (also required to exercise personalization). serve-api is local-only
+	@# (prod runs via compose/stack with a real provider), so the mock default is safe here. Override
+	@# any of these env vars to disable or point elsewhere; NEVER use the mock provider outside dev.
+	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && export KMP_DUPLICATE_LIB_OK=$${KMP_DUPLICATE_LIB_OK:-TRUE} && \
+		export APP_OAUTH_PROVIDER=$${APP_OAUTH_PROVIDER:-mock} && \
+		export APP_SESSION_SECRET=$${APP_SESSION_SECRET:-dev-secret} && \
+		export APP_ADMIN_EMAILS=$${APP_ADMIN_EMAILS:-dev@localhost} && \
+		export APP_SEED_USERS_FILE=$${APP_SEED_USERS_FILE:-config/dev-seed-users.json} && \
+		$(PYTHON) -m $(PACKAGE).cli serve --output-dir "$(SERVE_OUTPUT_DIR)" $(SERVE_ARGS)
 
 serve-ui:
 	@cd $(WEB_VIEWER_DIR) && npm run dev
 
 # Consumer Learning Player dev server (Vite). Proxies /api → 127.0.0.1:8000; run the API
-# separately, or use ``serve-app-dev`` to run both with the local mock OAuth provider.
+# separately (``serve-api`` now defaults the local mock OAuth provider, so sign-in works), or use
+# ``serve-app-dev`` to bring up both in one command.
 serve-app:
 	@cd $(APP_DIR) && npm run dev
 
-# One-command local app environment: the consumer API (with the dev/e2e mock OAuth provider
-# + a dev session secret) and the Learning Player app, in parallel (Ctrl+C stops both).
-# APP_ADMIN_EMAILS bootstraps the dev operator as admin (#1128) — the mock provider's default
-# identity is ``dev@localhost``, so a plain viewer login lands as admin locally.
-# NEVER use APP_OAUTH_PROVIDER=mock outside local dev.
+# One-command local app environment: the consumer API + the Learning Player app, in parallel
+# (Ctrl+C stops both). The dev mock OAuth provider, session secret, admin bootstrap
+# (``dev@localhost``) and seed roster are defaulted by ``serve-api`` itself, so sign-in works here
+# and under a plain ``make serve`` too. NEVER use the mock provider outside local dev.
 serve-app-dev:
-	@echo "Running the consumer API (mock OAuth) + the Learning Player app in parallel (Ctrl+C stops both)."
-	@APP_OAUTH_PROVIDER=mock APP_SESSION_SECRET=$${APP_SESSION_SECRET:-dev-secret} \
-		APP_ADMIN_EMAILS=$${APP_ADMIN_EMAILS:-dev@localhost} \
-		APP_SEED_USERS_FILE=$${APP_SEED_USERS_FILE:-config/dev-seed-users.json} \
-		$(MAKE) -j2 serve-api serve-app
+	@echo "Running the consumer API (mock OAuth via serve-api defaults) + the Learning Player app in parallel (Ctrl+C stops both)."
+	@$(MAKE) -j2 serve-api serve-app
 
 # E2E fixture HTTP server (RSS + mock API paths); use --feeds-spec with URLs on this port.
 serve-e2e-mock:

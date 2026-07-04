@@ -295,12 +295,14 @@ const topicClusterMemberRows = computed(() =>
   topicClusterMemberRowsForDetail(artifactForTopicClusterCorpusMatch.value, topicClusterDocEntry.value),
 )
 
-/** CIL topic ids for merged cluster timeline (prefer Topic children under compound, then members). */
+/** CIL topic ids for merged cluster timeline (prefer Topic children under compound, then members,
+ *  then the cluster doc's own member topic_ids so an ego slice that omits the members still loads). */
 const clusterTimelineTopicIds = computed((): string[] =>
   clusterTimelineCilTopicIdsForCluster(
     artifactForTopicClusterCorpusMatch.value,
     topicClusterCompoundId.value,
     topicClusterMemberRows.value,
+    topicClusterDocEntry.value?.members ?? null,
   ),
 )
 
