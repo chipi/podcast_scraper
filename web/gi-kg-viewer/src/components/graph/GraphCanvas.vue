@@ -25,6 +25,7 @@ import { useGraphExpansionStore } from '../../stores/graphExpansion'
 import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphLensesStore } from '../../stores/graphLenses'
+import { useGraphAnalyticsStore } from '../../stores/graphAnalytics'
 import { useGraphHandoffStore } from '../../stores/graphHandoff'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useSearchStore } from '../../stores/search'
@@ -89,6 +90,7 @@ const ge = useGraphExplorerStore()
 const { preferredLayout, minimapOpen, activeDegreeBucket } = storeToRefs(ge)
 const nav = useGraphNavigationStore()
 const graphHandoff = useGraphHandoffStore()
+const graphAnalytics = useGraphAnalyticsStore()
 const subject = useSubjectStore()
 const artifacts = useArtifactsStore()
 const graphExpansion = useGraphExpansionStore()
@@ -1584,6 +1586,14 @@ function finishLayoutPass(core: Core): void {
   }
   lastSelectedRelPathsCountAfterLayout = artifacts.selectedRelPaths.length
   lastCommittedEgoFocusCyId = focusNodeId.value?.trim() ?? ''
+
+  // Analytics — the size / dynamics signal: how big the graph is after this committed layout and
+  // how much of it is the navigation trail. One sample per redraw → a time series of growth/shrink.
+  graphAnalytics.track('graph_redraw', {
+    nodes: core.nodes().length,
+    edges: core.edges().length,
+    trail_size: nav.trailNodeIds.length,
+  })
 
   // F4 — production self-healing invariant + retry budget (decision #5 /
   // FSM spec § exact predicate). Set-difference check between the logical
@@ -3257,6 +3267,13 @@ function redraw(): void {
       } catch {
         /* ignore */
       }
+    })
+    // Analytics — a tap on a node is a user gesture (unlike 'select', which also fires on
+    // programmatic focus), so it's the honest "user clicked a node" signal.
+    core.on('tap', 'node', (e) => {
+      graphAnalytics.track('graph_node_tap', {
+        kind: String((e.target as NodeSingular).data('type') ?? 'unknown'),
+      })
     })
     core.on('unselect', 'node', () => {
       try {

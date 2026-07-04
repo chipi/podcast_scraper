@@ -17,6 +17,7 @@
 
 import { defineStore } from 'pinia'
 import posthog from 'posthog-js'
+import { useGraphAnalyticsStore } from './graphAnalytics'
 import { computed, ref } from 'vue'
 import {
   advanceState as fsmAdvanceState,
@@ -50,6 +51,7 @@ let _moduleLastInvariant: {
 
 export const useGraphHandoffStore = defineStore('graphHandoff', () => {
   const fsm: Fsm = createFsm()
+  const analytics = useGraphAnalyticsStore() // owned self-hosted graph analytics (alongside posthog)
 
   // Reactive mirrors so components / dev tools can `storeToRefs` them.
   const state = ref<FsmState>(fsm.state)
@@ -170,6 +172,12 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
       } catch {
         /* telemetry must not affect runtime */
       }
+      analytics.track('graph_broke', {
+        reason: 'stuck-timeout',
+        where: 'handoff_stuck',
+        source: envelope.source,
+        kind: envelope.kind,
+      })
       // Force the FSM back to ready so the next event proceeds normally.
       // Preserve the envelope's intended ``cyId`` on ``appliedCyId`` even
       // though we're reporting `failed`: layout that's still settling in the
@@ -233,6 +241,11 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
       } catch {
         /* telemetry must not affect runtime */
       }
+      analytics.track('graph_recenter', {
+        source: disp.envelope.source,
+        kind: disp.envelope.kind,
+        load_source: disp.envelope.loadSource,
+      })
     } else if (
       disp.kind === 'accept' &&
       disp.envelope === null &&
@@ -252,6 +265,7 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
       } catch {
         /* telemetry must not affect runtime */
       }
+      analytics.track('graph_broke', { reason: disp.reason, where: 'handoff_failed' })
     }
     return disp
   }

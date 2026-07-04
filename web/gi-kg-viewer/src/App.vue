@@ -17,6 +17,7 @@ import StatusBar from './components/shell/StatusBar.vue'
 import SubjectRail from './components/shell/SubjectRail.vue'
 import UserMenu from './components/shell/UserMenu.vue'
 import { useAuthStore } from './stores/auth'
+import { useGraphAnalyticsStore } from './stores/graphAnalytics'
 import { useArtifactsStore } from './stores/artifacts'
 import { useExploreStore } from './stores/explore'
 import { useGraphExpansionStore } from './stores/graphExpansion'
@@ -66,6 +67,7 @@ function readRightPanelOpenPreference(): boolean {
 
 const auth = useAuthStore()
 const shell = useShellStore()
+const graphAnalytics = useGraphAnalyticsStore()
 const artifacts = useArtifactsStore()
 const search = useSearchStore()
 const explore = useExploreStore()
@@ -245,6 +247,13 @@ function onCloseSubjectRail(): void {
 onMounted(() => {
   void auth.ensureLoaded()
   void shell.fetchHealth()
+  // Flush the owned graph-analytics buffer when the tab is hidden or closed (the keepalive POST
+  // lets the final batch land); the store's timer handles the steady state.
+  const flushAnalytics = (): void => graphAnalytics.flush()
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) flushAnalytics()
+  })
+  window.addEventListener('pagehide', flushAnalytics)
 })
 
 /** Topic-cluster sibling catalog merge: ``artifacts.loadSelected`` does not know the active tab. */

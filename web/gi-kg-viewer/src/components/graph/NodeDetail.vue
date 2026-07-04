@@ -5,6 +5,7 @@ import type { ParsedArtifact } from '../../types/artifact'
 import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphHandoffStore } from '../../stores/graphHandoff'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
+import { useGraphAnalyticsStore } from '../../stores/graphAnalytics'
 import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
 import { graphNodeTypeChrome } from '../../utils/colors'
@@ -105,6 +106,7 @@ const props = defineProps<{
 
 const shell = useShellStore()
 const graphNav = useGraphNavigationStore()
+const graphAnalytics = useGraphAnalyticsStore()
 const artifacts = useArtifactsStore()
 const graphFilters = useGraphFilterStore()
 const graphHandoff = useGraphHandoffStore()
@@ -1496,6 +1498,10 @@ watch(
     const t = newId?.trim()
     if (props.embedInRail && t) {
       graphNav.addToTrail(t)
+      graphAnalytics.track('graph_rail_nav', {
+        to_kind: t.replace(/^g:/, '').split(':')[0] || 'unknown',
+        trail_size: graphNav.trailNodeIds.length,
+      })
     }
   },
 )
