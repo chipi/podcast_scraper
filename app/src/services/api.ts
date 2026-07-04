@@ -207,6 +207,17 @@ export function getDiscover(limit = 8): Promise<EpisodesPage> {
   return getJSON<EpisodesPage>('/discover', { limit })
 }
 
+/** Fire-and-forget: log a click on a discovery-feed episode (its shown rank position) for
+ *  ranking telemetry (#11). Silent no-op when signed out or on any network error. */
+export function recordDiscoverClick(slug: string, position: number): void {
+  void fetch(`${BASE}/discover/click`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slug, position }),
+  }).catch(() => {})
+}
+
 /** Top interest clusters for the picker, by corpus prevalence. */
 export async function getTopClusters(limit = 12): Promise<InterestCluster[]> {
   return (await getJSON<{ items: InterestCluster[] }>('/clusters', { limit })).items

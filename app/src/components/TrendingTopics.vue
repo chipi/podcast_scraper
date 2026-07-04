@@ -29,7 +29,7 @@ const auth = useAuthStore()
 const interests = useInterestsStore()
 const { ids: followedIds } = storeToRefs(interests)
 const canFollow = computed(() => auth.isAuthenticated)
-if (auth.isAuthenticated) void interests.ensureLoaded()
+if (auth.isAuthenticated) void interests.ensureLoaded().catch(() => {})
 function onFollow(id: string): void {
   void interests.toggle(id)
 }

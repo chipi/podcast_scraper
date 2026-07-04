@@ -14,6 +14,7 @@ import {
   getPlaybackList,
   getPodcasts,
   getRelated,
+  recordDiscoverClick,
 } from '../services/api'
 import type { EpisodeDetail, EpisodeSummary, Podcast } from '../services/types'
 import { formatTime } from '../player/transcriptSync'
@@ -195,6 +196,7 @@ onMounted(async () => {
       <RouterLink
         :to="{ name: 'player', params: { slug: wnFeatured.slug } }"
         class="relative block overflow-hidden rounded-2xl border border-border no-underline text-canvas-foreground"
+        @click="recordDiscoverClick(wnFeatured.slug, 0)"
       >
         <img
           v-if="epArt(wnFeatured)"
@@ -226,6 +228,7 @@ onMounted(async () => {
           <RouterLink
             :to="{ name: 'player', params: { slug: ep.slug } }"
             class="group flex min-w-0 flex-1 items-center gap-4 rounded-xl px-2 py-3 no-underline text-canvas-foreground hover:bg-overlay"
+            @click="recordDiscoverClick(ep.slug, i + 1)"
           >
             <span
               class="w-9 shrink-0 text-center font-display text-2xl font-extrabold tracking-tight text-disabled"
