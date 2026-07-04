@@ -157,6 +157,32 @@ export async function saveRankingConfig(config: RankingConfigDTO): Promise<Ranki
   return (await res.json()) as RankingConfigDTO
 }
 
+// --- graph analytics (admin; owned) -------------------------------------------------------------
+
+export interface SizeStat {
+  min: number
+  avg: number
+  max: number
+  p50: number
+  p95: number
+}
+
+export interface GraphAnalyticsSummary {
+  total_events: number
+  users: number
+  by_action: Record<string, number>
+  node_taps_by_kind: Record<string, number>
+  size: { samples: number; nodes: SizeStat; edges: SizeStat; trail: SizeStat }
+  breakage: { count: number; by_reason: Record<string, number> }
+}
+
+/** Aggregated graph-usage analytics across all users (admin only). */
+export async function fetchGraphAnalyticsSummary(): Promise<GraphAnalyticsSummary> {
+  const res = await fetchWithTimeout(`${BASE}/graph-events/summary`)
+  if (!res.ok) throw new Error(await errorMessage(res, 'load graph analytics'))
+  return (await res.json()) as GraphAnalyticsSummary
+}
+
 /** Pull a FastAPI `{detail}` message off an error response for a readable toast. */
 async function errorMessage(res: Response, action: string): Promise<string> {
   try {

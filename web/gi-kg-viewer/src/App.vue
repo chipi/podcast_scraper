@@ -10,6 +10,7 @@ import LibraryView from './components/library/LibraryView.vue'
 import OpsView from './components/ops/OpsView.vue'
 import UsersAdminView from './components/admin/UsersAdminView.vue'
 import RankingConfigAdminView from './components/admin/RankingConfigAdminView.vue'
+import GraphAnalyticsAdminView from './components/admin/GraphAnalyticsAdminView.vue'
 import LoginView from './components/auth/LoginView.vue'
 import NoAccessView from './components/auth/NoAccessView.vue'
 import LeftPanel from './components/shell/LeftPanel.vue'
@@ -838,6 +839,7 @@ watch(
           >
             <UsersAdminView />
             <RankingConfigAdminView />
+            <GraphAnalyticsAdminView />
           </div>
           <keep-alive>
             <GraphTabPanel
