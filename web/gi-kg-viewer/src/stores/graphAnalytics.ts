@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { postGraphEvents } from '../api/graphAnalyticsApi'
+import { e2eHooksEnabled } from '../utils/e2eHooks'
 
 /**
  * Graph analytics emitter. Components + stores call ``track(action, payload)`` on graph usage
@@ -67,6 +68,25 @@ export const useGraphAnalyticsStore = defineStore('graphAnalytics', () => {
     const batch = buffer.value
     buffer.value = []
     postGraphEvents(batch)
+  }
+
+  // E2E inspection hook (Tier-3 analytics/replay walk): read the session id +
+  // pending buffer size and force a synchronous flush so a spec can drive a
+  // graph session and assert the batch was posted + persisted. DEV/e2e only.
+  if (typeof window !== 'undefined' && e2eHooksEnabled) {
+    ;(
+      window as unknown as {
+        __GIKG_ANALYTICS__?: { sessionId: string; bufferLen: number; flush: () => void }
+      }
+    ).__GIKG_ANALYTICS__ = {
+      get sessionId() {
+        return sessionId
+      },
+      get bufferLen() {
+        return buffer.value.length
+      },
+      flush,
+    }
   }
 
   return { buffer, sessionId, track, flush }

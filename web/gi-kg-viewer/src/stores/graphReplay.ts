@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { useGraphNavigationStore } from './graphNavigation'
+import { e2eHooksEnabled } from '../utils/e2eHooks'
 
 export interface ReplayEvent {
   action: string
@@ -105,6 +106,48 @@ export const useGraphReplayStore = defineStore('graphReplay', () => {
     events.value = []
     step.value = 0
     nav.clearTrail()
+  }
+
+  // E2E inspection hook (Tier-3 analytics/replay walk): load a captured session's
+  // events, drive the cursor, and read back the reconstructed trail + focus so a
+  // spec can assert that real logged events replay deterministically into the
+  // live graph state. DEV/e2e only.
+  if (typeof window !== 'undefined' && e2eHooksEnabled) {
+    ;(
+      window as unknown as {
+        __GIKG_REPLAY__?: {
+          load: (id: string, evs: ReplayEvent[]) => void
+          setStep: (n: number) => void
+          next: () => void
+          exit: () => void
+          active: boolean
+          step: number
+          total: number
+          trailIds: string[]
+          focus: string | null
+        }
+      }
+    ).__GIKG_REPLAY__ = {
+      load,
+      setStep,
+      next,
+      exit,
+      get active() {
+        return active.value
+      },
+      get step() {
+        return step.value
+      },
+      get total() {
+        return total.value
+      },
+      get trailIds() {
+        return [...nav.trailNodeIds]
+      },
+      get focus() {
+        return nav.pendingFocusNodeId
+      },
+    }
   }
 
   return {
