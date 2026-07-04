@@ -17,7 +17,6 @@ from pathlib import Path
 
 import pytest
 
-from podcast_scraper.server import app_discover_view
 from podcast_scraper.server.app_discover_view import _significance, rank_discover
 from podcast_scraper.server.corpus_catalog import (
     build_catalog_rows_cumulative,
@@ -207,6 +206,48 @@ def test_person_interest_reranks(tmp_path: Path) -> None:
     assert [s.title for s in out] == ["Episode old", "Episode new"]
 
 
+def _write_velocity_envelope(root: Path, topic_velocities: dict[str, float]) -> None:
+    (root / "enrichments").mkdir(parents=True, exist_ok=True)
+    topics = [{"topic_id": t, "velocity_last_over_6mo": v} for t, v in topic_velocities.items()]
+    (root / "enrichments" / "temporal_velocity.json").write_text(
+        json.dumps({"data": {"topics": topics}}), encoding="utf-8"
+    )
+
+
+def test_trend_velocity_signal_boosts_hot_topic_episode(tmp_path: Path) -> None:
+    from podcast_scraper.server.app_ranking_config import ranking_config_from_dict
+
+    _corpus(tmp_path)
+    # topic:health is hot (3× its 6-mo average), topic:ai is flat.
+    _write_velocity_envelope(tmp_path, {"topic:health": 3.0, "topic:ai": 1.0})
+    rows = _rows_newest_first(tmp_path)
+    interests = ["topic:ai", "topic:health"]  # both episodes match affinity equally
+
+    # Trend OFF (default): the deeper (+GI) older AI episode still leads.
+    default_out = rank_discover(tmp_path, interests, rows, limit=10)
+    assert [s.title for s in default_out] == ["Episode old", "Episode new"]
+
+    # Trend ON with a strong weight: the hot-topic episode flips to the top.
+    cfg = ranking_config_from_dict(
+        {
+            "signals": [
+                {"name": "trend_velocity", "enabled": True, "weight": 5.0, "params": {"cap": 1.5}}
+            ]
+        }
+    )
+    trend_out = rank_discover(tmp_path, interests, rows, limit=10, config=cfg)
+    assert [s.title for s in trend_out] == ["Episode new", "Episode old"]
+
+
+def test_trend_velocity_disabled_ignores_envelope(tmp_path: Path) -> None:
+    # Even with a very hot envelope present, the default (trend OFF) config must not apply it.
+    _corpus(tmp_path)
+    _write_velocity_envelope(tmp_path, {"topic:health": 9.0})
+    rows = _rows_newest_first(tmp_path)
+    out = rank_discover(tmp_path, ["topic:ai", "topic:health"], rows, limit=10)
+    assert [s.title for s in out] == ["Episode old", "Episode new"]
+
+
 def test_unknown_prefix_token_grants_no_affinity(tmp_path: Path) -> None:
     # An unknown-prefix token (lands in cluster_interests, matches nothing) gives zero
     # affinity to BOTH episodes — so the order is pure significance, not interest-driven.
@@ -265,6 +306,12 @@ def test_limit_truncates_after_ranking(tmp_path: Path) -> None:
     assert [s.title for s in out] == ["Episode old"]  # top-ranked survives the cap
 
 
-def test_affinity_weight_constant_is_two() -> None:
-    # Guards the documented "fully on-interest episode → (1 + AFFINITY_WEIGHT)x" contract.
-    assert app_discover_view._AFFINITY_WEIGHT == 2.0
+def test_default_affinity_weight_is_two() -> None:
+    # Guards the documented "fully on-interest episode → (1 + affinity_weight)x" contract, now
+    # sourced from the tunable ranking-signal registry rather than a module constant.
+    from podcast_scraper.server.app_ranking_config import (
+        DEFAULT_RANKING_CONFIG,
+        SIGNAL_INTEREST_AFFINITY,
+    )
+
+    assert DEFAULT_RANKING_CONFIG.weight_of(SIGNAL_INTEREST_AFFINITY) == 2.0
