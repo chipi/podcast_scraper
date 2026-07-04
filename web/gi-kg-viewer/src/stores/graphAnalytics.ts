@@ -14,14 +14,23 @@ import { postGraphEvents } from '../api/graphAnalyticsApi'
 interface GraphEvent {
   action: string
   ts: number
+  session_id: string
   [key: string]: unknown
 }
 
 const FLUSH_MS = 10_000
 const MAX_BUFFER = 200
 
+/** One id per app-load session, stamped on every event so a session's steps can be reconstructed
+ *  (and replayed) in order. */
+function newSessionId(): string {
+  const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto
+  return c?.randomUUID ? c.randomUUID() : `s_${Math.random().toString(36).slice(2)}`
+}
+
 export const useGraphAnalyticsStore = defineStore('graphAnalytics', () => {
   const buffer = ref<GraphEvent[]>([])
+  const sessionId = newSessionId()
   let flushTimer: ReturnType<typeof setTimeout> | null = null
 
   function scheduleFlush(): void {
@@ -38,7 +47,7 @@ export const useGraphAnalyticsStore = defineStore('graphAnalytics', () => {
     if (!action) {
       return
     }
-    buffer.value.push({ action, ...payload, ts: Date.now() })
+    buffer.value.push({ action, ...payload, session_id: sessionId, ts: Date.now() })
     if (buffer.value.length >= MAX_BUFFER) {
       flush()
     } else {
@@ -60,5 +69,5 @@ export const useGraphAnalyticsStore = defineStore('graphAnalytics', () => {
     postGraphEvents(batch)
   }
 
-  return { buffer, track, flush }
+  return { buffer, sessionId, track, flush }
 })

@@ -22,6 +22,7 @@ describe('useGraphAnalyticsStore', () => {
     expect(s.buffer).toHaveLength(1)
     expect(s.buffer[0]).toMatchObject({ action: 'node_tap', id: 'topic:a' })
     expect(typeof s.buffer[0].ts).toBe('number')
+    expect(s.buffer[0].session_id).toBe(s.sessionId) // stamped for per-session reconstruction
     expect(post).not.toHaveBeenCalled()
   })
 
