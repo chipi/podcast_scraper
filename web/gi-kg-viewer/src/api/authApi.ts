@@ -126,6 +126,37 @@ export async function deleteUser(userId: string): Promise<void> {
   if (!res.ok && res.status !== 204) throw new Error(await errorMessage(res, 'delete user'))
 }
 
+// --- ranking config (admin; #11 B2) -------------------------------------------------------------
+
+export interface RankingSignalDTO {
+  name: string
+  enabled: boolean
+  weight: number
+  params: Record<string, unknown>
+}
+
+export interface RankingConfigDTO {
+  signals: RankingSignalDTO[]
+}
+
+/** The active discovery ranking-signal config (admin only). */
+export async function fetchRankingConfig(): Promise<RankingConfigDTO> {
+  const res = await fetchWithTimeout(`${BASE}/ranking-config`)
+  if (!res.ok) throw new Error(await errorMessage(res, 'load ranking config'))
+  return (await res.json()) as RankingConfigDTO
+}
+
+/** Replace the ranking-signal config (admin only); returns the stored config. */
+export async function saveRankingConfig(config: RankingConfigDTO): Promise<RankingConfigDTO> {
+  const res = await fetchWithTimeout(`${BASE}/ranking-config`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(config),
+  })
+  if (!res.ok) throw new Error(await errorMessage(res, 'save ranking config'))
+  return (await res.json()) as RankingConfigDTO
+}
+
 /** Pull a FastAPI `{detail}` message off an error response for a readable toast. */
 async function errorMessage(res: Response, action: string): Promise<string> {
   try {

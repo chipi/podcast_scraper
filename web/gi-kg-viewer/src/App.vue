@@ -9,6 +9,7 @@ import GraphTabPanel from './components/graph/GraphTabPanel.vue'
 import LibraryView from './components/library/LibraryView.vue'
 import OpsView from './components/ops/OpsView.vue'
 import UsersAdminView from './components/admin/UsersAdminView.vue'
+import RankingConfigAdminView from './components/admin/RankingConfigAdminView.vue'
 import LoginView from './components/auth/LoginView.vue'
 import NoAccessView from './components/auth/NoAccessView.vue'
 import LeftPanel from './components/shell/LeftPanel.vue'
@@ -824,9 +825,10 @@ watch(
           </div>
           <div
             v-if="mainTab === 'admin' && auth.isAdmin"
-            class="h-full min-h-0 max-w-full flex-1 overflow-x-hidden overflow-y-auto p-3"
+            class="h-full min-h-0 max-w-full flex-1 space-y-8 overflow-x-hidden overflow-y-auto p-3"
           >
             <UsersAdminView />
+            <RankingConfigAdminView />
           </div>
           <keep-alive>
             <GraphTabPanel
