@@ -26,11 +26,26 @@ describe('PlayerControls insight-density strip (#1140)', () => {
     ]
     const strip = mountPC({ markers }).find('[data-testid="player-insight-density"]')
     expect(strip.exists()).toBe(true)
-    const ticks = strip.findAll('span')
+    const ticks = strip.findAll('[data-testid="player-density-tick"]')
     expect(ticks).toHaveLength(2)
     expect(ticks[0].attributes('style')).toContain('left: 25%')
     expect(ticks[0].attributes('style')).toContain('opacity: 0.9')
     expect(ticks[0].classes()).toContain('bg-accent') // grounded
     expect(ticks[1].classes()).toContain('bg-muted') // ungrounded
+  })
+
+  it('shades a density heat-band: the busiest bin is darker than an empty one', () => {
+    // Three markers clustered near 25% → that bin peaks; a far bin stays faint.
+    const markers: InsightMarker[] = [
+      { id: 'a', timeSec: 24, pct: 24, grounded: true, weight: 1 },
+      { id: 'b', timeSec: 25, pct: 25, grounded: true, weight: 1 },
+      { id: 'c', timeSec: 26, pct: 26, grounded: true, weight: 1 },
+    ]
+    const bands = mountPC({ markers }).findAll('[data-testid="player-density-band"]')
+    expect(bands).toHaveLength(40)
+    const opacityOf = (i: number) =>
+      Number(/opacity:\s*([\d.]+)/.exec(bands[i].attributes('style') ?? '')?.[1] ?? '0')
+    // Bin 10 covers 25–27.5% (the cluster) → peak intensity; bin 30 (75–77.5%) is empty.
+    expect(opacityOf(10)).toBeGreaterThan(opacityOf(30))
   })
 })

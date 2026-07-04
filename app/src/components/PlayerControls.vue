@@ -27,6 +27,27 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const max = computed(() => (props.duration > 0 ? props.duration : 0))
 
+// #1140 — a smooth density heat-band behind the ticks: bin the markers across the
+// timeline and shade each bin by its summed weight (confidence), so dense stretches
+// read dark and skippable ones fade out at a glance. The ticks stay crisp on top.
+const DENSITY_BUCKETS = 40
+const densityBands = computed(() => {
+  const ms = props.markers ?? []
+  if (ms.length === 0) return []
+  const buckets = new Array<number>(DENSITY_BUCKETS).fill(0)
+  for (const m of ms) {
+    const i = Math.min(DENSITY_BUCKETS - 1, Math.max(0, Math.floor((m.pct / 100) * DENSITY_BUCKETS)))
+    buckets[i] += m.weight
+  }
+  const peak = Math.max(1e-6, ...buckets)
+  return buckets.map((v, i) => ({
+    i,
+    left: (i / DENSITY_BUCKETS) * 100,
+    width: 100 / DENSITY_BUCKETS,
+    intensity: v / peak,
+  }))
+})
+
 function onScrub(ev: Event): void {
   emit('seek', Number((ev.target as HTMLInputElement).value))
 }
@@ -43,12 +64,23 @@ function onScrub(ev: Event): void {
       data-testid="player-insight-density"
       :aria-label="t('player.insightDensity', { count: markers?.length ?? 0 })"
     >
+      <!-- Heat-band: dense stretches read dark, skippable ones fade. -->
+      <span
+        v-for="b in densityBands"
+        :key="'d' + b.i"
+        class="absolute top-0 h-2.5 bg-accent"
+        :style="{ left: b.left + '%', width: b.width + '%', opacity: 0.06 + b.intensity * 0.5 }"
+        aria-hidden="true"
+        data-testid="player-density-band"
+      />
+      <!-- Precise ticks on top: one per insight, opacity = confidence. -->
       <span
         v-for="m in markers"
         :key="m.id"
         class="absolute top-0 h-2.5 w-[2px] -translate-x-1/2 rounded-full"
         :class="m.grounded ? 'bg-accent' : 'bg-muted'"
         :style="{ left: m.pct + '%', opacity: m.weight }"
+        data-testid="player-density-tick"
       />
     </div>
     <input
