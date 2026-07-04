@@ -13,6 +13,7 @@ import NodeDetail from './NodeDetail.vue'
 const STUBS = {
   PersonLandingView: { name: 'PersonLandingView', template: '<div data-testid="person-landing-view" />' },
   PodcastNodeView: { name: 'PodcastNodeView', template: '<div data-testid="podcast-node-view" />' },
+  InsightNodeView: { name: 'InsightNodeView', template: '<div data-testid="insight-node-view" />' },
   GraphConnectionsSection: true,
   TranscriptViewerDialog: true,
   PodcastCover: true,
@@ -85,6 +86,22 @@ describe('NodeDetail', () => {
     expect(w.find('aside').exists()).toBe(true)
     expect(w.find('[data-testid="topic-entity-view"]').exists()).toBe(true)
     expect(w.find('.node-detail-primary-title').text()).toBe('Interest Rates')
+  })
+
+  it('renders the insight view for an out-of-slice insight id even when the node is absent', () => {
+    // A corpus-wide timeline-mention drill hands NodeDetail an insight id that
+    // isn't in the loaded slice → node lookup returns null. The rail must render
+    // the InsightNodeView (which loads from /relational/insight-detail) rather
+    // than an empty "Node" shell. The header falls back to "Insight" until the
+    // view resolves the text.
+    const w = mountDetail({
+      viewArtifact: artifactOf([]),
+      nodeId: 'g:insight:5b0c6ec2f1ddf3b4',
+      embedInRail: true,
+    })
+    expect(w.find('aside').exists()).toBe(true)
+    expect(w.find('[data-testid="insight-node-view"]').exists()).toBe(true)
+    expect(w.find('.node-detail-primary-title').text()).toBe('Insight')
   })
 
   it('renders the podcast view for a podcast id (real node or synthetic)', () => {

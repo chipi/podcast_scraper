@@ -36,7 +36,18 @@ mentioned) with **no per-show link**.
 
 ---
 
-## 2. Out-of-slice insight rendering — insight-detail endpoint
+## 2. Out-of-slice insight rendering — insight-detail endpoint — ✅ DONE
+
+**Resolved.** `GET /api/relational/insight-detail?insight=<id>` (`rq.insight_detail`)
+returns the insight's text + type + grounded flag, its `SUPPORTED_BY` quotes, its
+`ABOUT` topics, and its `MENTIONS` entities from the full corpus graph.
+`NodeDetail.inferredKindFromId` + the `<aside>` gate now cover `Insight`, and a new
+`InsightNodeView` renders from the endpoint (topics/entities click-through; the
+resolved text is emitted up so the header shows the claim, not the hash). The
+timeline-mention drill now works corpus-wide, with Back. (A running API started
+before this route must be restarted to serve it.)
+
+Original context below (kept for the record).
 
 **Shipped behaviour** (`566a9f69`): timeline mentions are clickable and drill
 into the insight's node view (`subject.focusGraphNode(insightId)`), with Back.

@@ -68,6 +68,7 @@ import NodeEnrichmentSection from './NodeEnrichmentSection.vue'
 import TopicEntityView from '../subject/TopicEntityView.vue'
 import PersonLandingView from '../subject/PersonLandingView.vue'
 import PodcastNodeView from '../subject/PodcastNodeView.vue'
+import InsightNodeView from '../subject/InsightNodeView.vue'
 import SubjectTimelineChart from '../subject/SubjectTimelineChart.vue'
 import {
   buildSubjectMentionsTimeline,
@@ -187,13 +188,16 @@ const node = computed(() => {
 // endpoints, independent of the viewer's graph slice) instead of an empty
 // "Node" shell.
 const inferredKindFromId = computed(
-  (): 'Person' | 'Organization' | 'Topic' | 'Podcast' | null => {
+  (): 'Person' | 'Organization' | 'Topic' | 'Podcast' | 'Insight' | null => {
     if (node.value) return null
     const bare = stripLayerPrefixesForCil(props.nodeId ?? '')
     if (bare.startsWith('person:')) return 'Person'
     if (bare.startsWith('org:')) return 'Organization'
     if (bare.startsWith('topic:')) return 'Topic'
     if (bare.startsWith('podcast:')) return 'Podcast'
+    // An out-of-slice insight (e.g. a corpus-wide timeline-mention drill) renders
+    // from the /relational/insight-detail endpoint via InsightNodeView.
+    if (bare.startsWith('insight:')) return 'Insight'
     return null
   },
 )
@@ -233,6 +237,10 @@ const isPodcastNode = computed(() => nodeType.value.trim().toLowerCase() === 'po
 // Show cover art emitted up by PodcastNodeView so the rail header avatar shows
 // the real cover for a podcast node instead of the generic "P" letter (P2).
 const podcastCover = ref<{ imageUrl: string | null; imageLocalRelpath: string | null } | null>(null)
+
+// Out-of-slice insight: InsightNodeView resolves the text from the server and
+// emits it up so the header shows the claim (not the opaque insight: hash).
+const insightHeaderText = ref('')
 
 const isTopicClusterNode = computed(
   () => nodeType.value.trim().toLowerCase() === 'topiccluster',
@@ -377,6 +385,9 @@ const displayName = computed(() => {
     // derive a readable name from the id slug so the header isn't blank while
     // the person / topic view loads from server endpoints.
     const bare = stripLayerPrefixesForCil(props.nodeId ?? '')
+    // An insight's "name" is its text (an opaque hash id makes a useless title);
+    // InsightNodeView emits the resolved text up. Show a placeholder until then.
+    if (bare.startsWith('insight:')) return insightHeaderText.value.trim() || 'Insight'
     const slug = bare.replace(/^[a-z]+:/, '').trim()
     if (slug) {
       return slug.replace(/[-_]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
@@ -1154,6 +1165,7 @@ const visualType = computed(() => {
     if (inferred === 'Person') return 'Entity_person'
     if (inferred === 'Organization') return 'Entity_organization'
     if (inferred === 'Podcast') return 'Podcast'
+    if (inferred === 'Insight') return 'Insight'
     return 'Topic'
   }
   return visualGroupForNode(node.value)
@@ -2313,6 +2325,16 @@ const graphConnectionsCenterInView = computed((): boolean => {
         :subject-id-override="nodeId ?? ''"
         class="mb-1"
         @cover="podcastCover = $event"
+      />
+
+      <!-- Out-of-slice insight (e.g. a timeline-mention drill): render its own
+           content from /relational/insight-detail; in-slice insights use the
+           node-backed sections below. -->
+      <InsightNodeView
+        v-if="isInsightNode && !node"
+        :subject-id-override="nodeId ?? ''"
+        class="mb-1"
+        @resolved="insightHeaderText = $event"
       />
 
       </div>

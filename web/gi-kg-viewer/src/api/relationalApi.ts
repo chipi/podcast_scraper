@@ -40,6 +40,21 @@ export interface RelationalGroupedResponse {
   error?: string | null
 }
 
+/** An insight's own content (GET /api/relational/insight-detail) — its text +
+ *  supporting quotes + ABOUT topics + MENTIONS entities, resolved corpus-wide. */
+export interface InsightDetailResponse {
+  subject: string
+  text: string
+  insight_type: string
+  grounded: boolean
+  episode_id: string
+  show_id: string
+  quotes: RelatedNode[]
+  topics: RelatedNode[]
+  entities: RelatedNode[]
+  error?: string | null
+}
+
 async function getList(url: string): Promise<RelationalListResponse> {
   return dedupeInFlight(`GET|${url}`, async () => {
     const res = await fetchWithTimeout(url)
@@ -58,6 +73,21 @@ async function getGrouped(url: string): Promise<RelationalGroupedResponse> {
 
 function withK(q: URLSearchParams, k?: number): void {
   if (k != null) q.set('k', String(Math.max(1, Math.floor(k))))
+}
+
+/** An insight's own text + supporting quotes + topics + mentioned entities. Resolves
+ *  on the full corpus graph, so it works for an insight outside the loaded slice. */
+export async function fetchInsightDetail(
+  corpusPath: string,
+  insight: string,
+): Promise<InsightDetailResponse> {
+  const q = new URLSearchParams({ path: corpusPath.trim(), insight: insight.trim() })
+  const url = `/api/relational/insight-detail?${q.toString()}`
+  return dedupeInFlight(`GET|${url}`, async () => {
+    const res = await fetchWithTimeout(url)
+    if (!res.ok) raiseRelationalHttpError(res, await res.text())
+    return (await res.json()) as InsightDetailResponse
+  })
 }
 
 /** FR3.2 — top insight per distinct show covering a topic. Groups keyed by show id. */
