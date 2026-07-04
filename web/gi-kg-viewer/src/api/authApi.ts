@@ -183,6 +183,30 @@ export async function fetchGraphAnalyticsSummary(): Promise<GraphAnalyticsSummar
   return (await res.json()) as GraphAnalyticsSummary
 }
 
+export interface GraphSessionSummary {
+  session_id: string
+  user_id: string
+  started: number
+  ended: number
+  count: number
+  size_min: number
+  size_max: number
+}
+
+/** All analytics sessions, most-recent first (admin only). */
+export async function fetchGraphSessions(): Promise<GraphSessionSummary[]> {
+  const res = await fetchWithTimeout(`${BASE}/graph-events/sessions`)
+  if (!res.ok) throw new Error(await errorMessage(res, 'load sessions'))
+  return ((await res.json()) as { sessions: GraphSessionSummary[] }).sessions
+}
+
+/** One session's ordered event timeline (admin only) — step-by-step view + replay source. */
+export async function fetchGraphSession(sessionId: string): Promise<Array<Record<string, unknown>>> {
+  const res = await fetchWithTimeout(`${BASE}/graph-events/session/${encodeURIComponent(sessionId)}`)
+  if (!res.ok) throw new Error(await errorMessage(res, 'load session'))
+  return ((await res.json()) as { events: Array<Record<string, unknown>> }).events
+}
+
 /** Pull a FastAPI `{detail}` message off an error response for a readable toast. */
 async function errorMessage(res: Response, action: string): Promise<string> {
   try {

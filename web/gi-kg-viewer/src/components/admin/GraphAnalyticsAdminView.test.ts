@@ -5,8 +5,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import GraphAnalyticsAdminView from './GraphAnalyticsAdminView.vue'
 import * as authApi from '../../api/authApi'
 
-vi.mock('../../api/authApi', () => ({ fetchGraphAnalyticsSummary: vi.fn() }))
+vi.mock('../../api/authApi', () => ({
+  fetchGraphAnalyticsSummary: vi.fn(),
+  fetchGraphSessions: vi.fn(),
+  fetchGraphSession: vi.fn(),
+}))
 const fetchSummary = vi.mocked(authApi.fetchGraphAnalyticsSummary)
+const fetchSessions = vi.mocked(authApi.fetchGraphSessions)
+const fetchSession = vi.mocked(authApi.fetchGraphSession)
 
 const SUMMARY = {
   total_events: 42,
@@ -27,6 +33,8 @@ describe('GraphAnalyticsAdminView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     fetchSummary.mockResolvedValue(clone())
+    fetchSessions.mockResolvedValue([])
+    fetchSession.mockResolvedValue([])
   })
 
   it('renders usage, size and breakage from the summary', async () => {
@@ -45,5 +53,35 @@ describe('GraphAnalyticsAdminView', () => {
     const w = mount(GraphAnalyticsAdminView)
     await flushPromises()
     expect(w.find('[data-testid="graph-analytics-error"]').text()).toContain('nope')
+  })
+
+  it('lists sessions and shows a step-by-step timeline on click', async () => {
+    fetchSessions.mockResolvedValue([
+      { session_id: 's1', user_id: 'u1', started: 1, ended: 2, count: 3, size_min: 5, size_max: 40 },
+    ])
+    fetchSession.mockResolvedValue([
+      { action: 'graph_node_tap', kind: 'topic' },
+      { action: 'graph_rail_nav', to_kind: 'person', trail_size: 1 },
+      { action: 'graph_redraw', nodes: 20, edges: 30 },
+    ])
+    const w = mount(GraphAnalyticsAdminView)
+    await flushPromises()
+    expect(w.find('[data-testid="ga-sessions"]').text()).toContain('u1')
+    await w.get('[data-testid="ga-session-s1"]').trigger('click')
+    await flushPromises()
+    const tl = w.find('[data-testid="ga-timeline"]').text()
+    expect(tl).toContain('tapped topic')
+    expect(tl).toContain('navigated → person')
+    expect(tl).toContain('20 nodes')
+  })
+
+  it('emits replay with the session id', async () => {
+    fetchSessions.mockResolvedValue([
+      { session_id: 's1', user_id: 'u1', started: 1, ended: 2, count: 3, size_min: 5, size_max: 40 },
+    ])
+    const w = mount(GraphAnalyticsAdminView)
+    await flushPromises()
+    await w.get('[data-testid="ga-replay"]').trigger('click')
+    expect(w.emitted('replay')?.[0]).toEqual(['s1'])
   })
 })

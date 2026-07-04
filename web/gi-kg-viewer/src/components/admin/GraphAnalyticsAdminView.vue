@@ -1,22 +1,38 @@
 <script setup lang="ts">
 /**
- * Admin → Analytics (owned, self-hosted). A minimal first-cut analysis of the graph-usage log:
- * usage (event counts + node-tap kinds), size dynamics (node/edge/trail stats per redraw), and
- * breakage. The Graph block is the first section — ranking / listen / search can slot in as
- * siblings when we aggregate those logs too.
+ * Admin → Analytics (owned, self-hosted). Aggregate graph analysis (usage / size / breakage) plus
+ * a per-session drill-down: pick a session to see its step-by-step timeline, or Replay it in the
+ * graph. The Graph block is the first "Analytics" section — ranking / listen / search can slot in
+ * as siblings when we aggregate those logs too.
  */
 import { computed, onMounted, ref } from 'vue'
-import { fetchGraphAnalyticsSummary, type GraphAnalyticsSummary } from '../../api/authApi'
+import {
+  fetchGraphAnalyticsSummary,
+  fetchGraphSession,
+  fetchGraphSessions,
+  type GraphAnalyticsSummary,
+  type GraphSessionSummary,
+} from '../../api/authApi'
+
+const emit = defineEmits<{ (e: 'replay', sessionId: string): void }>()
 
 const summary = ref<GraphAnalyticsSummary | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
 
+const sessions = ref<GraphSessionSummary[]>([])
+const selectedId = ref<string | null>(null)
+const timeline = ref<Array<Record<string, unknown>>>([])
+const timelineLoading = ref(false)
+
 async function load(): Promise<void> {
   loading.value = true
   error.value = null
   try {
-    summary.value = await fetchGraphAnalyticsSummary()
+    ;[summary.value, sessions.value] = await Promise.all([
+      fetchGraphAnalyticsSummary(),
+      fetchGraphSessions(),
+    ])
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load graph analytics'
   } finally {
@@ -24,6 +40,29 @@ async function load(): Promise<void> {
   }
 }
 onMounted(load)
+
+async function selectSession(id: string): Promise<void> {
+  selectedId.value = id
+  timelineLoading.value = true
+  try {
+    timeline.value = await fetchGraphSession(id)
+  } catch {
+    timeline.value = []
+  } finally {
+    timelineLoading.value = false
+  }
+}
+
+/** Human-readable one-line summary of a captured event, for the step-by-step timeline. */
+function stepLabel(e: Record<string, unknown>): string {
+  const a = String(e.action ?? '')
+  if (a === 'graph_node_tap') return `tapped ${e.kind ?? 'node'}`
+  if (a === 'graph_rail_nav') return `navigated → ${e.to_kind ?? 'node'} (trail ${e.trail_size ?? '?'})`
+  if (a === 'graph_redraw') return `redraw · ${e.nodes ?? '?'} nodes / ${e.edges ?? '?'} edges`
+  if (a === 'graph_recenter') return `re-centre (${e.source ?? '?'})`
+  if (a === 'graph_broke') return `broke: ${e.reason ?? '?'}`
+  return a
+}
 
 const byCountDesc = (rec: Record<string, number> | undefined): Array<[string, number]> =>
   Object.entries(rec ?? {}).sort((a, b) => b[1] - a[1])
@@ -125,6 +164,46 @@ const sizeMetrics = ['nodes', 'edges', 'trail'] as const
           </li>
           <li v-if="!breakRows.length" class="text-grounded">None recorded.</li>
         </ul>
+      </section>
+
+      <!-- Sessions (step-by-step + replay) -->
+      <section class="rounded border border-border bg-elevated/40 p-2">
+        <h3 class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted">Sessions</h3>
+        <ul class="max-h-40 space-y-0.5 overflow-y-auto text-xs" data-testid="ga-sessions">
+          <li
+            v-for="s in sessions"
+            :key="s.session_id"
+            class="flex items-center gap-1"
+          >
+            <button
+              type="button"
+              class="min-w-0 flex-1 truncate rounded px-1 py-0.5 text-left hover:bg-overlay"
+              :class="selectedId === s.session_id ? 'bg-overlay' : ''"
+              :data-testid="`ga-session-${s.session_id}`"
+              @click="selectSession(s.session_id)"
+            >
+              {{ s.user_id }} · {{ s.count }} ev · size {{ s.size_min }}–{{ s.size_max }}
+            </button>
+            <button
+              type="button"
+              class="shrink-0 rounded px-1 py-0.5 text-accent hover:underline"
+              data-testid="ga-replay"
+              @click="emit('replay', s.session_id)"
+            >
+              Replay ▶
+            </button>
+          </li>
+          <li v-if="!sessions.length" class="text-muted">No sessions yet.</li>
+        </ul>
+        <div v-if="selectedId" class="mt-2 border-t border-border pt-2" data-testid="ga-timeline">
+          <p v-if="timelineLoading" class="text-[11px] text-muted">Loading timeline…</p>
+          <ol v-else class="space-y-0.5 text-[11px]">
+            <li v-for="(e, i) in timeline" :key="i" class="flex gap-2">
+              <span class="w-5 shrink-0 text-right text-muted">{{ i + 1 }}</span>
+              <span>{{ stepLabel(e) }}</span>
+            </li>
+          </ol>
+        </div>
       </section>
     </div>
   </div>
