@@ -17,7 +17,7 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
 
-from podcast_scraper.server import app_sessions, app_user_state
+from podcast_scraper.server import app_ranking_telemetry, app_sessions, app_user_state
 from podcast_scraper.server.app import create_app
 from podcast_scraper.server.app_access import AccessPolicy
 from podcast_scraper.server.app_user_store import get_or_create_user
@@ -202,3 +202,46 @@ def test_discover_recency_when_flag_on_but_anonymous(tmp_path: Path) -> None:
     client = _client(tmp_path, personalized=True)  # no sign-in → no interests → recency
     titles = [e["title"] for e in client.get("/api/app/discover").json()["items"]]
     assert titles == ["Episode new", "Episode old"]
+
+
+def _user_id(tmp_path: Path) -> str:
+    data_dir = tmp_path / "appdata"
+    return get_or_create_user(
+        data_dir, provider="stub", subject="s1", email="j@x.com", name="J"
+    ).user_id
+
+
+def test_discover_records_impressions_for_signed_in_user(tmp_path: Path) -> None:
+    # #11 telemetry: a signed-in discover call logs the shown slugs (rank order) + the variant.
+    _corpus(tmp_path)
+    client = _client(tmp_path, personalized=True)
+    _sign_in(client, tmp_path, ["topic:ai"])
+    resp = client.get("/api/app/discover", params={"limit": 5})
+    assert resp.status_code == 200
+    shown = [it["slug"] for it in resp.json()["items"]]
+    events = app_ranking_telemetry.read_events(tmp_path / "appdata", _user_id(tmp_path))
+    imps = [e for e in events if e["kind"] == "impression"]
+    assert imps, "expected an impression event"
+    assert imps[-1]["shown"] == shown
+    assert imps[-1]["variant"] == "personalized"
+
+
+def test_discover_click_records_event(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    client = _client(tmp_path, personalized=True)
+    _sign_in(client, tmp_path, ["topic:ai"])
+    resp = client.post("/api/app/discover/click", json={"slug": "some-slug", "position": 2})
+    assert resp.status_code == 204
+    clicks = [
+        e
+        for e in app_ranking_telemetry.read_events(tmp_path / "appdata", _user_id(tmp_path))
+        if e["kind"] == "click"
+    ]
+    assert clicks and clicks[-1]["slug"] == "some-slug" and clicks[-1]["position"] == 2
+
+
+def test_discover_click_signed_out_is_noop_204(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    client = _client(tmp_path, personalized=True)  # not signed in
+    resp = client.post("/api/app/discover/click", json={"slug": "x", "position": 0})
+    assert resp.status_code == 204

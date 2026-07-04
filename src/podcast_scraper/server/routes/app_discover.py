@@ -8,12 +8,13 @@ and otherwise (or when the flag is off) returns recency — the default, unchang
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, Response
 
 from podcast_scraper.search.topic_clusters import top_clusters_by_member_count
-from podcast_scraper.server import app_user_state
+from podcast_scraper.server import app_ranking_telemetry, app_user_state
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
 from podcast_scraper.server.app_discover_view import rank_discover
 from podcast_scraper.server.app_user_corpus import derive_interests
@@ -21,6 +22,7 @@ from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
 from podcast_scraper.server.routes.app_auth import get_optional_user
 from podcast_scraper.server.schemas import (
+    AppDiscoverClickBody,
     AppEpisodesResponse,
     AppInterestCluster,
     AppInterestClustersResponse,
@@ -70,6 +72,47 @@ async def discover(
     rows.sort(key=lambda r: (r.publish_date or ""), reverse=True)
     pool = rows[: max(limit * 4, limit)]
     items = rank_discover(root, interests, pool, limit=limit)
+
+    # #11 telemetry: log what the feed showed (slugs in rank order) + the effective variant, so
+    # clicks can later be compared against the configured rank. Signed-in only; best-effort.
+    data_dir = getattr(request.app.state, "app_data_dir", None)
+    if user is not None and data_dir is not None:
+        variant = "personalized" if (personalized and interests) else "recency"
+        app_ranking_telemetry.record_impressions(
+            Path(data_dir),
+            user.user_id,
+            shown=[it.slug for it in items],
+            variant=variant,
+            ts=int(time.time()),
+        )
     return AppEpisodesResponse(
         items=items, page=1, page_size=limit, total=len(items), has_more=False
     )
+
+
+@router.post("/discover/click", status_code=204)
+async def discover_click(
+    request: Request,
+    body: AppDiscoverClickBody,
+    user: User | None = Depends(get_optional_user),
+) -> Response:
+    """Record a click on a discovery-feed episode for ranking telemetry (#11).
+
+    No-op (still 204) when signed out or without a data dir, so the client can fire-and-forget.
+    """
+    data_dir = getattr(request.app.state, "app_data_dir", None)
+    if user is not None and data_dir is not None:
+        variant = (
+            "personalized"
+            if bool(getattr(request.app.state, "personalized_ranking", False))
+            else "recency"
+        )
+        app_ranking_telemetry.record_click(
+            Path(data_dir),
+            user.user_id,
+            slug=body.slug,
+            position=body.position,
+            variant=variant,
+            ts=int(time.time()),
+        )
+    return Response(status_code=204)
