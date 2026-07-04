@@ -260,4 +260,39 @@ describe('TopicEntityView.vue', () => {
     expect(w.find('[data-testid="tev-related-topics"]').exists()).toBe(false)
   })
 
+  it('collapses entity mentions into one chip per entity with a cross-show tally (#7)', async () => {
+    fetchTopicEntities.mockResolvedValue({
+      subject: 'topic:ai',
+      results: [
+        { id: 'person:ada', type: 'person', text: 'Ada Lovelace', show_id: 'podcast:x', episode_id: 'ep1' },
+        { id: 'person:ada', type: 'person', text: 'Ada Lovelace', show_id: 'podcast:y', episode_id: 'ep2' },
+        { id: 'org:acme', type: 'org', text: 'Acme', show_id: 'podcast:x', episode_id: 'ep1' },
+      ],
+    })
+    const { w } = await mountTopic(topicWithMentions())
+    const chips = w.findAll('[data-testid="tev-entity-chip"]')
+    expect(chips).toHaveLength(2) // ada (deduped from 2 mentions) + acme
+    const ada = chips.find((c) => c.text().includes('Ada Lovelace'))
+    expect(ada?.find('[data-testid="tev-entity-shows"]').text()).toContain('2 shows')
+    const acme = chips.find((c) => c.text().includes('Acme'))
+    expect(acme?.find('[data-testid="tev-entity-shows"]').exists()).toBe(false) // single show → no badge
+  })
+
+  it('routes an entity chip click by type — person vs entity (#7)', async () => {
+    fetchTopicEntities.mockResolvedValue({
+      subject: 'topic:ai',
+      results: [
+        { id: 'person:ada', type: 'person', text: 'Ada Lovelace', show_id: 's', episode_id: 'e' },
+        { id: 'org:acme', type: 'org', text: 'Acme', show_id: 's2', episode_id: 'e2' },
+      ],
+    })
+    const { w, subject } = await mountTopic(topicWithMentions())
+    const focusPerson = vi.spyOn(subject, 'focusPerson')
+    const focusEntity = vi.spyOn(subject, 'focusEntity')
+    const chips = w.findAll('[data-testid="tev-entity-chip"]')
+    await chips.find((c) => c.text().includes('Ada Lovelace'))?.trigger('click')
+    expect(focusPerson).toHaveBeenCalledWith('person:ada')
+    await chips.find((c) => c.text().includes('Acme'))?.trigger('click')
+    expect(focusEntity).toHaveBeenCalledWith('org:acme')
+  })
 })

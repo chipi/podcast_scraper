@@ -177,11 +177,44 @@ function onClickVoice(personId: string): void {
   if (personId) subject.focusPerson(personId)
 }
 
-function onClickEntity(entity: RelatedNode): void {
-  if (!entity.id) return
-  if (entity.type === 'person') subject.focusPerson(entity.id)
-  else subject.focusEntity(entity.id)
+function onClickEntity(id: string, type: string): void {
+  if (!id) return
+  if (type === 'person') subject.focusPerson(id)
+  else subject.focusEntity(id)
 }
+
+// #7 — collapse the entity MENTIONS into one chip per entity, tallying the distinct SHOWS and
+// episodes each spans, so the topic view surfaces which entities recur across shows (not a chip
+// per mention). Sorted by cross-show reach.
+interface EntityGroup {
+  id: string
+  text: string
+  type: string
+  shows: number
+  episodes: number
+}
+const entityGroups = computed<EntityGroup[]>(() => {
+  const byId = new Map<
+    string,
+    { text: string; type: string; shows: Set<string>; eps: Set<string> }
+  >()
+  for (const r of entityRows.value) {
+    const key = (r.id || r.text || '').trim()
+    if (!key) continue
+    const g = byId.get(key) ?? {
+      text: (r.text || shortId(r.id)).trim(),
+      type: r.type,
+      shows: new Set<string>(),
+      eps: new Set<string>(),
+    }
+    if (r.show_id) g.shows.add(r.show_id)
+    if (r.episode_id) g.eps.add(r.episode_id)
+    byId.set(key, g)
+  }
+  return [...byId.entries()]
+    .map(([id, g]) => ({ id, text: g.text, type: g.type, shows: g.shows.size, episodes: g.eps.size }))
+    .sort((a, b) => b.shows - a.shows || b.episodes - a.episodes || a.text.localeCompare(b.text))
+})
 
 const subjectNode = computed<RawGraphNode | null>(() => {
   const art = artifacts.displayArtifact
@@ -470,14 +503,19 @@ function onPrefillSearch(): void {
           data-testid="tev-entities-list"
         >
           <button
-            v-for="ent in entityRows"
+            v-for="ent in entityGroups"
             :key="ent.id"
             type="button"
             data-testid="tev-entity-chip"
             class="rounded border border-border bg-elevated/40 px-1.5 py-0.5 text-[10px] text-surface-foreground hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            :title="`Open panel for ${ent.text || shortId(ent.id)}`"
-            @click="onClickEntity(ent)"
-          >{{ ent.text || shortId(ent.id) }}</button>
+            :title="ent.shows > 1 ? `${ent.text} — involved across ${ent.shows} shows` : `Open panel for ${ent.text}`"
+            @click="onClickEntity(ent.id, ent.type)"
+          >{{ ent.text
+            }}<span
+              v-if="ent.shows > 1"
+              class="ml-1 text-[9px] font-semibold text-muted"
+              data-testid="tev-entity-shows"
+            >· {{ ent.shows }} shows</span></button>
         </div>
       </section>
 
