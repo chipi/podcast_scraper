@@ -110,9 +110,14 @@ on, no GH issue filed — operator alone opens issues, see memory):
   weighting so ubiquitous topics don't dominate; surface the top-weighted pairs.
 - **Episode scope:** add **insight-level proximity** (topics co-occurring within
   the same insight/segment, not just same episode) for tighter signal.
-- Related open issues from this session: **#1139** (derived interests
-  auto-influence ranking), **#1140** (insight_density → skip-guide, with
-  eval-side density visualization). Do NOT open new issues without explicit
+- ~~Related open issues: **#1139** (derived interests auto-influence ranking),
+  **#1140** (insight_density → skip-guide + eval-side density viz).~~ **Both
+  shipped** on `feat/consumer-remember`: #1139 = `derive_interests()` from the
+  heard/captured set behind `APP_DERIVED_INTERESTS`; #1140 = the player scrubber
+  density heat-band (skip-guide) + `scripts/eval/insight_density_report.py`
+  (corpus early/mid/late report — prod-v2 is heavily front-loaded, 62/24/14).
+  The `topic_cooccurrence` enhancement above was resolved by **deleting** the
+  orphaned episode-scope enricher. Do NOT open new issues without explicit
   operator approval.
 
 ---
