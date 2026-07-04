@@ -341,6 +341,76 @@ def test_temporal_velocity_velocity_signal(tmp_path: Path) -> None:
     assert t["velocity_last_over_6mo"] > 2.0
 
 
+def test_temporal_velocity_weekly_series(tmp_path: Path) -> None:
+    def _ep(stem: str, date: str) -> EpisodeArtifactBundle:
+        return _bundle(
+            tmp_path / "metadata",
+            stem,
+            kg={
+                "nodes": [
+                    {"type": "Episode", "id": "ep:" + stem, "properties": {"publish_date": date}},
+                    {"type": "Topic", "id": "topic:a", "properties": {"label": "A"}},
+                ],
+                "edges": [],
+            },
+        )
+
+    # 3 mentions in the latest ISO week (Mon 06-29 + Tue 06-30), 1 mention ~10 weeks
+    # earlier → the latest week is clearly rising against its trailing-8-week average.
+    bundles = [
+        _ep("w1", "2026-06-29T00:00:00Z"),
+        _ep("w2", "2026-06-29T12:00:00Z"),
+        _ep("w3", "2026-06-30T00:00:00Z"),
+        _ep("old", "2026-04-20T00:00:00Z"),
+    ]
+    data = _run(
+        TemporalVelocityEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=bundles,
+        config={"now": "2026-06-30T00:00:00Z"},
+        ctx=_ctx("temporal_velocity"),
+    )
+    assert len(data["window_weeks"]) == 26
+    t = data["topics"][0]
+    assert t["topic_id"] == "topic:a"
+    # weekly_counts / weekly_velocity are keyed by the window weeks; the count total is
+    # the number of in-window mentions.
+    assert set(t["weekly_counts"]) == set(data["window_weeks"])
+    assert set(t["weekly_velocity"]) == set(data["window_weeks"])
+    assert sum(t["weekly_counts"].values()) == 4
+    latest_week = data["window_weeks"][-1]
+    assert t["weekly_counts"][latest_week] == 3
+    assert t["weekly_velocity"][latest_week] > 1.0
+
+
+def test_temporal_velocity_weekly_window_read_from_config(tmp_path: Path) -> None:
+    bundle = _bundle(
+        tmp_path / "metadata",
+        "ep1",
+        kg={
+            "nodes": [
+                {
+                    "type": "Episode",
+                    "id": "ep:1",
+                    "properties": {"publish_date": "2026-06-20T00:00:00Z"},
+                },
+                {"type": "Topic", "id": "topic:a", "properties": {"label": "A"}},
+            ],
+            "edges": [],
+        },
+    )
+    data = _run(
+        TemporalVelocityEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=[bundle],
+        config={"now": "2026-06-30T00:00:00Z", "weekly_window": 8},
+        ctx=_ctx("temporal_velocity"),
+    )
+    assert len(data["window_weeks"]) == 8
+
+
 # ---------------------------------------------------------------------------
 # grounding_rate (corpus scope)
 # ---------------------------------------------------------------------------
