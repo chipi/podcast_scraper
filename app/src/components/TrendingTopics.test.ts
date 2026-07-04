@@ -1,13 +1,20 @@
 import { flushPromises, mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
+import { useAuthStore } from '../stores/auth'
+import { useInterestsStore } from '../stores/interests'
 import type { CorpusEnrichmentSignals } from '../services/types'
 import TrendingTopics from './TrendingTopics.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
-const mountIt = () => mount(TrendingTopics, { global: { plugins: [i18n] } })
+const mountIt = (setup?: () => void) => {
+  setActivePinia(createPinia()) // fresh pinia per mount; no user → signed out unless setup says so
+  setup?.()
+  return mount(TrendingTopics, { global: { plugins: [i18n] } })
+}
 
 const VELOCITY: CorpusEnrichmentSignals['temporal_velocity'] = {
   window_months: ['2026-01', '2026-02', '2026-03'],
@@ -39,8 +46,46 @@ describe('TrendingTopics container', () => {
     withVelocity()
     const w = mountIt()
     await flushPromises()
-    await w.findAll('[data-testid="trend-chip"]')[0].trigger('click')
+    // The chip is a container; its first button opens the topic (the second, when present, follows).
+    await w.findAll('[data-testid="trend-chip"]')[0].get('button').trigger('click')
     expect(w.emitted('open')![0]).toEqual(['topic:policy'])
+  })
+
+  it('signed out: no follow buttons on the pills (#12)', async () => {
+    withVelocity()
+    const w = mountIt()
+    await flushPromises()
+    expect(w.findAll('[data-testid="trend-chip-follow"]')).toHaveLength(0)
+  })
+
+  it('signed in: a follow button adds the trending topic to interests (#12)', async () => {
+    withVelocity()
+    let interests!: ReturnType<typeof useInterestsStore>
+    const w = mountIt(() => {
+      useAuthStore().user = { user_id: 'u_1', email: 'd@l', name: 'Dev' }
+      interests = useInterestsStore()
+      interests.loaded = true // ensureLoaded() becomes a no-op (no API call)
+      vi.spyOn(interests, 'toggle').mockResolvedValue()
+    })
+    await flushPromises()
+    const followBtns = w.findAll('[data-testid="trend-chip-follow"]')
+    expect(followBtns).toHaveLength(2) // one per rising topic
+    await followBtns[0].trigger('click')
+    expect(interests.toggle).toHaveBeenCalledWith('topic:policy')
+  })
+
+  it('signed in: a followed topic shows the following state (#12)', async () => {
+    withVelocity()
+    const w = mountIt(() => {
+      useAuthStore().user = { user_id: 'u_1', email: 'd@l', name: 'Dev' }
+      const interests = useInterestsStore()
+      interests.ids = ['topic:policy']
+      interests.loaded = true
+    })
+    await flushPromises()
+    const first = w.findAll('[data-testid="trend-chip-follow"]')[0]
+    expect(first.attributes('aria-pressed')).toBe('true')
+    expect(first.text()).toBe('✓')
   })
 
   it('switches to the Sparklines view (rows with mini series)', async () => {

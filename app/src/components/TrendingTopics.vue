@@ -9,8 +9,11 @@
  * topic entity card (whose Signals show the same momentum).
  */
 import { computed, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { getCorpusEnrichment } from '../services/api'
+import { useAuthStore } from '../stores/auth'
+import { useInterestsStore } from '../stores/interests'
 import type { RisingTopic } from './trending'
 import TrendingChips from './TrendingChips.vue'
 import TrendingSparkChips from './TrendingSparkChips.vue'
@@ -19,6 +22,17 @@ import TrendingMomentum from './TrendingMomentum.vue'
 
 const emit = defineEmits<{ (e: 'open', id: string): void }>()
 const { t } = useI18n()
+
+// #12 — follow a trending topic straight into the profile interests (same store the entity-card
+// follows use). Only when signed in; the store persists + reconciles with the server.
+const auth = useAuthStore()
+const interests = useInterestsStore()
+const { ids: followedIds } = storeToRefs(interests)
+const canFollow = computed(() => auth.isAuthenticated)
+if (auth.isAuthenticated) void interests.ensureLoaded()
+function onFollow(id: string): void {
+  void interests.toggle(id)
+}
 
 const RISING = 1.5
 const MIN_TOTAL = 3
@@ -89,8 +103,22 @@ const hasAny = computed(() => topics.value.length > 0)
       </button>
     </div>
 
-    <TrendingChips v-if="view === 'chips'" :topics="topics" @open="emit('open', $event)" />
-    <TrendingSparkChips v-else-if="view === 'sparks'" :topics="topics" @open="emit('open', $event)" />
+    <TrendingChips
+      v-if="view === 'chips'"
+      :topics="topics"
+      :followed-ids="followedIds"
+      :can-follow="canFollow"
+      @open="emit('open', $event)"
+      @follow="onFollow"
+    />
+    <TrendingSparkChips
+      v-else-if="view === 'sparks'"
+      :topics="topics"
+      :followed-ids="followedIds"
+      :can-follow="canFollow"
+      @open="emit('open', $event)"
+      @follow="onFollow"
+    />
     <TrendingStream
       v-else-if="view === 'stream'"
       :topics="topics"
