@@ -11,6 +11,9 @@ import OpsView from './components/ops/OpsView.vue'
 import UsersAdminView from './components/admin/UsersAdminView.vue'
 import RankingConfigAdminView from './components/admin/RankingConfigAdminView.vue'
 import GraphAnalyticsAdminView from './components/admin/GraphAnalyticsAdminView.vue'
+import ReplayControls from './components/graph/ReplayControls.vue'
+import { useGraphReplayStore, type ReplayEvent } from './stores/graphReplay'
+import { fetchGraphSession } from './api/authApi'
 import LoginView from './components/auth/LoginView.vue'
 import NoAccessView from './components/auth/NoAccessView.vue'
 import LeftPanel from './components/shell/LeftPanel.vue'
@@ -69,6 +72,15 @@ function readRightPanelOpenPreference(): boolean {
 const auth = useAuthStore()
 const shell = useShellStore()
 const graphAnalytics = useGraphAnalyticsStore()
+const replay = useGraphReplayStore()
+
+/** Admin → Analytics "Replay ▶": load the session's events into the replay store + jump to the
+ *  graph, which enters replay mode (banner + step/play/scrub, driving the real graph from the log). */
+async function onReplaySession(sessionId: string): Promise<void> {
+  const events = await fetchGraphSession(sessionId).catch(() => [] as Array<Record<string, unknown>>)
+  replay.load(sessionId, events as ReplayEvent[])
+  mainTab.value = 'graph'
+}
 const artifacts = useArtifactsStore()
 const search = useSearchStore()
 const explore = useExploreStore()
@@ -799,7 +811,7 @@ watch(
       <!-- CENTER -->
       <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden">
         <!-- Graph / Dashboard — flex column so tab roots (h-full / flex-1) receive height -->
-        <div class="flex min-h-0 flex-1 flex-col">
+        <div class="relative flex min-h-0 flex-1 flex-col">
           <keep-alive>
             <DigestView
               v-if="mainTab === 'digest'"
@@ -839,7 +851,7 @@ watch(
           >
             <UsersAdminView />
             <RankingConfigAdminView />
-            <GraphAnalyticsAdminView />
+            <GraphAnalyticsAdminView @replay="onReplaySession" />
           </div>
           <keep-alive>
             <GraphTabPanel
@@ -849,6 +861,7 @@ watch(
               @request-graph-full-reset="onGraphCorpusFullReset"
             />
           </keep-alive>
+          <ReplayControls v-if="mainTab === 'graph' && replay.active" />
         </div>
       </div>
 

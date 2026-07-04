@@ -242,6 +242,7 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
         /* telemetry must not affect runtime */
       }
       analytics.track('graph_recenter', {
+        target_id: disp.envelope.cyId,
         source: disp.envelope.source,
         kind: disp.envelope.kind,
         load_source: disp.envelope.loadSource,

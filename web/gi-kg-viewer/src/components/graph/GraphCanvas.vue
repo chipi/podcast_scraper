@@ -3271,8 +3271,10 @@ function redraw(): void {
     // Analytics — a tap on a node is a user gesture (unlike 'select', which also fires on
     // programmatic focus), so it's the honest "user clicked a node" signal.
     core.on('tap', 'node', (e) => {
+      const node = e.target as NodeSingular
       graphAnalytics.track('graph_node_tap', {
-        kind: String((e.target as NodeSingular).data('type') ?? 'unknown'),
+        id: node.id(),
+        kind: String(node.data('type') ?? 'unknown'),
       })
     })
     core.on('unselect', 'node', () => {

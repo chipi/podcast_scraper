@@ -1499,6 +1499,7 @@ watch(
     if (props.embedInRail && t) {
       graphNav.addToTrail(t)
       graphAnalytics.track('graph_rail_nav', {
+        to_id: t,
         to_kind: t.replace(/^g:/, '').split(':')[0] || 'unknown',
         trail_size: graphNav.trailNodeIds.length,
       })

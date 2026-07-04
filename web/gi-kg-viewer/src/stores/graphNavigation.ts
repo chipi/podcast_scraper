@@ -48,6 +48,12 @@ export const useGraphNavigationStore = defineStore('graphNavigation', () => {
     trailNodeIds.value = []
   }
 
+  /** Replace the trail wholesale (replay reconstructs a session's trail at a given step). */
+  function setTrail(ids: string[]): void {
+    const cleaned = ids.map((s) => s.trim()).filter(Boolean)
+    trailNodeIds.value = [...new Set(cleaned)].slice(-TRAIL_BUDGET)
+  }
+
   /**
    * When true, signals GraphCanvas to fit the viewport to visible content after the next layout,
    * instead of preserving the current viewport. Used when loading from external sources without
@@ -149,6 +155,7 @@ export const useGraphNavigationStore = defineStore('graphNavigation', () => {
     trailNodeIds,
     addToTrail,
     clearTrail,
+    setTrail,
     toggleTopicClusterCanvasCollapsed,
     isTopicClusterCanvasCollapsed,
     clearTopicClusterCanvasCollapsed,
