@@ -174,6 +174,19 @@ class AppDiscoverClickBody(BaseModel):
     position: int = Field(ge=0, description="0-based rank position where it was shown.")
 
 
+class AppGraphEventsBody(BaseModel):
+    """A fire-and-forget batch of graph-analytics events (usage / size-dynamics / breakage).
+
+    Each event is a free-form object carrying at least an ``action`` (e.g. ``node_tap``,
+    ``rail_nav``, ``redraw``, ``handoff_failed``); the rest of the payload is open so new event
+    kinds don't need a schema change.
+    """
+
+    events: list[dict[str, Any]] = Field(
+        default_factory=list, description="Graph events to append to the user's log."
+    )
+
+
 class AppQuote(BaseModel):
     """A verbatim quote supporting an insight."""
 

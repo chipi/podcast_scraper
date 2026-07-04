@@ -30,6 +30,7 @@ from podcast_scraper.server.routes import (
     app_discover,
     app_enrichment,
     app_episodes,
+    app_graph_events,
     app_relational,
     app_search,
     app_user_state,
@@ -262,6 +263,7 @@ def create_app(
     app.include_router(app_admin.router, prefix="/api/app")
     app.include_router(app_artwork.router, prefix="/api/app")
     app.include_router(app_episodes.router, prefix="/api/app")
+    app.include_router(app_graph_events.router, prefix="/api/app")
     app.include_router(app_relational.router, prefix="/api/app")
     app.include_router(app_discover.router, prefix="/api/app")
     app.include_router(app_search.router, prefix="/api/app")
