@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "week_id": "2026-W27",
-  "captured_at": "2026-07-02T21:48:14Z",
+  "captured_at": "2026-07-04T18:56:29Z",
   "judges": {
     "phases": [
       {
@@ -11,31 +11,31 @@
         "judge_b": {}
       },
       {
-        "name": "judge_qwen",
-        "mode": "pairwise",
+        "name": "judge_qwen_next_scalar",
+        "mode": "scalar",
         "judge_a": {
           "provider": "vllm",
-          "model": "judge-a",
+          "model": "judge-qwen-next",
           "api_base": "http://${DGX_TAILNET_FQDN}:8003/v1"
         },
         "judge_b": {}
       },
       {
-        "name": "judge_llama",
-        "mode": "pairwise",
-        "judge_a": {
-          "provider": "vllm",
-          "model": "judge-b",
-          "api_base": "http://${DGX_TAILNET_FQDN}:8003/v1"
-        },
-        "judge_b": {}
-      },
-      {
-        "name": "judge_gpt_oss",
-        "mode": "pairwise",
+        "name": "judge_gpt_oss_scalar",
+        "mode": "scalar",
         "judge_a": {
           "provider": "ollama",
           "model": "gpt-oss:120b"
+        },
+        "judge_b": {}
+      },
+      {
+        "name": "judge_nemotron_scalar",
+        "mode": "scalar",
+        "judge_a": {
+          "provider": "vllm",
+          "model": "judge-nemotron",
+          "api_base": "http://${DGX_TAILNET_FQDN}:8003/v1"
         },
         "judge_b": {}
       }
@@ -49,21 +49,21 @@
       "family": "Meta",
       "status": "ok",
       "prompts_source": "tuned",
-      "wall_clock_s": 283.8,
+      "wall_clock_s": 563.4,
       "wall_clock_by_phase": {
-        "generate": 71.7,
-        "judge_qwen": 7.7,
-        "judge_llama": 46.3,
-        "judge_gpt_oss": 158.1
+        "generate": 70.8,
+        "judge_qwen_next_scalar": 16.7,
+        "judge_gpt_oss_scalar": 155.3,
+        "judge_nemotron_scalar": 320.6
       },
       "scores_by_phase": {
-        "judge_qwen": {
+        "judge_qwen_next_scalar": {
           "model": "llama3.1:8b",
           "backend_type": "ollama",
           "judges": {
             "judge_a": {
               "provider": "vllm",
-              "model": "judge-a"
+              "model": "judge-qwen-next"
             },
             "judge_b": {
               "provider": null,
@@ -72,39 +72,22 @@
           },
           "silver": "silver_sonnet46_smoke_v2",
           "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
+          "judge_mode": "scalar",
           "scores": {
-            "final": 0.1019916070991595,
+            "final": 0.6023916070991594,
             "rougeL_f1": 0.22497901774789875,
-            "judge_mean": 0.019999999999999997,
-            "judge_a_mean": 0.019999999999999997,
-            "judge_b_mean": 0.019999999999999997,
+            "judge_mean": 0.8539999999999999,
+            "judge_a_mean": 0.8539999999999999,
+            "judge_b_mean": 0.8539999999999999,
             "judges_delta": 0.0,
             "contested_rate": 0.0,
             "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.019999999999999997,
-                "win_rate": 0.0,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.019999999999999997,
-                "win_rate": 0.0,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
+            "pairwise": null
           },
           "latency_ms": {
-            "median": 12056.736946105957,
-            "p95": 19083.35590362549,
-            "avg": 13479.33030128479
+            "median": 11866.534948348999,
+            "p95": 18839.465141296387,
+            "avg": 13356.180572509766
           },
           "intrinsic": {
             "avg_tokens": 611.0,
@@ -114,64 +97,7 @@
           },
           "episodes": 5
         },
-        "judge_llama": {
-          "model": "llama3.1:8b",
-          "backend_type": "ollama",
-          "judges": {
-            "judge_a": {
-              "provider": "vllm",
-              "model": "judge-b"
-            },
-            "judge_b": {
-              "provider": null,
-              "model": null
-            }
-          },
-          "silver": "silver_sonnet46_smoke_v2",
-          "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
-          "scores": {
-            "final": 0.24599160709915946,
-            "rougeL_f1": 0.22497901774789875,
-            "judge_mean": 0.25999999999999995,
-            "judge_a_mean": 0.25999999999999995,
-            "judge_b_mean": 0.25999999999999995,
-            "judges_delta": 0.0,
-            "contested_rate": 0.0,
-            "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.25999999999999995,
-                "win_rate": 0.2,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.25999999999999995,
-                "win_rate": 0.2,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
-          },
-          "latency_ms": {
-            "median": 12056.736946105957,
-            "p95": 19083.35590362549,
-            "avg": 13479.33030128479
-          },
-          "intrinsic": {
-            "avg_tokens": 611.0,
-            "min_tokens": 533,
-            "max_tokens": 641,
-            "gates_clean": true
-          },
-          "episodes": 5
-        },
-        "judge_gpt_oss": {
+        "judge_gpt_oss_scalar": {
           "model": "llama3.1:8b",
           "backend_type": "ollama",
           "judges": {
@@ -186,39 +112,62 @@
           },
           "silver": "silver_sonnet46_smoke_v2",
           "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
+          "judge_mode": "scalar",
           "scores": {
-            "final": 0.31799160709915947,
+            "final": 0.5287916071031595,
             "rougeL_f1": 0.22497901774789875,
-            "judge_mean": 0.37999999999999995,
-            "judge_a_mean": 0.37999999999999995,
-            "judge_b_mean": 0.37999999999999995,
+            "judge_mean": 0.7313333333400001,
+            "judge_a_mean": 0.7313333333400001,
+            "judge_b_mean": 0.7313333333400001,
             "judges_delta": 0.0,
             "contested_rate": 0.0,
             "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.37999999999999995,
-                "win_rate": 0.4,
-                "tie_rate": 0.0,
-                "decisive_rate": 0.2,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.37999999999999995,
-                "win_rate": 0.4,
-                "tie_rate": 0.0,
-                "decisive_rate": 0.2,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
+            "pairwise": null
           },
           "latency_ms": {
-            "median": 12056.736946105957,
-            "p95": 19083.35590362549,
-            "avg": 13479.33030128479
+            "median": 11866.534948348999,
+            "p95": 18839.465141296387,
+            "avg": 13356.180572509766
+          },
+          "intrinsic": {
+            "avg_tokens": 611.0,
+            "min_tokens": 533,
+            "max_tokens": 641,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_nemotron_scalar": {
+          "model": "llama3.1:8b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-nemotron"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 2.7959916070991593,
+            "rougeL_f1": 0.22497901774789875,
+            "judge_mean": 4.51,
+            "judge_a_mean": 4.51,
+            "judge_b_mean": 4.51,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.4,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 11866.534948348999,
+            "p95": 18839.465141296387,
+            "avg": 13356.180572509766
           },
           "intrinsic": {
             "avg_tokens": 611.0,
@@ -230,16 +179,16 @@
         }
       },
       "same_family_judge_by_phase": {
-        "judge_qwen": false,
-        "judge_llama": true,
-        "judge_gpt_oss": false
+        "judge_qwen_next_scalar": false,
+        "judge_gpt_oss_scalar": false,
+        "judge_nemotron_scalar": false
       },
       "cross_phase_jA": {
-        "judge_qwen": 0.019999999999999997,
-        "judge_llama": 0.25999999999999995,
-        "judge_gpt_oss": 0.37999999999999995
+        "judge_qwen_next_scalar": 0.8539999999999999,
+        "judge_gpt_oss_scalar": 0.7313333333400001,
+        "judge_nemotron_scalar": 4.51
       },
-      "cross_phase_delta": 0.36,
+      "cross_phase_delta": 3.7787,
       "cross_phase_contested": true
     },
     {
@@ -247,21 +196,21 @@
       "family": "Nous",
       "status": "ok",
       "prompts_source": "tuned",
-      "wall_clock_s": 115.4,
+      "wall_clock_s": 373.3,
       "wall_clock_by_phase": {
-        "generate": 46.1,
-        "judge_qwen": 5.7,
-        "judge_llama": 37.9,
-        "judge_gpt_oss": 25.7
+        "generate": 46.8,
+        "judge_qwen_next_scalar": 14.2,
+        "judge_gpt_oss_scalar": 33.9,
+        "judge_nemotron_scalar": 278.4
       },
       "scores_by_phase": {
-        "judge_qwen": {
+        "judge_qwen_next_scalar": {
           "model": "hermes3:8b",
           "backend_type": "ollama",
           "judges": {
             "judge_a": {
               "provider": "vllm",
-              "model": "judge-a"
+              "model": "judge-qwen-next"
             },
             "judge_b": {
               "provider": null,
@@ -270,39 +219,22 @@
           },
           "silver": "silver_sonnet46_smoke_v2",
           "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
+          "judge_mode": "scalar",
           "scores": {
-            "final": 0.14210684139001456,
+            "final": 0.6649068413900145,
             "rougeL_f1": 0.2952671034750364,
-            "judge_mean": 0.039999999999999994,
-            "judge_a_mean": 0.039999999999999994,
-            "judge_b_mean": 0.039999999999999994,
+            "judge_mean": 0.9113333333333333,
+            "judge_a_mean": 0.9113333333333333,
+            "judge_b_mean": 0.9113333333333333,
             "judges_delta": 0.0,
             "contested_rate": 0.0,
             "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.039999999999999994,
-                "win_rate": 0.0,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.039999999999999994,
-                "win_rate": 0.0,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
+            "pairwise": null
           },
           "latency_ms": {
-            "median": 7643.4760093688965,
-            "p95": 13773.779392242432,
-            "avg": 8768.555927276611
+            "median": 7648.916721343994,
+            "p95": 14558.920860290527,
+            "avg": 8912.917804718018
           },
           "intrinsic": {
             "avg_tokens": 440.6,
@@ -312,64 +244,7 @@
           },
           "episodes": 5
         },
-        "judge_llama": {
-          "model": "hermes3:8b",
-          "backend_type": "ollama",
-          "judges": {
-            "judge_a": {
-              "provider": "vllm",
-              "model": "judge-b"
-            },
-            "judge_b": {
-              "provider": null,
-              "model": null
-            }
-          },
-          "silver": "silver_sonnet46_smoke_v2",
-          "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
-          "scores": {
-            "final": 0.27410684139001457,
-            "rougeL_f1": 0.2952671034750364,
-            "judge_mean": 0.26000000000000006,
-            "judge_a_mean": 0.26000000000000006,
-            "judge_b_mean": 0.26000000000000006,
-            "judges_delta": 0.0,
-            "contested_rate": 0.0,
-            "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.26000000000000006,
-                "win_rate": 0.2,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.26000000000000006,
-                "win_rate": 0.2,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
-          },
-          "latency_ms": {
-            "median": 7643.4760093688965,
-            "p95": 13773.779392242432,
-            "avg": 8768.555927276611
-          },
-          "intrinsic": {
-            "avg_tokens": 440.6,
-            "min_tokens": 348,
-            "max_tokens": 559,
-            "gates_clean": true
-          },
-          "episodes": 5
-        },
-        "judge_gpt_oss": {
+        "judge_gpt_oss_scalar": {
           "model": "hermes3:8b",
           "backend_type": "ollama",
           "judges": {
@@ -384,39 +259,62 @@
           },
           "silver": "silver_sonnet46_smoke_v2",
           "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
+          "judge_mode": "scalar",
           "scores": {
-            "final": 0.2861068413900145,
+            "final": 0.6805068413980145,
             "rougeL_f1": 0.2952671034750364,
-            "judge_mean": 0.27999999999999997,
-            "judge_a_mean": 0.27999999999999997,
-            "judge_b_mean": 0.27999999999999997,
+            "judge_mean": 0.9373333333466667,
+            "judge_a_mean": 0.9373333333466667,
+            "judge_b_mean": 0.9373333333466667,
             "judges_delta": 0.0,
             "contested_rate": 0.0,
             "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.27999999999999997,
-                "win_rate": 0.2,
-                "tie_rate": 0.0,
-                "decisive_rate": 0.2,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.27999999999999997,
-                "win_rate": 0.2,
-                "tie_rate": 0.0,
-                "decisive_rate": 0.2,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
+            "pairwise": null
           },
           "latency_ms": {
-            "median": 7643.4760093688965,
-            "p95": 13773.779392242432,
-            "avg": 8768.555927276611
+            "median": 7648.916721343994,
+            "p95": 14558.920860290527,
+            "avg": 8912.917804718018
+          },
+          "intrinsic": {
+            "avg_tokens": 440.6,
+            "min_tokens": 348,
+            "max_tokens": 559,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_nemotron_scalar": {
+          "model": "hermes3:8b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-nemotron"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 2.8421068413900143,
+            "rougeL_f1": 0.2952671034750364,
+            "judge_mean": 4.54,
+            "judge_a_mean": 4.54,
+            "judge_b_mean": 4.54,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.4,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 7648.916721343994,
+            "p95": 14558.920860290527,
+            "avg": 8912.917804718018
           },
           "intrinsic": {
             "avg_tokens": 440.6,
@@ -428,38 +326,38 @@
         }
       },
       "same_family_judge_by_phase": {
-        "judge_qwen": false,
-        "judge_llama": false,
-        "judge_gpt_oss": false
+        "judge_qwen_next_scalar": false,
+        "judge_gpt_oss_scalar": false,
+        "judge_nemotron_scalar": false
       },
       "cross_phase_jA": {
-        "judge_qwen": 0.039999999999999994,
-        "judge_llama": 0.26000000000000006,
-        "judge_gpt_oss": 0.27999999999999997
+        "judge_qwen_next_scalar": 0.9113333333333333,
+        "judge_gpt_oss_scalar": 0.9373333333466667,
+        "judge_nemotron_scalar": 4.54
       },
-      "cross_phase_delta": 0.24,
-      "cross_phase_contested": false
+      "cross_phase_delta": 3.6287,
+      "cross_phase_contested": true
     },
     {
       "model": "mistral:7b",
       "family": "Mistral AI",
       "status": "ok",
       "prompts_source": "tuned",
-      "wall_clock_s": 115.7,
+      "wall_clock_s": 334.3,
       "wall_clock_by_phase": {
-        "generate": 48.8,
-        "judge_qwen": 6.3,
-        "judge_llama": 38.1,
-        "judge_gpt_oss": 22.5
+        "generate": 48.9,
+        "judge_qwen_next_scalar": 13.9,
+        "judge_gpt_oss_scalar": 26.7,
+        "judge_nemotron_scalar": 244.8
       },
       "scores_by_phase": {
-        "judge_qwen": {
+        "judge_qwen_next_scalar": {
           "model": "mistral:7b",
           "backend_type": "ollama",
           "judges": {
             "judge_a": {
               "provider": "vllm",
-              "model": "judge-a"
+              "model": "judge-qwen-next"
             },
             "judge_b": {
               "provider": null,
@@ -468,39 +366,22 @@
           },
           "silver": "silver_sonnet46_smoke_v2",
           "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
+          "judge_mode": "scalar",
           "scores": {
-            "final": 0.11333832707102834,
+            "final": 0.6737383270710282,
             "rougeL_f1": 0.28334581767757083,
-            "judge_mean": 0.0,
-            "judge_a_mean": 0.0,
-            "judge_b_mean": 0.0,
+            "judge_mean": 0.9339999999999999,
+            "judge_a_mean": 0.9339999999999999,
+            "judge_b_mean": 0.9339999999999999,
             "judges_delta": 0.0,
             "contested_rate": 0.0,
             "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.0,
-                "win_rate": 0.0,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.0,
-                "win_rate": 0.0,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
+            "pairwise": null
           },
           "latency_ms": {
-            "median": 8372.095823287964,
-            "p95": 13406.486749649048,
-            "avg": 9312.800550460815
+            "median": 8381.071329116821,
+            "p95": 13405.746936798096,
+            "avg": 9316.093635559082
           },
           "intrinsic": {
             "avg_tokens": 414.4,
@@ -510,64 +391,7 @@
           },
           "episodes": 5
         },
-        "judge_llama": {
-          "model": "mistral:7b",
-          "backend_type": "ollama",
-          "judges": {
-            "judge_a": {
-              "provider": "vllm",
-              "model": "judge-b"
-            },
-            "judge_b": {
-              "provider": null,
-              "model": null
-            }
-          },
-          "silver": "silver_sonnet46_smoke_v2",
-          "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
-          "scores": {
-            "final": 0.1733383270710283,
-            "rougeL_f1": 0.28334581767757083,
-            "judge_mean": 0.09999999999999998,
-            "judge_a_mean": 0.09999999999999998,
-            "judge_b_mean": 0.09999999999999998,
-            "judges_delta": 0.0,
-            "contested_rate": 0.0,
-            "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.09999999999999998,
-                "win_rate": 0.0,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.09999999999999998,
-                "win_rate": 0.0,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
-          },
-          "latency_ms": {
-            "median": 8372.095823287964,
-            "p95": 13406.486749649048,
-            "avg": 9312.800550460815
-          },
-          "intrinsic": {
-            "avg_tokens": 414.4,
-            "min_tokens": 368,
-            "max_tokens": 482,
-            "gates_clean": true
-          },
-          "episodes": 5
-        },
-        "judge_gpt_oss": {
+        "judge_gpt_oss_scalar": {
           "model": "mistral:7b",
           "backend_type": "ollama",
           "judges": {
@@ -582,39 +406,62 @@
           },
           "silver": "silver_sonnet46_smoke_v2",
           "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
+          "judge_mode": "scalar",
           "scores": {
-            "final": 0.32933832707102834,
+            "final": 0.6729383270790282,
             "rougeL_f1": 0.28334581767757083,
-            "judge_mean": 0.36,
-            "judge_a_mean": 0.36,
-            "judge_b_mean": 0.36,
+            "judge_mean": 0.93266666668,
+            "judge_a_mean": 0.93266666668,
+            "judge_b_mean": 0.93266666668,
             "judges_delta": 0.0,
             "contested_rate": 0.0,
             "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.36,
-                "win_rate": 0.4,
-                "tie_rate": 0.0,
-                "decisive_rate": 0.4,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.36,
-                "win_rate": 0.4,
-                "tie_rate": 0.0,
-                "decisive_rate": 0.4,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
+            "pairwise": null
           },
           "latency_ms": {
-            "median": 8372.095823287964,
-            "p95": 13406.486749649048,
-            "avg": 9312.800550460815
+            "median": 8381.071329116821,
+            "p95": 13405.746936798096,
+            "avg": 9316.093635559082
+          },
+          "intrinsic": {
+            "avg_tokens": 414.4,
+            "min_tokens": 368,
+            "max_tokens": 482,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_nemotron_scalar": {
+          "model": "mistral:7b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-nemotron"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 1.7033383270710283,
+            "rougeL_f1": 0.28334581767757083,
+            "judge_mean": 2.65,
+            "judge_a_mean": 2.65,
+            "judge_b_mean": 2.65,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.4,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 8381.071329116821,
+            "p95": 13405.746936798096,
+            "avg": 9316.093635559082
           },
           "intrinsic": {
             "avg_tokens": 414.4,
@@ -626,16 +473,16 @@
         }
       },
       "same_family_judge_by_phase": {
-        "judge_qwen": false,
-        "judge_llama": false,
-        "judge_gpt_oss": false
+        "judge_qwen_next_scalar": false,
+        "judge_gpt_oss_scalar": false,
+        "judge_nemotron_scalar": false
       },
       "cross_phase_jA": {
-        "judge_qwen": 0.0,
-        "judge_llama": 0.09999999999999998,
-        "judge_gpt_oss": 0.36
+        "judge_qwen_next_scalar": 0.9339999999999999,
+        "judge_gpt_oss_scalar": 0.93266666668,
+        "judge_nemotron_scalar": 2.65
       },
-      "cross_phase_delta": 0.36,
+      "cross_phase_delta": 1.7173,
       "cross_phase_contested": true
     },
     {
@@ -643,21 +490,21 @@
       "family": "Meta",
       "status": "ok",
       "prompts_source": "tuned",
-      "wall_clock_s": 110.4,
+      "wall_clock_s": 402.0,
       "wall_clock_by_phase": {
-        "generate": 39.7,
-        "judge_qwen": 5.8,
-        "judge_llama": 38.1,
-        "judge_gpt_oss": 26.8
+        "generate": 39.5,
+        "judge_qwen_next_scalar": 15.7,
+        "judge_gpt_oss_scalar": 31.2,
+        "judge_nemotron_scalar": 315.6
       },
       "scores_by_phase": {
-        "judge_qwen": {
+        "judge_qwen_next_scalar": {
           "model": "llama3.2:3b",
           "backend_type": "ollama",
           "judges": {
             "judge_a": {
               "provider": "vllm",
-              "model": "judge-a"
+              "model": "judge-qwen-next"
             },
             "judge_b": {
               "provider": null,
@@ -666,39 +513,22 @@
           },
           "silver": "silver_sonnet46_smoke_v2",
           "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
+          "judge_mode": "scalar",
           "scores": {
-            "final": 0.09078151387305003,
+            "final": 0.58758151387305,
             "rougeL_f1": 0.22695378468262506,
-            "judge_mean": 0.0,
-            "judge_a_mean": 0.0,
-            "judge_b_mean": 0.0,
+            "judge_mean": 0.828,
+            "judge_a_mean": 0.828,
+            "judge_b_mean": 0.828,
             "judges_delta": 0.0,
             "contested_rate": 0.0,
             "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.0,
-                "win_rate": 0.0,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.0,
-                "win_rate": 0.0,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
+            "pairwise": null
           },
           "latency_ms": {
-            "median": 6737.471580505371,
-            "p95": 12114.930152893066,
-            "avg": 7481.108808517456
+            "median": 6754.167318344116,
+            "p95": 11663.444757461548,
+            "avg": 7434.597158432007
           },
           "intrinsic": {
             "avg_tokens": 667.2,
@@ -708,64 +538,7 @@
           },
           "episodes": 5
         },
-        "judge_llama": {
-          "model": "llama3.2:3b",
-          "backend_type": "ollama",
-          "judges": {
-            "judge_a": {
-              "provider": "vllm",
-              "model": "judge-b"
-            },
-            "judge_b": {
-              "provider": null,
-              "model": null
-            }
-          },
-          "silver": "silver_sonnet46_smoke_v2",
-          "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
-          "scores": {
-            "final": 0.15078151387305,
-            "rougeL_f1": 0.22695378468262506,
-            "judge_mean": 0.09999999999999998,
-            "judge_a_mean": 0.09999999999999998,
-            "judge_b_mean": 0.09999999999999998,
-            "judges_delta": 0.0,
-            "contested_rate": 0.0,
-            "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.09999999999999998,
-                "win_rate": 0.0,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.09999999999999998,
-                "win_rate": 0.0,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
-          },
-          "latency_ms": {
-            "median": 6737.471580505371,
-            "p95": 12114.930152893066,
-            "avg": 7481.108808517456
-          },
-          "intrinsic": {
-            "avg_tokens": 667.2,
-            "min_tokens": 510,
-            "max_tokens": 783,
-            "gates_clean": true
-          },
-          "episodes": 5
-        },
-        "judge_gpt_oss": {
+        "judge_gpt_oss_scalar": {
           "model": "llama3.2:3b",
           "backend_type": "ollama",
           "judges": {
@@ -780,39 +553,62 @@
           },
           "silver": "silver_sonnet46_smoke_v2",
           "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
+          "judge_mode": "scalar",
           "scores": {
-            "final": 0.18678151387305003,
+            "final": 0.6227815138730499,
             "rougeL_f1": 0.22695378468262506,
-            "judge_mean": 0.15999999999999998,
-            "judge_a_mean": 0.15999999999999998,
-            "judge_b_mean": 0.15999999999999998,
+            "judge_mean": 0.8866666666666665,
+            "judge_a_mean": 0.8866666666666665,
+            "judge_b_mean": 0.8866666666666665,
             "judges_delta": 0.0,
             "contested_rate": 0.0,
             "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.15999999999999998,
-                "win_rate": 0.0,
-                "tie_rate": 0.0,
-                "decisive_rate": 0.4,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.15999999999999998,
-                "win_rate": 0.0,
-                "tie_rate": 0.0,
-                "decisive_rate": 0.4,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
+            "pairwise": null
           },
           "latency_ms": {
-            "median": 6737.471580505371,
-            "p95": 12114.930152893066,
-            "avg": 7481.108808517456
+            "median": 6754.167318344116,
+            "p95": 11663.444757461548,
+            "avg": 7434.597158432007
+          },
+          "intrinsic": {
+            "avg_tokens": 667.2,
+            "min_tokens": 510,
+            "max_tokens": 783,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_nemotron_scalar": {
+          "model": "llama3.2:3b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-nemotron"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 1.72278151387305,
+            "rougeL_f1": 0.22695378468262506,
+            "judge_mean": 2.7199999999999998,
+            "judge_a_mean": 2.7199999999999998,
+            "judge_b_mean": 2.7199999999999998,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.4,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 6754.167318344116,
+            "p95": 11663.444757461548,
+            "avg": 7434.597158432007
           },
           "intrinsic": {
             "avg_tokens": 667.2,
@@ -824,38 +620,38 @@
         }
       },
       "same_family_judge_by_phase": {
-        "judge_qwen": false,
-        "judge_llama": true,
-        "judge_gpt_oss": false
+        "judge_qwen_next_scalar": false,
+        "judge_gpt_oss_scalar": false,
+        "judge_nemotron_scalar": false
       },
       "cross_phase_jA": {
-        "judge_qwen": 0.0,
-        "judge_llama": 0.09999999999999998,
-        "judge_gpt_oss": 0.15999999999999998
+        "judge_qwen_next_scalar": 0.828,
+        "judge_gpt_oss_scalar": 0.8866666666666665,
+        "judge_nemotron_scalar": 2.7199999999999998
       },
-      "cross_phase_delta": 0.16,
-      "cross_phase_contested": false
+      "cross_phase_delta": 1.892,
+      "cross_phase_contested": true
     },
     {
       "model": "gemma2:9b",
       "family": "Google",
       "status": "ok",
       "prompts_source": "tuned",
-      "wall_clock_s": 130.1,
+      "wall_clock_s": 303.8,
       "wall_clock_by_phase": {
-        "generate": 55.8,
-        "judge_qwen": 6.1,
-        "judge_llama": 42.2,
-        "judge_gpt_oss": 26.0
+        "generate": 57.2,
+        "judge_qwen_next_scalar": 13.3,
+        "judge_gpt_oss_scalar": 24.3,
+        "judge_nemotron_scalar": 209.0
       },
       "scores_by_phase": {
-        "judge_qwen": {
+        "judge_qwen_next_scalar": {
           "model": "gemma2:9b",
           "backend_type": "ollama",
           "judges": {
             "judge_a": {
               "provider": "vllm",
-              "model": "judge-a"
+              "model": "judge-qwen-next"
             },
             "judge_b": {
               "provider": null,
@@ -864,39 +660,22 @@
           },
           "silver": "silver_sonnet46_smoke_v2",
           "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
+          "judge_mode": "scalar",
           "scores": {
-            "final": 0.09568871040576857,
+            "final": 0.6284887104057685,
             "rougeL_f1": 0.2092217760144214,
-            "judge_mean": 0.019999999999999997,
-            "judge_a_mean": 0.019999999999999997,
-            "judge_b_mean": 0.019999999999999997,
+            "judge_mean": 0.908,
+            "judge_a_mean": 0.908,
+            "judge_b_mean": 0.908,
             "judges_delta": 0.0,
             "contested_rate": 0.0,
             "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.019999999999999997,
-                "win_rate": 0.0,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.019999999999999997,
-                "win_rate": 0.0,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
+            "pairwise": null
           },
           "latency_ms": {
-            "median": 9505.619049072266,
-            "p95": 15602.534532546997,
-            "avg": 10721.726942062378
+            "median": 9625.944375991821,
+            "p95": 16452.82769203186,
+            "avg": 10986.849689483643
           },
           "intrinsic": {
             "avg_tokens": 428.2,
@@ -906,64 +685,7 @@
           },
           "episodes": 5
         },
-        "judge_llama": {
-          "model": "gemma2:9b",
-          "backend_type": "ollama",
-          "judges": {
-            "judge_a": {
-              "provider": "vllm",
-              "model": "judge-b"
-            },
-            "judge_b": {
-              "provider": null,
-              "model": null
-            }
-          },
-          "silver": "silver_sonnet46_smoke_v2",
-          "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
-          "scores": {
-            "final": 0.2396887104057686,
-            "rougeL_f1": 0.2092217760144214,
-            "judge_mean": 0.26000000000000006,
-            "judge_a_mean": 0.26000000000000006,
-            "judge_b_mean": 0.26000000000000006,
-            "judges_delta": 0.0,
-            "contested_rate": 0.0,
-            "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.26000000000000006,
-                "win_rate": 0.2,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.26000000000000006,
-                "win_rate": 0.2,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
-          },
-          "latency_ms": {
-            "median": 9505.619049072266,
-            "p95": 15602.534532546997,
-            "avg": 10721.726942062378
-          },
-          "intrinsic": {
-            "avg_tokens": 428.2,
-            "min_tokens": 369,
-            "max_tokens": 507,
-            "gates_clean": true
-          },
-          "episodes": 5
-        },
-        "judge_gpt_oss": {
+        "judge_gpt_oss_scalar": {
           "model": "gemma2:9b",
           "backend_type": "ollama",
           "judges": {
@@ -978,39 +700,62 @@
           },
           "silver": "silver_sonnet46_smoke_v2",
           "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
+          "judge_mode": "scalar",
           "scores": {
-            "final": 0.25168871040576857,
+            "final": 0.6484887104097685,
             "rougeL_f1": 0.2092217760144214,
-            "judge_mean": 0.27999999999999997,
-            "judge_a_mean": 0.27999999999999997,
-            "judge_b_mean": 0.27999999999999997,
+            "judge_mean": 0.94133333334,
+            "judge_a_mean": 0.94133333334,
+            "judge_b_mean": 0.94133333334,
             "judges_delta": 0.0,
             "contested_rate": 0.0,
             "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.27999999999999997,
-                "win_rate": 0.0,
-                "tie_rate": 0.2,
-                "decisive_rate": 0.0,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.27999999999999997,
-                "win_rate": 0.0,
-                "tie_rate": 0.2,
-                "decisive_rate": 0.0,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
+            "pairwise": null
           },
           "latency_ms": {
-            "median": 9505.619049072266,
-            "p95": 15602.534532546997,
-            "avg": 10721.726942062378
+            "median": 9625.944375991821,
+            "p95": 16452.82769203186,
+            "avg": 10986.849689483643
+          },
+          "intrinsic": {
+            "avg_tokens": 428.2,
+            "min_tokens": 369,
+            "max_tokens": 507,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_nemotron_scalar": {
+          "model": "gemma2:9b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-nemotron"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 1.7096887104057685,
+            "rougeL_f1": 0.2092217760144214,
+            "judge_mean": 2.71,
+            "judge_a_mean": 2.71,
+            "judge_b_mean": 2.71,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.4,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 9625.944375991821,
+            "p95": 16452.82769203186,
+            "avg": 10986.849689483643
           },
           "intrinsic": {
             "avg_tokens": 428.2,
@@ -1022,38 +767,38 @@
         }
       },
       "same_family_judge_by_phase": {
-        "judge_qwen": false,
-        "judge_llama": false,
-        "judge_gpt_oss": false
+        "judge_qwen_next_scalar": false,
+        "judge_gpt_oss_scalar": false,
+        "judge_nemotron_scalar": false
       },
       "cross_phase_jA": {
-        "judge_qwen": 0.019999999999999997,
-        "judge_llama": 0.26000000000000006,
-        "judge_gpt_oss": 0.27999999999999997
+        "judge_qwen_next_scalar": 0.908,
+        "judge_gpt_oss_scalar": 0.94133333334,
+        "judge_nemotron_scalar": 2.71
       },
-      "cross_phase_delta": 0.26,
-      "cross_phase_contested": false
+      "cross_phase_delta": 1.802,
+      "cross_phase_contested": true
     },
     {
       "model": "phi4:14b",
       "family": "Microsoft",
       "status": "ok",
       "prompts_source": "tuned",
-      "wall_clock_s": 153.1,
+      "wall_clock_s": 460.8,
       "wall_clock_by_phase": {
-        "generate": 85.5,
-        "judge_qwen": 5.4,
-        "judge_llama": 36.9,
-        "judge_gpt_oss": 25.3
+        "generate": 86.2,
+        "judge_qwen_next_scalar": 13.6,
+        "judge_gpt_oss_scalar": 23.1,
+        "judge_nemotron_scalar": 337.9
       },
       "scores_by_phase": {
-        "judge_qwen": {
+        "judge_qwen_next_scalar": {
           "model": "phi4:14b",
           "backend_type": "ollama",
           "judges": {
             "judge_a": {
               "provider": "vllm",
-              "model": "judge-a"
+              "model": "judge-qwen-next"
             },
             "judge_b": {
               "provider": null,
@@ -1062,39 +807,22 @@
           },
           "silver": "silver_sonnet46_smoke_v2",
           "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
+          "judge_mode": "scalar",
           "scores": {
-            "final": 0.2038843251977766,
+            "final": 0.6562843251977765,
             "rougeL_f1": 0.23971081299444147,
-            "judge_mean": 0.18,
-            "judge_a_mean": 0.18,
-            "judge_b_mean": 0.18,
+            "judge_mean": 0.9339999999999999,
+            "judge_a_mean": 0.9339999999999999,
+            "judge_b_mean": 0.9339999999999999,
             "judges_delta": 0.0,
             "contested_rate": 0.0,
             "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.18,
-                "win_rate": 0.2,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.18,
-                "win_rate": 0.2,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
+            "pairwise": null
           },
           "latency_ms": {
-            "median": 15621.728897094727,
-            "p95": 24070.193767547607,
-            "avg": 16658.627700805664
+            "median": 15711.58480644226,
+            "p95": 24287.617206573486,
+            "avg": 16790.425968170166
           },
           "intrinsic": {
             "avg_tokens": 439.8,
@@ -1104,64 +832,7 @@
           },
           "episodes": 5
         },
-        "judge_llama": {
-          "model": "phi4:14b",
-          "backend_type": "ollama",
-          "judges": {
-            "judge_a": {
-              "provider": "vllm",
-              "model": "judge-b"
-            },
-            "judge_b": {
-              "provider": null,
-              "model": null
-            }
-          },
-          "silver": "silver_sonnet46_smoke_v2",
-          "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
-          "scores": {
-            "final": 0.15588432519777656,
-            "rougeL_f1": 0.23971081299444147,
-            "judge_mean": 0.09999999999999998,
-            "judge_a_mean": 0.09999999999999998,
-            "judge_b_mean": 0.09999999999999998,
-            "judges_delta": 0.0,
-            "contested_rate": 0.0,
-            "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.09999999999999998,
-                "win_rate": 0.0,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.09999999999999998,
-                "win_rate": 0.0,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
-          },
-          "latency_ms": {
-            "median": 15621.728897094727,
-            "p95": 24070.193767547607,
-            "avg": 16658.627700805664
-          },
-          "intrinsic": {
-            "avg_tokens": 439.8,
-            "min_tokens": 391,
-            "max_tokens": 483,
-            "gates_clean": true
-          },
-          "episodes": 5
-        },
-        "judge_gpt_oss": {
+        "judge_gpt_oss_scalar": {
           "model": "phi4:14b",
           "backend_type": "ollama",
           "judges": {
@@ -1176,39 +847,62 @@
           },
           "silver": "silver_sonnet46_smoke_v2",
           "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
+          "judge_mode": "scalar",
           "scores": {
-            "final": 0.3718843251977766,
+            "final": 0.6638843252057766,
             "rougeL_f1": 0.23971081299444147,
-            "judge_mean": 0.45999999999999996,
-            "judge_a_mean": 0.45999999999999996,
-            "judge_b_mean": 0.45999999999999996,
+            "judge_mean": 0.94666666668,
+            "judge_a_mean": 0.94666666668,
+            "judge_b_mean": 0.94666666668,
             "judges_delta": 0.0,
             "contested_rate": 0.0,
             "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.45999999999999996,
-                "win_rate": 0.5,
-                "tie_rate": 0.2,
-                "decisive_rate": 0.2,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.45999999999999996,
-                "win_rate": 0.5,
-                "tie_rate": 0.2,
-                "decisive_rate": 0.2,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
+            "pairwise": null
           },
           "latency_ms": {
-            "median": 15621.728897094727,
-            "p95": 24070.193767547607,
-            "avg": 16658.627700805664
+            "median": 15711.58480644226,
+            "p95": 24287.617206573486,
+            "avg": 16790.425968170166
+          },
+          "intrinsic": {
+            "avg_tokens": 439.8,
+            "min_tokens": 391,
+            "max_tokens": 483,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_nemotron_scalar": {
+          "model": "phi4:14b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-nemotron"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 2.8258843251977765,
+            "rougeL_f1": 0.23971081299444147,
+            "judge_mean": 4.55,
+            "judge_a_mean": 4.55,
+            "judge_b_mean": 4.55,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.4,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 15711.58480644226,
+            "p95": 24287.617206573486,
+            "avg": 16790.425968170166
           },
           "intrinsic": {
             "avg_tokens": 439.8,
@@ -1220,16 +914,16 @@
         }
       },
       "same_family_judge_by_phase": {
-        "judge_qwen": false,
-        "judge_llama": false,
-        "judge_gpt_oss": false
+        "judge_qwen_next_scalar": false,
+        "judge_gpt_oss_scalar": false,
+        "judge_nemotron_scalar": false
       },
       "cross_phase_jA": {
-        "judge_qwen": 0.18,
-        "judge_llama": 0.09999999999999998,
-        "judge_gpt_oss": 0.45999999999999996
+        "judge_qwen_next_scalar": 0.9339999999999999,
+        "judge_gpt_oss_scalar": 0.94666666668,
+        "judge_nemotron_scalar": 4.55
       },
-      "cross_phase_delta": 0.36,
+      "cross_phase_delta": 3.616,
       "cross_phase_contested": true
     },
     {
@@ -1237,21 +931,21 @@
       "family": "Mistral AI",
       "status": "ok",
       "prompts_source": "tuned",
-      "wall_clock_s": 164.7,
+      "wall_clock_s": 409.9,
       "wall_clock_by_phase": {
-        "generate": 96.0,
-        "judge_qwen": 6.0,
-        "judge_llama": 38.1,
-        "judge_gpt_oss": 24.6
+        "generate": 109.2,
+        "judge_qwen_next_scalar": 14.3,
+        "judge_gpt_oss_scalar": 25.2,
+        "judge_nemotron_scalar": 261.2
       },
       "scores_by_phase": {
-        "judge_qwen": {
+        "judge_qwen_next_scalar": {
           "model": "mistral-nemo:12b",
           "backend_type": "ollama",
           "judges": {
             "judge_a": {
               "provider": "vllm",
-              "model": "judge-a"
+              "model": "judge-qwen-next"
             },
             "judge_b": {
               "provider": null,
@@ -1260,39 +954,22 @@
           },
           "silver": "silver_sonnet46_smoke_v2",
           "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
+          "judge_mode": "scalar",
           "scores": {
-            "final": 0.3036839303843399,
+            "final": 0.6528839303843399,
             "rougeL_f1": 0.24920982596084965,
-            "judge_mean": 0.34,
-            "judge_a_mean": 0.34,
-            "judge_b_mean": 0.34,
+            "judge_mean": 0.922,
+            "judge_a_mean": 0.922,
+            "judge_b_mean": 0.922,
             "judges_delta": 0.0,
             "contested_rate": 0.0,
             "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.34,
-                "win_rate": 0.4,
-                "tie_rate": 0.0,
-                "decisive_rate": 0.8,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.34,
-                "win_rate": 0.4,
-                "tie_rate": 0.0,
-                "decisive_rate": 0.8,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
+            "pairwise": null
           },
           "latency_ms": {
-            "median": 14695.014238357544,
-            "p95": 26970.637321472168,
-            "avg": 17262.23258972168
+            "median": 14881.661891937256,
+            "p95": 39922.41597175598,
+            "avg": 19987.56217956543
           },
           "intrinsic": {
             "avg_tokens": 557.8,
@@ -1302,64 +979,7 @@
           },
           "episodes": 5
         },
-        "judge_llama": {
-          "model": "mistral-nemo:12b",
-          "backend_type": "ollama",
-          "judges": {
-            "judge_a": {
-              "provider": "vllm",
-              "model": "judge-b"
-            },
-            "judge_b": {
-              "provider": null,
-              "model": null
-            }
-          },
-          "silver": "silver_sonnet46_smoke_v2",
-          "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
-          "scores": {
-            "final": 0.5436839303843399,
-            "rougeL_f1": 0.24920982596084965,
-            "judge_mean": 0.74,
-            "judge_a_mean": 0.74,
-            "judge_b_mean": 0.74,
-            "judges_delta": 0.0,
-            "contested_rate": 0.0,
-            "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.74,
-                "win_rate": 0.8,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.74,
-                "win_rate": 0.8,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
-          },
-          "latency_ms": {
-            "median": 14695.014238357544,
-            "p95": 26970.637321472168,
-            "avg": 17262.23258972168
-          },
-          "intrinsic": {
-            "avg_tokens": 557.8,
-            "min_tokens": 515,
-            "max_tokens": 637,
-            "gates_clean": true
-          },
-          "episodes": 5
-        },
-        "judge_gpt_oss": {
+        "judge_gpt_oss_scalar": {
           "model": "mistral-nemo:12b",
           "backend_type": "ollama",
           "judges": {
@@ -1374,39 +994,62 @@
           },
           "silver": "silver_sonnet46_smoke_v2",
           "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
+          "judge_mode": "scalar",
           "scores": {
-            "final": 0.23168393038433988,
+            "final": 0.6632839303883399,
             "rougeL_f1": 0.24920982596084965,
-            "judge_mean": 0.22000000000000003,
-            "judge_a_mean": 0.22000000000000003,
-            "judge_b_mean": 0.22000000000000003,
+            "judge_mean": 0.9393333333400001,
+            "judge_a_mean": 0.9393333333400001,
+            "judge_b_mean": 0.9393333333400001,
             "judges_delta": 0.0,
             "contested_rate": 0.0,
             "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.22000000000000003,
-                "win_rate": 0.0,
-                "tie_rate": 0.0,
-                "decisive_rate": 0.0,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.22000000000000003,
-                "win_rate": 0.0,
-                "tie_rate": 0.0,
-                "decisive_rate": 0.0,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
+            "pairwise": null
           },
           "latency_ms": {
-            "median": 14695.014238357544,
-            "p95": 26970.637321472168,
-            "avg": 17262.23258972168
+            "median": 14881.661891937256,
+            "p95": 39922.41597175598,
+            "avg": 19987.56217956543
+          },
+          "intrinsic": {
+            "avg_tokens": 557.8,
+            "min_tokens": 515,
+            "max_tokens": 637,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_nemotron_scalar": {
+          "model": "mistral-nemo:12b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-nemotron"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 1.7256839303843399,
+            "rougeL_f1": 0.24920982596084965,
+            "judge_mean": 2.71,
+            "judge_a_mean": 2.71,
+            "judge_b_mean": 2.71,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.4,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 14881.661891937256,
+            "p95": 39922.41597175598,
+            "avg": 19987.56217956543
           },
           "intrinsic": {
             "avg_tokens": 557.8,
@@ -1418,16 +1061,16 @@
         }
       },
       "same_family_judge_by_phase": {
-        "judge_qwen": false,
-        "judge_llama": false,
-        "judge_gpt_oss": false
+        "judge_qwen_next_scalar": false,
+        "judge_gpt_oss_scalar": false,
+        "judge_nemotron_scalar": false
       },
       "cross_phase_jA": {
-        "judge_qwen": 0.34,
-        "judge_llama": 0.74,
-        "judge_gpt_oss": 0.22000000000000003
+        "judge_qwen_next_scalar": 0.922,
+        "judge_gpt_oss_scalar": 0.9393333333400001,
+        "judge_nemotron_scalar": 2.71
       },
-      "cross_phase_delta": 0.52,
+      "cross_phase_delta": 1.788,
       "cross_phase_contested": true
     },
     {
@@ -1435,21 +1078,21 @@
       "family": "Mistral AI",
       "status": "ok",
       "prompts_source": "tuned",
-      "wall_clock_s": 200.0,
+      "wall_clock_s": 389.6,
       "wall_clock_by_phase": {
-        "generate": 127.8,
-        "judge_qwen": 5.8,
-        "judge_llama": 41.0,
-        "judge_gpt_oss": 25.4
+        "generate": 133.6,
+        "judge_qwen_next_scalar": 13.7,
+        "judge_gpt_oss_scalar": 25.6,
+        "judge_nemotron_scalar": 216.7
       },
       "scores_by_phase": {
-        "judge_qwen": {
+        "judge_qwen_next_scalar": {
           "model": "mistral-small:24b",
           "backend_type": "ollama",
           "judges": {
             "judge_a": {
               "provider": "vllm",
-              "model": "judge-a"
+              "model": "judge-qwen-next"
             },
             "judge_b": {
               "provider": null,
@@ -1458,39 +1101,22 @@
           },
           "silver": "silver_sonnet46_smoke_v2",
           "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
+          "judge_mode": "scalar",
           "scores": {
-            "final": 0.09838234034079733,
+            "final": 0.6623823403407973,
             "rougeL_f1": 0.2459558508519933,
-            "judge_mean": 0.0,
-            "judge_a_mean": 0.0,
-            "judge_b_mean": 0.0,
+            "judge_mean": 0.9400000000000001,
+            "judge_a_mean": 0.9400000000000001,
+            "judge_b_mean": 0.9400000000000001,
             "judges_delta": 0.0,
             "contested_rate": 0.0,
             "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.0,
-                "win_rate": 0.0,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.0,
-                "win_rate": 0.0,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
+            "pairwise": null
           },
           "latency_ms": {
-            "median": 23444.745302200317,
-            "p95": 35940.52577018738,
-            "avg": 25089.302015304565
+            "median": 23460.54697036743,
+            "p95": 38290.019035339355,
+            "avg": 25661.609935760498
           },
           "intrinsic": {
             "avg_tokens": 419.6,
@@ -1500,64 +1126,7 @@
           },
           "episodes": 5
         },
-        "judge_llama": {
-          "model": "mistral-small:24b",
-          "backend_type": "ollama",
-          "judges": {
-            "judge_a": {
-              "provider": "vllm",
-              "model": "judge-b"
-            },
-            "judge_b": {
-              "provider": null,
-              "model": null
-            }
-          },
-          "silver": "silver_sonnet46_smoke_v2",
-          "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
-          "scores": {
-            "final": 0.2543823403407973,
-            "rougeL_f1": 0.2459558508519933,
-            "judge_mean": 0.25999999999999995,
-            "judge_a_mean": 0.25999999999999995,
-            "judge_b_mean": 0.25999999999999995,
-            "judges_delta": 0.0,
-            "contested_rate": 0.0,
-            "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.25999999999999995,
-                "win_rate": 0.2,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.25999999999999995,
-                "win_rate": 0.2,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
-          },
-          "latency_ms": {
-            "median": 23444.745302200317,
-            "p95": 35940.52577018738,
-            "avg": 25089.302015304565
-          },
-          "intrinsic": {
-            "avg_tokens": 419.6,
-            "min_tokens": 346,
-            "max_tokens": 454,
-            "gates_clean": true
-          },
-          "episodes": 5
-        },
-        "judge_gpt_oss": {
+        "judge_gpt_oss_scalar": {
           "model": "mistral-small:24b",
           "backend_type": "ollama",
           "judges": {
@@ -1572,39 +1141,62 @@
           },
           "silver": "silver_sonnet46_smoke_v2",
           "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
+          "judge_mode": "scalar",
           "scores": {
-            "final": 0.21838234034079734,
+            "final": 0.6659823403527972,
             "rougeL_f1": 0.2459558508519933,
-            "judge_mean": 0.2,
-            "judge_a_mean": 0.2,
-            "judge_b_mean": 0.2,
+            "judge_mean": 0.94600000002,
+            "judge_a_mean": 0.94600000002,
+            "judge_b_mean": 0.94600000002,
             "judges_delta": 0.0,
             "contested_rate": 0.0,
             "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.2,
-                "win_rate": 0.0,
-                "tie_rate": 0.0,
-                "decisive_rate": 0.2,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.2,
-                "win_rate": 0.0,
-                "tie_rate": 0.0,
-                "decisive_rate": 0.2,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
+            "pairwise": null
           },
           "latency_ms": {
-            "median": 23444.745302200317,
-            "p95": 35940.52577018738,
-            "avg": 25089.302015304565
+            "median": 23460.54697036743,
+            "p95": 38290.019035339355,
+            "avg": 25661.609935760498
+          },
+          "intrinsic": {
+            "avg_tokens": 419.6,
+            "min_tokens": 346,
+            "max_tokens": 454,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_nemotron_scalar": {
+          "model": "mistral-small:24b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-nemotron"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 1.7303823403407972,
+            "rougeL_f1": 0.2459558508519933,
+            "judge_mean": 2.7199999999999998,
+            "judge_a_mean": 2.7199999999999998,
+            "judge_b_mean": 2.7199999999999998,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.4,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 23460.54697036743,
+            "p95": 38290.019035339355,
+            "avg": 25661.609935760498
           },
           "intrinsic": {
             "avg_tokens": 419.6,
@@ -1616,38 +1208,38 @@
         }
       },
       "same_family_judge_by_phase": {
-        "judge_qwen": false,
-        "judge_llama": false,
-        "judge_gpt_oss": false
+        "judge_qwen_next_scalar": false,
+        "judge_gpt_oss_scalar": false,
+        "judge_nemotron_scalar": false
       },
       "cross_phase_jA": {
-        "judge_qwen": 0.0,
-        "judge_llama": 0.25999999999999995,
-        "judge_gpt_oss": 0.2
+        "judge_qwen_next_scalar": 0.9400000000000001,
+        "judge_gpt_oss_scalar": 0.94600000002,
+        "judge_nemotron_scalar": 2.7199999999999998
       },
-      "cross_phase_delta": 0.26,
-      "cross_phase_contested": false
+      "cross_phase_delta": 1.78,
+      "cross_phase_contested": true
     },
     {
       "model": "mistral-small3.2:latest",
       "family": "Mistral AI",
       "status": "ok",
       "prompts_source": "tuned",
-      "wall_clock_s": 205.3,
+      "wall_clock_s": 394.8,
       "wall_clock_by_phase": {
-        "generate": 137.7,
-        "judge_qwen": 5.5,
-        "judge_llama": 37.3,
-        "judge_gpt_oss": 24.8
+        "generate": 139.7,
+        "judge_qwen_next_scalar": 14.4,
+        "judge_gpt_oss_scalar": 26.0,
+        "judge_nemotron_scalar": 214.7
       },
       "scores_by_phase": {
-        "judge_qwen": {
+        "judge_qwen_next_scalar": {
           "model": "mistral-small3.2:latest",
           "backend_type": "ollama",
           "judges": {
             "judge_a": {
               "provider": "vllm",
-              "model": "judge-a"
+              "model": "judge-qwen-next"
             },
             "judge_b": {
               "provider": null,
@@ -1656,106 +1248,32 @@
           },
           "silver": "silver_sonnet46_smoke_v2",
           "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
+          "judge_mode": "scalar",
           "scores": {
-            "final": 0.08832520793368571,
-            "rougeL_f1": 0.22081301983421428,
-            "judge_mean": 0.0,
-            "judge_a_mean": 0.0,
-            "judge_b_mean": 0.0,
+            "final": 0.6670675841372062,
+            "rougeL_f1": 0.24566896034301572,
+            "judge_mean": 0.9480000000000001,
+            "judge_a_mean": 0.9480000000000001,
+            "judge_b_mean": 0.9480000000000001,
             "judges_delta": 0.0,
             "contested_rate": 0.0,
             "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.0,
-                "win_rate": 0.0,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.0,
-                "win_rate": 0.0,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
+            "pairwise": null
           },
           "latency_ms": {
-            "median": 25625.11372566223,
-            "p95": 34304.18062210083,
-            "avg": 27082.977199554443
+            "median": 24291.311979293823,
+            "p95": 40790.23027420044,
+            "avg": 27487.217140197754
           },
           "intrinsic": {
-            "avg_tokens": 458.8,
-            "min_tokens": 390,
-            "max_tokens": 542,
+            "avg_tokens": 443.8,
+            "min_tokens": 417,
+            "max_tokens": 511,
             "gates_clean": true
           },
           "episodes": 5
         },
-        "judge_llama": {
-          "model": "mistral-small3.2:latest",
-          "backend_type": "ollama",
-          "judges": {
-            "judge_a": {
-              "provider": "vllm",
-              "model": "judge-b"
-            },
-            "judge_b": {
-              "provider": null,
-              "model": null
-            }
-          },
-          "silver": "silver_sonnet46_smoke_v2",
-          "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
-          "scores": {
-            "final": 0.24432520793368573,
-            "rougeL_f1": 0.22081301983421428,
-            "judge_mean": 0.26000000000000006,
-            "judge_a_mean": 0.26000000000000006,
-            "judge_b_mean": 0.26000000000000006,
-            "judges_delta": 0.0,
-            "contested_rate": 0.0,
-            "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.26000000000000006,
-                "win_rate": 0.2,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.26000000000000006,
-                "win_rate": 0.2,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
-          },
-          "latency_ms": {
-            "median": 25625.11372566223,
-            "p95": 34304.18062210083,
-            "avg": 27082.977199554443
-          },
-          "intrinsic": {
-            "avg_tokens": 458.8,
-            "min_tokens": 390,
-            "max_tokens": 542,
-            "gates_clean": true
-          },
-          "episodes": 5
-        },
-        "judge_gpt_oss": {
+        "judge_gpt_oss_scalar": {
           "model": "mistral-small3.2:latest",
           "backend_type": "ollama",
           "judges": {
@@ -1770,60 +1288,83 @@
           },
           "silver": "silver_sonnet46_smoke_v2",
           "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
+          "judge_mode": "scalar",
           "scores": {
-            "final": 0.4003252079336857,
-            "rougeL_f1": 0.22081301983421428,
-            "judge_mean": 0.52,
-            "judge_a_mean": 0.52,
-            "judge_b_mean": 0.52,
+            "final": 0.6647075841452063,
+            "rougeL_f1": 0.24566896034301572,
+            "judge_mean": 0.94406666668,
+            "judge_a_mean": 0.94406666668,
+            "judge_b_mean": 0.94406666668,
             "judges_delta": 0.0,
             "contested_rate": 0.0,
             "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.52,
-                "win_rate": 0.5,
-                "tie_rate": 0.2,
-                "decisive_rate": 0.0,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.52,
-                "win_rate": 0.5,
-                "tie_rate": 0.2,
-                "decisive_rate": 0.0,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
+            "pairwise": null
           },
           "latency_ms": {
-            "median": 25625.11372566223,
-            "p95": 34304.18062210083,
-            "avg": 27082.977199554443
+            "median": 24291.311979293823,
+            "p95": 40790.23027420044,
+            "avg": 27487.217140197754
           },
           "intrinsic": {
-            "avg_tokens": 458.8,
-            "min_tokens": 390,
-            "max_tokens": 542,
+            "avg_tokens": 443.8,
+            "min_tokens": 417,
+            "max_tokens": 511,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_nemotron_scalar": {
+          "model": "mistral-small3.2:latest",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-nemotron"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 1.7362675841372062,
+            "rougeL_f1": 0.24566896034301572,
+            "judge_mean": 2.73,
+            "judge_a_mean": 2.73,
+            "judge_b_mean": 2.73,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.4,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 24291.311979293823,
+            "p95": 40790.23027420044,
+            "avg": 27487.217140197754
+          },
+          "intrinsic": {
+            "avg_tokens": 443.8,
+            "min_tokens": 417,
+            "max_tokens": 511,
             "gates_clean": true
           },
           "episodes": 5
         }
       },
       "same_family_judge_by_phase": {
-        "judge_qwen": false,
-        "judge_llama": false,
-        "judge_gpt_oss": false
+        "judge_qwen_next_scalar": false,
+        "judge_gpt_oss_scalar": false,
+        "judge_nemotron_scalar": false
       },
       "cross_phase_jA": {
-        "judge_qwen": 0.0,
-        "judge_llama": 0.26000000000000006,
-        "judge_gpt_oss": 0.52
+        "judge_qwen_next_scalar": 0.9480000000000001,
+        "judge_gpt_oss_scalar": 0.94406666668,
+        "judge_nemotron_scalar": 2.73
       },
-      "cross_phase_delta": 0.52,
+      "cross_phase_delta": 1.7859,
       "cross_phase_contested": true
     },
     {
@@ -1831,21 +1372,21 @@
       "family": "Alibaba",
       "status": "ok",
       "prompts_source": "tuned",
-      "wall_clock_s": 340.4,
+      "wall_clock_s": 544.8,
       "wall_clock_by_phase": {
-        "generate": 269.5,
-        "judge_qwen": 5.7,
-        "judge_llama": 39.2,
-        "judge_gpt_oss": 26.0
+        "generate": 237.0,
+        "judge_qwen_next_scalar": 13.0,
+        "judge_gpt_oss_scalar": 27.8,
+        "judge_nemotron_scalar": 267.0
       },
       "scores_by_phase": {
-        "judge_qwen": {
+        "judge_qwen_next_scalar": {
           "model": "qwen3.5:27b",
           "backend_type": "ollama",
           "judges": {
             "judge_a": {
               "provider": "vllm",
-              "model": "judge-a"
+              "model": "judge-qwen-next"
             },
             "judge_b": {
               "provider": null,
@@ -1854,39 +1395,22 @@
           },
           "silver": "silver_sonnet46_smoke_v2",
           "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
+          "judge_mode": "scalar",
           "scores": {
-            "final": 0.3383810616403202,
+            "final": 0.6467810616403201,
             "rougeL_f1": 0.2159526541008006,
-            "judge_mean": 0.42000000000000004,
-            "judge_a_mean": 0.42000000000000004,
-            "judge_b_mean": 0.42000000000000004,
+            "judge_mean": 0.9339999999999999,
+            "judge_a_mean": 0.9339999999999999,
+            "judge_b_mean": 0.9339999999999999,
             "judges_delta": 0.0,
             "contested_rate": 0.0,
             "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.42000000000000004,
-                "win_rate": 0.4,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.42000000000000004,
-                "win_rate": 0.4,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
+            "pairwise": null
           },
           "latency_ms": {
-            "median": 42375.82612037659,
-            "p95": 88826.09510421753,
-            "avg": 51514.28608894348
+            "median": 40672.446727752686,
+            "p95": 72775.68697929382,
+            "avg": 46941.15962982178
           },
           "intrinsic": {
             "avg_tokens": 750.2,
@@ -1896,64 +1420,7 @@
           },
           "episodes": 5
         },
-        "judge_llama": {
-          "model": "qwen3.5:27b",
-          "backend_type": "ollama",
-          "judges": {
-            "judge_a": {
-              "provider": "vllm",
-              "model": "judge-b"
-            },
-            "judge_b": {
-              "provider": null,
-              "model": null
-            }
-          },
-          "silver": "silver_sonnet46_smoke_v2",
-          "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
-          "scores": {
-            "final": 0.5303810616403203,
-            "rougeL_f1": 0.2159526541008006,
-            "judge_mean": 0.74,
-            "judge_a_mean": 0.74,
-            "judge_b_mean": 0.74,
-            "judges_delta": 0.0,
-            "contested_rate": 0.0,
-            "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.74,
-                "win_rate": 0.8,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.74,
-                "win_rate": 0.8,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
-          },
-          "latency_ms": {
-            "median": 42375.82612037659,
-            "p95": 88826.09510421753,
-            "avg": 51514.28608894348
-          },
-          "intrinsic": {
-            "avg_tokens": 750.2,
-            "min_tokens": 697,
-            "max_tokens": 899,
-            "gates_clean": true
-          },
-          "episodes": 5
-        },
-        "judge_gpt_oss": {
+        "judge_gpt_oss_scalar": {
           "model": "qwen3.5:27b",
           "backend_type": "ollama",
           "judges": {
@@ -1968,39 +1435,62 @@
           },
           "silver": "silver_sonnet46_smoke_v2",
           "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
+          "judge_mode": "scalar",
           "scores": {
-            "final": 0.21838106164032026,
+            "final": 0.6443810616443202,
             "rougeL_f1": 0.2159526541008006,
-            "judge_mean": 0.22000000000000003,
-            "judge_a_mean": 0.22000000000000003,
-            "judge_b_mean": 0.22000000000000003,
+            "judge_mean": 0.9300000000066666,
+            "judge_a_mean": 0.9300000000066666,
+            "judge_b_mean": 0.9300000000066666,
             "judges_delta": 0.0,
             "contested_rate": 0.0,
             "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.22000000000000003,
-                "win_rate": 0.0,
-                "tie_rate": 0.0,
-                "decisive_rate": 0.0,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.22000000000000003,
-                "win_rate": 0.0,
-                "tie_rate": 0.0,
-                "decisive_rate": 0.0,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
+            "pairwise": null
           },
           "latency_ms": {
-            "median": 42375.82612037659,
-            "p95": 88826.09510421753,
-            "avg": 51514.28608894348
+            "median": 40672.446727752686,
+            "p95": 72775.68697929382,
+            "avg": 46941.15962982178
+          },
+          "intrinsic": {
+            "avg_tokens": 750.2,
+            "min_tokens": 697,
+            "max_tokens": 899,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_nemotron_scalar": {
+          "model": "qwen3.5:27b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-nemotron"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 1.9703810616403201,
+            "rougeL_f1": 0.2159526541008006,
+            "judge_mean": 3.14,
+            "judge_a_mean": 3.14,
+            "judge_b_mean": 3.14,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.4,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 40672.446727752686,
+            "p95": 72775.68697929382,
+            "avg": 46941.15962982178
           },
           "intrinsic": {
             "avg_tokens": 750.2,
@@ -2012,16 +1502,16 @@
         }
       },
       "same_family_judge_by_phase": {
-        "judge_qwen": true,
-        "judge_llama": false,
-        "judge_gpt_oss": false
+        "judge_qwen_next_scalar": true,
+        "judge_gpt_oss_scalar": false,
+        "judge_nemotron_scalar": false
       },
       "cross_phase_jA": {
-        "judge_qwen": 0.42000000000000004,
-        "judge_llama": 0.74,
-        "judge_gpt_oss": 0.22000000000000003
+        "judge_qwen_next_scalar": 0.9339999999999999,
+        "judge_gpt_oss_scalar": 0.9300000000066666,
+        "judge_nemotron_scalar": 3.14
       },
-      "cross_phase_delta": 0.52,
+      "cross_phase_delta": 2.21,
       "cross_phase_contested": true
     },
     {
@@ -2029,21 +1519,21 @@
       "family": "Alibaba",
       "status": "ok",
       "prompts_source": "tuned",
-      "wall_clock_s": 143.3,
+      "wall_clock_s": 346.4,
       "wall_clock_by_phase": {
-        "generate": 68.7,
-        "judge_qwen": 5.6,
-        "judge_llama": 42.9,
-        "judge_gpt_oss": 26.1
+        "generate": 72.8,
+        "judge_qwen_next_scalar": 14.2,
+        "judge_gpt_oss_scalar": 29.3,
+        "judge_nemotron_scalar": 230.1
       },
       "scores_by_phase": {
-        "judge_qwen": {
+        "judge_qwen_next_scalar": {
           "model": "qwen3.6:latest",
           "backend_type": "ollama",
           "judges": {
             "judge_a": {
               "provider": "vllm",
-              "model": "judge-a"
+              "model": "judge-qwen-next"
             },
             "judge_b": {
               "provider": null,
@@ -2052,39 +1542,22 @@
           },
           "silver": "silver_sonnet46_smoke_v2",
           "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
+          "judge_mode": "scalar",
           "scores": {
-            "final": 0.3277256763558639,
+            "final": 0.6441256763558639,
             "rougeL_f1": 0.2193141908896598,
-            "judge_mean": 0.4,
-            "judge_a_mean": 0.4,
-            "judge_b_mean": 0.4,
+            "judge_mean": 0.9273333333333333,
+            "judge_a_mean": 0.9273333333333333,
+            "judge_b_mean": 0.9273333333333333,
             "judges_delta": 0.0,
             "contested_rate": 0.0,
             "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.4,
-                "win_rate": 0.4,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.4,
-                "win_rate": 0.4,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
+            "pairwise": null
           },
           "latency_ms": {
-            "median": 7004.909992218018,
-            "p95": 38111.427307128906,
-            "avg": 12808.21967124939
+            "median": 7651.0467529296875,
+            "p95": 42470.82233428955,
+            "avg": 14083.736753463745
           },
           "intrinsic": {
             "avg_tokens": 630.4,
@@ -2094,64 +1567,7 @@
           },
           "episodes": 5
         },
-        "judge_llama": {
-          "model": "qwen3.6:latest",
-          "backend_type": "ollama",
-          "judges": {
-            "judge_a": {
-              "provider": "vllm",
-              "model": "judge-b"
-            },
-            "judge_b": {
-              "provider": null,
-              "model": null
-            }
-          },
-          "silver": "silver_sonnet46_smoke_v2",
-          "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
-          "scores": {
-            "final": 0.24372567635586395,
-            "rougeL_f1": 0.2193141908896598,
-            "judge_mean": 0.26000000000000006,
-            "judge_a_mean": 0.26000000000000006,
-            "judge_b_mean": 0.26000000000000006,
-            "judges_delta": 0.0,
-            "contested_rate": 0.0,
-            "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.26000000000000006,
-                "win_rate": 0.2,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.26000000000000006,
-                "win_rate": 0.2,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
-          },
-          "latency_ms": {
-            "median": 7004.909992218018,
-            "p95": 38111.427307128906,
-            "avg": 12808.21967124939
-          },
-          "intrinsic": {
-            "avg_tokens": 630.4,
-            "min_tokens": 484,
-            "max_tokens": 802,
-            "gates_clean": true
-          },
-          "episodes": 5
-        },
-        "judge_gpt_oss": {
+        "judge_gpt_oss_scalar": {
           "model": "qwen3.6:latest",
           "backend_type": "ollama",
           "judges": {
@@ -2166,39 +1582,62 @@
           },
           "silver": "silver_sonnet46_smoke_v2",
           "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
+          "judge_mode": "scalar",
           "scores": {
-            "final": 0.3037256763558639,
+            "final": 0.6501256763678639,
             "rougeL_f1": 0.2193141908896598,
-            "judge_mean": 0.36,
-            "judge_a_mean": 0.36,
-            "judge_b_mean": 0.36,
+            "judge_mean": 0.9373333333533334,
+            "judge_a_mean": 0.9373333333533334,
+            "judge_b_mean": 0.9373333333533334,
             "judges_delta": 0.0,
             "contested_rate": 0.0,
             "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.36,
-                "win_rate": 0.25,
-                "tie_rate": 0.2,
-                "decisive_rate": 0.2,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.36,
-                "win_rate": 0.25,
-                "tie_rate": 0.2,
-                "decisive_rate": 0.2,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
+            "pairwise": null
           },
           "latency_ms": {
-            "median": 7004.909992218018,
-            "p95": 38111.427307128906,
-            "avg": 12808.21967124939
+            "median": 7651.0467529296875,
+            "p95": 42470.82233428955,
+            "avg": 14083.736753463745
+          },
+          "intrinsic": {
+            "avg_tokens": 630.4,
+            "min_tokens": 484,
+            "max_tokens": 802,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_nemotron_scalar": {
+          "model": "qwen3.6:latest",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-nemotron"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 1.7197256763558637,
+            "rougeL_f1": 0.2193141908896598,
+            "judge_mean": 2.7199999999999998,
+            "judge_a_mean": 2.7199999999999998,
+            "judge_b_mean": 2.7199999999999998,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.4,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 7651.0467529296875,
+            "p95": 42470.82233428955,
+            "avg": 14083.736753463745
           },
           "intrinsic": {
             "avg_tokens": 630.4,
@@ -2210,38 +1649,38 @@
         }
       },
       "same_family_judge_by_phase": {
-        "judge_qwen": true,
-        "judge_llama": false,
-        "judge_gpt_oss": false
+        "judge_qwen_next_scalar": true,
+        "judge_gpt_oss_scalar": false,
+        "judge_nemotron_scalar": false
       },
       "cross_phase_jA": {
-        "judge_qwen": 0.4,
-        "judge_llama": 0.26000000000000006,
-        "judge_gpt_oss": 0.36
+        "judge_qwen_next_scalar": 0.9273333333333333,
+        "judge_gpt_oss_scalar": 0.9373333333533334,
+        "judge_nemotron_scalar": 2.7199999999999998
       },
-      "cross_phase_delta": 0.14,
-      "cross_phase_contested": false
+      "cross_phase_delta": 1.7927,
+      "cross_phase_contested": true
     },
     {
       "model": "qwen3.5:35b",
       "family": "Alibaba",
       "status": "ok",
       "prompts_source": "tuned",
-      "wall_clock_s": 139.8,
+      "wall_clock_s": 406.9,
       "wall_clock_by_phase": {
-        "generate": 64.4,
-        "judge_qwen": 5.4,
-        "judge_llama": 40.9,
-        "judge_gpt_oss": 29.1
+        "generate": 84.9,
+        "judge_qwen_next_scalar": 13.7,
+        "judge_gpt_oss_scalar": 26.6,
+        "judge_nemotron_scalar": 281.7
       },
       "scores_by_phase": {
-        "judge_qwen": {
+        "judge_qwen_next_scalar": {
           "model": "qwen3.5:35b",
           "backend_type": "ollama",
           "judges": {
             "judge_a": {
               "provider": "vllm",
-              "model": "judge-a"
+              "model": "judge-qwen-next"
             },
             "judge_b": {
               "provider": null,
@@ -2250,39 +1689,22 @@
           },
           "silver": "silver_sonnet46_smoke_v2",
           "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
+          "judge_mode": "scalar",
           "scores": {
-            "final": 0.21449054373491994,
+            "final": 0.67289054373492,
             "rougeL_f1": 0.23622635933729982,
-            "judge_mean": 0.2,
-            "judge_a_mean": 0.2,
-            "judge_b_mean": 0.2,
+            "judge_mean": 0.9640000000000001,
+            "judge_a_mean": 0.9640000000000001,
+            "judge_b_mean": 0.9640000000000001,
             "judges_delta": 0.0,
             "contested_rate": 0.0,
             "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.2,
-                "win_rate": 0.2,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.2,
-                "win_rate": 0.2,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
+            "pairwise": null
           },
           "latency_ms": {
-            "median": 7143.517017364502,
-            "p95": 35092.86904335022,
-            "avg": 12406.204175949097
+            "median": 8999.719619750977,
+            "p95": 47610.05473136902,
+            "avg": 16272.427368164062
           },
           "intrinsic": {
             "avg_tokens": 686.0,
@@ -2292,64 +1714,7 @@
           },
           "episodes": 5
         },
-        "judge_llama": {
-          "model": "qwen3.5:35b",
-          "backend_type": "ollama",
-          "judges": {
-            "judge_a": {
-              "provider": "vllm",
-              "model": "judge-b"
-            },
-            "judge_b": {
-              "provider": null,
-              "model": null
-            }
-          },
-          "silver": "silver_sonnet46_smoke_v2",
-          "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
-          "scores": {
-            "final": 0.4424905437349199,
-            "rougeL_f1": 0.23622635933729982,
-            "judge_mean": 0.58,
-            "judge_a_mean": 0.58,
-            "judge_b_mean": 0.58,
-            "judges_delta": 0.0,
-            "contested_rate": 0.0,
-            "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.58,
-                "win_rate": 0.6,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.58,
-                "win_rate": 0.6,
-                "tie_rate": 0.0,
-                "decisive_rate": 1.0,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
-          },
-          "latency_ms": {
-            "median": 7143.517017364502,
-            "p95": 35092.86904335022,
-            "avg": 12406.204175949097
-          },
-          "intrinsic": {
-            "avg_tokens": 686.0,
-            "min_tokens": 534,
-            "max_tokens": 797,
-            "gates_clean": true
-          },
-          "episodes": 5
-        },
-        "judge_gpt_oss": {
+        "judge_gpt_oss_scalar": {
           "model": "qwen3.5:35b",
           "backend_type": "ollama",
           "judges": {
@@ -2364,39 +1729,62 @@
           },
           "silver": "silver_sonnet46_smoke_v2",
           "dataset": "curated_5feeds_smoke_v2",
-          "judge_mode": "pairwise",
+          "judge_mode": "scalar",
           "scores": {
-            "final": 0.38249054373492,
+            "final": 0.66293054374692,
             "rougeL_f1": 0.23622635933729982,
-            "judge_mean": 0.4800000000000001,
-            "judge_a_mean": 0.4800000000000001,
-            "judge_b_mean": 0.4800000000000001,
+            "judge_mean": 0.94740000002,
+            "judge_a_mean": 0.94740000002,
+            "judge_b_mean": 0.94740000002,
             "judges_delta": 0.0,
             "contested_rate": 0.0,
             "rouge_weight": 0.4,
-            "pairwise": {
-              "judge_a": {
-                "mean_score": 0.4800000000000001,
-                "win_rate": 0.5,
-                "tie_rate": 0.2,
-                "decisive_rate": 0.2,
-                "n": 5
-              },
-              "judge_b": {
-                "mean_score": 0.4800000000000001,
-                "win_rate": 0.5,
-                "tie_rate": 0.2,
-                "decisive_rate": 0.2,
-                "n": 5
-              },
-              "contested_count": 0,
-              "episodes": 5
-            }
+            "pairwise": null
           },
           "latency_ms": {
-            "median": 7143.517017364502,
-            "p95": 35092.86904335022,
-            "avg": 12406.204175949097
+            "median": 8999.719619750977,
+            "p95": 47610.05473136902,
+            "avg": 16272.427368164062
+          },
+          "intrinsic": {
+            "avg_tokens": 686.0,
+            "min_tokens": 534,
+            "max_tokens": 797,
+            "gates_clean": true
+          },
+          "episodes": 5
+        },
+        "judge_nemotron_scalar": {
+          "model": "qwen3.5:35b",
+          "backend_type": "ollama",
+          "judges": {
+            "judge_a": {
+              "provider": "vllm",
+              "model": "judge-nemotron"
+            },
+            "judge_b": {
+              "provider": null,
+              "model": null
+            }
+          },
+          "silver": "silver_sonnet46_smoke_v2",
+          "dataset": "curated_5feeds_smoke_v2",
+          "judge_mode": "scalar",
+          "scores": {
+            "final": 0.63449054373492,
+            "rougeL_f1": 0.23622635933729982,
+            "judge_mean": 0.9,
+            "judge_a_mean": 0.9,
+            "judge_b_mean": 0.9,
+            "judges_delta": 0.0,
+            "contested_rate": 0.0,
+            "rouge_weight": 0.4,
+            "pairwise": null
+          },
+          "latency_ms": {
+            "median": 8999.719619750977,
+            "p95": 47610.05473136902,
+            "avg": 16272.427368164062
           },
           "intrinsic": {
             "avg_tokens": 686.0,
@@ -2408,17 +1796,17 @@
         }
       },
       "same_family_judge_by_phase": {
-        "judge_qwen": true,
-        "judge_llama": false,
-        "judge_gpt_oss": false
+        "judge_qwen_next_scalar": true,
+        "judge_gpt_oss_scalar": false,
+        "judge_nemotron_scalar": false
       },
       "cross_phase_jA": {
-        "judge_qwen": 0.2,
-        "judge_llama": 0.58,
-        "judge_gpt_oss": 0.4800000000000001
+        "judge_qwen_next_scalar": 0.9640000000000001,
+        "judge_gpt_oss_scalar": 0.94740000002,
+        "judge_nemotron_scalar": 0.9
       },
-      "cross_phase_delta": 0.38,
-      "cross_phase_contested": true
+      "cross_phase_delta": 0.064,
+      "cross_phase_contested": false
     }
   ]
 }
