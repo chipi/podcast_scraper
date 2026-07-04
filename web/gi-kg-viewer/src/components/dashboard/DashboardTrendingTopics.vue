@@ -10,6 +10,7 @@ import { computed, ref, watch } from 'vue'
 import { fetchCachedCorpusEnvelope } from '../../composables/useEnrichmentEnvelopeCache'
 import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
+import { trendArrow, trendColor } from '../../utils/trend'
 
 const shell = useShellStore()
 const subject = useSubjectStore()
@@ -164,17 +165,6 @@ const momentum = computed(() => {
 })
 
 const hasAny = computed(() => topics.value.length > 0)
-
-// Trend direction colour — green rising / red cooling / amber steady (neutral band around the
-// 1.0 flat line so tiny wobbles don't flip). Hex so it drives both SVG fill and CSS colour.
-function trendColor(v: number): string {
-  if (v >= 1.15) return '#22c55e'
-  if (v <= 0.85) return '#ef4444'
-  return '#f59e0b'
-}
-function trendArrow(v: number): string {
-  return v >= 1.15 ? '↑' : v <= 0.85 ? '↓' : '→'
-}
 </script>
 
 <template>
