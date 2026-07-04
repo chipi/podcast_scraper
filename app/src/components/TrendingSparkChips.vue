@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /** Trending view 1 — each rising topic as a row: label + ↑factor + a mini
  *  sparkline of its monthly shape (ramp vs spike vs steady climb). */
-import type { RisingTopic } from './trending'
+import { trendArrow, trendColor, type RisingTopic } from './trending'
 import Sparkline from './Sparkline.vue'
 
 defineProps<{ topics: RisingTopic[] }>()
@@ -19,8 +19,16 @@ const emit = defineEmits<{ (e: 'open', id: string): void }>()
         @click="emit('open', tp.id)"
       >
         <span class="min-w-0 flex-1 truncate text-sm text-topic">{{ tp.label }}</span>
-        <span class="shrink-0 text-xs font-semibold text-accent">↑ {{ tp.v }}×</span>
-        <Sparkline :values="tp.series" :width="72" :height="22" class="shrink-0 text-accent" />
+        <span class="shrink-0 text-xs font-semibold" :style="{ color: trendColor(tp.v) }"
+          >{{ trendArrow(tp.v) }} {{ tp.v }}×</span
+        >
+        <Sparkline
+          :values="tp.series"
+          :width="72"
+          :height="22"
+          class="shrink-0"
+          :style="{ color: trendColor(tp.v) }"
+        />
       </button>
     </li>
   </ul>

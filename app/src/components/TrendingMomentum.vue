@@ -8,7 +8,7 @@
  *  labels appear only on the most-notable points (with greedy vertical de-overlap),
  *  fonts + tap targets are larger, and every bubble keeps a <title> tooltip. */
 import { computed } from 'vue'
-import type { RisingTopic } from './trending'
+import { trendColor, type RisingTopic } from './trending'
 
 const props = defineProps<{ topics: RisingTopic[] }>()
 const emit = defineEmits<{ (e: 'open', id: string): void }>()
@@ -100,7 +100,7 @@ const points = computed<Pt[]>(() => {
         data-testid="trend-momentum-point"
         @click="emit('open', p.id)"
       >
-        <circle :cx="p.cx" :cy="p.cy" :r="p.r" fill="#8b5cf6" fill-opacity="0.55" stroke="#a78bfa" stroke-width="1.25">
+        <circle :cx="p.cx" :cy="p.cy" :r="p.r" :fill="trendColor(p.v)" fill-opacity="0.55" :stroke="trendColor(p.v)" stroke-width="1.25">
           <title>{{ p.label }} — {{ p.v }}×</title>
         </circle>
         <text

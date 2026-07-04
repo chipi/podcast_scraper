@@ -164,6 +164,17 @@ const momentum = computed(() => {
 })
 
 const hasAny = computed(() => topics.value.length > 0)
+
+// Trend direction colour — green rising / red cooling / amber steady (neutral band around the
+// 1.0 flat line so tiny wobbles don't flip). Hex so it drives both SVG fill and CSS colour.
+function trendColor(v: number): string {
+  if (v >= 1.15) return '#22c55e'
+  if (v <= 0.85) return '#ef4444'
+  return '#f59e0b'
+}
+function trendArrow(v: number): string {
+  return v >= 1.15 ? '↑' : v <= 0.85 ? '↓' : '→'
+}
 </script>
 
 <template>
@@ -214,7 +225,9 @@ const hasAny = computed(() => topics.value.length > 0)
           @click="open(tp.id)"
         >
           {{ tp.label }}
-          <span class="font-semibold text-primary">↑ {{ tp.v }}×</span>
+          <span class="font-semibold" :style="{ color: trendColor(tp.v) }"
+            >{{ trendArrow(tp.v) }} {{ tp.v }}×</span
+          >
         </button>
       </div>
 
@@ -228,8 +241,10 @@ const hasAny = computed(() => topics.value.length > 0)
             @click="open(tp.id)"
           >
             <span class="min-w-0 flex-1 truncate text-xs">{{ tp.label }}</span>
-            <span class="shrink-0 text-[11px] font-semibold text-primary">↑ {{ tp.v }}×</span>
-            <svg viewBox="0 0 72 22" width="72" height="22" preserveAspectRatio="none" class="shrink-0 text-primary" aria-hidden="true">
+            <span class="shrink-0 text-[11px] font-semibold" :style="{ color: trendColor(tp.v) }"
+              >{{ trendArrow(tp.v) }} {{ tp.v }}×</span
+            >
+            <svg viewBox="0 0 72 22" width="72" height="22" preserveAspectRatio="none" class="shrink-0" :style="{ color: trendColor(tp.v) }" aria-hidden="true">
               <path :d="`${sparkPath(tp.series)} L72,22 L0,22 Z`" fill="currentColor" opacity="0.16" />
               <path :d="sparkPath(tp.series)" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
             </svg>
@@ -275,7 +290,7 @@ const hasAny = computed(() => topics.value.length > 0)
           <text :x="MW - 12" :y="MH - 6" text-anchor="end" class="fill-muted" style="font-size: 8px">more episodes →</text>
           <text :x="12" :y="9" class="fill-muted" style="font-size: 8px">↑ rising faster</text>
           <g v-for="p in momentum" :key="p.id" class="cursor-pointer" data-testid="trend-momentum-point" @click="open(p.id)">
-            <circle :cx="p.cx" :cy="p.cy" :r="p.r" fill="#8b5cf6" fill-opacity="0.55" stroke="#a78bfa" stroke-width="1">
+            <circle :cx="p.cx" :cy="p.cy" :r="p.r" :fill="trendColor(p.v)" fill-opacity="0.55" :stroke="trendColor(p.v)" stroke-width="1">
               <title>{{ p.label }} — {{ p.v }}×</title>
             </circle>
             <text :x="p.lx" :y="p.ly" class="fill-surface-foreground" style="font-size: 8px">{{ p.label }}</text>

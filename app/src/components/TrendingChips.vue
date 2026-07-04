@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /** Trending view 0 (the original) — rising topics as plain number pills:
  *  "topic ↑N×". Simplest / most familiar; the baseline the other views riff on. */
-import type { RisingTopic } from './trending'
+import { trendArrow, trendColor, type RisingTopic } from './trending'
 
 defineProps<{ topics: RisingTopic[] }>()
 const emit = defineEmits<{ (e: 'open', id: string): void }>()
@@ -19,7 +19,9 @@ const emit = defineEmits<{ (e: 'open', id: string): void }>()
       @click="emit('open', tp.id)"
     >
       {{ tp.label }}
-      <span class="text-xs font-semibold text-accent">↑ {{ tp.v }}×</span>
+      <span class="text-xs font-semibold" :style="{ color: trendColor(tp.v) }"
+        >{{ trendArrow(tp.v) }} {{ tp.v }}×</span
+      >
     </button>
   </div>
 </template>
