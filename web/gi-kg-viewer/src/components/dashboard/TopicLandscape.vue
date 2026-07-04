@@ -87,6 +87,23 @@ const insight = computed(() => {
   return `${c.length} topic clusters covering ${topics} distinct topics.`
 })
 
+const view = ref<'bubbles' | 'grid'>('bubbles')
+
+/** Clusters as size-ranked bubbles: circle **area** ∝ topic count (diameter ∝ √count), clamped to
+ *  a tappable range, so the clusters covering the most topics read as the biggest at a glance (#3). */
+const bubbles = computed(() => {
+  const c = clusters.value ?? []
+  const maxN = Math.max(1, ...c.map((cl) => cl.members?.length ?? 0))
+  return c
+    .map((cl, i) => ({
+      key: cl.graph_compound_parent_id ?? cl.cluster_id ?? String(i),
+      cl,
+      n: cl.members?.length ?? 0,
+    }))
+    .sort((a, b) => b.n - a.n)
+    .map((b) => ({ ...b, d: Math.round(44 + (120 - 44) * Math.sqrt(b.n / maxN)) }))
+})
+
 function firstMemberTopicId(c: TopicClustersCluster): string | undefined {
   const m = c.members?.find((x) => (x.topic_id ?? '').trim().length > 0)
   return m?.topic_id?.trim()
@@ -151,30 +168,83 @@ function onClusterActivate(c: TopicClustersCluster): void {
     >
       {{ error }}
     </p>
-    <div
-      v-else
-      class="max-h-72 overflow-y-auto pr-1 grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]"
-      role="list"
-      aria-label="Topic clusters"
-    >
-      <button
-        v-for="(cl, i) in clusters ?? []"
-        :key="cl.graph_compound_parent_id ?? cl.cluster_id ?? String(i)"
-        type="button"
-        role="listitem"
-        class="rounded border border-border bg-elevated p-2 text-left text-sm transition hover:bg-overlay focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        :title="clusterDisplayLabel(cl)"
-        :aria-label="`${clusterDisplayLabel(cl)} — ${cl.members?.length ?? 0} topics`"
-        @click="onClusterActivate(cl)"
+    <template v-else>
+      <!-- View toggle: bubbles (size = topic coverage) vs the compact grid. -->
+      <div
+        class="mb-2 inline-flex rounded-md border border-border p-0.5 text-[10px]"
+        role="tablist"
+        aria-label="Topic landscape view"
       >
-        <div class="truncate font-semibold">
-          {{ clusterDisplayLabel(cl) }}
-        </div>
-        <div class="mt-1 text-[10px] text-muted">
-          {{ cl.members?.length ?? 0 }} topics
-        </div>
-      </button>
-    </div>
+        <button
+          v-for="opt in (['bubbles', 'grid'] as const)"
+          :key="opt"
+          type="button"
+          role="tab"
+          :aria-selected="view === opt"
+          :data-testid="`topic-landscape-view-${opt}`"
+          class="rounded px-2 py-0.5 font-medium capitalize transition-colors"
+          :class="view === opt ? 'bg-primary text-primary-foreground' : 'text-muted hover:bg-overlay'"
+          @click="view = opt"
+        >
+          {{ opt }}
+        </button>
+      </div>
+
+      <!-- Bubbles: circle area ∝ topics covered (#3). -->
+      <div
+        v-if="view === 'bubbles'"
+        class="flex max-h-72 flex-wrap items-center gap-2 overflow-y-auto pr-1"
+        role="list"
+        aria-label="Topic clusters sized by topics covered"
+        data-testid="topic-landscape-bubbles"
+      >
+        <button
+          v-for="b in bubbles"
+          :key="b.key"
+          type="button"
+          role="listitem"
+          class="flex shrink-0 items-center justify-center rounded-full border border-primary/40 bg-primary/10 text-center transition hover:bg-primary/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          :style="{ width: `${b.d}px`, height: `${b.d}px` }"
+          :title="`${clusterDisplayLabel(b.cl)} — ${b.n} topics`"
+          :aria-label="`${clusterDisplayLabel(b.cl)}, ${b.n} topics`"
+          @click="onClusterActivate(b.cl)"
+        >
+          <span class="pointer-events-none flex max-w-full flex-col items-center px-1 leading-tight">
+            <span
+              v-if="b.d >= 72"
+              class="max-w-full truncate text-[10px] font-semibold"
+            >{{ clusterDisplayLabel(b.cl) }}</span>
+            <span class="text-[11px] font-bold">{{ b.n }}</span>
+          </span>
+        </button>
+      </div>
+
+      <!-- Grid: the compact label + count cards. -->
+      <div
+        v-else
+        class="max-h-72 overflow-y-auto pr-1 grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]"
+        role="list"
+        aria-label="Topic clusters"
+      >
+        <button
+          v-for="(cl, i) in clusters ?? []"
+          :key="cl.graph_compound_parent_id ?? cl.cluster_id ?? String(i)"
+          type="button"
+          role="listitem"
+          class="rounded border border-border bg-elevated p-2 text-left text-sm transition hover:bg-overlay focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          :title="clusterDisplayLabel(cl)"
+          :aria-label="`${clusterDisplayLabel(cl)} — ${cl.members?.length ?? 0} topics`"
+          @click="onClusterActivate(cl)"
+        >
+          <div class="truncate font-semibold">
+            {{ clusterDisplayLabel(cl) }}
+          </div>
+          <div class="mt-1 text-[10px] text-muted">
+            {{ cl.members?.length ?? 0 }} topics
+          </div>
+        </button>
+      </div>
+    </template>
     <p
       v-if="insight"
       class="mt-2 text-[11px] text-muted"
