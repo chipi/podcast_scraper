@@ -377,25 +377,68 @@ function openLibraryFailures(): void {
 
     <div
       v-else-if="dashTab === 'intelligence'"
-      class="space-y-4"
+      class="space-y-6"
       role="tabpanel"
     >
+      <!-- Full-width summary row. -->
       <IntelligenceSnapshot
         :digest="digestIntel"
         @open-digest="emit('open-digest')"
       />
-      <TopicBriefingCards :digest="digestIntel" />
-      <DashboardTrendingTopics />
-      <QueryActivityChart />
-      <TopicClustersStatusBlock />
-      <TopicLandscape @go-graph="(id, fb) => emit('go-graph', id, fb)" />
-      <PipelineCleanupMetrics :run="latestRun" />
-      <PipelineAdExcisionMetrics :run="latestRun" />
-      <TopVoices
-        :persons="topPersons"
-        :loading="topPersonsLoading"
-        :error="topPersonsError"
-      />
+
+      <!-- Topic intelligence — the topic-related widgets grouped together (#1), laid out on a
+           standard 4-col grid with per-widget spans (#2): wide/tall cards span 2 cols, compact
+           cards 1. Each widget is a self-contained card; the grid cell sizes it. -->
+      <section aria-labelledby="dash-intel-topics">
+        <h3
+          id="dash-intel-topics"
+          class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted"
+        >
+          Topics
+        </h3>
+        <div class="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div class="xl:col-span-2"><DashboardTrendingTopics /></div>
+          <div class="xl:col-span-2">
+            <TopicLandscape @go-graph="(id, fb) => emit('go-graph', id, fb)" />
+          </div>
+          <div class="xl:col-span-2"><TopicBriefingCards :digest="digestIntel" /></div>
+          <div class="xl:col-span-2"><TopicClustersStatusBlock /></div>
+        </div>
+      </section>
+
+      <!-- Pipeline & activity — quality/throughput widgets; the compact metric cards fit 1x1. -->
+      <section aria-labelledby="dash-intel-pipeline">
+        <h3
+          id="dash-intel-pipeline"
+          class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted"
+        >
+          Pipeline &amp; activity
+        </h3>
+        <div class="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div class="xl:col-span-2"><QueryActivityChart /></div>
+          <div class="xl:col-span-1"><PipelineCleanupMetrics :run="latestRun" /></div>
+          <div class="xl:col-span-1"><PipelineAdExcisionMetrics :run="latestRun" /></div>
+        </div>
+      </section>
+
+      <!-- People. -->
+      <section aria-labelledby="dash-intel-people">
+        <h3
+          id="dash-intel-people"
+          class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted"
+        >
+          People
+        </h3>
+        <div class="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div class="xl:col-span-2">
+            <TopVoices
+              :persons="topPersons"
+              :loading="topPersonsLoading"
+              :error="topPersonsError"
+            />
+          </div>
+        </div>
+      </section>
     </div>
 
     <div
