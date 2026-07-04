@@ -9,12 +9,13 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter, Depends, Request, Response
 
 from podcast_scraper.server import app_graph_telemetry
 from podcast_scraper.server.app_user_store import User
-from podcast_scraper.server.routes.app_auth import get_optional_user
+from podcast_scraper.server.routes.app_auth import get_admin_user, get_optional_user
 from podcast_scraper.server.schemas import AppGraphEventsBody
 
 router = APIRouter(tags=["app"])
@@ -37,3 +38,22 @@ async def graph_events(
         stamped = [{**e, "ts": e.get("ts") or now} for e in body.events[:_MAX_BATCH]]
         app_graph_telemetry.record_events(Path(data_dir), user_id, stamped)
     return Response(status_code=204)
+
+
+@router.get("/graph-events/summary")
+async def graph_events_summary(
+    request: Request, _admin: User = Depends(get_admin_user)
+) -> dict[str, Any]:
+    """Aggregate graph analytics across all users (admin only) — usage / size / breakage."""
+    data_dir = getattr(request.app.state, "app_data_dir", None)
+    if data_dir is None:
+        return {**app_graph_telemetry.aggregate([]), "users": 0}
+    root = Path(data_dir)
+    summary = app_graph_telemetry.aggregate(app_graph_telemetry.read_all_events(root))
+    users_dir = root / "users"
+    summary["users"] = (
+        sum(1 for d in users_dir.iterdir() if d.is_dir() and (d / "graph_events.jsonl").is_file())
+        if users_dir.is_dir()
+        else 0
+    )
+    return summary

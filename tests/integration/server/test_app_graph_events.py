@@ -49,3 +49,9 @@ def test_graph_events_empty_is_noop_204(tmp_path: Path) -> None:
     resp = client.post("/api/app/graph-events", json={"events": []})
     assert resp.status_code == 204
     assert app_graph_telemetry.read_events(tmp_path / "appdata", "anon") == []
+
+
+def test_graph_events_summary_requires_admin(tmp_path: Path) -> None:
+    # Anonymous → the admin gate rejects (no cookie minted, so no secret literal needed here).
+    client = _client(tmp_path)
+    assert client.get("/api/app/graph-events/summary").status_code in (401, 403)

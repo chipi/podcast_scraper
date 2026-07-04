@@ -22,11 +22,11 @@ def _events_path(data_dir: Path, user_id: str) -> Path:
     return data_dir / "users" / user_id / "graph_events.jsonl"
 
 
-def record_events(data_dir: Path, user_id: str, events: Sequence[dict[str, Any]]) -> int:
+def record_events(data_dir: Path, user_id: str, events: Sequence[Any]) -> int:
     """Append a batch of graph events for *user_id*; returns how many were written.
 
-    Each event must be a dict with a truthy ``action``; malformed entries are skipped so one bad
-    row can't drop the batch.
+    Each event must be a dict with a truthy ``action``; anything else (non-dicts, actionless dicts)
+    is skipped so one bad row can't drop the batch — hence the permissive ``Sequence[Any]``.
     """
     valid = [e for e in events if isinstance(e, dict) and e.get("action")]
     if not valid:
@@ -62,4 +62,84 @@ def read_events(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
     return out
 
 
-__all__ = ["record_events", "read_events"]
+def read_all_events(data_dir: Path) -> list[dict[str, Any]]:
+    """Every user's graph events, concatenated (each user's own order preserved)."""
+    users_dir = data_dir / "users"
+    if not users_dir.is_dir():
+        return []
+    out: list[dict[str, Any]] = []
+    for user_dir in sorted(users_dir.iterdir()):
+        if user_dir.is_dir():
+            out.extend(read_events(data_dir, user_dir.name))
+    return out
+
+
+def _stats(xs: list[int]) -> dict[str, float]:
+    """min / avg / max / p50 / p95 of a sample (all zero when empty)."""
+    if not xs:
+        return {"min": 0, "avg": 0.0, "max": 0, "p50": 0, "p95": 0}
+    s = sorted(xs)
+
+    def pct(p: float) -> int:
+        return s[min(len(s) - 1, int(p * len(s)))]
+
+    return {
+        "min": s[0],
+        "avg": round(sum(s) / len(s), 1),
+        "max": s[-1],
+        "p50": pct(0.5),
+        "p95": pct(0.95),
+    }
+
+
+def _as_int(v: Any) -> int | None:
+    return int(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+
+
+def aggregate(events: Sequence[Any]) -> dict[str, Any]:
+    """Summarise a flat list of graph events into usage / size-dynamics / breakage.
+
+    Pure: usage = event counts by action + node taps by kind; size = min/avg/max/p50/p95 of the
+    per-redraw node, edge and trail-size samples; breakage = ``graph_broke`` count by reason.
+    """
+    by_action: dict[str, int] = {}
+    node_taps: dict[str, int] = {}
+    break_reasons: dict[str, int] = {}
+    nodes: list[int] = []
+    edges: list[int] = []
+    trail: list[int] = []
+    for e in events:
+        action = str(e.get("action") or "")
+        if not action:
+            continue
+        by_action[action] = by_action.get(action, 0) + 1
+        if action == "graph_node_tap":
+            k = str(e.get("kind") or "unknown")
+            node_taps[k] = node_taps.get(k, 0) + 1
+        elif action == "graph_redraw":
+            for src, dst in (
+                (e.get("nodes"), nodes),
+                (e.get("edges"), edges),
+                (e.get("trail_size"), trail),
+            ):
+                n = _as_int(src)
+                if n is not None:
+                    dst.append(n)
+        elif action == "graph_broke":
+            r = str(e.get("reason") or "unknown")
+            break_reasons[r] = break_reasons.get(r, 0) + 1
+    return {
+        "total_events": sum(by_action.values()),
+        "by_action": by_action,
+        "node_taps_by_kind": node_taps,
+        "size": {
+            "samples": len(nodes),
+            "nodes": _stats(nodes),
+            "edges": _stats(edges),
+            "trail": _stats(trail),
+        },
+        "breakage": {"count": by_action.get("graph_broke", 0), "by_reason": break_reasons},
+    }
+
+
+__all__ = ["record_events", "read_events", "read_all_events", "aggregate"]
