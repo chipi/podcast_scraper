@@ -142,4 +142,56 @@ def aggregate(events: Sequence[Any]) -> dict[str, Any]:
     }
 
 
-__all__ = ["record_events", "read_events", "read_all_events", "aggregate"]
+def sessions(events: Sequence[Any]) -> list[dict[str, Any]]:
+    """Group events by ``session_id`` → one summary per session, most-recent first.
+
+    Each summary carries the user, start/end timestamps, event count and the min/max graph size
+    seen (from the ``graph_redraw`` samples) — enough to pick a session to inspect or replay.
+    """
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for e in events:
+        if not isinstance(e, dict):
+            continue
+        sid = e.get("session_id")
+        if isinstance(sid, str) and sid:
+            grouped.setdefault(sid, []).append(e)
+    out: list[dict[str, Any]] = []
+    for sid, evs in grouped.items():
+        evs.sort(key=lambda e: _as_int(e.get("ts")) or 0)
+        node_counts = [
+            n
+            for n in (_as_int(e.get("nodes")) for e in evs if e.get("action") == "graph_redraw")
+            if n is not None
+        ]
+        out.append(
+            {
+                "session_id": sid,
+                "user_id": next(
+                    (str(e.get("user_id")) for e in evs if e.get("user_id")), "unknown"
+                ),
+                "started": _as_int(evs[0].get("ts")) or 0,
+                "ended": _as_int(evs[-1].get("ts")) or 0,
+                "count": len(evs),
+                "size_min": min(node_counts) if node_counts else 0,
+                "size_max": max(node_counts) if node_counts else 0,
+            }
+        )
+    out.sort(key=lambda s: -int(s["started"]))
+    return out
+
+
+def session_events(events: Sequence[Any], session_id: str) -> list[dict[str, Any]]:
+    """The one session's events, ordered by timestamp (for the step-by-step timeline + replay)."""
+    evs = [e for e in events if isinstance(e, dict) and e.get("session_id") == session_id]
+    evs.sort(key=lambda e: _as_int(e.get("ts")) or 0)
+    return evs
+
+
+__all__ = [
+    "record_events",
+    "read_events",
+    "read_all_events",
+    "aggregate",
+    "sessions",
+    "session_events",
+]

@@ -35,7 +35,9 @@ async def graph_events(
     if data_dir is not None and body.events:
         user_id = user.user_id if user is not None else "anon"
         now = int(time.time())
-        stamped = [{**e, "ts": e.get("ts") or now} for e in body.events[:_MAX_BATCH]]
+        stamped = [
+            {**e, "ts": e.get("ts") or now, "user_id": user_id} for e in body.events[:_MAX_BATCH]
+        ]
         app_graph_telemetry.record_events(Path(data_dir), user_id, stamped)
     return Response(status_code=204)
 
@@ -57,3 +59,27 @@ async def graph_events_summary(
         else 0
     )
     return summary
+
+
+def _all_events(request: Request) -> list[dict[str, Any]]:
+    data_dir = getattr(request.app.state, "app_data_dir", None)
+    return app_graph_telemetry.read_all_events(Path(data_dir)) if data_dir is not None else []
+
+
+@router.get("/graph-events/sessions")
+async def graph_events_sessions(
+    request: Request, _admin: User = Depends(get_admin_user)
+) -> dict[str, Any]:
+    """List analytics sessions (admin only), most-recent first — one row per session to inspect."""
+    return {"sessions": app_graph_telemetry.sessions(_all_events(request))}
+
+
+@router.get("/graph-events/session/{session_id}")
+async def graph_events_session(
+    request: Request, session_id: str, _admin: User = Depends(get_admin_user)
+) -> dict[str, Any]:
+    """One session's ordered event timeline (admin only) — the step-by-step view + replay source."""
+    return {
+        "session_id": session_id,
+        "events": app_graph_telemetry.session_events(_all_events(request), session_id),
+    }

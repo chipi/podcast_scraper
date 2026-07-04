@@ -98,3 +98,28 @@ def test_read_all_events_across_users(tmp_path: Path) -> None:
         "graph_redraw",
         "graph_broke",
     }
+
+
+def test_sessions_summaries_and_timeline() -> None:
+    events = [
+        {
+            "session_id": "s1",
+            "action": "graph_node_tap",
+            "ts": 10,
+            "user_id": "u1",
+            "kind": "topic",
+        },
+        {"session_id": "s1", "action": "graph_redraw", "ts": 11, "user_id": "u1", "nodes": 20},
+        {"session_id": "s1", "action": "graph_redraw", "ts": 12, "user_id": "u1", "nodes": 40},
+        {"session_id": "s2", "action": "graph_node_tap", "ts": 100, "user_id": "anon"},
+    ]
+    sess = tel.sessions(events)
+    assert [s["session_id"] for s in sess] == ["s2", "s1"]  # most-recent start first
+    s1 = next(s for s in sess if s["session_id"] == "s1")
+    assert s1["user_id"] == "u1" and s1["count"] == 3
+    assert s1["size_min"] == 20 and s1["size_max"] == 40
+    assert s1["started"] == 10 and s1["ended"] == 12
+
+    timeline = tel.session_events(events, "s1")
+    assert [e["ts"] for e in timeline] == [10, 11, 12]  # ordered
+    assert tel.session_events(events, "nope") == []
