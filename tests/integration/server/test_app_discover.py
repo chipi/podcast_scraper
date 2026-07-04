@@ -245,3 +245,46 @@ def test_discover_click_signed_out_is_noop_204(tmp_path: Path) -> None:
     client = _client(tmp_path, personalized=True)  # not signed in
     resp = client.post("/api/app/discover/click", json={"slug": "x", "position": 0})
     assert resp.status_code == 204
+
+
+def _sign_in_admin(client: TestClient, root: Path) -> None:
+    from podcast_scraper.server.app_user_store import set_role
+
+    data_dir = root / "appdata"
+    user = get_or_create_user(data_dir, provider="stub", subject="s1", email="j@x.com", name="J")
+    set_role(data_dir, user.user_id, "admin")
+    token = app_sessions.sign({"user_id": user.user_id, "iat": int(time.time())}, "test-secret")
+    client.cookies.set(app_sessions.SESSION_COOKIE, token)
+
+
+def test_ranking_config_get_requires_admin(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    client = _client(tmp_path, personalized=True)
+    _sign_in(client, tmp_path, [])  # signed in but not admin
+    assert client.get("/api/app/ranking-config").status_code == 403
+
+
+def test_ranking_config_get_returns_signals_for_admin(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    client = _client(tmp_path, personalized=True)
+    _sign_in_admin(client, tmp_path)
+    resp = client.get("/api/app/ranking-config")
+    assert resp.status_code == 200
+    names = [s["name"] for s in resp.json()["signals"]]
+    assert "significance" in names and "trend_velocity" in names
+
+
+def test_ranking_config_put_persists_and_reads_back(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    client = _client(tmp_path, personalized=True)
+    _sign_in_admin(client, tmp_path)
+    put = client.put(
+        "/api/app/ranking-config",
+        json={"signals": [{"name": "trend_velocity", "enabled": True, "weight": 5.0}]},
+    )
+    assert put.status_code == 200
+    got = client.get("/api/app/ranking-config").json()
+    trend = next(s for s in got["signals"] if s["name"] == "trend_velocity")
+    assert trend["enabled"] is True and trend["weight"] == 5.0
+    # untouched signals survive the merge
+    assert any(s["name"] == "significance" for s in got["signals"])
