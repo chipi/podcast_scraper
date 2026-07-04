@@ -14,6 +14,7 @@ import ArtifactActivityChart from './ArtifactActivityChart.vue'
 import BriefingCard from './BriefingCard.vue'
 import CoverageByMonthChart from './CoverageByMonthChart.vue'
 import FeedCoverageTable from './FeedCoverageTable.vue'
+import DashboardTrendingTopics from './DashboardTrendingTopics.vue'
 import IndexStatusCard from './IndexStatusCard.vue'
 import IntelligenceSnapshot from './IntelligenceSnapshot.vue'
 import TopicBriefingCards from './TopicBriefingCards.vue'
@@ -384,6 +385,7 @@ function openLibraryFailures(): void {
         @open-digest="emit('open-digest')"
       />
       <TopicBriefingCards :digest="digestIntel" />
+      <DashboardTrendingTopics />
       <QueryActivityChart />
       <TopicClustersStatusBlock />
       <TopicLandscape @go-graph="(id, fb) => emit('go-graph', id, fb)" />
