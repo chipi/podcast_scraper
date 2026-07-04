@@ -114,42 +114,36 @@ test.describe("Stack — Person Profile / Position Tracker (#1075 chunk 3)", () 
 
     const view = page.getByTestId("person-landing-view")
     await expect(view).toBeVisible({ timeout: 10_000 })
-    // Identity header: name renders (falls back to Person id when name
-    // is absent from the slice, which is the documented behavior).
-    await expect(page.getByTestId("person-landing-view-name")).toBeVisible()
+    // Post node-view fold: the standalone Person rail is retired — PLV is
+    // embedded in NodeDetail's rail, which owns the header + tabs (PLV's own
+    // name header + internal tablist are hidden via `v-if="!embedded"`).
+    const rail = page.getByTestId("graph-node-detail-rail")
+    // Identity header: the rail titles it "Person" (an off-slice `person:` id
+    // resolves via NodeDetail's inferredKindFromId).
+    await expect(rail.getByRole("heading").first()).toContainText("Person")
 
-    // Tab pair — Person Profile + Position Tracker per #1048 shell.
-    await expect(page.getByTestId("person-landing-tab-profile")).toHaveText(/Person Profile/)
-    await expect(page.getByTestId("person-landing-tab-position-tracker")).toHaveText(
-      /Position Tracker/,
-    )
-
-    // Profile is the default tab — panel is visible.
+    // NodeDetail rail tabs — Details (profile) + Positions per the folded shell.
+    await expect(page.getByTestId("node-detail-rail-tab-details")).toHaveText(/Details/)
     await expect(page.getByTestId("person-landing-panel-profile")).toBeVisible()
 
-    // Switching to Position Tracker shows the panel + the no-topic
-    // placeholder state (PRD-028 UXS-009 state 1).
-    await page.getByTestId("person-landing-tab-position-tracker").click()
-    await expect(page.getByTestId("person-landing-panel-position-tracker")).toBeVisible()
-    await expect(page.getByTestId("position-tracker-panel")).toBeVisible()
-    await expect(page.getByTestId("position-tracker-no-topic")).toBeVisible()
+    // Switching to the Positions rail tab surfaces the positions lens view.
+    await page.getByTestId("node-detail-rail-tab-position-tracker").click()
+    await expect(page.getByTestId("person-landing-positions-view")).toBeVisible()
 
     // === Conditional rich-data path ===
     //
-    // airgapped_thin emits MENTIONS_PERSON conditionally (BART
-    // paraphrases speaker names in some episodes). The viewer's
-    // ranked-Topic rows compute over `MENTIONS_PERSON ∩ ABOUT`, so the
-    // section only renders when both fire. When it does, exercise the
-    // click-to-Position-Tracker path — that's the PRD-029 + PRD-028
-    // entry-point contract.
-    await page.getByTestId("person-landing-tab-profile").click()
-    const rankedTopics = page.getByTestId("person-landing-ranked-topics")
-    if (await rankedTopics.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      const firstButton = page
-        .getByTestId("person-landing-ranked-topic-button")
+    // airgapped_thin emits MENTIONS_PERSON conditionally (BART paraphrases
+    // speaker names in some episodes). The "click a topic → Position Tracker
+    // arc" entry point now lives in the Positions tab's default "By topic" lens
+    // (Insights voiced), computed over `MENTIONS_PERSON ∩ ABOUT`, so it only
+    // renders when both fire. When it does, exercise the click-to-arc path.
+    const insightsVoiced = page.getByTestId("person-landing-insights-voiced")
+    if (await insightsVoiced.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await page
+        .getByTestId("person-landing-insights-voiced-topic-button")
         .first()
-      await firstButton.click()
-      // Position Tracker activates + carries content for the (Person, Topic) pair.
+        .click()
+      // NodeDetail auto-switches to keep the arc visible for the (Person, Topic) pair.
       await expect(page.getByTestId("position-tracker-arc")).toBeVisible({
         timeout: 5_000,
       })

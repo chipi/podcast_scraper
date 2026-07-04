@@ -590,8 +590,8 @@ function onPickTopicForPositionTracker(topicId: string): void {
     class="flex min-h-0 min-w-0 flex-1 flex-col"
     :class="props.embedded ? '' : 'mx-3 overflow-hidden'"
     role="region"
-    aria-label="Person"
-    data-testid="person-landing-view"
+    :aria-label="props.view === 'positions' ? 'Person positions' : 'Person'"
+    :data-testid="props.view === 'positions' ? 'person-landing-positions-view' : 'person-landing-view'"
   >
     <div class="mt-1 shrink-0 border-b border-border pb-2">
       <div v-if="!props.embedded" class="flex items-baseline gap-2">
@@ -687,10 +687,14 @@ function onPickTopicForPositionTracker(topicId: string): void {
     </nav>
     <div
       v-show="props.embedded || activeTab === 'profile'"
-      id="person-landing-panel-profile"
+      :id="props.view === 'positions' ? 'person-landing-panel-positions' : 'person-landing-panel-profile'"
       role="tabpanel"
-      aria-labelledby="person-landing-tab-profile"
-      data-testid="person-landing-panel-profile"
+      :aria-labelledby="props.view === 'positions'
+        ? 'person-landing-tab-position-tracker'
+        : 'person-landing-tab-profile'"
+      :data-testid="props.view === 'positions'
+        ? 'person-landing-panel-positions'
+        : 'person-landing-panel-profile'"
       class="min-h-0 flex-1 space-y-3 overflow-y-auto px-1 py-2"
     >
       <!-- Profile-only sections: hidden in positions view -->

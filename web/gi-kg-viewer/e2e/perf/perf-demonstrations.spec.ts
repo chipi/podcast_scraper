@@ -127,9 +127,13 @@ test.describe('Perf demonstrations (#767 / #768 / #769)', () => {
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await expect(page.getByTestId('library-root')).toBeVisible({ timeout: 15_000 })
 
-    // Reset the counter AFTER the page+library-tab settle so we count
-    // only the click-triggered fetches.
-    topicClustersFetchCount = 0
+    // NOTE: the counter is NOT reset here. topic-clusters is now fetched
+    // eagerly as soon as the corpus root + healthy API are known (App.vue /
+    // EpisodeDetailPanel sync it so the Dashboard corpus workspace can show
+    // status), rather than lazily on the first handoff. The #769 memo contract
+    // is unchanged — ONE HTTP total across the whole flow — so we count from
+    // the start and assert exactly one, which proves both "it loads" and
+    // "repeated handoffs never refetch".
 
     // Open three different episodes from the Library in quick succession.
     const rows = page.getByRole('button', { name: /, / })
@@ -147,9 +151,9 @@ test.describe('Perf demonstrations (#767 / #768 / #769)', () => {
       }
     }
 
-    // The hard assertion: ONE HTTP across THREE handoffs. Without the
-    // memo, this would have been 3+ (potentially up to 9 if the
-    // duplicate-call bug also re-fired).
+    // The hard assertion: ONE HTTP across the whole flow (eager load + THREE
+    // handoffs). Without the memo, this would have been 3+ (potentially up to
+    // 9 if the duplicate-call bug also re-fired).
     expect(topicClustersFetchCount).toBe(1)
     expect(errs.errors).toEqual([])
   })

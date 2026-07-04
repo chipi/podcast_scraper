@@ -1462,6 +1462,18 @@ watch(hasPositionTrackerTab, (has) => {
     graphRailDetailTab.value = 'details'
   }
 })
+// Picking a topic from the profile's ranked-topics list (or Insights-voiced)
+// sets ``positionTrackerTopicId`` but the arc renders in the Positions tab — a
+// different rail tab than the profile. Auto-switch so the pick has a visible
+// effect instead of silently setting state behind a hidden tab.
+watch(
+  () => subject.positionTrackerTopicId,
+  (topicId) => {
+    if (topicId && hasPositionTrackerTab.value) {
+      graphRailDetailTab.value = 'position_tracker'
+    }
+  },
+)
 
 // The Enrichment tab only exists when the focused node actually has signals;
 // NodeEnrichmentSection reports this after it loads. Empty is the common case

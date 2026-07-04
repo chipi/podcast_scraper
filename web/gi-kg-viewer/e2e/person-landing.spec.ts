@@ -12,19 +12,20 @@
  * subject store. This spec uses the explore-rollup entry path because it's
  * the more deterministic of the two — it doesn't depend on a search index.
  *
- * Smoke contract (post-#1048):
+ * Smoke contract (post node-view unification — the standalone Person rail is
+ * retired; PersonLandingView is now folded ``embedded`` into NodeDetail's
+ * rail, which owns the header + tabs, so PLV's own name header + internal
+ * tablist + action buttons are hidden via ``v-if="!embedded"``):
  *
- *   - ``person-landing-view`` root visible
- *   - ``person-landing-view-name`` shows the speaker's name
- *   - ``role="tablist"`` with two tabs:
- *     - ``person-landing-tab-profile`` ("Person Profile") — default selected
- *     - ``person-landing-tab-position-tracker`` ("Position Tracker") —
- *       placeholder for #1049
- *   - Profile panel ``person-landing-panel-profile`` is visible
- *   - Switching to Position Tracker reveals
- *     ``person-landing-panel-position-tracker`` with the placeholder
- *   - Action buttons ``person-landing-go-graph`` /
- *     ``person-landing-prefill-search`` are present in the Profile panel
+ *   - ``person-landing-view`` root visible (embedded in the Details rail tab)
+ *   - the rail header (``graph-node-detail-rail``) titles it "Person"
+ *   - NodeDetail rail tabs ``node-detail-rail-tab-details`` ("Details") and
+ *     ``node-detail-rail-tab-position-tracker`` ("Positions") drive the view
+ *   - Details is the default tab → ``person-landing-panel-profile`` visible
+ *   - Switching to Positions reveals ``person-landing-positions-view``
+ *   - Person node views only render for a ``person:``-prefixed id (the GI
+ *     speaker_id convention) — NodeDetail's off-slice ``inferredKindFromId``
+ *     keys on it so a focused speaker renders even outside the graph slice.
  */
 
 import { readFileSync } from 'node:fs'
@@ -34,7 +35,12 @@ import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from './help
 
 const artifactJson = readFileSync(GI_SAMPLE_FIXTURE, 'utf-8')
 
-const SPEAKER_ID = 'speaker-mock-1'
+// Realistic corpus id: GI speaker_ids are ``person:``-prefixed (e.g.
+// ``person:alice-hayes``), which is what NodeDetail's off-slice
+// ``inferredKindFromId`` keys on to render the Person node view for a
+// focused speaker that isn't in the current graph slice. A bare id never
+// matches the convention, so the rail would stay an empty "Node" shell.
+const SPEAKER_ID = 'person:speaker-mock-1'
 const SPEAKER_NAME = 'Marko Mock-Guest'
 
 // Minimal Explore mock that rolls up one mock speaker so the
@@ -152,46 +158,30 @@ test.describe('Person Landing rail panel', () => {
     await page.getByText(SPEAKER_NAME, { exact: false }).first().waitFor({ timeout: 10_000 })
     await page.getByTestId('explore-top-speaker-link').first().click()
 
-    // Person Landing contract surface (E2E_SURFACE_MAP §223).
-    const view = page.getByTestId('person-landing-view')
-    await expect(view).toBeVisible({ timeout: 10_000 })
+    // Person node view, folded embedded into the NodeDetail rail (Details tab).
+    const rail = page.getByTestId('graph-node-detail-rail')
+    await expect(page.getByTestId('person-landing-view')).toBeVisible({ timeout: 10_000 })
 
-    // Subject store resolves the display label from the loaded GI graph;
-    // the bundled ``ci_sample.gi.json`` has no Speaker node for our mock
-    // speaker_id, so the name field falls back to the speaker_id. Either
-    // value satisfies the contract surface (name or stable identifier).
-    await expect(page.getByTestId('person-landing-view-name')).toContainText(
-      new RegExp(`${SPEAKER_NAME}|${SPEAKER_ID}`),
-    )
+    // The rail (not PLV) owns the header; an off-slice ``person:`` id titles
+    // it "Person" via NodeDetail's inferredKindFromId.
+    await expect(rail.getByRole('heading').first()).toContainText('Person')
 
-    const tablist = view.getByRole('tablist')
-    await expect(tablist).toBeVisible()
-    await expect(page.getByTestId('person-landing-tab-profile')).toHaveText(/Person Profile/)
-    await expect(page.getByTestId('person-landing-tab-position-tracker')).toHaveText(
-      /Position Tracker/,
-    )
-
-    // Profile is the default tab and contains the action buttons; assert
-    // those are reachable before switching tabs (Position Tracker panel
-    // hides them via ``v-show``).
+    // NodeDetail rail tabs drive the person view (PLV's own internal tablist is
+    // hidden in embedded mode). Details is default → the profile panel renders.
+    await expect(page.getByTestId('node-detail-rail-tab-details')).toHaveText(/Details/)
     await expect(page.getByTestId('person-landing-panel-profile')).toBeVisible()
-    await expect(page.getByTestId('person-landing-go-graph')).toBeVisible()
-    await expect(page.getByTestId('person-landing-prefill-search')).toBeVisible()
 
-    // Switching to Position Tracker reveals the panel; no Topic is selected
-    // yet so we see the #1049 UXS-009 "no-topic" state.
-    await page.getByTestId('person-landing-tab-position-tracker').click()
-    await expect(page.getByTestId('person-landing-panel-position-tracker')).toBeVisible()
-    await expect(page.getByTestId('position-tracker-panel')).toBeVisible()
-    await expect(page.getByTestId('position-tracker-no-topic')).toBeVisible()
+    // Positions rail tab reveals the positions lens (stated positions +
+    // Position Tracker), carried by the dedicated positions PLV instance.
+    await page.getByTestId('node-detail-rail-tab-position-tracker').click()
+    await expect(page.getByTestId('person-landing-positions-view')).toBeVisible()
 
-    // Back-navigation: returning to Person Profile re-shows the action buttons.
-    await page.getByTestId('person-landing-tab-profile').click()
+    // Back to Details re-shows the profile panel.
+    await page.getByTestId('node-detail-rail-tab-details').click()
     await expect(page.getByTestId('person-landing-panel-profile')).toBeVisible()
-    await expect(page.getByTestId('person-landing-go-graph')).toBeVisible()
   })
 
-  test('FR4.1: Person Profile shows stated positions from the relational layer (#1048: was Positions tab pre-shell-refactor)', async ({
+  test('FR4.1: stated positions from the relational layer render in the Positions rail tab', async ({
     page,
   }) => {
     await page.route('**/api/relational/positions**', async (route) => {
@@ -221,9 +211,11 @@ test.describe('Person Landing rail panel', () => {
     await page.getByTestId('explore-top-speaker-link').first().click()
     await expect(page.getByTestId('person-landing-view')).toBeVisible({ timeout: 10_000 })
 
-    // #1048 — Profile tab is the default; stated positions now live there
-    // (moved from the deleted Positions tab as part of the shared-shell
-    // refactor). No tab switch required.
+    // Post node-view unification: stated positions live in the Positions rail
+    // tab → "All positions" lens (the default lens is "By topic"), not the
+    // Details/profile panel.
+    await page.getByTestId('node-detail-rail-tab-position-tracker').click()
+    await page.getByTestId('person-landing-positions-lens-all').click()
     const stated = page.getByTestId('person-landing-stated')
     await expect(stated).toBeVisible()
     await expect(stated.getByTestId('person-landing-stated-row')).toHaveCount(2)

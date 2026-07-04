@@ -138,45 +138,46 @@ test.describe('Tier-3 — Person Profile against a real prod-v2 corpus (#1076 ch
       hook.focusPerson(pid)
     }, personId)
 
-    // === Strict shell — what every shipped Person Profile must surface ===
-
+    // === Strict shell — the embedded Person node view (post node-view fold) ===
+    // The standalone Person rail is retired; PLV is folded embedded into the
+    // NodeDetail rail, which owns the header + tabs (PLV's own name header +
+    // internal tablist are hidden via `v-if="!embedded"`).
+    const rail = page.getByTestId('graph-node-detail-rail')
     await expect(page.getByTestId('person-landing-view')).toBeVisible({
       timeout: 15_000,
     })
-    await expect(page.getByTestId('person-landing-view-name')).toBeVisible()
-    await expect(page.getByTestId('person-landing-tab-profile')).toHaveText(/Person Profile/)
-    await expect(page.getByTestId('person-landing-tab-position-tracker')).toHaveText(
-      /Position Tracker/,
-    )
+    await expect(rail.getByRole('heading').first()).toContainText('Person')
+    await expect(page.getByTestId('node-detail-rail-tab-details')).toHaveText(/Details/)
     await expect(page.getByTestId('person-landing-panel-profile')).toBeVisible()
 
-    // Position Tracker no-topic state available before any drill-in.
-    await page.getByTestId('person-landing-tab-position-tracker').click()
-    await expect(page.getByTestId('position-tracker-no-topic')).toBeVisible()
+    // Positions rail tab surfaces the positions lens view.
+    await page.getByTestId('node-detail-rail-tab-position-tracker').click()
+    await expect(page.getByTestId('person-landing-positions-view')).toBeVisible()
 
     // === Rich-data path — what a v3 prod corpus should produce ===
     //
-    // The acceptance loop in PRD-029 expects the ranked-topics list to
-    // populate for ANY Person id from prod-v2. We assert it strictly
-    // here because prod-v2 (post-RFC-097 chunk 9) should consistently
-    // emit MENTIONS_PERSON ∩ ABOUT under cloud profiles.
+    // The acceptance loop in PRD-029 expects the "topic → Position Tracker"
+    // entry point (Insights voiced, ranked over MENTIONS_PERSON ∩ ABOUT) to
+    // populate for ANY Person id from prod-v2. It now lives in the Positions
+    // tab's default "By topic" lens. We assert it strictly because prod-v2
+    // (post-RFC-097 chunk 9) should consistently emit MENTIONS_PERSON ∩ ABOUT.
     //
     // If this fails on a corpus you migrated from v2.0: confirm
     // add_insight_entity_edges has been re-run (the migration scripts
     // alone don't synthesize MENTIONS_PERSON; the typed-mentions
     // post-pass is a separate workflow step).
-    await page.getByTestId('person-landing-tab-profile').click()
-    const rankedTopics = page.getByTestId('person-landing-ranked-topics')
+    const insightsVoiced = page.getByTestId('person-landing-insights-voiced')
     await expect(
-      rankedTopics,
-      'PersonLandingView ranked-topics empty for a real Person id in the ' +
+      insightsVoiced,
+      'PersonLandingView insights-voiced empty for a real Person id in the ' +
         'corpus. Either the corpus is pre-RFC-097 v3 (run the migration ' +
         'steps in this spec\'s header) OR the typed-MENTIONS post-pass did ' +
         'not fire on this corpus (re-run add_insight_entity_edges).',
     ).toBeVisible({ timeout: 10_000 })
 
-    // Click first ranked topic → Position Tracker for that pair.
-    await page.getByTestId('person-landing-ranked-topic-button').first().click()
+    // Click first topic → Position Tracker arc (NodeDetail keeps the Positions
+    // tab active so the arc is visible for that pair).
+    await page.getByTestId('person-landing-insights-voiced-topic-button').first().click()
     await expect(page.getByTestId('position-tracker-arc')).toBeVisible({
       timeout: 5_000,
     })
