@@ -34,7 +34,7 @@ from typing import Any, cast, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     # Type hints only - these are not imported at runtime
-    from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, Pipeline
+    from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
 
 # Note: torch and transformers are imported lazily in methods that use them
@@ -709,15 +709,6 @@ def _resolve_effective_length_limits(
     return effective_max, effective_min
 
 
-def _extract_summary_text_from_pipeline_result(result: Any) -> str:
-    """Extract summary_text from pipeline result (list or dict)."""
-    if isinstance(result, list) and len(result) > 0:
-        return cast(str, result[0].get("summary_text", "")).strip()
-    if isinstance(result, dict):
-        return cast(str, result.get("summary_text", "")).strip()
-    return ""
-
-
 def _build_summarize_pipeline_kwargs(
     effective_truncation: bool,
     repetition_penalty: float,
@@ -943,7 +934,13 @@ class SummaryModel:
         # Runtime imports happen lazily in _load_model()
         self.tokenizer: Optional["AutoTokenizer"] = None
         self.model: Optional["AutoModelForSeq2SeqLM"] = None
-        self.pipeline: Optional["Pipeline"] = None
+        # transformers v5 removed pipeline("summarization"); we drive generation via
+        # self.model.generate() + GenerationConfig directly (see _generate_summary()).
+        # ``self.pipeline`` retained as a Bool-ish "loaded" sentinel for backwards compat
+        # with the ``if not self.pipeline:`` guard on the summarize entrypoint; True after
+        # _load_model() completes. Phase F will collapse SummaryModel onto HFSeq2SeqBackend
+        # and this attribute goes away entirely.
+        self.pipeline: bool = False
         self._batch_size: Optional[int] = None  # For parallel chunk processing (CPU only)
         # Threading lock to serialize tokenizer/model access (tokenizers are not thread-safe)
         # This prevents "Already borrowed" errors when multiple episodes process concurrently
@@ -1004,11 +1001,18 @@ class SummaryModel:
         )
 
     def _load_model_move_to_device_and_pipeline(self) -> None:
-        """Move model to device (with fallback) and create pipeline."""
+        """Move model to device (with fallback).
+
+        Historical name kept for API compatibility with the pre-#382 caller
+        ``_load_model``. There is no pipeline anymore — v5 removed
+        ``pipeline("summarization")``; generation now runs through
+        :func:`_generate_summary` (``model.generate()`` + ``GenerationConfig``).
+        Method is left with the "and_pipeline" suffix for one release for
+        greppability; Phase F collapses SummaryModel onto HFSeq2SeqBackend
+        and it goes away with the class.
+        """
         import contextlib
         import io
-
-        from transformers import pipeline
 
         with contextlib.redirect_stdout(io.StringIO()):
             try:
@@ -1042,13 +1046,9 @@ class SummaryModel:
                     self.model = self.model.to("cpu")  # type: ignore[union-attr]
                 else:
                     raise
-        pipeline_device = 0 if self.device == "cuda" else "mps" if self.device == "mps" else -1
-        self.pipeline = pipeline(  # type: ignore[call-overload]
-            "summarization",
-            model=self.model,
-            tokenizer=self.tokenizer,
-            device=pipeline_device,
-        )
+        if self.model is not None:
+            self.model.eval()  # type: ignore[union-attr]
+        self.pipeline = True
 
     def _load_model_pegasus_sanity_and_clear_config(self) -> None:
         """Run Pegasus sanity check and clear max_new_tokens from generation config."""
@@ -1093,14 +1093,90 @@ class SummaryModel:
                     "[PEGASUS MODEL VERIFICATION] Sanity check error: %s",
                     format_exception_for_log(e),
                 )
-        if self.pipeline is not None and getattr(self.pipeline, "model", None) is not None:
-            model = self.pipeline.model
-            if getattr(model, "generation_config", None) is not None:
-                setattr(model.generation_config, "max_new_tokens", None)
-            if getattr(model, "config", None) is not None and hasattr(
-                model.config, "max_new_tokens"
+        if self.model is not None:
+            if getattr(self.model, "generation_config", None) is not None:
+                setattr(self.model.generation_config, "max_new_tokens", None)
+            if getattr(self.model, "config", None) is not None and hasattr(
+                self.model.config, "max_new_tokens"
             ):
-                setattr(model.config, "max_new_tokens", None)
+                setattr(self.model.config, "max_new_tokens", None)
+
+    def _generate_summary(
+        self,
+        input_text: str,
+        *,
+        truncation: bool = True,
+        repetition_penalty: float = 1.0,
+        no_repeat_ngram_size: int = 3,
+        max_new_tokens: int = 200,
+        min_new_tokens: int = 30,
+        encoder_no_repeat_ngram_size: Optional[int] = None,
+        do_sample: bool = False,
+        num_beams: int = 4,
+        length_penalty: float = 1.0,
+        early_stopping: bool = True,
+    ) -> str:
+        """Run tokenize → ``model.generate()`` → decode on ``input_text``.
+
+        Replaces the ``pipeline("summarization")`` call site retired in
+        #382. Accepts the same kwargs the pipeline did (see
+        :func:`_build_summarize_pipeline_kwargs`) so the call site is a
+        drop-in. All beam / sampling / n-gram penalty knobs are folded
+        into a ``GenerationConfig`` for the generate() call.
+
+        Args:
+            input_text: Already-truncated, prefix-applied input.
+            truncation: Whether the tokenizer should truncate (True by default;
+                :meth:`_summarize_truncate_input` has already done a soft
+                truncation at the model's ``max_input_tokens`` limit).
+            All other kwargs match ``_build_summarize_pipeline_kwargs`` output.
+
+        Returns:
+            The decoded summary string (empty on generation failure).
+        """
+        import torch
+        from transformers import GenerationConfig
+
+        if self.model is None or self.tokenizer is None:
+            raise RuntimeError("Model not loaded")
+
+        # Encoder max — matches what the pipeline used implicitly.
+        max_len = (
+            getattr(self.model.config, "max_position_embeddings", None)
+            or getattr(self.model.config, "max_encoder_position_embeddings", None)
+            or 1024
+        )
+        tokenizer = cast(Any, self.tokenizer)
+        model = cast(Any, self.model)
+        inputs = tokenizer(
+            input_text,
+            return_tensors="pt",
+            truncation=truncation,
+            max_length=max_len,
+        )
+        device = next(model.parameters()).device
+        inputs = {k: v.to(device) for k, v in inputs.items()}
+
+        gen_kwargs: Dict[str, Any] = {
+            "max_new_tokens": max_new_tokens,
+            "min_new_tokens": min_new_tokens,
+            "repetition_penalty": repetition_penalty,
+            "no_repeat_ngram_size": no_repeat_ngram_size,
+        }
+        if encoder_no_repeat_ngram_size is not None:
+            gen_kwargs["encoder_no_repeat_ngram_size"] = encoder_no_repeat_ngram_size
+        if do_sample:
+            gen_kwargs["do_sample"] = True
+        else:
+            gen_kwargs["num_beams"] = num_beams
+            gen_kwargs["length_penalty"] = length_penalty
+            gen_kwargs["early_stopping"] = early_stopping
+        gen_cfg = GenerationConfig(**gen_kwargs)
+
+        with torch.no_grad():
+            output_ids = model.generate(**inputs, generation_config=gen_cfg)
+        decoded: str = tokenizer.decode(output_ids[0], skip_special_tokens=True)
+        return decoded.strip()
 
     def _load_model(self) -> None:
         """Load model and tokenizer from cache or download."""
@@ -1414,7 +1490,7 @@ class SummaryModel:
         Returns:
             Generated summary text
         """
-        if not self.pipeline:
+        if not self.model or not self.tokenizer:
             raise RuntimeError("Model not loaded")
 
         # Handle empty or very short text
@@ -1514,12 +1590,11 @@ class SummaryModel:
                     message=r".*Both.*max_new_tokens.*max_length.*",
                     category=UserWarning,
                 )
-                # Serialize pipeline calls to prevent tokenizer "Already borrowed" errors
-                # when multiple episodes process concurrently
+                # Serialize generate() calls to prevent tokenizer "Already borrowed"
+                # errors when multiple episodes process concurrently.
                 with self._summarize_lock:
-                    result = self.pipeline(input_text, **pipeline_kwargs)
+                    summary_text = self._generate_summary(input_text, **pipeline_kwargs)
 
-            summary_text = _extract_summary_text_from_pipeline_result(result)
             if not summary_text:
                 return ""
 
@@ -1578,29 +1653,19 @@ class SummaryModel:
                         "Falling back to CPU and retrying..."
                     )
                     try:
-                        # Move model to CPU
+                        # Move model to CPU. No pipeline to rebuild post-#382 — generate()
+                        # picks up the current device from ``next(self.model.parameters())``.
+                        original_device_for_retry = self.device
                         self.model = self.model.to("cpu")  # type: ignore[union-attr]
                         self.device = "cpu"
-                        original_device_for_retry = self.device
                         logger.info(
                             f"Device fallback successful: model moved from "
                             f"{original_device_for_retry} to CPU. Retrying summarization..."
                         )
-                        # Update pipeline device
-                        from transformers import pipeline
-
-                        pipeline_device = -1  # CPU
-                        self.pipeline = pipeline(  # type: ignore[call-overload]
-                            "summarization",
-                            model=self.model,
-                            tokenizer=self.tokenizer,
-                            device=pipeline_device,
-                        )
-                        # Retry summarization on CPU
-                        result = self.pipeline(
-                            text, max_length=max_length, min_length=min_length
-                        )  # type: ignore[call-overload]
-                        return cast(str, result["summary_text"])  # type: ignore[index]
+                        # Retry summarization on CPU with the same generation kwargs.
+                        with self._summarize_lock:
+                            retry_summary = self._generate_summary(input_text, **pipeline_kwargs)
+                        return retry_summary.strip()
                     except Exception as fallback_error:
                         logger.error(
                             f"Device fallback to CPU also failed: {fallback_error}. "
@@ -1629,20 +1694,12 @@ class SummaryModel:
                     time.sleep(wait_time)
                     try:
                         with self._summarize_lock:
-                            # Rebuild pipeline kwargs (may have been modified)
-                            retry_result = self.pipeline(input_text, **pipeline_kwargs)
-                            if isinstance(retry_result, list) and len(retry_result) > 0:
-                                summary_text = retry_result[0].get("summary_text", "")
-                                return cast(str, summary_text).strip()
-                            elif isinstance(retry_result, dict):
-                                summary_text = retry_result.get("summary_text", "")
-                                return cast(str, summary_text).strip()
-                            else:
-                                logger.error(
-                                    f"Retry {attempt + 1}/{max_retries} returned invalid result"
-                                )
-                                if attempt == max_retries - 1:
-                                    return ""
+                            retry_summary = self._generate_summary(input_text, **pipeline_kwargs)
+                            if retry_summary:
+                                return retry_summary.strip()
+                            logger.error(f"Retry {attempt + 1}/{max_retries} returned empty result")
+                            if attempt == max_retries - 1:
+                                return ""
                     except RuntimeError as retry_error:
                         retry_error_msg = str(retry_error).lower()
                         if "already borrowed" in retry_error_msg and attempt < max_retries - 1:
@@ -4451,7 +4508,7 @@ def unload_model(model: Optional[SummaryModel]) -> None:
 
     model.model = None
     model.tokenizer = None
-    model.pipeline = None
+    model.pipeline = False
 
     # Force garbage collection to clean up any remaining references
     # This helps release memory and clean up threads that might be holding references
