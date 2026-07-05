@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Capture sentence-embedding vectors for #382 regression guard.
 
-Freezes the L2 norm + first-8 dims + full-vector SHA of the embedding
-produced for each fixed input string. Full vectors would balloon the
-JSONL and be brittle to floating-point drift; norms + first-8 + sha are
-sufficient to detect any change in the encoding pipeline while staying
-inspectable in a diff.
+Freezes dim + L2-norm + first-8 dims of the embedding produced for
+each fixed input string. Deliberately NOT the full vector or a SHA of
+it — sentence-transformers on CPU has BLAS-thread-order non-determinism
+that would flip a bit-hash without changing semantics. The first-8 dims
++ norm still catch any real drift (wrong model / wrong pool / wrong
+normalization). Regression tolerance lives in
+``scripts/eval/full_ml_recheck.py``.
 
 Deterministic: fixed model_id, device=cpu, ``local_files_only=True``,
 ``normalize_embeddings=True`` (L2-normalized output). Emits JSONL:
@@ -15,10 +17,8 @@ Deterministic: fixed model_id, device=cpu, ``local_files_only=True``,
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import logging
-import struct
 import sys
 import time
 from pathlib import Path
@@ -63,14 +63,21 @@ DEFAULT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
 
 def _vec_signature(vec: list[float]) -> dict:
-    """Compact fingerprint of a vector: L2-norm, first-8 dims, full SHA-256."""
+    """Compact fingerprint of a vector: dim, L2-norm, first-8 dims.
+
+    Deliberately NOT a full-vector hash. sentence-transformers on CPU has
+    BLAS-thread-order non-determinism that flips bit-level hashes even
+    when the vector is semantically identical to ~1e-6. Dim + L2 + first-8
+    catch any real drift (wrong model / wrong pool / wrong normalization)
+    without false-positive'ing on floating-point noise. See
+    ``scripts/eval/full_ml_recheck.py::_check_embedding`` for the
+    enforced tolerance.
+    """
     n = sum(x * x for x in vec) ** 0.5
-    payload = b"".join(struct.pack("<d", x) for x in vec)
     return {
         "dim": len(vec),
         "l2_norm": round(n, 6),
         "first_8": [round(x, 6) for x in vec[:8]],
-        "sha256": hashlib.sha256(payload).hexdigest(),
     }
 
 
@@ -120,11 +127,11 @@ def main() -> int:
             }
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
             log.info(
-                "  %-12s dim=%d L2=%.4f sha=%s… (%dms)",
+                "  %-12s dim=%d L2=%.4f d0=%+.4f (%dms)",
                 fx["id"],
                 sig["dim"],
                 sig["l2_norm"],
-                sig["sha256"][:12],
+                sig["first_8"][0],
                 elapsed_ms,
             )
     log.info("wrote %s (%d rows)", args.out, len(FIXTURES))
