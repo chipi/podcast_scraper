@@ -1,0 +1,31 @@
+{
+  "dataset_id": "curated_5feeds_benchmark_v1",
+  "run_id": "run_2026-07-05_22-04-48",
+  "episode_count": 10,
+  "intrinsic": {
+    "gates": {
+      "boilerplate_leak_rate": 0.0,
+      "speaker_label_leak_rate": 0.0,
+      "truncation_rate": 0.0,
+      "failed_episodes": [],
+      "episode_gate_failures": {}
+    },
+    "warnings": {
+      "speaker_name_leak_rate": 0.0
+    },
+    "length": {
+      "avg_tokens": 221.1,
+      "min_tokens": 168,
+      "max_tokens": 298
+    },
+    "performance": {
+      "avg_latency_ms": 35395.276856422424,
+      "median_latency_ms": 34649.98233318329,
+      "p95_latency_ms": 44371.91390991211,
+      "avg_latency_ms_excluding_first": 34397.87273936802
+    }
+  },
+  "vs_reference": null,
+  "schema": "metrics_summarization_v2",
+  "task": "summarization"
+}

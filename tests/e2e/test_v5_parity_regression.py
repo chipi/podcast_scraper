@@ -137,3 +137,43 @@ def test_shipped_parity_report_still_passes() -> None:
         f"drifted or a comparator bug was introduced.\n"
         f"stdout: {result.stdout}\nstderr: {result.stderr}"
     )
+
+
+def test_full_ml_surface_recheck_no_regressions(tmp_path_factory) -> None:
+    """Full data-quality regression across every #382-touched ML surface.
+
+    Re-runs the four capture scripts (QA, NLI, embedding, FLAN-T5 reduce),
+    compares each against its frozen reference under ``data/eval/references/``,
+    and asserts every pair matches within its tolerance.
+
+    Bit-identical: embedding (SHA-256 identity).
+    Text-identical: QA answers, FLAN-T5 output.
+    Within tolerance: NLI entailment score (abs 0.01).
+
+    This is the successor to test_qa_parity_regression_text_match_stable —
+    same idea, broader coverage. Kept both for now; can consolidate once
+    the harness has stabilised.
+    """
+    import json
+    import subprocess
+
+    report = tmp_path_factory.mktemp("full_recheck") / "report.json"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(REPO / "scripts/eval/full_ml_recheck.py"),
+            "--json-report",
+            str(report),
+        ],
+        cwd=str(REPO),
+        capture_output=True,
+        text=True,
+        timeout=600,
+    )
+    assert (
+        result.returncode == 0
+    ), f"Full ML recheck detected regressions:\n{result.stdout}\n{result.stderr}"
+    parsed = json.loads(report.read_text())
+    assert parsed["overall_pass"] is True
+    for chk in parsed["checks"]:
+        assert chk.get("pass"), f"{chk.get('check')} failed: {chk.get('mismatches', chk)}"

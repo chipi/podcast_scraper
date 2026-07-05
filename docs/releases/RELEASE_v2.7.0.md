@@ -79,6 +79,37 @@ v5 achieves the same quality score against the semantic ground truth
 as v4 did. No quality regression measured across three orthogonal
 comparisons.
 
+**Broader uniform data-quality coverage** (post-audit expansion): every
+ML surface #382 touched now has a captured baseline + regression guard,
+matching the summarizer path's validation bar.
+
+| Surface                                  | Frozen reference                                                     | Bar                                     |
+| ---------------------------------------- | -------------------------------------------------------------------- | --------------------------------------- |
+| Summarizer smoke (BART+LED, 5 eps)       | `baselines/baseline_ml_bart_authority_smoke_v5_post/`                | byte-identical vs shipped_v1            |
+| Summarizer benchmark (BART+LED, 10 eps)  | `baselines/baseline_ml_bart_authority_benchmark_v5/`                 | 1.0000 vs smoke on shared IDs           |
+| Extractive QA (roberta-squad2, 8 pairs)  | `references/qa_baseline_v5_post.jsonl`                               | answer-text identity                    |
+| NLI (deberta-v3-base, 12 pairs)          | `references/nli_baseline_v5.jsonl`                                   | entailment score ±0.01                  |
+| Embedding (MiniLM-L6-v2, 10 inputs)      | `references/embedding_baseline_v5.jsonl`                             | dim + L2 + first-8 dims ±1e-4           |
+| FLAN-T5 reduce (hybrid tier-1, 4 prompts)| `references/flant5_reduce_baseline_v5.jsonl`                         | output-text identity                    |
+
+One-shot regression via `scripts/eval/full_ml_recheck.py --json-report ...`;
+enforced by the nightly e2e test
+`tests/e2e/test_v5_parity_regression.py::test_full_ml_surface_recheck_no_regressions`.
+
+Absolute quality anchors (v5-post scored against semantic silvers):
+
+| Baseline                              | Reference                              | Scope   | mean ROUGE-L / R-1 / R-2         |
+| ------------------------------------- | -------------------------------------- | ------- | -------------------------------- |
+| smoke_v5_post                         | silver_opus47_smoke_v1                 | 5 eps   | 0.2175 / 0.4003 / 0.2391         |
+| shipped_v1 (historical, v4-pipeline)  | silver_opus47_smoke_v1                 | 5 eps   | 0.2175 / 0.4003 / 0.2391 (same)  |
+| benchmark_v5                          | silver_sonnet46_benchmark_v1           | 10 eps  | 0.1906 / 0.3790 / 0.1520         |
+| smoke_v5_post (subset)                | silver_sonnet46_benchmark_v1           | 5 eps   | 0.1975 / 0.4015 / 0.1700         |
+
+Determinism across dataset scope: benchmark_v5 vs smoke_v5_post on the
+5 shared episode IDs = **1.0000 ROUGE-L identical output** — the same
+transcript produces the same summary whether it's part of a 5-episode
+smoke run or a 10-episode benchmark run. No batch-size drift.
+
 
 ## Dependency deltas
 
