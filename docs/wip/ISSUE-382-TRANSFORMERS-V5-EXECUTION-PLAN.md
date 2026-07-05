@@ -1071,22 +1071,26 @@ Before the operator says "push":
 
 ## Progress ledger (fill in as we execute)
 
-| # | Phase | Committed? | SHA | Wall clock | Notes |
-|---|---|---|---|---|---|
-| 0 | Baseline capture | ✓ | df6385aa | ~4 min | 5-ep summarizer baseline + 8-pair QA reference |
-| 1 | Deps pass | ✓ | 7ea02357 | ~2 min | transformers 5.13.0, ST 5.6.0, hf_hub 1.22.0 |
-| 2 | Cache + registry | ✓ | 46f6aee7 | ~2 min | file_utils fallback dropped; all pinned revisions resolve |
-| 3 | QA rewrite | ✓ | 36ed7dcc | ~30 min | AutoModelForQuestionAnswering; 7/8 top-1 parity vs v4 pipeline |
-| 4 | Hybrid rewrite | | | | |
-| 5 | Summarizer rewrite | | | | |
-| E | Unify evidence backends | | | | |
-| F | Unify HF seq2seq loaders | | | | |
-| G | Unify HF download helpers | | | | |
-| 6 | Tests + coverage | | | | |
-| 7 | Parity gate | | | | |
-| 8 | Docs sweep | | | | |
-| 9 | CVE cleanup + ci-fast | | | | |
-| — | Rebase + push | ⛔ operator | | | |
+| # | Phase | Committed? | SHA | Notes |
+|---|---|---|---|---|
+| — | Preamble docs | ✓ | b23ad14b | Deep analysis + execution plan on branch |
+| 0 | Baseline capture | ✓ | df6385aa | 5-ep summarizer baseline + 8-pair QA reference |
+| 1 | Deps pass | ✓ | 7ea02357 | transformers 5.13.0, ST 5.6.0, hf_hub 1.22.0 |
+| 2 | Cache + registry | ✓ | 46f6aee7 | file_utils fallback dropped; all pinned revisions resolve |
+| 3 | QA rewrite | ✓ | 36ed7dcc | AutoModelForQuestionAnswering; 7/8 top-1 parity vs v4 pipeline |
+| — | Path C plan expansion | ✓ | 8a80b0f6 | Phases E/F/G added to plan |
+| 4 | Hybrid rewrite | ✓ | 943c84ae | pipeline("text2text-generation") → generate() |
+| 5 | Summarizer rewrite | ✓ | faba3f60 | pipeline("summarization") → generate() + GenerationConfig |
+| E | Unify evidence backends | ✓ | a5f671d6 | HFEvidenceBackend + AI-provider audit doc |
+| F.1 | Unify HF seq2seq — backend + hybrid | ✓ | 7ec9ad55 | HFSeq2SeqBackend + TransformersReduceBackend migrated |
+| F.2 | Unify HF seq2seq — summarizer | ✓ | d6b1807d | SummaryModel routed fully through HFSeq2SeqBackend |
+| G | Unify HF download helpers | ✓ | d486f35d | _download_hf_evidence_model(kind, model_id) |
+| 6-9 | Parity + release + CVE cleanup + docs | ✓ | 40c3bee6 | v2.7.0 release note, ADR-068 post-impl, testing strategy, Makefile CVE cleanup |
+| Closeout.1 | Fix integration-test regressions + 8/10 audit items | ✓ | 4ce8707b | 31 broken integration tests rewritten; QA helper rename; registry docstring; SDPA measured; Makefile typo |
+| Closeout.2 | Final ci-fast gate green | ✓ | f845d844 | Spelling fix, test-policy fix, test_bridge_builder update |
+| Closeout.3 | Cross-link #1142 (bundled dedup follow-up) | ✓ | 19955618 | Audit doc + release note point at follow-up issue |
+| Closeout.4 | Deep-review self-audit fixes | (this commit) | — | F1-F4 corrections from adversarial review |
+| — | Rebase + push | ⛔ operator | | Pending push approval |
 
 ---
 

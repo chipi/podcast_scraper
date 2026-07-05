@@ -29,6 +29,34 @@ commit (`a5f671d6`). The pattern is documented as an anti-pattern in Issue
 \#677 — hence the `_call_transformers_qa_pipeline` module-level indirection
 that used to exist (pre-#382) to give tests a real patch target.
 
+### Legitimate exception: `sys.modules` stub before patch
+
+There is one variant of "patch a library-internal name" that DOES work:
+when the test's `setUp` first replaces the entire library module with a
+`MagicMock` via `sys.modules["transformers"] = MagicMock()`, and only
+then `@patch("transformers.AutoTokenizer")` sets an attribute on that
+mock. The `from transformers import AutoTokenizer` inside the code
+under test then resolves against the mock module, not the real
+`_LazyModule`.
+
+`tests/integration/providers/ml/test_model_loader.py` uses this pattern
+to test `preload_transformers_models` (BART / LED / etc. cache warming)
+without importing the real transformers. It's legitimate because the
+test explicitly controls the entire module surface — no reliance on
+`_LazyModule.__getattr__`. However, it IS fragile:
+
+- Test-order dependence: another test that imports `transformers` first
+  (and pins the real module in `sys.modules`) would defeat the stub.
+- Signature drift: if transformers renames or reshapes `AutoTokenizer`,
+  the mock silently keeps working while production breaks.
+
+**Rule of thumb:** for new tests, prefer the facade / class-method seam
+patterns above. If you MUST patch a library-internal name, do the
+`sys.modules` stub first and put the patch inside the test class's
+`setUp`, not as a bare `@patch(...)` decorator on the test function —
+that makes the setup order explicit and stops decorator-only readers
+from mistaking it for the anti-pattern.
+
 ## Where to mock instead
 
 ### 1. Facade functions (module-level)

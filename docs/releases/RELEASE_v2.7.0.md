@@ -111,8 +111,12 @@ line-continuation block, silently eating the trailing `\`) so
 **Public API preserved:**
 
 - `extractive_qa.answer` / `answer_candidates` / `answer_multi` /
-  `get_qa_pipeline` / `load_qa_pipeline` / `clear_qa_pipeline_cache` /
-  `QASpan` — unchanged.
+  `clear_qa_pipeline_cache` / `QASpan` — unchanged.
+- `extractive_qa.get_qa_model` / `load_qa_model` — **NEW canonical names**
+  for what were previously `get_qa_pipeline` / `load_qa_pipeline`. Both
+  old names are retained as deprecation aliases (emit
+  `DeprecationWarning` on call, `stacklevel=2`); they proxy to the new
+  names verbatim. Migrate at your leisure; aliases stay until v3.0.0.
 - `nli_loader.entailment_score` / `entailment_scores_batch` /
   `get_nli_model` / `load_nli_model` / `predict_output_to_entailment_scores` —
   unchanged.

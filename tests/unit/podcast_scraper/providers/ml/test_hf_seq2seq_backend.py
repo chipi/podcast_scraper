@@ -159,3 +159,182 @@ class TestGenerateWiresGenerationConfig:
         fake_model.generate.assert_called_once()
         _, kwargs = fake_model.generate.call_args
         assert kwargs["generation_config"] is gen_cfg
+
+
+class TestSnapshotLoadWithFamilyClass:
+    """Cover the snapshot-load path where family_class is set (LED/BART/Pegasus).
+
+    This is the load branch used by SummaryModel for LED and BART checkpoints.
+    Uncovered by TestLoadFallbacksToRepoIdWhenNoSnapshot because that test
+    forces get_transformers_snapshot_path to return None.
+    """
+
+    def test_snapshot_path_taken_with_family_class(self, monkeypatch, tmp_path):
+        """When a snapshot exists, load() calls family_class.from_pretrained
+        on the resolved snapshot directory (not the repo id)."""
+        fake_tokenizer = mock.Mock(name="tokenizer")
+        fake_model = mock.Mock(name="model")
+        fake_model.to = mock.Mock(return_value=fake_model)
+        fake_model.eval = mock.Mock()
+
+        fake_auto_tok = mock.Mock()
+        fake_auto_tok.from_pretrained = mock.Mock(return_value=fake_tokenizer)
+        fake_transformers = mock.Mock(AutoTokenizer=fake_auto_tok)
+        import sys
+
+        monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
+
+        family_class = mock.Mock()
+        family_class.from_pretrained = mock.Mock(return_value=fake_model)
+
+        snapshot = tmp_path / "snapshot"
+        snapshot.mkdir()
+        from podcast_scraper import cache as cache_pkg
+
+        monkeypatch.setattr(cache_pkg, "get_transformers_cache_dir", lambda: tmp_path)
+        monkeypatch.setattr(cache_pkg, "get_transformers_snapshot_path", lambda *a, **kw: snapshot)
+
+        b = HFSeq2SeqBackend(
+            "allenai/led-base-16384",
+            device="cpu",
+            cache_dir=str(tmp_path),
+            family_class=family_class,
+        )
+        b.load()
+
+        assert b._loaded is True
+        assert b.model is fake_model
+        assert b.tokenizer is fake_tokenizer
+        family_class.from_pretrained.assert_called_once()
+        call_args, _ = family_class.from_pretrained.call_args
+        assert str(snapshot.resolve()) in call_args
+
+    def test_snapshot_fallback_to_main_on_no_file_named(self, monkeypatch, tmp_path):
+        """If the pinned snapshot lacks weights, load() retries against the
+        main snapshot. Covers the OSError('no file named ...') branch."""
+        fake_tokenizer = mock.Mock(name="tokenizer")
+        fake_model = mock.Mock(name="model")
+        fake_model.to = mock.Mock(return_value=fake_model)
+        fake_model.eval = mock.Mock()
+
+        fake_auto_tok = mock.Mock(from_pretrained=mock.Mock(return_value=fake_tokenizer))
+        fake_transformers = mock.Mock(AutoTokenizer=fake_auto_tok)
+        import sys
+
+        monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
+
+        pinned = tmp_path / "pinned"
+        pinned.mkdir()
+        main_snap = tmp_path / "main"
+        main_snap.mkdir()
+
+        from podcast_scraper import cache as cache_pkg
+
+        monkeypatch.setattr(cache_pkg, "get_transformers_cache_dir", lambda: tmp_path)
+
+        def snapshot_lookup(model_id, revision=None, cache_dir=None):
+            return pinned if revision else main_snap
+
+        monkeypatch.setattr(cache_pkg, "get_transformers_snapshot_path", snapshot_lookup)
+
+        family_class = mock.Mock()
+        family_class.from_pretrained = mock.Mock(
+            side_effect=[OSError("no file named model.safetensors"), fake_model]
+        )
+
+        b = HFSeq2SeqBackend(
+            "google/flan-t5-base",
+            device="cpu",
+            revision="abc123",
+            cache_dir=str(tmp_path),
+            family_class=family_class,
+        )
+        b.load()
+
+        assert b._loaded is True
+        assert b.model is fake_model
+        assert family_class.from_pretrained.call_count == 2
+
+
+class TestToDeviceFallback:
+    """Cover the OOM device-fallback branches on backend.to() after load."""
+
+    def _make_loaded_backend(self):
+        b = HFSeq2SeqBackend("facebook/bart-base", device="mps")
+        b.model = mock.MagicMock()
+        b.tokenizer = mock.MagicMock()
+        b._loaded = True
+        return b
+
+    def test_to_oom_on_mps_falls_back_to_cpu(self):
+        """MPS OOM → automatic CPU fallback (initial=False, from OOM recovery)."""
+        b = self._make_loaded_backend()
+        b.model.to = mock.Mock(
+            side_effect=[
+                RuntimeError("MPS out of memory"),
+                b.model,
+            ]
+        )
+        b.to("mps", initial=False)
+        assert b.device == "cpu"
+        assert b.model.to.call_count == 2
+
+    def test_to_non_oom_error_reraises(self):
+        """Non-OOM RuntimeError on post-load device move re-raises."""
+        b = self._make_loaded_backend()
+        b.model.to = mock.Mock(side_effect=RuntimeError("some other error"))
+        with pytest.raises(RuntimeError, match="some other error"):
+            b.to("mps", initial=False)
+
+    def test_to_meta_tensor_error_reties_ties_weights(self):
+        """meta-tensor NotImplementedError → tie_weights() + retry."""
+        b = self._make_loaded_backend()
+        b.model.to = mock.Mock(
+            side_effect=[
+                NotImplementedError("Cannot copy out of meta tensor"),
+                b.model,
+            ]
+        )
+        b.model.tie_weights = mock.Mock()
+        b.to("cpu", initial=True)
+        b.model.tie_weights.assert_called_once()
+        assert b.model.to.call_count == 2
+
+    def test_to_initial_load_falls_back_broadly(self):
+        """During initial load, any RuntimeError → CPU fallback (broader than post-load)."""
+        b = self._make_loaded_backend()
+        b.model.to = mock.Mock(
+            side_effect=[
+                RuntimeError("something weird"),
+                b.model,
+            ]
+        )
+        b.to("mps", initial=True)
+        assert b.device == "cpu"
+
+
+class TestAdoptAndUnload:
+    """Cover the adopt() + unload() surface added for SummaryModel Pegasus routing."""
+
+    def test_adopt_marks_loaded_and_calls_eval(self):
+        b = HFSeq2SeqBackend("google/pegasus-cnn_dailymail", device="cpu")
+        fake_model = mock.MagicMock()
+        fake_tokenizer = mock.MagicMock()
+        b.adopt(fake_model, fake_tokenizer, device="cpu")
+        assert b._loaded is True
+        assert b.model is fake_model
+        assert b.tokenizer is fake_tokenizer
+        fake_model.eval.assert_called_once()
+
+    def test_adopt_without_device_keeps_existing(self):
+        b = HFSeq2SeqBackend("facebook/bart-base", device="cuda")
+        b.adopt(mock.MagicMock(), mock.MagicMock())
+        assert b.device == "cuda"
+
+    def test_unload_after_adopt_clears_state(self):
+        b = HFSeq2SeqBackend("facebook/bart-base", device="cpu")
+        b.adopt(mock.MagicMock(), mock.MagicMock())
+        b.unload()
+        assert b.model is None
+        assert b.tokenizer is None
+        assert b._loaded is False
