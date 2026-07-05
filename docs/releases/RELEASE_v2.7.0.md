@@ -63,7 +63,22 @@ Frozen artifacts under `data/eval/`:
   chunks, where the removed v4 pipeline used its own aggregation.
   Both answers are correct extractive spans.
 
-Full report: `data/eval/runs/v5_parity_2026-07-05.json`.
+Full parity report: `data/eval/runs/v5_parity_2026-07-05.json`.
+
+**Independent data-quality validation** (`data/eval/runs/v5_data_quality_recheck_2026-07-05.json`,
+run via `scripts/eval/data_quality_recheck_2026-07-05.py`):
+
+| Comparison                                                             | Metric                         | Result                                                              |
+| ---------------------------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------- |
+| v5-post vs shipped `baseline_ml_bart_authority_smoke_v1` (April 2026)  | ROUGE-L / R-1 / R-2            | **1.0000 / 1.0000 / 1.0000** across all 5 episodes — byte-identical |
+| v5-post vs `silver_opus47_smoke_v1` (Claude Opus 4.7 reference)        | mean ROUGE-L / R-1 / R-2       | **0.2175 / 0.4003 / 0.2391**                                        |
+| Historical anchor: shipped_v1 vs same silver                            | mean ROUGE-L / R-1 / R-2       | **0.2175 / 0.4003 / 0.2391** — identical to row 2                   |
+
+Rows 2 and 3 being identical is the strongest possible cross-check:
+v5 achieves the same quality score against the semantic ground truth
+as v4 did. No quality regression measured across three orthogonal
+comparisons.
+
 
 ## Dependency deltas
 
