@@ -45,6 +45,7 @@ if TYPE_CHECKING:
 from ... import preprocessing
 from ...preprocessing.profiles import apply_profile_with_stats
 from ...utils.log_redaction import format_exception_for_log
+from .hf_seq2seq_backend import HFSeq2SeqBackend
 from .model_registry import ModelRegistry
 
 logger = logging.getLogger(__name__)
@@ -934,12 +935,13 @@ class SummaryModel:
         # Runtime imports happen lazily in _load_model()
         self.tokenizer: Optional["AutoTokenizer"] = None
         self.model: Optional["AutoModelForSeq2SeqLM"] = None
-        # transformers v5 removed pipeline("summarization"); we drive generation via
-        # self.model.generate() + GenerationConfig directly (see _generate_summary()).
-        # ``self.pipeline`` retained as a Bool-ish "loaded" sentinel for backwards compat
-        # with the ``if not self.pipeline:`` guard on the summarize entrypoint; True after
-        # _load_model() completes. Phase F will collapse SummaryModel onto HFSeq2SeqBackend
-        # and this attribute goes away entirely.
+        # Phase F: SummaryModel delegates load(non-Pegasus) + generate + device
+        # fallback to the shared HFSeq2SeqBackend. self.model / self.tokenizer are
+        # aliases into self._backend.model / self._backend.tokenizer once loaded
+        # (kept as attributes for the existing external-mock seams in tests).
+        self._backend: Optional[HFSeq2SeqBackend] = None
+        # ``self.pipeline`` retained as a Bool "loaded" sentinel; True after
+        # _load_model() completes.
         self.pipeline: bool = False
         self._batch_size: Optional[int] = None  # For parallel chunk processing (CPU only)
         # Threading lock to serialize tokenizer/model access (tokenizers are not thread-safe)
@@ -1134,28 +1136,7 @@ class SummaryModel:
         Returns:
             The decoded summary string (empty on generation failure).
         """
-        import torch
         from transformers import GenerationConfig
-
-        if self.model is None or self.tokenizer is None:
-            raise RuntimeError("Model not loaded")
-
-        # Encoder max — matches what the pipeline used implicitly.
-        max_len = (
-            getattr(self.model.config, "max_position_embeddings", None)
-            or getattr(self.model.config, "max_encoder_position_embeddings", None)
-            or 1024
-        )
-        tokenizer = cast(Any, self.tokenizer)
-        model = cast(Any, self.model)
-        inputs = tokenizer(
-            input_text,
-            return_tensors="pt",
-            truncation=truncation,
-            max_length=max_len,
-        )
-        device = next(model.parameters()).device
-        inputs = {k: v.to(device) for k, v in inputs.items()}
 
         gen_kwargs: Dict[str, Any] = {
             "max_new_tokens": max_new_tokens,
@@ -1173,10 +1154,17 @@ class SummaryModel:
             gen_kwargs["early_stopping"] = early_stopping
         gen_cfg = GenerationConfig(**gen_kwargs)
 
-        with torch.no_grad():
-            output_ids = model.generate(**inputs, generation_config=gen_cfg)
-        decoded: str = tokenizer.decode(output_ids[0], skip_special_tokens=True)
-        return decoded.strip()
+        if self._backend is not None and self._backend._loaded:
+            return self._backend.generate(input_text, gen_cfg, truncation=truncation)
+
+        # Fallback for tests that assign self.model / self.tokenizer directly
+        # without wiring up the backend (see test_summarizer.py mock idiom).
+        # Wraps them via an ad-hoc backend adopt so we share one generate path.
+        if self.model is None or self.tokenizer is None:
+            raise RuntimeError("Model not loaded")
+        ad_hoc = HFSeq2SeqBackend(self.model_name, device=self.device)
+        ad_hoc.adopt(self.model, self.tokenizer, device=self.device)
+        return ad_hoc.generate(input_text, gen_cfg, truncation=truncation)
 
     def _load_model(self) -> None:
         """Load model and tokenizer from cache or download."""
@@ -1327,54 +1315,70 @@ class SummaryModel:
                     # Store health checks for later (to add generate_ok)
                     self._pegasus_health_checks = health_checks
 
+                    # Adopt into a backend so generate() runs through the shared path.
+                    self._backend = HFSeq2SeqBackend(
+                        model_id=self.model_name,
+                        device=self.device,
+                        revision=self.revision,
+                        cache_dir=self.cache_dir,
+                    )
+                    self._backend.adopt(self.model, self.tokenizer, device=self.device)
+
                     # Note: Sanity check will run after pipeline is created (see below)
                 elif "led" in model_lower or "longformer" in model_lower:
-                    # Use LEDForConditionalGeneration for LED models
                     from transformers import LEDForConditionalGeneration
 
-                    logger.debug("Using LEDForConditionalGeneration for LED model")
-                    # Workaround: LED models with safetensors trigger API calls even with
-                    # local_files_only=True. Disable safetensors for LED models to avoid this.
-                    led_model_kwargs = model_kwargs.copy()
-                    led_model_kwargs["use_safetensors"] = False
                     logger.debug(
-                        "Disabling safetensors for LED model to avoid API calls "
-                        "during model loading"
+                        "Loading LED via HFSeq2SeqBackend "
+                        "(family_class=LEDForConditionalGeneration)"
                     )
-                    self.model = _load_with_retry_summarizer(
-                        lambda: LEDForConditionalGeneration.from_pretrained(  # nosec B615
-                            self.model_name,
-                            **cast(Any, led_model_kwargs),
-                        ),
-                        self.model_name,
-                        "LED model",
+                    self._backend = HFSeq2SeqBackend(
+                        model_id=self.model_name,
+                        device=self.device,
+                        revision=self.revision,
+                        cache_dir=self.cache_dir,
+                        family_class=LEDForConditionalGeneration,
+                        retry_wrapper=_load_with_retry_summarizer,
                     )
+                    self._backend.load()
+                    self.model = self._backend.model
+                    self.tokenizer = self._backend.tokenizer
+                    self.device = self._backend.device
                 elif "bart" in model_lower:
-                    # Use BartForConditionalGeneration for BART models
                     from transformers import BartForConditionalGeneration
 
-                    logger.debug("Using BartForConditionalGeneration for BART model")
-                    self.model = _load_with_retry_summarizer(
-                        lambda: BartForConditionalGeneration.from_pretrained(  # nosec B615
-                            self.model_name,
-                            **cast(Any, model_kwargs),
-                        ),
-                        self.model_name,
-                        "BART model",
+                    logger.debug(
+                        "Loading BART via HFSeq2SeqBackend "
+                        "(family_class=BartForConditionalGeneration)"
                     )
+                    self._backend = HFSeq2SeqBackend(
+                        model_id=self.model_name,
+                        device=self.device,
+                        revision=self.revision,
+                        cache_dir=self.cache_dir,
+                        family_class=BartForConditionalGeneration,
+                        retry_wrapper=_load_with_retry_summarizer,
+                    )
+                    self._backend.load()
+                    self.model = self._backend.model
+                    self.tokenizer = self._backend.tokenizer
+                    self.device = self._backend.device
                 else:
-                    # Fallback to AutoModelForSeq2SeqLM for other models (e.g. LongT5)
-                    from transformers import AutoModelForSeq2SeqLM
-
-                    logger.debug("Using AutoModelForSeq2SeqLM (auto-detection)")
-                    self.model = _load_with_retry_summarizer(
-                        lambda: AutoModelForSeq2SeqLM.from_pretrained(  # nosec B615
-                            self.model_name,
-                            **cast(Any, model_kwargs),
-                        ),
-                        self.model_name,
-                        "AutoModel",
+                    logger.debug(
+                        "Loading via HFSeq2SeqBackend "
+                        "(family_class default AutoModelForSeq2SeqLM)"
                     )
+                    self._backend = HFSeq2SeqBackend(
+                        model_id=self.model_name,
+                        device=self.device,
+                        revision=self.revision,
+                        cache_dir=self.cache_dir,
+                        retry_wrapper=_load_with_retry_summarizer,
+                    )
+                    self._backend.load()
+                    self.model = self._backend.model
+                    self.tokenizer = self._backend.tokenizer
+                    self.device = self._backend.device
                 logger.debug("Model loaded successfully (cached for future runs)")
             finally:
                 if original_hf_disable is None:
@@ -1653,11 +1657,14 @@ class SummaryModel:
                         "Falling back to CPU and retrying..."
                     )
                     try:
-                        # Move model to CPU. No pipeline to rebuild post-#382 — generate()
-                        # picks up the current device from ``next(self.model.parameters())``.
                         original_device_for_retry = self.device
-                        self.model = self.model.to("cpu")  # type: ignore[union-attr]
-                        self.device = "cpu"
+                        if self._backend is not None:
+                            self._backend.to("cpu")
+                            self.model = self._backend.model
+                            self.device = self._backend.device
+                        else:
+                            self.model = self.model.to("cpu")  # type: ignore[union-attr]
+                            self.device = "cpu"
                         logger.info(
                             f"Device fallback successful: model moved from "
                             f"{original_device_for_retry} to CPU. Retrying summarization..."
@@ -4506,6 +4513,10 @@ def unload_model(model: Optional[SummaryModel]) -> None:
     if model.pipeline:
         del model.pipeline
 
+    backend = getattr(model, "_backend", None)
+    if backend is not None:
+        backend.unload()
+        model._backend = None
     model.model = None
     model.tokenizer = None
     model.pipeline = False

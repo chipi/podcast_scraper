@@ -325,6 +325,27 @@ class HFSeq2SeqBackend:
         decoded = self.tokenizer.decode(output_ids[0], skip_special_tokens=True)
         return str(decoded).strip()
 
+    # ---- External-load adoption --------------------------------------
+
+    def adopt(self, model: Any, tokenizer: Any, device: Optional[str] = None) -> None:
+        """Mark the backend as loaded using externally-instantiated artifacts.
+
+        Used by :class:`SummaryModel` for the Pegasus code path — that
+        loader has custom missing-keys validation semantics that don't
+        map cleanly onto :meth:`load`, so the caller instantiates model
+        + tokenizer their own way and hands them here.
+
+        After adoption, :meth:`generate` / :meth:`to` / :meth:`unload`
+        work exactly as if :meth:`load` had populated the state.
+        """
+        self.model = model
+        self.tokenizer = tokenizer
+        if device is not None:
+            self.device = device
+        if self.model is not None and hasattr(self.model, "eval"):
+            self.model.eval()
+        self._loaded = True
+
     # ---- Teardown -----------------------------------------------------
 
     def unload(self) -> None:
