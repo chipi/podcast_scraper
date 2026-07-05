@@ -16,7 +16,7 @@ import pytest
 # optional [ml] extras are not installed (no-ML dev venv used by test-unit in CI).
 pytest.importorskip("transformers")
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 from podcast_scraper.providers.ml.hybrid_ml_provider import (
     HybridReduceResult,
