@@ -1,4 +1,4 @@
-"""Unit tests for `TransformersReduceBackend` (hybrid tier-1 REDUCE).
+"""Integration tests for `TransformersReduceBackend` (hybrid tier-1 REDUCE).
 
 Post-#382 the backend delegates all loading and generation to
 `HFSeq2SeqBackend`; these tests exercise the thin `TransformersReduceBackend`
@@ -15,6 +15,8 @@ import pytest
 # reduce() imports `from transformers import GenerationConfig`. Skip when the
 # optional [ml] extras are not installed (no-ML dev venv used by test-unit in CI).
 pytest.importorskip("transformers")
+
+pytestmark = [pytest.mark.integration]
 
 from podcast_scraper.providers.ml.hybrid_ml_provider import (
     HybridReduceResult,
