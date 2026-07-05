@@ -1211,7 +1211,7 @@ class SummaryModel:
                     "trust_remote_code": False,  # Security: don't execute remote code (Issue #379)
                     # Disable safetensors for Pegasus (no safetensors files)
                     "use_safetensors": use_safetensors,
-                    # Force eager weight allocation. With transformers 4.57 + torch 2.11, the
+                    # Force eager weight allocation. On transformers v5 + torch 2.x, the
                     # default lazy path can leave tied weights (lm_head, embed_tokens) on the
                     # meta device, which then crashes `.to(device)` on subsequent feeds in
                     # multi-feed mode with "Cannot copy out of meta tensor".

@@ -3,7 +3,7 @@
 Post-#382 the load path goes through :class:`QAEvidenceBackend` (a subclass
 of :class:`HFEvidenceBackend`). These tests mock at the backend's
 ``_load`` seam so no real model instantiation happens; the cache + facade
-plumbing (:func:`get_qa_pipeline`, :func:`answer`, :func:`answer_multi`)
+plumbing (:func:`get_qa_model`, :func:`answer`, :func:`answer_multi`)
 is exercised end-to-end.
 """
 
@@ -79,8 +79,8 @@ class TestExtractiveQAIntegration:
         assert len(spans) == 3
         assert all(isinstance(s, QASpan) for s in spans)
 
-    def test_get_qa_pipeline_caches_instance(self, monkeypatch):
-        """get_qa_pipeline returns the same (model, tokenizer) tuple twice —
+    def test_get_qa_model_caches_instance(self, monkeypatch):
+        """get_qa_model returns the same (model, tokenizer) tuple twice —
         backing QAEvidenceBackend instance is cached by (resolved_id, device)."""
         load_calls = []
 
@@ -92,8 +92,8 @@ class TestExtractiveQAIntegration:
         monkeypatch.setattr(QAEvidenceBackend, "_load", fake_load)
         QAEvidenceBackend.clear_cache()
 
-        a = extractive_qa.get_qa_pipeline("roberta-squad2", device="cpu")
-        b = extractive_qa.get_qa_pipeline("roberta-squad2", device="cpu")
+        a = extractive_qa.get_qa_model("roberta-squad2", device="cpu")
+        b = extractive_qa.get_qa_model("roberta-squad2", device="cpu")
 
         assert a[0] is b[0]  # model identity
         assert a[1] is b[1]  # tokenizer identity

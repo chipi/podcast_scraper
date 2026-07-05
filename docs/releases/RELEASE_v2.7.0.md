@@ -157,7 +157,7 @@ line-continuation block, silently eating the trailing `\`) so
 **Public API preserved:**
 
 - `extractive_qa.answer` / `answer_candidates` / `answer_multi` /
-  `clear_qa_pipeline_cache` / `QASpan` — unchanged.
+  `clear_qa_model_cache` (renamed from `clear_qa_pipeline_cache`; no alias, only internal callers) / `QASpan` — unchanged.
 - `extractive_qa.get_qa_model` / `load_qa_model` — **NEW canonical names**
   for what were previously `get_qa_pipeline` / `load_qa_pipeline`. Both
   old names are retained as deprecation aliases (emit

@@ -47,11 +47,14 @@ from ml_model_cache_helpers import (  # noqa: E402
 
 # Note: MockHTTPServer import removed - not actually used in this file
 
-# Check if ML dependencies are available
+# Check if ML dependencies are available. Probe with AutoTokenizer (used
+# everywhere in providers/ml) rather than pipeline - transformers v5 kept
+# pipeline() importable for some tasks but retired the summarization / QA
+# tasks this suite used to gate on, so pipeline is a misleading probe.
 try:
     import spacy  # noqa: F401
     import whisper  # noqa: F401
-    from transformers import pipeline  # noqa: F401
+    from transformers import AutoTokenizer  # noqa: F401
 
     ML_AVAILABLE = True
 except ImportError:

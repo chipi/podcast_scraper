@@ -285,7 +285,7 @@ class TestMetadataGeneration(unittest.TestCase):
     def test_generate_metadata_dry_run(self, mock_torch, mock_transformers):
         """Test metadata generation in dry-run mode."""
         # Mock transformers and torch to prevent actual imports
-        mock_transformers.__version__ = "4.0.0"
+        mock_transformers.__version__ = "5.13.0"
         mock_torch.__version__ = "2.0.0"
         cfg = create_test_config(
             output_dir=self.temp_dir,
@@ -2374,7 +2374,7 @@ class TestBuildSummarizationProviderInfo(unittest.TestCase):
             summary_model="allenai/led-base-16384",
         )
         fake_torch = MagicMock(__version__="2.0.0")
-        fake_transformers = MagicMock(__version__="4.30.0")
+        fake_transformers = MagicMock(__version__="5.13.0")
         with patch.dict(
             "sys.modules",
             {"torch": fake_torch, "transformers": fake_transformers},

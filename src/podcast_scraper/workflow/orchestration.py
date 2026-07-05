@@ -694,7 +694,7 @@ def finalize_deferred_multi_feed_ml_cleanup() -> None:
     try:
         from ..providers.ml import extractive_qa
 
-        extractive_qa.clear_qa_pipeline_cache()
+        extractive_qa.clear_qa_model_cache()
     except ImportError:
         pass
 

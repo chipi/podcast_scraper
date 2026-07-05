@@ -462,9 +462,10 @@ class TestChunking(unittest.TestCase):
         of this test patched ``transformers.AutoTokenizer`` /
         ``AutoModelForSeq2SeqLM`` / ``pipeline`` decoratively but never
         used the mocks — they were dead patches and a #677-style
-        anti-pattern (patching lazy-module attributes that
-        ``transformers >= 4.40`` resolves through ``_LazyModule.__getattr__``,
-        bypassing test patches). Removed since they were never load-bearing.
+        anti-pattern (patching lazy-module attributes on ``transformers``,
+        which resolves ``pipeline`` / ``Auto*`` through ``_LazyModule.__getattr__``
+        (lazy since 4.40, still lazy on v5), bypassing test patches). Removed
+        since they were never load-bearing.
         """
         mock_tokenizer = Mock()
         # Mock tokenizer to return tokens

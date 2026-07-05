@@ -71,6 +71,51 @@ src/podcast_scraper/
     └── factory.py           # Factory logic
 ```
 
+### Local HuggingFace backends (post-#382)
+
+Local ML providers do **not** call `transformers.pipeline()` directly. They
+delegate load + generate through one of two shared backends:
+
+- **`HFEvidenceBackend`** (`providers/ml/hf_evidence_backend.py`) — the base
+  class for QA, NLI, and sentence-embedding backends
+  (`QAEvidenceBackend`, `NLIEvidenceBackend`, `EmbeddingEvidenceBackend`).
+  Owns device resolution (with per-subclass `mps_supported` flag), the
+  standard `from_pretrained` kwargs (`local_files_only=True`,
+  `low_cpu_mem_usage=False`, `trust_remote_code=False`), and a
+  per-subclass process-wide instance cache with a threading lock. Reach for
+  it whenever you want to add a new evidence-style extractor (a new QA head,
+  a new entailment scorer, a new embedding model).
+
+- **`HFSeq2SeqBackend`** (`providers/ml/hf_seq2seq_backend.py`) — one
+  loader/generator for the BART / LED / Pegasus / LongT5 / FLAN-T5 family.
+  `SummaryModel` (map profile) and `TransformersReduceBackend` (hybrid
+  reduce profile) both delegate through it. Snapshot-first checkpoint
+  discovery, family-class override (`family_class`), and a retry hook
+  (`retry_wrapper`) are the extension points. Reach for it when adding
+  a new seq2seq summarization or text-generation surface.
+
+**How to add a new HF-backed capability:**
+
+1. Subclass the right backend (`HFEvidenceBackend` for scoring/matching,
+   `HFSeq2SeqBackend` for generation).
+2. Override just the class attributes that differ (model kind, family
+   class, mps flag, task-specific decoding defaults). The base classes
+   handle download, cache, device coercion, and load ordering.
+3. If your task needs custom generation kwargs, express them via
+   `transformers.GenerationConfig` — never as arbitrary keyword args.
+   That keeps behavior parity with pipeline-era defaults and makes
+   determinism explicit.
+4. Add a fixture-based regression baseline under `data/eval/references/`
+   (see `scripts/dev/capture_*_baseline.py` for the pattern) and a
+   comparator step in `scripts/eval/full_ml_recheck.py`. The nightly
+   regression test at `tests/e2e/test_v5_parity_regression.py`
+   auto-enforces new entries.
+
+The old `transformers.pipeline("…")` call sites are **retired in v5** and
+must not come back — v5 removed several of the task strings entirely
+(`"question-answering"`, `"summarization"` in the removed form, etc.).
+For test-mocking guidance see [`testing-strategy-ml.md`](testing-strategy-ml.md).
+
 ## Step-by-Step Implementation
 
 ### Step 1: Understand the Protocol

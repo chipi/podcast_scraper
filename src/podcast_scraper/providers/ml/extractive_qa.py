@@ -3,7 +3,7 @@
 Post-#382 Phase E: this module is a thin functional wrapper over
 :class:`QAEvidenceBackend` (in :mod:`.hf_evidence_backend`). The public
 surface (:class:`QASpan`, :func:`answer`, :func:`answer_candidates`,
-:func:`answer_multi`, :func:`clear_qa_pipeline_cache`) is preserved so
+:func:`answer_multi`, :func:`clear_qa_model_cache`) is preserved so
 callers (``gi.grounding``, ``ml_provider``, tests) do not move.
 
 Historical note: v4 used ``transformers.pipeline("question-answering")``
@@ -210,11 +210,11 @@ class QAEvidenceBackend(HFEvidenceBackend):
 # ---- Module-level thin wrappers (public API preserved) -------------------
 
 
-def clear_qa_pipeline_cache() -> None:
+def clear_qa_model_cache() -> None:
     """Drop cached QA backends — multi-feed hygiene (GitHub #539).
 
-    Name kept for API stability with pre-Phase-E callers (``service.py``,
-    ``workflow/orchestration.py``).
+    Cleared between feeds (GitHub #539) to force fresh weight-tensor state
+    and avoid meta-tensor / lazy-init sharing across independent runs.
     """
     QAEvidenceBackend.clear_cache()
 

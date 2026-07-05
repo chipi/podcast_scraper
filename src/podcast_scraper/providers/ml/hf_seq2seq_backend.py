@@ -16,7 +16,7 @@ Unlike :class:`HFEvidenceBackend`, this class does NOT expose a shared
 process-wide cache — every ``SummaryModel`` / ``TransformersReduceBackend``
 instance is already the caller's cache handle (they own the lifecycle
 of the loaded weights, cleaned up between feeds via
-``clear_qa_pipeline_cache`` / ``cleanup()``).
+``clear_qa_model_cache`` / ``cleanup()``).
 
 Consumers keep their existing public shapes; only the load + generate
 plumbing moves in.

@@ -1,6 +1,6 @@
 # RFC-012: Episode Summarization Using Local Transformers
 
-- **Status**: Completed
+- **Status**: Completed (dependency guidance superseded by [#382](https://github.com/chipi/podcast_scraper/issues/382) — 2026-07: transformers upgraded to v5, pipeline() calls retired in favor of AutoModel* + generate(). Historical pins below are frozen for archival context.)
 - **Authors**:
 - **Stakeholders**: Maintainers, users generating episode summaries, developers integrating summarization
 - **Related PRDs**: `docs/prd/PRD-005-episode-summarization.md` (to be created), `docs/prd/PRD-004-metadata-generation.md`

@@ -172,7 +172,7 @@ def _run_multi_feed(cfg: config.Config, entries: List[config.RssFeedEntry]) -> S
                             try:
                                 from podcast_scraper.providers.ml import extractive_qa
 
-                                extractive_qa.clear_qa_pipeline_cache()
+                                extractive_qa.clear_qa_model_cache()
                             except ImportError:
                                 pass
 
