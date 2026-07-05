@@ -72,9 +72,11 @@ Estimated ~200 LOC duplication surface.
 would balloon the PR. Fold as separate work when a cloud-provider
 feature demands touching all four again.
 
-Follow-up ticket wording (draft):
+**Tracked in [#1142](https://github.com/chipi/podcast_scraper/issues/1142)** — filed 2026-07-05 with the full measurement, API proposal, test coverage plan, and rationale for splitting out of #382.
 
-> **feat(providers): extract shared BundledSummarization mixin**
+Ticket wording (as filed):
+
+> **feat(providers): extract shared BundledSummarizationMixin across cloud LLM providers**
 >
 > The four cloud providers (OpenAI, Gemini, Anthropic, Mistral) implement
 > a near-identical bundled-inference trio (`summarize_mega_bundled` /

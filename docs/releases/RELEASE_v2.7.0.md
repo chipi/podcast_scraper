@@ -134,12 +134,16 @@ resolvable under transformers 5.13.0.
 
 ## Known follow-ups (separate from this release)
 
-- **Bundled-inference dedup** across `OpenAIProvider` /
-  `GeminiProvider` / `AnthropicProvider` / `MistralProvider`: their
-  `summarize_mega_bundled` / `summarize_extraction_bundled` /
-  `summarize_bundled` trio has ~200 LOC of duplication surface. Not
-  part of #382 (orthogonal); see `docs/wip/ISSUE-382-AI-PROVIDER-AUDIT-2026-07-05.md`
-  for the audit + follow-up ticket wording.
+- **Bundled-inference dedup across cloud providers** — tracked in
+  [#1142](https://github.com/chipi/podcast_scraper/issues/1142). The
+  `summarize_bundled` / `summarize_extraction_bundled` /
+  `summarize_mega_bundled` trio on OpenAI / Gemini / Anthropic /
+  Mistral totals ~1460 LOC across the four providers with a shared
+  flow (chunking → LLM call → JSON-parse retry → cost tracking →
+  result-shape assembly) but SDK-specific request/response shapes.
+  Orthogonal to transformers v5; ships in its own PR when scheduled.
+  Full measurement + API proposal + test plan lives in the audit doc
+  (`docs/wip/ISSUE-382-AI-PROVIDER-AUDIT-2026-07-05.md`) and the issue.
 
 ## Related
 
