@@ -240,84 +240,30 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
             raise
 
 
-def build_huggingface_qa_pipeline(
-    model_id: str,
-    *,
-    device: int,
-    local_files_only: bool,
-) -> Any:
-    """Instantiate a Hugging Face ``question-answering`` pipeline with our cache dir.
+def _download_qa_model_for_cache(model_id: str) -> None:
+    """Populate the HF cache with a QA model + tokenizer pair (test seam).
 
-    Newer ``transformers`` merges a top-level ``local_files_only`` into hub kwargs; if the
-    same flag is also inside ``model_kwargs``, ``AutoConfig.from_pretrained`` raises
-    "multiple values for keyword argument 'local_files_only'". Older versions expect the
-    flag only in ``model_kwargs``. Preload (downloads allowed) uses cache_dir only; offline
-    load tries ``model_kwargs`` first, then the top-level argument.
-
-    Args:
-        model_id: Hub id or local path passed to ``pipeline(model=...)``.
-        device: ``pipeline`` device index (e.g. ``-1`` for CPU).
-        local_files_only: If True, do not hit the hub (cache must be populated).
-
-    Returns:
-        The transformers QA pipeline instance.
+    transformers v5 removed the ``pipeline("question-answering")`` task
+    (see #382). We now warm the cache by instantiating the model and
+    tokenizer directly. Extracted as a module-level hook so unit tests
+    can patch it without fighting ``from transformers import ...`` name
+    binding (see Issue #677 for the pattern rationale).
     """
+    from transformers import AutoModelForQuestionAnswering, AutoTokenizer
+
     cache_dir = str(get_transformers_cache_dir().resolve())
-    # low_cpu_mem_usage=False avoids lazy meta-device init paths on some torch/transformers
-    # pairs that break a second Whisper load in the same process (GitHub #539).
-    if not local_files_only:
-        return _call_transformers_qa_pipeline(
-            "question-answering",
-            model=model_id,
-            device=device,
-            model_kwargs={"cache_dir": cache_dir, "low_cpu_mem_usage": False},
-        )
-    model_kw: dict[str, Any] = {
-        "local_files_only": True,
+    kw: dict[str, Any] = {
         "cache_dir": cache_dir,
+        # Preload path — downloads allowed here (the ONLY place they are).
+        "local_files_only": False,
+        "trust_remote_code": False,
+        # low_cpu_mem_usage=False mirrors the summarizer/extractive_qa loaders —
+        # avoids lazy meta-device init paths that break second-load in-process
+        # (GitHub #539).
         "low_cpu_mem_usage": False,
     }
-    try:
-        return _call_transformers_qa_pipeline(
-            "question-answering",
-            model=model_id,
-            device=device,
-            model_kwargs=model_kw,
-        )
-    except TypeError as exc:
-        if "multiple values" not in str(exc) or "local_files_only" not in str(exc):
-            raise
-        return _call_transformers_qa_pipeline(
-            "question-answering",
-            model=model_id,
-            device=device,
-            model_kwargs={"cache_dir": cache_dir, "low_cpu_mem_usage": False},
-            local_files_only=True,
-        )
-
-
-def _call_transformers_qa_pipeline(*args: Any, **kwargs: Any) -> Any:
-    """Module-level indirection for ``transformers.pipeline``.
-
-    Tests must patch *this* symbol — not ``transformers.pipeline``. The
-    top-level ``transformers`` module is a ``_LazyModule`` (transformers
-    >= 4.40) whose ``__getattr__`` resolves ``pipeline`` from a submodule,
-    so ``monkeypatch.setattr("transformers.pipeline", fake)`` is silently
-    bypassed by the function-local ``from transformers import pipeline``
-    inside :func:`build_huggingface_qa_pipeline`. Issue #677.
-    """
-    from transformers import pipeline
-
-    return pipeline(*args, **kwargs)
-
-
-def _download_qa_pipeline_for_cache(model_id: str) -> None:
-    """Run transformers QA pipeline once to populate the HF cache.
-
-    Extracted as a module-level hook so unit tests can patch it without
-    fighting ``from transformers import pipeline`` name binding.
-    """
-    build_huggingface_qa_pipeline(model_id, device=-1, local_files_only=False)
+    AutoTokenizer.from_pretrained(model_id, **kw)  # nosec B615
+    AutoModelForQuestionAnswering.from_pretrained(model_id, **kw)  # nosec B615
 
 
 def _download_nli_cross_encoder_for_cache(model_id: str) -> None:
@@ -432,7 +378,7 @@ def preload_evidence_models(
             continue
         logger.info("  Preloading QA model %s...", resolved)
         try:
-            _download_qa_pipeline_for_cache(resolved)
+            _download_qa_model_for_cache(resolved)
             logger.info("  ✓ QA model %s cached", resolved)
         except Exception as e:
             logger.error(
