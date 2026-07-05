@@ -10,7 +10,16 @@ docs updates, registry / `data/eval` integration, and the push gate.
 - **Do-not-push posture:** every phase ends in a commit on this branch;
   push and PR happen only after the operator says "push".
 
-Overview of the 10 phases:
+## Scope — Path C epic (2026-07-05 revision)
+
+Per operator direction (2026-07-05): #382 is treated as an **epic**. Beyond
+the mechanical `pipeline()` → `generate()` migration, this branch also
+folds three architectural collapses so the local ML stack ends up
+aligned with the AI-provider abstraction ("just different profiles and
+providers"). No separate GH sub-issues; the branch delivers all of it
+in one PR that closes #382.
+
+Overview of the 13 phases (10 original + 3 architectural):
 
 | # | Phase | Wall-time | Gate |
 |---|---|---|---|
@@ -20,14 +29,43 @@ Overview of the 10 phases:
 | 3 | Extractive QA rewrite (drop `pipeline("question-answering")`) | ~4 h | New QA unit tests pass; GI grounding tests unchanged |
 | 4 | Hybrid reduce rewrite (drop `pipeline("text2text-generation")`) | ~2 h | `TransformersReduceBackend` unit tests + FLAN-T5 smoke |
 | 5 | Summarizer rewrite (drop `pipeline("summarization")` + adopt `GenerationConfig`) | ~6 h | `module_summarization` marker green, `ml_models` marker green |
+| **E** | **Unify evidence backends** — `HFEvidenceBackend` for QA/NLI/embedding | ~4 h | 3 modules collapse to 1 abstraction + thin heads; public API preserved |
+| **F** | **Unify HF seq2seq loaders** — `HFSeq2SeqBackend` for map + reduce | ~4 h | `SummaryModel` and `TransformersReduceBackend` become thin profiles |
+| **G** | **Unify HF download helpers** — one `_download_hf_model(kind, model_id)` | ~1 h | 3 `_download_*_for_cache` functions collapse to 1 |
 | 6 | Test-harness updates + coverage add-ons | ~3 h | New parity tests + updated markers; `pytest-cov` no regression |
 | 7 | Post-upgrade eval run + `run-compare` gate | 1–2 h | ROUGE-L / QA-EM parity vs Phase-0 baseline (`>=0.95` / `>=0.98`) |
 | 8 | Docs sweep (ADRs / guides / registry doc / CHANGELOG / issue #382) | 2 h | `make docs` (mkdocs strict) green |
 | 9 | Makefile CVE-ignore removal + `make ci-fast` | 1 h + wall | `make ci-fast` green; secrets-scan clean |
 | — | (operator-gated) push + PR ready-for-review | — | rebase onto origin/main → force-with-lease → open PR |
 
-Total: **~1.5–2 focused days** including baseline capture, integration
-tests, docs sweep. Wall time longer if a phase surfaces a surprise.
+Total: **~3–4 focused days** with the architectural additions. Original
+mechanical migration (~2 days) + E/F/G (~1–2 days).
+
+## Architectural target — after this branch
+
+Before this branch, the local ML stack had three parallel shapes for
+"load HF model, cache it, forward it":
+
+- `SummaryModel` (summarizer.py) — map model, class-based, ~800 LOC of
+  loading + generation + retry + validation.
+- `TransformersReduceBackend` (hybrid_ml_provider.py) — reduce model,
+  class-based, different shape.
+- `extractive_qa` / `nli_loader` / `embedding_loader` — bare-function
+  triplet, near-identical device/cache/threading-lock idioms.
+
+After this branch:
+
+- `HFSeq2SeqBackend` — one loader/generator for BART/LED/Pegasus/LongT5/
+  FLAN-T5; `SummaryModel` (map profile) and `TransformersReduceBackend`
+  (reduce profile) are thin configs over it.
+- `HFEvidenceBackend` — one loader for the evidence stack; QA / NLI /
+  embedding are heads over it. `extractive_qa.answer_candidates(...)`
+  etc. remain the public surface (via thin module wrappers) so callers
+  don't move.
+- `_download_hf_model(kind, model_id, **hf_kwargs)` in model_loader —
+  one function replaces the three parallel download helpers.
+
+Net LOC delta: **negative** (~-400 LOC after all collapses land).
 
 ---
 
@@ -542,6 +580,172 @@ git commit -m "refactor(ml): replace summarization pipeline() with generate() + 
 
 ---
 
+## Phase E — Unify evidence backends (QA / NLI / embedding)
+
+Introduce `HFEvidenceBackend` as the shared shape for the three evidence
+models. Migrate `extractive_qa.py`, `nli_loader.py`, `embedding_loader.py`
+to it. Public API preserved via module-level thin wrappers.
+
+### E.a. Design — `src/podcast_scraper/providers/ml/hf_evidence_backend.py`
+
+```python
+class HFEvidenceBackend(ABC):
+    """Shared loader + cache + forward for GIL evidence models."""
+    kind: ClassVar[str]  # "qa" | "nli" | "embedding"
+
+    def __init__(self, model_id: str, device: Optional[str] = None) -> None: ...
+    @classmethod
+    def get_or_load(cls, model_id: str, device: Optional[str] = None) -> Self: ...
+    @classmethod
+    def clear_cache(cls) -> None: ...
+
+    @abstractmethod
+    def _load(self) -> None: ...        # AutoTokenizer + AutoModelFor{QA,SequenceClassification,None}
+    @abstractmethod
+    def _forward(self, *args, **kwargs) -> Any: ...
+
+class QAEvidenceBackend(HFEvidenceBackend): ...
+class NLIEvidenceBackend(HFEvidenceBackend): ...
+class EmbeddingBackend(HFEvidenceBackend): ...
+```
+
+Shared machinery in the ABC:
+
+- Device resolution (`_resolve_device` with MPS→CPU coercion for QA/NLI).
+- Per-`(resolved_id, device)` cache with a threading lock (currently
+  duplicated 3 ways).
+- `local_files_only=True`, `low_cpu_mem_usage=False`,
+  `trust_remote_code=False`, `cache_dir=get_transformers_cache_dir()` —
+  the "standard load kwargs" applied to every from_pretrained call.
+- `_safe_score_float()` helper (currently duplicated 2 ways).
+
+### E.b. Thin wrappers preserve public API
+
+`extractive_qa.py` shrinks to:
+
+```python
+from .hf_evidence_backend import QAEvidenceBackend
+QASpan = QASpan  # re-exported
+def answer(context, question, model_id, ...) -> QASpan:
+    return QAEvidenceBackend.get_or_load(model_id, ...).answer(question, context)
+def answer_candidates(...) -> list[QASpan]: ...
+def clear_qa_pipeline_cache() -> None:
+    QAEvidenceBackend.clear_cache()
+```
+
+`nli_loader.py` and `embedding_loader.py` follow the same pattern.
+Callers (`gi/grounding.py`, `ml_provider.py`, tests) don't move.
+
+### E.c. Test harness
+
+- New: `tests/unit/podcast_scraper/providers/ml/test_hf_evidence_backend.py`
+  — cache-hit, threading, device resolution, `_safe_score_float`.
+- Existing `test_grounding.py` still mocks at `extractive_qa.answer_candidates`
+  — refactor invisible.
+- Add contract test: all three subclasses satisfy the ABC.
+
+### E.d. Gate + commit
+
+```bash
+.venv/bin/python -m pytest tests/unit/podcast_scraper/providers/ml/ -x -q
+.venv/bin/python -m pytest tests/unit/podcast_scraper/gi/ -x -q
+git commit -m "refactor(ml): unify evidence backends (QA/NLI/embedding) under HFEvidenceBackend (#382)"
+```
+
+---
+
+## Phase F — Unify HF seq2seq loaders
+
+Same collapse for the seq2seq path. `SummaryModel` and
+`TransformersReduceBackend` do the same thing (load an HF seq2seq
+checkpoint, generate) with different default gen params. Introduce a
+shared backend; both become thin profiles.
+
+### F.a. Design — `src/podcast_scraper/providers/ml/hf_seq2seq_backend.py`
+
+```python
+class HFSeq2SeqBackend:
+    """Shared loader + generator for HF seq2seq checkpoints."""
+    def __init__(self, model_id: str, *, device: Optional[str] = None,
+                 revision: Optional[str] = None, cache_dir: Optional[str] = None,
+                 default_gen_config: Optional[GenerationConfig] = None,
+                 use_safetensors: Optional[bool] = None) -> None: ...
+    def load(self) -> None: ...  # snapshot-first, model-family-specific class dispatch
+    def generate(self, text: str, *, gen_config: Optional[GenerationConfig] = None) -> str: ...
+    def to(self, device: str) -> None: ...  # for OOM fallback
+    def unload(self) -> None: ...
+```
+
+Model-family dispatch (Pegasus / LED / BART / AutoModel) lives here
+once — the current triple copy in summarizer.py:1176-1301 collapses.
+The Pegasus warning validator moves in as an opt-in kwarg
+(`validate_missing_positional_embeddings=True`).
+
+### F.b. Consumers
+
+- `SummaryModel` becomes: hold an `HFSeq2SeqBackend` instance +
+  MAP-specific default `GenerationConfig` + preprocessing + chunking
+  + retry loop.
+- `TransformersReduceBackend` becomes: hold an `HFSeq2SeqBackend` +
+  REDUCE-specific default `GenerationConfig` + prompt formatting.
+
+Both consumers keep their existing public surface.
+
+### F.c. Test harness
+
+- New: `tests/unit/podcast_scraper/providers/ml/test_hf_seq2seq_backend.py`
+  — model loading, family dispatch, generation, device fallback.
+- Existing `test_summarizer.py` and `test_hybrid_provider.py` continue
+  to work (mock at `SummaryModel.summarize` / `TransformersReduceBackend.reduce`
+  boundaries).
+
+### F.d. Gate + commit
+
+```bash
+.venv/bin/python -m pytest -m "unit and module_summarization" -x -q
+.venv/bin/python -m pytest -m "unit and module_ml_providers" -x -q
+git commit -m "refactor(ml): collapse SummaryModel + TransformersReduceBackend onto HFSeq2SeqBackend (#382)"
+```
+
+---
+
+## Phase G — Unify HF download helpers
+
+Model_loader has three parallel warmers
+(`_download_qa_model_for_cache`, `_download_nli_cross_encoder_for_cache`,
+`_download_sentence_transformer_for_cache`). Collapse to one.
+
+### G.a. Design
+
+```python
+def _download_hf_model(
+    kind: Literal["seq2seq", "qa", "nli", "embedding", "sentence-transformer"],
+    model_id: str,
+) -> None:
+    """Warm the HF cache for one model. Preload-only path (downloads allowed)."""
+    ...
+```
+
+Dispatch on `kind` for the model class + secondary loads
+(sentence-transformers needs `SentenceTransformer(...)`; CrossEncoder
+needs its own class; QA/NLI use `AutoModelForQuestionAnswering` /
+`AutoModelForSequenceClassification` + `AutoTokenizer`).
+
+### G.b. Consumers
+
+`preload_evidence_models` loops over
+`[(kind, model_id) for … in embedding_models + qa_models + nli_models]`
+instead of three separate loops with identical scaffolding.
+
+### G.c. Gate + commit
+
+```bash
+.venv/bin/python -m pytest tests/unit/podcast_scraper/providers/ml/ -x -q
+git commit -m "refactor(ml): collapse HF cache-warm helpers under _download_hf_model (#382)"
+```
+
+---
+
 ## Phase 6 — Test-harness updates + coverage add-ons
 
 Phases 3/4/5 add tests as they go; Phase 6 sweeps for **gaps** and
@@ -869,12 +1073,15 @@ Before the operator says "push":
 
 | # | Phase | Committed? | SHA | Wall clock | Notes |
 |---|---|---|---|---|---|
-| 0 | Baseline capture | | | | |
-| 1 | Deps pass | | | | |
-| 2 | Cache + registry | | | | |
-| 3 | QA rewrite | | | | |
+| 0 | Baseline capture | ✓ | df6385aa | ~4 min | 5-ep summarizer baseline + 8-pair QA reference |
+| 1 | Deps pass | ✓ | 7ea02357 | ~2 min | transformers 5.13.0, ST 5.6.0, hf_hub 1.22.0 |
+| 2 | Cache + registry | ✓ | 46f6aee7 | ~2 min | file_utils fallback dropped; all pinned revisions resolve |
+| 3 | QA rewrite | ✓ | 36ed7dcc | ~30 min | AutoModelForQuestionAnswering; 7/8 top-1 parity vs v4 pipeline |
 | 4 | Hybrid rewrite | | | | |
 | 5 | Summarizer rewrite | | | | |
+| E | Unify evidence backends | | | | |
+| F | Unify HF seq2seq loaders | | | | |
+| G | Unify HF download helpers | | | | |
 | 6 | Tests + coverage | | | | |
 | 7 | Parity gate | | | | |
 | 8 | Docs sweep | | | | |
