@@ -12,6 +12,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+# reduce() imports `from transformers import GenerationConfig`. Skip when the
+# optional [ml] extras are not installed (no-ML dev venv used by test-unit in CI).
+pytest.importorskip("transformers")
+
 from podcast_scraper.providers.ml.hybrid_ml_provider import (
     HybridReduceResult,
     TransformersReduceBackend,
