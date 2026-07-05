@@ -14,6 +14,14 @@ provider/model choice for a stage (transcription, summary, etc.) with
 profile YAMLs in ``config/profiles/`` are downstream views — they should
 match the registry preset they claim to derive from. Drift = bug.
 
+**2026-07-05 note (#382, transformers v5)**: consumers of this registry no
+longer instantiate transformers.pipeline(...) (removed in v5) — they
+use AutoModel*.from_pretrained + generate() / forward pass via
+:class:`HFEvidenceBackend` (evidence stack) and :class:`HFSeq2SeqBackend`
+(summarizer + hybrid reduce). Capability fields still describe the
+underlying checkpoint, not the pipeline wrapper. Model IDs and pinned
+revisions unchanged.
+
 **2026-06-23 amendment (#1060)**: YAML-only profiles are first-class. A
 profile YAML may legitimately have no ``ProfilePreset`` when it pins only
 MODEL across vendors (not PROVIDER, e.g. ``test_default``), or when its

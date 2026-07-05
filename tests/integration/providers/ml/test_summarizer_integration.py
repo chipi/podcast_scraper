@@ -36,16 +36,15 @@ class TestSummaryModelIntegration:
     @patch(_DETECT, return_value="cpu")
     @patch(_LOAD)
     def test_summarize_returns_text(self, mock_load, mock_detect):
-        """summarize() calls pipeline and returns generated text."""
+        """summarize() calls _generate_summary (post-#382) and returns generated text."""
         from podcast_scraper.providers.ml.summarizer import SummaryModel
 
         model = SummaryModel("facebook/bart-large-cnn", device="cpu")
-
-        fake_pipeline = MagicMock()
-        fake_pipeline.return_value = [{"summary_text": "A concise summary."}]
-        model.pipeline = fake_pipeline
+        model.pipeline = True  # loaded sentinel
         model.tokenizer = MagicMock()
         model.model = MagicMock()
+        fake_gen = MagicMock(return_value="A concise summary.")
+        model._generate_summary = fake_gen
 
         result = model.summarize(
             "This is a long transcript about many topics. " * 20,
@@ -55,30 +54,34 @@ class TestSummaryModelIntegration:
 
         assert isinstance(result, str)
         assert len(result) > 0
-        fake_pipeline.assert_called_once()
+        fake_gen.assert_called_once()
 
     @patch(_DETECT, return_value="cpu")
     @patch(_LOAD)
     def test_summarize_empty_text_returns_empty(self, mock_load, mock_detect):
-        """summarize() with empty text returns empty string without calling pipeline."""
+        """summarize() with empty text short-circuits — _generate_summary never runs."""
         from podcast_scraper.providers.ml.summarizer import SummaryModel
 
         model = SummaryModel("facebook/bart-large-cnn", device="cpu")
-        model.pipeline = MagicMock()
+        model.pipeline = True
+        model.model = MagicMock()
+        model.tokenizer = MagicMock()
+        fake_gen = MagicMock()
+        model._generate_summary = fake_gen
 
         result = model.summarize("")
 
         assert result == ""
-        model.pipeline.assert_not_called()
+        fake_gen.assert_not_called()
 
     @patch(_DETECT, return_value="cpu")
     @patch(_LOAD)
-    def test_summarize_raises_without_pipeline(self, mock_load, mock_detect):
-        """summarize() raises RuntimeError when model not loaded."""
+    def test_summarize_raises_when_not_loaded(self, mock_load, mock_detect):
+        """summarize() raises RuntimeError when the loaded sentinel is False."""
         from podcast_scraper.providers.ml.summarizer import SummaryModel
 
         model = SummaryModel("facebook/bart-large-cnn", device="cpu")
-        model.pipeline = None
+        model.pipeline = False  # not loaded
 
         with pytest.raises(RuntimeError, match="Model not loaded"):
             model.summarize("Some text to summarize. " * 20)

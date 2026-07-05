@@ -24,9 +24,10 @@ from podcast_scraper.providers.ml.model_loader import (
 from podcast_scraper.providers.ml.model_registry import ModelRegistry
 
 _ML_LOADER = "podcast_scraper.providers.ml.model_loader"
-_PATCH_QA_EVIDENCE = f"{_ML_LOADER}._download_qa_pipeline_for_cache"
-_PATCH_NLI_EVIDENCE = f"{_ML_LOADER}._download_nli_cross_encoder_for_cache"
-_PATCH_ST_EVIDENCE = f"{_ML_LOADER}._download_sentence_transformer_for_cache"
+# Post-#382 Phase G: three parallel download helpers collapsed into one
+# kind-dispatched function. Tests patch the unified target and assert
+# calls with (kind, model_id) tuples.
+_PATCH_HF_EVIDENCE = f"{_ML_LOADER}._download_hf_evidence_model"
 
 
 @pytest.mark.integration
@@ -469,18 +470,17 @@ class TestPreloadEvidenceModels(unittest.TestCase):
         emb_id = "sentence-transformers/all-MiniLM-L6-v2"
         qa_id = "deepset/roberta-base-squad2"
         nli_id = "cross-encoder/nli-deberta-v3-base"
-        with patch(_PATCH_ST_EVIDENCE) as mock_st:
-            with patch(_PATCH_QA_EVIDENCE) as mock_qa:
-                with patch(_PATCH_NLI_EVIDENCE) as mock_nli:
-                    preload_evidence_models()
-        mock_st.assert_called_once_with(emb_id)
-        mock_qa.assert_called_once_with(qa_id)
-        mock_nli.assert_called_once_with(nli_id)
+        with patch(_PATCH_HF_EVIDENCE) as mock_download:
+            preload_evidence_models()
+        # One call per family: embedding, qa, nli (in that order).
+        assert mock_download.call_args_list == [
+            (("embedding", emb_id), {}),
+            (("qa", qa_id), {}),
+            (("nli", nli_id), {}),
+        ]
 
     @patch("podcast_scraper.providers.ml.model_loader.get_transformers_cache_dir")
-    def test_preload_evidence_models_calls_pipeline_and_cross_encoder(
-        self, mock_get_cache: MagicMock
-    ) -> None:
+    def test_preload_evidence_models_calls_qa_and_nli(self, mock_get_cache: MagicMock) -> None:
         mock_get_cache.return_value = self.cache_root
         qa_id = "deepset/roberta-base-squad2"
         nli_id = "cross-encoder/nli-deberta-v3-base"
@@ -489,14 +489,15 @@ class TestPreloadEvidenceModels(unittest.TestCase):
             "resolve_evidence_model_id",
             side_effect=[qa_id, nli_id],
         ):
-            with patch(_PATCH_QA_EVIDENCE) as mock_qa:
-                with patch(_PATCH_NLI_EVIDENCE) as mock_nli:
-                    preload_evidence_models(
-                        qa_models=["roberta-squad2"],
-                        nli_models=["nli-deberta-base"],
-                    )
-        mock_qa.assert_called_once_with(qa_id)
-        mock_nli.assert_called_once_with(nli_id)
+            with patch(_PATCH_HF_EVIDENCE) as mock_download:
+                preload_evidence_models(
+                    qa_models=["roberta-squad2"],
+                    nli_models=["nli-deberta-base"],
+                )
+        assert mock_download.call_args_list == [
+            (("qa", qa_id), {}),
+            (("nli", nli_id), {}),
+        ]
 
     @patch("podcast_scraper.providers.ml.model_loader.get_transformers_cache_dir")
     def test_preload_evidence_models_skips_when_cache_dirs_exist(
@@ -512,14 +513,12 @@ class TestPreloadEvidenceModels(unittest.TestCase):
             "resolve_evidence_model_id",
             side_effect=[qa_id, nli_id],
         ):
-            with patch(_PATCH_QA_EVIDENCE) as mock_qa:
-                with patch(_PATCH_NLI_EVIDENCE) as mock_nli:
-                    preload_evidence_models(
-                        qa_models=["qa-model"],
-                        nli_models=["nli-model"],
-                    )
-        mock_qa.assert_not_called()
-        mock_nli.assert_not_called()
+            with patch(_PATCH_HF_EVIDENCE) as mock_download:
+                preload_evidence_models(
+                    qa_models=["qa-model"],
+                    nli_models=["nli-model"],
+                )
+        mock_download.assert_not_called()
 
     @patch("podcast_scraper.providers.ml.model_loader.get_transformers_cache_dir")
     def test_preload_evidence_models_sets_hf_hub_cache_when_different(
@@ -536,9 +535,8 @@ class TestPreloadEvidenceModels(unittest.TestCase):
             "resolve_evidence_model_id",
             side_effect=[qa_id, nli_id],
         ):
-            with patch(_PATCH_QA_EVIDENCE):
-                with patch(_PATCH_NLI_EVIDENCE):
-                    preload_evidence_models(qa_models=["x"], nli_models=["y"])
+            with patch(_PATCH_HF_EVIDENCE):
+                preload_evidence_models(qa_models=["x"], nli_models=["y"])
         self.assertEqual(os.environ["HF_HUB_CACHE"], str(self.cache_root.resolve()))
 
 

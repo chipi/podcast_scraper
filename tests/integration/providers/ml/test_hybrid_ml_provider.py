@@ -31,39 +31,42 @@ class TestTransformersReduceBackend(unittest.TestCase):
             backend.reduce("n", "i")
         self.assertIn("initialize()", str(ctx.exception))
 
-    def test_reduce_uses_pipeline_and_handles_empty_outputs(self) -> None:
+    def test_reduce_calls_backend_generate_and_returns_empty_on_blank(self) -> None:
         backend = TransformersReduceBackend("m", "cpu", None)
-        mock_pipe = MagicMock(return_value=[])
-        backend._pipeline = mock_pipe
+        fake_hf = MagicMock()
+        fake_hf.generate.return_value = ""  # blank generation output
+        backend._backend = fake_hf
         out = backend.reduce("notes", "instr", params={"max_new_tokens": 10})
         self.assertEqual(out.text, "")
         self.assertEqual(out.backend, "transformers")
-        mock_pipe.assert_called_once()
+        fake_hf.generate.assert_called_once()
 
     def test_reduce_returns_generated_text(self) -> None:
         backend = TransformersReduceBackend("m", "cpu", None)
-        backend._pipeline = MagicMock(return_value=[{"generated_text": "  ## Takeaways\n- x  "}])
+        fake_hf = MagicMock()
+        fake_hf.generate.return_value = "  ## Takeaways\n- x  "
+        backend._backend = fake_hf
         out = backend.reduce("n", "i")
         self.assertIn("Takeaways", out.text)
 
-    def test_initialize_short_circuits_when_pipeline_already_set(self) -> None:
-        """Early return: avoid importing transformers in this test.
-
-        Patching ``transformers.*`` forces importing Hugging Face code, which can
-        flake when another test leaves ``openai`` mocked in ``sys.modules`` without
-        ``__spec__`` (optional-dependency checks at import time).
-        """
+    def test_initialize_short_circuits_when_backend_already_loaded(self) -> None:
+        """Early return when self._backend is already loaded (avoids re-importing
+        transformers). Post-#382 Phase F: TransformersReduceBackend delegates to
+        HFSeq2SeqBackend, which tracks _loaded internally."""
         backend = TransformersReduceBackend("m", "cpu", None)
         existing = MagicMock()
-        backend._pipeline = existing
+        existing._loaded = True
+        backend._backend = existing
         backend.initialize()
-        self.assertIs(backend._pipeline, existing)
+        self.assertIs(backend._backend, existing)
 
-    def test_cleanup_clears_pipeline(self) -> None:
+    def test_cleanup_clears_backend(self) -> None:
         backend = TransformersReduceBackend("m", "cpu", None)
-        backend._pipeline = MagicMock()
+        fake_hf = MagicMock()
+        backend._backend = fake_hf
         backend.cleanup()
-        self.assertIsNone(backend._pipeline)
+        self.assertIsNone(backend._backend)
+        fake_hf.unload.assert_called_once()
 
 
 class TestOllamaReduceBackend(unittest.TestCase):

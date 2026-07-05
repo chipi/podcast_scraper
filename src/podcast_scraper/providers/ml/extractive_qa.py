@@ -225,31 +225,73 @@ def _get_qa_backend(model_id: str, device: Optional[str] = None) -> "QAEvidenceB
     return _cast(QAEvidenceBackend, QAEvidenceBackend.get_or_load(model_id, device=device))
 
 
-def load_qa_pipeline(
+def load_qa_model(
     model_id: str,
     device: Optional[str] = None,
 ) -> Tuple[Any, Any]:
-    """Load HuggingFace QA (model, tokenizer) pair.
+    """Load HuggingFace QA (model, tokenizer) pair (uncached).
 
-    Name kept for API stability with pre-#382 callers; returns a 2-tuple
-    of ``(model, tokenizer)`` (was a ``Pipeline`` instance in v4).
+    Post-#382 canonical name. Returns a 2-tuple; the previous
+    ``load_qa_pipeline`` alias emits :class:`DeprecationWarning`.
     """
     backend = QAEvidenceBackend(model_id, device=device)
     backend._ensure_loaded()
     return backend.model, backend.tokenizer
 
 
-def get_qa_pipeline(
+def get_qa_model(
     model_id: str,
     device: Optional[str] = None,
 ) -> Tuple[Any, Any]:
     """Return cached QA (model, tokenizer) pair or load and cache it.
 
-    Name kept for API stability. The underlying cache lives in
-    :attr:`QAEvidenceBackend._instances`.
+    Post-#382 canonical name. Backing cache lives in
+    :attr:`QAEvidenceBackend._instances`. The previous ``get_qa_pipeline``
+    alias emits :class:`DeprecationWarning`.
     """
     backend = _get_qa_backend(model_id, device=device)
     return backend.model, backend.tokenizer
+
+
+# ---- Deprecation aliases (removed in v3.0.0) -----------------------------
+
+
+def load_qa_pipeline(
+    model_id: str,
+    device: Optional[str] = None,
+) -> Tuple[Any, Any]:
+    """Deprecated alias for :func:`load_qa_model` (#382).
+
+    transformers v5 removed ``pipeline("question-answering")`` — this
+    function has not returned a pipeline object since Phase 3 of #382.
+    Migrate callers to :func:`load_qa_model`.
+    """
+    import warnings
+
+    warnings.warn(
+        "load_qa_pipeline is deprecated; use load_qa_model instead. "
+        "The QA loader has returned a (model, tokenizer) tuple since #382 "
+        "(transformers v5 removed pipeline('question-answering')).",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return load_qa_model(model_id, device=device)
+
+
+def get_qa_pipeline(
+    model_id: str,
+    device: Optional[str] = None,
+) -> Tuple[Any, Any]:
+    """Deprecated alias for :func:`get_qa_model` (#382)."""
+    import warnings
+
+    warnings.warn(
+        "get_qa_pipeline is deprecated; use get_qa_model instead. "
+        "The QA getter has returned a (model, tokenizer) tuple since #382.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return get_qa_model(model_id, device=device)
 
 
 def _iter_context_windows(

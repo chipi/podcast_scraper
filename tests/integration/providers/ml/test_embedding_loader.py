@@ -28,19 +28,27 @@ class TestSentenceTransformerLoadName:
         )
 
 
-class TestGetDevice:
-    """``_get_device`` respects explicit value and torch when present."""
+class TestResolveEvidenceDevice:
+    """Post-#382 Phase E: `_get_device` moved to
+    :func:`hf_evidence_backend.resolve_evidence_device`.
+    Embedding subclass declares ``mps_supported=True``."""
 
     def test_explicit_device(self):
-        assert embedding_loader._get_device("CPU") == "cpu"
+        from podcast_scraper.providers.ml.hf_evidence_backend import resolve_evidence_device
+
+        assert resolve_evidence_device("CPU", mps_supported=True) == "cpu"
 
     def test_auto_prefers_cuda_when_available(self, monkeypatch):
+        from podcast_scraper.providers.ml.hf_evidence_backend import resolve_evidence_device
+
         mock_torch = MagicMock()
         mock_torch.cuda.is_available.return_value = True
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
-        assert embedding_loader._get_device(None) == "cuda"
+        assert resolve_evidence_device(None, mps_supported=True) == "cuda"
 
     def test_auto_cpu_when_torch_import_fails(self, monkeypatch):
+        from podcast_scraper.providers.ml.hf_evidence_backend import resolve_evidence_device
+
         real_import = builtins.__import__
 
         def fake_import(name, globals_arg=None, locals_arg=None, fromlist=(), level=0):
@@ -49,7 +57,12 @@ class TestGetDevice:
             return real_import(name, globals_arg, locals_arg, fromlist, level)
 
         monkeypatch.setattr(builtins, "__import__", fake_import)
-        assert embedding_loader._get_device(None) == "cpu"
+        assert resolve_evidence_device(None, mps_supported=True) == "cpu"
+
+    def test_embedding_class_mps_supported(self):
+        from podcast_scraper.providers.ml.embedding_loader import EmbeddingEvidenceBackend
+
+        assert EmbeddingEvidenceBackend.mps_supported is True
 
 
 class TestCosineSimilarity:
@@ -179,35 +192,44 @@ class TestEncodeMocked:
         assert out == [0.25, 0.75]
 
     def test_get_embedding_model_keyed_by_model_id(self, monkeypatch):
-        """Different model_id values load separate cached instances."""
+        """Different model_id values load separate cached instances via EmbeddingEvidenceBackend."""
+        from podcast_scraper.providers.ml.embedding_loader import EmbeddingEvidenceBackend
+
         loads = []
 
         class FakeModel:
             pass
 
-        def fake_load(model_id, device=None, cache_dir=None, *, allow_download=False):
-            loads.append(model_id)
-            return FakeModel()
+        def fake_load(self):
+            loads.append(self.resolved_id)
+            self.model = FakeModel()
 
-        monkeypatch.setattr(embedding_loader, "load_embedding_model", fake_load)
-        monkeypatch.setattr(embedding_loader, "_embedding_models", {})
+        monkeypatch.setattr(EmbeddingEvidenceBackend, "_load", fake_load)
+        EmbeddingEvidenceBackend.clear_cache()
+
         m1 = embedding_loader.get_embedding_model("minilm-l6")
         m2 = embedding_loader.get_embedding_model("minilm-l6")
         m3 = embedding_loader.get_embedding_model("mpnet-base")
         assert m1 is m2
         assert m1 is not m3
-        assert loads == ["minilm-l6", "mpnet-base"]
+        assert len(loads) == 2  # minilm loaded once, mpnet once
 
     def test_get_embedding_model_separate_cache_per_device_and_allow_download(self, monkeypatch):
-        """Cache key includes device and allow_download so variants do not collide."""
+        """Cache key includes device + allow_download so variants do not collide.
+        EmbeddingEvidenceBackend uses ``extras`` for cache_dir + allow_download."""
+        from podcast_scraper.providers.ml.embedding_loader import EmbeddingEvidenceBackend
+
         loads = []
 
-        def fake_load(model_id, device=None, cache_dir=None, *, allow_download=False):
-            loads.append((device, cache_dir, allow_download))
-            return object()
+        def fake_load(self):
+            loads.append(
+                (self.device, self.extras.get("cache_dir"), self.extras.get("allow_download"))
+            )
+            self.model = object()
 
-        monkeypatch.setattr(embedding_loader, "load_embedding_model", fake_load)
-        monkeypatch.setattr(embedding_loader, "_embedding_models", {})
+        monkeypatch.setattr(EmbeddingEvidenceBackend, "_load", fake_load)
+        EmbeddingEvidenceBackend.clear_cache()
+
         a = embedding_loader.get_embedding_model("minilm-l6", device="cpu", allow_download=False)
         b = embedding_loader.get_embedding_model("minilm-l6", device="cuda", allow_download=False)
         c = embedding_loader.get_embedding_model("minilm-l6", device="cpu", allow_download=True)
