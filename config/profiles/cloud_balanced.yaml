@@ -145,4 +145,3 @@ enrichment:
     guest_coappearance: {}
     insight_density: {}
     topic_similarity: {}
-    nli_contradiction: {}

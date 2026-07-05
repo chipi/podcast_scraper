@@ -103,8 +103,16 @@ def _with_topic_similarity() -> list[str]:
     return [*ALL_DETERMINISTIC_ENRICHER_IDS, "topic_similarity"]
 
 
-def _with_nli_too() -> list[str]:
-    return [*ALL_DETERMINISTIC_ENRICHER_IDS, "topic_similarity", "nli_contradiction"]
+def _cloud_ml_tier_set() -> list[str]:
+    # ``nli_contradiction`` is DISABLED pending a stance-level redesign. Its
+    # accuracy eval (#1106; scripts/eval/score/enrichment_nli_*) measured 0%
+    # precision on prod-v2: the NLI cross-encoder over-fires "contradiction" on
+    # merely topic-adjacent Insight pairs, and true cross-Person atomic-insight
+    # contradictions are near-absent at this grain. The softmax calibration fix
+    # (scorers/nli.py) landed, but surfacing any pair would be a fabricated
+    # claim — so the enricher is left out of every shipping set until the
+    # redesign. Re-add the id here when the replacement disagreement detector ships.
+    return [*ALL_DETERMINISTIC_ENRICHER_IDS, "topic_similarity"]
 
 
 # When the operator opts in to nli_contradiction this is the flag that
@@ -145,7 +153,7 @@ def enricher_set_for_profile(profile: str | None) -> EnricherSet:
 
     if name in ("cloud_thin", "cloud_balanced", "cloud_quality"):
         return EnricherSet(
-            enabled_enrichers=_with_nli_too(),
+            enabled_enrichers=_cloud_ml_tier_set(),
             per_enricher_config=per_enricher_config,
             opt_in_flags=dict(_DEFAULT_OPT_IN_FLAGS),
         )
@@ -167,7 +175,7 @@ def enricher_set_for_profile(profile: str | None) -> EnricherSet:
         )
     ):
         return EnricherSet(
-            enabled_enrichers=_with_nli_too(),
+            enabled_enrichers=_cloud_ml_tier_set(),
             per_enricher_config=per_enricher_config,
             opt_in_flags=dict(_DEFAULT_OPT_IN_FLAGS),
         )

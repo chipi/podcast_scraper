@@ -47,7 +47,8 @@ def test_airgapped_adds_topic_similarity() -> None:
 def test_cloud_profiles_get_full_stack(profile: str) -> None:
     s = enricher_set_for_profile(profile)
     assert "topic_similarity" in s.enabled_enrichers
-    assert "nli_contradiction" in s.enabled_enrichers
+    # disabled pending stance-level redesign — 0% precision on prod-v2 (#1106)
+    assert "nli_contradiction" not in s.enabled_enrichers
     assert set(ALL_DETERMINISTIC_ENRICHER_IDS) <= set(s.enabled_enrichers)
 
 
@@ -68,7 +69,8 @@ def test_dgx_dev_local_profiles_get_full_stack(profile: str) -> None:
     'prod' is intentionally NOT here — there is no config/profiles/prod.yaml;
     the production profiles are prod_dgx_*."""
     s = enricher_set_for_profile(profile)
-    assert "nli_contradiction" in s.enabled_enrichers
+    # disabled pending stance-level redesign — 0% precision on prod-v2 (#1106)
+    assert "nli_contradiction" not in s.enabled_enrichers
 
 
 def test_phantom_prod_profile_is_unknown() -> None:

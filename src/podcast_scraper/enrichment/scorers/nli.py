@@ -25,6 +25,7 @@ state, which is fine for airgapped_thin and other no-ML profiles.
 from __future__ import annotations
 
 import asyncio
+import math
 from dataclasses import dataclass, field
 
 from podcast_scraper.enrichment.scorers.protocol import NliScore
@@ -91,20 +92,33 @@ class DeBERTaNliScorer:
             from podcast_scraper.enrichment.resilience import ScorerTimeoutError
 
             raise ScorerTimeoutError(f"NLI predict failed: {exc}") from exc
-        # CrossEncoder for nli-deberta-v3-small returns logits in
-        # [contradiction, entailment, neutral] order per HF model card.
+        # CrossEncoder for nli-deberta-v3-small returns raw LOGITS in
+        # [contradiction, entailment, neutral] order per HF model card. Softmax
+        # them into calibrated probabilities so ``.contradiction`` is in [0, 1]
+        # and the enricher threshold is a probability, not a raw-logit cutoff.
+        # The pre-fix passthrough thresholded logits at 0.5 and flagged ~23% of
+        # all cross-Person pairs (0% precision on prod-v2); see #1106 and
+        # ``scripts/eval/score/enrichment_nli_eval_v1.py``.
         try:
             row = scores[0]
         except Exception:  # pragma: no cover
             row = scores
         try:
-            contradiction = float(row[0])
-            entailment = float(row[1])
-            neutral = float(row[2])
+            c_logit, e_logit, n_logit = float(row[0]), float(row[1]), float(row[2])
         except Exception:  # pragma: no cover — unexpected shape
-            contradiction, neutral, entailment = 0.0, 1.0, 0.0
+            return NliScore(contradiction=0.0, neutral=1.0, entailment=0.0, cost_usd=0.0)
+        peak = max(c_logit, e_logit, n_logit)
+        exp_c, exp_e, exp_n = (
+            math.exp(c_logit - peak),
+            math.exp(e_logit - peak),
+            math.exp(n_logit - peak),
+        )
+        total = exp_c + exp_e + exp_n
         return NliScore(
-            contradiction=contradiction, neutral=neutral, entailment=entailment, cost_usd=0.0
+            contradiction=exp_c / total,
+            entailment=exp_e / total,
+            neutral=exp_n / total,
+            cost_usd=0.0,
         )
 
 

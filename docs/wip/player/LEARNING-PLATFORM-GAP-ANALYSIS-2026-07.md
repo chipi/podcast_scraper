@@ -27,7 +27,7 @@ arc has shipped; the umbrella body was never refreshed to show it.
 | Epic 3 Knowledge + Personalized Discovery | #1093 | CLOSED | Shipped ✓ (PRD-043) — **not in #1062's phase map** |
 | — 3.5 Personalized discovery | #1098 | CLOSED | Shipped **but dark** — see Pivot 2 |
 | Consumer Home + corpus search | #1090 | CLOSED | Shipped ✓ — also outside #1062 |
-| Enrichment Layer (RFC-088) | #1101 | CLOSED | Promoted Completed 2026-06-27; umbrella + 6 chunks closed, **#1105/#1106 accuracy eval+sweep deferred** (open, carry solo — see audit) |
+| Enrichment Layer (RFC-088) | #1101 | CLOSED | Promoted 2026-06-27; umbrella + 6 chunks closed. **#1106 resolved 07-05** (eval → 0% precision; softmax fix + enricher disabled; → #1144). **#1105** (topic_similarity) still open. |
 
 Against the PRD-035 goals: Spotify-grade player ✓, intelligence-during-listening ✓,
 capture ✓, consolidation ✓, minimal multi-user foundation ✓, a11y+i18n-from-line-1 ✓
@@ -41,12 +41,11 @@ Numbered for cross-reference.
 1. **Build — `rank_discover` offline eval harness.** The single gate that unblocks *both*
    flipping `APP_PERSONALIZED_RANKING` on (Pivot 2) and #1139 step 1. Without it,
    personalized discovery stays code-complete but off.
-2. **Build — smart-enricher accuracy eval + sweep (#1105/#1106).** The `topic_similarity`
-   and `nli_contradiction` enrichers ship but their accuracy is unmeasured: populate the
-   real labelled gold sets (~100-row NLI + topic_similarity) and build/run the
-   `autoresearch/enrichment_*` sweep programs (+ `make autoresearch-enrichment-*`). This
-   validates the ML/embedding signals P3's connections moat consumes (Pivot 1); deferred
-   at RFC-088 promotion.
+2. **Build — `topic_similarity` accuracy eval (#1105).** (**#1106 nli_contradiction:
+   DONE 07-05** — eval built + run → 0% precision; softmax fix shipped; enricher
+   disabled in all profiles; product goal → stance-level detector **#1144**.) #1105
+   remains: populate a real gold set + measure recall@K for `topic_similarity`; sweep
+   `top_k` only if the baseline is weak.
 3. **Decision — #1069 scrape-on-demand + guardrails.** The only open P0 task, and its
    scope is now questionable: #1077 parked "Discovery" onto #1069, but discovery shipped
    over the *local* corpus without it. Decide keep-as-P0 / re-scope / close.
@@ -106,10 +105,9 @@ shipped and fold the remainder into the #1069 decision.
 
 1. **Build the `rank_discover` offline eval** — unblocks personalization (Pivot 2) and
    #1139 step 1 in a single move.
-2. **Finish #1105/#1106 enrichment accuracy** — populate the real labelled gold sets +
-   build/run the autoresearch sweeps; validates the connections moat's ML/embedding
-   signals. (The 6 sibling chunks + the #1101 umbrella were closed 2026-07-05; #1105/#1106
-   now carry this work solo.)
+2. **Finish #1105 topic_similarity accuracy** — populate a real gold set + measure
+   recall@K (#1106 nli_contradiction resolved 07-05: 0% precision → softmax fix +
+   disabled; product goal → stance-level detector #1144).
 3. **Decide #1069** — keep-scoped / re-scope / close, with PRD-037 reconciliation.
 4. **Refresh #1062** — make the plan-of-record match the shipped product.
 5. **Schedule the persistence decision** before real user load (future cliff, not v2.7).

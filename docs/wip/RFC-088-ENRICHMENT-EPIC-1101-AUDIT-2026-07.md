@@ -31,6 +31,14 @@ Source of truth, both on `main`:
 - `docs/adr/ADR-104-enrichment-layer-boundary-vs-kg-direct.md`: *"Status: Accepted
   (promoted 2026-06-27 with RFC-088 chunks 0-8)."*
 
+> **Update (2026-07-05): #1106 resolved.** The `nli_contradiction` accuracy eval was
+> built and run — **0% precision** on prod-v2 (150-pair Opus silver; 0 true
+> contradictions even under the broad definition). Two fixes shipped: a softmax
+> calibration fix (`scorers/nli.py`; corpus flags ~660→~154) and **disabling the
+> enricher** in all shipping profiles (0% precision → every surfaced pair is fabricated).
+> Product goal moved to a stance-level detector (**#1144**). #1106 is CLOSED; **#1105**
+> (topic_similarity) remains open.
+
 ## Chunk-by-chunk evidence
 
 | Chunk | Issue | Issue state | Deliverable | Evidence on `main` | Verdict |
@@ -39,7 +47,7 @@ Source of truth, both on `main`:
 | 1 — Foundation | #1103 | **CLOSED** (07-05) | protocol/registry/executor/paths/envelope/CLI + health/status/resilience/correlation + JSON Schema + jobs API + MCP source + API doc | all modules present in `src/podcast_scraper/enrichment/`; `docs/api/ENRICHMENT_LAYER_API.md`; lock audit `docs/wip/RFC-088-CHUNK1-LOCK-AUDIT.md` | ✅ done — closed |
 | 2 — 6 deterministic enrichers | #1104 | **CLOSED** (07-05) | grounding_rate, insight_density, temporal_velocity, guest_coappearance, topic_cooccurrence_corpus, topic_theme_clusters + gold eval | 6 enrichers in `enrichers/`; `data/eval/enrichment/deterministic/gold/` (exact-match); scorer `enrichment_deterministic.py` | ✅ done — closed (deterministic → exact-match gold is real validation) |
 | 3 — topic_similarity (embedding) | #1105 | **OPEN (held)** | enricher + eval + autoresearch sweep | enricher `topic_similarity.py` ✓; gold = **3-row `sample_gold.jsonl` stub**; **no `autoresearch/enrichment_topic_similarity/` sweep** | ⚠️ enricher shipped; **accuracy eval + sweep deferred** — kept open |
-| 4 — nli_contradiction (ML) | #1106 | **OPEN (held)** | enricher + NLI eval set + sweep; DeBERTa-v3-small CPU | enricher `nli_contradiction.py` + `provider_types/nli/deberta_local.py` ✓; gold = **8-row stub (vs planned ~100)**; **no sweep program** | ⚠️ enricher shipped; **accuracy eval + sweep deferred** — kept open |
+| 4 — nli_contradiction (ML) | #1106 | **CLOSED** (07-05) | enricher + NLI eval set + sweep; DeBERTa-v3-small CPU | eval ran on prod-v2 (150-pair Opus silver) → **0% precision**; softmax calibration fix shipped + enricher **disabled** in all profiles | ✅ resolved — bug fixed, enricher disabled; product goal → **#1144** |
 | 5 — QueryEnricher protocol | #1107 | **CLOSED** (07-05) | query_protocol + query_topic_relatedness + /api/search enrich_results | `query_protocol.py`, `query_registry.py`, `query_enrichers/query_topic_relatedness.py` | ✅ done — closed |
 | 6 — Routes + viewer consumption | #1108 | **CLOSED** (07-05) | corpus_enrichments routes; viewer Config Enrichment tab; Topic/Person rail signals | routes `app_enrichment.py`/`corpus_enrichments.py`/`enrichment.py`/`enrichment_config.py`; viewer `EnrichmentPanel.vue`, `EpisodeEnrichmentSection.vue`, `EnrichmentConfigEditor.vue`, `useEnrichmentEnvelopeCache.ts` | ✅ done — closed |
 | 7 — Profile-preset wiring | #1109 | **CLOSED** (07-05) | EnricherSet on ProfilePreset + CLI overrides + drift gate | enricher wiring across `config/profiles/*.yaml`; matrix in RFC-088 | ✅ done — closed |
