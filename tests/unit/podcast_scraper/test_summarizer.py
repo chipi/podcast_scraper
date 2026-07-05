@@ -584,13 +584,8 @@ class TestChunking(unittest.TestCase):
         self.assertGreaterEqual(mock_generate.call_count, 1)
 
     @patch("podcast_scraper.summarizer.SummaryModel._load_model")
-    @patch("transformers.AutoTokenizer", create=True)
-    @patch("transformers.AutoModelForSeq2SeqLM", create=True)
-    @patch("transformers.pipeline", create=True)
     @patch("podcast_scraper.summarizer.torch", create=True)
-    def test_summarize_long_text_with_led_model(
-        self, mock_torch, mock_pipeline, mock_model_class, mock_tokenizer_class, mock_load_model
-    ):
+    def test_summarize_long_text_with_led_model(self, mock_torch, mock_load_model):
         """Test summarization with LED model (long context)."""
         mock_torch.backends.mps.is_available.return_value = False
         mock_torch.cuda.is_available.return_value = False
@@ -601,7 +596,6 @@ class TestChunking(unittest.TestCase):
         # which should be ~10-15 tokens, well within LED's 16384 limit
         mock_tokenizer.encode.return_value = list(range(15))  # 15 tokens, fits in LED's 16k limit
         mock_tokenizer.decode.return_value = "chunk text"
-        mock_tokenizer_class.from_pretrained.return_value = mock_tokenizer
 
         mock_model = Mock()
         # Mock LED model config (uses max_encoder_position_embeddings)
@@ -610,10 +604,8 @@ class TestChunking(unittest.TestCase):
         mock_config = SimpleNamespace()
         mock_config.max_encoder_position_embeddings = 16384
         mock_model.config = mock_config
-        mock_model_class.from_pretrained.return_value = mock_model
 
         mock_pipe = Mock(return_value="Direct summary without chunking.")
-        mock_pipeline.return_value = mock_pipe
 
         # Patch _load_model to prevent network calls and framework inference issues
         mock_load_model.return_value = None
@@ -645,13 +637,8 @@ class TestChunking(unittest.TestCase):
         self.assertEqual(result, "Direct summary without chunking.")
 
     @patch("podcast_scraper.summarizer.SummaryModel._load_model")
-    @patch("transformers.AutoTokenizer", create=True)
-    @patch("transformers.AutoModelForSeq2SeqLM", create=True)
-    @patch("transformers.pipeline", create=True)
     @patch("podcast_scraper.summarizer.torch", create=True)
-    def test_summarize_long_text_with_word_chunking(
-        self, mock_torch, mock_pipeline, mock_model_class, mock_tokenizer_class, mock_load_model
-    ):
+    def test_summarize_long_text_with_word_chunking(self, mock_torch, mock_load_model):
         """Test summarization with word-based chunking."""
         mock_torch.backends.mps.is_available.return_value = False
         mock_torch.cuda.is_available.return_value = False
@@ -659,7 +646,6 @@ class TestChunking(unittest.TestCase):
         mock_tokenizer = Mock()
         mock_tokenizer.encode.return_value = list(range(2000))  # 2000 tokens
         mock_tokenizer.decode.return_value = "chunk text"
-        mock_tokenizer_class.from_pretrained.return_value = mock_tokenizer
 
         mock_model = Mock()
         from types import SimpleNamespace
@@ -667,7 +653,6 @@ class TestChunking(unittest.TestCase):
         mock_config = SimpleNamespace()
         mock_config.max_position_embeddings = 1024
         mock_model.config = mock_config
-        mock_model_class.from_pretrained.return_value = mock_model
 
         mock_pipe = Mock()
         # Word chunking with 2000 words, chunk_size=1000, overlap=150 will create ~3 chunks
@@ -678,7 +663,6 @@ class TestChunking(unittest.TestCase):
             "Word chunk summary 3.",
             "Final word-based summary.",
         ]
-        mock_pipeline.return_value = mock_pipe
 
         # Patch _load_model to prevent network calls
         mock_load_model.return_value = None
@@ -778,14 +762,8 @@ class TestSafeSummarize(unittest.TestCase):
 
     @patch("podcast_scraper.summarizer.SummaryModel._load_model")
     @patch("podcast_scraper.summarizer.SummaryModel._detect_device")
-    @patch("transformers.AutoTokenizer", create=True)
-    @patch("transformers.AutoModelForSeq2SeqLM", create=True)
-    @patch("transformers.pipeline", create=True)
     def test_safe_summarize_success(
         self,
-        mock_pipeline,
-        mock_model_class,
-        mock_tokenizer_class,
         mock_detect_device,
         mock_load_model,
     ):
@@ -793,14 +771,11 @@ class TestSafeSummarize(unittest.TestCase):
         mock_detect_device.return_value = "cpu"
 
         mock_tokenizer = Mock()
-        mock_tokenizer_class.from_pretrained.return_value = mock_tokenizer
 
         mock_model = Mock()
-        mock_model_class.from_pretrained.return_value = mock_model
 
         # Create a callable mock pipeline
         mock_pipe = Mock(return_value="Safe summary.")
-        mock_pipeline.return_value = mock_pipe
 
         # Patch _load_model to prevent network calls
         mock_load_model.return_value = None
@@ -831,14 +806,8 @@ class TestSafeSummarize(unittest.TestCase):
 
     @patch("podcast_scraper.summarizer.SummaryModel._load_model")
     @patch("podcast_scraper.summarizer.SummaryModel._detect_device")
-    @patch("transformers.AutoTokenizer", create=True)
-    @patch("transformers.AutoModelForSeq2SeqLM", create=True)
-    @patch("transformers.pipeline", create=True)
     def test_safe_summarize_oom_error(
         self,
-        mock_pipeline,
-        mock_model_class,
-        mock_tokenizer_class,
         mock_detect_device,
         mock_load_model,
     ):
@@ -846,14 +815,11 @@ class TestSafeSummarize(unittest.TestCase):
         mock_detect_device.return_value = "cpu"
 
         mock_tokenizer = Mock()
-        mock_tokenizer_class.from_pretrained.return_value = mock_tokenizer
 
         mock_model = Mock()
-        mock_model_class.from_pretrained.return_value = mock_model
 
         # Create a mock pipeline that raises OOM error
         mock_pipe = Mock(side_effect=RuntimeError("out of memory"))
-        mock_pipeline.return_value = mock_pipe
 
         # Patch _load_model to prevent network calls
         mock_load_model.return_value = None
@@ -932,14 +898,8 @@ class TestMemoryOptimization(unittest.TestCase):
     @patch("podcast_scraper.summarizer.torch", create=True)
     @patch("podcast_scraper.summarizer.SummaryModel._load_model")
     @patch("podcast_scraper.summarizer.SummaryModel._detect_device")
-    @patch("transformers.AutoTokenizer", create=True)
-    @patch("transformers.AutoModelForSeq2SeqLM", create=True)
-    @patch("transformers.pipeline", create=True)
     def test_optimize_model_memory_cuda(
         self,
-        mock_pipeline,
-        mock_model_class,
-        mock_tokenizer_class,
         mock_detect_device,
         mock_load_model,
         mock_torch,
@@ -956,15 +916,12 @@ class TestMemoryOptimization(unittest.TestCase):
         sys.modules["torch"] = mock_torch
 
         mock_tokenizer = Mock()
-        mock_tokenizer_class.from_pretrained.return_value = mock_tokenizer
 
         mock_model = Mock()
         mock_model.half.return_value = mock_model
         mock_model.gradient_checkpointing_enable = Mock()
-        mock_model_class.from_pretrained.return_value = mock_model
 
         mock_pipe = Mock()
-        mock_pipeline.return_value = mock_pipe
 
         # Patch _load_model to prevent network calls
         mock_load_model.return_value = None
@@ -997,16 +954,10 @@ class TestMemoryOptimization(unittest.TestCase):
 
     @patch("podcast_scraper.summarizer.SummaryModel._load_model")
     @patch("podcast_scraper.summarizer.SummaryModel._detect_device")
-    @patch("transformers.AutoTokenizer", create=True)
-    @patch("transformers.AutoModelForSeq2SeqLM", create=True)
-    @patch("transformers.pipeline", create=True)
     @patch("podcast_scraper.summarizer.torch", create=True)
     def test_optimize_model_memory_mps(
         self,
         mock_torch,
-        mock_pipeline,
-        mock_model_class,
-        mock_tokenizer_class,
         mock_detect_device,
         mock_load_model,
     ):
@@ -1014,14 +965,11 @@ class TestMemoryOptimization(unittest.TestCase):
         mock_detect_device.return_value = "mps"
 
         mock_tokenizer = Mock()
-        mock_tokenizer_class.from_pretrained.return_value = mock_tokenizer
 
         mock_model = Mock()
         mock_model.gradient_checkpointing_enable = Mock()
-        mock_model_class.from_pretrained.return_value = mock_model
 
         mock_pipe = Mock()
-        mock_pipeline.return_value = mock_pipe
 
         # Mock MPS empty_cache
         mock_torch.mps = Mock()
@@ -1056,16 +1004,10 @@ class TestMemoryOptimization(unittest.TestCase):
 
     @patch("podcast_scraper.summarizer.SummaryModel._load_model")
     @patch("podcast_scraper.summarizer.SummaryModel._detect_device")
-    @patch("transformers.AutoTokenizer", create=True)
-    @patch("transformers.AutoModelForSeq2SeqLM", create=True)
-    @patch("transformers.pipeline", create=True)
     @patch("podcast_scraper.summarizer.torch", create=True)
     def test_unload_model(
         self,
         mock_torch,
-        mock_pipeline,
-        mock_model_class,
-        mock_tokenizer_class,
         mock_detect_device,
         mock_load_model,
     ):
@@ -1073,7 +1015,6 @@ class TestMemoryOptimization(unittest.TestCase):
         mock_detect_device.return_value = "cpu"
 
         mock_tokenizer = Mock()
-        mock_tokenizer_class.from_pretrained.return_value = mock_tokenizer
 
         # Mock PyTorch-like class for transformers to recognize
         class PyTorchModel:
@@ -1085,12 +1026,10 @@ class TestMemoryOptimization(unittest.TestCase):
         mock_model.to.return_value = mock_model  # Model.to() returns self
         mock_model.config = Mock()  # Add config attribute
         mock_model.hf_device_map = None  # Add hf_device_map attribute
-        mock_model_class.from_pretrained.return_value = mock_model
 
         mock_pipe = Mock()
         mock_pipe.model = mock_model  # Pipeline has model attribute
         mock_pipe.device = "cpu"  # Pipeline has device attribute
-        mock_pipeline.return_value = mock_pipe
 
         # Patch _load_model to prevent network calls
         mock_load_model.return_value = None
@@ -1111,7 +1050,7 @@ class TestMemoryOptimization(unittest.TestCase):
 
         self.assertIsNone(model.model)
         self.assertIsNone(model.tokenizer)
-        self.assertIsNone(model.pipeline)
+        self.assertFalse(model.pipeline)
 
 
 class TestWorkflowIntegration(unittest.TestCase):
