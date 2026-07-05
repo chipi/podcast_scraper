@@ -285,6 +285,14 @@ number, file, line, date, and a short comment.
 | 1 | #399 | server/jobs.py | 225 | 2026-06-28 | Type 1: same chain (PR #1127) |
 | 1 | #400 | server/jobs.py | 226 | 2026-06-28 | Type 1: same chain (PR #1127) |
 | 1 | #401 | server/jobs.py | 586 | 2026-06-28 | Type 1: same chain (PR #1127) |
+| 1 | #414 | server/routes/corpus_theme_clusters.py | 75 | 2026-07-05 | Type 1: ``joined`` prefix-checked (``joined.startswith(safe_prefix)`` under ``root_s``) immediately before ``os.path.isfile`` / ``open()``; CodeQL misses the barrier. Dismissed ``gh api`` (PR #1141) |
+| 1 | #415 | server/routes/corpus_theme_clusters.py | 80 | 2026-07-05 | Type 1: same ``safe_prefix`` guard before ``open()`` (PR #1141) |
+| ck | #408 | server/routes/app_auth.py | 108 | 2026-07-05 | ``py/cookie-injection`` FP: cookie value is ``app_sessions.sign({...}, secret)`` — an HMAC-signed opaque token; the ``grant`` input is signed *inside*, never reflected raw; set ``httponly`` + ``samesite=lax`` + ``secure``. Not injectable. Dismissed ``gh api`` (PR #1141) |
+| 1 | #409 | server/app_user_store.py | 31 | 2026-07-05 | Type 1: ``user_id`` is ``user_id_for()`` = ``u_`` + sha256[:24] (opaque hex, cannot contain ``/`` or ``..``) and arrives only via the HMAC-signed session; additionally guarded by ``_is_safe_user_id`` early not-found return before the sink. CodeQL misses the barrier (helper). Dismissed ``gh api`` (PR #1141) |
+| 1 | #410 | server/app_user_store.py | 99 | 2026-07-05 | Type 1: same — ``get_user`` guarded by ``_is_safe_user_id`` (PR #1141) |
+| 1 | #411 | server/app_user_store.py | 102 | 2026-07-05 | Type 1: same — ``get_user`` read guarded (PR #1141) |
+| 1 | #412 | server/app_user_store.py | 208 | 2026-07-05 | Type 1: same — ``delete_user`` ``rmtree`` guarded by ``_is_safe_user_id`` (PR #1141) |
+| 1 | #413 | server/app_user_store.py | 210 | 2026-07-05 | Type 1: same — ``delete_user`` guarded (PR #1141) |
 
 ## Still open (not yet dismissed)
 
