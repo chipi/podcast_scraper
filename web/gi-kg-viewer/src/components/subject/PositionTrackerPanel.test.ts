@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import PositionTrackerPanel from './PositionTrackerPanel.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
+import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
 import type { ParsedArtifact } from '../../types/artifact'
 
@@ -63,12 +64,19 @@ async function mountPanel(opts?: {
   withArtifact?: boolean
   personId?: string
 }): Promise<ReturnType<typeof mount>> {
-  const w = mount(PositionTrackerPanel, { attachTo: document.body })
-  const subject = useSubjectStore()
-  subject.focusPerson(opts?.personId ?? 'person:alice')
+  const personId = opts?.personId ?? 'person:alice'
+  const artifacts = useArtifactsStore()
   if (opts?.withArtifact !== false) {
-    useArtifactsStore().parsedList = [makeArc()]
+    artifacts.parsedList = [makeArc()]
   }
+  const shell = useShellStore()
+  shell.corpusPath = '/corpus'
+  const subject = useSubjectStore()
+  subject.focusPerson(personId)
+  const w = mount(PositionTrackerPanel, {
+    attachTo: document.body,
+    props: { personIdOverride: personId },
+  })
   if (opts?.topic !== undefined && opts?.topic !== null) {
     subject.selectTopicForPositionTracker(opts.topic)
   }
@@ -160,7 +168,7 @@ describe('PositionTrackerPanel (#1049)', () => {
   it('insight_type filter matches case-insensitively (defensive vs capitalized artifact values)', async () => {
     // Override the default artifact: same shape but insight_type capitalized.
     setActivePinia(createPinia())
-    const w = mount(PositionTrackerPanel, { attachTo: document.body })
+    const personId = 'person:a'
     useArtifactsStore().parsedList = [
       {
         id: 'caps',
@@ -184,8 +192,14 @@ describe('PositionTrackerPanel (#1049)', () => {
         },
       } as unknown as ParsedArtifact,
     ]
+    const shell = useShellStore()
+    shell.corpusPath = '/corpus'
     const subject = useSubjectStore()
-    subject.focusPerson('person:a')
+    subject.focusPerson(personId)
+    const w = mount(PositionTrackerPanel, {
+      attachTo: document.body,
+      props: { personIdOverride: personId },
+    })
     subject.selectTopicForPositionTracker('topic:t')
     await flushPromises()
     // Row visible by default.

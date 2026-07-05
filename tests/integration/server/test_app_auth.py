@@ -5,6 +5,7 @@ Uses a stub OAuth provider — no real Google call in CI (per the no-real-servic
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -25,7 +26,9 @@ pytestmark = [pytest.mark.integration]
 class _StubProvider:
     name = "stub"
 
-    def authorization_url(self, *, state: str, redirect_uri: str) -> str:
+    def authorization_url(
+        self, *, state: str, redirect_uri: str, login_hint: str | None = None
+    ) -> str:
         return f"https://stub.example/authorize?state={state}"
 
     def exchange_code(self, *, code: str, redirect_uri: str) -> OAuthIdentity:
@@ -161,3 +164,57 @@ def test_disabled_user_is_locked_out(tmp_path: Path) -> None:
     uid = client.get("/api/app/me").json()["user_id"]
     assert set_disabled(tmp_path / "appdata", uid, True) is True
     assert client.get("/api/app/me").status_code == 401
+
+
+def test_auth_status_enabled_anonymous(tmp_path: Path) -> None:
+    # Auth configured (secret + provider + data dir) but no session → enabled, user None.
+    client = TestClient(_app(tmp_path))
+    resp = client.get("/api/app/auth/status")
+    assert resp.status_code == 200
+    assert resp.json() == {"enabled": True, "user": None}
+
+
+def test_auth_status_enabled_with_signed_in_user(tmp_path: Path) -> None:
+    client = TestClient(_app(tmp_path))
+    state = _login_state(client)
+    client.get("/api/app/auth/callback", params={"code": "good", "state": state})
+    body = client.get("/api/app/auth/status").json()
+    assert body["enabled"] is True
+    assert body["user"]["email"] == "jane@example.com"
+    assert body["user"]["role"] == "listener"
+
+
+def test_auth_status_disabled_when_unconfigured(tmp_path: Path) -> None:
+    # No provider + no secret → auth is NOT enabled → the viewer renders open (never 401s here).
+    client = TestClient(_app(tmp_path, with_provider=False, secret=""))
+    assert client.get("/api/app/auth/status").json() == {"enabled": False, "user": None}
+
+
+def test_auth_dev_users_disabled_for_non_mock_provider(tmp_path: Path) -> None:
+    # Stub (non-mock) provider → no dev picker; the UI shows the normal sign-in button.
+    client = TestClient(_app(tmp_path))
+    assert client.get("/api/app/auth/dev-users").json() == {"enabled": False, "users": []}
+
+
+def test_auth_dev_users_lists_seed_roster_for_mock(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seed = tmp_path / "seed.json"
+    seed.write_text(
+        json.dumps(
+            [
+                {"hint": "ada-admin", "name": "Ada Admin", "role": "admin"},
+                {"hint": "pat-player", "name": "Pat Player", "role": "listener"},
+            ]
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("APP_SEED_USERS_FILE", str(seed))
+    app = _app(tmp_path)
+    app.state.oauth_provider = MockOAuthProvider()  # the mock provider activates the picker
+    body = TestClient(app).get("/api/app/auth/dev-users").json()
+    assert body["enabled"] is True
+    by_hint = {u["hint"]: u for u in body["users"]}
+    assert set(by_hint) == {"ada-admin", "pat-player"}
+    assert by_hint["ada-admin"]["role"] == "admin" and by_hint["ada-admin"]["name"] == "Ada Admin"
+    assert by_hint["pat-player"]["role"] == "listener"

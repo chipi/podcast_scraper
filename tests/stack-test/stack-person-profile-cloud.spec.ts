@@ -108,30 +108,35 @@ test.describe('Stack cloud_thin — Person Profile / Position Tracker (#1076 chu
     }, personId)
 
     // === Shell assertions (same as airgapped_thin spec) ===
+    // Post node-view fold: PLV is embedded in NodeDetail's rail, which owns the
+    // header + tabs (PLV's own name header + internal tablist are hidden).
     const view = page.getByTestId('person-landing-view')
     await expect(view).toBeVisible({ timeout: 10_000 })
-    await expect(page.getByTestId('person-landing-view-name')).toBeVisible()
-    await expect(page.getByTestId('person-landing-tab-profile')).toHaveText(/Person Profile/)
-    await expect(page.getByTestId('person-landing-tab-position-tracker')).toHaveText(
-      /Position Tracker/,
-    )
+    const rail = page.getByTestId('graph-node-detail-rail')
+    await expect(rail.getByRole('heading').first()).toContainText('Person')
+    await expect(page.getByTestId('node-detail-rail-tab-details')).toHaveText(/Details/)
+    await expect(page.getByTestId('person-landing-panel-profile')).toBeVisible()
 
     // === Strict rich-data assertions — what cloud_thin guarantees ===
     //
     // Unlike airgapped_thin where MENTIONS_PERSON is best-effort,
-    // cloud_thin's LLM extracts entities deterministically at
-    // insight-emit time. ranked-topics MUST populate.
-    await expect(page.getByTestId('person-landing-panel-profile')).toBeVisible()
-    const rankedTopics = page.getByTestId('person-landing-ranked-topics')
+    // cloud_thin's LLM extracts entities deterministically at insight-emit
+    // time. The "topic → Position Tracker" entry point (Insights voiced,
+    // computed over MENTIONS_PERSON ∩ ABOUT) lives in the Positions tab's
+    // default "By topic" lens and MUST populate.
+    await page.getByTestId('node-detail-rail-tab-position-tracker').click()
+    await expect(page.getByTestId('person-landing-positions-view')).toBeVisible()
+    const insightsVoiced = page.getByTestId('person-landing-insights-voiced')
     await expect(
-      rankedTopics,
+      insightsVoiced,
       'cloud_thin failed to emit MENTIONS_PERSON ∩ ABOUT for a real Person — ' +
         'this is a regression in the LLM emit path or the typed-MENTIONS post-pass.',
     ).toBeVisible({ timeout: 10_000 })
-    const topicButtons = page.getByTestId('person-landing-ranked-topic-button')
-    expect(await topicButtons.count(), 'cloud_thin ranked-topics returned zero rows').toBeGreaterThan(0)
+    const topicButtons = page.getByTestId('person-landing-insights-voiced-topic-button')
+    expect(await topicButtons.count(), 'cloud_thin insights-voiced returned zero rows').toBeGreaterThan(0)
 
-    // Click first ranked topic → Position Tracker arc strictly populates.
+    // Click first topic → Position Tracker arc strictly populates (NodeDetail
+    // keeps the Positions tab active so the arc is visible).
     await topicButtons.first().click()
     await expect(page.getByTestId('position-tracker-arc')).toBeVisible({ timeout: 5_000 })
     const rows = page.getByTestId('position-tracker-row')

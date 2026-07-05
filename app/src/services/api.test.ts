@@ -2,13 +2,19 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   ApiError,
   addInterest,
+  createHighlight,
+  createNote,
+  deleteHighlight,
   getEpisode,
   getEpisodeStats,
+  getHighlights,
   getMe,
   getMyStats,
+  highlightsExportUrl,
   listEpisodes,
   listPodcastEpisodes,
   logListen,
+  patchHighlight,
   removeInterest,
 } from './api'
 
@@ -164,5 +170,66 @@ describe('addInterest / removeInterest', () => {
     const [url, init] = fetchMock.mock.calls[0]
     expect(String(url)).toContain('/api/app/interests/person%3Ajane')
     expect(init).toMatchObject({ method: 'DELETE' })
+  })
+})
+
+describe('capture: highlights + notes', () => {
+  it('getHighlights scopes by episode and returns items', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ items: [{ id: 'h1' }] }),
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+    const items = await getHighlights('show-ep01')
+    expect(items).toHaveLength(1)
+    expect(String(fetchMock.mock.calls[0][0])).toContain('episode=show-ep01')
+  })
+
+  it('getHighlights returns [] when signed out (401)', async () => {
+    mockFetch(401, { detail: 'Not authenticated.' })
+    expect(await getHighlights()).toEqual([])
+  })
+
+  it('createHighlight POSTs the body and returns the created record', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 201,
+      json: async () => ({ id: 'h9', kind: 'moment' }),
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+    const h = await createHighlight({ episode_slug: 'ep', kind: 'moment', start_ms: 1000 })
+    expect(h.id).toBe('h9')
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(String(url)).toContain('/api/app/highlights')
+    expect(init).toMatchObject({ method: 'POST' })
+  })
+
+  it('patchHighlight throws ApiError on 404', async () => {
+    mockFetch(404, { detail: 'highlight not found' })
+    await expect(patchHighlight('ghost', { color: 'rose' })).rejects.toMatchObject({ status: 404 })
+  })
+
+  it('deleteHighlight DELETEs and returns the remaining items', async () => {
+    const fetchMock = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ items: [] }) }))
+    vi.stubGlobal('fetch', fetchMock)
+    expect(await deleteHighlight('h1')).toEqual([])
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ method: 'DELETE' })
+  })
+
+  it('createNote POSTs a note', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 201,
+      json: async () => ({ id: 'n1', text: 'hi' }),
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+    const n = await createNote({ target: 'highlight', target_id: 'h1', text: 'hi' })
+    expect(n.id).toBe('n1')
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/api/app/notes')
+  })
+
+  it('highlightsExportUrl points at the markdown export route', () => {
+    expect(highlightsExportUrl()).toBe('/api/app/highlights/export.md')
   })
 })

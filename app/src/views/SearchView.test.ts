@@ -1,10 +1,11 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { createPinia } from 'pinia'
+import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
+import { useAuthStore } from '../stores/auth'
 import SearchView from './SearchView.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
@@ -91,7 +92,39 @@ describe('SearchView', () => {
     // Tapping it opens the full EntityCard overlay.
     await w.findAll('button').find((b) => b.text().includes('View'))!.trigger('click')
     await flushPromises()
-    expect(getPerson).toHaveBeenCalledWith('person:jane-doe')
+    expect(getPerson).toHaveBeenCalledWith('person:jane-doe', undefined)
     expect(w.find('[role="dialog"]').exists()).toBe(true)
+  })
+
+  it('hides the Recall scope toggle when signed out', async () => {
+    vi.spyOn(api, 'searchCorpus').mockResolvedValue({ query: 'x', error: null, results: [] })
+    const { w } = await mountAt('x')
+    expect(w.find('[role="tablist"]').exists()).toBe(false)
+  })
+
+  it('signed-in: My corpus scope searches scope=mine and shows a recall-specific empty message', async () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    useAuthStore().user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
+    const search = vi.spyOn(api, 'searchCorpus').mockResolvedValue({
+      query: 'sleep',
+      error: null,
+      results: [],
+    })
+    const router = makeRouter()
+    router.push({ name: 'search', query: { q: 'sleep' } })
+    await router.isReady()
+    const w = mount(SearchView, {
+      global: { plugins: [i18n, router, pinia], stubs: { teleport: true } },
+    })
+    await flushPromises()
+    // toggle is visible; default scope=all sent no 'mine'
+    expect(w.find('[role="tablist"]').exists()).toBe(true)
+    expect(search).toHaveBeenLastCalledWith('sleep', 12, 'all')
+    // switch to My corpus → searches scope=mine + recall-empty copy
+    await w.findAll('[role="tab"]').find((b) => b.text() === 'My corpus')!.trigger('click')
+    await flushPromises()
+    expect(search).toHaveBeenLastCalledWith('sleep', 12, 'mine')
+    expect(w.text()).toContain('Nothing in your corpus on this yet')
   })
 })

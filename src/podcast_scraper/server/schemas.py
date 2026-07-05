@@ -167,6 +167,26 @@ class AppEpisodesResponse(BaseModel):
     has_more: bool = Field(description="Whether more pages exist after this one.")
 
 
+class AppDiscoverClickBody(BaseModel):
+    """A click on a discovery-feed episode — ranking-experiment telemetry (#11)."""
+
+    slug: str = Field(description="The clicked episode's slug, as shown in the feed.")
+    position: int = Field(ge=0, description="0-based rank position where it was shown.")
+
+
+class AppGraphEventsBody(BaseModel):
+    """A fire-and-forget batch of graph-analytics events (usage / size-dynamics / breakage).
+
+    Each event is a free-form object carrying at least an ``action`` (e.g. ``node_tap``,
+    ``rail_nav``, ``redraw``, ``handoff_failed``); the rest of the payload is open so new event
+    kinds don't need a schema change.
+    """
+
+    events: list[dict[str, Any]] = Field(
+        default_factory=list, description="Graph events to append to the user's log."
+    )
+
+
 class AppQuote(BaseModel):
     """A verbatim quote supporting an insight."""
 
@@ -222,6 +242,18 @@ class AppTopic(BaseModel):
     )
     cluster_size: int = Field(
         default=0, ge=0, description="Cross-corpus member count of the topic's cluster (0 if none)."
+    )
+    theme_cluster_id: str | None = Field(
+        default=None,
+        description="Corpus THEME-cluster id (thc:{slug}) — topics discussed together "
+        "(co-occurrence), distinct from the semantic cluster_id. Null when not in a theme. "
+        "From enrichments/topic_theme_clusters.json.",
+    )
+    theme_cluster_label: str | None = Field(
+        default=None, description="Canonical label of the topic's theme cluster, when in one."
+    )
+    theme_cluster_size: int = Field(
+        default=0, ge=0, description="Member count of the topic's theme cluster (0 if none)."
     )
 
 
@@ -296,7 +328,23 @@ class AppTopicCard(BaseModel):
         default=0, ge=0, description="Cross-corpus member count of the topic's cluster (0 if none)."
     )
     sibling_topics: list[AppTopic] = Field(
-        default_factory=list, description="Other topics in the same cluster (the theme's siblings)."
+        default_factory=list,
+        description="Other topics in the same SEMANTIC ('Similar') cluster.",
+    )
+    theme_cluster_id: str | None = Field(
+        default=None,
+        description="Corpus THEME-cluster id (thc:{slug}) — topics discussed together "
+        "(co-occurrence), distinct from the semantic cluster_id.",
+    )
+    theme_cluster_label: str | None = Field(
+        default=None, description="Canonical label of the topic's theme cluster, when in one."
+    )
+    theme_cluster_size: int = Field(
+        default=0, ge=0, description="Member count of the topic's theme cluster (0 if none)."
+    )
+    theme_sibling_topics: list[AppTopic] = Field(
+        default_factory=list,
+        description="Other topics in the same THEME ('discussed together') cluster.",
     )
     episode_count: int = Field(ge=0, description="Episodes this topic is discussed in.")
     episodes: list[AppEpisodeSummary] = Field(
@@ -359,6 +407,157 @@ class InterestsUpdate(BaseModel):
     """Body for PUT /api/app/interests."""
 
     items: list[str] = Field(default_factory=list, description="Cluster ids to save.")
+
+
+# --- P2 Capture: highlights + notes (PRD-040 / RFC-098 §7) ---
+
+
+class HighlightCreate(BaseModel):
+    """Body for POST /api/app/highlights — capture a moment, span, or saved insight."""
+
+    episode_slug: str = Field(description="Episode the highlight belongs to.")
+    kind: Literal["span", "moment", "insight"] = Field(description="Capture kind.")
+    start_ms: int | None = Field(
+        default=None, ge=0, description="Anchor start (ms); the stable key."
+    )
+    end_ms: int | None = Field(
+        default=None, ge=0, description="Anchor end (ms); None for a moment."
+    )
+    char_start: int | None = Field(default=None, ge=0, description="Transcript char offset start.")
+    char_end: int | None = Field(default=None, ge=0, description="Transcript char offset end.")
+    segment_ids: list[str] = Field(default_factory=list, description="Overlapping segment ids.")
+    quote_text: str | None = Field(default=None, description="Captured verbatim text (spans).")
+    speaker: str | None = Field(default=None, description="Speaker label when known.")
+    source_insight_id: str | None = Field(
+        default=None, description="GIL insight id (insight kind)."
+    )
+    color: str | None = Field(default=None, description="Highlight colour/label token.")
+
+
+class HighlightUpdate(BaseModel):
+    """Body for PATCH /api/app/highlights/{id} — edit colour / captured text (all optional)."""
+
+    color: str | None = Field(default=None, description="New colour/label token.")
+    quote_text: str | None = Field(default=None, description="Edited captured text.")
+
+
+class Highlight(BaseModel):
+    """A saved highlight (response item)."""
+
+    id: str = Field(description="Opaque highlight id.")
+    episode_slug: str = Field(description="Episode the highlight belongs to.")
+    kind: Literal["span", "moment", "insight"] = Field(description="Capture kind.")
+    start_ms: int | None = Field(default=None, description="Anchor start (ms).")
+    end_ms: int | None = Field(default=None, description="Anchor end (ms).")
+    char_start: int | None = Field(default=None, description="Transcript char offset start.")
+    char_end: int | None = Field(default=None, description="Transcript char offset end.")
+    segment_ids: list[str] = Field(default_factory=list, description="Overlapping segment ids.")
+    quote_text: str | None = Field(default=None, description="Captured verbatim text.")
+    speaker: str | None = Field(default=None, description="Speaker label when known.")
+    source_insight_id: str | None = Field(
+        default=None, description="GIL insight id (insight kind)."
+    )
+    color: str | None = Field(default=None, description="Highlight colour/label token.")
+    created_at: int = Field(description="Unix time captured.")
+    anchor_status: str | None = Field(
+        default=None, description="'anchored' | 'drifted' after a re-anchor; None until re-scraped."
+    )
+
+
+class HighlightsResponse(BaseModel):
+    """The user's highlights (GET/POST/PATCH/DELETE /api/app/highlights)."""
+
+    items: list[Highlight] = Field(default_factory=list)
+
+
+class NoteCreate(BaseModel):
+    """Body for POST /api/app/notes — attach free text to a highlight, insight, or episode."""
+
+    target: Literal["highlight", "insight", "episode"] = Field(description="What the note is on.")
+    target_id: str = Field(description="Id/slug of the target.")
+    text: str = Field(min_length=1, description="Note body.")
+
+
+class NoteUpdate(BaseModel):
+    """Body for PATCH /api/app/notes/{id}."""
+
+    text: str = Field(min_length=1, description="Edited note body.")
+
+
+class Note(BaseModel):
+    """A saved note (response item)."""
+
+    id: str = Field(description="Opaque note id.")
+    target: Literal["highlight", "insight", "episode"] = Field(description="What the note is on.")
+    target_id: str = Field(description="Id/slug of the target.")
+    text: str = Field(description="Note body.")
+    created_at: int = Field(description="Unix time created.")
+    updated_at: int = Field(description="Unix time last edited.")
+
+
+class NotesResponse(BaseModel):
+    """The user's notes (GET/POST/PATCH/DELETE /api/app/notes)."""
+
+    items: list[Note] = Field(default_factory=list)
+
+
+# --- P3 Consolidation: consumer enrichment read surface (RFC-088 envelopes / #1121) ---
+
+
+class AppEpisodeEnrichmentResponse(BaseModel):
+    """Per-episode enrichment signals for the consumer (GET /api/app/episodes/{slug}/enrichment)."""
+
+    slug: str = Field(description="Episode slug.")
+    signals: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Enricher id → its envelope `data` payload (only enrichers that ran OK).",
+    )
+
+
+class AppCorpusEnrichmentResponse(BaseModel):
+    """Corpus-scope enrichment signals for the consumer (GET /api/app/corpus/enrichment)."""
+
+    signals: dict[str, Any] = Field(
+        default_factory=dict, description="Enricher id → its envelope `data` payload."
+    )
+
+
+# --- P3 Consolidation: spaced resurfacing + derived interests (RFC-101 §5-6 / #1123) ---
+
+
+class ResurfacingItem(BaseModel):
+    """A highlight due to resurface, with a reflection prompt (GET /api/app/resurfacing)."""
+
+    highlight: Highlight = Field(description="The due highlight (jump-to-moment via its anchor).")
+    reflection_prompt: str = Field(description="A deterministic, no-LLM reflection prompt.")
+
+
+class ResurfacingResponse(BaseModel):
+    """Due resurfacing items, most-overdue first (empty when paused / nothing due)."""
+
+    items: list[ResurfacingItem] = Field(default_factory=list)
+    paused: bool = Field(default=False, description="Whether the user has paused resurfacing.")
+
+
+class ResurfacingSettings(BaseModel):
+    """Pacing settings (GET/PUT /api/app/resurfacing/settings)."""
+
+    paused: bool = Field(default=False, description="Pause all resurfacing.")
+
+
+class DerivedInterest(BaseModel):
+    """An implicit interest token derived from the user's corpus (RFC-101 §6)."""
+
+    token: str = Field(description="`person:<id>` / `topic:<id>` — same scheme as explicit follows")
+    kind: Literal["person", "topic"] = Field(description="Entity kind.")
+    label: str = Field(description="Display label.")
+    count: int = Field(ge=1, description="How many heard∪captured episodes it occurs in.")
+
+
+class DerivedInterestsResponse(BaseModel):
+    """Ranked implicit interests (GET /api/app/interests/derived)."""
+
+    items: list[DerivedInterest] = Field(default_factory=list)
 
 
 class PlaybackPosition(BaseModel):
@@ -925,6 +1124,26 @@ class RelationalGroupedResponse(BaseModel):
     error: str | None = None
 
 
+class InsightDetailResponse(BaseModel):
+    """An insight's own content, resolved from the full corpus graph (out-of-slice).
+
+    Lets a viewer render an insight whose node isn't in the loaded artifact — e.g.
+    drilling into a corpus-wide timeline mention. ``error`` is set (results empty)
+    when no corpus is configured or the id isn't an insight.
+    """
+
+    subject: str = Field(description="The queried insight id.")
+    text: str = ""
+    insight_type: str = ""
+    grounded: bool = False
+    episode_id: str = ""
+    show_id: str = ""
+    quotes: list[RelatedNodeModel] = Field(default_factory=list)
+    topics: list[RelatedNodeModel] = Field(default_factory=list)
+    entities: list[RelatedNodeModel] = Field(default_factory=list)
+    error: str | None = None
+
+
 class QueryActivityBucket(BaseModel):
     """One day's search count (PRD-033 FR6.2)."""
 
@@ -1091,14 +1310,13 @@ class CorpusEpisodeListItem(BaseModel):
     has_kg: bool = Field(default=False, description="True when KG artifact exists on disk.")
     # RFC-088 chunk-8 follow-up: per-episode enrichment availability flags.
     # Populated from `metadata/enrichments/{stem}.{id}.json` presence for
-    # each episode-scope enricher (currently topic_cooccurrence +
-    # insight_density). Cheap probe — caller knows whether a drill-down
-    # to `/api/corpus/episode/enrichments/{id}` will return a 200 or 404.
+    # each episode-scope enricher (currently insight_density). Cheap probe —
+    # caller knows whether a drill-down to
+    # `/api/corpus/episode/enrichments/{id}` will return a 200 or 404.
     enrichments_available: dict[str, bool] = Field(
         default_factory=dict,
         description=(
-            "Per-enricher availability flags for episode-scope enrichers "
-            "(e.g. topic_cooccurrence, insight_density)."
+            "Per-enricher availability flags for episode-scope enrichers " "(e.g. insight_density)."
         ),
     )
 
@@ -1596,6 +1814,8 @@ class CilArcEpisodeBlock(BaseModel):
     episode_image_local_relpath: str | None = None
     feed_image_url: str | None = None
     feed_image_local_relpath: str | None = None
+    summary_title: str | None = None
+    summary_text: str | None = None
     insights: list[dict[str, Any]] = Field(default_factory=list)
 
 

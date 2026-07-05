@@ -5,7 +5,8 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
-import type { EpisodeDetail, Entity, Insight, Topic } from '../services/types'
+import type { EpisodeDetail, Entity, Highlight, Insight, Topic } from '../services/types'
+import { useAuthStore } from '../stores/auth'
 import KnowledgePanel from './KnowledgePanel.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
@@ -23,6 +24,9 @@ beforeEach(() => {
   setActivePinia(createPinia()) // FavoriteButton (on insights) resolves the favorites/auth stores
   // Default: no related peers (index unavailable) so the section hides.
   vi.spyOn(api, 'getRelated').mockResolvedValue(emptyPage)
+  // The embedded EpisodeDensity fetches episode enrichment; keep tests off the
+  // network (its own coverage lives in EpisodeDensity.test.ts).
+  vi.spyOn(api, 'getEpisodeEnrichment').mockResolvedValue({})
 })
 afterEach(() => vi.restoreAllMocks())
 
@@ -110,7 +114,7 @@ describe('KnowledgePanel', () => {
     await w.findAll('button').find((b) => b.text() === 'Matthew Walker')!.trigger('click')
     await flushPromises()
     // Replace-in-panel (UXS-014): the card renders INLINE in the panel (no overlay), with a ‹ Back.
-    expect(getPerson).toHaveBeenCalledWith('person:matthew-walker')
+    expect(getPerson).toHaveBeenCalledWith('person:matthew-walker', undefined)
     expect(w.text()).toContain('Matthew Walker')
     expect(w.findAll('button').some((b) => b.text().includes('Back'))).toBe(true)
   })
@@ -131,7 +135,7 @@ describe('KnowledgePanel', () => {
     const w = mountPanel()
     await w.findAll('button').find((b) => b.text() === 'memory')!.trigger('click')
     await flushPromises()
-    expect(getTopic).toHaveBeenCalledWith('topic:memory')
+    expect(getTopic).toHaveBeenCalledWith('topic:memory', undefined)
     expect(push).not.toHaveBeenCalled() // search now lives inside the card, not on chip-tap
   })
 
@@ -142,14 +146,49 @@ describe('KnowledgePanel', () => {
       { id: 'topic:ml', label: 'ml', cluster_id: 'tc:ml', cluster_label: 'machine learning', cluster_size: 5 },
     ]
     const w = mountPanel({ topics, persons: [] })
-    // Dominant-cluster label surfaces as the "Theme" lead-in.
-    expect(w.text()).toContain('machine learning')
+    // Dominant semantic-cluster label surfaces as the "Similar ·" lead-in
+    // (renamed from "Theme ·" — "Theme" is now reserved for co-occurrence clusters).
+    expect(w.text()).toContain('Similar · machine learning')
     // Dominant-cluster topics lead (ai, ml), the singleton (zulu) trails.
     const chips = w.findAll('button').filter((b) => ['ai', 'ml', 'zulu'].includes(b.text()))
     expect(chips.map((c) => c.text())).toEqual(['ai', 'ml', 'zulu'])
     // Dominant chips carry the standout ring; the singleton does not.
     expect(chips[0].classes()).toContain('ring-topic')
     expect(chips[2].classes()).not.toContain('ring-topic')
+  })
+
+  it('marks theme-cluster topics with a "Theme ·" lead-in and theme ring (co-occurrence)', () => {
+    const topics: Topic[] = [
+      {
+        id: 'topic:oil',
+        label: 'oil',
+        cluster_id: null,
+        cluster_label: null,
+        cluster_size: 0,
+        theme_cluster_id: 'thc:sanctions',
+        theme_cluster_label: 'sanctions',
+        theme_cluster_size: 3,
+      },
+      {
+        id: 'topic:sf',
+        label: 'shadow fleet',
+        cluster_id: null,
+        cluster_label: null,
+        cluster_size: 0,
+        theme_cluster_id: 'thc:sanctions',
+        theme_cluster_label: 'sanctions',
+        theme_cluster_size: 3,
+      },
+      { id: 'topic:z', label: 'zulu', cluster_id: null, cluster_label: null, cluster_size: 0 },
+    ]
+    const w = mountPanel({ topics, persons: [] })
+    // Dominant theme (co-occurrence) surfaces as the "Theme ·" lead-in — distinct from "Similar ·".
+    expect(w.text()).toContain('Theme · sanctions')
+    // Theme-member chips carry the teal fill (lp-theme-chip); the non-member does not.
+    const oil = w.findAll('button').find((b) => b.text() === 'oil')!
+    const zulu = w.findAll('button').find((b) => b.text() === 'zulu')!
+    expect(oil.classes()).toContain('lp-theme-chip')
+    expect(zulu.classes()).not.toContain('lp-theme-chip')
   })
 
   it('runs episode-scoped search and renders grounded results', async () => {
@@ -203,5 +242,31 @@ describe('KnowledgePanel', () => {
     e.summary_title = null
     const w = mountPanel({ episode: e, insights: [], topics: [], persons: [] })
     expect(w.text()).toContain('Insights appear once this episode is processed.')
+  })
+
+  it('hides the insight save-to-highlights control when signed out', () => {
+    const w = mountPanel()
+    expect(w.find('[aria-label="Save to highlights"]').exists()).toBe(false)
+  })
+
+  it('lets a signed-in user save an insight to highlights (P2 capture)', async () => {
+    const auth = useAuthStore()
+    auth.user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([])
+    vi.spyOn(api, 'getNotes').mockResolvedValue([])
+    const created: Highlight = {
+      id: 'h1', episode_slug: 's1', kind: 'insight', start_ms: 12000, end_ms: null,
+      char_start: null, char_end: null, segment_ids: [], quote_text: 'Sleep consolidates memory.',
+      speaker: null, source_insight_id: 'i1', color: null, created_at: 1, anchor_status: null,
+    }
+    const create = vi.spyOn(api, 'createHighlight').mockResolvedValue(created)
+    const w = mountPanel()
+    await flushPromises()
+    const save = w.find('[aria-label="Save to highlights"]')
+    expect(save.exists()).toBe(true)
+    await save.trigger('click')
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'insight', source_insight_id: 'i1', start_ms: 12000 }),
+    )
   })
 })

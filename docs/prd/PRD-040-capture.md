@@ -1,11 +1,19 @@
 # PRD-040: Capture (highlights + notes)
 
-- **Status**: Draft
+- **Status**: Shipped — v2.7 / Epic P2 (#1112; children #1114–#1119)
 - **Authors**: Marko
 - **Target Release**: v2.7 (Phase P2)
 - **Parent PRD**: `docs/prd/PRD-035-learning-platform.md`
-- **Depends on**: PRD-036 (per-user store), PRD-039 (capture entry points)
+- **Depends on**: PRD-036 / RFC-098 §3 (per-user files), PRD-039 (capture entry points)
 - **Feeds**: PRD-041 (Consolidation)
+
+> **As-shipped note (v2.7).** This PRD is reconciled with what landed; FR1–FR4 are live. The data
+> model (FR3) shipped as specified. **Markdown export shipped** (it had been a v2.7 non-goal — see
+> the revised Non-Goals). Transcript capture supports both whole-line and **sub-segment character
+> selection** (FR1.2 — select a phrase, tap save). A fixed-palette **colour picker + colour filter**
+> shipped (FR1.4 / FR4.2). The one remaining gap, called out honestly: the global view's **topic**
+> filter (part of FR4.2) is not built — highlights don't carry topic metadata, so it needs a
+> per-highlight topic projection (tracked, P2+). See **§"As shipped"** for the FR→code map.
 
 ---
 
@@ -37,7 +45,8 @@ offsets, so it can be replayed, cited, and later woven into the user's personal 
 
 - Not collaborative/shared highlights (no social in v2.7).
 - Not rich-text/markdown editing beyond plain notes (keep it frictionless; richer formats later).
-- Not export/integration (Readwise/Obsidian/etc.) in v2.7 — candidate follow-up.
+- Not third-party integration (Readwise/Obsidian/etc.) in v2.7 — candidate follow-up. **(Plain
+  Markdown export of all highlights + notes *did* ship — see API summary; the integrations remain out.)**
 - Not auto-highlighting — capture is user-driven (pipeline insights are a *separate*, suggested layer).
 
 ## Personas
@@ -46,12 +55,12 @@ offsets, so it can be replayed, cited, and later woven into the user's personal 
 
 ## User Stories
 
-- _As a listener, I can tap once to highlight the moment I'm hearing right now._
-- _As a reader, I can select a transcript passage and save it as a highlight._
-- _As a learner, I can save a pipeline insight to my highlights with one tap._
-- _As a note-taker, I can attach a thought to a highlight or to the whole episode._
-- _As a returning user, I can see all my highlights for an episode, and across everything, and jump back
-  to the exact audio moment of any of them._
+- *As a listener, I can tap once to highlight the moment I'm hearing right now.*
+- *As a reader, I can select a transcript passage and save it as a highlight.*
+- *As a learner, I can save a pipeline insight to my highlights with one tap.*
+- *As a note-taker, I can attach a thought to a highlight or to the whole episode.*
+- *As a returning user, I can see all my highlights for an episode, and across everything, and jump
+  back to the exact audio moment of any of them.*
 
 ## Functional Requirements
 
@@ -92,14 +101,42 @@ offsets, so it can be replayed, cited, and later woven into the user's personal 
 
 ## API summary
 
+All routes are auth-gated and live under the consumer `/api/app/*` namespace (RFC-098), **not** the
+`/api/user` · `/api/episodes` paths this PRD originally sketched. Episode scoping is a `?episode=`
+query parameter, not a path segment. As shipped (`src/podcast_scraper/server/routes/app_capture.py`):
+
 | Method | Path | Description |
 | --- | --- | --- |
-| `GET` | `/api/user/highlights` | All highlights (filter: `podcast`, `topic`, `color`) |
-| `GET` | `/api/episodes/{slug}/highlights` | Highlights for one episode |
-| `POST` | `/api/episodes/{slug}/highlights` | Create a highlight |
-| `PATCH`/`DELETE` | `/api/user/highlights/{id}` | Edit/remove a highlight |
-| `POST` | `/api/user/notes` | Create a note (target + target_id) |
-| `PATCH`/`DELETE` | `/api/user/notes/{id}` | Edit/remove a note |
+| `GET` | `/api/app/highlights` | All highlights; `?episode=<slug>` scopes to one episode |
+| `POST` | `/api/app/highlights` | Create a highlight (201; route mints `id` + `created_at`) |
+| `PATCH` | `/api/app/highlights/{id}` | Edit `color` / `quote_text` (404 if absent) |
+| `DELETE` | `/api/app/highlights/{id}` | Remove a highlight; returns the remaining list |
+| `GET` | `/api/app/notes` | All notes; `?target=&target_id=` scopes them |
+| `POST` | `/api/app/notes` | Create a note (target + target_id; `text` min length 1) |
+| `PATCH` | `/api/app/notes/{id}` | Edit a note's text (404 if absent) |
+| `DELETE` | `/api/app/notes/{id}` | Remove a note; returns the remaining list |
+| `GET` | `/api/app/highlights/export.md` | Markdown export of all highlights + attached notes |
+
+## As shipped (v2.7 / Epic P2)
+
+| FR | Shipped as | Where |
+| --- | --- | --- |
+| FR1.1 moment | One-tap "mark this moment" in the player hero (tags the active speaker) | `app/src/views/PlayerView.vue`, `#1116` |
+| FR1.2 span | Save a transcript **line** (segment-granular) **or a selected phrase** — `selectionSubRange()` reads the live selection for exact char offsets + verbatim quote | `TranscriptList.vue` (`canCapture`) + `player/transcriptCapture.ts`, `#1116` + delta |
+| FR1.3 insight | "Save to highlights" on each Knowledge-panel insight card (keeps `source_insight_id` grounding) | `app/src/components/KnowledgePanel.vue`, `#1116` |
+| FR1.4 colour | Fixed palette (amber/rose/sky/emerald/violet): per-highlight swatch picker + coloured card border; `color` via `PATCH` | `HighlightsView.vue` + `utils/highlightColors.ts`, delta |
+| FR2 notes | Add / edit / delete plain-text notes per highlight in the Library view | `app/src/views/HighlightsView.vue`, `#1117` |
+| FR3 grounding | `highlight` + `note` records exactly per FR3.1/FR3.2; per-user JSON files | `src/podcast_scraper/server/app_user_state.py`, `#1114` |
+| FR3.1a re-anchor | `reanchor_highlight()` re-locates positional fields by timestamp; a drifted span is flagged (`anchor_status`), never dropped (RFC-098 §7) | `app_user_state.py`, `#1114` |
+| FR4.1 per-episode | Highlights grouped by episode with jump-to-moment (`?t=`) | `HighlightsView.vue`, `#1117` |
+| FR4.2 global view | Global Library "Highlights" tab (grouped by episode) + a **colour filter**. Podcast scoping is the grouping; a **topic** filter is the one remaining gap (highlights carry no topic metadata yet). | `LibraryView.vue` / `HighlightsView.vue`, `#1117` + delta |
+| FR4.3 edit/delete | Delete highlights; add/edit/delete notes | `#1117` |
+| FR4.4 → Consolidation | Highlights + notes are the per-user corpus P3 (PRD-041) reads | feeds PRD-041 |
+| Export | `GET /highlights/export.md` + a Library "Export Markdown" link | `app_capture_export.py`, `#1115` |
+
+**Tests:** unit (store + re-anchor + Markdown renderer), integration (route CRUD + export over a
+fixture corpus), component (capture surfaces + Highlights view), and an e2e covering the full
+listen→capture→review loop on the committed validation corpus (`#1114`–`#1118`).
 
 ## Success Metrics
 
@@ -115,8 +152,13 @@ offsets, so it can be replayed, cited, and later woven into the user's personal 
 
 ## Open Questions
 
-- Export to external tools (Readwise/Obsidian/Markdown) — follow-up PRD?
-- Tag taxonomy: free tags vs. fixed colours/labels only in v2.7.
+- ~~Export to external tools (Readwise/Obsidian/Markdown)~~ — **Markdown export shipped** in v2.7;
+  third-party integrations (Readwise/Obsidian) remain a follow-up PRD.
+- ~~Tag taxonomy: free tags vs. fixed colours/labels~~ — **fixed colour palette shipped** (picker +
+  colour filter); free-text tags remain a possible later addition.
+- ~~Sub-segment character-range selection (FR1.2)~~ — **shipped** (select a phrase, tap save).
+- Remaining: a **topic** filter on the global Highlights view needs a per-highlight topic projection
+  (highlights carry no topic metadata today) — tracked for P2+.
 
 ## References
 

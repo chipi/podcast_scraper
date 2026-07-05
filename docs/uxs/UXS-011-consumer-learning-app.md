@@ -235,6 +235,71 @@ Swap values in `app/src/styles/tokens.css` (`:root`) or via DevTools; the per-sh
 on the player root element at runtime. Token **names and the contrast-clamp contract are frozen**;
 values and the extraction algorithm are open until promoted.
 
+## Capture & Consolidation surfaces (P2 + P3 — shipped)
+
+The "Remember" half of the app (PRD-040 Capture, PRD-041 Consolidation). All affordances below are
+**auth-gated** — signed-out users see the app exactly as before (no capture controls, no scope
+toggles). Everything is grounded (slug + timestamp) and extractive (**no request-time LLM**).
+
+### Capture affordances (inline actions, never overlays)
+
+Capture is a one-tap **inline** action on the surface you're already on — it never opens a modal
+(contrast the EntityCard replace-in-panel pattern, UXS-014). Three entry points, one shared
+bookmark glyph filled-when-saved:
+
+- **Mark this moment** — a bookmark control in the Player hero (`PlayerView`). One tap captures the
+  current content-time as a `moment` highlight (tagging the active speaker); a brief accent flash +
+  a polite SR live-region announcement ("Moment saved") confirm. Idempotent monotonic add.
+- **Save a transcript line / phrase** — a quiet per-line bookmark in `TranscriptList` (revealed on
+  row hover/focus; `focus-visible` keeps it keyboard-reachable). With **no selection** it saves the
+  whole line (toggles off on re-tap, `aria-pressed`); with an active **text selection inside the
+  line** it captures that exact phrase (char offsets + verbatim quote) and always adds.
+- **Save an insight** — a bookmark on each Knowledge-panel insight card, visually distinct from the
+  favorites heart (favorites = a saved list; highlights = the personal-corpus material that feeds
+  recall/resurfacing).
+
+**Colour** — a fixed 5-token palette (amber · rose · sky · emerald · violet; `utils/highlightColors.ts`).
+Set/cleared via a swatch row in the Highlights view; the chosen colour paints the highlight card's
+left border. Colour names are exposed via `aria-label` (never colour-only meaning).
+
+### Library tabs (the per-user hub)
+
+The Library is tabbed; P2/P3 add two tabs alongside Saved · Knowledge · Queue · Recent:
+
+- **Highlights** (`HighlightsView`) — captured moments/spans/insights grouped by episode (titles
+  hydrated, slug fallback), each with jump-to-moment (`?t=`), a drift badge when the timestamp
+  re-anchored on re-scrape, inline notes (add/edit/remove), a per-highlight colour swatch picker,
+  a header **colour filter**, and a **Export Markdown** link.
+- **Revisit** (`ResurfacingInbox`) — the spaced-resurfacing inbox (see below).
+
+### Recall scope lens (Search) + your-corpus lens (entity cards)
+
+A **stateful segmented toggle** (`role="tablist"`, the selected tab `aria-selected`) — a filter
+state, not a new view:
+
+- **Search** gains **Everything / My corpus**. "My corpus" runs grounded recall over the user's
+  heard∪captured set (`scope=mine`); results still group by episode with jump-to-moment. Honest
+  zero-coverage copy ("Nothing in your corpus on this yet — listen to or capture episodes to build
+  it"), never a global fallback.
+- **EntityCardBody** gains **All / My corpus**. "My corpus" refetches the person/topic card scoped
+  to the episodes you've heard — the "you also heard them in …" connection.
+
+### Resurfacing inbox (Revisit tab)
+
+Past highlights resurfaced on a spaced ladder (2d/1w/1mo/3mo, computed on read). Each card shows a
+deterministic **reflection prompt** (no LLM), the highlight, a one-tap **jump-to-moment**, and a
+**"Got it"** dismiss (advances the ladder). A header **Pause/Resume** control governs pacing;
+paused or nothing-due shows an honest empty state.
+
+### States & a11y for these surfaces
+
+- Every capture/scope control is a real `<button>` with a clear `aria-label`/`aria-pressed`/
+  `aria-selected`; the transcript save is reachable via keyboard despite its hover-quiet styling.
+- Capture confirmations also reach screen readers via a polite live region (visual flash alone is
+  not announced).
+- axe (no serious/critical) is asserted in e2e on the signed-in Player **and** the Library
+  Highlights review surface.
+
 ## Visual references
 
 Annotated phone mockups of the three explored directions live in
@@ -260,6 +325,7 @@ Direction C. These are design aids (WIP), not shipped assets.
 
 ## Revision history
 
-| Date       | Change                                                                 |
-| ---------- | ---------------------------------------------------------------------- |
-| 2026-06-24 | Initial draft — Editorial Bold baseline (Direction B) + Player surface |
+| Date       | Change                                                                                                                                       |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-06-24 | Initial draft — Editorial Bold baseline (Direction B) + Player surface                                                                       |
+| 2026-06-28 | Add Capture & Consolidation surfaces (P2/P3): capture, Library Highlights/Revisit tabs, Recall + your-corpus scope lenses, resurfacing inbox |

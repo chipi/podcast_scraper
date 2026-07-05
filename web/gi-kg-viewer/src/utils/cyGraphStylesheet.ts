@@ -331,6 +331,18 @@ export function buildGiKgCyStylesheet(options?: {
       },
     },
     {
+      // Theme-cluster membership (co-occurrence "Theme") — a teal ring on the topic
+      // node, matching the player pill ring (--lp-theme #7dd3c0). A ring, not a
+      // compound parent, so it coexists with the semantic cluster boxes. node:selected
+      // is declared after, so the blue selection ring wins while a node is selected.
+      selector: 'node.theme-member',
+      style: {
+        'border-width': compact ? 2 : 3,
+        'border-color': '#7dd3c0',
+        'border-opacity': 0.95,
+      },
+    },
+    {
       selector: 'node:selected',
       style: {
         'border-width': compact ? 2 : 3,

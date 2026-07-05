@@ -379,3 +379,294 @@ def test_library_add_list_remove_through_routes(tmp_path: Path) -> None:
     client.post("/api/app/library", json={"feed_id": "f1", "title": "One"})
     assert [i["feed_id"] for i in client.get("/api/app/library").json()["items"]] == ["f1"]
     assert client.delete("/api/app/library/f1").json()["items"] == []
+
+
+# --------------------------------------------------------------------------- #
+# capture routes (auth-gated): highlights + notes + Markdown export (#1115)
+# --------------------------------------------------------------------------- #
+
+
+def test_capture_routes_require_auth(tmp_path: Path) -> None:
+    client = _client(tmp_path)  # signed-out
+    assert client.get("/api/app/highlights").status_code == 401
+    assert client.post("/api/app/notes", json={"target": "episode", "target_id": "x", "text": "n"})
+    assert client.get("/api/app/highlights/export.md").status_code == 401
+
+
+def test_highlight_create_list_patch_delete(tmp_path: Path) -> None:
+    client = _authed(tmp_path)
+    assert client.get("/api/app/highlights").json()["items"] == []
+    created = client.post(
+        "/api/app/highlights",
+        json={
+            "episode_slug": "show-ep01",
+            "kind": "span",
+            "start_ms": 10_000,
+            "end_ms": 14_000,
+            "quote_text": "the anchor is the timestamp",
+            "color": "amber",
+        },
+    )
+    assert created.status_code == 201, created.text
+    hid = created.json()["id"]
+    assert hid.startswith("h_") and created.json()["created_at"] > 0
+    # scoped list
+    assert [
+        h["id"] for h in client.get("/api/app/highlights?episode=show-ep01").json()["items"]
+    ] == [hid]
+    assert client.get("/api/app/highlights?episode=other").json()["items"] == []
+    # patch colour, immutable slug preserved
+    patched = client.patch(f"/api/app/highlights/{hid}", json={"color": "rose"}).json()
+    assert patched["color"] == "rose" and patched["episode_slug"] == "show-ep01"
+    assert client.patch("/api/app/highlights/ghost", json={"color": "x"}).status_code == 404
+    # an explicit null clears the colour (exclude_unset); an omitted field is untouched
+    assert client.patch(f"/api/app/highlights/{hid}", json={"color": None}).json()["color"] is None
+    assert (
+        client.patch(f"/api/app/highlights/{hid}", json={"quote_text": "edited"}).json()["color"]
+        is None
+    )
+    # delete
+    assert client.delete(f"/api/app/highlights/{hid}").json()["items"] == []
+
+
+def test_note_create_list_patch_delete(tmp_path: Path) -> None:
+    client = _authed(tmp_path)
+    created = client.post(
+        "/api/app/notes",
+        json={"target": "highlight", "target_id": "h_abc", "text": "reframed my thinking"},
+    )
+    assert created.status_code == 201, created.text
+    nid = created.json()["id"]
+    assert nid.startswith("n_")
+    assert created.json()["created_at"] == created.json()["updated_at"]
+    # scoped list
+    scoped = client.get("/api/app/notes?target=highlight&target_id=h_abc").json()["items"]
+    assert [n["id"] for n in scoped] == [nid]
+    # patch bumps updated_at text
+    patched = client.patch(f"/api/app/notes/{nid}", json={"text": "second thoughts"}).json()
+    assert patched["text"] == "second thoughts"
+    assert client.patch("/api/app/notes/ghost", json={"text": "x"}).status_code == 404
+    # empty text rejected by the schema (min_length=1)
+    assert (
+        client.post(
+            "/api/app/notes", json={"target": "episode", "target_id": "e", "text": ""}
+        ).status_code
+        == 422
+    )
+    assert client.delete(f"/api/app/notes/{nid}").json()["items"] == []
+
+
+def test_highlights_markdown_export_groups_and_resolves_titles(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    slug = _slug(tmp_path, "ep1")
+    client = _authed(tmp_path)
+    h = client.post(
+        "/api/app/highlights",
+        json={
+            "episode_slug": slug,
+            "kind": "span",
+            "start_ms": 90_000,
+            "quote_text": "deep sleep consolidates memory",
+        },
+    ).json()
+    client.post(
+        "/api/app/notes",
+        json={"target": "highlight", "target_id": h["id"], "text": "remember this"},
+    )
+    resp = client.get("/api/app/highlights/export.md")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/markdown")
+    assert "attachment" in resp.headers.get("content-disposition", "")
+    body = resp.text
+    assert "# My Highlights" in body
+    assert "Episode ep1" in body  # episode_title resolved through the corpus
+    assert '"deep sleep consolidates memory"' in body
+    assert "_note:_ remember this" in body
+
+
+def test_highlights_markdown_export_empty(tmp_path: Path) -> None:
+    client = _authed(tmp_path)
+    body = client.get("/api/app/highlights/export.md").text
+    assert "_No highlights captured yet._" in body
+
+
+# --------------------------------------------------------------------------- #
+# consumer enrichment read surface (#1121, RFC-088 envelopes)
+# --------------------------------------------------------------------------- #
+
+
+def _write_envelope(path: Path, enricher_id: str, data: object, status: str = "ok") -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "enricher_id": enricher_id,
+                "enricher_version": "1.0",
+                "schema_version": "1.0",
+                "status": status,
+                "data": data,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_episode_enrichment_surfaces_ok_envelopes_and_skips_failed(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    slug = _slug(tmp_path, "ep1")
+    enrich_dir = tmp_path / "metadata" / "enrichments"
+    _write_envelope(
+        enrich_dir / "0001-a.topic_cooccurrence.json", "topic_cooccurrence", {"pairs": 3}
+    )
+    _write_envelope(enrich_dir / "0001-a.grounding_rate.json", "grounding_rate", {"rate": 0.9})
+    # a failed envelope is present but must NOT surface
+    _write_envelope(
+        enrich_dir / "0001-a.nli_contradiction.json", "nli_contradiction", None, status="failed"
+    )
+    body = _client(tmp_path).get(f"/api/app/episodes/{slug}/enrichment").json()
+    assert body["slug"] == slug
+    assert body["signals"]["topic_cooccurrence"] == {"pairs": 3}
+    assert body["signals"]["grounding_rate"] == {"rate": 0.9}
+    assert "nli_contradiction" not in body["signals"]
+
+
+def test_episode_enrichment_unknown_slug_404(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    assert _client(tmp_path).get("/api/app/episodes/ghost-404/enrichment").status_code == 404
+
+
+def test_episode_enrichment_empty_when_no_envelopes(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    slug = _slug(tmp_path, "ep1")
+    assert _client(tmp_path).get(f"/api/app/episodes/{slug}/enrichment").json()["signals"] == {}
+
+
+def test_corpus_enrichment_surfaces_corpus_scope_envelopes(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    _write_envelope(
+        tmp_path / "enrichments" / "temporal_velocity.json", "temporal_velocity", {"trend": ["ai"]}
+    )
+    _write_envelope(
+        tmp_path / "enrichments" / "run_summary.json", "run_summary", {"x": 1}
+    )  # bookkeeping → skipped
+    _write_envelope(
+        tmp_path / "enrichments" / "topic_similarity.json",
+        "topic_similarity",
+        None,
+        status="failed",
+    )  # a failed corpus enricher must not surface
+    body = _client(tmp_path).get("/api/app/corpus/enrichment").json()
+    assert body["signals"]["temporal_velocity"] == {"trend": ["ai"]}
+    assert "run_summary" not in body["signals"]
+    assert "topic_similarity" not in body["signals"]
+
+
+# --------------------------------------------------------------------------- #
+# your-corpus lens on person/topic cards (#1122)
+# --------------------------------------------------------------------------- #
+
+
+def test_person_card_scope_mine_requires_auth(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    resp = _client(tmp_path).get("/api/app/persons/person:jane-doe", params={"scope": "mine"})
+    assert resp.status_code == 401
+
+
+def test_person_card_scope_mine_filters_to_heard_corpus(tmp_path: Path) -> None:
+    _corpus(tmp_path)  # jane-doe appears in ep1 AND ep2
+    client = _authed(tmp_path)
+    ep1 = _slug(tmp_path, "ep1")
+    # scope=all → both episodes; scope=mine (nothing captured yet) → zero, honest empty card
+    assert client.get("/api/app/persons/person:jane-doe").json()["episode_count"] == 2
+    empty = client.get("/api/app/persons/person:jane-doe", params={"scope": "mine"}).json()
+    assert empty["episode_count"] == 0 and empty["episodes"] == []
+    # capture ep1 → the lens now shows just that episode ("you heard her in …")
+    client.post("/api/app/highlights", json={"episode_slug": ep1, "kind": "moment", "start_ms": 0})
+    mine = client.get("/api/app/persons/person:jane-doe", params={"scope": "mine"}).json()
+    assert mine["episode_count"] == 1
+    assert [e["slug"] for e in mine["episodes"]] == [ep1]
+
+
+def test_topic_card_scope_mine_filters_to_heard_corpus(tmp_path: Path) -> None:
+    _corpus(tmp_path)  # topic:ai appears in ep1 AND ep2
+    _write_clusters(tmp_path)
+    client = _authed(tmp_path)
+    ep2 = _slug(tmp_path, "ep2")
+    client.post("/api/app/highlights", json={"episode_slug": ep2, "kind": "moment", "start_ms": 0})
+    mine = client.get("/api/app/topics/topic:ai", params={"scope": "mine"}).json()
+    assert [e["slug"] for e in mine["episodes"]] == [ep2]
+    assert mine["episode_count"] == 1
+
+
+# --------------------------------------------------------------------------- #
+# resurfacing + derived interests (#1123)
+# --------------------------------------------------------------------------- #
+
+
+def test_resurfacing_requires_auth(tmp_path: Path) -> None:
+    assert _client(tmp_path).get("/api/app/resurfacing").status_code == 401
+    assert _client(tmp_path).get("/api/app/interests/derived").status_code == 401
+
+
+def test_resurfacing_due_then_pause_then_mark_surfaced(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    client = _authed(tmp_path)
+    # An old highlight (created well in the past) is due; a brand-new one is not.
+    old = client.post(
+        "/api/app/highlights", json={"episode_slug": "show-ep01", "kind": "moment", "start_ms": 0}
+    ).json()
+    # Backdate the highlight's created_at so it clears the 2-day first step.
+    import json as _json
+
+    hpath = tmp_path / "appdata" / "users"
+    user_dir = next(hpath.iterdir())
+    hl_file = user_dir / "highlights.json"
+    rows = _json.loads(hl_file.read_text())
+    rows[0]["created_at"] = 1  # epoch → far past
+    hl_file.write_text(_json.dumps(rows))
+
+    due = client.get("/api/app/resurfacing").json()
+    assert [i["highlight"]["id"] for i in due["items"]] == [old["id"]]
+    assert due["items"][0]["reflection_prompt"]  # a prompt is attached
+
+    # Pausing hides everything.
+    assert (
+        client.put("/api/app/resurfacing/settings", json={"paused": True}).json()["paused"] is True
+    )
+    paused = client.get("/api/app/resurfacing").json()
+    assert paused["items"] == [] and paused["paused"] is True
+
+    # Resume + mark surfaced advances the ladder (count becomes 1).
+    client.put("/api/app/resurfacing/settings", json={"paused": False})
+    assert client.post(f"/api/app/resurfacing/{old['id']}/surfaced").status_code == 204
+    state = _json.loads((user_dir / "resurfacing.json").read_text())
+    assert state[old["id"]]["count"] == 1
+
+
+def test_derived_interests_rank_corpus_entities(tmp_path: Path) -> None:
+    _corpus(tmp_path)  # ep1 + ep2 both feature person:jane-doe; ep1 also bob; topics ai/ml
+    client = _authed(tmp_path)
+    for eid in ("ep1", "ep2"):
+        client.post(
+            "/api/app/highlights",
+            json={"episode_slug": _slug(tmp_path, eid), "kind": "moment", "start_ms": 0},
+        )
+    items = client.get("/api/app/interests/derived").json()["items"]
+    by_token = {i["token"]: i for i in items}
+    # jane-doe occurs in both captured episodes → count 2, ranked first.
+    assert by_token["person:person:jane-doe"]["count"] == 2
+    assert items[0]["token"] == "person:person:jane-doe"
+    assert "topic:topic:ai" in by_token
+
+
+def test_highlights_export_falls_back_to_slug_when_episode_unknown(tmp_path: Path) -> None:
+    # A highlight on a slug that resolves to no corpus episode → the export still renders, using the
+    # bare slug as the heading (title hydration is best-effort, never breaks export).
+    _corpus(tmp_path)
+    client = _authed(tmp_path)
+    client.post(
+        "/api/app/highlights",
+        json={"episode_slug": "ghost-ep-404", "kind": "moment", "start_ms": 1000},
+    )
+    body = client.get("/api/app/highlights/export.md").text
+    assert "ghost-ep-404" in body  # heading is the slug; no title resolved

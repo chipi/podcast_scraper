@@ -156,4 +156,54 @@ describe('useGraphNavigationStore', () => {
       expect(s.topicClusterCanvasCollapsedIds).toEqual([])
     })
   })
+
+  describe('#6 breadcrumb trail', () => {
+    it('appends navigated nodes in order', () => {
+      const s = useGraphNavigationStore()
+      s.addToTrail('topic:a')
+      s.addToTrail('person:b')
+      expect(s.trailNodeIds).toEqual(['topic:a', 'person:b'])
+    })
+
+    it('LRU-touches a re-navigated node to the newest position', () => {
+      const s = useGraphNavigationStore()
+      s.addToTrail('a')
+      s.addToTrail('b')
+      s.addToTrail('a') // re-visit → moves to end
+      expect(s.trailNodeIds).toEqual(['b', 'a'])
+    })
+
+    it('never exceeds the budget, pruning oldest first', () => {
+      const s = useGraphNavigationStore()
+      for (let i = 0; i < 40; i++) s.addToTrail(`n${i}`)
+      expect(s.trailNodeIds.length).toBe(28)
+      expect(s.trailNodeIds[0]).toBe('n12') // n0..n11 pruned
+      expect(s.trailNodeIds[27]).toBe('n39')
+    })
+
+    it('ignores blanks and the pinned ego origin', () => {
+      const s = useGraphNavigationStore()
+      s.setGraphEgoFocusCyId('origin')
+      s.addToTrail('  ')
+      s.addToTrail('origin') // always in view → not a trail node
+      s.addToTrail('topic:a')
+      expect(s.trailNodeIds).toEqual(['topic:a'])
+    })
+
+    it('resets the trail when the ego origin changes', () => {
+      const s = useGraphNavigationStore()
+      s.setGraphEgoFocusCyId('origin1')
+      s.addToTrail('a')
+      s.addToTrail('b')
+      s.setGraphEgoFocusCyId('origin2') // new origin → fresh trail
+      expect(s.trailNodeIds).toEqual([])
+    })
+
+    it('clearTrail empties it', () => {
+      const s = useGraphNavigationStore()
+      s.addToTrail('a')
+      s.clearTrail()
+      expect(s.trailNodeIds).toEqual([])
+    })
+  })
 })

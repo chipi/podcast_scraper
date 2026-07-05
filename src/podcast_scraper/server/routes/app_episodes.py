@@ -19,6 +19,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from podcast_scraper.search.capability import structured_corpus_search
 from podcast_scraper.search.corpus_similar import episode_scope_key, run_similar_episodes
 from podcast_scraper.search.query_log import append_query_event
+from podcast_scraper.search.theme_clusters import consumer_theme_cluster_map
 from podcast_scraper.search.topic_clusters import consumer_topic_cluster_map
 from podcast_scraper.server import app_stats
 from podcast_scraper.server.app_artwork import artwork_url
@@ -281,12 +282,20 @@ async def episode_entities(request: Request, slug: str) -> AppEntitiesResponse:
     if not row.has_kg:
         return AppEntitiesResponse(episode_slug=slug)
     persons, orgs, topics = entities_from_kg(load_json_artifact(root, row.kg_relative_path))
-    # Cluster-first grouping (RFC-102 / PRD-043 FR1): attach corpus topic-cluster identity to each
-    # topic (no-op when search/topic_clusters.json is absent → flat list, today's behaviour).
+    # Cluster-first grouping (RFC-102 / PRD-043 FR1): attach both cluster identities to each
+    # topic — semantic (search/topic_clusters.json, "Similar") and theme
+    # (enrichments/topic_theme_clusters.json, co-occurrence "Theme"). Each is a no-op when its
+    # artifact is absent → flat list / no theme markers, today's behaviour.
     cluster_map = consumer_topic_cluster_map(root)
-    if cluster_map:
+    theme_map = consumer_theme_cluster_map(root)
+    if cluster_map or theme_map:
         topics = [
-            t.model_copy(update=cluster_map[t.id]) if t.id in cluster_map else t for t in topics
+            (
+                t.model_copy(update={**cluster_map.get(t.id, {}), **theme_map.get(t.id, {})})
+                if (t.id in cluster_map or t.id in theme_map)
+                else t
+            )
+            for t in topics
         ]
     return AppEntitiesResponse(episode_slug=slug, persons=persons, orgs=orgs, topics=topics)
 

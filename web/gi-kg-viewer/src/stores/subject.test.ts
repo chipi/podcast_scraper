@@ -2,6 +2,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useSubjectStore } from './subject'
+import { useGraphNavigationStore } from './graphNavigation'
 
 describe('useSubjectStore', () => {
   beforeEach(() => {
@@ -237,12 +238,13 @@ describe('useSubjectStore', () => {
 
   // --- focusTopic / focusEntity -------------------------------------------
 
-  it('focusTopic sets kind and topicId, clears other fields', () => {
+  it('focusTopic focuses the topic as a graph node (unified node view)', () => {
     const s = useSubjectStore()
     s.focusEpisode('metadata/a.json', { episodeId: 'ep-1' })
     s.focusTopic('  topic:42  ')
-    expect(s.kind).toBe('topic')
-    expect(s.topicId).toBe('topic:42')
+    expect(s.kind).toBe('graph-node')
+    expect(s.graphNodeCyId).toBe('topic:42')
+    expect(s.topicId).toBeNull()
     expect(s.episodeMetadataPath).toBeNull()
     expect(s.episodeId).toBeNull()
   })
@@ -255,11 +257,12 @@ describe('useSubjectStore', () => {
     expect(s.topicId).toBeNull()
   })
 
-  it('focusEntity routes through focusTopic (topic kind)', () => {
+  it('focusEntity focuses the entity as a graph node (unified node view)', () => {
     const s = useSubjectStore()
     s.focusEntity('  entity:7  ')
-    expect(s.kind).toBe('topic')
-    expect(s.topicId).toBe('entity:7')
+    expect(s.kind).toBe('graph-node')
+    expect(s.graphNodeCyId).toBe('entity:7')
+    expect(s.topicId).toBeNull()
   })
 
   it('focusEntity with blank id clears', () => {
@@ -276,8 +279,8 @@ describe('useSubjectStore', () => {
     const s = useSubjectStore()
     s.focusTopic('topic:1')
     s.focusPerson('  person:9  ')
-    expect(s.kind).toBe('person')
-    expect(s.personId).toBe('person:9')
+    expect(s.kind).toBe('graph-node')
+    expect(s.graphNodeCyId).toBe('person:9')
     expect(s.topicId).toBeNull()
   })
 
@@ -302,12 +305,12 @@ describe('useSubjectStore', () => {
     expect(s.episodeId).toBeNull()
 
     s.focusTopic('topic:1')
-    expect(s.kind).toBe('topic')
-    expect(s.graphNodeCyId).toBeNull()
+    expect(s.kind).toBe('graph-node')
+    expect(s.graphNodeCyId).toBe('topic:1')
 
     s.focusPerson('person:1')
-    expect(s.kind).toBe('person')
-    expect(s.topicId).toBeNull()
+    expect(s.kind).toBe('graph-node')
+    expect(s.graphNodeCyId).toBe('person:1')
 
     s.clearSubject()
     expect(s.kind).toBeNull()
@@ -429,10 +432,10 @@ describe('useSubjectStore — DEV window hook (__GIKG_SUBJECT__)', () => {
     expect(hook.graphNodeCyId).toBe('node:1')
 
     s.focusTopic('topic:1')
-    expect(hook.topicId).toBe('topic:1')
+    expect(hook.graphNodeCyId).toBe('topic:1')
 
     s.focusPerson('person:1')
-    expect(hook.personId).toBe('person:1')
+    expect(hook.graphNodeCyId).toBe('person:1')
   })
 
   it('hook mutators (focusTopic/focusEntity/clearSubject) drive the store', async () => {
@@ -441,16 +444,16 @@ describe('useSubjectStore — DEV window hook (__GIKG_SUBJECT__)', () => {
     const hook = getHook()
 
     hook.focusTopic('topic:hooked')
-    expect(s.kind).toBe('topic')
-    expect(s.topicId).toBe('topic:hooked')
+    expect(s.kind).toBe('graph-node')
+    expect(s.graphNodeCyId).toBe('topic:hooked')
 
     hook.focusEntity('entity:hooked')
-    expect(s.kind).toBe('topic')
-    expect(s.topicId).toBe('entity:hooked')
+    expect(s.kind).toBe('graph-node')
+    expect(s.graphNodeCyId).toBe('entity:hooked')
 
     hook.clearSubject()
     expect(s.kind).toBeNull()
-    expect(s.topicId).toBeNull()
+    expect(s.graphNodeCyId).toBeNull()
   })
 })
 
@@ -469,7 +472,7 @@ describe('useSubjectStore — positionTrackerTopicId (#1049)', () => {
 
   it('selectTopicForPositionTracker is a no-op when no Person is focused', () => {
     const s = useSubjectStore()
-    s.focusTopic('topic:x')
+    s.focusEpisode('metadata/a.json')
     s.selectTopicForPositionTracker('topic:ai')
     expect(s.positionTrackerTopicId).toBeNull()
   })
@@ -488,8 +491,8 @@ describe('useSubjectStore — positionTrackerTopicId (#1049)', () => {
     s.selectTopicForPositionTracker('topic:ai')
     s.clearPositionTrackerTopic()
     expect(s.positionTrackerTopicId).toBeNull()
-    expect(s.kind).toBe('person')
-    expect(s.personId).toBe('person:alice')
+    expect(s.kind).toBe('graph-node')
+    expect(s.graphNodeCyId).toBe('person:alice')
   })
 
   it('focusPerson(new person) clears any stale Position Tracker topic', () => {
@@ -498,7 +501,7 @@ describe('useSubjectStore — positionTrackerTopicId (#1049)', () => {
     s.selectTopicForPositionTracker('topic:ai')
     s.focusPerson('person:bob')
     expect(s.positionTrackerTopicId).toBeNull()
-    expect(s.personId).toBe('person:bob')
+    expect(s.graphNodeCyId).toBe('person:bob')
   })
 
   it('clearSubject also clears the Position Tracker topic', () => {
@@ -522,5 +525,97 @@ describe('useSubjectStore — positionTrackerTopicId (#1049)', () => {
     s.focusEpisode('metadata/a.json')
     expect(s.positionTrackerTopicId).toBeNull()
     expect(s.kind).toBe('episode')
+  })
+})
+
+// Back navigation — node→node chains (topic → entity → person → co-speaker)
+// push the prior subject so the rail Back affordance can return to it.
+describe('useSubjectStore — Back navigation history', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  it('starts with empty history; the first node focus records nothing', () => {
+    const s = useSubjectStore()
+    expect(s.canGoBack).toBe(false)
+    s.focusTopic('topic:1')
+    expect(s.canGoBack).toBe(false)
+  })
+
+  it('node→node navigation records history and back() restores the previous node', () => {
+    const s = useSubjectStore()
+    s.focusTopic('topic:geopolitics')
+    s.focusEntity('entity:strait-of-hormuz')
+    expect(s.canGoBack).toBe(true)
+    expect(s.graphNodeCyId).toBe('entity:strait-of-hormuz')
+    s.back()
+    expect(s.kind).toBe('graph-node')
+    expect(s.graphNodeCyId).toBe('topic:geopolitics')
+    expect(s.canGoBack).toBe(false)
+  })
+
+  it('back() through a multi-step chain returns nodes in reverse order', () => {
+    const s = useSubjectStore()
+    s.focusTopic('topic:a')
+    s.focusEntity('entity:b')
+    s.focusPerson('person:c')
+    expect(s.graphNodeCyId).toBe('person:c')
+    s.back()
+    expect(s.graphNodeCyId).toBe('entity:b')
+    s.back()
+    expect(s.graphNodeCyId).toBe('topic:a')
+    expect(s.canGoBack).toBe(false)
+  })
+
+  it('re-focusing the same node does not push history', () => {
+    const s = useSubjectStore()
+    s.focusTopic('topic:1')
+    s.focusGraphNode('topic:1')
+    expect(s.canGoBack).toBe(false)
+  })
+
+  it('back() with empty history is a no-op', () => {
+    const s = useSubjectStore()
+    s.focusTopic('topic:1')
+    s.back()
+    expect(s.kind).toBe('graph-node')
+    expect(s.graphNodeCyId).toBe('topic:1')
+  })
+
+  it('clearSubject drops the Back history', () => {
+    const s = useSubjectStore()
+    s.focusTopic('topic:1')
+    s.focusPerson('person:2')
+    expect(s.canGoBack).toBe(true)
+    s.clearSubject()
+    expect(s.canGoBack).toBe(false)
+  })
+
+  it('back() restores the Position Tracker topic captured in the snapshot', () => {
+    const s = useSubjectStore()
+    s.focusPerson('person:alice')
+    s.selectTopicForPositionTracker('topic:ai')
+    s.focusPerson('person:bob')
+    s.back()
+    expect(s.graphNodeCyId).toBe('person:alice')
+    expect(s.positionTrackerTopicId).toBe('topic:ai')
+  })
+
+  it('focusTopic/focusPerson/focusEntity request a graph focus — 2-way sync (#6)', () => {
+    const s = useSubjectStore()
+    const nav = useGraphNavigationStore()
+    s.focusTopic('topic:ai')
+    expect(nav.pendingFocusNodeId).toBe('topic:ai')
+    s.focusPerson('person:alice')
+    expect(nav.pendingFocusNodeId).toBe('person:alice')
+    s.focusEntity('org:acme')
+    expect(nav.pendingFocusNodeId).toBe('org:acme')
+  })
+
+  it('a direct focusGraphNode (a graph click) does NOT re-request a graph focus (#6)', () => {
+    const s = useSubjectStore()
+    const nav = useGraphNavigationStore()
+    s.focusGraphNode('topic:ai') // graph-originated → the node is already selected there
+    expect(nav.pendingFocusNodeId).toBeNull()
   })
 })

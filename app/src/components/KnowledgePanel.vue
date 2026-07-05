@@ -28,7 +28,9 @@ import { speakerLabel } from '../utils/format'
 import { episodeArtwork } from '../utils/episode'
 import { useAuthStore } from '../stores/auth'
 import { useQueueStore } from '../stores/queue'
+import { useCaptureStore } from '../stores/capture'
 import EntityCardBody from './EntityCardBody.vue'
+import EpisodeDensity from './EpisodeDensity.vue'
 import FavoriteButton from './FavoriteButton.vue'
 
 function favInsight(ins: Insight): FavoriteAdd {
@@ -70,7 +72,13 @@ const hasAnything = computed(
 )
 
 // --- Topics + People as one compact, expandable row; topics cluster-first (RFC-102) ---
-type Tag = { key: string; label: string; kind: 'topic' | 'person'; dominant: boolean }
+type Tag = {
+  key: string
+  label: string
+  kind: 'topic' | 'person'
+  dominant: boolean
+  themeMember: boolean
+}
 
 // Tapping a chip opens its entity card (PRD-043; library search now lives inside the card).
 const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
@@ -105,6 +113,36 @@ const dominantClusterId = computed<string | null>(() => {
 const dominantClusterLabel = computed(
   () => props.topics.find((t) => t.cluster_id === dominantClusterId.value)?.cluster_label ?? null,
 )
+
+// Theme clusters (co-occurrence "discussed together") — parallel to the semantic dominant above.
+// Marked on the pills (theme ring) + a "Theme ·" lead-in. No-op when topics carry no theme_cluster_id.
+const themeClusterCounts = computed<Record<string, number>>(() => {
+  const c: Record<string, number> = {}
+  for (const t of props.topics)
+    if (t.theme_cluster_id) c[t.theme_cluster_id] = (c[t.theme_cluster_id] ?? 0) + 1
+  return c
+})
+const themeDominantId = computed<string | null>(() => {
+  const counts = themeClusterCounts.value
+  let best: string | null = null
+  let bestCount = 1
+  let bestSize = -1
+  for (const t of props.topics) {
+    if (!t.theme_cluster_id) continue
+    const n = counts[t.theme_cluster_id] ?? 0
+    if (n > bestCount || (n === bestCount && (t.theme_cluster_size ?? 0) > bestSize)) {
+      best = t.theme_cluster_id
+      bestCount = n
+      bestSize = t.theme_cluster_size ?? 0
+    }
+  }
+  return best
+})
+const themeDominantLabel = computed(
+  () =>
+    props.topics.find((t) => t.theme_cluster_id === themeDominantId.value)?.theme_cluster_label ??
+    null,
+)
 const allTags = computed<Tag[]>(() => {
   const counts = topicClusterCounts.value
   const dom = dominantClusterId.value
@@ -119,12 +157,14 @@ const allTags = computed<Tag[]>(() => {
       label: tp.label,
       kind: 'topic' as const,
       dominant: Boolean(dom) && tp.cluster_id === dom,
+      themeMember: Boolean(tp.theme_cluster_id),
     })),
     ...props.persons.map((p) => ({
       key: p.id,
       label: p.name,
       kind: 'person' as const,
       dominant: false,
+      themeMember: false,
     })),
   ]
 })
@@ -186,6 +226,18 @@ async function runSearch(): Promise<void> {
   }
 }
 
+// --- capture (P2, PRD-040): save a grounded insight to the personal highlights corpus ---
+const capture = useCaptureStore()
+const savedInsightIds = computed(() => capture.savedInsightIds)
+function captureInsight(ins: Insight): void {
+  const secs = insightStartSeconds(ins)
+  void capture.captureInsight(props.slug, {
+    id: ins.id,
+    text: ins.text,
+    start_ms: secs != null ? Math.round(secs * 1000) : null,
+  })
+}
+
 // --- related ("more like this") ---
 const auth = useAuthStore()
 const queue = useQueueStore()
@@ -203,8 +255,17 @@ async function loadRelated(slug: string): Promise<void> {
     related.value = []
   }
 }
-onMounted(() => loadRelated(props.slug))
+onMounted(() => {
+  loadRelated(props.slug)
+  if (auth.isAuthenticated) void capture.ensureLoaded()
+})
 watch(() => props.slug, (s) => loadRelated(s))
+watch(
+  () => auth.isAuthenticated,
+  (yes) => {
+    if (yes) void capture.ensureLoaded()
+  },
+)
 </script>
 
 <template>
@@ -274,8 +335,16 @@ watch(() => props.slug, (s) => loadRelated(s))
       <section v-if="allTags.length" class="mb-5">
         <div class="mb-2 flex items-baseline justify-between gap-2">
           <h3 class="lp-section">{{ t('kp.tags') }}</h3>
-          <span v-if="dominantClusterLabel" class="truncate text-xs text-topic">
-            {{ t('kp.theme', { cluster: dominantClusterLabel }) }}
+          <span
+            v-if="themeDominantLabel || dominantClusterLabel"
+            class="flex min-w-0 flex-col items-end text-xs leading-tight"
+          >
+            <span v-if="themeDominantLabel" class="truncate text-theme">
+              {{ t('kp.theme', { cluster: themeDominantLabel }) }}
+            </span>
+            <span v-if="dominantClusterLabel" class="truncate text-topic">
+              {{ t('kp.similar', { cluster: dominantClusterLabel }) }}
+            </span>
           </span>
         </div>
         <div class="flex flex-wrap gap-1.5">
@@ -283,10 +352,14 @@ watch(() => props.slug, (s) => loadRelated(s))
             v-for="tag in visibleTags"
             :key="tag.key"
             type="button"
-            class="rounded-full bg-overlay px-2.5 py-1 text-xs transition hover:bg-elevated"
+            class="rounded-full px-2.5 py-1 text-xs transition"
             :class="[
               tag.kind === 'topic' ? 'text-topic' : 'text-person',
-              tag.dominant ? 'ring-1 ring-topic' : '',
+              tag.themeMember
+                ? 'lp-theme-chip'
+                : tag.dominant
+                  ? 'bg-overlay ring-1 ring-topic hover:bg-elevated'
+                  : 'bg-overlay hover:bg-elevated',
             ]"
             :aria-label="t('kp.openEntity', { term: tag.label })"
             @click="openCard(tag)"
@@ -309,6 +382,8 @@ watch(() => props.slug, (s) => loadRelated(s))
         <div class="mb-2 flex items-center justify-between">
           <h3 class="lp-section">{{ t('kp.insights') }} · {{ insights.length }}</h3>
         </div>
+        <!-- Where the substance sits (early/mid/late), tap to jump. Hides if absent. -->
+        <EpisodeDensity :slug="slug" @seek="emit('seek', $event)" />
         <ul class="flex flex-col gap-3">
           <li
             v-for="ins in visibleInsights"
@@ -339,6 +414,21 @@ watch(() => props.slug, (s) => loadRelated(s))
                   @click="emit('seek', insightStartSeconds(ins) as number)"
                 >
                   ▶ {{ formatTime(insightStartSeconds(ins) as number) }}
+                </button>
+                <!-- Save this insight to the personal highlights corpus (P2; auth-gated). -->
+                <button
+                  v-if="auth.isAuthenticated"
+                  type="button"
+                  class="rounded-full p-0.5 transition"
+                  :class="savedInsightIds.has(ins.id) ? 'text-accent' : 'text-muted hover:text-accent'"
+                  :aria-pressed="savedInsightIds.has(ins.id)"
+                  :aria-label="savedInsightIds.has(ins.id) ? t('capture.savedInsight') : t('capture.saveInsight')"
+                  :title="savedInsightIds.has(ins.id) ? t('capture.savedInsight') : t('capture.saveInsight')"
+                  @click="captureInsight(ins)"
+                >
+                  <svg viewBox="0 0 24 24" :fill="savedInsightIds.has(ins.id) ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true">
+                    <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
+                  </svg>
                 </button>
                 <FavoriteButton :item="favInsight(ins)" />
               </span>

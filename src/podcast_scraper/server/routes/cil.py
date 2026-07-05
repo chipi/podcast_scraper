@@ -170,6 +170,8 @@ async def topic_timeline_merge(
             episode_image_local_relpath=b.get("episode_image_local_relpath"),
             feed_image_url=b.get("feed_image_url"),
             feed_image_local_relpath=b.get("feed_image_local_relpath"),
+            summary_title=b.get("summary_title"),
+            summary_text=b.get("summary_text"),
             insights=list(b.get("insights") or []),
         )
         for b in raw
@@ -211,6 +213,8 @@ async def topic_timeline(
             episode_image_local_relpath=b.get("episode_image_local_relpath"),
             feed_image_url=b.get("feed_image_url"),
             feed_image_local_relpath=b.get("feed_image_local_relpath"),
+            summary_title=b.get("summary_title"),
+            summary_text=b.get("summary_text"),
             insights=list(b.get("insights") or []),
         )
         for b in raw

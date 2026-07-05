@@ -51,10 +51,9 @@ def test_resolve_returns_all_false_when_no_enrichments(tmp_path: Path) -> None:
 
 
 def test_resolve_returns_true_for_present_envelopes(tmp_path: Path) -> None:
-    rel = _seed_episode(tmp_path, "ep1", enrichers=["topic_cooccurrence"])
+    rel = _seed_episode(tmp_path, "ep1", enrichers=["insight_density"])
     flags = _resolve_episode_enrichments_available(tmp_path, rel)
-    assert flags["topic_cooccurrence"] is True
-    assert flags["insight_density"] is False
+    assert flags["insight_density"] is True
 
 
 def test_resolve_handles_empty_relpath(tmp_path: Path) -> None:
@@ -79,10 +78,8 @@ def test_catalog_episode_row_carries_enrichments_available(tmp_path: Path) -> No
     rows_by_stem = {it["metadata_relative_path"]: it for it in items}
     assert "metadata/ep1.metadata.json" in rows_by_stem
     assert rows_by_stem["metadata/ep1.metadata.json"]["enrichments_available"] == {
-        "topic_cooccurrence": False,
         "insight_density": True,
     }
     assert rows_by_stem["metadata/ep2.metadata.json"]["enrichments_available"] == {
-        "topic_cooccurrence": False,
         "insight_density": False,
     }

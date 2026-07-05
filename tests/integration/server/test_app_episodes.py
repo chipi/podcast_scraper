@@ -501,6 +501,37 @@ def test_entities_topics_carry_cluster_info(tmp_path: Path) -> None:
     assert topic["cluster_size"] == 2
 
 
+def test_entities_topics_carry_theme_cluster_info(tmp_path: Path) -> None:
+    _write_corpus(tmp_path)  # KG has topic:ai
+    (tmp_path / "enrichments").mkdir(parents=True, exist_ok=True)
+    theme = {
+        "schema_version": "1",
+        "method": "cooccurrence_lift",
+        "clusters": [
+            {
+                "cluster_type": "theme",
+                "graph_compound_parent_id": "thc:ai-safety",
+                "canonical_label": "ai safety",
+                "member_count": 2,
+                "members": [{"topic_id": "topic:ai"}, {"topic_id": "topic:regulation"}],
+            }
+        ],
+    }
+    # Written as the real enricher does — wrapped in the framework envelope.
+    (tmp_path / "enrichments" / "topic_theme_clusters.json").write_text(
+        json.dumps({"derived": True, "enricher_id": "topic_theme_clusters", "data": theme}),
+        encoding="utf-8",
+    )
+    slug = _only_slug(tmp_path)
+    body = _client(tmp_path).get(f"/api/app/episodes/{slug}/entities").json()
+    topic = next(t for t in body["topics"] if t["id"] == "topic:ai")
+    assert topic["theme_cluster_id"] == "thc:ai-safety"
+    assert topic["theme_cluster_label"] == "ai safety"
+    assert topic["theme_cluster_size"] == 2
+    # Theme and semantic clusters are independent — semantic absent here.
+    assert topic["cluster_id"] is None
+
+
 def test_entities_topics_flat_without_cluster_artifact(tmp_path: Path) -> None:
     _write_corpus(tmp_path)  # no topic_clusters.json → flat (cluster fields default)
     slug = _only_slug(tmp_path)

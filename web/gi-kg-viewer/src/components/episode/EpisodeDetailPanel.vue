@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, ref, watch } from 'vue'
+import { computed, inject, ref, useSlots, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { fetchIndexStats, type IndexStatsEnvelope } from '../../api/indexStatsApi'
 import {
@@ -18,6 +18,7 @@ import EpisodeEnrichmentSection from './EpisodeEnrichmentSection.vue'
 import HelpTip from '../shared/HelpTip.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
+import { themeMemberTopicIdSet } from '../../utils/topicClustersOverlay'
 import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphHandoffStore } from '../../stores/graphHandoff'
@@ -47,7 +48,7 @@ const props = withDefaults(
   defineProps<{
     /** When true, **Details** / **Neighbourhood** slot sits under hero (graph rail parity). */
     railNeighbourhoodEnabled?: boolean
-    railDetailTab?: 'details' | 'neighbourhood'
+    railDetailTab?: 'details' | 'enrichment' | 'neighbourhood'
   }>(),
   {
     railNeighbourhoodEnabled: false,
@@ -60,10 +61,23 @@ const emit = defineEmits<{
     payload: { feed: string; query: string; since?: string; feedDisplayTitle?: string },
   ]
   'switch-main-tab': [tab: 'graph' | 'dashboard']
+  /** Bubbled from EpisodeEnrichmentSection so the rail can hide the Enrichment tab. */
+  'enrichment-has-content': [boolean]
 }>()
+
+// The episode rail (SubjectRail) always injects a Details/Enrichment(+Neighbourhood)
+// tablist via #episode-rail-tabs. When that tablist is present the detail panels act
+// as ARIA tabpanels; mounted standalone (no tablist) they render plainly. Prop-driven
+// mounts that enable the neighbourhood tab are treated as tabbed too.
+const slots = useSlots()
+const railTabsEnabled = computed(
+  () => props.railNeighbourhoodEnabled || Boolean(slots['episode-rail-tabs']),
+)
 
 const shell = useShellStore()
 const artifacts = useArtifactsStore()
+// Topic ids in any co-occurrence THEME cluster — teal ring on the episode pills.
+const themeMemberIds = computed(() => themeMemberTopicIdSet(artifacts.themeClustersDoc))
 const graphExplorer = useGraphExplorerStore()
 const loadCorpusGraphBaseline = inject(corpusGraphBaselineLoaderKey, null)
 
@@ -342,6 +356,9 @@ async function loadDetail(metaPath: string): Promise<void> {
   if (!root || !shell.healthStatus) {
     return
   }
+  // Best-effort (memoized): load THEME clusters so topic pills can show the teal
+  // theme ring without requiring a prior graph visit.
+  void artifacts.syncTopicClustersForCurrentCorpus()
   detailLoading.value = true
   try {
     await loadFeedsAndIndex(seq)
@@ -769,14 +786,14 @@ watch(
       <slot name="episode-rail-tabs" />
       <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <div
-          v-show="!railNeighbourhoodEnabled || railDetailTab === 'details'"
+          v-show="!railTabsEnabled || railDetailTab === 'details'"
           id="episode-detail-rail-panel-details"
           class="min-h-0 flex-1 overflow-y-auto p-2"
-          :role="railNeighbourhoodEnabled ? 'tabpanel' : undefined"
+          :role="railTabsEnabled ? 'tabpanel' : undefined"
           :aria-labelledby="
-            railNeighbourhoodEnabled ? 'episode-detail-rail-tab-details' : undefined
+            railTabsEnabled ? 'episode-detail-rail-tab-details' : undefined
           "
-          :tabindex="railNeighbourhoodEnabled ? -1 : undefined"
+          :tabindex="railTabsEnabled ? -1 : undefined"
         >
       <p v-if="detail.summary_title" class="mt-0 text-xs font-medium text-surface-foreground">
         {{ detail.summary_title }}
@@ -796,6 +813,7 @@ watch(
           truncation="wrap"
           max-width-class="auto"
           cluster-member-appearance="kg"
+          :theme-member-ids="themeMemberIds"
           data-testid="episode-detail-cil-pills"
           @pill-click="(i) => void openDetailCilTopicInGraph(i)"
         />
@@ -807,13 +825,6 @@ watch(
         don't render an empty placeholder.
       -->
       <EpisodeBridgePartition :partition="detail.bridge_partition" />
-      <!-- RFC-088 chunk-9: episode-scope enrichment signals (insight density
-           bars + per-episode topic-pair chips). The component hides itself
-           when neither envelope is present. -->
-      <EpisodeEnrichmentSection
-        :corpus-path="shell.corpusPath"
-        :metadata-relpath="detail.metadata_relative_path || ''"
-      />
       <p
         v-if="detail.summary_text"
         class="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-muted"
@@ -993,6 +1004,26 @@ watch(
       <p v-if="graphActionError" class="mt-1 text-xs text-danger">
         {{ graphActionError }}
       </p>
+        </div>
+        <!-- RFC-088 chunk-9: episode-scope enrichment signals (insight density
+             bars + per-episode topic-pair chips), lifted into a dedicated
+             Enrichment tab (#1128 follow-up). The section hides itself when
+             neither envelope is present. Shown standalone when no tablist. -->
+        <div
+          v-show="!railTabsEnabled || railDetailTab === 'enrichment'"
+          id="episode-detail-rail-panel-enrichment"
+          class="min-h-0 flex-1 overflow-y-auto p-2"
+          :role="railTabsEnabled ? 'tabpanel' : undefined"
+          :aria-labelledby="
+            railTabsEnabled ? 'episode-detail-rail-tab-enrichment' : undefined
+          "
+          :tabindex="railTabsEnabled ? -1 : undefined"
+        >
+          <EpisodeEnrichmentSection
+            :corpus-path="shell.corpusPath"
+            :metadata-relpath="detail.metadata_relative_path || ''"
+            @has-content="emit('enrichment-has-content', $event)"
+          />
         </div>
         <div
           v-if="railNeighbourhoodEnabled && railDetailTab === 'neighbourhood'"

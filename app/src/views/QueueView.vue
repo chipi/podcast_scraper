@@ -44,17 +44,36 @@ watch(() => queue.items.slice(), hydrate)
     <p v-else-if="queue.count === 0" class="text-muted">{{ t('queue.empty') }}</p>
 
     <!-- Showcase each queued episode through the shared card (UXS-014 — one card, every surface).
-         The card's own queue toggle is the remove affordance; reorder lives in the ↑/↓ rail. -->
+         The card's own queue toggle is the remove affordance; reorder ↑/↓ sit in the card's icon
+         row (via its #actions slot), consistent small rounded buttons — no layout-shifting side rail. -->
     <div v-else class="flex flex-col">
-      <div v-for="(slug, i) in queue.items" :key="slug" class="flex items-stretch gap-1">
-        <div class="flex flex-col items-center justify-center gap-1 pt-2 text-muted">
-          <button type="button" :disabled="i === 0" :aria-label="t('queue.up')" class="px-1 leading-none disabled:opacity-30 hover:text-canvas-foreground" @click="queue.move(slug, -1)">↑</button>
-          <span class="font-mono text-xs tabular-nums">{{ i + 1 }}</span>
-          <button type="button" :disabled="i === queue.items.length - 1" :aria-label="t('queue.down')" class="px-1 leading-none disabled:opacity-30 hover:text-canvas-foreground" @click="queue.move(slug, 1)">↓</button>
-        </div>
-        <EpisodeCard v-if="details[slug]" :episode="summaryFromDetail(details[slug])" class="flex-1" />
-        <div v-else class="flex-1 border-b border-border py-5 text-sm text-muted">…</div>
-      </div>
+      <template v-for="(slug, i) in queue.items" :key="slug">
+        <EpisodeCard v-if="details[slug]" :episode="summaryFromDetail(details[slug])">
+          <template #actions>
+            <button
+              type="button"
+              :disabled="i === 0"
+              :aria-label="t('queue.up')"
+              :title="t('queue.up')"
+              class="relative z-30 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border text-muted transition hover:text-canvas-foreground disabled:opacity-30"
+              @click="queue.move(slug, -1)"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true"><path d="m18 15-6-6-6 6" /></svg>
+            </button>
+            <button
+              type="button"
+              :disabled="i === queue.items.length - 1"
+              :aria-label="t('queue.down')"
+              :title="t('queue.down')"
+              class="relative z-30 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border text-muted transition hover:text-canvas-foreground disabled:opacity-30"
+              @click="queue.move(slug, 1)"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+            </button>
+          </template>
+        </EpisodeCard>
+        <div v-else class="border-b border-border py-5 text-sm text-muted">…</div>
+      </template>
     </div>
   </section>
 </template>

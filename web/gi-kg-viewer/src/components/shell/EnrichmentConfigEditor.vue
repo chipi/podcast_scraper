@@ -239,6 +239,32 @@ function providerParamSchema(enricherId: string): Record<string, KnobSchemaPrope
   return props_
 }
 
+/** Seed a provider's params from its schema defaults (e.g. model/device) so they prefill on pick. */
+function defaultParamsFor(providerName: string): Record<string, unknown> {
+  for (const list of Object.values(providerTypes.value)) {
+    for (const pt of list) {
+      if (pt.name !== providerName) continue
+      const props_ = (pt.params_schema['properties'] as Record<string, KnobSchemaProperty>) ?? {}
+      const out: Record<string, unknown> = {}
+      for (const [key, sch] of Object.entries(props_)) {
+        if (sch?.default !== undefined) out[key] = sch.default
+      }
+      return out
+    }
+  }
+  return {}
+}
+
+/** Select (or clear) an enricher's provider, prefilling its params from the schema defaults. */
+function setProvider(enricherId: string, typeName: string): void {
+  const base = draft.value.enrichers[enricherId] ?? { enabled: true, knobs: {}, provider: null }
+  draft.value.enrichers[enricherId] = {
+    ...base,
+    provider: typeName ? { type: typeName, params: defaultParamsFor(typeName) } : null,
+  }
+  markDirty()
+}
+
 function markDirty(): void {
   dirty.value = true
   saveNotice.value = null
@@ -416,15 +442,7 @@ onMounted(refresh)
             :data-testid="`enrichment-config-provider-type-${id}`"
             :value="draft.enrichers[id]?.provider?.type ?? ''"
             class="w-full rounded border border-default bg-base px-2 py-1"
-            @change="
-              draft.enrichers[id] = {
-                ...(draft.enrichers[id] ?? { enabled: true, knobs: {}, provider: null }),
-                provider: ($event.target as HTMLSelectElement).value
-                  ? { type: ($event.target as HTMLSelectElement).value, params: {} }
-                  : null,
-              };
-              markDirty()
-            "
+            @change="setProvider(id, ($event.target as HTMLSelectElement).value)"
           >
             <option value="">— inherit / none —</option>
             <option v-for="pt in providerTypesFor(id)" :key="pt.name" :value="pt.name">

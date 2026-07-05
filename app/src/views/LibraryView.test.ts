@@ -58,18 +58,43 @@ beforeEach(() => {
   vi.spyOn(api, 'getFavorites').mockResolvedValue({ episodes: [], insights: [] })
   vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
   vi.spyOn(api, 'getEpisode').mockResolvedValue(detail())
+  // HighlightsView (embedded) hydrates the capture store on mount.
+  vi.spyOn(api, 'getHighlights').mockResolvedValue([])
+  vi.spyOn(api, 'getNotes').mockResolvedValue([])
+  // ResurfacingInbox (embedded) loads on mount.
+  vi.spyOn(api, 'getResurfacing').mockResolvedValue({ items: [], paused: false })
 })
 afterEach(() => vi.restoreAllMocks())
 
 describe('LibraryView', () => {
-  it('renders all four tabs with their labels', async () => {
+  it('renders all tabs with their labels', async () => {
     const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
     await flushPromises()
     const labels = w.findAll('button').map((b) => b.text())
     expect(labels).toContain('Saved')
-    expect(labels).toContain('Knowledge')
+    expect(labels).toContain('Highlights')
+    expect(labels).toContain('Revisit')
     expect(labels).toContain('Queue')
     expect(labels).toContain('Recent')
+    expect(labels).not.toContain('Knowledge') // merged into Saved as a section
+  })
+
+  it('Highlights tab shows the captured highlights (grouped) with an export link', async () => {
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([
+      {
+        id: 'h1', episode_slug: 'fav-1', kind: 'span', start_ms: 65_000, end_ms: 68_000,
+        char_start: 0, char_end: 5, segment_ids: ['s1'], quote_text: 'a captured line',
+        speaker: null, source_insight_id: null, color: null, created_at: 1, anchor_status: null,
+      },
+    ])
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail({ slug: 'fav-1', title: 'Saved Episode' }))
+    const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    await tabButton(w, 'Highlights').trigger('click')
+    expect(w.text()).toContain('a captured line')
+    expect(w.text()).toContain('1:05') // 65_000ms jump link
+    const exportLink = w.findAll('a').find((a) => (a.attributes('href') ?? '').includes('export.md'))
+    expect(exportLink).toBeTruthy()
   })
 
   it('Saved lists favorited episodes via EpisodeCard', async () => {
@@ -83,30 +108,36 @@ describe('LibraryView', () => {
     expect(w.findAll('a').map((a) => a.attributes('href'))).toContain('/episode/a')
   })
 
-  it('Saved shows the empty state when there are no favorites', async () => {
+  it('Saved shows the empty state when there are no favorites at all', async () => {
     const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
     await flushPromises()
-    expect(w.text()).toContain('Nothing saved yet. Tap the heart on an episode to save it.')
+    expect(w.text()).toContain('Nothing saved yet. Tap the heart on an episode or insight')
   })
 
-  it('Knowledge shows saved insights with a jump-to-moment link (?t=) and formatted time', async () => {
+  it('Saved shows saved insights in the Insights section (no separate tab) with a ?t= jump', async () => {
     vi.spyOn(api, 'getFavorites').mockResolvedValue({ episodes: [], insights: [insight()] })
     const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
     await flushPromises()
-    await tabButton(w, 'Knowledge').trigger('click')
-
+    // Saved is the default tab — insights render here under the "Insights" section, no tab switch.
+    expect(w.text()).toContain('Insights') // section heading
     expect(w.text()).toContain('A grounded saved insight.')
-    // 65_000ms → 65s → formatTime "1:05"; jump link carries ?t=65 (floor of start_ms/1000).
-    expect(w.text()).toContain('1:05')
+    expect(w.text()).toContain('1:05') // 65_000ms → 1:05
     const link = w.findAll('a').find((a) => (a.attributes('href') ?? '').includes('/episode/fav-1'))!
     expect(link.attributes('href')).toContain('t=65')
   })
 
-  it('Knowledge shows its empty state when no insights are saved', async () => {
+  it('Saved shows Episodes + Insights as separate sections when both are present', async () => {
+    vi.spyOn(api, 'getFavorites').mockResolvedValue({
+      episodes: [summary({ slug: 'a', title: 'Alpha Saved' })],
+      insights: [insight()],
+    })
     const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
     await flushPromises()
-    await tabButton(w, 'Knowledge').trigger('click')
-    expect(w.text()).toContain('No saved insights yet. Tap the heart on an insight to keep it here.')
+    const headings = w.findAll('h2').map((h) => h.text())
+    expect(headings).toContain('Episodes')
+    expect(headings).toContain('Insights')
+    expect(w.text()).toContain('Alpha Saved')
+    expect(w.text()).toContain('A grounded saved insight.')
   })
 
   it('Recent renders an EpisodeCard per playback-history entry (hydrated from detail)', async () => {

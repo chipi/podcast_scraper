@@ -10,9 +10,12 @@ import {
   graphTypesDeviateFromGraphSpec,
 } from '../utils/parsing'
 import { expandFilteredArtifactEgoWithTopicClusterNeighbors } from '../utils/topicClustersOverlay'
+import { augmentArtifactWithTrail } from '../utils/graphTrail'
+import { useGraphNavigationStore } from './graphNavigation'
 
 export const useGraphFilterStore = defineStore('graphFilters', () => {
   const artifacts = useArtifactsStore()
+  const nav = useGraphNavigationStore()
   const state = ref<GraphFilterState | null>(null)
 
   watch(
@@ -51,11 +54,14 @@ export const useGraphFilterStore = defineStore('graphFilters', () => {
   function viewWithEgo(focusId: string | null): ParsedArtifact | null {
     const base = filteredArtifact.value
     if (!base) return null
-    return expandFilteredArtifactEgoWithTopicClusterNeighbors(
+    const ego = expandFilteredArtifactEgoWithTopicClusterNeighbors(
       base,
       focusId,
       artifacts.topicClustersDoc,
     )
+    // #6 L0 — union in the navigation breadcrumb trail (default-empty → unchanged). Trail nodes are
+    // pulled from ``base`` (the full type-filtered graph), so hidden types stay hidden.
+    return augmentArtifactWithTrail(ego, nav.trailNodeIds, base)
   }
 
   function setHideUngrounded(v: boolean): void {

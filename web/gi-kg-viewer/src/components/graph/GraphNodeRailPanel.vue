@@ -72,6 +72,15 @@ const panelHeading = computed(() => {
   }
   const n = rawNode.value
   if (!n) {
+    // Out-of-slice node (from the full relational graph): NodeDetail still
+    // renders the person / topic / entity view, so title the rail accordingly
+    // instead of a bare "Node".
+    if (id) {
+      if (id.includes('person:')) return 'Person'
+      if (id.includes('org:')) return 'Organization'
+      if (id.includes('topic:')) return 'Topic'
+      if (id.includes('podcast:')) return 'Podcast'
+    }
     return 'Node'
   }
   if (
@@ -98,16 +107,29 @@ function onClose(): void {
     data-testid="graph-node-detail-rail"
   >
     <div class="mt-1 flex shrink-0 items-center justify-between gap-2 border-b border-border pb-2">
-      <h2 class="text-xs font-semibold text-surface-foreground">
-        {{ panelHeading }}
-      </h2>
+      <div class="flex min-w-0 items-center gap-1.5">
+        <button
+          v-if="subject.canGoBack"
+          type="button"
+          class="shrink-0 rounded border border-border px-1.5 py-0.5 text-xs font-medium text-elevated-foreground hover:bg-overlay"
+          data-testid="subject-rail-back"
+          aria-label="Back to previous node"
+          @click="subject.back()"
+        >
+          ←
+        </button>
+        <h2 class="min-w-0 truncate text-xs font-semibold text-surface-foreground">
+          {{ panelHeading }}
+        </h2>
+      </div>
       <button
         type="button"
-        class="shrink-0 rounded border border-border px-2 py-1 text-[10px] font-medium text-elevated-foreground hover:bg-overlay"
+        class="shrink-0 self-center rounded border border-border px-1.5 py-0.5 text-xs font-medium text-elevated-foreground hover:bg-overlay"
+        data-testid="subject-rail-close"
         aria-label="Close graph node detail"
         @click="onClose"
       >
-        Close
+        ×
       </button>
     </div>
     <NodeDetail

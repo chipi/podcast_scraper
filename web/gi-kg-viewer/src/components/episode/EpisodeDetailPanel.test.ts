@@ -250,4 +250,18 @@ describe('EpisodeDetailPanel.vue', () => {
     expect(w.find('#episode-detail-rail-panel-details').exists()).toBe(true)
     expect(w.find('#episode-detail-rail-panel-neighbourhood').exists()).toBe(false)
   })
+
+  it('renders the enrichment panel as a tabpanel on the enrichment rail tab', async () => {
+    const { w } = await mountWithEpisode(detailOf(), {
+      railNeighbourhoodEnabled: true,
+      railDetailTab: 'enrichment',
+    })
+    const enrichment = w.find('#episode-detail-rail-panel-enrichment')
+    expect(enrichment.exists()).toBe(true)
+    expect(enrichment.attributes('role')).toBe('tabpanel')
+    expect(enrichment.attributes('aria-labelledby')).toBe('episode-detail-rail-tab-enrichment')
+    // Details stays mounted (v-show) but hidden; enrichment section lives only here.
+    expect(w.find('#episode-detail-rail-panel-details').exists()).toBe(true)
+    expect(w.find('#episode-detail-rail-panel-neighbourhood').exists()).toBe(false)
+  })
 })

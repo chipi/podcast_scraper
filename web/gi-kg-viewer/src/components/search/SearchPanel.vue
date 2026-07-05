@@ -488,7 +488,7 @@ const advancedFeedCombinedTitle = computed(() =>
             v-if="queryTypeLabel"
             class="rounded bg-overlay px-1.5 py-px text-[10px] font-medium text-muted"
             data-testid="search-query-type"
-            title="Detected query intent — the platform adapts its retrieval strategy to the question (RFC-090 routing)."
+            title="Detected query intent — the platform adapts its retrieval strategy to the question."
           >
             Intent: {{ queryTypeLabel }}
           </span>

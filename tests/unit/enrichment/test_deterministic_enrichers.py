@@ -11,6 +11,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from podcast_scraper.enrichment.enrichers import (
     ALL_DETERMINISTIC_ENRICHER_IDS,
     GroundingRateEnricher,
@@ -19,7 +21,7 @@ from podcast_scraper.enrichment.enrichers import (
     register_deterministic_enrichers,
     TemporalVelocityEnricher,
     TopicCooccurrenceCorpusEnricher,
-    TopicCooccurrenceEnricher,
+    TopicThemeClustersEnricher,
 )
 from podcast_scraper.enrichment.protocol import (
     EnricherScope,
@@ -91,51 +93,6 @@ def _run(enricher: Any, **kw: Any) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# topic_cooccurrence (episode scope)
-# ---------------------------------------------------------------------------
-
-
-def test_topic_cooccurrence_lists_unordered_pairs(tmp_path: Path) -> None:
-    kg = {
-        "nodes": [
-            {"type": "Topic", "id": "topic:a", "properties": {"label": "Alpha"}},
-            {"type": "Topic", "id": "topic:b", "properties": {"label": "Beta"}},
-            {"type": "Topic", "id": "topic:c", "properties": {"label": "Gamma"}},
-            {"type": "Person", "id": "person:x"},  # ignored
-        ],
-        "edges": [],
-    }
-    bundle = _bundle(tmp_path / "metadata", "ep1", kg=kg)
-    data = _run(
-        TopicCooccurrenceEnricher(),
-        bundle=bundle,
-        corpus_root=tmp_path,
-        all_bundles=None,
-        config={},
-        ctx=_ctx("topic_cooccurrence"),
-    )
-    pairs = data["pairs"]
-    # 3 topics → C(3,2) = 3 pairs.
-    assert len(pairs) == 3
-    pair_ids = {(p["topic_a_id"], p["topic_b_id"]) for p in pairs}
-    assert pair_ids == {("topic:a", "topic:b"), ("topic:a", "topic:c"), ("topic:b", "topic:c")}
-    assert all(p["episode_count"] == 1 for p in pairs)
-
-
-def test_topic_cooccurrence_no_topics_emits_empty(tmp_path: Path) -> None:
-    bundle = _bundle(tmp_path / "metadata", "ep1", kg={"nodes": [], "edges": []})
-    data = _run(
-        TopicCooccurrenceEnricher(),
-        bundle=bundle,
-        corpus_root=tmp_path,
-        all_bundles=None,
-        config={},
-        ctx=_ctx("topic_cooccurrence"),
-    )
-    assert data["pairs"] == []
-
-
-# ---------------------------------------------------------------------------
 # topic_cooccurrence_corpus (corpus scope)
 # ---------------------------------------------------------------------------
 
@@ -172,7 +129,139 @@ def test_topic_cooccurrence_corpus_ranks_by_episode_count(tmp_path: Path) -> Non
     assert data["episode_count"] == 3
 
 
+def test_topic_cooccurrence_corpus_emits_lift_and_pmi(tmp_path: Path) -> None:
+    """A (raw count) and B (lift/PMI) diverge: a ubiquitous pair scores high on
+    count but ~chance on lift, while a rare pair scores low on count but high on
+    lift. Both signals ship per pair so the Topic card can rank either way."""
+
+    def _kg(topic_ids: list[str]) -> dict[str, Any]:
+        return {
+            "nodes": [
+                {"type": "Topic", "id": tid, "properties": {"label": tid.split(":")[-1]}}
+                for tid in topic_ids
+            ],
+            "edges": [],
+        }
+
+    # a is in every episode; (a,b) co-occurs 3× (high count, but only at chance).
+    # (c,d) co-occurs once, but both topics are otherwise rare → high lift.
+    bundles = [
+        _bundle(tmp_path / "metadata", "ep1", kg=_kg(["topic:a", "topic:b"])),
+        _bundle(tmp_path / "metadata", "ep2", kg=_kg(["topic:a", "topic:b"])),
+        _bundle(tmp_path / "metadata", "ep3", kg=_kg(["topic:a", "topic:b"])),
+        _bundle(tmp_path / "metadata", "ep4", kg=_kg(["topic:a", "topic:c", "topic:d"])),
+    ]
+    data = _run(
+        TopicCooccurrenceCorpusEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=bundles,
+        config={},
+        ctx=_ctx("topic_cooccurrence_corpus"),
+    )
+    by_key = {(p["topic_a_id"], p["topic_b_id"]): p for p in data["pairs"]}
+
+    # A ranks (a,b) top (count 3) — but its lift is ~1.0 (co-occurs at chance).
+    ab = by_key[("topic:a", "topic:b")]
+    assert ab["episode_count"] == 3
+    assert ab["topic_a_episode_count"] == 4  # a in all 4 episodes
+    assert ab["topic_b_episode_count"] == 3
+    assert ab["lift"] == pytest.approx(1.0)
+    assert ab["pmi"] == pytest.approx(0.0)
+
+    # B ranks (c,d) top (lift 4.0, pmi 2.0) despite a raw count of only 1.
+    cd = by_key[("topic:c", "topic:d")]
+    assert cd["episode_count"] == 1
+    assert cd["lift"] == pytest.approx(4.0)  # 1·4 / (1·1)
+    assert cd["pmi"] == pytest.approx(2.0)  # log2(4)
+    assert cd["lift"] > ab["lift"]  # the whole point of B
+
+
 # ---------------------------------------------------------------------------
+# topic_theme_clusters (corpus scope)
+# ---------------------------------------------------------------------------
+
+
+def test_topic_theme_clusters_groups_cooccurring_topics(tmp_path: Path) -> None:
+    """Themes = topics *discussed together*. Two storylines emerge; the ubiquitous
+    'news' topic co-occurs only at chance (lift 1.0) and stays a singleton — it
+    never pollutes a theme, which is the whole point of using lift not raw count."""
+
+    def _kg(topic_ids: list[str]) -> dict[str, Any]:
+        return {
+            "nodes": [
+                {
+                    "type": "Topic",
+                    "id": tid,
+                    "properties": {"label": tid.split(":")[-1].replace("-", " ")},
+                }
+                for tid in topic_ids
+            ],
+            "edges": [],
+        }
+
+    sf, oil, sanc = "topic:shadow-fleet", "topic:oil-prices", "topic:sanctions"
+    kind, grat, news = "topic:kindness", "topic:gratitude", "topic:news"
+    bundles = [
+        _bundle(tmp_path / "metadata", "ep1", kg=_kg([sf, oil, sanc, news])),
+        _bundle(tmp_path / "metadata", "ep2", kg=_kg([sf, oil, sanc, news])),
+        _bundle(tmp_path / "metadata", "ep3", kg=_kg([sf, oil, news])),
+        _bundle(tmp_path / "metadata", "ep4", kg=_kg([kind, grat, news])),
+        _bundle(tmp_path / "metadata", "ep5", kg=_kg([kind, grat, news])),
+        _bundle(tmp_path / "metadata", "ep6", kg=_kg([news])),
+    ]
+    data = _run(
+        TopicThemeClustersEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=bundles,
+        config={},
+        ctx=_ctx("topic_theme_clusters"),
+    )
+    assert data["cluster_count"] == 2
+    by_members = {frozenset(m["topic_id"] for m in c["members"]): c for c in data["clusters"]}
+    assert frozenset({sf, oil, sanc}) in by_members
+    assert frozenset({kind, grat}) in by_members
+    # 'news' co-occurs at chance → never inside a theme.
+    all_members = {m["topic_id"] for c in data["clusters"] for m in c["members"]}
+    assert news not in all_members
+    # Theme markers + per-member evidence.
+    for c in data["clusters"]:
+        assert c["cluster_type"] == "theme"
+        assert c["graph_compound_parent_id"].startswith("thc:")
+        assert c["member_count"] == len(c["members"])
+        for m in c["members"]:
+            assert m["episode_ids"]  # non-empty evidence trail
+            assert "lift_to_cluster" in m
+
+
+def test_topic_theme_clusters_empty_on_tiny_corpus(tmp_path: Path) -> None:
+    """3 disjoint episodes → every pair co-occurs once (< min_pair=2) → no edges →
+    zero theme clusters. Themes need volume; empty is expected, not a failure."""
+
+    def _kg(topic_ids: list[str]) -> dict[str, Any]:
+        return {
+            "nodes": [{"type": "Topic", "id": t, "properties": {"label": t}} for t in topic_ids],
+            "edges": [],
+        }
+
+    bundles = [
+        _bundle(tmp_path / "metadata", "ep1", kg=_kg(["topic:a", "topic:b"])),
+        _bundle(tmp_path / "metadata", "ep2", kg=_kg(["topic:c", "topic:d"])),
+        _bundle(tmp_path / "metadata", "ep3", kg=_kg(["topic:e", "topic:f"])),
+    ]
+    data = _run(
+        TopicThemeClustersEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=bundles,
+        config={},
+        ctx=_ctx("topic_theme_clusters"),
+    )
+    assert data["cluster_count"] == 0
+    assert data["clusters"] == []
+
+
 # temporal_velocity (corpus scope)
 # ---------------------------------------------------------------------------
 
@@ -250,6 +339,76 @@ def test_temporal_velocity_velocity_signal(tmp_path: Path) -> None:
     t = data["topics"][0]
     # 3 last over 6-month avg of (3+1+1+1+1+1)/6 = 1.333... → 3/1.333 ≈ 2.25
     assert t["velocity_last_over_6mo"] > 2.0
+
+
+def test_temporal_velocity_weekly_series(tmp_path: Path) -> None:
+    def _ep(stem: str, date: str) -> EpisodeArtifactBundle:
+        return _bundle(
+            tmp_path / "metadata",
+            stem,
+            kg={
+                "nodes": [
+                    {"type": "Episode", "id": "ep:" + stem, "properties": {"publish_date": date}},
+                    {"type": "Topic", "id": "topic:a", "properties": {"label": "A"}},
+                ],
+                "edges": [],
+            },
+        )
+
+    # 3 mentions in the latest ISO week (Mon 06-29 + Tue 06-30), 1 mention ~10 weeks
+    # earlier → the latest week is clearly rising against its trailing-8-week average.
+    bundles = [
+        _ep("w1", "2026-06-29T00:00:00Z"),
+        _ep("w2", "2026-06-29T12:00:00Z"),
+        _ep("w3", "2026-06-30T00:00:00Z"),
+        _ep("old", "2026-04-20T00:00:00Z"),
+    ]
+    data = _run(
+        TemporalVelocityEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=bundles,
+        config={"now": "2026-06-30T00:00:00Z"},
+        ctx=_ctx("temporal_velocity"),
+    )
+    assert len(data["window_weeks"]) == 26
+    t = data["topics"][0]
+    assert t["topic_id"] == "topic:a"
+    # weekly_counts / weekly_velocity are keyed by the window weeks; the count total is
+    # the number of in-window mentions.
+    assert set(t["weekly_counts"]) == set(data["window_weeks"])
+    assert set(t["weekly_velocity"]) == set(data["window_weeks"])
+    assert sum(t["weekly_counts"].values()) == 4
+    latest_week = data["window_weeks"][-1]
+    assert t["weekly_counts"][latest_week] == 3
+    assert t["weekly_velocity"][latest_week] > 1.0
+
+
+def test_temporal_velocity_weekly_window_read_from_config(tmp_path: Path) -> None:
+    bundle = _bundle(
+        tmp_path / "metadata",
+        "ep1",
+        kg={
+            "nodes": [
+                {
+                    "type": "Episode",
+                    "id": "ep:1",
+                    "properties": {"publish_date": "2026-06-20T00:00:00Z"},
+                },
+                {"type": "Topic", "id": "topic:a", "properties": {"label": "A"}},
+            ],
+            "edges": [],
+        },
+    )
+    data = _run(
+        TemporalVelocityEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=[bundle],
+        config={"now": "2026-06-30T00:00:00Z", "weekly_window": 8},
+        ctx=_ctx("temporal_velocity"),
+    )
+    assert len(data["window_weeks"]) == 8
 
 
 # ---------------------------------------------------------------------------

@@ -61,6 +61,9 @@ const followBtn = (w: ReturnType<typeof mountAuthed>) =>
 
 beforeEach(() => {
   vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+  // The embedded EntitySignals fetches corpus enrichment; keep these tests off
+  // the network (its own coverage lives in EntitySignals.test.ts).
+  vi.spyOn(api, 'getCorpusEnrichment').mockResolvedValue({})
 })
 afterEach(() => vi.restoreAllMocks())
 
@@ -108,6 +111,36 @@ describe('EntityCardBody — Follow control', () => {
     expect(followBtn(w).attributes('aria-pressed')).toBe('false')
   })
 
+  it('renders the theme-cluster identity + theme members (co-occurrence)', async () => {
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+    vi.spyOn(api, 'getTopicCard').mockResolvedValue(
+      topicCard({
+        cluster_id: null,
+        cluster_label: null,
+        cluster_size: 0,
+        theme_cluster_id: 'thc:sanctions',
+        theme_cluster_label: 'sanctions',
+        theme_cluster_size: 3,
+        theme_sibling_topics: [
+          {
+            id: 'topic:oil',
+            label: 'oil',
+            cluster_id: null,
+            cluster_label: null,
+            cluster_size: 0,
+          },
+        ],
+      }),
+    )
+    const w = mountAuthed({ kind: 'topic', id: 'topic:ai' })
+    await flushPromises()
+    // "Theme ·" identity line — distinct from the semantic "Similar ·".
+    expect(w.text()).toContain('Theme · sanctions')
+    const themeMembers = w.find('[data-testid="ec-theme-members"]')
+    expect(themeMembers.exists()).toBe(true)
+    expect(themeMembers.text()).toContain('oil')
+  })
+
   it('hides the Follow control when signed out', async () => {
     setActivePinia(createPinia()) // fresh pinia, no user → signed out
     vi.spyOn(api, 'getPersonCard').mockResolvedValue(personCard())
@@ -117,5 +150,34 @@ describe('EntityCardBody — Follow control', () => {
     })
     await flushPromises()
     expect(w.findAll('button').some((b) => /Follow|Following/.test(b.text()))).toBe(false)
+  })
+})
+
+describe('EntityCardBody — your-corpus lens (P3 #1125)', () => {
+  beforeEach(() => {
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+  })
+
+  it('My corpus refetches the card scoped to the heard set', async () => {
+    const getPerson = vi.spyOn(api, 'getPersonCard').mockResolvedValue(personCard())
+    const w = mountAuthed({ kind: 'person', id: 'person:jane-doe' })
+    await flushPromises()
+    // default load is unscoped
+    expect(getPerson).toHaveBeenLastCalledWith('person:jane-doe', undefined)
+    // tap "My corpus" → refetch with scope=mine
+    await w.findAll('[role="tab"]').find((b) => b.text() === 'My corpus')!.trigger('click')
+    await flushPromises()
+    expect(getPerson).toHaveBeenLastCalledWith('person:jane-doe', 'mine')
+  })
+
+  it('hides the scope toggle when signed out', async () => {
+    setActivePinia(createPinia())
+    vi.spyOn(api, 'getPersonCard').mockResolvedValue(personCard())
+    const w = mount(EntityCardBody, {
+      props: { kind: 'person', id: 'person:jane-doe', variant: 'overlay' },
+      global: { plugins: [i18n, router] },
+    })
+    await flushPromises()
+    expect(w.find('[role="tablist"]').exists()).toBe(false)
   })
 })

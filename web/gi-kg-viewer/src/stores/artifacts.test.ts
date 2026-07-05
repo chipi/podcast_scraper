@@ -3,7 +3,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { fetchArtifactJson } from '../api/artifactsApi'
-import { fetchTopicClustersFromApi } from '../api/corpusTopicClustersApi'
+import { fetchThemeClustersFromApi, fetchTopicClustersFromApi } from '../api/corpusTopicClustersApi'
 import { fetchResolveEpisodeArtifacts } from '../api/corpusLibraryApi'
 import type { ArtifactData } from '../types/artifact'
 import type {
@@ -20,6 +20,7 @@ vi.mock('../api/artifactsApi', () => ({
 }))
 vi.mock('../api/corpusTopicClustersApi', () => ({
   fetchTopicClustersFromApi: vi.fn(),
+  fetchThemeClustersFromApi: vi.fn(),
 }))
 vi.mock('../api/corpusLibraryApi', () => ({
   fetchResolveEpisodeArtifacts: vi.fn(),
@@ -96,6 +97,8 @@ beforeEach(() => {
   vi.mocked(fetchArtifactJson).mockReset()
   vi.mocked(fetchTopicClustersFromApi).mockReset()
   vi.mocked(fetchTopicClustersFromApi).mockResolvedValue(okClustersResult)
+  vi.mocked(fetchThemeClustersFromApi).mockReset()
+  vi.mocked(fetchThemeClustersFromApi).mockResolvedValue({ status: 'missing' })
   vi.mocked(fetchResolveEpisodeArtifacts).mockReset()
 })
 

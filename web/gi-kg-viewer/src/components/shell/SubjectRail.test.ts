@@ -67,43 +67,9 @@ const EpisodeDetailPanelStub = {
   `,
 }
 
-const TopicEntityViewStub = {
-  name: 'TopicEntityView',
-  template: `
-    <div data-testid="stub-topic-view">
-      <button data-testid="emit-topic-go-graph" @click="$emit('go-graph')" />
-      <button data-testid="emit-topic-close" @click="$emit('close-subject')" />
-      <button
-        data-testid="emit-topic-open-library"
-        @click="$emit('open-library-episode', { metadata_relative_path: 'p' })"
-      />
-      <button
-        data-testid="emit-topic-prefill"
-        @click="$emit('prefill-semantic-search', { query: 'q' })"
-      />
-    </div>
-  `,
-}
-
-const PersonLandingViewStub = {
-  name: 'PersonLandingView',
-  template: `
-    <div data-testid="stub-person-view">
-      <button data-testid="emit-person-go-graph" @click="$emit('go-graph')" />
-      <button data-testid="emit-person-close" @click="$emit('close-subject')" />
-      <button
-        data-testid="emit-person-prefill"
-        @click="$emit('prefill-semantic-search', { query: 'q' })"
-      />
-    </div>
-  `,
-}
-
 const STUBS = {
   GraphNodeRailPanel: GraphNodeRailPanelStub,
   EpisodeDetailPanel: EpisodeDetailPanelStub,
-  TopicEntityView: TopicEntityViewStub,
-  PersonLandingView: PersonLandingViewStub,
   // Neighbourhood child rendered only via the episode slot; stub to a marker.
   GraphConnectionsSection: {
     name: 'GraphConnectionsSection',
@@ -139,19 +105,18 @@ describe('SubjectRail', () => {
     expect(w.find('[data-testid="subject-rail-close"]').exists()).toBe(false)
     expect(w.find('[data-testid="stub-graph-node-rail"]').exists()).toBe(false)
     expect(w.find('[data-testid="stub-episode-panel"]').exists()).toBe(false)
-    expect(w.find('[data-testid="stub-topic-view"]').exists()).toBe(false)
     expect(w.find('[data-testid="stub-person-view"]').exists()).toBe(false)
   })
 
   // --- graph-node branch -----------------------------------------------------
 
-  it('renders GraphNodeRailPanel and the close button for a graph-node subject', async () => {
+  it('renders GraphNodeRailPanel for a graph-node subject', async () => {
     const w = mountRail()
     useSubjectStore().focusGraphNode('cy-node-1')
     await w.vm.$nextTick()
     expect(w.find('[data-testid="stub-graph-node-rail"]').exists()).toBe(true)
     expect(w.find('[data-testid="subject-rail-empty"]').exists()).toBe(false)
-    expect(w.find('[data-testid="subject-rail-close"]').exists()).toBe(true)
+    // Close now lives inside each panel (here the stub), not in SubjectRail.
   })
 
   it('does not render GraphNodeRailPanel when the graph node id is blank', async () => {
@@ -162,8 +127,8 @@ describe('SubjectRail', () => {
     subject.kind = 'graph-node'
     subject.graphNodeCyId = '   '
     await w.vm.$nextTick()
-    // Header (close button) shows because kind != null, but no child panel.
-    expect(w.find('[data-testid="subject-rail-close"]').exists()).toBe(true)
+    // No child panel renders; the close now lives inside each panel, so none shows.
+    expect(w.find('[data-testid="subject-rail-close"]').exists()).toBe(false)
     expect(w.find('[data-testid="stub-graph-node-rail"]').exists()).toBe(false)
   })
 
@@ -188,14 +153,18 @@ describe('SubjectRail', () => {
     expect(w.find('[data-testid="stub-episode-panel"]').exists()).toBe(false)
   })
 
-  // --- topic branch ----------------------------------------------------------
+  // --- topic branch (folded into the unified node view) ----------------------
 
-  it('renders TopicEntityView for a topic subject', async () => {
+  it('routes a topic subject to the unified GraphNodeRailPanel node view', async () => {
     const w = mountRail()
-    useSubjectStore().focusTopic('topic:ai')
+    const subject = useSubjectStore()
+    subject.focusTopic('topic:ai')
     await w.vm.$nextTick()
-    expect(w.find('[data-testid="stub-topic-view"]').exists()).toBe(true)
-    expect(w.find('[data-testid="stub-episode-panel"]').exists()).toBe(false)
+    // focusTopic no longer opens a standalone TopicEntityView; it focuses the
+    // topic as a graph node so the generic NodeDetail rail renders it.
+    expect(subject.kind).toBe('graph-node')
+    expect(subject.graphNodeCyId).toBe('topic:ai')
+    expect(w.find('[data-testid="stub-graph-node-rail"]').exists()).toBe(true)
   })
 
   // --- person branch ---------------------------------------------------------
@@ -204,8 +173,8 @@ describe('SubjectRail', () => {
     const w = mountRail()
     useSubjectStore().focusPerson('person:ada')
     await w.vm.$nextTick()
-    expect(w.find('[data-testid="stub-person-view"]').exists()).toBe(true)
-    expect(w.find('[data-testid="stub-topic-view"]').exists()).toBe(false)
+    expect(w.find('[data-testid="stub-graph-node-rail"]').exists()).toBe(true)
+    expect(w.find('[data-testid="stub-person-view"]').exists()).toBe(false)
   })
 
   // --- routing switches as the focused subject kind changes ------------------
@@ -218,15 +187,15 @@ describe('SubjectRail', () => {
     await w.vm.$nextTick()
     expect(w.find('[data-testid="stub-graph-node-rail"]').exists()).toBe(true)
 
+    // A topic focuses as a graph node now — the node-view panel stays rendered.
     subject.focusTopic('topic:x')
     await w.vm.$nextTick()
-    expect(w.find('[data-testid="stub-graph-node-rail"]').exists()).toBe(false)
-    expect(w.find('[data-testid="stub-topic-view"]').exists()).toBe(true)
+    expect(w.find('[data-testid="stub-graph-node-rail"]').exists()).toBe(true)
 
     subject.focusPerson('person:y')
     await w.vm.$nextTick()
-    expect(w.find('[data-testid="stub-topic-view"]').exists()).toBe(false)
-    expect(w.find('[data-testid="stub-person-view"]').exists()).toBe(true)
+    expect(w.find('[data-testid="stub-graph-node-rail"]').exists()).toBe(true)
+    expect(w.find('[data-testid="stub-person-view"]').exists()).toBe(false)
 
     subject.focusEpisode('feed/ep.json')
     await w.vm.$nextTick()
@@ -241,9 +210,11 @@ describe('SubjectRail', () => {
 
   // --- close button ----------------------------------------------------------
 
-  it('emits closeSubject when the close button is clicked', async () => {
+  it('emits closeSubject when the episode close button is clicked', async () => {
     const w = mountRail()
-    useSubjectStore().focusGraphNode('cy-1')
+    // Episode is the one branch whose close × SubjectRail still renders directly;
+    // graph-node/topic/person closes live inside their (stubbed) panels.
+    useSubjectStore().focusEpisode('feed/ep.json')
     await w.vm.$nextTick()
     await w.get('[data-testid="subject-rail-close"]').trigger('click')
     expect(w.emitted('closeSubject')).toHaveLength(1)
@@ -389,63 +360,5 @@ describe('SubjectRail', () => {
     })
   })
 
-  describe('topic child event re-emission', () => {
-    async function mountTopic() {
-      const w = mountRail()
-      useSubjectStore().focusTopic('topic:ai')
-      await w.vm.$nextTick()
-      return w
-    }
 
-    it('re-emits go-graph as goGraph', async () => {
-      const w = await mountTopic()
-      await w.get('[data-testid="emit-topic-go-graph"]').trigger('click')
-      expect(w.emitted('goGraph')).toHaveLength(1)
-    })
-
-    it('re-emits close-subject as closeSubject', async () => {
-      const w = await mountTopic()
-      await w.get('[data-testid="emit-topic-close"]').trigger('click')
-      expect(w.emitted('closeSubject')).toHaveLength(1)
-    })
-
-    it('re-emits open-library-episode with payload', async () => {
-      const w = await mountTopic()
-      await w.get('[data-testid="emit-topic-open-library"]').trigger('click')
-      expect(w.emitted('openLibraryEpisode')![0]).toEqual([{ metadata_relative_path: 'p' }])
-    })
-
-    it('re-emits prefill-semantic-search with payload', async () => {
-      const w = await mountTopic()
-      await w.get('[data-testid="emit-topic-prefill"]').trigger('click')
-      expect(w.emitted('prefillSemanticSearch')![0]).toEqual([{ query: 'q' }])
-    })
-  })
-
-  describe('person child event re-emission', () => {
-    async function mountPerson() {
-      const w = mountRail()
-      useSubjectStore().focusPerson('person:ada')
-      await w.vm.$nextTick()
-      return w
-    }
-
-    it('re-emits go-graph as goGraph', async () => {
-      const w = await mountPerson()
-      await w.get('[data-testid="emit-person-go-graph"]').trigger('click')
-      expect(w.emitted('goGraph')).toHaveLength(1)
-    })
-
-    it('re-emits close-subject as closeSubject', async () => {
-      const w = await mountPerson()
-      await w.get('[data-testid="emit-person-close"]').trigger('click')
-      expect(w.emitted('closeSubject')).toHaveLength(1)
-    })
-
-    it('re-emits prefill-semantic-search with payload', async () => {
-      const w = await mountPerson()
-      await w.get('[data-testid="emit-person-prefill"]').trigger('click')
-      expect(w.emitted('prefillSemanticSearch')![0]).toEqual([{ query: 'q' }])
-    })
-  })
 })

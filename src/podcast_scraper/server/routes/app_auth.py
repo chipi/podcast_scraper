@@ -10,14 +10,15 @@ from __future__ import annotations
 
 import secrets
 import time
+from dataclasses import replace
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import RedirectResponse
 
-from podcast_scraper.server import app_sessions
+from podcast_scraper.server import app_roles, app_sessions
 from podcast_scraper.server.app_oauth import OAuthError, OAuthProvider
-from podcast_scraper.server.app_user_store import get_or_create_user, get_user, User
+from podcast_scraper.server.app_user_store import get_or_create_user, get_user, set_role, User
 
 router = APIRouter(tags=["app"])
 
@@ -69,19 +70,42 @@ def get_optional_user(request: Request) -> User | None:
         return None
 
 
+def get_admin_user(request: Request) -> User:
+    """Like :func:`get_current_user` but requires the ``admin`` role (403 otherwise)."""
+    user = get_current_user(request)
+    if not app_roles.is_admin(user.role):
+        raise HTTPException(status_code=403, detail="Admin role required.")
+    return user
+
+
 @router.get("/auth/login")
-async def app_auth_login(request: Request) -> RedirectResponse:
-    """Begin the OAuth flow: redirect to the provider with a CSRF state cookie."""
+async def app_auth_login(
+    request: Request,
+    as_: str | None = Query(default=None, alias="as", description="Mock identity hint (dev/e2e)."),
+    grant: str | None = Query(
+        default=None, description="Role hint for new users; only 'creator' is honoured."
+    ),
+) -> RedirectResponse:
+    """Begin the OAuth flow: redirect to the provider with a CSRF state cookie.
+
+    ``?as=<name>`` is an optional identity hint honoured **only by the mock provider** (dev/e2e) so
+    parallel e2e specs can sign in as isolated users; real providers ignore it.
+
+    ``?grant=creator`` is the viewer's login hint: a *new* (or ``listener``) user is promoted to
+    ``creator`` on callback. Only ``creator`` is ever granted this way — never ``admin``.
+    """
     provider = _provider(request)
     secret = _secret(request)
     if provider is None or not secret:
         raise HTTPException(status_code=503, detail="Auth is not configured.")
     state = secrets.token_urlsafe(24)
-    url = provider.authorization_url(state=state, redirect_uri=_callback_uri(request))
+    url = provider.authorization_url(
+        state=state, redirect_uri=_callback_uri(request), login_hint=as_
+    )
     resp = RedirectResponse(url, status_code=307)
     resp.set_cookie(
         app_sessions.STATE_COOKIE,
-        app_sessions.sign({"state": state, "iat": int(time.time())}, secret),
+        app_sessions.sign({"state": state, "iat": int(time.time()), "grant": grant or ""}, secret),
         max_age=600,
         httponly=True,
         samesite="lax",
@@ -119,6 +143,14 @@ async def app_auth_callback(
         email=identity.email,
         name=identity.name,
     )
+    # Apply the role policy: admin allowlist > creator grant > existing role (never downgraded).
+    admin_emails: frozenset[str] = getattr(request.app.state, "admin_emails", frozenset())
+    effective = app_roles.resolve_login_role(
+        user.role, email=user.email, grant=saved.get("grant"), admin_emails=admin_emails
+    )
+    if effective != user.role:
+        set_role(data_dir, user.user_id, effective)
+        user = replace(user, role=effective)
     resp = RedirectResponse("/", status_code=307)
     resp.set_cookie(
         app_sessions.SESSION_COOKIE,
@@ -140,7 +172,59 @@ async def app_auth_logout() -> Response:
     return resp
 
 
+def _user_dict(user: User) -> dict[str, object]:
+    return {
+        "user_id": user.user_id,
+        "email": user.email,
+        "name": user.name,
+        "role": user.role,
+        "disabled": user.disabled,
+    }
+
+
 @router.get("/me")
-async def app_me(user: User = Depends(get_current_user)) -> dict[str, str]:
-    """Return the signed-in user's basic profile (401 when not authenticated)."""
-    return {"user_id": user.user_id, "email": user.email, "name": user.name}
+async def app_me(user: User = Depends(get_current_user)) -> dict[str, object]:
+    """Return the signed-in user's basic profile + role (401 when not authenticated)."""
+    return _user_dict(user)
+
+
+@router.get("/auth/dev-users")
+async def app_auth_dev_users(request: Request) -> dict[str, object]:
+    """Predefined dev identities for the sign-in picker — only when the MOCK provider is active.
+
+    With the fake (mock) OAuth provider on, the sign-in UI lets you pick a seeded user (or type a
+    custom name) and signs in as ``?as=<hint>``. With a real provider (Google), ``enabled`` is
+    ``False`` and the UI shows the normal provider button instead.
+    """
+    provider = _provider(request)
+    is_mock = getattr(provider, "name", "") == "mock"
+    users: list[dict[str, str]] = []
+    if is_mock:
+        from podcast_scraper.server.app_oauth import _safe_hint
+        from podcast_scraper.server.app_user_seed import seeds_from_env
+
+        for seed in seeds_from_env():
+            hint = _safe_hint(str(seed.get("hint", "")))
+            if not hint:
+                continue
+            users.append(
+                {
+                    "hint": hint,
+                    "name": str(seed.get("name") or hint),
+                    "role": app_roles.normalize_role(seed.get("role")),
+                }
+            )
+    return {"enabled": is_mock, "users": users}
+
+
+@router.get("/auth/status")
+async def app_auth_status(request: Request) -> dict[str, object]:
+    """Whether platform auth is *configured*, plus the signed-in user (if any) — never 401s.
+
+    The viewer gates its UI on this: when auth is not configured (no session secret / provider /
+    data dir — e.g. a bare deployment or a backend-less e2e), the app renders **open**, preserving
+    the pre-auth behaviour. Only when auth is enabled does an anonymous request get the login gate.
+    """
+    enabled = bool(_secret(request) and _provider(request) is not None and _data_dir(request))
+    user = get_optional_user(request) if enabled else None
+    return {"enabled": enabled, "user": _user_dict(user) if user is not None else None}

@@ -6,6 +6,11 @@
  *
  * Mounts inside ``SubjectRail`` for ``subject.kind === 'topic'``. Entity
  * subjects still flow through ``focusGraphNode`` → existing ``NodeDetail``.
+ *
+ * When ``embedded`` is true (folded into NodeDetail's Details tab for topic
+ * nodes), the header (kind + name) and footer action buttons are hidden so
+ * NodeDetail owns the chrome. ``subjectIdOverride`` lets the caller supply the
+ * node id directly instead of relying on the subject store.
  */
 import { computed, ref, watch } from 'vue'
 import type { RawGraphNode } from '../../types/artifact'
@@ -19,20 +24,22 @@ import {
   fetchWhoSaid,
   type RelatedNode,
 } from '../../api/relationalApi'
-import { fetchCachedCorpusEnvelope } from '../../composables/useEnrichmentEnvelopeCache'
 import { StaleGeneration } from '../../utils/staleGeneration'
-import {
-  findRawNodeInArtifact,
-  findRawNodeInArtifactByIdOrPrefixed,
-} from '../../utils/parsing'
-import { logicalEpisodeIdFromGraphNodeId } from '../../utils/graphEpisodeMetadata'
-import { buildSubjectMentionsTimeline } from '../../utils/subjectMentionsTimeline'
-import SubjectTimelineChart from './SubjectTimelineChart.vue'
+import { findRawNodeInArtifactByIdOrPrefixed } from '../../utils/parsing'
+import { stripLayerPrefixesForCil } from '../../utils/mergeGiKg'
+import { titleCaseWords } from '../../utils/nameCase'
+import { fetchCorpusFeeds } from '../../api/corpusLibraryApi'
+import PersonInitialAvatar from '../shared/PersonInitialAvatar.vue'
+import ShowGlyph from '../shared/ShowGlyph.vue'
+import PodcastCover from '../shared/PodcastCover.vue'
+import HelpTip from '../shared/HelpTip.vue'
 
-/** Mentions list cap — the rail panel is narrow and the timeline above
- *  already covers volume; 25 is enough for "what is this subject about?"
- *  scanning before the user opens the full graph. */
-const TOPIC_ENTITY_VIEW_MENTIONS_CAP = 25
+
+
+const props = withDefaults(
+  defineProps<{ embedded?: boolean; subjectIdOverride?: string }>(),
+  { embedded: false, subjectIdOverride: '' },
+)
 
 const emit = defineEmits<{
   goGraph: []
@@ -45,7 +52,7 @@ const artifacts = useArtifactsStore()
 const shell = useShellStore()
 const subject = useSubjectStore()
 
-const subjectId = computed(() => subject.topicId?.trim() || '')
+const subjectId = computed(() => props.subjectIdOverride?.trim() || subject.topicId?.trim() || '')
 
 /**
  * PRD-033 FR4.2 — cross-show coverage + key voices for this topic, from the
@@ -71,32 +78,6 @@ const entityRows = ref<RelatedNode[]>([])
 const relatedTopicRows = ref<RelatedNode[]>([]) // #1055 — topics that share insights
 const relationalGate = new StaleGeneration()
 
-// RFC-088 chunk 6c: enrichment-layer signals for the focused topic.
-interface CoOccurrenceRow {
-  topic_id: string
-  topic_label?: string
-  episode_count: number
-}
-interface VelocityRow {
-  topic_id: string
-  topic_label?: string
-  velocity_last_over_6mo: number
-  monthly_counts: Record<string, number>
-  total: number
-}
-const cooccurrenceRows = ref<CoOccurrenceRow[]>([])
-const velocityRow = ref<VelocityRow | null>(null)
-const velocityEffectiveLastMonth = ref<string | null>(null)
-const enrichmentLoaded = ref(false)
-
-function currentYearMonthUtc(): string {
-  const d = new Date()
-  const y = d.getUTCFullYear()
-  const m = String(d.getUTCMonth() + 1).padStart(2, '0')
-  return `${y}-${m}`
-}
-const COOCC_TOP_N = 8
-
 function shortId(id: string): string {
   return id.replace(/^(podcast|person|topic|org):/, '').replace(/[-_]/g, ' ').trim() || id
 }
@@ -108,46 +89,6 @@ function resetRelational(): void {
   voicesError.value = null
   entityRows.value = []
   relatedTopicRows.value = []
-  cooccurrenceRows.value = []
-  velocityRow.value = null
-  velocityEffectiveLastMonth.value = null
-  enrichmentLoaded.value = false
-}
-
-async function loadEnrichmentSignals(topicId: string): Promise<void> {
-  const root = shell.corpusPath?.trim()
-  if (!topicId || !root) return
-  try {
-    const [coOcc, velocity] = await Promise.all([
-      fetchCachedCorpusEnvelope<{ pairs: Array<{ topic_a_id: string; topic_b_id: string; topic_a_label?: string; topic_b_label?: string; episode_count: number }> }>(
-        root,
-        'topic_cooccurrence_corpus',
-      ).catch(() => null),
-      fetchCachedCorpusEnvelope<{ topics: VelocityRow[]; effective_last_month?: string | null }>(
-        root,
-        'temporal_velocity',
-      ).catch(() => null),
-    ])
-    enrichmentLoaded.value = true
-    if (coOcc?.data?.pairs) {
-      const partners: CoOccurrenceRow[] = []
-      for (const p of coOcc.data.pairs) {
-        if (p.topic_a_id === topicId) {
-          partners.push({ topic_id: p.topic_b_id, topic_label: p.topic_b_label, episode_count: p.episode_count })
-        } else if (p.topic_b_id === topicId) {
-          partners.push({ topic_id: p.topic_a_id, topic_label: p.topic_a_label, episode_count: p.episode_count })
-        }
-      }
-      partners.sort((a, b) => b.episode_count - a.episode_count)
-      cooccurrenceRows.value = partners.slice(0, COOCC_TOP_N)
-    }
-    if (velocity?.data?.topics) {
-      velocityRow.value = velocity.data.topics.find((t) => t.topic_id === topicId) ?? null
-      velocityEffectiveLastMonth.value = velocity.data.effective_last_month ?? null
-    }
-  } catch {
-    /* enrichment signals are best-effort; never break the rail */
-  }
 }
 
 async function loadRelational(topicId: string): Promise<void> {
@@ -161,12 +102,17 @@ async function loadRelational(topicId: string): Promise<void> {
   voicesLoading.value = true
   entitiesLoading.value = true
   resetRelational()
+  // Relational endpoints canonicalize on the bare corpus id (topic:…); strip the
+  // graph layer prefix (g:/k:) first or they return empty — NodeDetail passes the
+  // prefixed node id, so without this every topic's sections are blank (same
+  // id-format mismatch fixed for the person Connections rail).
+  const canonical = stripLayerPrefixesForCil(topicId)
   try {
     const [cross, who, ents, related] = await Promise.all([
-      fetchCrossShow(root, topicId).catch((e) => ({ error: String(e?.message ?? e), groups: {} })),
-      fetchWhoSaid(root, topicId).catch((e) => ({ error: String(e?.message ?? e), groups: {} })),
-      fetchTopicEntities(root, topicId).catch(() => ({ results: [] as RelatedNode[] })),
-      fetchRelatedTopics(root, topicId).catch(() => ({ results: [] as RelatedNode[] })),
+      fetchCrossShow(root, canonical).catch((e) => ({ error: String(e?.message ?? e), groups: {} })),
+      fetchWhoSaid(root, canonical).catch((e) => ({ error: String(e?.message ?? e), groups: {} })),
+      fetchTopicEntities(root, canonical).catch(() => ({ results: [] as RelatedNode[] })),
+      fetchRelatedTopics(root, canonical).catch(() => ({ results: [] as RelatedNode[] })),
     ])
     if (relationalGate.isStale(seq)) return
     relatedTopicRows.value = related.results ?? []
@@ -189,30 +135,92 @@ async function loadRelational(topicId: string): Promise<void> {
 }
 
 watch(subjectId, (id) => void loadRelational(id), { immediate: true })
-watch(subjectId, (id) => void loadEnrichmentSignals(id), { immediate: true })
+
+// Show cover art for Across-shows rows (mirror the Timeline episode rows). The
+// cross-show showId is a podcast slug (podcast:planet-money); feeds key on
+// display_title, so match on the normalised title.
+interface ShowCover {
+  imageUrl: string | null
+  imageLocalRelpath: string | null
+}
+const showCoverByTitle = ref<Map<string, ShowCover>>(new Map())
+
+function normTitle(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
+async function loadFeedCovers(): Promise<void> {
+  const root = shell.corpusPath?.trim()
+  if (!root || !shell.healthStatus) {
+    showCoverByTitle.value = new Map()
+    return
+  }
+  try {
+    const body = await fetchCorpusFeeds(root)
+    const m = new Map<string, ShowCover>()
+    for (const f of body.feeds ?? []) {
+      const t = f.display_title ? normTitle(f.display_title) : ''
+      if (t) m.set(t, { imageUrl: f.image_url ?? null, imageLocalRelpath: f.image_local_relpath ?? null })
+    }
+    showCoverByTitle.value = m
+  } catch {
+    showCoverByTitle.value = new Map()
+  }
+}
+watch(() => shell.corpusPath, () => void loadFeedCovers(), { immediate: true })
+
+function feedCoverFor(showId: string): ShowCover | null {
+  return showCoverByTitle.value.get(normTitle(shortId(showId))) ?? null
+}
 
 function onClickVoice(personId: string): void {
   if (personId) subject.focusPerson(personId)
 }
 
-function onClickEntity(entity: RelatedNode): void {
-  if (!entity.id) return
-  if (entity.type === 'person') subject.focusPerson(entity.id)
-  else subject.focusEntity(entity.id)
+function onClickEntity(id: string, type: string): void {
+  if (!id) return
+  if (type === 'person') subject.focusPerson(id)
+  else subject.focusEntity(id)
 }
+
+// #7 — collapse the entity MENTIONS into one chip per entity, tallying the distinct SHOWS and
+// episodes each spans, so the topic view surfaces which entities recur across shows (not a chip
+// per mention). Sorted by cross-show reach.
+interface EntityGroup {
+  id: string
+  text: string
+  type: string
+  shows: number
+  episodes: number
+}
+const entityGroups = computed<EntityGroup[]>(() => {
+  const byId = new Map<
+    string,
+    { text: string; type: string; shows: Set<string>; eps: Set<string> }
+  >()
+  for (const r of entityRows.value) {
+    const key = (r.id || r.text || '').trim()
+    if (!key) continue
+    const g = byId.get(key) ?? {
+      text: (r.text || shortId(r.id)).trim(),
+      type: r.type,
+      shows: new Set<string>(),
+      eps: new Set<string>(),
+    }
+    if (r.show_id) g.shows.add(r.show_id)
+    if (r.episode_id) g.eps.add(r.episode_id)
+    byId.set(key, g)
+  }
+  return [...byId.entries()]
+    .map(([id, g]) => ({ id, text: g.text, type: g.type, shows: g.shows.size, episodes: g.eps.size }))
+    .sort((a, b) => b.shows - a.shows || b.episodes - a.episodes || a.text.localeCompare(b.text))
+})
 
 const subjectNode = computed<RawGraphNode | null>(() => {
   const art = artifacts.displayArtifact
   const id = subjectId.value
   if (!art || !id) return null
   return findRawNodeInArtifactByIdOrPrefixed(art, id)
-})
-
-/** Actual graph node id (prefixed form after KG merge) for edge lookups. */
-const subjectGraphNodeId = computed<string | null>(() => {
-  const n = subjectNode.value
-  if (!n || n.id == null) return subjectId.value || null
-  return String(n.id)
 })
 
 const subjectKindLabel = computed(() => {
@@ -251,69 +259,6 @@ const subjectDescription = computed(() => {
   return typeof d === 'string' && d.trim() ? d.trim() : ''
 })
 
-const timeline = computed(() =>
-  buildSubjectMentionsTimeline(artifacts.displayArtifact, subjectGraphNodeId.value),
-)
-
-interface MentionRow {
-  id: string
-  type: 'Insight' | 'Quote'
-  text: string
-  episodeId: string | null
-  episodeTitle: string | null
-  publishDate: string | null
-}
-
-const mentionRows = computed<MentionRow[]>(() => {
-  const art = artifacts.displayArtifact
-  if (!art) return []
-  const ids = [
-    ...timeline.value.insightIds.map((id) => ({ id, type: 'Insight' as const })),
-    ...timeline.value.quoteIds.map((id) => ({ id, type: 'Quote' as const })),
-  ]
-  const episodes = new Map<string, RawGraphNode>()
-  for (const n of art.data?.nodes ?? []) {
-    if (!n || String(n.type) !== 'Episode') continue
-    const lid = logicalEpisodeIdFromGraphNodeId(String(n.id ?? ''))
-    if (lid) episodes.set(lid, n)
-  }
-  const rows: MentionRow[] = []
-  for (const { id, type } of ids) {
-    const n = findRawNodeInArtifact(art, id)
-    if (!n) continue
-    const p = n.properties as Record<string, unknown> | undefined
-    const text =
-      type === 'Insight'
-        ? (typeof p?.text === 'string' && p.text.trim()) ||
-          (typeof p?.label === 'string' && p.label.trim()) ||
-          ''
-        : (typeof p?.text === 'string' && p.text.trim()) || ''
-    const episodeId = typeof p?.episode_id === 'string' ? p.episode_id.trim() : null
-    const ep = episodeId ? episodes.get(episodeId) ?? null : null
-    const epP = ep?.properties as Record<string, unknown> | undefined
-    const episodeTitle =
-      typeof epP?.episode_title === 'string' && epP.episode_title.trim()
-        ? epP.episode_title.trim()
-        : typeof epP?.title === 'string' && epP.title.trim()
-          ? epP.title.trim()
-          : null
-    const pd =
-      typeof epP?.publish_date === 'string' && epP.publish_date.trim()
-        ? epP.publish_date.trim().slice(0, 10)
-        : null
-    rows.push({ id, type, text, episodeId, episodeTitle, publishDate: pd })
-  }
-  rows.sort((a, b) => {
-    if (a.publishDate && b.publishDate) {
-      if (a.publishDate < b.publishDate) return 1
-      if (a.publishDate > b.publishDate) return -1
-    } else if (a.publishDate) return -1
-    else if (b.publishDate) return 1
-    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
-  })
-  return rows
-})
-
 function onPrefillSearch(): void {
   const q = subjectName.value.trim()
   if (!q) return
@@ -323,12 +268,21 @@ function onPrefillSearch(): void {
 
 <template>
   <div
-    class="mx-3 flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden"
+    :class="[
+      'flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden',
+      // Embedded in NodeDetail's Details tab, the parent owns the horizontal
+      // gutter — the standalone-rail mx-3 would indent these sections past the
+      // cluster/theme header. Only apply it when rendering standalone.
+      embedded ? '' : 'mx-3',
+    ]"
     role="region"
     aria-label="Topic or entity"
     data-testid="topic-entity-view"
   >
-    <div class="mt-1 flex shrink-0 items-baseline gap-2 border-b border-border pb-2">
+    <div
+      v-if="!embedded"
+      class="mt-1 flex shrink-0 items-baseline gap-2 border-b border-border pb-2"
+    >
       <span
         class="text-[10px] font-semibold uppercase tracking-wider text-muted"
         data-testid="topic-entity-view-kind"
@@ -340,8 +294,18 @@ function onPrefillSearch(): void {
       >
         {{ subjectName }}
       </h2>
+      <button
+        type="button"
+        class="shrink-0 self-center rounded border border-border px-1.5 py-0.5 text-xs font-medium text-elevated-foreground hover:bg-overlay"
+        data-testid="subject-rail-close"
+        aria-label="Close topic detail"
+        @click="emit('closeSubject')"
+      >
+        ×
+      </button>
     </div>
-    <div class="min-h-0 w-full min-w-0 flex-1 space-y-3 overflow-y-auto py-2">
+    <div class="min-h-0 w-full min-w-0 flex-1 overflow-y-auto py-2">
+      <div class="space-y-3">
       <p
         v-if="subjectAliases"
         class="text-[11px] text-muted"
@@ -356,126 +320,44 @@ function onPrefillSearch(): void {
       >
         {{ subjectDescription }}
       </p>
-      <p
-        v-if="timeline.total > 0 || timeline.undated > 0"
-        class="text-[10px] text-muted"
-        data-testid="topic-entity-view-stats"
-      >
-        {{ timeline.total }} dated mention{{ timeline.total === 1 ? '' : 's' }}
-        across {{ timeline.episodeCount }} episode{{ timeline.episodeCount === 1 ? '' : 's' }}
-        ({{ timeline.insightIds.length }} insight{{ timeline.insightIds.length === 1 ? '' : 's' }},
-        {{ timeline.quoteIds.length }} quote{{ timeline.quoteIds.length === 1 ? '' : 's' }}<span
-          v-if="timeline.undated > 0"
-        >; {{ timeline.undated }} undated</span>).
-      </p>
-      <!-- RFC-088 chunk 6c: enrichment-layer signals (velocity + co-occurrence chips). -->
+      <!-- #1055 — related topics (topics that *share insights* with this one).
+           Sits right under NodeDetail's "Theme" (topics *discussed together*)
+           so the two co-topic signals are adjacent; a distinct colour (Topic
+           magenta vs Theme teal) and a HelpTip keep them apart. -->
       <section
-        v-if="enrichmentLoaded && (velocityRow || cooccurrenceRows.length)"
-        class="w-full min-w-0 rounded border border-default bg-overlay/40 p-2"
-        aria-label="Enrichment signals"
-        data-testid="topic-entity-view-enrichment-signals"
-      >
-        <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
-          Enrichment signals
-        </h3>
-        <div
-          v-if="velocityRow"
-          class="mb-1 flex items-center gap-2 text-[10px]"
-          data-testid="topic-entity-view-velocity"
-        >
-          <span class="text-muted">Velocity (last / 6-mo avg):</span>
-          <span
-            class="rounded px-2 py-0.5 font-mono"
-            :class="velocityRow.velocity_last_over_6mo > 1.5 ? 'bg-emerald-700/30 text-emerald-300' : velocityRow.velocity_last_over_6mo < 0.5 ? 'bg-rose-700/30 text-rose-300' : 'bg-overlay text-muted'"
-          >{{ velocityRow.velocity_last_over_6mo.toFixed(2) }}×</span>
-          <span class="text-muted">· {{ velocityRow.total }} mentions / 12-mo</span>
-          <span
-            v-if="velocityEffectiveLastMonth && velocityEffectiveLastMonth !== currentYearMonthUtc()"
-            class="text-muted italic"
-            data-testid="topic-entity-view-velocity-as-of"
-            :title="`Corpus data ends at ${velocityEffectiveLastMonth}; velocity is computed against that month rather than the current calendar month.`"
-          >· as of {{ velocityEffectiveLastMonth }}</span>
-        </div>
-        <div v-if="cooccurrenceRows.length" data-testid="topic-entity-view-cooccurrence">
-          <p class="mb-1 text-[10px] text-muted">Co-occurs with</p>
-          <div class="flex flex-wrap gap-1">
-            <button
-              v-for="r in cooccurrenceRows"
-              :key="r.topic_id"
-              type="button"
-              class="rounded border border-default bg-overlay px-2 py-0.5 text-[10px] hover:bg-overlay-2"
-              :data-testid="`topic-entity-view-cooccurrence-chip-${r.topic_id}`"
-              @click="subject.focusTopic(r.topic_id)"
-            >
-              {{ r.topic_label || shortId(r.topic_id) }}
-              <span class="ml-1 text-muted">·{{ r.episode_count }}</span>
-            </button>
-          </div>
-        </div>
-      </section>
-      <section
+        v-if="relatedTopicRows.length"
         class="w-full min-w-0"
-        aria-label="Mentions by month"
+        aria-label="Related topics"
+        data-testid="tev-related-topics"
       >
-        <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
-          Mentions by month
-        </h3>
-        <SubjectTimelineChart
-          :timeline="timeline"
-          aria-label="Mentions by month for this subject"
-        />
-      </section>
-      <section
-        v-if="mentionRows.length > 0"
-        class="w-full min-w-0"
-        aria-label="Linked insights and quotes"
-      >
-        <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
-          Mentions
-        </h3>
-        <ul
-          class="space-y-1.5"
-          data-testid="topic-entity-view-mentions"
-        >
-          <li
-            v-for="row in mentionRows.slice(0, TOPIC_ENTITY_VIEW_MENTIONS_CAP)"
-            :key="row.id"
-            class="rounded border border-border bg-elevated/40 px-2 py-1.5 text-[11px] leading-snug"
-          >
-            <p class="font-medium text-surface-foreground">
-              <span
-                class="mr-1 inline-block rounded bg-overlay px-1 py-0.5 text-[9px] uppercase tracking-wider text-muted"
-              >{{ row.type }}</span>
-              {{ row.text || row.id }}
-            </p>
-            <p
-              v-if="row.episodeTitle || row.publishDate"
-              class="mt-0.5 text-[10px] text-muted"
-            >
-              <span v-if="row.episodeTitle">{{ row.episodeTitle }}</span>
-              <span
-                v-if="row.episodeTitle && row.publishDate"
-              > · </span>
-              <span v-if="row.publishDate">{{ row.publishDate }}</span>
-            </p>
-          </li>
-        </ul>
         <p
-          v-if="mentionRows.length > TOPIC_ENTITY_VIEW_MENTIONS_CAP"
-          class="mt-1 text-[10px] text-muted"
-          data-testid="topic-entity-view-mentions-overflow"
+          class="mb-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider"
+          style="color: #da77f2"
         >
-          + {{ mentionRows.length - TOPIC_ENTITY_VIEW_MENTIONS_CAP }} more
+          Related topics
+          <HelpTip :pref-width="260" button-aria-label="About related topics">
+            <p class="font-sans text-[10px] leading-snug text-muted">
+              Topics that
+              <strong class="font-medium text-surface-foreground">share insights</strong> with this one —
+              distinct from <strong class="font-medium text-surface-foreground">Theme</strong> above, which
+              groups topics <strong class="font-medium text-surface-foreground">discussed together</strong>
+              (co-occurrence).
+            </p>
+          </HelpTip>
         </p>
+        <div class="flex flex-wrap gap-1.5">
+          <button
+            v-for="t in relatedTopicRows"
+            :key="t.id"
+            type="button"
+            class="rounded-full border border-transparent px-2 py-0.5 text-[10px] text-surface-foreground hover:opacity-90"
+            :style="{ backgroundColor: 'rgba(218,119,242,0.22)' }"
+            data-testid="tev-related-topic-chip"
+            :title="`Open ${t.text}`"
+            @click="subject.focusTopic(t.id)"
+          >{{ t.text }}</button>
+        </div>
       </section>
-      <p
-        v-else-if="timeline.total === 0 && timeline.undated === 0"
-        class="text-[11px] text-muted"
-        data-testid="topic-entity-view-empty"
-      >
-        No insights or quotes link to this subject in the loaded graph.
-      </p>
-
       <!-- PRD-033 FR4.2 — cross-show coverage (the corpus differentiator). -->
       <section
         v-if="crossShowLoading || crossShowError || crossShowRows.length"
@@ -508,37 +390,37 @@ function onPrefillSearch(): void {
             v-for="row in crossShowRows"
             :key="row.showId"
             data-testid="tev-cross-show-row"
-            class="rounded border-l-2 border-primary/40 pl-2 text-[11px] leading-snug"
+            class="min-w-0 text-[11px] leading-snug"
           >
-            <p class="font-semibold text-surface-foreground">{{ shortId(row.showId) }}</p>
-            <p
-              class="text-muted line-clamp-2"
-              :title="row.insight.text"
+            <button
+              type="button"
+              class="flex w-full min-w-0 items-start gap-2 rounded text-left hover:bg-overlay/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              data-testid="tev-cross-show-open"
+              :title="`Open ${shortId(row.showId)}`"
+              @click="subject.focusGraphNode(row.showId)"
             >
-              {{ row.insight.text }}
-            </p>
+              <div class="shrink-0 self-start">
+                <PodcastCover
+                  v-if="feedCoverFor(row.showId)"
+                  :corpus-path="shell.corpusPath"
+                  :feed-image-url="feedCoverFor(row.showId)?.imageUrl ?? null"
+                  :feed-image-local-relpath="feedCoverFor(row.showId)?.imageLocalRelpath ?? null"
+                  :alt="`Cover for ${shortId(row.showId)}`"
+                  size-class="h-9 w-9"
+                />
+                <ShowGlyph v-else :name="shortId(row.showId)" size-class="h-9 w-9 rounded-lg text-sm" />
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="break-words font-semibold text-surface-foreground">
+                  {{ titleCaseWords(shortId(row.showId)) }}
+                </p>
+                <p class="break-words text-[10px] text-muted line-clamp-2" :title="row.insight.text">
+                  {{ row.insight.text }}
+                </p>
+              </div>
+            </button>
           </li>
         </ul>
-      </section>
-
-      <!-- #1055 — related topics (topics that share insights with this one). -->
-      <section
-        v-if="relatedTopicRows.length"
-        class="w-full min-w-0"
-        aria-label="Related topics"
-        data-testid="tev-related-topics"
-      >
-        <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
-          Related topics
-        </h3>
-        <div class="flex flex-wrap gap-1">
-          <span
-            v-for="t in relatedTopicRows"
-            :key="t.id"
-            class="rounded bg-overlay px-1.5 py-0.5 text-[10px] text-surface-foreground"
-            data-testid="tev-related-topic-chip"
-          >{{ t.text }}</span>
-        </div>
       </section>
 
       <!-- PRD-033 FR4.2 — key voices (Person→Insight for this topic). -->
@@ -572,23 +454,29 @@ function onPrefillSearch(): void {
             v-for="row in voiceRows"
             :key="row.personId"
             data-testid="tev-voice-row"
-            class="rounded border border-border bg-elevated/40 px-2 py-1.5 text-[11px] leading-snug"
+            class="min-w-0 text-[11px] leading-snug"
           >
             <button
               type="button"
               data-testid="tev-voice-link"
-              class="rounded font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              class="flex w-full min-w-0 items-start gap-2 rounded text-left hover:bg-overlay/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               :title="`Open Person panel for ${shortId(row.personId)}`"
               @click="onClickVoice(row.personId)"
-            >{{ shortId(row.personId) }}</button>
-            <span class="ml-1 text-[10px] text-muted">({{ row.insights.length }})</span>
-            <p
-              v-if="row.insights[0]?.text"
-              class="mt-0.5 text-muted line-clamp-2"
-              :title="row.insights[0]?.text"
             >
-              {{ row.insights[0]?.text }}
-            </p>
+              <PersonInitialAvatar :name="shortId(row.personId)" size-class="h-9 w-9 text-sm" />
+              <div class="min-w-0 flex-1">
+                <p class="break-words font-semibold text-primary">
+                  {{ titleCaseWords(shortId(row.personId)) }}
+                  <span class="font-normal text-muted">({{ row.insights.length }})</span>
+                </p>
+                <p
+                  v-if="row.insights[0]?.text"
+                  class="break-words text-[10px] text-muted line-clamp-2"
+                >
+                  {{ row.insights[0]?.text }}
+                </p>
+              </div>
+            </button>
           </li>
         </ul>
       </section>
@@ -615,18 +503,26 @@ function onPrefillSearch(): void {
           data-testid="tev-entities-list"
         >
           <button
-            v-for="ent in entityRows"
+            v-for="ent in entityGroups"
             :key="ent.id"
             type="button"
             data-testid="tev-entity-chip"
             class="rounded border border-border bg-elevated/40 px-1.5 py-0.5 text-[10px] text-surface-foreground hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            :title="`Open panel for ${ent.text || shortId(ent.id)}`"
-            @click="onClickEntity(ent)"
-          >{{ ent.text || shortId(ent.id) }}</button>
+            :title="ent.shows > 1 ? `${ent.text} — involved across ${ent.shows} shows` : `Open panel for ${ent.text}`"
+            @click="onClickEntity(ent.id, ent.type)"
+          >{{ ent.text
+            }}<span
+              v-if="ent.shows > 1"
+              class="ml-1 text-[9px] font-semibold text-muted"
+              data-testid="tev-entity-shows"
+            >· {{ ent.shows }} shows</span></button>
         </div>
       </section>
 
-      <div class="flex shrink-0 flex-wrap gap-2 pt-2">
+      <div
+        v-if="!embedded"
+        class="flex shrink-0 flex-wrap gap-2 pt-2"
+      >
         <button
           type="button"
           class="rounded border border-border px-2 py-1 text-[11px] font-medium hover:bg-overlay"
@@ -643,6 +539,7 @@ function onPrefillSearch(): void {
         >
           Prefill semantic search
         </button>
+      </div>
       </div>
     </div>
   </div>

@@ -25,6 +25,11 @@ vi.mock('../../api/cilApi', () => ({
   fetchPersonProfile: (...a: unknown[]) => fetchPersonProfile(...a),
 }))
 
+// FB10 "Appears in shows" loads the episode list; stub it so tests stay offline.
+vi.mock('../../api/corpusLibraryApi', () => ({
+  fetchCorpusEpisodes: () => Promise.resolve({ items: [] }),
+}))
+
 const STUBS = {
   SubjectTimelineChart: { name: 'SubjectTimelineChart', template: '<div data-stub="timeline" />' },
 }
@@ -33,12 +38,33 @@ function rel(id: string, text: string, type: string) {
   return { id, type, text, show_id: '', episode_id: '' }
 }
 
-async function mountWith(): Promise<ReturnType<typeof mount>> {
-  const w = mount(PersonLandingView, { attachTo: document.body, global: { stubs: STUBS } })
+function makePersonArtifact(nodeId = 'person:alice'): ParsedArtifact {
+  return {
+    id: 'a1',
+    kind: 'gi',
+    data: {
+      nodes: [
+        { id: nodeId, type: 'Person', properties: { name: 'Alice' } },
+      ],
+      edges: [],
+    },
+  } as unknown as ParsedArtifact
+}
+
+async function mountWith(idOverride = 'person:alice'): Promise<ReturnType<typeof mount>> {
+  const personId = idOverride
+  const artifacts = useArtifactsStore()
+  artifacts.parsedList = [makePersonArtifact(personId)]
   const shell = useShellStore()
   shell.corpusPath = '/corpus'
   shell.healthStatus = 'ok'
-  useSubjectStore().focusPerson('person:alice')
+  const subject = useSubjectStore()
+  subject.focusPerson(personId)
+  const w = mount(PersonLandingView, {
+    attachTo: document.body,
+    props: { subjectIdOverride: personId },
+    global: { stubs: STUBS },
+  })
   await flushPromises()
   await flushPromises()
   return w
@@ -71,10 +97,14 @@ describe('PersonLandingView — connections (#1055)', () => {
     expect(topics.exists()).toBe(true)
   })
 
-  it('renders co-speakers as chips', async () => {
+  it('renders co-speakers as chips with a person letter avatar', async () => {
     const w = await mountWith()
     const chips = w.findAll('[data-testid="person-landing-co-speaker-chip"]')
-    expect(chips.map((c) => c.text())).toEqual(['Bob'])
+    expect(chips).toHaveLength(1)
+    expect(chips[0].text()).toContain('Bob')
+    const avatar = chips[0].find('[data-testid="person-initial-avatar"]')
+    expect(avatar.exists()).toBe(true)
+    expect(avatar.text()).toBe('B')
   })
 
   it('shows empty-state copy when there are no co-speakers', async () => {
@@ -86,6 +116,16 @@ describe('PersonLandingView — connections (#1055)', () => {
 
   it('queries the relational connection endpoints with the corpus path + person id', async () => {
     await mountWith()
+    expect(fetchPersonTopics).toHaveBeenCalledWith('/corpus', 'person:alice')
+    expect(fetchCoSpeakers).toHaveBeenCalledWith('/corpus', 'person:alice')
+  })
+
+  // Regression: the graph node id carries a layer prefix (g:/k:) but the
+  // relational endpoints canonicalize on the bare corpus id — passing the
+  // prefixed id returned 0 topics / 0 co-speakers (systematically empty
+  // Connections). loadConnections must strip the prefix first.
+  it('strips the graph layer prefix before querying relational endpoints', async () => {
+    await mountWith('g:person:alice')
     expect(fetchPersonTopics).toHaveBeenCalledWith('/corpus', 'person:alice')
     expect(fetchCoSpeakers).toHaveBeenCalledWith('/corpus', 'person:alice')
   })
@@ -139,13 +179,19 @@ describe('PersonLandingView — #1048 shell (Person Profile + Position Tracker)'
   })
 
   async function mountWithArtifact(): Promise<ReturnType<typeof mount>> {
-    const w = mount(PersonLandingView, { attachTo: document.body, global: { stubs: STUBS } })
+    const personId = 'person:alice'
     const shell = useShellStore()
     shell.corpusPath = '/corpus'
     shell.healthStatus = 'ok'
     // Mirrors TopicEntityView.test.ts injection pattern.
     useArtifactsStore().parsedList = [makeArtifactWithPersonAndTopics()]
-    useSubjectStore().focusPerson('person:alice')
+    const subject = useSubjectStore()
+    subject.focusPerson(personId)
+    const w = mount(PersonLandingView, {
+      attachTo: document.body,
+      props: { subjectIdOverride: personId },
+      global: { stubs: STUBS },
+    })
     await flushPromises()
     await flushPromises()
     return w
@@ -264,6 +310,21 @@ function makeArtifactForPersonProfile(): ParsedArtifact {
   } as unknown as ParsedArtifact
 }
 
+// N2/N3/N6 — the /brief ``topics`` map: the person's insights grouped by topic
+// (server-side, corpus-wide). Mirrors makeArtifactForPersonProfile's insights so
+// the graph fixture still supplies topic node labels ("AI ethics" / "AI regulation").
+function makePersonProfileTopics(): Record<string, unknown[]> {
+  return {
+    'topic:ai': [
+      { insight: { id: 'insight:i1', properties: { text: 'first', insight_type: 'claim' } } },
+      { insight: { id: 'insight:i2', properties: { text: 'second', insight_type: 'observation' } } },
+    ],
+    'topic:reg': [
+      { insight: { id: 'insight:i3', properties: { text: 'third', insight_type: 'recommendation' } } },
+    ],
+  }
+}
+
 describe('PersonLandingView — #1050 Person Profile aggregate (PRD-029 / UXS-010)', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -272,18 +333,28 @@ describe('PersonLandingView — #1050 Person Profile aggregate (PRD-029 / UXS-01
     // into the next test's mock setup.
     invalidateRelationalCache()
     fetchPositions.mockResolvedValue({ subject: 'person:alice', results: [] })
-    fetchPersonProfile.mockResolvedValue({ subject: 'person:alice', profile: {} })
+    fetchPersonProfile.mockResolvedValue({
+      subject: 'person:alice',
+      profile: {},
+      topics: makePersonProfileTopics(),
+    })
     fetchPersonTopics.mockResolvedValue({ subject: 'person:alice', results: [] })
     fetchCoSpeakers.mockResolvedValue({ subject: 'person:alice', results: [] })
   })
 
   async function mountWithProfileArt(): Promise<ReturnType<typeof mount>> {
-    const w = mount(PersonLandingView, { attachTo: document.body, global: { stubs: STUBS } })
+    const personId = 'person:alice'
     const shell = useShellStore()
     shell.corpusPath = '/corpus'
     shell.healthStatus = 'ok'
     useArtifactsStore().parsedList = [makeArtifactForPersonProfile()]
-    useSubjectStore().focusPerson('person:alice')
+    const subject = useSubjectStore()
+    subject.focusPerson(personId)
+    const w = mount(PersonLandingView, {
+      attachTo: document.body,
+      props: { subjectIdOverride: personId },
+      global: { stubs: STUBS },
+    })
     await flushPromises()
     await flushPromises()
     return w
@@ -350,10 +421,11 @@ describe('PersonLandingView — #1050 Person Profile aggregate (PRD-029 / UXS-01
     // episode. Pre-fix the header count used a raw edge tally and would
     // say "2 episodes" while the list (Set-deduped) shows 1. Both surfaces
     // now derive from the same personEpisodeAppearances helper.
-    const w = mount(PersonLandingView, { attachTo: document.body, global: { stubs: STUBS } })
+    const personId = 'person:a'
     const shell = useShellStore()
     shell.corpusPath = '/corpus'
     shell.healthStatus = 'ok'
+    const subject = useSubjectStore()
     useArtifactsStore().parsedList = [
       {
         id: 'dup',
@@ -370,7 +442,8 @@ describe('PersonLandingView — #1050 Person Profile aggregate (PRD-029 / UXS-01
         },
       } as unknown as ParsedArtifact,
     ]
-    useSubjectStore().focusPerson('person:a')
+    subject.focusPerson(personId)
+    const w = mount(PersonLandingView, { attachTo: document.body, props: { subjectIdOverride: personId }, global: { stubs: STUBS } })
     await flushPromises()
     await flushPromises()
     expect(w.get('[data-testid="person-landing-episode-count"]').text()).toBe('1 episode')
@@ -378,10 +451,11 @@ describe('PersonLandingView — #1050 Person Profile aggregate (PRD-029 / UXS-01
   })
 
   it('Episodes section is omitted when no SPOKE_IN edges exist', async () => {
-    const w = mount(PersonLandingView, { attachTo: document.body, global: { stubs: STUBS } })
+    const personId = 'person:bob'
     const shell = useShellStore()
     shell.corpusPath = '/corpus'
     shell.healthStatus = 'ok'
+    const subject = useSubjectStore()
     useArtifactsStore().parsedList = [
       {
         id: 'empty',
@@ -392,9 +466,109 @@ describe('PersonLandingView — #1050 Person Profile aggregate (PRD-029 / UXS-01
         },
       } as unknown as ParsedArtifact,
     ]
-    useSubjectStore().focusPerson('person:bob')
+    subject.focusPerson(personId)
+    const w = mount(PersonLandingView, { attachTo: document.body, props: { subjectIdOverride: personId }, global: { stubs: STUBS } })
     await flushPromises()
     await flushPromises()
     expect(w.find('[data-testid="person-landing-episodes-appeared"]').exists()).toBe(false)
+  })
+})
+
+// New describe block for view prop gating + positions lens
+describe('PersonLandingView — view prop gating + positions lens', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    invalidateRelationalCache()
+    fetchPositions.mockResolvedValue({ subject: 'person:alice', results: [] })
+    fetchPersonProfile.mockResolvedValue({
+      subject: 'person:alice',
+      profile: {},
+      topics: makePersonProfileTopics(),
+    })
+    fetchPersonTopics.mockResolvedValue({ subject: 'person:alice', results: [] })
+    fetchCoSpeakers.mockResolvedValue({ subject: 'person:alice', results: [] })
+  })
+
+  async function mountViewProp(
+    view: 'full' | 'profile' | 'positions',
+    art?: ParsedArtifact,
+  ): Promise<ReturnType<typeof mount>> {
+    const personId = 'person:alice'
+    const shell = useShellStore()
+    shell.corpusPath = '/corpus'
+    shell.healthStatus = 'ok'
+    useArtifactsStore().parsedList = [art ?? makeArtifactForPersonProfile()]
+    const subject = useSubjectStore()
+    subject.focusPerson(personId)
+    const w = mount(PersonLandingView, {
+      attachTo: document.body,
+      props: { subjectIdOverride: personId, view },
+      global: { stubs: STUBS },
+    })
+    await flushPromises()
+    await flushPromises()
+    return w
+  }
+
+  it('view="profile" hides Topics discussed, Insights voiced, and positions sections', async () => {
+    const w = await mountViewProp('profile')
+    expect(w.find('[data-testid="person-landing-ranked-topics"]').exists()).toBe(false)
+    expect(w.find('[data-testid="person-landing-insights-voiced"]').exists()).toBe(false)
+    expect(w.find('[data-testid="person-landing-stated"]').exists()).toBe(false)
+    expect(w.find('[data-testid="person-landing-positions"]').exists()).toBe(false)
+  })
+
+  it('view="profile" shows episodes and connections', async () => {
+    const w = await mountViewProp('profile')
+    expect(w.find('[data-testid="person-landing-episodes-appeared"]').exists()).toBe(true)
+    expect(w.find('[data-testid="person-landing-connections"]').exists()).toBe(true)
+  })
+
+  it('view="positions" shows the lens toggle with By topic and All positions buttons', async () => {
+    const w = await mountViewProp('positions')
+    expect(w.find('[data-testid="person-landing-positions-lens"]').exists()).toBe(true)
+    expect(w.find('[data-testid="person-landing-positions-lens-by-topic"]').text()).toBe('By topic')
+    expect(w.find('[data-testid="person-landing-positions-lens-all"]').text()).toBe('All positions')
+  })
+
+  it('view="positions" default lens shows insights-voiced section (by_topic)', async () => {
+    const w = await mountViewProp('positions')
+    // by_topic is the default; insights-voiced should be visible
+    const byTopic = w.find('[data-testid="person-landing-positions-by-topic"]')
+    expect(byTopic.exists()).toBe(true)
+    // The insights-voiced section should exist inside
+    expect(byTopic.find('[data-testid="person-landing-insights-voiced"]').exists()).toBe(true)
+  })
+
+  it('view="positions" switching to all lens shows stated/positions sections', async () => {
+    const w = await mountViewProp('positions')
+    await w.get('[data-testid="person-landing-positions-lens-all"]').trigger('click')
+    const allDiv = w.find('[data-testid="person-landing-positions-all"]')
+    expect(allDiv.exists()).toBe(true)
+    // positions-empty paragraph since fixture has no SPOKEN_BY edges for alice
+    expect(allDiv.find('[data-testid="person-landing-positions-empty"]').exists()).toBe(true)
+  })
+
+  it('view="positions" with 12 corpus quotes shows paginator on all lens', async () => {
+    // The "All positions" lens paginates the corpus-wide quotes (server /brief),
+    // not the client-graph SPOKEN_BY walk — mock 12 quotes on the profile.
+    const quotes = Array.from({ length: 12 }, (_v, i) => ({
+      quote: { id: `quote:q${i + 1}`, properties: { text: `Quote ${i + 1}` } },
+      episode_id: `ep${i + 1}`,
+    }))
+    fetchPersonProfile.mockResolvedValue({ subject: 'person:alice', quotes })
+
+    const w = await mountViewProp('positions')
+    await w.get('[data-testid="person-landing-positions-lens-all"]').trigger('click')
+    // Paginator should appear (12 rows > POSITIONS_PAGE_SIZE=10)
+    expect(w.find('[data-testid="person-landing-positions-pager"]').exists()).toBe(true)
+    // First page shows 10 rows.
+    expect(w.findAll('[data-testid="person-landing-corpus-row"]').length).toBe(10)
+    // page info shows 1 / 2
+    expect(w.get('[data-testid="person-landing-positions-pager-info"]').text()).toBe('1 / 2')
+    // click next
+    await w.get('[data-testid="person-landing-positions-pager-next"]').trigger('click')
+    expect(w.get('[data-testid="person-landing-positions-pager-info"]').text()).toBe('2 / 2')
+    expect(w.findAll('[data-testid="person-landing-corpus-row"]').length).toBe(2)
   })
 })

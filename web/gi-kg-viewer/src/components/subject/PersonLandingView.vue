@@ -1,14 +1,15 @@
 <script setup lang="ts">
 /**
  * #672 — Person Landing rail panel. Reads ``subject.personId`` and shows
- * a Profile / Positions tab pair: Profile holds basic identity info +
- * mentions timeline; Positions lists ``SPOKEN_BY`` quotes attributed to
- * this person with episode context.
+ * a Profile / Positions tab pair: Profile holds identity + Connections
+ * (topics / co-speakers from the relational layer); Positions lists the
+ * person's stated positions and quotes.
  *
- * #909 — the Positions tab also surfaces an "Across the corpus" section: the
- * person's quotes across ALL episodes (from the CIL ``person_profile`` endpoint),
- * not just the episodes currently merged into the loaded graph. This is the
- * corpus-wide "what X said across episodes" payoff of the #875/#876 diarization work.
+ * #909 — the Positions tab's "All positions" lens surfaces the person's quotes
+ * across ALL episodes (from the CIL ``person_profile`` endpoint), not just the
+ * episodes currently merged into the loaded graph — so it scales and resolves
+ * out-of-slice. This is the corpus-wide "what X said across episodes" payoff of
+ * the #875/#876 diarization work.
  *
  * #1048 — restructured to be the shared Person Landing shell per PRD-029.
  * Tabs are now "Person Profile" (the aggregate person view; inherits all
@@ -34,28 +35,21 @@ import {
   cachedFetchPersonProfile as fetchPersonProfile,
 } from '../../composables/useRelationalCache'
 import type { RelatedNode } from '../../api/relationalApi'
-import { fetchCachedCorpusEnvelope } from '../../composables/useEnrichmentEnvelopeCache'
 import { StaleGeneration } from '../../utils/staleGeneration'
 import {
-  countPersonEntityIncidentEdges,
-  findRawNodeInArtifact,
   findRawNodeInArtifactByIdOrPrefixed,
-  normalizeGiEdgeType,
   personEpisodeAppearances,
-  personInsightsByTopic,
   personRoleFromNode,
   rankedPersonOrganizations,
   rankedPersonTopicMentions,
 } from '../../utils/parsing'
-import { logicalEpisodeIdFromGraphNodeId } from '../../utils/graphEpisodeMetadata'
-import { buildSubjectMentionsTimeline } from '../../utils/subjectMentionsTimeline'
+import { stripLayerPrefixesForCil } from '../../utils/mergeGiKg'
+import { titleCaseWords } from '../../utils/nameCase'
+import { fetchCorpusEpisodes } from '../../api/corpusLibraryApi'
 import PositionTrackerPanel from './PositionTrackerPanel.vue'
-import SubjectTimelineChart from './SubjectTimelineChart.vue'
+import PersonInitialAvatar from '../shared/PersonInitialAvatar.vue'
+import ShowGlyph from '../shared/ShowGlyph.vue'
 
-/** Positions list cap — Persons accumulate more attributed quotes than a
- *  Topic accumulates mentions, so the cap is higher than ``TopicEntityView``'s
- *  25; still bounded so the rail does not become a full-text wall. */
-const PERSON_LANDING_POSITIONS_CAP = 50
 
 const emit = defineEmits<{
   goGraph: []
@@ -63,9 +57,35 @@ const emit = defineEmits<{
   prefillSemanticSearch: [{ query: string }]
 }>()
 
+// Embeddable-flat: when folded into NodeDetail's Details tab, ``embedded`` hides
+// the standalone header/footer chrome and ``subjectIdOverride`` supplies the id
+// (the subject store now opens Person nodes through the unified node view).
+const props = withDefaults(
+  defineProps<{
+    embedded?: boolean
+    subjectIdOverride?: string
+    // Which slice to render when embedded in NodeDetail: 'profile' = slim
+    // identity/context for the Details tab; 'positions' = the two-lens
+    // (By topic · All positions) view for the Position Tracker tab. 'full' keeps
+    // the whole standalone layout (used by tests).
+    view?: 'full' | 'profile' | 'positions'
+  }>(),
+  { embedded: false, subjectIdOverride: '', view: 'full' },
+)
+
+// Position Tracker tab (view='positions') — two lenses mirroring the topic
+// Timeline tab's Episodes/Mentions. 'by_topic' = Insights voiced grouped;
+// 'all' = the flat Stated positions list, paginated.
+const positionsLens = ref<'by_topic' | 'all'>('by_topic')
+const POSITIONS_PAGE_SIZE = 10
+const positionsPage = ref(1)
+
 const artifacts = useArtifactsStore()
 const shell = useShellStore()
 const subject = useSubjectStore()
+
+/** Person subject id — from the embed prop (NodeDetail fold) or the store. */
+const personId = computed(() => props.subjectIdOverride?.trim() || subject.personId?.trim() || '')
 
 // #1048 — tab vocabulary aligned with PRD-028 / PRD-029. ``profile`` is the
 // aggregate Person Profile view (PRD-029); ``position_tracker`` is the
@@ -73,153 +93,13 @@ const subject = useSubjectStore()
 type PersonTab = 'profile' | 'position_tracker'
 const activeTab = ref<PersonTab>('profile')
 
-// RFC-088 chunk 6c: enrichment-layer signals for the focused person.
-interface GroundingRateRow {
-  person_id: string
-  person_name?: string
-  total_insights: number
-  grounded_insights: number
-  rate: number
-}
-interface CoappearanceRow {
-  person_a_id: string
-  person_b_id: string
-  person_a_name?: string
-  person_b_name?: string
-  episode_count: number
-}
-interface CoGuestChip {
-  person_id: string
-  person_name?: string
-  episode_count: number
-}
-const groundingRow = ref<GroundingRateRow | null>(null)
-const coGuestChips = ref<CoGuestChip[]>([])
-const enrichmentLoaded = ref(false)
-const COGUEST_TOP_N = 6
+// Person enrichment signals (grounding rate / co-appearances / contradictions)
+// and the mentions-by-month timeline live in the Signals tab
+// (NodeEnrichmentSection + the rail's signalsTimeline) — not duplicated here.
 
-// RFC-088 chunk-9 follow-up: contradictions for the focused person from
-// the chunk-4 nli_contradiction envelope. Each row is "X contradicts Y
-// on topic Z" — click any of the 3 to pivot focus.
-interface ContradictionRow {
-  topic_id: string
-  partner_id: string
-  partner_name?: string
-  insight_a_id: string
-  insight_b_id: string
-  contradiction_score: number
-}
-const contradictionRows = ref<ContradictionRow[]>([])
-const CONTRADICTIONS_TOP_N = 8
-
-async function loadPersonEnrichmentSignals(focusedPersonId: string): Promise<void> {
-  const root = shell.corpusPath?.trim()
-  if (!focusedPersonId || !root) return
-  groundingRow.value = null
-  coGuestChips.value = []
-  contradictionRows.value = []
-  enrichmentLoaded.value = false
-  try {
-    const [grounding, coapp, contradictions] = await Promise.all([
-      fetchCachedCorpusEnvelope<{ persons: GroundingRateRow[] }>(root, 'grounding_rate').catch(
-        () => null,
-      ),
-      fetchCachedCorpusEnvelope<{ pairs: CoappearanceRow[] }>(
-        root,
-        'guest_coappearance',
-      ).catch(() => null),
-      // RFC-088 chunk-9: pull nli_contradiction so the rail shows
-      // "person contradicts X on topic Y" rows for the focused person.
-      fetchCachedCorpusEnvelope<{
-        contradictions: Array<{
-          topic_id: string
-          person_a_id: string
-          person_b_id: string
-          person_a_name?: string
-          person_b_name?: string
-          insight_a_id: string
-          insight_b_id: string
-          contradiction_score: number
-        }>
-      }>(root, 'nli_contradiction').catch(() => null),
-    ])
-    enrichmentLoaded.value = true
-    if (grounding?.data?.persons) {
-      groundingRow.value =
-        grounding.data.persons.find((p) => p.person_id === focusedPersonId) ?? null
-    }
-    if (coapp?.data?.pairs) {
-      const chips: CoGuestChip[] = []
-      for (const p of coapp.data.pairs) {
-        if (p.person_a_id === focusedPersonId) {
-          chips.push({
-            person_id: p.person_b_id,
-            person_name: p.person_b_name,
-            episode_count: p.episode_count,
-          })
-        } else if (p.person_b_id === focusedPersonId) {
-          chips.push({
-            person_id: p.person_a_id,
-            person_name: p.person_a_name,
-            episode_count: p.episode_count,
-          })
-        }
-      }
-      chips.sort((a, b) => b.episode_count - a.episode_count)
-      coGuestChips.value = chips.slice(0, COGUEST_TOP_N)
-    }
-    if (contradictions?.data?.contradictions) {
-      const rows: ContradictionRow[] = []
-      for (const c of contradictions.data.contradictions) {
-        if (c.person_a_id === focusedPersonId) {
-          rows.push({
-            topic_id: c.topic_id,
-            partner_id: c.person_b_id,
-            partner_name: c.person_b_name,
-            insight_a_id: c.insight_a_id,
-            insight_b_id: c.insight_b_id,
-            contradiction_score: c.contradiction_score,
-          })
-        } else if (c.person_b_id === focusedPersonId) {
-          rows.push({
-            topic_id: c.topic_id,
-            partner_id: c.person_a_id,
-            partner_name: c.person_a_name,
-            insight_a_id: c.insight_b_id,
-            insight_b_id: c.insight_a_id,
-            contradiction_score: c.contradiction_score,
-          })
-        }
-      }
-      rows.sort((a, b) => b.contradiction_score - a.contradiction_score)
-      contradictionRows.value = rows.slice(0, CONTRADICTIONS_TOP_N)
-    }
-  } catch {
-    /* enrichment is best-effort; never break the rail */
-  }
-}
-
-watch(
-  () => subject.personId,
-  (id) => {
-    if (id) void loadPersonEnrichmentSignals(id)
-    else {
-      groundingRow.value = null
-      coGuestChips.value = []
-      enrichmentLoaded.value = false
-    }
-  },
-  { immediate: true },
-)
-
-watch(
-  () => subject.personId,
-  () => {
-    activeTab.value = 'profile'
-  },
-)
-
-const personId = computed(() => subject.personId?.trim() || '')
+watch(personId, () => {
+  activeTab.value = 'profile'
+})
 
 const personNode = computed<RawGraphNode | null>(() => {
   const art = artifacts.displayArtifact
@@ -298,7 +178,13 @@ async function loadConnections(rawId: string): Promise<void> {
   topicsRows.value = []
   coSpeakersRows.value = []
   try {
-    const [t, c] = await Promise.all([fetchPersonTopics(root, id), fetchCoSpeakers(root, id)])
+    // Relational endpoints canonicalize on the corpus id (person:…); strip the
+    // graph layer prefix (g:/k:) first or they return empty (id-format mismatch).
+    const canonical = stripLayerPrefixesForCil(id)
+    const [t, c] = await Promise.all([
+      fetchPersonTopics(root, canonical),
+      fetchCoSpeakers(root, canonical),
+    ])
     if (connectionsGate.isStale(seq)) return
     topicsRows.value = t.results ?? []
     coSpeakersRows.value = c.results ?? []
@@ -311,17 +197,79 @@ async function loadConnections(rawId: string): Promise<void> {
 
 watch(personGraphNodeId, (id) => void loadConnections(id ?? ''), { immediate: true })
 
+// Prolific speakers (esp. hosts) accumulate many topics + co-speakers. The
+// relational endpoints already return these ranked, so cap the display to a
+// preview and let the user expand. Collapse again on person change.
+const TOPICS_PREVIEW = 12
+const COSPEAKERS_PREVIEW = 8
+const topicsExpanded = ref(false)
+const coSpeakersExpanded = ref(false)
+// FB7 — flag which person topics are cluster compounds (from topic_clusters.json)
+// so the flat list distinguishes broad cluster topics from specific ones (Digest
+// parity). Themes are a per-focused-topic co-occurrence concept, not a per-topic
+// attribute, so they're not flagged here.
+// A topic is a "cluster" topic when it's a member of any topic_clusters.json
+// cluster — matched directly on member topic_id, not the graph-materialised
+// compound (which findTopicClusterContextForGraphNode requires and which most
+// clusters lack). Returns the cluster's canonical label for the tooltip.
+const topicClusterLabelById = computed(() => {
+  const m = new Map<string, string>()
+  for (const cl of artifacts.topicClustersDoc?.clusters ?? []) {
+    if (!cl || typeof cl !== 'object') continue
+    const label =
+      typeof cl.canonical_label === 'string' && cl.canonical_label.trim()
+        ? cl.canonical_label.trim()
+        : ''
+    for (const mem of Array.isArray(cl.members) ? cl.members : []) {
+      const tid = mem && typeof mem.topic_id === 'string' ? mem.topic_id.trim() : ''
+      if (tid && !m.has(tid)) m.set(tid, label || tid)
+    }
+  }
+  return m
+})
+const flaggedTopics = computed(() =>
+  topicsRows.value.map((t) => ({
+    ...t,
+    clusterLabel: topicClusterLabelById.value.get(t.id) ?? null,
+  })),
+)
+const visibleTopics = computed(() =>
+  topicsExpanded.value ? flaggedTopics.value : flaggedTopics.value.slice(0, TOPICS_PREVIEW),
+)
+const visibleCoSpeakers = computed(() =>
+  coSpeakersExpanded.value
+    ? coSpeakersRows.value
+    : coSpeakersRows.value.slice(0, COSPEAKERS_PREVIEW),
+)
+watch(personGraphNodeId, () => {
+  topicsExpanded.value = false
+  coSpeakersExpanded.value = false
+})
+
 /**
  * #909 — corpus-wide quotes this person spoke across ALL episodes, from the CIL
- * ``person_profile`` endpoint (``GET /api/persons/{id}/brief``). Unlike ``positionRows``
- * below (which only sees the loaded/merged graph), this resolves the person across the
- * whole corpus (incl. #852 name variants). Async, skeleton-first, stale-gated; renders
- * only when an API corpus is connected (no-op in local-file mode).
+ * ``person_profile`` endpoint (``GET /api/persons/{id}/brief``). Resolves the
+ * person across the whole corpus (incl. #852 name variants), independent of the
+ * loaded graph slice — this is the source for the Positions "All positions"
+ * lens. Async, skeleton-first, stale-gated; renders only when an API corpus is
+ * connected (no-op in local-file mode).
  */
 interface CorpusQuoteRow {
   id: string
   text: string
   episodeId: string | null
+  episodeTitle: string | null
+}
+
+/** Episode title embedded in a quote's transcript_ref, e.g.
+ *  ``transcripts/0006 - Trading disruption_20260613-…`` → ``Trading disruption``.
+ *  The /brief payload carries no episode title and the quote's episode_id is a
+ *  compact hex uuid that doesn't match the graph's dashed ids, so this is the
+ *  one readable episode label available client-side. */
+function episodeTitleFromTranscriptRef(ref: unknown): string | null {
+  if (typeof ref !== 'string') return null
+  const m = ref.match(/\/\d+\s*-\s*(.+?)_\d{6,}/)
+  return m ? m[1].trim() || null : null
 }
 const corpusLoading = ref(false)
 const corpusError = ref<string | null>(null)
@@ -334,17 +282,51 @@ const corpusEpisodeCount = computed(() => {
   return eps.size
 })
 
+// N2/N3/N6 — the person's insights grouped by topic, from the /brief
+// person_profile ``topics`` map (server-side, corpus-wide). Replaces the
+// client-graph ``personInsightsByTopic`` which is empty when the corpus lacks
+// mentions_person edges. Same shape the topic Key-voices uses server-side.
+interface BriefInsightRow {
+  insightId: string
+  text: string
+  insightType: string | null
+}
+interface BriefTopicGroup {
+  topicId: string
+  topicName: string
+  count: number
+  insights: BriefInsightRow[]
+}
+const briefTopicGroups = ref<BriefTopicGroup[]>([])
+
+/** Prefer the in-slice Topic node's label so the display name matches the topic
+ *  panel; fall back to a title-cased slug when the topic is out of the loaded
+ *  graph (the /brief map only carries topic ids). */
+function topicDisplayName(topicId: string): string {
+  const node = findRawNodeInArtifactByIdOrPrefixed(artifacts.displayArtifact, topicId)
+  const p = node?.properties as Record<string, unknown> | undefined
+  const label =
+    typeof p?.label === 'string' && p.label.trim()
+      ? p.label.trim()
+      : typeof p?.name === 'string' && p.name.trim()
+        ? p.name.trim()
+        : ''
+  return label || titleCaseWords(topicId.replace(/^topic:/, '').replace(/[-_]+/g, ' '))
+}
+
 async function loadCorpusQuotes(rawId: string): Promise<void> {
   const id = rawId.trim()
   const root = shell.corpusPath?.trim()
   if (!id || !root || !shell.healthStatus) {
     corpusQuotes.value = []
+    briefTopicGroups.value = []
     corpusError.value = null
     return
   }
   const seq = corpusGate.bump()
   corpusLoading.value = true
   corpusQuotes.value = []
+  briefTopicGroups.value = []
   corpusError.value = null
   try {
     const body = await fetchPersonProfile(root, id)
@@ -360,19 +342,121 @@ async function loadCorpusQuotes(rawId: string): Promise<void> {
       const text = typeof p?.text === 'string' ? p.text.trim() : ''
       const episodeId =
         typeof r.episode_id === 'string' && r.episode_id.trim() ? r.episode_id.trim() : null
-      rows.push({ id: qid, text, episodeId })
+      rows.push({ id: qid, text, episodeId, episodeTitle: episodeTitleFromTranscriptRef(p?.transcript_ref) })
     }
     corpusQuotes.value = rows
+
+    // N2/N3/N6 — the person's insights grouped by topic. The ``topics`` map is
+    // ``{ "topic:<slug>": [{ insight: { id, properties: { text, insight_type } } }] }``.
+    const topicsMap = (body as { topics?: Record<string, unknown> }).topics
+    const groups: BriefTopicGroup[] = []
+    if (topicsMap && typeof topicsMap === 'object') {
+      for (const [topicId, entries] of Object.entries(topicsMap)) {
+        if (!topicId || !Array.isArray(entries)) continue
+        const insights: BriefInsightRow[] = []
+        const seenIns = new Set<string>()
+        for (const e of entries) {
+          const ins = (e as Record<string, unknown>)?.insight as Record<string, unknown> | undefined
+          const iid = ins && ins.id != null ? String(ins.id) : ''
+          if (!iid || seenIns.has(iid)) continue
+          const ip = ins?.properties as Record<string, unknown> | undefined
+          const text = typeof ip?.text === 'string' ? ip.text.trim() : ''
+          if (!text) continue
+          seenIns.add(iid)
+          const rawType =
+            typeof ip?.insight_type === 'string'
+              ? ip.insight_type
+              : typeof (e as Record<string, unknown>)?.insight_type === 'string'
+                ? ((e as Record<string, unknown>).insight_type as string)
+                : null
+          insights.push({ insightId: iid, text, insightType: rawType })
+        }
+        if (!insights.length) continue
+        groups.push({
+          topicId,
+          topicName: topicDisplayName(topicId),
+          count: insights.length,
+          insights,
+        })
+      }
+      groups.sort((a, b) => b.count - a.count || a.topicName.localeCompare(b.topicName))
+    }
+    briefTopicGroups.value = groups
   } catch (e) {
     if (corpusGate.isStale(seq)) return
     corpusError.value = e instanceof Error ? e.message : String(e)
     corpusQuotes.value = []
+    briefTopicGroups.value = []
   } finally {
     if (corpusGate.isCurrent(seq)) corpusLoading.value = false
   }
 }
 
 watch(personId, (id) => void loadCorpusQuotes(id ?? ''), { immediate: true })
+
+// FB10 — the shows a person appears in, derived from their quotes' episodes
+// (episode_id → feed via the corpus episode list; both use the compact hex id).
+// Host is inferred from episode coverage (a host recurs across most of a show's
+// episodes); we only claim "Host" when confident and never assert "Guest" (a
+// low-coverage person may be an under-sampled host). A precise per-show role
+// would come from a pipeline person→hosts→show edge. Clickable through to the show.
+const episodeShowTitle = ref<Map<string, string>>(new Map())
+const showTotalEpisodes = ref<Map<string, number>>(new Map())
+async function loadEpisodeShows(): Promise<void> {
+  const root = shell.corpusPath?.trim()
+  if (!root || !shell.healthStatus) {
+    episodeShowTitle.value = new Map()
+    showTotalEpisodes.value = new Map()
+    return
+  }
+  try {
+    const body = await fetchCorpusEpisodes(root, { limit: 500 })
+    const m = new Map<string, string>()
+    const totals = new Map<string, number>()
+    for (const ep of body.items ?? []) {
+      const eid = ep.episode_id?.trim()
+      const title = (ep as { feed_display_title?: string }).feed_display_title?.trim()
+      if (title) totals.set(title, (totals.get(title) ?? 0) + 1)
+      if (eid && title) m.set(eid, title)
+    }
+    episodeShowTitle.value = m
+    showTotalEpisodes.value = totals
+  } catch {
+    episodeShowTitle.value = new Map()
+    showTotalEpisodes.value = new Map()
+  }
+}
+watch(() => shell.corpusPath, () => void loadEpisodeShows(), { immediate: true })
+
+interface PersonShow {
+  title: string
+  episodes: number
+  total: number
+  isHost: boolean
+}
+const personShows = computed<PersonShow[]>(() => {
+  const perShow = new Map<string, Set<string>>()
+  for (const q of corpusQuotes.value) {
+    const t = q.episodeId ? episodeShowTitle.value.get(q.episodeId) : undefined
+    if (!t || !q.episodeId) continue
+    if (!perShow.has(t)) perShow.set(t, new Set())
+    perShow.get(t)?.add(q.episodeId)
+  }
+  const out: PersonShow[] = []
+  for (const [title, eps] of perShow) {
+    const total = showTotalEpisodes.value.get(title) ?? 0
+    const n = eps.size
+    // Coverage heuristic for host vs guest: a host recurs across most of a
+    // show's episodes; a guest appears in a few. (Approximate — a real per-show
+    // role would come from a pipeline person→hosts→show edge.)
+    const isHost = total > 0 && n >= 2 && n / total >= 0.5
+    out.push({ title, episodes: n, total, isHost })
+  }
+  return out.sort((a, b) => b.episodes - a.episodes)
+})
+function podcastIdForShow(title: string): string {
+  return `podcast:${title.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')}`
+}
 
 const personName = computed(() => {
   const n = personNode.value
@@ -397,14 +481,6 @@ const personDescription = computed(() => {
   const d = personNode.value?.properties?.description
   return typeof d === 'string' && d.trim() ? d.trim() : ''
 })
-
-const edgeCounts = computed(() =>
-  countPersonEntityIncidentEdges(artifacts.displayArtifact, personGraphNodeId.value),
-)
-
-const timeline = computed(() =>
-  buildSubjectMentionsTimeline(artifacts.displayArtifact, personGraphNodeId.value),
-)
 
 // #1048 — identity header additions per PRD-029.
 const personRole = computed(() => personRoleFromNode(personNode.value))
@@ -448,10 +524,9 @@ const episodeAppearances = computed(() =>
 // #1050 — Insights voiced grouped by Topic (UXS-010 section). Each Topic
 // header reuses the #1049 entry point so the Profile tab is the canonical
 // way into the Position Tracker (chains naturally with the Top Topics
-// list above — same selectTopicForPositionTracker call).
-const insightTopicGroups = computed(() =>
-  personInsightsByTopic(artifacts.displayArtifact, personGraphNodeId.value),
-)
+// list above — same selectTopicForPositionTracker call). N2/N3/N6 — sourced
+// from the server /brief ``topics`` map (``briefTopicGroups``) so it's
+// populated corpus-wide, not the empty client-graph walk.
 // Per-group expand state (default collapsed so the Profile tab stays
 // scannable on first open; the count + topic name is the summary line).
 const expandedTopicGroups = ref<Set<string>>(new Set())
@@ -468,68 +543,22 @@ function toggleTopicGroup(topicId: string): void {
   expandedTopicGroups.value = next
 }
 
-interface PositionRow {
-  id: string
-  text: string
-  episodeId: string | null
-  episodeTitle: string | null
-  publishDate: string | null
-}
-
-const positionRows = computed<PositionRow[]>(() => {
-  const art = artifacts.displayArtifact
-  const pid = personGraphNodeId.value
-  if (!art || !pid) return []
-  const episodes = new Map<string, RawGraphNode>()
-  for (const n of art.data?.nodes ?? []) {
-    if (!n || String(n.type) !== 'Episode') continue
-    const lid = logicalEpisodeIdFromGraphNodeId(String(n.id ?? ''))
-    if (lid) episodes.set(lid, n)
-  }
-  const seen = new Set<string>()
-  const rows: PositionRow[] = []
-  for (const e of art.data?.edges ?? []) {
-    if (!e) continue
-    const ty = normalizeGiEdgeType(e.type)
-    if (ty !== 'spoken_by') continue
-    const to = String(e.to ?? '').trim()
-    if (to !== pid) continue
-    const quoteId = String(e.from ?? '').trim()
-    if (!quoteId || seen.has(quoteId)) continue
-    seen.add(quoteId)
-    const q = findRawNodeInArtifact(art, quoteId)
-    if (!q || String(q.type) !== 'Quote') continue
-    const p = q.properties as Record<string, unknown> | undefined
-    const text =
-      typeof p?.text === 'string' && p.text.trim() ? p.text.trim() : ''
-    const episodeId =
-      typeof p?.episode_id === 'string' && p.episode_id.trim()
-        ? p.episode_id.trim()
-        : null
-    const ep = episodeId ? episodes.get(episodeId) ?? null : null
-    const epP = ep?.properties as Record<string, unknown> | undefined
-    const episodeTitle =
-      typeof epP?.episode_title === 'string' && epP.episode_title.trim()
-        ? epP.episode_title.trim()
-        : typeof epP?.title === 'string' && epP.title.trim()
-          ? epP.title.trim()
-          : null
-    const pd =
-      typeof epP?.publish_date === 'string' && epP.publish_date.trim()
-        ? epP.publish_date.trim().slice(0, 10)
-        : null
-    rows.push({ id: quoteId, text, episodeId, episodeTitle, publishDate: pd })
-  }
-  rows.sort((a, b) => {
-    if (a.publishDate && b.publishDate) {
-      if (a.publishDate < b.publishDate) return 1
-      if (a.publishDate > b.publishDate) return -1
-    } else if (a.publishDate) return -1
-    else if (b.publishDate) return 1
-    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
-  })
-  return rows
+// "All positions" lens — paginate the corpus-wide quotes (server /brief) so a
+// prolific speaker doesn't render hundreds of rows in one scroll (mirrors the
+// topic Mentions pager). These scale and resolve out-of-slice, unlike the old
+// client-graph SPOKEN_BY walk that only saw the loaded graph.
+const positionsTotalPages = computed(() =>
+  Math.max(1, Math.ceil(corpusQuotes.value.length / POSITIONS_PAGE_SIZE)),
+)
+const pagedCorpusQuotes = computed<CorpusQuoteRow[]>(() => {
+  const start = (positionsPage.value - 1) * POSITIONS_PAGE_SIZE
+  return corpusQuotes.value.slice(start, start + POSITIONS_PAGE_SIZE)
 })
+watch(personGraphNodeId, () => {
+  positionsLens.value = 'by_topic'
+  positionsPage.value = 1
+})
+watch(positionsLens, () => { positionsPage.value = 1 })
 
 function tabClass(active: boolean): string {
   const base =
@@ -551,19 +580,21 @@ function onPrefillSearch(): void {
 function onPickTopicForPositionTracker(topicId: string): void {
   if (!topicId.trim()) return
   subject.selectTopicForPositionTracker(topicId)
-  activeTab.value = 'position_tracker'
+  // In positions view the arc renders inline; in full standalone, switch the internal tab.
+  if (props.view !== 'positions') activeTab.value = 'position_tracker'
 }
 </script>
 
 <template>
   <div
-    class="mx-3 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+    class="flex min-h-0 min-w-0 flex-1 flex-col"
+    :class="props.embedded ? '' : 'mx-3 overflow-hidden'"
     role="region"
-    aria-label="Person"
-    data-testid="person-landing-view"
+    :aria-label="props.view === 'positions' ? 'Person positions' : 'Person'"
+    :data-testid="props.view === 'positions' ? 'person-landing-positions-view' : 'person-landing-view'"
   >
     <div class="mt-1 shrink-0 border-b border-border pb-2">
-      <div class="flex items-baseline gap-2">
+      <div v-if="!props.embedded" class="flex items-baseline gap-2">
         <span
           class="text-[10px] font-semibold uppercase tracking-wider text-muted"
         >Person</span>
@@ -584,6 +615,15 @@ function onPickTopicForPositionTracker(topicId: string): void {
         >
           {{ personRoleLabel }}
         </span>
+        <button
+          type="button"
+          class="shrink-0 self-center rounded border border-border px-1.5 py-0.5 text-xs font-medium text-elevated-foreground hover:bg-overlay"
+          data-testid="subject-rail-close"
+          aria-label="Close person detail"
+          @click="emit('closeSubject')"
+        >
+          ×
+        </button>
       </div>
       <!-- #1048 / #1050 — episode-count signal. Derives from the same
            personEpisodeAppearances list rendered below so the at-a-glance
@@ -613,6 +653,7 @@ function onPickTopicForPositionTracker(topicId: string): void {
       </div>
     </div>
     <nav
+      v-if="!props.embedded"
       class="flex shrink-0 gap-1 border-b border-border bg-elevated/50 px-2 py-1.5"
       role="tablist"
       aria-label="Person sections"
@@ -645,236 +686,143 @@ function onPickTopicForPositionTracker(topicId: string): void {
       </button>
     </nav>
     <div
-      v-show="activeTab === 'profile'"
-      id="person-landing-panel-profile"
+      v-show="props.embedded || activeTab === 'profile'"
+      :id="props.view === 'positions' ? 'person-landing-panel-positions' : 'person-landing-panel-profile'"
       role="tabpanel"
-      aria-labelledby="person-landing-tab-profile"
-      data-testid="person-landing-panel-profile"
+      :aria-labelledby="props.view === 'positions'
+        ? 'person-landing-tab-position-tracker'
+        : 'person-landing-tab-profile'"
+      :data-testid="props.view === 'positions'
+        ? 'person-landing-panel-positions'
+        : 'person-landing-panel-profile'"
       class="min-h-0 flex-1 space-y-3 overflow-y-auto px-1 py-2"
     >
-      <p
-        v-if="personAliases"
-        class="text-[11px] text-muted"
-        data-testid="person-landing-aliases"
-      >
-        Aliases: {{ personAliases }}
-      </p>
-      <p
-        v-if="personDescription"
-        class="text-[11px] leading-snug text-surface-foreground"
-        data-testid="person-landing-description"
-      >
-        {{ personDescription }}
-      </p>
-      <p
-        v-if="edgeCounts.spokenByQuotes > 0 || edgeCounts.spokeInEpisodes > 0"
-        class="text-[10px] text-muted"
-        data-testid="person-landing-edge-counts"
-      >
-        In this graph: {{ edgeCounts.spokenByQuotes }}
-        attributed quote{{ edgeCounts.spokenByQuotes === 1 ? '' : 's' }} ·
-        {{ edgeCounts.spokeInEpisodes }}
-        episode link{{ edgeCounts.spokeInEpisodes === 1 ? '' : 's' }}.
-      </p>
-      <p
-        v-else
-        class="text-[10px] text-muted"
-        data-testid="person-landing-edge-counts-empty"
-      >
-        No graph links for this person yet — load the corpus graph to populate.
-      </p>
-      <!-- RFC-088 chunk 6c: enrichment signals (grounding rate + co-guest chips). -->
-      <section
-        v-if="enrichmentLoaded && (groundingRow || coGuestChips.length || contradictionRows.length)"
-        class="w-full min-w-0 rounded border border-default bg-overlay/40 p-2"
-        aria-label="Enrichment signals"
-        data-testid="person-landing-enrichment-signals"
-      >
-        <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
-          Enrichment signals
-        </h3>
-        <div
-          v-if="groundingRow"
-          class="mb-1 flex items-center gap-2 text-[10px]"
-          data-testid="person-landing-grounding-rate"
+      <!-- Profile-only sections: hidden in positions view -->
+      <template v-if="props.view !== 'positions'">
+        <!-- Role badge (host / guest / mentioned) — the embedded header (owned
+             by NodeDetail) doesn't carry it, so surface it here so the reader
+             knows how this person relates to the corpus. Host stands out. -->
+        <span
+          v-if="personRoleLabel"
+          class="inline-flex items-center self-start rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
+          :class="personRole === 'host'
+            ? 'bg-primary text-primary-foreground'
+            : 'bg-overlay text-surface-foreground'"
+          data-testid="person-landing-role-embedded"
+          :data-role="personRole"
+        >{{ personRoleLabel }}</span>
+        <!-- FB10 — shows this person appears in (from their quotes' episodes),
+             clickable through to the show. "Appears in", not host-vs-guest. -->
+        <section
+          v-if="personShows.length"
+          aria-label="Appears in shows"
+          data-testid="person-landing-shows"
         >
-          <span class="text-muted">Grounded:</span>
-          <span
-            class="rounded px-2 py-0.5 font-mono"
-            :class="groundingRow.rate >= 0.8 ? 'bg-emerald-700/30 text-emerald-300' : groundingRow.rate >= 0.5 ? 'bg-overlay text-muted' : 'bg-amber-700/30 text-amber-300'"
-          >{{ (groundingRow.rate * 100).toFixed(0) }}%</span>
-          <span class="text-muted">
-            · {{ groundingRow.grounded_insights }} / {{ groundingRow.total_insights }} insights
-          </span>
-        </div>
-        <div v-if="coGuestChips.length" data-testid="person-landing-coguests">
-          <p class="mb-1 text-[10px] text-muted">Often appears with</p>
+          <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+            Appears in
+          </h3>
           <div class="flex flex-wrap gap-1">
             <button
-              v-for="g in coGuestChips"
-              :key="g.person_id"
+              v-for="show in personShows"
+              :key="show.title"
               type="button"
-              class="rounded border border-default bg-overlay px-2 py-0.5 text-[10px] hover:bg-overlay-2"
-              :data-testid="`person-landing-coguest-${g.person_id}`"
-              @click="subject.focusPerson(g.person_id)"
+              class="inline-flex items-center gap-1 rounded bg-overlay py-0.5 pl-0.5 pr-1.5 text-[10px] text-surface-foreground hover:bg-overlay-2"
+              data-testid="person-landing-show-chip"
+              :data-role="show.isHost ? 'host' : ''"
+              :title="`${show.isHost ? 'Likely host — ' : 'Appears in '}${show.episodes} of ${show.total} episode${show.total === 1 ? '' : 's'}`"
+              @click="subject.focusGraphNode(podcastIdForShow(show.title))"
             >
-              {{ g.person_name || g.person_id }}
-              <span class="ml-1 text-muted">·{{ g.episode_count }}</span>
+              <ShowGlyph :name="show.title" />
+              {{ show.title }}
+              <!-- Only claim "Host" when coverage is confident. A low-coverage
+                   person may be a guest OR an under-sampled host, so we don't
+                   assert "Guest" (that needs the pipeline person→hosts→show edge). -->
+              <span
+                v-if="show.isHost"
+                class="ml-0.5 rounded bg-primary/25 px-1 text-[8px] font-semibold uppercase tracking-wide text-primary"
+              >Host</span>
             </button>
           </div>
-        </div>
-        <!-- RFC-088 chunk-9: contradictions for the focused person.
-             Each row is "contradicts X on topic Y" — click any of the
-             three buttons to pivot focus. -->
-        <div
-          v-if="contradictionRows.length"
-          class="mt-2"
-          data-testid="person-landing-contradictions"
-        >
-          <p class="mb-1 text-[10px] text-muted">
-            Contradicts (cross-Person NLI · top {{ contradictionRows.length }})
+        </section>
+        <!-- Connections first: the substance (topics discussed + who they
+             speak with) sits at the top of the panel; identity/enrichment
+             metadata follows below. -->
+        <section aria-label="Connections" data-testid="person-landing-connections">
+          <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+            Topics
+          </h3>
+          <div
+            v-if="topicsRows.length"
+            class="flex flex-wrap gap-1"
+            data-testid="person-landing-topics"
+          >
+            <span
+              v-for="t in visibleTopics"
+              :key="t.id"
+              class="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] text-surface-foreground"
+              :class="t.clusterLabel ? '' : 'bg-overlay'"
+              :style="t.clusterLabel ? { backgroundColor: 'color-mix(in srgb, var(--ps-kg) 22%, transparent)' } : undefined"
+              :title="t.clusterLabel ? `Topic cluster: ${t.clusterLabel}` : undefined"
+              :data-cluster="t.clusterLabel ? 'true' : undefined"
+              data-testid="person-landing-topic-chip"
+            ><span v-if="t.clusterLabel" aria-hidden="true" class="text-[9px] opacity-70">⧉</span>{{ t.text }}</span>
+            <button
+              v-if="topicsRows.length > TOPICS_PREVIEW"
+              type="button"
+              class="rounded px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-overlay"
+              data-testid="person-landing-topics-toggle"
+              @click="topicsExpanded = !topicsExpanded"
+            >{{ topicsExpanded ? 'Show less' : `+${topicsRows.length - TOPICS_PREVIEW} more` }}</button>
+          </div>
+          <p v-else class="text-[10px] text-muted" data-testid="person-landing-topics-empty">
+            No topics for this voice yet.
           </p>
-          <ul class="flex flex-col gap-1 text-[10px]">
-            <li
-              v-for="row in contradictionRows"
-              :key="`${row.insight_a_id}::${row.insight_b_id}`"
-              class="flex items-center gap-1 rounded border border-rose-700/50 bg-rose-900/20 px-2 py-0.5"
-              :data-testid="`person-landing-contra-${row.partner_id}--${row.topic_id}`"
-            >
-              <span class="text-muted">vs</span>
-              <button
-                type="button"
-                class="font-mono hover:underline"
-                @click="subject.focusPerson(row.partner_id)"
-              >{{ row.partner_name || row.partner_id }}</button>
-              <span class="text-muted">on</span>
-              <button
-                type="button"
-                class="font-mono hover:underline"
-                @click="subject.focusTopic(row.topic_id)"
-              >{{ row.topic_id }}</button>
-              <span
-                class="ml-auto rounded bg-rose-800/30 px-1 text-[9px] text-rose-200"
-                :title="`Contradiction score ${row.contradiction_score.toFixed(4)}`"
-              >{{ row.contradiction_score.toFixed(2) }}</span>
-            </li>
-          </ul>
-        </div>
-      </section>
-      <section aria-label="Mentions by month">
-        <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
-          Mentions by month
-        </h3>
-        <SubjectTimelineChart
-          :timeline="timeline"
-          aria-label="Mentions by month for this person"
-        />
-      </section>
-      <!-- #1050 — UXS-010 "Topics discussed" — ranked by ABOUT∩MENTIONS_PERSON
-           insight count. Each row is a button that pivots the Position
-           Tracker tab to (this Person, that Topic) — #1049 entry point. -->
-      <section
-        v-if="rankedTopics.length"
-        aria-label="Topics discussed"
-        data-testid="person-landing-ranked-topics"
-      >
-        <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
-          Topics discussed
-        </h3>
-        <ul class="space-y-0.5" data-testid="person-landing-ranked-topics-list">
-          <li
-            v-for="t in rankedTopics"
-            :key="t.id"
-            data-testid="person-landing-ranked-topic-row"
+          <h3 class="mb-1 mt-2 text-[10px] font-semibold uppercase tracking-wider text-muted">
+            In the same conversation
+          </h3>
+          <div
+            v-if="coSpeakersRows.length"
+            class="flex flex-wrap gap-1"
+            data-testid="person-landing-co-speakers"
           >
             <button
+              v-for="p in visibleCoSpeakers"
+              :key="p.id"
               type="button"
-              class="flex w-full items-baseline justify-between gap-2 rounded px-1 py-0.5 text-left text-[11px] text-surface-foreground hover:bg-overlay/60 focus-visible:bg-overlay/60 focus-visible:outline-none"
-              data-testid="person-landing-ranked-topic-button"
-              :title="`Open Position Tracker for ${t.name}`"
-              :aria-label="`Open Position Tracker for ${t.name}`"
-              @click="onPickTopicForPositionTracker(t.id)"
+              class="inline-flex items-center gap-1 rounded bg-overlay py-0.5 pl-0.5 pr-1.5 text-[10px] text-surface-foreground hover:bg-overlay-2"
+              data-testid="person-landing-co-speaker-chip"
+              :title="`Open ${p.text}`"
+              @click="subject.focusPerson(p.id)"
             >
-              <span class="min-w-0 truncate">{{ t.name }}</span>
-              <span
-                class="shrink-0 rounded bg-overlay px-1.5 py-0.5 text-[10px] text-muted"
-                data-testid="person-landing-ranked-topic-count"
-              >{{ t.count }}</span>
+              <PersonInitialAvatar :name="p.text" />
+              {{ titleCaseWords(p.text) }}
             </button>
-          </li>
-        </ul>
-      </section>
-      <!-- #1050 — UXS-010 "Insights voiced (grouped by Topic)". Each Topic
-           header is a button that opens the Position Tracker for the
-           (Person, Topic) pair — same entry point as the ranked-Topics
-           list above so the user has one consistent affordance. -->
-      <section
-        v-if="insightTopicGroups.length"
-        aria-label="Insights voiced grouped by topic"
-        data-testid="person-landing-insights-voiced"
-      >
-        <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
-          Insights voiced
-        </h3>
-        <ul
-          class="space-y-1.5"
-          data-testid="person-landing-insights-voiced-list"
+            <button
+              v-if="coSpeakersRows.length > COSPEAKERS_PREVIEW"
+              type="button"
+              class="self-center rounded px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-overlay"
+              data-testid="person-landing-co-speakers-toggle"
+              @click="coSpeakersExpanded = !coSpeakersExpanded"
+            >{{ coSpeakersExpanded ? 'Show less' : `+${coSpeakersRows.length - COSPEAKERS_PREVIEW} more` }}</button>
+          </div>
+          <p v-else class="text-[10px] text-muted" data-testid="person-landing-co-speakers-empty">
+            No co-speakers share a topic with this voice yet.
+          </p>
+        </section>
+        <p
+          v-if="personAliases"
+          class="text-[11px] text-muted"
+          data-testid="person-landing-aliases"
         >
-          <li
-            v-for="group in insightTopicGroups"
-            :key="group.topicId"
-            class="rounded border border-border bg-elevated/30 px-2 py-1.5"
-            data-testid="person-landing-insights-voiced-group"
-            :data-topic-id="group.topicId"
-          >
-            <button
-              type="button"
-              class="flex w-full items-baseline justify-between gap-2 text-left text-[11px] font-semibold text-surface-foreground hover:text-primary focus-visible:text-primary focus-visible:outline-none"
-              :aria-label="`${group.topicName} — ${group.count} insight${group.count === 1 ? '' : 's'}. Open Position Tracker.`"
-              data-testid="person-landing-insights-voiced-topic-button"
-              @click="onPickTopicForPositionTracker(group.topicId)"
-            >
-              <span class="min-w-0 truncate" :title="group.topicName">
-                {{ group.topicName }}
-              </span>
-              <span
-                class="shrink-0 rounded bg-overlay px-1.5 py-0.5 text-[10px] font-normal text-muted"
-                data-testid="person-landing-insights-voiced-topic-count"
-              >{{ group.count }}</span>
-            </button>
-            <button
-              type="button"
-              class="mt-0.5 text-[10px] text-muted underline-offset-2 hover:underline focus-visible:underline"
-              data-testid="person-landing-insights-voiced-toggle"
-              :aria-expanded="expandedTopicGroups.has(group.topicId)"
-              @click="toggleTopicGroup(group.topicId)"
-            >
-              {{ expandedTopicGroups.has(group.topicId) ? 'Hide insights' : 'Show insights' }}
-            </button>
-            <ul
-              v-if="expandedTopicGroups.has(group.topicId)"
-              class="mt-1 space-y-1"
-              data-testid="person-landing-insights-voiced-rows"
-            >
-              <li
-                v-for="ins in group.insights"
-                :key="ins.insightId"
-                class="rounded bg-elevated/60 px-2 py-1 text-[11px] leading-snug text-surface-foreground"
-                data-testid="person-landing-insights-voiced-row"
-                :data-insight-type="ins.insightType ?? 'unknown'"
-              >
-                <p
-                  v-if="ins.insightType"
-                  class="mb-0.5 text-[9px] uppercase tracking-wider text-muted"
-                  data-testid="person-landing-insights-voiced-row-type"
-                >{{ ins.insightType }}</p>
-                <p data-testid="person-landing-insights-voiced-row-text">{{ ins.text || ins.insightId }}</p>
-              </li>
-            </ul>
-          </li>
-        </ul>
-      </section>
-
+          Aliases: {{ personAliases }}
+        </p>
+        <p
+          v-if="personDescription"
+          class="text-[11px] leading-snug text-surface-foreground"
+          data-testid="person-landing-description"
+        >
+          {{ personDescription }}
+        </p>
       <!-- #1050 — UXS-010 "Episodes appeared in" — SPOKE_IN-derived list,
            newest-first. Replaces the prior numeric-only count signal in the
            identity header (we keep that count for at-a-glance, but expose
@@ -913,74 +861,406 @@ function onPickTopicForPositionTracker(topicId: string): void {
         </ul>
       </section>
 
-      <section aria-label="Connections" data-testid="person-landing-connections">
-        <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
-          Topics
-        </h3>
-        <div
-          v-if="topicsRows.length"
-          class="flex flex-wrap gap-1"
-          data-testid="person-landing-topics"
-        >
-          <span
-            v-for="t in topicsRows"
-            :key="t.id"
-            class="rounded bg-overlay px-1.5 py-0.5 text-[10px] text-surface-foreground"
-            data-testid="person-landing-topic-chip"
-          >{{ t.text }}</span>
-        </div>
-        <p v-else class="text-[10px] text-muted" data-testid="person-landing-topics-empty">
-          No topics for this voice yet.
-        </p>
-        <h3 class="mb-1 mt-2 text-[10px] font-semibold uppercase tracking-wider text-muted">
-          In the same conversation
-        </h3>
-        <div
-          v-if="coSpeakersRows.length"
-          class="flex flex-wrap gap-1"
-          data-testid="person-landing-co-speakers"
-        >
-          <span
-            v-for="p in coSpeakersRows"
-            :key="p.id"
-            class="rounded bg-overlay px-1.5 py-0.5 text-[10px] text-surface-foreground"
-            data-testid="person-landing-co-speaker-chip"
-          >{{ p.text }}</span>
-        </div>
-        <p v-else class="text-[10px] text-muted" data-testid="person-landing-co-speakers-empty">
-          No co-speakers share a topic with this voice yet.
-        </p>
-      </section>
-      <!-- #909 / #1048 — corpus-wide quotes this person spoke across ALL episodes (CIL person_profile). -->
+      </template>
+
+      <!-- Topics discussed: only in full view -->
+      <!-- #1050 — UXS-010 "Topics discussed" — ranked by ABOUT∩MENTIONS_PERSON
+           insight count. Each row is a button that pivots the Position
+           Tracker tab to (this Person, that Topic) — #1049 entry point. -->
       <section
-        v-if="corpusLoading || corpusError || corpusQuotes.length"
-        aria-label="Across the corpus"
-        data-testid="person-landing-corpus"
+        v-if="rankedTopics.length && props.view === 'full'"
+        aria-label="Topics discussed"
+        data-testid="person-landing-ranked-topics"
       >
         <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
-          Across the corpus<span v-if="corpusEpisodeCount">
+          Topics discussed
+        </h3>
+        <ul class="space-y-0.5" data-testid="person-landing-ranked-topics-list">
+          <li
+            v-for="t in rankedTopics"
+            :key="t.id"
+            data-testid="person-landing-ranked-topic-row"
+          >
+            <button
+              type="button"
+              class="flex w-full items-baseline justify-between gap-2 rounded px-1 py-0.5 text-left text-[11px] text-surface-foreground hover:bg-overlay/60 focus-visible:bg-overlay/60 focus-visible:outline-none"
+              data-testid="person-landing-ranked-topic-button"
+              :title="`Open Position Tracker for ${t.name}`"
+              :aria-label="`Open Position Tracker for ${t.name}`"
+              @click="onPickTopicForPositionTracker(t.id)"
+            >
+              <span class="min-w-0 truncate">{{ t.name }}</span>
+              <span
+                class="shrink-0 rounded bg-overlay px-1.5 py-0.5 text-[10px] text-muted"
+                data-testid="person-landing-ranked-topic-count"
+              >{{ t.count }}</span>
+            </button>
+          </li>
+        </ul>
+      </section>
+
+      <!-- Two-lens positions view (embedded in NodeDetail Position Tracker tab) -->
+      <template v-if="props.view === 'positions'">
+        <!-- Arc drill: topic selected → show arc, hide lens toggle -->
+        <template v-if="subject.positionTrackerTopicId">
+          <PositionTrackerPanel :person-id-override="personId" />
+        </template>
+        <template v-else>
+          <!-- Lens segmented toggle -->
+          <div
+            role="tablist"
+            aria-label="Positions view"
+            class="mb-2 inline-flex shrink-0 rounded-md border border-border p-0.5"
+            data-testid="person-landing-positions-lens"
+          >
+            <button
+              type="button"
+              role="tab"
+              class="rounded px-2 py-0.5 text-[10px] font-medium transition-colors"
+              :class="positionsLens === 'by_topic' ? 'bg-primary text-primary-foreground' : 'text-muted hover:bg-overlay'"
+              :aria-selected="positionsLens === 'by_topic'"
+              data-testid="person-landing-positions-lens-by-topic"
+              @click="positionsLens = 'by_topic'"
+            >
+              By topic
+            </button>
+            <button
+              type="button"
+              role="tab"
+              class="rounded px-2 py-0.5 text-[10px] font-medium transition-colors"
+              :class="positionsLens === 'all' ? 'bg-primary text-primary-foreground' : 'text-muted hover:bg-overlay'"
+              :aria-selected="positionsLens === 'all'"
+              data-testid="person-landing-positions-lens-all"
+              @click="positionsLens = 'all'"
+            >
+              All positions
+            </button>
+          </div>
+          <!-- By topic: Insights voiced (gated by lens) -->
+          <div v-show="positionsLens === 'by_topic'" data-testid="person-landing-positions-by-topic">
+            <!-- #1050 — UXS-010 "Insights voiced (grouped by Topic)". Each Topic
+                 header is a button that opens the Position Tracker for the
+                 (Person, Topic) pair — same entry point as the ranked-Topics
+                 list above so the user has one consistent affordance. -->
+            <section
+              v-if="briefTopicGroups.length"
+              aria-label="Insights voiced grouped by topic"
+              data-testid="person-landing-insights-voiced"
+            >
+              <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+                Insights voiced
+              </h3>
+              <ul
+                class="space-y-1.5"
+                data-testid="person-landing-insights-voiced-list"
+              >
+                <li
+                  v-for="group in briefTopicGroups"
+                  :key="group.topicId"
+                  class="rounded border border-border bg-elevated/30 px-2 py-1.5"
+                  data-testid="person-landing-insights-voiced-group"
+                  :data-topic-id="group.topicId"
+                >
+                  <button
+                    type="button"
+                    class="flex w-full items-baseline justify-between gap-2 text-left text-[11px] font-semibold text-surface-foreground hover:text-primary focus-visible:text-primary focus-visible:outline-none"
+                    :aria-label="`${group.topicName} — ${group.count} insight${group.count === 1 ? '' : 's'}. Open Position Tracker.`"
+                    data-testid="person-landing-insights-voiced-topic-button"
+                    @click="onPickTopicForPositionTracker(group.topicId)"
+                  >
+                    <span class="min-w-0 truncate" :title="group.topicName">
+                      {{ group.topicName }}
+                    </span>
+                    <span
+                      class="shrink-0 rounded bg-overlay px-1.5 py-0.5 text-[10px] font-normal text-muted"
+                      data-testid="person-landing-insights-voiced-topic-count"
+                    >{{ group.count }}</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="mt-0.5 text-[10px] text-muted underline-offset-2 hover:underline focus-visible:underline"
+                    data-testid="person-landing-insights-voiced-toggle"
+                    :aria-expanded="expandedTopicGroups.has(group.topicId)"
+                    @click="toggleTopicGroup(group.topicId)"
+                  >
+                    {{ expandedTopicGroups.has(group.topicId) ? 'Hide insights' : 'Show insights' }}
+                  </button>
+                  <ul
+                    v-if="expandedTopicGroups.has(group.topicId)"
+                    class="mt-1 space-y-1"
+                    data-testid="person-landing-insights-voiced-rows"
+                  >
+                    <li
+                      v-for="ins in group.insights"
+                      :key="ins.insightId"
+                      class="rounded bg-elevated/60 px-2 py-1 text-[11px] leading-snug text-surface-foreground"
+                      data-testid="person-landing-insights-voiced-row"
+                      :data-insight-type="ins.insightType ?? 'unknown'"
+                    >
+                      <p
+                        v-if="ins.insightType"
+                        class="mb-0.5 text-[9px] uppercase tracking-wider text-muted"
+                        data-testid="person-landing-insights-voiced-row-type"
+                      >{{ ins.insightType }}</p>
+                      <p data-testid="person-landing-insights-voiced-row-text">{{ ins.text || ins.insightId }}</p>
+                    </li>
+                  </ul>
+                </li>
+              </ul>
+            </section>
+          </div>
+          <!-- All positions: paginated stated + attributed quotes -->
+          <div v-show="positionsLens === 'all'" data-testid="person-landing-positions-all">
+            <!-- PRD-033 FR4.1 — synthesized positions this person stated (relational layer). -->
+            <section
+              v-if="statedLoading || statedError || statedRows.length"
+              aria-label="Stated positions"
+              data-testid="person-landing-stated"
+            >
+              <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+                Stated positions
+              </h3>
+              <p
+                v-if="statedLoading"
+                data-testid="person-landing-stated-loading"
+                class="text-[11px] text-muted"
+              >
+                Loading…
+              </p>
+              <p
+                v-else-if="statedError"
+                class="text-[11px] text-warning"
+              >
+                {{ statedError }}
+              </p>
+              <ul
+                v-else
+                class="space-y-1.5"
+                data-testid="person-landing-stated-list"
+              >
+                <li
+                  v-for="row in statedRows"
+                  :key="row.id"
+                  data-testid="person-landing-stated-row"
+                  class="rounded border border-border bg-elevated/40 px-2 py-1.5 text-[11px] leading-snug"
+                >
+                  <blockquote class="border-l-2 border-primary/40 pl-2 text-surface-foreground">
+                    {{ row.text || row.id }}
+                  </blockquote>
+                </li>
+              </ul>
+            </section>
+
+            <h3 class="mt-2 text-[10px] font-semibold uppercase tracking-wider text-muted">
+              Quotes across the corpus<span v-if="corpusEpisodeCount">
+                · {{ corpusEpisodeCount }} episode{{ corpusEpisodeCount === 1 ? '' : 's' }}</span>
+            </h3>
+            <p
+              v-if="corpusLoading"
+              class="text-[11px] text-muted"
+              data-testid="person-landing-corpus-loading"
+            >
+              Loading…
+            </p>
+            <p
+              v-else-if="corpusError"
+              class="text-[11px] text-warning"
+            >
+              {{ corpusError }}
+            </p>
+            <p
+              v-else-if="corpusQuotes.length === 0"
+              class="text-[11px] text-muted"
+              data-testid="person-landing-positions-empty"
+            >
+              No attributed quotes for this voice yet.
+            </p>
+            <ul
+              v-else
+              class="space-y-1.5"
+              data-testid="person-landing-positions"
+            >
+              <li
+                v-for="row in pagedCorpusQuotes"
+                :key="row.id"
+                data-testid="person-landing-corpus-row"
+                class="rounded border border-border bg-elevated/40 px-2 py-1.5 text-[11px] leading-snug"
+              >
+                <blockquote class="border-l-2 border-primary/40 pl-2 text-surface-foreground">
+                  {{ row.text || row.id }}
+                </blockquote>
+                <p
+                  v-if="row.episodeTitle"
+                  class="mt-0.5 text-[10px] text-muted"
+                >
+                  {{ row.episodeTitle }}
+                </p>
+              </li>
+            </ul>
+            <!-- Paginator -->
+            <div
+              v-if="positionsTotalPages > 1"
+              class="mt-2 flex items-center justify-between gap-2 text-[10px]"
+              data-testid="person-landing-positions-pager"
+            >
+              <button
+                type="button"
+                class="rounded border border-border px-2 py-0.5 text-muted hover:bg-overlay disabled:opacity-40"
+                :disabled="positionsPage === 1"
+                data-testid="person-landing-positions-pager-prev"
+                @click="positionsPage--"
+              >
+                ← Prev
+              </button>
+              <span class="text-muted" data-testid="person-landing-positions-pager-info">
+                {{ positionsPage }} / {{ positionsTotalPages }}
+              </span>
+              <button
+                type="button"
+                class="rounded border border-border px-2 py-0.5 text-muted hover:bg-overlay disabled:opacity-40"
+                :disabled="positionsPage >= positionsTotalPages"
+                data-testid="person-landing-positions-pager-next"
+                @click="positionsPage++"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        </template>
+      </template>
+
+      <!-- Full view: insights voiced + stated positions stacked (current layout preserved) -->
+      <template v-if="props.view === 'full'">
+        <!-- #1050 — UXS-010 "Insights voiced (grouped by Topic)". Each Topic
+             header is a button that opens the Position Tracker for the
+             (Person, Topic) pair — same entry point as the ranked-Topics
+             list above so the user has one consistent affordance. -->
+        <section
+          v-if="briefTopicGroups.length"
+          aria-label="Insights voiced grouped by topic"
+          data-testid="person-landing-insights-voiced"
+        >
+          <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+            Insights voiced
+          </h3>
+          <ul
+            class="space-y-1.5"
+            data-testid="person-landing-insights-voiced-list"
+          >
+            <li
+              v-for="group in briefTopicGroups"
+              :key="group.topicId"
+              class="rounded border border-border bg-elevated/30 px-2 py-1.5"
+              data-testid="person-landing-insights-voiced-group"
+              :data-topic-id="group.topicId"
+            >
+              <button
+                type="button"
+                class="flex w-full items-baseline justify-between gap-2 text-left text-[11px] font-semibold text-surface-foreground hover:text-primary focus-visible:text-primary focus-visible:outline-none"
+                :aria-label="`${group.topicName} — ${group.count} insight${group.count === 1 ? '' : 's'}. Open Position Tracker.`"
+                data-testid="person-landing-insights-voiced-topic-button"
+                @click="onPickTopicForPositionTracker(group.topicId)"
+              >
+                <span class="min-w-0 truncate" :title="group.topicName">
+                  {{ group.topicName }}
+                </span>
+                <span
+                  class="shrink-0 rounded bg-overlay px-1.5 py-0.5 text-[10px] font-normal text-muted"
+                  data-testid="person-landing-insights-voiced-topic-count"
+                >{{ group.count }}</span>
+              </button>
+              <button
+                type="button"
+                class="mt-0.5 text-[10px] text-muted underline-offset-2 hover:underline focus-visible:underline"
+                data-testid="person-landing-insights-voiced-toggle"
+                :aria-expanded="expandedTopicGroups.has(group.topicId)"
+                @click="toggleTopicGroup(group.topicId)"
+              >
+                {{ expandedTopicGroups.has(group.topicId) ? 'Hide insights' : 'Show insights' }}
+              </button>
+              <ul
+                v-if="expandedTopicGroups.has(group.topicId)"
+                class="mt-1 space-y-1"
+                data-testid="person-landing-insights-voiced-rows"
+              >
+                <li
+                  v-for="ins in group.insights"
+                  :key="ins.insightId"
+                  class="rounded bg-elevated/60 px-2 py-1 text-[11px] leading-snug text-surface-foreground"
+                  data-testid="person-landing-insights-voiced-row"
+                  :data-insight-type="ins.insightType ?? 'unknown'"
+                >
+                  <p
+                    v-if="ins.insightType"
+                    class="mb-0.5 text-[9px] uppercase tracking-wider text-muted"
+                    data-testid="person-landing-insights-voiced-row-type"
+                  >{{ ins.insightType }}</p>
+                  <p data-testid="person-landing-insights-voiced-row-text">{{ ins.text || ins.insightId }}</p>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </section>
+
+        <!-- #1050 — UXS-010 "Episodes appeared in" already in profile-only block above.
+             PRD-033 FR4.1 — synthesized positions this person stated (relational layer). -->
+        <section
+          v-if="statedLoading || statedError || statedRows.length"
+          aria-label="Stated positions"
+          data-testid="person-landing-stated"
+        >
+          <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+            Stated positions
+          </h3>
+          <p
+            v-if="statedLoading"
+            data-testid="person-landing-stated-loading"
+            class="text-[11px] text-muted"
+          >
+            Loading…
+          </p>
+          <p
+            v-else-if="statedError"
+            class="text-[11px] text-warning"
+          >
+            {{ statedError }}
+          </p>
+          <ul
+            v-else
+            class="space-y-1.5"
+            data-testid="person-landing-stated-list"
+          >
+            <li
+              v-for="row in statedRows"
+              :key="row.id"
+              data-testid="person-landing-stated-row"
+              class="rounded border border-border bg-elevated/40 px-2 py-1.5 text-[11px] leading-snug"
+            >
+              <blockquote class="border-l-2 border-primary/40 pl-2 text-surface-foreground">
+                {{ row.text || row.id }}
+              </blockquote>
+            </li>
+          </ul>
+        </section>
+
+        <h3 class="mt-2 text-[10px] font-semibold uppercase tracking-wider text-muted">
+          Quotes across the corpus<span v-if="corpusEpisodeCount">
             · {{ corpusEpisodeCount }} episode{{ corpusEpisodeCount === 1 ? '' : 's' }}</span>
         </h3>
         <p
-          v-if="corpusLoading"
-          data-testid="person-landing-corpus-loading"
+          v-if="corpusQuotes.length === 0"
           class="text-[11px] text-muted"
+          data-testid="person-landing-positions-empty"
         >
-          Loading…
-        </p>
-        <p
-          v-else-if="corpusError"
-          class="text-[11px] text-warning"
-        >
-          {{ corpusError }}
+          No attributed quotes for this voice yet.
         </p>
         <ul
           v-else
           class="space-y-1.5"
-          data-testid="person-landing-corpus-list"
+          data-testid="person-landing-positions"
         >
           <li
-            v-for="row in corpusQuotes.slice(0, PERSON_LANDING_POSITIONS_CAP)"
+            v-for="row in corpusQuotes"
             :key="row.id"
             data-testid="person-landing-corpus-row"
             class="rounded border border-border bg-elevated/40 px-2 py-1.5 text-[11px] leading-snug"
@@ -989,106 +1269,16 @@ function onPickTopicForPositionTracker(topicId: string): void {
               {{ row.text || row.id }}
             </blockquote>
             <p
-              v-if="row.episodeId"
+              v-if="row.episodeTitle"
               class="mt-0.5 text-[10px] text-muted"
             >
-              {{ row.episodeId }}
+              {{ row.episodeTitle }}
             </p>
           </li>
         </ul>
-        <p
-          v-if="corpusQuotes.length > PERSON_LANDING_POSITIONS_CAP"
-          class="text-[10px] text-muted"
-          data-testid="person-landing-corpus-overflow"
-        >
-          + {{ corpusQuotes.length - PERSON_LANDING_POSITIONS_CAP }} more
-        </p>
-      </section>
+      </template>
 
-      <!-- PRD-033 FR4.1 — synthesized positions this person stated (relational layer). -->
-      <section
-        v-if="statedLoading || statedError || statedRows.length"
-        aria-label="Stated positions"
-        data-testid="person-landing-stated"
-      >
-        <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
-          Stated positions
-        </h3>
-        <p
-          v-if="statedLoading"
-          data-testid="person-landing-stated-loading"
-          class="text-[11px] text-muted"
-        >
-          Loading…
-        </p>
-        <p
-          v-else-if="statedError"
-          class="text-[11px] text-warning"
-        >
-          {{ statedError }}
-        </p>
-        <ul
-          v-else
-          class="space-y-1.5"
-          data-testid="person-landing-stated-list"
-        >
-          <li
-            v-for="row in statedRows"
-            :key="row.id"
-            data-testid="person-landing-stated-row"
-            class="rounded border border-border bg-elevated/40 px-2 py-1.5 text-[11px] leading-snug"
-          >
-            <blockquote class="border-l-2 border-primary/40 pl-2 text-surface-foreground">
-              {{ row.text || row.id }}
-            </blockquote>
-          </li>
-        </ul>
-      </section>
-
-      <h3
-        v-if="statedRows.length || statedLoading"
-        class="mt-2 text-[10px] font-semibold uppercase tracking-wider text-muted"
-      >
-        Attributed quotes
-      </h3>
-      <p
-        v-if="positionRows.length === 0"
-        class="text-[11px] text-muted"
-        data-testid="person-landing-positions-empty"
-      >
-        No attributed quotes in the loaded graph.
-      </p>
-      <ul
-        v-else
-        class="space-y-1.5"
-        data-testid="person-landing-positions"
-      >
-        <li
-          v-for="row in positionRows.slice(0, PERSON_LANDING_POSITIONS_CAP)"
-          :key="row.id"
-          class="rounded border border-border bg-elevated/40 px-2 py-1.5 text-[11px] leading-snug"
-        >
-          <blockquote class="border-l-2 border-primary/40 pl-2 text-surface-foreground">
-            {{ row.text || row.id }}
-          </blockquote>
-          <p
-            v-if="row.episodeTitle || row.publishDate"
-            class="mt-0.5 text-[10px] text-muted"
-          >
-            <span v-if="row.episodeTitle">{{ row.episodeTitle }}</span>
-            <span v-if="row.episodeTitle && row.publishDate"> · </span>
-            <span v-if="row.publishDate">{{ row.publishDate }}</span>
-          </p>
-        </li>
-      </ul>
-      <p
-        v-if="positionRows.length > PERSON_LANDING_POSITIONS_CAP"
-        class="text-[10px] text-muted"
-        data-testid="person-landing-positions-overflow"
-      >
-        + {{ positionRows.length - PERSON_LANDING_POSITIONS_CAP }} more
-      </p>
-      <div class="flex shrink-0 flex-wrap gap-2 pt-2">
+      <div v-if="!props.embedded" class="flex shrink-0 flex-wrap gap-2 pt-2">
         <button
           type="button"
           class="rounded border border-border px-2 py-1 text-[11px] font-medium hover:bg-overlay"
@@ -1107,8 +1297,10 @@ function onPickTopicForPositionTracker(topicId: string): void {
         </button>
       </div>
     </div>
-    <!-- #1049 — Position Tracker per PRD-028 / RFC-072 §5A. -->
+    <!-- #1049 — Position Tracker per PRD-028 / RFC-072 §5A. Embedded, this is a
+         peer node-view tab (NodeDetail owns it), so it renders only standalone. -->
     <div
+      v-if="!props.embedded"
       v-show="activeTab === 'position_tracker'"
       id="person-landing-panel-position-tracker"
       role="tabpanel"
@@ -1116,7 +1308,7 @@ function onPickTopicForPositionTracker(topicId: string): void {
       data-testid="person-landing-panel-position-tracker"
       class="flex min-h-0 flex-1 flex-col"
     >
-      <PositionTrackerPanel />
+      <PositionTrackerPanel :person-id-override="personId" />
     </div>
   </div>
 </template>

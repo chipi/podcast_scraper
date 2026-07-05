@@ -177,6 +177,9 @@ class TopicSimilarityEnricher:
                 "missing_topic_ids": missing,
                 "topics": topics_out,
             },
+            # Async enrichers return EnricherResult directly (no @sync_enricher wrapper), so they
+            # must set records_written themselves — one record per topic with computed neighbours.
+            records_written=len(topics_out),
         )
 
 

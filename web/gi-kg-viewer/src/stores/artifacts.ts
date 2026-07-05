@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { fetchArtifactJson } from '../api/artifactsApi'
 import type { TopicClustersDocument, TopicClustersFetchResult } from '../api/corpusTopicClustersApi'
-import { fetchTopicClustersFromApi } from '../api/corpusTopicClustersApi'
+import { fetchThemeClustersFromApi, fetchTopicClustersFromApi } from '../api/corpusTopicClustersApi'
 import type { BridgeDocument } from '../types/bridge'
 import type { ArtifactData, ParsedArtifact } from '../types/artifact'
 import { parseBridgeDocument } from '../utils/bridgeDocument'
@@ -19,6 +19,7 @@ import {
 } from '../utils/clusterSiblingMerge'
 import {
   findClusterByCompoundId,
+  withThemeClustersOnDisplay,
   withTopicClustersOnDisplay,
 } from '../utils/topicClustersOverlay'
 import { StaleGeneration } from '../utils/staleGeneration'
@@ -40,6 +41,10 @@ export const useArtifactsStore = defineStore('artifacts', () => {
   const bridgeDocument = ref<BridgeDocument | null>(null)
   /** ``topic_clusters.json`` from the API when present (API load only). */
   const topicClustersDoc = ref<TopicClustersDocument | null>(null)
+  /** ``topic_theme_clusters.json`` (co-occurrence THEME clusters) — decorates Topic
+   *  nodes with a teal ring (--lp-theme), coexisting with the semantic compound
+   *  boxes. Best-effort; null when the corpus has no theme clusters. */
+  const themeClustersDoc = ref<TopicClustersDocument | null>(null)
   /**
    * How the last load obtained topic clusters: API success, 404, error, local file picker (no API JSON),
    * or idle (cleared / not yet loaded).
@@ -92,9 +97,12 @@ export const useArtifactsStore = defineStore('artifacts', () => {
   const kgArts = computed(() => parsedList.value.filter((p) => p.kind === 'kg'))
 
   const displayArtifact = computed(() =>
-    withTopicClustersOnDisplay(
-      buildDisplayArtifact(giArts.value, kgArts.value),
-      topicClustersDoc.value,
+    withThemeClustersOnDisplay(
+      withTopicClustersOnDisplay(
+        buildDisplayArtifact(giArts.value, kgArts.value),
+        topicClustersDoc.value,
+      ),
+      themeClustersDoc.value,
     ),
   )
 
@@ -162,6 +170,15 @@ export const useArtifactsStore = defineStore('artifacts', () => {
       topicClustersErrorDetail.value = e instanceof Error ? e.message : String(e)
       topicClustersSchemaWarning.value = null
     }
+    // Theme clusters (co-occurrence) decorate Topic nodes with a teal ring —
+    // fully independent + best-effort, so a missing/errored fetch just means
+    // "no rings" and never disturbs the semantic topic-cluster state above.
+    try {
+      const th = await fetchThemeClustersFromApi(root)
+      themeClustersDoc.value = th.status === 'ok' ? th.document : null
+    } catch {
+      themeClustersDoc.value = null
+    }
   }
 
   /** Offline / no-backend: parse selected .gi.json / .kg.json files in the browser. */
@@ -172,6 +189,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     parsedList.value = []
     bridgeDocument.value = null
     topicClustersDoc.value = null
+    themeClustersDoc.value = null
     topicClustersFetchedForRoot = null
     topicClustersLoadState.value = 'idle'
     topicClustersErrorDetail.value = null
@@ -768,6 +786,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     parsedList,
     bridgeDocument,
     topicClustersDoc,
+    themeClustersDoc,
     topicClustersLoadState,
     topicClustersErrorDetail,
     topicClustersSchemaWarning,

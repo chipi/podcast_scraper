@@ -20,6 +20,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { fetchCachedCorpusEnvelope } from '../../composables/useEnrichmentEnvelopeCache'
 import { useSubjectStore } from '../../stores/subject'
+import { stripLayerPrefixesForCil } from '../../utils/mergeGiKg'
 
 interface Props {
   corpusPath: string
@@ -63,8 +64,18 @@ const error = ref<string | null>(null)
 
 const subject = useSubjectStore()
 
-const focusedTopicId = computed(() => subject.topicId?.trim() || '')
-const focusedPersonId = computed(() => subject.personId?.trim() || '')
+const focusedTopicId = computed(() => {
+  // Topics now focus as graph nodes (unified node view); derive the CIL topic id
+  // from the cy id so the sim list still narrows to the focused topic.
+  const gn = subject.graphNodeCyId?.trim()
+  return gn ? stripLayerPrefixesForCil(gn) : ''
+})
+const focusedPersonId = computed(() => {
+  // Persons now focus as graph nodes too; derive the CIL person id from the cy id
+  // so the contradiction list still narrows to the focused person.
+  const gn = subject.graphNodeCyId?.trim()
+  return gn ? stripLayerPrefixesForCil(gn) : ''
+})
 
 const SIM_TOP_N = 5
 const CONTRADICTIONS_TOP_N = 10
@@ -112,6 +123,17 @@ const hasAny = computed(
   () => visibleSimRows.value.length > 0 || visibleContradictions.value.length > 0,
 )
 
+// Collapsed by default so the panel doesn't bury the graph canvas; a one-line
+// header toggles it, and when open the content is height-capped + scrollable.
+const expanded = ref(false)
+const summary = computed(() => {
+  const parts: string[] = []
+  if (visibleSimRows.value.length) parts.push(`${visibleSimRows.value.length} similar`)
+  const c = visibleContradictions.value.length
+  if (c) parts.push(`${c} contradiction${c === 1 ? '' : 's'}`)
+  return parts.join(' · ')
+})
+
 async function load(): Promise<void> {
   const root = props.corpusPath?.trim()
   if (!root) {
@@ -146,14 +168,29 @@ watch(() => props.corpusPath, () => void load())
     aria-label="Enrichment-layer edges"
     data-testid="enrichment-edges-panel"
   >
-    <div class="mb-1 flex items-center justify-between">
-      <h3 class="text-[10px] font-semibold uppercase tracking-wider text-muted">
-        Enrichment edges (RFC-088)
-      </h3>
+    <div class="flex items-center justify-between gap-2">
       <button
-        v-if="focusedTopicId || focusedPersonId"
         type="button"
-        class="text-[9px] text-muted hover:underline"
+        class="flex min-w-0 items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted hover:text-surface-foreground"
+        :aria-expanded="expanded"
+        data-testid="enrichment-edges-toggle"
+        @click="expanded = !expanded"
+      >
+        <span
+          aria-hidden="true"
+          class="inline-block transition-transform"
+          :class="expanded ? 'rotate-90' : ''"
+        >▸</span>
+        <span>Enrichment edges</span>
+        <span
+          v-if="summary"
+          class="truncate font-normal normal-case text-muted/70"
+        >· {{ summary }}</span>
+      </button>
+      <button
+        v-if="(focusedTopicId || focusedPersonId) && expanded"
+        type="button"
+        class="shrink-0 text-[9px] text-muted hover:underline"
         title="Clear subject focus"
         @click="subject.clearSubject?.()"
       >
@@ -161,6 +198,11 @@ watch(() => props.corpusPath, () => void load())
       </button>
     </div>
 
+    <div
+      v-show="expanded"
+      class="mt-1 max-h-[45vh] overflow-y-auto pr-0.5"
+      data-testid="enrichment-edges-body"
+    >
     <!-- Topic similarity edges -->
     <div
       v-if="visibleSimRows.length"
@@ -244,5 +286,6 @@ watch(() => props.corpusPath, () => void load())
     >
       {{ error }}
     </p>
+    </div>
   </section>
 </template>

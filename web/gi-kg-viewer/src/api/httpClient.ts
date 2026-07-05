@@ -30,6 +30,9 @@ export async function fetchWithTimeout(
   try {
     return await fetch(input, {
       ...init,
+      // Send the shared session cookie (lp_session) so the viewer reuses the player's auth
+      // (#1128). Same-origin in prod; the dev proxy forwards cookies to :8000.
+      credentials: init?.credentials ?? 'include',
       signal: AbortSignal.timeout(timeoutMs),
     })
   } catch (e) {

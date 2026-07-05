@@ -63,7 +63,7 @@ router = APIRouter(tags=["corpus"])
 # RFC-088 chunk-8 follow-up: episode-scope enrichers whose envelopes
 # we surface availability flags for in the catalog rows. Corpus-scope
 # enrichers are catalogued separately via /api/corpus/enrichments.
-_EPISODE_SCOPE_ENRICHER_IDS: tuple[str, ...] = ("topic_cooccurrence", "insight_density")
+_EPISODE_SCOPE_ENRICHER_IDS: tuple[str, ...] = ("insight_density",)
 
 
 def _resolve_episode_enrichments_available(

@@ -12,6 +12,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 import { getPersonCard, getTopicCard } from '../services/api'
 import type { Entity, EpisodeSummary, PersonCard, Topic, TopicCard } from '../services/types'
+import EntitySignals from './EntitySignals.vue'
 import { useAuthStore } from '../stores/auth'
 import { useInterestsStore } from '../stores/interests'
 import { episodeArtwork } from '../utils/episode'
@@ -54,19 +55,30 @@ const topic = ref<TopicCard | null>(null)
 const loading = ref(false)
 const failed = ref(false)
 
+// "Your corpus" lens (P3 #1125): 'mine' restricts the card to the episodes the user has heard
+// ("you also heard them in …"). Auth-gated; a global card otherwise.
+const corpusScope = ref<'all' | 'mine'>('all')
+
 async function load(target: Target): Promise<void> {
   loading.value = true
   failed.value = false
   person.value = null
   topic.value = null
+  const scope = corpusScope.value === 'mine' ? 'mine' : undefined
   try {
-    if (target.kind === 'person') person.value = await getPersonCard(target.id)
-    else topic.value = await getTopicCard(target.id)
+    if (target.kind === 'person') person.value = await getPersonCard(target.id, scope)
+    else topic.value = await getTopicCard(target.id, scope)
   } catch {
     failed.value = true
   } finally {
     loading.value = false
   }
+}
+
+function setCorpusScope(s: 'all' | 'mine'): void {
+  if (corpusScope.value === s) return
+  corpusScope.value = s
+  void load(current.value)
 }
 
 // Re-open on a brand-new target (parent opened a different chip) — reset the stack.
@@ -99,6 +111,10 @@ const siblings = computed<Topic[]>(() => topic.value?.sibling_topics ?? [])
 const episodeCount = computed(() => person.value?.episode_count ?? topic.value?.episode_count ?? 0)
 const themeLabel = computed(() => topic.value?.cluster_label ?? null)
 const clusterSize = computed(() => topic.value?.cluster_size ?? 0)
+// Theme cluster (co-occurrence "discussed together") — distinct from the semantic cluster above.
+const themeClusterLabel = computed(() => topic.value?.theme_cluster_label ?? null)
+const themeClusterSize = computed(() => topic.value?.theme_cluster_size ?? 0)
+const themeSiblings = computed<Topic[]>(() => topic.value?.theme_sibling_topics ?? [])
 const isTopic = computed(() => current.value.kind === 'topic')
 
 const epArt = episodeArtwork
@@ -138,6 +154,26 @@ function searchLibrary(): void {
         <span aria-hidden="true">{{ following ? '✓' : '+' }}</span>
         {{ following ? t('ec.following') : t('ec.follow') }}
       </button>
+      <!-- "Your corpus" lens (P3 #1125): all episodes, or just the ones you've heard. -->
+      <div
+        v-if="auth.isAuthenticated && label"
+        role="tablist"
+        :aria-label="t('ec.scopeLabel')"
+        class="mt-2 inline-flex gap-1 rounded-full border border-border p-0.5 text-xs"
+      >
+        <button
+          v-for="opt in (['all', 'mine'] as const)"
+          :key="opt"
+          type="button"
+          role="tab"
+          :aria-selected="corpusScope === opt"
+          class="rounded-full px-2.5 py-0.5 font-semibold transition"
+          :class="corpusScope === opt ? 'bg-accent text-accent-foreground' : 'text-muted hover:text-canvas-foreground'"
+          @click="setCorpusScope(opt)"
+        >
+          {{ opt === 'all' ? t('ec.scopeAll') : t('ec.scopeMine') }}
+        </button>
+      </div>
     </header>
 
     <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
@@ -145,12 +181,18 @@ function searchLibrary(): void {
       <p v-else-if="failed || (!person && !topic)" class="text-sm text-muted">{{ t('ec.notFound') }}</p>
 
       <template v-else>
-        <!-- Cluster identity: is this topic part of a multi-topic theme (and how big), or standalone? -->
+        <!-- Cluster identity: theme (co-occurrence "Theme") + semantic ("Similar"), or standalone. -->
+        <p v-if="themeClusterLabel" class="mb-1 text-xs text-theme">
+          {{ t('kp.theme', { cluster: themeClusterLabel })
+          }}<span v-if="themeClusterSize"> · {{ t('ec.clusterSize', themeClusterSize, { named: { count: themeClusterSize } }) }}</span>
+        </p>
         <p v-if="themeLabel" class="mb-3 text-xs text-topic">
-          {{ t('kp.theme', { cluster: themeLabel })
+          {{ t('kp.similar', { cluster: themeLabel })
           }}<span v-if="clusterSize"> · {{ t('ec.clusterSize', clusterSize, { named: { count: clusterSize } }) }}</span>
         </p>
-        <p v-else-if="isTopic" class="mb-3 text-xs text-muted">{{ t('ec.singleTopic') }}</p>
+        <p v-if="isTopic && !themeLabel && !themeClusterLabel" class="mb-3 text-xs text-muted">
+          {{ t('ec.singleTopic') }}
+        </p>
 
         <button
           type="button"
@@ -174,6 +216,25 @@ function searchLibrary(): void {
               :key="s.id"
               type="button"
               class="rounded-full bg-overlay px-2.5 py-1 text-xs text-topic transition hover:bg-elevated"
+              @click="open('topic', s.id)"
+            >{{ s.label }}</button>
+          </div>
+        </section>
+
+        <!-- Theme-cluster members (co-occurrence): topics discussed together with this one. -->
+        <section v-if="themeSiblings.length" class="mb-4" data-testid="ec-theme-members">
+          <h3 class="lp-section mb-2">
+            {{ t('ec.themeMembers', themeSiblings.length + 1, { named: { count: themeSiblings.length + 1 } }) }}
+          </h3>
+          <div class="flex flex-wrap gap-1.5">
+            <span class="lp-theme-chip rounded-full px-2.5 py-1 text-xs font-semibold text-surface-foreground">
+              {{ label }}
+            </span>
+            <button
+              v-for="s in themeSiblings"
+              :key="s.id"
+              type="button"
+              class="lp-theme-chip rounded-full px-2.5 py-1 text-xs text-surface-foreground transition"
               @click="open('topic', s.id)"
             >{{ s.label }}</button>
           </div>
@@ -210,6 +271,14 @@ function searchLibrary(): void {
             </li>
           </ul>
         </section>
+
+        <!-- Enrichment signals (Plan B): grounding / co-appears / disagreements (person);
+             momentum / similar / discussed-alongside (topic). Hides itself when empty. -->
+        <EntitySignals
+          :kind="current.kind"
+          :id="current.id"
+          @open="(p) => open(p.kind, p.id)"
+        />
 
         <section v-if="relatedPeople.length" class="mb-4">
           <h3 class="lp-section mb-2">{{ t('ec.relatedPeople') }}</h3>

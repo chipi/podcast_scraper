@@ -2,8 +2,10 @@
 
 When personalization is OFF (default) or the user has no interests, the order is **recency**
 (newest-first — the catalog default, unchanged). When personalization is ON *and* the user has
-interests, episodes rank by a provisional **significance × interest-cluster-affinity** score —
-gated behind ``APP_PERSONALIZED_RANKING`` until the weights are tuned on real engagement.
+interests, episodes rank by the enabled signals in the tunable **ranking-signal registry**
+(``app_ranking_config`` — significance, interest affinity, trend velocity, …), gated behind
+``APP_PERSONALIZED_RANKING``. Signals are on/off + weight-tunable so ranking can be A/B'd from
+one place; the default config reproduces the prior significance × affinity behaviour.
 
 No new persistence: interests are per-user files; this only re-orders the shared catalog. The
 ranking reuses the same KG view as the entity endpoints; the candidate pool is bounded by the
@@ -13,29 +15,72 @@ caller so the per-episode KG loads stay cheap.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import Any, Iterable, Sequence
 
 from podcast_scraper.search.topic_clusters import consumer_topic_cluster_map
 from podcast_scraper.server.app_content_source import row_to_summary
 from podcast_scraper.server.app_corpus_access import load_json_artifact
 from podcast_scraper.server.app_kg_view import entities_from_kg
+from podcast_scraper.server.app_ranking_config import (
+    DEFAULT_RANKING_CONFIG,
+    RankingConfig,
+    SIGNAL_INTEREST_AFFINITY,
+    SIGNAL_SIGNIFICANCE,
+    SIGNAL_TREND_VELOCITY,
+)
 from podcast_scraper.server.corpus_catalog import CatalogEpisodeRow
 from podcast_scraper.server.schemas import AppEpisodeSummary
 
-# Interest affinity is weighted relative to the depth baseline; a fully on-interest episode gets a
-# ``1 + AFFINITY_WEIGHT`` multiplier. Provisional — the whole path is flag-gated until tuned.
-_AFFINITY_WEIGHT = 2.0
+# The temporal_velocity enricher envelope (corpus scope) — topic momentum for the trend signal.
+_VELOCITY_REL = "enrichments/temporal_velocity.json"
 
 
-def _significance(row: CatalogEpisodeRow) -> float:
-    """Provisional content-depth signal: grounded insights > KG > summary richness."""
+def _significance(row: CatalogEpisodeRow, params: dict[str, Any] | None = None) -> float:
+    """Content-depth signal: grounded insights > KG > summary richness. Weights from config."""
+    params = params or {}
     score = 1.0
     if row.has_gi:
-        score += 2.0
+        score += float(params.get("gi_bonus", 2.0))
     if row.has_kg:
-        score += 1.0
-    score += min(len(row.summary_bullets), 5) * 0.2
+        score += float(params.get("kg_bonus", 1.0))
+    step = float(params.get("bullet_step", 0.2))
+    cap = int(params.get("bullet_cap", 5))
+    score += min(len(row.summary_bullets), cap) * step
     return score
+
+
+def _topic_velocities(root: Path) -> dict[str, float]:
+    """``topic_id`` → ``velocity_last_over_6mo`` from the temporal_velocity envelope.
+
+    Empty when the envelope is absent or malformed, so a missing enrichment just leaves the
+    trend signal contributing nothing rather than erroring the ranking.
+    """
+    env = load_json_artifact(root, _VELOCITY_REL)
+    data = env.get("data", env) if isinstance(env, dict) else None
+    topics = data.get("topics") if isinstance(data, dict) else None
+    if not isinstance(topics, list):
+        return {}
+    out: dict[str, float] = {}
+    for t in topics:
+        if not isinstance(t, dict):
+            continue
+        tid = t.get("topic_id")
+        vel = t.get("velocity_last_over_6mo")
+        if isinstance(tid, str) and isinstance(vel, (int, float)):
+            out[tid] = float(vel)
+    return out
+
+
+def _trend_boost(topic_ids: set[str], velocities: dict[str, float], cap: float) -> float:
+    """0 for a flat/cooling episode, up to ``cap - 1`` for a hot one.
+
+    Uses the episode's hottest topic velocity above the 1.0 flat line, capped so a single
+    spiking topic can't dominate the whole feed.
+    """
+    if not topic_ids or not velocities:
+        return 0.0
+    best = max((velocities.get(t, 1.0) for t in topic_ids), default=1.0)
+    return max(0.0, min(best, cap) - 1.0)
 
 
 def _episode_features(
@@ -70,16 +115,20 @@ def rank_discover(
     rows: Sequence[CatalogEpisodeRow],
     *,
     limit: int,
+    config: RankingConfig = DEFAULT_RANKING_CONFIG,
 ) -> list[AppEpisodeSummary]:
-    """Rank ``rows`` by significance × interest affinity; recency when interests are empty.
+    """Rank ``rows`` by the enabled ranking signals; recency when interests are empty.
 
     ``rows`` is the candidate pool, already in recency order (newest-first). With no interests
     we simply take the first ``limit`` (recency). With interests we re-score the pool and keep
     the original order as a stable tie-break (so equal-score episodes stay newest-first).
 
-    Interests are a mixed token list — topic-cluster (``tc:``) from the picker, plus topics
-    (``topic:``) and people (``person:``) followed from entity cards. Affinity is the fraction of
-    all followed tokens the episode matches (clusters, topics or people).
+    Signals come from ``config`` (the operator-tunable registry, one source of truth): a base
+    ``significance`` depth score, multiplied by ``1 + Σ weightᵢ · signalᵢ`` over the enabled
+    boosts. ``interest_affinity`` is the fraction of followed tokens the episode matches
+    (topic-cluster ``tc:`` / ``topic:`` / ``person:``); ``trend_velocity`` (off by default) adds
+    the episode's hottest topic momentum. A disabled signal has weight 0 → no effect, so the
+    default config reproduces the prior significance × affinity behaviour exactly.
     """
     interest_set = {str(i) for i in interests if str(i)}
     if not interest_set:
@@ -90,6 +139,11 @@ def rank_discover(
     topic_interests = {t for t in interest_set if t.startswith("topic:")}
     cluster_interests = interest_set - person_interests - topic_interests
     cluster_map = consumer_topic_cluster_map(root)
+    sig_params = config.params_of(SIGNAL_SIGNIFICANCE)
+    affinity_weight = config.weight_of(SIGNAL_INTEREST_AFFINITY)
+    trend_weight = config.weight_of(SIGNAL_TREND_VELOCITY)
+    trend_cap = float(config.params_of(SIGNAL_TREND_VELOCITY).get("cap", 1.5))
+    velocities = _topic_velocities(root) if trend_weight > 0 else {}
     scored: list[tuple[float, int, CatalogEpisodeRow]] = []
     for idx, row in enumerate(rows):
         clusters, topics, persons = _episode_features(root, row, cluster_map)
@@ -98,8 +152,10 @@ def rank_discover(
             + len(topics & topic_interests)
             + len(persons & person_interests)
         )
-        affinity = matched / len(interest_set)
-        score = _significance(row) * (1.0 + _AFFINITY_WEIGHT * affinity)
+        multiplier = 1.0 + affinity_weight * (matched / len(interest_set))
+        if trend_weight > 0:
+            multiplier += trend_weight * _trend_boost(topics, velocities, trend_cap)
+        score = _significance(row, sig_params) * multiplier
         scored.append((score, -idx, row))  # -idx → earlier (newer) wins score ties
     scored.sort(key=lambda s: (s[0], s[1]), reverse=True)
     return [row_to_summary(root, r) for _score, _neg_idx, r in scored[:limit]]

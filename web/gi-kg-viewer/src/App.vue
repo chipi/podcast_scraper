@@ -8,9 +8,20 @@ import DigestView from './components/digest/DigestView.vue'
 import GraphTabPanel from './components/graph/GraphTabPanel.vue'
 import LibraryView from './components/library/LibraryView.vue'
 import OpsView from './components/ops/OpsView.vue'
+import UsersAdminView from './components/admin/UsersAdminView.vue'
+import RankingConfigAdminView from './components/admin/RankingConfigAdminView.vue'
+import GraphAnalyticsAdminView from './components/admin/GraphAnalyticsAdminView.vue'
+import ReplayControls from './components/graph/ReplayControls.vue'
+import { useGraphReplayStore, type ReplayEvent } from './stores/graphReplay'
+import { fetchGraphSession } from './api/authApi'
+import LoginView from './components/auth/LoginView.vue'
+import NoAccessView from './components/auth/NoAccessView.vue'
 import LeftPanel from './components/shell/LeftPanel.vue'
 import StatusBar from './components/shell/StatusBar.vue'
 import SubjectRail from './components/shell/SubjectRail.vue'
+import UserMenu from './components/shell/UserMenu.vue'
+import { useAuthStore } from './stores/auth'
+import { useGraphAnalyticsStore } from './stores/graphAnalytics'
 import { useArtifactsStore } from './stores/artifacts'
 import { useExploreStore } from './stores/explore'
 import { useGraphExpansionStore } from './stores/graphExpansion'
@@ -58,7 +69,18 @@ function readRightPanelOpenPreference(): boolean {
   return true
 }
 
+const auth = useAuthStore()
 const shell = useShellStore()
+const graphAnalytics = useGraphAnalyticsStore()
+const replay = useGraphReplayStore()
+
+/** Admin → Analytics "Replay ▶": load the session's events into the replay store + jump to the
+ *  graph, which enters replay mode (banner + step/play/scrub, driving the real graph from the log). */
+async function onReplaySession(sessionId: string): Promise<void> {
+  const events = await fetchGraphSession(sessionId).catch(() => [] as Array<Record<string, unknown>>)
+  replay.load(sessionId, events as ReplayEvent[])
+  mainTab.value = 'graph'
+}
 const artifacts = useArtifactsStore()
 const search = useSearchStore()
 const explore = useExploreStore()
@@ -69,7 +91,7 @@ const graphExpansion = useGraphExpansionStore()
 const graphHandoff = useGraphHandoffStore()
 const graphNav = useGraphNavigationStore()
 
-const mainTab = ref<'digest' | 'library' | 'graph' | 'dashboard' | 'ops'>('digest')
+const mainTab = ref<'digest' | 'library' | 'graph' | 'dashboard' | 'ops' | 'admin'>('digest')
 const leftPanelRef = ref<{ focusQuery: () => void } | null>(null)
 const graphCanvasRef = ref<{
   clearInteractionState: (opts?: { skipRedraw?: boolean }) => void
@@ -145,8 +167,9 @@ async function activateGraphTab(
   const target = targetNodeId?.trim()
   const fbTrim = focusFallbackId?.trim()
   if (target) {
-    // CIL corpus ids (`topic:…`) open TopicEntityView (Digest / Explore handoffs).
-    // Graph cy ids (`tc:…`, `g:…`, compound slugs from topic_clusters.json, …) open NodeDetail.
+    // Both CIL corpus ids (`topic:…`) and graph cy ids (`tc:…`, `g:…`, compound
+    // slugs from topic_clusters.json) now open the unified NodeDetail rail — the
+    // topic:/cy-id split below only controls how the graph itself bootstraps + focuses.
     if (target.startsWith('topic:')) {
       subject.focusTopic(target)
       graphHandoff.handoffRequested({
@@ -235,7 +258,15 @@ function onCloseSubjectRail(): void {
 }
 
 onMounted(() => {
+  void auth.ensureLoaded()
   void shell.fetchHealth()
+  // Flush the owned graph-analytics buffer when the tab is hidden or closed (the keepalive POST
+  // lets the final batch land); the store's timer handles the steady state.
+  const flushAnalytics = (): void => graphAnalytics.flush()
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) flushAnalytics()
+  })
+  window.addEventListener('pagehide', flushAnalytics)
 })
 
 /** Topic-cluster sibling catalog merge: ``artifacts.loadSelected`` does not know the active tab. */
@@ -542,7 +573,13 @@ watch(
 </script>
 
 <template>
+  <!-- Auth gate (#1128): ONLY when auth is enabled on the backend. Login when anonymous, no-access
+       when a signed-in listener; the shell renders for creator/admin — or for everyone when auth is
+       not configured (open, pre-auth behaviour). A blank canvas covers the brief pre-load. -->
+  <LoginView v-if="auth.loaded && auth.enabled && !auth.isAuthenticated" />
+  <NoAccessView v-else-if="auth.loaded && auth.enabled && !auth.canUseViewer" />
   <div
+    v-else-if="auth.loaded"
     class="flex min-h-0 min-w-0 flex-col overflow-hidden bg-canvas text-canvas-foreground h-dvh max-h-dvh"
   >
     <header class="shrink-0 border-b border-border bg-surface px-4 py-2 shadow-sm">
@@ -603,12 +640,14 @@ watch(
                   ? 'bg-primary text-primary-foreground'
                   : 'text-elevated-foreground hover:bg-overlay'
               "
+              v-if="!auth.enabled || auth.isAdmin"
               data-testid="main-tab-dashboard"
               @click="mainTab = 'dashboard'"
             >
               Dashboard
             </button>
             <button
+              v-if="!auth.enabled || auth.isAdmin"
               type="button"
               class="rounded px-3 py-1"
               :class="
@@ -620,6 +659,20 @@ watch(
               @click="mainTab = 'ops'"
             >
               Ops
+            </button>
+            <button
+              v-if="auth.isAdmin"
+              type="button"
+              class="rounded px-3 py-1"
+              :class="
+                mainTab === 'admin'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-elevated-foreground hover:bg-overlay'
+              "
+              data-testid="main-tab-admin"
+              @click="mainTab = 'admin'"
+            >
+              Admin
             </button>
           </nav>
           <button
@@ -682,6 +735,7 @@ watch(
             <kbd class="rounded border border-border bg-surface px-1 font-mono text-surface-foreground">Esc</kbd>
             clear
           </span>
+          <UserMenu v-if="auth.enabled" />
         </div>
       </div>
     </header>
@@ -757,7 +811,7 @@ watch(
       <!-- CENTER -->
       <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden">
         <!-- Graph / Dashboard — flex column so tab roots (h-full / flex-1) receive height -->
-        <div class="flex min-h-0 flex-1 flex-col">
+        <div class="relative flex min-h-0 flex-1 flex-col">
           <keep-alive>
             <DigestView
               v-if="mainTab === 'digest'"
@@ -776,7 +830,7 @@ watch(
             />
           </keep-alive>
           <div
-            v-if="mainTab === 'dashboard'"
+            v-if="mainTab === 'dashboard' && (!auth.enabled || auth.isAdmin)"
             class="h-full min-h-0 max-w-full flex-1 overflow-x-hidden overflow-y-auto p-3"
           >
             <DashboardView
@@ -786,10 +840,18 @@ watch(
             />
           </div>
           <div
-            v-if="mainTab === 'ops'"
+            v-if="mainTab === 'ops' && (!auth.enabled || auth.isAdmin)"
             class="h-full min-h-0 max-w-full flex-1 overflow-x-hidden overflow-y-auto p-3"
           >
             <OpsView />
+          </div>
+          <div
+            v-if="mainTab === 'admin' && auth.isAdmin"
+            class="h-full min-h-0 max-w-full flex-1 space-y-8 overflow-x-hidden overflow-y-auto p-3"
+          >
+            <UsersAdminView />
+            <RankingConfigAdminView />
+            <GraphAnalyticsAdminView @replay="onReplaySession" />
           </div>
           <keep-alive>
             <GraphTabPanel
@@ -799,6 +861,7 @@ watch(
               @request-graph-full-reset="onGraphCorpusFullReset"
             />
           </keep-alive>
+          <ReplayControls v-if="mainTab === 'graph' && replay.active" />
         </div>
       </div>
 
@@ -857,4 +920,5 @@ watch(
       />
     </div>
   </div>
+  <div v-else class="h-dvh bg-canvas" />
 </template>

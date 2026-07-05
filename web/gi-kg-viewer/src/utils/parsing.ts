@@ -1994,6 +1994,14 @@ export function toCytoElements(
     if (n.parent) {
       data.parent = n.parent
     }
+    // Theme-cluster membership (co-occurrence "Theme") is a node decoration — a
+    // teal ring — not a compound parent, so it coexists with the semantic boxes.
+    const classes: string[] = []
+    const themeClusterId = (n as { themeClusterId?: unknown }).themeClusterId
+    if (typeof themeClusterId === 'string' && themeClusterId) {
+      data.themeClusterId = themeClusterId
+      classes.push('theme-member')
+    }
     const elem: import('cytoscape').ElementDefinition = { data }
     if (String(raw?.type) === 'Insight') {
       data.confidenceOpacity = confidenceOpacityFromInsightProperties(raw?.properties)
@@ -2001,12 +2009,11 @@ export function toCytoElements(
       // are coarse buckets a future "hide low-confidence" filter can
       // toggle. Ungrounded paints a dashed warning border without
       // disturbing the existing opacity signal.
-      const classes: string[] = []
       const tier = confidenceTierFromInsightProperties(raw?.properties)
       if (tier) classes.push(`insight-confidence-${tier}`)
       if (isInsightUngrounded(raw?.properties)) classes.push('insight-ungrounded')
-      if (classes.length) elem.classes = classes.join(' ')
     }
+    if (classes.length) elem.classes = classes.join(' ')
     return elem
   })
   const edges: import('cytoscape').ElementDefinition[] = g.visEdges

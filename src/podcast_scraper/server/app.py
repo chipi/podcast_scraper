@@ -15,15 +15,22 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from podcast_scraper import __version__
+from podcast_scraper.server import app_roles
 from podcast_scraper.server.app_access import policy_from_env
 from podcast_scraper.server.app_oauth import provider_from_env
 from podcast_scraper.server.app_operator_guard import OperatorWriteGuard
+from podcast_scraper.server.app_user_seed import seed_from_env
 from podcast_scraper.server.pathutil import CorpusPathRequestError
 from podcast_scraper.server.routes import (
+    app_admin,
     app_artwork,
     app_auth,
+    app_capture,
+    app_consolidation,
     app_discover,
+    app_enrichment,
     app_episodes,
+    app_graph_events,
     app_relational,
     app_search,
     app_user_state,
@@ -38,6 +45,7 @@ from podcast_scraper.server.routes import (
     corpus_metrics,
     corpus_persons,
     corpus_text_file,
+    corpus_theme_clusters,
     corpus_topic_clusters,
     enrichment as enrichment_route,
     enrichment_config as enrichment_config_route,
@@ -92,9 +100,17 @@ def _configure_platform_auth(app: FastAPI, resolved_output: Path | None) -> None
         app.state.app_data_dir = None
     app.state.oauth_provider = provider_from_env()
     app.state.access_policy = policy_from_env()
+    app.state.admin_emails = app_roles.admin_emails_from_env()
+    # Seed a fixed dev roster (1 admin / 2 creators / 2 listeners, mock identities) when
+    # APP_SEED_USERS_FILE is set — so a fresh local platform has known users in the admin surface.
+    seed_from_env(app.state.app_data_dir)
     # Personalized discovery ranking (PRD-043 FR4 / #1098) — OFF by default; the discovery feed
     # falls back to recency until this toggle is flipped (gated until the score is tuned).
     app.state.personalized_ranking = _env_truthy("APP_PERSONALIZED_RANKING")
+    # Derived interests (#1139) — when ON (and personalization is on), discovery also ranks by
+    # interests inferred from what the user has heard/captured, not just explicit follows. OFF by
+    # default so explicit-only stays the baseline until the derived signal is tuned.
+    app.state.derived_interests = _env_truthy("APP_DERIVED_INTERESTS")
     app.state.operator_api_key = os.environ.get("APP_OPERATOR_API_KEY", "")
     app.state.audit_path = (
         (app.state.app_data_dir / "audit.jsonl") if app.state.app_data_dir is not None else None
@@ -237,18 +253,24 @@ def create_app(
     app.include_router(corpus_digest.router, prefix="/api")
     app.include_router(corpus_enrichments.router, prefix="/api")
     app.include_router(corpus_topic_clusters.router, prefix="/api")
+    app.include_router(corpus_theme_clusters.router, prefix="/api")
     app.include_router(cil.router, prefix="/api")
     app.include_router(ops.router, prefix="/api")
     # Consumer Learning Platform API (RFC-098): slug-addressed read routes under their
     # own /api/app namespace, separate from the operator routes. Read-only over the
     # shared corpus; access becomes auth-gated in later Epic-1 tasks (#1063/#1066).
     app.include_router(app_auth.router, prefix="/api/app")
+    app.include_router(app_admin.router, prefix="/api/app")
     app.include_router(app_artwork.router, prefix="/api/app")
     app.include_router(app_episodes.router, prefix="/api/app")
+    app.include_router(app_graph_events.router, prefix="/api/app")
     app.include_router(app_relational.router, prefix="/api/app")
     app.include_router(app_discover.router, prefix="/api/app")
     app.include_router(app_search.router, prefix="/api/app")
     app.include_router(app_user_state.router, prefix="/api/app")
+    app.include_router(app_capture.router, prefix="/api/app")
+    app.include_router(app_enrichment.router, prefix="/api/app")
+    app.include_router(app_consolidation.router, prefix="/api/app")
 
     resolved_output = Path(output_dir).expanduser().resolve() if output_dir is not None else None
     app.state.output_dir = resolved_output

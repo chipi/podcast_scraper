@@ -1,9 +1,24 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+
+import { useGraphNavigationStore } from './graphNavigation'
 
 import { e2eHooksEnabled } from '../utils/e2eHooks'
 
 export type SubjectKind = 'episode' | 'topic' | 'person' | 'graph-node' | null
+
+/** Full subject state captured for the rail's Back history. */
+interface SubjectSnapshot {
+  kind: SubjectKind
+  episodeMetadataPath: string | null
+  episodeUiLabel: string | null
+  episodeId: string | null
+  graphNodeCyId: string | null
+  graphConnectionsCyId: string | null
+  topicId: string | null
+  personId: string | null
+  positionTrackerTopicId: string | null
+}
 
 /**
  * Right-hand **subject** rail: one focused entity (episode, graph node, …).
@@ -45,6 +60,51 @@ export const useSubjectStore = defineStore('subject', () => {
    */
   const positionTrackerTopicId = ref<string | null>(null)
 
+  // Back history for the subject rail. Node→node navigations (topic → entity →
+  // person → co-speaker) push the prior subject so the rail can offer a Back
+  // affordance; without it, drilling into a related entity is a dead end.
+  const history = ref<SubjectSnapshot[]>([])
+  const canGoBack = computed(() => history.value.length > 0)
+
+  function currentSnapshot(): SubjectSnapshot {
+    return {
+      kind: kind.value,
+      episodeMetadataPath: episodeMetadataPath.value,
+      episodeUiLabel: episodeUiLabel.value,
+      episodeId: episodeId.value,
+      graphNodeCyId: graphNodeCyId.value,
+      graphConnectionsCyId: graphConnectionsCyId.value,
+      topicId: topicId.value,
+      personId: personId.value,
+      positionTrackerTopicId: positionTrackerTopicId.value,
+    }
+  }
+
+  function pushHistory(): void {
+    if (kind.value == null) return
+    history.value.push(currentSnapshot())
+    // Bound the stack so a long browse session can't grow it without limit.
+    if (history.value.length > 50) history.value.shift()
+  }
+
+  function restoreSnapshot(s: SubjectSnapshot): void {
+    kind.value = s.kind
+    episodeMetadataPath.value = s.episodeMetadataPath
+    episodeUiLabel.value = s.episodeUiLabel
+    episodeId.value = s.episodeId
+    graphNodeCyId.value = s.graphNodeCyId
+    graphConnectionsCyId.value = s.graphConnectionsCyId
+    topicId.value = s.topicId
+    personId.value = s.personId
+    positionTrackerTopicId.value = s.positionTrackerTopicId
+  }
+
+  /** Pop the previous subject off the history and restore it (rail Back). */
+  function back(): void {
+    const s = history.value.pop()
+    if (s) restoreSnapshot(s)
+  }
+
   function clearFields(): void {
     episodeMetadataPath.value = null
     episodeUiLabel.value = null
@@ -74,6 +134,9 @@ export const useSubjectStore = defineStore('subject', () => {
     const sameEpisode =
       kind.value === 'episode' && episodeMetadataPath.value?.trim() === t
     if (!sameEpisode) {
+      // Record the prior graph-node subject for Back — e.g. podcast → episode
+      // should let you return to the podcast (the episode rail carries a Back).
+      if (kind.value === 'graph-node') pushHistory()
       clearFields()
     } else {
       graphNodeCyId.value = null
@@ -100,51 +163,53 @@ export const useSubjectStore = defineStore('subject', () => {
     episodeId.value = t ? t : null
   }
 
-  function focusGraphNode(cyNodeId: string): void {
+  function focusGraphNode(cyNodeId: string, opts?: { syncGraph?: boolean }): void {
     const t = cyNodeId.trim()
-    clearFields()
     if (!t) {
+      clearFields()
       kind.value = null
       return
     }
+    // Record the current graph node for Back — only node→node chains (and not a
+    // no-op re-focus of the same node), so Back stays within the node rail.
+    if (kind.value === 'graph-node' && graphNodeCyId.value !== t) {
+      pushHistory()
+    }
+    clearFields()
     kind.value = 'graph-node'
     graphNodeCyId.value = t
+    // #6 two-way sync: when the navigation comes from the detail rail (not a graph click, which
+    // already has the node selected), ask the graph to select + centre this node so it reflects
+    // where the details went. In-slice nodes apply immediately; a node the graph is loading via a
+    // handoff is picked up the moment it appears (GraphCanvas' pendingFocusNodeId watcher).
+    if (opts?.syncGraph) {
+      useGraphNavigationStore().requestFocusNode(t)
+    }
   }
 
   /**
-   * #672 — Focus a Topic OR a non-Person Entity. The same rail panel
-   * (``TopicEntityView``) renders both: it inspects the resolved node's
-   * ``type`` to label the header ``Topic`` / ``Entity`` accordingly. Use
-   * {@link focusEntity} for call-site clarity at non-Topic entry points
-   * (graph clicks still flow through {@link focusGraphNode} → ``NodeDetail``;
-   * this entry point is for handoffs from Digest / Search / Explore that
-   * want the higher-level subject overview).
+   * Focus a Topic OR a non-Person Entity in the unified node view. Both open the
+   * generic {@link focusGraphNode} → ``NodeDetail`` rail (the standalone
+   * ``TopicEntityView`` panel is retired; its overview is folded into NodeDetail's
+   * Details tab). The id may be a corpus id (``topic:…`` / ``entity:…``) or a graph
+   * cy id (``g:…`` / ``tc:…``) — NodeDetail's lookups resolve either form.
    */
   function focusTopic(id: string): void {
-    const t = id.trim()
-    clearFields()
-    if (!t) {
-      kind.value = null
-      return
-    }
-    kind.value = 'topic'
-    topicId.value = t
+    focusGraphNode(id, { syncGraph: true })
   }
 
-  /** Alias of {@link focusTopic} for non-Topic Entity subjects. Same rail panel. */
+  /** Alias of {@link focusTopic} for non-Person Entity subjects. Same node view. */
   function focusEntity(id: string): void {
-    focusTopic(id)
+    focusGraphNode(id, { syncGraph: true })
   }
 
+  /**
+   * Focus a Person in the unified node view — opens the generic
+   * {@link focusGraphNode} → ``NodeDetail`` rail (with PersonLandingView folded
+   * into its Details tab); the standalone Person rail is retired.
+   */
   function focusPerson(id: string): void {
-    const t = id.trim()
-    clearFields()
-    if (!t) {
-      kind.value = null
-      return
-    }
-    kind.value = 'person'
-    personId.value = t
+    focusGraphNode(id, { syncGraph: true })
   }
 
   /**
@@ -155,7 +220,10 @@ export const useSubjectStore = defineStore('subject', () => {
    */
   function selectTopicForPositionTracker(topicGraphId: string): void {
     const t = topicGraphId.trim()
-    if (kind.value !== 'person') return
+    // Persons now open through the unified node view (kind 'graph-node'); the
+    // Position Tracker only renders inside the embedded PersonLandingView, which
+    // is shown for person nodes only, so a graph-node subject is the valid state.
+    if (kind.value !== 'graph-node') return
     positionTrackerTopicId.value = t || null
   }
 
@@ -166,6 +234,8 @@ export const useSubjectStore = defineStore('subject', () => {
   function clearSubject(): void {
     kind.value = null
     clearFields()
+    // Closing the rail ends the navigation session — drop the Back history.
+    history.value = []
   }
 
   /** Update graph strip label without re-running ``focusEpisode`` (e.g. **Open in graph**). */
@@ -207,6 +277,9 @@ export const useSubjectStore = defineStore('subject', () => {
       get positionTrackerTopicId() {
         return positionTrackerTopicId.value
       },
+      get canGoBack() {
+        return canGoBack.value
+      },
       // E2E-only mutators. The TEV contract Playwright spec drives the
       // panel via ``focusTopic`` after the V2 architectural change removed
       // the digest topic-band-title click affordance; other handoff specs
@@ -216,6 +289,7 @@ export const useSubjectStore = defineStore('subject', () => {
       focusPerson,
       clearSubject,
       selectTopicForPositionTracker,
+      back,
     }
   }
 
@@ -239,5 +313,7 @@ export const useSubjectStore = defineStore('subject', () => {
     setEpisodeId,
     selectTopicForPositionTracker,
     clearPositionTrackerTopic,
+    canGoBack,
+    back,
   }
 })

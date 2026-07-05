@@ -16,6 +16,10 @@ from collections import Counter
 from pathlib import Path
 from typing import Iterator, Sequence
 
+from podcast_scraper.search.theme_clusters import (
+    consumer_theme_cluster_map,
+    consumer_theme_cluster_siblings,
+)
 from podcast_scraper.search.topic_clusters import (
     consumer_cluster_siblings,
     consumer_topic_cluster_map,
@@ -95,10 +99,19 @@ def resolve_entity(
     return persons_idx.get(norm) or topics_idx.get(norm)
 
 
-def _enrich_topic(topic: AppTopic, cluster_map: ClusterMap) -> AppTopic:
-    """Attach corpus-cluster identity to a topic (no-op when the topic is unclustered)."""
+def _enrich_topic(
+    topic: AppTopic, cluster_map: ClusterMap, theme_map: ClusterMap | None = None
+) -> AppTopic:
+    """Attach semantic + theme cluster identity to a topic (no-op when unclustered)."""
+    update: dict[str, object] = {}
     info = cluster_map.get(topic.id)
-    return topic.model_copy(update=info) if info else topic
+    if info:
+        update.update(info)
+    if theme_map:
+        tinfo = theme_map.get(topic.id)
+        if tinfo:
+            update.update(tinfo)
+    return topic.model_copy(update=update) if update else topic
 
 
 def _sorted_episode_cards(root: Path, rows: list[CatalogEpisodeRow]) -> list[AppEpisodeSummary]:
@@ -118,6 +131,7 @@ def build_person_card(
     """Project the person's corpus footprint to a card, or ``None`` if they appear nowhere."""
     catalog = list(rows) if rows is not None else build_catalog_rows_cumulative(root)
     cluster_map: ClusterMap = consumer_topic_cluster_map(root)
+    theme_map: ClusterMap = consumer_theme_cluster_map(root)
 
     label = ""
     appears_in: list[CatalogEpisodeRow] = []
@@ -147,7 +161,8 @@ def build_person_card(
 
     related_people = [people_by_id[i] for i, _ in person_counts.most_common(top_k)]
     related_topics = [
-        _enrich_topic(topics_by_id[i], cluster_map) for i, _ in topic_counts.most_common(top_k)
+        _enrich_topic(topics_by_id[i], cluster_map, theme_map)
+        for i, _ in topic_counts.most_common(top_k)
     ]
     return AppPersonCard(
         id=person_id,
@@ -169,6 +184,7 @@ def build_topic_card(
     """Project the topic's corpus footprint + cluster siblings to a card, or ``None`` if absent."""
     catalog = list(rows) if rows is not None else build_catalog_rows_cumulative(root)
     cluster_map: ClusterMap = consumer_topic_cluster_map(root)
+    theme_map: ClusterMap = consumer_theme_cluster_map(root)
 
     label = ""
     about: list[CatalogEpisodeRow] = []
@@ -192,9 +208,19 @@ def build_topic_card(
     related_people = [people_by_id[i] for i, _ in person_counts.most_common(top_k)]
     info = cluster_map.get(topic_id) or {}
     cid, clabel, csize = info.get("cluster_id"), info.get("cluster_label"), info.get("cluster_size")
+    tinfo = theme_map.get(topic_id) or {}
+    tcid, tclabel, tcsize = (
+        tinfo.get("theme_cluster_id"),
+        tinfo.get("theme_cluster_label"),
+        tinfo.get("theme_cluster_size"),
+    )
     siblings = [
-        _enrich_topic(AppTopic(id=s["id"], label=s["label"]), cluster_map)
+        _enrich_topic(AppTopic(id=s["id"], label=s["label"]), cluster_map, theme_map)
         for s in consumer_cluster_siblings(root, topic_id)[:top_k]
+    ]
+    theme_siblings = [
+        _enrich_topic(AppTopic(id=s["id"], label=s["label"]), cluster_map, theme_map)
+        for s in consumer_theme_cluster_siblings(root, topic_id)[:top_k]
     ]
     return AppTopicCard(
         id=topic_id,
@@ -203,6 +229,10 @@ def build_topic_card(
         cluster_label=clabel if isinstance(clabel, str) else None,
         cluster_size=csize if isinstance(csize, int) else 0,
         sibling_topics=siblings,
+        theme_cluster_id=tcid if isinstance(tcid, str) else None,
+        theme_cluster_label=tclabel if isinstance(tclabel, str) else None,
+        theme_cluster_size=tcsize if isinstance(tcsize, int) else 0,
+        theme_sibling_topics=theme_siblings,
         episode_count=len(about),
         episodes=_sorted_episode_cards(root, about),
         related_people=related_people,

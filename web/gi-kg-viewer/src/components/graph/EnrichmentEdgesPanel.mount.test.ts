@@ -160,7 +160,10 @@ describe('EnrichmentEdgesPanel — mount + behaviour', () => {
     const row = w.get('[data-testid="enrichment-edges-sim-topic:ai--topic:ml"]')
     const buttons = row.findAll('button')
     await buttons[1].trigger('click')
-    expect(subject.topicId).toBe('topic:ml')
+    // Topics now open the unified node view: focus lands on the graph node, not
+    // the retired topic-subject kind.
+    expect(subject.kind).toBe('graph-node')
+    expect(subject.graphNodeCyId).toBe('topic:ml')
   })
 
   it('clicking a contradiction row pivots focus to a person', async () => {
@@ -175,6 +178,6 @@ describe('EnrichmentEdgesPanel — mount + behaviour', () => {
     const buttons = row.findAll('button')
     // Buttons in order: person_a, person_b, topic — click person_b.
     await buttons[1].trigger('click')
-    expect(subject.personId).toBe('person:bob')
+    expect(subject.graphNodeCyId).toBe('person:bob')
   })
 })

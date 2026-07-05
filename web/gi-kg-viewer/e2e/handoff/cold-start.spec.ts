@@ -510,9 +510,11 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
       { timeout: 15_000 },
     )
 
-    // Now click "Focus" on the cluster member row. The NodeDetail panel
-    // renders a `Focus` button per cluster member that triggers
-    // ``focusTopicClusterMember`` → ``expansionRequested({source:'node-detail'})``.
+    // The per-member "Focus" button (graph-internal load via
+    // ``focusTopicClusterMember``) now lives in the compound view's Advanced
+    // disclosure; the Simple default lists member labels only. Open Advanced,
+    // then click "Focus" → ``expansionRequested({source:'node-detail'})``.
+    await page.getByTestId('node-detail-cluster-advanced-toggle').click()
     await page.getByRole('button', { name: 'Focus', exact: true }).first().click()
 
     // Full outcome contract for the cluster member topic node.

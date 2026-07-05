@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import type { ParsedArtifact } from '../types/artifact'
 import { filterArtifactEgoOneHop } from './parsing'
 import {
+  applyThemeClustersOverlay,
   applyTopicClustersOverlay,
+  themeClusterMemberTopicIdsForTopic,
   clusterTimelineCilTopicIdsForCluster,
   clusterTimelineCilTopicIdsFromMemberRows,
   expandFilteredArtifactEgoWithTopicClusterNeighbors,
@@ -57,6 +59,69 @@ describe('applyTopicClustersOverlay', () => {
     const data = { nodes: [], edges: [] }
     expect(applyTopicClustersOverlay(data, null)).toBe(data)
     expect(applyTopicClustersOverlay(data, {})).toEqual(data)
+  })
+})
+
+describe('applyThemeClustersOverlay', () => {
+  it('tags member Topic nodes with themeClusterId (a ring, NOT a compound parent)', () => {
+    const data = {
+      nodes: [
+        { id: 'k:topic:alpha', type: 'Topic', properties: { label: 'Alpha' } },
+        { id: 'k:topic:beta', type: 'Topic', properties: { label: 'Beta' } },
+      ],
+      edges: [],
+    }
+    const doc = {
+      clusters: [
+        {
+          cluster_type: 'theme',
+          graph_compound_parent_id: 'thc:energy',
+          canonical_label: 'energy',
+          members: [{ topic_id: 'topic:alpha' }],
+        },
+      ],
+    }
+    const out = applyThemeClustersOverlay(data, doc)
+    // No new nodes added (unlike the semantic compound parents) — just a decoration.
+    expect(out.nodes?.length).toBe(2)
+    const alpha = out.nodes?.find((n) => String(n.id) === 'k:topic:alpha') as {
+      themeClusterId?: string
+    }
+    expect(alpha?.themeClusterId).toBe('thc:energy')
+    const beta = out.nodes?.find((n) => String(n.id) === 'k:topic:beta') as {
+      themeClusterId?: string
+    }
+    expect(beta?.themeClusterId).toBeUndefined()
+    // The member node is NOT re-parented (coexists with any semantic box).
+    expect((out.nodes?.[0] as { parent?: string })?.parent).toBeUndefined()
+  })
+
+  it('returns data unchanged when doc empty', () => {
+    const data = { nodes: [], edges: [] }
+    expect(applyThemeClustersOverlay(data, null)).toBe(data)
+    expect(applyThemeClustersOverlay(data, {})).toEqual(data)
+  })
+})
+
+describe('themeClusterMemberTopicIdsForTopic', () => {
+  const doc = {
+    clusters: [
+      {
+        graph_compound_parent_id: 'thc:energy',
+        members: [{ topic_id: 'topic:oil' }, { topic_id: 'topic:lng' }],
+      },
+      { graph_compound_parent_id: 'thc:ai', members: [{ topic_id: 'topic:ml' }] },
+    ],
+  }
+
+  it('returns the theme members for a member topic (bare-matched from a prefixed id)', () => {
+    expect(themeClusterMemberTopicIdsForTopic(doc, 'k:topic:oil')).toEqual(['topic:oil', 'topic:lng'])
+  })
+
+  it('returns [] for a non-member topic, empty doc, or empty id', () => {
+    expect(themeClusterMemberTopicIdsForTopic(doc, 'k:topic:none')).toEqual([])
+    expect(themeClusterMemberTopicIdsForTopic(null, 'k:topic:oil')).toEqual([])
+    expect(themeClusterMemberTopicIdsForTopic(doc, '')).toEqual([])
   })
 })
 
@@ -240,6 +305,51 @@ describe('clusterTimelineCilTopicIdsForCluster', () => {
     ]
     const ids = clusterTimelineCilTopicIdsForCluster(art, 'tc:iran', memberRows)
     expect(ids).toEqual(['topic:the-podcast-discusses-iran-economic'])
+  })
+
+  it('falls back to the cluster doc member topic_ids when the ego slice omits members (#5)', () => {
+    // Empty slice + no member rows: the compound and member-row paths both yield nothing, which
+    // left topic-cluster / cluster-member Timeline tabs with no chart (only the theme path, resolved
+    // from the full doc, worked). The doc is always complete, so its member topic_ids are the floor.
+    const emptyArt: ParsedArtifact = {
+      name: 'm',
+      kind: 'gi',
+      episodeId: null,
+      nodes: 0,
+      edges: 0,
+      nodeTypes: {},
+      data: { nodes: [], edges: [] },
+    }
+    const docMembers = [
+      { topic_id: 'topic:economic-crisis-in-iran' },
+      { topic_id: 'topic:iran-sanctions' },
+      { topic_id: '   ' }, // blank → ignored
+      { topic_id: 'topic:economic-crisis-in-iran' }, // duplicate → deduped
+    ]
+    const ids = clusterTimelineCilTopicIdsForCluster(emptyArt, 'tc:iran', [], docMembers)
+    expect(ids).toEqual(['topic:economic-crisis-in-iran', 'topic:iran-sanctions'])
+  })
+
+  it('ignores the doc fallback once graph/member resolution finds ids', () => {
+    const art: ParsedArtifact = {
+      name: 'm',
+      kind: 'gi',
+      episodeId: null,
+      nodes: 2,
+      edges: 0,
+      nodeTypes: {},
+      data: {
+        nodes: [
+          { id: 'tc:iran', type: 'TopicCluster', properties: {} },
+          { id: 'k:topic:iran-a', type: 'Topic', parent: 'tc:iran', properties: {} },
+        ],
+        edges: [],
+      },
+    }
+    const ids = clusterTimelineCilTopicIdsForCluster(art, 'tc:iran', [], [
+      { topic_id: 'topic:should-not-appear' },
+    ])
+    expect(ids).toEqual(['topic:iran-a'])
   })
 })
 

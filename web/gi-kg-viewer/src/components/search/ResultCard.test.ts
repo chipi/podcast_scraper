@@ -198,8 +198,8 @@ describe('ResultCard', () => {
     expect(link.text()).toContain('Open Topic panel')
     const subject = useSubjectStore()
     await link.trigger('click')
-    expect(subject.kind).toBe('topic')
-    expect(subject.topicId).toBe('topic:ai')
+    expect(subject.kind).toBe('graph-node')
+    expect(subject.graphNodeCyId).toBe('topic:ai')
   })
 
   it('renders an "Open Person panel" link for a kg_entity hit and focuses the person subject', async () => {
@@ -210,8 +210,8 @@ describe('ResultCard', () => {
     expect(link.text()).toContain('Open Person panel')
     const subject = useSubjectStore()
     await link.trigger('click')
-    expect(subject.kind).toBe('person')
-    expect(subject.personId).toBe('person:ada')
+    expect(subject.kind).toBe('graph-node')
+    expect(subject.graphNodeCyId).toBe('person:ada')
   })
 
   it('treats an id starting with topic: as a topic entity even without a kg_topic doc_type', () => {
@@ -262,14 +262,14 @@ describe('ResultCard', () => {
     const speakerLink = w.get('[data-testid="search-result-lifted-speaker-link"]')
     expect(speakerLink.text()).toBe('Ada Lovelace')
     await speakerLink.trigger('click')
-    expect(subject.kind).toBe('person')
-    expect(subject.personId).toBe('person:ada')
+    expect(subject.kind).toBe('graph-node')
+    expect(subject.graphNodeCyId).toBe('person:ada')
 
     const topicLink = w.get('[data-testid="search-result-lifted-topic-link"]')
     expect(topicLink.text()).toBe('AI')
     await topicLink.trigger('click')
-    expect(subject.kind).toBe('topic')
-    expect(subject.topicId).toBe('topic:ai')
+    expect(subject.kind).toBe('graph-node')
+    expect(subject.graphNodeCyId).toBe('topic:ai')
   })
 
   it('renders the lifted quote time range from start/end timestamps', () => {
@@ -333,8 +333,8 @@ describe('ResultCard', () => {
     expect(link.text()).toBe('Ada')
     const subject = useSubjectStore()
     await link.trigger('click')
-    expect(subject.kind).toBe('person')
-    expect(subject.personId).toBe('person:ada')
+    expect(subject.kind).toBe('graph-node')
+    expect(subject.graphNodeCyId).toBe('person:ada')
   })
 
   it('shows the "no speaker detected" hint for a quote lacking speaker info', async () => {

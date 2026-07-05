@@ -1,0 +1,219 @@
+/**
+ * Auth + admin user-management API for the viewer (#1128).
+ *
+ * The viewer reuses the Learning Player's auth: one backend, and the `lp_session` cookie is
+ * host-scoped so it's shared across the player/viewer/api origins. These call the same
+ * `/api/app/*` routes the player uses; the viewer adds the role-gated `/admin/users` surface.
+ */
+import { fetchWithTimeout } from './httpClient'
+
+export type Role = 'listener' | 'creator' | 'admin'
+
+export interface Me {
+  user_id: string
+  email: string
+  name: string
+  role: Role
+  disabled: boolean
+}
+
+export interface AdminUser {
+  user_id: string
+  email: string
+  name: string
+  role: Role
+  disabled: boolean
+  provider: string
+}
+
+const BASE = '/api/app'
+
+export interface AuthStatus {
+  /** True when platform auth is configured on the backend. When false, the viewer renders open. */
+  enabled: boolean
+  user: Me | null
+}
+
+/**
+ * Probe whether auth is enabled + who's signed in. Never throws: any failure (no auth backend, a
+ * backend-less e2e, a network blip) resolves to `{ enabled: false }` so the viewer renders open
+ * rather than trapping the user behind a login it can't complete.
+ */
+export async function getAuthStatus(): Promise<AuthStatus> {
+  try {
+    const res = await fetchWithTimeout(`${BASE}/auth/status`)
+    if (!res.ok) return { enabled: false, user: null }
+    const body = (await res.json()) as Partial<AuthStatus>
+    return { enabled: body.enabled === true, user: body.user ?? null }
+  } catch {
+    return { enabled: false, user: null }
+  }
+}
+
+/** Full-page login URL. The viewer grants `creator` to new users by default. */
+export function loginUrl(grant: Role | null = 'creator', as?: string): string {
+  const params = new URLSearchParams()
+  if (grant) params.set('grant', grant)
+  if (as) params.set('as', as)
+  const qs = params.toString()
+  return `${BASE}/auth/login${qs ? `?${qs}` : ''}`
+}
+
+export async function logout(): Promise<void> {
+  await fetchWithTimeout(`${BASE}/auth/logout`, { method: 'POST' })
+}
+
+export interface DevUser {
+  hint: string
+  name: string
+  role: Role
+}
+
+/**
+ * Predefined dev identities for the sign-in picker — populated only when the MOCK provider is on.
+ * Never throws: any failure → `{ enabled: false }` (the UI falls back to the normal provider button).
+ */
+export async function getDevUsers(): Promise<{ enabled: boolean; users: DevUser[] }> {
+  try {
+    const res = await fetchWithTimeout(`${BASE}/auth/dev-users`)
+    if (!res.ok) return { enabled: false, users: [] }
+    const body = (await res.json()) as { enabled?: boolean; users?: DevUser[] }
+    return { enabled: body.enabled === true, users: Array.isArray(body.users) ? body.users : [] }
+  } catch {
+    return { enabled: false, users: [] }
+  }
+}
+
+// --- admin (role-gated; 403 for non-admins) -----------------------------------------------------
+
+export async function listUsers(): Promise<AdminUser[]> {
+  const res = await fetchWithTimeout(`${BASE}/admin/users`)
+  if (!res.ok) throw new Error(`GET /admin/users failed: ${res.status}`)
+  return (await res.json()) as AdminUser[]
+}
+
+export async function createUser(body: {
+  email: string
+  name?: string
+  role?: Role
+}): Promise<AdminUser> {
+  const res = await fetchWithTimeout(`${BASE}/admin/users`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(await errorMessage(res, 'create user'))
+  return (await res.json()) as AdminUser
+}
+
+export async function patchUser(
+  userId: string,
+  body: { role?: Role; disabled?: boolean },
+): Promise<AdminUser> {
+  const res = await fetchWithTimeout(`${BASE}/admin/users/${encodeURIComponent(userId)}`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(await errorMessage(res, 'update user'))
+  return (await res.json()) as AdminUser
+}
+
+export async function deleteUser(userId: string): Promise<void> {
+  const res = await fetchWithTimeout(`${BASE}/admin/users/${encodeURIComponent(userId)}`, {
+    method: 'DELETE',
+  })
+  if (!res.ok && res.status !== 204) throw new Error(await errorMessage(res, 'delete user'))
+}
+
+// --- ranking config (admin; #11 B2) -------------------------------------------------------------
+
+export interface RankingSignalDTO {
+  name: string
+  enabled: boolean
+  weight: number
+  params: Record<string, unknown>
+}
+
+export interface RankingConfigDTO {
+  signals: RankingSignalDTO[]
+}
+
+/** The active discovery ranking-signal config (admin only). */
+export async function fetchRankingConfig(): Promise<RankingConfigDTO> {
+  const res = await fetchWithTimeout(`${BASE}/ranking-config`)
+  if (!res.ok) throw new Error(await errorMessage(res, 'load ranking config'))
+  return (await res.json()) as RankingConfigDTO
+}
+
+/** Replace the ranking-signal config (admin only); returns the stored config. */
+export async function saveRankingConfig(config: RankingConfigDTO): Promise<RankingConfigDTO> {
+  const res = await fetchWithTimeout(`${BASE}/ranking-config`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(config),
+  })
+  if (!res.ok) throw new Error(await errorMessage(res, 'save ranking config'))
+  return (await res.json()) as RankingConfigDTO
+}
+
+// --- graph analytics (admin; owned) -------------------------------------------------------------
+
+export interface SizeStat {
+  min: number
+  avg: number
+  max: number
+  p50: number
+  p95: number
+}
+
+export interface GraphAnalyticsSummary {
+  total_events: number
+  users: number
+  by_action: Record<string, number>
+  node_taps_by_kind: Record<string, number>
+  size: { samples: number; nodes: SizeStat; edges: SizeStat; trail: SizeStat }
+  breakage: { count: number; by_reason: Record<string, number> }
+}
+
+/** Aggregated graph-usage analytics across all users (admin only). */
+export async function fetchGraphAnalyticsSummary(): Promise<GraphAnalyticsSummary> {
+  const res = await fetchWithTimeout(`${BASE}/graph-events/summary`)
+  if (!res.ok) throw new Error(await errorMessage(res, 'load graph analytics'))
+  return (await res.json()) as GraphAnalyticsSummary
+}
+
+export interface GraphSessionSummary {
+  session_id: string
+  user_id: string
+  started: number
+  ended: number
+  count: number
+  size_min: number
+  size_max: number
+}
+
+/** All analytics sessions, most-recent first (admin only). */
+export async function fetchGraphSessions(): Promise<GraphSessionSummary[]> {
+  const res = await fetchWithTimeout(`${BASE}/graph-events/sessions`)
+  if (!res.ok) throw new Error(await errorMessage(res, 'load sessions'))
+  return ((await res.json()) as { sessions: GraphSessionSummary[] }).sessions
+}
+
+/** One session's ordered event timeline (admin only) — step-by-step view + replay source. */
+export async function fetchGraphSession(sessionId: string): Promise<Array<Record<string, unknown>>> {
+  const res = await fetchWithTimeout(`${BASE}/graph-events/session/${encodeURIComponent(sessionId)}`)
+  if (!res.ok) throw new Error(await errorMessage(res, 'load session'))
+  return ((await res.json()) as { events: Array<Record<string, unknown>> }).events
+}
+
+/** Pull a FastAPI `{detail}` message off an error response for a readable toast. */
+async function errorMessage(res: Response, action: string): Promise<string> {
+  try {
+    const body = (await res.json()) as { detail?: string }
+    if (body?.detail) return body.detail
+  } catch {
+    /* non-JSON body */
+  }
+  return `Failed to ${action} (${res.status})`
+}

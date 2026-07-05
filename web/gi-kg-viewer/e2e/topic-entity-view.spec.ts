@@ -226,27 +226,20 @@ test.describe('Topic / Entity rail panel (TEV)', () => {
       subj.focusTopic(id)
     }, GRAPH_TOPIC_ID)
 
-    // TEV contract surface (E2E_SURFACE_MAP §224).
+    // TEV contract surface (E2E_SURFACE_MAP §224). Post node-view unification
+    // TEV is folded ``embedded`` into NodeDetail's Details rail tab, which owns
+    // the header + actions — so TEV's own kind/name header + action buttons
+    // (all ``v-if="!embedded"``) are hidden; the rail supplies them.
+    const rail = page.getByTestId('graph-node-detail-rail')
     const view = page.getByTestId('topic-entity-view')
     await expect(view).toBeVisible({ timeout: 10_000 })
 
-    await expect(page.getByTestId('topic-entity-view-kind')).toContainText(/topic|entity/i)
-    await expect(page.getByTestId('topic-entity-view-name')).toContainText(TOPIC_LABEL)
+    // The rail (not TEV) owns the header; an off-slice ``topic:`` id titles it
+    // "Topic" via NodeDetail's inferredKindFromId. (The standalone TEV's own
+    // kind/name/stats/empty/mentions sections were retired in the fold — the
+    // corpus-wide mentions timeline now lives in the rail's Timeline tab.)
+    await expect(rail.getByRole('heading').first()).toContainText('Topic')
 
-    // The fixture has a Topic node with no mentions, so the stats sentence
-    // (gated on timeline.total > 0) is absent and the empty placeholder
-    // renders instead. Either branch satisfies the contract.
-    const stats = view.getByTestId('topic-entity-view-stats')
-    const empty = view.getByTestId('topic-entity-view-empty')
-    const mentions = view.getByTestId('topic-entity-view-mentions')
-    const statsCount = await stats.count()
-    const emptyCount = await empty.count()
-    const mentionsCount = await mentions.count()
-    expect(statsCount + emptyCount + mentionsCount).toBeGreaterThan(0)
-
-    // Action buttons present.
-    await expect(page.getByTestId('topic-entity-view-go-graph')).toBeVisible()
-    await expect(page.getByTestId('topic-entity-view-prefill-search')).toBeVisible()
     // TEV does not launch the legacy topic timeline popup.
     await expect(page.getByTestId('topic-timeline-dialog')).toHaveCount(0)
   })

@@ -58,8 +58,8 @@ vector_search: false
 enrichment:
   enabled: true
   enrichers:
-    topic_cooccurrence: {}
     topic_cooccurrence_corpus: {}
+    topic_theme_clusters: {}
     temporal_velocity: {}
     grounding_rate: {}
     guest_coappearance: {}

@@ -282,3 +282,19 @@ def test_topic_similarity_manifest_is_embedding_tier() -> None:
     assert enricher.manifest.id == "topic_similarity"
     assert enricher.manifest.tier.value == "embedding"
     assert enricher.manifest.scope.value == "corpus"
+
+
+def test_topic_similarity_sets_records_written(tmp_path: Path) -> None:
+    # Regression: async enrichers return EnricherResult directly (no @sync_enricher wrapper), so
+    # they must set records_written themselves — it was always 0, so the run-summary under-reported
+    # the ML enrichers as producing nothing (found on prod-pilot 2026-07-01; #1127 Bug-5 twin).
+    bundles = [_bundle(tmp_path / "metadata", "ep1", ["topic:a", "topic:b", "topic:c"])]
+    enricher = TopicSimilarityEnricher(TopicEmbeddingProvider(embed_text=HashEmbedder(dim=16)))
+    result = asyncio.run(
+        enricher.enrich(
+            bundle=None, corpus_root=tmp_path, all_bundles=bundles, config={}, ctx=_ctx()
+        )
+    )
+    assert result.status == STATUS_OK
+    assert isinstance(result.data, dict)
+    assert result.records_written == len(result.data["topics"]) == 3

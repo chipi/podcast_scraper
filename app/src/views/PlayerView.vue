@@ -13,12 +13,16 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useQueueStore } from '../stores/queue'
+import { useAuthStore } from '../stores/auth'
+import { useCaptureStore } from '../stores/capture'
 import KnowledgePanel from '../components/KnowledgePanel.vue'
 import PlayerControls from '../components/PlayerControls.vue'
 import TranscriptList from '../components/TranscriptList.vue'
 import FavoriteButton from '../components/FavoriteButton.vue'
 import { activeInsightIndex, groundedSpansBySegment } from '../player/insights'
+import { insightScrubberMarkers } from '../player/insightMarkers'
 import { activeSegmentIndex, PLAYBACK_RATES } from '../player/transcriptSync'
+import type { ParagraphSpan } from '../player/transcriptCapture'
 import {
   getAudioSource,
   getEntities,
@@ -48,6 +52,8 @@ const { t, locale } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const queue = useQueueStore()
+const auth = useAuthStore()
+const capture = useCaptureStore()
 
 async function onEnded(): Promise<void> {
   playing.value = false
@@ -74,6 +80,8 @@ const compact = (n: number): string =>
 
 // Transcript ↔ insight bridge: which segments back a grounded insight (highlight + tap-through).
 const groundedSpans = computed(() => groundedSpansBySegment(segments.value, insights.value))
+// #1140: insight-density ticks for the scrubber ("skip guide" — where the substance is).
+const insightMarkers = computed(() => insightScrubberMarkers(insights.value, duration.value))
 
 function openInsight(insightId: string): void {
   panelOpen.value = true
@@ -266,14 +274,61 @@ function cycleRate(): void {
   if (audioEl.value) audioEl.value.playbackRate = rate.value
 }
 
-onMounted(() => load(props.slug))
+// --- capture (P2, PRD-040): mark a moment, save a transcript paragraph/phrase ---
+// A paragraph's save control reads as "saved" when any of its segments is covered by a saved span.
+const savedSegmentIds = computed(() => capture.savedSegmentIds)
+const momentFlash = ref(false)
+// Screen-reader confirmation for captures (the visual flash alone isn't announced). Polite so it
+// never interrupts the now-playing live region.
+const captureAnnounce = ref('')
+let flashTimer: ReturnType<typeof setTimeout> | undefined
+
+function announceCapture(message: string): void {
+  // Re-set so an identical consecutive message still re-announces.
+  captureAnnounce.value = ''
+  void nextTick(() => {
+    captureAnnounce.value = message
+  })
+}
+
+/** One-tap "mark this moment" at the current content-time, tagged with who's speaking. */
+async function markMoment(): Promise<void> {
+  const speaker = activeIndex.value >= 0 ? (segments.value[activeIndex.value]?.speaker ?? null) : null
+  await capture.captureMoment(props.slug, Math.max(0, contentTime.value), speaker)
+  momentFlash.value = true
+  announceCapture(t('capture.marked'))
+  if (flashTimer) clearTimeout(flashTimer)
+  flashTimer = setTimeout(() => {
+    momentFlash.value = false
+  }, 1500)
+}
+
+async function onCaptureParagraph(span: ParagraphSpan): Promise<void> {
+  await capture.captureSpan(props.slug, span)
+  announceCapture(t('capture.savedHighlight'))
+}
+
+function ensureCaptureLoaded(): void {
+  if (auth.isAuthenticated) void capture.ensureLoaded()
+}
+
+onMounted(() => {
+  load(props.slug)
+  ensureCaptureLoaded()
+})
 watch(() => props.slug, (s) => load(s))
-onBeforeUnmount(() => persist())
+watch(() => auth.isAuthenticated, ensureCaptureLoaded)
+onBeforeUnmount(() => {
+  persist()
+  if (flashTimer) clearTimeout(flashTimer)
+})
 </script>
 
 <template>
   <section>
     <RouterLink :to="{ name: 'catalog' }" class="lp-nav">‹ {{ t('player.back') }}</RouterLink>
+    <!-- Polite SR confirmation for captures (mark-moment / save line or phrase). -->
+    <p aria-live="polite" class="sr-only">{{ captureAnnounce }}</p>
 
     <p v-if="loading" class="mt-4 text-muted">{{ t('player.loading') }}</p>
     <p v-else-if="notFound" class="mt-4 text-danger">{{ t('player.notFound') }}</p>
@@ -298,7 +353,23 @@ onBeforeUnmount(() => persist())
             {{ episode.podcast_title }}
           </RouterLink>
           <span v-else />
-          <FavoriteButton :item="favItem" class="shrink-0 text-xl" />
+          <div class="flex shrink-0 items-center gap-2">
+            <!-- Mark this moment (P2 capture; auth-gated). Brief "saved" flash on tap. -->
+            <button
+              v-if="auth.isAuthenticated"
+              type="button"
+              class="rounded-full p-1 text-xl transition"
+              :class="momentFlash ? 'text-accent' : 'text-muted hover:text-accent'"
+              :aria-label="momentFlash ? t('capture.marked') : t('capture.markMoment')"
+              :title="momentFlash ? t('capture.marked') : t('capture.markMoment')"
+              @click="markMoment"
+            >
+              <svg viewBox="0 0 24 24" :fill="momentFlash ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" class="h-5 w-5" aria-hidden="true">
+                <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
+              </svg>
+            </button>
+            <FavoriteButton :item="favItem" class="text-xl" />
+          </div>
         </div>
         <h1 class="mt-1 font-display text-3xl font-extrabold leading-tight tracking-tight">
           {{ episode.title }}
@@ -417,6 +488,7 @@ onBeforeUnmount(() => persist())
           :current-time="currentTime"
           :duration="duration"
           :rate="rate"
+          :markers="insightMarkers"
           @toggle="toggle"
           @seek="seek"
           @skip="skip"
@@ -468,9 +540,12 @@ onBeforeUnmount(() => persist())
           :segments="segments"
           :active-index="activeIndex"
           :grounded="groundedSpans"
+          :can-capture="auth.isAuthenticated"
+          :saved-segment-ids="savedSegmentIds"
           class="min-h-0 lg:flex-1"
           @seek="seekContent"
           @insight="openInsight"
+          @capture="onCaptureParagraph"
         />
         <p v-else class="rounded-2xl border border-border bg-surface p-4 text-muted">
           {{ t('player.transcriptPending') }}

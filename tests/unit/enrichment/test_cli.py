@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from podcast_scraper.enrichment.cli import (
+    _resolve_config_path,
     build_arg_parser,
     build_enricher_set_from_yaml,
     parse_id_list,
@@ -113,8 +114,8 @@ def test_profile_plus_only_narrows_to_subset(tmp_path: Path) -> None:
     )
 
     base = enricher_set_for_profile("airgapped_thin")
-    out = apply_cli_overrides(base, only=["topic_cooccurrence"])
-    assert out.enabled_enrichers == ["topic_cooccurrence"]
+    out = apply_cli_overrides(base, only=["topic_cooccurrence_corpus"])
+    assert out.enabled_enrichers == ["topic_cooccurrence_corpus"]
 
 
 def test_no_enrichers_beats_profile_and_only(tmp_path: Path) -> None:
@@ -194,6 +195,44 @@ def test_build_enricher_set_no_enrichment_block_returns_empty(tmp_path: Path) ->
     config.write_text("other_block:\n  foo: bar\n", encoding="utf-8")
     s = build_enricher_set_from_yaml(config)
     assert s.enabled_enrichers == []
+
+
+# ---------------------------------------------------------------------------
+# _resolve_config_path — --config defaults to the corpus's stored config so
+# CLI + MCP runs pick up the operator's enrichment block (incl. ML providers).
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_config_path_explicit_wins(tmp_path: Path) -> None:
+    explicit = tmp_path / "custom.yaml"
+    # Explicit path is returned verbatim, even if a stored config also exists.
+    (tmp_path / "viewer_operator.yaml").write_text("enrichment: {}\n", encoding="utf-8")
+    assert _resolve_config_path(explicit, tmp_path) == explicit
+
+
+def test_resolve_config_path_defaults_to_stored_operator_yaml(tmp_path: Path) -> None:
+    stored = tmp_path / "viewer_operator.yaml"
+    stored.write_text("enrichment:\n  enrichers: {}\n", encoding="utf-8")
+    assert _resolve_config_path(None, tmp_path) == stored
+
+
+def test_resolve_config_path_none_when_no_stored_config(tmp_path: Path) -> None:
+    assert _resolve_config_path(None, tmp_path) is None
+
+
+def test_run_cli_reads_stored_config_without_explicit_flag(tmp_path: Path) -> None:
+    """End-to-end: with no --config, run_cli picks up viewer_operator.yaml. The
+    stored block enables a deterministic enricher; on an empty corpus the run is a
+    clean no-op (exit 0), but the config is resolved (regression for the ML-wiring
+    bug where --config defaulted to None and stored provider blocks were ignored)."""
+    (tmp_path / "viewer_operator.yaml").write_text(
+        "enrichment:\n  enrichers:\n    topic_cooccurrence_corpus: {}\n",
+        encoding="utf-8",
+    )
+    parser = build_arg_parser()
+    args = parser.parse_args(["--output-dir", str(tmp_path)])
+    assert _resolve_config_path(args.config, tmp_path) == tmp_path / "viewer_operator.yaml"
+    assert asyncio.run(run_cli(args)) == 0
 
 
 # ---------------------------------------------------------------------------

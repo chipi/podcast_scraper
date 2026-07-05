@@ -416,9 +416,13 @@ test.describe('Search → graph (mocked API)', () => {
       timeout: 10_000,
     })
     await expect(page.getByTestId('node-detail-full-topic')).toContainText('Climate policy')
+    // Post node-view unification: the corpus-wide mentions timeline moved out of
+    // the Details tab into the rail's dedicated Timeline tab.
+    await page.getByTestId('node-detail-rail-tab-timeline').click()
     const inlineTimeline = page.getByTestId('node-detail-inline-timeline')
     await expect(inlineTimeline).toBeVisible()
-    await expect(inlineTimeline).toContainText('Cluster timeline')
+    // The Timeline rail tab now labels the section; the cluster-vs-topic
+    // distinction lives in the episode-count copy below (no in-section heading).
     await expect(inlineTimeline).toContainText('CI fixture episode')
     await expect(inlineTimeline).toContainText('1 episode with insights about this cluster.')
     await expect(page.getByTestId('topic-timeline-dialog')).toHaveCount(0)
@@ -543,9 +547,12 @@ test.describe('Search → graph (mocked API)', () => {
       .filter({ hasText: 'Climate policy' })
       .click()
 
+    // Mentions timeline now lives in the rail's Timeline tab (post-fold).
+    await page.getByTestId('node-detail-rail-tab-timeline').click()
     const inlineTimeline = page.getByTestId('node-detail-inline-timeline')
     await expect(inlineTimeline).toBeVisible()
-    await expect(inlineTimeline).toContainText('Topic timeline')
+    // Timeline rail tab labels the section now; cluster-vs-topic distinction is
+    // in the episode-count copy (no in-section "Topic timeline" heading).
     await expect(inlineTimeline).toContainText('CI fixture episode')
     await expect(inlineTimeline).toContainText('1 episode with insights about this topic.')
     await expect(page.getByTestId('topic-timeline-dialog')).toHaveCount(0)

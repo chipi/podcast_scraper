@@ -59,7 +59,7 @@ PYTEST_WORKERS ?= 2
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-sweep-local autoresearch-sweep-multi autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e build-viewer serve-app serve-app-dev test-app test-app-e2e build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
+.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-sweep-local autoresearch-sweep-multi autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e build-viewer serve-app serve-app-dev test-app test-app-e2e build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
 
 help:
 	@echo "Common developer commands:"
@@ -467,6 +467,12 @@ quality: complexity deadcode docstrings spelling
 	#   on user-supplied paths. No fix version yet; affects all nltk through 3.9.4.
 	# TODO(PYSEC-2026-97): drop ignore when nltk releases a sanitised filestring.
 	#
+	# Ignore PYSEC-2026-597 (nltk 3.9.4 — same deserialization/file-read class as
+	#   PYSEC-2026-97 above; newly published against the nltk we pin). Same
+	#   reachability argument: nltk is used only for the tokeniser/stopwords, never
+	#   fed user-supplied paths. No fix version yet (affects all nltk through 3.9.4).
+	# TODO(PYSEC-2026-597): drop ignore when nltk publishes a fixed release.
+	#
 	# Ignore PYSEC-2025-189..197, PYSEC-2025-210, PYSEC-2026-139 (torch checkpoint /
 	#   operator deserialization class). 11 advisories against torch <= 2.12.0 with
 	#   NO fix versions (2.12.0 IS the latest). We only ``torch.load`` HuggingFace
@@ -482,6 +488,12 @@ quality: complexity deadcode docstrings spelling
 	#   is vendored — see [ml] in pyproject.toml).
 	# TODO(transformers PYSECs): drop ignores after bumping transformers to a
 	#   patched 5.x release (paired with the CVE-2026-1839 ignore above).
+	#
+	# Ignore CVE-2026-4372 (transformers 4.57.6; fix lands in 5.3.0). Same 4.x-line
+	#   situation as the PYSEC-2025-211..218 / CVE-2026-1839 block: the fix exists
+	#   only in the 5.x branch and we cap transformers <5 (see [ml] in pyproject) —
+	#   not reachable in the extractive-QA / pipeline path we use.
+	# TODO(CVE-2026-4372): drop ignore after bumping transformers to a patched 5.x.
 	#
 	# Ignore CVE-2025-3000 (torch.jit.script memory corruption).
 	#   Local-access attack on the JIT script path. We don't call
@@ -500,11 +512,13 @@ quality: complexity deadcode docstrings spelling
 		--ignore-vuln CVE-2026-0994 \
 		--ignore-vuln CVE-2026-4539 \
 		--ignore-vuln CVE-2026-1839 \
+		--ignore-vuln CVE-2026-4372 \
 		--ignore-vuln CVE-2025-69872 \
 		--ignore-vuln CVE-2026-3219 \
 		--ignore-vuln CVE-2026-6357 \
 		--ignore-vuln PYSEC-2024-277 \
 		--ignore-vuln PYSEC-2026-97 \
+		--ignore-vuln PYSEC-2026-597 \
 		--ignore-vuln PYSEC-2025-189 \
 		--ignore-vuln PYSEC-2025-190 \
 		--ignore-vuln PYSEC-2025-191 \
@@ -622,7 +636,7 @@ validate-kg-schema:
 	fi
 
 # GI/KG viewer v2 (#489): FastAPI + Vite. ``make init`` includes FastAPI via ``[dev]``; cd $(WEB_VIEWER_DIR) && npm install
-.PHONY: serve serve-api serve-ui serve-app serve-app-dev serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod reprocess-corpus-from-transcripts corpus-compat-check index-two-tier enrich-relational-edges redo-diarization upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify smoke-prod corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
+.PHONY: serve serve-api serve-ui serve-app serve-app-dev serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod reprocess-corpus-from-transcripts corpus-compat-check index-two-tier enrich-relational-edges redo-diarization upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify enrich smoke-prod corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
 SERVE_OUTPUT_DIR ?= ./output
 # Optional corpus-editing + jobs routes (health shows green when on). Override with SERVE_ARGS= to disable.
 SERVE_ARGS ?= --enable-feeds-api --enable-operator-config-api --enable-jobs-api
@@ -634,22 +648,37 @@ serve:
 	@$(MAKE) -j2 serve-api serve-ui
 
 serve-api:
-	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) -m $(PACKAGE).cli serve --output-dir "$(SERVE_OUTPUT_DIR)" $(SERVE_ARGS)
+	@# KMP_DUPLICATE_LIB_OK: with the [ml] extra installed, hybrid search loads torch (query
+	@# embedder) alongside faiss, and on macOS the duplicate OpenMP runtime aborts the process
+	@# ("Abort trap: 6") the first time /api/corpus/digest or /api/search runs — the API dies and
+	@# the viewer goes blank. Allowing the duplicate is the standard local workaround; no-op on Linux.
+	@# Local dev auth: default to the mock OAuth provider + a dev session secret so player AND viewer
+	@# sign-in work out of the box (also required to exercise personalization). serve-api is local-only
+	@# (prod runs via compose/stack with a real provider), so the mock default is safe here. Override
+	@# any of these env vars to disable or point elsewhere; NEVER use the mock provider outside dev.
+	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && export KMP_DUPLICATE_LIB_OK=$${KMP_DUPLICATE_LIB_OK:-TRUE} && \
+		export APP_OAUTH_PROVIDER=$${APP_OAUTH_PROVIDER:-mock} && \
+		export APP_SESSION_SECRET=$${APP_SESSION_SECRET:-dev-secret} && \
+		export APP_ADMIN_EMAILS=$${APP_ADMIN_EMAILS:-dev@localhost} && \
+		export APP_SEED_USERS_FILE=$${APP_SEED_USERS_FILE:-config/dev-seed-users.json} && \
+		$(PYTHON) -m $(PACKAGE).cli serve --output-dir "$(SERVE_OUTPUT_DIR)" $(SERVE_ARGS)
 
 serve-ui:
 	@cd $(WEB_VIEWER_DIR) && npm run dev
 
 # Consumer Learning Player dev server (Vite). Proxies /api → 127.0.0.1:8000; run the API
-# separately, or use ``serve-app-dev`` to run both with the local mock OAuth provider.
+# separately (``serve-api`` now defaults the local mock OAuth provider, so sign-in works), or use
+# ``serve-app-dev`` to bring up both in one command.
 serve-app:
 	@cd $(APP_DIR) && npm run dev
 
-# One-command local app environment: the consumer API (with the dev/e2e mock OAuth provider
-# + a dev session secret) and the Learning Player app, in parallel (Ctrl+C stops both).
-# NEVER use APP_OAUTH_PROVIDER=mock outside local dev.
+# One-command local app environment: the consumer API + the Learning Player app, in parallel
+# (Ctrl+C stops both). The dev mock OAuth provider, session secret, admin bootstrap
+# (``dev@localhost``) and seed roster are defaulted by ``serve-api`` itself, so sign-in works here
+# and under a plain ``make serve`` too. NEVER use the mock provider outside local dev.
 serve-app-dev:
-	@echo "Running the consumer API (mock OAuth) + the Learning Player app in parallel (Ctrl+C stops both)."
-	@APP_OAUTH_PROVIDER=mock APP_SESSION_SECRET=$${APP_SESSION_SECRET:-dev-secret} $(MAKE) -j2 serve-api serve-app
+	@echo "Running the consumer API (mock OAuth via serve-api defaults) + the Learning Player app in parallel (Ctrl+C stops both)."
+	@$(MAKE) -j2 serve-api serve-app
 
 # E2E fixture HTTP server (RSS + mock API paths); use --feeds-spec with URLs on this port.
 serve-e2e-mock:
@@ -1195,6 +1224,31 @@ upgrade-verify:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
 	$(PYTHON) -m podcast_scraper.cli upgrade verify --corpus-dir "$${CORPUS_DIR}"
 
+# Run the RFC-088 enrichment layer over a corpus (#1127). Wraps the standalone
+# `podcast_scraper.enrichment.cli` runner. Deterministic enrichers run by default;
+# WITH_ML=1 wires the embedding/NLI enrichers (needs the `[ml]` extra + `provider`
+# blocks in the operator YAML). Results land under <CORPUS>/enrichments/ +
+# <CORPUS>/metadata/enrichments/, with a run_summary.json + run.jsonl audit trail.
+#
+#   make enrich CORPUS=<corpus output dir> \
+#       [WITH_ML=1] [ONLY=id,id] [SKIP=id,id] [OPT_IN=id,id] \
+#       [PROFILE=name] [CONFIG=operator.yaml] [CORPUS_ONLY=1] [LOG_LEVEL=INFO]
+#
+# e.g.  make enrich CORPUS=.test_outputs/manual/prod-pilot/corpus           # deterministic only
+#       make enrich CORPUS=.test_outputs/manual/prod-v2/corpus WITH_ML=1    # + embedding/NLI
+enrich:
+	@test -n "$(CORPUS)" || { echo "CORPUS required — corpus output dir, e.g. .test_outputs/manual/prod-pilot/corpus"; exit 1; }
+	@export PYTHONPATH="$(PWD)/src:$${PYTHONPATH}" && $(PYTHON) -m $(PACKAGE).enrichment.cli \
+		--output-dir "$(CORPUS)" \
+		$(if $(WITH_ML),--with-ml) \
+		$(if $(ONLY),--only "$(ONLY)") \
+		$(if $(SKIP),--skip "$(SKIP)") \
+		$(if $(OPT_IN),--opt-in "$(OPT_IN)") \
+		$(if $(PROFILE),--profile "$(PROFILE)") \
+		$(if $(CONFIG),--config "$(CONFIG)") \
+		$(if $(LOG_LEVEL),--log-level "$(LOG_LEVEL)") \
+		$(if $(CORPUS_ONLY),--corpus-only)
+
 # Post-deploy prod smoke over Tailscale HTTPS (#797). Requires PROD_TAILNET_FQDN.
 # Optional: SMOKE_CORPUS_PATH (in-container corpus root for API path=, e.g. /app/output on prod).
 smoke-prod:
@@ -1429,14 +1483,21 @@ test-integration-fast:
 	# Use --durations=20 to monitor slow tests and optimize them separately
 	# Coverage: measured independently but no threshold (fast tests are a subset, full suite enforces threshold)
 	# Note: Removed --disable-socket for pytest-rerunfailures compatibility with -n (parallel)
-	$(PYTHON) -m pytest tests/integration/ -m "integration and critical_path and not ml_models" -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) --cov=$(PACKAGE) --cov-report=term-missing --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20
+	$(PYTHON) -m pytest tests/integration/ -m "integration and (critical_path or app) and not ml_models" -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) --cov=$(PACKAGE) --cov-report=term-missing --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20
+
+test-app-routes:
+	# Quick local loop for the consumer-app / server routes: the ``app``-marked
+	# integration tests (auto-applied to tests/integration/server/test_app_*.py),
+	# excluding ml_models. Same set the fast PR suite runs, so ``codecov`` on the
+	# PR reflects it. ~seconds; use before pushing app-route changes.
+	$(PYTHON) -m pytest tests/integration/server/ -m "app and not ml_models" -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) --cov=$(PACKAGE) --cov-report=term-missing --allow-hosts=127.0.0.1,localhost --durations=20
 
 test-ci:
 	# CI test suite: parallel execution for speed
 	# Includes: unit + critical path integration + critical path e2e (includes ML if models cached)
 	# Uses conservative worker calculation (default type, caps at 5) for mixed test types
 	# Note: Non-critical path tests run on main branch only
-	$(PYTHON) -m pytest -m '(not integration and not e2e) or (integration and critical_path) or (e2e and critical_path)' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type default --max-workers 5 2>/dev/null || echo 3) --disable-socket --allow-hosts=127.0.0.1,localhost --cov=$(PACKAGE) --cov-report=term-missing
+	$(PYTHON) -m pytest -m '(not integration and not e2e) or (integration and (critical_path or (app and not ml_models))) or (e2e and critical_path)' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type default --max-workers 5 2>/dev/null || echo 3) --disable-socket --allow-hosts=127.0.0.1,localhost --cov=$(PACKAGE) --cov-report=term-missing
 
 test-ci-fast:
 	# Fast CI test suite: parallel execution for speed
@@ -1635,7 +1696,7 @@ test-fast:
 		-n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) \
 		--cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost $(PYTEST_PROGRESS_OPTS)
 	@echo "Running critical path integration tests with coverage (appending)..."
-	@E2E_TEST_MODE=fast PYTHONUNBUFFERED=1 $(PYTHON) -m pytest tests/integration/ -m 'integration and critical_path' \
+	@E2E_TEST_MODE=fast PYTHONUNBUFFERED=1 $(PYTHON) -m pytest tests/integration/ -m 'integration and (critical_path or (app and not ml_models))' \
 		-n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) \
 		--cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost $(PYTEST_PROGRESS_OPTS)
 	@echo "Running critical path E2E tests (non-ML, parallel) with coverage (appending)..."
@@ -1663,7 +1724,7 @@ test-fast-no-py-e2e:
 		-n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) \
 		--cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost $(PYTEST_PROGRESS_OPTS)
 	@echo "Running critical path integration tests with coverage (appending)..."
-	@E2E_TEST_MODE=fast PYTHONUNBUFFERED=1 $(PYTHON) -m pytest tests/integration/ -m 'integration and critical_path' \
+	@E2E_TEST_MODE=fast PYTHONUNBUFFERED=1 $(PYTHON) -m pytest tests/integration/ -m 'integration and (critical_path or (app and not ml_models))' \
 		-n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) \
 		--cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost $(PYTEST_PROGRESS_OPTS)
 	@echo "Combining coverage..."
@@ -2267,10 +2328,19 @@ serve-for-validation:
 	# The default ``make serve`` uses ``.test_outputs`` as the root; this
 	# target points at the repo root so ``tests/fixtures/viewer-validation-corpus``
 	# is reachable. Use a separate terminal: ``make serve-for-validation``.
-	@echo "Starting API + UI with SERVE_OUTPUT_DIR=$(PWD) (repo root)."
+	# APP_OAUTH_PROVIDER=none disables the auth gate for the validation walk.
+	# ``serve-api`` defaults to the mock OAuth provider (auth ON), which makes the
+	# app render LoginView instead of the shell until a user signs in — the Tier-3
+	# specs (real-corpus / handoff-matrix / person-profile) drive graph + corpus
+	# surfaces, not auth, and never sign in, so an enabled gate blocks every walk
+	# on the corpus-path input. Auth has its own unit + stack-test coverage; this
+	# harness runs auth-off (its pre-#14 behaviour). ``none`` is non-empty so
+	# serve-api's ``:-mock`` default does not re-enable it, and provider_from_env
+	# returns None for any non-``mock`` value without Google creds.
+	@echo "Starting API + UI with SERVE_OUTPUT_DIR=$(PWD) (repo root), auth disabled."
 	@echo "Synthetic validation corpus root (pass this as CORPUS=):"
 	@echo "  $(VIEWER_VALIDATION_CORPUS)"
-	@SERVE_OUTPUT_DIR=$(PWD) $(MAKE) -j2 serve-api serve-ui
+	@SERVE_OUTPUT_DIR=$(PWD) APP_OAUTH_PROVIDER=none $(MAKE) -j2 serve-api serve-ui
 
 build-validation-index:
 	# Build ALL search artifacts the Tier-3 walk needs, against the in-repo

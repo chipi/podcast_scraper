@@ -34,8 +34,8 @@ def episode_enrichment_path(bundle: EpisodeArtifactBundle, writes: str) -> Path:
     Example:
         bundle.metadata_path = ``metadata/0001 - ep.metadata.json``
         bundle.stem          = ``0001 - ep``
-        writes               = ``topic_cooccurrence.json``
-        result               = ``metadata/enrichments/0001 - ep.topic_cooccurrence.json``
+        writes               = ``insight_density.json``
+        result               = ``metadata/enrichments/0001 - ep.insight_density.json``
     """
     parent = bundle.metadata_path.parent / "enrichments"
     return parent / f"{bundle.stem}.{writes}"

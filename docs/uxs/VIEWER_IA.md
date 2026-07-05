@@ -166,6 +166,44 @@ clicked from Search / Explore without a prior Graph visit triggers
 `corpusGraphBaselineLoaderKey` so the panel has data to render
 (mirrors the Digest topic-band auto-load).
 
+### Unified node view (target)
+
+There is **one** subject surface: the polymorphic **node view** (`NodeDetail`).
+No separate Topic / Person / Entity overview panels, and **no "Open full …
+profile" links** — clicking a subject from any surface lands directly in the
+node view. The rail routes every non-episode `kind` (`topic` / `person` /
+`graph-node`) through the node view; the store API (`focusTopic`, `focusPerson`,
+`focusEntity`, `focusGraphNode`) is unchanged so all handoff call-sites keep
+working.
+
+Tabs are polymorphic by node type:
+
+- **Topic / Entity** → `Details | Neighbourhood`
+- **Person** → `Details | Position Tracker | Neighbourhood`
+
+**Details** (first tab) carries the full type-specific detail — the content
+previously split into `TopicEntityView` / `PersonLandingView` folds in here:
+
+- **Topic / Entity** — name · aliases · cluster identity (Theme / Similar) ·
+  a **compact mentions timeline** (topic-level; each episode is a collapsible
+  row — collapsed shows the episode's own title, our generated `summary_title`,
+  and date; expanding reveals the `summary_text` paragraph, never the KEY POINTS
+  bullets) · Across shows · Related topics · Key voices · Entities involved ·
+  inline enrichment (velocity, co-occurs-above-chance).
+- **Person** — name · role · aliases · description · ranked topics · insights
+  voiced · episodes appeared · connections (co-speakers / topics) · enrichment
+  (grounding %, often-appears-with, contradicts) · stated positions.
+
+**Retired:** `TopicEntityView` and `PersonLandingView` as standalone rail
+routes; the generic entity overview (same component as topic) folds in too.
+**No Signals tab for now** — may be reintroduced later to offload enrichment /
+diagnostics. **Episodes** keep `EpisodeDetailPanel` for now; a follow-up trims
+its Details to summary + insights and moves the **bridge partition** off Details
+into a renamed enrichment tab.
+
+Supersedes the per-type routing described in UXS-007 (Topic Entity View) and
+UXS-010 (Person Profile).
+
 ### Persistence rule
 
 The subject persists when switching main tabs. If an episode is open in the

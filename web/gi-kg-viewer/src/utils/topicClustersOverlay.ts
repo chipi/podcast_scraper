@@ -100,6 +100,7 @@ export function clusterTimelineCilTopicIdsForCluster(
   art: ParsedArtifact | null,
   compoundId: string | null | undefined,
   memberRows: TopicClusterMemberDetailRow[],
+  docMembers?: readonly { topic_id?: unknown }[] | null,
 ): string[] {
   const cid = compoundId?.trim()
   if (cid) {
@@ -112,7 +113,25 @@ export function clusterTimelineCilTopicIdsForCluster(
   if (fromMembers.length > 0) {
     return fromMembers
   }
-  return cid ? topicIdsFromGraphClusterCompound(art, cid) : []
+  const fromGraphAgain = cid ? topicIdsFromGraphClusterCompound(art, cid) : []
+  if (fromGraphAgain.length > 0) {
+    return fromGraphAgain
+  }
+  // #5 last resort: the cluster DOC's own member topic ids. When the ego graph slice omits every
+  // member Topic node (``memberRows`` empty because the artifact had no nodes), the compound- and
+  // member-row paths both yield nothing and the timeline never loads — the bug where topic-cluster
+  // and cluster-member-topic Timeline tabs showed no chart while theme clusters (resolved from the
+  // full themeClustersDoc) did. The doc is always complete, so fall back to its member topic_ids.
+  const fromDoc: string[] = []
+  const seen = new Set<string>()
+  for (const m of docMembers ?? []) {
+    const tid = m && typeof m.topic_id === 'string' ? m.topic_id.trim() : ''
+    if (tid && !seen.has(tid)) {
+      seen.add(tid)
+      fromDoc.push(tid)
+    }
+  }
+  return fromDoc
 }
 
 export function topicIdsFromGraphClusterCompound(
@@ -369,4 +388,141 @@ export function withTopicClustersOnDisplay(
     nodeTypes: nt,
     data: nextData,
   }
+}
+
+/**
+ * Tag Topic nodes with their THEME cluster id (co-occurrence "discussed together").
+ * Unlike the semantic clusters, theme membership is a NODE decoration (a teal ring),
+ * NOT a compound parent — Cytoscape allows only one parent per node, so themes
+ * coexist with the semantic compound boxes as a border instead. Sets
+ * ``node.themeClusterId``; ``toCytoElements`` turns that into a ``theme-member``
+ * class the stylesheet paints. Same teal ring as the player pills (--lp-theme).
+ */
+export function applyThemeClustersOverlay(
+  data: ArtifactData,
+  doc: TopicClustersDocument | null | undefined,
+): ArtifactData {
+  if (!doc || !Array.isArray(doc.clusters) || doc.clusters.length === 0) {
+    return data
+  }
+  // topic_id (bare, e.g. "topic:oil-prices") → theme cluster id ("thc:…").
+  const memberToCluster = new Map<string, string>()
+  for (const cl of doc.clusters) {
+    if (!cl || typeof cl !== 'object') {
+      continue
+    }
+    const clusterId = graphCompoundParentIdFromCluster(cl)
+    if (!clusterId) {
+      continue
+    }
+    const members = Array.isArray(cl.members) ? cl.members : []
+    for (const m of members) {
+      const tid = m && typeof m.topic_id === 'string' ? m.topic_id.trim() : ''
+      if (tid) {
+        memberToCluster.set(tid, clusterId)
+      }
+    }
+  }
+  if (memberToCluster.size === 0) {
+    return data
+  }
+  const nodes = Array.isArray(data.nodes) ? data.nodes.map((n) => ({ ...n })) : []
+  for (const n of nodes) {
+    if (!n || n.type !== 'Topic' || n.id == null) {
+      continue
+    }
+    const clusterId = memberToCluster.get(stripLayerPrefixesForCil(String(n.id)))
+    if (clusterId) {
+      ;(n as RawGraphNode & { themeClusterId?: string }).themeClusterId = clusterId
+    }
+  }
+  return { ...data, nodes }
+}
+
+/** Tag the display artifact's Topic nodes with theme-cluster ids (teal rings) when *doc* is set. */
+export function withThemeClustersOnDisplay(
+  art: ParsedArtifact | null,
+  doc: TopicClustersDocument | null | undefined,
+): ParsedArtifact | null {
+  if (!art || !doc) {
+    return art
+  }
+  return { ...art, data: applyThemeClustersOverlay(art.data, doc) }
+}
+
+/** All Topic ids (bare) in ANY theme cluster — teal-ring pill styling on Digest /
+ *  Episode surfaces, the same signal as the graph theme ring. */
+export function themeMemberTopicIdSet(
+  doc: TopicClustersDocument | null | undefined,
+): Set<string> {
+  const out = new Set<string>()
+  for (const cl of doc?.clusters ?? []) {
+    const members = Array.isArray(cl?.members) ? cl.members : []
+    for (const m of members) {
+      const tid = m && typeof m.topic_id === 'string' ? m.topic_id.trim() : ''
+      if (tid) out.add(tid)
+    }
+  }
+  return out
+}
+
+/**
+ * Theme-cluster identity for a topic node: the cluster's label + its OTHER member
+ * topics (the "discussed together" siblings). Powers the node-view Theme block,
+ * mirroring the player entity card. Null when the topic is in no theme cluster.
+ */
+export function themeClusterInfoForTopic(
+  doc: TopicClustersDocument | null | undefined,
+  topicNodeId: string,
+): { label: string; members: { topic_id: string; label: string }[] } | null {
+  if (!doc || !Array.isArray(doc.clusters) || !topicNodeId.trim()) {
+    return null
+  }
+  const bare = stripLayerPrefixesForCil(topicNodeId)
+  for (const cl of doc.clusters) {
+    const members = Array.isArray(cl?.members) ? cl.members : []
+    const ids = members.map((m) => (m && typeof m.topic_id === 'string' ? m.topic_id.trim() : ''))
+    if (!ids.includes(bare)) {
+      continue
+    }
+    const label =
+      typeof cl?.canonical_label === 'string' && cl.canonical_label.trim()
+        ? cl.canonical_label.trim()
+        : bare
+    const siblings = members
+      .filter((m) => m && typeof m.topic_id === 'string' && m.topic_id.trim() && m.topic_id.trim() !== bare)
+      .map((m) => {
+        const tid = (m.topic_id as string).trim()
+        const lbl = typeof m.label === 'string' && m.label.trim() ? m.label.trim() : tid
+        return { topic_id: tid, label: lbl }
+      })
+    return { label, members: siblings }
+  }
+  return null
+}
+
+/**
+ * Member topic ids of the THEME cluster that contains *topicNodeId* (bare-matched),
+ * for the inline "Theme timeline" (merged mentions of all members over time — a
+ * theme is a storyline, so its members' activity is the theme's lifespan). Empty
+ * when the topic is in no theme cluster or the doc is absent.
+ */
+export function themeClusterMemberTopicIdsForTopic(
+  doc: TopicClustersDocument | null | undefined,
+  topicNodeId: string,
+): string[] {
+  if (!doc || !Array.isArray(doc.clusters) || !topicNodeId.trim()) {
+    return []
+  }
+  const bare = stripLayerPrefixesForCil(topicNodeId)
+  for (const cl of doc.clusters) {
+    const members = Array.isArray(cl?.members) ? cl.members : []
+    const ids = members
+      .map((m) => (m && typeof m.topic_id === 'string' ? m.topic_id.trim() : ''))
+      .filter((s): s is string => s.length > 0)
+    if (ids.includes(bare)) {
+      return ids
+    }
+  }
+  return []
 }

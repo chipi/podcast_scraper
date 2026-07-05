@@ -20,6 +20,41 @@ export const useGraphNavigationStore = defineStore('graphNavigation', () => {
   const graphEgoFocusCyId = ref<string | null>(null)
 
   /**
+   * #6 L0 — the navigation "breadcrumb trail": node ids appended to the current graph view as you
+   * navigate the detail rail *inside the graph* (graph-rail-scoped; see ``NodeDetail``). The ego
+   * origin is pinned implicitly (it's always in ``viewWithEgo``); this list holds only the extra
+   * navigated-to nodes, LRU-ordered (oldest first) and capped so it can never grow unbounded.
+   * Default-empty → ``viewWithEgo`` behaves exactly as before until navigation populates it, and
+   * it resets whenever the ego origin changes (a new subject / re-centre → a fresh trail).
+   */
+  const TRAIL_BUDGET = 28
+  const trailNodeIds = ref<string[]>([])
+
+  /** Append (or LRU-touch) a node onto the trail, pruning the oldest beyond the budget. */
+  function addToTrail(nodeId: string): void {
+    const id = nodeId.trim()
+    if (!id || id === graphEgoFocusCyId.value) {
+      return // blank, or the pinned origin (already always in view)
+    }
+    const arr = trailNodeIds.value.filter((x) => x !== id) // move-to-newest if already present
+    arr.push(id)
+    while (arr.length > TRAIL_BUDGET) {
+      arr.shift() // prune oldest
+    }
+    trailNodeIds.value = arr
+  }
+
+  function clearTrail(): void {
+    trailNodeIds.value = []
+  }
+
+  /** Replace the trail wholesale (replay reconstructs a session's trail at a given step). */
+  function setTrail(ids: string[]): void {
+    const cleaned = ids.map((s) => s.trim()).filter(Boolean)
+    trailNodeIds.value = [...new Set(cleaned)].slice(-TRAIL_BUDGET)
+  }
+
+  /**
    * When true, signals GraphCanvas to fit the viewport to visible content after the next layout,
    * instead of preserving the current viewport. Used when loading from external sources without
    * a specific focus target (e.g., Digest category bands without clusters).
@@ -94,7 +129,11 @@ export const useGraphNavigationStore = defineStore('graphNavigation', () => {
   }
 
   function setGraphEgoFocusCyId(id: string | null): void {
-    graphEgoFocusCyId.value = id?.trim() ? id.trim() : null
+    const next = id?.trim() ? id.trim() : null
+    if (next !== graphEgoFocusCyId.value) {
+      trailNodeIds.value = [] // new ego origin → start a fresh breadcrumb trail
+    }
+    graphEgoFocusCyId.value = next
   }
 
   function setRequestFitAfterLoad(): void {
@@ -113,6 +152,10 @@ export const useGraphNavigationStore = defineStore('graphNavigation', () => {
     graphEgoFocusCyId,
     requestFitAfterLoad,
     topicClusterCanvasCollapsedIds,
+    trailNodeIds,
+    addToTrail,
+    clearTrail,
+    setTrail,
     toggleTopicClusterCanvasCollapsed,
     isTopicClusterCanvasCollapsed,
     clearTopicClusterCanvasCollapsed,

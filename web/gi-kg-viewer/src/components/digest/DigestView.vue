@@ -14,6 +14,7 @@ import CilTopicPillsRow from '../shared/CilTopicPillsRow.vue'
 import HelpTip from '../shared/HelpTip.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
+import { themeMemberTopicIdSet } from '../../utils/topicClustersOverlay'
 import { useCorpusLensStore } from '../../stores/corpusLens'
 import DateChip from '../shared/DateChip.vue'
 import { useSubjectStore } from '../../stores/subject'
@@ -38,6 +39,8 @@ import {
   applyGraphFocusPlan,
   graphFocusPlanFromCilPill,
 } from '../../utils/cilGraphFocus'
+import { fetchCachedCorpusEnvelope } from '../../composables/useEnrichmentEnvelopeCache'
+import { trendArrow, trendColor } from '../../utils/trend'
 
 const emit = defineEmits<{
   'switch-main-tab': [tab: 'graph' | 'dashboard' | 'library']
@@ -48,6 +51,8 @@ const emit = defineEmits<{
 const shell = useShellStore()
 const dashboardNav = useDashboardNavStore()
 const artifacts = useArtifactsStore()
+// Topic ids in any co-occurrence THEME cluster — teal ring on the pills below.
+const themeMemberIds = computed(() => themeMemberTopicIdSet(artifacts.themeClustersDoc))
 const graphHandoff = useGraphHandoffStore()
 const graphNav = useGraphNavigationStore()
 
@@ -87,12 +92,61 @@ watch(digest, () => {
 })
 
 onActivated(() => {
+  // Ensure co-occurrence THEME clusters are loaded so topic pills show the teal
+  // theme ring even when the graph tab was never opened this session (memoized).
+  void artifacts.syncTopicClustersForCurrentCorpus()
   const h = dashboardNav.consumeHandoff()
   if (h?.kind === 'digest') {
     topicBandsExpanded.value = true
     void loadDigest()
   }
 })
+
+// Topic velocity (temporal_velocity) for the bands' trend arrows (#10), keyed by CIL topic id.
+// Best-effort: loaded alongside the digest; an absent envelope just means no arrows.
+const topicVelocities = ref<Map<string, number>>(new Map())
+
+interface DigestVelocityEnvelope {
+  topics?: Array<{ topic_id?: string; velocity_last_over_6mo?: number }>
+}
+
+async function loadTopicVelocities(root: string): Promise<void> {
+  const env = await fetchCachedCorpusEnvelope<DigestVelocityEnvelope>(
+    root,
+    'temporal_velocity',
+  ).catch(() => null)
+  const map = new Map<string, number>()
+  for (const t of env?.data?.topics ?? []) {
+    const id = t.topic_id?.trim()
+    if (id && typeof t.velocity_last_over_6mo === 'number') {
+      map.set(id, t.velocity_last_over_6mo)
+    }
+  }
+  topicVelocities.value = map
+}
+
+/** Velocity for a band's mapped topic (undefined for editorial/unmapped bands or absent data). */
+function bandVelocity(band: CorpusDigestTopicBand): number | undefined {
+  const id = bandTopicId(band)
+  return id ? topicVelocities.value.get(id) : undefined
+}
+
+interface BandTrend {
+  arrow: string
+  color: string
+  label: string
+}
+
+/** Trend-arrow display for a band, or null when there's no velocity to show. */
+function bandTrend(band: CorpusDigestTopicBand): BandTrend | null {
+  const v = bandVelocity(band)
+  if (v === undefined) return null
+  return {
+    arrow: trendArrow(v),
+    color: trendColor(v),
+    label: `trending ${v.toFixed(1)}x its 6-mo average`,
+  }
+}
 
 /**
  * PRD-033 FR3.1 — a retrieval signal for a band: anchored on its best hit score,
@@ -550,6 +604,7 @@ async function loadDigest(): Promise<void> {
       return
     }
     digest.value = d
+    void loadTopicVelocities(root)
     const path = subject.episodeMetadataPath?.trim()
     if (path && !digestCoversMetadataPath(path)) {
       subject.clearSubject()
@@ -892,6 +947,15 @@ onBeforeUnmount(() => {
                   v-else
                   :class="bandTitleClass(band)"
                 >{{ band.label }}</span>
+                <span
+                  v-if="bandTrend(band)"
+                  class="ml-1 align-middle text-[11px] font-semibold"
+                  :style="{ color: bandTrend(band)?.color }"
+                  data-testid="digest-band-trend"
+                  :title="bandTrend(band)?.label"
+                  :aria-label="bandTrend(band)?.label"
+                  >{{ bandTrend(band)?.arrow }}</span
+                >
               </span>
               <button
                 type="button"
@@ -1217,6 +1281,7 @@ onBeforeUnmount(() => {
                     v-if="digestRecentCilPills(row).length"
                     class="mt-0.5"
                     cluster-member-appearance="kg"
+                    :theme-member-ids="themeMemberIds"
                     :pills="digestRecentCilPills(row)"
                     :max-pill-chars="RECENT_TOPIC_PILL_CHARS"
                     truncation="wrap"

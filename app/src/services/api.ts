@@ -8,20 +8,30 @@
 
 import type {
   AudioSource,
+  CorpusEnrichmentSignals,
   EntitiesResponse,
   EntitySearchResponse,
+  EpisodeEnrichmentSignals,
   EpisodeDetail,
   EpisodesPage,
   EpisodeStats,
   FavoriteAdd,
   FavoritesResponse,
+  Highlight,
+  HighlightCreate,
+  HighlightUpdate,
   InsightsResponse,
   InterestCluster,
   ListEpisodesParams,
   Me,
+  Note,
+  NoteCreate,
+  NoteUpdate,
   PersonCard,
   PlaybackPosition,
   Podcast,
+  ResurfacingResponse,
+  ResurfacingSettings,
   SearchResponse,
   SegmentsResponse,
   TopicCard,
@@ -129,18 +139,62 @@ export function getRelated(slug: string, topK = 6): Promise<EpisodesPage> {
 }
 
 /** Person profile card — appears-in episodes + related people/topics (KG co-occurrence). */
-export function getPersonCard(id: string): Promise<PersonCard> {
-  return getJSON<PersonCard>(`/persons/${encodeURIComponent(id)}`)
+export function getPersonCard(id: string, scope?: 'all' | 'mine'): Promise<PersonCard> {
+  // scope='mine' = the guest across the episodes the signed-in user has heard (P3 #1122).
+  return getJSON<PersonCard>(`/persons/${encodeURIComponent(id)}`, { scope })
 }
 
 /** Topic card — episodes-about + cluster siblings + related people (KG-grounded). */
-export function getTopicCard(id: string): Promise<TopicCard> {
-  return getJSON<TopicCard>(`/topics/${encodeURIComponent(id)}`)
+export function getTopicCard(id: string, scope?: 'all' | 'mine'): Promise<TopicCard> {
+  return getJSON<TopicCard>(`/topics/${encodeURIComponent(id)}`, { scope })
+}
+
+// Corpus-scope enrichment is one static payload for the whole corpus, read by
+// every entity card — fetch it once per session and share the promise. On
+// failure the cache is cleared so a later card can retry.
+let _corpusEnrichment: Promise<CorpusEnrichmentSignals> | null = null
+/** Corpus-scope enrichment signals (RFC-088) — grounding / co-appearance /
+ *  contradictions / velocity / similarity / co-occurrence, keyed by enricher id. */
+export function getCorpusEnrichment(): Promise<CorpusEnrichmentSignals> {
+  if (!_corpusEnrichment) {
+    _corpusEnrichment = getJSON<{ signals: CorpusEnrichmentSignals }>('/corpus/enrichment')
+      .then((r) => r.signals ?? {})
+      .catch((err) => {
+        _corpusEnrichment = null
+        throw err
+      })
+  }
+  return _corpusEnrichment
+}
+
+// Per-episode enrichment (currently insight_density) — cached per slug so
+// re-opening the panel doesn't refetch. Cleared on failure so it can retry.
+const _episodeEnrichment = new Map<string, Promise<EpisodeEnrichmentSignals>>()
+/** Per-episode enrichment signals (RFC-088 episode-scope, e.g. insight_density). */
+export function getEpisodeEnrichment(slug: string): Promise<EpisodeEnrichmentSignals> {
+  let p = _episodeEnrichment.get(slug)
+  if (!p) {
+    p = getJSON<{ signals: EpisodeEnrichmentSignals }>(
+      `/episodes/${encodeURIComponent(slug)}/enrichment`,
+    )
+      .then((r) => r.signals ?? {})
+      .catch((err) => {
+        _episodeEnrichment.delete(slug)
+        throw err
+      })
+    _episodeEnrichment.set(slug, p)
+  }
+  return p
 }
 
 /** Corpus-wide grounded search (Home "Ask your library"); empty when no index. */
-export function searchCorpus(q: string, topK = 12): Promise<SearchResponse> {
-  return getJSON<SearchResponse>('/search', { q, top_k: topK })
+export function searchCorpus(
+  q: string,
+  topK = 12,
+  scope?: 'all' | 'mine',
+): Promise<SearchResponse> {
+  // scope='mine' = grounded recall over the signed-in user's heard∪captured corpus (P3 #1120).
+  return getJSON<SearchResponse>('/search', { q, top_k: topK, scope })
 }
 
 /** Resolve a query to a person/topic card (exact/near-exact); `entity: null` when none. */
@@ -151,6 +205,17 @@ export function resolveEntity(q: string): Promise<EntitySearchResponse> {
 /** Home discovery feed — interest-ranked when enabled + signed-in, else recency (the default). */
 export function getDiscover(limit = 8): Promise<EpisodesPage> {
   return getJSON<EpisodesPage>('/discover', { limit })
+}
+
+/** Fire-and-forget: log a click on a discovery-feed episode (its shown rank position) for
+ *  ranking telemetry (#11). Silent no-op when signed out or on any network error. */
+export function recordDiscoverClick(slug: string, position: number): void {
+  void fetch(`${BASE}/discover/click`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slug, position }),
+  }).catch(() => {})
 }
 
 /** Top interest clusters for the picker, by corpus prevalence. */
@@ -326,11 +391,165 @@ export async function getEpisodeStats(slug: string): Promise<EpisodeStats> {
 }
 
 /** Begin the OAuth login flow (full-page redirect; Google in prod, mock in dev/e2e). */
-export function loginUrl(): string {
-  return `${BASE}/auth/login`
+export function loginUrl(as?: string): string {
+  return as ? `${BASE}/auth/login?as=${encodeURIComponent(as)}` : `${BASE}/auth/login`
+}
+
+export interface DevUser {
+  hint: string
+  name: string
+  role: string
+}
+
+/**
+ * Predefined dev identities for the sign-in picker — populated only when the MOCK provider is on.
+ * Never throws: any failure → `{ enabled: false }` (the UI shows the normal sign-in button).
+ */
+export async function getDevUsers(): Promise<{ enabled: boolean; users: DevUser[] }> {
+  try {
+    const res = await fetch(`${BASE}/auth/dev-users`, { credentials: 'include' })
+    if (!res.ok) return { enabled: false, users: [] }
+    const body = (await res.json()) as { enabled?: boolean; users?: DevUser[] }
+    return { enabled: body.enabled === true, users: Array.isArray(body.users) ? body.users : [] }
+  } catch {
+    return { enabled: false, users: [] }
+  }
 }
 
 /** Clear the session server-side (deletes the cookie). Best-effort; resolves on 204. */
 export async function logout(): Promise<void> {
   await fetch(`${BASE}/auth/logout`, { method: 'POST', credentials: 'include' })
+}
+
+// --- P2 Capture: highlights + notes (PRD-040 / RFC-098 §7) ---
+
+/** The user's highlights, optionally scoped to one episode; `[]` when signed out (401). */
+export async function getHighlights(episode?: string): Promise<Highlight[]> {
+  try {
+    return (await getJSON<{ items: Highlight[] }>('/highlights', { episode })).items
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) return []
+    throw err
+  }
+}
+
+/** Capture a highlight (auth-gated); returns the created record. */
+export async function createHighlight(body: HighlightCreate): Promise<Highlight> {
+  const resp = await fetch(`${BASE}/highlights`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /highlights → ${resp.status}`)
+  return (await resp.json()) as Highlight
+}
+
+/** Edit a highlight's colour / captured text (auth-gated); returns the updated record. */
+export async function patchHighlight(id: string, body: HighlightUpdate): Promise<Highlight> {
+  const resp = await fetch(`${BASE}/highlights/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `PATCH /highlights → ${resp.status}`)
+  return (await resp.json()) as Highlight
+}
+
+/** Remove a highlight by id (auth-gated); returns the remaining list. */
+export async function deleteHighlight(id: string): Promise<Highlight[]> {
+  const resp = await fetch(`${BASE}/highlights/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /highlights → ${resp.status}`)
+  return ((await resp.json()) as { items: Highlight[] }).items
+}
+
+/** The user's notes, optionally scoped to one target; `[]` when signed out (401). */
+export async function getNotes(target?: string, targetId?: string): Promise<Note[]> {
+  try {
+    return (
+      await getJSON<{ items: Note[] }>('/notes', { target, target_id: targetId })
+    ).items
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) return []
+    throw err
+  }
+}
+
+/** Attach a free-text note to a highlight / insight / episode (auth-gated). */
+export async function createNote(body: NoteCreate): Promise<Note> {
+  const resp = await fetch(`${BASE}/notes`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /notes → ${resp.status}`)
+  return (await resp.json()) as Note
+}
+
+/** Edit a note's text (auth-gated); returns the updated record. */
+export async function patchNote(id: string, text: string): Promise<Note> {
+  const body: NoteUpdate = { text }
+  const resp = await fetch(`${BASE}/notes/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `PATCH /notes → ${resp.status}`)
+  return (await resp.json()) as Note
+}
+
+/** Remove a note by id (auth-gated); returns the remaining list. */
+export async function deleteNote(id: string): Promise<Note[]> {
+  const resp = await fetch(`${BASE}/notes/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /notes → ${resp.status}`)
+  return ((await resp.json()) as { items: Note[] }).items
+}
+
+/** The URL for the Markdown export of all highlights (a download link / new tab). */
+export function highlightsExportUrl(): string {
+  return `${BASE}/highlights/export.md`
+}
+
+// --- P3 Consolidation: spaced resurfacing (RFC-101 §5) ---
+
+/** Highlights due to resurface (+ reflection prompt + paused flag); empty signed out (401). */
+export async function getResurfacing(): Promise<ResurfacingResponse> {
+  try {
+    return await getJSON<ResurfacingResponse>('/resurfacing')
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) return { items: [], paused: false }
+    throw err
+  }
+}
+
+/** Record that the user has seen a resurfaced highlight (advances its ladder). Best-effort. */
+export async function markSurfaced(id: string): Promise<void> {
+  const resp = await fetch(`${BASE}/resurfacing/${encodeURIComponent(id)}/surfaced`, {
+    method: 'POST',
+    credentials: 'include',
+  })
+  if (!resp.ok && resp.status !== 401) {
+    throw new ApiError(resp.status, `POST /resurfacing/surfaced → ${resp.status}`)
+  }
+}
+
+/** Update resurfacing pacing (pause/resume); returns the stored settings. */
+export async function putResurfacingSettings(paused: boolean): Promise<ResurfacingSettings> {
+  const resp = await fetch(`${BASE}/resurfacing/settings`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ paused }),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `PUT /resurfacing/settings → ${resp.status}`)
+  return (await resp.json()) as ResurfacingSettings
 }

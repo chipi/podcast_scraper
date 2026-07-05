@@ -26,9 +26,10 @@ export const useAuthStore = defineStore('auth', {
     async ensureLoaded(): Promise<void> {
       if (!this.loaded) await this.refresh()
     },
-    login(): void {
+    login(as?: string): void {
       // Full-page redirect into the OAuth flow (Google in prod, mock provider in dev/e2e).
-      window.location.assign(loginUrl())
+      // `as` is the dev-picker identity hint (mock provider only).
+      window.location.assign(loginUrl(as))
     },
     async logout(): Promise<void> {
       await apiLogout()

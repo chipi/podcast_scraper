@@ -5,6 +5,7 @@ import type { ParsedArtifact } from '../../types/artifact'
 import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphHandoffStore } from '../../stores/graphHandoff'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
+import { useGraphAnalyticsStore } from '../../stores/graphAnalytics'
 import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
 import { graphNodeTypeChrome } from '../../utils/colors'
@@ -18,7 +19,6 @@ import {
   type CilTopicTimelineResponse,
 } from '../../api/cilApi'
 import {
-  countPersonEntityIncidentEdges,
   findRawNodeInArtifact,
   findRawNodeInArtifactByIdOrPrefixed,
   fullPrimaryNodeLabel,
@@ -31,6 +31,7 @@ import {
 import { formatInsightPositionHintLine } from '../../utils/insightPositionHint'
 import { copyTextToClipboard } from '../../utils/clipboard'
 import { graphTypeAvatarLetter } from '../../utils/graphTypeAvatar'
+import { stripLayerPrefixesForCil } from '../../utils/mergeGiKg'
 import HelpTip from '../shared/HelpTip.vue'
 import {
   SEARCH_RESULT_COPY_TITLE_CHIP_CLASS,
@@ -59,9 +60,21 @@ import {
   findClusterByCompoundId,
   findTopicClusterContextForGraphNode,
   clusterTimelineCilTopicIdsForCluster,
+  themeClusterMemberTopicIdsForTopic,
+  themeClusterInfoForTopic,
   topicClusterMemberRowsForDetail,
 } from '../../utils/topicClustersOverlay'
 import GraphConnectionsSection from './GraphConnectionsSection.vue'
+import NodeEnrichmentSection from './NodeEnrichmentSection.vue'
+import TopicEntityView from '../subject/TopicEntityView.vue'
+import PersonLandingView from '../subject/PersonLandingView.vue'
+import PodcastNodeView from '../subject/PodcastNodeView.vue'
+import InsightNodeView from '../subject/InsightNodeView.vue'
+import SubjectTimelineChart from '../subject/SubjectTimelineChart.vue'
+import {
+  buildSubjectMentionsTimeline,
+  type SubjectMentionsTimeline,
+} from '../../utils/subjectMentionsTimeline'
 import TranscriptViewerDialog from '../shared/TranscriptViewerDialog.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
 import {
@@ -93,27 +106,11 @@ const props = defineProps<{
 
 const shell = useShellStore()
 const graphNav = useGraphNavigationStore()
+const graphAnalytics = useGraphAnalyticsStore()
 const artifacts = useArtifactsStore()
 const graphFilters = useGraphFilterStore()
 const graphHandoff = useGraphHandoffStore()
 const subject = useSubjectStore()
-
-/**
- * PRD-033 FR5.3 — from a graph topic/person/entity node, open the populated FR4
- * Detail panel (Topic Entity View / Person Landing) instead of dead-ending in the
- * graph-node detail. The cy node id is the canonical prefixed id those panels resolve.
- */
-function openFullProfile(): void {
-  const id = props.nodeId?.trim()
-  if (!id) return
-  if (isTopicNode.value) {
-    subject.focusTopic(id)
-    return
-  }
-  const t = nodeType.value.trim().toLowerCase()
-  if (t === 'person' || t === 'speaker') subject.focusPerson(id)
-  else subject.focusEntity(id)
-}
 
 /** Merged GI/KG before per-type visibility filters (quotes/speakers/episodes off by default on canvas). */
 const fullMergedArtifactForMetadata = computed(
@@ -144,6 +141,9 @@ const HIDDEN_PROPS = new Set([
   'description',
   'entity_kind',
   'kind',
+  // Person role is surfaced as the Host/Guest/Mentioned badge in the person
+  // view; the raw "Role: mentioned" property row is redundant.
+  'role',
 ])
 
 /** Shown in insight meta strip; omit from generic property list. */
@@ -183,9 +183,30 @@ const node = computed(() => {
   return full ? findRawNodeInArtifactByIdOrPrefixed(full, id) : null
 })
 
+// When the focused node isn't in the current graph slice — e.g. a co-speaker
+// or related entity sourced from the full server-side relational graph — the
+// artifact lookup above returns null. Infer the kind from the id so the rail
+// still renders the person / entity / topic view (all of which load from server
+// endpoints, independent of the viewer's graph slice) instead of an empty
+// "Node" shell.
+const inferredKindFromId = computed(
+  (): 'Person' | 'Organization' | 'Topic' | 'Podcast' | 'Insight' | null => {
+    if (node.value) return null
+    const bare = stripLayerPrefixesForCil(props.nodeId ?? '')
+    if (bare.startsWith('person:')) return 'Person'
+    if (bare.startsWith('org:')) return 'Organization'
+    if (bare.startsWith('topic:')) return 'Topic'
+    if (bare.startsWith('podcast:')) return 'Podcast'
+    // An out-of-slice insight (e.g. a corpus-wide timeline-mention drill) renders
+    // from the /relational/insight-detail endpoint via InsightNodeView.
+    if (bare.startsWith('insight:')) return 'Insight'
+    return null
+  },
+)
+
 const nodeType = computed(() => {
   const n = node.value
-  if (!n) return '?'
+  if (!n) return inferredKindFromId.value ?? '?'
   return String(n.type ?? '?')
 })
 
@@ -205,6 +226,23 @@ const isPersonEntityRailNode = computed(() => {
   const t = nodeType.value.trim().toLowerCase()
   return t === 'person' || t === 'entity' || t === 'speaker' || t === 'organization'
 })
+
+/** Person / Speaker — keeps its own PersonLandingView profile (not yet folded). */
+const isPersonNode = computed(() => {
+  const t = nodeType.value.trim().toLowerCase()
+  return t === 'person' || t === 'speaker'
+})
+
+/** Podcast / Show node — folds in the PodcastNodeView (basics + episode list). */
+const isPodcastNode = computed(() => nodeType.value.trim().toLowerCase() === 'podcast')
+
+// Show cover art emitted up by PodcastNodeView so the rail header avatar shows
+// the real cover for a podcast node instead of the generic "P" letter (P2).
+const podcastCover = ref<{ imageUrl: string | null; imageLocalRelpath: string | null } | null>(null)
+
+// Out-of-slice insight: InsightNodeView resolves the text from the server and
+// emits it up so the header shows the claim (not the opaque insight: hash).
+const insightHeaderText = ref('')
 
 const isTopicClusterNode = computed(
   () => nodeType.value.trim().toLowerCase() === 'topiccluster',
@@ -259,12 +297,14 @@ const topicClusterMemberRows = computed(() =>
   topicClusterMemberRowsForDetail(artifactForTopicClusterCorpusMatch.value, topicClusterDocEntry.value),
 )
 
-/** CIL topic ids for merged cluster timeline (prefer Topic children under compound, then members). */
+/** CIL topic ids for merged cluster timeline (prefer Topic children under compound, then members,
+ *  then the cluster doc's own member topic_ids so an ego slice that omits the members still loads). */
 const clusterTimelineTopicIds = computed((): string[] =>
   clusterTimelineCilTopicIdsForCluster(
     artifactForTopicClusterCorpusMatch.value,
     topicClusterCompoundId.value,
     topicClusterMemberRows.value,
+    topicClusterDocEntry.value?.members ?? null,
   ),
 )
 
@@ -345,6 +385,17 @@ const displayName = computed(() => {
   }
   const n = node.value
   if (!n) {
+    // Out-of-slice node (e.g. a co-speaker from the full relational graph):
+    // derive a readable name from the id slug so the header isn't blank while
+    // the person / topic view loads from server endpoints.
+    const bare = stripLayerPrefixesForCil(props.nodeId ?? '')
+    // An insight's "name" is its text (an opaque hash id makes a useless title);
+    // InsightNodeView emits the resolved text up. Show a placeholder until then.
+    if (bare.startsWith('insight:')) return insightHeaderText.value.trim() || 'Insight'
+    const slug = bare.replace(/^[a-z]+:/, '').trim()
+    if (slug) {
+      return slug.replace(/[-_]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+    }
     return ''
   }
   return fullPrimaryNodeLabel(n)
@@ -543,38 +594,6 @@ const personEntitySemanticSearchQuery = computed((): string => {
     displayName.value.trim(),
     PERSON_ENTITY_SEMANTIC_SEARCH_MAX_CHARS,
   )
-})
-
-const personEntityAliasesLine = computed((): string | null => {
-  if (!isPersonEntityRailNode.value) return null
-  const a = node.value?.properties?.aliases
-  if (!Array.isArray(a) || a.length === 0) return null
-  const parts = a
-    .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
-    .map((x) => x.trim())
-  return parts.length > 0 ? parts.join(', ') : null
-})
-
-const personEntityEdgeCounts = computed(() =>
-  countPersonEntityIncidentEdges(props.viewArtifact, props.nodeId),
-)
-
-const personEntityRoleSummaryLine = computed((): string | null => {
-  if (!isPersonEntityRailNode.value) return null
-  const { spokenByQuotes, spokeInEpisodes } = personEntityEdgeCounts.value
-  const parts: string[] = []
-  if (spokenByQuotes > 0) {
-    parts.push(
-      `${spokenByQuotes} attributed quote${spokenByQuotes === 1 ? '' : 's'}`,
-    )
-  }
-  if (spokeInEpisodes > 0) {
-    parts.push(
-      `${spokeInEpisodes} episode link${spokeInEpisodes === 1 ? '' : 's'}`,
-    )
-  }
-  if (parts.length === 0) return null
-  return `In this graph: ${parts.join(' · ')}.`
 })
 
 function emitPersonEntityPrefillSearch(): void {
@@ -812,6 +831,107 @@ const showInlineClusterTimeline = computed(
   () => (hasTopicClusterJson.value || isTopicClusterNode.value) && clusterTimelineTopicIds.value.length > 0,
 )
 
+// Theme-cluster timeline (co-occurrence): a topic node can toggle its inline
+// timeline from just-this-topic to the whole THEME's members merged over time —
+// a theme is a storyline, so its members' activity is the theme's lifespan.
+// Reuses the cluster-mode merge path with the theme members' topic ids.
+const themeTimelineMemberTopicIds = computed((): string[] =>
+  themeClusterMemberTopicIdsForTopic(artifacts.themeClustersDoc, props.nodeId ?? ''),
+)
+// Theme-cluster IDENTITY (label + "discussed together" members) for the Details
+// tab's Theme block — mirrors the player entity card. Topic nodes only.
+const themeClusterInfo = computed(() =>
+  isTopicNode.value
+    ? themeClusterInfoForTopic(artifacts.themeClustersDoc, props.nodeId ?? '')
+    : null,
+)
+// Cluster panel: simple member chips by default (like the theme block); the
+// graph ops + per-member Load/Focus rows + warnings live behind an Advanced
+// toggle, collapsed by default.
+const clusterAdvancedOpen = ref(false)
+function focusClusterMember(row: {
+  topicId: string
+  graphNodeId: string | null
+  label: string
+}): void {
+  // Unify with theme-member + related-topic clicks: always full-re-focus the
+  // rail onto the member topic (so it reloads the detail panel and Back works),
+  // rather than the prior in-graph expansion that only updated part of the view.
+  const id = row.topicId || row.graphNodeId
+  if (id) subject.focusTopic(id)
+}
+const hasThemeTimeline = computed(
+  () => showInlineTopicTimeline.value && themeTimelineMemberTopicIds.value.length > 1,
+)
+const timelineShowTheme = ref(false)
+
+// Corpus-wide timeline data, de-duplicated to ONE row per episode. The API
+// yields one row per bundle, so an episode processed in multiple runs shows up
+// more than once; keep the richest bundle (most insights) per episode_id — the
+// same "unique episode" contract the corpus catalog applies.
+const dedupedEpisodes = computed((): CilArcEpisodeBlock[] => {
+  const eps = inlineTimelinePayload.value?.episodes ?? []
+  const byId = new Map<string, CilArcEpisodeBlock>()
+  for (const ep of eps) {
+    const id = String(ep.episode_id ?? '')
+    const prev = byId.get(id)
+    if (!prev || (ep.insights?.length ?? 0) > (prev.insights?.length ?? 0)) {
+      byId.set(id, ep)
+    }
+  }
+  return [...byId.values()]
+})
+
+// MENTIONS: the deduped episodes flattened to one row per insight — corpus-wide,
+// or scoped to a single episode when the user drills in from the Episodes list.
+const mentionsSortOrder = ref<'asc' | 'desc'>('desc')
+const mentionsEpisodeFilter = ref<string | null>(null)
+interface FlatMentionRow {
+  key: string
+  text: string
+  episodeTitle: string
+  publishDate: string | null
+  /** Insight node id, so a mention can drill into the insight's node view. */
+  insightId: string | null
+}
+const flatMentions = computed<FlatMentionRow[]>(() => {
+  const filter = mentionsEpisodeFilter.value
+  const rows: FlatMentionRow[] = []
+  dedupedEpisodes.value.forEach((ep, ei) => {
+    if (filter && String(ep.episode_id ?? '') !== filter) return
+    const title = episodePrimaryHeading(ep)
+    const date = ep.publish_date
+    const insights = ep.insights ?? []
+    for (let ii = 0; ii < insights.length; ii++) {
+      const ins = insights[ii]
+      const insId =
+        ins && typeof ins === 'object' && (ins as Record<string, unknown>).id != null
+          ? String((ins as Record<string, unknown>).id)
+          : null
+      rows.push({
+        key: `${ep.episode_id ?? ei}-${ii}`,
+        text: insightLine(ins),
+        episodeTitle: title,
+        publishDate: date,
+        insightId: insId,
+      })
+    }
+  })
+  rows.sort((a, b) => {
+    const av = a.publishDate ?? ''
+    const bv = b.publishDate ?? ''
+    if (av === bv) return 0
+    const cmp = av < bv ? -1 : 1
+    return mentionsSortOrder.value === 'asc' ? cmp : -cmp
+  })
+  return rows
+})
+const filteredMentionEpisode = computed((): CilArcEpisodeBlock | null => {
+  const f = mentionsEpisodeFilter.value
+  if (!f) return null
+  return dedupedEpisodes.value.find((e) => String(e.episode_id ?? '') === f) ?? null
+})
+
 function insightLine(ins: Record<string, unknown>): string {
   return primaryTextFromLooseGiNode(ins).trim() || '(no text)'
 }
@@ -843,9 +963,44 @@ function episodeContextLine(ep: CilArcEpisodeBlock): string | null {
   return null
 }
 
-const inlineTimelineEpisodeCount = computed(
-  () => inlineTimelinePayload.value?.episodes.length ?? 0,
-)
+const inlineTimelineEpisodeCount = computed(() => dedupedEpisodes.value.length)
+
+// N8 — a compact dot time-series above the Episodes/Mentions toggle. Buckets the
+// same CIL timeline data by YYYY-MM, following the active view: Episodes counts
+// distinct episodes per month, Mentions counts atomic mentions per month. Shaped
+// as a SubjectMentionsTimeline so it feeds the shared chart (dots variant).
+function timelineMonthOf(raw: string | null | undefined): string | null {
+  const m = (raw ?? '').trim().match(/^(\d{4})-(\d{2})/)
+  return m ? `${m[1]}-${m[2]}` : null
+}
+const timelineChartData = computed<SubjectMentionsTimeline>(() => {
+  const counts = new Map<string, number>()
+  let undated = 0
+  if (timelineView.value === 'mentions') {
+    for (const r of flatMentions.value) {
+      const ym = timelineMonthOf(r.publishDate)
+      if (!ym) { undated += 1; continue }
+      counts.set(ym, (counts.get(ym) ?? 0) + 1)
+    }
+  } else {
+    for (const ep of dedupedEpisodes.value) {
+      const ym = timelineMonthOf(ep.publish_date)
+      if (!ym) { undated += 1; continue }
+      counts.set(ym, (counts.get(ym) ?? 0) + 1)
+    }
+  }
+  const months = [...counts.entries()]
+    .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+    .map(([ymd, count]) => ({ ymd, count }))
+  return {
+    months,
+    total: months.reduce((s, m) => s + m.count, 0),
+    undated,
+    episodeCount: dedupedEpisodes.value.length,
+    insightIds: [],
+    quoteIds: [],
+  }
+})
 
 const inlineTimelineTopicIdsLabel = computed((): string => {
   if (inlineTimelineMode.value === 'cluster') {
@@ -859,8 +1014,7 @@ const corpusPathForCovers = computed(() =>
 )
 
 const inlineTimelineSortedEpisodes = computed((): CilArcEpisodeBlock[] => {
-  const eps = inlineTimelinePayload.value?.episodes ?? []
-  const arr = [...eps]
+  const arr = [...dedupedEpisodes.value]
   arr.sort((a, b) => {
     const da = (a.publish_date ?? '').trim()
     const db = (b.publish_date ?? '').trim()
@@ -868,6 +1022,61 @@ const inlineTimelineSortedEpisodes = computed((): CilArcEpisodeBlock[] => {
     return inlineTimelineSortOrder.value === 'asc' ? cmp : -cmp
   })
   return arr
+})
+
+// Episodes render compact (title + our summary_title); clicking a row drills
+// into just that episode's mentions — switches the Timeline view to Mentions,
+// filtered to it — the way to read one episode's insights + summary.
+function episodeKey(ep: CilArcEpisodeBlock): string {
+  return String(ep.episode_id ?? '')
+}
+function openEpisodeMentions(ep: CilArcEpisodeBlock): void {
+  mentionsEpisodeFilter.value = String(ep.episode_id ?? '')
+  mentionsPage.value = 1
+  timelineView.value = 'mentions'
+}
+
+// FB15 — drill from a timeline mention into the insight's own node view (with
+// Back). Resolves for insights in the loaded graph slice; corpus-wide CIL
+// mentions outside the slice fall back to the empty-node state (insight
+// out-of-slice rendering is a separate follow-up, like the person/topic gate).
+function openMentionInsight(insightId: string | null): void {
+  const id = insightId?.trim()
+  if (id) subject.focusGraphNode(id)
+}
+function episodeSummaryTitle(ep: CilArcEpisodeBlock): string {
+  return ep.summary_title?.trim() ?? ''
+}
+function episodeSummaryText(ep: CilArcEpisodeBlock): string {
+  return ep.summary_text?.trim() ?? ''
+}
+
+// Pagination — a topic can span hundreds of episodes; render one page at a time
+// so the DOM stays small on huge corpora (a single scroll list would choke).
+const EPISODES_PAGE_SIZE = 8
+const MENTIONS_PAGE_SIZE = 12
+const episodesPage = ref(1)
+const mentionsPage = ref(1)
+const episodesTotalPages = computed(() =>
+  Math.max(1, Math.ceil(inlineTimelineSortedEpisodes.value.length / EPISODES_PAGE_SIZE)),
+)
+const mentionsTotalPages = computed(() =>
+  Math.max(1, Math.ceil(flatMentions.value.length / MENTIONS_PAGE_SIZE)),
+)
+const pagedEpisodes = computed((): CilArcEpisodeBlock[] => {
+  const start = (episodesPage.value - 1) * EPISODES_PAGE_SIZE
+  return inlineTimelineSortedEpisodes.value.slice(start, start + EPISODES_PAGE_SIZE)
+})
+const pagedMentions = computed((): FlatMentionRow[] => {
+  const start = (mentionsPage.value - 1) * MENTIONS_PAGE_SIZE
+  return flatMentions.value.slice(start, start + MENTIONS_PAGE_SIZE)
+})
+// Reset paging whenever the data, sort, or mentions episode filter changes.
+watch([inlineTimelineSortOrder, () => inlineTimelinePayload.value], () => {
+  episodesPage.value = 1
+})
+watch([mentionsSortOrder, mentionsEpisodeFilter, () => inlineTimelinePayload.value], () => {
+  mentionsPage.value = 1
 })
 
 async function loadInlineTimeline(): Promise<void> {
@@ -954,7 +1163,17 @@ const railFullTextCopyTestId = computed((): string => {
   return 'node-detail-full-primary-copy'
 })
 
-const visualType = computed(() => visualGroupForNode(node.value))
+const visualType = computed(() => {
+  const inferred = inferredKindFromId.value
+  if (!node.value && inferred) {
+    if (inferred === 'Person') return 'Entity_person'
+    if (inferred === 'Organization') return 'Entity_organization'
+    if (inferred === 'Podcast') return 'Podcast'
+    if (inferred === 'Insight') return 'Insight'
+    return 'Topic'
+  }
+  return visualGroupForNode(node.value)
+})
 
 /** TC glyph when the row is a TopicCluster node or a corpus cluster member (JSON-backed). */
 const avatarVisualGroup = computed(() => {
@@ -1044,20 +1263,15 @@ const showEntityKindSubtitle = computed(() => {
   return true
 })
 
-/** Graph type + entity kind — top of **Details** body, not under the rail title. */
+// Graph type + entity kind. When embedded in the node rail, the rail header
+// already names the kind (Person / Topic / Podcast …), so the "PERSON · person"
+// kicker is pure redundancy — only show it standalone.
 const showNodeKindRowInDetails = computed(
-  () =>
-    showEntityKindSubtitle.value ||
-    (!props.embedInRail && Boolean(nodeType.value?.trim())) ||
-    (props.embedInRail &&
-      isPersonEntityRailNode.value &&
-      Boolean(nodeType.value?.trim())),
+  () => !props.embedInRail && (showEntityKindSubtitle.value || Boolean(nodeType.value?.trim())),
 )
 
 const showNodeTypeChipInDetails = computed(
-  () =>
-    (!props.embedInRail && Boolean(nodeType.value?.trim())) ||
-    (props.embedInRail && isPersonEntityRailNode.value && Boolean(nodeType.value?.trim())),
+  () => !props.embedInRail && Boolean(nodeType.value?.trim()),
 )
 
 const transcriptSourceSection = computed(() => {
@@ -1218,14 +1432,90 @@ const topicClusterContext = computed(() => {
   return findTopicClusterContextForGraphNode(props.nodeId, artifacts.topicClustersDoc)
 })
 
-type GraphRailDetailTab = 'details' | 'neighbourhood'
+type GraphRailDetailTab =
+  | 'details'
+  | 'timeline'
+  | 'position_tracker'
+  | 'enrichment'
+  | 'neighbourhood'
 
 const graphRailDetailTab = ref<GraphRailDetailTab>('details')
 
+// The Timeline tab (corpus-wide Episodes + Mentions) exists only for topic /
+// cluster nodes that actually have a timeline; a segmented toggle inside it
+// switches between the two views. If it empties on a node switch, fall back.
+const timelineView = ref<'episodes' | 'mentions'>('episodes')
+const hasTimelineTab = computed(
+  () => showInlineTopicTimeline.value || showInlineClusterTimeline.value,
+)
+watch(hasTimelineTab, (has) => {
+  if (!has && graphRailDetailTab.value === 'timeline') {
+    graphRailDetailTab.value = 'details'
+  }
+})
+
+// Person nodes get a top-level Position Tracker tab (the PLV Position Tracker,
+// promoted from a nested sub-tab). Fall back to Details if it empties.
+const hasPositionTrackerTab = computed(() => isPersonNode.value)
+watch(hasPositionTrackerTab, (has) => {
+  if (!has && graphRailDetailTab.value === 'position_tracker') {
+    graphRailDetailTab.value = 'details'
+  }
+})
+// Picking a topic from the profile's ranked-topics list (or Insights-voiced)
+// sets ``positionTrackerTopicId`` but the arc renders in the Positions tab — a
+// different rail tab than the profile. Auto-switch so the pick has a visible
+// effect instead of silently setting state behind a hidden tab.
+watch(
+  () => subject.positionTrackerTopicId,
+  (topicId) => {
+    if (topicId && hasPositionTrackerTab.value) {
+      graphRailDetailTab.value = 'position_tracker'
+    }
+  },
+)
+
+// The Enrichment tab only exists when the focused node actually has signals;
+// NodeEnrichmentSection reports this after it loads. Empty is the common case
+// for graph nodes, so we hide the tab rather than surface a dead panel. If the
+// user is on the tab when it empties (node switch), fall back to Details.
+const enrichmentHasContent = ref(false)
+// Mentions-by-month timeline for the focused node — lives in the Signals tab.
+const signalsTimeline = computed(() =>
+  buildSubjectMentionsTimeline(fullMergedArtifactForMetadata.value, props.nodeId ?? ''),
+)
+const hasSignalsTimeline = computed(
+  () => signalsTimeline.value.total > 0 || signalsTimeline.value.undated > 0,
+)
+// The Signals tab appears when EITHER the enrichers reported content OR there's
+// a mentions timeline for this node.
+const signalsTabHasContent = computed(
+  () => enrichmentHasContent.value || hasSignalsTimeline.value,
+)
+watch(signalsTabHasContent, (has) => {
+  if (!has && graphRailDetailTab.value === 'enrichment') {
+    graphRailDetailTab.value = 'details'
+  }
+})
+
 watch(
   () => props.nodeId,
-  () => {
+  (newId) => {
     graphRailDetailTab.value = 'details'
+    timelineView.value = 'episodes'
+    mentionsEpisodeFilter.value = null
+    timelineShowTheme.value = false
+    // #6 L0 — in the graph rail only, record each navigated-to node on the breadcrumb trail so the
+    // graph loads + shows it. addToTrail skips the pinned ego origin; a new origin resets the trail.
+    const t = newId?.trim()
+    if (props.embedInRail && t) {
+      graphNav.addToTrail(t)
+      graphAnalytics.track('graph_rail_nav', {
+        to_id: t,
+        to_kind: t.replace(/^g:/, '').split(':')[0] || 'unknown',
+        trail_size: graphNav.trailNodeIds.length,
+      })
+    }
   },
 )
 
@@ -1238,15 +1528,25 @@ watch(
       shell.healthStatus,
       shell.cilQueriesApiAvailable,
       clusterTimelineTopicIds.value.join('|'),
+      timelineShowTheme.value,
+      themeTimelineMemberTopicIds.value.join('|'),
     ] as const,
   () => {
     inlineTimelineSortOrder.value = 'desc'
     inlineTimelineError.value = null
     inlineTimelinePayload.value = null
     if (showInlineTopicTimeline.value) {
-      inlineTimelineMode.value = 'single'
-      inlineTimelineTopicId.value = props.nodeId?.trim() ?? ''
-      inlineTimelineClusterTopicIds.value = []
+      // Theme toggle on → merge the theme cluster's members over time (the theme's
+      // lifespan); otherwise the single focused topic.
+      if (timelineShowTheme.value && themeTimelineMemberTopicIds.value.length > 1) {
+        inlineTimelineMode.value = 'cluster'
+        inlineTimelineTopicId.value = ''
+        inlineTimelineClusterTopicIds.value = [...themeTimelineMemberTopicIds.value]
+      } else {
+        inlineTimelineMode.value = 'single'
+        inlineTimelineTopicId.value = props.nodeId?.trim() ?? ''
+        inlineTimelineClusterTopicIds.value = []
+      }
       void loadInlineTimeline()
       return
     }
@@ -1274,7 +1574,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
 
 <template>
   <aside
-    v-if="nodeId && (node || hasTopicClusterJson)"
+    v-if="nodeId && (node || hasTopicClusterJson || inferredKindFromId)"
     class="relative z-20 text-surface-foreground"
     :class="
       props.embedInRail
@@ -1289,12 +1589,25 @@ const graphConnectionsCenterInView = computed((): boolean => {
     >
       <div class="flex min-w-0 flex-1 gap-3">
         <div
-          class="flex h-[4.5rem] w-[4.5rem] shrink-0 items-center justify-center rounded-2xl font-black leading-none shadow-md ring-1 ring-black/15 dark:ring-white/15"
+          class="flex h-[4.5rem] w-[4.5rem] shrink-0 items-center justify-center overflow-hidden rounded-2xl font-black leading-none shadow-md ring-1 ring-black/15 dark:ring-white/15"
           :class="hasTopicClusterJson || isTopicClusterNode ? 'text-xl tracking-tight' : 'text-2xl'"
-          :style="nodeTypeAvatarStyle"
+          :style="
+            isPodcastNode && (podcastCover?.imageUrl || podcastCover?.imageLocalRelpath)
+              ? undefined
+              : nodeTypeAvatarStyle
+          "
           aria-hidden="true"
         >
-          {{ avatarLetter }}
+          <!-- P2 — podcast nodes show the real show cover instead of the "P" letter. -->
+          <PodcastCover
+            v-if="isPodcastNode && (podcastCover?.imageUrl || podcastCover?.imageLocalRelpath)"
+            :corpus-path="corpusPathForCovers"
+            :feed-image-url="podcastCover?.imageUrl ?? null"
+            :feed-image-local-relpath="podcastCover?.imageLocalRelpath ?? null"
+            alt=""
+            size-class="h-full w-full"
+          />
+          <template v-else>{{ avatarLetter }}</template>
         </div>
         <div class="min-h-0 min-w-0 flex-1 basis-0">
           <div class="flex min-w-0 items-start justify-between gap-1">
@@ -1402,6 +1715,63 @@ const graphConnectionsCenterInView = computed((): boolean => {
         Details
       </button>
       <button
+        v-if="hasTimelineTab"
+        id="node-detail-rail-tab-timeline"
+        type="button"
+        role="tab"
+        class="flex-1 rounded px-2 py-1 text-center text-xs font-medium transition-colors"
+        :class="
+          graphRailDetailTab === 'timeline'
+            ? 'bg-primary text-primary-foreground'
+            : 'text-elevated-foreground hover:bg-overlay'
+        "
+        :aria-selected="graphRailDetailTab === 'timeline'"
+        aria-controls="node-detail-rail-panel-details"
+        data-testid="node-detail-rail-tab-timeline"
+        :tabindex="graphRailDetailTab === 'timeline' ? 0 : -1"
+        @click="graphRailDetailTab = 'timeline'"
+      >
+        Timeline
+      </button>
+      <button
+        v-if="hasPositionTrackerTab"
+        id="node-detail-rail-tab-position-tracker"
+        type="button"
+        role="tab"
+        class="flex-1 rounded px-2 py-1 text-center text-xs font-medium transition-colors"
+        :class="
+          graphRailDetailTab === 'position_tracker'
+            ? 'bg-primary text-primary-foreground'
+            : 'text-elevated-foreground hover:bg-overlay'
+        "
+        :aria-selected="graphRailDetailTab === 'position_tracker'"
+        aria-controls="node-detail-rail-panel-position-tracker"
+        data-testid="node-detail-rail-tab-position-tracker"
+        :tabindex="graphRailDetailTab === 'position_tracker' ? 0 : -1"
+        @click="graphRailDetailTab = 'position_tracker'"
+      >
+        Positions
+      </button>
+      <button
+        v-if="signalsTabHasContent"
+        id="node-detail-rail-tab-enrichment"
+        type="button"
+        role="tab"
+        class="flex-1 rounded px-2 py-1 text-center text-xs font-medium transition-colors"
+        :class="
+          graphRailDetailTab === 'enrichment'
+            ? 'bg-primary text-primary-foreground'
+            : 'text-elevated-foreground hover:bg-overlay'
+        "
+        :aria-selected="graphRailDetailTab === 'enrichment'"
+        aria-controls="node-detail-rail-panel-enrichment"
+        data-testid="node-detail-rail-tab-enrichment"
+        :tabindex="graphRailDetailTab === 'enrichment' ? 0 : -1"
+        @click="graphRailDetailTab = 'enrichment'"
+      >
+        Signals
+      </button>
+      <button
         id="node-detail-rail-tab-neighbourhood"
         type="button"
         role="tab"
@@ -1431,13 +1801,20 @@ const graphConnectionsCenterInView = computed((): boolean => {
       :style="props.embedInRail ? undefined : { maxHeight: 'calc(100vh - 12rem)' }"
     >
       <div
-        v-show="!props.embedInRail || graphRailDetailTab === 'details'"
+        v-show="!props.embedInRail || graphRailDetailTab === 'details' || graphRailDetailTab === 'timeline'"
         id="node-detail-rail-panel-details"
         class="min-h-0"
         :role="props.embedInRail ? 'tabpanel' : undefined"
-        :aria-labelledby="props.embedInRail ? 'node-detail-rail-tab-details' : undefined"
+        :aria-labelledby="
+          props.embedInRail
+            ? graphRailDetailTab === 'timeline'
+              ? 'node-detail-rail-tab-timeline'
+              : 'node-detail-rail-tab-details'
+            : undefined
+        "
         :tabindex="props.embedInRail ? -1 : undefined"
       >
+        <div v-show="!props.embedInRail || graphRailDetailTab === 'details'" class="min-h-0">
         <p
           v-if="showNodeKindRowInDetails"
           class="mb-2 text-xs text-muted"
@@ -1452,15 +1829,100 @@ const graphConnectionsCenterInView = computed((): boolean => {
             <span>{{ entityKind }}</span>
           </template>
         </p>
+      <!-- Actions first: Search / Explore shortcuts + help lead the topic
+           Details tab, above every other section (incl. Member topics). -->
+      <div
+        v-if="isTopicNode && topicGatewayQuery"
+        class="mb-3 flex items-center gap-2"
+        role="group"
+        aria-label="Topic shortcuts to Search and Explore"
+      >
+        <button
+          type="button"
+          class="min-w-0 flex-1 rounded bg-primary px-2 py-1.5 text-center text-xs font-medium leading-snug text-primary-foreground disabled:opacity-40"
+          data-testid="node-detail-topic-prefill-search"
+          :disabled="!shell.healthStatus"
+          @click="emitTopicPrefillSearch"
+        >
+          Prefill semantic search
+        </button>
+        <button
+          type="button"
+          class="min-w-0 flex-1 rounded bg-gi px-2 py-1.5 text-center text-xs font-medium leading-snug text-gi-foreground disabled:opacity-40"
+          data-testid="node-detail-topic-explore-filter"
+          :disabled="!shell.healthStatus"
+          @click="emitTopicExploreFilter"
+        >
+          Set Explore topic filter
+        </button>
+        <HelpTip
+          class="shrink-0 self-center"
+          :pref-width="280"
+          button-aria-label="About topic Search and Explore shortcuts"
+        >
+          <p class="font-sans text-[10px] leading-snug text-muted">
+            <strong class="font-medium text-surface-foreground">Prefill semantic search</strong> switches
+            to Search with this topic label as the query (clears feed filter). Run Search to hit the vector index.
+            <strong class="font-medium text-surface-foreground">Set Explore topic filter</strong> switches
+            to Explore and fills <strong class="font-medium text-surface-foreground/90">Topic contains</strong>;
+            press <strong class="font-medium text-surface-foreground/90">Explore</strong> to load insights.
+          </p>
+        </HelpTip>
+      </div>
       <template v-if="hasTopicClusterJson || isTopicClusterNode">
         <section
-          class="mb-3 rounded border border-border bg-surface/40 p-2 text-[10px]"
+          class="mb-3 min-w-0 text-[10px]"
           data-testid="node-detail-topic-cluster-members"
           aria-label="Topic cluster members"
         >
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <span class="font-semibold text-surface-foreground">Member topics</span>
-            <div class="flex flex-wrap items-center gap-1.5">
+          <div class="mb-1 flex flex-wrap items-center justify-between gap-2">
+            <div class="flex min-w-0 items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-kg">
+              <span class="min-w-0 truncate">Cluster<template v-if="topicClusterContext?.canonicalLabel"> · {{ topicClusterContext.canonicalLabel }}</template></span>
+              <HelpTip :pref-width="270" button-aria-label="About topic clusters">
+                <p class="font-sans text-[10px] normal-case leading-snug tracking-normal text-muted">
+                  Topics grouped by <strong class="font-medium text-surface-foreground">semantic similarity</strong>
+                  — near-duplicate topics merged into one cluster in corpus clustering
+                  (<span class="font-mono">topic_clusters.json</span>). Distinct from
+                  <strong class="font-medium text-surface-foreground">Theme</strong> (discussed-together).
+                </p>
+              </HelpTip>
+            </div>
+            <button
+              type="button"
+              class="shrink-0 rounded border border-border px-2 py-0.5 text-[10px] text-muted hover:bg-overlay"
+              data-testid="node-detail-cluster-advanced-toggle"
+              :aria-expanded="clusterAdvancedOpen"
+              @click="clusterAdvancedOpen = !clusterAdvancedOpen"
+            >
+              {{ clusterAdvancedOpen ? 'Simple' : 'Advanced' }}
+            </button>
+          </div>
+
+          <!-- Simple (default): members as chips, mirroring the theme block. -->
+          <div v-if="!clusterAdvancedOpen" class="mt-2">
+            <div
+              v-if="topicClusterMemberRows.length"
+              class="flex flex-wrap gap-1.5"
+              data-testid="node-detail-cluster-member-chips"
+            >
+              <button
+                v-for="(row, ri) in topicClusterMemberRows"
+                :key="`chip-${row.topicId}-${ri}`"
+                type="button"
+                class="rounded-full border border-transparent px-2 py-0.5 text-[10px] text-surface-foreground hover:opacity-90"
+                :style="{ backgroundColor: 'color-mix(in srgb, var(--ps-kg) 22%, transparent)' }"
+                :title="row.graphNodeId ? `Focus ${row.label}` : `${row.label} — not in this graph view`"
+                @click="focusClusterMember(row)"
+              >{{ row.label }}</button>
+            </div>
+            <p v-else class="mt-1 text-[10px] text-muted">
+              No members listed in topic_clusters.json for this cluster.
+            </p>
+          </div>
+
+          <!-- Advanced (collapsed by default): graph ops + per-member Load/Focus + warnings. -->
+          <div v-show="clusterAdvancedOpen" class="mt-2">
+            <div class="flex flex-wrap items-center justify-end gap-2">
               <button
                 v-if="topicClusterCollapseCyId"
                 type="button"
@@ -1475,7 +1937,6 @@ const graphConnectionsCenterInView = computed((): boolean => {
                 }}
               </button>
             </div>
-          </div>
           <p class="mt-1 leading-snug text-muted">
             Connections below merge edges from every member topic in this cluster.
           </p>
@@ -1566,34 +2027,11 @@ const graphConnectionsCenterInView = computed((): boolean => {
           >
             No members listed in topic_clusters.json for this cluster.
           </p>
+          </div>
         </section>
       </template>
 
       <template v-if="isPersonEntityRailNode">
-        <p
-          v-if="personEntityRoleSummaryLine"
-          class="mb-2 text-[10px] leading-snug text-muted"
-          data-testid="node-detail-person-entity-role"
-        >
-          {{ personEntityRoleSummaryLine }}
-        </p>
-        <p
-          v-if="personEntityAliasesLine"
-          class="mb-3 text-[10px] leading-snug text-muted"
-          data-testid="node-detail-person-entity-aliases"
-        >
-          <span class="font-medium text-surface-foreground/80">Aliases:</span>
-          {{ personEntityAliasesLine }}
-        </p>
-        <button
-          v-if="isPersonEntityRailNode"
-          type="button"
-          class="mb-2 w-full rounded border border-primary/40 px-2 py-1.5 text-center text-xs font-medium text-primary hover:bg-primary/10"
-          data-testid="node-detail-open-person-profile"
-          @click="openFullProfile"
-        >
-          {{ ['person', 'speaker'].includes(nodeType.trim().toLowerCase()) ? 'Open full Person profile →' : 'Open full Entity profile →' }}
-        </button>
         <div
           v-if="personEntityGatewayQuery"
           class="mb-3 flex items-center gap-2"
@@ -1831,6 +2269,39 @@ const graphConnectionsCenterInView = computed((): boolean => {
         {{ topicAliasesLine }}
       </p>
 
+      <!-- Theme (co-occurrence "discussed together") identity + members — mirrors
+           the player entity card. Teal, distinct from the semantic Topic cluster. -->
+      <div
+        v-if="isTopicNode && themeClusterInfo"
+        class="mb-2"
+        data-testid="node-detail-theme-cluster"
+      >
+        <div class="mb-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide" style="color: #7dd3c0">
+          <span class="min-w-0 truncate">Theme · {{ themeClusterInfo.label }}</span>
+          <HelpTip :pref-width="270" button-aria-label="About themes">
+            <p class="font-sans text-[10px] normal-case leading-snug tracking-normal text-muted">
+              Topics that are <strong class="font-medium text-surface-foreground">discussed together</strong>
+              (co-occurrence across episodes). Distinct from
+              <strong class="font-medium text-surface-foreground">Cluster</strong> (semantic near-duplicates).
+            </p>
+          </HelpTip>
+        </div>
+        <div v-if="themeClusterInfo.members.length" class="flex flex-wrap gap-1.5">
+          <button
+            v-for="m in themeClusterInfo.members"
+            :key="m.topic_id"
+            type="button"
+            class="rounded-full border border-transparent px-2 py-0.5 text-[10px] text-surface-foreground hover:opacity-90"
+            :style="{ backgroundColor: 'rgba(125,211,192,0.22)' }"
+            :data-testid="`node-detail-theme-member-${m.topic_id}`"
+            :title="`Discussed together: ${m.label}`"
+            @click="subject.focusTopic(m.topic_id)"
+          >
+            {{ m.label }}
+          </button>
+        </div>
+      </div>
+
       <p
         v-if="isTopicNode && topicClusterContext && !hasTopicClusterJson"
         class="mb-3 text-[10px] leading-snug text-muted"
@@ -1853,77 +2324,124 @@ const graphConnectionsCenterInView = computed((): boolean => {
         </HelpTip>
       </p>
 
-      <button
+      <!-- Topic overview folds in directly (no "open full profile" hop) — the
+           subject overview that used to live in the separate TopicEntityView rail
+           now renders inline in this Details tab. (Non-person entities keep the
+           generic node view — TopicEntityView is topic-oriented and renders empty
+           for organizations, so there's nothing to fold.) -->
+      <TopicEntityView
         v-if="isTopicNode"
-        type="button"
-        class="mb-2 w-full rounded border border-primary/40 px-2 py-1.5 text-center text-xs font-medium text-primary hover:bg-primary/10"
-        data-testid="node-detail-open-topic-profile"
-        @click="openFullProfile"
-      >
-        Open full Topic profile →
-      </button>
-      <div
-        v-if="isTopicNode && topicGatewayQuery"
-        class="mb-3 flex items-center gap-2"
-        role="group"
-        aria-label="Topic shortcuts to Search and Explore"
-      >
-        <button
-          type="button"
-          class="min-w-0 flex-1 rounded bg-primary px-2 py-1.5 text-center text-xs font-medium leading-snug text-primary-foreground disabled:opacity-40"
-          data-testid="node-detail-topic-prefill-search"
-          :disabled="!shell.healthStatus"
-          @click="emitTopicPrefillSearch"
-        >
-          Prefill semantic search
-        </button>
-        <button
-          type="button"
-          class="min-w-0 flex-1 rounded bg-gi px-2 py-1.5 text-center text-xs font-medium leading-snug text-gi-foreground disabled:opacity-40"
-          data-testid="node-detail-topic-explore-filter"
-          :disabled="!shell.healthStatus"
-          @click="emitTopicExploreFilter"
-        >
-          Set Explore topic filter
-        </button>
-        <HelpTip
-          class="shrink-0 self-center"
-          :pref-width="280"
-          button-aria-label="About topic Search and Explore shortcuts"
-        >
-          <p class="font-sans text-[10px] leading-snug text-muted">
-            <strong class="font-medium text-surface-foreground">Prefill semantic search</strong> switches
-            to Search with this topic label as the query (clears feed filter). Run Search to hit the vector index.
-            <strong class="font-medium text-surface-foreground">Set Explore topic filter</strong> switches
-            to Explore and fills <strong class="font-medium text-surface-foreground/90">Topic contains</strong>;
-            press <strong class="font-medium text-surface-foreground/90">Explore</strong> to load insights.
-          </p>
-        </HelpTip>
+        embedded
+        :subject-id-override="nodeId ?? ''"
+        class="mb-1"
+      />
+
+      <!-- Person overview folds in directly too — PersonLandingView (profile +
+           Position Tracker) renders inline instead of a separate rail. -->
+      <PersonLandingView
+        v-if="isPersonNode"
+        embedded
+        view="profile"
+        :subject-id-override="nodeId ?? ''"
+        class="mb-1"
+      />
+
+      <!-- FB14 — Podcast/Show node: basics + episode list, from the corpus feed. -->
+      <PodcastNodeView
+        v-if="isPodcastNode"
+        :subject-id-override="nodeId ?? ''"
+        class="mb-1"
+        @cover="podcastCover = $event"
+      />
+
+      <!-- Out-of-slice insight (e.g. a timeline-mention drill): render its own
+           content from /relational/insight-detail; in-slice insights use the
+           node-backed sections below. -->
+      <InsightNodeView
+        v-if="isInsightNode && !node"
+        :subject-id-override="nodeId ?? ''"
+        class="mb-1"
+        @resolved="insightHeaderText = $event"
+      />
+
       </div>
 
-      <section
-        v-if="showInlineTopicTimeline || showInlineClusterTimeline"
-        class="mb-3 min-w-0 w-full overflow-x-clip overflow-y-visible rounded border border-border bg-elevated/40 p-2"
-        data-testid="node-detail-inline-timeline"
+      <!-- TIMELINE tab: corpus-wide Episodes (grouped) + Mentions (atomic),
+           two views of one API load, switched by a segmented control. -->
+      <div
+        v-show="!props.embedInRail || graphRailDetailTab === 'timeline'"
+        class="min-h-0"
+        data-testid="node-detail-timeline-panel"
       >
+        <!-- N8 — compact dot time-series over the same CIL data, above the
+             segmented control; follows the active view (episodes vs mentions). -->
+        <SubjectTimelineChart
+          v-if="timelineChartData.months.length > 1"
+          :timeline="timelineChartData"
+          variant="dots"
+          :value-label="timelineView === 'mentions' ? 'Mentions' : 'Episodes'"
+          :aria-label="timelineView === 'mentions' ? 'Mentions over time' : 'Episodes over time'"
+          class="mb-2"
+          data-testid="node-detail-timeline-chart"
+        />
         <div class="mb-2 flex items-center justify-between gap-2">
-          <div class="flex min-w-0 items-center gap-1.5">
-            <h4 class="truncate text-[10px] font-semibold uppercase tracking-wide text-muted">
-              {{ showInlineClusterTimeline ? 'Cluster timeline' : 'Topic timeline' }}
-            </h4>
+          <div
+            role="tablist"
+            aria-label="Timeline view"
+            class="inline-flex shrink-0 rounded-md border border-border p-0.5"
+          >
+            <button
+              type="button"
+              role="tab"
+              class="rounded px-2 py-0.5 text-[10px] font-medium transition-colors"
+              :class="timelineView === 'episodes' ? 'bg-primary text-primary-foreground' : 'text-muted hover:bg-overlay'"
+              :aria-selected="timelineView === 'episodes'"
+              data-testid="node-detail-timeline-view-episodes"
+              @click="timelineView = 'episodes'; mentionsEpisodeFilter = null"
+            >
+              Episodes
+            </button>
+            <button
+              type="button"
+              role="tab"
+              class="rounded px-2 py-0.5 text-[10px] font-medium transition-colors"
+              :class="timelineView === 'mentions' ? 'bg-primary text-primary-foreground' : 'text-muted hover:bg-overlay'"
+              :aria-selected="timelineView === 'mentions'"
+              data-testid="node-detail-timeline-view-mentions"
+              @click="timelineView = 'mentions'; mentionsEpisodeFilter = null"
+            >
+              Mentions
+            </button>
+          </div>
+          <div class="flex shrink-0 items-center gap-1.5">
+            <button
+              v-if="timelineView === 'episodes' && hasThemeTimeline"
+              type="button"
+              class="shrink-0 rounded border border-default px-1.5 py-0.5 text-[10px] transition hover:bg-overlay"
+              :class="{ 'bg-overlay': timelineShowTheme }"
+              :style="timelineShowTheme ? { color: '#7dd3c0', borderColor: '#7dd3c0' } : {}"
+              data-testid="node-detail-timeline-theme-toggle"
+              :aria-pressed="timelineShowTheme"
+              :title="
+                timelineShowTheme
+                  ? 'Showing the whole theme over time; click for just this topic'
+                  : 'Show the whole theme over time (all member topics merged)'
+              "
+              @click="timelineShowTheme = !timelineShowTheme"
+            >
+              Theme
+            </button>
             <HelpTip
               class="shrink-0"
               :pref-width="360"
-              :button-aria-label="
-                showInlineClusterTimeline
-                  ? 'About cluster timeline, list legend, and topic ids'
-                  : 'About topic timeline, list legend, and topic id'
-              "
+              button-aria-label="About the corpus-wide timeline, its two views, and topic ids"
             >
               <p class="font-sans text-[10px] leading-snug text-muted">
-                <strong class="font-medium text-surface-foreground">Corpus-wide</strong> timeline from CIL + bridge
-                + GI. {{ showInlineClusterTimeline ? 'Cluster mode merges results for all member topic ids.' : 'Topic mode uses the selected topic id.' }}
-                The list can be empty, one episode, or many; this is match count, not a graph limit.
+                <strong class="font-medium text-surface-foreground">Corpus-wide</strong> — every episode and
+                insight about this {{ showInlineClusterTimeline ? 'cluster' : 'topic' }}, from CIL + bridge + GI.
+                <strong class="font-medium text-surface-foreground">Episodes</strong> groups by episode (with our
+                summary); <strong class="font-medium text-surface-foreground">Mentions</strong> lists every
+                individual insight / quote.{{ showInlineClusterTimeline ? ' Cluster mode merges all member topic ids.' : '' }}
               </p>
               <p
                 v-if="inlineTimelineTopicIdsLabel"
@@ -1937,16 +2455,23 @@ const graphConnectionsCenterInView = computed((): boolean => {
                 </span>
               </p>
             </HelpTip>
+            <button
+              type="button"
+              class="rounded border border-border px-2 py-0.5 text-[10px] hover:bg-overlay disabled:opacity-40"
+              :disabled="inlineTimelineLoading || (showInlineClusterTimeline && clusterTimelineDisabled)"
+              @click="loadInlineTimeline"
+            >
+              Refresh
+            </button>
           </div>
-          <button
-            type="button"
-            class="rounded border border-border px-2 py-0.5 text-[10px] hover:bg-overlay disabled:opacity-40"
-            :disabled="inlineTimelineLoading || (showInlineClusterTimeline && clusterTimelineDisabled)"
-            @click="loadInlineTimeline"
-          >
-            Refresh
-          </button>
         </div>
+
+      <section
+        v-show="timelineView === 'episodes'"
+        v-if="showInlineTopicTimeline || showInlineClusterTimeline"
+        class="min-w-0 w-full overflow-x-clip overflow-y-visible"
+        data-testid="node-detail-inline-timeline"
+      >
         <p
           v-if="inlineTimelineLoading"
           class="text-[10px] text-muted"
@@ -1998,13 +2523,19 @@ const graphConnectionsCenterInView = computed((): boolean => {
               Newest
             </button>
           </div>
-          <ul class="w-full min-w-0 space-y-2 overflow-x-clip overflow-y-visible">
+          <ul class="w-full min-w-0 space-y-2 overflow-x-clip pr-0.5">
             <li
-              v-for="(ep, ei) in inlineTimelineSortedEpisodes"
-              :key="`${ep.episode_id}-${ei}`"
-              class="min-w-0 rounded border border-border/70 bg-surface/60 p-2"
+              v-for="ep in pagedEpisodes"
+              :key="episodeKey(ep)"
+              class="min-w-0 border-b border-border/40 pb-2 last:border-b-0"
             >
-              <div class="flex gap-2">
+              <button
+                type="button"
+                class="flex w-full min-w-0 items-start gap-2 rounded text-left hover:bg-overlay/60"
+                data-testid="node-detail-episode-open"
+                :title="`Show mentions in ${episodePrimaryHeading(ep)}`"
+                @click="openEpisodeMentions(ep)"
+              >
                 <div class="shrink-0 self-start">
                   <PodcastCover
                     :corpus-path="corpusPathForCovers"
@@ -2024,30 +2555,229 @@ const graphConnectionsCenterInView = computed((): boolean => {
                     {{ episodePrimaryHeading(ep) }}
                   </p>
                   <p
-                    v-if="episodeContextLine(ep)"
+                    v-if="episodeSummaryTitle(ep)"
+                    class="break-words text-[10px] leading-snug text-muted"
+                  >
+                    {{ episodeSummaryTitle(ep) }}
+                  </p>
+                  <p
+                    v-else-if="episodeContextLine(ep)"
                     class="break-words text-[10px] leading-snug text-muted"
                   >
                     {{ episodeContextLine(ep) }}
                   </p>
                 </div>
-              </div>
-              <ul
-                v-if="ep.insights && ep.insights.length > 0"
-                class="mt-2 w-full list-none space-y-1 border-t border-border/60 pt-2"
-              >
-                <li
-                  v-for="(ins, ii) in ep.insights"
-                  :key="ii"
-                  class="break-words text-[10px] leading-snug text-muted"
-                >
-                  - {{ insightLine(ins) }}
-                </li>
-              </ul>
+                <span
+                  class="shrink-0 self-center text-xs leading-none text-muted"
+                  aria-hidden="true"
+                >›</span>
+              </button>
             </li>
           </ul>
+          <nav
+            v-if="episodesTotalPages > 1"
+            class="mt-2 flex items-center justify-center gap-1"
+            aria-label="Episode pages"
+            data-testid="node-detail-episodes-pager"
+          >
+            <button
+              type="button"
+              class="rounded border border-border px-1.5 py-0.5 text-[10px] text-muted hover:bg-overlay disabled:opacity-40"
+              :disabled="episodesPage === 1"
+              aria-label="First page"
+              @click="episodesPage = 1"
+            >
+              «
+            </button>
+            <button
+              type="button"
+              class="rounded border border-border px-1.5 py-0.5 text-[10px] text-muted hover:bg-overlay disabled:opacity-40"
+              :disabled="episodesPage === 1"
+              aria-label="Previous page"
+              @click="episodesPage = Math.max(1, episodesPage - 1)"
+            >
+              ‹
+            </button>
+            <span class="px-1.5 text-[10px] tabular-nums text-muted">
+              {{ episodesPage }} / {{ episodesTotalPages }}
+            </span>
+            <button
+              type="button"
+              class="rounded border border-border px-1.5 py-0.5 text-[10px] text-muted hover:bg-overlay disabled:opacity-40"
+              :disabled="episodesPage >= episodesTotalPages"
+              aria-label="Next page"
+              @click="episodesPage = Math.min(episodesTotalPages, episodesPage + 1)"
+            >
+              ›
+            </button>
+            <button
+              type="button"
+              class="rounded border border-border px-1.5 py-0.5 text-[10px] text-muted hover:bg-overlay disabled:opacity-40"
+              :disabled="episodesPage >= episodesTotalPages"
+              aria-label="Last page"
+              @click="episodesPage = episodesTotalPages"
+            >
+              »
+            </button>
+          </nav>
         </div>
       </section>
 
+      <!-- MENTIONS: corpus-wide, one row per insight (flattened from the same
+           timeline API as Episodes above) — mentions + episodes, two views, one source. -->
+      <section
+        v-show="timelineView === 'mentions'"
+        v-if="(showInlineTopicTimeline || showInlineClusterTimeline) && flatMentions.length"
+        class="min-w-0 w-full"
+        data-testid="node-detail-mentions"
+        aria-label="Mentions"
+      >
+        <!-- Drilled in from an episode: show its summary for context + a way back. -->
+        <div
+          v-if="filteredMentionEpisode"
+          class="mb-2 rounded border border-border bg-surface/40 p-2"
+          data-testid="node-detail-mentions-episode-filter"
+        >
+          <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0">
+              <p class="text-[10px] font-medium text-gi/90">
+                {{ formatEpisodeDate(filteredMentionEpisode.publish_date) || 'Date unknown' }}
+              </p>
+              <p class="break-words text-[11px] font-semibold leading-snug text-surface-foreground">
+                {{ episodePrimaryHeading(filteredMentionEpisode) }}
+              </p>
+              <p
+                v-if="episodeSummaryText(filteredMentionEpisode)"
+                class="mt-0.5 whitespace-pre-line break-words text-[10px] leading-snug text-muted"
+              >
+                {{ episodeSummaryText(filteredMentionEpisode) }}
+              </p>
+            </div>
+            <button
+              type="button"
+              class="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] text-muted hover:bg-overlay"
+              data-testid="node-detail-mentions-clear-filter"
+              @click="mentionsEpisodeFilter = null"
+            >
+              ‹ All
+            </button>
+          </div>
+        </div>
+        <p class="mb-1 text-[10px] leading-snug text-muted">
+          {{ flatMentions.length }} mention{{ flatMentions.length === 1 ? '' : 's'
+          }}{{ filteredMentionEpisode ? ' in this episode' : '' }}.
+        </p>
+        <div class="mb-1 flex items-center gap-1.5">
+          <span class="text-[10px] text-muted">Date</span>
+          <button
+            type="button"
+            class="rounded border px-1.5 py-0.5 text-[10px]"
+            :class="mentionsSortOrder === 'asc' ? 'border-gi/60 bg-gi/15' : 'border-border text-muted'"
+            data-testid="node-detail-mentions-sort-oldest"
+            @click="mentionsSortOrder = 'asc'"
+          >
+            Oldest
+          </button>
+          <button
+            type="button"
+            class="rounded border px-1.5 py-0.5 text-[10px]"
+            :class="mentionsSortOrder === 'desc' ? 'border-gi/60 bg-gi/15' : 'border-border text-muted'"
+            data-testid="node-detail-mentions-sort-newest"
+            @click="mentionsSortOrder = 'desc'"
+          >
+            Newest
+          </button>
+        </div>
+        <ul
+          class="w-full min-w-0 space-y-1.5 overflow-x-clip pr-0.5"
+          data-testid="node-detail-mentions-list"
+        >
+          <li
+            v-for="m in pagedMentions"
+            :key="m.key"
+            class="min-w-0 border-b border-border/40 pb-1.5 last:border-b-0"
+          >
+            <button
+              v-if="m.insightId"
+              type="button"
+              class="w-full min-w-0 rounded text-left hover:bg-overlay/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              data-testid="node-detail-mention-open"
+              title="Open this insight"
+              @click="openMentionInsight(m.insightId)"
+            >
+              <p class="break-words text-[11px] leading-snug text-surface-foreground">{{ m.text }}</p>
+              <p
+                v-if="m.episodeTitle || m.publishDate"
+                class="mt-0.5 break-words text-[10px] leading-snug text-muted"
+              >
+                <span v-if="m.episodeTitle">{{ m.episodeTitle }}</span>
+                <span v-if="m.episodeTitle && m.publishDate"> · </span>
+                <span v-if="m.publishDate">{{ formatEpisodeDate(m.publishDate) }}</span>
+              </p>
+            </button>
+            <template v-else>
+              <p class="break-words text-[11px] leading-snug text-surface-foreground">{{ m.text }}</p>
+              <p
+                v-if="m.episodeTitle || m.publishDate"
+                class="mt-0.5 break-words text-[10px] leading-snug text-muted"
+              >
+                <span v-if="m.episodeTitle">{{ m.episodeTitle }}</span>
+                <span v-if="m.episodeTitle && m.publishDate"> · </span>
+                <span v-if="m.publishDate">{{ formatEpisodeDate(m.publishDate) }}</span>
+              </p>
+            </template>
+          </li>
+        </ul>
+        <nav
+          v-if="mentionsTotalPages > 1"
+          class="mt-2 flex items-center justify-center gap-1"
+          aria-label="Mention pages"
+          data-testid="node-detail-mentions-pager"
+        >
+          <button
+            type="button"
+            class="rounded border border-border px-1.5 py-0.5 text-[10px] text-muted hover:bg-overlay disabled:opacity-40"
+            :disabled="mentionsPage === 1"
+            aria-label="First page"
+            @click="mentionsPage = 1"
+          >
+            «
+          </button>
+          <button
+            type="button"
+            class="rounded border border-border px-1.5 py-0.5 text-[10px] text-muted hover:bg-overlay disabled:opacity-40"
+            :disabled="mentionsPage === 1"
+            aria-label="Previous page"
+            @click="mentionsPage = Math.max(1, mentionsPage - 1)"
+          >
+            ‹
+          </button>
+          <span class="px-1.5 text-[10px] tabular-nums text-muted">
+            {{ mentionsPage }} / {{ mentionsTotalPages }}
+          </span>
+          <button
+            type="button"
+            class="rounded border border-border px-1.5 py-0.5 text-[10px] text-muted hover:bg-overlay disabled:opacity-40"
+            :disabled="mentionsPage >= mentionsTotalPages"
+            aria-label="Next page"
+            @click="mentionsPage = Math.min(mentionsTotalPages, mentionsPage + 1)"
+          >
+            ›
+          </button>
+          <button
+            type="button"
+            class="rounded border border-border px-1.5 py-0.5 text-[10px] text-muted hover:bg-overlay disabled:opacity-40"
+            :disabled="mentionsPage >= mentionsTotalPages"
+            aria-label="Last page"
+            @click="mentionsPage = mentionsTotalPages"
+          >
+            »
+          </button>
+        </nav>
+      </section>
+      </div>
+
+      <div v-show="!props.embedInRail || graphRailDetailTab === 'details'" class="min-h-0">
       <p
         v-if="bodyTextForTemplate"
         class="mb-3 text-xs leading-relaxed text-muted"
@@ -2127,6 +2857,59 @@ const graphConnectionsCenterInView = computed((): boolean => {
           </dd>
         </template>
       </dl>
+      </div>
+      </div>
+
+      <!-- Position Tracker (person nodes) — the PLV Position Tracker promoted to a
+           peer node-view tab; the pivot topic is set from the embedded profile. -->
+      <div
+        v-if="props.embedInRail && hasPositionTrackerTab"
+        v-show="graphRailDetailTab === 'position_tracker'"
+        id="node-detail-rail-panel-position-tracker"
+        class="min-h-0"
+        role="tabpanel"
+        aria-labelledby="node-detail-rail-tab-position-tracker"
+        :tabindex="-1"
+      >
+        <PersonLandingView
+          v-if="isPersonNode"
+          embedded
+          view="positions"
+          :subject-id-override="nodeId ?? ''"
+        />
+      </div>
+
+      <!-- Mounted whenever the rail is shown (not just when the tab is active) so
+           NodeEnrichmentSection can report has-content up-front; the tab button
+           only appears once it does. v-show keeps it hidden until selected. -->
+      <div
+        v-if="props.embedInRail"
+        v-show="graphRailDetailTab === 'enrichment'"
+        id="node-detail-rail-panel-enrichment"
+        class="min-h-0"
+        role="tabpanel"
+        aria-labelledby="node-detail-rail-tab-enrichment"
+        :tabindex="-1"
+      >
+        <section
+          v-if="hasSignalsTimeline"
+          class="mb-3 w-full min-w-0"
+          aria-label="Mentions by month"
+          data-testid="node-detail-signals-timeline"
+        >
+          <h4 class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted">
+            Mentions by month
+          </h4>
+          <SubjectTimelineChart
+            :timeline="signalsTimeline"
+            aria-label="Mentions by month for this subject"
+          />
+        </section>
+        <NodeEnrichmentSection
+          :node-id="props.nodeId ?? ''"
+          :node-type="nodeType"
+          @has-content="enrichmentHasContent = $event"
+        />
       </div>
 
       <div

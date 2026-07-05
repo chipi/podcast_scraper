@@ -6,14 +6,20 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import type { ParsedArtifact, RawGraphNode } from '../../types/artifact'
 import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
+import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import NodeDetail from './NodeDetail.vue'
 
 // Heavy / API-driven children are stubbed: GraphConnectionsSection (cytoscape
 // minimap), TranscriptViewerDialog, PodcastCover, and HelpTip (slot popover).
 const STUBS = {
+  PersonLandingView: { name: 'PersonLandingView', template: '<div data-testid="person-landing-view" />' },
+  PodcastNodeView: { name: 'PodcastNodeView', template: '<div data-testid="podcast-node-view" />' },
+  InsightNodeView: { name: 'InsightNodeView', template: '<div data-testid="insight-node-view" />' },
   GraphConnectionsSection: true,
   TranscriptViewerDialog: true,
   PodcastCover: true,
+  TopicEntityView: { name: 'TopicEntityView', template: '<div data-testid="topic-entity-view" />' },
+  NodeEnrichmentSection: true,
   // Keep HelpTip rendering its default slot so trigger labels are assertable,
   // but stub the popover machinery to a passthrough.
   HelpTip: {
@@ -55,6 +61,59 @@ describe('NodeDetail', () => {
   it('renders nothing when the node is absent and there is no topic cluster', () => {
     const w = mountDetail({ viewArtifact: artifactOf([]), nodeId: 'missing' })
     expect(w.find('aside').exists()).toBe(false)
+  })
+
+  it('renders the person view for an out-of-slice person id even when the node is absent', () => {
+    // A co-speaker sourced from the full server-side relational graph isn't in
+    // the current viewer slice → node lookup returns null. The rail must still
+    // render the person view (which loads from server endpoints) instead of an
+    // empty "Node" shell, with a name humanized from the id slug.
+    const w = mountDetail({
+      viewArtifact: artifactOf([]),
+      nodeId: 'g:person:robert-armstrong',
+      embedInRail: true,
+    })
+    expect(w.find('aside').exists()).toBe(true)
+    expect(w.find('[data-testid="person-landing-view"]').exists()).toBe(true)
+    expect(w.find('.node-detail-primary-title').text()).toBe('Robert Armstrong')
+  })
+
+  it('renders the topic view for an out-of-slice topic id even when the node is absent', () => {
+    const w = mountDetail({
+      viewArtifact: artifactOf([]),
+      nodeId: 'g:topic:interest-rates',
+      embedInRail: true,
+    })
+    expect(w.find('aside').exists()).toBe(true)
+    expect(w.find('[data-testid="topic-entity-view"]').exists()).toBe(true)
+    expect(w.find('.node-detail-primary-title').text()).toBe('Interest Rates')
+  })
+
+  it('renders the insight view for an out-of-slice insight id even when the node is absent', () => {
+    // A corpus-wide timeline-mention drill hands NodeDetail an insight id that
+    // isn't in the loaded slice → node lookup returns null. The rail must render
+    // the InsightNodeView (which loads from /relational/insight-detail) rather
+    // than an empty "Node" shell. The header falls back to "Insight" until the
+    // view resolves the text.
+    const w = mountDetail({
+      viewArtifact: artifactOf([]),
+      nodeId: 'g:insight:5b0c6ec2f1ddf3b4',
+      embedInRail: true,
+    })
+    expect(w.find('aside').exists()).toBe(true)
+    expect(w.find('[data-testid="insight-node-view"]').exists()).toBe(true)
+    expect(w.find('.node-detail-primary-title').text()).toBe('Insight')
+  })
+
+  it('renders the podcast view for a podcast id (real node or synthetic)', () => {
+    const w = mountDetail({
+      viewArtifact: artifactOf([]),
+      nodeId: 'g:podcast:planet-money',
+      embedInRail: true,
+    })
+    expect(w.find('aside').exists()).toBe(true)
+    expect(w.find('[data-testid="podcast-node-view"]').exists()).toBe(true)
+    expect(w.find('.node-detail-primary-title').text()).toBe('Planet Money')
   })
 
   it('renders the panel with the node display name and type chip for a generic node', () => {
@@ -110,8 +169,6 @@ describe('NodeDetail', () => {
     await w.vm.$nextTick()
 
     expect(w.find('[data-testid="node-detail-topic-aliases"]').text()).toContain('AI, ML')
-    expect(w.find('[data-testid="node-detail-open-topic-profile"]').exists()).toBe(true)
-
     await w.get('[data-testid="node-detail-topic-prefill-search"]').trigger('click')
     expect(w.emitted('prefill-semantic-search')![0]).toEqual([
       { query: 'Artificial Intelligence' },
@@ -123,15 +180,13 @@ describe('NodeDetail', () => {
     ])
   })
 
-  it('Open full Topic profile focuses the topic subject', async () => {
+  it('renders embedded TopicEntityView instead of "Open full Topic profile" button for topic nodes', () => {
     const art = artifactOf([
       { id: 'topic:ai', type: 'Topic', properties: { label: 'AI' } },
     ])
     const w = mountDetail({ viewArtifact: art, nodeId: 'topic:ai' })
-    const subject = useSubjectStore()
-    await w.get('[data-testid="node-detail-open-topic-profile"]').trigger('click')
-    expect(subject.kind).toBe('topic')
-    expect(subject.topicId).toBe('topic:ai')
+    expect(w.find('[data-testid="node-detail-open-topic-profile"]').exists()).toBe(false)
+    expect(w.find('[data-testid="topic-entity-view"]').exists()).toBe(true)
   })
 
   it('disables Topic gateway buttons until health is set', () => {
@@ -163,34 +218,17 @@ describe('NodeDetail', () => {
     shell.healthStatus = 'ok'
     await w.vm.$nextTick()
 
-    expect(w.find('[data-testid="node-detail-person-entity-role"]').text()).toContain(
-      '1 attributed quote',
-    )
-    expect(w.find('[data-testid="node-detail-person-entity-role"]').text()).toContain(
-      '1 episode link',
-    )
-    expect(w.find('[data-testid="node-detail-person-entity-aliases"]').text()).toContain('Ada')
-    expect(w.find('[data-testid="node-detail-open-person-profile"]').text()).toContain(
-      'Open full Person profile',
-    )
-
+    // NodeDetail now embeds PersonLandingView with the person details
+    expect(w.find('[data-testid="person-landing-view"]').exists()).toBe(true)
+    // The standalone "Open full Person profile" button is gone
+    expect(w.find('[data-testid="node-detail-open-person-profile"]').exists()).toBe(false)
+    // Gateway buttons still present
     await w.get('[data-testid="node-detail-person-entity-prefill-search"]').trigger('click')
     expect(w.emitted('prefill-semantic-search')![0]).toEqual([{ query: 'Ada Lovelace' }])
 
     // Person (not org) routes the second button to the speaker filter.
     await w.get('[data-testid="node-detail-person-entity-explore-filter"]').trigger('click')
     expect(w.emitted('open-explore-speaker-filter')![0]).toEqual([{ speaker: 'Ada Lovelace' }])
-  })
-
-  it('Open full Person profile focuses the person subject', async () => {
-    const art = artifactOf([
-      { id: 'person:ada', type: 'Person', properties: { name: 'Ada' } },
-    ])
-    const w = mountDetail({ viewArtifact: art, nodeId: 'person:ada' })
-    const subject = useSubjectStore()
-    await w.get('[data-testid="node-detail-open-person-profile"]').trigger('click')
-    expect(subject.kind).toBe('person')
-    expect(subject.personId).toBe('person:ada')
   })
 
   // --- Insight branch --------------------------------------------------------
@@ -352,13 +390,13 @@ describe('NodeDetail', () => {
   })
 
   // --- RFC-097 v3.0 typed entity branch -------------------------------------
-  // Organization is a first-class KG node type. NodeDetail's Person/Entity
-  // branch handles both — the button copy adapts (Person profile vs Entity
-  // profile) and the connections section (stubbed here, tested separately in
-  // GraphConnectionsSection.test.ts) renders typed MENTIONS_PERSON /
-  // MENTIONS_ORG rows.
+  // Organization is a first-class KG node type. Non-person entities now fold
+  // their TopicEntityView overview inline (same as topics); the standalone
+  // "Open full Entity profile" button is retired. The connections section
+  // (stubbed here, tested separately in GraphConnectionsSection.test.ts) renders
+  // typed MENTIONS_PERSON / MENTIONS_ORG rows.
 
-  it('Organization node uses the Entity-profile rail copy (not Person)', async () => {
+  it('Organization node uses the generic node view (no TopicEntityView fold, no profile button)', async () => {
     const art = artifactOf(
       [
         { id: 'org:acme', type: 'Organization', properties: { name: 'Acme' } },
@@ -380,12 +418,11 @@ describe('NodeDetail', () => {
     await w.vm.$nextTick()
 
     expect(w.text()).toContain('Acme')
-    // The shared Person/Entity rail handles Organization too; the profile
-    // button copy switches from "Person profile" to "Entity profile".
-    const btn = w.find('[data-testid="node-detail-open-person-profile"]')
-    expect(btn.exists()).toBe(true)
-    expect(btn.text()).toContain('Entity profile')
-    expect(btn.text()).not.toContain('Person profile')
+    // Non-person entities use the generic node view — TopicEntityView is
+    // topic-oriented and renders empty for orgs, so it is not folded in; and
+    // there is no standalone "Open full profile" hop.
+    expect(w.find('[data-testid="topic-entity-view"]').exists()).toBe(false)
+    expect(w.find('[data-testid="node-detail-open-person-profile"]').exists()).toBe(false)
   })
 
   it('Organization node still invokes the GraphConnectionsSection with the right artifact + nodeId', async () => {
@@ -451,5 +488,33 @@ describe('NodeDetail', () => {
     // (rendered by NodeDetail itself, not the connections stub).
     const text = w.text()
     expect(text.toLowerCase()).toContain('claim')
+  })
+
+  it('Position Tracker tab embeds PersonLandingView with view="positions" (not PositionTrackerPanel)', async () => {
+    const art = artifactOf([{ id: 'person:ada', type: 'Person', properties: { name: 'Ada' } }])
+    const w = mountDetail({ viewArtifact: art, nodeId: 'person:ada', embedInRail: true })
+    await w.get('[data-testid="node-detail-rail-tab-position-tracker"]').trigger('click')
+    // PersonLandingView stub is used (exists in DOM from the position tracker tab)
+    expect(w.find('#node-detail-rail-panel-position-tracker').exists()).toBe(true)
+    // PositionTrackerPanel stub NOT present (it was removed from NodeDetail imports)
+    expect(w.find('[data-testid="position-tracker-panel"]').exists()).toBe(false)
+  })
+
+  it('records graph-rail navigation on the breadcrumb trail (#6 L0)', async () => {
+    const nav = useGraphNavigationStore()
+    const w = mountDetail({
+      viewArtifact: artifactOf([]),
+      nodeId: 'g:topic:a',
+      embedInRail: true,
+    })
+    await w.setProps({ nodeId: 'g:topic:b' }) // navigate to a new node in the rail
+    expect(nav.trailNodeIds).toContain('g:topic:b')
+  })
+
+  it('does NOT record navigation on the trail outside the graph rail (#6)', async () => {
+    const nav = useGraphNavigationStore()
+    const w = mountDetail({ viewArtifact: artifactOf([]), nodeId: 'g:topic:a' }) // no embedInRail
+    await w.setProps({ nodeId: 'g:topic:b' })
+    expect(nav.trailNodeIds).not.toContain('g:topic:b')
   })
 })

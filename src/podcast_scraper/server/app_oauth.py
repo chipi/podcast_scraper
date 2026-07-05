@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from dataclasses import dataclass
 from typing import Protocol
 from urllib.parse import urlencode
@@ -47,8 +48,14 @@ class OAuthProvider(Protocol):
 
     name: str
 
-    def authorization_url(self, *, state: str, redirect_uri: str) -> str:
-        """Return the provider authorize URL for this ``state`` + ``redirect_uri``."""
+    def authorization_url(
+        self, *, state: str, redirect_uri: str, login_hint: str | None = None
+    ) -> str:
+        """Return the provider authorize URL for this ``state`` + ``redirect_uri``.
+
+        ``login_hint`` is an optional identity hint; real providers may ignore it. The mock
+        provider uses it to self-complete as a distinct identity (dev/e2e isolation).
+        """
         ...
 
     def exchange_code(self, *, code: str, redirect_uri: str) -> OAuthIdentity:
@@ -66,8 +73,13 @@ class GoogleProvider:
         self._client_secret = client_secret
         self._timeout = timeout
 
-    def authorization_url(self, *, state: str, redirect_uri: str) -> str:
-        """Build Google's OAuth2 consent URL (openid email profile) with CSRF ``state``."""
+    def authorization_url(
+        self, *, state: str, redirect_uri: str, login_hint: str | None = None
+    ) -> str:
+        """Build Google's OAuth2 consent URL (openid email profile) with CSRF ``state``.
+
+        ``login_hint`` is ignored — real identity comes from Google's userinfo, never a caller hint.
+        """
         query = urlencode(
             {
                 "client_id": self._client_id,
@@ -120,6 +132,14 @@ class GoogleProvider:
         )
 
 
+def _safe_hint(raw: str | None) -> str:
+    """Sanitise a mock identity hint to a short ``[a-z0-9-]`` token (empty when unusable)."""
+    if not raw:
+        return ""
+    cleaned = re.sub(r"[^a-z0-9-]", "", raw.strip().lower())
+    return cleaned[:32]
+
+
 class MockOAuthProvider:
     """Local, network-free OAuth provider for dev + e2e — **never** production.
 
@@ -144,14 +164,34 @@ class MockOAuthProvider:
         self._subject = subject
         self._name = display_name
 
-    def authorization_url(self, *, state: str, redirect_uri: str) -> str:
-        """Redirect straight back to the callback with a fixed code (offline flow)."""
-        query = urlencode({"code": self.MOCK_CODE, "state": state})
+    def authorization_url(
+        self, *, state: str, redirect_uri: str, login_hint: str | None = None
+    ) -> str:
+        """Redirect straight back to the callback with a fixed code (offline flow).
+
+        When ``login_hint`` is given (dev/e2e), it is baked into the code (``mock-auth-code:<h>``)
+        so ``exchange_code`` self-completes as a **distinct** identity — letting parallel e2e specs
+        run as isolated users instead of one shared mock user.
+        """
+        hint = _safe_hint(login_hint)
+        code = f"{self.MOCK_CODE}:{hint}" if hint else self.MOCK_CODE
+        query = urlencode({"code": code, "state": state})
         sep = "&" if "?" in redirect_uri else "?"
         return f"{redirect_uri}{sep}{query}"
 
     def exchange_code(self, *, code: str, redirect_uri: str) -> OAuthIdentity:
-        """Return the fixed dev identity (no network); ``code`` is ignored."""
+        """Return the dev identity (no network). A ``mock-auth-code:<hint>`` code yields a distinct
+        per-hint identity (``<hint>`` subject); a bare code yields the configured fixed identity."""
+        prefix = f"{self.MOCK_CODE}:"
+        if code.startswith(prefix):
+            hint = _safe_hint(code[len(prefix) :])
+            if hint:
+                return OAuthIdentity(
+                    provider=self.name,
+                    subject=f"e2e-{hint}",
+                    email=f"{hint}@e2e.local",
+                    name=hint,
+                )
         return OAuthIdentity(
             provider=self.name, subject=self._subject, email=self._email, name=self._name
         )

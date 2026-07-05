@@ -155,13 +155,17 @@ export interface Entity {
   kind: 'person' | 'org'
 }
 
-/** A KG topic. Cluster fields (RFC-102) drive cluster-first grouping; null/0 = singleton/no artifact. */
+/** A KG topic. Cluster fields (RFC-102) drive cluster-first grouping; null/0 = singleton/no artifact.
+ *  `cluster_*` = semantic ("Similar"); `theme_cluster_*` = co-occurrence ("Theme"). */
 export interface Topic {
   id: string
   label: string
   cluster_id: string | null
   cluster_label: string | null
   cluster_size: number
+  theme_cluster_id?: string | null
+  theme_cluster_label?: string | null
+  theme_cluster_size?: number
 }
 
 export interface EntitiesResponse {
@@ -197,6 +201,98 @@ export interface FavoriteInsight {
 export interface FavoritesResponse {
   episodes: EpisodeSummary[]
   insights: FavoriteInsight[]
+}
+
+// --- P2 Capture: highlights + notes (PRD-040 / RFC-098 §7) ---
+
+export type HighlightKind = 'span' | 'moment' | 'insight'
+
+/** A captured highlight (GET/POST/PATCH/DELETE /api/app/highlights — the Highlight schema). */
+export interface Highlight {
+  id: string
+  episode_slug: string
+  kind: HighlightKind
+  start_ms: number | null
+  end_ms: number | null
+  char_start: number | null
+  char_end: number | null
+  segment_ids: string[]
+  quote_text: string | null
+  speaker: string | null
+  source_insight_id: string | null
+  color: string | null
+  created_at: number
+  /** 'anchored' | 'drifted' after a re-anchor on re-scrape; null until then. */
+  anchor_status: string | null
+}
+
+/** Body for POST /api/app/highlights. */
+export interface HighlightCreate {
+  episode_slug: string
+  kind: HighlightKind
+  start_ms?: number | null
+  end_ms?: number | null
+  char_start?: number | null
+  char_end?: number | null
+  segment_ids?: string[]
+  quote_text?: string | null
+  speaker?: string | null
+  source_insight_id?: string | null
+  color?: string | null
+}
+
+/** Body for PATCH /api/app/highlights/{id} — edit colour / captured text. */
+export interface HighlightUpdate {
+  color?: string | null
+  quote_text?: string | null
+}
+
+export interface HighlightsResponse {
+  items: Highlight[]
+}
+
+export type NoteTarget = 'highlight' | 'insight' | 'episode'
+
+/** A free-text note (GET/POST/PATCH/DELETE /api/app/notes — the Note schema). */
+export interface Note {
+  id: string
+  target: NoteTarget
+  target_id: string
+  text: string
+  created_at: number
+  updated_at: number
+}
+
+/** Body for POST /api/app/notes. */
+export interface NoteCreate {
+  target: NoteTarget
+  target_id: string
+  text: string
+}
+
+/** Body for PATCH /api/app/notes/{id}. */
+export interface NoteUpdate {
+  text: string
+}
+
+export interface NotesResponse {
+  items: Note[]
+}
+
+// --- P3 Consolidation: spaced resurfacing (RFC-101 §5) ---
+
+export interface ResurfacingItem {
+  highlight: Highlight
+  reflection_prompt: string
+}
+
+export interface ResurfacingResponse {
+  items: ResurfacingItem[]
+  paused: boolean
+}
+
+export interface ResurfacingSettings {
+  paused: boolean
 }
 
 /** One selectable interest cluster (GET /api/app/clusters — AppInterestCluster). */
@@ -237,9 +333,87 @@ export interface TopicCard {
   cluster_label: string | null
   cluster_size: number
   sibling_topics: Topic[]
+  theme_cluster_id?: string | null
+  theme_cluster_label?: string | null
+  theme_cluster_size?: number
+  theme_sibling_topics?: Topic[]
   episode_count: number
   episodes: EpisodeSummary[]
   related_people: Entity[]
+}
+
+/** Corpus-scope enrichment signals (GET /api/app/corpus/enrichment → `signals`).
+ *  Enricher id → its envelope `data`. Every field is optional/best-effort: an
+ *  enricher that didn't run just doesn't appear. Only the fields the entity card
+ *  consumes are typed. */
+export interface CorpusEnrichmentSignals {
+  grounding_rate?: {
+    persons?: Array<{
+      person_id: string
+      person_name?: string
+      total_insights: number
+      grounded_insights: number
+      rate: number
+    }>
+  }
+  guest_coappearance?: {
+    pairs?: Array<{
+      person_a_id: string
+      person_b_id: string
+      person_a_name?: string
+      person_b_name?: string
+      episode_count: number
+    }>
+  }
+  nli_contradiction?: {
+    contradictions?: Array<{
+      topic_id: string
+      person_a_id: string
+      person_b_id: string
+      person_a_name?: string
+      person_b_name?: string
+      insight_a_text?: string
+      insight_b_text?: string
+    }>
+  }
+  temporal_velocity?: {
+    /** Ordered YYYY-MM axis the monthly_counts are keyed on. */
+    window_months?: string[]
+    topics?: Array<{
+      topic_id: string
+      topic_label?: string
+      velocity_last_over_6mo?: number
+      total?: number
+      monthly_counts?: Record<string, number>
+    }>
+  }
+  topic_similarity?: {
+    topics?: Array<{
+      topic_id: string
+      top_k?: Array<{ topic_id: string; topic_label?: string; similarity: number }>
+    }>
+  }
+  topic_cooccurrence_corpus?: {
+    pairs?: Array<{
+      topic_a_id: string
+      topic_b_id: string
+      topic_a_label?: string
+      topic_b_label?: string
+      episode_count: number
+      lift?: number
+    }>
+  }
+}
+
+/** Per-episode enrichment signals (GET /api/app/episodes/{slug}/enrichment → `signals`).
+ *  Only the fields the player consumes are typed. */
+export interface EpisodeEnrichmentSignals {
+  insight_density?: {
+    counts?: { early: number; mid: number; late: number; unknown?: number }
+    total_insights?: number
+    duration_seconds?: number
+    has_timing?: boolean
+  }
 }
 
 /** One grounded search hit (loosely typed — metadata/lifted vary by tier). */

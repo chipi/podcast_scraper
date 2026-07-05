@@ -14,6 +14,8 @@ export interface CilArcEpisodeBlock {
   episode_image_local_relpath: string | null
   feed_image_url: string | null
   feed_image_local_relpath: string | null
+  summary_title?: string | null
+  summary_text?: string | null
   insights: Record<string, unknown>[]
 }
 
