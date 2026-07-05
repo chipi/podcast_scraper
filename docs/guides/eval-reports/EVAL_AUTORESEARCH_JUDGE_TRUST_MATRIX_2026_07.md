@@ -224,11 +224,36 @@ extra scalar phases.
    it produce the new ledger, drift check runs cleanly.
 2. **Round 6 — monthly cloud anchor cron**: automate the ~$5/month
    Leaderboard A refresh so we can track ρ over time and alarm if the
-   primary drifts.
+   primary drifts. Reuses the existing `--cloud-rejudge` flag; just needs
+   a `.github/workflows/autoresearch-cloud-anchor-monthly.yml` cron entry
+   + a budget guard + a "post ρ delta on tracking issue" step.
 3. **Retire dead judges**: drop the pairwise-only yamls
    (judge_qwen.yaml, judge_llama.yaml, judge_nemotron.yaml,
    judge_qwen_next.yaml, judge_gpt_oss.yaml) from the workflow. They're
    not currently referenced.
+4. **Quantify cross-run variance in ρ** (captured 2026-07-05): the
+   `judge_qwen_next_scalar` primary hit ρ = +0.958 on the same-run test
+   but +0.727 on real GHA data (different-run candidate predictions).
+   Hypothesis: candidate-side sampling stochasticity dominates. Action:
+   re-score today's frozen GHA predictions with two independent cloud
+   rejudge passes and report ρ(cloud_run_1, cloud_run_2). If close to +1,
+   judge noise is small; if low, the trust-matrix methodology needs a
+   seeded/temp-0 candidate pass. Est. cost: ~$5.
+5. **Cold-boot cache priming on GHA** (captured 2026-07-05): the
+   nemotron judge cold-boot on DGX took 62 min (Mamba SSM cache compile).
+   Options: (a) keep judge containers `restart: unless-stopped` in the
+   homelab compose (costs ~64GB idle VRAM), or (b) add a "prime the
+   caches" pre-step to the GHA workflow that pings each judge on a 5-min
+   timer before the sweep starts (costs one extra warmup per week).
+6. **Scalar-mode grade inflation** (captured 2026-07-05): scalar scores
+   cluster in 0.85–1.00; the winner is clear but absolute separation is
+   weak. Consider rubric tightening (anchor 0.5 to "average podcast
+   summary" instead of "acceptable summary"). Do NOT do this without a
+   paired cloud A/B on the same predictions — otherwise we lose the
+   trust baseline just earned.
+7. **Dead-reference sweep** (captured 2026-07-05): grep the repo for
+   stale `judge_gemma` / `vllm_a` / `vllm_b` naming before the next
+   sweep-config PR to catch anything dangling from the pre-scalar refactor.
 
 ## Data
 

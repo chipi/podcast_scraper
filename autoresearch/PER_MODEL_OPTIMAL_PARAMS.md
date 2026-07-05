@@ -188,3 +188,58 @@ Best candidates after the chunk-7 retries:
 Full scoreboard + per-model fix details:
 `docs/guides/eval-reports/EVAL_RFC097_V2_BASELINE_2026_06_20.md`,
 `docs/guides/eval-reports/EVAL_RFC097_CHUNK7_VLLM_WORKAROUNDS_2026_06_21.md`.
+
+## Judge-side vLLM deployments (2026-07)
+
+The above tables cover **candidate-side** vLLM deployments. Judge-side
+deployments (autoresearch trust-matrix work, 2026-07-04) have their own
+per-model quirks. See
+`docs/guides/eval-reports/EVAL_AUTORESEARCH_JUDGE_TRUST_MATRIX_2026_07.md`
+for the full trust-matrix context; per-model gotchas captured here so a
+future judge swap doesn't repeat the discovery cost.
+
+### Nemotron-3-Super-120B-A12B-NVFP4 (`judge_nemotron_scalar`)
+
+- **REQUIRED flag: `--max-num-seqs=32`.** Default 256 exceeds the Mamba
+  SSM cache blocks → restart loop with `ValueError: max_num_seqs (256)
+  exceeds available Mamba cache blocks (146)`. Nemotron is a hybrid
+  Mamba-Transformer arch and the Mamba cache sizing is separate from the
+  standard KV cache.
+- **Cold-boot: ~62 min on first serve** (Mamba cache compile). Warm boots
+  are fast. Keep the container `restart: unless-stopped` if the sweep
+  cadence is faster than the cache eviction, or add a warmup ping step
+  to the GHA workflow.
+- **Reasoning-block output:** emits `<think>...</think>{JSON}`. Score
+  parsers must strip `</think>` — see `autoresearch/JUDGING.md § Score
+  parser` for the canonical pattern.
+- Compose file: `~/agentic-ai-homelab/infra/vllm/judge-nemotron/`.
+
+### Qwen3-Next-80B-A3B-Instruct-NVFP4 (`judge_qwen_next_scalar`, primary)
+
+- Reserve ~64 GB VRAM.
+- `gpu-mode-swap.sh judging n` selects this container (see
+  `~/agentic-ai-homelab/infra/dgx/bin/gpu-mode-swap.sh` for the mode map).
+- **Reasoning-block output** (same as nemotron): strip `</think>` before
+  regex-matching a score.
+- Compose file: `~/agentic-ai-homelab/infra/vllm/judge-qwen-next/`.
+
+### Port allocation reminder
+
+All research-side vLLMs multiplex on **port 8003** — the tailscale ACL
+only permits :8003 and :11434 from DGX to mac. `gpu-mode-swap.sh` uses
+container-name detection to route. Do not attempt to expose a judge on
+:8004+; requests will time out.
+
+### HF download procedure on DGX
+
+`nohup hf download ... &` does NOT reliably propagate `HF_TOKEN` from
+the parent shell → mid-file `httpx.RemoteProtocolError: peer closed
+connection` at anonymous rate limits. Correct sequence:
+
+```bash
+hf auth login --token "$HF_TOKEN"   # persists to ~/.cache/huggingface/token
+nohup hf download <repo> ... &      # backgrounded download reads the file
+```
+
+`hf download` resumes from cache on rerun, so a mid-download crash is
+recoverable.
