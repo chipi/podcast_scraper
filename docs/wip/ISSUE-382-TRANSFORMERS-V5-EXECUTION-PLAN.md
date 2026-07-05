@@ -1089,7 +1089,7 @@ Before the operator says "push":
 | Closeout.1 | Fix integration-test regressions + 8/10 audit items | ✓ | 4ce8707b | 31 broken integration tests rewritten; QA helper rename; registry docstring; SDPA measured; Makefile typo |
 | Closeout.2 | Final ci-fast gate green | ✓ | f845d844 | Spelling fix, test-policy fix, test_bridge_builder update |
 | Closeout.3 | Cross-link #1142 (bundled dedup follow-up) | ✓ | 19955618 | Audit doc + release note point at follow-up issue |
-| Closeout.4 | Deep-review self-audit fixes | (this commit) | — | F1-F4 corrections from adversarial review |
+| Closeout.4 | Deep-review self-audit fixes | ✓ | a7f77ce5 | F1-F4 corrections from adversarial review (backend coverage 58%→85%, testing-strategy nuance, ledger, release-note QA naming) |
 | — | Rebase + push | ⛔ operator | | Pending push approval |
 
 ---
