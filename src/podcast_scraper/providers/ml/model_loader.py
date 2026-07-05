@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any, List, Optional
+from typing import Any, List, Literal, Optional, Tuple
 
 from ... import config
 from ...cache import (
@@ -240,55 +240,64 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
             raise
 
 
-def _download_qa_model_for_cache(model_id: str) -> None:
-    """Populate the HF cache with a QA model + tokenizer pair (test seam).
+# Evidence-model kinds accepted by :func:`_download_hf_evidence_model`.
+EvidenceKind = Literal["qa", "nli", "embedding"]
 
-    transformers v5 removed the ``pipeline("question-answering")`` task
-    (see #382). We now warm the cache by instantiating the model and
-    tokenizer directly. Extracted as a module-level hook so unit tests
-    can patch it without fighting ``from transformers import ...`` name
-    binding (see Issue #677 for the pattern rationale).
+
+def _download_hf_evidence_model(kind: EvidenceKind, model_id: str) -> None:
+    """Warm the HF cache for one GIL evidence-stack model.
+
+    Phase G (#382) collapse: single kind-dispatched cache warmer, replaces
+    the three parallel ``_download_qa_model_for_cache`` /
+    ``_download_nli_cross_encoder_for_cache`` /
+    ``_download_sentence_transformer_for_cache`` helpers. Extracted as a
+    module-level hook so unit tests can patch it without fighting
+    ``from transformers import ...`` name binding (Issue #677).
+
+    Args:
+        kind: One of ``"qa"``, ``"nli"``, ``"embedding"``.
+        model_id: Full HF ID (already resolved through
+            :func:`ModelRegistry.resolve_evidence_model_id` by the caller).
     """
-    from transformers import AutoModelForQuestionAnswering, AutoTokenizer
-
     cache_dir = str(get_transformers_cache_dir().resolve())
-    kw: dict[str, Any] = {
-        "cache_dir": cache_dir,
-        # Preload path — downloads allowed here (the ONLY place they are).
-        "local_files_only": False,
-        "trust_remote_code": False,
-        # low_cpu_mem_usage=False mirrors the summarizer/extractive_qa loaders —
-        # avoids lazy meta-device init paths that break second-load in-process
-        # (GitHub #539).
-        "low_cpu_mem_usage": False,
-    }
-    AutoTokenizer.from_pretrained(model_id, **kw)  # nosec B615
-    AutoModelForQuestionAnswering.from_pretrained(model_id, **kw)  # nosec B615
 
+    if kind == "qa":
+        from transformers import AutoModelForQuestionAnswering, AutoTokenizer
 
-def _download_nli_cross_encoder_for_cache(model_id: str) -> None:
-    """Instantiate CrossEncoder once to populate the HF cache (test seam)."""
-    import inspect
+        kw: dict[str, Any] = {
+            "cache_dir": cache_dir,
+            # Preload path — downloads allowed here (the ONLY place they are).
+            "local_files_only": False,
+            "trust_remote_code": False,
+            # #539: avoids the lazy meta-init path that breaks second-load.
+            "low_cpu_mem_usage": False,
+        }
+        AutoTokenizer.from_pretrained(model_id, **kw)  # nosec B615
+        AutoModelForQuestionAnswering.from_pretrained(model_id, **kw)  # nosec B615
+        return
 
-    from sentence_transformers import CrossEncoder
+    if kind == "nli":
+        import inspect
 
-    cache_dir = str(get_transformers_cache_dir().resolve())
-    # ST 2.x CrossEncoder doesn't accept local_files_only or cache_folder.
-    ce_params = set(inspect.signature(CrossEncoder.__init__).parameters)
-    ce_kw: dict = {}
-    if "local_files_only" in ce_params:
-        ce_kw["local_files_only"] = False
-    if "cache_folder" in ce_params:
-        ce_kw["cache_folder"] = cache_dir
-    CrossEncoder(model_id, **ce_kw)
+        from sentence_transformers import CrossEncoder
 
+        # ST 2.x CrossEncoder doesn't accept local_files_only or cache_folder.
+        ce_params = set(inspect.signature(CrossEncoder.__init__).parameters)
+        ce_kw: dict = {}
+        if "local_files_only" in ce_params:
+            ce_kw["local_files_only"] = False
+        if "cache_folder" in ce_params:
+            ce_kw["cache_folder"] = cache_dir
+        CrossEncoder(model_id, **ce_kw)  # nosec B615
+        return
 
-def _download_sentence_transformer_for_cache(model_id: str) -> None:
-    """Instantiate SentenceTransformer once to populate the HF cache (test seam)."""
-    from sentence_transformers import SentenceTransformer
+    if kind == "embedding":
+        from sentence_transformers import SentenceTransformer
 
-    cache_dir = str(get_transformers_cache_dir().resolve())
-    SentenceTransformer(model_id, cache_folder=cache_dir)
+        SentenceTransformer(model_id, cache_folder=cache_dir)  # nosec B615
+        return
+
+    raise ValueError(f"Unknown evidence kind: {kind!r} (expected qa | nli | embedding)")
 
 
 def is_evidence_model_cached(model_id: str) -> bool:
@@ -352,56 +361,36 @@ def preload_evidence_models(
         os.environ["HF_HUB_CACHE"] = cache_dir_str
         logger.info("Set HF_HUB_CACHE for evidence model preload: %s", cache_dir_str)
 
-    for alias in embedding_models:
-        resolved = ModelRegistry.resolve_evidence_model_id(alias)
-        model_cache_path = cache_dir / f"models--{resolved.replace('/', '--')}"
-        if model_cache_path.exists():
-            logger.info("  Embedding model %s already cached", resolved)
-            continue
-        logger.info("  Preloading embedding model %s...", resolved)
-        try:
-            _download_sentence_transformer_for_cache(resolved)
-            logger.info("  ✓ Embedding model %s cached", resolved)
-        except Exception as e:
-            logger.error(
-                "  ✗ Failed to preload embedding model %s: %s",
-                resolved,
-                format_exception_for_log(e),
-            )
-            raise
-
-    for alias in qa_models:
-        resolved = ModelRegistry.resolve_evidence_model_id(alias)
-        model_cache_path = cache_dir / f"models--{resolved.replace('/', '--')}"
-        if model_cache_path.exists():
-            logger.info("  QA model %s already cached", resolved)
-            continue
-        logger.info("  Preloading QA model %s...", resolved)
-        try:
-            _download_qa_model_for_cache(resolved)
-            logger.info("  ✓ QA model %s cached", resolved)
-        except Exception as e:
-            logger.error(
-                "  ✗ Failed to preload QA model %s: %s",
-                resolved,
-                format_exception_for_log(e),
-            )
-            raise
-
-    for alias in nli_models:
-        resolved = ModelRegistry.resolve_evidence_model_id(alias)
-        model_cache_path = cache_dir / f"models--{resolved.replace('/', '--')}"
-        if model_cache_path.exists():
-            logger.info("  NLI model %s already cached", resolved)
-            continue
-        logger.info("  Preloading NLI model %s...", resolved)
-        try:
-            _download_nli_cross_encoder_for_cache(resolved)
-            logger.info("  ✓ NLI model %s cached", resolved)
-        except Exception as e:
-            logger.error(
-                "  ✗ Failed to preload NLI model %s: %s",
-                resolved,
-                format_exception_for_log(e),
-            )
-            raise
+    # One iteration order for all three families — embedding first (usually
+    # cheapest to download), then QA, then NLI. Order matches the pre-Phase-G
+    # sequence to keep preload logs stable across runs.
+    families: List[Tuple[str, List[str]]] = [
+        ("embedding", embedding_models),
+        ("qa", qa_models),
+        ("nli", nli_models),
+    ]
+    kind_labels = {
+        "embedding": "Embedding",
+        "qa": "QA",
+        "nli": "NLI",
+    }
+    for kind, aliases in families:
+        for alias in aliases:
+            resolved = ModelRegistry.resolve_evidence_model_id(alias)
+            model_cache_path = cache_dir / f"models--{resolved.replace('/', '--')}"
+            label = kind_labels[kind]
+            if model_cache_path.exists():
+                logger.info("  %s model %s already cached", label, resolved)
+                continue
+            logger.info("  Preloading %s model %s...", label, resolved)
+            try:
+                _download_hf_evidence_model(kind, resolved)  # type: ignore[arg-type]
+                logger.info("  ✓ %s model %s cached", label, resolved)
+            except Exception as e:
+                logger.error(
+                    "  ✗ Failed to preload %s model %s: %s",
+                    label,
+                    resolved,
+                    format_exception_for_log(e),
+                )
+                raise
