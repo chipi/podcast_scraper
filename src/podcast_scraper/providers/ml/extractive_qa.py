@@ -222,7 +222,7 @@ def clear_qa_pipeline_cache() -> None:
 def _get_qa_backend(model_id: str, device: Optional[str] = None) -> "QAEvidenceBackend":
     from typing import cast as _cast
 
-    return _cast(QAEvidenceBackend, _get_qa_backend(model_id, device=device))
+    return _cast(QAEvidenceBackend, QAEvidenceBackend.get_or_load(model_id, device=device))
 
 
 def load_qa_pipeline(

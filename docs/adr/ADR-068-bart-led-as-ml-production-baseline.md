@@ -125,3 +125,36 @@ the hybrid ML architecture (ADR-069).
 - [ADR-067: Pegasus Retirement](ADR-067-pegasus-led-retirement-podcast-content.md)
 - [ADR-048: Centralized Model Registry](ADR-048-centralized-model-registry.md)
 - [ADR-069: Hybrid ML Pipeline as Production Direction](ADR-069-hybrid-ml-pipeline-as-production-direction.md)
+
+## Post-Implementation Notes — #382 Transformers v5 Migration (2026-07-05)
+
+The local ML stack described above (BART+LED via `SummaryModel`) migrated to
+`transformers>=5.0.0` in July 2026. Behavior is preserved end-to-end:
+
+- **Byte-identical output** on the `curated_5feeds_smoke_v1` parity gate:
+  ROUGE-L(v4-pipeline, v5-forward) = 1.0000 across all 5 episodes.
+  See `data/eval/runs/v5_parity_2026-07-05.json` for the frozen report.
+- **QA span parity** (`deepset/roberta-base-squad2`): 7/8 answer-text match;
+  the one divergent pair picks a different-but-plausible extractive answer
+  driven by the algorithmic switch from `pipeline("question-answering")`
+  (removed in v5) to `AutoModelForQuestionAnswering.forward` with our own
+  softmax over aggregated top-k candidates.
+
+Architectural changes under the hood — same model IDs, same weights,
+same generation config:
+
+- `pipeline("summarization")` retired → `AutoModelForSeq2SeqLM.generate()`
+  with `transformers.GenerationConfig`.
+- `SummaryModel` load orchestration + `_generate_summary` delegate to a
+  shared `HFSeq2SeqBackend` (`providers/ml/hf_seq2seq_backend.py`). The
+  same backend powers `TransformersReduceBackend` (hybrid tier-1 reduce).
+- Evidence stack (QA / NLI / embedding) unified under `HFEvidenceBackend`
+  (`providers/ml/hf_evidence_backend.py`). Three parallel loader idioms
+  collapsed into one per-subclass cache + a shared device/kwargs contract.
+- `pip-audit --ignore-vuln CVE-2026-1839` + eight `PYSEC-2025-211..218`
+  transformers-4.x ignores removed from `Makefile`.
+
+`PROD_DEFAULT_SUMMARY_MODE_ID` unchanged. Registry entries unchanged. The
+tuned parameters above (num_beams, max_new_tokens, etc.) still apply and
+are now built into a `GenerationConfig` at generate-time rather than
+passed as kwargs to `pipeline()`.

@@ -1,0 +1,31 @@
+{
+  "dataset_id": "curated_5feeds_smoke_v1",
+  "run_id": "run_2026-07-05_18-10-49",
+  "episode_count": 5,
+  "intrinsic": {
+    "gates": {
+      "boilerplate_leak_rate": 0.0,
+      "speaker_label_leak_rate": 0.0,
+      "truncation_rate": 0.0,
+      "failed_episodes": [],
+      "episode_gate_failures": {}
+    },
+    "warnings": {
+      "speaker_name_leak_rate": 0.0
+    },
+    "length": {
+      "avg_tokens": 217.2,
+      "min_tokens": 209,
+      "max_tokens": 227
+    },
+    "performance": {
+      "avg_latency_ms": 37674.65305328369,
+      "median_latency_ms": 36478.32202911377,
+      "p95_latency_ms": 43672.22809791565,
+      "avg_latency_ms_excluding_first": 36175.2592921257
+    }
+  },
+  "vs_reference": null,
+  "schema": "metrics_summarization_v2",
+  "task": "summarization"
+}

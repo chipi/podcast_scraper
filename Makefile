@@ -433,9 +433,6 @@ quality: complexity deadcode docstrings spelling
 	# Ignore CVE-2026-4539: pip-audit/OSV currently flags all pygments versions until a fixed release is published; we pin
 	#   pygments<2.19.0 in pyproject.toml (NVD/GHSA: vulnerable code in 2.19.0–2.19.2). Revisit when 2.19.3+ exists or OSV range fixes.
 	# TODO(CVE-2026-4539): Remove --ignore-vuln when upstream fix + pip-audit range allow; sync pyproject pygments cap.
-	# Ignore CVE-2026-1839: transformers Trainer loads rng_state via torch.load without weights_only; fixed in 5.0.0rc3+.
-	#   We pin transformers<5.0.0 (extractive QA / pipeline — see pyproject [ml]). Revisit when stable 5.x is adopted.
-	# TODO(CVE-2026-1839): Remove --ignore-vuln after bumping transformers to a fixed 5.x release.
 	# Ignore CVE-2025-69872: diskcache 5.6.3 vulnerability (transitive dep). Revisit when diskcache publishes a fix.
 	# TODO(CVE-2025-69872): Remove --ignore-vuln when diskcache releases a patched version.
 	# Ignore CVE-2026-3219: pip mishandles concatenated tar+ZIP archives (install confusion). Affects the
@@ -480,21 +477,6 @@ quality: complexity deadcode docstrings spelling
 	# TODO(torch PYSECs): drop ignores when upstream ships fixed versions and we
 	#   bump the torch pin.
 	#
-	# Ignore PYSEC-2025-211..218 (transformers X-CLIP / Trainer / conversion-script
-	#   deserialization, all RCE-class but require attacker-controlled checkpoint).
-	#   8 advisories against transformers 4.x with NO fix in the 4.x line — fixes
-	#   live only in the 5.x branch which we don't ship yet (sentence-transformers
-	#   5.x allows transformers 4.41–5.x; we cap at <5 until extractive QA path
-	#   is vendored — see [ml] in pyproject.toml).
-	# TODO(transformers PYSECs): drop ignores after bumping transformers to a
-	#   patched 5.x release (paired with the CVE-2026-1839 ignore above).
-	#
-	# Ignore CVE-2026-4372 (transformers 4.57.6; fix lands in 5.3.0). Same 4.x-line
-	#   situation as the PYSEC-2025-211..218 / CVE-2026-1839 block: the fix exists
-	#   only in the 5.x branch and we cap transformers <5 (see [ml] in pyproject) —
-	#   not reachable in the extractive-QA / pipeline path we use.
-	# TODO(CVE-2026-4372): drop ignore after bumping transformers to a patched 5.x.
-	#
 	# Ignore CVE-2025-3000 (torch.jit.script memory corruption).
 	#   Local-access attack on the JIT script path. We don't call
 	#   ``torch.jit.script`` directly anywhere in the codebase; torch is loaded
@@ -511,8 +493,6 @@ quality: complexity deadcode docstrings spelling
 		--ignore-vuln PYSEC-2022-42969 \
 		--ignore-vuln CVE-2026-0994 \
 		--ignore-vuln CVE-2026-4539 \
-		--ignore-vuln CVE-2026-1839 \
-		--ignore-vuln CVE-2026-4372 \
 		--ignore-vuln CVE-2025-69872 \
 		--ignore-vuln CVE-2026-3219 \
 		--ignore-vuln CVE-2026-6357 \
@@ -530,14 +510,6 @@ quality: complexity deadcode docstrings spelling
 		--ignore-vuln PYSEC-2025-197 \
 		--ignore-vuln PYSEC-2025-210 \
 		--ignore-vuln PYSEC-2026-139 \
-		--ignore-vuln PYSEC-2025-211 \
-		--ignore-vuln PYSEC-2025-212 \
-		--ignore-vuln PYSEC-2025-213 \
-		--ignore-vuln PYSEC-2025-214 \
-		--ignore-vuln PYSEC-2025-215 \
-		--ignore-vuln PYSEC-2025-216 \
-		--ignore-vuln PYSEC-2025-217 \
-		--ignore-vuln PYSEC-2025-218 \
 		--ignore-vuln PYSEC-2026-161 \
 		--ignore-vuln MAL-2026-4750 \
 		--ignore-vuln CVE-2025-3000
@@ -2952,7 +2924,7 @@ run-promote:
 	fi
 	@cmd="$(PYTHON) scripts/eval/compare/promote_run.py --run-id $(RUN_ID) --as $(AS) --promoted-id $(PROMOTED_ID) --reason \"$(REASON)\""; \
 	if [ "$(AS)" = "reference" ]; then \
-		# DATASET_ID is optional now (task type auto-detected from run) \
+		: DATASET_ID is optional now, task type auto-detected from run; \
 		if [ -n "$(DATASET_ID)" ]; then \
 			cmd="$$cmd --dataset-id $(DATASET_ID)"; \
 		fi; \

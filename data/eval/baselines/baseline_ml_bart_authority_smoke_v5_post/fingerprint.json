@@ -1,0 +1,111 @@
+{
+  "fingerprint_version": "2.0",
+  "task": "summarization",
+  "run_context": {
+    "run_id": "2026-07-05T16:10:55.169820Z",
+    "baseline_id": "run_2026-07-05_18-10-49",
+    "dataset_id": "curated_5feeds_smoke_v1",
+    "dataset_content_hash": "735f7f688617e4ae42686bc0869a7d9e425b1912230c1e70b75a8170c13f157e",
+    "git": {
+      "commit": "d486f35d60fb93c49c2d89b9a95c46f2b6378d65",
+      "branch": "feat/upgrade-transformers-v5",
+      "dirty": true
+    }
+  },
+  "provider": {
+    "provider_type": "ml",
+    "provider_library": "transformers",
+    "provider_library_version": "5.13.0"
+  },
+  "pipeline": {
+    "type": "map_reduce",
+    "stages": {
+      "map": {
+        "stage_id": "map_bart-base",
+        "model": {
+          "provider_type": "local_ml",
+          "framework": "transformers",
+          "model_name": "facebook/bart-base",
+          "model_revision": "main",
+          "tokenizer_name": "facebook/bart-base",
+          "tokenizer_revision": "main"
+        },
+        "generation_params": {
+          "max_new_tokens": 150,
+          "min_new_tokens": 30,
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "repetition_penalty": 1.05,
+          "seed": 42
+        }
+      },
+      "reduce": {
+        "stage_id": "reduce_led-base-16384",
+        "model": {
+          "provider_type": "local_ml",
+          "framework": "transformers",
+          "model_name": "allenai/led-base-16384",
+          "model_revision": "38335783885b338d93791936c54bb4be46bebed9",
+          "tokenizer_name": "allenai/led-base-16384",
+          "tokenizer_revision": "38335783885b338d93791936c54bb4be46bebed9"
+        },
+        "generation_params": {
+          "max_new_tokens": 150,
+          "min_new_tokens": 30,
+          "num_beams": null,
+          "no_repeat_ngram_size": null,
+          "length_penalty": null,
+          "early_stopping": null,
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "repetition_penalty": 1.05,
+          "seed": 42
+        }
+      }
+    }
+  },
+  "preprocessing": {
+    "profile_id": "cleaning_v3",
+    "profile_version": "3.0",
+    "steps": {
+      "remove_timestamps": true,
+      "normalize_speakers": true,
+      "remove_sponsor_blocks": true,
+      "collapse_blank_lines": true,
+      "remove_fillers": false,
+      "remove_garbage_lines": true,
+      "remove_credit_blocks": true,
+      "remove_outro_blocks": true,
+      "remove_artifacts": true
+    }
+  },
+  "tokenization": {},
+  "chunking": {
+    "strategy": "auto",
+    "boundary_heuristic": "sentence_boundary_prefer",
+    "effective_token_chunk_size": 600,
+    "effective_token_overlap": 60,
+    "overlap_ratio": 0.1
+  },
+  "environment": {
+    "python_version": "3.11.8",
+    "os": "Darwin-24.6.0-arm64"
+  },
+  "runtime": {
+    "device": "mps",
+    "torch_version": "2.12.0",
+    "device_name": "Apple M4 Pro",
+    "metal_backend": "mps",
+    "metal_enabled": true,
+    "metal_feature_set": "macOS_GPUFamily2_v1",
+    "dtype": "float32",
+    "inference_backend": "transformers_generate",
+    "num_threads": 10,
+    "compile": {
+      "enabled": false,
+      "mode": null
+    },
+    "inference_target": "unknown"
+  },
+  "fingerprint_hash": "2f082fa287b7ac97bccccdf7a3b2169e1c51bd897120fd538adfe2e6be0b1227"
+}

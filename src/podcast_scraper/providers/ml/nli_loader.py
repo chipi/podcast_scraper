@@ -231,7 +231,7 @@ class NLIEvidenceBackend(HFEvidenceBackend):
 def _get_nli_backend(model_id: str, device: Optional[str] = None) -> "NLIEvidenceBackend":
     from typing import cast as _cast
 
-    return _cast(NLIEvidenceBackend, _get_nli_backend(model_id, device=device))
+    return _cast(NLIEvidenceBackend, NLIEvidenceBackend.get_or_load(model_id, device=device))
 
 
 def load_nli_model(
