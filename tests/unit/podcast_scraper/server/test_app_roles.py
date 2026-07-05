@@ -103,11 +103,12 @@ def test_store_legacy_profile_without_role_reads_as_listener(tmp_path: Path) -> 
     # A profile written before #1128 has no 'role' key → must read back as listener.
     import json
 
-    udir = tmp_path / "users" / "u_legacy"
+    legacy_id = "u_" + "0" * 24  # opaque user_id_for shape (pre-#1128 profile, no role)
+    udir = tmp_path / "users" / legacy_id
     udir.mkdir(parents=True)
     (udir / "profile.json").write_text(
         json.dumps({"email": "old@x.com", "name": "Old", "provider": "google", "subject": "z"}),
         encoding="utf-8",
     )
-    u = get_user(tmp_path, "u_legacy")
+    u = get_user(tmp_path, legacy_id)
     assert u is not None and u.role == "listener"

@@ -467,6 +467,12 @@ quality: complexity deadcode docstrings spelling
 	#   on user-supplied paths. No fix version yet; affects all nltk through 3.9.4.
 	# TODO(PYSEC-2026-97): drop ignore when nltk releases a sanitised filestring.
 	#
+	# Ignore PYSEC-2026-597 (nltk 3.9.4 — same deserialization/file-read class as
+	#   PYSEC-2026-97 above; newly published against the nltk we pin). Same
+	#   reachability argument: nltk is used only for the tokeniser/stopwords, never
+	#   fed user-supplied paths. No fix version yet (affects all nltk through 3.9.4).
+	# TODO(PYSEC-2026-597): drop ignore when nltk publishes a fixed release.
+	#
 	# Ignore PYSEC-2025-189..197, PYSEC-2025-210, PYSEC-2026-139 (torch checkpoint /
 	#   operator deserialization class). 11 advisories against torch <= 2.12.0 with
 	#   NO fix versions (2.12.0 IS the latest). We only ``torch.load`` HuggingFace
@@ -482,6 +488,12 @@ quality: complexity deadcode docstrings spelling
 	#   is vendored — see [ml] in pyproject.toml).
 	# TODO(transformers PYSECs): drop ignores after bumping transformers to a
 	#   patched 5.x release (paired with the CVE-2026-1839 ignore above).
+	#
+	# Ignore CVE-2026-4372 (transformers 4.57.6; fix lands in 5.3.0). Same 4.x-line
+	#   situation as the PYSEC-2025-211..218 / CVE-2026-1839 block: the fix exists
+	#   only in the 5.x branch and we cap transformers <5 (see [ml] in pyproject) —
+	#   not reachable in the extractive-QA / pipeline path we use.
+	# TODO(CVE-2026-4372): drop ignore after bumping transformers to a patched 5.x.
 	#
 	# Ignore CVE-2025-3000 (torch.jit.script memory corruption).
 	#   Local-access attack on the JIT script path. We don't call
@@ -500,11 +512,13 @@ quality: complexity deadcode docstrings spelling
 		--ignore-vuln CVE-2026-0994 \
 		--ignore-vuln CVE-2026-4539 \
 		--ignore-vuln CVE-2026-1839 \
+		--ignore-vuln CVE-2026-4372 \
 		--ignore-vuln CVE-2025-69872 \
 		--ignore-vuln CVE-2026-3219 \
 		--ignore-vuln CVE-2026-6357 \
 		--ignore-vuln PYSEC-2024-277 \
 		--ignore-vuln PYSEC-2026-97 \
+		--ignore-vuln PYSEC-2026-597 \
 		--ignore-vuln PYSEC-2025-189 \
 		--ignore-vuln PYSEC-2025-190 \
 		--ignore-vuln PYSEC-2025-191 \

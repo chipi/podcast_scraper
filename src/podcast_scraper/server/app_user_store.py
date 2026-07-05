@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import shutil
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -44,10 +45,26 @@ class User:
     role: str = app_roles.DEFAULT_ROLE
 
 
+#: The only shape ``user_id_for`` ever produces: ``u_`` + 24 lowercase hex chars.
+_USER_ID_RE = re.compile(r"u_[0-9a-f]{24}")
+
+
 def user_id_for(provider: str, subject: str) -> str:
     """Stable, opaque user id from the OAuth identity ``(provider, subject)``."""
     digest = hashlib.sha256(f"{provider}\x00{subject}".encode("utf-8")).hexdigest()
     return f"u_{digest[:24]}"
+
+
+def _is_safe_user_id(user_id: str) -> bool:
+    """Whether ``user_id`` is the opaque ``user_id_for`` shape (``u_`` + 24 hex).
+
+    Defence-in-depth: the id flows into ``<data_dir>/users/<user_id>/`` file paths
+    (and ``delete_user`` ``rmtree``). Public lookups/mutations early-return the
+    graceful "unknown user" result for a non-conforming id, so ``..`` / ``/`` / empty
+    can never reach the filesystem sink — even though ids only ever originate from the
+    HMAC-signed session, never raw request input.
+    """
+    return _USER_ID_RE.fullmatch(user_id) is not None
 
 
 def _profile_path(data_dir: Path, user_id: str) -> Path:
@@ -76,6 +93,8 @@ def _write_profile(data_dir: Path, user: User) -> None:
 
 def get_user(data_dir: Path, user_id: str) -> User | None:
     """Load a user by id, or ``None`` when absent/unreadable."""
+    if not _is_safe_user_id(user_id):
+        return None
     path = _profile_path(data_dir, user_id)
     if not path.is_file():
         return None
@@ -159,6 +178,8 @@ def list_users(data_dir: Path) -> list[User]:
 
 def set_disabled(data_dir: Path, user_id: str, disabled: bool) -> bool:
     """Enable/disable a user (disabled users fail auth). Returns False for unknown users."""
+    if not _is_safe_user_id(user_id):
+        return False
     with _profile_lock(data_dir, user_id):
         user = get_user(data_dir, user_id)
         if user is None:
@@ -169,6 +190,8 @@ def set_disabled(data_dir: Path, user_id: str, disabled: bool) -> bool:
 
 def set_role(data_dir: Path, user_id: str, role: str) -> bool:
     """Set a user's role (coerced to a known role). Returns False for unknown users."""
+    if not _is_safe_user_id(user_id):
+        return False
     with _profile_lock(data_dir, user_id):
         user = get_user(data_dir, user_id)
         if user is None:
@@ -179,6 +202,8 @@ def set_role(data_dir: Path, user_id: str, role: str) -> bool:
 
 def delete_user(data_dir: Path, user_id: str) -> bool:
     """Remove a user's directory (GDPR hard delete). Returns True if anything was removed."""
+    if not _is_safe_user_id(user_id):
+        return False
     udir = data_dir / "users" / user_id
     if not udir.is_dir():
         return False
