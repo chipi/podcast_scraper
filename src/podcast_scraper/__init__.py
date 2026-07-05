@@ -51,7 +51,7 @@ __all__ = [
 # Note: 'cli' and 'service' are available via __getattr__ for lazy loading
 # Use: from podcast_scraper import cli, service
 # Or: import podcast_scraper.cli as cli
-__version__ = "2.6.1"
+__version__ = "2.7.0"
 
 # API version follows semantic versioning and is tied to module version
 # - Major version (X.y.z): Breaking API changes
