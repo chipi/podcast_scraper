@@ -76,7 +76,7 @@ class HFSeq2SeqBackend:
 
     Callers construct this per model they intend to use. The pre-Phase-F
     call sites (``SummaryModel``, ``TransformersReduceBackend``) hold one
-    backend each and re-use it across many ``generate()`` calls.
+    backend each and reuse it across many ``generate()`` calls.
     """
 
     def __init__(

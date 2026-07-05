@@ -35,7 +35,7 @@ pytestmark = [
     pytest.mark.nightly,
     pytest.mark.ml_models,
     pytest.mark.slow,
-    pytest.mark.integration,
+    pytest.mark.e2e,
 ]
 
 REPO = Path(__file__).resolve().parents[2]
