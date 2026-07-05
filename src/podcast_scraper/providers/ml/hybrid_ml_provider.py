@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any, cast, Dict, List, Optional, Protocol
+from typing import Any, Dict, List, Optional, Protocol
 
 from ...cleaning import HybridCleaner, LLMBasedCleaner, PatternBasedCleaner
 from ...cleaning.base import TranscriptCleaningProcessor
@@ -63,7 +63,15 @@ class HybridReduceResult:
 
 
 class TransformersReduceBackend:
-    """Tier 1 REDUCE backend using transformers (e.g. FLAN-T5)."""
+    """Tier 1 REDUCE backend using transformers seq2seq (e.g. FLAN-T5).
+
+    Post-#382 (transformers v5): uses ``AutoModelForSeq2SeqLM.generate()``
+    with a ``GenerationConfig`` directly — the ``pipeline("text2text-generation")``
+    task was removed in v5. Phase F will fold this into the shared
+    ``HFSeq2SeqBackend`` alongside ``SummaryModel``; for now the loader
+    keeps the snapshot-first logic that avoids transformers checkpoint
+    discovery bugs on PyTorch-only cache.
+    """
 
     def __init__(
         self,
@@ -74,16 +82,17 @@ class TransformersReduceBackend:
         self.model_name = model_name
         self.device = device
         self.cache_dir = cache_dir
-        self._pipeline: Any = None
+        self._model: Any = None
+        self._tokenizer: Any = None
 
     def initialize(self) -> None:
-        """Load tokenizer and seq2seq model; build the text2text-generation pipeline."""
-        if self._pipeline is not None:
+        """Load tokenizer and seq2seq model onto the resolved device."""
+        if self._model is not None and self._tokenizer is not None:
             return
 
         # Lazy imports to keep base imports light
         import torch
-        from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, pipeline
+        from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
         device = self.device
         if device is None:
@@ -177,15 +186,10 @@ class TransformersReduceBackend:
 
         if device in ("mps", "cuda"):
             model = model.to(device)
-        pipeline_device = 0 if device == "cuda" else "mps" if device == "mps" else -1
-        # transformers 5.x overloads are stricter; runtime call is valid
-        _pipe = cast(Any, pipeline)
-        self._pipeline = _pipe(
-            "text2text-generation",
-            model=model,
-            tokenizer=tokenizer,
-            device=pipeline_device,
-        )
+        model.eval()
+        self._model = model
+        self._tokenizer = tokenizer
+        self.device = device
 
     def reduce(
         self,
@@ -194,10 +198,13 @@ class TransformersReduceBackend:
         params: Optional[Dict[str, Any]] = None,
     ) -> HybridReduceResult:
         """Run seq2seq generation on instruction plus NOTES (MAP output)."""
-        if self._pipeline is None:
+        if self._model is None or self._tokenizer is None:
             raise RuntimeError(
                 "TransformersReduceBackend not initialized. Call initialize() first."
             )
+
+        import torch
+        from transformers import GenerationConfig
 
         params = params or {}
         max_new_tokens = int(params.get("max_new_tokens") or 600)
@@ -205,25 +212,27 @@ class TransformersReduceBackend:
         do_sample = bool(params.get("do_sample") or False)
 
         prompt = f"{instruction.strip()}\n\nNOTES:\n{notes.strip()}"
-        outputs = self._pipeline(
-            prompt,
+        inputs = self._tokenizer(prompt, return_tensors="pt", truncation=True, max_length=1024)
+        device = next(self._model.parameters()).device
+        inputs = {k: v.to(device) for k, v in inputs.items()}
+        gen_cfg = GenerationConfig(
             max_new_tokens=max_new_tokens,
             num_beams=num_beams,
             do_sample=do_sample,
         )
-        if not outputs:
-            return HybridReduceResult(text="", backend="transformers", model=self.model_name)
-        # transformers returns list[{"generated_text": "..."}]
+        with torch.no_grad():
+            output_ids = self._model.generate(**inputs, generation_config=gen_cfg)
+        text = self._tokenizer.decode(output_ids[0], skip_special_tokens=True)
         return HybridReduceResult(
-            text=str(outputs[0].get("generated_text", "")).strip(),
+            text=text.strip(),
             backend="transformers",
             model=self.model_name,
         )
 
     def cleanup(self) -> None:
-        """Drop the pipeline reference for garbage collection."""
-        # Best-effort cleanup (avoid heavy torch imports if not needed)
-        self._pipeline = None
+        """Drop model + tokenizer references for garbage collection."""
+        self._model = None
+        self._tokenizer = None
 
 
 class OllamaReduceBackend:
