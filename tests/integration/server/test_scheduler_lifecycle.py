@@ -190,7 +190,7 @@ def test_fire_calls_spawn_and_increments_counter(tmp_path: Path, operator_yaml: 
     fired = threading.Event()
     captured: dict[str, Any] = {}
 
-    def _spawn(name: str, corpus: Path, op_yaml: Path) -> None:
+    def _spawn(name: str, corpus: Path, op_yaml: Path, kind: str = "pipeline") -> None:
         captured["name"] = name
         captured["corpus"] = corpus
         captured["op_yaml"] = op_yaml
@@ -217,7 +217,7 @@ def test_fire_on_spawn_failure_does_not_crash_thread(
         "scheduled_jobs:\n  - name: kaboom\n    cron: '0 4 * * *'\n",
     )
 
-    def _spawn(name: str, corpus: Path, op_yaml: Path) -> None:
+    def _spawn(name: str, corpus: Path, op_yaml: Path, kind: str = "pipeline") -> None:
         raise RuntimeError("boom")
 
     svc = SchedulerService(corpus_root=tmp_path, operator_yaml=operator_yaml, spawn=_spawn)
@@ -246,7 +246,7 @@ def test_apscheduler_actually_fires_at_a_scheduled_time(
     )
     fired = threading.Event()
 
-    def _spawn(name: str, corpus: Path, op_yaml: Path) -> None:
+    def _spawn(name: str, corpus: Path, op_yaml: Path, kind: str = "pipeline") -> None:
         fired.set()
 
     svc = SchedulerService(corpus_root=tmp_path, operator_yaml=operator_yaml, spawn=_spawn)

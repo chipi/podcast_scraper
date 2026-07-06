@@ -934,6 +934,10 @@ class ScheduledJobItem(BaseModel):
     name: str
     cron: str
     enabled: bool
+    kind: str = Field(
+        default="pipeline",
+        description="Job fired on the schedule: ``pipeline`` (ingestion) or ``enrichment``.",
+    )
     next_run_at: str | None = Field(
         default=None,
         description=(

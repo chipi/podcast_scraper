@@ -40,6 +40,13 @@ logger = logging.getLogger(__name__)
 # it before Pydantic's ``extra="forbid"`` validates the rest.
 SCHEDULED_JOBS_KEY = "scheduled_jobs"
 
+# Job kinds a schedule can fire. ``pipeline`` (ingestion) is the default for
+# back-compat with existing ``scheduled_jobs:`` entries; ``enrichment`` makes the
+# enrichment run schedulable exactly like ingestion (#1069 consistency).
+JOB_KIND_PIPELINE = "pipeline"
+JOB_KIND_ENRICHMENT = "enrichment"
+_VALID_JOB_KINDS = frozenset({JOB_KIND_PIPELINE, JOB_KIND_ENRICHMENT})
+
 
 class ScheduledJobConfig(BaseModel):
     """One entry in ``viewer_operator.yaml`` ``scheduled_jobs:``."""
@@ -47,6 +54,17 @@ class ScheduledJobConfig(BaseModel):
     name: str = Field(..., min_length=1, max_length=64)
     cron: str = Field(..., min_length=1)
     enabled: bool = True
+    # Which job to fire on the schedule — ``pipeline`` (ingestion) or
+    # ``enrichment``. Both run through the identical enqueue → spawn path.
+    kind: str = Field(default=JOB_KIND_PIPELINE)
+
+    @field_validator("kind")
+    @classmethod
+    def _validate_kind(cls, v: str) -> str:
+        v = (v or "").strip().lower()
+        if v not in _VALID_JOB_KINDS:
+            raise ValueError(f"scheduled job kind must be one of {sorted(_VALID_JOB_KINDS)}")
+        return v
 
     @field_validator("name")
     @classmethod
@@ -202,9 +220,10 @@ class SchedulerService:
         operator_yaml: Path,
         spawn: Any,
     ) -> None:
-        """``spawn`` is called as ``spawn(name, corpus_root, operator_yaml)``.
+        """``spawn`` is called as ``spawn(name, corpus_root, operator_yaml, kind)``.
 
-        It must perform the equivalent of ``POST /api/jobs`` — enqueue +
+        It must perform the equivalent of ``POST /api/jobs`` (``kind="pipeline"``)
+        or ``POST /api/jobs/enrichment`` (``kind="enrichment"``) — enqueue +
         schedule_post_submit — and is responsible for its own error logging.
         Raising lets the scheduler increment the failure counter.
         """
@@ -337,6 +356,13 @@ class SchedulerService:
             replace_existing=True,
         )
 
+    def _kind_for(self, name: str) -> str:
+        """The configured job kind (``pipeline`` | ``enrichment``) for a schedule."""
+        for job in self._jobs:
+            if job.name == name:
+                return job.kind
+        return JOB_KIND_PIPELINE
+
     def _fire(self, name: str) -> None:
         """APScheduler-thread entry point — must not raise to APScheduler.
 
@@ -345,7 +371,7 @@ class SchedulerService:
         """
         _record_triggered(name)
         try:
-            self._spawn(name, self._corpus_root, self._operator_yaml)
+            self._spawn(name, self._corpus_root, self._operator_yaml, self._kind_for(name))
         except Exception as exc:
             logger.exception("scheduler: job %r spawn failed (%s)", name, exc.__class__.__name__)
             _record_failed(name, exc.__class__.__name__)
@@ -380,19 +406,29 @@ def make_app_spawn_callback(app: Any) -> Any:
     import asyncio
 
     from podcast_scraper.server.jobs import (
+        enqueue_enrichment_job,
         enqueue_pipeline_job,
         schedule_post_submit,
     )
 
-    def _spawn(name: str, corpus_root: Path, operator_yaml: Path) -> None:
+    def _spawn(
+        name: str, corpus_root: Path, operator_yaml: Path, kind: str = JOB_KIND_PIPELINE
+    ) -> None:
         loop: Optional[asyncio.AbstractEventLoop] = getattr(app.state, "event_loop", None)
         if loop is None or not loop.is_running():
             logger.warning("scheduler: event loop unavailable when firing %r; skipping", name)
             raise RuntimeError("event loop unavailable")
-        rec = enqueue_pipeline_job(corpus_root, operator_yaml)
+        # Same enqueue → schedule_post_submit path as POST /api/jobs (pipeline)
+        # / POST /api/jobs/enrichment — a scheduled fire is indistinguishable
+        # from a manual one at the registry.
+        if kind == JOB_KIND_ENRICHMENT:
+            rec = enqueue_enrichment_job(corpus_root, operator_yaml=operator_yaml)
+        else:
+            rec = enqueue_pipeline_job(corpus_root, operator_yaml)
         logger.info(
-            "scheduler: job %r fired -> pipeline job_id=%s status=%s",
+            "scheduler: job %r fired -> %s job_id=%s status=%s",
             name,
+            kind,
             rec.get("job_id"),
             rec.get("status"),
         )
