@@ -1,6 +1,6 @@
-# #1144 stance-level disagreement detector — feasibility decision
+# #1144 stance-level disagreement detector — build decision
 
-- **Status**: **Decided 2026-07-07 — do NOT build; close/defer (feasibility-negative)**
+- **Status**: **Decided 2026-07-07 — BUILD a precise stance-level detector**
 - **Issue**: #1144 (product goal inherited from #1106: replace the over-firing
   `nli_contradiction` with a stance-level disagreement detector)
 - **Context**: RFC-088 enrichment layer; LEARNING-PLATFORM-GAP-ANALYSIS-2026-07 gap item 2
@@ -9,17 +9,23 @@
 
 ## TL;DR
 
-The #1144 feasibility spike **already answered the feasibility question, negatively.**
-On the real prod-v2 corpus, a strong reference labeler (Opus 4.8) judged 40 viable
-cross-speaker stance pairs and found **0 disagreements** — 31 `no_shared_question`,
-9 `agree`, 0 `disagree` (mean confidence 0.79). The stance-level disagreement signal
-the detector would surface is **near-absent in real corpora**, so building it (an
-offline-LLM enrichment tier + RFC + enricher + scorer) is **not justified**.
+Build it. Cross-person disagreement between named experts on a **shared question** is
+high-signal, specific information — precisely the kind of thing the platform should
+surface when it exists. Two facts settle the direction:
 
-**Recommendation: close/defer #1144.** The product value ("what do different experts
-say on this topic?") is already delivered by **perspectives (#1146, shipped)** — a
-multi-speaker view *without* a disagreement claim. Revisit only if a corpus that
-actually contains cross-person disagreement (e.g. debate-format shows) enters scope.
+1. **The mechanism is proven.** The injected panel in the v3 fixture (Daniel Cho
+   *diversify* vs Scott Bessent *concentrate* on risk-management, #1148) is detected and
+   surfaced end-to-end — the detect-and-attribute chain works.
+2. **The 0/40 spike result is a *corpus* property, not a feature verdict.** The spike ran
+   on a small, curated corpus of mostly single-host / agreeable interviews, where two
+   speakers land on the same *topic* but rarely the same *contested question* (31/40
+   `no_shared_question`). As the corpus grows / diversifies (debate-format, point-counter-
+   point, cross-show revisits), real disagreement appears — and it's worth catching.
+
+The spike's real lesson is a **design constraint, not a stop sign**: the detector must
+gate on a **shared question / proposition**, because that's exactly what separates genuine
+disagreement from the topic-adjacency false positives that gave `nli_contradiction` 0%
+precision. That gate is what we build.
 
 ## The chain of evidence
 
@@ -45,32 +51,37 @@ actually contains cross-person disagreement (e.g. debate-format shows) enters sc
 
    Representative rationales: *"A discusses technical enterprise AI deployment while B
    discusses Meta's market position — addressing no common proposition."* The pairs are
-   real, the labels are confident; there is simply nothing to detect.
+   real; the low `disagree` count reflects the **corpus** (small, curated, mostly
+   agreeable interviews), not the value of the signal.
 
-## Why the signal is absent (and why that's expected)
+## Why so few disagreements here (and why that's not a stop sign)
 
-Curated podcasts are mostly single-host or *agreeable* interviews: a host and a guest,
-or two experts elaborating a shared view. Two speakers land on the same *topic* but
-rarely on the same *contested question* — so the honest label is "different facet," not
-"disagree." This is the #1106 lesson one level up: **topic co-occurrence is not
-disagreement**, and neither is stance co-occurrence.
+Curated podcasts today are mostly single-host or *agreeable* interviews. Two speakers
+land on the same *topic* but rarely the same *contested question*. That's a property of
+this corpus mix — as it grows/diversifies (debate-format, point-counterpoint, cross-show
+revisits, the injected v3 panel), genuine disagreement appears. The spike's durable
+lesson is the **design constraint**: gate on a shared question, or you get the
+topic-adjacency false positives that gave `nli_contradiction` 0% precision.
 
-## What this means for the build
+## Design — precise stance-level disagreement enricher
 
-- **Do not build** the stance-disagreement enricher / offline-LLM tier / RFC. The
-  premise fails its own pre-registered gate ("if most pairs are no_shared_question/agree,
-  reconsider before building").
-- The **fixture** corpus (v3) carries one *engineered* disagreement (the injected
-  Daniel-Cho-diversify vs Scott-Bessent-concentrate panel, #1148) — useful to exercise
-  `nli_contradiction` + perspectives end-to-end, but it is a *test* signal, not evidence
-  that real corpora contain disagreement.
-- **Perspectives (#1146)** already ships the defensible product surface: it shows each
-  speaker's take on a topic side-by-side, letting the *user* judge — no machine claim of
-  "these two disagree" that the data can't support.
+A new ML-tier enricher `stance_disagreement`, structured like `nli_contradiction` but
+operating at the **stance** level with a **shared-question gate**:
 
-## Reopen criteria
+1. **Candidates** — reuse the harvest logic: per topic, group insights by speaker; for
+   each cross-speaker pair where both have ≥2 insights (enough to *have* a stance),
+   aggregate each speaker's insights into a stance.
+2. **Judge (the gate)** — a `StanceDisagreementScorer` decides, for a pair:
+   `shared_question` (do they engage a common proposition?) → if no, drop; else
+   `a_position` / `b_position` / `label ∈ {disagree, agree}` + `strength`. This is the
+   silver prompt (`disagreement_stance_silver_v1.py`) promoted to an injected scorer —
+   an offline LLM provider at enrichment time (never CI: [[feedback_no_llm_in_ci]]).
+3. **Emit** — only `label == disagree` pairs, with `shared_question`, both positions,
+   strength, and the SPOKEN_BY-attributed persons — so the viewer can show
+   *"A says X, B says the opposite"* with evidence.
+4. **Gate** — an `accuracy_gate` (like `nli_contradiction`'s precision ≥ 0.5) scored
+   against the Opus silver set, so the enricher only enters the registry/profiles/UI
+   once it's precise. Deterministic in CI (silver is pre-computed).
 
-Revisit #1144 only if the corpus mix changes to include content where cross-person
-disagreement is actually present and frequent — e.g. debate-format or point/counterpoint
-shows — and a fresh harvest+silver on that corpus shows a non-trivial `disagree` rate.
-Until then, closing #1144 is the honest, cost-correct call.
+Perspectives (#1146) remains the always-on multi-speaker surface; `stance_disagreement`
+adds the sharper "these two *disagree*" claim on top, only where the gate is confident.
