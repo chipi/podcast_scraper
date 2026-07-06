@@ -195,6 +195,10 @@ data/eval/materialized/*
 # (see docs/wip/POST_RFC097_DEV_PROD_REMOVAL.md).
 data/eval/runs/*
 !data/eval/runs/_PRE_FIX_NOTE.md
+# Shipped parity reports referenced by regression tests must be tracked, or the
+# tests fail with "shipped parity report missing" in CI. Add new exceptions
+# here whenever a `tests/e2e/test_*_parity_regression.py` grows a new fixture.
+!data/eval/runs/v5_parity_2026-07-05.json
 
 # Generated eval configs (scripts/eval/pipeline_validate.py auto-writes here)
 data/eval/configs/_pipeline_validate/

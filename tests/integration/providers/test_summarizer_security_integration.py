@@ -442,10 +442,13 @@ class TestMemoryCleanup(unittest.TestCase):
         # Unload model
         summarizer.unload_model(model)
 
-        # Verify model is unloaded
+        # Verify model is unloaded. Post-#382 the ``pipeline`` attribute is a
+        # bool sentinel (True when loaded, False when unloaded) — pipeline()
+        # was retired for BART/LED so there's no Pipeline object to null out.
+        # See summarizer.SummaryModel line 943 for the type contract.
         self.assertIsNone(model.model)
         self.assertIsNone(model.tokenizer)
-        self.assertIsNone(model.pipeline)
+        self.assertFalse(model.pipeline)
 
     def test_unload_model_with_none(self):
         """Test that unload_model() handles None gracefully."""
