@@ -22,7 +22,7 @@ import json
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Mapping, Sequence
+from typing import Any, Mapping, Sequence
 
 from podcast_scraper.enrichment.eval.gate import evaluate_gate, GateDecision
 from podcast_scraper.enrichment.protocol import AccuracyGateSpec, EnricherManifest
@@ -155,6 +155,38 @@ def load_latest_eval_metrics(
     return out
 
 
+def write_gate_metrics(
+    metrics: Mapping[str, dict[str, float]],
+    *,
+    eval_root: Path | None = None,
+    run_id: str | None = None,
+) -> list[Path]:
+    """Persist per-enricher metrics as the ``gate_metrics.json`` the gate reads.
+
+    The persistence counterpart to :func:`load_latest_eval_metrics`, closing the
+    loop end to end::
+
+        run_scorers → metrics_by_enricher → write_gate_metrics
+                    → load_latest_eval_metrics → gate → admission
+
+    Writes one file per enricher to
+    ``<eval_root>/enrichment/<id>/gate_metrics.json`` (parent dirs created).
+    Returns the written paths, sorted.
+    """
+    root = (eval_root or _default_eval_root()) / _ENRICHMENT_EVAL_SUBDIR
+    written: list[Path] = []
+    for eid, values in metrics.items():
+        target_dir = root / eid
+        target_dir.mkdir(parents=True, exist_ok=True)
+        path = target_dir / _GATE_METRICS_FILENAME
+        doc: dict[str, Any] = {"enricher_id": eid, "metrics": dict(values)}
+        if run_id is not None:
+            doc["run_id"] = run_id
+        path.write_text(json.dumps(doc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        written.append(path)
+    return sorted(written)
+
+
 def admit_enrichers(
     candidate_ids: Sequence[str],
     *,
@@ -178,4 +210,5 @@ __all__ = [
     "gate_specs_from_manifests",
     "known_enricher_manifests",
     "load_latest_eval_metrics",
+    "write_gate_metrics",
 ]

@@ -30,6 +30,7 @@ from podcast_scraper.enrichment.eval import (
 from podcast_scraper.enrichment.eval.admission import (
     admit_enrichers,
     gate_specs_from_manifests,
+    write_gate_metrics,
 )
 from podcast_scraper.enrichment.eval.gold import all_gold_enricher_ids, collect_episode_gold
 from podcast_scraper.enrichment.profile_sets import enricher_set_for_profile
@@ -243,3 +244,40 @@ def test_profile_sets_exclude_nli_via_gate(profile: str) -> None:
     assert "nli_contradiction" not in enabled  # gated out, data-driven
     assert "topic_similarity" in enabled  # no gate → still shipped
     assert len(enabled) == 7  # 6 deterministic + topic_similarity, unchanged
+
+
+# --------------------------------------------------------------------------- #
+# The closed loop: scorers → write_gate_metrics → load → gate
+# --------------------------------------------------------------------------- #
+
+
+def test_write_gate_metrics_round_trips(tmp_path: Path) -> None:
+    paths = write_gate_metrics(
+        {"topic_similarity": {"precision_at_k": 0.8}}, eval_root=tmp_path, run_id="r1"
+    )
+    assert len(paths) == 1 and paths[0].name == "gate_metrics.json"
+    assert load_latest_eval_metrics(tmp_path) == {"topic_similarity": {"precision_at_k": 0.8}}
+
+
+def test_closed_loop_scorers_to_gate(tmp_path: Path) -> None:
+    reg = _registry()
+    outputs: dict[str, dict[str, Any]] = {
+        "topic_similarity": {"topics": [{"topic_id": "t:ml", "top_k": [{"topic_id": "t:llm"}]}]}
+    }
+    gold: dict[str, dict[str, Any]] = {
+        "topic_similarity": {"expected_neighbours": {"t:ml": ["t:llm"]}}
+    }
+    # run scorers → persist metrics → read them back → gate promotes
+    write_gate_metrics(metrics_by_enricher(run_scorers(reg, outputs, gold)), eval_root=tmp_path)
+    metrics = load_latest_eval_metrics(tmp_path)
+    spec = AccuracyGateSpec(rules=(AccuracyGateRule("precision_at_k", 0.5),))
+    assert evaluate_gate("topic_similarity", spec, metrics["topic_similarity"]).promoted is True
+
+
+def test_nli_auto_promotes_when_passing_eval_recorded(tmp_path: Path) -> None:
+    # The payoff: a passing precision written to data/eval promotes nli with NO code edit.
+    write_gate_metrics({"nli_contradiction": {"precision": 0.9}}, eval_root=tmp_path)
+    res = admit_enrichers(
+        ["grounding_rate", "topic_similarity", "nli_contradiction"], eval_root=tmp_path
+    )
+    assert "nli_contradiction" in res.admitted  # auto-promoted by the recorded eval

@@ -27,6 +27,7 @@ from podcast_scraper.enrichment.eval.admission import (
     admitted_enricher_ids,
     known_enricher_manifests,
     load_latest_eval_metrics,
+    write_gate_metrics,
 )
 from podcast_scraper.enrichment.eval.gate import evaluate_gate, GateDecision, GateViolation
 from podcast_scraper.enrichment.eval.gold import EXPECTED_ENRICHMENT_KEY, gold_for
@@ -57,4 +58,5 @@ __all__ = [
     "metrics_by_enricher",
     "register_builtin_scorers",
     "run_scorers",
+    "write_gate_metrics",
 ]
