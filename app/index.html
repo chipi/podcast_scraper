@@ -8,6 +8,17 @@
       name="description"
       content="A podcast learning player — transcript-synced playback over grounded intelligence."
     />
+
+    <!--
+      iOS PWA behavior is opt-in via meta tags — iOS ignores most of the
+      web app manifest. Without these, "Add to Home Screen" produces a
+      Safari bookmark, not a standalone PWA.
+    -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon-180.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Learning" />
+
     <title>Learning Player</title>
   </head>
   <body>
