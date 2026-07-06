@@ -94,6 +94,86 @@
       "from": "insight:473ab86045cd6865",
       "to": "quote:be6904c60151df16",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:authored-p05_e04-0",
+      "to": "quote:authored-p05_e04-0",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:authored-p05_e04-0",
+      "to": "person:daniel-cho",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:authored-p05_e04-0",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p05_e04-0",
+      "to": "person:daniel-cho",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:authored-p05_e04-1",
+      "to": "quote:authored-p05_e04-1",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:authored-p05_e04-1",
+      "to": "person:scott-bessent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:authored-p05_e04-1",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p05_e04-1",
+      "to": "person:scott-bessent",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:authored-p05_e04-2",
+      "to": "quote:authored-p05_e04-2",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:authored-p05_e04-2",
+      "to": "person:daniel-cho",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:authored-p05_e04-2",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p05_e04-2",
+      "to": "person:daniel-cho",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:authored-p05_e04-3",
+      "to": "quote:authored-p05_e04-3",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:authored-p05_e04-3",
+      "to": "person:scott-bessent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:authored-p05_e04-3",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p05_e04-3",
+      "to": "person:scott-bessent",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ep-16ff698c1bd21087",
@@ -272,6 +352,81 @@
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p05_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "insight:authored-p05_e04-0",
+      "properties": {
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.5,
+        "text": "For an individual investor, diversification is the closest thing to a free lunch that exists."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:authored-p05_e04-0",
+      "properties": {
+        "text": "For an individual investor, diversification is the closest thing to a free lunch that exists."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "name": "systems thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:authored-p05_e04-1",
+      "properties": {
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.5,
+        "text": "A portfolio is a system of correlated bets; a handful you understand deeply is more robust than a hundred you don't."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:authored-p05_e04-1",
+      "properties": {
+        "text": "A portfolio is a system of correlated bets; a handful you understand deeply is more robust than a hundred you don't."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "insight:authored-p05_e04-2",
+      "properties": {
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.5,
+        "text": "Diversification is the only real risk control \u2014 concentration is how retail investors blow themselves up."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:authored-p05_e04-2",
+      "properties": {
+        "text": "Diversification is the only real risk control \u2014 concentration is how retail investors blow themselves up."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "insight:authored-p05_e04-3",
+      "properties": {
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.5,
+        "text": "Concentration with deep understanding beats diversification \u2014 spreading thin is itself the risk, because you end up owning things you can't actually judge."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:authored-p05_e04-3",
+      "properties": {
+        "text": "Concentration with deep understanding beats diversification \u2014 spreading thin is itself the risk, because you end up owning things you can't actually judge."
       },
       "type": "Quote"
     }

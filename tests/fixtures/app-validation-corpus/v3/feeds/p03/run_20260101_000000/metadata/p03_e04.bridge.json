@@ -1,0 +1,26 @@
+{
+  "episode_id": "ep-916dab1698f88aec",
+  "identities": [
+    {
+      "display_name": "safety practices",
+      "id": "topic:safety-practices"
+    },
+    {
+      "display_name": "risk management",
+      "id": "topic:risk-management"
+    },
+    {
+      "display_name": "lifelong learning",
+      "id": "topic:lifelong-learning"
+    },
+    {
+      "display_name": "expert interviews",
+      "id": "topic:expert-interviews"
+    },
+    {
+      "display_name": "systems thinking",
+      "id": "topic:systems-thinking"
+    }
+  ],
+  "schema_version": "1"
+}

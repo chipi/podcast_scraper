@@ -20,9 +20,13 @@ uses (``app_gi_view`` / ``app_kg_view`` read them defensively).
 It differs from the viewer corpus only in the *on-disk layout* and the *extra
 fields the consumer readers require*, derived from studying the consumer readers:
 
-* Run-dir layout ``feeds/<show>/run_<tag>/metadata/<ep>.{metadata,gi,kg}.json``
-  and ``feeds/<show>/run_<tag>/transcripts/<ep>.{txt,segments.json}`` — what
-  ``corpus_catalog`` / ``corpus_scope.discover_metadata_files`` expect.
+* Run-dir layout
+  ``feeds/<show>/run_<tag>/metadata/<ep>.{metadata,gi,kg,bridge}.json`` and
+  ``feeds/<show>/run_<tag>/transcripts/<ep>.{txt,segments.json}`` — what
+  ``corpus_catalog`` / ``corpus_scope.discover_metadata_files`` expect. The
+  ``.bridge.json`` sidecar (topic identities mirroring the GI) is what
+  ``iter_cil_episode_bundles`` pairs with the GI so the #1146 perspectives
+  surface reads real speaker-attributed insights (see ``_bridge_from_gi``).
 * ``metadata.content.transcript_file_path`` stored **run-relative**
   (``transcripts/<ep>.txt``) — ``app_content_source.transcript_corpus_relpath``
   joins it onto the run dir.
@@ -164,6 +168,127 @@ def _stamp_publish_date(publish_iso: str, *docs: dict[str, Any]) -> None:
         for n in doc.get("nodes", []):
             if n.get("type") == "Episode":
                 n.setdefault("properties", {})["publish_date"] = publish_iso
+
+
+def _bridge_from_gi(gi: dict[str, Any], episode_id: str) -> dict[str, Any]:
+    """Minimal CIL bridge asserting every Topic the GI has an insight about.
+
+    ``topic_perspectives`` (the #1146 perspectives surface) walks sibling
+    ``.bridge.json`` files via ``iter_cil_episode_bundles`` and only considers
+    an episode when the bridge's identities intersect the target topic. The app
+    corpus never wrote bridges, so perspectives read empty even though the GI
+    carried the Insight→ABOUT→Topic chains. Identities mirror the GI's Topic
+    nodes so the bridge can't drift from what the insights actually reference.
+    """
+    identities: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for n in gi.get("nodes", []):
+        if n.get("type") != "Topic":
+            continue
+        tid = str(n.get("id") or "")
+        if not tid or tid in seen:
+            continue
+        seen.add(tid)
+        props = n.get("properties") or {}
+        name = str(props.get("name") or props.get("label") or props.get("title") or "").strip()
+        if not name:
+            name = tid.split(":", 1)[-1].replace("-", " ").title()
+        identities.append({"id": tid, "display_name": name})
+    return {"schema_version": "1", "episode_id": episode_id, "identities": identities}
+
+
+def _load_pod_guests(manifest_path: Path) -> dict[str, dict[str, str]]:
+    """Map ``pod_id -> {guest_key: canonical_name}`` from the v3 manifest.
+
+    The authored claims reference guests by key (``"Daniel"``); the GI uses
+    canonical ``person:<name-slug>`` ids. This bridges the two.
+    """
+    out: dict[str, dict[str, str]] = {}
+    if not manifest_path.is_file():
+        return out
+    try:
+        doc = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return out
+    for pod in doc.get("podcasts", []):
+        pid = str(pod.get("pod_id") or "")
+        if pid:
+            out[pid] = {
+                str(g.get("key")): str(g.get("canonical_name") or "")
+                for g in pod.get("guests", [])
+                if g.get("key")
+            }
+    return out
+
+
+def _inject_authored_claims(
+    gi: dict[str, Any], ep_label: str, gt_dir: Path, name_by_key: dict[str, str]
+) -> None:
+    """Inject authored topic/contradiction claims into the GI as real Insights.
+
+    The deterministic extractor takes ``sentences[:3]`` — the greetings — so the
+    engineered claims (perspectives, the diversify-vs-concentrate opposition)
+    never become Insights. This adds each authored claim as an Insight with the
+    full chain the enrichers read: SUPPORTED_BY→Quote→SPOKEN_BY→Person and
+    ABOUT→Topic. Makes multi-perspective (#1146) + nli/disagreement (#1144) work
+    on the real corpus (#1148).
+    """
+    gt = gt_dir / f"{ep_label}.json"
+    if not gt.is_file():
+        return
+    try:
+        doc = json.loads(gt.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    claims: list[tuple[str, str, str, bool]] = []
+    for tc in doc.get("topic_claims", []):
+        claims.append(
+            (
+                str(tc.get("speaker", "")),
+                str(tc.get("topic_id", "")),
+                str(tc.get("claim", "")),
+                bool(tc.get("grounded", True)),
+            )
+        )
+    for cc in doc.get("contradiction_claims", []):
+        tid = str(cc.get("topic_id", ""))
+        claims.append((str(cc.get("speaker_a", "")), tid, str(cc.get("claim_a", "")), True))
+        claims.append((str(cc.get("speaker_b", "")), tid, str(cc.get("claim_b", "")), True))
+    if not claims:
+        return
+    nodes = gi.setdefault("nodes", [])
+    edges = gi.setdefault("edges", [])
+    ids = {str(n.get("id")) for n in nodes}
+    for i, (key, tid, text, grounded) in enumerate(claims):
+        name = name_by_key.get(key)
+        if not (name and tid and text):
+            continue
+        pid = f"person:{slug(name)}"
+        if pid not in ids:
+            nodes.append({"id": pid, "type": "Person", "properties": {"name": name}})
+            ids.add(pid)
+        if tid not in ids:
+            label = tid.replace("topic:", "").replace("-", " ")
+            nodes.append({"id": tid, "type": "Topic", "properties": {"name": label}})
+            ids.add(tid)
+        iid, qid = f"insight:authored-{ep_label}-{i}", f"quote:authored-{ep_label}-{i}"
+        nodes.append(
+            {
+                "id": iid,
+                "type": "Insight",
+                "properties": {
+                    "text": text,
+                    "grounded": grounded,
+                    "insight_type": "claim",
+                    "position_hint": 0.5,
+                },
+            }
+        )
+        nodes.append({"id": qid, "type": "Quote", "properties": {"text": text}})
+        edges.append({"from": iid, "to": qid, "type": "SUPPORTED_BY"})
+        edges.append({"from": qid, "to": pid, "type": "SPOKEN_BY"})
+        edges.append({"from": iid, "to": tid, "type": "ABOUT"})
+        edges.append({"from": iid, "to": pid, "type": "MENTIONS_PERSON"})
 
 
 def _vary_grounding(gi: dict[str, Any], ep_label: str, gt_dir: Path) -> None:
@@ -427,6 +552,7 @@ def main() -> int:
     # v3 ground-truth dir (sibling of the transcripts dir) — carries the authored
     # publish dates (#1148 varied 2024→now schedule).
     gt_dir = args.transcripts_dir.parent.parent / "ground-truth" / version / "ground_truth"
+    pod_guests = _load_pod_guests(gt_dir.parent / "manifest.json")  # key→name for claim injection
     episode_index: list[dict[str, Any]] = []  # for the regenerate-summary print
     corpus_topic_counts: dict[str, int] = {}  # → corpus-scope temporal_velocity envelope
 
@@ -501,12 +627,24 @@ def main() -> int:
             _canonicalize_persons(gi, kg)
             _stamp_publish_date(publish + "T12:00:00", gi, kg)
             _vary_grounding(gi, ep_label, gt_dir)  # #1148: real grounding variation
+            # #1148: surface the authored claims (perspectives + opposition) the
+            # naive sentences[:3] extractor drops.
+            _inject_authored_claims(
+                gi, ep_label, gt_dir, pod_guests.get(ep_label.split("_")[0], {})
+            )
 
             (run_meta_dir / f"{ep_label}.gi.json").write_text(
                 json.dumps(gi, indent=2, sort_keys=True) + "\n", encoding="utf-8"
             )
             (run_meta_dir / f"{ep_label}.kg.json").write_text(
                 json.dumps(kg, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+            # CIL bridge — unblocks the #1146 perspectives surface (see
+            # _bridge_from_gi). Sibling of the .gi.json so iter_cil_episode_bundles
+            # pairs them; identities mirror the GI's (post-injection) topics.
+            (run_meta_dir / f"{ep_label}.bridge.json").write_text(
+                json.dumps(_bridge_from_gi(gi, episode_id), indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
             )
 
             # Episode-scope enrichment envelope (RFC-088) so the consumer enrichment read surface

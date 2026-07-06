@@ -3,9 +3,9 @@
   "computed_at": "2026-01-01T00:00:00Z",
   "data": {
     "counts": {
-      "early": 1,
+      "early": 2,
       "late": 1,
-      "mid": 1,
+      "mid": 2,
       "unknown": 0
     },
     "duration_seconds": 1800.0,
@@ -23,16 +23,24 @@
       {
         "insight_id": "insight:4dd75a8b258e871f",
         "segment": "late"
+      },
+      {
+        "insight_id": "insight:authored-p07_e03-0",
+        "segment": "early"
+      },
+      {
+        "insight_id": "insight:authored-p07_e03-1",
+        "segment": "mid"
       }
     ],
-    "total_insights": 3
+    "total_insights": 5
   },
   "duration_ms": 0,
   "enricher_id": "insight_density",
   "enricher_version": "1.0",
   "error": null,
   "error_class": null,
-  "records_written": 3,
+  "records_written": 5,
   "retry_count": 0,
   "schema_version": "1.0",
   "status": "ok"

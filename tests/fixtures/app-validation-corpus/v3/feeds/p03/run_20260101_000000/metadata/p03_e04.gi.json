@@ -94,6 +94,46 @@
       "from": "insight:c1a333a563abe849",
       "to": "quote:810618577bb53b5b",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:authored-p03_e04-0",
+      "to": "quote:authored-p03_e04-0",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:authored-p03_e04-0",
+      "to": "person:marco-silva",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:authored-p03_e04-0",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p03_e04-0",
+      "to": "person:marco-silva",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:authored-p03_e04-1",
+      "to": "quote:authored-p03_e04-1",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:authored-p03_e04-1",
+      "to": "person:marco-silva",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:authored-p03_e04-1",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p03_e04-1",
+      "to": "person:marco-silva",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ep-916dab1698f88aec",
@@ -265,6 +305,47 @@
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p03_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "insight:authored-p03_e04-0",
+      "properties": {
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.5,
+        "text": "Dive planning is risk management \u2014 the gas you don't use, the ascent you don't rush."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:authored-p03_e04-0",
+      "properties": {
+        "text": "Dive planning is risk management \u2014 the gas you don't use, the ascent you don't rush."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "name": "systems thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:authored-p03_e04-1",
+      "properties": {
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.5,
+        "text": "You plan the whole dive as one system; accidents live in the interactions."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:authored-p03_e04-1",
+      "properties": {
+        "text": "You plan the whole dive as one system; accidents live in the interactions."
       },
       "type": "Quote"
     }

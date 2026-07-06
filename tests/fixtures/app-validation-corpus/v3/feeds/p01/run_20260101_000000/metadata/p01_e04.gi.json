@@ -94,6 +94,46 @@
       "from": "insight:5e35fb7106d60df7",
       "to": "quote:110b8d9d2f282113",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:authored-p01_e04-0",
+      "to": "quote:authored-p01_e04-0",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:authored-p01_e04-0",
+      "to": "person:sophie-laurent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:authored-p01_e04-0",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p01_e04-0",
+      "to": "person:sophie-laurent",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:authored-p01_e04-1",
+      "to": "quote:authored-p01_e04-1",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:authored-p01_e04-1",
+      "to": "person:sophie-laurent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:authored-p01_e04-1",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p01_e04-1",
+      "to": "person:sophie-laurent",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ep-de59d003651d9e5d",
@@ -265,6 +305,47 @@
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p01_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "insight:authored-p01_e04-0",
+      "properties": {
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.5,
+        "text": "The crash that ends your season is the boring risk you didn't name."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:authored-p01_e04-0",
+      "properties": {
+        "text": "The crash that ends your season is the boring risk you didn't name."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "name": "systems thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:authored-p01_e04-1",
+      "properties": {
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.5,
+        "text": "You ride the whole run as a system; the mistakes come from how sections interact."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:authored-p01_e04-1",
+      "properties": {
+        "text": "You ride the whole run as a system; the mistakes come from how sections interact."
       },
       "type": "Quote"
     }

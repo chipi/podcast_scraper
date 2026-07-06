@@ -1,0 +1,22 @@
+{
+  "episode_id": "ep-a0a7f86b34a4de26",
+  "identities": [
+    {
+      "display_name": "safety practices",
+      "id": "topic:safety-practices"
+    },
+    {
+      "display_name": "risk management",
+      "id": "topic:risk-management"
+    },
+    {
+      "display_name": "lifelong learning",
+      "id": "topic:lifelong-learning"
+    },
+    {
+      "display_name": "expert interviews",
+      "id": "topic:expert-interviews"
+    }
+  ],
+  "schema_version": "1"
+}

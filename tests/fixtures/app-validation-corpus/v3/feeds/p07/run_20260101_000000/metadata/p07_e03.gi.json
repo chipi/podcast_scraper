@@ -94,6 +94,46 @@
       "from": "insight:4dd75a8b258e871f",
       "to": "quote:77b8047c51ea5f8a",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:authored-p07_e03-0",
+      "to": "quote:authored-p07_e03-0",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:authored-p07_e03-0",
+      "to": "person:dr-elena-fischer",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:authored-p07_e03-0",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p07_e03-0",
+      "to": "person:dr-elena-fischer",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:authored-p07_e03-1",
+      "to": "quote:authored-p07_e03-1",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:authored-p07_e03-1",
+      "to": "person:dr-elena-fischer",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:authored-p07_e03-1",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p07_e03-1",
+      "to": "person:dr-elena-fischer",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ep-a86da8f148d3bf29",
@@ -265,6 +305,40 @@
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p07_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "insight:authored-p07_e03-0",
+      "properties": {
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.5,
+        "text": "Sustainability is a systems problem \u2014 you cannot optimize one part without moving another."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:authored-p07_e03-0",
+      "properties": {
+        "text": "Sustainability is a systems problem \u2014 you cannot optimize one part without moving another."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "insight:authored-p07_e03-1",
+      "properties": {
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.5,
+        "text": "The dangerous risks are the slow ones you can name but discount."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:authored-p07_e03-1",
+      "properties": {
+        "text": "The dangerous risks are the slow ones you can name but discount."
       },
       "type": "Quote"
     }

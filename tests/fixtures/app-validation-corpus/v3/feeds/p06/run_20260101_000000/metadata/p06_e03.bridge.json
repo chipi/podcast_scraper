@@ -1,0 +1,22 @@
+{
+  "episode_id": "ep-034d8bc4204034df",
+  "identities": [
+    {
+      "display_name": "long-form",
+      "id": "topic:long-form"
+    },
+    {
+      "display_name": "systems thinking",
+      "id": "topic:systems-thinking"
+    },
+    {
+      "display_name": "lifelong learning",
+      "id": "topic:lifelong-learning"
+    },
+    {
+      "display_name": "expert interviews",
+      "id": "topic:expert-interviews"
+    }
+  ],
+  "schema_version": "1"
+}

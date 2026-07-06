@@ -94,6 +94,46 @@
       "from": "insight:1f21124fba3a3ec2",
       "to": "quote:013d979065889bb0",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:authored-p09_e04-0",
+      "to": "quote:authored-p09_e04-0",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:authored-p09_e04-0",
+      "to": "person:dr-elena-fischer",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:authored-p09_e04-0",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p09_e04-0",
+      "to": "person:dr-elena-fischer",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:authored-p09_e04-1",
+      "to": "quote:authored-p09_e04-1",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:authored-p09_e04-1",
+      "to": "person:dr-elena-fischer",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:authored-p09_e04-1",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p09_e04-1",
+      "to": "person:dr-elena-fischer",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ep-4d94c63887afbd1a",
@@ -265,6 +305,40 @@
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p09_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "insight:authored-p09_e04-0",
+      "properties": {
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.5,
+        "text": "Risk is a systems property: it lives in the interactions, not the parts."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:authored-p09_e04-0",
+      "properties": {
+        "text": "Risk is a systems property: it lives in the interactions, not the parts."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "insight:authored-p09_e04-1",
+      "properties": {
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.5,
+        "text": "Systems thinking and risk management are one discipline in two vocabularies."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:authored-p09_e04-1",
+      "properties": {
+        "text": "Systems thinking and risk management are one discipline in two vocabularies."
       },
       "type": "Quote"
     }

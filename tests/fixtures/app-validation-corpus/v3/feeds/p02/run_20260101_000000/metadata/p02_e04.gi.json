@@ -94,6 +94,46 @@
       "from": "insight:87d008bfa722a799",
       "to": "quote:fd060d0ef2abb2df",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:authored-p02_e04-0",
+      "to": "quote:authored-p02_e04-0",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:authored-p02_e04-0",
+      "to": "person:priya-nair",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:authored-p02_e04-0",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p02_e04-0",
+      "to": "person:priya-nair",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:authored-p02_e04-1",
+      "to": "quote:authored-p02_e04-1",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:authored-p02_e04-1",
+      "to": "person:priya-nair",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:authored-p02_e04-1",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p02_e04-1",
+      "to": "person:priya-nair",
+      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ep-18ede6ffbd63f18f",
@@ -265,6 +305,40 @@
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p02_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "insight:authored-p02_e04-0",
+      "properties": {
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.5,
+        "text": "Reliability is a property of the whole system, not of any one component."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:authored-p02_e04-0",
+      "properties": {
+        "text": "Reliability is a property of the whole system, not of any one component."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "insight:authored-p02_e04-1",
+      "properties": {
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.5,
+        "text": "Risk management in production is naming the risk before it names you."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:authored-p02_e04-1",
+      "properties": {
+        "text": "Risk management in production is naming the risk before it names you."
       },
       "type": "Quote"
     }
