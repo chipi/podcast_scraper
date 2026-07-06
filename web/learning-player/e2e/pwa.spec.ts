@@ -100,13 +100,19 @@ test.describe('service worker + build identity', () => {
     expect(swRes.status()).toBe(200)
     expect(swRes.headers()['content-type']).toContain('javascript')
 
-    // Load the app and wait for the SW to register + reach the "active" state.
+    // Load the app and wait for the SW to register + reach the "activated" state.
+    // `navigator.serviceWorker.ready` resolves at "installed"; there's a
+    // brief window where `.active.state === 'activating'` — poll until it
+    // transitions rather than sampling once and racing the state machine.
     await page.goto('/')
-    const state = await page.evaluate(async () => {
-      const reg = await navigator.serviceWorker.ready
-      return reg.active?.state ?? null
-    })
-    expect(state).toBe('activated')
+    await page.waitForFunction(
+      async () => {
+        const reg = await navigator.serviceWorker.ready
+        return reg.active?.state === 'activated'
+      },
+      undefined,
+      { timeout: 15_000 },
+    )
   })
 
   test('window.__buildInfo is populated with sha + time', async ({ page }) => {

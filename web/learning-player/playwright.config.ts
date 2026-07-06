@@ -7,6 +7,12 @@ import { defineConfig, devices } from '@playwright/test'
  */
 export default defineConfig({
   testDir: './e2e',
+  // e2e/validation/** is Tier-3 — runs under playwright.validation.config.ts
+  // against a separately-booted `make serve-for-validation` stack, NOT the
+  // fast-tier preview here. Excluding it prevents these specs from firing
+  // twice + failing because the shared serviceWorkers:'block' default is
+  // wrong for the SW-driven validation walks.
+  testIgnore: ['**/validation/**'],
   fullyParallel: true,
   // The heavy auth-gated specs (capture, consolidation) sign in as ISOLATED per-(spec,project) mock
   // identities (see e2e/helpers.ts) so they never share per-user files — eliminating the
@@ -37,14 +43,19 @@ export default defineConfig({
   // to a gitignored ephemeral dir so the committed corpus tree is never mutated.
   webServer: [
     {
+      // Paths are relative to this config's cwd — web/learning-player/ —
+      // so `../..` traverses back to the repo root (where .venv, src/,
+      // and tests/ live). Missed this on slice 14; caught by
+      // ``make test-app-e2e`` locally when the first run of playwright
+      // failed with `../.venv/bin/python: No such file or directory`.
       command:
-        '../.venv/bin/python -m podcast_scraper.cli serve ' +
-        '--output-dir ../tests/fixtures/app-validation-corpus/v2 --port 8011 --host 127.0.0.1',
+        '../../.venv/bin/python -m podcast_scraper.cli serve ' +
+        '--output-dir ../../tests/fixtures/app-validation-corpus/v2 --port 8011 --host 127.0.0.1',
       url: 'http://127.0.0.1:8011/api/health',
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
       env: {
-        PYTHONPATH: '../src',
+        PYTHONPATH: '../../src',
         APP_OAUTH_PROVIDER: 'mock',
         APP_SESSION_SECRET: 'e2e-secret',
         // Allow the mock dev identity through the access policy (default is allowlist/deny).
@@ -54,7 +65,7 @@ export default defineConfig({
         // this is inert for every other spec.
         APP_PERSONALIZED_RANKING: 'true',
         // Keep per-user writes (queue/profile/interests) OUT of the committed corpus tree.
-        // Relative to the webServer cwd (app/); the server resolve()s it against cwd.
+        // Relative to the webServer cwd (web/learning-player/); the server resolve()s it against cwd.
         APP_DATA_DIR: 'e2e/.app-state',
       },
     },
