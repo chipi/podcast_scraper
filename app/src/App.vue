@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
 import SkipLink from './components/SkipLink.vue'
 import NavIconLink from './components/NavIconLink.vue'
+import PwaUpdateToast from './components/PwaUpdateToast.vue'
 import { useAuthStore } from './stores/auth'
 import { useQueueStore } from './stores/queue'
 import { useFavoritesStore } from './stores/favorites'
@@ -82,5 +83,7 @@ async function onSignOut(): Promise<void> {
     <main id="main" tabindex="-1" class="mx-auto max-w-6xl px-5 py-6 outline-none">
       <RouterView />
     </main>
+
+    <PwaUpdateToast />
   </div>
 </template>

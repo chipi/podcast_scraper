@@ -8,7 +8,10 @@ export default defineConfig({
   plugins: [
     vue(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // "prompt" (vs "autoUpdate") gives users a visible "Reload to update"
+      // toast instead of the silent-update-stall trap that hits users with
+      // long-lived tabs. See src/composables/usePwaUpdate.ts + PwaUpdateToast.vue.
+      registerType: 'prompt',
       manifest: {
         name: 'Learning Player',
         short_name: 'Learning',
