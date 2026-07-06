@@ -47,7 +47,7 @@ CI runs three app-scoped jobs on any `app/**` change (see
 `.github/workflows/python-app.yml` :: `app-unit`, `app-e2e`,
 `app-lighthouse`). The Lighthouse gate hard-fails on missing/broken
 manifest, service worker, maskable icon, apple-touch-icon, viewport,
-or themed omnibox — configured in `app/lighthouserc.json`.
+or themed omnibox — configured in `web/learning-player/lighthouserc.json`.
 
 ## PWA behavior
 

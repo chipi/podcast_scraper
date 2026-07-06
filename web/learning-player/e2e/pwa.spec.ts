@@ -95,7 +95,7 @@ test.describe('PWA install surface', () => {
 test.describe('service worker + build identity', () => {
   test('sw.js is served and registers on first page load', async ({ page, request }) => {
     // Sanity: the SW asset itself must exist and be served with no-cache
-    // (per app/nginx.conf; in vite preview no-cache is implicit).
+    // (per web/learning-player/nginx.conf; in vite preview no-cache is implicit).
     const swRes = await request.get('/sw.js')
     expect(swRes.status()).toBe(200)
     expect(swRes.headers()['content-type']).toContain('javascript')
