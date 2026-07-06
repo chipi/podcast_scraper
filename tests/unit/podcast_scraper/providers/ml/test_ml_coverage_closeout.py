@@ -200,6 +200,46 @@ class TestNliPredictScoresMetaCatch:
             backend.predict_scores([("p", "h")])
 
 
+class TestNliPredictScoresLengthHandling:
+    """Length-mismatch tail handling in NLIEvidenceBackend.predict_scores."""
+
+    def _make_backend_with_predict(self, monkeypatch, model_predict_return):
+        from podcast_scraper.providers.ml import nli_loader
+
+        backend = nli_loader.NLIEvidenceBackend.__new__(nli_loader.NLIEvidenceBackend)
+        fake_model = mock.MagicMock()
+        fake_model.predict.return_value = model_predict_return
+        backend.model = fake_model
+
+        # Stub score-extraction to return a fixed number of scores regardless
+        # of input length so we can drive both len-mismatch branches.
+        return backend, nli_loader
+
+    def test_predict_scores_pads_when_shorter(self, monkeypatch):
+        backend, nli_loader = self._make_backend_with_predict(monkeypatch, [[0.1, 0.2, 0.7]])
+        # Force the score-extractor to return fewer scores than pairs.
+        monkeypatch.setattr(
+            nli_loader,
+            "predict_output_to_entailment_scores",
+            lambda raw, model: [0.9],  # 1 score
+        )
+        # 3 pairs but only 1 score — should pad with 0.0
+        scores = backend.predict_scores([("p1", "h1"), ("p2", "h2"), ("p3", "h3")])
+        assert scores == [0.9, 0.0, 0.0]
+
+    def test_predict_scores_truncates_when_longer(self, monkeypatch):
+        backend, nli_loader = self._make_backend_with_predict(monkeypatch, [[0.1]] * 5)
+        # Force the score-extractor to return MORE scores than pairs.
+        monkeypatch.setattr(
+            nli_loader,
+            "predict_output_to_entailment_scores",
+            lambda raw, model: [0.5, 0.6, 0.7, 0.8, 0.9],  # 5 scores
+        )
+        # 2 pairs but 5 scores — should truncate to 2
+        scores = backend.predict_scores([("p1", "h1"), ("p2", "h2")])
+        assert scores == [0.5, 0.6]
+
+
 class TestNliModuleLevelWrappers:
     def test_load_nli_model_returns_backend_model(self, monkeypatch):
         from podcast_scraper.providers.ml import nli_loader
