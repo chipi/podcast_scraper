@@ -22,8 +22,8 @@
   "primary_guest_canonical_name": "Jonas Weisenthal",
   "primary_guest_surface_in_transcript": "Joll Wisenthal",
   "primary_topic": "topic:engineering-communication",
-  "publish_date": "2024-04-17",
-  "publish_offset_days": 107,
+  "publish_date": "2024-04-18",
+  "publish_offset_days": 108,
   "secondary_topics": [
     "topic:reliability",
     "topic:incident-postmortems",

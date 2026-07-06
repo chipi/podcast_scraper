@@ -1450,7 +1450,11 @@ def _assign_publish_offsets(podcasts: list[PodcastV3]) -> None:
     """
     used: set[int] = set()
     for pi, pod in enumerate(podcasts):
-        base = pi * _PODCAST_BASE_OFFSET_DAYS
+        # +1 so the very first episode is never offset 0 (0 is falsy and the
+        # ground-truth emitter would treat it as "no authored date" → fall back
+        # to the ingestion date). Every scheduled episode gets a real 2024→now
+        # publication date.
+        base = 1 + pi * _PODCAST_BASE_OFFSET_DAYS
         pattern = _EPISODE_GAP_PATTERNS[pi % len(_EPISODE_GAP_PATTERNS)]
         for ei, ep in enumerate(pod.episodes):
             gap = pattern[ei] if ei < len(pattern) else pattern[-1] + (ei - len(pattern) + 1) * 70

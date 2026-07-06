@@ -52,6 +52,7 @@
       "properties": {
         "episode_id": "ep-f4b940a095192621",
         "metadata_relative_path": "feeds/p06/run_20260101_000000/metadata/p06_e02.metadata.json",
+        "publish_date": "2025-03-17T12:00:00",
         "title": "More Drift, Less Signal"
       },
       "type": "Episode"

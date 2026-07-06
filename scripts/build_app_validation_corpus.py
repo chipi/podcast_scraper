@@ -152,6 +152,20 @@ def _canonicalize_persons_in(doc: dict[str, Any]) -> None:
     doc["nodes"] = kept
 
 
+def _stamp_publish_date(publish_iso: str, *docs: dict[str, Any]) -> None:
+    """Set each artifact's Episode node ``properties.publish_date`` (#1148).
+
+    temporal_velocity / trending read ``publish_date(kg)`` from the Episode node;
+    the deterministic builder left it unset, so every topic fell outside the
+    date window and the temporal signal was flat. Stamping the authored date
+    (the #1148 varied 2024→now schedule) lights it up.
+    """
+    for doc in docs:
+        for n in doc.get("nodes", []):
+            if n.get("type") == "Episode":
+                n.setdefault("properties", {})["publish_date"] = publish_iso
+
+
 def _canonicalize_persons(*docs: dict[str, Any]) -> None:
     """Canonicalize Person ids across artifacts so cross-episode enrichers work.
 
@@ -459,8 +473,10 @@ def main() -> int:
             # consumer entity-card people surface has real data (host/guest).
             _enrich_kg_with_people(kg, roster)
             # #1148: canonicalize Person ids (speaker-NN → name-slug) so the
-            # cross-episode enrichers (guest_coappearance / grounding_rate) work.
+            # cross-episode enrichers (guest_coappearance / grounding_rate) work,
+            # and stamp the Episode publish_date so temporal_velocity sees it.
             _canonicalize_persons(gi, kg)
+            _stamp_publish_date(publish + "T12:00:00", gi, kg)
 
             (run_meta_dir / f"{ep_label}.gi.json").write_text(
                 json.dumps(gi, indent=2, sort_keys=True) + "\n", encoding="utf-8"
