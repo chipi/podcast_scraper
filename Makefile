@@ -2196,6 +2196,8 @@ ci-fast:
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] corpus-snapshot-selftest ==="; $(MAKE) corpus-snapshot-selftest; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] test-ui ==="; $(MAKE) test-ui; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] build-viewer ==="; $(MAKE) build-viewer; \
+	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] test-app ==="; $(MAKE) test-app; \
+	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] build-app ==="; $(MAKE) build-app; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] docs ==="; $(MAKE) docs; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] build ==="; $(MAKE) build; \
 	echo ""; echo "=== ci-fast DONE $$(date '+%Y-%m-%d %H:%M:%S') ==="; echo ""
@@ -2221,6 +2223,9 @@ ci-ui-fast:
 	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] test-ui ==="; $(MAKE) test-ui; \
 	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] test-ui-e2e ==="; $(MAKE) test-ui-e2e; \
 	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] build-viewer ==="; $(MAKE) build-viewer; \
+	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] test-app ==="; $(MAKE) test-app; \
+	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] test-app-e2e ==="; $(MAKE) test-app-e2e; \
+	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] build-app ==="; $(MAKE) build-app; \
 	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] docs ==="; $(MAKE) docs; \
 	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] build ==="; $(MAKE) build; \
 	echo ""; echo "=== ci-ui-fast DONE $$(date '+%Y-%m-%d %H:%M:%S') ==="; echo ""
@@ -2255,6 +2260,9 @@ ci-ui-full:
 	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] test-ui ==="; $(MAKE) test-ui; \
 	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] test-ui-e2e ==="; $(MAKE) test-ui-e2e; \
 	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] build-viewer ==="; $(MAKE) build-viewer; \
+	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] test-app ==="; $(MAKE) test-app; \
+	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] test-app-e2e ==="; $(MAKE) test-app-e2e; \
+	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] build-app ==="; $(MAKE) build-app; \
 	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] docs ==="; $(MAKE) docs; \
 	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] build ==="; $(MAKE) build; \
 	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] stack-test-ml-ci ==="; $(MAKE) stack-test-ml-ci; \
