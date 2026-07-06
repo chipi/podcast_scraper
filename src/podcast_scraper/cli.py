@@ -3818,6 +3818,17 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         # pipeline arg surface so --profile / ML settings apply exactly as a run.
         return _parse_pipeline_argv(list(argv[1:]) if len(argv) > 1 else [], ingest=True)
 
+    if argv and len(argv) > 0 and argv[0] == "enrich":
+        # #1069 consistency: ``enrich`` is a main-CLI subcommand — like the
+        # pipeline run and ``ingest`` — so enrichment invokes, schedules, and
+        # runs in docker exactly like ingestion (``-m podcast_scraper.cli
+        # enrich``). It delegates to the enrichment CLI verbatim; args pass
+        # through untouched (parsed by ``enrichment.cli``, not here).
+        return argparse.Namespace(
+            command="enrich",
+            enrich_argv=list(argv[1:]) if len(argv) > 1 else [],
+        )
+
     # Normal parsing for the main pipeline command.
     return _parse_pipeline_argv(argv)
 
@@ -4766,6 +4777,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
             "corpus-status",
             "corpus-cost",
             "doctor",
+            "enrich",
             "gi",
             "index",
             "insight-clusters",
@@ -4810,6 +4822,13 @@ def main(  # noqa: C901 - main function handles multiple command paths
     # #1069: ingest one feed into a corpus through the ingestion primitive.
     if hasattr(args, "command") and args.command == "ingest":
         return _run_ingest_command(args)
+
+    # #1069 consistency: enrich delegates to the enrichment CLI, so it invokes +
+    # runs (incl. in docker) exactly like the pipeline / ingest.
+    if hasattr(args, "command") and args.command == "enrich":
+        from podcast_scraper.enrichment import cli as _enrichment_cli
+
+        return _enrichment_cli.main(getattr(args, "enrich_argv", []))
 
     if hasattr(args, "command") and args.command == "corpus-status":
         import json as _json

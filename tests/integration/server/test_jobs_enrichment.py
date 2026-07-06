@@ -29,7 +29,10 @@ pytestmark = pytest.mark.integration
 def test_build_enrichment_argv_minimal(tmp_path: Path) -> None:
     argv = build_enrichment_argv(tmp_path)
     assert "-m" in argv
-    assert "podcast_scraper.enrichment.cli" in argv
+    # #1069 consistency: enrichment runs via the main-CLI ``enrich`` subcommand
+    # (``-m podcast_scraper.cli enrich``), so it invokes + dockers like the pipeline.
+    assert "podcast_scraper.cli" in argv
+    assert "enrich" in argv
     assert "--output-dir" in argv
     assert str(tmp_path) in argv
     assert "--log-level" in argv
@@ -80,7 +83,9 @@ def test_enqueue_enrichment_job_serializes_into_registry(tmp_path: Path) -> None
 
 def test_enqueue_enrichment_job_argv_summary_has_enrichment_cli(tmp_path: Path) -> None:
     rec = enqueue_enrichment_job(tmp_path)
-    assert "podcast_scraper.enrichment.cli" in rec["argv_summary"]
+    # #1069 consistency: the stored command is the main-CLI ``enrich`` subcommand.
+    assert "podcast_scraper.cli" in rec["argv_summary"]
+    assert "enrich" in rec["argv_summary"]
 
 
 # ---------------------------------------------------------------------------

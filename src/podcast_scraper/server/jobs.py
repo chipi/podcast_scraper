@@ -312,13 +312,15 @@ def build_enrichment_argv(
     """Build CLI argv for an enrichment job (RFC-088 / Epic #1101).
 
     Mirrors ``build_pipeline_argv`` shape — the child process is
-    ``python -m podcast_scraper.enrichment.cli`` with operator-facing
-    flags surfaced to the API client.
+    ``python -m podcast_scraper.cli enrich`` (the ``enrich`` main-CLI subcommand,
+    #1069 consistency), so it invokes, schedules, and runs in docker exactly like
+    the pipeline. The subcommand delegates to the enrichment CLI verbatim.
     """
     argv: list[str] = [
         sys.executable,
         "-m",
-        "podcast_scraper.enrichment.cli",
+        "podcast_scraper.cli",
+        "enrich",
         "--output-dir",
         str(corpus_root),
         "--log-level",

@@ -64,6 +64,27 @@ def test_run_ingest_command_routes_through_primitive(
     assert "episodes_added=2" in out
 
 
+def test_parse_args_routes_enrich_passthrough() -> None:
+    # #1069 consistency: enrich is a main-CLI verb; its args pass through untouched.
+    args = cli.parse_args(["enrich", "--output-dir", "/tmp/c", "--only", "grounding_rate"])
+    assert args.command == "enrich"
+    assert args.enrich_argv == ["--output-dir", "/tmp/c", "--only", "grounding_rate"]
+
+
+def test_enrich_subcommand_delegates_to_enrichment_cli(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: list[list[str]] = []
+
+    def _fake_enrich_main(argv: list[str]) -> int:
+        seen.append(list(argv))
+        return 0
+
+    monkeypatch.setattr("podcast_scraper.enrichment.cli.main", _fake_enrich_main)
+    rc = cli.main(["enrich", "--output-dir", "/tmp/c", "--corpus-only"])
+
+    assert rc == 0
+    assert seen == [["--output-dir", "/tmp/c", "--corpus-only"]]
+
+
 def test_run_ingest_command_failed_pipeline_exits_nonzero(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

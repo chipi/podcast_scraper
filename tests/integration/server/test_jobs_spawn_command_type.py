@@ -63,7 +63,7 @@ def test_pipeline_job_spawns_the_pipeline_cli(corpus: Path) -> None:
     assert captured, "subprocess factory was never invoked"
     argv = captured[0]
     assert "podcast_scraper.cli" in argv
-    assert "podcast_scraper.enrichment.cli" not in argv
+    assert "enrich" not in argv  # a pipeline job is not the enrich subcommand
 
 
 def test_enrichment_job_spawns_the_enrichment_cli_not_pipeline(corpus: Path) -> None:
@@ -77,8 +77,8 @@ def test_enrichment_job_spawns_the_enrichment_cli_not_pipeline(corpus: Path) -> 
 
     assert captured, "subprocess factory was never invoked"
     argv = captured[0]
-    # THE FIX: an enrichment job runs the enrichment CLI, not the pipeline.
-    assert "podcast_scraper.enrichment.cli" in argv, argv
+    # THE FIX: an enrichment job runs the enrich CLI verb, not the plain pipeline.
+    assert "podcast_scraper.cli" in argv and "enrich" in argv, argv
 
 
 def test_argv_from_record_reads_the_stored_command() -> None:
