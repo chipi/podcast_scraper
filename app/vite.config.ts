@@ -27,8 +27,17 @@ function resolveBuildInfo(): { sha: string; time: string } {
 
 const BUILD_INFO = resolveBuildInfo()
 
+// Deploy base — read from env so subpath deploys (e.g. behind a reverse
+// proxy at /app/, or a preview under /pr-123/) can carry the correct
+// SW scope + manifest paths + offline navigateFallback. Guide §5 war
+// story: getting this wrong at root "works", getting it wrong under a
+// base path silently 404s offline routing under only-that-base. Defaults
+// to '/' so root deploys are unchanged.
+const APP_BASE = (process.env.APP_BASE || '/').replace(/\/+$/, '') + '/'
+
 // https://vite.dev/config/
 export default defineConfig({
+  base: APP_BASE,
   define: {
     __BUILD_SHA__: JSON.stringify(BUILD_INFO.sha),
     __BUILD_TIME__: JSON.stringify(BUILD_INFO.time),
@@ -48,16 +57,20 @@ export default defineConfig({
         theme_color: '#0E0D10',
         background_color: '#0E0D10',
         display: 'standalone',
-        start_url: '/',
+        // Base-aware start_url + scope. At root APP_BASE='/'; under a
+        // subpath deploy set APP_BASE=/app/ (etc.) and the manifest,
+        // SW scope, and navigateFallback all line up. Guide §1 + §5.
+        start_url: APP_BASE,
+        scope: APP_BASE,
         icons: [
           // "any" purpose covers regular home-screen icons and the install prompt.
-          { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-          { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: `${APP_BASE}icon-192.png`, sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: `${APP_BASE}icon-512.png`, sizes: '512x512', type: 'image/png', purpose: 'any' },
           // "maskable" purpose — Android crops the icon into a themed shape; without
           // a maskable icon the OS wraps the icon in a white rounded box. Safe-zone
           // is the central ~80 % (outer ~10 % may be clipped).
           {
-            src: '/maskable-512.png',
+            src: `${APP_BASE}maskable-512.png`,
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',
@@ -68,7 +81,9 @@ export default defineConfig({
         // Cache the app shell + GET API responses (stale-while-revalidate).
         // Audio is NEVER cached/proxied by the SW (bridge-never-rehost): origin
         // media URLs are excluded from runtime caching.
-        navigateFallback: '/index.html',
+        // Base-aware: offline deep-links route back to the app shell under
+        // the deployed base path, not always root.
+        navigateFallback: `${APP_BASE}index.html`,
         // Precache the SHELL ONLY (js/css/fonts/small icons). Never precache
         // large media — that's the guide's #1 shipping trap. Artwork + audio
         // stay on the runtime path.

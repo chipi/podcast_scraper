@@ -69,7 +69,11 @@ const routes: RouteRecordRaw[] = [
 ]
 
 export const router = createRouter({
-  history: createWebHistory(),
+  // BASE_URL is vite's runtime-injected base (matches vite.config.ts APP_BASE).
+  // Under a subpath deploy this ensures router URLs, history entries, and
+  // <router-link> hrefs all include the base — no dead-links when deployed
+  // under /app/ or a preview /pr-N/ prefix.
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes,
   scrollBehavior: () => ({ top: 0 }),
 })
