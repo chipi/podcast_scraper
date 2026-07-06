@@ -38,9 +38,13 @@ capture ✓, consolidation ✓, minimal multi-user foundation ✓, a11y+i18n-fro
 Two items are genuine build work; the rest are decisions or known future cliffs.
 Numbered for cross-reference.
 
-1. **Build — `rank_discover` offline eval harness.** The single gate that unblocks *both*
-   flipping `APP_PERSONALIZED_RANKING` on (Pivot 2) and #1139 step 1. Without it,
-   personalized discovery stays code-complete but off.
+1. ~~**Build — `rank_discover` offline eval harness.**~~ **DONE 07-06.**
+   `scripts/eval/score/rank_discover_v1.py` (+ CI gate `tests/integration/server/
+   test_rank_discover_eval.py`) runs the real derive-interests → `rank_discover` path
+   per seeded persona and scores personalized vs recency (nDCG@10). Result: mean nDCG
+   0.39 → **1.00** (uplift **+0.61**), gate PASS. This is the evidence to flip
+   `APP_PERSONALIZED_RANKING` (+ `derived_interests`) on — the flip itself is an
+   operator/ops decision, not a code change.
 2. **Build — `topic_similarity` accuracy eval (#1105).** (**#1106 nli_contradiction:
    DONE 07-05** — eval built + run → 0% precision; softmax fix shipped; enricher
    disabled in all profiles; product goal → stance-level detector **#1144**.) #1105
@@ -103,8 +107,9 @@ shipped and fold the remainder into the #1069 decision.
 
 ## 4. Recommended sequence
 
-1. **Build the `rank_discover` offline eval** — unblocks personalization (Pivot 2) and
-   #1139 step 1 in a single move.
+1. ~~**Build the `rank_discover` offline eval**~~ **DONE 07-06** — built + passing
+   (mean nDCG@10 uplift +0.61 over recency). Personalization (Pivot 2) + #1139 step 1
+   are now unblocked; remaining is the operator/ops flag flip, not build work.
 2. **Finish #1105 topic_similarity accuracy** — populate a real gold set + measure
    recall@K (#1106 nli_contradiction resolved 07-05: 0% precision → softmax fix +
    disabled; product goal → stance-level detector #1144).

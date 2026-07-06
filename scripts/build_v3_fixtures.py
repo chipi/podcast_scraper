@@ -2746,6 +2746,11 @@ def build_v3_corpus_meta() -> CorpusV3Meta:
                     "topic:systems-thinking",
                     "topic:reliability",
                 ],
+                # rank_discover eval gold (#1139): the shows carrying BOTH risk-management
+                # AND systems-thinking (the persona's twin signal) — SRE, sustainability,
+                # cross-show. Distinguishes from single-signal shows (p05 finance-only,
+                # p04 photo-only) that recency would interleave.
+                "expected_relevant_shows": ["p02", "p07", "p09"],
             },
             {
                 "user_id": "u_invest",
@@ -2757,6 +2762,9 @@ def build_v3_corpus_meta() -> CorpusV3Meta:
                     "topic:monetary-policy",
                     "topic:macroeconomics",
                 ],
+                # rank_discover eval gold (#1139): Long Horizon Notes is the only
+                # personal-finance show — the single-lane persona's whole relevant set.
+                "expected_relevant_shows": ["p05"],
             },
             {
                 "user_id": "u_field",
@@ -2768,6 +2776,10 @@ def build_v3_corpus_meta() -> CorpusV3Meta:
                     "topic:dive-planning",
                     "topic:frame",
                 ],
+                # rank_discover eval gold (#1139): the three hands-on craft shows —
+                # mountain biking (endurance-sport), scuba (safety-practices),
+                # photography (visual-craft). Each carries a show-unique distinctive topic.
+                "expected_relevant_shows": ["p01", "p03", "p04"],
             },
         ],
         expected_enrichment={

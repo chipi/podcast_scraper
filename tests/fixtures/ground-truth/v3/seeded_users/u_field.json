@@ -8,6 +8,11 @@
     "topic:dive-planning",
     "topic:frame"
   ],
+  "expected_relevant_shows": [
+    "p01",
+    "p03",
+    "p04"
+  ],
   "heard": [
     "p01_e04",
     "p03_e04",

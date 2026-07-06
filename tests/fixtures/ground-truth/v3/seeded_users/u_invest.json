@@ -8,6 +8,9 @@
     "topic:monetary-policy",
     "topic:macroeconomics"
   ],
+  "expected_relevant_shows": [
+    "p05"
+  ],
   "heard": [
     "p05_e01",
     "p05_e02",

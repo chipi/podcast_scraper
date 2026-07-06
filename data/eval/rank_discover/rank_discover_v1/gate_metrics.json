@@ -1,0 +1,60 @@
+{
+  "metrics": {
+    "gate": {
+      "ndcg_floor": 0.5,
+      "pass": true,
+      "uplift_min": 0.05
+    },
+    "k": 10,
+    "mean_ndcg_uplift": 0.6104,
+    "mean_personalized_ndcg": 1.0,
+    "mean_personalized_precision": 0.8,
+    "mean_recency_ndcg": 0.3896,
+    "n_users": 3
+  },
+  "per_user": [
+    {
+      "gold_shows": [
+        "p01",
+        "p03",
+        "p04"
+      ],
+      "n_interests": 10,
+      "ndcg_uplift": 0.699,
+      "persona": "outdoor / hands-on",
+      "personalized_ndcg": 1.0,
+      "personalized_precision": 1.0,
+      "recency_ndcg": 0.301,
+      "recency_precision": 0.1,
+      "user_id": "u_field"
+    },
+    {
+      "gold_shows": [
+        "p05"
+      ],
+      "n_interests": 10,
+      "ndcg_uplift": 1.0,
+      "persona": "investing-only",
+      "personalized_ndcg": 1.0,
+      "personalized_precision": 0.4,
+      "recency_ndcg": 0.0,
+      "recency_precision": 0.0,
+      "user_id": "u_invest"
+    },
+    {
+      "gold_shows": [
+        "p02",
+        "p07",
+        "p09"
+      ],
+      "n_interests": 8,
+      "ndcg_uplift": 0.1323,
+      "persona": "risk-and-systems generalist",
+      "personalized_ndcg": 1.0,
+      "personalized_precision": 1.0,
+      "recency_ndcg": 0.8677,
+      "recency_precision": 0.5,
+      "user_id": "u_risk"
+    }
+  ]
+}
