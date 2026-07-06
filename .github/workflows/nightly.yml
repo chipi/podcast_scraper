@@ -662,7 +662,8 @@ jobs:
           # Skip whisper / spaCy / transformers preload — they aren't
           # installed under ``[search,dev]`` and tier-3 doesn't need them.
           # SKIP_GIL stays unset because the GIL evidence stack includes
-          # the embedding model (MiniLM-L6-v2) that ``cli index`` requires.
+          # the embedding model (MiniLM-L6-v2) that the LanceDB index build
+          # (``cli index-two-tier``, via ``make build-validation-index``) requires.
           SKIP_WHISPER: "1"
           SKIP_SPACY: "1"
           SKIP_TRANSFORMERS: "1"
@@ -672,25 +673,19 @@ jobs:
           # production way to populate the HF cache for embedding-only use.
           .venv/bin/python scripts/cache/preload_ml_models.py
 
-      - name: Build LanceDB search index against synthetic corpus (V2 prereq)
+      - name: Build validation search index + topic clusters (V2/V3/V4/V6 prereq)
         run: |
-          # /api/corpus/digest derives topic-bands dynamically from
-          # semantic search over kg_topic + insight embeddings (LanceDB).
-          # Without this step, the digest endpoint returns empty bands
-          # and V2 (Digest topic pill "Open in graph") times out.
-          .venv/bin/python -m podcast_scraper.cli index \
-            --output-dir tests/fixtures/viewer-validation-corpus \
-            --rebuild
-
-      - name: Build topic clusters (V4 prereq)
-        run: |
-          # /api/corpus/topic-clusters reads <corpus>/search/topic_clusters.json
-          # directly. The threshold (0.35) is calibrated for the synthetic
-          # corpus's umbrella-topic structure — see
-          # tests/fixtures/VIEWER_VALIDATION_CORPUS.md.
-          .venv/bin/python -m podcast_scraper.cli topic-clusters \
-            --output-dir tests/fixtures/viewer-validation-corpus \
-            --threshold 0.35
+          # LanceDB two-tier index (search/lance_index/) + topic_clusters.json
+          # under <corpus>/<FIXTURES_VERSION>/search/. Prereq for the digest
+          # topic-bands (V2 / P1.3 / P4.2), the dashboard topic-cluster chip
+          # (V4) and semantic search (V3 / V6). ``make build-validation-index``
+          # is the single source of truth: it resolves the *versioned* corpus
+          # path from tests/fixtures/FIXTURES_VERSION, so it tracks the v2→v3
+          # fixture migration (#1148) automatically. The prior hand-rolled
+          # ``cli index`` / ``cli topic-clusters`` calls hard-coded the
+          # version-less parent, which post-migration walks 0 episodes → empty
+          # bands → every index-dependent Tier-3 spec fails.
+          make build-validation-index
 
       - name: Start serve-for-validation (API + UI) in background
         run: |
@@ -720,10 +715,13 @@ jobs:
       - name: Run Tier-3 validation walk
         id: tier3
         working-directory: web/gi-kg-viewer
-        env:
-          CORPUS_PATH: ${{ github.workspace }}/tests/fixtures/viewer-validation-corpus
         run: |
-          node_modules/.bin/playwright test --config playwright.validation.config.ts \
+          # CORPUS_PATH must include the FIXTURES_VERSION subdir — the raw
+          # feeds/<feed>/metadata artifacts live under it, and pointing the
+          # walk at the version-less parent discovers 0 episodes (#1148).
+          VVC="${{ github.workspace }}/tests/fixtures/viewer-validation-corpus/$(cat ../../tests/fixtures/FIXTURES_VERSION)"
+          CORPUS_PATH="$VVC" \
+            node_modules/.bin/playwright test --config playwright.validation.config.ts \
             --reporter=list 2>&1 | tee tier3-output.log
         continue-on-error: true
 
@@ -776,7 +774,7 @@ jobs:
                 '',
                 `**Date:** ${date}`,
                 `**Run:** [${context.runId}](https://github.com/${owner}/${repo}/actions/runs/${context.runId})`,
-                `**Corpus:** \`tests/fixtures/viewer-validation-corpus\` (synthetic, in-repo)`,
+                `**Corpus:** \`tests/fixtures/viewer-validation-corpus/<FIXTURES_VERSION>\` (synthetic, in-repo)`,
                 '',
                 '## What this catches',
                 '',
@@ -800,8 +798,10 @@ jobs:
                 '## Logs',
                 '',
                 `- Download artifact: \`tier3-validation-failures\` from the run`,
-                `- Local repro: \`make serve-for-validation\` (terminal 1)`,
-                `  + \`make ci-ui-validation CORPUS=$PWD/tests/fixtures/viewer-validation-corpus\` (terminal 2)`,
+                `- Local repro: \`make build-validation-index\` (builds the search index +`,
+                `  topic clusters and prints the exact \`make ci-ui-validation CORPUS=…\``,
+                `  command with the versioned corpus path); then \`make serve-for-validation\``,
+                `  (terminal 1) + that printed command (terminal 2).`,
                 '',
                 'References: RFC-086, ADR-095, #774.',
               ].join('\n'),
