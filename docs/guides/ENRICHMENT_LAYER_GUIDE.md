@@ -16,7 +16,7 @@ JSONL surface itself is documented in
 
 Set `enrichment.enabled: true` in `viewer_operator.yaml`. The
 pipeline's finalize step then spawns
-`python -m podcast_scraper.enrichment.cli` as a **detached background
+`python -m podcast_scraper.cli enrich` as a **detached background
 subprocess** after every successful pipeline run. Three properties:
 
 - The pipeline returns its own count/summary immediately — wall-clock
@@ -35,7 +35,7 @@ WARNING and the pipeline returns normally.
 ### Run an enrichment pass
 
 ```bash
-python -m podcast_scraper.enrichment.cli \
+python -m podcast_scraper.cli enrich \
   --output-dir path/to/corpus \
   --profile cloud_balanced
 ```
@@ -62,7 +62,7 @@ Three equivalent paths:
 
 ```bash
 # CLI
-python -m podcast_scraper.enrichment.cli \
+python -m podcast_scraper.cli enrich \
   --output-dir corpus --re-enable nli_contradiction \
   --re-enable-reason "transient HF outage"
 ```
@@ -645,7 +645,7 @@ pipeline run.
 2. Check `GET /api/enrichment/events?enricher_id=<id>&limit=20` for
    the failure events that led to the cross-run threshold.
 3. If transient (HF rate-limit, network blip), click **Re-enable**
-   or run `python -m podcast_scraper.enrichment.cli --re-enable <id>
+   or run `python -m podcast_scraper.cli enrich --re-enable <id>
    --re-enable-reason "transient ..."`.
 4. If persistent, investigate via `enrichment_recent_events` +
    Langfuse + Loki via `prod_correlate(<run_id>)`.

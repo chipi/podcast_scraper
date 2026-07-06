@@ -1196,8 +1196,9 @@ upgrade-verify:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
 	$(PYTHON) -m podcast_scraper.cli upgrade verify --corpus-dir "$${CORPUS_DIR}"
 
-# Run the RFC-088 enrichment layer over a corpus (#1127). Wraps the standalone
-# `podcast_scraper.enrichment.cli` runner. Deterministic enrichers run by default;
+# Run the RFC-088 enrichment layer over a corpus (#1127). Invokes the
+# `podcast_scraper.cli enrich` subcommand — the same verb a manual job / cron
+# schedule / auto-after-ingest run uses (#1069). Deterministic enrichers run by default;
 # WITH_ML=1 wires the embedding/NLI enrichers (needs the `[ml]` extra + `provider`
 # blocks in the operator YAML). Results land under <CORPUS>/enrichments/ +
 # <CORPUS>/metadata/enrichments/, with a run_summary.json + run.jsonl audit trail.
@@ -1210,7 +1211,7 @@ upgrade-verify:
 #       make enrich CORPUS=.test_outputs/manual/prod-v2/corpus WITH_ML=1    # + embedding/NLI
 enrich:
 	@test -n "$(CORPUS)" || { echo "CORPUS required — corpus output dir, e.g. .test_outputs/manual/prod-pilot/corpus"; exit 1; }
-	@export PYTHONPATH="$(PWD)/src:$${PYTHONPATH}" && $(PYTHON) -m $(PACKAGE).enrichment.cli \
+	@export PYTHONPATH="$(PWD)/src:$${PYTHONPATH}" && $(PYTHON) -m $(PACKAGE).cli enrich \
 		--output-dir "$(CORPUS)" \
 		$(if $(WITH_ML),--with-ml) \
 		$(if $(ONLY),--only "$(ONLY)") \

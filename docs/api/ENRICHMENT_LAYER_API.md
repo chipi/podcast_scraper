@@ -189,7 +189,7 @@ generation.
 ## CLI
 
 ```bash
-python -m podcast_scraper.enrichment.cli \
+python -m podcast_scraper.cli enrich \
   --output-dir <corpus> \
   [--profile cloud_balanced] \
   [--enrichers topic_cooccurrence,temporal_velocity]    # alias for --only \
@@ -226,7 +226,7 @@ Deterministic-only profiles get a plain spawn so the spawn log stays
 honest about what runs.
 
 The viewer surfaces the same CLI as the `POST /api/jobs/enrichment`
-handler (spawns `python -m podcast_scraper.enrichment.cli` in a
+handler (spawns `python -m podcast_scraper.cli enrich` in a
 subprocess and tracks it through the shared jobs registry).
 
 ## References

@@ -19,7 +19,8 @@ from fastapi.testclient import TestClient
 pytest.importorskip("fastapi")
 
 from podcast_scraper.server.app import create_app
-from podcast_scraper.server.jobs import argv_from_record
+from podcast_scraper.server.jobs import argv_from_record, argv_summary, promote_queued_if_slot
+from podcast_scraper.server.pipeline_job_registry import with_jobs_locked_mutate
 
 pytestmark = [pytest.mark.integration]
 
@@ -79,6 +80,41 @@ def test_enrichment_job_spawns_the_enrichment_cli_not_pipeline(corpus: Path) -> 
     argv = captured[0]
     # THE FIX: an enrichment job runs the enrich CLI verb, not the plain pipeline.
     assert "podcast_scraper.cli" in argv and "enrich" in argv, argv
+
+
+def test_promote_preserves_queued_job_command(corpus: Path) -> None:
+    """Promotion flips lifecycle state but must NOT rewrite the command to pipeline (#1069).
+
+    Before the fix, promote_queued_if_slot rebuilt build_pipeline_argv and overwrote the
+    stored argv, so a queued enrichment job would run the pipeline once promoted.
+    """
+    enrich_argv = ["py", "-m", "podcast_scraper.cli", "enrich", "--output-dir", str(corpus)]
+    jid = "00000000-0000-4000-8000-0000000000ee"
+
+    def seed(jobs: list) -> None:
+        jobs.append(
+            {
+                "job_id": jid,
+                "command_type": "corpus_enrichment",
+                "status": "queued",
+                "created_at": "2026-04-19T12:00:00Z",
+                "started_at": None,
+                "ended_at": None,
+                "pid": None,
+                "argv_summary": argv_summary(enrich_argv),
+                "exit_code": None,
+                "log_relpath": f".viewer/jobs/{jid}.log",
+                "error_reason": None,
+                "cancel_requested": False,
+            }
+        )
+
+    with_jobs_locked_mutate(corpus, seed)
+    promoted = promote_queued_if_slot(corpus, corpus / "viewer_operator.yaml")
+
+    assert promoted is not None
+    assert promoted["status"] == "running"
+    assert json.loads(promoted["argv_summary"]) == enrich_argv  # command preserved, not pipeline
 
 
 def test_argv_from_record_reads_the_stored_command() -> None:

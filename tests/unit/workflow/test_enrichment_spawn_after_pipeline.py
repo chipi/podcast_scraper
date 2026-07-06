@@ -2,7 +2,7 @@
 
 RFC-088 chunk-9 follow-up. The pipeline finalize step calls
 ``_maybe_spawn_enrichment_after_pipeline()`` which detaches a subprocess
-running ``python -m podcast_scraper.enrichment.cli``. Tests stub
+running ``python -m podcast_scraper.cli enrich`` (#1069 consistency). Tests stub
 ``subprocess.Popen`` so we never actually fork — we only assert the
 gate (cfg.enrichment.enabled) + argv shape + log redirection.
 """
@@ -76,7 +76,8 @@ def test_spawn_fires_when_enabled(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     )
     assert len(_PopenSpy.calls) == 1
     argv = _PopenSpy.calls[0]["argv"]
-    assert argv[1:3] == ["-m", "podcast_scraper.enrichment.cli"]
+    # #1069 consistency: the auto ingest->enrich chain uses the `enrich` main-CLI verb.
+    assert argv[1:4] == ["-m", "podcast_scraper.cli", "enrich"]
     assert "--output-dir" in argv
     assert str(tmp_path) in argv
     assert "--profile" in argv

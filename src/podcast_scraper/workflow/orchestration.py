@@ -1696,8 +1696,13 @@ def _finalize_pipeline(
 
 
 def _maybe_spawn_enrichment_after_pipeline(cfg: config.Config, effective_output_dir: str) -> None:
-    """Spawn ``python -m podcast_scraper.enrichment.cli`` as a detached
+    """Spawn ``python -m podcast_scraper.cli enrich`` as a detached
     background subprocess (RFC-088 chunk 9 — Mode B integration).
+
+    This is the automatic ingest → enrich chain: when the pipeline finalizes and
+    ``enrichment.enabled`` is set, enrichment runs over the just-ingested corpus.
+    It invokes the same ``enrich`` main-CLI verb as a manual / scheduled run
+    (#1069 consistency).
 
     The pipeline doesn't block on enrichment. The subprocess writes its
     JSONL + run_summary + envelopes under the same corpus root and tracks
@@ -1723,7 +1728,8 @@ def _maybe_spawn_enrichment_after_pipeline(cfg: config.Config, effective_output_
     argv: list[str] = [
         _sys.executable,
         "-m",
-        "podcast_scraper.enrichment.cli",
+        "podcast_scraper.cli",
+        "enrich",
         "--output-dir",
         str(effective_output_dir),
     ]
