@@ -94,7 +94,7 @@ ml = [
   # ``ModuleNotFoundError: No module named 'click'`` if click isn't
   # explicit here. Surfaced 2026-05-27 when typer-0.26.1 first appeared
   # in resolution.
-  "click>=8.0.0,<9.0.0",
+  "click>=8.4.2,<9.0.0",
   # spaCy language models are distributed via GitHub releases (not PyPI) due to size constraints.
   # This is the official and standard method recommended by spaCy.
   # Version compatibility: spaCy 3.8.x requires en_core_web_sm 3.8.x and en_core_web_trf 3.8.x
