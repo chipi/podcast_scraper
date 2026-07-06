@@ -3605,19 +3605,11 @@ def _parse_kg_args(kg_argv: Sequence[str]) -> argparse.Namespace:
     return args
 
 
-def _parse_pipeline_argv(
-    argv: Optional[Sequence[str]], *, ingest: bool = False
-) -> argparse.Namespace:
-    """Build + parse the full pipeline arg surface (the default run, and #1069 ``ingest``).
+def _parse_pipeline_argv(argv: Optional[Sequence[str]]) -> argparse.Namespace:
+    """Build + parse the full pipeline arg surface (the default run).
 
-    Shared by the default pipeline command and the ``ingest`` subcommand so the
-    latter inherits the entire arg surface — most importantly ``--profile`` /
-    ``--config`` resolution and every ML flag — instead of redeclaring it.
-
-    ``ingest=True`` adds ``--force`` and marks the namespace as the ``ingest``
-    subcommand, forcing single-feed corpus layout on so the feed lands under
-    ``<corpus>/feeds/<dir>/`` and the corpus manifest is stamped (what the
-    ingestion primitive's dedup + merge depend on).
+    Extracted so the parser build is a named unit; ``--profile`` / ``--config``
+    resolution + every ML flag live here.
     """
     parser = argparse.ArgumentParser(
         description="Download podcast episode transcripts from an RSS feed."
@@ -3641,12 +3633,6 @@ def _parse_pipeline_argv(
     _add_grok_arguments(parser)
     _add_ollama_arguments(parser)
     _add_cache_arguments(parser)
-    if ingest:
-        parser.add_argument(
-            "--force",
-            action="store_true",
-            help="Re-ingest even when the feed is already in the corpus (incremental).",
-        )
 
     initial_args, _ = parser.parse_known_args(argv)
 
@@ -3675,10 +3661,6 @@ def _parse_pipeline_argv(
     else:
         args = parser.parse_args(argv)
         _attach_cli_merge_metadata(parser, argv, args)
-
-    if ingest:
-        args.command = "ingest"
-        args.single_feed_uses_corpus_layout = True
 
     validate_args(args)
     return args
@@ -3811,12 +3793,6 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         args = _parse_pricing_assumptions_args(pa_argv)
         args.command = "pricing-assumptions"
         return args
-
-    if argv and len(argv) > 0 and argv[0] == "ingest":
-        # #1069: the pipeline run routed through the ingestion primitive (policy
-        # seam + feed-level dedup + corpus manifest stamp). Reuses the full
-        # pipeline arg surface so --profile / ML settings apply exactly as a run.
-        return _parse_pipeline_argv(list(argv[1:]) if len(argv) > 1 else [], ingest=True)
 
     if argv and len(argv) > 0 and argv[0] == "enrich":
         # #1069 consistency: ``enrich`` is a main-CLI subcommand — like the
@@ -4716,36 +4692,6 @@ def _run_corpus_cost_cli(args: argparse.Namespace, log: logging.Logger) -> int:
     return 0
 
 
-def _run_ingest_command(args: argparse.Namespace) -> int:
-    """Ingest one feed into a corpus via the ingestion primitive (#1069).
-
-    Builds the pipeline Config from the shared arg surface, then routes it
-    through ``ingest_feed`` — the operator path uses ``AllowAllPolicy`` (no
-    guardrails); the phase-2 self-serve surface will pass a per-user policy into
-    the same seam. Returns 0 on ingest / already-present, 1 on failure.
-    """
-    from podcast_scraper import service
-    from podcast_scraper.ingestion import AllowAllPolicy, ingest_feed
-    from podcast_scraper.ingestion.primitive import STATUS_FAILED
-
-    cfg = _build_config(args)
-    result = ingest_feed(
-        cfg,
-        run=service.run,
-        policy=AllowAllPolicy(),
-        force=bool(getattr(args, "force", False)),
-    )
-    print(
-        f"[ingest] {result.status}: {result.feed_url} → feeds/{result.feed_dir} "
-        f"(episodes_added={result.episodes_added})"
-    )
-    if result.summary:
-        print(f"[ingest] {result.summary}")
-    if result.error:
-        print(f"[ingest] error: {result.error}")
-    return 1 if result.status == STATUS_FAILED else 0
-
-
 def main(  # noqa: C901 - main function handles multiple command paths
     argv: Optional[Sequence[str]] = None,
     *,
@@ -4819,12 +4765,8 @@ def main(  # noqa: C901 - main function handles multiple command paths
             check_models=getattr(args, "check_models", False),
         )
 
-    # #1069: ingest one feed into a corpus through the ingestion primitive.
-    if hasattr(args, "command") and args.command == "ingest":
-        return _run_ingest_command(args)
-
     # #1069 consistency: enrich delegates to the enrichment CLI, so it invokes +
-    # runs (incl. in docker) exactly like the pipeline / ingest.
+    # runs (incl. in docker) exactly like the pipeline.
     if hasattr(args, "command") and args.command == "enrich":
         from podcast_scraper.enrichment import cli as _enrichment_cli
 

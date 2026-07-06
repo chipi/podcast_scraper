@@ -271,8 +271,8 @@ covers `/api/feeds`, `/api/operator-config`, `/api/ops`, `/api/jobs*`, `/api/sch
 
 - **Consumer scrape-on-demand** (`POST /api/app/scrape`, #1069 **phase 2**) — deferred to the
   self-serve epic (Podcast Index `DiscoverySource` + guardrails), gated on real persistence + the
-  PWA. The operator-side ingestion primitive already exists (`podcast_scraper ingest`, single-feed
-  pipeline over #807), so curated corpus growth is available today. See
+  PWA. Operator-side corpus growth already works via the pipeline itself
+  (`--feeds-spec` / `--rss`, single-feed over #807), so curated growth is available today. See
   `docs/wip/player/1069-SCRAPE-ON-DEMAND-SCOPE-ANALYSIS.md`.
 - **No-store audio proxy** (#1070) — until a host blocks direct play.
 - **Consumer PWA** (RFC-099) — the actual front-end app, a separate workstream.

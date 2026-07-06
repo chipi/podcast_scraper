@@ -5,6 +5,16 @@
 - **Issue**: #1069 (the last open P0 on umbrella #911)
 - **Context**: LEARNING-PLATFORM-GAP-ANALYSIS-2026-07 gap item 3
 
+> **Update (2026-07-07).** A standalone ingestion primitive + `ingest` CLI verb were built, then
+> **dropped as redundant**: the pipeline already *is* the ingestion (`--feeds-spec` / `--rss`,
+> incremental, manifest-stamped), and the primitive's only net-new feature — an `IngestPolicy`
+> seam — is for the deferred phase-2 self-serve guardrails, i.e. premature. **Phase-1 ingestion =
+> the pipeline** (manual / cron-scheduled / auto-after-ingest). The #1069 work that *shipped* is
+> the **ingestion↔enrichment consistency**: enrichment became a first-class peer of the pipeline
+> across CLI (`enrich` verb), docker, manual + scheduled jobs (`kind: enrichment`), and the
+> auto-after-ingest chain — and a latent job-spawn bug (every job ran the pipeline) was fixed. The
+> "build plan" below is superseded by this; phase 2 (consumer self-serve) is unchanged.
+
 ---
 
 ## TL;DR — decision
