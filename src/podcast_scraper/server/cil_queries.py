@@ -811,6 +811,63 @@ def topic_timeline_merged(
     return sorted(results, key=lambda r: (r.get("publish_date") or "", r.get("episode_id") or ""))
 
 
+def topic_perspective_leaders(
+    root_path: str,
+    anchor_path: str,
+    limit: int = 12,
+) -> list[dict[str, Any]]:
+    """Topics ranked by distinct speakers with an attributed insight (#1146 dashboard).
+
+    One GI pass over the corpus: for each topic, count distinct speakers (and insights)
+    with an Insight ABOUT the topic attributed via SUPPORTED_BY -> SPOKEN_BY. Only topics
+    with >= 2 speakers (a *multi*-perspective topic) are returned, most-speakers first.
+    """
+    from collections import defaultdict
+
+    speakers: dict[str, set[str]] = defaultdict(set)
+    counts: dict[str, int] = defaultdict(int)
+    label: dict[str, str] = {}
+    for _safe_bridge, _bridge, gi, _kg in iter_cil_episode_bundles(root_path, anchor_path):
+        about: dict[str, set[str]] = defaultdict(set)
+        insight_quote: dict[str, str] = {}
+        quote_person: dict[str, str] = {}
+        for e in gi.get("edges") or []:
+            if not isinstance(e, dict):
+                continue
+            etype = normalize_gil_edge_type(e.get("type"))
+            if etype == "ABOUT":
+                about[_strip_layer_prefixes_for_cil(str(e.get("to")))].add(str(e.get("from")))
+            elif etype == "SUPPORTED_BY":
+                insight_quote.setdefault(str(e.get("from")), str(e.get("to")))
+            elif etype == "SPOKEN_BY":
+                quote_person[str(e.get("from"))] = str(e.get("to"))
+        for n in gi.get("nodes") or []:
+            if isinstance(n, dict) and n.get("type") == "Topic":
+                tid = _strip_layer_prefixes_for_cil(str(n.get("id")))
+                lbl = (n.get("properties") or {}).get("label")
+                if tid and isinstance(lbl, str) and lbl.strip():
+                    label.setdefault(tid, lbl.strip())
+        for tid, insights in about.items():
+            for iid in insights:
+                qid = insight_quote.get(iid)
+                pid = quote_person.get(qid) if qid else None
+                if pid:
+                    speakers[tid].add(pid)
+                    counts[tid] += 1
+    out: list[dict[str, Any]] = [
+        {
+            "topic_id": tid,
+            "topic_label": label.get(tid, tid.split(":", 1)[-1]),
+            "speaker_count": len(spk),
+            "insight_count": counts[tid],
+        }
+        for tid, spk in speakers.items()
+        if len(spk) >= 2
+    ]
+    out.sort(key=lambda r: (-r["speaker_count"], -r["insight_count"], r["topic_id"]))
+    return out[: max(0, limit)]
+
+
 def topic_perspectives(
     root_path: str,
     anchor_path: str,

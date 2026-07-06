@@ -17,6 +17,8 @@ from podcast_scraper.server.schemas import (
     CilPersonProfileResponse,
     CilPositionArcResponse,
     CilTopicPerspective,
+    CilTopicPerspectiveLeader,
+    CilTopicPerspectiveLeadersResponse,
     CilTopicPerspectivesResponse,
     CilTopicTimelineMergedResponse,
     CilTopicTimelineMergeRequest,
@@ -226,6 +228,30 @@ async def topic_timeline(
         topic_id=tid,
         episodes=episodes,
     )
+
+
+@router.get("/topics/perspective-leaders", response_model=CilTopicPerspectiveLeadersResponse)
+async def topic_perspective_leaders(
+    request: Request,
+    path: str | None = Query(
+        default=None,
+        description="Corpus root. Omit when server default output_dir is set.",
+    ),
+    limit: int = Query(default=12, ge=1, le=100),
+) -> CilTopicPerspectiveLeadersResponse:
+    """Topics ranked by distinct-speaker perspectives, corpus-wide (#1146 dashboard)."""
+    root_safe, anchor_safe = _require_root_and_anchor(request, path)
+    raw = cil_queries.topic_perspective_leaders(root_safe, anchor_safe, limit=limit)
+    topics = [
+        CilTopicPerspectiveLeader(
+            topic_id=str(r["topic_id"]),
+            topic_label=str(r["topic_label"]),
+            speaker_count=int(r["speaker_count"]),
+            insight_count=int(r["insight_count"]),
+        )
+        for r in raw
+    ]
+    return CilTopicPerspectiveLeadersResponse(path=root_safe, topics=topics)
 
 
 @router.get("/topics/{topic_id}/perspectives", response_model=CilTopicPerspectivesResponse)

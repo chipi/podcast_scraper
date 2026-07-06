@@ -1884,6 +1884,22 @@ class CilTopicTimelineResponse(BaseModel):
     episodes: list[CilArcEpisodeBlock] = Field(default_factory=list)
 
 
+class CilTopicPerspectiveLeader(BaseModel):
+    """A multi-perspective topic for the dashboard (#1146)."""
+
+    topic_id: str
+    topic_label: str
+    speaker_count: int = Field(ge=0)
+    insight_count: int = Field(ge=0)
+
+
+class CilTopicPerspectiveLeadersResponse(BaseModel):
+    """Response for GET /api/topics/perspective-leaders (#1146)."""
+
+    path: str
+    topics: list[CilTopicPerspectiveLeader] = Field(default_factory=list)
+
+
 class CilTopicPerspective(BaseModel):
     """One speaker's take on a topic — their grounded insights (operator CIL view; #1146)."""
 

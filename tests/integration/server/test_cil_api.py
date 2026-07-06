@@ -302,6 +302,18 @@ class TestCilApi:
         assert p0["insight_count"] >= 1
         assert p0["insights"]
 
+    def test_perspective_leaders(self, client: TestClient, cil_corpus: Path) -> None:
+        resp = client.get(
+            "/api/topics/perspective-leaders",
+            params={"path": str(cil_corpus), "limit": 5},
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert isinstance(body["topics"], list)
+        for row in body["topics"]:  # only multi-speaker topics are returned
+            assert row["speaker_count"] >= 2
+            assert row["topic_label"]
+
     def test_timeline_merge_post(self, client: TestClient, cil_corpus: Path) -> None:
         resp = client.post(
             "/api/topics/timeline",

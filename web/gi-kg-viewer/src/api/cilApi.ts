@@ -142,6 +142,36 @@ export async function fetchTopicPerspectives(
   return (await res.json()) as CilTopicPerspectivesResponse
 }
 
+export interface CilTopicPerspectiveLeader {
+  topic_id: string
+  topic_label: string
+  speaker_count: number
+  insight_count: number
+}
+
+export interface CilTopicPerspectiveLeadersResponse {
+  path: string
+  topics: CilTopicPerspectiveLeader[]
+}
+
+/** Topics ranked by distinct-speaker perspectives, corpus-wide (#1146 dashboard). */
+export async function fetchTopicPerspectiveLeaders(
+  corpusPath: string,
+  limit = 12,
+): Promise<CilTopicPerspectiveLeadersResponse> {
+  const root = corpusPath.trim()
+  if (!root) {
+    throw new Error('Corpus path is required')
+  }
+  const q = new URLSearchParams({ path: root, limit: String(limit) })
+  const res = await fetchWithTimeout(`/api/topics/perspective-leaders?${q.toString()}`)
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(detail.trim() || `HTTP ${res.status}`)
+  }
+  return (await res.json()) as CilTopicPerspectiveLeadersResponse
+}
+
 export async function fetchTopicTimelineMerged(
   corpusPath: string,
   topicIds: string[],
