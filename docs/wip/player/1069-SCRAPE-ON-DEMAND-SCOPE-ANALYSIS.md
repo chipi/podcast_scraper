@@ -1,22 +1,31 @@
 # #1069 scrape-on-demand — scope analysis (keep-P0 / re-scope / close)
 
-- **Status**: Decision needed (operator)
+- **Status**: **Decided 2026-07-06 — phased (curated first, user self-serve second)**
 - **Date**: 2026-07-06
 - **Issue**: #1069 (the last open P0 on umbrella #911)
 - **Context**: LEARNING-PLATFORM-GAP-ANALYSIS-2026-07 gap item 3
 
 ---
 
-## TL;DR — recommendation
+## TL;DR — decision
 
-**Re-scope.** Split #1069 into a small **operator-ingest slice** (build now) and a large
-**consumer-discovery slice** (defer). The moat — a corpus that grows over weeks/months — is
-served by the small slice using primitives that already exist. The large slice (Podcast Index
-search + add-to-library + public scrape UI + abuse guardrails) is premature while the product is
-operator-curated and pre-user-scale.
+The product is **curated corpus first, user-bring-your-own-shows second** — both, phased (operator
+confirmed 2026-07-06). Both phases need the **same core primitive**: *ingest one specific
+feed/episode into the corpus, as a tracked job, idempotent + globally deduped.* So the decision is
+neither "close" nor "build the whole consumer surface" — it's:
 
-Do **not** keep it as a single monolithic P0, and do **not** close it outright — the ingest
-primitive is genuinely useful and cheap.
+1. **Build now — the ingestion primitive** (the durable write-path spine). Grows the curated
+   corpus today; is the load-bearing foundation the self-serve layer sits on later. Includes an
+   **authorization/policy seam** (operator path no-ops it; the future user path enforces
+   guardrails through it) so adding guardrails later is a policy, not a rewrite.
+2. **Build later — the consumer self-serve surface** (its own epic): the Podcast Index
+   `DiscoverySource`, add-to-library + scrape-progress UI, and the guardrail *implementations*
+   (rate limits, per-user quotas, cost bounds, abuse prevention). Gated on the deps it actually
+   needs — real persistence (currently plain per-user files), the PWA (RFC-099), and real users.
+
+Split #1069 accordingly: the primitive is a build-now issue; the consumer surface is a later epic.
+This is **not** the throwaway "thin admin endpoint" stopgap that was floated and rejected — the
+primitive is built as the permanent foundation both paths depend on, with the right seams.
 
 ---
 
@@ -59,32 +68,46 @@ anything **already in the corpus**. #1069's unique addition is bringing in shows
 
 Items 1 is small (glue over existing primitives). Items 2–4 are the large, genuinely-new surface.
 
-## Options
+## Options considered (for the record)
 
-| Option | What | Cost | When it's right |
-| --- | --- | --- | --- |
-| **A. Re-scope (recommended)** | Ship item 1 (operator/admin-gated `POST /api/app/scrape` over the existing single-feed pipeline + jobs API). Defer 2–4. | Small | Corpus growth is operator-curated today; you want to add shows without a full-corpus rerun, but there are no external users to self-serve. |
-| **B. Close / fold into scheduled ingestion** | Close #1069; grow the corpus via operator-scheduled feed runs (cron/CI over a curated feed list). Reopen on real user demand. | ~0 | If even item 1 isn't needed — a scheduled feed list covers corpus growth and nobody needs interactive scrape. |
-| **C. Keep full P0** | Build 1–4 including Podcast Index + consumer discovery UI + guardrails. | Large | Only if "users add their own shows" is launch-blocking. |
+| Option | What | Why not chosen |
+| --- | --- | --- |
+| Thin admin `POST /api/app/scrape` stopgap | A throwaway operator-only endpoint, guardrails "later". | Rejected — a half-built seam that half-commits and rots; adding guardrails later means rewriting the ingest path. |
+| Close / fold into scheduled ingestion only | Grow the corpus purely via a scheduled curated feed list; drop self-serve. | Rejected — the product *will* let users bring their own shows; closing self-serve outright contradicts the vision. |
+| Keep full monolithic P0 | Build the whole thing now (ingest + Podcast Index + UI + guardrails). | Rejected — the consumer surface depends on persistence + PWA + real users the product doesn't have yet; building it now is speculative. |
+| **Phased around the shared primitive (chosen)** | Build the durable ingestion primitive now (with the guardrail seam); defer the consumer surface to a deps-gated epic. | Both phases need the same write-path spine; build it once, correctly, and layer discovery on top when the product is ready. |
 
-## Recommendation & reasoning
+## Decision & reasoning (2026-07-06)
 
-**A (re-scope), with B as the fallback if item 1 isn't even wanted yet.**
+**Phased around the shared ingestion primitive.**
 
-- Discovery-over-local already shipped, so #1069 no longer blocks the *discovery* experience —
-  only *corpus growth*.
-- The moat (a corpus that grows) is served by item 1, which is cheap: the single-feed pipeline
-  (#807), the `ContentSource` seam, and the jobs API already exist. It's glue, not a new subsystem.
-- Items 2–4 (Podcast Index integration, consumer scrape UI, abuse guardrails) are a large surface
-  whose value depends on **external users self-serving shows** — which the product doesn't have
-  yet (per-user state is still plain files; the gap analysis flags persistence as a pre-scale
-  cliff). Building them now is speculative.
-- Reconcile PRD-037 (mark FR1/FR3/FR4 as the deferred consumer slice) and update the PLATFORM_API
-  "blocked on a pipeline enhancement" note (the primitive exists).
+- Curated-now and self-serve-later need the *same* primitive — ingest one feed/episode, as a job,
+  idempotent + deduped. Build that spine once, as a permanent foundation, not a stopgap.
+- Enabling primitives already exist and this composes them: single-feed pipeline runs (#807), the
+  `ContentSource` / `DiscoverySource` seam (`app_content_source`), and the jobs API for progress.
+- The guardrail/policy **seam** goes in now (an authorization hook); the guardrail *implementations*
+  (rate/quota/cost/abuse) land with the self-serve epic — so that later work slots in, no rewrite.
+- The consumer surface (Podcast Index `DiscoverySource`, add-to-library + progress UI, guardrail
+  impls) is a separate later epic, gated on real persistence, the PWA (RFC-099), and real users.
 
-## Decision needed
+## Build plan
 
-Pick A / B / C. If **A**: I can scope the thin `POST /api/app/scrape` slice (endpoint → single-feed
-job → deduped merge, admin-gated) as its own issue under #911. If **B**: close #1069 with a note and
-capture the scheduled-ingestion approach. If **C**: this becomes a multi-PR epic (DiscoverySource +
-UI + guardrails) and needs its own plan.
+**Now (this work):** the ingestion primitive.
+
+- `ingest(feed_url | episode)` → runs the single-feed pipeline as a **job** (jobs API) → merges the
+  resulting artifacts into the corpus, **globally deduped** (an already-ingested feed/episode is a
+  no-op, per PRD-037 "globally deduped" + PRD-035 shared-artifacts principle).
+- An **authorization/policy seam** on the trigger — operator/admin path no-ops; the shape is ready
+  for per-user quotas/rate limits later.
+- Operator entry point (CLI and/or admin-gated endpoint) — *not* a public consumer route yet.
+
+**Later (separate epic, deps-gated):** the consumer self-serve surface — Podcast Index
+`DiscoverySource`, add-to-library + scrape-progress UI, and the guardrail implementations.
+
+## Housekeeping
+
+- Split #1069: the ingestion primitive = build-now; the consumer-discovery surface = later epic.
+  (Operator opens the issues.)
+- Reconcile PRD-037: it is **curated first, self-serve second — phased**, not "self-serve in v2.7".
+- Update the PLATFORM_API "blocked on a pipeline enhancement" note — the single-feed primitive
+  (#807) exists; what remains is the ingest orchestration + dedup, built here.

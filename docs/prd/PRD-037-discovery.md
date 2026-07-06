@@ -17,6 +17,17 @@ catalog (Podcast Index to start), a personal library view, and scrape-on-demand.
 `Discover → Catalog → Player` loop. Sources are pluggable via a `DiscoverySource` abstraction so new
 sources (OPML, manual RSS) can be added without touching core logic.
 
+> **Phasing note (2026-07-06).** This PRD is delivered in two phases, **curated first, user
+> self-serve second** — not all at once in v2.7. **Phase 1 (now):** the corpus is operator-curated;
+> the shared **ingestion primitive** (ingest one feed/episode → job → deduped merge, #1069) grows
+> it, and the search / library / personalization surfaces run over what's ingested (already shipped:
+> entity search #1097, ranking #1098 / #1139, home + search #1090). **Phase 2 (later epic, gated on
+> real persistence + the PWA + real users):** the consumer self-serve surface — Podcast Index
+> `DiscoverySource` (FR1), user-triggered scrape (FR2 / FR4), and the guardrail implementations
+> (rate / quota / cost / abuse). The FRs below describe the full Phase-2 target; the
+> `DiscoverySource` seam (`app_content_source`) is scaffolded now so Phase 2 adds no API reshape.
+> See `docs/wip/player/1069-SCRAPE-ON-DEMAND-SCOPE-ANALYSIS.md` for the decision + build plan.
+
 ## Background & Context
 
 - Without discovery, users must hand-supply RSS URLs — technical-only and hostile. Podcast Index is a
