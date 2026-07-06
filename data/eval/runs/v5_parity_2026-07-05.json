@@ -1,0 +1,184 @@
+{
+  "issue": "#382",
+  "phase": "7 — v5 parity gate",
+  "summarizer": {
+    "n_pairs": 5,
+    "shared_episode_ids": [
+      "p01_e01",
+      "p02_e01",
+      "p03_e01",
+      "p04_e01",
+      "p05_e01"
+    ],
+    "rouge_l_by_episode": {
+      "p01_e01": 1.0,
+      "p02_e01": 1.0,
+      "p03_e01": 1.0,
+      "p04_e01": 1.0,
+      "p05_e01": 1.0
+    },
+    "min_rouge_l": 1.0,
+    "mean_rouge_l": 1.0,
+    "threshold": 0.95,
+    "pass": true
+  },
+  "qa": {
+    "n_pairs": 8,
+    "shared_ids": [
+      "p01_e01_q1_guest",
+      "p01_e01_q2_topic",
+      "p02_e01_q1_guest",
+      "p02_e01_q2_topic",
+      "p03_e01_q1_guest",
+      "p04_e01_q1_guest",
+      "p05_e01_q1_guest",
+      "p05_e01_q2_topic"
+    ],
+    "offset_matches": 6,
+    "offset_match_rate": 0.75,
+    "text_matches": 7,
+    "text_match_rate": 0.875,
+    "score_delta_mean_abs": 0.23210947491801906,
+    "text_match_threshold": 0.85,
+    "pass": true,
+    "per_pair": [
+      {
+        "id": "p01_e01_q1_guest",
+        "offset_match": true,
+        "text_match": true,
+        "pre": {
+          "start": 80,
+          "end": 84,
+          "score": 0.22783757420256734,
+          "text": "Liam"
+        },
+        "post": {
+          "start": 80,
+          "end": 84,
+          "score": 0.5002691223281608,
+          "text": "Liam"
+        }
+      },
+      {
+        "id": "p01_e01_q2_topic",
+        "offset_match": false,
+        "text_match": true,
+        "pre": {
+          "start": 6658,
+          "end": 6700,
+          "score": 0.6659633815288544,
+          "text": "The bike should feel quiet and predictable"
+        },
+        "post": {
+          "start": 10041,
+          "end": 10083,
+          "score": 0.7865901766525706,
+          "text": "The bike should feel quiet and predictable"
+        }
+      },
+      {
+        "id": "p02_e01_q1_guest",
+        "offset_match": true,
+        "text_match": true,
+        "pre": {
+          "start": 86,
+          "end": 92,
+          "score": 0.3745296001434326,
+          "text": "Priya\n"
+        },
+        "post": {
+          "start": 86,
+          "end": 92,
+          "score": 0.48320206334869453,
+          "text": "Priya\n"
+        }
+      },
+      {
+        "id": "p02_e01_q2_topic",
+        "offset_match": true,
+        "text_match": true,
+        "pre": {
+          "start": 10285,
+          "end": 10290,
+          "score": 0.22917506098747253,
+          "text": "speed"
+        },
+        "post": {
+          "start": 10285,
+          "end": 10290,
+          "score": 0.5598397525135034,
+          "text": "speed"
+        }
+      },
+      {
+        "id": "p03_e01_q1_guest",
+        "offset_match": true,
+        "text_match": true,
+        "pre": {
+          "start": 77,
+          "end": 83,
+          "score": 0.20231792330741882,
+          "text": "Marco\n"
+        },
+        "post": {
+          "start": 77,
+          "end": 83,
+          "score": 0.5102675052145835,
+          "text": "Marco\n"
+        }
+      },
+      {
+        "id": "p04_e01_q1_guest",
+        "offset_match": true,
+        "text_match": true,
+        "pre": {
+          "start": 80,
+          "end": 84,
+          "score": 0.42092859745025635,
+          "text": "Ava\n"
+        },
+        "post": {
+          "start": 80,
+          "end": 84,
+          "score": 0.710972777854356,
+          "text": "Ava\n"
+        }
+      },
+      {
+        "id": "p05_e01_q1_guest",
+        "offset_match": true,
+        "text_match": true,
+        "pre": {
+          "start": 86,
+          "end": 92,
+          "score": 0.18110454027919332,
+          "text": "Daniel"
+        },
+        "post": {
+          "start": 86,
+          "end": 92,
+          "score": 0.4063777099583212,
+          "text": "Daniel"
+        }
+      },
+      {
+        "id": "p05_e01_q2_topic",
+        "offset_match": false,
+        "text_match": false,
+        "pre": {
+          "start": 1141,
+          "end": 1156,
+          "score": 0.33493591204751283,
+          "text": "Index investing"
+        },
+        "post": {
+          "start": 312,
+          "end": 329,
+          "score": 0.5361492814206708,
+          "text": "people care about"
+        }
+      }
+    ]
+  },
+  "overall_pass": true
+}
