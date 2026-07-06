@@ -90,6 +90,43 @@ class ProviderRequirement:
 
 
 @dataclass(frozen=True)
+class AccuracyGateRule:
+    """One accuracy threshold on an enricher's eval metric.
+
+    The acceptance-gate analogue of
+    ``podcast_scraper.evaluation.regression.RegressionRule``: where a
+    ``RegressionRule`` fires on a *delta vs baseline*, this fires on an
+    *absolute floor* — the enricher is promoted only when
+    ``metrics[metric_name] >= min_value``. Declared on the manifest,
+    checked by ``podcast_scraper.enrichment.eval.gate``.
+    """
+
+    metric_name: str  # e.g. "precision", "recall_at_k", "mae_within"
+    min_value: float  # inclusive floor the metric must reach to promote
+    severity: str = "error"  # "error" gates admission; "warning"/"info" advisory only
+
+
+@dataclass(frozen=True)
+class AccuracyGateSpec:
+    """An enricher's declared accuracy bar for admission.
+
+    Co-located with ``config_schema`` / ``provider_requirement`` on the
+    manifest so an enricher fully self-describes: what it reads/writes, its
+    knobs, its provider need, AND the accuracy it must prove to ship.
+    ``enrichment.eval.gate`` reads the latest ``data/eval`` metrics and
+    evaluates these rules; the result drives ``enrichment.eval.admission``
+    → registry → profiles → UI config (mirrors how providers are gated).
+    """
+
+    rules: tuple[AccuracyGateRule, ...]
+    # What to do when no eval metrics exist yet (nothing has measured this
+    # enricher). "reject": excluded until a passing eval is recorded — the
+    # safe default for a known-broken enricher (e.g. nli_contradiction after
+    # #1106). "admit": shipped provisionally until an eval proves otherwise.
+    on_missing_data: str = "reject"
+
+
+@dataclass(frozen=True)
 class EnricherManifest:
     """Declares an enricher's inputs, outputs, tier, scope, and cost caps."""
 
@@ -120,6 +157,13 @@ class EnricherManifest:
     # CLI flag wiring + the UI's per-row Provider form section.
     # Deterministic enrichers leave this ``None``.
     provider_requirement: ProviderRequirement | None = None
+    # Optional accuracy gate. When set, ``enrichment.eval.admission`` promotes
+    # this enricher into the registry (→ profiles → UI config) only if the
+    # latest ``data/eval`` metrics clear every "error"-severity rule. ``None``
+    # means "no accuracy bar declared" → always admitted (the six deterministic
+    # enrichers today). This is the data-driven replacement for hand-editing
+    # the shipping set in ``profile_sets``.
+    accuracy_gate: AccuracyGateSpec | None = None
 
 
 @dataclass(frozen=True)

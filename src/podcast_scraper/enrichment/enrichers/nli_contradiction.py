@@ -26,6 +26,8 @@ from podcast_scraper.enrichment.enrichers._loaders import (
     nodes_of_type,
 )
 from podcast_scraper.enrichment.protocol import (
+    AccuracyGateRule,
+    AccuracyGateSpec,
     EnricherManifest,
     EnricherResult,
     EnricherScope,
@@ -126,6 +128,17 @@ class NliContradictionEnricher:
         provider_requirement=ProviderRequirement(
             protocol="NliScorer",
             description="NLI scorer (DeBERTa local, scripted fixture, or future hosted NLI API).",
+        ),
+        # Data-driven admission (RFC-088 accuracy-gate amendment). #1106 measured
+        # 0% precision on prod-v2 — the cross-encoder over-fires "contradiction"
+        # on merely topic-adjacent Insight pairs. This gate excludes the enricher
+        # from the registry (→ profiles → UI) until an eval records precision
+        # ≥ 0.5, replacing the hand-commented disable in profile_sets. When a
+        # redesigned disagreement detector + its scorer land and write a passing
+        # precision to data/eval, it auto-promotes with no code edit.
+        accuracy_gate=AccuracyGateSpec(
+            rules=(AccuracyGateRule(metric_name="precision", min_value=0.5),),
+            on_missing_data="reject",
         ),
     )
 

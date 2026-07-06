@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Any
 
 from podcast_scraper.enrichment.enrichers import ALL_DETERMINISTIC_ENRICHER_IDS
+from podcast_scraper.enrichment.eval.admission import admit_enrichers
 from podcast_scraper.enrichment.protocol import EnricherSet
 
 logger = logging.getLogger(__name__)
@@ -104,15 +105,26 @@ def _with_topic_similarity() -> list[str]:
 
 
 def _cloud_ml_tier_set() -> list[str]:
-    # ``nli_contradiction`` is DISABLED pending a stance-level redesign. Its
-    # accuracy eval (#1106; scripts/eval/score/enrichment_nli_*) measured 0%
-    # precision on prod-v2: the NLI cross-encoder over-fires "contradiction" on
-    # merely topic-adjacent Insight pairs, and true cross-Person atomic-insight
-    # contradictions are near-absent at this grain. The softmax calibration fix
-    # (scorers/nli.py) landed, but surfacing any pair would be a fabricated
-    # claim — so the enricher is left out of every shipping set until the
-    # redesign. Re-add the id here when the replacement disagreement detector ships.
-    return [*ALL_DETERMINISTIC_ENRICHER_IDS, "topic_similarity"]
+    # The full ML-tier CANDIDATE set. Membership is no longer hand-maintained:
+    # ``nli_contradiction`` is listed here as a candidate and excluded by its
+    # manifest ``accuracy_gate`` (0% precision, #1106) via ``_admit`` below —
+    # NOT by commenting it out. When a redesigned disagreement detector records
+    # passing precision in ``data/eval``, the gate auto-promotes it with no edit
+    # here. The softmax calibration fix (scorers/nli.py) already landed.
+    return [*ALL_DETERMINISTIC_ENRICHER_IDS, "topic_similarity", "nli_contradiction"]
+
+
+def _admit(candidate_ids: list[str]) -> list[str]:
+    """Filter candidate enricher ids through the data-driven accuracy gate.
+
+    The single chokepoint where ``data/eval`` accuracy + each enricher's
+    manifest ``accuracy_gate`` decide profile membership (RFC-088 gate
+    amendment). Enrichers with no declared gate pass through unchanged; a gated
+    enricher (e.g. nli_contradiction) is dropped until a passing eval is
+    recorded — so the shipping set is data-driven, not a hand-maintained list.
+    Preserves candidate order.
+    """
+    return admit_enrichers(candidate_ids).admitted
 
 
 # When the operator opts in to nli_contradiction this is the flag that
@@ -140,20 +152,20 @@ def enricher_set_for_profile(profile: str | None) -> EnricherSet:
 
     if name == "airgapped_thin":
         return EnricherSet(
-            enabled_enrichers=_deterministic_only(),
+            enabled_enrichers=_admit(_deterministic_only()),
             per_enricher_config=per_enricher_config,
         )
 
     if name in ("airgapped",):
         return EnricherSet(
-            enabled_enrichers=_with_topic_similarity(),
+            enabled_enrichers=_admit(_with_topic_similarity()),
             per_enricher_config=per_enricher_config,
             opt_in_flags=dict(_DEFAULT_OPT_IN_FLAGS),
         )
 
     if name in ("cloud_thin", "cloud_balanced", "cloud_quality"):
         return EnricherSet(
-            enabled_enrichers=_cloud_ml_tier_set(),
+            enabled_enrichers=_admit(_cloud_ml_tier_set()),
             per_enricher_config=per_enricher_config,
             opt_in_flags=dict(_DEFAULT_OPT_IN_FLAGS),
         )
@@ -175,7 +187,7 @@ def enricher_set_for_profile(profile: str | None) -> EnricherSet:
         )
     ):
         return EnricherSet(
-            enabled_enrichers=_cloud_ml_tier_set(),
+            enabled_enrichers=_admit(_cloud_ml_tier_set()),
             per_enricher_config=per_enricher_config,
             opt_in_flags=dict(_DEFAULT_OPT_IN_FLAGS),
         )

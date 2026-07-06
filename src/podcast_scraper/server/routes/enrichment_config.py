@@ -297,6 +297,55 @@ async def get_enrichment_config_schema() -> dict[str, Any]:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
+class EnricherAdmissionRow(BaseModel):
+    """One enricher's accuracy-gate admission status."""
+
+    id: str
+    tier: str
+    scope: str
+    has_gate: bool  # True when the manifest declares an accuracy_gate
+    promoted: bool  # True when admitted to the registry (→ profiles)
+    reason: str  # human-facing, e.g. "gated: precision 0.00 < 0.50"
+
+
+class EnrichmentAdmissionResponse(BaseModel):
+    """``GET /api/enrichment/config/admission`` payload."""
+
+    enrichers: list[EnricherAdmissionRow]
+
+
+@router.get("/enrichment/config/admission", response_model=EnrichmentAdmissionResponse)
+async def get_enrichment_admission() -> EnrichmentAdmissionResponse:
+    """Per-enricher accuracy-gate admission status (the UI leg of the cascade).
+
+    Surfaces the ``data/eval`` → gate decision (promote/reject + reason) for
+    every known enricher, so the Configuration → Enrichment editor can show
+    *why* an enricher is off ("gated: precision 0.00 < 0.50") rather than just
+    its silent absence. Mirrors how provider gate status is surfaced. The gate
+    decision is profile-independent (a failing eval gates the enricher
+    everywhere), so this reports one row per known enricher.
+    """
+    from podcast_scraper.enrichment.eval.admission import (
+        admit_enrichers,
+        known_enricher_manifests,
+    )
+
+    manifests = known_enricher_manifests()
+    result = admit_enrichers(list(manifests))
+    rows = [
+        EnricherAdmissionRow(
+            id=eid,
+            tier=m.tier.value,
+            scope=m.scope.value,
+            has_gate=m.accuracy_gate is not None,
+            promoted=result.decisions[eid].promoted,
+            reason=result.decisions[eid].reason,
+        )
+        for eid, m in manifests.items()
+    ]
+    return EnrichmentAdmissionResponse(enrichers=rows)
+
+
 def _per_enricher_schema(manifest: Any) -> dict[str, Any]:
     """Build the per-enricher schema fragment composed of base keys +
     config_schema knobs + provider block (oneOf of registered types)."""

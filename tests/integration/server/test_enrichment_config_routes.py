@@ -37,6 +37,24 @@ def test_provider_types_route_groups_by_protocol(client: TestClient) -> None:
         assert "params_schema" in t
 
 
+def test_admission_route_reports_gate_status(client: TestClient) -> None:
+    r = client.get("/api/enrichment/config/admission")
+    assert r.status_code == 200, r.text
+    rows = {row["id"]: row for row in r.json()["enrichers"]}
+    # All eight known enrichers reported.
+    assert len(rows) == 8
+    # nli_contradiction declares a gate and is NOT promoted (0% precision, #1106) —
+    # the reason is surfaced for the UI, not a silent absence.
+    nli = rows["nli_contradiction"]
+    assert nli["has_gate"] is True
+    assert nli["promoted"] is False
+    assert "reject" in nli["reason"] or "gated" in nli["reason"]
+    # Deterministic enrichers declare no gate → promoted.
+    gr = rows["grounding_rate"]
+    assert gr["has_gate"] is False
+    assert gr["promoted"] is True
+
+
 def test_schema_route_composes_per_enricher_blocks(client: TestClient) -> None:
     r = client.get("/api/enrichment/config/schema")
     assert r.status_code == 200, r.text
