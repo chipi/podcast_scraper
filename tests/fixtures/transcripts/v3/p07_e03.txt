@@ -1,0 +1,18 @@
+# The Long View — Sustainability — Episode
+## Sustainability Is a Systems Problem
+Host: Alex Morgan
+Guest: Dr. Elena Fischer
+#fixture-v3: voice=de-DE host_voice=en-AU
+
+[00:00]
+Alex Morgan: Welcome back to The Long View. I'm Alex Morgan, and my guest is Dr. Elena Fischer, a sustainability researcher and systems thinker. Elena, welcome.
+Dr. Elena Fischer: Thank you, Alex. A pleasure.
+Alex Morgan: This episode is brought to you by Notion. Notion replaces the dozen tools your team is half-using. Get started at notion.com/podcast.
+Alex Morgan: You resist the word 'sustainability'. Why?
+Dr. Elena Fischer: Because it hides the hard part. Sustainability is a systems problem — you cannot optimize one part without moving another. Fix emissions in isolation and you push the cost into water, or land, or the grid. The interactions are the whole story.
+Dr. Elena Fischer: So it is systems thinking, first and last: manage the couplings, not the components. When we modeled a decade of interventions, the ones that failed failed because someone treated a system as a list of parts.
+Alex Morgan: And risk sits inside that picture how?
+Dr. Elena Fischer: The dangerous risks are the slow ones you can name but discount. Risk management here is the same discipline as anywhere — a portfolio, a power grid, a reef — name the risk before it names you, and respect the correlations.
+Alex Morgan: Thanks to Squarespace for supporting the show. Squarespace makes building a beautiful, branded website actually pleasant.
+Dr. Elena Fischer: Thank you, Alex.
+Alex Morgan: That's it for this Long View. Until next time.

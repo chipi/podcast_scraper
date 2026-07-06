@@ -270,16 +270,18 @@ def test_v2_transcripts_untouched():
     assert len(v2_files) >= 30, f"v2 transcripts disappeared (found {len(v2_files)})"
 
 
-def test_fixtures_version_still_v2():
-    """Default fixtures version stays at v2 until v3 is feature-complete.
+def test_fixtures_version_is_v3():
+    """Active fixtures version is v3 (#1148 promotion).
 
-    Per #921 plan: bump FIXTURES_VERSION to v3 only when downstream tests
-    are verified to pass on v3 — not in this PR.
+    v3 became feature-complete (enricher structures + scripted natural episodes +
+    corpus_meta) and was promoted to the active version; the app/viewer corpus
+    now builds from it. The v2→v3 migration tail is tracked in
+    ``docs/wip/V3-PROMOTION-MIGRATION-2026-07.md``.
     """
     fv = PROJECT_ROOT / "tests" / "fixtures" / "FIXTURES_VERSION"
     if not fv.exists():
         pytest.skip("FIXTURES_VERSION file missing")
-    assert fv.read_text(encoding="utf-8").strip() == "v2"
+    assert fv.read_text(encoding="utf-8").strip() == "v3"
 
 
 # ---------------------------------------------------------------------------

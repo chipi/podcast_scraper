@@ -75,6 +75,11 @@ APP_SHOWS: list[tuple[str, str]] = [
     ("p05_investing", "p05"),  # Long Horizon Notes — investing
     ("p02_software", "p02"),  # Practical Systems — software/SRE
     ("p03_scuba", "p03"),  # Below the Surface — scuba diving
+    # #1148: promoted into the wired set so the risk-management ↔ systems-thinking
+    # overlap web spans 6 shows (perspectives / clusters / discovery / recs).
+    ("p04_photo", "p04"),  # Frame & Light — photography
+    ("p01_mtb", "p01"),  # Singletrack Sessions — mountain biking
+    ("p07_sustainability", "p07"),  # The Long View — sustainability
 ]
 
 # Stable, sortable run tag per show (single run per feed — the catalog keeps only
@@ -95,9 +100,14 @@ _SILENT_MP3_DATA_URI = (
 # clusters (the interests picker only surfaces multi-member clusters; singletons
 # are hidden). Each umbrella spans 2+ shows.
 CROSS_CUTTING_TOPICS: dict[str, list[str]] = {
-    "p05": ["personal finance"],
-    "p02": ["systems thinking"],
-    "p03": ["safety practices"],
+    "p05": ["personal finance", "risk management"],
+    "p02": ["systems thinking", "risk management"],
+    "p03": ["safety practices", "risk management"],
+    # #1148: risk management + systems thinking recur across the 6 wired shows so
+    # they form real multi-member clusters (not singletons the picker hides).
+    "p04": ["visual craft", "systems thinking"],
+    "p01": ["endurance sport", "risk management"],
+    "p07": ["systems thinking", "risk management"],
 }
 # Shared umbrellas injected into every show so clusters are genuinely multi-member.
 SHARED_UMBRELLAS: list[str] = ["lifelong learning", "expert interviews"]
@@ -277,8 +287,8 @@ def main() -> int:
         default=Path("tests/fixtures/transcripts") / default_version,
     )
     p.add_argument("--output", type=Path, default=Path("tests/fixtures/app-validation-corpus"))
-    p.add_argument("--max-feeds", type=int, default=3)
-    p.add_argument("--max-episodes-per-feed", type=int, default=2)
+    p.add_argument("--max-feeds", type=int, default=6)
+    p.add_argument("--max-episodes-per-feed", type=int, default=4)
     args = p.parse_args()
 
     if not args.rss_dir.is_dir():

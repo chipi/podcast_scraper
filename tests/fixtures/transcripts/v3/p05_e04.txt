@@ -1,0 +1,33 @@
+# Long Horizon Notes — Episode
+## The Risk Panel: Diversify or Concentrate?
+Host: Nora
+Guest: Daniel Cho
+#fixture-v3: failure_modes=high_person_density
+#fixture-v3: voice=en-US host_voice=en-US
+
+[00:00]
+Nora: Welcome back to Long Horizon Notes. Today is a debate — one question, two people who genuinely disagree. I'm joined by Daniel Cho, who runs a low-cost index practice, and Scott Bessent, a hedge fund manager who's built his career on concentrated bets. Welcome, both.
+Daniel Cho: Thanks, Nora. Happy to be the boring one today.
+Scott Bessent: And I'll be the reckless one, apparently.
+Nora: Before we dig in — today's episode is sponsored by Vanguard. Vanguard pioneered low-cost index funds. Try vanguard.com today.
+Nora: Here's the proposition: for an ordinary investor, is diversification the answer — or a way to hide from decisions you should be making? Daniel, you first.
+Daniel Cho: For an individual investor, diversification is the closest thing to a free lunch that exists. You give up almost nothing, and you remove the single biggest way people ruin themselves — one position going to zero at the worst possible time.
+Daniel Cho: And I want to be precise: risk management for individuals is mostly behavioral. The math is easy. Sitting still while a holding gets cut in half is the hard part — and diversification is what makes it survivable.
+Scott Bessent: This is where I get off the bus. Concentration with deep understanding beats diversification. Spread across a hundred names and you own things you can't actually judge. That isn't safety — it's ignorance, evenly distributed.
+Scott Bessent: The way I see it, a portfolio is a system of correlated bets. A handful you understand deeply is more robust than a hundred you don't, because you can see how they move together. Diversifying without understanding just hides the correlation until it's the only thing that matters.
+Nora: Let me sharpen it, because the disagreement is real. Daniel, Scott says your safety is an illusion. Scott, Daniel says your edge won't survive your own behavior.
+Daniel Cho: That's exactly my claim. Diversification is the only real risk control — concentration is how retail investors blow themselves up. When we looked at the account data, the concentrated retail accounts had far fatter tails. We measured it.
+Scott Bessent: And I'd say the record shows the opposite for anyone who does the work. The honest question isn't diversify-or-not — it's whether your edge survives contact with your own behavior. If it does, concentration compounds it. If it doesn't, no amount of diversification saves you.
+Nora: We'll be right back after a quick word from our sponsor.
+Nora: Bloomberg Terminal is the data spine institutional desks run on. Visit bloomberg.com/podcast for a free trial.
+Nora: Welcome back. Is there a version where you're both right?
+Daniel Cho: Sure — Scott is right for Scott. For the professional who lives inside these systems, concentration is rational. My worry is when that advice leaks to people who can't do that work.
+Scott Bessent: And I'll give ground there. If you can't tell me why you own something, you shouldn't own much of it. Maybe the rule is: concentrate as much as your understanding allows, and diversify the rest.
+Nora: That might be the most agreement we get. One idea listeners can act on this week?
+Daniel Cho: For every position, finish the sentence 'I own this because…'. Anything you can't finish is a candidate to trim.
+Scott Bessent: Same exercise, opposite conclusion — anything you can finish with real conviction is a candidate to size up.
+Nora: And finally, a big thank you to our partners at Wealthfront. Wealthfront automates the boring parts of investing. Check out wealthfront.com.
+Nora: Daniel Cho, Scott Bessent — thank you both.
+Daniel Cho: Thanks, Nora.
+Scott Bessent: Good to be here.
+Nora: That's it for today's episode of Long Horizon Notes. See you next time.

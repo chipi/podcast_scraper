@@ -1,0 +1,99 @@
+{
+  "additional_guests": [
+    "Scott"
+  ],
+  "callbacks": [],
+  "contradiction_claims": [
+    {
+      "claim_a": "Diversification is the only real risk control \u2014 concentration is how retail investors blow themselves up.",
+      "claim_b": "Concentration with deep understanding beats diversification \u2014 spreading thin is itself the risk, because you end up owning things you can't actually judge.",
+      "speaker_a": "Daniel",
+      "speaker_b": "Scott",
+      "topic_id": "topic:risk-management"
+    }
+  ],
+  "episode_id": "p05_e04",
+  "expected_enrichment": {
+    "grounding_rate": {
+      "expected_rate": 0.8
+    },
+    "guest_coappearance": {
+      "expected_pairs": [
+        [
+          "p05:Daniel",
+          "p05:Scott"
+        ]
+      ]
+    }
+  },
+  "extra_alias_callbacks": [],
+  "failure_modes": [
+    "high_person_density"
+  ],
+  "guest_accent": "en-US",
+  "host_accent": "en-US",
+  "host_canonical_name": "Nora",
+  "insight_density": "high",
+  "podcast_id": "p05",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p05:Daniel",
+  "primary_guest_canonical_name": "Daniel Cho",
+  "primary_guest_surface_in_transcript": "Daniel Cho",
+  "primary_topic": "topic:risk-management",
+  "publish_date": "2026-05-31",
+  "publish_offset_days": 150,
+  "scripted": true,
+  "secondary_topics": [
+    "topic:index-investing",
+    "topic:systems-thinking",
+    "topic:reliability"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Vanguard",
+      "kind": "template_opening",
+      "line_index": 11
+    },
+    {
+      "brand": "Bloomberg",
+      "kind": "template_midroll",
+      "line_index": 20
+    },
+    {
+      "brand": "Bloomberg",
+      "kind": "template_midroll",
+      "line_index": 21
+    },
+    {
+      "brand": "Wealthfront",
+      "kind": "template_closing",
+      "line_index": 28
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p05:Daniel",
+      "kind": "canonical",
+      "surface": "Daniel Cho"
+    },
+    {
+      "canonical_id": "p05:Scott",
+      "kind": "canonical",
+      "surface": "Scott Bessent"
+    }
+  ],
+  "topic_claims": [
+    {
+      "claim": "For an individual investor, diversification is the closest thing to a free lunch that exists.",
+      "grounded": true,
+      "speaker": "Daniel",
+      "topic_id": "topic:risk-management"
+    },
+    {
+      "claim": "A portfolio is a system of correlated bets; a handful you understand deeply is more robust than a hundred you don't.",
+      "grounded": true,
+      "speaker": "Scott",
+      "topic_id": "topic:systems-thinking"
+    }
+  ]
+}

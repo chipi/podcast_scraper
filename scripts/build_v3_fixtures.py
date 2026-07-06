@@ -68,8 +68,11 @@ import random
 import re
 import textwrap
 from dataclasses import dataclass, field
+from datetime import date, timedelta
 from pathlib import Path
-from typing import Iterable
+from typing import Callable, Iterable
+
+from podcast_scraper.enrichment.eval.gold import EXPECTED_ENRICHMENT_KEY
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 TRANSCRIPTS_OUT = PROJECT_ROOT / "tests" / "fixtures" / "transcripts" / "v3"
@@ -186,6 +189,35 @@ class EpisodeV3:
     # Extra callback references (alias / first-name-only) injected into the
     # body. Each tuple is (surface_form, canonical_id) for ground truth.
     extra_alias_callbacks: list[tuple[str, str]] = field(default_factory=list)
+    # --- #1148 enricher-use-case structures (empty by default → no render/gold
+    # change; authored to exercise the enrichers + emit their gold). ---
+    # Days from CORPUS_EPOCH → this episode's publish date (temporal_velocity,
+    # trending, topic timeline).
+    publish_offset_days: int = 0
+    # Additional named guests present this episode (beyond primary_guest). Each
+    # is a key into ``podcast.guests``; renders intro + turns → guest_coappearance.
+    additional_guests: list[str] = field(default_factory=list)
+    # Density hint "low"|"normal"|"high" → grounding_rate / insight_density.
+    insight_density: str = "normal"
+    # Topic-attributed claims: {"topic_id", "speaker" (guest key), "claim",
+    # "grounded": bool}. Each renders a speaker turn ABOUT a topic → multi-
+    # perspective, topic_cooccurrence, grounding.
+    topic_claims: list[dict] = field(default_factory=list)
+    # Engineered opposition within the episode: {"topic_id", "speaker_a",
+    # "claim_a", "speaker_b", "claim_b"} where claim_b negates claim_a on the
+    # same proposition → nli_contradiction / disagreement positives.
+    contradiction_claims: list[dict] = field(default_factory=list)
+    # Authored per-episode enricher gold, keyed by enricher_id (the generic
+    # ``expected_enrichment`` block the eval scorers read). Empty until authored.
+    expected_enrichment: dict = field(default_factory=dict)
+    # Hand-written natural dialogue (TTS-quality). When set, the generator
+    # renders these turns VERBATIM instead of the procedural _render_pass
+    # machinery — for #1148 enricher/demo episodes where conversation must sound
+    # real. Each turn: {"speaker": <guest key | "host" | "ad">, "text": str,
+    # optional "sponsor": {"kind", "brand"}}. The structure fields above
+    # (topic_claims / contradiction_claims) become GOLD annotations; the author
+    # weaves the actual opposition/claims into the scripted text.
+    scripted_dialogue: list[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -202,6 +234,36 @@ class PodcastV3:
     host_accent: str = "en-US"
     zero_host_ner: bool = False  # host name styled to evade off-the-shelf NER
     host_garble: str | None = None
+
+
+# Corpus epoch: ``EpisodeV3.publish_offset_days`` is measured in days from here.
+# The build stamps ``epoch + offset`` as each episode's publish date so
+# temporal_velocity / trending have a real multi-month spread.
+CORPUS_EPOCH = "2026-01-01"
+
+
+@dataclass
+class CorpusV3Meta:
+    """Corpus-level #1148 structures + gold (empty by default; authored later).
+
+    Spans the whole corpus, not one podcast: topics engineered to recur across
+    shows/speakers, cross-person contradiction pairs, seeded users, and the
+    corpus-scope enricher gold (topic_similarity / guest_coappearance /
+    temporal_velocity / topic_cooccurrence_corpus / …), keyed by enricher_id
+    under ``expected_enrichment``. ``emit_corpus`` writes the corpus gold file
+    + per-user files from it.
+    """
+
+    # Topics deliberately authored into ≥2 shows/speakers (the master lever).
+    shared_topics: list[str] = field(default_factory=list)
+    # Cross-person opposition: {"topic_id", "episode_id", "insight_a", "insight_b"}
+    # gold references for the contradiction/disagreement enrichers.
+    contradiction_pairs: list[dict] = field(default_factory=list)
+    # Seeded users: {"user_id", "heard": [ep_id], "captured": [insight_id],
+    # "playback_fraction"} → scope=mine, personalized ranking, resurfacing.
+    seeded_users: list[dict] = field(default_factory=list)
+    # Corpus-scope enricher gold, keyed by enricher_id.
+    expected_enrichment: dict = field(default_factory=dict)
 
 
 # ===========================================================================
@@ -389,6 +451,205 @@ def _resolve_guest_surface(guest: GuestV3, mode: str) -> str:
 # ===========================================================================
 
 
+def _epoch_plus_days(offset_days: int) -> str:
+    """``CORPUS_EPOCH`` + ``offset_days`` as an ISO date (temporal_velocity)."""
+    return (date.fromisoformat(CORPUS_EPOCH) + timedelta(days=offset_days)).isoformat()
+
+
+def _augment_ground_truth(ground_truth: dict, ep: EpisodeV3) -> None:
+    """Add #1148 structure + gold keys to ``ground_truth`` — only when authored.
+
+    Episodes that set none of the new fields produce byte-identical ground
+    truth (keys appear only for non-default values). Kept out of
+    ``render_episode`` to hold its cognitive complexity down.
+    """
+    for key, val in (
+        ("publish_offset_days", ep.publish_offset_days),
+        ("additional_guests", list(ep.additional_guests)),
+        ("topic_claims", list(ep.topic_claims)),
+        ("contradiction_claims", list(ep.contradiction_claims)),
+    ):
+        if val:
+            ground_truth[key] = val
+    if ep.publish_offset_days:
+        ground_truth["publish_date"] = _epoch_plus_days(ep.publish_offset_days)
+    if ep.insight_density != "normal":
+        ground_truth["insight_density"] = ep.insight_density
+    if ep.expected_enrichment:
+        ground_truth[EXPECTED_ENRICHMENT_KEY] = dict(ep.expected_enrichment)
+
+
+def _scripted_speaker_label(podcast: PodcastV3, speaker: str) -> str:
+    """Resolve a scripted-turn speaker key to its transcript label."""
+    if speaker == "host":
+        return podcast.host
+    if speaker == "ad":
+        return "Ad"
+    g = podcast.guests.get(speaker)
+    return g.name if g else speaker
+
+
+def _render_scripted_episode(podcast: PodcastV3, ep: EpisodeV3) -> tuple[str, dict]:
+    """Render a hand-scripted natural-dialogue episode (turns rendered verbatim).
+
+    For #1148 enricher/demo episodes where conversation must sound real (TTS).
+    Resolves speaker names, records surface forms (primary + additional guests)
+    and any tagged sponsor blocks for ground truth, and emits the enricher gold
+    via :func:`_augment_ground_truth`. The procedural ``_render_pass`` machinery
+    is bypassed; the author owns the dialogue, incl. sponsor turns (detection
+    targets are preserved by writing them into the script).
+    """
+    host = podcast.host
+    guest = podcast.guests[ep.primary_guest]
+    surface_forms: list[dict] = []
+    sponsor_blocks: list[dict] = []
+
+    surface_forms.append(
+        {
+            "surface": guest.name,
+            "canonical_id": f"{podcast.pod_id}:{ep.primary_guest}",
+            "kind": "canonical",
+        }
+    )
+    for gkey in ep.additional_guests:
+        co = podcast.guests.get(gkey)
+        if co is not None:
+            surface_forms.append(
+                {
+                    "surface": co.name,
+                    "canonical_id": f"{podcast.pod_id}:{gkey}",
+                    "kind": "canonical",
+                }
+            )
+
+    lines: list[str] = []
+    lines.append(f"# {podcast.title} — Episode")
+    lines.append(f"## {ep.title}")
+    lines.append(f"Host: {host}")
+    lines.append(f"Guest: {guest.name}")
+    if ep.failure_modes:
+        lines.append(f"#fixture-v3: failure_modes={','.join(ep.failure_modes)}")
+    # TTS: scripted (demo) episodes always carry the voice hint — they get voiced.
+    lines.append(f"#fixture-v3: voice={guest.accent} host_voice={podcast.host_accent}")
+    lines.append("")
+    lines.append("[00:00]")
+    for turn in ep.scripted_dialogue:
+        label = _scripted_speaker_label(podcast, str(turn.get("speaker", "host")))
+        lines.append(f"{label}: {turn.get('text', '')}")
+        sponsor = turn.get("sponsor")
+        if isinstance(sponsor, dict):
+            sponsor_blocks.append(
+                {
+                    "kind": sponsor.get("kind", "native_ad"),
+                    "brand": sponsor.get("brand", ""),
+                    "line_index": len(lines) - 1,
+                }
+            )
+
+    text = "\n".join(lines) + "\n"
+    ground_truth = {
+        "episode_id": f"{podcast.pod_id}_{ep.ep_id}",
+        "podcast_id": podcast.pod_id,
+        "primary_guest_canonical_id": f"{podcast.pod_id}:{ep.primary_guest}",
+        "primary_guest_canonical_name": guest.name,
+        "primary_guest_surface_in_transcript": guest.name,
+        "surface_forms": surface_forms,
+        "sponsor_blocks": sponsor_blocks,
+        "position_arc": ep.position_arc,
+        "callbacks": list(ep.callbacks),
+        "extra_alias_callbacks": [
+            {"surface": s, "canonical_id": c} for s, c in ep.extra_alias_callbacks
+        ],
+        "failure_modes": list(ep.failure_modes),
+        "primary_topic": ep.primary_topic,
+        "secondary_topics": list(ep.secondary_topics),
+        "host_canonical_name": podcast.host,
+        "host_accent": podcast.host_accent,
+        "guest_accent": guest.accent,
+        "scripted": True,
+    }
+    _augment_ground_truth(ground_truth, ep)
+    return text, ground_truth
+
+
+def _render_additional_guests(
+    lines: list[str],
+    podcast: PodcastV3,
+    ep: EpisodeV3,
+    *,
+    host: str,
+    primary_human: str,
+    record_surface: Callable[[str, str, str], None],
+) -> None:
+    """Additional named guests → guest_coappearance edges."""
+    for gkey in ep.additional_guests:
+        co = podcast.guests.get(gkey)
+        if co is None:
+            continue
+        record_surface(co.name, f"{podcast.pod_id}:{gkey}", "canonical")
+        lines.append("")
+        lines.append(f"{host}: Also with us today is {co.name}, {co.role}.")
+        lines.append(f"{co.name}: Glad to join. {co.expertise} is right in my wheelhouse.")
+        lines.append(f"{co.name}: On {primary_human}, the fundamentals still decide the outcome.")
+
+
+def _render_topic_claims(
+    lines: list[str], podcast: PodcastV3, ep: EpisodeV3, *, host: str, guest_name: str
+) -> None:
+    """Topic-attributed claims → multi-perspective / topic_cooccurrence / grounding."""
+    for tc in ep.topic_claims:
+        spk = podcast.guests.get(str(tc.get("speaker", "")))
+        spk_name = spk.name if spk else guest_name
+        topic_h = str(tc.get("topic_id", "")).replace("topic:", "").replace("-", " ")
+        lines.append("")
+        lines.append(f"{host}: On {topic_h} — {spk_name}, what's your read?")
+        lines.append(f"{spk_name}: {tc.get('claim', '')}")
+        if tc.get("grounded"):
+            lines.append(f"{spk_name}: And that's not a hunch — we measured it directly.")
+
+
+def _render_contradiction_claims(
+    lines: list[str], podcast: PodcastV3, ep: EpisodeV3, *, host: str, guest_name: str
+) -> None:
+    """Engineered opposition → nli_contradiction / disagreement positives."""
+    for cc in ep.contradiction_claims:
+        spk_a = podcast.guests.get(str(cc.get("speaker_a", "")))
+        spk_b = podcast.guests.get(str(cc.get("speaker_b", "")))
+        a_name = spk_a.name if spk_a else guest_name
+        b_name = spk_b.name if spk_b else host
+        topic_h = str(cc.get("topic_id", "")).replace("topic:", "").replace("-", " ")
+        lines.append("")
+        lines.append(f"{host}: There's genuine disagreement on {topic_h}.")
+        lines.append(f"{a_name}: {cc.get('claim_a', '')}")
+        lines.append(f"{b_name}: I have to disagree — {cc.get('claim_b', '')}")
+
+
+def _render_enricher_blocks(
+    lines: list[str],
+    podcast: PodcastV3,
+    ep: EpisodeV3,
+    *,
+    host: str,
+    guest_name: str,
+    primary_human: str,
+    record_surface: Callable[[str, str, str], None],
+) -> None:
+    """Render the #1148 enricher-use-case blocks (no-op when unauthored).
+
+    Deterministic + guarded so an episode that sets none of the new fields
+    renders byte-identically to before.
+    """
+    _render_additional_guests(
+        lines, podcast, ep, host=host, primary_human=primary_human, record_surface=record_surface
+    )
+    _render_topic_claims(lines, podcast, ep, host=host, guest_name=guest_name)
+    _render_contradiction_claims(lines, podcast, ep, host=host, guest_name=guest_name)
+    if ep.insight_density == "low":
+        for i in range(3):
+            lines.append(f"{host}: {FILLER_HOST_TURNS[i % len(FILLER_HOST_TURNS)]}")
+            lines.append(f"{guest_name}: {FILLER_GUEST_TURNS[i % len(FILLER_GUEST_TURNS)]}")
+
+
 def render_episode(podcast: PodcastV3, ep: EpisodeV3) -> tuple[str, dict]:
     """Render a v3 episode transcript and emit its ground-truth labels.
 
@@ -404,6 +665,10 @@ def render_episode(podcast: PodcastV3, ep: EpisodeV3) -> tuple[str, dict]:
         callbacks          : list of (surface_form, canonical_id)
         failure_modes      : list[str] (same as ep.failure_modes for round-trip)
     """
+    if ep.scripted_dialogue:
+        # Hand-scripted natural dialogue (#1148 enricher/demo episodes) bypasses
+        # the procedural machinery below.
+        return _render_scripted_episode(podcast, ep)
     rng = random.Random(_stable_seed(f"v3:{podcast.pod_id}:{ep.ep_id}"))
     host = podcast.host
     guest = podcast.guests[ep.primary_guest]
@@ -616,6 +881,18 @@ def render_episode(podcast: PodcastV3, ep: EpisodeV3) -> tuple[str, dict]:
         )
     _render_pass(ep.talking_points, "contrarian")
 
+    # #1148 enricher-use-case blocks (no-op when unauthored → existing episodes
+    # render byte-identically). Extracted to keep render_episode in budget.
+    _render_enricher_blocks(
+        lines,
+        podcast,
+        ep,
+        host=host,
+        guest_name=guest_name,
+        primary_human=primary_human,
+        record_surface=_record_surface,
+    )
+
     # Wrap-up.
     lines.append("")
     lines.append("[28:00]")
@@ -659,6 +936,7 @@ def render_episode(podcast: PodcastV3, ep: EpisodeV3) -> tuple[str, dict]:
         "host_accent": podcast.host_accent,
         "guest_accent": guest.accent,
     }
+    _augment_ground_truth(ground_truth, ep)
     return text, ground_truth
 
 
@@ -667,6 +945,485 @@ def render_episode(podcast: PodcastV3, ep: EpisodeV3) -> tuple[str, dict]:
 # Each podcast targets a cluster of failure modes; the union across the corpus
 # covers all of FAILURE_MODES.
 # ===========================================================================
+
+
+# Hand-scripted natural dialogue for the p05 risk panel (#1148 centerpiece).
+# TTS-quality: the diversify-vs-concentrate opposition + attributed claims +
+# co-appearance are woven INTO a real exchange, not appended as blocks. Sponsor
+# turns are kept as detection targets (tagged for ground truth).
+_P05_E04_PANEL_DIALOGUE: list[dict] = [
+    {
+        "speaker": "host",
+        "text": (
+            "Welcome back to Long Horizon Notes. Today is a debate — one question, two "
+            "people who genuinely disagree. I'm joined by Daniel Cho, who runs a low-cost "
+            "index practice, and Scott Bessent, a hedge fund manager who's built his career "
+            "on concentrated bets. Welcome, both."
+        ),
+    },
+    {"speaker": "Daniel", "text": "Thanks, Nora. Happy to be the boring one today."},
+    {"speaker": "Scott", "text": "And I'll be the reckless one, apparently."},
+    {
+        "speaker": "host",
+        "text": (
+            "Before we dig in — today's episode is sponsored by Vanguard. Vanguard "
+            "pioneered low-cost index funds. Try vanguard.com today."
+        ),
+        "sponsor": {"kind": "template_opening", "brand": "Vanguard"},
+    },
+    {
+        "speaker": "host",
+        "text": (
+            "Here's the proposition: for an ordinary investor, is diversification the "
+            "answer — or a way to hide from decisions you should be making? Daniel, you first."
+        ),
+    },
+    {
+        "speaker": "Daniel",
+        "text": (
+            "For an individual investor, diversification is the closest thing to a free "
+            "lunch that exists. You give up almost nothing, and you remove the single "
+            "biggest way people ruin themselves — one position going to zero at the worst "
+            "possible time."
+        ),
+    },
+    {
+        "speaker": "Daniel",
+        "text": (
+            "And I want to be precise: risk management for individuals is mostly "
+            "behavioral. The math is easy. Sitting still while a holding gets cut in half "
+            "is the hard part — and diversification is what makes it survivable."
+        ),
+    },
+    {
+        "speaker": "Scott",
+        "text": (
+            "This is where I get off the bus. Concentration with deep understanding beats "
+            "diversification. Spread across a hundred names and you own things you can't "
+            "actually judge. That isn't safety — it's ignorance, evenly distributed."
+        ),
+    },
+    {
+        "speaker": "Scott",
+        "text": (
+            "The way I see it, a portfolio is a system of correlated bets. A handful you "
+            "understand deeply is more robust than a hundred you don't, because you can see "
+            "how they move together. Diversifying without understanding just hides the "
+            "correlation until it's the only thing that matters."
+        ),
+    },
+    {
+        "speaker": "host",
+        "text": (
+            "Let me sharpen it, because the disagreement is real. Daniel, Scott says your "
+            "safety is an illusion. Scott, Daniel says your edge won't survive your own "
+            "behavior."
+        ),
+    },
+    {
+        "speaker": "Daniel",
+        "text": (
+            "That's exactly my claim. Diversification is the only real risk control — "
+            "concentration is how retail investors blow themselves up. When we looked at the "
+            "account data, the concentrated retail accounts had far fatter tails. We "
+            "measured it."
+        ),
+    },
+    {
+        "speaker": "Scott",
+        "text": (
+            "And I'd say the record shows the opposite for anyone who does the work. The "
+            "honest question isn't diversify-or-not — it's whether your edge survives "
+            "contact with your own behavior. If it does, concentration compounds it. If it "
+            "doesn't, no amount of diversification saves you."
+        ),
+    },
+    {
+        "speaker": "host",
+        "text": "We'll be right back after a quick word from our sponsor.",
+        "sponsor": {"kind": "template_midroll", "brand": "Bloomberg"},
+    },
+    {
+        "speaker": "host",
+        "text": (
+            "Bloomberg Terminal is the data spine institutional desks run on. Visit "
+            "bloomberg.com/podcast for a free trial."
+        ),
+        "sponsor": {"kind": "template_midroll", "brand": "Bloomberg"},
+    },
+    {"speaker": "host", "text": "Welcome back. Is there a version where you're both right?"},
+    {
+        "speaker": "Daniel",
+        "text": (
+            "Sure — Scott is right for Scott. For the professional who lives inside these "
+            "systems, concentration is rational. My worry is when that advice leaks to "
+            "people who can't do that work."
+        ),
+    },
+    {
+        "speaker": "Scott",
+        "text": (
+            "And I'll give ground there. If you can't tell me why you own something, you "
+            "shouldn't own much of it. Maybe the rule is: concentrate as much as your "
+            "understanding allows, and diversify the rest."
+        ),
+    },
+    {
+        "speaker": "host",
+        "text": "That might be the most agreement we get. One idea listeners can act on this week?",
+    },
+    {
+        "speaker": "Daniel",
+        "text": (
+            "For every position, finish the sentence 'I own this because…'. Anything you "
+            "can't finish is a candidate to trim."
+        ),
+    },
+    {
+        "speaker": "Scott",
+        "text": (
+            "Same exercise, opposite conclusion — anything you can finish with real "
+            "conviction is a candidate to size up."
+        ),
+    },
+    {
+        "speaker": "host",
+        "text": (
+            "And finally, a big thank you to our partners at Wealthfront. Wealthfront "
+            "automates the boring parts of investing. Check out wealthfront.com."
+        ),
+        "sponsor": {"kind": "template_closing", "brand": "Wealthfront"},
+    },
+    {"speaker": "host", "text": "Daniel Cho, Scott Bessent — thank you both."},
+    {"speaker": "Daniel", "text": "Thanks, Nora."},
+    {"speaker": "Scott", "text": "Good to be here."},
+    {
+        "speaker": "host",
+        "text": "That's it for today's episode of Long Horizon Notes. See you next time.",
+    },
+]
+
+
+# p02 systems-thinking hub (#1148). Priya (SRE) frames reliability as a systems
+# property and risk management as the SAME discipline as a portfolio — the
+# cross-domain bridge that makes risk-management ↔ systems-thinking ↔ reliability
+# a real cluster spanning software (p02) and investing (p05).
+_P02_E04_DIALOGUE: list[dict] = [
+    {
+        "speaker": "host",
+        "text": (
+            "Welcome back to Practical Systems. My guest is Priya Nair, who's spent a "
+            "decade keeping large systems from falling over. Priya, thanks for coming on."
+        ),
+    },
+    {"speaker": "Priya", "text": "Glad to be here, Ethan."},
+    {
+        "speaker": "host",
+        "text": (
+            "This episode is brought to you by Datadog. Datadog gives unified observability "
+            "across logs, metrics, and traces. Get started at datadog.com/podcast."
+        ),
+        "sponsor": {"kind": "template_opening", "brand": "Datadog"},
+    },
+    {
+        "speaker": "host",
+        "text": "You keep saying reliability isn't a feature. What do you mean?",
+    },
+    {
+        "speaker": "Priya",
+        "text": (
+            "Reliability is a property of the whole system, not of any one component. You "
+            "can have perfect services that still produce an outage, because the failure "
+            "lives in how they interact. If you think in parts, you'll miss it every time."
+        ),
+    },
+    {
+        "speaker": "Priya",
+        "text": (
+            "So the discipline is systems thinking: you manage the interactions, not the "
+            "boxes. When we tagged two years of incidents, almost none were a single "
+            "component failing on its own — the data was pretty blunt about that."
+        ),
+    },
+    {
+        "speaker": "host",
+        "text": "You once told me production risk is the same as portfolio risk. Say more.",
+    },
+    {
+        "speaker": "Priya",
+        "text": (
+            "It really is the same discipline. Risk management in production is mostly about "
+            "naming the risk before it names you. The outage you can describe in advance is "
+            "the one you can design around; the one that takes you down is the one nobody "
+            "would say out loud."
+        ),
+    },
+    {
+        "speaker": "host",
+        "text": "That sounds a lot like what the investing folks say about a portfolio.",
+    },
+    {
+        "speaker": "Priya",
+        "text": (
+            "Exactly — a service mesh and a portfolio are both systems of correlated bets. "
+            "The reliability question and the risk question are the same question wearing "
+            "different clothes."
+        ),
+    },
+    {
+        "speaker": "host",
+        "text": (
+            "Thanks again to PagerDuty for supporting the show. PagerDuty turns noisy alerts "
+            "into structured incident response."
+        ),
+        "sponsor": {"kind": "template_closing", "brand": "PagerDuty"},
+    },
+    {"speaker": "Priya", "text": "Thanks, Ethan."},
+    {
+        "speaker": "host",
+        "text": "That's it for this episode of Practical Systems. Take care.",
+    },
+]
+
+
+# p01 risk in racing (#1148). Sophie reframes racing risk as the same discipline
+# as any portfolio/system — a surprising cross-domain neighbour for
+# risk-management (biking ↔ investing ↔ software), which is exactly what makes
+# topic_similarity interesting.
+_P01_E04_DIALOGUE: list[dict] = [
+    {
+        "speaker": "host",
+        "text": (
+            "Welcome back to Singletrack Sessions. I'm with Sophie Laurent, enduro racer "
+            "and coach. Sophie, good to have you."
+        ),
+    },
+    {"speaker": "Sophie", "text": "Thanks, Maya. Always happy to talk shop."},
+    {
+        "speaker": "host",
+        "text": (
+            "Today's episode is sponsored by Strava. Strava is the home for athletes. Try "
+            "strava.com today."
+        ),
+        "sponsor": {"kind": "template_opening", "brand": "Strava"},
+    },
+    {"speaker": "host", "text": "People think racing is about nerve. You say it's about risk."},
+    {
+        "speaker": "Sophie",
+        "text": (
+            "It's risk management, honestly. The crash that ends your season is almost never "
+            "the scary-looking one — it's the boring risk you didn't name. Name the risk "
+            "before it names you, and half the danger goes away."
+        ),
+    },
+    {
+        "speaker": "Sophie",
+        "text": (
+            "And you have to ride the whole run as a system, not a list of corners. The "
+            "mistakes come from how one section sets up the next. When I logged a full "
+            "season of my own crashes, the causes were always two turns upstream."
+        ),
+    },
+    {
+        "speaker": "host",
+        "text": "That's almost word-for-word what a friend in finance says about a portfolio.",
+    },
+    {
+        "speaker": "Sophie",
+        "text": (
+            "It's the same discipline. A race line and a portfolio are both systems of "
+            "correlated bets — you're managing the interactions, and the risk you can "
+            "describe is the one you can design around."
+        ),
+    },
+    {
+        "speaker": "host",
+        "text": (
+            "Thanks to Peak Design for backing the show. Peak Design builds bags and straps "
+            "designed by people who actually ride."
+        ),
+        "sponsor": {"kind": "template_closing", "brand": "Peak Design"},
+    },
+    {"speaker": "Sophie", "text": "Cheers, Maya."},
+    {"speaker": "host", "text": "That's it for this Singletrack Sessions. Ride safe."},
+]
+
+
+# p03 dive risk (#1148). Marco (pt-BR voice) frames dive planning as risk
+# management — the diver's version of naming the risk + running the dive as a
+# system. Extends the cross-domain risk cluster to scuba.
+_P03_E04_DIALOGUE: list[dict] = [
+    {
+        "speaker": "host",
+        "text": (
+            "Welcome back to Below the Surface. I'm joined by Marco Silva, technical diver "
+            "and instructor. Marco, thanks for surfacing for us."
+        ),
+    },
+    {"speaker": "Marco", "text": "Ha — happy to, Rina."},
+    {
+        "speaker": "host",
+        "text": (
+            "This episode is brought to you by Suunto. Suunto builds dive computers and "
+            "outdoor watches. Get started at suunto.com/podcast."
+        ),
+        "sponsor": {"kind": "template_opening", "brand": "Suunto"},
+    },
+    {"speaker": "host", "text": "New divers think planning is paperwork. You call it survival."},
+    {
+        "speaker": "Marco",
+        "text": (
+            "Dive planning is risk management, plain and simple. It's the gas you don't use "
+            "and the ascent you don't rush. The incident that hurts you is the one nobody "
+            "named on the boat — so we name them all first."
+        ),
+    },
+    {
+        "speaker": "Marco",
+        "text": (
+            "And you plan the whole dive as one system — depth, gas, team, current — because "
+            "the accidents live in how those interact, not in any single number. When we "
+            "reviewed a decade of incident reports, that pattern held every time."
+        ),
+    },
+    {"speaker": "host", "text": "So it's not so different from managing any kind of risk."},
+    {
+        "speaker": "Marco",
+        "text": (
+            "Not different at all. A dive plan and a portfolio are the same discipline — "
+            "systems of correlated risk, where the one you can describe in advance is the "
+            "one you can actually control."
+        ),
+    },
+    {
+        "speaker": "host",
+        "text": (
+            "Thanks to PADI for supporting the show. PADI is the global standard for dive "
+            "education."
+        ),
+        "sponsor": {"kind": "template_closing", "brand": "PADI"},
+    },
+    {"speaker": "Marco", "text": "Thanks, Rina."},
+    {"speaker": "host", "text": "That's it for this Below the Surface. Dive safe."},
+]
+
+
+# p07 systems-thinking anchor (#1148). Elena (de-DE voice) is a systems thinker —
+# the strongest systems-thinking episode, tying sustainability to the same
+# risk-management discipline. Anchors the thin half of the risk ↔ systems pair.
+_P07_E03_DIALOGUE: list[dict] = [
+    {
+        "speaker": "host",
+        "text": (
+            "Welcome back to The Long View. I'm Alex Morgan, and my guest is Dr. Elena "
+            "Fischer, a sustainability researcher and systems thinker. Elena, welcome."
+        ),
+    },
+    {"speaker": "Elena", "text": "Thank you, Alex. A pleasure."},
+    {
+        "speaker": "host",
+        "text": (
+            "This episode is brought to you by Notion. Notion replaces the dozen tools your "
+            "team is half-using. Get started at notion.com/podcast."
+        ),
+        "sponsor": {"kind": "template_opening", "brand": "Notion"},
+    },
+    {"speaker": "host", "text": "You resist the word 'sustainability'. Why?"},
+    {
+        "speaker": "Elena",
+        "text": (
+            "Because it hides the hard part. Sustainability is a systems problem — you "
+            "cannot optimize one part without moving another. Fix emissions in isolation "
+            "and you push the cost into water, or land, or the grid. The interactions are "
+            "the whole story."
+        ),
+    },
+    {
+        "speaker": "Elena",
+        "text": (
+            "So it is systems thinking, first and last: manage the couplings, not the "
+            "components. When we modeled a decade of interventions, the ones that failed "
+            "failed because someone treated a system as a list of parts."
+        ),
+    },
+    {"speaker": "host", "text": "And risk sits inside that picture how?"},
+    {
+        "speaker": "Elena",
+        "text": (
+            "The dangerous risks are the slow ones you can name but discount. Risk "
+            "management here is the same discipline as anywhere — a portfolio, a power grid, "
+            "a reef — name the risk before it names you, and respect the correlations."
+        ),
+    },
+    {
+        "speaker": "host",
+        "text": (
+            "Thanks to Squarespace for supporting the show. Squarespace makes building a "
+            "beautiful, branded website actually pleasant."
+        ),
+        "sponsor": {"kind": "template_closing", "brand": "Squarespace"},
+    },
+    {"speaker": "Elena", "text": "Thank you, Alex."},
+    {"speaker": "host", "text": "That's it for this Long View. Until next time."},
+]
+
+
+# p07 macro risk (#1148). Skanda (en-IN) frames macro as risk management at scale
+# and the economy as a system — extends risk ↔ systems into sustainability/macro.
+_P07_E04_DIALOGUE: list[dict] = [
+    {
+        "speaker": "host",
+        "text": (
+            "Welcome back to The Long View. I'm joined by Skanda Amarnath, who reads the "
+            "macroeconomy for a living. Skanda, good to have you."
+        ),
+    },
+    {"speaker": "Skanda", "text": "Thanks, Alex."},
+    {
+        "speaker": "host",
+        "text": (
+            "Today's episode is sponsored by Bloomberg. Bloomberg Terminal is the data spine "
+            "institutional desks run on. Try bloomberg.com today."
+        ),
+        "sponsor": {"kind": "template_opening", "brand": "Bloomberg"},
+    },
+    {"speaker": "host", "text": "You describe macro as risk management. Unpack that."},
+    {
+        "speaker": "Skanda",
+        "text": (
+            "Macro is risk management at scale. The job is mostly not being on the wrong "
+            "side of a regime change — and the regime change you can name in advance is the "
+            "one you can position for. The rest is just hoping."
+        ),
+    },
+    {
+        "speaker": "Skanda",
+        "text": (
+            "And the economy is a system, not a set of levers. Pull one and three others "
+            "move. When we back-tested the calls, the misses were always someone treating a "
+            "correlated system as if the parts were independent."
+        ),
+    },
+    {"speaker": "host", "text": "So the same discipline Elena talks about in sustainability."},
+    {
+        "speaker": "Skanda",
+        "text": (
+            "Exactly the same. A macro book and a power grid are both systems of correlated "
+            "risk. Systems thinking and risk management are one discipline — you just change "
+            "the vocabulary."
+        ),
+    },
+    {
+        "speaker": "host",
+        "text": (
+            "Thanks again to Morningstar for backing the show. Morningstar gives you "
+            "independent fund ratings."
+        ),
+        "sponsor": {"kind": "template_closing", "brand": "Morningstar"},
+    },
+    {"speaker": "Skanda", "text": "Thanks, Alex."},
+    {"speaker": "host", "text": "That's it for this Long View. Take care."},
+]
 
 
 def build_v3_spec() -> list[PodcastV3]:
@@ -797,6 +1554,39 @@ def build_v3_spec() -> list[PodcastV3]:
                 guest_surface_overrides={"Noah": "garble:0"},  # Noah Bryer
                 native_ad_block="Linear",  # second native ad
             ),
+            # #1148 risk-in-racing (scripted; cross-domain risk-management neighbour).
+            EpisodeV3(
+                ep_id="e04",
+                title="The Risk You Didn't Name",
+                primary_guest="Sophie",
+                primary_topic="topic:risk-management",
+                secondary_topics=["topic:systems-thinking", "topic:enduro-racing"],
+                sponsor_brands=["Strava", "Peak Design"],
+                talking_points=[],
+                topic_claims=[
+                    {
+                        "topic_id": "topic:risk-management",
+                        "speaker": "Sophie",
+                        "claim": (
+                            "The crash that ends your season is the boring risk you " "didn't name."
+                        ),
+                        "grounded": True,
+                    },
+                    {
+                        "topic_id": "topic:systems-thinking",
+                        "speaker": "Sophie",
+                        "claim": (
+                            "You ride the whole run as a system; the mistakes come from "
+                            "how sections interact."
+                        ),
+                        "grounded": True,
+                    },
+                ],
+                insight_density="high",
+                publish_offset_days=30,
+                expected_enrichment={"grounding_rate": {"expected_rate": 0.8}},
+                scripted_dialogue=_P01_E04_DIALOGUE,
+            ),
         ],
     )
 
@@ -920,6 +1710,40 @@ def build_v3_spec() -> list[PodcastV3]:
                 },  # falls back to canonical (no nicknames defined)
                 genuine_recommendation="Sentry",  # honest enthusiastic rec
             ),
+            # #1148 systems-thinking hub (scripted natural dialogue).
+            EpisodeV3(
+                ep_id="e04",
+                title="Reliability Is a Systems Property",
+                primary_guest="Priya",
+                primary_topic="topic:systems-thinking",
+                secondary_topics=["topic:reliability", "topic:risk-management"],
+                sponsor_brands=["Datadog", "PagerDuty", "Sentry"],
+                talking_points=[],
+                topic_claims=[
+                    {
+                        "topic_id": "topic:systems-thinking",
+                        "speaker": "Priya",
+                        "claim": (
+                            "Reliability is a property of the whole system, not of any "
+                            "one component."
+                        ),
+                        "grounded": True,
+                    },
+                    {
+                        "topic_id": "topic:risk-management",
+                        "speaker": "Priya",
+                        "claim": (
+                            "Risk management in production is naming the risk before it "
+                            "names you."
+                        ),
+                        "grounded": True,
+                    },
+                ],
+                insight_density="high",
+                publish_offset_days=60,
+                expected_enrichment={"grounding_rate": {"expected_rate": 0.8}},
+                scripted_dialogue=_P02_E04_DIALOGUE,
+            ),
         ],
     )
 
@@ -1007,6 +1831,40 @@ def build_v3_spec() -> list[PodcastV3]:
                 ],
                 failure_modes=["asr_garble_severe", "recurring_guest", "alias_invention"],
                 guest_surface_overrides={"Hanna": "severe"},  # "Hanna Krebohticker"
+            ),
+            # #1148 dive risk-management (scripted; extends cross-domain risk cluster).
+            EpisodeV3(
+                ep_id="e04",
+                title="Plan the Dive, Manage the Risk",
+                primary_guest="Marco",
+                primary_topic="topic:risk-management",
+                secondary_topics=["topic:systems-thinking", "topic:dive-planning"],
+                sponsor_brands=["Suunto", "PADI"],
+                talking_points=[],
+                topic_claims=[
+                    {
+                        "topic_id": "topic:risk-management",
+                        "speaker": "Marco",
+                        "claim": (
+                            "Dive planning is risk management — the gas you don't use, "
+                            "the ascent you don't rush."
+                        ),
+                        "grounded": True,
+                    },
+                    {
+                        "topic_id": "topic:systems-thinking",
+                        "speaker": "Marco",
+                        "claim": (
+                            "You plan the whole dive as one system; accidents live in "
+                            "the interactions."
+                        ),
+                        "grounded": True,
+                    },
+                ],
+                insight_density="high",
+                publish_offset_days=90,
+                expected_enrichment={"grounding_rate": {"expected_rate": 0.8}},
+                scripted_dialogue=_P03_E04_DIALOGUE,
             ),
         ],
     )
@@ -1275,6 +2133,71 @@ def build_v3_spec() -> list[PodcastV3]:
                     "markets can be a legitimate tool."
                 ),
             ),
+            # #1148 panel: 2 named guests debating one proposition → the one true
+            # cross-person contradiction + a co-appearance pair. Additive; keeps
+            # all existing p05 detection targets intact.
+            EpisodeV3(
+                ep_id="e04",
+                title="The Risk Panel: Diversify or Concentrate?",
+                primary_guest="Daniel",
+                additional_guests=["Scott"],
+                primary_topic="topic:risk-management",
+                secondary_topics=[
+                    "topic:index-investing",
+                    "topic:systems-thinking",
+                    "topic:reliability",
+                ],
+                sponsor_brands=["Vanguard", "Bloomberg", "Wealthfront"],
+                talking_points=[
+                    "The whole portfolio is a system — you manage the interactions, not the parts.",
+                    "Most blowups are a risk you could name in advance but chose not to.",
+                    "The honest question is whether your edge survives contact with your own behavior.",
+                ],
+                topic_claims=[
+                    {
+                        "topic_id": "topic:risk-management",
+                        "speaker": "Daniel",
+                        "claim": (
+                            "For an individual investor, diversification is the closest "
+                            "thing to a free lunch that exists."
+                        ),
+                        "grounded": True,
+                    },
+                    {
+                        "topic_id": "topic:systems-thinking",
+                        "speaker": "Scott",
+                        "claim": (
+                            "A portfolio is a system of correlated bets; a handful you "
+                            "understand deeply is more robust than a hundred you don't."
+                        ),
+                        "grounded": True,
+                    },
+                ],
+                contradiction_claims=[
+                    {
+                        "topic_id": "topic:risk-management",
+                        "speaker_a": "Daniel",
+                        "claim_a": (
+                            "Diversification is the only real risk control — concentration "
+                            "is how retail investors blow themselves up."
+                        ),
+                        "speaker_b": "Scott",
+                        "claim_b": (
+                            "Concentration with deep understanding beats diversification — "
+                            "spreading thin is itself the risk, because you end up owning "
+                            "things you can't actually judge."
+                        ),
+                    }
+                ],
+                insight_density="high",
+                publish_offset_days=150,
+                failure_modes=["high_person_density"],
+                expected_enrichment={
+                    "guest_coappearance": {"expected_pairs": [["p05:Daniel", "p05:Scott"]]},
+                    "grounding_rate": {"expected_rate": 0.8},
+                },
+                scripted_dialogue=_P05_E04_PANEL_DIALOGUE,
+            ),
         ],
     )
 
@@ -1407,6 +2330,68 @@ def build_v3_spec() -> list[PodcastV3]:
                 failure_modes=["asr_garble_severe", "recurring_guest", "multi_accent"],
                 # Use severe garble (Skanda Eminas).
                 guest_surface_overrides={"Skanda": "severe"},
+            ),
+            # #1148 systems-thinking anchor (scripted; Elena, de-DE voice).
+            EpisodeV3(
+                ep_id="e03",
+                title="Sustainability Is a Systems Problem",
+                primary_guest="Elena",
+                primary_topic="topic:systems-thinking",
+                secondary_topics=["topic:sustainability", "topic:risk-management"],
+                sponsor_brands=["Notion", "Squarespace"],
+                talking_points=[],
+                topic_claims=[
+                    {
+                        "topic_id": "topic:systems-thinking",
+                        "speaker": "Elena",
+                        "claim": (
+                            "Sustainability is a systems problem — you cannot optimize "
+                            "one part without moving another."
+                        ),
+                        "grounded": True,
+                    },
+                    {
+                        "topic_id": "topic:risk-management",
+                        "speaker": "Elena",
+                        "claim": "The dangerous risks are the slow ones you can name but discount.",
+                        "grounded": True,
+                    },
+                ],
+                insight_density="high",
+                publish_offset_days=120,
+                expected_enrichment={"grounding_rate": {"expected_rate": 0.8}},
+                scripted_dialogue=_P07_E03_DIALOGUE,
+            ),
+            # #1148 macro risk (scripted; Skanda, en-IN voice).
+            EpisodeV3(
+                ep_id="e04",
+                title="Macro as Risk Management",
+                primary_guest="Skanda",
+                primary_topic="topic:risk-management",
+                secondary_topics=["topic:systems-thinking", "topic:macroeconomics"],
+                sponsor_brands=["Bloomberg", "Morningstar"],
+                talking_points=[],
+                topic_claims=[
+                    {
+                        "topic_id": "topic:risk-management",
+                        "speaker": "Skanda",
+                        "claim": (
+                            "Macro is risk management at scale — not being on the wrong "
+                            "side of a regime change."
+                        ),
+                        "grounded": True,
+                    },
+                    {
+                        "topic_id": "topic:systems-thinking",
+                        "speaker": "Skanda",
+                        "claim": "The economy is a system, not a set of levers.",
+                        "grounded": True,
+                    },
+                ],
+                insight_density="high",
+                publish_offset_days=170,
+                expected_enrichment={"grounding_rate": {"expected_rate": 0.8}},
+                scripted_dialogue=_P07_E04_DIALOGUE,
             ),
         ],
     )
@@ -1587,11 +2572,130 @@ def _audio_voice_hints(podcast: PodcastV3, ep: EpisodeV3) -> dict:
     }
 
 
-def emit_corpus(podcasts: list[PodcastV3], *, dry_run: bool = False) -> dict:
+def build_v3_corpus_meta() -> CorpusV3Meta:
+    """Corpus-level #1148 structures + gold (the risk-management ↔ systems-thinking web).
+
+    Anchors the overlap authored across the 6 wired shows: risk-management and
+    systems-thinking recur, attributed to different speakers (p05 investing, p02
+    software, p01 biking, p03 scuba, p07 sustainability), with reliability as the
+    third cluster member. ``emit_corpus`` writes the corpus gold + per-user files
+    from this; the eval scorers grade enricher output against it. Embedding/NLI
+    gold is the authored *intent* — the loop run reconciles the measured values.
+    """
+    return CorpusV3Meta(
+        shared_topics=[
+            "topic:risk-management",
+            "topic:systems-thinking",
+            "topic:reliability",
+        ],
+        contradiction_pairs=[
+            {
+                "topic_id": "topic:risk-management",
+                "episode_id": "p05_e04",
+                "speaker_a": "p05:Daniel",
+                "speaker_b": "p05:Scott",
+                "note": "diversification-vs-concentration — the one true cross-person contradiction",
+            }
+        ],
+        seeded_users=[
+            {
+                "user_id": "u_risk",
+                "persona": "risk-and-systems generalist",
+                "heard": ["p05_e04", "p02_e04", "p01_e04", "p07_e03"],
+                "captured_topics": ["topic:risk-management", "topic:systems-thinking"],
+                "expected_interests": [
+                    "topic:risk-management",
+                    "topic:systems-thinking",
+                    "topic:reliability",
+                ],
+            },
+            {
+                "user_id": "u_invest",
+                "persona": "investing-only",
+                "heard": ["p05_e01", "p05_e02", "p05_e03", "p05_e04"],
+                "captured_topics": ["topic:index-investing", "topic:macro-policy"],
+                "expected_interests": [
+                    "topic:index-investing",
+                    "topic:monetary-policy",
+                    "topic:macroeconomics",
+                ],
+            },
+            {
+                "user_id": "u_field",
+                "persona": "outdoor / hands-on",
+                "heard": ["p01_e04", "p03_e04", "p04_e01"],
+                "captured_topics": ["topic:dive-planning", "topic:frame"],
+                "expected_interests": [
+                    "topic:trail-building",
+                    "topic:dive-planning",
+                    "topic:frame",
+                ],
+            },
+        ],
+        expected_enrichment={
+            "guest_coappearance": {"expected_pairs": [["p05:Daniel", "p05:Scott"]]},
+            "topic_similarity": {
+                "expected_neighbours": {
+                    "topic:risk-management": [
+                        "topic:systems-thinking",
+                        "topic:reliability",
+                    ],
+                    "topic:systems-thinking": [
+                        "topic:risk-management",
+                        "topic:reliability",
+                    ],
+                }
+            },
+            "topic_cooccurrence_corpus": {
+                "expected_pairs": [
+                    ["topic:risk-management", "topic:systems-thinking"],
+                    ["topic:risk-management", "topic:reliability"],
+                ]
+            },
+            "temporal_velocity": {
+                "note": "risk-management authored across ~0–170d offsets → positive velocity",
+                "heating_up": ["topic:risk-management"],
+            },
+        },
+    )
+
+
+def _write_corpus_meta_files(corpus_meta: CorpusV3Meta) -> None:
+    """Write the #1148 corpus-scope gold + per-user files (authored content only)."""
+    if corpus_meta.expected_enrichment:
+        (FIXTURES_V3_ROOT / "expected_enrichment.gold.json").write_text(
+            json.dumps(
+                {EXPECTED_ENRICHMENT_KEY: corpus_meta.expected_enrichment},
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+    if corpus_meta.seeded_users:
+        users_dir = FIXTURES_V3_ROOT / "seeded_users"
+        users_dir.mkdir(parents=True, exist_ok=True)
+        for user in corpus_meta.seeded_users:
+            uid = str(user.get("user_id") or "")
+            if uid:
+                (users_dir / f"{uid}.json").write_text(
+                    json.dumps(user, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+                )
+
+
+def emit_corpus(
+    podcasts: list[PodcastV3],
+    *,
+    dry_run: bool = False,
+    corpus_meta: CorpusV3Meta | None = None,
+) -> dict:
     """Render every episode + ground-truth file + manifest.
 
-    Returns a summary dict with episode counts + failure-mode coverage.
-    Caller decides whether to print or persist a report.
+    ``corpus_meta`` carries the #1148 corpus-level structures + gold; when
+    provided it also writes ``expected_enrichment.gold.json`` (corpus-scope
+    enricher gold) + per-user files under ``seeded_users/``. Returns a summary
+    dict with episode counts + failure-mode coverage. Caller decides whether to
+    print or persist a report.
     """
     summary: dict = {
         "podcast_count": len(podcasts),
@@ -1735,7 +2839,15 @@ def emit_corpus(podcasts: list[PodcastV3], *, dry_run: bool = False) -> dict:
         DATASET_FLAT_JSON.write_text(
             json.dumps(dataset_smoke, indent=2, sort_keys=True) + "\n", encoding="utf-8"
         )
+        # #1148 corpus-level gold + seeded users (written only when authored).
+        if corpus_meta is not None:
+            _write_corpus_meta_files(corpus_meta)
 
+    meta = corpus_meta or CorpusV3Meta()
+    summary["shared_topics"] = list(meta.shared_topics)
+    summary["contradiction_pair_count"] = len(meta.contradiction_pairs)
+    summary["seeded_user_count"] = len(meta.seeded_users)
+    summary["corpus_gold_enricher_ids"] = sorted(meta.expected_enrichment)
     summary["fixtures_manifest_path"] = str(FIXTURES_V3_ROOT / "manifest.json")
     summary["dataset_yaml_path"] = str(DATASET_DIR / "manifest.yaml")
     summary["dataset_json_path"] = str(DATASET_FLAT_JSON)
@@ -1791,11 +2903,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     podcasts = build_v3_spec()
+    corpus_meta = build_v3_corpus_meta()
 
     if args.check:
         # Deterministic-build verification: render twice and confirm bytes match.
-        first = emit_corpus(podcasts, dry_run=True)
-        second = emit_corpus(podcasts, dry_run=True)
+        first = emit_corpus(podcasts, dry_run=True, corpus_meta=corpus_meta)
+        second = emit_corpus(podcasts, dry_run=True, corpus_meta=corpus_meta)
         if first != second:
             print("v3 generator is NOT deterministic — diff in summary across runs")
             return 1
@@ -1806,7 +2919,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {mode}: {count} episode(s)")
         return 0
 
-    summary = emit_corpus(podcasts, dry_run=args.dry_run)
+    summary = emit_corpus(podcasts, dry_run=args.dry_run, corpus_meta=corpus_meta)
     print(f"v3 podcasts: {summary['podcast_count']}, episodes: {summary['episode_count']}")
     print("Failure-mode coverage:")
     for mode in FAILURE_MODES:

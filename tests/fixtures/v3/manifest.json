@@ -1,5 +1,5 @@
 {
-  "episode_count": 25,
+  "episode_count": 31,
   "episodes": [
     {
       "audio_voice_hints": {
@@ -74,6 +74,28 @@
       "title": "The Mechanics of a Quiet, Fast Bike",
       "transcript_path": "tests/fixtures/transcripts/v3/p01_e03.txt",
       "transcript_sha256": "fe046e605b62591ff98c0d39f18aa6e8673c88b26a350ab7b7b79fc807736f24"
+    },
+    {
+      "audio_voice_hints": {
+        "guest_surface": "Sophie Laurent",
+        "guest_voice_accent": "en-US",
+        "host_surface": "Maya",
+        "host_voice_accent": "en-US"
+      },
+      "duration_minutes": 1.63,
+      "episode_id": "p01_e04",
+      "failure_modes": [],
+      "ground_truth_path": "tests/fixtures/v3/ground_truth/p01_e04.json",
+      "podcast_id": "p01",
+      "primary_guest_canonical_name": "Sophie Laurent",
+      "primary_topic": "topic:risk-management",
+      "secondary_topics": [
+        "topic:systems-thinking",
+        "topic:enduro-racing"
+      ],
+      "title": "The Risk You Didn't Name",
+      "transcript_path": "tests/fixtures/transcripts/v3/p01_e04.txt",
+      "transcript_sha256": "d368c85ae8b8ae1aff9938fae37578ec1e42646c82d6096add069f65c4b9d442"
     },
     {
       "audio_voice_hints": {
@@ -158,6 +180,28 @@
     },
     {
       "audio_voice_hints": {
+        "guest_surface": "Priya Nair",
+        "guest_voice_accent": "en-IN",
+        "host_surface": "Ethan",
+        "host_voice_accent": "en-US"
+      },
+      "duration_minutes": 2.07,
+      "episode_id": "p02_e04",
+      "failure_modes": [],
+      "ground_truth_path": "tests/fixtures/v3/ground_truth/p02_e04.json",
+      "podcast_id": "p02",
+      "primary_guest_canonical_name": "Priya Nair",
+      "primary_topic": "topic:systems-thinking",
+      "secondary_topics": [
+        "topic:reliability",
+        "topic:risk-management"
+      ],
+      "title": "Reliability Is a Systems Property",
+      "transcript_path": "tests/fixtures/transcripts/v3/p02_e04.txt",
+      "transcript_sha256": "51e596f2b4abb4e55b898b1152ec485fe3dd3b36c73acfe7f9d83e691f238041"
+    },
+    {
+      "audio_voice_hints": {
         "guest_surface": "Marco Sylva",
         "guest_voice_accent": "pt-BR",
         "host_surface": "Rina",
@@ -230,6 +274,28 @@
       "title": "Severe Surname Garbles: A Marine Biologist's Return",
       "transcript_path": "tests/fixtures/transcripts/v3/p03_e03.txt",
       "transcript_sha256": "f098f74f7d0ae9d561d1d361ec46aa501e6ee38c3fb412b87b30bdb531006ec0"
+    },
+    {
+      "audio_voice_hints": {
+        "guest_surface": "Marco Silva",
+        "guest_voice_accent": "pt-BR",
+        "host_surface": "Rina",
+        "host_voice_accent": "en-US"
+      },
+      "duration_minutes": 1.63,
+      "episode_id": "p03_e04",
+      "failure_modes": [],
+      "ground_truth_path": "tests/fixtures/v3/ground_truth/p03_e04.json",
+      "podcast_id": "p03",
+      "primary_guest_canonical_name": "Marco Silva",
+      "primary_topic": "topic:risk-management",
+      "secondary_topics": [
+        "topic:systems-thinking",
+        "topic:dive-planning"
+      ],
+      "title": "Plan the Dive, Manage the Risk",
+      "transcript_path": "tests/fixtures/transcripts/v3/p03_e04.txt",
+      "transcript_sha256": "9c41694f5ceaa72d38661f5b6eb4b122cd0edbe872ed0a96d6b3232ef19ead5c"
     },
     {
       "audio_voice_hints": {
@@ -415,6 +481,31 @@
     },
     {
       "audio_voice_hints": {
+        "guest_surface": "Daniel Cho",
+        "guest_voice_accent": "en-US",
+        "host_surface": "Nora",
+        "host_voice_accent": "en-US"
+      },
+      "duration_minutes": 4.31,
+      "episode_id": "p05_e04",
+      "failure_modes": [
+        "high_person_density"
+      ],
+      "ground_truth_path": "tests/fixtures/v3/ground_truth/p05_e04.json",
+      "podcast_id": "p05",
+      "primary_guest_canonical_name": "Daniel Cho",
+      "primary_topic": "topic:risk-management",
+      "secondary_topics": [
+        "topic:index-investing",
+        "topic:systems-thinking",
+        "topic:reliability"
+      ],
+      "title": "The Risk Panel: Diversify or Concentrate?",
+      "transcript_path": "tests/fixtures/transcripts/v3/p05_e04.txt",
+      "transcript_sha256": "3c41d471851440db06a2c889be678c24ae690a6b8e6cb41b1200c829e4336d42"
+    },
+    {
+      "audio_voice_hints": {
         "guest_surface": "Jordan Park",
         "guest_voice_accent": "en-US",
         "host_surface": "Cam",
@@ -517,6 +608,50 @@
       "title": "Severe Garbles: A Macro Discussion",
       "transcript_path": "tests/fixtures/transcripts/v3/p07_e02.txt",
       "transcript_sha256": "d1909a3e858410a3d398894cd59c2202261d80be32aa9f293fd6769668a286c4"
+    },
+    {
+      "audio_voice_hints": {
+        "guest_surface": "Dr. Elena Fischer",
+        "guest_voice_accent": "de-DE",
+        "host_surface": "Alex Morgan",
+        "host_voice_accent": "en-AU"
+      },
+      "duration_minutes": 1.75,
+      "episode_id": "p07_e03",
+      "failure_modes": [],
+      "ground_truth_path": "tests/fixtures/v3/ground_truth/p07_e03.json",
+      "podcast_id": "p07",
+      "primary_guest_canonical_name": "Dr. Elena Fischer",
+      "primary_topic": "topic:systems-thinking",
+      "secondary_topics": [
+        "topic:sustainability",
+        "topic:risk-management"
+      ],
+      "title": "Sustainability Is a Systems Problem",
+      "transcript_path": "tests/fixtures/transcripts/v3/p07_e03.txt",
+      "transcript_sha256": "59895482345f27f0c7ec6dc39a98acd5f34d856928ebc0e9fd89d26fdd0d976f"
+    },
+    {
+      "audio_voice_hints": {
+        "guest_surface": "Skanda Amarnath",
+        "guest_voice_accent": "en-IN",
+        "host_surface": "Alex Morgan",
+        "host_voice_accent": "en-AU"
+      },
+      "duration_minutes": 1.59,
+      "episode_id": "p07_e04",
+      "failure_modes": [],
+      "ground_truth_path": "tests/fixtures/v3/ground_truth/p07_e04.json",
+      "podcast_id": "p07",
+      "primary_guest_canonical_name": "Skanda Amarnath",
+      "primary_topic": "topic:risk-management",
+      "secondary_topics": [
+        "topic:systems-thinking",
+        "topic:macroeconomics"
+      ],
+      "title": "Macro as Risk Management",
+      "transcript_path": "tests/fixtures/transcripts/v3/p07_e04.txt",
+      "transcript_sha256": "2448a2e77bd359096e86072a0e4a26f2fbca8e49f1fca78d123efcba3796ee22"
     },
     {
       "audio_voice_hints": {

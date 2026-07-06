@@ -1,0 +1,18 @@
+{
+  "captured_topics": [
+    "topic:dive-planning",
+    "topic:frame"
+  ],
+  "expected_interests": [
+    "topic:trail-building",
+    "topic:dive-planning",
+    "topic:frame"
+  ],
+  "heard": [
+    "p01_e04",
+    "p03_e04",
+    "p04_e01"
+  ],
+  "persona": "outdoor / hands-on",
+  "user_id": "u_field"
+}
