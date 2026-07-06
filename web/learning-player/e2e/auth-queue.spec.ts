@@ -26,7 +26,7 @@ test('sign in (mock OAuth), add to queue, see it in the queue view', async ({ pa
   // Genuinely idempotent so the two parallel projects (which share one mock-user queue) can't
   // race: we only ever ADD (never toggle off) — click "Add to queue" only if it isn't already
   // queued, then confirm the queued state. The shared queue monotonically keeps the episode.
-  await page.goto('/catalog')
+  await page.goto('/podcast/p05') // #1148: show page lists all its episodes
   const card = page.locator('article').filter({ hasText: 'Index Investing Without the Myths' })
   // Wait for the auth-gated queue control to render (the session rehydrates after the full
   // page reload). Match either label so we can branch idempotently below.

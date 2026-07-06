@@ -30,6 +30,7 @@ test('favouriting an episode + an insight fills the Saved per-kind sections', as
 
   // Favourite the episode from its player screen (the heart). Guarded: only ever ADD.
   await page.goto('/')
+  await page.goto('/podcast/p05') // #1148: reach the episode via its show page (date-independent)
   await page.getByText('Index Investing Without the Myths').first().click()
   await expect(page.getByText(/Index funds are not a strategy/).first()).toBeVisible()
   const epFav = page.getByRole('button', { name: 'Save to favorites' }).first()

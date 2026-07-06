@@ -19,8 +19,11 @@ test('reorder the queue with the ↑/↓ chevrons', async ({ page }, testInfo) =
   await signInIsolated(page, 'queue-reorder', testInfo)
 
   // Add two distinct episodes from the catalog (guarded: only ever ADD).
-  await page.goto('/catalog')
-  for (const title of [EP_A, EP_B]) {
+  for (const { title, show } of [
+    { title: EP_A, show: 'p05' },
+    { title: EP_B, show: 'p03' },
+  ]) {
+    await page.goto(`/podcast/${show}`) // #1148: reach each episode via its show page
     const card = page.locator('article').filter({ hasText: title }).first()
     const btn = card.getByRole('button', { name: /queue/i }).first()
     await expect(btn).toBeVisible()

@@ -63,6 +63,7 @@ test('topic card shows per-speaker perspectives with show-more + speaker nav', a
 
   // Open an episode → Insights → click a topic chip → the topic entity card opens.
   await page.goto('/')
+  await page.goto('/podcast/p05') // #1148: reach the episode via its show page (date-independent)
   await page.getByText('Index Investing Without the Myths').first().click()
   await page.getByRole('button', { name: 'Insights' }).first().click()
   await page.locator('button.text-topic').first().click()

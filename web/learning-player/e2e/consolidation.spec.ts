@@ -14,6 +14,7 @@ test('enrichment read surface + recall toggle + your-corpus lens + Revisit inbox
 
   // Open an episode and capture its slug from the URL.
   await page.goto('/')
+  await page.goto('/podcast/p05') // #1148: reach the episode via its show page (date-independent)
   await page.getByText('Index Investing Without the Myths').first().click()
   await expect(page.getByText(/Index funds are not a strategy/).first()).toBeVisible()
   const slug = new URL(page.url()).pathname.split('/').pop()!

@@ -15,6 +15,7 @@ test('transcript renders as flowing paragraphs with per-paragraph capture', asyn
 }, testInfo) => {
   await signInIsolated(page, 'paragraphs', testInfo)
   await page.goto('/')
+  await page.goto('/podcast/p05') // #1148: reach the episode via its show page (date-independent)
   await page.getByText('Index Investing Without the Myths').first().click()
   // The transcript renders from the real corpus (metadata → /segments path).
   await expect(page.getByText(/Index funds are not a strategy/).first()).toBeVisible()
