@@ -3612,7 +3612,7 @@ def _parse_pipeline_argv(
 
     Shared by the default pipeline command and the ``ingest`` subcommand so the
     latter inherits the entire arg surface — most importantly ``--profile`` /
-    ``--config`` resolution and every ML flag — instead of re-declaring it.
+    ``--config`` resolution and every ML flag — instead of redeclaring it.
 
     ``ingest=True`` adds ``--force`` and marks the namespace as the ``ingest``
     subcommand, forcing single-feed corpus layout on so the feed lands under
