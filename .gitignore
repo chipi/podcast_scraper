@@ -252,3 +252,20 @@ WORKTREE.md
 # (SERVE_OUTPUT_DIR=repo root → <root>/.app): sessions, per-user files, audit +
 # graph-analytics jsonl. Per-run runtime state, never committed.
 /.app/
+
+# Consumer Learning Player (Vue 3 / Vite / Playwright — RFC-099) — Node/UI artifacts.
+# Mirrors the web/gi-kg-viewer/* patterns above. Was under app/* until slice 14.
+web/learning-player/node_modules/
+web/learning-player/dist/
+web/learning-player/dist-ssr/
+web/learning-player/logs/
+web/learning-player/**/*.log
+web/learning-player/*.local
+web/learning-player/.idea/
+web/learning-player/test-results/
+web/learning-player/playwright-report/
+web/learning-player/e2e-results.json
+web/learning-player/blob-report/
+web/learning-player/playwright/.cache/
+web/learning-player/validation-results/
+web/learning-player/e2e/.app-state/
