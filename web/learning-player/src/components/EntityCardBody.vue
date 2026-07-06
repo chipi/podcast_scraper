@@ -13,6 +13,7 @@ import { RouterLink, useRouter } from 'vue-router'
 import { getPersonCard, getTopicCard } from '../services/api'
 import type { Entity, EpisodeSummary, PersonCard, Topic, TopicCard } from '../services/types'
 import EntitySignals from './EntitySignals.vue'
+import TopicPerspectives from './TopicPerspectives.vue'
 import { useAuthStore } from '../stores/auth'
 import { useInterestsStore } from '../stores/interests'
 import { episodeArtwork } from '../utils/episode'
@@ -271,6 +272,14 @@ function searchLibrary(): void {
             </li>
           </ul>
         </section>
+
+        <!-- Multi-perspective synthesis (#1146): each guest's take on this topic. Topic-only;
+             hides itself when the topic has no speaker-attributable insight. -->
+        <TopicPerspectives
+          v-if="isTopic"
+          :id="current.id"
+          @open="(p) => open(p.kind, p.id)"
+        />
 
         <!-- Enrichment signals (Plan B): grounding / co-appears / disagreements (person);
              momentum / similar / discussed-alongside (topic). Hides itself when empty. -->

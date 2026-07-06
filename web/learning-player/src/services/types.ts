@@ -342,6 +342,23 @@ export interface TopicCard {
   related_people: Entity[]
 }
 
+/** One speaker's take on a topic — their grounded insights (#1146). */
+export interface TopicPerspective {
+  person_id: string
+  person_name: string
+  insight_count: number
+  episode_count: number
+  insights: Insight[]
+}
+
+/** Multi-perspective synthesis (GET /api/app/topics/{id}/perspectives → AppTopicPerspectivesResponse). */
+export interface TopicPerspectivesResponse {
+  topic_id: string
+  topic_label: string
+  perspective_count: number
+  perspectives: TopicPerspective[]
+}
+
 /** Corpus-scope enrichment signals (GET /api/app/corpus/enrichment → `signals`).
  *  Enricher id → its envelope `data`. Every field is optional/best-effort: an
  *  enricher that didn't run just doesn't appear. Only the fields the entity card

@@ -35,6 +35,7 @@ import type {
   SearchResponse,
   SegmentsResponse,
   TopicCard,
+  TopicPerspectivesResponse,
   UserStats,
 } from './types'
 
@@ -147,6 +148,11 @@ export function getPersonCard(id: string, scope?: 'all' | 'mine'): Promise<Perso
 /** Topic card — episodes-about + cluster siblings + related people (KG-grounded). */
 export function getTopicCard(id: string, scope?: 'all' | 'mine'): Promise<TopicCard> {
   return getJSON<TopicCard>(`/topics/${encodeURIComponent(id)}`, { scope })
+}
+
+/** Topic perspectives — each speaker's grounded insights on the topic (#1146). */
+export function getTopicPerspectives(id: string): Promise<TopicPerspectivesResponse> {
+  return getJSON<TopicPerspectivesResponse>(`/topics/${encodeURIComponent(id)}/perspectives`)
 }
 
 // Corpus-scope enrichment is one static payload for the whole corpus, read by
