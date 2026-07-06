@@ -873,6 +873,7 @@ def topic_perspectives(
     anchor_path: str,
     target_topic: str,
     insight_types: tuple[str, ...] | None = None,
+    keep_episode_ids: set[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Pattern — Insights ABOUT a topic grouped by SPEAKER (multi-perspective, #1146).
 
@@ -890,6 +891,8 @@ def topic_perspectives(
     for _safe_bridge, bridge, gi, _kg in iter_cil_episode_bundles(root_path, anchor_path):
         if not (equiv & _bridge_all_ids(bridge)):
             continue
+        if keep_episode_ids is not None and _episode_id_from_bridge(bridge) not in keep_episode_ids:
+            continue  # scope=mine (#1149): only episodes in the user's heard∪captured set
         match_ids = equiv | _bridge_gi_topic_ids(bridge)
 
         about_insights: set[str] = set()

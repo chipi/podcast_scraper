@@ -12,17 +12,17 @@ import { useI18n } from 'vue-i18n'
 import { getTopicPerspectives } from '../services/api'
 import type { TopicPerspective } from '../services/types'
 
-const props = defineProps<{ id: string }>()
+const props = defineProps<{ id: string; scope?: 'all' | 'mine' }>()
 const emit = defineEmits<{ (e: 'open', payload: { kind: 'person' | 'topic'; id: string }): void }>()
 
 const { t } = useI18n()
 
 const perspectives = ref<TopicPerspective[]>([])
 watch(
-  () => props.id,
+  () => [props.id, props.scope] as const,
   () => {
     perspectives.value = []
-    void getTopicPerspectives(props.id)
+    void getTopicPerspectives(props.id, props.scope)
       .then((r) => {
         perspectives.value = r.perspectives
       })

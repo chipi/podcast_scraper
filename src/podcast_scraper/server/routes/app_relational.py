@@ -80,13 +80,17 @@ async def person_card(
 async def topic_perspectives_route(
     request: Request,
     topic_id: str,
+    scope: Literal["all", "mine"] = Query(default="all"),
+    user: User | None = Depends(get_optional_user),
 ) -> AppTopicPerspectivesResponse:
     """Multi-perspective synthesis — each speaker's take on the topic (#1146).
 
-    404 when the topic has no speaker-attributable insight in any episode's GI.
+    ``scope=mine`` (#1149) restricts to the episodes the user has heard∪captured; auth-gated
+    (401 signed out). 404 when the topic has no speaker-attributable insight in the (scoped) GI.
     """
     root = corpus_root_or_503(request)
-    resp = build_topic_perspectives(root, topic_id.strip())
+    mine = _user_set(request, user) if scope == "mine" else None
+    resp = build_topic_perspectives(root, topic_id.strip(), mine_slugs=mine)
     if resp is None:
         raise HTTPException(status_code=404, detail="No perspectives for this topic.")
     return resp

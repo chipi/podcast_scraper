@@ -1080,3 +1080,34 @@ def test_topic_perspectives_groups_insights_by_speaker(tmp_path: Path) -> None:
     assert by_person["person:alice"]["insight_count"] == 1
     assert by_person["person:alice"]["episode_count"] == 1
     assert by_person["person:alice"]["insights"][0]["properties"]["text"] == "Alice on AI"
+
+
+def test_topic_perspectives_scope_filters_by_episode(tmp_path: Path) -> None:
+    """#1149 — keep_episode_ids restricts perspectives to the given episode set."""
+    meta = tmp_path / "metadata"
+    _write_bundle(
+        meta,
+        "a",
+        episode_id="episode:a",
+        publish_date="2024-01-01",
+        person="person:alice",
+        topic="topic:ai",
+        insight_id="ia",
+        quote_id="qa",
+        insight_text="Alice on AI",
+    )
+    _write_bundle(
+        meta,
+        "b",
+        episode_id="episode:b",
+        publish_date="2024-02-01",
+        person="person:bob",
+        topic="topic:ai",
+        insight_id="ib",
+        quote_id="qb",
+        insight_text="Bob on AI",
+    )
+    root = str(tmp_path)
+    only_a = cil_queries.topic_perspectives(root, root, "topic:ai", keep_episode_ids={"episode:a"})
+    assert {p["person_id"] for p in only_a} == {"person:alice"}
+    assert cil_queries.topic_perspectives(root, root, "topic:ai", keep_episode_ids=set()) == []

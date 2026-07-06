@@ -151,8 +151,13 @@ export function getTopicCard(id: string, scope?: 'all' | 'mine'): Promise<TopicC
 }
 
 /** Topic perspectives — each speaker's grounded insights on the topic (#1146). */
-export function getTopicPerspectives(id: string): Promise<TopicPerspectivesResponse> {
-  return getJSON<TopicPerspectivesResponse>(`/topics/${encodeURIComponent(id)}/perspectives`)
+export function getTopicPerspectives(
+  id: string,
+  scope?: 'all' | 'mine',
+): Promise<TopicPerspectivesResponse> {
+  return getJSON<TopicPerspectivesResponse>(`/topics/${encodeURIComponent(id)}/perspectives`, {
+    scope,
+  })
 }
 
 // Corpus-scope enrichment is one static payload for the whole corpus, read by

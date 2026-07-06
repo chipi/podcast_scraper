@@ -261,12 +261,24 @@ def _node_to_app_insight(node: dict[str, Any]) -> AppInsight:
     )
 
 
-def build_topic_perspectives(root: Path, topic_id: str) -> AppTopicPerspectivesResponse | None:
+def build_topic_perspectives(
+    root: Path, topic_id: str, *, mine_slugs: set[str] | None = None
+) -> AppTopicPerspectivesResponse | None:
     """Group a topic's grounded insights by speaker — one take per speaker (#1146).
 
-    Returns ``None`` when the topic has no speaker-attributable insight in any episode's GI.
+    ``mine_slugs`` (scope=mine, #1149) restricts to episodes in the user's heard∪captured
+    set; an empty set yields no perspectives (honest-empty). Returns ``None`` when the topic
+    has no speaker-attributable insight in the (scoped) GI.
     """
-    groups = topic_perspectives(str(root), str(root), topic_id)
+    keep: set[str] | None = None
+    if mine_slugs is not None:
+        rows = build_catalog_rows_cumulative(root)
+        keep = {
+            r.episode_id
+            for r in rows
+            if r.episode_id and row_to_summary(root, r).slug in mine_slugs
+        }
+    groups = topic_perspectives(str(root), str(root), topic_id, keep_episode_ids=keep)
     if not groups:
         return None
     perspectives = [

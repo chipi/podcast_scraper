@@ -278,6 +278,7 @@ function searchLibrary(): void {
         <TopicPerspectives
           v-if="isTopic"
           :id="current.id"
+          :scope="corpusScope"
           @open="(p) => open(p.kind, p.id)"
         />
 
