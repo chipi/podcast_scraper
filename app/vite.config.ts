@@ -41,6 +41,18 @@ export default defineConfig({
         // Audio is NEVER cached/proxied by the SW (bridge-never-rehost): origin
         // media URLs are excluded from runtime caching.
         navigateFallback: '/index.html',
+        // Precache the SHELL ONLY (js/css/fonts/small icons). Never precache
+        // large media — that's the guide's #1 shipping trap. Artwork + audio
+        // stay on the runtime path.
+        globPatterns: ['**/*.{js,css,html,woff2,ico,svg}'],
+        globIgnores: ['**/artwork/**', '**/audio/**'],
+        // Hard per-entry cap — belt-and-suspenders against a large asset
+        // accidentally ending up in dist/ and inflating the precache.
+        maximumFileSizeToCacheInBytes: 2 * 1024 * 1024,
+        // Purge previous-version precaches on activate — without this they
+        // accumulate on every SW version bump and eventually get evicted
+        // (aggressively on iOS).
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
             // Artwork is content-addressed + served immutable → cache hard, keep on-device.
@@ -59,7 +71,17 @@ export default defineConfig({
               url.pathname.startsWith('/api/app/') &&
               !/^\/api\/app\/(me|queue|playback|auth)\b/.test(url.pathname),
             handler: 'StaleWhileRevalidate',
-            options: { cacheName: 'api-app' },
+            options: {
+              cacheName: 'api-app',
+              // Guide §2: always bound runtime caches or storage grows
+              // until the browser evicts the whole SW (iOS punishes this
+              // hardest). 200 responses × 7 days is generous for shared
+              // catalog/episode data.
+              expiration: {
+                maxEntries: 200,
+                maxAgeSeconds: 60 * 60 * 24 * 7,
+              },
+            },
           },
         ],
       },
