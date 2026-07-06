@@ -47,7 +47,12 @@ Numbered for cross-reference.
    operator/ops decision, not a code change.
 2. **Build — `topic_similarity` accuracy eval (#1105).** (**#1106 nli_contradiction:
    DONE 07-05** — eval built + run → 0% precision; softmax fix shipped; enricher
-   disabled in all profiles; product goal → stance-level detector **#1144**.) #1105
+   disabled in all profiles; product goal → stance-level detector #1144.
+   **#1144 DECIDED 07-07 — do NOT build (feasibility-negative):** the stance spike
+   found 0 disagreements in 40 Opus-labeled pairs on prod-v2 (31 `no_shared_question`,
+   9 `agree`) — real cross-person disagreement is near-absent, so the detector isn't
+   justified. Perspectives (#1146) already ships the multi-speaker surface. See
+   `player/1144-DISAGREEMENT-DETECTOR-FEASIBILITY.md`.) #1105
    remains: populate a real gold set + measure recall@K for `topic_similarity`; sweep
    `top_k` only if the baseline is weak.
 3. **Decision — #1069 scrape-on-demand + guardrails.** The only open P0 task, and its

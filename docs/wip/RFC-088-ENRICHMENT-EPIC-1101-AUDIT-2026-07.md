@@ -36,7 +36,10 @@ Source of truth, both on `main`:
 > contradictions even under the broad definition). Two fixes shipped: a softmax
 > calibration fix (`scorers/nli.py`; corpus flags ~660→~154) and **disabling the
 > enricher** in all shipping profiles (0% precision → every surfaced pair is fabricated).
-> Product goal moved to a stance-level detector (**#1144**). #1106 is CLOSED. **#1105**
+> Product goal moved to a stance-level detector (**#1144**) — **but #1144 is DECIDED 07-07:
+> do NOT build. The feasibility spike found 0/40 disagreements on prod-v2 (signal near-absent);
+> perspectives #1146 covers the surface. See `player/1144-DISAGREEMENT-DETECTOR-FEASIBILITY.md`.**
+> #1106 is CLOSED. **#1105**
 > (topic_similarity) is now also resolved (2026-07-06): **validated** — recall@10 99%, precision retuned via default top_k 10->7. CLOSED.
 
 ## Chunk-by-chunk evidence
