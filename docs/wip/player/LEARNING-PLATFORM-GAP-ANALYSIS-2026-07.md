@@ -27,7 +27,7 @@ arc has shipped; the umbrella body was never refreshed to show it.
 | Epic 3 Knowledge + Personalized Discovery | #1093 | CLOSED | Shipped ✓ (PRD-043) — **not in #1062's phase map** |
 | — 3.5 Personalized discovery | #1098 | CLOSED | Shipped **but dark** — see Pivot 2 |
 | Consumer Home + corpus search | #1090 | CLOSED | Shipped ✓ — also outside #1062 |
-| Enrichment Layer (RFC-088) | #1101 | CLOSED | Promoted 2026-06-27; umbrella + 6 chunks closed. **#1106 resolved 07-05** (eval → 0% precision; softmax fix + enricher disabled; → #1144). **#1105** (topic_similarity) still open. |
+| Enrichment Layer (RFC-088) | #1101 | CLOSED | Promoted 2026-06-27; umbrella + 6 chunks closed. **#1106 resolved 07-05** (eval → 0% precision; softmax fix + enricher disabled; → #1144). **#1105** (topic_similarity) resolved 07-06 — validated (recall@10 99%), default top_k retuned 10->7. |
 
 Against the PRD-035 goals: Spotify-grade player ✓, intelligence-during-listening ✓,
 capture ✓, consolidation ✓, minimal multi-user foundation ✓, a11y+i18n-from-line-1 ✓
