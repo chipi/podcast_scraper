@@ -1046,3 +1046,37 @@ def test_v3_vocabulary_full_loop_query_layer(tmp_path: Path) -> None:
                 ph, (int, float)
             ), f"position_hint not propagated to query layer: {ins!r}"
             assert 0.0 <= float(ph) <= 1.0
+
+
+def test_topic_perspectives_groups_insights_by_speaker(tmp_path: Path) -> None:
+    """#1146 — insights ABOUT a topic are grouped per speaker, most-insights first."""
+    meta = tmp_path / "metadata"
+    _write_bundle(
+        meta,
+        "a",
+        episode_id="episode:a",
+        publish_date="2024-01-01",
+        person="person:alice",
+        topic="topic:ai",
+        insight_id="ia",
+        quote_id="qa",
+        insight_text="Alice on AI",
+    )
+    _write_bundle(
+        meta,
+        "b",
+        episode_id="episode:b",
+        publish_date="2024-02-01",
+        person="person:bob",
+        topic="topic:ai",
+        insight_id="ib",
+        quote_id="qb",
+        insight_text="Bob on AI",
+    )
+    root = str(tmp_path)
+    persp = cil_queries.topic_perspectives(root, root, "topic:ai")
+    by_person = {p["person_id"]: p for p in persp}
+    assert set(by_person) == {"person:alice", "person:bob"}
+    assert by_person["person:alice"]["insight_count"] == 1
+    assert by_person["person:alice"]["episode_count"] == 1
+    assert by_person["person:alice"]["insights"][0]["properties"]["text"] == "Alice on AI"

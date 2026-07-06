@@ -17,6 +17,7 @@ from podcast_scraper.server.app_corpus_access import corpus_root_or_503
 from podcast_scraper.server.app_relational_view import (
     build_person_card,
     build_topic_card,
+    build_topic_perspectives,
     resolve_entity,
 )
 from podcast_scraper.server.app_user_corpus import user_episode_set
@@ -26,6 +27,7 @@ from podcast_scraper.server.schemas import (
     AppEntitySearchResponse,
     AppPersonCard,
     AppTopicCard,
+    AppTopicPerspectivesResponse,
 )
 
 router = APIRouter(tags=["app"])
@@ -72,6 +74,22 @@ async def person_card(
     if scope == "mine":
         card = _scope_to_corpus(card, _user_set(request, user))
     return card
+
+
+@router.get("/topics/{topic_id}/perspectives", response_model=AppTopicPerspectivesResponse)
+async def topic_perspectives_route(
+    request: Request,
+    topic_id: str,
+) -> AppTopicPerspectivesResponse:
+    """Multi-perspective synthesis — each speaker's take on the topic (#1146).
+
+    404 when the topic has no speaker-attributable insight in any episode's GI.
+    """
+    root = corpus_root_or_503(request)
+    resp = build_topic_perspectives(root, topic_id.strip())
+    if resp is None:
+        raise HTTPException(status_code=404, detail="No perspectives for this topic.")
+    return resp
 
 
 @router.get("/entities/search", response_model=AppEntitySearchResponse)

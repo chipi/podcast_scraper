@@ -355,6 +355,29 @@ class AppTopicCard(BaseModel):
     )
 
 
+class AppTopicPerspective(BaseModel):
+    """One speaker's take on a topic — their grounded insights (#1146)."""
+
+    person_id: str = Field(description="Speaker person id (person:{slug}).")
+    person_name: str = Field(description="Speaker display name.")
+    insight_count: int = Field(ge=0, description="Number of this speaker's insights on the topic.")
+    episode_count: int = Field(ge=0, description="Episodes in which they spoke on the topic.")
+    insights: list[AppInsight] = Field(
+        default_factory=list, description="Their insights on the topic (position-ordered)."
+    )
+
+
+class AppTopicPerspectivesResponse(BaseModel):
+    """Multi-perspective synthesis: each speaker's take on a topic (#1146)."""
+
+    topic_id: str = Field(description="Canonical topic id.")
+    topic_label: str = Field(description="Topic display label.")
+    perspective_count: int = Field(ge=0, description="Number of distinct speakers with a take.")
+    perspectives: list[AppTopicPerspective] = Field(
+        default_factory=list, description="Speakers' takes, most-insights first."
+    )
+
+
 class AppInterestCluster(BaseModel):
     """One selectable interest cluster for the discovery picker (PRD-043 FR4 / 3.5)."""
 

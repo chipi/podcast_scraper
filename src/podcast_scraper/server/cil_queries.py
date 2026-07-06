@@ -811,6 +811,88 @@ def topic_timeline_merged(
     return sorted(results, key=lambda r: (r.get("publish_date") or "", r.get("episode_id") or ""))
 
 
+def topic_perspectives(
+    root_path: str,
+    anchor_path: str,
+    target_topic: str,
+    insight_types: tuple[str, ...] | None = None,
+) -> list[dict[str, Any]]:
+    """Pattern — Insights ABOUT a topic grouped by SPEAKER (multi-perspective, #1146).
+
+    For every episode whose bridge asserts the topic, collect the Insights ABOUT it and
+    attribute each to its speaker (Insight -SUPPORTED_BY-> Quote -SPOKEN_BY-> Person),
+    then group across episodes by person. Returns one entry per speaker with >=1
+    attributable insight on the topic, most-insights first. Insights with no resolvable
+    speaker are dropped — a perspective needs an owner.
+    """
+    topic = canonical_cil_entity_id(target_topic)
+    equiv = _canonical_equivalents(root_path, topic)
+    allowed = {x.strip().lower() for x in insight_types if x.strip()} if insight_types else None
+    by_person: dict[str, dict[str, Any]] = {}
+    person_name: dict[str, str] = {}
+    for _safe_bridge, bridge, gi, _kg in iter_cil_episode_bundles(root_path, anchor_path):
+        if not (equiv & _bridge_all_ids(bridge)):
+            continue
+        match_ids = equiv | _bridge_gi_topic_ids(bridge)
+
+        about_insights: set[str] = set()
+        insight_quote: dict[str, str] = {}
+        quote_person: dict[str, str] = {}
+        for e in gi.get("edges") or []:
+            if not isinstance(e, dict):
+                continue
+            etype = normalize_gil_edge_type(e.get("type"))
+            if etype == "ABOUT":
+                if _strip_layer_prefixes_for_cil(str(e.get("to"))) in match_ids:
+                    fr = e.get("from")
+                    if fr is not None:
+                        about_insights.add(str(fr))
+            elif etype == "SUPPORTED_BY":
+                insight_quote.setdefault(str(e.get("from")), str(e.get("to")))
+            elif etype == "SPOKEN_BY":
+                quote_person[str(e.get("from"))] = str(e.get("to"))
+        if not about_insights:
+            continue
+
+        for n in gi.get("nodes") or []:
+            if isinstance(n, dict) and n.get("type") == "Person":
+                pid = str(n.get("id"))
+                nm = (n.get("properties") or {}).get("name")
+                if pid and isinstance(nm, str) and nm.strip():
+                    person_name.setdefault(pid, nm.strip())
+
+        episode_id = _episode_id_from_bridge(bridge)
+        for iid in about_insights:
+            node = _node_by_id(gi, iid)
+            if node is None:
+                continue
+            if allowed is not None and _insight_type(node).lower() not in allowed:
+                continue
+            qid = insight_quote.get(iid)
+            speaker_id = quote_person.get(qid) if qid else None
+            if not speaker_id:
+                continue
+            entry = by_person.setdefault(speaker_id, {"insights": [], "episodes": set()})
+            entry["insights"].append(node)
+            if episode_id:
+                entry["episodes"].add(episode_id)
+
+    out: list[dict[str, Any]] = []
+    for pid, data in by_person.items():
+        insights = sorted(data["insights"], key=_position_hint)
+        out.append(
+            {
+                "person_id": pid,
+                "person_name": person_name.get(pid, pid.split(":", 1)[-1]),
+                "insight_count": len(insights),
+                "episode_count": len(data["episodes"]),
+                "insights": insights,
+            }
+        )
+    out.sort(key=lambda r: (-r["insight_count"], r["person_id"]))
+    return out
+
+
 def person_topic_ids(root_path: str, anchor_path: str, target_person: str) -> list[str]:
     """Distinct topic ids linked to ``target_person`` via grounded GI edges."""
     profile = person_profile(root_path, anchor_path, target_person)
