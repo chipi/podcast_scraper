@@ -1,10 +1,38 @@
 /// <reference types="vitest/config" />
+import { execSync } from 'node:child_process'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
 
+/**
+ * Build-time identity injected into the bundle so the running client
+ * can identify itself. Critical for update-path debugging: without a
+ * visible build version, "the PWA isn't updating" reports have no
+ * evidence and it's easy to invent root causes (Guide §3).
+ *
+ * Prefers the git SHA (short) and ISO timestamp; falls back to
+ * env-provided values so container builds without a .git can still
+ * carry identity.
+ */
+function resolveBuildInfo(): { sha: string; time: string } {
+  const envSha = process.env.BUILD_SHA
+  if (envSha) return { sha: envSha.slice(0, 12), time: process.env.BUILD_TIME || new Date().toISOString() }
+  try {
+    const sha = execSync('git rev-parse --short=12 HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
+    return { sha, time: new Date().toISOString() }
+  } catch {
+    return { sha: 'unknown', time: new Date().toISOString() }
+  }
+}
+
+const BUILD_INFO = resolveBuildInfo()
+
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    __BUILD_SHA__: JSON.stringify(BUILD_INFO.sha),
+    __BUILD_TIME__: JSON.stringify(BUILD_INFO.time),
+  },
   plugins: [
     vue(),
     VitePWA({
