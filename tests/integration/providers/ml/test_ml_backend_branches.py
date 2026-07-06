@@ -157,3 +157,64 @@ class TestNliPredictRawDetachPath:
 
         out = nli_loader._predict_raw_to_nested_lists(TensorLike())
         assert out == [[0.1, 0.2, 0.7]]
+
+
+# ---- Additional branch coverage ---------------------------------------
+
+
+class TestHFSeq2SeqGenerateBranches:
+    def test_generate_with_explicit_max_input_tokens(self):
+        """Line 308 False branch: caller passes max_input_tokens explicitly,
+        so the config lookup path is skipped."""
+        from unittest.mock import MagicMock
+
+        import torch
+
+        from podcast_scraper.providers.ml.hf_seq2seq_backend import HFSeq2SeqBackend
+
+        b = HFSeq2SeqBackend(model_id="facebook/bart-base", device="cpu")
+        # Set up a loaded backend with mocked tokenizer + model
+        b.tokenizer = MagicMock()
+        b.tokenizer.return_value = {
+            "input_ids": torch.zeros(1, 4, dtype=torch.long),
+            "attention_mask": torch.ones(1, 4, dtype=torch.long),
+        }
+        b.tokenizer.decode.return_value = "generated text"
+
+        b.model = MagicMock()
+        param = MagicMock()
+        param.device = torch.device("cpu")
+        b.model.parameters.return_value = iter([param])
+        b.model.generate.return_value = torch.zeros(1, 6, dtype=torch.long)
+        # config not consulted when caller passes max_input_tokens
+        b.model.config = MagicMock()
+
+        result = b.generate(
+            "input text",
+            gen_config=MagicMock(),
+            max_input_tokens=256,  # explicit — line 308 False branch
+        )
+        assert result == "generated text"
+        # Tokenizer received max_length=256 (not the config default)
+        assert b.tokenizer.call_args.kwargs["max_length"] == 256
+
+
+class TestHFSeq2SeqUnloadBranches:
+    def test_unload_with_model_without_eval_attr(self):
+        """Line 345 False branch: model exists but lacks .eval()."""
+        from podcast_scraper.providers.ml.hf_seq2seq_backend import HFSeq2SeqBackend
+
+        b = HFSeq2SeqBackend(model_id="facebook/bart-base", device="cpu")
+
+        class NoEvalModel:
+            pass  # no .eval() method
+
+        b.model = NoEvalModel()
+        b.tokenizer = mock.Mock()
+        b._loaded = True
+
+        # Should not raise even though model has no .eval()
+        b.unload()
+        assert b.model is None
+        assert b.tokenizer is None
+        assert b._loaded is False
