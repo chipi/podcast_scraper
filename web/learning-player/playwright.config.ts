@@ -50,7 +50,7 @@ export default defineConfig({
       // failed with `../.venv/bin/python: No such file or directory`.
       command:
         '../../.venv/bin/python -m podcast_scraper.cli serve ' +
-        '--output-dir ../../tests/fixtures/app-validation-corpus/v2 --port 8011 --host 127.0.0.1',
+        '--output-dir ../../tests/fixtures/app-validation-corpus/v3 --port 8011 --host 127.0.0.1',
       url: 'http://127.0.0.1:8011/api/health',
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
