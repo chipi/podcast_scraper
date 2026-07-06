@@ -287,6 +287,21 @@ class TestCilApi:
         assert ep0["episode_number"] == 101
         assert ep0["episode_image_url"] == "https://example.com/ep-cover.jpg"
 
+    def test_perspectives(self, client: TestClient, cil_corpus: Path) -> None:
+        tid = quote("topic:science", safe="")
+        resp = client.get(
+            f"/api/topics/{tid}/perspectives",
+            params={"path": str(cil_corpus)},
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["topic_id"] == "topic:science"
+        assert body["perspectives"]  # >=1 speaker with an attributed insight on the topic
+        p0 = body["perspectives"][0]
+        assert p0["person_id"].startswith("person:")
+        assert p0["insight_count"] >= 1
+        assert p0["insights"]
+
     def test_timeline_merge_post(self, client: TestClient, cil_corpus: Path) -> None:
         resp = client.post(
             "/api/topics/timeline",

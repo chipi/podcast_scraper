@@ -1884,6 +1884,24 @@ class CilTopicTimelineResponse(BaseModel):
     episodes: list[CilArcEpisodeBlock] = Field(default_factory=list)
 
 
+class CilTopicPerspective(BaseModel):
+    """One speaker's take on a topic — their grounded insights (operator CIL view; #1146)."""
+
+    person_id: str
+    person_name: str
+    insight_count: int = Field(ge=0)
+    episode_count: int = Field(ge=0)
+    insights: list[dict[str, Any]] = Field(default_factory=list)  # raw GI Insight nodes
+
+
+class CilTopicPerspectivesResponse(BaseModel):
+    """Response for GET /api/topics/{topic_id}/perspectives (#1146)."""
+
+    path: str
+    topic_id: str
+    perspectives: list[CilTopicPerspective] = Field(default_factory=list)
+
+
 class CilTopicTimelineMergeRequest(BaseModel):
     """Body for POST /api/topics/timeline — merged topic timeline (cluster scope)."""
 

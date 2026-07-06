@@ -71,6 +71,7 @@ import PersonLandingView from '../subject/PersonLandingView.vue'
 import PodcastNodeView from '../subject/PodcastNodeView.vue'
 import InsightNodeView from '../subject/InsightNodeView.vue'
 import SubjectTimelineChart from '../subject/SubjectTimelineChart.vue'
+import NodeTopicPerspectives from './NodeTopicPerspectives.vue'
 import {
   buildSubjectMentionsTimeline,
   type SubjectMentionsTimeline,
@@ -1438,6 +1439,7 @@ type GraphRailDetailTab =
   | 'position_tracker'
   | 'enrichment'
   | 'neighbourhood'
+  | 'perspectives'
 
 const graphRailDetailTab = ref<GraphRailDetailTab>('details')
 
@@ -1462,6 +1464,20 @@ watch(hasPositionTrackerTab, (has) => {
     graphRailDetailTab.value = 'details'
   }
 })
+
+// Topic nodes get a Perspectives tab (#1146) — each speaker's grounded insights on the
+// topic, grouped by speaker. Shown for every topic node; the panel handles the rare
+// empty case. Fall back to Details when the node is no longer a topic.
+const hasPerspectivesTab = computed(() => isTopicNode.value)
+watch(hasPerspectivesTab, (has) => {
+  if (!has && graphRailDetailTab.value === 'perspectives') {
+    graphRailDetailTab.value = 'details'
+  }
+})
+const perspectivesCorpusPath = computed(() =>
+  (shell.resolvedCorpusPath ?? shell.corpusPath ?? '').trim(),
+)
+const perspectivesTopicId = computed(() => stripLayerPrefixesForCil(props.nodeId ?? ''))
 // Picking a topic from the profile's ranked-topics list (or Insights-voiced)
 // sets ``positionTrackerTopicId`` but the arc renders in the Positions tab — a
 // different rail tab than the profile. Auto-switch so the pick has a visible
@@ -1732,6 +1748,25 @@ const graphConnectionsCenterInView = computed((): boolean => {
         @click="graphRailDetailTab = 'timeline'"
       >
         Timeline
+      </button>
+      <button
+        v-if="hasPerspectivesTab"
+        id="node-detail-rail-tab-perspectives"
+        type="button"
+        role="tab"
+        class="flex-1 rounded px-2 py-1 text-center text-xs font-medium transition-colors"
+        :class="
+          graphRailDetailTab === 'perspectives'
+            ? 'bg-primary text-primary-foreground'
+            : 'text-elevated-foreground hover:bg-overlay'
+        "
+        :aria-selected="graphRailDetailTab === 'perspectives'"
+        aria-controls="node-detail-rail-panel-perspectives"
+        data-testid="node-detail-rail-tab-perspectives"
+        :tabindex="graphRailDetailTab === 'perspectives' ? 0 : -1"
+        @click="graphRailDetailTab = 'perspectives'"
+      >
+        Perspectives
       </button>
       <button
         v-if="hasPositionTrackerTab"
@@ -2909,6 +2944,21 @@ const graphConnectionsCenterInView = computed((): boolean => {
           :node-id="props.nodeId ?? ''"
           :node-type="nodeType"
           @has-content="enrichmentHasContent = $event"
+        />
+      </div>
+
+      <div
+        v-if="props.embedInRail && hasPerspectivesTab"
+        v-show="graphRailDetailTab === 'perspectives'"
+        id="node-detail-rail-panel-perspectives"
+        class="min-h-0"
+        role="tabpanel"
+        aria-labelledby="node-detail-rail-tab-perspectives"
+        :tabindex="-1"
+      >
+        <NodeTopicPerspectives
+          :corpus-path="perspectivesCorpusPath"
+          :topic-id="perspectivesTopicId"
         />
       </div>
 

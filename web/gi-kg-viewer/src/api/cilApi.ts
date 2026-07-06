@@ -105,6 +105,43 @@ export async function fetchTopicTimeline(
   return (await res.json()) as CilTopicTimelineResponse
 }
 
+export interface CilTopicPerspective {
+  person_id: string
+  person_name: string
+  insight_count: number
+  episode_count: number
+  insights: Array<Record<string, unknown>>
+}
+
+export interface CilTopicPerspectivesResponse {
+  path: string
+  topic_id: string
+  perspectives: CilTopicPerspective[]
+}
+
+/** Each speaker's grounded insights on a topic, grouped by speaker (#1146). */
+export async function fetchTopicPerspectives(
+  corpusPath: string,
+  topicId: string,
+): Promise<CilTopicPerspectivesResponse> {
+  const root = corpusPath.trim()
+  const tid = topicId.trim()
+  if (!root) {
+    throw new Error('Corpus path is required')
+  }
+  if (!tid) {
+    throw new Error('Topic id is required')
+  }
+  const enc = encodeURIComponent(tid)
+  const q = new URLSearchParams({ path: root })
+  const res = await fetchWithTimeout(`/api/topics/${enc}/perspectives?${q.toString()}`)
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(detail.trim() || `HTTP ${res.status}`)
+  }
+  return (await res.json()) as CilTopicPerspectivesResponse
+}
+
 export async function fetchTopicTimelineMerged(
   corpusPath: string,
   topicIds: string[],

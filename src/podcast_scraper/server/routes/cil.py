@@ -16,6 +16,8 @@ from podcast_scraper.server.schemas import (
     CilPersonProfileQuoteRow,
     CilPersonProfileResponse,
     CilPositionArcResponse,
+    CilTopicPerspective,
+    CilTopicPerspectivesResponse,
     CilTopicTimelineMergedResponse,
     CilTopicTimelineMergeRequest,
     CilTopicTimelineResponse,
@@ -224,6 +226,37 @@ async def topic_timeline(
         topic_id=tid,
         episodes=episodes,
     )
+
+
+@router.get("/topics/{topic_id}/perspectives", response_model=CilTopicPerspectivesResponse)
+async def topic_perspectives(
+    request: Request,
+    topic_id: str,
+    path: str | None = Query(
+        default=None,
+        description="Corpus root. Omit when server default output_dir is set.",
+    ),
+    insight_types: str | None = Query(
+        default=None,
+        description="Comma-separated insight_type filter; omit for all types.",
+    ),
+) -> CilTopicPerspectivesResponse:
+    """Each speaker's grounded insights on the topic, grouped by speaker (#1146)."""
+    root_safe, anchor_safe = _require_root_and_anchor(request, path)
+    types = _parse_insight_types(insight_types, default=None)
+    tid = cil_queries.canonical_cil_entity_id(topic_id)
+    raw = cil_queries.topic_perspectives(root_safe, anchor_safe, tid, insight_types=types)
+    perspectives = [
+        CilTopicPerspective(
+            person_id=str(g["person_id"]),
+            person_name=str(g["person_name"]),
+            insight_count=int(g["insight_count"]),
+            episode_count=int(g["episode_count"]),
+            insights=list(g.get("insights") or []),
+        )
+        for g in raw
+    ]
+    return CilTopicPerspectivesResponse(path=root_safe, topic_id=tid, perspectives=perspectives)
 
 
 @router.get("/topics/{topic_id}/persons", response_model=CilIdListResponse)
