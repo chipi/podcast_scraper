@@ -19,8 +19,18 @@ export default defineConfig({
         display: 'standalone',
         start_url: '/',
         icons: [
-          { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+          // "any" purpose covers regular home-screen icons and the install prompt.
+          { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          // "maskable" purpose — Android crops the icon into a themed shape; without
+          // a maskable icon the OS wraps the icon in a white rounded box. Safe-zone
+          // is the central ~80 % (outer ~10 % may be clipped).
+          {
+            src: '/maskable-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
         ],
       },
       workbox: {
