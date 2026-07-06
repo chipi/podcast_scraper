@@ -195,3 +195,98 @@ class TestAnswerMulti:
             device="cpu",
         )
         assert spans == []
+
+
+class TestBackendAnswerTop1Fallback:
+    """Empty-candidate fallback in QAEvidenceBackend.answer_top1."""
+
+    def test_answer_top1_returns_empty_span_when_top_k_empty(self, monkeypatch):
+        """When answer_top_k returns [], answer_top1 must return QASpan(0-shape)."""
+        backend = QAEvidenceBackend.__new__(QAEvidenceBackend)
+        monkeypatch.setattr(QAEvidenceBackend, "answer_top_k", lambda self, q, c, top_k=1: [])
+        span = backend.answer_top1("q", "ctx")
+        assert span.answer == ""
+        assert span.start == 0
+        assert span.end == 0
+        assert span.score == 0.0
+
+    def test_answer_top1_returns_first_when_top_k_nonempty(self, monkeypatch):
+        """When answer_top_k returns spans, answer_top1 returns the first one."""
+        backend = QAEvidenceBackend.__new__(QAEvidenceBackend)
+        monkeypatch.setattr(
+            QAEvidenceBackend,
+            "answer_top_k",
+            lambda self, q, c, top_k=1: [
+                QASpan(answer="first", start=0, end=5, score=0.9),
+                QASpan(answer="second", start=10, end=16, score=0.5),
+            ],
+        )
+        span = backend.answer_top1("q", "ctx")
+        assert span.answer == "first"
+        assert span.score == pytest.approx(0.9)
+
+
+class TestAnswerWindowing:
+    """answer() windowing path (window_chars > 0 and context > window)."""
+
+    def test_answer_windowed_iterates_multiple_windows(self, monkeypatch):
+        """Covers line 340 (per-window backend.answer_top1 call) — mocked
+        top1 returns a valid span so the windowing loop iterates and picks
+        the best. We verify iteration count, not answer text (which the
+        function re-slices from the global context)."""
+        _stub_backend(monkeypatch)
+        call_count = {"n": 0}
+
+        def fake_top1(self, q, c):
+            call_count["n"] += 1
+            # Score increases with call number so the last window wins
+            return QASpan(
+                answer="span",
+                start=0,
+                end=4,
+                score=0.1 * call_count["n"],
+            )
+
+        monkeypatch.setattr(QAEvidenceBackend, "answer_top1", fake_top1)
+
+        long_ctx = "a" * 3000
+        span = extractive_qa.answer(
+            context=long_ctx,
+            question="Q?",
+            model_id="roberta-squad2",
+            device="cpu",
+            window_chars=1000,
+            window_overlap_chars=100,
+        )
+        # answer_top1 was called at least twice (windowing fired)
+        assert call_count["n"] >= 2
+        # A span was returned (not the empty QASpan fallback)
+        assert span.score > 0.0
+
+    def test_answer_windowed_all_raise_falls_back_to_full_context(self, monkeypatch):
+        """Covers line 375 (fallback call at end of answer()) — all window
+        calls raise, then the function falls back to a single full-context
+        backend.answer_top1 call."""
+        _stub_backend(monkeypatch)
+        state = {"call_n": 0}
+
+        def fake_top1(self, q, c):
+            state["call_n"] += 1
+            # Every windowed call raises; the fallback (last) call succeeds
+            if len(c) < 3000:  # windowed slice
+                raise RuntimeError("window failed")
+            return QASpan(answer="OK", start=0, end=2, score=0.5)
+
+        monkeypatch.setattr(QAEvidenceBackend, "answer_top1", fake_top1)
+
+        span = extractive_qa.answer(
+            context="a" * 3000,
+            question="Q?",
+            model_id="roberta-squad2",
+            window_chars=1000,
+            window_overlap_chars=100,
+        )
+        # The fallback path fired: multiple windowed calls raised, then a
+        # final full-context call succeeded.
+        assert state["call_n"] > 1
+        assert span.score == pytest.approx(0.5)
