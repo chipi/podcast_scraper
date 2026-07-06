@@ -1,0 +1,48 @@
+{
+  "callbacks": [],
+  "episode_id": "p06_e04",
+  "extra_alias_callbacks": [],
+  "failure_modes": [
+    "low_grounding_dialogue",
+    "recurring_guest"
+  ],
+  "guest_accent": "en-US",
+  "host_accent": "en-US",
+  "host_canonical_name": "Cam",
+  "podcast_id": "p06",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p06:Jordan",
+  "primary_guest_canonical_name": "Jordan Park",
+  "primary_guest_surface_in_transcript": "Jordan Park",
+  "primary_topic": "topic:cultural-drift",
+  "publish_date": "2026-01-10",
+  "publish_offset_days": 740,
+  "secondary_topics": [
+    "topic:dialogue",
+    "topic:systems-thinking"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Squarespace",
+      "kind": "template_opening",
+      "line_index": 11
+    },
+    {
+      "brand": "Notion",
+      "kind": "template_midroll",
+      "line_index": 21
+    },
+    {
+      "brand": "Squarespace",
+      "kind": "template_closing",
+      "line_index": 64
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p06:Jordan",
+      "kind": "canonical",
+      "surface": "Jordan Park"
+    }
+  ]
+}

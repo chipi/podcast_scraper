@@ -1,0 +1,59 @@
+{
+  "callbacks": [
+    "I was last on the show talking about on-call rotations. The pattern shows up again here."
+  ],
+  "episode_id": "p02_e03",
+  "extra_alias_callbacks": [],
+  "failure_modes": [
+    "recurring_guest",
+    "position_arc_multi",
+    "genuine_recommendation",
+    "frame_topic_cross_domain"
+  ],
+  "guest_accent": "en-IN",
+  "host_accent": "en-US",
+  "host_canonical_name": "Ethan",
+  "podcast_id": "p02",
+  "position_arc": "I used to argue for a single central security team. After the 2024 webhook incident I changed my mind \u2014 embedded ownership beats a central gatekeeper every time.",
+  "primary_guest_canonical_id": "p02:Priya",
+  "primary_guest_canonical_name": "Priya Nair",
+  "primary_guest_surface_in_transcript": "Priya Nair",
+  "primary_topic": "topic:security-design",
+  "publish_date": "2024-08-25",
+  "publish_offset_days": 237,
+  "secondary_topics": [
+    "topic:reliability",
+    "topic:frame",
+    "topic:risk-management"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Vanta",
+      "kind": "template_opening",
+      "line_index": 11
+    },
+    {
+      "brand": "Sentry",
+      "kind": "enthusiastic_recommendation",
+      "line_index": 18,
+      "note": "Real host recommendation \u2014 NOT a paid sponsor. Cleaner must preserve."
+    },
+    {
+      "brand": "Sentry",
+      "kind": "template_midroll",
+      "line_index": 36
+    },
+    {
+      "brand": "Linear",
+      "kind": "template_closing",
+      "line_index": 73
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p02:Priya",
+      "kind": "nickname",
+      "surface": "Priya Nair"
+    }
+  ]
+}

@@ -1,0 +1,95 @@
+{
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": true,
+      "label": "outdoor activities",
+      "topic_cluster_compound_id": "tc:outdoor-activities-cluster",
+      "topic_id": "topic:outdoor-activities"
+    },
+    {
+      "in_topic_cluster": true,
+      "label": "gear",
+      "topic_cluster_compound_id": "tc:gear-cluster",
+      "topic_id": "topic:gear"
+    }
+  ],
+  "content": {
+    "diarization_num_speakers": 3,
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Rina",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Hanna Krebohticker",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p03_e03.txt",
+    "transcript_source": "synthetic"
+  },
+  "episode": {
+    "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+    "published_date": "2026-07-06",
+    "title": "Below the Surface \u2014 Episode 3"
+  },
+  "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+  "episode_title": "Below the Surface \u2014 Episode 3",
+  "feed": {
+    "description": "Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.",
+    "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+    "title": "Below the Surface",
+    "url": "http://localhost/"
+  },
+  "feed_display_title": "Below the Surface",
+  "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+  "gi_relative_path": "feeds/p03/metadata/p03_e03.gi.json",
+  "grounded_insights": {
+    "artifact_path": "feeds/p03/metadata/p03_e03.gi.json",
+    "schema_version": "1.0"
+  },
+  "has_gi": true,
+  "has_kg": true,
+  "kg_relative_path": "feeds/p03/metadata/p03_e03.kg.json",
+  "knowledge_graph": {
+    "artifact_path": "feeds/p03/metadata/p03_e03.kg.json",
+    "schema_version": "1.1"
+  },
+  "publish_date": "2026-07-06",
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Today we're talking about marine biology, and I'm joined by Hanna Krebohticker, marine biologist focused on reef systems.",
+      "Hanna Krebohticker, thanks for being here.",
+      "Hanna Krebohticker: Thanks, Rina."
+    ],
+    "preview": "Today we're talking about marine biology, and I'm joined by Hanna Krebohticker, marine biologist focused on reef systems.",
+    "text": "Today we're talking about marine biology, and I'm joined by Hanna Krebohticker, marine biologist focused on reef systems.\nHanna Krebohticker, thanks for being here.\nHanna Krebohticker: Thanks, Rina.",
+    "title": "Below the Surface \u2014 Episode 3 \u2014 synthetic"
+  },
+  "summary_bullet_graph_topic_ids": [
+    "topic:outdoor-activities",
+    "topic:gear",
+    "topic:business-markets"
+  ],
+  "summary_bullets": [
+    "Today we're talking about marine biology, and I'm joined by Hanna Krebohticker, marine biologist focused on reef systems.",
+    "Hanna Krebohticker, thanks for being here.",
+    "Hanna Krebohticker: Thanks, Rina."
+  ],
+  "summary_preview": "Today we're talking about marine biology, and I'm joined by Hanna Krebohticker, marine biologist focused on reef systems.",
+  "summary_text": "Today we're talking about marine biology, and I'm joined by Hanna Krebohticker, marine biologist focused on reef systems.\nHanna Krebohticker, thanks for being here.\nHanna Krebohticker: Thanks, Rina.",
+  "summary_title": "Below the Surface \u2014 Episode 3 \u2014 synthetic",
+  "topics": [
+    "outdoor activities",
+    "gear",
+    "Business & markets"
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "callbacks": [],
+  "episode_id": "p03_e01",
+  "extra_alias_callbacks": [],
+  "failure_modes": [
+    "asr_garble",
+    "same_first_distinct"
+  ],
+  "guest_accent": "pt-BR",
+  "host_accent": "en-US",
+  "host_canonical_name": "Rina",
+  "podcast_id": "p03",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p03:Marco",
+  "primary_guest_canonical_name": "Marco Silva",
+  "primary_guest_surface_in_transcript": "Marco Sylva",
+  "primary_topic": "topic:wreck-diving",
+  "publish_date": "2024-05-04",
+  "publish_offset_days": 124,
+  "secondary_topics": [
+    "topic:dive-planning",
+    "topic:soil-erosion"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Suunto",
+      "kind": "template_opening",
+      "line_index": 11
+    },
+    {
+      "brand": "PADI",
+      "kind": "native_ad",
+      "line_index": 25,
+      "note": "Host-read native ad \u2014 no canonical 'brought to you by' marker."
+    },
+    {
+      "brand": "PADI",
+      "kind": "template_midroll",
+      "line_index": 29
+    },
+    {
+      "brand": "GoPro",
+      "kind": "template_closing",
+      "line_index": 62
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p03:Marco",
+      "kind": "garble",
+      "surface": "Marco Sylva"
+    }
+  ]
+}

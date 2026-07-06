@@ -1,0 +1,83 @@
+{
+  "edges": [
+    {
+      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "to": "entity:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "to": "entity:gear",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "to": "topic:technology",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "to": "topic:gear",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "to": "topic:science-research",
+      "type": "RELATES_TO"
+    }
+  ],
+  "episode_id": "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "properties": {
+        "episode_id": "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+        "metadata_relative_path": "feeds/p04/metadata/p04_e01.metadata.json",
+        "title": "Frame & Light \u2014 Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:technology",
+      "properties": {
+        "category": "Concept",
+        "label": "Technology"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:gear",
+      "properties": {
+        "category": "Concept",
+        "label": "Gear"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "technology"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:gear",
+      "properties": {
+        "label": "gear"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2"
+}

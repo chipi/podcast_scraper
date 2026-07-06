@@ -1,0 +1,95 @@
+{
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": false,
+      "label": "Science & research",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:science-research"
+    },
+    {
+      "in_topic_cluster": false,
+      "label": "welcome back to",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:welcome-back-to"
+    }
+  ],
+  "content": {
+    "diarization_num_speakers": 3,
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Cam",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Jordan Park",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p06_e01.txt",
+    "transcript_source": "synthetic"
+  },
+  "episode": {
+    "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+    "published_date": "2026-07-01",
+    "title": "Edge Cases Podcast \u2014 Episode 1"
+  },
+  "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+  "episode_title": "Edge Cases Podcast \u2014 Episode 1",
+  "feed": {
+    "description": "Testing edge cases: special characters, unicode, long titles, missing fields.",
+    "feed_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
+    "title": "Edge Cases Podcast",
+    "url": "http://localhost/"
+  },
+  "feed_display_title": "Edge Cases Podcast",
+  "feed_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
+  "gi_relative_path": "feeds/p06/metadata/p06_e01.gi.json",
+  "grounded_insights": {
+    "artifact_path": "feeds/p06/metadata/p06_e01.gi.json",
+    "schema_version": "1.0"
+  },
+  "has_gi": true,
+  "has_kg": true,
+  "kg_relative_path": "feeds/p06/metadata/p06_e01.kg.json",
+  "knowledge_graph": {
+    "artifact_path": "feeds/p06/metadata/p06_e01.kg.json",
+    "schema_version": "1.1"
+  },
+  "publish_date": "2026-07-01",
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic.",
+      "Jordan Park, thanks for being here.",
+      "Excited for this one \u2014 dialogue and conversational drift is something I've been thinking about a lot."
+    ],
+    "preview": "Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic.",
+    "text": "Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic.\nJordan Park, thanks for being here.\nExcited for this one \u2014 dialogue and conversational drift is something I've been thinking about a lot.",
+    "title": "Edge Cases Podcast \u2014 Episode 1 \u2014 synthetic"
+  },
+  "summary_bullet_graph_topic_ids": [
+    "topic:science-research",
+    "topic:welcome-back-to",
+    "topic:excited-for-this-one"
+  ],
+  "summary_bullets": [
+    "Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic.",
+    "Jordan Park, thanks for being here.",
+    "Excited for this one \u2014 dialogue and conversational drift is something I've been thinking about a lot."
+  ],
+  "summary_preview": "Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic.",
+  "summary_text": "Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic.\nJordan Park, thanks for being here.\nExcited for this one \u2014 dialogue and conversational drift is something I've been thinking about a lot.",
+  "summary_title": "Edge Cases Podcast \u2014 Episode 1 \u2014 synthetic",
+  "topics": [
+    "Science & research",
+    "welcome back to",
+    "excited for this one"
+  ]
+}

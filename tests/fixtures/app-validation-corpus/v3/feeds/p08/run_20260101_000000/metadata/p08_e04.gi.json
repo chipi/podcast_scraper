@@ -37,7 +37,7 @@
     },
     {
       "from": "quote:019f156e66fb39c5",
-      "to": "person:speaker-01",
+      "to": "person:a-correspondent",
       "type": "SPOKEN_BY"
     },
     {
@@ -47,7 +47,7 @@
     },
     {
       "from": "quote:abcdd16197de765c",
-      "to": "person:speaker-02",
+      "to": "person:renee-montagne-park",
       "type": "SPOKEN_BY"
     },
     {
@@ -57,7 +57,7 @@
     },
     {
       "from": "quote:cbe4b6e56e92087f",
-      "to": "person:speaker-01",
+      "to": "person:a-correspondent",
       "type": "SPOKEN_BY"
     },
     {
@@ -67,7 +67,7 @@
     },
     {
       "from": "quote:827c5fc1a6442f1b",
-      "to": "person:speaker-01",
+      "to": "person:a-correspondent",
       "type": "SPOKEN_BY"
     },
     {
@@ -77,7 +77,7 @@
     },
     {
       "from": "quote:90bee7c5f56e34d2",
-      "to": "person:speaker-02",
+      "to": "person:renee-montagne-park",
       "type": "SPOKEN_BY"
     },
     {
@@ -87,7 +87,7 @@
     },
     {
       "from": "quote:49fe0da261635fdf",
-      "to": "person:speaker-01",
+      "to": "person:a-correspondent",
       "type": "SPOKEN_BY"
     },
     {
@@ -106,7 +106,7 @@
         "episode_id": "ep-d428e906f5affc60",
         "metadata_relative_path": "feeds/p08/run_20260101_000000/metadata/p08_e04.metadata.json",
         "podcast_id": "p08",
-        "publish_date": "2026-01--3T12:00:00",
+        "publish_date": "2026-01-04T12:00:00",
         "title": "Corrections, Trust, and the Long Game"
       },
       "type": "Episode"
@@ -171,7 +171,7 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
+      "id": "person:a-correspondent",
       "properties": {
         "name": "A. correspondent"
       },
@@ -192,7 +192,7 @@
       "type": "Quote"
     },
     {
-      "id": "person:speaker-02",
+      "id": "person:renee-montagne-park",
       "properties": {
         "name": "Renee Montagne-Park"
       },

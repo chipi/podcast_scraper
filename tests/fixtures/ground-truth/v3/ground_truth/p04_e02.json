@@ -1,0 +1,61 @@
+{
+  "callbacks": [
+    "Ava Lemoyne was on last week talking about strobe positioning underwater."
+  ],
+  "episode_id": "p04_e02",
+  "extra_alias_callbacks": [
+    {
+      "canonical_id": "p04:Ava",
+      "surface": "Ava Lemoyne"
+    }
+  ],
+  "failure_modes": [
+    "multi_accent",
+    "asr_garble",
+    "high_person_density"
+  ],
+  "guest_accent": "ar-EG",
+  "host_accent": "en-GB",
+  "host_canonical_name": "Leo",
+  "podcast_id": "p04",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p04:Tariq",
+  "primary_guest_canonical_name": "Tariq Hassan",
+  "primary_guest_surface_in_transcript": "Tarek Hassan",
+  "primary_topic": "topic:documentary-photography",
+  "publish_date": "2024-10-03",
+  "publish_offset_days": 276,
+  "secondary_topics": [
+    "topic:frame",
+    "topic:editing-workflow"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Adobe",
+      "kind": "template_opening",
+      "line_index": 11
+    },
+    {
+      "brand": "Squarespace",
+      "kind": "template_midroll",
+      "line_index": 31
+    },
+    {
+      "brand": "Peak Design",
+      "kind": "template_closing",
+      "line_index": 64
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p04:Tariq",
+      "kind": "garble",
+      "surface": "Tarek Hassan"
+    },
+    {
+      "canonical_id": "p04:Ava",
+      "kind": "first_name_only",
+      "surface": "Ava Lemoyne"
+    }
+  ]
+}

@@ -37,7 +37,7 @@
     },
     {
       "from": "quote:dfa81ea82fbebe59",
-      "to": "person:speaker-01",
+      "to": "person:sam",
       "type": "SPOKEN_BY"
     },
     {
@@ -47,7 +47,7 @@
     },
     {
       "from": "quote:e8fcc8424d300993",
-      "to": "person:speaker-02",
+      "to": "person:dr-elena-fischer",
       "type": "SPOKEN_BY"
     },
     {
@@ -57,7 +57,7 @@
     },
     {
       "from": "quote:8d52e9f09be8291d",
-      "to": "person:speaker-01",
+      "to": "person:sam",
       "type": "SPOKEN_BY"
     },
     {
@@ -67,7 +67,7 @@
     },
     {
       "from": "quote:dab23071ba27b0e2",
-      "to": "person:speaker-02",
+      "to": "person:dr-elena-fischer",
       "type": "SPOKEN_BY"
     },
     {
@@ -77,7 +77,7 @@
     },
     {
       "from": "quote:189bc167abf1f85a",
-      "to": "person:speaker-01",
+      "to": "person:sam",
       "type": "SPOKEN_BY"
     },
     {
@@ -87,7 +87,7 @@
     },
     {
       "from": "quote:8dfa6b04d001a312",
-      "to": "person:speaker-01",
+      "to": "person:sam",
       "type": "SPOKEN_BY"
     },
     {
@@ -106,7 +106,7 @@
         "episode_id": "ep-1abf911df5bea2c3",
         "metadata_relative_path": "feeds/p09/run_20260101_000000/metadata/p09_e01.metadata.json",
         "podcast_id": "p09",
-        "publish_date": "2026-01--4T12:00:00",
+        "publish_date": "2025-05-11T12:00:00",
         "title": "Systems Thinking, Two Years Later"
       },
       "type": "Episode"
@@ -171,7 +171,7 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
+      "id": "person:sam",
       "properties": {
         "name": "Sam"
       },
@@ -192,7 +192,7 @@
       "type": "Quote"
     },
     {
-      "id": "person:speaker-02",
+      "id": "person:dr-elena-fischer",
       "properties": {
         "name": "Dr. Elena Fischer"
       },

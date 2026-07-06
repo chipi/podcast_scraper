@@ -1,0 +1,268 @@
+{
+  "edges": [
+    {
+      "from": "episode:d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+      "to": "topic:science-research",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+      "to": "topic:diversify-or",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+      "to": "topic:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+      "to": "insight:f7788fdbd1a6a930",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+      "to": "insight:f29f852b16200f08",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+      "to": "insight:7788c7979bba9b23",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:8728b1a6cf6337c9",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:f7788fdbd1a6a930",
+      "to": "quote:8728b1a6cf6337c9",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:cab4fef8c70ce51a",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:f29f852b16200f08",
+      "to": "quote:cab4fef8c70ce51a",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:37b18715b7236c72",
+      "to": "person:speaker-03",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:7788c7979bba9b23",
+      "to": "quote:37b18715b7236c72",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:5ea7b427accdb7cd",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:f7788fdbd1a6a930",
+      "to": "quote:5ea7b427accdb7cd",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:c134f56cfc92185d",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:f29f852b16200f08",
+      "to": "quote:c134f56cfc92185d",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:a8c86960afd73962",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:7788c7979bba9b23",
+      "to": "quote:a8c86960afd73962",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+        "metadata_relative_path": "feeds/p05/metadata/p05_e04.metadata.json",
+        "podcast_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+        "publish_date": "2026-07-02T12:00:00",
+        "title": "Long Horizon Notes \u2014 Episode 4"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:diversify-or",
+      "properties": {
+        "label": "diversify or",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:f7788fdbd1a6a930",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Long Horizon Notes \u2014 Episode\n## The Risk Panel: Diversify or Concentrate?"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:f29f852b16200f08",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Nora\nGuest: Daniel Cho\n#fixture-v3: failure_modes=high_person_density\n#fixture-v3: voice=en-US host_voice=en-US\nNora: Welcome back to Long Horizon Notes."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:7788c7979bba9b23",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today is a debate \u2014 one question, two people who genuinely disagree."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Nora"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:8728b1a6cf6337c9",
+      "properties": {
+        "char_end": 272,
+        "char_start": 6,
+        "episode_id": "d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Long Horizon Notes. Today is a debate \u2014 one question, two people who genuinely disagree. I'm joined by Daniel Cho, who runs a low-cost index practice, and Scott Bessent, a hedge fund manager who's built his career on concentrated bets. Welcome, both.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p05_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Daniel Cho"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:cab4fef8c70ce51a",
+      "properties": {
+        "char_end": 332,
+        "char_start": 285,
+        "episode_id": "d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Nora. Happy to be the boring one today.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p05_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-03",
+      "properties": {
+        "name": "Scott Bessent"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:37b18715b7236c72",
+      "properties": {
+        "char_end": 389,
+        "char_start": 348,
+        "episode_id": "d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+        "speaker_id": "person:speaker-03",
+        "text": "And I'll be the reckless one, apparently.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p05_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:5ea7b427accdb7cd",
+      "properties": {
+        "char_end": 521,
+        "char_start": 396,
+        "episode_id": "d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we dig in \u2014 today's episode is sponsored by Vanguard. Vanguard pioneered low-cost index funds. Try vanguard.com today.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p05_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:c134f56cfc92185d",
+      "properties": {
+        "char_end": 675,
+        "char_start": 521,
+        "episode_id": "d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+        "speaker_id": "person:speaker-01",
+        "text": "Here's the proposition: for an ordinary investor, is diversification the answer \u2014 or a way to hide from decisions you should be making? Daniel, you first.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p05_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:a8c86960afd73962",
+      "properties": {
+        "char_end": 927,
+        "char_start": 688,
+        "episode_id": "d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+        "speaker_id": "person:speaker-02",
+        "text": "For an individual investor, diversification is the closest thing to a free lunch that exists. You give up almost nothing, and you remove the single biggest way people ruin themselves \u2014 one position going to zero at the worst possible time.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p05_e04.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

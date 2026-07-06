@@ -1,0 +1,95 @@
+{
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": false,
+      "label": "Science & research",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:science-research"
+    },
+    {
+      "in_topic_cluster": false,
+      "label": "diversify or",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:diversify-or"
+    }
+  ],
+  "content": {
+    "diarization_num_speakers": 3,
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Nora",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Daniel Cho",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Scott Bessent",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p05_e04.txt",
+    "transcript_source": "synthetic"
+  },
+  "episode": {
+    "episode_id": "d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+    "published_date": "2026-07-02",
+    "title": "Long Horizon Notes \u2014 Episode 4"
+  },
+  "episode_id": "d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+  "episode_title": "Long Horizon Notes \u2014 Episode 4",
+  "feed": {
+    "description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
+    "feed_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+    "title": "Long Horizon Notes",
+    "url": "http://localhost/"
+  },
+  "feed_display_title": "Long Horizon Notes",
+  "feed_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+  "gi_relative_path": "feeds/p05/metadata/p05_e04.gi.json",
+  "grounded_insights": {
+    "artifact_path": "feeds/p05/metadata/p05_e04.gi.json",
+    "schema_version": "1.0"
+  },
+  "has_gi": true,
+  "has_kg": true,
+  "kg_relative_path": "feeds/p05/metadata/p05_e04.kg.json",
+  "knowledge_graph": {
+    "artifact_path": "feeds/p05/metadata/p05_e04.kg.json",
+    "schema_version": "1.1"
+  },
+  "publish_date": "2026-07-02",
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "# Long Horizon Notes \u2014 Episode\n## The Risk Panel: Diversify or Concentrate?",
+      "Nora\nGuest: Daniel Cho\n#fixture-v3: failure_modes=high_person_density\n#fixture-v3: voice=en-US host_voice=en-US\nNora: Welcome back to Long Horizon Notes.",
+      "Today is a debate \u2014 one question, two people who genuinely disagree."
+    ],
+    "preview": "# Long Horizon Notes \u2014 Episode\n## The Risk Panel: Diversify or Concentrate?",
+    "text": "# Long Horizon Notes \u2014 Episode\n## The Risk Panel: Diversify or Concentrate?\nNora\nGuest: Daniel Cho\n#fixture-v3: failure_modes=high_person_density\n#fixture-v3: voice=en-US host_voice=en-US\nNora: Welcome back to Long Horizon Notes.\nToday is a debate \u2014 one question, two people who genuinely disagree.",
+    "title": "Long Horizon Notes \u2014 Episode 4 \u2014 synthetic"
+  },
+  "summary_bullet_graph_topic_ids": [
+    "topic:science-research",
+    "topic:diversify-or",
+    "topic:welcome-back-to"
+  ],
+  "summary_bullets": [
+    "# Long Horizon Notes \u2014 Episode\n## The Risk Panel: Diversify or Concentrate?",
+    "Nora\nGuest: Daniel Cho\n#fixture-v3: failure_modes=high_person_density\n#fixture-v3: voice=en-US host_voice=en-US\nNora: Welcome back to Long Horizon Notes.",
+    "Today is a debate \u2014 one question, two people who genuinely disagree."
+  ],
+  "summary_preview": "# Long Horizon Notes \u2014 Episode\n## The Risk Panel: Diversify or Concentrate?",
+  "summary_text": "# Long Horizon Notes \u2014 Episode\n## The Risk Panel: Diversify or Concentrate?\nNora\nGuest: Daniel Cho\n#fixture-v3: failure_modes=high_person_density\n#fixture-v3: voice=en-US host_voice=en-US\nNora: Welcome back to Long Horizon Notes.\nToday is a debate \u2014 one question, two people who genuinely disagree.",
+  "summary_title": "Long Horizon Notes \u2014 Episode 4 \u2014 synthetic",
+  "topics": [
+    "Science & research",
+    "diversify or",
+    "welcome back to"
+  ]
+}

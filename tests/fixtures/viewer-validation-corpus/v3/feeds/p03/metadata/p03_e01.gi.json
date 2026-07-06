@@ -1,0 +1,261 @@
+{
+  "edges": [
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "topic:outdoor-activities",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "topic:gear",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "topic:science-research",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "insight:4190e4d5a6f631a2",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "insight:59968c55d935f3ce",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "insight:235ac690e3034ff4",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:a6913a351c8e3d9f",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:4190e4d5a6f631a2",
+      "to": "quote:a6913a351c8e3d9f",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:585882210026efa4",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:59968c55d935f3ce",
+      "to": "quote:585882210026efa4",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:ef555cbac8dc83c0",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:235ac690e3034ff4",
+      "to": "quote:ef555cbac8dc83c0",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:3c3a167d2fbfd814",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:4190e4d5a6f631a2",
+      "to": "quote:3c3a167d2fbfd814",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:b71bb2f84cab536f",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:59968c55d935f3ce",
+      "to": "quote:b71bb2f84cab536f",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:74ef8179a2e7e2fa",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:235ac690e3034ff4",
+      "to": "quote:74ef8179a2e7e2fa",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
+        "metadata_relative_path": "feeds/p03/metadata/p03_e01.metadata.json",
+        "podcast_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+        "publish_date": "2026-07-04T12:00:00",
+        "title": "Below the Surface \u2014 Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:outdoor-activities",
+      "properties": {
+        "label": "outdoor activities",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:gear",
+      "properties": {
+        "label": "gear",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:4190e4d5a6f631a2",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we're talking about wreck diving, and I'm joined by Marco Sylva, technical diver and underwater archaeologist."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:59968c55d935f3ce",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Marco Sylva, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:235ac690e3034ff4",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Excited for this one \u2014 wreck-diving fundamentals is something I've been thinking about a lot."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Rina"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:a6913a351c8e3d9f",
+      "properties": {
+        "char_end": 193,
+        "char_start": 6,
+        "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Below the Surface. Today we're talking about wreck diving, and I'm joined by Marco Sylva, technical diver and underwater archaeologist. Marco Sylva, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p03_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Marco Sylva"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:585882210026efa4",
+      "properties": {
+        "char_end": 314,
+        "char_start": 207,
+        "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Rina. Excited for this one \u2014 wreck-diving fundamentals is something I've been thinking about a lot.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p03_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:ef555cbac8dc83c0",
+      "properties": {
+        "char_end": 447,
+        "char_start": 321,
+        "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Suunto. Suunto builds dive computers and outdoor watches. Get started at suunto.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p03_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:3c3a167d2fbfd814",
+      "properties": {
+        "char_end": 553,
+        "char_start": 447,
+        "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
+        "speaker_id": "person:speaker-01",
+        "text": "What does the failure mode look like? What's something you used to believe about this that you've revised?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p03_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:b71bb2f84cab536f",
+      "properties": {
+        "char_end": 796,
+        "char_start": 567,
+        "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
+        "speaker_id": "person:speaker-02",
+        "text": "Let me give you the version I actually believe. Wreck penetration is a planning problem first, a buoyancy problem second. We've seen this play out at teams using GoPro. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p03_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:74ef8179a2e7e2fa",
+      "properties": {
+        "char_end": 878,
+        "char_start": 803,
+        "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to dig into that. Where do dive planning and wreck diving intersect?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p03_e01.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

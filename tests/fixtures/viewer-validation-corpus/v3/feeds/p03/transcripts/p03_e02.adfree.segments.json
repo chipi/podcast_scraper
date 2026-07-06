@@ -1,0 +1,378 @@
+[
+  {
+    "char_end": 207,
+    "char_start": 6,
+    "end": 6.0,
+    "speaker_label": "Rina",
+    "start": 0.0,
+    "text": "Welcome back to Below the Surface. Today we're talking about marine biology, and I'm joined by Hanna Crebo Rediker, marine biologist focused on reef systems. Hanna Crebo Rediker, thanks for being here."
+  },
+  {
+    "char_end": 260,
+    "char_start": 229,
+    "end": 12.0,
+    "speaker_label": "Hanna Crebo Rediker",
+    "start": 6.0,
+    "text": "Thanks, Rina. Great to be back."
+  },
+  {
+    "char_end": 372,
+    "char_start": 267,
+    "end": 18.0,
+    "speaker_label": "Rina",
+    "start": 12.0,
+    "text": "Today's episode is sponsored by PADI. PADI is the global standard for dive education. Try padi.com today."
+  },
+  {
+    "char_end": 454,
+    "char_start": 372,
+    "end": 24.0,
+    "speaker_label": "Rina",
+    "start": 18.0,
+    "text": "Before we get into it \u2014 Marco Sylva was on last week talking about wreck planning."
+  },
+  {
+    "char_end": 534,
+    "char_start": 476,
+    "end": 30.0,
+    "speaker_label": "Hanna Crebo Rediker",
+    "start": 24.0,
+    "text": "Yeah, exactly. And it ties into what we're covering today."
+  },
+  {
+    "char_end": 631,
+    "char_start": 541,
+    "end": 36.0,
+    "speaker_label": "Rina",
+    "start": 30.0,
+    "text": "I want to flag something \u2014 Marco Sylva mentioned this same dynamic a couple episodes back."
+  },
+  {
+    "char_end": 707,
+    "char_start": 631,
+    "end": 42.0,
+    "speaker_label": "Rina",
+    "start": 36.0,
+    "text": "Let's start there. What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 893,
+    "char_start": 729,
+    "end": 48.0,
+    "speaker_label": "Hanna Crebo Rediker",
+    "start": 42.0,
+    "text": "Sure. Coral bleaching events are not random. We've seen this play out at teams using Suunto. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 980,
+    "char_start": 900,
+    "end": 54.0,
+    "speaker_label": "Rina",
+    "start": 48.0,
+    "text": "Push back on the conventional wisdom for me. How does DAN fit into this picture?"
+  },
+  {
+    "char_end": 1126,
+    "char_start": 1002,
+    "end": 60.0,
+    "speaker_label": "Hanna Crebo Rediker",
+    "start": 54.0,
+    "text": "Yeah, so \u2014 Erosion in coastal areas drives sediment plumes. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 1235,
+    "char_start": 1133,
+    "end": 66.0,
+    "speaker_label": "Rina",
+    "start": 60.0,
+    "text": "Push back on the conventional wisdom for me. What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 1445,
+    "char_start": 1257,
+    "end": 72.0,
+    "speaker_label": "Hanna Crebo Rediker",
+    "start": 66.0,
+    "text": "Yeah, so \u2014 Most reef damage from divers isn't fin contact \u2014 it's anchor strikes. We've seen this play out at teams using GoPro. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 1479,
+    "char_start": 1452,
+    "end": 78.0,
+    "speaker_label": "Rina",
+    "start": 72.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 1636,
+    "char_start": 1501,
+    "end": 84.0,
+    "speaker_label": "Hanna Crebo Rediker",
+    "start": 78.0,
+    "text": "And when teams adopt DAN in that flow, the trade-off becomes visible \u2014 Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 1724,
+    "char_start": 1643,
+    "end": 90.0,
+    "speaker_label": "Rina",
+    "start": 84.0,
+    "text": "That's a useful framing. Where do reef conservation and marine biology intersect?"
+  },
+  {
+    "char_end": 1863,
+    "char_start": 1746,
+    "end": 96.0,
+    "speaker_label": "Hanna Crebo Rediker",
+    "start": 90.0,
+    "text": "Yeah, so \u2014 I changed my mind on shark dives. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "char_end": 1927,
+    "char_start": 1870,
+    "end": 102.0,
+    "speaker_label": "Rina",
+    "start": 96.0,
+    "text": "We'll be right back after a quick word from our sponsors."
+  },
+  {
+    "char_end": 2058,
+    "char_start": 1932,
+    "end": 108.0,
+    "speaker_label": "Ad",
+    "start": 102.0,
+    "text": "Today's episode is sponsored by GoPro. GoPro captures the moments words don't reach. Visit gopro.com/podcast for a free trial."
+  },
+  {
+    "char_end": 2090,
+    "char_start": 2065,
+    "end": 114.0,
+    "speaker_label": "Rina",
+    "start": 108.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 2171,
+    "char_start": 2090,
+    "end": 120.0,
+    "speaker_label": "Rina",
+    "start": 114.0,
+    "text": "That's a useful framing. Where do reef conservation and marine biology intersect?"
+  },
+  {
+    "char_end": 2349,
+    "char_start": 2193,
+    "end": 126.0,
+    "speaker_label": "Hanna Crebo Rediker",
+    "start": 120.0,
+    "text": "Yeah, so \u2014 Coral bleaching events are not random. We've seen this play out at teams using PADI. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 2451,
+    "char_start": 2356,
+    "end": 132.0,
+    "speaker_label": "Rina",
+    "start": 126.0,
+    "text": "What does the failure mode look like? What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 2642,
+    "char_start": 2473,
+    "end": 138.0,
+    "speaker_label": "Hanna Crebo Rediker",
+    "start": 132.0,
+    "text": "Let me give you the version I actually believe. Erosion in coastal areas drives sediment plumes. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "char_end": 2719,
+    "char_start": 2649,
+    "end": 144.0,
+    "speaker_label": "Rina",
+    "start": 138.0,
+    "text": "Let's start there. What's the most underrated piece of marine biology?"
+  },
+  {
+    "char_end": 2929,
+    "char_start": 2741,
+    "end": 150.0,
+    "speaker_label": "Hanna Crebo Rediker",
+    "start": 144.0,
+    "text": "Honestly, Most reef damage from divers isn't fin contact \u2014 it's anchor strikes. We've seen this play out at teams using Suunto. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 2963,
+    "char_start": 2936,
+    "end": 156.0,
+    "speaker_label": "Rina",
+    "start": 150.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 3114,
+    "char_start": 2985,
+    "end": 162.0,
+    "speaker_label": "Hanna Crebo Rediker",
+    "start": 156.0,
+    "text": "And when teams adopt PADI in that flow, the trade-off becomes visible \u2014 And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 3228,
+    "char_start": 3121,
+    "end": 168.0,
+    "speaker_label": "Rina",
+    "start": 162.0,
+    "text": "What's the one heuristic you keep coming back to? What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 3385,
+    "char_start": 3250,
+    "end": 174.0,
+    "speaker_label": "Hanna Crebo Rediker",
+    "start": 168.0,
+    "text": "Here's how I think about it. I changed my mind on shark dives. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "char_end": 3461,
+    "char_start": 3392,
+    "end": 180.0,
+    "speaker_label": "Rina",
+    "start": 174.0,
+    "text": "Let's pivot \u2014 soil erosion is where I want to spend the last stretch."
+  },
+  {
+    "char_end": 3609,
+    "char_start": 3483,
+    "end": 186.0,
+    "speaker_label": "Hanna Crebo Rediker",
+    "start": 180.0,
+    "text": "That's where the conversation gets interesting, because the trade-offs around soil erosion cross-cut everything we've covered."
+  },
+  {
+    "char_end": 3722,
+    "char_start": 3616,
+    "end": 192.0,
+    "speaker_label": "Rina",
+    "start": 186.0,
+    "text": "What's the one heuristic you keep coming back to? Where do reef conservation and marine biology intersect?"
+  },
+  {
+    "char_end": 3940,
+    "char_start": 3744,
+    "end": 198.0,
+    "speaker_label": "Hanna Crebo Rediker",
+    "start": 192.0,
+    "text": "Let me give you the version I actually believe. Coral bleaching events are not random. We've seen this play out at teams using DAN. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 4053,
+    "char_start": 3947,
+    "end": 204.0,
+    "speaker_label": "Rina",
+    "start": 198.0,
+    "text": "What's the one heuristic you keep coming back to? Where do reef conservation and marine biology intersect?"
+  },
+  {
+    "char_end": 4194,
+    "char_start": 4075,
+    "end": 210.0,
+    "speaker_label": "Hanna Crebo Rediker",
+    "start": 204.0,
+    "text": "Honestly, Erosion in coastal areas drives sediment plumes. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 4276,
+    "char_start": 4201,
+    "end": 216.0,
+    "speaker_label": "Rina",
+    "start": 210.0,
+    "text": "Let's start there. Where do reef conservation and marine biology intersect?"
+  },
+  {
+    "char_end": 4482,
+    "char_start": 4298,
+    "end": 222.0,
+    "speaker_label": "Hanna Crebo Rediker",
+    "start": 216.0,
+    "text": "Yeah, so \u2014 Most reef damage from divers isn't fin contact \u2014 it's anchor strikes. We've seen this play out at teams using PADI. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 4509,
+    "char_start": 4489,
+    "end": 228.0,
+    "speaker_label": "Rina",
+    "start": 222.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 4671,
+    "char_start": 4531,
+    "end": 234.0,
+    "speaker_label": "Hanna Crebo Rediker",
+    "start": 228.0,
+    "text": "Outside of Suunto-class tooling, the failure mode is harder to spot. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 4754,
+    "char_start": 4678,
+    "end": 240.0,
+    "speaker_label": "Rina",
+    "start": 234.0,
+    "text": "I want to dig into that. What's the most underrated piece of marine biology?"
+  },
+  {
+    "char_end": 4918,
+    "char_start": 4776,
+    "end": 246.0,
+    "speaker_label": "Hanna Crebo Rediker",
+    "start": 240.0,
+    "text": "Let me give you the version I actually believe. I changed my mind on shark dives. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 4986,
+    "char_start": 4925,
+    "end": 252.0,
+    "speaker_label": "Rina",
+    "start": 246.0,
+    "text": "Before we wrap, what's one thing listeners can try this week?"
+  },
+  {
+    "char_end": 5089,
+    "char_start": 5008,
+    "end": 258.0,
+    "speaker_label": "Hanna Crebo Rediker",
+    "start": 252.0,
+    "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
+  },
+  {
+    "char_end": 5200,
+    "char_start": 5096,
+    "end": 264.0,
+    "speaker_label": "Rina",
+    "start": 258.0,
+    "text": "Before we wrap, thanks again to our friends at Suunto. Suunto builds dive computers and outdoor watches."
+  },
+  {
+    "char_end": 5249,
+    "char_start": 5200,
+    "end": 270.0,
+    "speaker_label": "Rina",
+    "start": 264.0,
+    "text": "Hanna Crebo Rediker, thanks for the conversation."
+  },
+  {
+    "char_end": 5284,
+    "char_start": 5271,
+    "end": 276.0,
+    "speaker_label": "Hanna Crebo Rediker",
+    "start": 270.0,
+    "text": "Thanks, Rina."
+  },
+  {
+    "char_end": 5361,
+    "char_start": 5291,
+    "end": 282.0,
+    "speaker_label": "Rina",
+    "start": 276.0,
+    "text": "That's it for today's episode of Below the Surface. See you next time."
+  }
+]

@@ -1,0 +1,42 @@
+{
+  "expected_enrichment": {
+    "guest_coappearance": {
+      "expected_pairs": [
+        [
+          "person:daniel-cho",
+          "person:scott-bessent"
+        ]
+      ]
+    },
+    "temporal_velocity": {
+      "heating_up": [
+        "topic:risk-management"
+      ],
+      "note": "risk-management authored across ~0\u2013170d offsets \u2192 positive velocity"
+    },
+    "topic_cooccurrence_corpus": {
+      "expected_pairs": [
+        [
+          "topic:risk-management",
+          "topic:systems-thinking"
+        ],
+        [
+          "topic:risk-management",
+          "topic:reliability"
+        ]
+      ]
+    },
+    "topic_similarity": {
+      "expected_neighbours": {
+        "topic:risk-management": [
+          "topic:systems-thinking",
+          "topic:reliability"
+        ],
+        "topic:systems-thinking": [
+          "topic:risk-management",
+          "topic:reliability"
+        ]
+      }
+    }
+  }
+}

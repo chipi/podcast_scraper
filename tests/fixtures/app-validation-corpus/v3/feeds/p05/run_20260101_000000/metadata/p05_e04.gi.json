@@ -37,7 +37,7 @@
     },
     {
       "from": "quote:544305e422db25a3",
-      "to": "person:speaker-01",
+      "to": "person:nora",
       "type": "SPOKEN_BY"
     },
     {
@@ -47,7 +47,7 @@
     },
     {
       "from": "quote:c7145daaf769eb53",
-      "to": "person:speaker-02",
+      "to": "person:daniel-cho",
       "type": "SPOKEN_BY"
     },
     {
@@ -57,7 +57,7 @@
     },
     {
       "from": "quote:99a418bbbd1f055d",
-      "to": "person:speaker-03",
+      "to": "person:scott-bessent",
       "type": "SPOKEN_BY"
     },
     {
@@ -67,7 +67,7 @@
     },
     {
       "from": "quote:f45534d5dd7356df",
-      "to": "person:speaker-01",
+      "to": "person:nora",
       "type": "SPOKEN_BY"
     },
     {
@@ -77,7 +77,7 @@
     },
     {
       "from": "quote:76a22f574afa9264",
-      "to": "person:speaker-01",
+      "to": "person:nora",
       "type": "SPOKEN_BY"
     },
     {
@@ -87,7 +87,7 @@
     },
     {
       "from": "quote:be6904c60151df16",
-      "to": "person:speaker-02",
+      "to": "person:daniel-cho",
       "type": "SPOKEN_BY"
     },
     {
@@ -106,7 +106,7 @@
         "episode_id": "ep-16ff698c1bd21087",
         "metadata_relative_path": "feeds/p05/run_20260101_000000/metadata/p05_e04.metadata.json",
         "podcast_id": "p05",
-        "publish_date": "2026-01-25T12:00:00",
+        "publish_date": "2025-07-02T12:00:00",
         "title": "The Risk Panel: Diversify or Concentrate?"
       },
       "type": "Episode"
@@ -171,7 +171,7 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
+      "id": "person:nora",
       "properties": {
         "name": "Nora"
       },
@@ -192,7 +192,7 @@
       "type": "Quote"
     },
     {
-      "id": "person:speaker-02",
+      "id": "person:daniel-cho",
       "properties": {
         "name": "Daniel Cho"
       },
@@ -213,7 +213,7 @@
       "type": "Quote"
     },
     {
-      "id": "person:speaker-03",
+      "id": "person:scott-bessent",
       "properties": {
         "name": "Scott Bessent"
       },

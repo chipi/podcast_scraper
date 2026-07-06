@@ -1,0 +1,95 @@
+{
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": true,
+      "label": "technology",
+      "topic_cluster_compound_id": "tc:technology-cluster",
+      "topic_id": "topic:technology"
+    },
+    {
+      "in_topic_cluster": true,
+      "label": "health",
+      "topic_cluster_compound_id": "tc:health-cluster",
+      "topic_id": "topic:health"
+    }
+  ],
+  "content": {
+    "diarization_num_speakers": 3,
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Sam",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Dr. Elena Fischer",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p09_e04.txt",
+    "transcript_source": "synthetic"
+  },
+  "episode": {
+    "episode_id": "e5f72053-f000-519e-95cb-204c957f7ab3",
+    "published_date": "2026-07-04",
+    "title": "The Long View: Biohacking \u2014 Episode 4"
+  },
+  "episode_id": "e5f72053-f000-519e-95cb-204c957f7ab3",
+  "episode_title": "The Long View: Biohacking \u2014 Episode 4",
+  "feed": {
+    "description": "Solo, long-form reflections on biohacking: the state of the field in 2025, what actually works, and the ethics and limits of human optimization.",
+    "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+    "title": "The Long View: Biohacking",
+    "url": "http://localhost/"
+  },
+  "feed_display_title": "The Long View: Biohacking",
+  "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+  "gi_relative_path": "feeds/p09/metadata/p09_e04.gi.json",
+  "grounded_insights": {
+    "artifact_path": "feeds/p09/metadata/p09_e04.gi.json",
+    "schema_version": "1.0"
+  },
+  "has_gi": true,
+  "has_kg": true,
+  "kg_relative_path": "feeds/p09/metadata/p09_e04.kg.json",
+  "knowledge_graph": {
+    "artifact_path": "feeds/p09/metadata/p09_e04.kg.json",
+    "schema_version": "1.1"
+  },
+  "publish_date": "2026-07-04",
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "# Cross-Show \u2014 Episode\n## Risk Is a Systems Property\nHost: Sam\nGuest: Dr.",
+      "Elena Fischer\n#fixture-v3: failure_modes=recurring_guest,multi_accent\n#fixture-v3: voice=de-DE host_voice=en-US\nSam: Welcome back to Cross-Show.",
+      "Today we're talking about risk management, and I'm joined by Dr."
+    ],
+    "preview": "# Cross-Show \u2014 Episode\n## Risk Is a Systems Property\nHost: Sam\nGuest: Dr.",
+    "text": "# Cross-Show \u2014 Episode\n## Risk Is a Systems Property\nHost: Sam\nGuest: Dr.\nElena Fischer\n#fixture-v3: failure_modes=recurring_guest,multi_accent\n#fixture-v3: voice=de-DE host_voice=en-US\nSam: Welcome back to Cross-Show.\nToday we're talking about risk management, and I'm joined by Dr.",
+    "title": "The Long View: Biohacking \u2014 Episode 4 \u2014 synthetic"
+  },
+  "summary_bullet_graph_topic_ids": [
+    "topic:technology",
+    "topic:health",
+    "topic:science-research"
+  ],
+  "summary_bullets": [
+    "# Cross-Show \u2014 Episode\n## Risk Is a Systems Property\nHost: Sam\nGuest: Dr.",
+    "Elena Fischer\n#fixture-v3: failure_modes=recurring_guest,multi_accent\n#fixture-v3: voice=de-DE host_voice=en-US\nSam: Welcome back to Cross-Show.",
+    "Today we're talking about risk management, and I'm joined by Dr."
+  ],
+  "summary_preview": "# Cross-Show \u2014 Episode\n## Risk Is a Systems Property\nHost: Sam\nGuest: Dr.",
+  "summary_text": "# Cross-Show \u2014 Episode\n## Risk Is a Systems Property\nHost: Sam\nGuest: Dr.\nElena Fischer\n#fixture-v3: failure_modes=recurring_guest,multi_accent\n#fixture-v3: voice=de-DE host_voice=en-US\nSam: Welcome back to Cross-Show.\nToday we're talking about risk management, and I'm joined by Dr.",
+  "summary_title": "The Long View: Biohacking \u2014 Episode 4 \u2014 synthetic",
+  "topics": [
+    "technology",
+    "health",
+    "Science & research"
+  ]
+}

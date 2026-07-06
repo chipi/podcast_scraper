@@ -37,7 +37,7 @@
     },
     {
       "from": "quote:74f9067728bebe00",
-      "to": "person:speaker-01",
+      "to": "person:rina",
       "type": "SPOKEN_BY"
     },
     {
@@ -47,7 +47,7 @@
     },
     {
       "from": "quote:80b8228fa2dbc56b",
-      "to": "person:speaker-02",
+      "to": "person:marco-sylva",
       "type": "SPOKEN_BY"
     },
     {
@@ -57,7 +57,7 @@
     },
     {
       "from": "quote:f127cee5b83a112d",
-      "to": "person:speaker-01",
+      "to": "person:rina",
       "type": "SPOKEN_BY"
     },
     {
@@ -67,7 +67,7 @@
     },
     {
       "from": "quote:77dc6a0f2d8c635f",
-      "to": "person:speaker-01",
+      "to": "person:rina",
       "type": "SPOKEN_BY"
     },
     {
@@ -77,7 +77,7 @@
     },
     {
       "from": "quote:099afaabf108a7be",
-      "to": "person:speaker-02",
+      "to": "person:marco-sylva",
       "type": "SPOKEN_BY"
     },
     {
@@ -87,7 +87,7 @@
     },
     {
       "from": "quote:68e85b18af559bfb",
-      "to": "person:speaker-01",
+      "to": "person:rina",
       "type": "SPOKEN_BY"
     },
     {
@@ -106,7 +106,7 @@
         "episode_id": "ep-2a703b6f57d9020f",
         "metadata_relative_path": "feeds/p03/run_20260101_000000/metadata/p03_e01.metadata.json",
         "podcast_id": "p03",
-        "publish_date": "2026-01-20T12:00:00",
+        "publish_date": "2024-05-04T12:00:00",
         "title": "Wreck Diving Fundamentals"
       },
       "type": "Episode"
@@ -171,7 +171,7 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
+      "id": "person:rina",
       "properties": {
         "name": "Rina"
       },
@@ -192,7 +192,7 @@
       "type": "Quote"
     },
     {
-      "id": "person:speaker-02",
+      "id": "person:marco-sylva",
       "properties": {
         "name": "Marco Sylva"
       },

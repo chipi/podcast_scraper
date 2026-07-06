@@ -1,0 +1,90 @@
+{
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": true,
+      "label": "technology",
+      "topic_cluster_compound_id": "tc:technology-cluster",
+      "topic_id": "topic:technology"
+    },
+    {
+      "in_topic_cluster": false,
+      "label": "Science & research",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:science-research"
+    }
+  ],
+  "content": {
+    "diarization_num_speakers": 2,
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Ethan",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Priya Nair",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p02_e04.txt",
+    "transcript_source": "synthetic"
+  },
+  "episode": {
+    "episode_id": "8f88b1fc-4adc-5b98-8539-af5f32fef5a4",
+    "published_date": "2026-07-05",
+    "title": "Practical Systems \u2014 Episode 4"
+  },
+  "episode_id": "8f88b1fc-4adc-5b98-8539-af5f32fef5a4",
+  "episode_title": "Practical Systems \u2014 Episode 4",
+  "feed": {
+    "description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
+    "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+    "title": "Practical Systems",
+    "url": "http://localhost/"
+  },
+  "feed_display_title": "Practical Systems",
+  "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+  "gi_relative_path": "feeds/p02/metadata/p02_e04.gi.json",
+  "grounded_insights": {
+    "artifact_path": "feeds/p02/metadata/p02_e04.gi.json",
+    "schema_version": "1.0"
+  },
+  "has_gi": true,
+  "has_kg": true,
+  "kg_relative_path": "feeds/p02/metadata/p02_e04.kg.json",
+  "knowledge_graph": {
+    "artifact_path": "feeds/p02/metadata/p02_e04.kg.json",
+    "schema_version": "1.1"
+  },
+  "publish_date": "2026-07-05",
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "# Practical Systems \u2014 Episode\n## Reliability Is a Systems Property\nHost: Ethan\nGuest: Priya Nair\n#fixture-v3: voice=en-IN host_voice=en-US\nEthan: Welcome back to Practical Systems.",
+      "My guest is Priya Nair, who's spent a decade keeping large systems from falling over.",
+      "Priya Nair: Glad to be here, Ethan."
+    ],
+    "preview": "# Practical Systems \u2014 Episode\n## Reliability Is a Systems Property\nHost: Ethan\nGuest: Priya Nair\n#fixture-v3: voice=en-IN host_voice=en-US\nE\u2026",
+    "text": "# Practical Systems \u2014 Episode\n## Reliability Is a Systems Property\nHost: Ethan\nGuest: Priya Nair\n#fixture-v3: voice=en-IN host_voice=en-US\nEthan: Welcome back to Practical Systems.\nMy guest is Priya Nair, who's spent a decade keeping large systems from falling over.\nPriya Nair: Glad to be here, Ethan.",
+    "title": "Practical Systems \u2014 Episode 4 \u2014 synthetic"
+  },
+  "summary_bullet_graph_topic_ids": [
+    "topic:technology",
+    "topic:science-research",
+    "topic:welcome-back-to"
+  ],
+  "summary_bullets": [
+    "# Practical Systems \u2014 Episode\n## Reliability Is a Systems Property\nHost: Ethan\nGuest: Priya Nair\n#fixture-v3: voice=en-IN host_voice=en-US\nEthan: Welcome back to Practical Systems.",
+    "My guest is Priya Nair, who's spent a decade keeping large systems from falling over.",
+    "Priya Nair: Glad to be here, Ethan."
+  ],
+  "summary_preview": "# Practical Systems \u2014 Episode\n## Reliability Is a Systems Property\nHost: Ethan\nGuest: Priya Nair\n#fixture-v3: voice=en-IN host_voice=en-US\nE\u2026",
+  "summary_text": "# Practical Systems \u2014 Episode\n## Reliability Is a Systems Property\nHost: Ethan\nGuest: Priya Nair\n#fixture-v3: voice=en-IN host_voice=en-US\nEthan: Welcome back to Practical Systems.\nMy guest is Priya Nair, who's spent a decade keeping large systems from falling over.\nPriya Nair: Glad to be here, Ethan.",
+  "summary_title": "Practical Systems \u2014 Episode 4 \u2014 synthetic",
+  "topics": [
+    "technology",
+    "Science & research",
+    "welcome back to"
+  ]
+}

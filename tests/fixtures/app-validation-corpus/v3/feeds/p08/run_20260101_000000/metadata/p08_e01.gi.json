@@ -37,7 +37,7 @@
     },
     {
       "from": "quote:09cb22cca08a9cc6",
-      "to": "person:speaker-01",
+      "to": "person:a-correspondent",
       "type": "SPOKEN_BY"
     },
     {
@@ -47,7 +47,7 @@
     },
     {
       "from": "quote:ab6a3a9fc0d23ce9",
-      "to": "person:speaker-02",
+      "to": "person:renee-montagne-park",
       "type": "SPOKEN_BY"
     },
     {
@@ -57,7 +57,7 @@
     },
     {
       "from": "quote:86889e4d196fa749",
-      "to": "person:speaker-01",
+      "to": "person:a-correspondent",
       "type": "SPOKEN_BY"
     },
     {
@@ -67,7 +67,7 @@
     },
     {
       "from": "quote:f78db871a95295b6",
-      "to": "person:speaker-01",
+      "to": "person:a-correspondent",
       "type": "SPOKEN_BY"
     },
     {
@@ -77,7 +77,7 @@
     },
     {
       "from": "quote:b92627507c9097a7",
-      "to": "person:speaker-02",
+      "to": "person:renee-montagne-park",
       "type": "SPOKEN_BY"
     },
     {
@@ -87,7 +87,7 @@
     },
     {
       "from": "quote:67f5e78dc5732b4e",
-      "to": "person:speaker-01",
+      "to": "person:a-correspondent",
       "type": "SPOKEN_BY"
     },
     {
@@ -106,7 +106,7 @@
         "episode_id": "ep-efc13989b676df9d",
         "metadata_relative_path": "feeds/p08/run_20260101_000000/metadata/p08_e01.metadata.json",
         "podcast_id": "p08",
-        "publish_date": "2026-01-00T12:00:00",
+        "publish_date": "2025-03-10T12:00:00",
         "title": "Public Radio Format Conventions"
       },
       "type": "Episode"
@@ -171,7 +171,7 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
+      "id": "person:a-correspondent",
       "properties": {
         "name": "A. correspondent"
       },
@@ -192,7 +192,7 @@
       "type": "Quote"
     },
     {
-      "id": "person:speaker-02",
+      "id": "person:renee-montagne-park",
       "properties": {
         "name": "Renee Montagne-Park"
       },

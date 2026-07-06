@@ -37,7 +37,7 @@
     },
     {
       "from": "quote:029339886a2dc5e0",
-      "to": "person:speaker-01",
+      "to": "person:leo",
       "type": "SPOKEN_BY"
     },
     {
@@ -47,7 +47,7 @@
     },
     {
       "from": "quote:7202ffabafd4777c",
-      "to": "person:speaker-02",
+      "to": "person:tarek-hassan",
       "type": "SPOKEN_BY"
     },
     {
@@ -57,7 +57,7 @@
     },
     {
       "from": "quote:d0b7843396548a26",
-      "to": "person:speaker-01",
+      "to": "person:leo",
       "type": "SPOKEN_BY"
     },
     {
@@ -67,7 +67,7 @@
     },
     {
       "from": "quote:5fb8793d82edf4f2",
-      "to": "person:speaker-01",
+      "to": "person:leo",
       "type": "SPOKEN_BY"
     },
     {
@@ -77,7 +77,7 @@
     },
     {
       "from": "quote:45cbdce869fe2bb0",
-      "to": "person:speaker-02",
+      "to": "person:tarek-hassan",
       "type": "SPOKEN_BY"
     },
     {
@@ -87,7 +87,7 @@
     },
     {
       "from": "quote:f3aa5622f6cbd3b7",
-      "to": "person:speaker-01",
+      "to": "person:leo",
       "type": "SPOKEN_BY"
     },
     {
@@ -106,7 +106,7 @@
         "episode_id": "ep-fb2bb5f0f4044f1d",
         "metadata_relative_path": "feeds/p04/run_20260101_000000/metadata/p04_e02.metadata.json",
         "podcast_id": "p04",
-        "publish_date": "2026-01-15T12:00:00",
+        "publish_date": "2024-10-03T12:00:00",
         "title": "Documentary Workflow in the Field"
       },
       "type": "Episode"
@@ -171,7 +171,7 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
+      "id": "person:leo",
       "properties": {
         "name": "Leo"
       },
@@ -192,7 +192,7 @@
       "type": "Quote"
     },
     {
-      "id": "person:speaker-02",
+      "id": "person:tarek-hassan",
       "properties": {
         "name": "Tarek Hassan"
       },

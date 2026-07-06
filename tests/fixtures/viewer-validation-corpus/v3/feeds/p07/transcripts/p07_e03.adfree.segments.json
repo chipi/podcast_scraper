@@ -1,0 +1,90 @@
+[
+  {
+    "char_end": 160,
+    "char_start": 13,
+    "end": 6.0,
+    "speaker_label": "Alex Morgan",
+    "start": 0.0,
+    "text": "Welcome back to The Long View. I'm Alex Morgan, and my guest is Dr. Elena Fischer, a sustainability researcher and systems thinker. Elena, welcome."
+  },
+  {
+    "char_end": 208,
+    "char_start": 180,
+    "end": 12.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 6.0,
+    "text": "Thank you, Alex. A pleasure."
+  },
+  {
+    "char_end": 355,
+    "char_start": 222,
+    "end": 18.0,
+    "speaker_label": "Alex Morgan",
+    "start": 12.0,
+    "text": "This episode is brought to you by Notion. Notion replaces the dozen tools your team is half-using. Get started at notion.com/podcast."
+  },
+  {
+    "char_end": 397,
+    "char_start": 355,
+    "end": 24.0,
+    "speaker_label": "Alex Morgan",
+    "start": 18.0,
+    "text": "You resist the word 'sustainability'. Why?"
+  },
+  {
+    "char_end": 660,
+    "char_start": 417,
+    "end": 30.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 24.0,
+    "text": "Because it hides the hard part. Sustainability is a systems problem \u2014 you cannot optimize one part without moving another. Fix emissions in isolation and you push the cost into water, or land, or the grid. The interactions are the whole story."
+  },
+  {
+    "char_end": 868,
+    "char_start": 660,
+    "end": 36.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 30.0,
+    "text": "So it is systems thinking, first and last: manage the couplings, not the components. When we modeled a decade of interventions, the ones that failed failed because someone treated a system as a list of parts."
+  },
+  {
+    "char_end": 920,
+    "char_start": 882,
+    "end": 42.0,
+    "speaker_label": "Alex Morgan",
+    "start": 36.0,
+    "text": "And risk sits inside that picture how?"
+  },
+  {
+    "char_end": 1163,
+    "char_start": 940,
+    "end": 48.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 42.0,
+    "text": "The dangerous risks are the slow ones you can name but discount. Risk management here is the same discipline as anywhere \u2014 a portfolio, a power grid, a reef \u2014 name the risk before it names you, and respect the correlations."
+  },
+  {
+    "char_end": 1298,
+    "char_start": 1177,
+    "end": 54.0,
+    "speaker_label": "Alex Morgan",
+    "start": 48.0,
+    "text": "Thanks to Squarespace for supporting the show. Squarespace makes building a beautiful, branded website actually pleasant."
+  },
+  {
+    "char_end": 1334,
+    "char_start": 1318,
+    "end": 60.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 54.0,
+    "text": "Thank you, Alex."
+  },
+  {
+    "char_end": 1394,
+    "char_start": 1348,
+    "end": 66.0,
+    "speaker_label": "Alex Morgan",
+    "start": 60.0,
+    "text": "That's it for this Long View. Until next time."
+  }
+]

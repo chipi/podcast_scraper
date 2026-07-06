@@ -1,0 +1,261 @@
+{
+  "edges": [
+    {
+      "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+      "to": "topic:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+      "to": "topic:fed-vice-chair",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+      "to": "insight:1e6285578a4f89ab",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+      "to": "insight:2a5aa3355fd1377d",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+      "to": "insight:0c71912f39d5ea24",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:f45983df1b1cd622",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1e6285578a4f89ab",
+      "to": "quote:f45983df1b1cd622",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:c6ab035ba298f4fa",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:2a5aa3355fd1377d",
+      "to": "quote:c6ab035ba298f4fa",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:060642f0a42ce4b1",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:0c71912f39d5ea24",
+      "to": "quote:060642f0a42ce4b1",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:98b95c7ff714feb0",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1e6285578a4f89ab",
+      "to": "quote:98b95c7ff714feb0",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:62d73d0ce8159138",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:2a5aa3355fd1377d",
+      "to": "quote:62d73d0ce8159138",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:aa793b85c8937bd5",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:0c71912f39d5ea24",
+      "to": "quote:aa793b85c8937bd5",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+        "metadata_relative_path": "feeds/p05/metadata/p05_e02.metadata.json",
+        "podcast_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+        "publish_date": "2026-07-06T12:00:00",
+        "title": "Long Horizon Notes \u2014 Episode 2"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "Technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:fed-vice-chair",
+      "properties": {
+        "label": "fed vice chair",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:1e6285578a4f89ab",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we're talking about monetary policy, and I'm joined by Rich Clarida, former Fed vice chair."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:2a5aa3355fd1377d",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Rich Clarida, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:0c71912f39d5ea24",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "This episode is brought to you by Bloomberg."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Nora"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:f45983df1b1cd622",
+      "properties": {
+        "char_end": 176,
+        "char_start": 6,
+        "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Long Horizon Notes. Today we're talking about monetary policy, and I'm joined by Rich Clarida, former Fed vice chair. Rich Clarida, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p05_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Rich Clarida"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:c6ab035ba298f4fa",
+      "properties": {
+        "char_end": 222,
+        "char_start": 191,
+        "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Nora. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p05_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:060642f0a42ce4b1",
+      "properties": {
+        "char_end": 381,
+        "char_start": 229,
+        "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Bloomberg. Bloomberg Terminal is the data spine that institutional desks run on. Get started at bloomberg.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p05_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:98b95c7ff714feb0",
+      "properties": {
+        "char_end": 476,
+        "char_start": 381,
+        "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Daniel Choh was on episode 1 making the case for behavioral discipline.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p05_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:62d73d0ce8159138",
+      "properties": {
+        "char_end": 549,
+        "char_start": 491,
+        "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, exactly. And it ties into what we're covering today.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p05_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:aa793b85c8937bd5",
+      "properties": {
+        "char_end": 646,
+        "char_start": 556,
+        "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to flag something \u2014 Daniel Choh mentioned this same dynamic a couple episodes back.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p05_e02.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

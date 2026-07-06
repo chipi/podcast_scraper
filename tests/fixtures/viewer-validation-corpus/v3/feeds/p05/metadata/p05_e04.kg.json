@@ -1,0 +1,83 @@
+{
+  "edges": [
+    {
+      "from": "episode:d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+      "to": "entity:science-research",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+      "to": "entity:diversify-or",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+      "to": "topic:science-research",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+      "to": "topic:diversify-or",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+      "to": "topic:welcome-back-to",
+      "type": "RELATES_TO"
+    }
+  ],
+  "episode_id": "d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+      "properties": {
+        "episode_id": "d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+        "metadata_relative_path": "feeds/p05/metadata/p05_e04.metadata.json",
+        "title": "Long Horizon Notes \u2014 Episode 4"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:science-research",
+      "properties": {
+        "category": "Concept",
+        "label": "Science & Research"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:diversify-or",
+      "properties": {
+        "category": "Concept",
+        "label": "Diversify Or"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:diversify-or",
+      "properties": {
+        "label": "diversify or"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2"
+}

@@ -1,67 +1,62 @@
 {
-  "circuit_state": null,
-  "computed_at": "2026-01-01T00:00:00Z",
-  "data": {
-    "trending": [
-      {
-        "episodes": 36,
-        "topic_id": "topic:expert-interviews",
-        "velocity": 1.0
-      },
-      {
-        "episodes": 36,
-        "topic_id": "topic:lifelong-learning",
-        "velocity": 1.0
-      },
-      {
-        "episodes": 28,
-        "topic_id": "topic:risk-management",
-        "velocity": 0.778
-      },
-      {
-        "episodes": 20,
-        "topic_id": "topic:systems-thinking",
-        "velocity": 0.556
-      },
-      {
-        "episodes": 4,
-        "topic_id": "topic:endurance-sport",
-        "velocity": 0.111
-      },
-      {
-        "episodes": 4,
-        "topic_id": "topic:long-form",
-        "velocity": 0.111
-      },
-      {
-        "episodes": 4,
-        "topic_id": "topic:personal-finance",
-        "velocity": 0.111
-      },
-      {
-        "episodes": 4,
-        "topic_id": "topic:public-radio",
-        "velocity": 0.111
-      },
-      {
-        "episodes": 4,
-        "topic_id": "topic:safety-practices",
-        "velocity": 0.111
-      },
-      {
-        "episodes": 4,
-        "topic_id": "topic:visual-craft",
-        "velocity": 0.111
-      }
-    ]
-  },
-  "duration_ms": 0,
+  "derived": true,
+  "computed_at": "2026-07-06T15:50:17Z",
   "enricher_id": "temporal_velocity",
-  "enricher_version": "1.0",
+  "enricher_version": "1.1.0",
+  "schema_version": "1.0",
+  "status": "ok",
+  "data": {
+    "window_months": [
+      "2025-08",
+      "2025-09",
+      "2025-10",
+      "2025-11",
+      "2025-12",
+      "2026-01",
+      "2026-02",
+      "2026-03",
+      "2026-04",
+      "2026-05",
+      "2026-06",
+      "2026-07"
+    ],
+    "window_weeks": [
+      "2026-W03",
+      "2026-W04",
+      "2026-W05",
+      "2026-W06",
+      "2026-W07",
+      "2026-W08",
+      "2026-W09",
+      "2026-W10",
+      "2026-W11",
+      "2026-W12",
+      "2026-W13",
+      "2026-W14",
+      "2026-W15",
+      "2026-W16",
+      "2026-W17",
+      "2026-W18",
+      "2026-W19",
+      "2026-W20",
+      "2026-W21",
+      "2026-W22",
+      "2026-W23",
+      "2026-W24",
+      "2026-W25",
+      "2026-W26",
+      "2026-W27",
+      "2026-W28"
+    ],
+    "now": "2026-07-06T15:50:17.460862+00:00",
+    "alpha": 0.5,
+    "effective_last_month": "2026-07",
+    "topics": []
+  },
   "error": null,
   "error_class": null,
-  "records_written": 10,
   "retry_count": 0,
-  "schema_version": "1.0",
-  "status": "ok"
+  "circuit_state": null,
+  "duration_ms": 0,
+  "records_written": 26
 }

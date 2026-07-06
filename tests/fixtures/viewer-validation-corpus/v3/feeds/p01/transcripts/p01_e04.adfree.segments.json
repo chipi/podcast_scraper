@@ -1,0 +1,90 @@
+[
+  {
+    "char_end": 118,
+    "char_start": 6,
+    "end": 6.0,
+    "speaker_label": "Maya",
+    "start": 0.0,
+    "text": "Welcome back to Singletrack Sessions. I'm with Sophie Laurent, enduro racer and coach. Sophie, good to have you."
+  },
+  {
+    "char_end": 175,
+    "char_start": 135,
+    "end": 12.0,
+    "speaker_label": "Sophie Laurent",
+    "start": 6.0,
+    "text": "Thanks, Maya. Always happy to talk shop."
+  },
+  {
+    "char_end": 276,
+    "char_start": 182,
+    "end": 18.0,
+    "speaker_label": "Maya",
+    "start": 12.0,
+    "text": "Today's episode is sponsored by Strava. Strava is the home for athletes. Try strava.com today."
+  },
+  {
+    "char_end": 336,
+    "char_start": 276,
+    "end": 24.0,
+    "speaker_label": "Maya",
+    "start": 18.0,
+    "text": "People think racing is about nerve. You say it's about risk."
+  },
+  {
+    "char_end": 560,
+    "char_start": 353,
+    "end": 30.0,
+    "speaker_label": "Sophie Laurent",
+    "start": 24.0,
+    "text": "It's risk management, honestly. The crash that ends your season is almost never the scary-looking one \u2014 it's the boring risk you didn't name. Name the risk before it names you, and half the danger goes away."
+  },
+  {
+    "char_end": 777,
+    "char_start": 560,
+    "end": 36.0,
+    "speaker_label": "Sophie Laurent",
+    "start": 30.0,
+    "text": "And you have to ride the whole run as a system, not a list of corners. The mistakes come from how one section sets up the next. When I logged a full season of my own crashes, the causes were always two turns upstream."
+  },
+  {
+    "char_end": 860,
+    "char_start": 784,
+    "end": 42.0,
+    "speaker_label": "Maya",
+    "start": 36.0,
+    "text": "That's almost word-for-word what a friend in finance says about a portfolio."
+  },
+  {
+    "char_end": 1066,
+    "char_start": 877,
+    "end": 48.0,
+    "speaker_label": "Sophie Laurent",
+    "start": 42.0,
+    "text": "It's the same discipline. A race line and a portfolio are both systems of correlated bets \u2014 you're managing the interactions, and the risk you can describe is the one you can design around."
+  },
+  {
+    "char_end": 1189,
+    "char_start": 1073,
+    "end": 54.0,
+    "speaker_label": "Maya",
+    "start": 48.0,
+    "text": "Thanks to Peak Design for backing the show. Peak Design builds bags and straps designed by people who actually ride."
+  },
+  {
+    "char_end": 1219,
+    "char_start": 1206,
+    "end": 60.0,
+    "speaker_label": "Sophie Laurent",
+    "start": 54.0,
+    "text": "Cheers, Maya."
+  },
+  {
+    "char_end": 1277,
+    "char_start": 1226,
+    "end": 66.0,
+    "speaker_label": "Maya",
+    "start": 60.0,
+    "text": "That's it for this Singletrack Sessions. Ride safe."
+  }
+]

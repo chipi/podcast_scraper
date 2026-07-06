@@ -1,0 +1,83 @@
+{
+  "edges": [
+    {
+      "from": "episode:e5f72053-f000-519e-95cb-204c957f7ab3",
+      "to": "entity:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e5f72053-f000-519e-95cb-204c957f7ab3",
+      "to": "entity:health",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e5f72053-f000-519e-95cb-204c957f7ab3",
+      "to": "topic:technology",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:e5f72053-f000-519e-95cb-204c957f7ab3",
+      "to": "topic:health",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:e5f72053-f000-519e-95cb-204c957f7ab3",
+      "to": "topic:science-research",
+      "type": "RELATES_TO"
+    }
+  ],
+  "episode_id": "e5f72053-f000-519e-95cb-204c957f7ab3",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:e5f72053-f000-519e-95cb-204c957f7ab3",
+      "properties": {
+        "episode_id": "e5f72053-f000-519e-95cb-204c957f7ab3",
+        "metadata_relative_path": "feeds/p09/metadata/p09_e04.metadata.json",
+        "title": "The Long View: Biohacking \u2014 Episode 4"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:technology",
+      "properties": {
+        "category": "Concept",
+        "label": "Technology"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:health",
+      "properties": {
+        "category": "Concept",
+        "label": "Health"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "technology"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:health",
+      "properties": {
+        "label": "health"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2"
+}

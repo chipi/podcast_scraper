@@ -1,0 +1,386 @@
+[
+  {
+    "char_end": 179,
+    "char_start": 6,
+    "end": 6.0,
+    "speaker_label": "Maya",
+    "start": 0.0,
+    "text": "Welcome back to Singletrack Sessions. Today we're talking about enduro racing, and I'm joined by Sophie Lorenz, enduro racer and coach. Sophie Lorenz, thanks for being here."
+  },
+  {
+    "char_end": 226,
+    "char_start": 195,
+    "end": 12.0,
+    "speaker_label": "Sophie Lorenz",
+    "start": 6.0,
+    "text": "Thanks, Maya. Great to be back."
+  },
+  {
+    "char_end": 356,
+    "char_start": 233,
+    "end": 18.0,
+    "speaker_label": "Maya",
+    "start": 12.0,
+    "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first. Try linear.com today."
+  },
+  {
+    "char_end": 481,
+    "char_start": 356,
+    "end": 24.0,
+    "speaker_label": "Maya",
+    "start": 18.0,
+    "text": "Before we get into it \u2014 Liam Verbeck was on the show talking about how drainage is the single highest-leverage design choice."
+  },
+  {
+    "char_end": 555,
+    "char_start": 497,
+    "end": 30.0,
+    "speaker_label": "Sophie Lorenz",
+    "start": 24.0,
+    "text": "Yeah, exactly. And it ties into what we're covering today."
+  },
+  {
+    "char_end": 653,
+    "char_start": 562,
+    "end": 36.0,
+    "speaker_label": "Maya",
+    "start": 30.0,
+    "text": "I want to flag something \u2014 Liam Verbeck mentioned this same dynamic a couple episodes back."
+  },
+  {
+    "char_end": 739,
+    "char_start": 653,
+    "end": 42.0,
+    "speaker_label": "Maya",
+    "start": 36.0,
+    "text": "Walk me through a concrete example. Where do soil erosion and enduro racing intersect?"
+  },
+  {
+    "char_end": 952,
+    "char_start": 755,
+    "end": 48.0,
+    "speaker_label": "Sophie Lorenz",
+    "start": 42.0,
+    "text": "Honestly, Speed comes from braking earlier and smoother, not from taking bigger risks. We've seen this play out at teams using RockShox. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 1034,
+    "char_start": 959,
+    "end": 54.0,
+    "speaker_label": "Maya",
+    "start": 48.0,
+    "text": "I want to dig into that. Where do soil erosion and enduro racing intersect?"
+  },
+  {
+    "char_end": 1209,
+    "char_start": 1050,
+    "end": 60.0,
+    "speaker_label": "Sophie Lorenz",
+    "start": 54.0,
+    "text": "Sure. Tire pressure and casing choice often matter more than a minor suspension tweak. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "char_end": 1285,
+    "char_start": 1216,
+    "end": 66.0,
+    "speaker_label": "Maya",
+    "start": 60.0,
+    "text": "Let's start there. Where do soil erosion and enduro racing intersect?"
+  },
+  {
+    "char_end": 1526,
+    "char_start": 1301,
+    "end": 72.0,
+    "speaker_label": "Sophie Lorenz",
+    "start": 66.0,
+    "text": "Honestly, Risk management in racing isn't avoiding crashes \u2014 it's choosing which crashes are survivable. We've seen this play out at teams using Shimano. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 1560,
+    "char_start": 1533,
+    "end": 78.0,
+    "speaker_label": "Maya",
+    "start": 72.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 1704,
+    "char_start": 1576,
+    "end": 84.0,
+    "speaker_label": "Sophie Lorenz",
+    "start": 78.0,
+    "text": "Cascadia Alliance is one of the platforms where this shows up cleanly. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 1807,
+    "char_start": 1711,
+    "end": 90.0,
+    "speaker_label": "Maya",
+    "start": 84.0,
+    "text": "What's the one heuristic you keep coming back to? How does Spoke & Wrench fit into this picture?"
+  },
+  {
+    "char_end": 1994,
+    "char_start": 1823,
+    "end": 96.0,
+    "speaker_label": "Sophie Lorenz",
+    "start": 90.0,
+    "text": "Here's how I think about it. Erosion patterns on race-tracks change line choice from practice to race day. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 2124,
+    "char_start": 2001,
+    "end": 102.0,
+    "speaker_label": "Maya",
+    "start": 96.0,
+    "text": "Before we keep going \u2014 head over to our sponsor's website if you want to support the show. Strava is the home for athletes."
+  },
+  {
+    "char_end": 2181,
+    "char_start": 2124,
+    "end": 108.0,
+    "speaker_label": "Maya",
+    "start": 102.0,
+    "text": "We'll be right back after a quick word from our sponsors."
+  },
+  {
+    "char_end": 2325,
+    "char_start": 2186,
+    "end": 114.0,
+    "speaker_label": "Ad",
+    "start": 108.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Visit notion.com/podcast for a free trial."
+  },
+  {
+    "char_end": 2357,
+    "char_start": 2332,
+    "end": 120.0,
+    "speaker_label": "Maya",
+    "start": 114.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 2439,
+    "char_start": 2357,
+    "end": 126.0,
+    "speaker_label": "Maya",
+    "start": 120.0,
+    "text": "I want to dig into that. What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 2687,
+    "char_start": 2455,
+    "end": 132.0,
+    "speaker_label": "Sophie Lorenz",
+    "start": 126.0,
+    "text": "Let me give you the version I actually believe. Speed comes from braking earlier and smoother, not from taking bigger risks. We've seen this play out at teams using RockShox. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 2797,
+    "char_start": 2694,
+    "end": 138.0,
+    "speaker_label": "Maya",
+    "start": 132.0,
+    "text": "What does the failure mode look like? What's the operational angle most listeners don't have access to?"
+  },
+  {
+    "char_end": 2977,
+    "char_start": 2813,
+    "end": 144.0,
+    "speaker_label": "Sophie Lorenz",
+    "start": 138.0,
+    "text": "Yeah, so \u2014 Tire pressure and casing choice often matter more than a minor suspension tweak. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "char_end": 3077,
+    "char_start": 2984,
+    "end": 150.0,
+    "speaker_label": "Maya",
+    "start": 144.0,
+    "text": "Walk me through a concrete example. What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 3309,
+    "char_start": 3093,
+    "end": 156.0,
+    "speaker_label": "Sophie Lorenz",
+    "start": 150.0,
+    "text": "Yeah, so \u2014 Risk management in racing isn't avoiding crashes \u2014 it's choosing which crashes are survivable. We've seen this play out at teams using RockShox. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 3336,
+    "char_start": 3316,
+    "end": 162.0,
+    "speaker_label": "Maya",
+    "start": 156.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 3487,
+    "char_start": 3352,
+    "end": 168.0,
+    "speaker_label": "Sophie Lorenz",
+    "start": 162.0,
+    "text": "Cascadia Alliance is one of the platforms where this shows up cleanly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 3563,
+    "char_start": 3494,
+    "end": 174.0,
+    "speaker_label": "Maya",
+    "start": 168.0,
+    "text": "Let's start there. What's the most underrated piece of enduro racing?"
+  },
+  {
+    "char_end": 3740,
+    "char_start": 3579,
+    "end": 180.0,
+    "speaker_label": "Sophie Lorenz",
+    "start": 174.0,
+    "text": "It comes down to this: Erosion patterns on race-tracks change line choice from practice to race day. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 3819,
+    "char_start": 3747,
+    "end": 186.0,
+    "speaker_label": "Maya",
+    "start": 180.0,
+    "text": "Let's pivot \u2014 risk management is where I want to spend the last stretch."
+  },
+  {
+    "char_end": 3964,
+    "char_start": 3835,
+    "end": 192.0,
+    "speaker_label": "Sophie Lorenz",
+    "start": 186.0,
+    "text": "That's where the conversation gets interesting, because the trade-offs around risk management cross-cut everything we've covered."
+  },
+  {
+    "char_end": 4073,
+    "char_start": 3971,
+    "end": 198.0,
+    "speaker_label": "Maya",
+    "start": 192.0,
+    "text": "What does the failure mode look like? What's the contrarian angle most listeners don't have access to?"
+  },
+  {
+    "char_end": 4282,
+    "char_start": 4089,
+    "end": 204.0,
+    "speaker_label": "Sophie Lorenz",
+    "start": 198.0,
+    "text": "Sure. Speed comes from braking earlier and smoother, not from taking bigger risks. We've seen this play out at teams using RockShox. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 4375,
+    "char_start": 4289,
+    "end": 210.0,
+    "speaker_label": "Maya",
+    "start": 204.0,
+    "text": "Walk me through a concrete example. What's the most underrated piece of enduro racing?"
+  },
+  {
+    "char_end": 4543,
+    "char_start": 4391,
+    "end": 216.0,
+    "speaker_label": "Sophie Lorenz",
+    "start": 210.0,
+    "text": "Yeah, so \u2014 Tire pressure and casing choice often matter more than a minor suspension tweak. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 4643,
+    "char_start": 4550,
+    "end": 222.0,
+    "speaker_label": "Maya",
+    "start": 216.0,
+    "text": "Walk me through a concrete example. What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 4918,
+    "char_start": 4659,
+    "end": 228.0,
+    "speaker_label": "Sophie Lorenz",
+    "start": 222.0,
+    "text": "Let me give you the version I actually believe. Risk management in racing isn't avoiding crashes \u2014 it's choosing which crashes are survivable. We've seen this play out at teams using Spoke & Wrench. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 4937,
+    "char_start": 4925,
+    "end": 234.0,
+    "speaker_label": "Maya",
+    "start": 228.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 5095,
+    "char_start": 4953,
+    "end": 240.0,
+    "speaker_label": "Sophie Lorenz",
+    "start": 234.0,
+    "text": "And when teams adopt Spoke & Wrench in that flow, the trade-off becomes visible \u2014 I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 5209,
+    "char_start": 5102,
+    "end": 246.0,
+    "speaker_label": "Maya",
+    "start": 240.0,
+    "text": "What's the one heuristic you keep coming back to? What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 5392,
+    "char_start": 5225,
+    "end": 252.0,
+    "speaker_label": "Sophie Lorenz",
+    "start": 246.0,
+    "text": "Here's how I think about it. Erosion patterns on race-tracks change line choice from practice to race day. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 5460,
+    "char_start": 5399,
+    "end": 258.0,
+    "speaker_label": "Maya",
+    "start": 252.0,
+    "text": "Before we wrap, what's one thing listeners can try this week?"
+  },
+  {
+    "char_end": 5557,
+    "char_start": 5476,
+    "end": 264.0,
+    "speaker_label": "Sophie Lorenz",
+    "start": 258.0,
+    "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
+  },
+  {
+    "char_end": 5681,
+    "char_start": 5564,
+    "end": 270.0,
+    "speaker_label": "Maya",
+    "start": 264.0,
+    "text": "And finally, a big thank you to our partners at Vanta. Vanta automates SOC 2 and ISO compliance. Check out vanta.com."
+  },
+  {
+    "char_end": 5724,
+    "char_start": 5681,
+    "end": 276.0,
+    "speaker_label": "Maya",
+    "start": 270.0,
+    "text": "Sophie Lorenz, thanks for the conversation."
+  },
+  {
+    "char_end": 5753,
+    "char_start": 5740,
+    "end": 282.0,
+    "speaker_label": "Sophie Lorenz",
+    "start": 276.0,
+    "text": "Thanks, Maya."
+  },
+  {
+    "char_end": 5833,
+    "char_start": 5760,
+    "end": 288.0,
+    "speaker_label": "Maya",
+    "start": 282.0,
+    "text": "That's it for today's episode of Singletrack Sessions. See you next time."
+  }
+]

@@ -1,0 +1,83 @@
+{
+  "edges": [
+    {
+      "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+      "to": "entity:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+      "to": "entity:business-markets",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+      "to": "topic:technology",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+      "to": "topic:business-markets",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+      "to": "topic:welcome-back-to",
+      "type": "RELATES_TO"
+    }
+  ],
+  "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+      "properties": {
+        "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+        "metadata_relative_path": "feeds/p02/metadata/p02_e03.metadata.json",
+        "title": "Practical Systems \u2014 Episode 3"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:technology",
+      "properties": {
+        "category": "Concept",
+        "label": "Technology"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:business-markets",
+      "properties": {
+        "category": "Concept",
+        "label": "Business & Markets"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "technology"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:business-markets",
+      "properties": {
+        "label": "Business & markets"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2"
+}

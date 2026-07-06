@@ -1,0 +1,402 @@
+[
+  {
+    "char_end": 191,
+    "char_start": 6,
+    "end": 6.0,
+    "speaker_label": "Nora",
+    "start": 0.0,
+    "text": "Welcome back to Long Horizon Notes. Today we're talking about macro policy, and I'm joined by Scott Bessett, hedge fund manager and policy adviser. Scott Bessett, thanks for being here."
+  },
+  {
+    "char_end": 238,
+    "char_start": 207,
+    "end": 12.0,
+    "speaker_label": "Scott Bessett",
+    "start": 6.0,
+    "text": "Thanks, Nora. Great to be back."
+  },
+  {
+    "char_end": 397,
+    "char_start": 245,
+    "end": 18.0,
+    "speaker_label": "Nora",
+    "start": 12.0,
+    "text": "This episode is brought to you by Bloomberg. Bloomberg Terminal is the data spine that institutional desks run on. Get started at bloomberg.com/podcast."
+  },
+  {
+    "char_end": 499,
+    "char_start": 397,
+    "end": 24.0,
+    "speaker_label": "Nora",
+    "start": 18.0,
+    "text": "Before we get into it \u2014 Rich Clarida was on last week \u2014 the same point about credibility applies here."
+  },
+  {
+    "char_end": 573,
+    "char_start": 515,
+    "end": 30.0,
+    "speaker_label": "Scott Bessett",
+    "start": 24.0,
+    "text": "Yeah, exactly. And it ties into what we're covering today."
+  },
+  {
+    "char_end": 671,
+    "char_start": 580,
+    "end": 36.0,
+    "speaker_label": "Nora",
+    "start": 30.0,
+    "text": "I want to flag something \u2014 Rich Clarida mentioned this same dynamic a couple episodes back."
+  },
+  {
+    "char_end": 764,
+    "char_start": 671,
+    "end": 42.0,
+    "speaker_label": "Nora",
+    "start": 36.0,
+    "text": "I want to flag something \u2014 Marco Biancchi mentioned this same dynamic a couple episodes back."
+  },
+  {
+    "char_end": 954,
+    "char_start": 780,
+    "end": 48.0,
+    "speaker_label": "Scott Bessett",
+    "start": 42.0,
+    "text": "I used to think currency intervention was always counter-productive. After 2023 I changed my mind \u2014 selective intervention in thin overnight markets can be a legitimate tool."
+  },
+  {
+    "char_end": 999,
+    "char_start": 961,
+    "end": 54.0,
+    "speaker_label": "Nora",
+    "start": 48.0,
+    "text": "That's a real shift. Worth pulling on."
+  },
+  {
+    "char_end": 1078,
+    "char_start": 999,
+    "end": 60.0,
+    "speaker_label": "Nora",
+    "start": 54.0,
+    "text": "What does the failure mode look like? How does Bloomberg fit into this picture?"
+  },
+  {
+    "char_end": 1301,
+    "char_start": 1094,
+    "end": 66.0,
+    "speaker_label": "Scott Bessett",
+    "start": 60.0,
+    "text": "Here's how I think about it. Macro is mostly about not being on the wrong side of a regime change. We've seen this play out at teams using Bloomberg. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 1382,
+    "char_start": 1308,
+    "end": 72.0,
+    "speaker_label": "Nora",
+    "start": 66.0,
+    "text": "That's a useful framing. What's the most underrated piece of macro policy?"
+  },
+  {
+    "char_end": 1516,
+    "char_start": 1398,
+    "end": 78.0,
+    "speaker_label": "Scott Bessett",
+    "start": 72.0,
+    "text": "Honestly, Risk you can articulate is risk you can manage. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 1602,
+    "char_start": 1523,
+    "end": 84.0,
+    "speaker_label": "Nora",
+    "start": 78.0,
+    "text": "Take me through the decision. What's the most underrated piece of macro policy?"
+  },
+  {
+    "char_end": 1805,
+    "char_start": 1618,
+    "end": 90.0,
+    "speaker_label": "Scott Bessett",
+    "start": 84.0,
+    "text": "Sure. Reliability of expectations is the underrated piece of macro analysis. We've seen this play out at teams using Wealthfront. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 1839,
+    "char_start": 1812,
+    "end": 96.0,
+    "speaker_label": "Nora",
+    "start": 90.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 1977,
+    "char_start": 1855,
+    "end": 102.0,
+    "speaker_label": "Scott Bessett",
+    "start": 96.0,
+    "text": "Wealthfront is one of the platforms where this shows up cleanly. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 2090,
+    "char_start": 1984,
+    "end": 108.0,
+    "speaker_label": "Nora",
+    "start": 102.0,
+    "text": "What does the failure mode look like? What's something you used to believe about this that you've revised?"
+  },
+  {
+    "char_end": 2289,
+    "char_start": 2106,
+    "end": 114.0,
+    "speaker_label": "Scott Bessett",
+    "start": 108.0,
+    "text": "Let me give you the version I actually believe. Systems thinking applies \u2014 the dollar is a system, not a price. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 2353,
+    "char_start": 2296,
+    "end": 120.0,
+    "speaker_label": "Nora",
+    "start": 114.0,
+    "text": "We'll be right back after a quick word from our sponsors."
+  },
+  {
+    "char_end": 2503,
+    "char_start": 2358,
+    "end": 126.0,
+    "speaker_label": "Ad",
+    "start": 120.0,
+    "text": "Today's episode is sponsored by Wealthfront. Wealthfront automates the boring parts of investing. Visit wealthfront.com/podcast for a free trial."
+  },
+  {
+    "char_end": 2535,
+    "char_start": 2510,
+    "end": 132.0,
+    "speaker_label": "Nora",
+    "start": 126.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 2634,
+    "char_start": 2535,
+    "end": 138.0,
+    "speaker_label": "Nora",
+    "start": 132.0,
+    "text": "What's the one heuristic you keep coming back to? What's the most underrated piece of macro policy?"
+  },
+  {
+    "char_end": 2838,
+    "char_start": 2650,
+    "end": 144.0,
+    "speaker_label": "Scott Bessett",
+    "start": 138.0,
+    "text": "Yeah, so \u2014 Macro is mostly about not being on the wrong side of a regime change. We've seen this play out at teams using Vanguard. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 2938,
+    "char_start": 2845,
+    "end": 150.0,
+    "speaker_label": "Nora",
+    "start": 144.0,
+    "text": "Walk me through a concrete example. What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 3070,
+    "char_start": 2954,
+    "end": 156.0,
+    "speaker_label": "Scott Bessett",
+    "start": 150.0,
+    "text": "Yeah, so \u2014 Risk you can articulate is risk you can manage. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 3174,
+    "char_start": 3077,
+    "end": 162.0,
+    "speaker_label": "Nora",
+    "start": 156.0,
+    "text": "Push back on the conventional wisdom for me. Where do risk management and macro policy intersect?"
+  },
+  {
+    "char_end": 3401,
+    "char_start": 3190,
+    "end": 168.0,
+    "speaker_label": "Scott Bessett",
+    "start": 162.0,
+    "text": "Here's how I think about it. Reliability of expectations is the underrated piece of macro analysis. We've seen this play out at teams using Bloomberg. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 3435,
+    "char_start": 3408,
+    "end": 174.0,
+    "speaker_label": "Nora",
+    "start": 168.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 3584,
+    "char_start": 3451,
+    "end": 180.0,
+    "speaker_label": "Scott Bessett",
+    "start": 174.0,
+    "text": "And when teams adopt Vanguard in that flow, the trade-off becomes visible \u2014 And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 3694,
+    "char_start": 3591,
+    "end": 186.0,
+    "speaker_label": "Nora",
+    "start": 180.0,
+    "text": "What does the failure mode look like? What's the operational angle most listeners don't have access to?"
+  },
+  {
+    "char_end": 3840,
+    "char_start": 3710,
+    "end": 192.0,
+    "speaker_label": "Scott Bessett",
+    "start": 186.0,
+    "text": "Sure. Systems thinking applies \u2014 the dollar is a system, not a price. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 3920,
+    "char_start": 3847,
+    "end": 198.0,
+    "speaker_label": "Nora",
+    "start": 192.0,
+    "text": "Let's pivot \u2014 systems thinking is where I want to spend the last stretch."
+  },
+  {
+    "char_end": 4066,
+    "char_start": 3936,
+    "end": 204.0,
+    "speaker_label": "Scott Bessett",
+    "start": 198.0,
+    "text": "That's where the conversation gets interesting, because the trade-offs around systems thinking cross-cut everything we've covered."
+  },
+  {
+    "char_end": 4175,
+    "char_start": 4073,
+    "end": 210.0,
+    "speaker_label": "Nora",
+    "start": 204.0,
+    "text": "What's the one heuristic you keep coming back to? Where do risk management and macro policy intersect?"
+  },
+  {
+    "char_end": 4385,
+    "char_start": 4191,
+    "end": 216.0,
+    "speaker_label": "Scott Bessett",
+    "start": 210.0,
+    "text": "Yeah, so \u2014 Macro is mostly about not being on the wrong side of a regime change. We've seen this play out at teams using Morningstar. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 4487,
+    "char_start": 4392,
+    "end": 222.0,
+    "speaker_label": "Nora",
+    "start": 216.0,
+    "text": "What does the failure mode look like? What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 4626,
+    "char_start": 4503,
+    "end": 228.0,
+    "speaker_label": "Scott Bessett",
+    "start": 222.0,
+    "text": "Yeah, so \u2014 Risk you can articulate is risk you can manage. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 4692,
+    "char_start": 4633,
+    "end": 234.0,
+    "speaker_label": "Nora",
+    "start": 228.0,
+    "text": "Let's start there. How does Vanguard fit into this picture?"
+  },
+  {
+    "char_end": 4935,
+    "char_start": 4708,
+    "end": 240.0,
+    "speaker_label": "Scott Bessett",
+    "start": 234.0,
+    "text": "Let me give you the version I actually believe. Reliability of expectations is the underrated piece of macro analysis. We've seen this play out at teams using Bloomberg. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 4954,
+    "char_start": 4942,
+    "end": 246.0,
+    "speaker_label": "Nora",
+    "start": 240.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 5113,
+    "char_start": 4970,
+    "end": 252.0,
+    "speaker_label": "Scott Bessett",
+    "start": 246.0,
+    "text": "Outside of Vanguard-class tooling, the failure mode is harder to spot. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "char_end": 5194,
+    "char_start": 5120,
+    "end": 258.0,
+    "speaker_label": "Nora",
+    "start": 252.0,
+    "text": "That's a useful framing. What's the most underrated piece of macro policy?"
+  },
+  {
+    "char_end": 5355,
+    "char_start": 5210,
+    "end": 264.0,
+    "speaker_label": "Scott Bessett",
+    "start": 258.0,
+    "text": "Honestly, Systems thinking applies \u2014 the dollar is a system, not a price. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 5423,
+    "char_start": 5362,
+    "end": 270.0,
+    "speaker_label": "Nora",
+    "start": 264.0,
+    "text": "Before we wrap, what's one thing listeners can try this week?"
+  },
+  {
+    "char_end": 5520,
+    "char_start": 5439,
+    "end": 276.0,
+    "speaker_label": "Scott Bessett",
+    "start": 270.0,
+    "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
+  },
+  {
+    "char_end": 5649,
+    "char_start": 5527,
+    "end": 282.0,
+    "speaker_label": "Nora",
+    "start": 276.0,
+    "text": "And finally, a big thank you to our partners at Vanguard. Vanguard pioneered low-cost index funds. Check out vanguard.com."
+  },
+  {
+    "char_end": 5692,
+    "char_start": 5649,
+    "end": 288.0,
+    "speaker_label": "Nora",
+    "start": 282.0,
+    "text": "Scott Bessett, thanks for the conversation."
+  },
+  {
+    "char_end": 5721,
+    "char_start": 5708,
+    "end": 294.0,
+    "speaker_label": "Scott Bessett",
+    "start": 288.0,
+    "text": "Thanks, Nora."
+  },
+  {
+    "char_end": 5799,
+    "char_start": 5728,
+    "end": 300.0,
+    "speaker_label": "Nora",
+    "start": 294.0,
+    "text": "That's it for today's episode of Long Horizon Notes. See you next time."
+  }
+]

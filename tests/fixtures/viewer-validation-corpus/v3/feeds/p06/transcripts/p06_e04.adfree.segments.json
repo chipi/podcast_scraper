@@ -1,0 +1,386 @@
+[
+  {
+    "char_end": 157,
+    "char_start": 5,
+    "end": 6.0,
+    "speaker_label": "Cam",
+    "start": 0.0,
+    "text": "Welcome back to The Drift. Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic. Jordan Park, thanks for being here."
+  },
+  {
+    "char_end": 201,
+    "char_start": 171,
+    "end": 12.0,
+    "speaker_label": "Jordan Park",
+    "start": 6.0,
+    "text": "Thanks, Cam. Great to be back."
+  },
+  {
+    "char_end": 368,
+    "char_start": 207,
+    "end": 18.0,
+    "speaker_label": "Cam",
+    "start": 12.0,
+    "text": "This episode is brought to you by Squarespace. Squarespace makes building a beautiful, branded website actually pleasant. Get started at squarespace.com/podcast."
+  },
+  {
+    "char_end": 445,
+    "char_start": 368,
+    "end": 24.0,
+    "speaker_label": "Cam",
+    "start": 18.0,
+    "text": "Take me through the decision. Where do dialogue and cultural drift intersect?"
+  },
+  {
+    "char_end": 634,
+    "char_start": 459,
+    "end": 30.0,
+    "speaker_label": "Jordan Park",
+    "start": 24.0,
+    "text": "Honestly, Culture is a system that never sits still. We've seen this play out at teams using Substack. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "char_end": 740,
+    "char_start": 640,
+    "end": 36.0,
+    "speaker_label": "Cam",
+    "start": 30.0,
+    "text": "Walk me through a concrete example. What's the structural angle most listeners don't have access to?"
+  },
+  {
+    "char_end": 908,
+    "char_start": 754,
+    "end": 42.0,
+    "speaker_label": "Jordan Park",
+    "start": 36.0,
+    "text": "Let me give you the version I actually believe. You can't grip drift; you can only notice it. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 971,
+    "char_start": 914,
+    "end": 48.0,
+    "speaker_label": "Cam",
+    "start": 42.0,
+    "text": "We'll be right back after a quick word from our sponsors."
+  },
+  {
+    "char_end": 1115,
+    "char_start": 976,
+    "end": 54.0,
+    "speaker_label": "Ad",
+    "start": 48.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Visit notion.com/podcast for a free trial."
+  },
+  {
+    "char_end": 1146,
+    "char_start": 1121,
+    "end": 60.0,
+    "speaker_label": "Cam",
+    "start": 54.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 1247,
+    "char_start": 1146,
+    "end": 66.0,
+    "speaker_label": "Cam",
+    "start": 60.0,
+    "text": "What's the one heuristic you keep coming back to? What's the most underrated piece of cultural drift?"
+  },
+  {
+    "char_end": 1437,
+    "char_start": 1261,
+    "end": 72.0,
+    "speaker_label": "Jordan Park",
+    "start": 66.0,
+    "text": "It comes down to this: Culture is a system that never sits still. We've seen this play out at teams using Substack. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 1536,
+    "char_start": 1443,
+    "end": 78.0,
+    "speaker_label": "Cam",
+    "start": 72.0,
+    "text": "Walk me through a concrete example. What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 1659,
+    "char_start": 1550,
+    "end": 84.0,
+    "speaker_label": "Jordan Park",
+    "start": 78.0,
+    "text": "Sure. You can't grip drift; you can only notice it. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 1714,
+    "char_start": 1665,
+    "end": 90.0,
+    "speaker_label": "Cam",
+    "start": 84.0,
+    "text": "So, like, yeah \u2014 that's kind of where I land too."
+  },
+  {
+    "char_end": 1795,
+    "char_start": 1728,
+    "end": 96.0,
+    "speaker_label": "Jordan Park",
+    "start": 90.0,
+    "text": "Yeah. Yeah. I don't know if I'd put it that way exactly, but close."
+  },
+  {
+    "char_end": 1855,
+    "char_start": 1801,
+    "end": 102.0,
+    "speaker_label": "Cam",
+    "start": 96.0,
+    "text": "There's something almost \u2014 I don't know. Hard to name."
+  },
+  {
+    "char_end": 1936,
+    "char_start": 1869,
+    "end": 108.0,
+    "speaker_label": "Jordan Park",
+    "start": 102.0,
+    "text": "Yeah. Yeah. I don't know if I'd put it that way exactly, but close."
+  },
+  {
+    "char_end": 1996,
+    "char_start": 1942,
+    "end": 114.0,
+    "speaker_label": "Cam",
+    "start": 108.0,
+    "text": "There's something almost \u2014 I don't know. Hard to name."
+  },
+  {
+    "char_end": 2077,
+    "char_start": 2010,
+    "end": 120.0,
+    "speaker_label": "Jordan Park",
+    "start": 114.0,
+    "text": "Yeah. Yeah. I don't know if I'd put it that way exactly, but close."
+  },
+  {
+    "char_end": 2121,
+    "char_start": 2083,
+    "end": 126.0,
+    "speaker_label": "Cam",
+    "start": 120.0,
+    "text": "You know what I mean? Like, that vibe."
+  },
+  {
+    "char_end": 2202,
+    "char_start": 2135,
+    "end": 132.0,
+    "speaker_label": "Jordan Park",
+    "start": 126.0,
+    "text": "Yeah. Yeah. I don't know if I'd put it that way exactly, but close."
+  },
+  {
+    "char_end": 2246,
+    "char_start": 2208,
+    "end": 138.0,
+    "speaker_label": "Cam",
+    "start": 132.0,
+    "text": "You know what I mean? Like, that vibe."
+  },
+  {
+    "char_end": 2319,
+    "char_start": 2260,
+    "end": 144.0,
+    "speaker_label": "Jordan Park",
+    "start": 138.0,
+    "text": "Totally. That's exactly the kind of thing I was getting at."
+  },
+  {
+    "char_end": 2374,
+    "char_start": 2325,
+    "end": 150.0,
+    "speaker_label": "Cam",
+    "start": 144.0,
+    "text": "So, like, yeah \u2014 that's kind of where I land too."
+  },
+  {
+    "char_end": 2438,
+    "char_start": 2388,
+    "end": 156.0,
+    "speaker_label": "Jordan Park",
+    "start": 150.0,
+    "text": "It depends, right? Like, on the day, on the mood \u2014"
+  },
+  {
+    "char_end": 2493,
+    "char_start": 2444,
+    "end": 162.0,
+    "speaker_label": "Cam",
+    "start": 156.0,
+    "text": "So, like, yeah \u2014 that's kind of where I land too."
+  },
+  {
+    "char_end": 2566,
+    "char_start": 2507,
+    "end": 168.0,
+    "speaker_label": "Jordan Park",
+    "start": 162.0,
+    "text": "Totally. That's exactly the kind of thing I was getting at."
+  },
+  {
+    "char_end": 2622,
+    "char_start": 2572,
+    "end": 174.0,
+    "speaker_label": "Cam",
+    "start": 168.0,
+    "text": "And you've felt that too, I think? Yeah, you have."
+  },
+  {
+    "char_end": 2703,
+    "char_start": 2636,
+    "end": 180.0,
+    "speaker_label": "Jordan Park",
+    "start": 174.0,
+    "text": "Yeah. Yeah. I don't know if I'd put it that way exactly, but close."
+  },
+  {
+    "char_end": 2747,
+    "char_start": 2709,
+    "end": 186.0,
+    "speaker_label": "Cam",
+    "start": 180.0,
+    "text": "You know what I mean? Like, that vibe."
+  },
+  {
+    "char_end": 2820,
+    "char_start": 2761,
+    "end": 192.0,
+    "speaker_label": "Jordan Park",
+    "start": 186.0,
+    "text": "Totally. That's exactly the kind of thing I was getting at."
+  },
+  {
+    "char_end": 2864,
+    "char_start": 2826,
+    "end": 198.0,
+    "speaker_label": "Cam",
+    "start": 192.0,
+    "text": "Mmm. Yeah, it's interesting, isn't it?"
+  },
+  {
+    "char_end": 2928,
+    "char_start": 2878,
+    "end": 204.0,
+    "speaker_label": "Jordan Park",
+    "start": 198.0,
+    "text": "It depends, right? Like, on the day, on the mood \u2014"
+  },
+  {
+    "char_end": 2972,
+    "char_start": 2934,
+    "end": 210.0,
+    "speaker_label": "Cam",
+    "start": 204.0,
+    "text": "You know what I mean? Like, that vibe."
+  },
+  {
+    "char_end": 3026,
+    "char_start": 2986,
+    "end": 216.0,
+    "speaker_label": "Jordan Park",
+    "start": 210.0,
+    "text": "Right? Right. Exactly. That's the thing."
+  },
+  {
+    "char_end": 3105,
+    "char_start": 3032,
+    "end": 222.0,
+    "speaker_label": "Cam",
+    "start": 216.0,
+    "text": "Let's pivot \u2014 systems thinking is where I want to spend the last stretch."
+  },
+  {
+    "char_end": 3249,
+    "char_start": 3119,
+    "end": 228.0,
+    "speaker_label": "Jordan Park",
+    "start": 222.0,
+    "text": "That's where the conversation gets interesting, because the trade-offs around systems thinking cross-cut everything we've covered."
+  },
+  {
+    "char_end": 3344,
+    "char_start": 3255,
+    "end": 234.0,
+    "speaker_label": "Cam",
+    "start": 228.0,
+    "text": "That's a useful framing. What's the contrarian angle most listeners don't have access to?"
+  },
+  {
+    "char_end": 3570,
+    "char_start": 3358,
+    "end": 240.0,
+    "speaker_label": "Jordan Park",
+    "start": 234.0,
+    "text": "Let me give you the version I actually believe. Culture is a system that never sits still. We've seen this play out at teams using Substack. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 3659,
+    "char_start": 3576,
+    "end": 246.0,
+    "speaker_label": "Cam",
+    "start": 240.0,
+    "text": "Walk me through a concrete example. Where do dialogue and cultural drift intersect?"
+  },
+  {
+    "char_end": 3787,
+    "char_start": 3673,
+    "end": 252.0,
+    "speaker_label": "Jordan Park",
+    "start": 246.0,
+    "text": "Yeah, so \u2014 You can't grip drift; you can only notice it. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 3854,
+    "char_start": 3793,
+    "end": 258.0,
+    "speaker_label": "Cam",
+    "start": 252.0,
+    "text": "Before we wrap, what's one thing listeners can try this week?"
+  },
+  {
+    "char_end": 3949,
+    "char_start": 3868,
+    "end": 264.0,
+    "speaker_label": "Jordan Park",
+    "start": 258.0,
+    "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
+  },
+  {
+    "char_end": 4117,
+    "char_start": 3955,
+    "end": 270.0,
+    "speaker_label": "Cam",
+    "start": 264.0,
+    "text": "And finally, a big thank you to our partners at Squarespace. Squarespace makes building a beautiful, branded website actually pleasant. Check out squarespace.com."
+  },
+  {
+    "char_end": 4158,
+    "char_start": 4117,
+    "end": 276.0,
+    "speaker_label": "Cam",
+    "start": 270.0,
+    "text": "Jordan Park, thanks for the conversation."
+  },
+  {
+    "char_end": 4184,
+    "char_start": 4172,
+    "end": 282.0,
+    "speaker_label": "Jordan Park",
+    "start": 276.0,
+    "text": "Thanks, Cam."
+  },
+  {
+    "char_end": 4252,
+    "char_start": 4190,
+    "end": 288.0,
+    "speaker_label": "Cam",
+    "start": 282.0,
+    "text": "That's it for today's episode of The Drift. See you next time."
+  }
+]

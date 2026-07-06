@@ -1,0 +1,261 @@
+{
+  "edges": [
+    {
+      "from": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+      "to": "topic:environment",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+      "to": "topic:health",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+      "to": "topic:science-research",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+      "to": "insight:6f139f511a98f949",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+      "to": "insight:1e81ad92e6acb871",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+      "to": "insight:5de70b4a73d706e3",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:6aa8cd6f5b789ff9",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:6f139f511a98f949",
+      "to": "quote:6aa8cd6f5b789ff9",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f20ec1121f1cbb8d",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1e81ad92e6acb871",
+      "to": "quote:f20ec1121f1cbb8d",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f487aae24037eaf3",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:5de70b4a73d706e3",
+      "to": "quote:f487aae24037eaf3",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:d5c9da0479e3467f",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:6f139f511a98f949",
+      "to": "quote:d5c9da0479e3467f",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:d60518fdb3b7b7f6",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1e81ad92e6acb871",
+      "to": "quote:d60518fdb3b7b7f6",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:b3a121b696e5c9c1",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:5de70b4a73d706e3",
+      "to": "quote:b3a121b696e5c9c1",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+        "metadata_relative_path": "feeds/p07/metadata/p07_e01.metadata.json",
+        "podcast_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
+        "publish_date": "2026-07-06T12:00:00",
+        "title": "The Long View \u2014 Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:environment",
+      "properties": {
+        "label": "environment",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:health",
+      "properties": {
+        "label": "health",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:6f139f511a98f949",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# The Long View \u2014 Sustainability \u2014 Episode\n## What Sustainability Really Means\nHost: Alex Morgan\nGuest: Dr."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:1e81ad92e6acb871",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we're talking about sustainability, and I'm joined by Dr."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:5de70b4a73d706e3",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Elena Fischer, sustainability researcher and systems thinker."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Alex Morgan"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:6aa8cd6f5b789ff9",
+      "properties": {
+        "char_end": 228,
+        "char_start": 13,
+        "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to The Long View \u2014 Sustainability. Today we're talking about sustainability, and I'm joined by Dr. Elena Fischer, sustainability researcher and systems thinker. Dr. Elena Fischer, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p07_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Dr. Elena Fischer"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:f20ec1121f1cbb8d",
+      "properties": {
+        "char_end": 372,
+        "char_start": 248,
+        "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Alex Morgan. Excited for this one \u2014 sustainability and systems thinking is something I've been thinking about a lot.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p07_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:f487aae24037eaf3",
+      "properties": {
+        "char_end": 504,
+        "char_start": 386,
+        "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Try notion.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p07_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:d5c9da0479e3467f",
+      "properties": {
+        "char_end": 584,
+        "char_start": 504,
+        "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+        "speaker_id": "person:speaker-01",
+        "text": "That's a useful framing. Where do systems thinking and sustainability intersect?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p07_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:d60518fdb3b7b7f6",
+      "properties": {
+        "char_end": 846,
+        "char_start": 604,
+        "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+        "speaker_id": "person:speaker-02",
+        "text": "Let me give you the version I actually believe. Sustainability is a systems-thinking problem before it's an environmental problem. We've seen this play out at teams using Carbon Trust. And the second-order effect is the part most people miss.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p07_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:b3a121b696e5c9c1",
+      "properties": {
+        "char_end": 942,
+        "char_start": 860,
+        "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+        "speaker_id": "person:speaker-01",
+        "text": "That's a useful framing. What's the version of the question that actually matters?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p07_e01.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

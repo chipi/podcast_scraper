@@ -1,0 +1,261 @@
+{
+  "edges": [
+    {
+      "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+      "to": "topic:science-research",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+      "to": "topic:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+      "to": "topic:excited-for-this-one",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+      "to": "insight:738c0d8597e80be9",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+      "to": "insight:49ceee537c0fbff7",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+      "to": "insight:2cf8f4744b6d684d",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:1361955c324ef88d",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:738c0d8597e80be9",
+      "to": "quote:1361955c324ef88d",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:e6d6eacf3a2a8d12",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:49ceee537c0fbff7",
+      "to": "quote:e6d6eacf3a2a8d12",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:ccb1012a25b2555e",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:2cf8f4744b6d684d",
+      "to": "quote:ccb1012a25b2555e",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:38e21abe60628002",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:738c0d8597e80be9",
+      "to": "quote:38e21abe60628002",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:42eb3370981819ac",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:49ceee537c0fbff7",
+      "to": "quote:42eb3370981819ac",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:9073a3b4f9bdf3c6",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:2cf8f4744b6d684d",
+      "to": "quote:9073a3b4f9bdf3c6",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+        "metadata_relative_path": "feeds/p06/metadata/p06_e01.metadata.json",
+        "podcast_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
+        "publish_date": "2026-07-01T12:00:00",
+        "title": "Edge Cases Podcast \u2014 Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:excited-for-this-one",
+      "properties": {
+        "label": "excited for this one",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:738c0d8597e80be9",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:49ceee537c0fbff7",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Jordan Park, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:2cf8f4744b6d684d",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Excited for this one \u2014 dialogue and conversational drift is something I've been thinking about a lot."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Cam"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:1361955c324ef88d",
+      "properties": {
+        "char_end": 157,
+        "char_start": 5,
+        "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to The Drift. Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic. Jordan Park, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p06_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Jordan Park"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:e6d6eacf3a2a8d12",
+      "properties": {
+        "char_end": 285,
+        "char_start": 171,
+        "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Cam. Excited for this one \u2014 dialogue and conversational drift is something I've been thinking about a lot.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p06_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:ccb1012a25b2555e",
+      "properties": {
+        "char_end": 409,
+        "char_start": 291,
+        "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Try notion.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p06_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:38e21abe60628002",
+      "properties": {
+        "char_end": 485,
+        "char_start": 409,
+        "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to dig into that. What's the most underrated piece of cultural drift?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p06_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:42eb3370981819ac",
+      "properties": {
+        "char_end": 712,
+        "char_start": 499,
+        "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, so \u2014 There's something about the way conversations actually unfold that essays can't capture. We've seen this play out at teams using Patreon. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p06_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:9073a3b4f9bdf3c6",
+      "properties": {
+        "char_end": 790,
+        "char_start": 718,
+        "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to dig into that. Where do dialogue and cultural drift intersect?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p06_e01.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

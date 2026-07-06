@@ -1,0 +1,283 @@
+{
+  "derived": true,
+  "computed_at": "2026-07-06T15:50:17Z",
+  "enricher_id": "topic_cooccurrence_corpus",
+  "enricher_version": "1.1.0",
+  "schema_version": "1.0",
+  "status": "ok",
+  "data": {
+    "episode_count": 36,
+    "pairs": [
+      {
+        "topic_a_id": "topic:expert-interviews",
+        "topic_b_id": "topic:lifelong-learning",
+        "topic_a_label": "expert interviews",
+        "topic_b_label": "lifelong learning",
+        "episode_count": 36,
+        "topic_a_episode_count": 36,
+        "topic_b_episode_count": 36,
+        "lift": 1.0,
+        "pmi": 0.0
+      },
+      {
+        "topic_a_id": "topic:expert-interviews",
+        "topic_b_id": "topic:risk-management",
+        "topic_a_label": "expert interviews",
+        "topic_b_label": "risk management",
+        "episode_count": 28,
+        "topic_a_episode_count": 36,
+        "topic_b_episode_count": 28,
+        "lift": 1.0,
+        "pmi": 0.0
+      },
+      {
+        "topic_a_id": "topic:lifelong-learning",
+        "topic_b_id": "topic:risk-management",
+        "topic_a_label": "lifelong learning",
+        "topic_b_label": "risk management",
+        "episode_count": 28,
+        "topic_a_episode_count": 36,
+        "topic_b_episode_count": 28,
+        "lift": 1.0,
+        "pmi": 0.0
+      },
+      {
+        "topic_a_id": "topic:expert-interviews",
+        "topic_b_id": "topic:systems-thinking",
+        "topic_a_label": "expert interviews",
+        "topic_b_label": "systems thinking",
+        "episode_count": 20,
+        "topic_a_episode_count": 36,
+        "topic_b_episode_count": 20,
+        "lift": 1.0,
+        "pmi": 0.0
+      },
+      {
+        "topic_a_id": "topic:lifelong-learning",
+        "topic_b_id": "topic:systems-thinking",
+        "topic_a_label": "lifelong learning",
+        "topic_b_label": "systems thinking",
+        "episode_count": 20,
+        "topic_a_episode_count": 36,
+        "topic_b_episode_count": 20,
+        "lift": 1.0,
+        "pmi": 0.0
+      },
+      {
+        "topic_a_id": "topic:risk-management",
+        "topic_b_id": "topic:systems-thinking",
+        "topic_a_label": "risk management",
+        "topic_b_label": "systems thinking",
+        "episode_count": 12,
+        "topic_a_episode_count": 28,
+        "topic_b_episode_count": 20,
+        "lift": 0.7714,
+        "pmi": -0.3744
+      },
+      {
+        "topic_a_id": "topic:endurance-sport",
+        "topic_b_id": "topic:expert-interviews",
+        "topic_a_label": "endurance sport",
+        "topic_b_label": "expert interviews",
+        "episode_count": 4,
+        "topic_a_episode_count": 4,
+        "topic_b_episode_count": 36,
+        "lift": 1.0,
+        "pmi": 0.0
+      },
+      {
+        "topic_a_id": "topic:endurance-sport",
+        "topic_b_id": "topic:lifelong-learning",
+        "topic_a_label": "endurance sport",
+        "topic_b_label": "lifelong learning",
+        "episode_count": 4,
+        "topic_a_episode_count": 4,
+        "topic_b_episode_count": 36,
+        "lift": 1.0,
+        "pmi": 0.0
+      },
+      {
+        "topic_a_id": "topic:endurance-sport",
+        "topic_b_id": "topic:risk-management",
+        "topic_a_label": "endurance sport",
+        "topic_b_label": "risk management",
+        "episode_count": 4,
+        "topic_a_episode_count": 4,
+        "topic_b_episode_count": 28,
+        "lift": 1.2857,
+        "pmi": 0.3626
+      },
+      {
+        "topic_a_id": "topic:expert-interviews",
+        "topic_b_id": "topic:long-form",
+        "topic_a_label": "expert interviews",
+        "topic_b_label": "long-form",
+        "episode_count": 4,
+        "topic_a_episode_count": 36,
+        "topic_b_episode_count": 4,
+        "lift": 1.0,
+        "pmi": 0.0
+      },
+      {
+        "topic_a_id": "topic:expert-interviews",
+        "topic_b_id": "topic:personal-finance",
+        "topic_a_label": "expert interviews",
+        "topic_b_label": "personal finance",
+        "episode_count": 4,
+        "topic_a_episode_count": 36,
+        "topic_b_episode_count": 4,
+        "lift": 1.0,
+        "pmi": 0.0
+      },
+      {
+        "topic_a_id": "topic:expert-interviews",
+        "topic_b_id": "topic:public-radio",
+        "topic_a_label": "expert interviews",
+        "topic_b_label": "public radio",
+        "episode_count": 4,
+        "topic_a_episode_count": 36,
+        "topic_b_episode_count": 4,
+        "lift": 1.0,
+        "pmi": 0.0
+      },
+      {
+        "topic_a_id": "topic:expert-interviews",
+        "topic_b_id": "topic:safety-practices",
+        "topic_a_label": "expert interviews",
+        "topic_b_label": "safety practices",
+        "episode_count": 4,
+        "topic_a_episode_count": 36,
+        "topic_b_episode_count": 4,
+        "lift": 1.0,
+        "pmi": 0.0
+      },
+      {
+        "topic_a_id": "topic:expert-interviews",
+        "topic_b_id": "topic:visual-craft",
+        "topic_a_label": "expert interviews",
+        "topic_b_label": "visual craft",
+        "episode_count": 4,
+        "topic_a_episode_count": 36,
+        "topic_b_episode_count": 4,
+        "lift": 1.0,
+        "pmi": 0.0
+      },
+      {
+        "topic_a_id": "topic:lifelong-learning",
+        "topic_b_id": "topic:long-form",
+        "topic_a_label": "lifelong learning",
+        "topic_b_label": "long-form",
+        "episode_count": 4,
+        "topic_a_episode_count": 36,
+        "topic_b_episode_count": 4,
+        "lift": 1.0,
+        "pmi": 0.0
+      },
+      {
+        "topic_a_id": "topic:lifelong-learning",
+        "topic_b_id": "topic:personal-finance",
+        "topic_a_label": "lifelong learning",
+        "topic_b_label": "personal finance",
+        "episode_count": 4,
+        "topic_a_episode_count": 36,
+        "topic_b_episode_count": 4,
+        "lift": 1.0,
+        "pmi": 0.0
+      },
+      {
+        "topic_a_id": "topic:lifelong-learning",
+        "topic_b_id": "topic:public-radio",
+        "topic_a_label": "lifelong learning",
+        "topic_b_label": "public radio",
+        "episode_count": 4,
+        "topic_a_episode_count": 36,
+        "topic_b_episode_count": 4,
+        "lift": 1.0,
+        "pmi": 0.0
+      },
+      {
+        "topic_a_id": "topic:lifelong-learning",
+        "topic_b_id": "topic:safety-practices",
+        "topic_a_label": "lifelong learning",
+        "topic_b_label": "safety practices",
+        "episode_count": 4,
+        "topic_a_episode_count": 36,
+        "topic_b_episode_count": 4,
+        "lift": 1.0,
+        "pmi": 0.0
+      },
+      {
+        "topic_a_id": "topic:lifelong-learning",
+        "topic_b_id": "topic:visual-craft",
+        "topic_a_label": "lifelong learning",
+        "topic_b_label": "visual craft",
+        "episode_count": 4,
+        "topic_a_episode_count": 36,
+        "topic_b_episode_count": 4,
+        "lift": 1.0,
+        "pmi": 0.0
+      },
+      {
+        "topic_a_id": "topic:long-form",
+        "topic_b_id": "topic:systems-thinking",
+        "topic_a_label": "long-form",
+        "topic_b_label": "systems thinking",
+        "episode_count": 4,
+        "topic_a_episode_count": 4,
+        "topic_b_episode_count": 20,
+        "lift": 1.8,
+        "pmi": 0.848
+      },
+      {
+        "topic_a_id": "topic:personal-finance",
+        "topic_b_id": "topic:risk-management",
+        "topic_a_label": "personal finance",
+        "topic_b_label": "risk management",
+        "episode_count": 4,
+        "topic_a_episode_count": 4,
+        "topic_b_episode_count": 28,
+        "lift": 1.2857,
+        "pmi": 0.3626
+      },
+      {
+        "topic_a_id": "topic:public-radio",
+        "topic_b_id": "topic:risk-management",
+        "topic_a_label": "public radio",
+        "topic_b_label": "risk management",
+        "episode_count": 4,
+        "topic_a_episode_count": 4,
+        "topic_b_episode_count": 28,
+        "lift": 1.2857,
+        "pmi": 0.3626
+      },
+      {
+        "topic_a_id": "topic:risk-management",
+        "topic_b_id": "topic:safety-practices",
+        "topic_a_label": "risk management",
+        "topic_b_label": "safety practices",
+        "episode_count": 4,
+        "topic_a_episode_count": 28,
+        "topic_b_episode_count": 4,
+        "lift": 1.2857,
+        "pmi": 0.3626
+      },
+      {
+        "topic_a_id": "topic:systems-thinking",
+        "topic_b_id": "topic:visual-craft",
+        "topic_a_label": "systems thinking",
+        "topic_b_label": "visual craft",
+        "episode_count": 4,
+        "topic_a_episode_count": 20,
+        "topic_b_episode_count": 4,
+        "lift": 1.8,
+        "pmi": 0.848
+      }
+    ]
+  },
+  "error": null,
+  "error_class": null,
+  "retry_count": 0,
+  "circuit_state": null,
+  "duration_ms": 0,
+  "records_written": 24
+}

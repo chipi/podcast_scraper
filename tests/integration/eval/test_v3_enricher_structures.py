@@ -117,7 +117,7 @@ def test_authored_structures_render_and_emit_gold(v3):
         ["pZ:ada", "pZ:alan"]
     ]
     assert gt["publish_offset_days"] == 90
-    assert gt["publish_date"] == "2026-04-01"  # 2026-01-01 + 90d
+    assert gt["publish_date"] == "2024-03-31"  # CORPUS_EPOCH 2024-01-01 + 90d
     assert gt["insight_density"] == "low"
     assert gt["additional_guests"] == ["alan"]
 

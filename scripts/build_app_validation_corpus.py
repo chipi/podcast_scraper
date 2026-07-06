@@ -106,6 +106,65 @@ SHOW_META_OVERRIDE: dict[str, dict[str, str]] = {
     },
 }
 
+
+def _publish_date_for(ep_label: str, gt_dir: Path) -> str | None:
+    """Publish date from the v3 ground truth (CORPUS_EPOCH + publish_offset_days).
+
+    Returns the authored ``publish_date`` (``YYYY-MM-DD``) when the episode set
+    ``publish_offset_days`` (#1148 time spread), else ``None`` so the caller
+    falls back to the legacy single-month scheme. This is what gives
+    ``temporal_velocity`` a real multi-month signal.
+    """
+    gt = gt_dir / f"{ep_label}.json"
+    if not gt.is_file():
+        return None
+    try:
+        pd = json.loads(gt.read_text(encoding="utf-8")).get("publish_date")
+    except (OSError, ValueError):
+        return None
+    return pd if isinstance(pd, str) else None
+
+
+def _canonicalize_persons_in(doc: dict[str, Any]) -> None:
+    """Rewrite one artifact's ``person:speaker-NN`` ids to name-based ids, in place."""
+    idmap: dict[str, str] = {}
+    for n in doc.get("nodes", []):
+        if n.get("type") != "Person":
+            continue
+        name = str((n.get("properties") or {}).get("name") or "").strip()
+        if name:
+            new_id = f"person:{slug(name)}"
+            idmap[str(n.get("id"))] = new_id
+            n["id"] = new_id
+    for e in doc.get("edges", []):
+        if e.get("from") in idmap:
+            e["from"] = idmap[e["from"]]
+        if e.get("to") in idmap:
+            e["to"] = idmap[e["to"]]
+    seen: set[str] = set()
+    kept: list[dict[str, Any]] = []
+    for n in doc.get("nodes", []):
+        if n.get("type") == "Person" and str(n.get("id")) in seen:
+            continue
+        if n.get("type") == "Person":
+            seen.add(str(n.get("id")))
+        kept.append(n)
+    doc["nodes"] = kept
+
+
+def _canonicalize_persons(*docs: dict[str, Any]) -> None:
+    """Canonicalize Person ids across artifacts so cross-episode enrichers work.
+
+    The deterministic builder assigns raw diarization ids (``person:speaker-02``)
+    that differ per episode, so cross-episode enrichers (guest_coappearance,
+    grounding_rate — which filter speaker-NN by design) see no signal. Mapping
+    each Person to ``person:<name-slug>`` makes the same guest identical across
+    episodes and canonical for the enrichers (#1148 corpus evolution).
+    """
+    for doc in docs:
+        _canonicalize_persons_in(doc)
+
+
 # Stable, sortable run tag per show (single run per feed — the catalog keeps only
 # the lexicographically-greatest run_* per feed dir).
 _RUN_TAG = "run_20260101_000000"
@@ -328,6 +387,9 @@ def main() -> int:
     out.mkdir(parents=True, exist_ok=True)
 
     shows = APP_SHOWS[: args.max_feeds]
+    # v3 ground-truth dir (sibling of the transcripts dir) — carries the authored
+    # publish dates (#1148 varied 2024→now schedule).
+    gt_dir = args.transcripts_dir.parent.parent / "ground-truth" / version / "ground_truth"
     episode_index: list[dict[str, Any]] = []  # for the regenerate-summary print
     corpus_topic_counts: dict[str, int] = {}  # → corpus-scope temporal_velocity envelope
 
@@ -358,8 +420,10 @@ def main() -> int:
             episode_title = _episode_subtitle(transcript_path, f"{feed_title} — Episode {ei + 1}")
             # Deterministic publish dates, newest-first by show then episode so the
             # app's "What's new" (recency) order is stable. Show 0 ep 0 is newest.
+            # Prefer the authored v3 date (#1148 varied 2024→now schedule, unique
+            # per episode); fall back to the legacy single-month scheme.
             day = 28 - (shows.index((show_rss_stem, show_dir)) * len(transcripts) + ei)
-            publish = f"2026-01-{day:02d}"
+            publish = _publish_date_for(ep_label, gt_dir) or f"2026-01-{day:02d}"
 
             diar_segments, roster = parse_diarized_segments(transcript_path)
             raw_text, offset_segs = format_screenplay_with_offsets(diar_segments)
@@ -394,6 +458,9 @@ def main() -> int:
             # The viewer build_kg emits no Person nodes; add the diarized roster so the
             # consumer entity-card people surface has real data (host/guest).
             _enrich_kg_with_people(kg, roster)
+            # #1148: canonicalize Person ids (speaker-NN → name-slug) so the
+            # cross-episode enrichers (guest_coappearance / grounding_rate) work.
+            _canonicalize_persons(gi, kg)
 
             (run_meta_dir / f"{ep_label}.gi.json").write_text(
                 json.dumps(gi, indent=2, sort_keys=True) + "\n", encoding="utf-8"

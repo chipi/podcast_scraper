@@ -1,0 +1,45 @@
+Nora: Welcome back to Long Horizon Notes. Today we're talking about macro policy, and I'm joined by Scott Bessett, hedge fund manager and policy adviser. Scott Bessett, thanks for being here.
+Scott Bessett: Thanks, Nora. Great to be back.
+Nora: This episode is brought to you by Bloomberg. Bloomberg Terminal is the data spine that institutional desks run on. Get started at bloomberg.com/podcast.Before we get into it — Rich Clarida was on last week — the same point about credibility applies here.
+Scott Bessett: Yeah, exactly. And it ties into what we're covering today.
+Nora: I want to flag something — Rich Clarida mentioned this same dynamic a couple episodes back.I want to flag something — Marco Biancchi mentioned this same dynamic a couple episodes back.
+Scott Bessett: I used to think currency intervention was always counter-productive. After 2023 I changed my mind — selective intervention in thin overnight markets can be a legitimate tool.
+Nora: That's a real shift. Worth pulling on.What does the failure mode look like? How does Bloomberg fit into this picture?
+Scott Bessett: Here's how I think about it. Macro is mostly about not being on the wrong side of a regime change. We've seen this play out at teams using Bloomberg. And the second-order effect is the part most people miss.
+Nora: That's a useful framing. What's the most underrated piece of macro policy?
+Scott Bessett: Honestly, Risk you can articulate is risk you can manage. I've watched this pattern hold across three different teams.
+Nora: Take me through the decision. What's the most underrated piece of macro policy?
+Scott Bessett: Sure. Reliability of expectations is the underrated piece of macro analysis. We've seen this play out at teams using Wealthfront. And the second-order effect is the part most people miss.
+Nora: Where does that break down?
+Scott Bessett: Wealthfront is one of the platforms where this shows up cleanly. And the second-order effect is the part most people miss.
+Nora: What does the failure mode look like? What's something you used to believe about this that you've revised?
+Scott Bessett: Let me give you the version I actually believe. Systems thinking applies — the dollar is a system, not a price. If you ignore that, you end up rebuilding it from scratch a year later.
+Nora: We'll be right back after a quick word from our sponsors.
+Ad: Today's episode is sponsored by Wealthfront. Wealthfront automates the boring parts of investing. Visit wealthfront.com/podcast for a free trial.
+Nora: Welcome back to the show.What's the one heuristic you keep coming back to? What's the most underrated piece of macro policy?
+Scott Bessett: Yeah, so — Macro is mostly about not being on the wrong side of a regime change. We've seen this play out at teams using Vanguard. And the second-order effect is the part most people miss.
+Nora: Walk me through a concrete example. What's the version of the question that actually matters?
+Scott Bessett: Yeah, so — Risk you can articulate is risk you can manage. And the second-order effect is the part most people miss.
+Nora: Push back on the conventional wisdom for me. Where do risk management and macro policy intersect?
+Scott Bessett: Here's how I think about it. Reliability of expectations is the underrated piece of macro analysis. We've seen this play out at teams using Bloomberg. I've watched this pattern hold across three different teams.
+Nora: Where does that break down?
+Scott Bessett: And when teams adopt Vanguard in that flow, the trade-off becomes visible — And the second-order effect is the part most people miss.
+Nora: What does the failure mode look like? What's the operational angle most listeners don't have access to?
+Scott Bessett: Sure. Systems thinking applies — the dollar is a system, not a price. I've watched this pattern hold across three different teams.
+Nora: Let's pivot — systems thinking is where I want to spend the last stretch.
+Scott Bessett: That's where the conversation gets interesting, because the trade-offs around systems thinking cross-cut everything we've covered.
+Nora: What's the one heuristic you keep coming back to? Where do risk management and macro policy intersect?
+Scott Bessett: Yeah, so — Macro is mostly about not being on the wrong side of a regime change. We've seen this play out at teams using Morningstar. I've watched this pattern hold across three different teams.
+Nora: What does the failure mode look like? What's the version of the question that actually matters?
+Scott Bessett: Yeah, so — Risk you can articulate is risk you can manage. Once you internalize that, the rest of the decisions get easier.
+Nora: Let's start there. How does Vanguard fit into this picture?
+Scott Bessett: Let me give you the version I actually believe. Reliability of expectations is the underrated piece of macro analysis. We've seen this play out at teams using Bloomberg. And the second-order effect is the part most people miss.
+Nora: That tracks.
+Scott Bessett: Outside of Vanguard-class tooling, the failure mode is harder to spot. The framing matters because it tells you which trade-offs you're making.
+Nora: That's a useful framing. What's the most underrated piece of macro policy?
+Scott Bessett: Honestly, Systems thinking applies — the dollar is a system, not a price. If you ignore that, you end up rebuilding it from scratch a year later.
+Nora: Before we wrap, what's one thing listeners can try this week?
+Scott Bessett: Pick one of the ideas we covered and run it for two weeks. The rest is iteration.
+Nora: And finally, a big thank you to our partners at Vanguard. Vanguard pioneered low-cost index funds. Check out vanguard.com.Scott Bessett, thanks for the conversation.
+Scott Bessett: Thanks, Nora.
+Nora: That's it for today's episode of Long Horizon Notes. See you next time.

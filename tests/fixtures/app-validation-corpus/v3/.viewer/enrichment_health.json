@@ -1,0 +1,65 @@
+{
+  "enrichers": {
+    "grounding_rate": {
+      "auto_disabled": false,
+      "auto_disabled_at": null,
+      "auto_disabled_reason": null,
+      "circuit_opened_at": null,
+      "circuit_state": "closed",
+      "consecutive_failures": 0,
+      "cooldown_until": null,
+      "last_run_at": "2026-07-06T15:50:17Z",
+      "last_run_id": "097249fb-fd61-4c1e-8be2-93b104fb78d1",
+      "last_status": "ok"
+    },
+    "guest_coappearance": {
+      "auto_disabled": false,
+      "auto_disabled_at": null,
+      "auto_disabled_reason": null,
+      "circuit_opened_at": null,
+      "circuit_state": "closed",
+      "consecutive_failures": 0,
+      "cooldown_until": null,
+      "last_run_at": "2026-07-06T15:50:17Z",
+      "last_run_id": "097249fb-fd61-4c1e-8be2-93b104fb78d1",
+      "last_status": "ok"
+    },
+    "temporal_velocity": {
+      "auto_disabled": false,
+      "auto_disabled_at": null,
+      "auto_disabled_reason": null,
+      "circuit_opened_at": null,
+      "circuit_state": "closed",
+      "consecutive_failures": 0,
+      "cooldown_until": null,
+      "last_run_at": "2026-07-06T15:50:17Z",
+      "last_run_id": "097249fb-fd61-4c1e-8be2-93b104fb78d1",
+      "last_status": "ok"
+    },
+    "topic_cooccurrence_corpus": {
+      "auto_disabled": false,
+      "auto_disabled_at": null,
+      "auto_disabled_reason": null,
+      "circuit_opened_at": null,
+      "circuit_state": "closed",
+      "consecutive_failures": 0,
+      "cooldown_until": null,
+      "last_run_at": "2026-07-06T15:50:17Z",
+      "last_run_id": "097249fb-fd61-4c1e-8be2-93b104fb78d1",
+      "last_status": "ok"
+    },
+    "topic_theme_clusters": {
+      "auto_disabled": false,
+      "auto_disabled_at": null,
+      "auto_disabled_reason": null,
+      "circuit_opened_at": null,
+      "circuit_state": "closed",
+      "consecutive_failures": 0,
+      "cooldown_until": null,
+      "last_run_at": "2026-07-06T15:50:17Z",
+      "last_run_id": "097249fb-fd61-4c1e-8be2-93b104fb78d1",
+      "last_status": "ok"
+    }
+  },
+  "schema_version": "1"
+}

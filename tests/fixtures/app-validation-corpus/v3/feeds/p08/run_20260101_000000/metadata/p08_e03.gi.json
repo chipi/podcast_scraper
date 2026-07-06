@@ -37,7 +37,7 @@
     },
     {
       "from": "quote:1954dab8d3dbc57e",
-      "to": "person:speaker-01",
+      "to": "person:a-correspondent",
       "type": "SPOKEN_BY"
     },
     {
@@ -47,7 +47,7 @@
     },
     {
       "from": "quote:a36135c33d22df63",
-      "to": "person:speaker-02",
+      "to": "person:renee-montagne-park",
       "type": "SPOKEN_BY"
     },
     {
@@ -57,7 +57,7 @@
     },
     {
       "from": "quote:03cb6dd9bc513ae2",
-      "to": "person:speaker-01",
+      "to": "person:a-correspondent",
       "type": "SPOKEN_BY"
     },
     {
@@ -67,7 +67,7 @@
     },
     {
       "from": "quote:27079140ddee4df8",
-      "to": "person:speaker-01",
+      "to": "person:a-correspondent",
       "type": "SPOKEN_BY"
     },
     {
@@ -77,7 +77,7 @@
     },
     {
       "from": "quote:1628f2a8ea47b735",
-      "to": "person:speaker-02",
+      "to": "person:renee-montagne-park",
       "type": "SPOKEN_BY"
     },
     {
@@ -87,7 +87,7 @@
     },
     {
       "from": "quote:e076acd695fb2e3b",
-      "to": "person:speaker-01",
+      "to": "person:a-correspondent",
       "type": "SPOKEN_BY"
     },
     {
@@ -106,7 +106,7 @@
         "episode_id": "ep-b3570c1ceb5eca41",
         "metadata_relative_path": "feeds/p08/run_20260101_000000/metadata/p08_e03.metadata.json",
         "podcast_id": "p08",
-        "publish_date": "2026-01--2T12:00:00",
+        "publish_date": "2025-09-01T12:00:00",
         "title": "The Desk That Never Sleeps"
       },
       "type": "Episode"
@@ -171,7 +171,7 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
+      "id": "person:a-correspondent",
       "properties": {
         "name": "A. correspondent"
       },
@@ -192,7 +192,7 @@
       "type": "Quote"
     },
     {
-      "id": "person:speaker-02",
+      "id": "person:renee-montagne-park",
       "properties": {
         "name": "Renee Montagne-Park"
       },

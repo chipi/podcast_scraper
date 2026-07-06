@@ -40,6 +40,28 @@ whole substrate to v3.
    episodes carry `#fixture-v3: voice=` hints; realize them via ElevenLabs (#993).
 6. **Retire orphaned v2 artifacts** once everything reads v3.
 
+## Enricher-loop findings (2026-07-06) — the fixture↔enricher reconciliation
+
+Ran the deterministic enrichers over `app-validation-corpus/v3` via the enrichment CLI.
+They execute (status=ok) but **every corpus-scope enricher emits 0** — the fixture GI/KG is
+built for the consumer read surfaces, not shaped for the enrichers. Three concrete gaps in
+`build_app_validation_corpus`, each fixable:
+
+1. **Persons are `person:speaker-NN`** (raw diarization ids), not canonical. `guest_coappearance`
+   filters speaker-NN by design → 0 pairs; `grounding_rate` finds 0 persons for the same reason.
+   *Fix:* canonicalize speakers to stable cross-episode person ids (map the diarization roster to
+   the known guest names the transcript header already carries).
+2. **Publish dates hardcoded** to `2026-01-{day}` — the builder ignores the authored
+   `publish_offset_days`. All episodes land in one month → `temporal_velocity` flat.
+   *Fix:* read `publish_offset_days` from ground-truth and stamp `CORPUS_EPOCH + offset`.
+3. **Topic cooccurrence 0** — topic id/edge scheme in the fixture KG doesn't feed the
+   corpus-scope topic enrichers; needs alignment.
+
+Also: `topic_similarity` needs an embedding run (`--with-ml`, sentence-transformers local);
+`nli` needs DeBERTa. Once (1)–(3) land, the reference scorers (guest_coappearance / grounding /
+topic_similarity) can grade real output → real `gate_metrics`. Until then the loop is wired but
+reads empty. Reference scorers registered; per-enricher gold authored.
+
 ## Risk / blast radius
 
 ~29 files reference the active/v2 corpus; many are false positives. The genuine reconciliation

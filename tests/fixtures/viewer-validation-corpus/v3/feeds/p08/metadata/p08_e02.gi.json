@@ -1,0 +1,261 @@
+{
+  "edges": [
+    {
+      "from": "episode:5250652d-f8da-5799-91da-8b1ce4991232",
+      "to": "topic:environment",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5250652d-f8da-5799-91da-8b1ce4991232",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5250652d-f8da-5799-91da-8b1ce4991232",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5250652d-f8da-5799-91da-8b1ce4991232",
+      "to": "insight:6a77e36d51b1d25d",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:5250652d-f8da-5799-91da-8b1ce4991232",
+      "to": "insight:e84a13fb6e0bae28",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:5250652d-f8da-5799-91da-8b1ce4991232",
+      "to": "insight:db9acd5ee7759839",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:06a57d64ea080070",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:6a77e36d51b1d25d",
+      "to": "quote:06a57d64ea080070",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:e1f377c60dc95af3",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:e84a13fb6e0bae28",
+      "to": "quote:e1f377c60dc95af3",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:33c35de12097aad4",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:db9acd5ee7759839",
+      "to": "quote:33c35de12097aad4",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:afe5d5c4409e5eac",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:6a77e36d51b1d25d",
+      "to": "quote:afe5d5c4409e5eac",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:20324a1c1da608a6",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:e84a13fb6e0bae28",
+      "to": "quote:20324a1c1da608a6",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f96ff5725894f2fb",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:db9acd5ee7759839",
+      "to": "quote:f96ff5725894f2fb",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "5250652d-f8da-5799-91da-8b1ce4991232",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:5250652d-f8da-5799-91da-8b1ce4991232",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "5250652d-f8da-5799-91da-8b1ce4991232",
+        "metadata_relative_path": "feeds/p08/metadata/p08_e02.metadata.json",
+        "podcast_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
+        "publish_date": "2026-07-03T12:00:00",
+        "title": "The Long View \u2014 Episode 2"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:environment",
+      "properties": {
+        "label": "environment",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "Technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:6a77e36d51b1d25d",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Public Hour \u2014 Episode\n## Pronunciation as a Reliability Signal\nHost: A."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:e84a13fb6e0bae28",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "correspondent\nGuest: Renee Montague-Park\n#fixture-v3: failure_modes=zero_host_ner,recurring_guest\n#fixture-v3: voice=en-US host_voice=en-US\nA."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:db9acd5ee7759839",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "correspondent: Welcome back to Public Hour."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "A. correspondent"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:06a57d64ea080070",
+      "properties": {
+        "char_end": 181,
+        "char_start": 18,
+        "episode_id": "5250652d-f8da-5799-91da-8b1ce4991232",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Public Hour. Today we're talking about public radio, and I'm joined by Renee Montague-Park, journalist. Renee Montague-Park, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p08_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Renee Montague-Park"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:e1f377c60dc95af3",
+      "properties": {
+        "char_end": 246,
+        "char_start": 203,
+        "episode_id": "5250652d-f8da-5799-91da-8b1ce4991232",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, A. correspondent. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p08_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:33c35de12097aad4",
+      "properties": {
+        "char_end": 426,
+        "char_start": 265,
+        "episode_id": "5250652d-f8da-5799-91da-8b1ce4991232",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Squarespace. Squarespace makes building a beautiful, branded website actually pleasant. Get started at squarespace.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p08_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:afe5d5c4409e5eac",
+      "properties": {
+        "char_end": 520,
+        "char_start": 426,
+        "episode_id": "5250652d-f8da-5799-91da-8b1ce4991232",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Renee was on last week walking through public-radio voice conventions.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p08_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:20324a1c1da608a6",
+      "properties": {
+        "char_end": 600,
+        "char_start": 542,
+        "episode_id": "5250652d-f8da-5799-91da-8b1ce4991232",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, exactly. And it ties into what we're covering today.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p08_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:f96ff5725894f2fb",
+      "properties": {
+        "char_end": 714,
+        "char_start": 619,
+        "episode_id": "5250652d-f8da-5799-91da-8b1ce4991232",
+        "speaker_id": "person:speaker-01",
+        "text": "What does the failure mode look like? What's the version of the question that actually matters?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p08_e02.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

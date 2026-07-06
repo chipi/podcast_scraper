@@ -1,0 +1,27 @@
+Sam: Welcome back to Cross-Show. Today we're talking about risk management, and I'm joined by Dr. Elena Fischer, returning systems thinker. Dr. Elena Fischer, thanks for being here.
+Dr. Elena Fischer: Thanks, Sam. Great to be back.
+Sam: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Try notion.com today.Walk me through a concrete example. What's the version of the question that actually matters?
+Dr. Elena Fischer: Here's how I think about it. Risk lives in the couplings, not the components — same as reliability. We've seen this play out at teams using BloombergNEF. The framing matters because it tells you which trade-offs you're making.
+Sam: I want to dig into that. How does BloombergNEF fit into this picture?
+Dr. Elena Fischer: Here's how I think about it. The dangerous risks are the slow correlated ones you can name but discount. If you ignore that, you end up rebuilding it from scratch a year later.
+Sam: We'll be right back after a quick word from our sponsors.
+Ad: Today's episode is sponsored by Bloomberg. Bloomberg Terminal is the data spine that institutional desks run on. Visit bloomberg.com/podcast for a free trial.
+Sam: Welcome back to the show.I want to dig into that. What's the most underrated piece of risk management?
+Dr. Elena Fischer: It comes down to this: Risk lives in the couplings, not the components — same as reliability. We've seen this play out at teams using IPCC. The framing matters because it tells you which trade-offs you're making.
+Sam: Walk me through a concrete example. What's the version of the question that actually matters?
+Dr. Elena Fischer: Let me give you the version I actually believe. The dangerous risks are the slow correlated ones you can name but discount. The framing matters because it tells you which trade-offs you're making.
+Sam: Let's pivot — reliability is where I want to spend the last stretch.
+Dr. Elena Fischer: That's where the conversation gets interesting, because the trade-offs around reliability cross-cut everything we've covered.
+Sam: Walk me through a concrete example. Where do systems thinking and risk management intersect?
+Dr. Elena Fischer: Here's how I think about it. Risk lives in the couplings, not the components — same as reliability. We've seen this play out at teams using IPCC. If you ignore that, you end up rebuilding it from scratch a year later.
+Sam: Push back on the conventional wisdom for me. What's the version of the question that actually matters?
+Dr. Elena Fischer: Honestly, The dangerous risks are the slow correlated ones you can name but discount. I've watched this pattern hold across three different teams.
+Sam: On risk management — Dr. Elena Fischer, what's your read?
+Dr. Elena Fischer: Risk is a systems property: it lives in the interactions, not the parts.And that's not a hunch — we measured it directly.
+Sam: On systems thinking — Dr. Elena Fischer, what's your read?
+Dr. Elena Fischer: Systems thinking and risk management are one discipline in two vocabularies.And that's not a hunch — we measured it directly.
+Sam: Before we wrap, what's one thing listeners can try this week?
+Dr. Elena Fischer: Pick one of the ideas we covered and run it for two weeks. The rest is iteration.
+Sam: Before we wrap, thanks again to our friends at Notion. Notion replaces the dozen tools your team is half-using.Dr. Elena Fischer, thanks for the conversation.
+Dr. Elena Fischer: Thanks, Sam.
+Sam: That's it for today's episode of Cross-Show. See you next time.

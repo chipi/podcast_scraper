@@ -1,0 +1,354 @@
+[
+  {
+    "char_end": 151,
+    "char_start": 5,
+    "end": 6.0,
+    "speaker_label": "Cam",
+    "start": 0.0,
+    "text": "Welcome back to The Drift. Today we're talking about dialogue, and I'm joined by Jordan Park, cultural critic. Jordan Park, thanks for being here."
+  },
+  {
+    "char_end": 195,
+    "char_start": 165,
+    "end": 12.0,
+    "speaker_label": "Jordan Park",
+    "start": 6.0,
+    "text": "Thanks, Cam. Great to be back."
+  },
+  {
+    "char_end": 319,
+    "char_start": 201,
+    "end": 18.0,
+    "speaker_label": "Cam",
+    "start": 12.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Try notion.com today."
+  },
+  {
+    "char_end": 419,
+    "char_start": 319,
+    "end": 24.0,
+    "speaker_label": "Cam",
+    "start": 18.0,
+    "text": "Walk me through a concrete example. What's the structural angle most listeners don't have access to?"
+  },
+  {
+    "char_end": 608,
+    "char_start": 433,
+    "end": 30.0,
+    "speaker_label": "Jordan Park",
+    "start": 24.0,
+    "text": "It comes down to this: Meaning drifts faster than anyone admits. We've seen this play out at teams using Substack. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 707,
+    "char_start": 614,
+    "end": 36.0,
+    "speaker_label": "Cam",
+    "start": 30.0,
+    "text": "Walk me through a concrete example. What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 871,
+    "char_start": 721,
+    "end": 42.0,
+    "speaker_label": "Jordan Park",
+    "start": 36.0,
+    "text": "Let me give you the version I actually believe. The best conversations refuse to resolve. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 934,
+    "char_start": 877,
+    "end": 48.0,
+    "speaker_label": "Cam",
+    "start": 42.0,
+    "text": "We'll be right back after a quick word from our sponsors."
+  },
+  {
+    "char_end": 1106,
+    "char_start": 939,
+    "end": 54.0,
+    "speaker_label": "Ad",
+    "start": 48.0,
+    "text": "Today's episode is sponsored by Squarespace. Squarespace makes building a beautiful, branded website actually pleasant. Visit squarespace.com/podcast for a free trial."
+  },
+  {
+    "char_end": 1137,
+    "char_start": 1112,
+    "end": 60.0,
+    "speaker_label": "Cam",
+    "start": 54.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 1214,
+    "char_start": 1137,
+    "end": 66.0,
+    "speaker_label": "Cam",
+    "start": 60.0,
+    "text": "Take me through the decision. Where do cultural drift and dialogue intersect?"
+  },
+  {
+    "char_end": 1387,
+    "char_start": 1228,
+    "end": 72.0,
+    "speaker_label": "Jordan Park",
+    "start": 66.0,
+    "text": "Yeah, so \u2014 Meaning drifts faster than anyone admits. We've seen this play out at teams using Patreon. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 1483,
+    "char_start": 1393,
+    "end": 78.0,
+    "speaker_label": "Cam",
+    "start": 72.0,
+    "text": "I want to dig into that. What's the operational angle most listeners don't have access to?"
+  },
+  {
+    "char_end": 1626,
+    "char_start": 1497,
+    "end": 84.0,
+    "speaker_label": "Jordan Park",
+    "start": 78.0,
+    "text": "It comes down to this: The best conversations refuse to resolve. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 1670,
+    "char_start": 1632,
+    "end": 90.0,
+    "speaker_label": "Cam",
+    "start": 84.0,
+    "text": "You know what I mean? Like, that vibe."
+  },
+  {
+    "char_end": 1737,
+    "char_start": 1684,
+    "end": 96.0,
+    "speaker_label": "Jordan Park",
+    "start": 90.0,
+    "text": "Hmm, that's a good question. Let me think about that."
+  },
+  {
+    "char_end": 1797,
+    "char_start": 1743,
+    "end": 102.0,
+    "speaker_label": "Cam",
+    "start": 96.0,
+    "text": "There's something almost \u2014 I don't know. Hard to name."
+  },
+  {
+    "char_end": 1851,
+    "char_start": 1811,
+    "end": 108.0,
+    "speaker_label": "Jordan Park",
+    "start": 102.0,
+    "text": "Right? Right. Exactly. That's the thing."
+  },
+  {
+    "char_end": 1911,
+    "char_start": 1857,
+    "end": 114.0,
+    "speaker_label": "Cam",
+    "start": 108.0,
+    "text": "There's something almost \u2014 I don't know. Hard to name."
+  },
+  {
+    "char_end": 1992,
+    "char_start": 1925,
+    "end": 120.0,
+    "speaker_label": "Jordan Park",
+    "start": 114.0,
+    "text": "Yeah. Yeah. I don't know if I'd put it that way exactly, but close."
+  },
+  {
+    "char_end": 2047,
+    "char_start": 1998,
+    "end": 126.0,
+    "speaker_label": "Cam",
+    "start": 120.0,
+    "text": "So, like, yeah \u2014 that's kind of where I land too."
+  },
+  {
+    "char_end": 2101,
+    "char_start": 2061,
+    "end": 132.0,
+    "speaker_label": "Jordan Park",
+    "start": 126.0,
+    "text": "Right? Right. Exactly. That's the thing."
+  },
+  {
+    "char_end": 2157,
+    "char_start": 2107,
+    "end": 138.0,
+    "speaker_label": "Cam",
+    "start": 132.0,
+    "text": "And you've felt that too, I think? Yeah, you have."
+  },
+  {
+    "char_end": 2211,
+    "char_start": 2171,
+    "end": 144.0,
+    "speaker_label": "Jordan Park",
+    "start": 138.0,
+    "text": "Right? Right. Exactly. That's the thing."
+  },
+  {
+    "char_end": 2255,
+    "char_start": 2217,
+    "end": 150.0,
+    "speaker_label": "Cam",
+    "start": 144.0,
+    "text": "You know what I mean? Like, that vibe."
+  },
+  {
+    "char_end": 2322,
+    "char_start": 2269,
+    "end": 156.0,
+    "speaker_label": "Jordan Park",
+    "start": 150.0,
+    "text": "Hmm, that's a good question. Let me think about that."
+  },
+  {
+    "char_end": 2366,
+    "char_start": 2328,
+    "end": 162.0,
+    "speaker_label": "Cam",
+    "start": 156.0,
+    "text": "You know what I mean? Like, that vibe."
+  },
+  {
+    "char_end": 2447,
+    "char_start": 2380,
+    "end": 168.0,
+    "speaker_label": "Jordan Park",
+    "start": 162.0,
+    "text": "Yeah. Yeah. I don't know if I'd put it that way exactly, but close."
+  },
+  {
+    "char_end": 2491,
+    "char_start": 2453,
+    "end": 174.0,
+    "speaker_label": "Cam",
+    "start": 168.0,
+    "text": "Mmm. Yeah, it's interesting, isn't it?"
+  },
+  {
+    "char_end": 2545,
+    "char_start": 2505,
+    "end": 180.0,
+    "speaker_label": "Jordan Park",
+    "start": 174.0,
+    "text": "Right? Right. Exactly. That's the thing."
+  },
+  {
+    "char_end": 2589,
+    "char_start": 2551,
+    "end": 186.0,
+    "speaker_label": "Cam",
+    "start": 180.0,
+    "text": "You know what I mean? Like, that vibe."
+  },
+  {
+    "char_end": 2662,
+    "char_start": 2603,
+    "end": 192.0,
+    "speaker_label": "Jordan Park",
+    "start": 186.0,
+    "text": "Totally. That's exactly the kind of thing I was getting at."
+  },
+  {
+    "char_end": 2734,
+    "char_start": 2668,
+    "end": 198.0,
+    "speaker_label": "Cam",
+    "start": 192.0,
+    "text": "Let's pivot \u2014 long form is where I want to spend the last stretch."
+  },
+  {
+    "char_end": 2871,
+    "char_start": 2748,
+    "end": 204.0,
+    "speaker_label": "Jordan Park",
+    "start": 198.0,
+    "text": "That's where the conversation gets interesting, because the trade-offs around long form cross-cut everything we've covered."
+  },
+  {
+    "char_end": 2966,
+    "char_start": 2877,
+    "end": 210.0,
+    "speaker_label": "Cam",
+    "start": 204.0,
+    "text": "That's a useful framing. What's the contrarian angle most listeners don't have access to?"
+  },
+  {
+    "char_end": 3164,
+    "char_start": 2980,
+    "end": 216.0,
+    "speaker_label": "Jordan Park",
+    "start": 210.0,
+    "text": "Here's how I think about it. Meaning drifts faster than anyone admits. We've seen this play out at teams using Patreon. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 3252,
+    "char_start": 3170,
+    "end": 222.0,
+    "speaker_label": "Cam",
+    "start": 216.0,
+    "text": "That's a useful framing. What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 3413,
+    "char_start": 3266,
+    "end": 228.0,
+    "speaker_label": "Jordan Park",
+    "start": 222.0,
+    "text": "Let me give you the version I actually believe. The best conversations refuse to resolve. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 3480,
+    "char_start": 3419,
+    "end": 234.0,
+    "speaker_label": "Cam",
+    "start": 228.0,
+    "text": "Before we wrap, what's one thing listeners can try this week?"
+  },
+  {
+    "char_end": 3575,
+    "char_start": 3494,
+    "end": 240.0,
+    "speaker_label": "Jordan Park",
+    "start": 234.0,
+    "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
+  },
+  {
+    "char_end": 3692,
+    "char_start": 3581,
+    "end": 246.0,
+    "speaker_label": "Cam",
+    "start": 240.0,
+    "text": "Before we wrap, thanks again to our friends at Notion. Notion replaces the dozen tools your team is half-using."
+  },
+  {
+    "char_end": 3733,
+    "char_start": 3692,
+    "end": 252.0,
+    "speaker_label": "Cam",
+    "start": 246.0,
+    "text": "Jordan Park, thanks for the conversation."
+  },
+  {
+    "char_end": 3759,
+    "char_start": 3747,
+    "end": 258.0,
+    "speaker_label": "Jordan Park",
+    "start": 252.0,
+    "text": "Thanks, Cam."
+  },
+  {
+    "char_end": 3827,
+    "char_start": 3765,
+    "end": 264.0,
+    "speaker_label": "Cam",
+    "start": 258.0,
+    "text": "That's it for today's episode of The Drift. See you next time."
+  }
+]

@@ -37,7 +37,7 @@
     },
     {
       "from": "quote:7631bc23e4c7df82",
-      "to": "person:speaker-01",
+      "to": "person:ethan",
       "type": "SPOKEN_BY"
     },
     {
@@ -47,7 +47,7 @@
     },
     {
       "from": "quote:a328c706a32f4c6b",
-      "to": "person:speaker-02",
+      "to": "person:priya-nair",
       "type": "SPOKEN_BY"
     },
     {
@@ -57,7 +57,7 @@
     },
     {
       "from": "quote:5928c440c18a20d9",
-      "to": "person:speaker-01",
+      "to": "person:ethan",
       "type": "SPOKEN_BY"
     },
     {
@@ -67,7 +67,7 @@
     },
     {
       "from": "quote:84b6b39b57f8734f",
-      "to": "person:speaker-02",
+      "to": "person:priya-nair",
       "type": "SPOKEN_BY"
     },
     {
@@ -77,7 +77,7 @@
     },
     {
       "from": "quote:44f7ac8de96626fc",
-      "to": "person:speaker-01",
+      "to": "person:ethan",
       "type": "SPOKEN_BY"
     },
     {
@@ -87,7 +87,7 @@
     },
     {
       "from": "quote:0add46826b9a2c91",
-      "to": "person:speaker-01",
+      "to": "person:ethan",
       "type": "SPOKEN_BY"
     },
     {
@@ -106,7 +106,7 @@
         "episode_id": "ep-4a1a673a7005a6b5",
         "metadata_relative_path": "feeds/p02/run_20260101_000000/metadata/p02_e01.metadata.json",
         "podcast_id": "p02",
-        "publish_date": "2026-01-24T12:00:00",
+        "publish_date": "2024-03-03T12:00:00",
         "title": "On-Call That Doesn't Break People"
       },
       "type": "Episode"
@@ -171,7 +171,7 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
+      "id": "person:ethan",
       "properties": {
         "name": "Ethan"
       },
@@ -192,7 +192,7 @@
       "type": "Quote"
     },
     {
-      "id": "person:speaker-02",
+      "id": "person:priya-nair",
       "properties": {
         "name": "Priya Nair"
       },

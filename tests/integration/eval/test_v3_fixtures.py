@@ -62,16 +62,16 @@ def v3_summary(v3):
 
 @pytest.fixture(scope="module")
 def manifest_on_disk():
-    """Read the persisted ``tests/fixtures/v3/manifest.json``.
+    """Read the persisted ``tests/fixtures/ground-truth/v3/manifest.json``.
 
     The repo-tracked manifest is the source of truth for downstream tools;
     if a generator change leaves disk out of sync, the v3 build is broken
     and the test must surface that.
     """
-    manifest_path = PROJECT_ROOT / "tests" / "fixtures" / "v3" / "manifest.json"
+    manifest_path = PROJECT_ROOT / "tests" / "fixtures" / "ground-truth" / "v3" / "manifest.json"
     if not manifest_path.exists():
         pytest.skip(
-            "tests/fixtures/v3/manifest.json missing — run "
+            "tests/fixtures/ground-truth/v3/manifest.json missing — run "
             "`python scripts/build_v3_fixtures.py` first."
         )
     return cast(dict[str, Any], json.loads(manifest_path.read_text(encoding="utf-8")))
@@ -161,7 +161,7 @@ def test_persisted_manifest_matches_generator_state(manifest_on_disk, v3_summary
         ep["episode_id"]: set(ep["failure_modes"]) for ep in v3_summary["episodes"]
     }
     assert disk_modes_per_ep == live_modes_per_ep, (
-        "tests/fixtures/v3/manifest.json is stale; run "
+        "tests/fixtures/ground-truth/v3/manifest.json is stale; run "
         "`python scripts/build_v3_fixtures.py` to refresh."
     )
 
@@ -190,7 +190,15 @@ def _read_transcript(episode_id: str) -> str:
 
 
 def _read_ground_truth(episode_id: str) -> dict[str, Any]:
-    p = PROJECT_ROOT / "tests" / "fixtures" / "v3" / "ground_truth" / f"{episode_id}.json"
+    p = (
+        PROJECT_ROOT
+        / "tests"
+        / "fixtures"
+        / "ground-truth"
+        / "v3"
+        / "ground_truth"
+        / f"{episode_id}.json"
+    )
     return cast(dict[str, Any], json.loads(p.read_text(encoding="utf-8")))
 
 
@@ -230,7 +238,7 @@ def test_sponsor_block_kinds_recorded_per_episode():
     The shape we expect: opening + closing template ads on every episode,
     plus optional native_ad / enthusiastic_recommendation / template_midroll.
     """
-    truth_dir = PROJECT_ROOT / "tests" / "fixtures" / "v3" / "ground_truth"
+    truth_dir = PROJECT_ROOT / "tests" / "fixtures" / "ground-truth" / "v3" / "ground_truth"
     if not truth_dir.exists():
         pytest.skip("ground truth not on disk; run the generator first")
     for json_path in truth_dir.glob("*.json"):
@@ -246,7 +254,7 @@ def test_enthusiastic_recommendation_marked_as_real_content():
     The cleaning baseline scoring (#905) reads this field to penalize
     cleaners that strip enthusiastic_recommendation spans.
     """
-    truth_dir = PROJECT_ROOT / "tests" / "fixtures" / "v3" / "ground_truth"
+    truth_dir = PROJECT_ROOT / "tests" / "fixtures" / "ground-truth" / "v3" / "ground_truth"
     found_any = False
     for json_path in truth_dir.glob("*.json"):
         truth = json.loads(json_path.read_text(encoding="utf-8"))

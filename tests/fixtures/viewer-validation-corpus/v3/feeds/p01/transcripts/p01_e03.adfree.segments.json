@@ -1,0 +1,394 @@
+[
+  {
+    "char_end": 184,
+    "char_start": 6,
+    "end": 6.0,
+    "speaker_label": "Maya",
+    "start": 0.0,
+    "text": "Welcome back to Singletrack Sessions. Today we're talking about drivetrain mechanics, and I'm joined by Noah Bryer, mechanic at Spoke & Wrench. Noah Bryer, thanks for being here."
+  },
+  {
+    "char_end": 228,
+    "char_start": 197,
+    "end": 12.0,
+    "speaker_label": "Noah Bryer",
+    "start": 6.0,
+    "text": "Thanks, Maya. Great to be back."
+  },
+  {
+    "char_end": 353,
+    "char_start": 235,
+    "end": 18.0,
+    "speaker_label": "Maya",
+    "start": 12.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Try notion.com today."
+  },
+  {
+    "char_end": 477,
+    "char_start": 353,
+    "end": 24.0,
+    "speaker_label": "Maya",
+    "start": 18.0,
+    "text": "Before we get into it \u2014 Sophie Lorent was on last episode talking about tire pressure mattering more than suspension tweaks."
+  },
+  {
+    "char_end": 548,
+    "char_start": 490,
+    "end": 30.0,
+    "speaker_label": "Noah Bryer",
+    "start": 24.0,
+    "text": "Yeah, exactly. And it ties into what we're covering today."
+  },
+  {
+    "char_end": 647,
+    "char_start": 555,
+    "end": 36.0,
+    "speaker_label": "Maya",
+    "start": 30.0,
+    "text": "I want to flag something \u2014 Sophie Lorent mentioned this same dynamic a couple episodes back."
+  },
+  {
+    "char_end": 741,
+    "char_start": 647,
+    "end": 42.0,
+    "speaker_label": "Maya",
+    "start": 36.0,
+    "text": "I want to flag something \u2014 Liam Vandermeer mentioned this same dynamic a couple episodes back."
+  },
+  {
+    "char_end": 834,
+    "char_start": 741,
+    "end": 48.0,
+    "speaker_label": "Maya",
+    "start": 42.0,
+    "text": "I want to dig into that. What's something you used to believe about this that you've revised?"
+  },
+  {
+    "char_end": 1083,
+    "char_start": 847,
+    "end": 54.0,
+    "speaker_label": "Noah Bryer",
+    "start": 48.0,
+    "text": "It comes down to this: Most mystery creaks are solved by cleaning contact surfaces and re-torquing to spec. We've seen this play out at teams using Spoke & Wrench. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "char_end": 1171,
+    "char_start": 1090,
+    "end": 60.0,
+    "speaker_label": "Maya",
+    "start": 54.0,
+    "text": "That's a useful framing. Where do maintenance and drivetrain mechanics intersect?"
+  },
+  {
+    "char_end": 1349,
+    "char_start": 1184,
+    "end": 66.0,
+    "speaker_label": "Noah Bryer",
+    "start": 60.0,
+    "text": "Here's how I think about it. A bike should feel quiet and predictable so your attention stays on the trail. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 1445,
+    "char_start": 1356,
+    "end": 72.0,
+    "speaker_label": "Maya",
+    "start": 66.0,
+    "text": "I want to dig into that. What's the structural angle most listeners don't have access to?"
+  },
+  {
+    "char_end": 1683,
+    "char_start": 1458,
+    "end": 78.0,
+    "speaker_label": "Noah Bryer",
+    "start": 72.0,
+    "text": "Sure. Chain wear is the single best leading indicator of how soon you'll be replacing cassettes. We've seen this play out at teams using Spoke & Wrench. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "char_end": 1710,
+    "char_start": 1690,
+    "end": 84.0,
+    "speaker_label": "Maya",
+    "start": 78.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 1851,
+    "char_start": 1723,
+    "end": 90.0,
+    "speaker_label": "Noah Bryer",
+    "start": 84.0,
+    "text": "Spoke & Wrench is one of the platforms where this shows up cleanly. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 1928,
+    "char_start": 1858,
+    "end": 96.0,
+    "speaker_label": "Maya",
+    "start": 90.0,
+    "text": "Take me through the decision. How does RockShox fit into this picture?"
+  },
+  {
+    "char_end": 2079,
+    "char_start": 1941,
+    "end": 102.0,
+    "speaker_label": "Noah Bryer",
+    "start": 96.0,
+    "text": "Sure. Suspension service intervals are a risk-management decision. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 2244,
+    "char_start": 2086,
+    "end": 108.0,
+    "speaker_label": "Maya",
+    "start": 102.0,
+    "text": "Y'know what, I'll just say it: Linear runs my whole engineering ops. Linear is the issue tracker built for speed \u2014 keyboard-first. Use the link in show notes."
+  },
+  {
+    "char_end": 2301,
+    "char_start": 2244,
+    "end": 114.0,
+    "speaker_label": "Maya",
+    "start": 108.0,
+    "text": "We'll be right back after a quick word from our sponsors."
+  },
+  {
+    "char_end": 2483,
+    "char_start": 2306,
+    "end": 120.0,
+    "speaker_label": "Ad",
+    "start": 114.0,
+    "text": "Today's episode is sponsored by Stripe. Stripe makes payments simple, whether you're running a marketplace or a subscription business. Visit stripe.com/podcast for a free trial."
+  },
+  {
+    "char_end": 2515,
+    "char_start": 2490,
+    "end": 126.0,
+    "speaker_label": "Maya",
+    "start": 120.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 2596,
+    "char_start": 2515,
+    "end": 132.0,
+    "speaker_label": "Maya",
+    "start": 126.0,
+    "text": "That's a useful framing. Where do maintenance and drivetrain mechanics intersect?"
+  },
+  {
+    "char_end": 2832,
+    "char_start": 2609,
+    "end": 138.0,
+    "speaker_label": "Noah Bryer",
+    "start": 132.0,
+    "text": "Here's how I think about it. Most mystery creaks are solved by cleaning contact surfaces and re-torquing to spec. We've seen this play out at teams using Shimano. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 2943,
+    "char_start": 2839,
+    "end": 144.0,
+    "speaker_label": "Maya",
+    "start": 138.0,
+    "text": "Walk me through a concrete example. What's something you used to believe about this that you've revised?"
+  },
+  {
+    "char_end": 3110,
+    "char_start": 2956,
+    "end": 150.0,
+    "speaker_label": "Noah Bryer",
+    "start": 144.0,
+    "text": "Yeah, so \u2014 A bike should feel quiet and predictable so your attention stays on the trail. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 3204,
+    "char_start": 3117,
+    "end": 156.0,
+    "speaker_label": "Maya",
+    "start": 150.0,
+    "text": "Let's start there. What's something you used to believe about this that you've revised?"
+  },
+  {
+    "char_end": 3450,
+    "char_start": 3217,
+    "end": 162.0,
+    "speaker_label": "Noah Bryer",
+    "start": 156.0,
+    "text": "Here's how I think about it. Chain wear is the single best leading indicator of how soon you'll be replacing cassettes. We've seen this play out at teams using Shimano. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 3469,
+    "char_start": 3457,
+    "end": 168.0,
+    "speaker_label": "Maya",
+    "start": 162.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 3635,
+    "char_start": 3482,
+    "end": 174.0,
+    "speaker_label": "Noah Bryer",
+    "start": 168.0,
+    "text": "And when teams adopt Spoke & Wrench in that flow, the trade-off becomes visible \u2014 If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 3726,
+    "char_start": 3642,
+    "end": 180.0,
+    "speaker_label": "Maya",
+    "start": 174.0,
+    "text": "Let's start there. What's the operational angle most listeners don't have access to?"
+  },
+  {
+    "char_end": 3889,
+    "char_start": 3739,
+    "end": 186.0,
+    "speaker_label": "Noah Bryer",
+    "start": 180.0,
+    "text": "Here's how I think about it. Suspension service intervals are a risk-management decision. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 3968,
+    "char_start": 3896,
+    "end": 192.0,
+    "speaker_label": "Maya",
+    "start": 186.0,
+    "text": "Let's pivot \u2014 risk management is where I want to spend the last stretch."
+  },
+  {
+    "char_end": 4110,
+    "char_start": 3981,
+    "end": 198.0,
+    "speaker_label": "Noah Bryer",
+    "start": 192.0,
+    "text": "That's where the conversation gets interesting, because the trade-offs around risk management cross-cut everything we've covered."
+  },
+  {
+    "char_end": 4210,
+    "char_start": 4117,
+    "end": 204.0,
+    "speaker_label": "Maya",
+    "start": 198.0,
+    "text": "Walk me through a concrete example. What's the most underrated piece of drivetrain mechanics?"
+  },
+  {
+    "char_end": 4430,
+    "char_start": 4223,
+    "end": 210.0,
+    "speaker_label": "Noah Bryer",
+    "start": 204.0,
+    "text": "Sure. Most mystery creaks are solved by cleaning contact surfaces and re-torquing to spec. We've seen this play out at teams using Spoke & Wrench. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 4526,
+    "char_start": 4437,
+    "end": 216.0,
+    "speaker_label": "Maya",
+    "start": 210.0,
+    "text": "That's a useful framing. What's the contrarian angle most listeners don't have access to?"
+  },
+  {
+    "char_end": 4713,
+    "char_start": 4539,
+    "end": 222.0,
+    "speaker_label": "Noah Bryer",
+    "start": 216.0,
+    "text": "It comes down to this: A bike should feel quiet and predictable so your attention stays on the trail. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "char_end": 4815,
+    "char_start": 4720,
+    "end": 228.0,
+    "speaker_label": "Maya",
+    "start": 222.0,
+    "text": "What does the failure mode look like? What's the most underrated piece of drivetrain mechanics?"
+  },
+  {
+    "char_end": 5038,
+    "char_start": 4828,
+    "end": 234.0,
+    "speaker_label": "Noah Bryer",
+    "start": 228.0,
+    "text": "Honestly, Chain wear is the single best leading indicator of how soon you'll be replacing cassettes. We've seen this play out at teams using Shimano. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 5072,
+    "char_start": 5045,
+    "end": 240.0,
+    "speaker_label": "Maya",
+    "start": 234.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 5220,
+    "char_start": 5085,
+    "end": 246.0,
+    "speaker_label": "Noah Bryer",
+    "start": 240.0,
+    "text": "And when teams adopt Shimano in that flow, the trade-off becomes visible \u2014 I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 5333,
+    "char_start": 5227,
+    "end": 252.0,
+    "speaker_label": "Maya",
+    "start": 246.0,
+    "text": "What's the one heuristic you keep coming back to? Where do maintenance and drivetrain mechanics intersect?"
+  },
+  {
+    "char_end": 5474,
+    "char_start": 5346,
+    "end": 258.0,
+    "speaker_label": "Noah Bryer",
+    "start": 252.0,
+    "text": "Honestly, Suspension service intervals are a risk-management decision. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 5542,
+    "char_start": 5481,
+    "end": 264.0,
+    "speaker_label": "Maya",
+    "start": 258.0,
+    "text": "Before we wrap, what's one thing listeners can try this week?"
+  },
+  {
+    "char_end": 5636,
+    "char_start": 5555,
+    "end": 270.0,
+    "speaker_label": "Noah Bryer",
+    "start": 264.0,
+    "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
+  },
+  {
+    "char_end": 5759,
+    "char_start": 5643,
+    "end": 276.0,
+    "speaker_label": "Maya",
+    "start": 270.0,
+    "text": "Before we wrap, thanks again to our friends at Linear. Linear is the issue tracker built for speed \u2014 keyboard-first."
+  },
+  {
+    "char_end": 5799,
+    "char_start": 5759,
+    "end": 282.0,
+    "speaker_label": "Maya",
+    "start": 276.0,
+    "text": "Noah Bryer, thanks for the conversation."
+  },
+  {
+    "char_end": 5825,
+    "char_start": 5812,
+    "end": 288.0,
+    "speaker_label": "Noah Bryer",
+    "start": 282.0,
+    "text": "Thanks, Maya."
+  },
+  {
+    "char_end": 5905,
+    "char_start": 5832,
+    "end": 294.0,
+    "speaker_label": "Maya",
+    "start": 288.0,
+    "text": "That's it for today's episode of Singletrack Sessions. See you next time."
+  }
+]

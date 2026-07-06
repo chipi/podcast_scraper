@@ -1,0 +1,48 @@
+{
+  "callbacks": [],
+  "episode_id": "p08_e04",
+  "extra_alias_callbacks": [],
+  "failure_modes": [
+    "zero_host_ner",
+    "recurring_guest"
+  ],
+  "guest_accent": "en-US",
+  "host_accent": "en-US",
+  "host_canonical_name": "A. correspondent",
+  "podcast_id": "p08",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p08:Renee",
+  "primary_guest_canonical_name": "Renee Montagne-Park",
+  "primary_guest_surface_in_transcript": "Renee Montagne-Park",
+  "primary_topic": "topic:reliability",
+  "publish_date": "2026-01-04",
+  "publish_offset_days": 734,
+  "secondary_topics": [
+    "topic:journalism",
+    "topic:risk-management"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Notion",
+      "kind": "template_opening",
+      "line_index": 11
+    },
+    {
+      "brand": "Squarespace",
+      "kind": "template_midroll",
+      "line_index": 21
+    },
+    {
+      "brand": "Notion",
+      "kind": "template_closing",
+      "line_index": 42
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p08:Renee",
+      "kind": "canonical",
+      "surface": "Renee Montagne-Park"
+    }
+  ]
+}

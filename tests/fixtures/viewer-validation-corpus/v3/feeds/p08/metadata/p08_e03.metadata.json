@@ -1,0 +1,95 @@
+{
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": true,
+      "label": "environment",
+      "topic_cluster_compound_id": "tc:environment-cluster",
+      "topic_id": "topic:environment"
+    },
+    {
+      "in_topic_cluster": true,
+      "label": "technology",
+      "topic_cluster_compound_id": "tc:technology-cluster",
+      "topic_id": "topic:technology"
+    }
+  ],
+  "content": {
+    "diarization_num_speakers": 3,
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "A. correspondent",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Renee Montagne-Park",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p08_e03.txt",
+    "transcript_source": "synthetic"
+  },
+  "episode": {
+    "episode_id": "1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+    "published_date": "2026-07-01",
+    "title": "The Long View \u2014 Episode 3"
+  },
+  "episode_id": "1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+  "episode_title": "The Long View \u2014 Episode 3",
+  "feed": {
+    "description": "Extended conversations on energy, technology, and long-term transitions shaping the near future.",
+    "feed_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
+    "title": "The Long View",
+    "url": "http://localhost/"
+  },
+  "feed_display_title": "The Long View",
+  "feed_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
+  "gi_relative_path": "feeds/p08/metadata/p08_e03.gi.json",
+  "grounded_insights": {
+    "artifact_path": "feeds/p08/metadata/p08_e03.gi.json",
+    "schema_version": "1.0"
+  },
+  "has_gi": true,
+  "has_kg": true,
+  "kg_relative_path": "feeds/p08/metadata/p08_e03.kg.json",
+  "knowledge_graph": {
+    "artifact_path": "feeds/p08/metadata/p08_e03.kg.json",
+    "schema_version": "1.1"
+  },
+  "publish_date": "2026-07-01",
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "# Public Hour \u2014 Episode\n## The Desk That Never Sleeps\nHost: A.",
+      "correspondent\nGuest: Renee Montagne-Park\n#fixture-v3: failure_modes=zero_host_ner\n#fixture-v3: voice=en-US host_voice=en-US\nA.",
+      "correspondent: Welcome back to Public Hour."
+    ],
+    "preview": "# Public Hour \u2014 Episode\n## The Desk That Never Sleeps\nHost: A.",
+    "text": "# Public Hour \u2014 Episode\n## The Desk That Never Sleeps\nHost: A.\ncorrespondent\nGuest: Renee Montagne-Park\n#fixture-v3: failure_modes=zero_host_ner\n#fixture-v3: voice=en-US host_voice=en-US\nA.\ncorrespondent: Welcome back to Public Hour.",
+    "title": "The Long View \u2014 Episode 3 \u2014 synthetic"
+  },
+  "summary_bullet_graph_topic_ids": [
+    "topic:environment",
+    "topic:technology",
+    "topic:business-markets"
+  ],
+  "summary_bullets": [
+    "# Public Hour \u2014 Episode\n## The Desk That Never Sleeps\nHost: A.",
+    "correspondent\nGuest: Renee Montagne-Park\n#fixture-v3: failure_modes=zero_host_ner\n#fixture-v3: voice=en-US host_voice=en-US\nA.",
+    "correspondent: Welcome back to Public Hour."
+  ],
+  "summary_preview": "# Public Hour \u2014 Episode\n## The Desk That Never Sleeps\nHost: A.",
+  "summary_text": "# Public Hour \u2014 Episode\n## The Desk That Never Sleeps\nHost: A.\ncorrespondent\nGuest: Renee Montagne-Park\n#fixture-v3: failure_modes=zero_host_ner\n#fixture-v3: voice=en-US host_voice=en-US\nA.\ncorrespondent: Welcome back to Public Hour.",
+  "summary_title": "The Long View \u2014 Episode 3 \u2014 synthetic",
+  "topics": [
+    "environment",
+    "technology",
+    "Business & markets"
+  ]
+}

@@ -1,0 +1,261 @@
+{
+  "edges": [
+    {
+      "from": "episode:1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+      "to": "topic:environment",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+      "to": "topic:business-markets",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+      "to": "insight:43448d7f5f7fe6eb",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+      "to": "insight:e55eab16ac96317b",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+      "to": "insight:db9acd5ee7759839",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:0700aa1b4ee9e9d6",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:43448d7f5f7fe6eb",
+      "to": "quote:0700aa1b4ee9e9d6",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:0e825b91fd93944b",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:e55eab16ac96317b",
+      "to": "quote:0e825b91fd93944b",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:6377c520bfd81a61",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:db9acd5ee7759839",
+      "to": "quote:6377c520bfd81a61",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:ad35e04581fb838f",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:43448d7f5f7fe6eb",
+      "to": "quote:ad35e04581fb838f",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f103a987b4483dcd",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:e55eab16ac96317b",
+      "to": "quote:f103a987b4483dcd",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:8a3a65f24d8b6a17",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:db9acd5ee7759839",
+      "to": "quote:8a3a65f24d8b6a17",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+        "metadata_relative_path": "feeds/p08/metadata/p08_e03.metadata.json",
+        "podcast_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
+        "publish_date": "2026-07-01T12:00:00",
+        "title": "The Long View \u2014 Episode 3"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:environment",
+      "properties": {
+        "label": "environment",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:business-markets",
+      "properties": {
+        "label": "Business & markets",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:43448d7f5f7fe6eb",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Public Hour \u2014 Episode\n## The Desk That Never Sleeps\nHost: A."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:e55eab16ac96317b",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "correspondent\nGuest: Renee Montagne-Park\n#fixture-v3: failure_modes=zero_host_ner\n#fixture-v3: voice=en-US host_voice=en-US\nA."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:db9acd5ee7759839",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "correspondent: Welcome back to Public Hour."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "A. correspondent"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:0700aa1b4ee9e9d6",
+      "properties": {
+        "char_end": 179,
+        "char_start": 18,
+        "episode_id": "1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Public Hour. Today we're talking about journalism, and I'm joined by Renee Montagne-Park, journalist. Renee Montagne-Park, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p08_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Renee Montagne-Park"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:0e825b91fd93944b",
+      "properties": {
+        "char_end": 244,
+        "char_start": 201,
+        "episode_id": "1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, A. correspondent. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p08_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:6377c520bfd81a61",
+      "properties": {
+        "char_end": 409,
+        "char_start": 263,
+        "episode_id": "1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Squarespace. Squarespace makes building a beautiful, branded website actually pleasant. Try squarespace.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p08_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:ad35e04581fb838f",
+      "properties": {
+        "char_end": 511,
+        "char_start": 409,
+        "episode_id": "1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+        "speaker_id": "person:speaker-01",
+        "text": "What does the failure mode look like? What's the structural angle most listeners don't have access to?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p08_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:f103a987b4483dcd",
+      "properties": {
+        "char_end": 713,
+        "char_start": 533,
+        "episode_id": "1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, so \u2014 A newsroom is a reliability system with a deadline. We've seen this play out at teams using BBC. The framing matters because it tells you which trade-offs you're making.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p08_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:8a3a65f24d8b6a17",
+      "properties": {
+        "char_end": 803,
+        "char_start": 732,
+        "episode_id": "1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+        "speaker_id": "person:speaker-01",
+        "text": "Walk me through a concrete example. How does BBC fit into this picture?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p08_e03.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

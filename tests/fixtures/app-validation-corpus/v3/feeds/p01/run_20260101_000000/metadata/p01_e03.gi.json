@@ -37,7 +37,7 @@
     },
     {
       "from": "quote:2347bd84ba7d0751",
-      "to": "person:speaker-01",
+      "to": "person:maya",
       "type": "SPOKEN_BY"
     },
     {
@@ -47,7 +47,7 @@
     },
     {
       "from": "quote:890d70ded1f097d2",
-      "to": "person:speaker-02",
+      "to": "person:noah-bryer",
       "type": "SPOKEN_BY"
     },
     {
@@ -57,7 +57,7 @@
     },
     {
       "from": "quote:9f5e99c36fd0245e",
-      "to": "person:speaker-01",
+      "to": "person:maya",
       "type": "SPOKEN_BY"
     },
     {
@@ -67,7 +67,7 @@
     },
     {
       "from": "quote:20ee6b23889c741c",
-      "to": "person:speaker-01",
+      "to": "person:maya",
       "type": "SPOKEN_BY"
     },
     {
@@ -77,7 +77,7 @@
     },
     {
       "from": "quote:2788014fef761fb0",
-      "to": "person:speaker-02",
+      "to": "person:noah-bryer",
       "type": "SPOKEN_BY"
     },
     {
@@ -87,7 +87,7 @@
     },
     {
       "from": "quote:1fcc09f6975d3f8d",
-      "to": "person:speaker-01",
+      "to": "person:maya",
       "type": "SPOKEN_BY"
     },
     {
@@ -106,7 +106,7 @@
         "episode_id": "ep-0d9100843ee555f8",
         "metadata_relative_path": "feeds/p01/run_20260101_000000/metadata/p01_e03.metadata.json",
         "podcast_id": "p01",
-        "publish_date": "2026-01-10T12:00:00",
+        "publish_date": "2024-07-29T12:00:00",
         "title": "The Mechanics of a Quiet, Fast Bike"
       },
       "type": "Episode"
@@ -171,7 +171,7 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
+      "id": "person:maya",
       "properties": {
         "name": "Maya"
       },
@@ -192,7 +192,7 @@
       "type": "Quote"
     },
     {
-      "id": "person:speaker-02",
+      "id": "person:noah-bryer",
       "properties": {
         "name": "Noah Bryer"
       },

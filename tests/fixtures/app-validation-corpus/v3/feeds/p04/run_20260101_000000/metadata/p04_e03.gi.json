@@ -37,7 +37,7 @@
     },
     {
       "from": "quote:4d5eb3b1e48280b9",
-      "to": "person:speaker-01",
+      "to": "person:leo",
       "type": "SPOKEN_BY"
     },
     {
@@ -47,7 +47,7 @@
     },
     {
       "from": "quote:5666adbf193d9abd",
-      "to": "person:speaker-02",
+      "to": "person:daniel-olufemi",
       "type": "SPOKEN_BY"
     },
     {
@@ -57,7 +57,7 @@
     },
     {
       "from": "quote:d98acfb7b11b5679",
-      "to": "person:speaker-01",
+      "to": "person:leo",
       "type": "SPOKEN_BY"
     },
     {
@@ -67,7 +67,7 @@
     },
     {
       "from": "quote:a870989ee323ba33",
-      "to": "person:speaker-01",
+      "to": "person:leo",
       "type": "SPOKEN_BY"
     },
     {
@@ -77,7 +77,7 @@
     },
     {
       "from": "quote:2ea5bf3099f7d653",
-      "to": "person:speaker-02",
+      "to": "person:daniel-olufemi",
       "type": "SPOKEN_BY"
     },
     {
@@ -87,7 +87,7 @@
     },
     {
       "from": "quote:e1aaf6cc542c2585",
-      "to": "person:speaker-01",
+      "to": "person:leo",
       "type": "SPOKEN_BY"
     },
     {
@@ -106,7 +106,7 @@
         "episode_id": "ep-9f97daef33906cf6",
         "metadata_relative_path": "feeds/p04/run_20260101_000000/metadata/p04_e03.metadata.json",
         "podcast_id": "p04",
-        "publish_date": "2026-01-14T12:00:00",
+        "publish_date": "2025-01-31T12:00:00",
         "title": "Lighting Decisions That Save a Shoot"
       },
       "type": "Episode"
@@ -171,7 +171,7 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
+      "id": "person:leo",
       "properties": {
         "name": "Leo"
       },
@@ -192,7 +192,7 @@
       "type": "Quote"
     },
     {
-      "id": "person:speaker-02",
+      "id": "person:daniel-olufemi",
       "properties": {
         "name": "Daniel Olufemi"
       },

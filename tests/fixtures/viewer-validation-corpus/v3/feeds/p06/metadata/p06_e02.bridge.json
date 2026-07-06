@@ -1,0 +1,18 @@
+{
+  "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+  "identities": [
+    {
+      "display_name": "Technology",
+      "id": "topic:technology"
+    },
+    {
+      "display_name": "welcome back to",
+      "id": "topic:welcome-back-to"
+    },
+    {
+      "display_name": "great to be back",
+      "id": "topic:great-to-be-back"
+    }
+  ],
+  "schema_version": "1"
+}

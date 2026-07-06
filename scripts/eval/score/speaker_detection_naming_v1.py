@@ -4,7 +4,7 @@
 Measures how well each ``speaker_detector_provider`` backend recovers the
 speakers' names from EPISODE METADATA (title + description) on the v3
 fixture bed. v3 has 25 episodes with explicit ground-truth annotations
-under ``tests/fixtures/v3/ground_truth/*.json`` and v2 RSS feeds carry
+under ``tests/fixtures/ground-truth/v3/ground_truth/*.json`` and v2 RSS feeds carry
 matching ``<description>`` text for 22 of those episodes.
 
 This is NOT the same task as diarization (audio → time-aligned speakers
@@ -68,7 +68,7 @@ logger = logging.getLogger("speaker_detection_naming")
 
 def _load_v3_episodes() -> List[Dict[str, Any]]:
     """Load v3 manifest + ground_truth + v2 RSS description per episode."""
-    manifest_path = _REPO_ROOT / "tests/fixtures/v3/manifest.json"
+    manifest_path = _REPO_ROOT / "tests/fixtures/ground-truth/v3/manifest.json"
     decoder = json.JSONDecoder()
     raw = manifest_path.read_text()
     manifest, _ = decoder.raw_decode(raw)

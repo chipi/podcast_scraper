@@ -37,7 +37,7 @@
     },
     {
       "from": "quote:2ae10e7de2f368cb",
-      "to": "person:speaker-01",
+      "to": "person:maya",
       "type": "SPOKEN_BY"
     },
     {
@@ -47,7 +47,7 @@
     },
     {
       "from": "quote:f1ff5ae91ae63de8",
-      "to": "person:speaker-02",
+      "to": "person:sophie-lorenz",
       "type": "SPOKEN_BY"
     },
     {
@@ -57,7 +57,7 @@
     },
     {
       "from": "quote:750917e1633309bf",
-      "to": "person:speaker-01",
+      "to": "person:maya",
       "type": "SPOKEN_BY"
     },
     {
@@ -67,7 +67,7 @@
     },
     {
       "from": "quote:a403e7675c5fad47",
-      "to": "person:speaker-01",
+      "to": "person:maya",
       "type": "SPOKEN_BY"
     },
     {
@@ -77,7 +77,7 @@
     },
     {
       "from": "quote:c9a0f5251156d721",
-      "to": "person:speaker-02",
+      "to": "person:sophie-lorenz",
       "type": "SPOKEN_BY"
     },
     {
@@ -87,7 +87,7 @@
     },
     {
       "from": "quote:313df897c17c721f",
-      "to": "person:speaker-01",
+      "to": "person:maya",
       "type": "SPOKEN_BY"
     },
     {
@@ -106,7 +106,7 @@
         "episode_id": "ep-60d667843dc40fca",
         "metadata_relative_path": "feeds/p01/run_20260101_000000/metadata/p01_e02.metadata.json",
         "podcast_id": "p01",
-        "publish_date": "2026-01-11T12:00:00",
+        "publish_date": "2024-03-31T12:00:00",
         "title": "Enduro Skills Without the Hype"
       },
       "type": "Episode"
@@ -171,7 +171,7 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
+      "id": "person:maya",
       "properties": {
         "name": "Maya"
       },
@@ -192,7 +192,7 @@
       "type": "Quote"
     },
     {
-      "id": "person:speaker-02",
+      "id": "person:sophie-lorenz",
       "properties": {
         "name": "Sophie Lorenz"
       },

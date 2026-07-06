@@ -1,0 +1,261 @@
+{
+  "edges": [
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "topic:outdoor-activities",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "topic:gear",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "topic:business-markets",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "insight:e2ea14821f904f6e",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "insight:9e800db626f513b9",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "insight:e9c7625096a4818e",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:4b8a43949ed72903",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:e2ea14821f904f6e",
+      "to": "quote:4b8a43949ed72903",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:8dc6cd407918b91c",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:9e800db626f513b9",
+      "to": "quote:8dc6cd407918b91c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:e774fd4c74633159",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:e9c7625096a4818e",
+      "to": "quote:e774fd4c74633159",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:1ad3f4bc418680b0",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:e2ea14821f904f6e",
+      "to": "quote:1ad3f4bc418680b0",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:1bd236aa45c85c80",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:9e800db626f513b9",
+      "to": "quote:1bd236aa45c85c80",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:d07a9be2cf661cb2",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:e9c7625096a4818e",
+      "to": "quote:d07a9be2cf661cb2",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+        "metadata_relative_path": "feeds/p03/metadata/p03_e03.metadata.json",
+        "podcast_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+        "publish_date": "2026-07-06T12:00:00",
+        "title": "Below the Surface \u2014 Episode 3"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:outdoor-activities",
+      "properties": {
+        "label": "outdoor activities",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:gear",
+      "properties": {
+        "label": "gear",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:business-markets",
+      "properties": {
+        "label": "Business & markets",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:e2ea14821f904f6e",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we're talking about marine biology, and I'm joined by Hanna Krebohticker, marine biologist focused on reef systems."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:9e800db626f513b9",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Hanna Krebohticker, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:e9c7625096a4818e",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Hanna Krebohticker: Thanks, Rina."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Rina"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:4b8a43949ed72903",
+      "properties": {
+        "char_end": 205,
+        "char_start": 6,
+        "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Below the Surface. Today we're talking about marine biology, and I'm joined by Hanna Krebohticker, marine biologist focused on reef systems. Hanna Krebohticker, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p03_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Hanna Krebohticker"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:8dc6cd407918b91c",
+      "properties": {
+        "char_end": 257,
+        "char_start": 226,
+        "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Rina. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p03_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:e774fd4c74633159",
+      "properties": {
+        "char_end": 390,
+        "char_start": 264,
+        "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Suunto. Suunto builds dive computers and outdoor watches. Get started at suunto.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p03_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:1ad3f4bc418680b0",
+      "properties": {
+        "char_end": 514,
+        "char_start": 390,
+        "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Marco was on episode 1 walking through wreck planning \u2014 the same discipline applies to reef surveys.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p03_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:1bd236aa45c85c80",
+      "properties": {
+        "char_end": 593,
+        "char_start": 535,
+        "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, exactly. And it ties into what we're covering today.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p03_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:d07a9be2cf661cb2",
+      "properties": {
+        "char_end": 684,
+        "char_start": 600,
+        "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to flag something \u2014 Marco mentioned this same dynamic a couple episodes back.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p03_e03.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

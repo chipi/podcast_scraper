@@ -1,0 +1,261 @@
+{
+  "edges": [
+    {
+      "from": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+      "to": "topic:outdoor-activities",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+      "to": "topic:gear",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+      "to": "topic:science-research",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+      "to": "insight:9d169ef5f1a9f0d9",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+      "to": "insight:b48adb2454ae4000",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+      "to": "insight:ddd65689a99a0f26",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:6c9d9f4e18265591",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:9d169ef5f1a9f0d9",
+      "to": "quote:6c9d9f4e18265591",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:e2817293d2bb29a6",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:b48adb2454ae4000",
+      "to": "quote:e2817293d2bb29a6",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:1acdc19b9d1bd255",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ddd65689a99a0f26",
+      "to": "quote:1acdc19b9d1bd255",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f2d6d8372065fd66",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:9d169ef5f1a9f0d9",
+      "to": "quote:f2d6d8372065fd66",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:d5240ddf7ed0dba5",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:b48adb2454ae4000",
+      "to": "quote:d5240ddf7ed0dba5",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:c81152ac90f31fbf",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ddd65689a99a0f26",
+      "to": "quote:c81152ac90f31fbf",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+        "metadata_relative_path": "feeds/p01/metadata/p01_e04.metadata.json",
+        "podcast_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+        "publish_date": "2026-07-06T12:00:00",
+        "title": "Singletrack Sessions \u2014 Episode 4"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:outdoor-activities",
+      "properties": {
+        "label": "outdoor activities",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:gear",
+      "properties": {
+        "label": "gear",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:9d169ef5f1a9f0d9",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Singletrack Sessions \u2014 Episode\n## The Risk You Didn't Name\nHost: Maya\nGuest: Sophie Laurent\n#fixture-v3: voice=en-US host_voice=en-US\nMaya: Welcome back to Singletrack Sessions."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:b48adb2454ae4000",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "I'm with Sophie Laurent, enduro racer and coach."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:ddd65689a99a0f26",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today's episode is sponsored by Strava."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Maya"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:6c9d9f4e18265591",
+      "properties": {
+        "char_end": 118,
+        "char_start": 6,
+        "episode_id": "4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Singletrack Sessions. I'm with Sophie Laurent, enduro racer and coach. Sophie, good to have you.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p01_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Sophie Laurent"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:e2817293d2bb29a6",
+      "properties": {
+        "char_end": 175,
+        "char_start": 135,
+        "episode_id": "4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Maya. Always happy to talk shop.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p01_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:1acdc19b9d1bd255",
+      "properties": {
+        "char_end": 276,
+        "char_start": 182,
+        "episode_id": "4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Strava. Strava is the home for athletes. Try strava.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p01_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:f2d6d8372065fd66",
+      "properties": {
+        "char_end": 336,
+        "char_start": 276,
+        "episode_id": "4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+        "speaker_id": "person:speaker-01",
+        "text": "People think racing is about nerve. You say it's about risk.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p01_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:d5240ddf7ed0dba5",
+      "properties": {
+        "char_end": 560,
+        "char_start": 353,
+        "episode_id": "4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+        "speaker_id": "person:speaker-02",
+        "text": "It's risk management, honestly. The crash that ends your season is almost never the scary-looking one \u2014 it's the boring risk you didn't name. Name the risk before it names you, and half the danger goes away.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p01_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:c81152ac90f31fbf",
+      "properties": {
+        "char_end": 777,
+        "char_start": 560,
+        "episode_id": "4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+        "speaker_id": "person:speaker-02",
+        "text": "And you have to ride the whole run as a system, not a list of corners. The mistakes come from how one section sets up the next. When I logged a full season of my own crashes, the causes were always two turns upstream.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p01_e04.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

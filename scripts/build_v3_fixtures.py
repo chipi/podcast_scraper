@@ -37,10 +37,10 @@ Why a knob-driven generator (not hand-written v3):
 Output:
 
 * ``tests/fixtures/transcripts/v3/*.txt`` — rendered transcripts.
-* ``tests/fixtures/v3/ground_truth/*.json`` — per-episode ground-truth labels
+* ``tests/fixtures/ground-truth/v3/ground_truth/*.json`` — per-episode ground-truth labels
   (canonical guest ids, garble↔canonical map, genuine_recommendation spans,
   sponsor blocks, position-arc deltas).
-* ``tests/fixtures/v3/manifest.json`` — corpus-level manifest (podcast list,
+* ``tests/fixtures/ground-truth/v3/manifest.json`` — corpus-level manifest (podcast list,
   per-episode failure-mode tags, expected guest count, etc.).
 * ``data/eval/datasets/curated_5feeds_smoke_v3/manifest.yaml`` —
   autoresearch-ready dataset wrapping v3 with per-episode failure_modes tags.
@@ -75,9 +75,12 @@ from typing import Callable, Iterable
 from podcast_scraper.enrichment.eval.gold import EXPECTED_ENRICHMENT_KEY
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+# Fixture layout: every version-specific artifact lives under <category>/<version>
+# (transcripts/v3, audio/v3, ground-truth/v3) — matching the transcripts + audio
+# patterns, not a bare fixtures/v3 root dir.
 TRANSCRIPTS_OUT = PROJECT_ROOT / "tests" / "fixtures" / "transcripts" / "v3"
-LABELS_OUT = PROJECT_ROOT / "tests" / "fixtures" / "v3" / "ground_truth"
-FIXTURES_V3_ROOT = PROJECT_ROOT / "tests" / "fixtures" / "v3"
+FIXTURES_V3_ROOT = PROJECT_ROOT / "tests" / "fixtures" / "ground-truth" / "v3"
+LABELS_OUT = FIXTURES_V3_ROOT / "ground_truth"
 DATASET_DIR = PROJECT_ROOT / "data" / "eval" / "datasets" / "curated_5feeds_smoke_v3"
 DATASET_FLAT_JSON = PROJECT_ROOT / "data" / "eval" / "datasets" / "curated_5feeds_smoke_v3.json"
 
@@ -237,9 +240,9 @@ class PodcastV3:
 
 
 # Corpus epoch: ``EpisodeV3.publish_offset_days`` is measured in days from here.
-# The build stamps ``epoch + offset`` as each episode's publish date so
-# temporal_velocity / trending have a real multi-month spread.
-CORPUS_EPOCH = "2026-01-01"
+# The corpus spans 2024-01 → ~now (2026), with every episode a unique date so
+# temporal_velocity / trending / topic-timeline have a real multi-year signal.
+CORPUS_EPOCH = "2024-01-01"
 
 
 @dataclass
@@ -1424,6 +1427,38 @@ _P07_E04_DIALOGUE: list[dict] = [
     {"speaker": "Skanda", "text": "Thanks, Alex."},
     {"speaker": "host", "text": "That's it for this Long View. Take care."},
 ]
+
+
+# Deterministic publish schedule (#1148): podcasts start at staggered dates
+# across 2024, episodes spaced at varied intervals (monthly to every few months),
+# every date unique corpus-wide → a real temporal_velocity / trending signal.
+_PODCAST_BASE_OFFSET_DAYS = 62  # each podcast's first episode ~2 months after the prior show's
+_EPISODE_GAP_PATTERNS: tuple[tuple[int, ...], ...] = (
+    (0, 90, 210, 350),  # ~3mo / ~4mo / ~4.5mo cadence
+    (0, 45, 175, 300),  # ~1.5mo / ~4mo / ~4mo
+    (0, 130, 240, 430),  # ~4mo / ~3.5mo / ~6mo
+)
+
+
+def _assign_publish_offsets(podcasts: list[PodcastV3]) -> None:
+    """Stamp every episode a unique, varied publish offset (days from CORPUS_EPOCH).
+
+    Spans 2024-01 → ~2026-07 with podcasts staggered and episode spacing that
+    varies (monthly to every few months). No two episodes share a date, so
+    temporal_velocity / trending / topic-timeline have a real signal. Overrides
+    any per-episode publish_offset_days with the corpus-wide schedule.
+    """
+    used: set[int] = set()
+    for pi, pod in enumerate(podcasts):
+        base = pi * _PODCAST_BASE_OFFSET_DAYS
+        pattern = _EPISODE_GAP_PATTERNS[pi % len(_EPISODE_GAP_PATTERNS)]
+        for ei, ep in enumerate(pod.episodes):
+            gap = pattern[ei] if ei < len(pattern) else pattern[-1] + (ei - len(pattern) + 1) * 70
+            off = base + gap
+            while off in used:
+                off += 3
+            used.add(off)
+            ep.publish_offset_days = off
 
 
 def build_v3_spec() -> list[PodcastV3]:
@@ -2648,7 +2683,9 @@ def build_v3_spec() -> list[PodcastV3]:
         ],
     )
 
-    return [p01, p02, p03, p04, p05, p06, p07, p08, p09]
+    podcasts = [p01, p02, p03, p04, p05, p06, p07, p08, p09]
+    _assign_publish_offsets(podcasts)
+    return podcasts
 
 
 # ===========================================================================
@@ -2730,7 +2767,11 @@ def build_v3_corpus_meta() -> CorpusV3Meta:
             },
         ],
         expected_enrichment={
-            "guest_coappearance": {"expected_pairs": [["p05:Daniel", "p05:Scott"]]},
+            # Canonical person ids (name-slug) match the built corpus after
+            # person-canonicalization (#1148 corpus evolution).
+            "guest_coappearance": {
+                "expected_pairs": [["person:daniel-cho", "person:scott-bessent"]]
+            },
             "topic_similarity": {
                 "expected_neighbours": {
                     "topic:risk-management": [
@@ -2831,7 +2872,9 @@ def emit_corpus(
                     "title": ep.title,
                     "primary_guest_canonical_name": podcast.guests[ep.primary_guest].name,
                     "transcript_path": transcript_relpath,
-                    "ground_truth_path": f"tests/fixtures/v3/ground_truth/{episode_id}.json",
+                    "ground_truth_path": (
+                        f"tests/fixtures/ground-truth/v3/ground_truth/{episode_id}.json"
+                    ),
                     "transcript_sha256": transcript_sha,
                     "failure_modes": list(ep.failure_modes),
                     "audio_voice_hints": _audio_voice_hints(podcast, ep),

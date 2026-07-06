@@ -1,0 +1,49 @@
+{
+  "callbacks": [],
+  "episode_id": "p05_e01",
+  "extra_alias_callbacks": [],
+  "failure_modes": [
+    "same_first_distinct",
+    "frame_topic_cross_domain"
+  ],
+  "guest_accent": "en-US",
+  "host_accent": "en-US",
+  "host_canonical_name": "Nora",
+  "podcast_id": "p05",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p05:Daniel",
+  "primary_guest_canonical_name": "Daniel Cho",
+  "primary_guest_surface_in_transcript": "Daniel Cho",
+  "primary_topic": "topic:index-investing",
+  "publish_date": "2024-09-05",
+  "publish_offset_days": 248,
+  "secondary_topics": [
+    "topic:reliability",
+    "topic:risk-management",
+    "topic:frame"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Vanguard",
+      "kind": "template_opening",
+      "line_index": 11
+    },
+    {
+      "brand": "Wealthfront",
+      "kind": "template_midroll",
+      "line_index": 29
+    },
+    {
+      "brand": "Stripe",
+      "kind": "template_closing",
+      "line_index": 66
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p05:Daniel",
+      "kind": "canonical",
+      "surface": "Daniel Cho"
+    }
+  ]
+}

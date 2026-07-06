@@ -37,7 +37,7 @@
     },
     {
       "from": "quote:2c8391573f65ea49",
-      "to": "person:speaker-01",
+      "to": "person:nora",
       "type": "SPOKEN_BY"
     },
     {
@@ -47,7 +47,7 @@
     },
     {
       "from": "quote:19257379f3772adf",
-      "to": "person:speaker-02",
+      "to": "person:rich-clarida",
       "type": "SPOKEN_BY"
     },
     {
@@ -57,7 +57,7 @@
     },
     {
       "from": "quote:f56d71c0704d1570",
-      "to": "person:speaker-01",
+      "to": "person:nora",
       "type": "SPOKEN_BY"
     },
     {
@@ -67,7 +67,7 @@
     },
     {
       "from": "quote:7990c86387b90c2c",
-      "to": "person:speaker-01",
+      "to": "person:nora",
       "type": "SPOKEN_BY"
     },
     {
@@ -77,7 +77,7 @@
     },
     {
       "from": "quote:c1de972f14d9a623",
-      "to": "person:speaker-02",
+      "to": "person:rich-clarida",
       "type": "SPOKEN_BY"
     },
     {
@@ -87,7 +87,7 @@
     },
     {
       "from": "quote:88cfb4351830b57d",
-      "to": "person:speaker-01",
+      "to": "person:nora",
       "type": "SPOKEN_BY"
     },
     {
@@ -106,7 +106,7 @@
         "episode_id": "ep-1e526e495918fb27",
         "metadata_relative_path": "feeds/p05/run_20260101_000000/metadata/p05_e02.metadata.json",
         "podcast_id": "p05",
-        "publish_date": "2026-01-27T12:00:00",
+        "publish_date": "2024-10-20T12:00:00",
         "title": "Nickname Variance: A Fed Vice Chair Reflects"
       },
       "type": "Episode"
@@ -171,7 +171,7 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
+      "id": "person:nora",
       "properties": {
         "name": "Nora"
       },
@@ -192,7 +192,7 @@
       "type": "Quote"
     },
     {
-      "id": "person:speaker-02",
+      "id": "person:rich-clarida",
       "properties": {
         "name": "Rich Clarida"
       },

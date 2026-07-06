@@ -37,7 +37,7 @@
     },
     {
       "from": "quote:8176e8cb7469ecc3",
-      "to": "person:speaker-01",
+      "to": "person:sam",
       "type": "SPOKEN_BY"
     },
     {
@@ -47,7 +47,7 @@
     },
     {
       "from": "quote:536499d0fe36f20b",
-      "to": "person:speaker-02",
+      "to": "person:dr-elena-fischer",
       "type": "SPOKEN_BY"
     },
     {
@@ -57,7 +57,7 @@
     },
     {
       "from": "quote:dd32f2307596b3e5",
-      "to": "person:speaker-01",
+      "to": "person:sam",
       "type": "SPOKEN_BY"
     },
     {
@@ -67,7 +67,7 @@
     },
     {
       "from": "quote:4162de1a0824b0a5",
-      "to": "person:speaker-01",
+      "to": "person:sam",
       "type": "SPOKEN_BY"
     },
     {
@@ -77,7 +77,7 @@
     },
     {
       "from": "quote:e98e10f78eab9baf",
-      "to": "person:speaker-02",
+      "to": "person:dr-elena-fischer",
       "type": "SPOKEN_BY"
     },
     {
@@ -87,7 +87,7 @@
     },
     {
       "from": "quote:013d979065889bb0",
-      "to": "person:speaker-01",
+      "to": "person:sam",
       "type": "SPOKEN_BY"
     },
     {
@@ -106,7 +106,7 @@
         "episode_id": "ep-4d94c63887afbd1a",
         "metadata_relative_path": "feeds/p09/run_20260101_000000/metadata/p09_e04.metadata.json",
         "podcast_id": "p09",
-        "publish_date": "2026-01--7T12:00:00",
+        "publish_date": "2026-07-15T12:00:00",
         "title": "Risk Is a Systems Property"
       },
       "type": "Episode"
@@ -171,7 +171,7 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
+      "id": "person:sam",
       "properties": {
         "name": "Sam"
       },
@@ -192,7 +192,7 @@
       "type": "Quote"
     },
     {
-      "id": "person:speaker-02",
+      "id": "person:dr-elena-fischer",
       "properties": {
         "name": "Dr. Elena Fischer"
       },

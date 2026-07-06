@@ -1,0 +1,250 @@
+{
+  "derived": true,
+  "computed_at": "2026-07-06T15:50:17Z",
+  "enricher_id": "grounding_rate",
+  "enricher_version": "1.0.0",
+  "schema_version": "1.0",
+  "status": "ok",
+  "data": {
+    "persons": [
+      {
+        "person_id": "person:a-correspondent",
+        "person_name": "A. correspondent",
+        "total_insights": 16,
+        "grounded_insights": 16,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:cam",
+        "person_name": "Cam",
+        "total_insights": 16,
+        "grounded_insights": 16,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:leo",
+        "person_name": "Leo",
+        "total_insights": 16,
+        "grounded_insights": 16,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:sam",
+        "person_name": "Sam",
+        "total_insights": 16,
+        "grounded_insights": 16,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:maya",
+        "person_name": "Maya",
+        "total_insights": 15,
+        "grounded_insights": 15,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:nora",
+        "person_name": "Nora",
+        "total_insights": 15,
+        "grounded_insights": 15,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:rina",
+        "person_name": "Rina",
+        "total_insights": 15,
+        "grounded_insights": 15,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:alex-morgan",
+        "person_name": "Alex Morgan",
+        "total_insights": 14,
+        "grounded_insights": 14,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:ethan",
+        "person_name": "Ethan",
+        "total_insights": 14,
+        "grounded_insights": 14,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:dr-elena-fischer",
+        "person_name": "Dr. Elena Fischer",
+        "total_insights": 9,
+        "grounded_insights": 9,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:jordan-park",
+        "person_name": "Jordan Park",
+        "total_insights": 8,
+        "grounded_insights": 8,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:priya-nair",
+        "person_name": "Priya Nair",
+        "total_insights": 8,
+        "grounded_insights": 8,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:renee-montagne-park",
+        "person_name": "Renee Montagne-Park",
+        "total_insights": 6,
+        "grounded_insights": 6,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:skanda-amarnath",
+        "person_name": "Skanda Amarnath",
+        "total_insights": 5,
+        "grounded_insights": 5,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:ava-lemoine",
+        "person_name": "Ava Lemoine",
+        "total_insights": 4,
+        "grounded_insights": 4,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:daniel-cho",
+        "person_name": "Daniel Cho",
+        "total_insights": 4,
+        "grounded_insights": 4,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:marco-silva",
+        "person_name": "Marco Silva",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:sophie-laurent",
+        "person_name": "Sophie Laurent",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:daniel-olufemi",
+        "person_name": "Daniel Olufemi",
+        "total_insights": 2,
+        "grounded_insights": 2,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:hanna-crebo-rediker",
+        "person_name": "Hanna Crebo Rediker",
+        "total_insights": 2,
+        "grounded_insights": 2,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:hanna-krebohticker",
+        "person_name": "Hanna Krebohticker",
+        "total_insights": 2,
+        "grounded_insights": 2,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:joll-wisenthal",
+        "person_name": "Joll Wisenthal",
+        "total_insights": 2,
+        "grounded_insights": 2,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:liam-verbeek",
+        "person_name": "Liam Verbeek",
+        "total_insights": 2,
+        "grounded_insights": 2,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:marco-sylva",
+        "person_name": "Marco Sylva",
+        "total_insights": 2,
+        "grounded_insights": 2,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:noah-bryer",
+        "person_name": "Noah Bryer",
+        "total_insights": 2,
+        "grounded_insights": 2,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:renee-montague-park",
+        "person_name": "Renee Montague-Park",
+        "total_insights": 2,
+        "grounded_insights": 2,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:rich-clarida",
+        "person_name": "Rich Clarida",
+        "total_insights": 2,
+        "grounded_insights": 2,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:scott-bessett",
+        "person_name": "Scott Bessett",
+        "total_insights": 2,
+        "grounded_insights": 2,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:skanda-amarnauth",
+        "person_name": "Skanda Amarnauth",
+        "total_insights": 2,
+        "grounded_insights": 2,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:skanda-eminas",
+        "person_name": "Skanda Eminas",
+        "total_insights": 2,
+        "grounded_insights": 2,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:sophie-lorenz",
+        "person_name": "Sophie Lorenz",
+        "total_insights": 2,
+        "grounded_insights": 2,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:tarek-hassan",
+        "person_name": "Tarek Hassan",
+        "total_insights": 2,
+        "grounded_insights": 2,
+        "rate": 1.0
+      },
+      {
+        "person_id": "person:scott-bessent",
+        "person_name": "Scott Bessent",
+        "total_insights": 1,
+        "grounded_insights": 1,
+        "rate": 1.0
+      }
+    ],
+    "episode_count": 36
+  },
+  "error": null,
+  "error_class": null,
+  "retry_count": 0,
+  "circuit_state": null,
+  "duration_ms": 0,
+  "records_written": 33
+}

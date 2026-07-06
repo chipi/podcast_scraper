@@ -1,0 +1,25 @@
+{
+  "derived": true,
+  "computed_at": "2026-07-06T15:50:17Z",
+  "enricher_id": "topic_theme_clusters",
+  "enricher_version": "1.0.0",
+  "schema_version": "1.0",
+  "status": "ok",
+  "data": {
+    "schema_version": "1",
+    "method": "cooccurrence_lift",
+    "episode_count": 36,
+    "min_pair_episode_count": 2,
+    "merge_threshold": 2.0,
+    "topic_count": 10,
+    "cluster_count": 0,
+    "singletons": 10,
+    "clusters": []
+  },
+  "error": null,
+  "error_class": null,
+  "retry_count": 0,
+  "circuit_state": null,
+  "duration_ms": 0,
+  "records_written": 0
+}

@@ -1,0 +1,95 @@
+{
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": true,
+      "label": "technology",
+      "topic_cluster_compound_id": "tc:technology-cluster",
+      "topic_id": "topic:technology"
+    },
+    {
+      "in_topic_cluster": true,
+      "label": "health",
+      "topic_cluster_compound_id": "tc:health-cluster",
+      "topic_id": "topic:health"
+    }
+  ],
+  "content": {
+    "diarization_num_speakers": 3,
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Sam",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Skanda Amarnauth",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p09_e02.txt",
+    "transcript_source": "synthetic"
+  },
+  "episode": {
+    "episode_id": "d24c1620-8d16-54dd-b681-2f2e06c0b579",
+    "published_date": "2026-07-02",
+    "title": "The Long View: Biohacking \u2014 Episode 2"
+  },
+  "episode_id": "d24c1620-8d16-54dd-b681-2f2e06c0b579",
+  "episode_title": "The Long View: Biohacking \u2014 Episode 2",
+  "feed": {
+    "description": "Solo, long-form reflections on biohacking: the state of the field in 2025, what actually works, and the ethics and limits of human optimization.",
+    "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+    "title": "The Long View: Biohacking",
+    "url": "http://localhost/"
+  },
+  "feed_display_title": "The Long View: Biohacking",
+  "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+  "gi_relative_path": "feeds/p09/metadata/p09_e02.gi.json",
+  "grounded_insights": {
+    "artifact_path": "feeds/p09/metadata/p09_e02.gi.json",
+    "schema_version": "1.0"
+  },
+  "has_gi": true,
+  "has_kg": true,
+  "kg_relative_path": "feeds/p09/metadata/p09_e02.kg.json",
+  "knowledge_graph": {
+    "artifact_path": "feeds/p09/metadata/p09_e02.kg.json",
+    "schema_version": "1.1"
+  },
+  "publish_date": "2026-07-02",
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Today we're talking about macroeconomics, and I'm joined by Skanda Amarnauth, returning macro economist.",
+      "Skanda Amarnauth, thanks for being here.",
+      "Skanda Amarnauth: Thanks, Sam."
+    ],
+    "preview": "Today we're talking about macroeconomics, and I'm joined by Skanda Amarnauth, returning macro economist.",
+    "text": "Today we're talking about macroeconomics, and I'm joined by Skanda Amarnauth, returning macro economist.\nSkanda Amarnauth, thanks for being here.\nSkanda Amarnauth: Thanks, Sam.",
+    "title": "The Long View: Biohacking \u2014 Episode 2 \u2014 synthetic"
+  },
+  "summary_bullet_graph_topic_ids": [
+    "topic:technology",
+    "topic:health",
+    "topic:technology"
+  ],
+  "summary_bullets": [
+    "Today we're talking about macroeconomics, and I'm joined by Skanda Amarnauth, returning macro economist.",
+    "Skanda Amarnauth, thanks for being here.",
+    "Skanda Amarnauth: Thanks, Sam."
+  ],
+  "summary_preview": "Today we're talking about macroeconomics, and I'm joined by Skanda Amarnauth, returning macro economist.",
+  "summary_text": "Today we're talking about macroeconomics, and I'm joined by Skanda Amarnauth, returning macro economist.\nSkanda Amarnauth, thanks for being here.\nSkanda Amarnauth: Thanks, Sam.",
+  "summary_title": "The Long View: Biohacking \u2014 Episode 2 \u2014 synthetic",
+  "topics": [
+    "technology",
+    "health",
+    "Technology"
+  ]
+}

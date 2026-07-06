@@ -1,0 +1,261 @@
+{
+  "edges": [
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "topic:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "insight:dd91019976ad2564",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "insight:488859efff6942d0",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "insight:ce53f46a0943a486",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:a01d27055501ed09",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:dd91019976ad2564",
+      "to": "quote:a01d27055501ed09",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:e9540cb5dd447f6c",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:488859efff6942d0",
+      "to": "quote:e9540cb5dd447f6c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:6a0cb0620f4bf2f8",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ce53f46a0943a486",
+      "to": "quote:6a0cb0620f4bf2f8",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:ec51d8b126faa9b2",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:dd91019976ad2564",
+      "to": "quote:ec51d8b126faa9b2",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:d9d159dd603e9ea2",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:488859efff6942d0",
+      "to": "quote:d9d159dd603e9ea2",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:bc4717e863090833",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ce53f46a0943a486",
+      "to": "quote:bc4717e863090833",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
+        "metadata_relative_path": "feeds/p02/metadata/p02_e02.metadata.json",
+        "podcast_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+        "publish_date": "2026-07-03T12:00:00",
+        "title": "Practical Systems \u2014 Episode 2"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "Technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:dd91019976ad2564",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we're talking about engineering communication, and I'm joined by Joll Wisenthal, staff engineer focused on platform teams."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:488859efff6942d0",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Joll Wisenthal, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:ce53f46a0943a486",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Joll Wisenthal: Thanks, Ethan."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Ethan"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:a01d27055501ed09",
+      "properties": {
+        "char_end": 209,
+        "char_start": 7,
+        "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Practical Systems. Today we're talking about engineering communication, and I'm joined by Joll Wisenthal, staff engineer focused on platform teams. Joll Wisenthal, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p02_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Joll Wisenthal"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:e9540cb5dd447f6c",
+      "properties": {
+        "char_end": 258,
+        "char_start": 226,
+        "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Ethan. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p02_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:6a0cb0620f4bf2f8",
+      "properties": {
+        "char_end": 399,
+        "char_start": 266,
+        "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Notion. Notion replaces the dozen tools your team is half-using. Get started at notion.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p02_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:ec51d8b126faa9b2",
+      "properties": {
+        "char_end": 530,
+        "char_start": 399,
+        "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Priya Nayar was on episode 1 making the case that good on-call rotations are designed so waking up is rare.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p02_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:d9d159dd603e9ea2",
+      "properties": {
+        "char_end": 605,
+        "char_start": 547,
+        "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, exactly. And it ties into what we're covering today.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p02_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:bc4717e863090833",
+      "properties": {
+        "char_end": 703,
+        "char_start": 613,
+        "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to flag something \u2014 Priya Nayar mentioned this same dynamic a couple episodes back.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p02_e02.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

@@ -1,0 +1,261 @@
+{
+  "edges": [
+    {
+      "from": "episode:47fbed20-6172-5fec-a904-656de37b88ec",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:47fbed20-6172-5fec-a904-656de37b88ec",
+      "to": "topic:gear",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:47fbed20-6172-5fec-a904-656de37b88ec",
+      "to": "topic:science-research",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:47fbed20-6172-5fec-a904-656de37b88ec",
+      "to": "insight:c675a4bd6a56d075",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:47fbed20-6172-5fec-a904-656de37b88ec",
+      "to": "insight:98d2af0573fa274b",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:47fbed20-6172-5fec-a904-656de37b88ec",
+      "to": "insight:5dc2253d421449be",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:c70c6c69a679beff",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:c675a4bd6a56d075",
+      "to": "quote:c70c6c69a679beff",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:5a8f2e02e524bbbd",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:98d2af0573fa274b",
+      "to": "quote:5a8f2e02e524bbbd",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:3b92fcdf7856658e",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:5dc2253d421449be",
+      "to": "quote:3b92fcdf7856658e",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:bf39255e07628d2f",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:c675a4bd6a56d075",
+      "to": "quote:bf39255e07628d2f",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:afb0a00f53e5ae43",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:98d2af0573fa274b",
+      "to": "quote:afb0a00f53e5ae43",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:2bfc3c7d0a0e99a4",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:5dc2253d421449be",
+      "to": "quote:2bfc3c7d0a0e99a4",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "47fbed20-6172-5fec-a904-656de37b88ec",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:47fbed20-6172-5fec-a904-656de37b88ec",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "47fbed20-6172-5fec-a904-656de37b88ec",
+        "metadata_relative_path": "feeds/p04/metadata/p04_e04.metadata.json",
+        "podcast_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
+        "publish_date": "2026-07-03T12:00:00",
+        "title": "Frame & Light \u2014 Episode 4"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:gear",
+      "properties": {
+        "label": "gear",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:c675a4bd6a56d075",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we're talking about roundtable photography, and I'm joined by Ava Lemoine, underwater photographer."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:98d2af0573fa274b",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Ava Lemoine, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:5dc2253d421449be",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today's episode is sponsored by Adobe."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Leo"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:c70c6c69a679beff",
+      "properties": {
+        "char_end": 177,
+        "char_start": 5,
+        "episode_id": "47fbed20-6172-5fec-a904-656de37b88ec",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Frame & Light. Today we're talking about roundtable photography, and I'm joined by Ava Lemoine, underwater photographer. Ava Lemoine, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p04_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Ava Lemoine"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:5a8f2e02e524bbbd",
+      "properties": {
+        "char_end": 221,
+        "char_start": 191,
+        "episode_id": "47fbed20-6172-5fec-a904-656de37b88ec",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Leo. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p04_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:3b92fcdf7856658e",
+      "properties": {
+        "char_end": 364,
+        "char_start": 227,
+        "episode_id": "47fbed20-6172-5fec-a904-656de37b88ec",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Adobe. Adobe Creative Cloud puts Lightroom, Photoshop, and Premiere on every device. Try adobe.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p04_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:bf39255e07628d2f",
+      "properties": {
+        "char_end": 545,
+        "char_start": 364,
+        "episode_id": "47fbed20-6172-5fec-a904-656de37b88ec",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Ava walked us through underwater work last month, Tariq covered documentary, Daniel on commercial lighting \u2014 today we get all three in the same conversation.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p04_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:afb0a00f53e5ae43",
+      "properties": {
+        "char_end": 617,
+        "char_start": 559,
+        "episode_id": "47fbed20-6172-5fec-a904-656de37b88ec",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, exactly. And it ties into what we're covering today.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p04_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:2bfc3c7d0a0e99a4",
+      "properties": {
+        "char_end": 705,
+        "char_start": 623,
+        "episode_id": "47fbed20-6172-5fec-a904-656de37b88ec",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to flag something \u2014 Ava mentioned this same dynamic a couple episodes back.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p04_e04.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}
