@@ -1,0 +1,19 @@
+{
+  "baseline_id": "run_2026-07-05_22-04-48",
+  "dataset_id": "curated_5feeds_benchmark_v1",
+  "created_at": "2026-07-05T20:10:47.657075Z",
+  "created_by": "markodragoljevic",
+  "fingerprint_ref": "fingerprint.json",
+  "stats": {
+    "num_episodes": 10,
+    "total_time_seconds": 356.07618021965027,
+    "avg_time_seconds": 35.607618021965024,
+    "total_chars_in": 111266,
+    "total_chars_out": 8857,
+    "avg_compression": 12.562492943434572
+  },
+  "promoted_from": "run_2026-07-05_22-04-48",
+  "promoted_at": "2026-07-05T20:10:48.567411Z",
+  "promoted_as": "baseline",
+  "promoted_id": "baseline_ml_bart_authority_benchmark_v5"
+}

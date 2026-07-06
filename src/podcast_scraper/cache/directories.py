@@ -102,9 +102,10 @@ def get_transformers_cache_dir() -> Path:
     if local_cache.exists():
         return local_cache
 
-    # 3. Fall back to huggingface_hub constants
+    # 4. Fall back to huggingface_hub constants (respects HF_HOME env var).
+    # transformers v5 (#382) removed the legacy ``transformers.file_utils``
+    # fallback path we kept before; hub is now the sole authoritative source.
     try:
-        # Try modern huggingface_hub API first (transformers 4.20+)
         from huggingface_hub import constants
 
         if constants.HF_HUB_CACHE:
@@ -112,16 +113,7 @@ def get_transformers_cache_dir() -> Path:
     except (ImportError, AttributeError, TypeError):
         pass
 
-    try:
-        # Fallback to transformers file_utils (older versions)
-        from transformers import file_utils
-
-        if hasattr(file_utils, "default_cache_path") and file_utils.default_cache_path:
-            return Path(file_utils.default_cache_path)
-    except (ImportError, AttributeError, TypeError):
-        pass
-
-    # 4. Standard user cache as final fallback
+    # 5. Standard user cache as final fallback
     return Path.home() / ".cache" / "huggingface" / "hub"
 
 

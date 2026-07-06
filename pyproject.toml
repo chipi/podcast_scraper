@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "podcast-scraper"
-version = "2.6.1"
+version = "2.7.0"
 description = "Download podcast transcripts from RSS feeds with optional Whisper fallback"
 readme = "README.md"
 authors = [{name = "Podcast Scraper Maintainers"}]
@@ -107,14 +107,15 @@ ml = [
   # numpy<2 pin (#899) was waiting for — and pyannote.audio 4.x REQUIRES numpy 2.
   # The old thinc 8.2 ABI crash is gone with thinc 8.3.
   "numpy>=2.2.6,<3.0",
-  # sentence-transformers 5.x allows transformers 4.41–5.x; keep <5 until we vendor
-  # extractive QA: transformers 5 removed the ``question-answering`` pipeline task (CI preload).
-  # CVE-2026-1839 (Trainer rng_state / torch.load): fixed in 5.0.0rc3+ only; pip-audit ignore in Makefile until 5.x stable.
-  "transformers>=4.57.6,<5.0.0",
+  # transformers v5 (#382): pipeline() removed for summarization / text2text-generation /
+  # question-answering — call sites rewritten to AutoModel*.from_pretrained + generate() /
+  # QA-head forward. Also picks up the CVE-2026-1839 fix (Trainer rng_state / torch.load
+  # weights_only) that shipped in >=5.0.0rc3. See docs/wip/ISSUE-382-*.md + ADR-068 post-impl.
+  "transformers>=5.0.0,<6.0.0",
   "sentencepiece>=0.2.1,<1.0.0",
-  # GIL evidence stack: SentenceTransformer + CrossEncoder (NLI); Docker .[ml] preload
-  # v3+ CrossEncoder: pass local_files_only on constructor, not inside tokenizer/automodel kwargs
-  "sentence-transformers>=5.4.1,<6.0.0",
+  # sentence-transformers 5.6.0 fixes silent causal-LM reranker scoring bug + restores
+  # TSDAE on transformers v5. Dual v4/v5 compat since ST 5.2.1 — safe floor for #382.
+  "sentence-transformers>=5.6.0,<6.0.0",
   # NOTE: lancedb is intentionally NOT here — it is search-only (used solely under
   # ``search/`` + the index-rebuild route + upgrade migration, never by transcription /
   # summarization / GI). It lives in [search]; an ML pipeline that also indexes composes
@@ -158,10 +159,10 @@ llm = [
 # llama-cpp — those stay in [ml]. Image size delta on top of [llm]: ~700 MB → ~1.5 GB.
 search = [
   "torch>=2.11.0,<3.0.0",
-  # Pinned compatible with sentence-transformers 5.x — see [ml] for rationale.
-  "transformers>=4.57.6,<5.0.0",
+  # Kept aligned with [ml] pin (#382): transformers v5 + sentence-transformers 5.6+.
+  "transformers>=5.0.0,<6.0.0",
   "sentencepiece>=0.2.1,<1.0.0",
-  "sentence-transformers>=5.4.1,<6.0.0",
+  "sentence-transformers>=5.6.0,<6.0.0",
   # RFC-090 two-tier hybrid backend: embedded vector + native FTS (BM25) in one store.
   "lancedb>=0.33.0,<1.0.0",
   "protobuf>=3.20.0,!=6.33.4,<8.0.0",  # Exclude 6.33.4 due to CVE-2026-0994 (fixed in 6.33.5+)

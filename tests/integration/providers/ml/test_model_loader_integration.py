@@ -63,16 +63,8 @@ class TestPreloadEvidenceModels:
 
         download_calls: list = []
         monkeypatch.setattr(
-            "podcast_scraper.providers.ml.model_loader._download_sentence_transformer_for_cache",
-            lambda mid: download_calls.append(mid),
-        )
-        monkeypatch.setattr(
-            "podcast_scraper.providers.ml.model_loader._download_qa_pipeline_for_cache",
-            lambda mid: download_calls.append(mid),
-        )
-        monkeypatch.setattr(
-            "podcast_scraper.providers.ml.model_loader._download_nli_cross_encoder_for_cache",
-            lambda mid: download_calls.append(mid),
+            "podcast_scraper.providers.ml.model_loader._download_hf_evidence_model",
+            lambda kind, mid: download_calls.append((kind, mid)),
         )
 
         model_loader.preload_evidence_models(
@@ -81,7 +73,9 @@ class TestPreloadEvidenceModels:
             nli_models=[],
         )
 
-        assert resolved_emb not in download_calls
+        # Embedding already cached — no calls at all.
+        assert resolved_emb not in [m for _, m in download_calls]
+        assert download_calls == []
 
     def test_downloads_uncached_models(self, tmp_path, monkeypatch):
         """Uncached models trigger download functions."""
@@ -91,16 +85,8 @@ class TestPreloadEvidenceModels:
         )
         download_calls: list = []
         monkeypatch.setattr(
-            "podcast_scraper.providers.ml.model_loader._download_sentence_transformer_for_cache",
-            lambda mid: download_calls.append(("st", mid)),
-        )
-        monkeypatch.setattr(
-            "podcast_scraper.providers.ml.model_loader._download_qa_pipeline_for_cache",
-            lambda mid: download_calls.append(("qa", mid)),
-        )
-        monkeypatch.setattr(
-            "podcast_scraper.providers.ml.model_loader._download_nli_cross_encoder_for_cache",
-            lambda mid: download_calls.append(("nli", mid)),
+            "podcast_scraper.providers.ml.model_loader._download_hf_evidence_model",
+            lambda kind, mid: download_calls.append((kind, mid)),
         )
 
         model_loader.preload_evidence_models(
@@ -109,47 +95,64 @@ class TestPreloadEvidenceModels:
             nli_models=["nli-deberta-base"],
         )
 
-        types = [t for t, _ in download_calls]
-        assert "st" in types
-        assert "qa" in types
-        assert "nli" in types
+        kinds = [k for k, _ in download_calls]
+        assert "embedding" in kinds
+        assert "qa" in kinds
+        assert "nli" in kinds
 
 
-class TestBuildHuggingfaceQaPipeline:
-    """build_huggingface_qa_pipeline: wiring to transformers.pipeline."""
+class TestDownloadHFEvidenceModel:
+    """_download_hf_evidence_model: kind-dispatched cache warmer.
 
-    def test_offline_mode_passes_local_files_only(self, monkeypatch, tmp_path):
-        """local_files_only=True is forwarded to model_kwargs.
+    Post-#382 Phase G: three parallel _download_*_for_cache helpers
+    collapsed into one function with a Literal["qa", "nli", "embedding"]
+    kind discriminator. build_huggingface_qa_pipeline (v4-era test target)
+    is gone — transformers v5 removed pipeline("question-answering").
+    """
 
-        Issue #677: the test used to do
-        ``monkeypatch.setattr("transformers.pipeline", fake_pipeline)``, but
-        transformers >= 4.40 makes the top-level module a ``_LazyModule``
-        whose ``__getattr__`` resolves ``pipeline`` from a submodule —
-        bypassing instance-attribute overrides. The function under test
-        now routes through a module-level indirection
-        (``_call_transformers_qa_pipeline``) so the patch sticks.
-        """
+    def test_qa_kind_calls_auto_model_for_question_answering(self, monkeypatch, tmp_path):
+        """QA path instantiates AutoModelForQuestionAnswering + AutoTokenizer."""
         captured: list = []
 
-        def fake_pipeline(task, model, device, model_kwargs=None, **kw):
-            captured.append({"task": task, "model": model, "model_kwargs": model_kwargs, **kw})
+        def fake_auto_tok(model_id, **kw):
+            captured.append(("tokenizer", model_id, kw))
             return MagicMock()
 
-        monkeypatch.setattr(
-            "podcast_scraper.providers.ml.model_loader._call_transformers_qa_pipeline",
-            fake_pipeline,
-        )
+        def fake_auto_qa(model_id, **kw):
+            captured.append(("model", model_id, kw))
+            return MagicMock()
+
+        import sys
+
+        fake_transformers = MagicMock()
+        fake_transformers.AutoTokenizer.from_pretrained.side_effect = fake_auto_tok
+        fake_transformers.AutoModelForQuestionAnswering.from_pretrained.side_effect = fake_auto_qa
+        monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
         monkeypatch.setattr(
             "podcast_scraper.providers.ml.model_loader.get_transformers_cache_dir",
             lambda: tmp_path,
         )
 
-        model_loader.build_huggingface_qa_pipeline(
-            "deepset/roberta-base-squad2",
-            device=-1,
-            local_files_only=True,
-        )
+        model_loader._download_hf_evidence_model("qa", "deepset/roberta-base-squad2")
 
-        assert len(captured) == 1
-        assert captured[0]["task"] == "question-answering"
-        assert captured[0]["model_kwargs"]["local_files_only"] is True
+        # Both tokenizer + model loaded with standard preload kwargs
+        # (local_files_only=False during preload — this is the only path
+        # allowed to hit the hub).
+        kinds = [k for k, *_ in captured]
+        assert kinds == ["tokenizer", "model"]
+        for _, model_id, kw in captured:
+            assert model_id == "deepset/roberta-base-squad2"
+            assert kw["local_files_only"] is False
+            assert kw["trust_remote_code"] is False
+            assert kw["low_cpu_mem_usage"] is False
+
+    def test_unknown_kind_raises(self, tmp_path, monkeypatch):
+        """kind='wat' — explicit ValueError, not silent fallthrough."""
+        monkeypatch.setattr(
+            "podcast_scraper.providers.ml.model_loader.get_transformers_cache_dir",
+            lambda: tmp_path,
+        )
+        import pytest
+
+        with pytest.raises(ValueError, match="Unknown evidence kind"):
+            model_loader._download_hf_evidence_model("wat", "x/y")  # type: ignore[arg-type]

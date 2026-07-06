@@ -60,7 +60,9 @@ class TestNliLoaderIntegration:
             "podcast_scraper.cache.get_transformers_cache_dir",
             lambda: tmp_path,
         )
-        nli_loader._nli_models.clear()
+        from podcast_scraper.providers.ml.nli_loader import NLIEvidenceBackend as _NB
+
+        _NB.clear_cache()
 
         score = nli_loader.entailment_score(
             premise="The cat sat on the mat.",
@@ -88,7 +90,9 @@ class TestNliLoaderIntegration:
             "podcast_scraper.cache.get_transformers_cache_dir",
             lambda: tmp_path,
         )
-        nli_loader._nli_models.clear()
+        from podcast_scraper.providers.ml.nli_loader import NLIEvidenceBackend as _NB
+
+        _NB.clear_cache()
 
         pairs = [
             ("Evidence A.", "Claim A."),
@@ -116,7 +120,9 @@ class TestNliLoaderIntegration:
             "podcast_scraper.cache.get_transformers_cache_dir",
             lambda: tmp_path,
         )
-        nli_loader._nli_models.clear()
+        from podcast_scraper.providers.ml.nli_loader import NLIEvidenceBackend as _NB
+
+        _NB.clear_cache()
 
         a = nli_loader.get_nli_model("nli-deberta-base", device="cpu")
         b = nli_loader.get_nli_model("nli-deberta-base", device="cpu")

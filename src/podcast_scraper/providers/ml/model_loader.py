@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any, List, Optional
+from typing import Any, List, Literal, Optional, Tuple
 
 from ... import config
 from ...cache import (
@@ -240,109 +240,64 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
             raise
 
 
-def build_huggingface_qa_pipeline(
-    model_id: str,
-    *,
-    device: int,
-    local_files_only: bool,
-) -> Any:
-    """Instantiate a Hugging Face ``question-answering`` pipeline with our cache dir.
+# Evidence-model kinds accepted by :func:`_download_hf_evidence_model`.
+EvidenceKind = Literal["qa", "nli", "embedding"]
 
-    Newer ``transformers`` merges a top-level ``local_files_only`` into hub kwargs; if the
-    same flag is also inside ``model_kwargs``, ``AutoConfig.from_pretrained`` raises
-    "multiple values for keyword argument 'local_files_only'". Older versions expect the
-    flag only in ``model_kwargs``. Preload (downloads allowed) uses cache_dir only; offline
-    load tries ``model_kwargs`` first, then the top-level argument.
+
+def _download_hf_evidence_model(kind: EvidenceKind, model_id: str) -> None:
+    """Warm the HF cache for one GIL evidence-stack model.
+
+    Phase G (#382) collapse: single kind-dispatched cache warmer, replaces
+    the three parallel ``_download_qa_model_for_cache`` /
+    ``_download_nli_cross_encoder_for_cache`` /
+    ``_download_sentence_transformer_for_cache`` helpers. Extracted as a
+    module-level hook so unit tests can patch it without fighting
+    ``from transformers import ...`` name binding (Issue #677).
 
     Args:
-        model_id: Hub id or local path passed to ``pipeline(model=...)``.
-        device: ``pipeline`` device index (e.g. ``-1`` for CPU).
-        local_files_only: If True, do not hit the hub (cache must be populated).
-
-    Returns:
-        The transformers QA pipeline instance.
+        kind: One of ``"qa"``, ``"nli"``, ``"embedding"``.
+        model_id: Full HF ID (already resolved through
+            :func:`ModelRegistry.resolve_evidence_model_id` by the caller).
     """
     cache_dir = str(get_transformers_cache_dir().resolve())
-    # low_cpu_mem_usage=False avoids lazy meta-device init paths on some torch/transformers
-    # pairs that break a second Whisper load in the same process (GitHub #539).
-    if not local_files_only:
-        return _call_transformers_qa_pipeline(
-            "question-answering",
-            model=model_id,
-            device=device,
-            model_kwargs={"cache_dir": cache_dir, "low_cpu_mem_usage": False},
-        )
-    model_kw: dict[str, Any] = {
-        "local_files_only": True,
-        "cache_dir": cache_dir,
-        "low_cpu_mem_usage": False,
-    }
-    try:
-        return _call_transformers_qa_pipeline(
-            "question-answering",
-            model=model_id,
-            device=device,
-            model_kwargs=model_kw,
-        )
-    except TypeError as exc:
-        if "multiple values" not in str(exc) or "local_files_only" not in str(exc):
-            raise
-        return _call_transformers_qa_pipeline(
-            "question-answering",
-            model=model_id,
-            device=device,
-            model_kwargs={"cache_dir": cache_dir, "low_cpu_mem_usage": False},
-            local_files_only=True,
-        )
 
+    if kind == "qa":
+        from transformers import AutoModelForQuestionAnswering, AutoTokenizer
 
-def _call_transformers_qa_pipeline(*args: Any, **kwargs: Any) -> Any:
-    """Module-level indirection for ``transformers.pipeline``.
+        kw: dict[str, Any] = {
+            "cache_dir": cache_dir,
+            # Preload path — downloads allowed here (the ONLY place they are).
+            "local_files_only": False,
+            "trust_remote_code": False,
+            # #539: avoids the lazy meta-init path that breaks second-load.
+            "low_cpu_mem_usage": False,
+        }
+        AutoTokenizer.from_pretrained(model_id, **kw)  # nosec B615
+        AutoModelForQuestionAnswering.from_pretrained(model_id, **kw)  # nosec B615
+        return
 
-    Tests must patch *this* symbol — not ``transformers.pipeline``. The
-    top-level ``transformers`` module is a ``_LazyModule`` (transformers
-    >= 4.40) whose ``__getattr__`` resolves ``pipeline`` from a submodule,
-    so ``monkeypatch.setattr("transformers.pipeline", fake)`` is silently
-    bypassed by the function-local ``from transformers import pipeline``
-    inside :func:`build_huggingface_qa_pipeline`. Issue #677.
-    """
-    from transformers import pipeline
+    if kind == "nli":
+        import inspect
 
-    return pipeline(*args, **kwargs)
+        from sentence_transformers import CrossEncoder
 
+        # ST 2.x CrossEncoder doesn't accept local_files_only or cache_folder.
+        ce_params = set(inspect.signature(CrossEncoder.__init__).parameters)
+        ce_kw: dict = {}
+        if "local_files_only" in ce_params:
+            ce_kw["local_files_only"] = False
+        if "cache_folder" in ce_params:
+            ce_kw["cache_folder"] = cache_dir
+        CrossEncoder(model_id, **ce_kw)  # nosec B615
+        return
 
-def _download_qa_pipeline_for_cache(model_id: str) -> None:
-    """Run transformers QA pipeline once to populate the HF cache.
+    if kind == "embedding":
+        from sentence_transformers import SentenceTransformer
 
-    Extracted as a module-level hook so unit tests can patch it without
-    fighting ``from transformers import pipeline`` name binding.
-    """
-    build_huggingface_qa_pipeline(model_id, device=-1, local_files_only=False)
+        SentenceTransformer(model_id, cache_folder=cache_dir)  # nosec B615
+        return
 
-
-def _download_nli_cross_encoder_for_cache(model_id: str) -> None:
-    """Instantiate CrossEncoder once to populate the HF cache (test seam)."""
-    import inspect
-
-    from sentence_transformers import CrossEncoder
-
-    cache_dir = str(get_transformers_cache_dir().resolve())
-    # ST 2.x CrossEncoder doesn't accept local_files_only or cache_folder.
-    ce_params = set(inspect.signature(CrossEncoder.__init__).parameters)
-    ce_kw: dict = {}
-    if "local_files_only" in ce_params:
-        ce_kw["local_files_only"] = False
-    if "cache_folder" in ce_params:
-        ce_kw["cache_folder"] = cache_dir
-    CrossEncoder(model_id, **ce_kw)
-
-
-def _download_sentence_transformer_for_cache(model_id: str) -> None:
-    """Instantiate SentenceTransformer once to populate the HF cache (test seam)."""
-    from sentence_transformers import SentenceTransformer
-
-    cache_dir = str(get_transformers_cache_dir().resolve())
-    SentenceTransformer(model_id, cache_folder=cache_dir)
+    raise ValueError(f"Unknown evidence kind: {kind!r} (expected qa | nli | embedding)")
 
 
 def is_evidence_model_cached(model_id: str) -> bool:
@@ -406,56 +361,36 @@ def preload_evidence_models(
         os.environ["HF_HUB_CACHE"] = cache_dir_str
         logger.info("Set HF_HUB_CACHE for evidence model preload: %s", cache_dir_str)
 
-    for alias in embedding_models:
-        resolved = ModelRegistry.resolve_evidence_model_id(alias)
-        model_cache_path = cache_dir / f"models--{resolved.replace('/', '--')}"
-        if model_cache_path.exists():
-            logger.info("  Embedding model %s already cached", resolved)
-            continue
-        logger.info("  Preloading embedding model %s...", resolved)
-        try:
-            _download_sentence_transformer_for_cache(resolved)
-            logger.info("  ✓ Embedding model %s cached", resolved)
-        except Exception as e:
-            logger.error(
-                "  ✗ Failed to preload embedding model %s: %s",
-                resolved,
-                format_exception_for_log(e),
-            )
-            raise
-
-    for alias in qa_models:
-        resolved = ModelRegistry.resolve_evidence_model_id(alias)
-        model_cache_path = cache_dir / f"models--{resolved.replace('/', '--')}"
-        if model_cache_path.exists():
-            logger.info("  QA model %s already cached", resolved)
-            continue
-        logger.info("  Preloading QA model %s...", resolved)
-        try:
-            _download_qa_pipeline_for_cache(resolved)
-            logger.info("  ✓ QA model %s cached", resolved)
-        except Exception as e:
-            logger.error(
-                "  ✗ Failed to preload QA model %s: %s",
-                resolved,
-                format_exception_for_log(e),
-            )
-            raise
-
-    for alias in nli_models:
-        resolved = ModelRegistry.resolve_evidence_model_id(alias)
-        model_cache_path = cache_dir / f"models--{resolved.replace('/', '--')}"
-        if model_cache_path.exists():
-            logger.info("  NLI model %s already cached", resolved)
-            continue
-        logger.info("  Preloading NLI model %s...", resolved)
-        try:
-            _download_nli_cross_encoder_for_cache(resolved)
-            logger.info("  ✓ NLI model %s cached", resolved)
-        except Exception as e:
-            logger.error(
-                "  ✗ Failed to preload NLI model %s: %s",
-                resolved,
-                format_exception_for_log(e),
-            )
-            raise
+    # One iteration order for all three families — embedding first (usually
+    # cheapest to download), then QA, then NLI. Order matches the pre-Phase-G
+    # sequence to keep preload logs stable across runs.
+    families: List[Tuple[str, List[str]]] = [
+        ("embedding", embedding_models),
+        ("qa", qa_models),
+        ("nli", nli_models),
+    ]
+    kind_labels = {
+        "embedding": "Embedding",
+        "qa": "QA",
+        "nli": "NLI",
+    }
+    for kind, aliases in families:
+        for alias in aliases:
+            resolved = ModelRegistry.resolve_evidence_model_id(alias)
+            model_cache_path = cache_dir / f"models--{resolved.replace('/', '--')}"
+            label = kind_labels[kind]
+            if model_cache_path.exists():
+                logger.info("  %s model %s already cached", label, resolved)
+                continue
+            logger.info("  Preloading %s model %s...", label, resolved)
+            try:
+                _download_hf_evidence_model(kind, resolved)  # type: ignore[arg-type]
+                logger.info("  ✓ %s model %s cached", label, resolved)
+            except Exception as e:
+                logger.error(
+                    "  ✗ Failed to preload %s model %s: %s",
+                    label,
+                    resolved,
+                    format_exception_for_log(e),
+                )
+                raise

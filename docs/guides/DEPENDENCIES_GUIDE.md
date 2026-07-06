@@ -216,7 +216,7 @@ pip cache (for example some CI jobs) can still re-download the large `.whl` file
   English models. When updating spaCy or model URLs, align both and refresh the requirements
   file above.
 
-### `torch` (>=2.0.0) and `transformers` (>=4.30.0)
+### `torch` (>=2.0.0) and `transformers` (>=5.0.0)
 
 - **Purpose**: Deep learning framework (torch) and pre-trained transformer models (transformers) for episode summarization
 

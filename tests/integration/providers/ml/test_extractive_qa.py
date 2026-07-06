@@ -1,4 +1,12 @@
-"""Unit tests for extractive QA pipeline (Issue #435)."""
+"""Integration tests for extractive QA (Issue #435, updated for #382 Phase E).
+
+Post-#382 the module is a thin wrapper over :class:`QAEvidenceBackend`; these
+tests mock at the backend's ``answer_top1`` / ``answer_top_k`` seam and at
+:func:`QAEvidenceBackend.get_or_load` (the cache entrypoint) — never at the
+old pipeline shape (which is gone).
+"""
+
+from unittest import mock
 
 import pytest
 
@@ -6,6 +14,7 @@ from podcast_scraper.providers.ml.extractive_qa import (
     answer,
     answer_candidates,
     answer_multi,
+    QAEvidenceBackend,
     QASpan,
 )
 
@@ -13,10 +22,7 @@ pytestmark = [pytest.mark.integration]
 
 
 class TestQASpan:
-    """Tests for QASpan dataclass."""
-
     def test_create_span(self):
-        """QASpan stores answer, start, end, score."""
         s = QASpan(answer="42", start=10, end=12, score=0.95)
         assert s.answer == "42"
         assert s.start == 10
@@ -24,22 +30,26 @@ class TestQASpan:
         assert s.score == 0.95
 
 
+def _stub_backend():
+    """Build a Mock() that quacks like a loaded QAEvidenceBackend."""
+    backend = mock.Mock(spec=QAEvidenceBackend)
+    backend.model = mock.Mock()
+    backend.tokenizer = mock.Mock()
+    backend.device = "cpu"
+    backend._loaded = True
+    return backend
+
+
 class TestAnswerMocked:
-    """Tests for answer() with mocked pipeline."""
+    """Facade tests — mock at QAEvidenceBackend.get_or_load."""
 
     def test_answer_returns_span(self, monkeypatch):
-        """answer() returns QASpan with pipeline output."""
-
-        def fake_pipeline(*args, question=None, context=None, max_answer_len=None, **kwargs):
-            return {"answer": "two", "start": 5, "end": 8, "score": 0.9}
-
-        from podcast_scraper.providers.ml import extractive_qa
-
+        backend = _stub_backend()
+        backend.answer_top1.return_value = QASpan(answer="two", start=5, end=8, score=0.9)
         monkeypatch.setattr(
-            extractive_qa,
-            "get_qa_pipeline",
-            lambda *args, **kwargs: type("Pipe", (), {"__call__": fake_pipeline})(),
+            QAEvidenceBackend, "get_or_load", classmethod(lambda cls, *a, **kw: backend)
         )
+
         span = answer(
             context="one two three",
             question="What is the middle word?",
@@ -47,23 +57,16 @@ class TestAnswerMocked:
         )
         assert isinstance(span, QASpan)
         assert span.answer == "two"
-        assert span.start == 5
-        assert span.end == 8
         assert span.score == 0.9
+        backend.answer_top1.assert_called_once()
 
     def test_answer_multi_returns_list(self, monkeypatch):
-        """answer_multi() returns list of QASpan."""
-
-        def fake_pipe(*args, question=None, context=None, max_answer_len=None, **kwargs):
-            return {"answer": "ans", "start": 0, "end": 3, "score": 0.8}
-
-        from podcast_scraper.providers.ml import extractive_qa
-
+        backend = _stub_backend()
+        backend.answer_top1.return_value = QASpan(answer="ans", start=0, end=3, score=0.8)
         monkeypatch.setattr(
-            extractive_qa,
-            "get_qa_pipeline",
-            lambda *args, **kwargs: type("Pipe", (), {"__call__": fake_pipe})(),
+            QAEvidenceBackend, "get_or_load", classmethod(lambda cls, *a, **kw: backend)
         )
+
         spans = answer_multi(
             context="some context",
             questions=["Q1?", "Q2?"],
@@ -71,56 +74,31 @@ class TestAnswerMocked:
         )
         assert len(spans) == 2
         assert all(isinstance(s, QASpan) for s in spans)
-
-    def test_answer_meta_tensor_score_fallback(self, monkeypatch):
-        """When pipeline returns score on meta device, fallback to 0.0 (GIL + API-only)."""
-
-        class MetaScore:
-            def item(self):
-                raise RuntimeError("Tensor.item() cannot be called on meta tensors")
-
-        def fake_pipeline(*args, question=None, context=None, max_answer_len=None, **kwargs):
-            return {"answer": "x", "start": 0, "end": 1, "score": MetaScore()}
-
-        from podcast_scraper.providers.ml import extractive_qa
-
-        monkeypatch.setattr(
-            extractive_qa,
-            "get_qa_pipeline",
-            lambda *args, **kwargs: type("Pipe", (), {"__call__": fake_pipeline})(),
-        )
-        span = answer(
-            context="context",
-            question="Q?",
-            model_id="roberta-squad2",
-        )
-        assert span.score == 0.0
+        assert backend.answer_top1.call_count == 2
 
     def test_answer_windowed_picks_highest_score_span(self, monkeypatch):
-        """Long context + windowing runs QA per window; best global span wins."""
+        """Long context + windowing runs answer_top1 per window; best global span wins."""
+        backend = _stub_backend()
 
-        def fake_pipeline(*args, question=None, context=None, max_answer_len=None, **kwargs):
-            if "TARGETPHRASE" in context:
-                idx = context.index("TARGETPHRASE")
-                end = idx + len("TARGETPHRASE")
-                return {
-                    "answer": context[idx:end],
-                    "start": idx,
-                    "end": end,
-                    "score": 0.99,
-                }
-            return {"answer": "x", "start": 0, "end": 1, "score": 0.05}
+        def top1_for_window(question, ctx):
+            if "TARGETPHRASE" in ctx:
+                idx = ctx.index("TARGETPHRASE")
+                return QASpan(
+                    answer=ctx[idx : idx + len("TARGETPHRASE")],
+                    start=idx,
+                    end=idx + len("TARGETPHRASE"),
+                    score=0.99,
+                )
+            return QASpan(answer="x", start=0, end=1, score=0.05)
 
-        from podcast_scraper.providers.ml import extractive_qa
-
+        backend.answer_top1.side_effect = top1_for_window
         monkeypatch.setattr(
-            extractive_qa,
-            "get_qa_pipeline",
-            lambda *args, **kwargs: type("Pipe", (), {"__call__": fake_pipeline})(),
+            QAEvidenceBackend, "get_or_load", classmethod(lambda cls, *a, **kw: backend)
         )
+
         filler = "A" * 35
         context = filler + "TARGETPHRASE" + ("B" * 35)
-        span = extractive_qa.answer(
+        span = answer(
             context,
             question="Q?",
             model_id="roberta-squad2",
@@ -131,23 +109,15 @@ class TestAnswerMocked:
         assert context[span.start : span.end] == "TARGETPHRASE"
 
     def test_answer_candidates_returns_multiple_top_k(self, monkeypatch):
-        """answer_candidates uses pipeline top_k when supported (#487)."""
-
-        def fake_pipe(
-            *args, question=None, context=None, max_answer_len=None, top_k=None, **kwargs
-        ):
-            return [
-                {"answer": "one", "start": 0, "end": 3, "score": 0.9},
-                {"answer": "two", "start": 4, "end": 7, "score": 0.7},
-            ]
-
-        from podcast_scraper.providers.ml import extractive_qa
-
+        backend = _stub_backend()
+        backend.answer_top_k.return_value = [
+            QASpan(answer="one", start=0, end=3, score=0.9),
+            QASpan(answer="two", start=4, end=7, score=0.7),
+        ]
         monkeypatch.setattr(
-            extractive_qa,
-            "get_qa_pipeline",
-            lambda *args, **kwargs: type("Pipe", (), {"__call__": fake_pipe})(),
+            QAEvidenceBackend, "get_or_load", classmethod(lambda cls, *a, **kw: backend)
         )
+
         spans = answer_candidates(
             "one two three",
             "Q?",
@@ -156,33 +126,28 @@ class TestAnswerMocked:
         )
         assert len(spans) == 2
         assert spans[0].score == 0.9
+        backend.answer_top_k.assert_called_once_with("Q?", "one two three", top_k=2)
 
-    def test_answer_candidates_typeerror_falls_back_single(self, monkeypatch):
-        """When top_k is unsupported, fall back to one span."""
-
-        def fake_pipe(*args, **kwargs):
-            if kwargs.get("top_k") is not None:
-                raise TypeError("unexpected keyword top_k")
-            return {"answer": "x", "start": 0, "end": 1, "score": 0.5}
-
-        from podcast_scraper.providers.ml import extractive_qa
-
+    def test_answer_candidates_empty_backend_result_returns_empty_list(self, monkeypatch):
+        """When answer_top_k returns [], the facade propagates the empty list."""
+        backend = _stub_backend()
+        backend.answer_top_k.return_value = []
         monkeypatch.setattr(
-            extractive_qa,
-            "get_qa_pipeline",
-            lambda *args, **kwargs: type("Pipe", (), {"__call__": fake_pipe})(),
+            QAEvidenceBackend, "get_or_load", classmethod(lambda cls, *a, **kw: backend)
         )
+
         spans = answer_candidates("ctx", "Q?", model_id="roberta-squad2", top_k=3)
-        assert len(spans) == 1
-        assert spans[0].answer == "x"
+        assert spans == []
 
 
-class TestGetDevice:
-    """Tests for QA device selection (avoid MPS/meta for HF QA)."""
+class TestResolveEvidenceDevice:
+    """QA MPS→CPU coercion — the ``mps_supported=False`` semantics for QAEvidenceBackend."""
 
-    def test_explicit_mps_maps_to_cpu(self):
-        """MPS is coerced to CPU; QA pipelines can hit meta/unsupported paths on Apple GPU."""
-        from podcast_scraper.providers.ml.extractive_qa import _get_device
+    def test_explicit_mps_coerced_to_cpu(self):
+        from podcast_scraper.providers.ml.hf_evidence_backend import resolve_evidence_device
 
-        assert _get_device("mps") == "cpu"
-        assert _get_device(" MPS ") == "cpu"
+        assert resolve_evidence_device("mps", mps_supported=False) == "cpu"
+        assert resolve_evidence_device(" MPS ", mps_supported=False) == "cpu"
+
+    def test_qa_class_declares_mps_unsupported(self):
+        assert QAEvidenceBackend.mps_supported is False

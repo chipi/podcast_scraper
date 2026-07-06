@@ -34,7 +34,7 @@ from typing import Any, cast, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     # Type hints only - these are not imported at runtime
-    from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, Pipeline
+    from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
 
 # Note: torch and transformers are imported lazily in methods that use them
@@ -45,6 +45,7 @@ if TYPE_CHECKING:
 from ... import preprocessing
 from ...preprocessing.profiles import apply_profile_with_stats
 from ...utils.log_redaction import format_exception_for_log
+from .hf_seq2seq_backend import HFSeq2SeqBackend
 from .model_registry import ModelRegistry
 
 logger = logging.getLogger(__name__)
@@ -709,15 +710,6 @@ def _resolve_effective_length_limits(
     return effective_max, effective_min
 
 
-def _extract_summary_text_from_pipeline_result(result: Any) -> str:
-    """Extract summary_text from pipeline result (list or dict)."""
-    if isinstance(result, list) and len(result) > 0:
-        return cast(str, result[0].get("summary_text", "")).strip()
-    if isinstance(result, dict):
-        return cast(str, result.get("summary_text", "")).strip()
-    return ""
-
-
 def _build_summarize_pipeline_kwargs(
     effective_truncation: bool,
     repetition_penalty: float,
@@ -943,7 +935,14 @@ class SummaryModel:
         # Runtime imports happen lazily in _load_model()
         self.tokenizer: Optional["AutoTokenizer"] = None
         self.model: Optional["AutoModelForSeq2SeqLM"] = None
-        self.pipeline: Optional["Pipeline"] = None
+        # Phase F: SummaryModel delegates load(non-Pegasus) + generate + device
+        # fallback to the shared HFSeq2SeqBackend. self.model / self.tokenizer are
+        # aliases into self._backend.model / self._backend.tokenizer once loaded
+        # (kept as attributes for the existing external-mock seams in tests).
+        self._backend: Optional[HFSeq2SeqBackend] = None
+        # ``self.pipeline`` retained as a Bool "loaded" sentinel; True after
+        # _load_model() completes.
+        self.pipeline: bool = False
         self._batch_size: Optional[int] = None  # For parallel chunk processing (CPU only)
         # Threading lock to serialize tokenizer/model access (tokenizers are not thread-safe)
         # This prevents "Already borrowed" errors when multiple episodes process concurrently
@@ -1004,11 +1003,18 @@ class SummaryModel:
         )
 
     def _load_model_move_to_device_and_pipeline(self) -> None:
-        """Move model to device (with fallback) and create pipeline."""
+        """Move model to device (with fallback).
+
+        Historical name kept for API compatibility with the pre-#382 caller
+        ``_load_model``. There is no pipeline anymore — v5 removed
+        ``pipeline("summarization")``; generation now runs through
+        :func:`_generate_summary` (``model.generate()`` + ``GenerationConfig``).
+        Method is left with the "and_pipeline" suffix for one release for
+        greppability; Phase F collapses SummaryModel onto HFSeq2SeqBackend
+        and it goes away with the class.
+        """
         import contextlib
         import io
-
-        from transformers import pipeline
 
         with contextlib.redirect_stdout(io.StringIO()):
             try:
@@ -1042,13 +1048,9 @@ class SummaryModel:
                     self.model = self.model.to("cpu")  # type: ignore[union-attr]
                 else:
                     raise
-        pipeline_device = 0 if self.device == "cuda" else "mps" if self.device == "mps" else -1
-        self.pipeline = pipeline(  # type: ignore[call-overload]
-            "summarization",
-            model=self.model,
-            tokenizer=self.tokenizer,
-            device=pipeline_device,
-        )
+        if self.model is not None:
+            self.model.eval()  # type: ignore[union-attr]
+        self.pipeline = True
 
     def _load_model_pegasus_sanity_and_clear_config(self) -> None:
         """Run Pegasus sanity check and clear max_new_tokens from generation config."""
@@ -1093,14 +1095,76 @@ class SummaryModel:
                     "[PEGASUS MODEL VERIFICATION] Sanity check error: %s",
                     format_exception_for_log(e),
                 )
-        if self.pipeline is not None and getattr(self.pipeline, "model", None) is not None:
-            model = self.pipeline.model
-            if getattr(model, "generation_config", None) is not None:
-                setattr(model.generation_config, "max_new_tokens", None)
-            if getattr(model, "config", None) is not None and hasattr(
-                model.config, "max_new_tokens"
+        if self.model is not None:
+            if getattr(self.model, "generation_config", None) is not None:
+                setattr(self.model.generation_config, "max_new_tokens", None)
+            if getattr(self.model, "config", None) is not None and hasattr(
+                self.model.config, "max_new_tokens"
             ):
-                setattr(model.config, "max_new_tokens", None)
+                setattr(self.model.config, "max_new_tokens", None)
+
+    def _generate_summary(
+        self,
+        input_text: str,
+        *,
+        truncation: bool = True,
+        repetition_penalty: float = 1.0,
+        no_repeat_ngram_size: int = 3,
+        max_new_tokens: int = 200,
+        min_new_tokens: int = 30,
+        encoder_no_repeat_ngram_size: Optional[int] = None,
+        do_sample: bool = False,
+        num_beams: int = 4,
+        length_penalty: float = 1.0,
+        early_stopping: bool = True,
+    ) -> str:
+        """Run tokenize → ``model.generate()`` → decode on ``input_text``.
+
+        Replaces the ``pipeline("summarization")`` call site retired in
+        #382. Accepts the same kwargs the pipeline did (see
+        :func:`_build_summarize_pipeline_kwargs`) so the call site is a
+        drop-in. All beam / sampling / n-gram penalty knobs are folded
+        into a ``GenerationConfig`` for the generate() call.
+
+        Args:
+            input_text: Already-truncated, prefix-applied input.
+            truncation: Whether the tokenizer should truncate (True by default;
+                :meth:`_summarize_truncate_input` has already done a soft
+                truncation at the model's ``max_input_tokens`` limit).
+            All other kwargs match ``_build_summarize_pipeline_kwargs`` output.
+
+        Returns:
+            The decoded summary string (empty on generation failure).
+        """
+        from transformers import GenerationConfig
+
+        gen_kwargs: Dict[str, Any] = {
+            "max_new_tokens": max_new_tokens,
+            "min_new_tokens": min_new_tokens,
+            "repetition_penalty": repetition_penalty,
+            "no_repeat_ngram_size": no_repeat_ngram_size,
+        }
+        if encoder_no_repeat_ngram_size is not None:
+            gen_kwargs["encoder_no_repeat_ngram_size"] = encoder_no_repeat_ngram_size
+        if do_sample:
+            gen_kwargs["do_sample"] = True
+        else:
+            gen_kwargs["num_beams"] = num_beams
+            gen_kwargs["length_penalty"] = length_penalty
+            gen_kwargs["early_stopping"] = early_stopping
+        gen_cfg = GenerationConfig(**gen_kwargs)
+
+        if self._backend is not None and self._backend._loaded:
+            return self._backend.generate(input_text, gen_cfg, truncation=truncation)
+
+        # Fallback for tests that assign self.model / self.tokenizer directly
+        # without wiring up the backend (see test_summarizer.py mock idiom).
+        # Wraps them via an ad-hoc backend adopt so we share one generate path.
+        if self.model is None or self.tokenizer is None:
+            raise RuntimeError("Model not loaded")
+        ad_hoc = HFSeq2SeqBackend(self.model_name, device=self.device)
+        ad_hoc.adopt(self.model, self.tokenizer, device=self.device)
+        return ad_hoc.generate(input_text, gen_cfg, truncation=truncation)
 
     def _load_model(self) -> None:
         """Load model and tokenizer from cache or download."""
@@ -1147,7 +1211,7 @@ class SummaryModel:
                     "trust_remote_code": False,  # Security: don't execute remote code (Issue #379)
                     # Disable safetensors for Pegasus (no safetensors files)
                     "use_safetensors": use_safetensors,
-                    # Force eager weight allocation. With transformers 4.57 + torch 2.11, the
+                    # Force eager weight allocation. On transformers v5 + torch 2.x, the
                     # default lazy path can leave tied weights (lm_head, embed_tokens) on the
                     # meta device, which then crashes `.to(device)` on subsequent feeds in
                     # multi-feed mode with "Cannot copy out of meta tensor".
@@ -1251,54 +1315,70 @@ class SummaryModel:
                     # Store health checks for later (to add generate_ok)
                     self._pegasus_health_checks = health_checks
 
+                    # Adopt into a backend so generate() runs through the shared path.
+                    self._backend = HFSeq2SeqBackend(
+                        model_id=self.model_name,
+                        device=self.device,
+                        revision=self.revision,
+                        cache_dir=self.cache_dir,
+                    )
+                    self._backend.adopt(self.model, self.tokenizer, device=self.device)
+
                     # Note: Sanity check will run after pipeline is created (see below)
                 elif "led" in model_lower or "longformer" in model_lower:
-                    # Use LEDForConditionalGeneration for LED models
                     from transformers import LEDForConditionalGeneration
 
-                    logger.debug("Using LEDForConditionalGeneration for LED model")
-                    # Workaround: LED models with safetensors trigger API calls even with
-                    # local_files_only=True. Disable safetensors for LED models to avoid this.
-                    led_model_kwargs = model_kwargs.copy()
-                    led_model_kwargs["use_safetensors"] = False
                     logger.debug(
-                        "Disabling safetensors for LED model to avoid API calls "
-                        "during model loading"
+                        "Loading LED via HFSeq2SeqBackend "
+                        "(family_class=LEDForConditionalGeneration)"
                     )
-                    self.model = _load_with_retry_summarizer(
-                        lambda: LEDForConditionalGeneration.from_pretrained(  # nosec B615
-                            self.model_name,
-                            **cast(Any, led_model_kwargs),
-                        ),
-                        self.model_name,
-                        "LED model",
+                    self._backend = HFSeq2SeqBackend(
+                        model_id=self.model_name,
+                        device=self.device,
+                        revision=self.revision,
+                        cache_dir=self.cache_dir,
+                        family_class=LEDForConditionalGeneration,
+                        retry_wrapper=_load_with_retry_summarizer,
                     )
+                    self._backend.load()
+                    self.model = self._backend.model
+                    self.tokenizer = self._backend.tokenizer
+                    self.device = self._backend.device
                 elif "bart" in model_lower:
-                    # Use BartForConditionalGeneration for BART models
                     from transformers import BartForConditionalGeneration
 
-                    logger.debug("Using BartForConditionalGeneration for BART model")
-                    self.model = _load_with_retry_summarizer(
-                        lambda: BartForConditionalGeneration.from_pretrained(  # nosec B615
-                            self.model_name,
-                            **cast(Any, model_kwargs),
-                        ),
-                        self.model_name,
-                        "BART model",
+                    logger.debug(
+                        "Loading BART via HFSeq2SeqBackend "
+                        "(family_class=BartForConditionalGeneration)"
                     )
+                    self._backend = HFSeq2SeqBackend(
+                        model_id=self.model_name,
+                        device=self.device,
+                        revision=self.revision,
+                        cache_dir=self.cache_dir,
+                        family_class=BartForConditionalGeneration,
+                        retry_wrapper=_load_with_retry_summarizer,
+                    )
+                    self._backend.load()
+                    self.model = self._backend.model
+                    self.tokenizer = self._backend.tokenizer
+                    self.device = self._backend.device
                 else:
-                    # Fallback to AutoModelForSeq2SeqLM for other models (e.g. LongT5)
-                    from transformers import AutoModelForSeq2SeqLM
-
-                    logger.debug("Using AutoModelForSeq2SeqLM (auto-detection)")
-                    self.model = _load_with_retry_summarizer(
-                        lambda: AutoModelForSeq2SeqLM.from_pretrained(  # nosec B615
-                            self.model_name,
-                            **cast(Any, model_kwargs),
-                        ),
-                        self.model_name,
-                        "AutoModel",
+                    logger.debug(
+                        "Loading via HFSeq2SeqBackend "
+                        "(family_class default AutoModelForSeq2SeqLM)"
                     )
+                    self._backend = HFSeq2SeqBackend(
+                        model_id=self.model_name,
+                        device=self.device,
+                        revision=self.revision,
+                        cache_dir=self.cache_dir,
+                        retry_wrapper=_load_with_retry_summarizer,
+                    )
+                    self._backend.load()
+                    self.model = self._backend.model
+                    self.tokenizer = self._backend.tokenizer
+                    self.device = self._backend.device
                 logger.debug("Model loaded successfully (cached for future runs)")
             finally:
                 if original_hf_disable is None:
@@ -1414,7 +1494,7 @@ class SummaryModel:
         Returns:
             Generated summary text
         """
-        if not self.pipeline:
+        if not self.model or not self.tokenizer:
             raise RuntimeError("Model not loaded")
 
         # Handle empty or very short text
@@ -1514,12 +1594,11 @@ class SummaryModel:
                     message=r".*Both.*max_new_tokens.*max_length.*",
                     category=UserWarning,
                 )
-                # Serialize pipeline calls to prevent tokenizer "Already borrowed" errors
-                # when multiple episodes process concurrently
+                # Serialize generate() calls to prevent tokenizer "Already borrowed"
+                # errors when multiple episodes process concurrently.
                 with self._summarize_lock:
-                    result = self.pipeline(input_text, **pipeline_kwargs)
+                    summary_text = self._generate_summary(input_text, **pipeline_kwargs)
 
-            summary_text = _extract_summary_text_from_pipeline_result(result)
             if not summary_text:
                 return ""
 
@@ -1578,29 +1657,22 @@ class SummaryModel:
                         "Falling back to CPU and retrying..."
                     )
                     try:
-                        # Move model to CPU
-                        self.model = self.model.to("cpu")  # type: ignore[union-attr]
-                        self.device = "cpu"
                         original_device_for_retry = self.device
+                        if self._backend is not None:
+                            self._backend.to("cpu")
+                            self.model = self._backend.model
+                            self.device = self._backend.device
+                        else:
+                            self.model = self.model.to("cpu")  # type: ignore[union-attr]
+                            self.device = "cpu"
                         logger.info(
                             f"Device fallback successful: model moved from "
                             f"{original_device_for_retry} to CPU. Retrying summarization..."
                         )
-                        # Update pipeline device
-                        from transformers import pipeline
-
-                        pipeline_device = -1  # CPU
-                        self.pipeline = pipeline(  # type: ignore[call-overload]
-                            "summarization",
-                            model=self.model,
-                            tokenizer=self.tokenizer,
-                            device=pipeline_device,
-                        )
-                        # Retry summarization on CPU
-                        result = self.pipeline(
-                            text, max_length=max_length, min_length=min_length
-                        )  # type: ignore[call-overload]
-                        return cast(str, result["summary_text"])  # type: ignore[index]
+                        # Retry summarization on CPU with the same generation kwargs.
+                        with self._summarize_lock:
+                            retry_summary = self._generate_summary(input_text, **pipeline_kwargs)
+                        return retry_summary.strip()
                     except Exception as fallback_error:
                         logger.error(
                             f"Device fallback to CPU also failed: {fallback_error}. "
@@ -1629,20 +1701,12 @@ class SummaryModel:
                     time.sleep(wait_time)
                     try:
                         with self._summarize_lock:
-                            # Rebuild pipeline kwargs (may have been modified)
-                            retry_result = self.pipeline(input_text, **pipeline_kwargs)
-                            if isinstance(retry_result, list) and len(retry_result) > 0:
-                                summary_text = retry_result[0].get("summary_text", "")
-                                return cast(str, summary_text).strip()
-                            elif isinstance(retry_result, dict):
-                                summary_text = retry_result.get("summary_text", "")
-                                return cast(str, summary_text).strip()
-                            else:
-                                logger.error(
-                                    f"Retry {attempt + 1}/{max_retries} returned invalid result"
-                                )
-                                if attempt == max_retries - 1:
-                                    return ""
+                            retry_summary = self._generate_summary(input_text, **pipeline_kwargs)
+                            if retry_summary:
+                                return retry_summary.strip()
+                            logger.error(f"Retry {attempt + 1}/{max_retries} returned empty result")
+                            if attempt == max_retries - 1:
+                                return ""
                     except RuntimeError as retry_error:
                         retry_error_msg = str(retry_error).lower()
                         if "already borrowed" in retry_error_msg and attempt < max_retries - 1:
@@ -4449,9 +4513,13 @@ def unload_model(model: Optional[SummaryModel]) -> None:
     if model.pipeline:
         del model.pipeline
 
+    backend = getattr(model, "_backend", None)
+    if backend is not None:
+        backend.unload()
+        model._backend = None
     model.model = None
     model.tokenizer = None
-    model.pipeline = None
+    model.pipeline = False
 
     # Force garbage collection to clean up any remaining references
     # This helps release memory and clean up threads that might be holding references

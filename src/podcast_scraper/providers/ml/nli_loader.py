@@ -1,7 +1,16 @@
 """NLI cross-encoder loader for GIL evidence stack (Issue #435).
 
-Lazy-loads a cross-encoder for premise/hypothesis → entailment score.
-Used to validate that a quote supports an insight.
+Post-#382 Phase E: thin functional wrapper over :class:`NLIEvidenceBackend`
+(in :mod:`.hf_evidence_backend`). The public surface
+(:func:`load_nli_model`, :func:`get_nli_model`, :func:`entailment_score`,
+:func:`entailment_scores_batch`, :func:`predict_output_to_entailment_scores`)
+is preserved so callers and tests do not move.
+
+The load / cache / device-resolution scaffolding used to be duplicated
+across three modules (QA, NLI, embedding). It now lives in the shared
+:class:`HFEvidenceBackend`. Post-processing helpers stay module-local
+because they are NLI-specific (softmax over id2label logits with an
+entailment-class-index sniff).
 """
 
 from __future__ import annotations
@@ -11,21 +20,15 @@ import logging
 import math
 import os
 import threading
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, ClassVar, Dict, List, Optional, Sequence, Tuple
 
-from ...cache import get_transformers_cache_dir
-from .model_registry import ModelRegistry
+from .hf_evidence_backend import HFEvidenceBackend
 
 logger = logging.getLogger(__name__)
 
-# CrossEncoder per (resolved_model_id, device) within the process.
-# Lock prevents concurrent loads that exhaust memory (meta tensor crash on CI).
-_nli_models: Dict[Tuple[str, str], object] = {}
-_nli_models_lock = threading.Lock()
-
 
 def _scalar_to_float(value: object, fallback: float = 0.0) -> float:
-    """Convert tensor or scalar to float; avoid .item() on meta tensors (e.g. GIL + API-only)."""
+    """Convert tensor or scalar to float; avoid .item() on meta tensors."""
     if isinstance(value, (int, float)):
         return float(value)
     if hasattr(value, "item"):
@@ -37,12 +40,11 @@ def _scalar_to_float(value: object, fallback: float = 0.0) -> float:
                 return fallback
             raise
         except ValueError as e:
-            # NumPy: "can only convert an array of size 1 to a Python scalar"
             if "scalar" in str(e).lower() or "size 1" in str(e).lower():
                 logger.debug("Non-scalar score passed to .item()-style conversion: %s", e)
                 return fallback
             raise
-    if hasattr(value, "__len__") and len(value):
+    if hasattr(value, "__len__") and len(value):  # type: ignore[arg-type]
         return _scalar_to_float(value[0], fallback)  # type: ignore[index]
     return fallback
 
@@ -59,8 +61,7 @@ def _entailment_class_index(model: object) -> int:
                     return int(k)
                 except (TypeError, ValueError):
                     continue
-    # MNLI-style three-class: contradiction, neutral, entailment
-    return 2
+    return 2  # MNLI-style: contradiction, neutral, entailment
 
 
 def _softmax(logits: Sequence[float]) -> List[float]:
@@ -76,17 +77,16 @@ def _softmax(logits: Sequence[float]) -> List[float]:
 
 
 def _predict_raw_to_nested_lists(raw: object) -> object:
-    """Turn tensor / ndarray outputs into nested Python lists for uniform parsing."""
     if hasattr(raw, "detach"):
         try:
-            raw = raw.detach().cpu()
+            raw = raw.detach().cpu()  # type: ignore[attr-defined]
         except RuntimeError as e:
             if "meta" in str(e).lower():
                 raise
             raise
     if hasattr(raw, "tolist"):
         try:
-            return raw.tolist()
+            return raw.tolist()  # type: ignore[attr-defined]
         except RuntimeError as e:
             if "meta" in str(e).lower():
                 raise
@@ -95,7 +95,6 @@ def _predict_raw_to_nested_lists(raw: object) -> object:
 
 
 def _rows_from_predict_output(raw: object) -> List[List[float]]:
-    """Normalize CrossEncoder.predict output to one row of floats per premise/hypothesis pair."""
     data = _predict_raw_to_nested_lists(raw)
     if data is None:
         return []
@@ -103,7 +102,6 @@ def _rows_from_predict_output(raw: object) -> List[List[float]]:
         return [[float(data)]]
     if not isinstance(data, list) or len(data) == 0:
         return []
-
     first = data[0]
     if isinstance(first, (list, tuple)):
         return [[float(x) for x in row] for row in data]  # type: ignore[list-item]
@@ -111,7 +109,6 @@ def _rows_from_predict_output(raw: object) -> List[List[float]]:
 
 
 def _row_to_entailment_probability(row: Sequence[float], entail_idx: int) -> float:
-    """Map one row of logits or a single score to P(entailment) in [0, 1]."""
     if not row:
         return 0.0
     if len(row) == 1:
@@ -123,10 +120,7 @@ def _row_to_entailment_probability(row: Sequence[float], entail_idx: int) -> flo
 
 
 def predict_output_to_entailment_scores(raw: object, model: object) -> List[float]:
-    """Convert CrossEncoder.predict output to one float per input pair (entailment probability).
-
-    Handles scalar outputs, shape (3,) logits, (1, 3), (n, 3), and legacy single-logit rows.
-    """
+    """Convert CrossEncoder.predict output to one float per input pair (entailment probability)."""
     try:
         rows = _rows_from_predict_output(raw)
     except RuntimeError as e:
@@ -142,7 +136,7 @@ def predict_output_to_entailment_scores(raw: object, model: object) -> List[floa
 
 @contextlib.contextmanager
 def _silence_ml_nli_inference_noise():
-    """Reduce Hugging Face / hub chatter during CrossEncoder.predict (tqdm, warnings)."""
+    """Reduce Hugging Face / hub chatter during CrossEncoder.predict."""
     env_keys = (
         ("TRANSFORMERS_VERBOSITY", "error"),
         ("HF_HUB_DISABLE_PROGRESS_BARS", "1"),
@@ -179,70 +173,84 @@ def _silence_ml_nli_inference_noise():
                 pass
 
 
-def _get_device(device: Optional[str]) -> str:
-    if device is not None and device.strip():
-        return device.strip().lower()
-    try:
-        import torch
+class NLIEvidenceBackend(HFEvidenceBackend):
+    """sentence-transformers CrossEncoder wrapper.
 
-        if torch.cuda.is_available():
-            return "cuda"
-        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-            return "mps"
-    except ImportError:
-        pass
-    return "cpu"
+    Uses CrossEncoder rather than raw ``AutoModel*`` because our NLI checkpoints
+    are shipped as sentence-transformers cross-encoders and rely on their
+    predict-time post-processing. Load discipline goes through
+    :class:`HFEvidenceBackend`'s cache; the CrossEncoder call signature is
+    sniffed via ``inspect`` (ST 2.x vs 3.x vs 5.x differ on which of
+    ``local_files_only`` / ``cache_folder`` they accept).
+    """
+
+    kind = "nli"
+    mps_supported = True
+
+    _instances: ClassVar[dict] = {}
+    _instances_lock: ClassVar[threading.Lock] = threading.Lock()
+
+    def _load(self) -> None:
+        import inspect
+
+        from sentence_transformers import CrossEncoder
+
+        from ...cache import get_transformers_cache_dir
+
+        cache_dir = str(get_transformers_cache_dir().resolve())
+        ce_params = set(inspect.signature(CrossEncoder.__init__).parameters)
+        ce_kwargs: Dict[str, Any] = {"device": self.device}
+        if "local_files_only" in ce_params:
+            ce_kwargs["local_files_only"] = True
+        if "cache_folder" in ce_params:
+            ce_kwargs["cache_folder"] = cache_dir
+        self.model = CrossEncoder(self.resolved_id, **ce_kwargs)  # nosec B615
+
+    def predict_scores(self, pairs: List[Tuple[str, str]]) -> List[float]:
+        """Return entailment probabilities (0–1) for each (premise, hypothesis) pair."""
+        try:
+            with _silence_ml_nli_inference_noise():
+                raw = self.model.predict(pairs)
+        except RuntimeError as e:
+            if "meta" in str(e).lower():
+                logger.debug("NLI predict failed (meta device): %s", e)
+                return [0.0] * len(pairs)
+            raise
+        scores = predict_output_to_entailment_scores(raw, self.model)
+        if len(scores) != len(pairs):
+            if len(scores) < len(pairs):
+                scores = scores + [0.0] * (len(pairs) - len(scores))
+            else:
+                scores = scores[: len(pairs)]
+        return scores
+
+
+# ---- Module-level thin wrappers (public API preserved) -------------------
+
+
+def _get_nli_backend(model_id: str, device: Optional[str] = None) -> "NLIEvidenceBackend":
+    from typing import cast as _cast
+
+    return _cast(NLIEvidenceBackend, NLIEvidenceBackend.get_or_load(model_id, device=device))
 
 
 def load_nli_model(
     model_id: str,
     device: Optional[str] = None,
 ) -> object:
-    """Load NLI cross-encoder model.
-
-    Args:
-        model_id: Alias (e.g. nli-deberta-base) or full HF ID.
-        device: Device (cpu, cuda, mps) or None for auto.
-
-    Returns:
-        CrossEncoder instance (sentence_transformers).
-    """
-    from sentence_transformers import CrossEncoder
-
-    resolved = ModelRegistry.resolve_evidence_model_id(model_id)
-    dev = _get_device(device)
-    logger.info("Loading NLI model %s on %s", resolved, dev)
-    cache_dir = str(get_transformers_cache_dir().resolve())
-    # ST 3+: local_files_only on CrossEncoder only (not inside tokenizer/model kwargs — duplicate
-    # key error). ST 5.3+: prefer cache_folder + tokenizer_kwargs/model_kwargs over *_args.
-    # ST 2.x: CrossEncoder doesn't accept local_files_only or cache_folder at all.
-    import inspect
-
-    ce_params = set(inspect.signature(CrossEncoder.__init__).parameters)
-    ce_kwargs: Dict[str, Any] = {"device": dev}
-    if "local_files_only" in ce_params:
-        ce_kwargs["local_files_only"] = True
-    if "cache_folder" in ce_params:
-        ce_kwargs["cache_folder"] = cache_dir
-    model = CrossEncoder(resolved, **ce_kwargs)
-    return model
+    """Load NLI CrossEncoder — returns the underlying CrossEncoder instance."""
+    backend = NLIEvidenceBackend(model_id, device=device)
+    backend._ensure_loaded()
+    return backend.model
 
 
 def get_nli_model(
     model_id: str,
     device: Optional[str] = None,
 ) -> object:
-    """Return cached NLI model or load and cache it (lazy, keyed by model + device).
-
-    Thread-safe: prevents concurrent loads that would exhaust memory on CI.
-    """
-    resolved = ModelRegistry.resolve_evidence_model_id(model_id)
-    dev = _get_device(device)
-    key = (resolved, dev)
-    with _nli_models_lock:
-        if key not in _nli_models:
-            _nli_models[key] = load_nli_model(model_id, device=device)
-        return _nli_models[key]
+    """Return cached NLI CrossEncoder or load and cache it (lazy, keyed by model + device)."""
+    backend = _get_nli_backend(model_id, device=device)
+    return backend.model
 
 
 def entailment_score(
@@ -251,31 +259,10 @@ def entailment_score(
     model_id: str,
     device: Optional[str] = None,
 ) -> float:
-    """Score entailment of hypothesis given premise (0–1, higher = more entailment).
-
-    Args:
-        premise: Evidence text (e.g. quote).
-        hypothesis: Claim (e.g. insight).
-        model_id: Model alias or full HF ID.
-        device: Device or None for auto.
-
-    Returns:
-        Entailment probability for the model's entailment class (multi-class NLI) or raw
-        score when the model returns a single logit.
-    """
-    model = get_nli_model(model_id, device=device)
-    try:
-        with _silence_ml_nli_inference_noise():
-            raw = model.predict([[premise, hypothesis]])
-    except RuntimeError as e:
-        if "meta" in str(e).lower():
-            logger.debug("NLI predict failed (meta device): %s", e)
-            return 0.0
-        raise
-    scores = predict_output_to_entailment_scores(raw, model)
-    if not scores:
-        return 0.0
-    return float(scores[0])
+    """Score entailment of hypothesis given premise (0–1, higher = more entailment)."""
+    backend = _get_nli_backend(model_id, device=device)
+    scores = backend.predict_scores([(premise, hypothesis)])
+    return float(scores[0]) if scores else 0.0
 
 
 def entailment_scores_batch(
@@ -284,20 +271,5 @@ def entailment_scores_batch(
     device: Optional[str] = None,
 ) -> List[float]:
     """Batch premise/hypothesis pairs; returns list of entailment scores."""
-    model = get_nli_model(model_id, device=device)
-    try:
-        with _silence_ml_nli_inference_noise():
-            raw = model.predict(pairs)
-    except RuntimeError as e:
-        if "meta" in str(e).lower():
-            logger.debug("NLI batch predict failed (meta device): %s", e)
-            return [0.0] * len(pairs)
-        raise
-    scores = predict_output_to_entailment_scores(raw, model)
-    if len(scores) != len(pairs):
-        # Extremely defensive: pad or trim to match batch size
-        if len(scores) < len(pairs):
-            scores = scores + [0.0] * (len(pairs) - len(scores))
-        else:
-            scores = scores[: len(pairs)]
-    return scores
+    backend = _get_nli_backend(model_id, device=device)
+    return backend.predict_scores(pairs)

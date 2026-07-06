@@ -91,6 +91,38 @@ Implementation:
 + `judge_qwen.yaml`  — Qwen3-30B-A3B pairwise (primary drift phase)
 + `judge_llama.yaml` — Llama-3.3-70B-NVFP4 pairwise (strongest raw judge)
 
+### Trust-matrix finding (2026-07-04): scalar > pairwise on ρ vs cloud
+
+The 2026-07-04 trust-matrix experiment (12 candidates × 10 judge phases,
+scored against a Sonnet-4.6 + GPT-5.4 cloud ground truth — see
+`docs/guides/eval-reports/EVAL_AUTORESEARCH_JUDGE_TRUST_MATRIX_2026_07.md`)
+found that **scalar mode consistently beats pairwise on rank correlation
+against cloud, on the same underlying judge model**:
+
+| Judge model | pairwise ρ vs cloud | scalar ρ vs cloud |
+| --- | ---: | ---: |
+| Qwen3-30B-A3B (`judge_qwen*`) | +0.385 (with severe same-vendor bias — crowned qwen3.5:27b at rank 1 while cloud put it at rank 8) | see next row |
+| Qwen3-Next-80B-A3B (`judge_qwen_next*`) | +0.524 | **+0.727** (real GHA), **+0.958** (same-run) |
+
+**Failure mode of pairwise:** paired comparisons over-index on stylistic
+similarity → same-vendor candidates get a "free style boost". Scalar
+rubric-grading against a fixed 0–1 scale is more stable across vendors.
+
+**Trade-off:** scalar shows grade inflation (0.85–1.00 clustering) so
+absolute separation is weaker than pairwise's 0.0–1.0 range. Ordering is
+still more trustworthy — rank correlation is what matters for a
+leaderboard. Rubric tightening is a follow-up.
+
+**Rule:** new judge configs default to `mode: scalar`. Pairwise stays
+opt-in and needs a paired scalar variant + a ρ vs cloud comparison before
+being promoted to primary.
+
+The current production panel (3 scalar judges, cross-vendor):
+
++ `judge_qwen_next_scalar.yaml` — primary (Qwen3-Next-80B-A3B NVFP4)
++ `judge_gpt_oss_scalar.yaml`   — panel (OpenAI gpt-oss:120b via Ollama)
++ `judge_nemotron_scalar.yaml`  — panel (Nemotron-3-Super-120B-A12B NVFP4)
+
 ---
 
 ## Rubric
@@ -157,6 +189,55 @@ The 0.40 threshold means:
 | 5 (smoke) | ≥ 3 |
 | 10 | ≥ 5 |
 | 25 (benchmark) | ≥ 11 |
+
+---
+
+## Score parser: stripping `</think>` from reasoning-model replies
+
+Reasoning-tuned judges (Nemotron-3-Super, Qwen3-Next with default sampling,
+gpt-oss:120b with `reasoning_effort` set) emit `<think>...</think>{JSON}`
+even in scalar mode. Any code path that extracts a numeric `score` from
+the raw reply MUST strip the `</think>` prefix before regex-matching.
+
+**The bug (2026-07-04):** `_parse_score` in
+`src/podcast_scraper/evaluation/judges/ollama_chat.py` (shared by
+`VllmChatJudge`) did a naive `\d+\.\d+` scan on the full reply. For
+reasoning models the first number matched was inside the CoT trace, not
+the final JSON `score`. Symptoms in the W27 ledger before the fix:
+
+```text
+llama3.1:8b      jM=4.51  (rubric is 0–1; ~5× inflated from CoT digit)
+hermes3:8b       jM=4.54
+mistral:7b       jM=2.65
+qwen3.5:35b      jM=0.9099  (correctly hit the final JSON — the anomaly
+                             that made the bug diagnosable)
+```
+
+After the fix (commit `accfb051`):
+
+```text
+llama3.1:8b      jM=0.8540
+hermes3:8b       jM=0.9140
+mistral:7b       jM=0.9073
+qwen3.5:35b      jM=0.9099  (unchanged)
+```
+
+**The pattern all judge parsers must follow** (canonical implementation
+in `ollama_chat._parse_score`):
+
+1. Try `pairwise._extract_json_object(text)` first — strips `</think>`,
+   code fences, then balanced-brace-scans for the first `{...}`; parse
+   JSON `score` if present.
+2. Fallback: `_THINK_TAG_RE.search(text)`; scope the number regex to
+   `text[m.end():]` if the tag matched, otherwise the full text.
+
+**Testing requirement:** any new judge prompt/rubric that expects a JSON
+`{score: N}` reply MUST land a paired fixture that includes a
+`<think>...</think>{"score": 0.85}` variant — not just a bare `0.85`.
+
+**Review checklist for judge PRs:** grep the diff for `\d+\.\d+` regex
+patterns applied to model output; flag any that aren't scoped past
+`</think>`.
 
 ---
 

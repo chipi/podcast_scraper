@@ -2,7 +2,7 @@
 
 ## Status
 
-**Completed** — Implemented in v2.5
+**Completed** - Implemented in v2.5. Some code examples below (notably the `extract_supporting_quotes` snippet in the GIL-integration section) predate #382 and still show `transformers.pipeline("question-answering")` calls; the shipped implementation goes through `QAEvidenceBackend.answer_top1` (see `providers/ml/extractive_qa.py`). RFC left as-is for archival context.
 
 **Execution Timing:** **Phase 2 of 3** — Implement after
 RFC-044 (Model Registry), before RFC-049 (GIL). This RFC

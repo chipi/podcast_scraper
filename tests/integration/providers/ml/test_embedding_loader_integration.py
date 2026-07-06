@@ -61,7 +61,9 @@ class TestLoadEmbeddingModelIntegration:
             lambda: tmp_path,
         )
         # Clear process-level cache so our fake is used
-        embedding_loader._embedding_models.clear()
+        from podcast_scraper.providers.ml.embedding_loader import EmbeddingEvidenceBackend as _EB
+
+        _EB.clear_cache()
 
         result = embedding_loader.encode(
             "Hello world",
@@ -95,7 +97,9 @@ class TestLoadEmbeddingModelIntegration:
             "podcast_scraper.cache.directories.get_transformers_cache_dir",
             lambda: tmp_path,
         )
-        embedding_loader._embedding_models.clear()
+        from podcast_scraper.providers.ml.embedding_loader import EmbeddingEvidenceBackend as _EB
+
+        _EB.clear_cache()
 
         result = embedding_loader.encode(
             ["text one", "text two", "text three"],
@@ -118,7 +122,9 @@ class TestLoadEmbeddingModelIntegration:
             "podcast_scraper.cache.directories.get_transformers_cache_dir",
             lambda: tmp_path,
         )
-        embedding_loader._embedding_models.clear()
+        from podcast_scraper.providers.ml.embedding_loader import EmbeddingEvidenceBackend as _EB
+
+        _EB.clear_cache()
 
         embedding_loader.load_embedding_model("minilm-l6", device="cpu", allow_download=True)
 
@@ -135,7 +141,9 @@ class TestLoadEmbeddingModelIntegration:
             "podcast_scraper.cache.directories.get_transformers_cache_dir",
             lambda: tmp_path,
         )
-        embedding_loader._embedding_models.clear()
+        from podcast_scraper.providers.ml.embedding_loader import EmbeddingEvidenceBackend as _EB
+
+        _EB.clear_cache()
 
         a = embedding_loader.get_embedding_model("minilm-l6", device="cpu")
         b = embedding_loader.get_embedding_model("minilm-l6", device="cpu")
@@ -154,7 +162,9 @@ class TestLoadEmbeddingModelIntegration:
             "podcast_scraper.cache.directories.get_transformers_cache_dir",
             lambda: tmp_path,
         )
-        embedding_loader._embedding_models.clear()
+        from podcast_scraper.providers.ml.embedding_loader import EmbeddingEvidenceBackend as _EB
+
+        _EB.clear_cache()
 
         embedding_loader.load_embedding_model(
             "sentence-transformers/all-MiniLM-L6-v2",

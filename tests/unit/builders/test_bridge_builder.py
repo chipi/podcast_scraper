@@ -8,7 +8,6 @@ import numpy as np
 import pytest
 
 from podcast_scraper.builders.bridge_builder import build_bridge
-from podcast_scraper.providers.ml import embedding_loader
 
 
 def test_person_gi_only_org_kg_only_topic_both() -> None:
@@ -114,8 +113,17 @@ def test_fuzzy_reconcile_reuses_process_embedding_cache(monkeypatch: pytest.Monk
         loads.append(1)
         return FakeEmbedder()
 
-    monkeypatch.setattr(embedding_loader, "load_embedding_model", fake_load)
-    monkeypatch.setattr(embedding_loader, "_embedding_models", {})
+    # Post-#382 Phase E: cache lives on EmbeddingEvidenceBackend._instances.
+    # Route through the backend's _load seam so get_embedding_model's cache
+    # (via get_or_load) is exercised.
+    from podcast_scraper.providers.ml.embedding_loader import EmbeddingEvidenceBackend
+
+    def fake_backend_load(self):
+        loads.append(1)
+        self.model = FakeEmbedder()
+
+    monkeypatch.setattr(EmbeddingEvidenceBackend, "_load", fake_backend_load)
+    EmbeddingEvidenceBackend.clear_cache()
 
     gi = {
         "nodes": [

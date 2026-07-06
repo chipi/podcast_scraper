@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any, cast, Dict, List, Optional, Protocol
+from typing import Any, Dict, List, Optional, Protocol
 
 from ...cleaning import HybridCleaner, LLMBasedCleaner, PatternBasedCleaner
 from ...cleaning.base import TranscriptCleaningProcessor
@@ -26,6 +26,7 @@ from ...utils.log_redaction import format_exception_for_log
 from ...utils.protocol_verification import verify_protocol_compliance
 from ..ollama.ollama_provider import OllamaProvider
 from . import summarizer
+from .hf_seq2seq_backend import HFSeq2SeqBackend
 from .model_registry import ModelRegistry
 from .summarizer import SummaryModel
 
@@ -63,7 +64,14 @@ class HybridReduceResult:
 
 
 class TransformersReduceBackend:
-    """Tier 1 REDUCE backend using transformers (e.g. FLAN-T5)."""
+    """Tier 1 REDUCE backend using a shared :class:`HFSeq2SeqBackend`.
+
+    Post-#382 Phase F: this class is a thin profile over HFSeq2SeqBackend.
+    It owns the reduce-side prompt shape ("<instruction>\n\nNOTES:\n<notes>")
+    and its own default GenerationConfig; everything else — load, device
+    handling, snapshot-first cache discovery, generate() — lives on the
+    shared backend.
+    """
 
     def __init__(
         self,
@@ -74,118 +82,25 @@ class TransformersReduceBackend:
         self.model_name = model_name
         self.device = device
         self.cache_dir = cache_dir
-        self._pipeline: Any = None
+        self._backend: Optional[HFSeq2SeqBackend] = None
 
     def initialize(self) -> None:
-        """Load tokenizer and seq2seq model; build the text2text-generation pipeline."""
-        if self._pipeline is not None:
+        """Load tokenizer and seq2seq model onto the resolved device."""
+        if self._backend is not None and self._backend._loaded:
             return
 
-        # Lazy imports to keep base imports light
-        import torch
-        from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, pipeline
-
-        device = self.device
-        if device is None:
-            if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-                device = "mps"
-            elif torch.cuda.is_available():
-                device = "cuda"
-            else:
-                device = "cpu"
-
-        # Use the same offline-by-default behavior as the rest of the local ML stack.
-        from pathlib import Path
-
-        from ...cache import (
-            get_transformers_cache_dir,
-            get_transformers_snapshot_path,
-        )
         from ...config_constants import get_pinned_revision_for_model
 
-        effective_cache_dir = self.cache_dir
-        if effective_cache_dir is None:
-            effective_cache_dir = str(get_transformers_cache_dir())
-        cache_path = Path(effective_cache_dir)
-
         revision = get_pinned_revision_for_model(self.model_name)
-        # FLAN-T5 pinned revision may be PyTorch-only (no safetensors)
-        model_lower = self.model_name.lower()
-        use_safetensors = "flan-t5" not in model_lower
-        tokenizer_kw: Dict[str, Any] = dict(
-            cache_dir=effective_cache_dir,
-            local_files_only=True,
-            trust_remote_code=False,
-            use_safetensors=use_safetensors,
+        self._backend = HFSeq2SeqBackend(
+            model_id=self.model_name,
+            device=self.device,
+            revision=revision,
+            cache_dir=self.cache_dir,
         )
-        if revision:
-            tokenizer_kw["revision"] = revision
-        tokenizer = AutoTokenizer.from_pretrained(self.model_name, **tokenizer_kw)  # nosec B615
-
-        # Prefer loading from snapshot directory to avoid transformers checkpoint
-        # discovery bugs (e.g. checkpoint_files[0] None with PyTorch-only cache).
-        snapshot_path = get_transformers_snapshot_path(
-            self.model_name, revision=revision, cache_dir=cache_path
-        )
-        if snapshot_path is None and revision:
-            snapshot_path = get_transformers_snapshot_path(
-                self.model_name, revision=None, cache_dir=cache_path
-            )
-        if snapshot_path is not None:
-            # Resolve to absolute path so symlinks in the snapshot resolve correctly
-            snapshot_str = str(snapshot_path.resolve())
-            try:
-                model = AutoModelForSeq2SeqLM.from_pretrained(
-                    snapshot_str,
-                    local_files_only=True,
-                    trust_remote_code=False,
-                    use_safetensors=use_safetensors,
-                )  # nosec B615
-            except OSError as e:
-                if "no file named" in str(e):
-                    # Pinned revision snapshot may exist but lack weights; try main
-                    fallback = get_transformers_snapshot_path(
-                        self.model_name, revision=None, cache_dir=cache_path
-                    )
-                    if fallback is not None and fallback != snapshot_path:
-                        logger.warning(
-                            "Snapshot %s missing model weights (%s); loading from main.",
-                            snapshot_path.name,
-                            e,
-                        )
-                        # Main snapshot often has safetensors; try True for fallback
-                        model = AutoModelForSeq2SeqLM.from_pretrained(
-                            str(fallback.resolve()),
-                            local_files_only=True,
-                            trust_remote_code=False,
-                            use_safetensors=True,
-                        )  # nosec B615
-                    else:
-                        raise
-                else:
-                    raise
-        else:
-            model_kw: Dict[str, Any] = dict(
-                cache_dir=effective_cache_dir,
-                local_files_only=True,
-                trust_remote_code=False,
-                use_safetensors=use_safetensors,
-            )
-            if revision:
-                model_kw["revision"] = revision
-            model = AutoModelForSeq2SeqLM.from_pretrained(self.model_name, **model_kw)  # nosec B615
-
-        if device in ("mps", "cuda"):
-            model = model.to(device)
-        pipeline_device = 0 if device == "cuda" else "mps" if device == "mps" else -1
-        # transformers 5.x overloads are stricter; runtime call is valid
-        _pipe = cast(Any, pipeline)
-        self._pipeline = _pipe(
-            "text2text-generation",
-            model=model,
-            tokenizer=tokenizer,
-            device=pipeline_device,
-        )
+        self._backend.load()
+        # Backend may have coerced device (MPS→CPU on fallback) — mirror it.
+        self.device = self._backend.device
 
     def reduce(
         self,
@@ -194,36 +109,32 @@ class TransformersReduceBackend:
         params: Optional[Dict[str, Any]] = None,
     ) -> HybridReduceResult:
         """Run seq2seq generation on instruction plus NOTES (MAP output)."""
-        if self._pipeline is None:
+        if self._backend is None:
             raise RuntimeError(
                 "TransformersReduceBackend not initialized. Call initialize() first."
             )
 
-        params = params or {}
-        max_new_tokens = int(params.get("max_new_tokens") or 600)
-        num_beams = int(params.get("num_beams") or 4)
-        do_sample = bool(params.get("do_sample") or False)
+        from transformers import GenerationConfig
 
-        prompt = f"{instruction.strip()}\n\nNOTES:\n{notes.strip()}"
-        outputs = self._pipeline(
-            prompt,
-            max_new_tokens=max_new_tokens,
-            num_beams=num_beams,
-            do_sample=do_sample,
+        params = params or {}
+        gen_cfg = GenerationConfig(
+            max_new_tokens=int(params.get("max_new_tokens") or 600),
+            num_beams=int(params.get("num_beams") or 4),
+            do_sample=bool(params.get("do_sample") or False),
         )
-        if not outputs:
-            return HybridReduceResult(text="", backend="transformers", model=self.model_name)
-        # transformers returns list[{"generated_text": "..."}]
+        prompt = f"{instruction.strip()}\n\nNOTES:\n{notes.strip()}"
+        text = self._backend.generate(prompt, gen_cfg)
         return HybridReduceResult(
-            text=str(outputs[0].get("generated_text", "")).strip(),
+            text=text,
             backend="transformers",
             model=self.model_name,
         )
 
     def cleanup(self) -> None:
-        """Drop the pipeline reference for garbage collection."""
-        # Best-effort cleanup (avoid heavy torch imports if not needed)
-        self._pipeline = None
+        """Drop the backend for garbage collection."""
+        if self._backend is not None:
+            self._backend.unload()
+        self._backend = None
 
 
 class OllamaReduceBackend:
