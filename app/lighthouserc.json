@@ -1,0 +1,35 @@
+{
+  "//": "Lighthouse CI config for the consumer Learning Player. Runs against the prod preview built by `npm run build`; PWA + Performance categories are the gates. See .github/workflows/python-app.yml :: app-lighthouse.",
+  "ci": {
+    "collect": {
+      "//": "Serve dist/ statically on :4174 (matches vite preview default); LHCI boots this itself.",
+      "staticDistDir": "./dist",
+      "//startServerCommand": "npm run preview -- --port 4174 --strictPort --host 127.0.0.1 --outDir dist",
+      "url": ["http://localhost/index.html"],
+      "settings": {
+        "//": "PWA install prompt requires interaction — the audit runs in a headless simulator so the install-prompt check is best-effort. We still enforce icon/manifest/SW discovery.",
+        "preset": "desktop",
+        "chromeFlags": "--no-sandbox --headless"
+      },
+      "numberOfRuns": 1
+    },
+    "assert": {
+      "assertions": {
+        "//_pwa_gate": "Individual PWA audits — precise enough to fail on the specific traps the shipping guide calls out. `categories:pwa` is deprecated in modern Lighthouse in favor of these audits.",
+        "installable-manifest": ["error", { "minScore": 1 }],
+        "service-worker": ["error", { "minScore": 1 }],
+        "themed-omnibox": ["error", { "minScore": 1 }],
+        "maskable-icon": ["error", { "minScore": 1 }],
+        "apple-touch-icon": ["error", { "minScore": 1 }],
+        "viewport": ["error", { "minScore": 1 }],
+        "//_perf_gate": "Performance is a warn-only floor — we care about not regressing catastrophically, not chasing 100.",
+        "categories:performance": ["warn", { "minScore": 0.8 }],
+        "categories:accessibility": ["warn", { "minScore": 0.9 }],
+        "categories:best-practices": ["warn", { "minScore": 0.9 }]
+      }
+    },
+    "upload": {
+      "target": "temporary-public-storage"
+    }
+  }
+}
