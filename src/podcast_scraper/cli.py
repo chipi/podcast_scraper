@@ -3605,6 +3605,85 @@ def _parse_kg_args(kg_argv: Sequence[str]) -> argparse.Namespace:
     return args
 
 
+def _parse_pipeline_argv(
+    argv: Optional[Sequence[str]], *, ingest: bool = False
+) -> argparse.Namespace:
+    """Build + parse the full pipeline arg surface (the default run, and #1069 ``ingest``).
+
+    Shared by the default pipeline command and the ``ingest`` subcommand so the
+    latter inherits the entire arg surface — most importantly ``--profile`` /
+    ``--config`` resolution and every ML flag — instead of re-declaring it.
+
+    ``ingest=True`` adds ``--force`` and marks the namespace as the ``ingest``
+    subcommand, forcing single-feed corpus layout on so the feed lands under
+    ``<corpus>/feeds/<dir>/`` and the corpus manifest is stamped (what the
+    ingestion primitive's dedup + merge depend on).
+    """
+    parser = argparse.ArgumentParser(
+        description="Download podcast episode transcripts from an RSS feed."
+    )
+
+    # Add argument groups
+    _add_common_arguments(parser)
+    _add_transcription_arguments(parser)
+    _add_preprocessing_arguments(parser)
+    _add_metadata_arguments(parser)
+    _add_speaker_detection_arguments(parser)
+    _add_summarization_arguments(parser)
+    _add_openai_arguments(parser)
+    _add_gemini_arguments(parser)
+    _add_anthropic_arguments(parser)
+    _add_mistral_arguments(parser)
+    _add_deepgram_arguments(parser)
+    _add_diarization_arguments(parser)
+    _add_pipeline_stage_arguments(parser)
+    _add_deepseek_arguments(parser)
+    _add_grok_arguments(parser)
+    _add_ollama_arguments(parser)
+    _add_cache_arguments(parser)
+    if ingest:
+        parser.add_argument(
+            "--force",
+            action="store_true",
+            help="Re-ingest even when the feed is already in the corpus (incremental).",
+        )
+
+    initial_args, _ = parser.parse_known_args(argv)
+
+    if initial_args.version:
+        print(f"podcast_scraper {__version__}")
+        raise SystemExit(0)
+
+    # Resolve --profile NAME to its YAML path and route through
+    # _load_and_merge_config — same path as --config. Without this, argparse
+    # defaults (e.g. --summary-provider's default "transformers") silently
+    # override profile values, and users of cloud_balanced/cloud_quality got
+    # 13 wrong fields (#646 real-episode audit).
+    effective_config_path: Optional[str] = initial_args.config
+    if not effective_config_path and getattr(initial_args, "profile", None):
+        profile_name = str(initial_args.profile).strip()
+        from pathlib import Path as _P
+
+        candidate = (
+            _P(__file__).resolve().parents[2] / "config" / "profiles" / f"{profile_name}.yaml"
+        )
+        if candidate.is_file():
+            effective_config_path = str(candidate)
+
+    if effective_config_path:
+        args = _load_and_merge_config(parser, effective_config_path, argv)
+    else:
+        args = parser.parse_args(argv)
+        _attach_cli_merge_metadata(parser, argv, args)
+
+    if ingest:
+        args.command = "ingest"
+        args.single_feed_uses_corpus_layout = True
+
+    validate_args(args)
+    return args
+
+
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     """Parse CLI arguments, optionally merging configuration file defaults."""
     # Check if first argument is "gi" subcommand (#438)
@@ -3733,60 +3812,14 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         args.command = "pricing-assumptions"
         return args
 
-    # Normal parsing for main command
-    parser = argparse.ArgumentParser(
-        description="Download podcast episode transcripts from an RSS feed."
-    )
+    if argv and len(argv) > 0 and argv[0] == "ingest":
+        # #1069: the pipeline run routed through the ingestion primitive (policy
+        # seam + feed-level dedup + corpus manifest stamp). Reuses the full
+        # pipeline arg surface so --profile / ML settings apply exactly as a run.
+        return _parse_pipeline_argv(list(argv[1:]) if len(argv) > 1 else [], ingest=True)
 
-    # Add argument groups
-    _add_common_arguments(parser)
-    _add_transcription_arguments(parser)
-    _add_preprocessing_arguments(parser)
-    _add_metadata_arguments(parser)
-    _add_speaker_detection_arguments(parser)
-    _add_summarization_arguments(parser)
-    _add_openai_arguments(parser)
-    _add_gemini_arguments(parser)
-    _add_anthropic_arguments(parser)
-    _add_mistral_arguments(parser)
-    _add_deepgram_arguments(parser)
-    _add_diarization_arguments(parser)
-    _add_pipeline_stage_arguments(parser)
-    _add_deepseek_arguments(parser)
-    _add_grok_arguments(parser)
-    _add_ollama_arguments(parser)
-    _add_cache_arguments(parser)
-
-    initial_args, _ = parser.parse_known_args(argv)
-
-    if initial_args.version:
-        print(f"podcast_scraper {__version__}")
-        raise SystemExit(0)
-
-    # Resolve --profile NAME to its YAML path and route through
-    # _load_and_merge_config — same path as --config. Without this, argparse
-    # defaults (e.g. --summary-provider's default "transformers") silently
-    # override profile values, and users of cloud_balanced/cloud_quality got
-    # 13 wrong fields (#646 real-episode audit).
-    effective_config_path: Optional[str] = initial_args.config
-    if not effective_config_path and getattr(initial_args, "profile", None):
-        profile_name = str(initial_args.profile).strip()
-        from pathlib import Path as _P
-
-        candidate = (
-            _P(__file__).resolve().parents[2] / "config" / "profiles" / f"{profile_name}.yaml"
-        )
-        if candidate.is_file():
-            effective_config_path = str(candidate)
-
-    if effective_config_path:
-        args = _load_and_merge_config(parser, effective_config_path, argv)
-    else:
-        args = parser.parse_args(argv)
-        _attach_cli_merge_metadata(parser, argv, args)
-
-    validate_args(args)
-    return args
+    # Normal parsing for the main pipeline command.
+    return _parse_pipeline_argv(argv)
 
 
 def _build_config_for_feed(
@@ -4672,6 +4705,36 @@ def _run_corpus_cost_cli(args: argparse.Namespace, log: logging.Logger) -> int:
     return 0
 
 
+def _run_ingest_command(args: argparse.Namespace) -> int:
+    """Ingest one feed into a corpus via the ingestion primitive (#1069).
+
+    Builds the pipeline Config from the shared arg surface, then routes it
+    through ``ingest_feed`` — the operator path uses ``AllowAllPolicy`` (no
+    guardrails); the phase-2 self-serve surface will pass a per-user policy into
+    the same seam. Returns 0 on ingest / already-present, 1 on failure.
+    """
+    from podcast_scraper import service
+    from podcast_scraper.ingestion import AllowAllPolicy, ingest_feed
+    from podcast_scraper.ingestion.primitive import STATUS_FAILED
+
+    cfg = _build_config(args)
+    result = ingest_feed(
+        cfg,
+        run=service.run,
+        policy=AllowAllPolicy(),
+        force=bool(getattr(args, "force", False)),
+    )
+    print(
+        f"[ingest] {result.status}: {result.feed_url} → feeds/{result.feed_dir} "
+        f"(episodes_added={result.episodes_added})"
+    )
+    if result.summary:
+        print(f"[ingest] {result.summary}")
+    if result.error:
+        print(f"[ingest] error: {result.error}")
+    return 1 if result.status == STATUS_FAILED else 0
+
+
 def main(  # noqa: C901 - main function handles multiple command paths
     argv: Optional[Sequence[str]] = None,
     *,
@@ -4743,6 +4806,10 @@ def main(  # noqa: C901 - main function handles multiple command paths
             check_network=getattr(args, "check_network", False),
             check_models=getattr(args, "check_models", False),
         )
+
+    # #1069: ingest one feed into a corpus through the ingestion primitive.
+    if hasattr(args, "command") and args.command == "ingest":
+        return _run_ingest_command(args)
 
     if hasattr(args, "command") and args.command == "corpus-status":
         import json as _json
