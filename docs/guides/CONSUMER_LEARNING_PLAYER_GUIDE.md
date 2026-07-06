@@ -1,6 +1,6 @@
 # Consumer Learning Player — feature guide
 
-The consumer app (`app/`, a Vue 3 PWA) is the end-user **Learning Player**: listen → understand →
+The consumer app (`web/learning-player/`, a Vue 3 PWA) is the end-user **Learning Player**: listen → understand →
 **remember**. It is a thin client of the auth-gated `/api/app/*` API (RFC-098), entirely separate
 from the operator GI/KG viewer. This guide is the single orientation for the "Remember" half —
 **Capture** (PRD-040) and **Consolidation** (PRD-041) — and how they fit together.
@@ -64,10 +64,10 @@ user's own experience.
   `scripts/build_app_validation_corpus.py` — now carrying RFC-088 enrichment envelopes), served by
   the real API with **no mocks**; per-user state goes to a gitignored `APP_DATA_DIR`.
 - CI must never call a real LLM; recall/connections/resurfacing are deterministic + extractive.
-- **App CI jobs** (`.github/workflows/python-app.yml`, path-A gated on `app/**`):
+- **App CI jobs** (`.github/workflows/python-app.yml`, path-A gated on `web/learning-player/**`):
   `app-unit` (Vitest with coverage gate), `app-e2e` (Playwright + real API), `app-lighthouse`
   (LHCI PWA audit — hard-fails on missing/broken manifest, SW, maskable icon, apple-touch-icon,
-  viewport, themed omnibox). See `app/lighthouserc.json` for the gates.
+  viewport, themed omnibox). See `web/learning-player/lighthouserc.json` for the gates.
 
 ## PWA shipping notes
 
@@ -76,16 +76,16 @@ the specific traps in the shipping guide (`docs/guides/PWA_SHIPPING_GUIDE.md` if
 the source in `docs/wip/` before v2.8):
 
 - **Icons.** `icon-192.png`, `icon-512.png`, `maskable-512.png` (Android crop safe-zone),
-  `apple-touch-icon-180.png` for iOS. Fixtures live in `app/public/`. Missing icons silently
+  `apple-touch-icon-180.png` for iOS. Fixtures live in `web/learning-player/public/`. Missing icons silently
   break Chrome's install prompt and produce a broken glyph on iOS home-screens — regression
-  guarded by `app/e2e/pwa.spec.ts`.
+  guarded by `web/learning-player/e2e/pwa.spec.ts`.
 - **Runtime cache bounds.** Audio is never cached (bridge-never-rehost); artwork
   is `CacheFirst` with 500-entry × 30d expiration; shared GET `/api/app/*` is `SWR` with
   200-entry × 7d expiration; per-user `/me` / `/queue` / `/playback` / `/auth` are excluded.
   All caches are bounded — an unbounded cache eventually gets the whole SW evicted (iOS
   punishes this hardest).
 - **Update path.** `registerType: 'prompt'` — a visible "New version available — Reload"
-  toast replaces the silent-update stall. See `app/src/composables/usePwaUpdate.ts` +
+  toast replaces the silent-update stall. See `web/learning-player/src/composables/usePwaUpdate.ts` +
   `PwaUpdateToast.vue`. Update checks fire on tab refocus and every 15 min.
 - **Debugging updates.** `window.__buildInfo = { sha, time }` and a
   `console.info('[app] Learning Player build=…')` line at boot give every client a

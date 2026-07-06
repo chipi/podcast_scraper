@@ -53,7 +53,7 @@ this spec** — they do not re-invent navigation, layering, or saving.
 
 ## Shared style classes — define once, use everywhere
 
-Recurring affordances are **single classes in `app/src/style.css`**, not per-element Tailwind
+Recurring affordances are **single classes in `web/learning-player/src/style.css`**, not per-element Tailwind
 hand-rolled on each page. Adding a one-off `class="text-muted …"` for one of these is a regression.
 
 | Class | Role |

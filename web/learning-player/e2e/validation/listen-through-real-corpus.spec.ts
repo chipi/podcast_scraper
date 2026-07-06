@@ -3,12 +3,12 @@ import { expect, test } from '@playwright/test'
 /**
  * Tier-3 — full listen-through against a real backend + real corpus.
  *
- * Regular app-e2e (`app/e2e/full-listen.spec.ts`) exercises the same
+ * Regular app-e2e (`web/learning-player/e2e/full-listen.spec.ts`) exercises the same
  * chain against the committed synthetic corpus. Tier-3 is the DRIFT
  * gate: same walk, real corpus, screenshotted per step, sequential.
  *
  * Assumes `make serve-for-validation` is already up (see
- * `app/e2e/validation/README.md`). Operator-driven corpus via
+ * `web/learning-player/e2e/validation/README.md`). Operator-driven corpus via
  * `APP_CORPUS_PATH`; nightly CI defaults to the synthetic fixture.
  */
 

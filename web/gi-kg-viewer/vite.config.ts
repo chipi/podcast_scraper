@@ -20,7 +20,7 @@ export default defineConfig({
         // changeOrigin:false preserves the Host (localhost:5173) so the API builds
         // SAME-ORIGIN OAuth callback URLs — otherwise the mock/Google sign-in redirect
         // lands on the API origin (127.0.0.1:8000) and the lp_oauth_state cookie is set
-        // on the wrong host → "Invalid OAuth state". (Matches app/vite.config.ts.)
+        // on the wrong host → "Invalid OAuth state". (Matches web/learning-player/vite.config.ts.)
         changeOrigin: false,
       },
     },

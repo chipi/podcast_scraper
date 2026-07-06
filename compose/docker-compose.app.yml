@@ -2,7 +2,7 @@
 #
 # Adds the consumer app as its OWN container, independent of the operator viewer + API
 # images. It serves the PWA on its own port and proxies /api → the `api` service over the
-# shared compose network (see app/nginx.conf). It proxies NO audio — the client plays origin
+# shared compose network (see web/learning-player/nginx.conf). It proxies NO audio — the client plays origin
 # enclosure URLs directly (bridge-never-rehost). One API → this web PWA + a future mobile app.
 #
 # Use WITH the stack compose so the `api` service exists:

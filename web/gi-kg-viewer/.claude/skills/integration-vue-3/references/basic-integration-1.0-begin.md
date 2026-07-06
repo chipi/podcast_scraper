@@ -11,7 +11,7 @@ From the project's file list, select between 10 and 15 files that might have int
 
 Look for opportunities to track client-side events.
 
-**IMPORTANT: Server-side events are REQUIRED** if the project includes any instrumentable server-side code. If the project has API routes (e.g., `app/api/**/route.ts`) or Server Actions, you MUST include server-side events for critical business operations like:
+**IMPORTANT: Server-side events are REQUIRED** if the project includes any instrumentable server-side code. If the project has API routes (e.g., `web/learning-player/api/**/route.ts`) or Server Actions, you MUST include server-side events for critical business operations like:
 
   - Payment/checkout completion
   - Webhook handlers

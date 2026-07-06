@@ -20,7 +20,7 @@ PYTEST_PROGRESS_OPTS := -o console_output_style=classic
 WEB_VIEWER_DIR ?= web/gi-kg-viewer
 
 # Consumer Learning Player (Vue + Vite + Playwright; Epic 2 / RFC-099). Separate top-level app.
-APP_DIR ?= app
+APP_DIR ?= web/learning-player
 
 # GIL Quote vs indexed transcript chunk offset gate (#528 Phase 5). ``make verify-gil-offsets-strict`` uses these.
 # Override for CI or another indexed corpus: GIL_OFFSET_VERIFY_DIR=/path/to/corpus-root make verify-gil-offsets-strict

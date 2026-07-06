@@ -9,7 +9,7 @@
 ## Goal
 
 Ship a **player-first vertical slice**, fast, as the consumer MVP: a mobile-first, installable PWA
-(`app/`) that lets a signed-in user **browse the local catalog → play an episode with transcript-sync →
+(`web/learning-player/`) that lets a signed-in user **browse the local catalog → play an episode with transcript-sync →
 read grounded intelligence inline → queue more**. Over **local content only** (already-processed corpus).
 Discovery/scrape-on-demand (#1069), audio proxy (#1070), and Capture (PRD-040) are **after** the app ships.
 
@@ -40,7 +40,7 @@ These are not a final task — they are acceptance criteria on **each** task fro
 | S1 | **Catalog list endpoints** `GET /api/app/episodes`, `GET /api/app/podcasts/{id}/episodes` behind a pluggable `ContentSource` / `LocalCorpusSource` | The central net-new server work. Episode-summary shape per PRD-036. `DiscoverySource` (#1069) extends the same contract later — no UI/API reshape. Full pytest pyramid. |
 | S2 | **`MockOAuthProvider`** (dev/e2e) alongside Google | Same `OAuthProvider` protocol (RFC-098 §2); env-selected (`APP_OAUTH_PROVIDER=mock`), never prod. Unblocks deterministic local sign-in + e2e. |
 
-### Client (`app/` — new top-level Vue 3 project)
+### Client (`web/learning-player/` — new top-level Vue 3 project)
 
 | # | Task | Notes |
 | - | ---- | ----- |

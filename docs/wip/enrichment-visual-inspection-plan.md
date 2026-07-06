@@ -12,7 +12,7 @@ timeline chart. **Supersedes** the 2026-07-01 prod-pilot version of this file
 - API serving prod-v2: `--output-dir .test_outputs/manual/prod-v2/corpus` on `:8000` (via `make serve`).
 - **Viewer** (`:5173`, `web/gi-kg-viewer`): open with the absolute corpus path; sign in as **admin**
   (ada-admin) so the operator Enrichment panel is reachable. To re-establish after a reload: List → Graph → close the Corpus-artifacts modal.
-- **Player** (`:5174`, `app/`): sign in as any dev user.
+- **Player** (`:5174`, `web/learning-player/`): sign in as any dev user.
 
 ## The enricher roster (master reference)
 
@@ -99,7 +99,7 @@ enrichment endpoints. Two dedicated player endpoints exist but are **unused by t
 `GET /api/app/episodes/{slug}/enrichment` and `GET /api/app/corpus/enrichment` (`routes/app_enrichment.py`).
 
 > Watch-out: the player scrubber's insight-density ticks come from `Insight.confidence`
-> (`app/src/player/insightMarkers.ts`), **not** the `insight_density` enricher — don't mistake that for wiring.
+> (`web/learning-player/src/player/insightMarkers.ts`), **not** the `insight_density` enricher — don't mistake that for wiring.
 
 Where each enricher *would* add consumer value (candidates, not built):
 

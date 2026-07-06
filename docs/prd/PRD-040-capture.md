@@ -121,11 +121,11 @@ query parameter, not a path segment. As shipped (`src/podcast_scraper/server/rou
 
 | FR | Shipped as | Where |
 | --- | --- | --- |
-| FR1.1 moment | One-tap "mark this moment" in the player hero (tags the active speaker) | `app/src/views/PlayerView.vue`, `#1116` |
+| FR1.1 moment | One-tap "mark this moment" in the player hero (tags the active speaker) | `web/learning-player/src/views/PlayerView.vue`, `#1116` |
 | FR1.2 span | Save a transcript **line** (segment-granular) **or a selected phrase** — `selectionSubRange()` reads the live selection for exact char offsets + verbatim quote | `TranscriptList.vue` (`canCapture`) + `player/transcriptCapture.ts`, `#1116` + delta |
-| FR1.3 insight | "Save to highlights" on each Knowledge-panel insight card (keeps `source_insight_id` grounding) | `app/src/components/KnowledgePanel.vue`, `#1116` |
+| FR1.3 insight | "Save to highlights" on each Knowledge-panel insight card (keeps `source_insight_id` grounding) | `web/learning-player/src/components/KnowledgePanel.vue`, `#1116` |
 | FR1.4 colour | Fixed palette (amber/rose/sky/emerald/violet): per-highlight swatch picker + coloured card border; `color` via `PATCH` | `HighlightsView.vue` + `utils/highlightColors.ts`, delta |
-| FR2 notes | Add / edit / delete plain-text notes per highlight in the Library view | `app/src/views/HighlightsView.vue`, `#1117` |
+| FR2 notes | Add / edit / delete plain-text notes per highlight in the Library view | `web/learning-player/src/views/HighlightsView.vue`, `#1117` |
 | FR3 grounding | `highlight` + `note` records exactly per FR3.1/FR3.2; per-user JSON files | `src/podcast_scraper/server/app_user_state.py`, `#1114` |
 | FR3.1a re-anchor | `reanchor_highlight()` re-locates positional fields by timestamp; a drifted span is flagged (`anchor_status`), never dropped (RFC-098 §7) | `app_user_state.py`, `#1114` |
 | FR4.1 per-episode | Highlights grouped by episode with jump-to-moment (`?t=`) | `HighlightsView.vue`, `#1117` |

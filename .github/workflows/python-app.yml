@@ -149,7 +149,7 @@ jobs:
             - 'web/gi-kg-viewer/**'
             - 'docker/viewer/**'
           app:
-            - 'app/**'
+            - 'web/learning-player/**'
             - '.github/workflows/python-app.yml'
           stack-profiles:
             - 'config/profiles/**'
@@ -534,7 +534,7 @@ jobs:
         npm run test:coverage
 
   # ===========================================================================
-  # Consumer Learning Player (app/) — unit + e2e + Lighthouse PWA gate.
+  # Consumer Learning Player (web/learning-player/) — unit + e2e + Lighthouse PWA gate.
   #
   # Path-A gated: only runs when app/ or this workflow change. Same tiering as
   # viewer-unit / viewer-e2e:
@@ -556,14 +556,14 @@ jobs:
       with:
         node-version: "22"
         cache: "npm"
-        cache-dependency-path: app/package-lock.json
+        cache-dependency-path: web/learning-player/package-lock.json
     - name: Install dependencies
       run: |
-        cd app
+        cd web/learning-player
         npm ci
     - name: Run Vitest unit tests with coverage gate
       run: |
-        cd app
+        cd web/learning-player
         # test:coverage runs vitest with --coverage; thresholds in vite.config.ts
         # fail the job if consumer-app coverage regresses (mirrors viewer-unit).
         npm run test:coverage
@@ -596,15 +596,15 @@ jobs:
       with:
         node-version: "22"
         cache: "npm"
-        cache-dependency-path: app/package-lock.json
+        cache-dependency-path: web/learning-player/package-lock.json
     - name: Install app dependencies + Playwright browsers
       run: |
-        cd app
+        cd web/learning-player
         npm ci
         npx playwright install --with-deps chromium
     - name: Run Playwright E2E (real API + preview)
       run: |
-        cd app
+        cd web/learning-player
         npm run test:e2e
 
   # Lighthouse PWA + Performance gate. Guide §6: "ideally gated in CI".
@@ -625,20 +625,20 @@ jobs:
       with:
         node-version: "22"
         cache: "npm"
-        cache-dependency-path: app/package-lock.json
+        cache-dependency-path: web/learning-player/package-lock.json
     - name: Install dependencies
       run: |
-        cd app
+        cd web/learning-player
         npm ci
     - name: Install Lighthouse CI
       run: npm install -g @lhci/cli@0.14.x
     - name: Build the app (prod bundle for the audit)
       run: |
-        cd app
+        cd web/learning-player
         npm run build
     - name: Run Lighthouse against the prod preview
       run: |
-        cd app
+        cd web/learning-player
         lhci autorun --config=./lighthouserc.json
       env:
         # Prevent LHCI from trying to upload to a public server on PRs.

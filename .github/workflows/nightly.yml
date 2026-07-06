@@ -851,7 +851,7 @@ jobs:
         with:
           node-version: "22"
           cache: "npm"
-          cache-dependency-path: app/package-lock.json
+          cache-dependency-path: web/learning-player/package-lock.json
 
       - name: Install podcast_scraper (for ``podcast_scraper serve``)
         run: |
@@ -862,15 +862,15 @@ jobs:
           .venv/bin/pip install -e ".[dev]"
 
       - name: Install app dependencies
-        working-directory: app
+        working-directory: web/learning-player
         run: npm ci
 
       - name: Install Playwright browsers (chromium)
-        working-directory: app
+        working-directory: web/learning-player
         run: npx playwright install --with-deps chromium
 
       - name: Build the app (prod bundle for the preview server)
-        working-directory: app
+        working-directory: web/learning-player
         run: npm run build
 
       - name: Start API server against the app-validation-corpus
@@ -890,7 +890,7 @@ jobs:
           APP_DATA_DIR: /tmp/tier3-app-data
 
       - name: Start app preview on :5175
-        working-directory: app
+        working-directory: web/learning-player
         run: |
           nohup npm run preview -- --port 5175 --strictPort --host 127.0.0.1 \
             > ../tier3-app-preview.log 2>&1 &
@@ -915,7 +915,7 @@ jobs:
 
       - name: Run Tier-3 app validation walk
         id: tier3app
-        working-directory: app
+        working-directory: web/learning-player
         run: |
           npx playwright test --config playwright.validation.config.ts \
             --reporter=list 2>&1 | tee ../tier3-app-output.log
@@ -937,7 +937,7 @@ jobs:
         with:
           name: tier3-app-validation-failures
           path: |
-            app/validation-results/
+            web/learning-player/validation-results/
             tier3-app-output.log
             tier3-app-api.log
             tier3-app-preview.log
