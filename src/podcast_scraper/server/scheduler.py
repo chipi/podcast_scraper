@@ -18,9 +18,10 @@ V1 schedule shape (Shape A from #708 — extend ``viewer_operator.yaml``)::
         cron: "0 4 * * *"
         enabled: true
 
-Per-schedule overrides (``profile``, ``feeds``, ``max_episodes``) are V2
-work. Each schedule reuses the corpus's standing ``viewer_operator.yaml`` +
-``feeds.spec.yaml`` exactly the way a manual viewer-triggered run does.
+Each schedule carries a ``kind`` (``pipeline`` | ``enrichment``, #1069) and
+otherwise reuses the corpus's standing ``viewer_operator.yaml`` +
+``feeds.spec.yaml`` exactly the way a manual viewer-triggered run does. Other
+per-schedule overrides (``profile``, ``feeds``, ``max_episodes``) remain V2 work.
 """
 
 from __future__ import annotations
