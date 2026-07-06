@@ -814,6 +814,180 @@ jobs:
           exit 1
 
   # ===========================================================================
+  # Tier-3 consumer-app validation (mirrors nightly-tier3-validation for the
+  # viewer). Runs the real-backend Playwright walk against the committed
+  # app-validation-corpus/v2 fixture — screenshots + logs upload as an
+  # artifact, and a deduped ``tier3-app-regression`` issue is auto-filed
+  # on scheduled failures.
+  #
+  # Separate from ``app-e2e`` in python-app.yml: that's the fast per-PR
+  # gate against a preview build. This is the drift detector against a
+  # production-shape serve, running sequentially with screenshots on
+  # every step for post-hoc inspection.
+  # ===========================================================================
+  nightly-tier3-app-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [nightly-lint, nightly-build]
+    if: |
+      always() &&
+      needs.nightly-lint.result == 'success' &&
+      needs.nightly-build.result == 'success'
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python 3.11 (for the real API server)
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11.8"
+          cache: "pip"
+          cache-dependency-path: pyproject.toml
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install podcast_scraper (for ``podcast_scraper serve``)
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          # [dev] pulls FastAPI + uvicorn — same install shape as app-e2e.
+          # NO [ml] — Tier-3 walks a served corpus, it doesn't index.
+          .venv/bin/pip install -e ".[dev]"
+
+      - name: Install app dependencies
+        working-directory: app
+        run: npm ci
+
+      - name: Install Playwright browsers (chromium)
+        working-directory: app
+        run: npx playwright install --with-deps chromium
+
+      - name: Build the app (prod bundle for the preview server)
+        working-directory: app
+        run: npm run build
+
+      - name: Start API server against the app-validation-corpus
+        run: |
+          # Background the API so subsequent steps can hit it. The
+          # committed app-validation-corpus/v2 is the default; an
+          # operator-driven run overrides via APP_CORPUS_PATH env.
+          nohup .venv/bin/python -m podcast_scraper.cli serve \
+            --output-dir tests/fixtures/app-validation-corpus/v2 \
+            --port 8000 --host 127.0.0.1 \
+            > tier3-app-api.log 2>&1 &
+          echo $! > tier3-app-api.pid
+        env:
+          APP_OAUTH_PROVIDER: mock
+          APP_SESSION_SECRET: tier3-app-secret
+          APP_SIGNUP_MODE: open
+          APP_DATA_DIR: /tmp/tier3-app-data
+
+      - name: Start app preview on :5175
+        working-directory: app
+        run: |
+          nohup npm run preview -- --port 5175 --strictPort --host 127.0.0.1 \
+            > ../tier3-app-preview.log 2>&1 &
+          echo $! > ../tier3-app-preview.pid
+        env:
+          VITE_API_TARGET: http://127.0.0.1:8000
+
+      - name: Wait for API + app preview to come up
+        run: |
+          for i in $(seq 1 60); do
+            api=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/api/health || echo 000)
+            ui=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:5175/ || echo 000)
+            if [ "$api" = "200" ] && [ "$ui" = "200" ]; then
+              echo "API + app preview ready after ${i}s"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "ERROR: services did not come up within 120s"
+          cat tier3-app-api.log tier3-app-preview.log || true
+          exit 1
+
+      - name: Run Tier-3 app validation walk
+        id: tier3app
+        working-directory: app
+        run: |
+          npx playwright test --config playwright.validation.config.ts \
+            --reporter=list 2>&1 | tee ../tier3-app-output.log
+        continue-on-error: true
+
+      - name: Stop background servers
+        if: always()
+        run: |
+          if [ -f tier3-app-api.pid ]; then
+            kill "$(cat tier3-app-api.pid)" 2>/dev/null || true
+          fi
+          if [ -f tier3-app-preview.pid ]; then
+            kill "$(cat tier3-app-preview.pid)" 2>/dev/null || true
+          fi
+
+      - name: Upload artifacts on failure
+        if: steps.tier3app.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tier3-app-validation-failures
+          path: |
+            app/validation-results/
+            tier3-app-output.log
+            tier3-app-api.log
+            tier3-app-preview.log
+          retention-days: 30
+
+      - name: File auto-issue on regression
+        if: steps.tier3app.outcome == 'failure' && github.event_name == 'schedule'
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const date = new Date().toISOString().slice(0, 10);
+            const title = `Tier-3 app validation regression on ${date}`;
+            // Dedup: comment on existing open ``tier3-app-regression`` issue
+            // rather than filing a new one.
+            const existing = await github.rest.issues.listForRepo({
+              owner, repo, state: 'open', labels: 'tier3-app-regression',
+              per_page: 5,
+            });
+            if (existing.data.length > 0) {
+              const issueNumber = existing.data[0].number;
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: issueNumber,
+                body: `Tier-3 app validation failed again on ${date} (run ${context.runId}). ` +
+                      `[See logs](https://github.com/${owner}/${repo}/actions/runs/${context.runId}).`,
+              });
+              return;
+            }
+            await github.rest.issues.create({
+              owner, repo, title,
+              labels: ['tier3-app-regression', 'bug', 'app'],
+              body: [
+                `Tier-3 consumer-app validation walk failed on the scheduled nightly run.`,
+                '',
+                `**Date:** ${date}`,
+                `**Run:** [${context.runId}](https://github.com/${owner}/${repo}/actions/runs/${context.runId})`,
+                `**Corpus:** \`tests/fixtures/app-validation-corpus/v2\` (committed synthetic)`,
+                '',
+                'Screenshots + logs are attached to the run under the',
+                '`tier3-app-validation-failures` artifact.',
+              ].join('\n'),
+            });
+
+      - name: Fail the workflow if validation failed
+        if: steps.tier3app.outcome == 'failure'
+        run: |
+          echo "Tier-3 app validation regressed. See logs + issue."
+          exit 1
+
+  # ===========================================================================
   # Nightly-only tests - production models, full podcast suite
   # Only runs after unit, integration, E2E, and viewer tests pass (expensive, run as final stage)
   # ===========================================================================
