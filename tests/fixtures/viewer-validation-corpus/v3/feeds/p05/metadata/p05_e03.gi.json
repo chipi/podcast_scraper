@@ -89,6 +89,88 @@
       "from": "insight:0c71912f39d5ea24",
       "to": "quote:169cfc017f5b477c",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:a36f67a4094b7883",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:759a81a4a80000ed",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a36f67a4094b7883",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a36f67a4094b7883",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a36f67a4094b7883",
+      "to": "topic:great-to-be-back",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:759a81a4a80000ed",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:759a81a4a80000ed",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:759a81a4a80000ed",
+      "to": "topic:great-to-be-back",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:0c71912f39d5ea24",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:0c71912f39d5ea24",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:0c71912f39d5ea24",
+      "to": "topic:great-to-be-back",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "7f877683-ea36-55d1-94f7-a5cc051ff3d0",
@@ -102,7 +184,7 @@
         "metadata_relative_path": "feeds/p05/metadata/p05_e03.metadata.json",
         "podcast_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
         "publish_date": "2026-07-04T12:00:00",
-        "title": "Long Horizon Notes \u2014 Episode 3"
+        "title": "Long Horizon Notes — Episode 3"
       },
       "type": "Episode"
     },
@@ -135,7 +217,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today we're talking about macro policy, and I'm joined by Scott Bessett, hedge fund manager and policy adviser."
+        "text": "Today we're talking about macro policy, and I'm joined by Scott Bessett, hedge fund manager and policy adviser.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +228,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Scott Bessett, thanks for being here."
+        "text": "Scott Bessett, thanks for being here.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +239,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "This episode is brought to you by Bloomberg."
+        "text": "This episode is brought to you by Bloomberg.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -220,7 +308,7 @@
         "char_start": 397,
         "episode_id": "7f877683-ea36-55d1-94f7-a5cc051ff3d0",
         "speaker_id": "person:speaker-01",
-        "text": "Before we get into it \u2014 Rich Clarida was on last week \u2014 the same point about credibility applies here.",
+        "text": "Before we get into it — Rich Clarida was on last week — the same point about credibility applies here.",
         "timestamp_end_ms": 24000,
         "timestamp_start_ms": 18000,
         "transcript_ref": "transcripts/p05_e03.txt"
@@ -248,7 +336,7 @@
         "char_start": 580,
         "episode_id": "7f877683-ea36-55d1-94f7-a5cc051ff3d0",
         "speaker_id": "person:speaker-01",
-        "text": "I want to flag something \u2014 Rich Clarida mentioned this same dynamic a couple episodes back.",
+        "text": "I want to flag something — Rich Clarida mentioned this same dynamic a couple episodes back.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p05_e03.txt"
@@ -257,5 +345,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

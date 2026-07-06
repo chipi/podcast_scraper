@@ -89,6 +89,88 @@
       "from": "insight:4ffbe5c7c22eb6f9",
       "to": "quote:61fce2a8159ecc2c",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:61a85862bae0b079",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:b60f322bd7c4cff3",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:61a85862bae0b079",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:61a85862bae0b079",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:61a85862bae0b079",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b60f322bd7c4cff3",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b60f322bd7c4cff3",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b60f322bd7c4cff3",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:4ffbe5c7c22eb6f9",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:4ffbe5c7c22eb6f9",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:4ffbe5c7c22eb6f9",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
@@ -102,7 +184,7 @@
         "metadata_relative_path": "feeds/p09/metadata/p09_e01.metadata.json",
         "podcast_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
         "publish_date": "2026-07-04T12:00:00",
-        "title": "The Long View: Biohacking \u2014 Episode 1"
+        "title": "The Long View: Biohacking — Episode 1"
       },
       "type": "Episode"
     },
@@ -135,7 +217,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "# Cross-Show \u2014 Episode\n## Systems Thinking, Two Years Later\nHost: Sam\nGuest: Dr."
+        "text": "# Cross-Show — Episode\n## Systems Thinking, Two Years Later\nHost: Sam\nGuest: Dr.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +228,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Elena Fischer\n#fixture-v3: failure_modes=recurring_guest,position_arc_multi,multi_accent\n#fixture-v3: voice=de-DE host_voice=en-US\nSam: Welcome back to Cross-Show."
+        "text": "Elena Fischer\n#fixture-v3: failure_modes=recurring_guest,position_arc_multi,multi_accent\n#fixture-v3: voice=de-DE host_voice=en-US\nSam: Welcome back to Cross-Show.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +239,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today we're talking about systems thinking, and I'm joined by Dr."
+        "text": "Today we're talking about systems thinking, and I'm joined by Dr.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -192,7 +280,7 @@
         "char_start": 202,
         "episode_id": "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
         "speaker_id": "person:speaker-02",
-        "text": "Thanks, Sam. Excited for this one \u2014 systems thinking is something I've been thinking about a lot.",
+        "text": "Thanks, Sam. Excited for this one — systems thinking is something I've been thinking about a lot.",
         "timestamp_end_ms": 12000,
         "timestamp_start_ms": 6000,
         "transcript_ref": "transcripts/p09_e01.txt"
@@ -220,7 +308,7 @@
         "char_start": 443,
         "episode_id": "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
         "speaker_id": "person:speaker-02",
-        "text": "In our 2024 conversation I was more optimistic about top-down interventions. I've revised that \u2014 the work happens at the seams.",
+        "text": "In our 2024 conversation I was more optimistic about top-down interventions. I've revised that — the work happens at the seams.",
         "timestamp_end_ms": 24000,
         "timestamp_start_ms": 18000,
         "transcript_ref": "transcripts/p09_e01.txt"
@@ -257,5 +345,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

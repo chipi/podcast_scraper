@@ -89,6 +89,88 @@
       "from": "insight:7788c7979bba9b23",
       "to": "quote:a8c86960afd73962",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:f29f852b16200f08",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:f29f852b16200f08",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:f7788fdbd1a6a930",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:f7788fdbd1a6a930",
+      "to": "topic:diversify-or",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:f7788fdbd1a6a930",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:f29f852b16200f08",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:f29f852b16200f08",
+      "to": "topic:diversify-or",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:f29f852b16200f08",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:7788c7979bba9b23",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:7788c7979bba9b23",
+      "to": "topic:diversify-or",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:7788c7979bba9b23",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
@@ -102,7 +184,7 @@
         "metadata_relative_path": "feeds/p05/metadata/p05_e04.metadata.json",
         "podcast_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
         "publish_date": "2026-07-02T12:00:00",
-        "title": "Long Horizon Notes \u2014 Episode 4"
+        "title": "Long Horizon Notes — Episode 4"
       },
       "type": "Episode"
     },
@@ -135,7 +217,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "# Long Horizon Notes \u2014 Episode\n## The Risk Panel: Diversify or Concentrate?"
+        "text": "# Long Horizon Notes — Episode\n## The Risk Panel: Diversify or Concentrate?",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +228,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Nora\nGuest: Daniel Cho\n#fixture-v3: failure_modes=high_person_density\n#fixture-v3: voice=en-US host_voice=en-US\nNora: Welcome back to Long Horizon Notes."
+        "text": "Nora\nGuest: Daniel Cho\n#fixture-v3: failure_modes=high_person_density\n#fixture-v3: voice=en-US host_voice=en-US\nNora: Welcome back to Long Horizon Notes.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +239,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today is a debate \u2014 one question, two people who genuinely disagree."
+        "text": "Today is a debate — one question, two people who genuinely disagree.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -171,7 +259,7 @@
         "char_start": 6,
         "episode_id": "d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
         "speaker_id": "person:speaker-01",
-        "text": "Welcome back to Long Horizon Notes. Today is a debate \u2014 one question, two people who genuinely disagree. I'm joined by Daniel Cho, who runs a low-cost index practice, and Scott Bessent, a hedge fund manager who's built his career on concentrated bets. Welcome, both.",
+        "text": "Welcome back to Long Horizon Notes. Today is a debate — one question, two people who genuinely disagree. I'm joined by Daniel Cho, who runs a low-cost index practice, and Scott Bessent, a hedge fund manager who's built his career on concentrated bets. Welcome, both.",
         "timestamp_end_ms": 6000,
         "timestamp_start_ms": 0,
         "transcript_ref": "transcripts/p05_e04.txt"
@@ -227,7 +315,7 @@
         "char_start": 396,
         "episode_id": "d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
         "speaker_id": "person:speaker-01",
-        "text": "Before we dig in \u2014 today's episode is sponsored by Vanguard. Vanguard pioneered low-cost index funds. Try vanguard.com today.",
+        "text": "Before we dig in — today's episode is sponsored by Vanguard. Vanguard pioneered low-cost index funds. Try vanguard.com today.",
         "timestamp_end_ms": 24000,
         "timestamp_start_ms": 18000,
         "transcript_ref": "transcripts/p05_e04.txt"
@@ -241,7 +329,7 @@
         "char_start": 521,
         "episode_id": "d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
         "speaker_id": "person:speaker-01",
-        "text": "Here's the proposition: for an ordinary investor, is diversification the answer \u2014 or a way to hide from decisions you should be making? Daniel, you first.",
+        "text": "Here's the proposition: for an ordinary investor, is diversification the answer — or a way to hide from decisions you should be making? Daniel, you first.",
         "timestamp_end_ms": 30000,
         "timestamp_start_ms": 24000,
         "transcript_ref": "transcripts/p05_e04.txt"
@@ -255,7 +343,7 @@
         "char_start": 688,
         "episode_id": "d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
         "speaker_id": "person:speaker-02",
-        "text": "For an individual investor, diversification is the closest thing to a free lunch that exists. You give up almost nothing, and you remove the single biggest way people ruin themselves \u2014 one position going to zero at the worst possible time.",
+        "text": "For an individual investor, diversification is the closest thing to a free lunch that exists. You give up almost nothing, and you remove the single biggest way people ruin themselves — one position going to zero at the worst possible time.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p05_e04.txt"
@@ -264,5 +352,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

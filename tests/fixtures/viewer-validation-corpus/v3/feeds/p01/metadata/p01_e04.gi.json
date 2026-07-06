@@ -89,6 +89,93 @@
       "from": "insight:ddd65689a99a0f26",
       "to": "quote:c81152ac90f31fbf",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:9d169ef5f1a9f0d9",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:9d169ef5f1a9f0d9",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:b48adb2454ae4000",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9d169ef5f1a9f0d9",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9d169ef5f1a9f0d9",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9d169ef5f1a9f0d9",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b48adb2454ae4000",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b48adb2454ae4000",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b48adb2454ae4000",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:ddd65689a99a0f26",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:ddd65689a99a0f26",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:ddd65689a99a0f26",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
@@ -102,7 +189,7 @@
         "metadata_relative_path": "feeds/p01/metadata/p01_e04.metadata.json",
         "podcast_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
         "publish_date": "2026-07-06T12:00:00",
-        "title": "Singletrack Sessions \u2014 Episode 4"
+        "title": "Singletrack Sessions — Episode 4"
       },
       "type": "Episode"
     },
@@ -135,7 +222,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "# Singletrack Sessions \u2014 Episode\n## The Risk You Didn't Name\nHost: Maya\nGuest: Sophie Laurent\n#fixture-v3: voice=en-US host_voice=en-US\nMaya: Welcome back to Singletrack Sessions."
+        "text": "# Singletrack Sessions — Episode\n## The Risk You Didn't Name\nHost: Maya\nGuest: Sophie Laurent\n#fixture-v3: voice=en-US host_voice=en-US\nMaya: Welcome back to Singletrack Sessions.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +233,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "I'm with Sophie Laurent, enduro racer and coach."
+        "text": "I'm with Sophie Laurent, enduro racer and coach.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +244,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today's episode is sponsored by Strava."
+        "text": "Today's episode is sponsored by Strava.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -234,7 +327,7 @@
         "char_start": 353,
         "episode_id": "4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
         "speaker_id": "person:speaker-02",
-        "text": "It's risk management, honestly. The crash that ends your season is almost never the scary-looking one \u2014 it's the boring risk you didn't name. Name the risk before it names you, and half the danger goes away.",
+        "text": "It's risk management, honestly. The crash that ends your season is almost never the scary-looking one — it's the boring risk you didn't name. Name the risk before it names you, and half the danger goes away.",
         "timestamp_end_ms": 30000,
         "timestamp_start_ms": 24000,
         "transcript_ref": "transcripts/p01_e04.txt"
@@ -257,5 +350,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

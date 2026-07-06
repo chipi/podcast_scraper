@@ -89,6 +89,74 @@
       "from": "insight:5292734b89031e6e",
       "to": "quote:2c9ee67b988837bf",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:cd8fad2cc97d5375",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:ff1874aa7449f3fc",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:5292734b89031e6e",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:5292734b89031e6e",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cd8fad2cc97d5375",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cd8fad2cc97d5375",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:ff1874aa7449f3fc",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:ff1874aa7449f3fc",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:5292734b89031e6e",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:5292734b89031e6e",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "d24c1620-8d16-54dd-b681-2f2e06c0b579",
@@ -102,7 +170,7 @@
         "metadata_relative_path": "feeds/p09/metadata/p09_e02.metadata.json",
         "podcast_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
         "publish_date": "2026-07-02T12:00:00",
-        "title": "The Long View: Biohacking \u2014 Episode 2"
+        "title": "The Long View: Biohacking — Episode 2"
       },
       "type": "Episode"
     },
@@ -135,7 +203,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today we're talking about macroeconomics, and I'm joined by Skanda Amarnauth, returning macro economist."
+        "text": "Today we're talking about macroeconomics, and I'm joined by Skanda Amarnauth, returning macro economist.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +214,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Skanda Amarnauth, thanks for being here."
+        "text": "Skanda Amarnauth, thanks for being here.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +225,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Skanda Amarnauth: Thanks, Sam."
+        "text": "Skanda Amarnauth: Thanks, Sam.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -220,7 +294,7 @@
         "char_start": 385,
         "episode_id": "d24c1620-8d16-54dd-b681-2f2e06c0b579",
         "speaker_id": "person:speaker-01",
-        "text": "Before we get into it \u2014 Dr. Elena Fisher was on last week revisiting her 2024 position.",
+        "text": "Before we get into it — Dr. Elena Fisher was on last week revisiting her 2024 position.",
         "timestamp_end_ms": 24000,
         "timestamp_start_ms": 18000,
         "transcript_ref": "transcripts/p09_e02.txt"
@@ -248,7 +322,7 @@
         "char_start": 555,
         "episode_id": "d24c1620-8d16-54dd-b681-2f2e06c0b579",
         "speaker_id": "person:speaker-01",
-        "text": "I want to flag something \u2014 Dr. Elena Fisher mentioned this same dynamic a couple episodes back.",
+        "text": "I want to flag something — Dr. Elena Fisher mentioned this same dynamic a couple episodes back.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p09_e02.txt"
@@ -257,5 +331,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

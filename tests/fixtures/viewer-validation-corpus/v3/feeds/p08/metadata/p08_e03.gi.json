@@ -89,6 +89,83 @@
       "from": "insight:db9acd5ee7759839",
       "to": "quote:8a3a65f24d8b6a17",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:e55eab16ac96317b",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:43448d7f5f7fe6eb",
+      "to": "topic:environment",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:43448d7f5f7fe6eb",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:43448d7f5f7fe6eb",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e55eab16ac96317b",
+      "to": "topic:environment",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e55eab16ac96317b",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e55eab16ac96317b",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:db9acd5ee7759839",
+      "to": "topic:environment",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:db9acd5ee7759839",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:db9acd5ee7759839",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "1c0614c2-9f65-5fd5-9340-ab8c6059d014",
@@ -102,7 +179,7 @@
         "metadata_relative_path": "feeds/p08/metadata/p08_e03.metadata.json",
         "podcast_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
         "publish_date": "2026-07-01T12:00:00",
-        "title": "The Long View \u2014 Episode 3"
+        "title": "The Long View — Episode 3"
       },
       "type": "Episode"
     },
@@ -135,7 +212,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "# Public Hour \u2014 Episode\n## The Desk That Never Sleeps\nHost: A."
+        "text": "# Public Hour — Episode\n## The Desk That Never Sleeps\nHost: A.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +223,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "correspondent\nGuest: Renee Montagne-Park\n#fixture-v3: failure_modes=zero_host_ner\n#fixture-v3: voice=en-US host_voice=en-US\nA."
+        "text": "correspondent\nGuest: Renee Montagne-Park\n#fixture-v3: failure_modes=zero_host_ner\n#fixture-v3: voice=en-US host_voice=en-US\nA.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +234,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "correspondent: Welcome back to Public Hour."
+        "text": "correspondent: Welcome back to Public Hour.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -234,7 +317,7 @@
         "char_start": 533,
         "episode_id": "1c0614c2-9f65-5fd5-9340-ab8c6059d014",
         "speaker_id": "person:speaker-02",
-        "text": "Yeah, so \u2014 A newsroom is a reliability system with a deadline. We've seen this play out at teams using BBC. The framing matters because it tells you which trade-offs you're making.",
+        "text": "Yeah, so — A newsroom is a reliability system with a deadline. We've seen this play out at teams using BBC. The framing matters because it tells you which trade-offs you're making.",
         "timestamp_end_ms": 30000,
         "timestamp_start_ms": 24000,
         "transcript_ref": "transcripts/p08_e03.txt"
@@ -257,5 +340,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

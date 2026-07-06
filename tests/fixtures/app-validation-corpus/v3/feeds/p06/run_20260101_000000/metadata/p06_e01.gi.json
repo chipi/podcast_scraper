@@ -156,7 +156,7 @@
       "id": "insight:cc2e4424701733c3",
       "properties": {
         "confidence": 0.7,
-        "grounded": true,
+        "grounded": false,
         "text": "Thanks, Cam. Excited for this one \u2014 dialogue and conversational drift is something I've been thinking about a lot."
       },
       "type": "Insight"

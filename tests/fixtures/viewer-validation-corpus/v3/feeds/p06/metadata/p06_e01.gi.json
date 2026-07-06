@@ -89,6 +89,88 @@
       "from": "insight:2cf8f4744b6d684d",
       "to": "quote:9073a3b4f9bdf3c6",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:738c0d8597e80be9",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:49ceee537c0fbff7",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:738c0d8597e80be9",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:738c0d8597e80be9",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:738c0d8597e80be9",
+      "to": "topic:excited-for-this-one",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:49ceee537c0fbff7",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:49ceee537c0fbff7",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:49ceee537c0fbff7",
+      "to": "topic:excited-for-this-one",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2cf8f4744b6d684d",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2cf8f4744b6d684d",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2cf8f4744b6d684d",
+      "to": "topic:excited-for-this-one",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
@@ -102,7 +184,7 @@
         "metadata_relative_path": "feeds/p06/metadata/p06_e01.metadata.json",
         "podcast_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
         "publish_date": "2026-07-01T12:00:00",
-        "title": "Edge Cases Podcast \u2014 Episode 1"
+        "title": "Edge Cases Podcast — Episode 1"
       },
       "type": "Episode"
     },
@@ -135,7 +217,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic."
+        "text": "Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +228,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Jordan Park, thanks for being here."
+        "text": "Jordan Park, thanks for being here.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +239,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Excited for this one \u2014 dialogue and conversational drift is something I've been thinking about a lot."
+        "text": "Excited for this one — dialogue and conversational drift is something I've been thinking about a lot.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -192,7 +280,7 @@
         "char_start": 171,
         "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
         "speaker_id": "person:speaker-02",
-        "text": "Thanks, Cam. Excited for this one \u2014 dialogue and conversational drift is something I've been thinking about a lot.",
+        "text": "Thanks, Cam. Excited for this one — dialogue and conversational drift is something I've been thinking about a lot.",
         "timestamp_end_ms": 12000,
         "timestamp_start_ms": 6000,
         "transcript_ref": "transcripts/p06_e01.txt"
@@ -234,7 +322,7 @@
         "char_start": 499,
         "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
         "speaker_id": "person:speaker-02",
-        "text": "Yeah, so \u2014 There's something about the way conversations actually unfold that essays can't capture. We've seen this play out at teams using Patreon. Once you internalize that, the rest of the decisions get easier.",
+        "text": "Yeah, so — There's something about the way conversations actually unfold that essays can't capture. We've seen this play out at teams using Patreon. Once you internalize that, the rest of the decisions get easier.",
         "timestamp_end_ms": 30000,
         "timestamp_start_ms": 24000,
         "transcript_ref": "transcripts/p06_e01.txt"
@@ -257,5 +345,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

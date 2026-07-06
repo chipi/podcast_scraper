@@ -89,6 +89,88 @@
       "from": "insight:c518a18d27687d5d",
       "to": "quote:22abbda494e85081",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:7eb4aef5d719f5c8",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:ed902be0b7b87d7e",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:7eb4aef5d719f5c8",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:7eb4aef5d719f5c8",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:7eb4aef5d719f5c8",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:ed902be0b7b87d7e",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:ed902be0b7b87d7e",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:ed902be0b7b87d7e",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c518a18d27687d5d",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c518a18d27687d5d",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c518a18d27687d5d",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
@@ -102,7 +184,7 @@
         "metadata_relative_path": "feeds/p01/metadata/p01_e02.metadata.json",
         "podcast_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
         "publish_date": "2026-07-04T12:00:00",
-        "title": "Singletrack Sessions \u2014 Episode 2"
+        "title": "Singletrack Sessions — Episode 2"
       },
       "type": "Episode"
     },
@@ -135,7 +217,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today we're talking about enduro racing, and I'm joined by Sophie Lorenz, enduro racer and coach."
+        "text": "Today we're talking about enduro racing, and I'm joined by Sophie Lorenz, enduro racer and coach.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +228,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Sophie Lorenz, thanks for being here."
+        "text": "Sophie Lorenz, thanks for being here.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +239,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today's episode is sponsored by Linear."
+        "text": "Today's episode is sponsored by Linear.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -206,7 +294,7 @@
         "char_start": 233,
         "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
         "speaker_id": "person:speaker-01",
-        "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first. Try linear.com today.",
+        "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed — keyboard-first. Try linear.com today.",
         "timestamp_end_ms": 18000,
         "timestamp_start_ms": 12000,
         "transcript_ref": "transcripts/p01_e02.txt"
@@ -220,7 +308,7 @@
         "char_start": 356,
         "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
         "speaker_id": "person:speaker-01",
-        "text": "Before we get into it \u2014 Liam Verbeck was on the show talking about how drainage is the single highest-leverage design choice.",
+        "text": "Before we get into it — Liam Verbeck was on the show talking about how drainage is the single highest-leverage design choice.",
         "timestamp_end_ms": 24000,
         "timestamp_start_ms": 18000,
         "transcript_ref": "transcripts/p01_e02.txt"
@@ -248,7 +336,7 @@
         "char_start": 562,
         "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
         "speaker_id": "person:speaker-01",
-        "text": "I want to flag something \u2014 Liam Verbeck mentioned this same dynamic a couple episodes back.",
+        "text": "I want to flag something — Liam Verbeck mentioned this same dynamic a couple episodes back.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p01_e02.txt"
@@ -257,5 +345,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

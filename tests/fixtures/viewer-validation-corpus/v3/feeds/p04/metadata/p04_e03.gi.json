@@ -89,6 +89,88 @@
       "from": "insight:1f363af5c9b5d0ec",
       "to": "quote:a77ea824848f5d67",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:4c10d2d79f5222d3",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:772e9d7736e683de",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:4c10d2d79f5222d3",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:4c10d2d79f5222d3",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:4c10d2d79f5222d3",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:772e9d7736e683de",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:772e9d7736e683de",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:772e9d7736e683de",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:1f363af5c9b5d0ec",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:1f363af5c9b5d0ec",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:1f363af5c9b5d0ec",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "e1743bda-76ff-5586-9e39-3fa45e41ef9a",
@@ -102,7 +184,7 @@
         "metadata_relative_path": "feeds/p04/metadata/p04_e03.metadata.json",
         "podcast_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
         "publish_date": "2026-07-05T12:00:00",
-        "title": "Frame & Light \u2014 Episode 3"
+        "title": "Frame & Light — Episode 3"
       },
       "type": "Episode"
     },
@@ -135,7 +217,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today we're talking about lighting design, and I'm joined by Daniel Olufemi, commercial lighting director."
+        "text": "Today we're talking about lighting design, and I'm joined by Daniel Olufemi, commercial lighting director.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +228,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Daniel Olufemi, thanks for being here."
+        "text": "Daniel Olufemi, thanks for being here.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +239,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "This episode is brought to you by Adobe."
+        "text": "This episode is brought to you by Adobe.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -257,5 +345,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

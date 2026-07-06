@@ -89,6 +89,88 @@
       "from": "insight:0c71912f39d5ea24",
       "to": "quote:aa793b85c8937bd5",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:1e6285578a4f89ab",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:2a5aa3355fd1377d",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:1e6285578a4f89ab",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:1e6285578a4f89ab",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:1e6285578a4f89ab",
+      "to": "topic:fed-vice-chair",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2a5aa3355fd1377d",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2a5aa3355fd1377d",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2a5aa3355fd1377d",
+      "to": "topic:fed-vice-chair",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:0c71912f39d5ea24",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:0c71912f39d5ea24",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:0c71912f39d5ea24",
+      "to": "topic:fed-vice-chair",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
@@ -102,7 +184,7 @@
         "metadata_relative_path": "feeds/p05/metadata/p05_e02.metadata.json",
         "podcast_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
         "publish_date": "2026-07-06T12:00:00",
-        "title": "Long Horizon Notes \u2014 Episode 2"
+        "title": "Long Horizon Notes — Episode 2"
       },
       "type": "Episode"
     },
@@ -135,7 +217,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today we're talking about monetary policy, and I'm joined by Rich Clarida, former Fed vice chair."
+        "text": "Today we're talking about monetary policy, and I'm joined by Rich Clarida, former Fed vice chair.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +228,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Rich Clarida, thanks for being here."
+        "text": "Rich Clarida, thanks for being here.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +239,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "This episode is brought to you by Bloomberg."
+        "text": "This episode is brought to you by Bloomberg.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -220,7 +308,7 @@
         "char_start": 381,
         "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
         "speaker_id": "person:speaker-01",
-        "text": "Before we get into it \u2014 Daniel Choh was on episode 1 making the case for behavioral discipline.",
+        "text": "Before we get into it — Daniel Choh was on episode 1 making the case for behavioral discipline.",
         "timestamp_end_ms": 24000,
         "timestamp_start_ms": 18000,
         "transcript_ref": "transcripts/p05_e02.txt"
@@ -248,7 +336,7 @@
         "char_start": 556,
         "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
         "speaker_id": "person:speaker-01",
-        "text": "I want to flag something \u2014 Daniel Choh mentioned this same dynamic a couple episodes back.",
+        "text": "I want to flag something — Daniel Choh mentioned this same dynamic a couple episodes back.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p05_e02.txt"
@@ -257,5 +345,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

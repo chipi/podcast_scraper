@@ -89,6 +89,93 @@
       "from": "insight:7cc4cbf5f2e79fce",
       "to": "quote:d392ea797c5fd961",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:b7a61e52be922c8a",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:24fe8b9d030c34f2",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:7cc4cbf5f2e79fce",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b7a61e52be922c8a",
+      "to": "topic:environment",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b7a61e52be922c8a",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b7a61e52be922c8a",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:24fe8b9d030c34f2",
+      "to": "topic:environment",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:24fe8b9d030c34f2",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:24fe8b9d030c34f2",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:7cc4cbf5f2e79fce",
+      "to": "topic:environment",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:7cc4cbf5f2e79fce",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:7cc4cbf5f2e79fce",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "a6d9a4a0-6c21-5c3e-ba1f-3fb5fdb79207",
@@ -102,7 +189,7 @@
         "metadata_relative_path": "feeds/p07/metadata/p07_e03.metadata.json",
         "podcast_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
         "publish_date": "2026-07-02T12:00:00",
-        "title": "The Long View \u2014 Episode 3"
+        "title": "The Long View — Episode 3"
       },
       "type": "Episode"
     },
@@ -135,7 +222,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "# The Long View \u2014 Sustainability \u2014 Episode\n## Sustainability Is a Systems Problem\nHost: Alex Morgan\nGuest: Dr."
+        "text": "# The Long View — Sustainability — Episode\n## Sustainability Is a Systems Problem\nHost: Alex Morgan\nGuest: Dr.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +233,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Elena Fischer\n#fixture-v3: voice=de-DE host_voice=en-AU\nAlex Morgan: Welcome back to The Long View."
+        "text": "Elena Fischer\n#fixture-v3: voice=de-DE host_voice=en-AU\nAlex Morgan: Welcome back to The Long View.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +244,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "I'm Alex Morgan, and my guest is Dr."
+        "text": "I'm Alex Morgan, and my guest is Dr.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -234,7 +327,7 @@
         "char_start": 417,
         "episode_id": "a6d9a4a0-6c21-5c3e-ba1f-3fb5fdb79207",
         "speaker_id": "person:speaker-02",
-        "text": "Because it hides the hard part. Sustainability is a systems problem \u2014 you cannot optimize one part without moving another. Fix emissions in isolation and you push the cost into water, or land, or the grid. The interactions are the whole story.",
+        "text": "Because it hides the hard part. Sustainability is a systems problem — you cannot optimize one part without moving another. Fix emissions in isolation and you push the cost into water, or land, or the grid. The interactions are the whole story.",
         "timestamp_end_ms": 30000,
         "timestamp_start_ms": 24000,
         "transcript_ref": "transcripts/p07_e03.txt"
@@ -257,5 +350,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

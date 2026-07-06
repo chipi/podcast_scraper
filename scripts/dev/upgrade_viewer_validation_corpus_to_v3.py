@@ -46,7 +46,10 @@ from podcast_scraper.migrations.gil_kg_identity_migrations import (  # noqa: E40
     migrate_gi_document_v3,
 )
 
-_CORPUS_DIR = _REPO_ROOT / "tests" / "fixtures" / "viewer-validation-corpus" / "v2"
+_FIXTURES_VERSION = (
+    (_REPO_ROOT / "tests" / "fixtures" / "FIXTURES_VERSION").read_text(encoding="utf-8").strip()
+)
+_CORPUS_DIR = _REPO_ROOT / "tests" / "fixtures" / "viewer-validation-corpus" / _FIXTURES_VERSION
 
 
 def _build_entity_index(artifact: dict) -> dict[str, tuple[str, str]]:

@@ -170,14 +170,14 @@ def test_v3_emission_contract_real_validation_corpus_artifacts() -> None:
         / "tests"
         / "fixtures"
         / "viewer-validation-corpus"
-        / "v2"
+        / "v3"
         / "feeds"
         / "*"
         / "metadata"
         / "*.gi.json"
     )
     files = sorted(glob.glob(corpus_glob))
-    assert files, "no viewer-validation-corpus/v2 GI files found"
+    assert files, "no viewer-validation-corpus/v3 GI files found"
 
     insights_seen = 0
     mp_total = 0

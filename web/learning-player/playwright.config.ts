@@ -36,7 +36,7 @@ export default defineConfig({
   // server-contract bugs (e.g. the transcript_file_path metadata key) that a client-mocked e2e
   // cannot.
   //
-  // The corpus is tests/fixtures/app-validation-corpus/v2 — checked in, version-pinned, and built
+  // The corpus is tests/fixtures/app-validation-corpus/v3 — checked in, version-pinned, and built
   // by scripts/build_app_validation_corpus.py (deterministic, no pipeline, no ML). There is NO
   // build step here: `serve` reads the committed corpus directly, so boot is fast and stable.
   // Per-user runtime state (queue/profile/interests the API writes) is redirected via APP_DATA_DIR

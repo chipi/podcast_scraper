@@ -89,6 +89,103 @@
       "from": "insight:a0f6b06a8ee4a976",
       "to": "quote:7bae1fc2e00e757a",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:62762412c5c75f58",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:62762412c5c75f58",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:afcedcf168cfe0a7",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:a0f6b06a8ee4a976",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:a0f6b06a8ee4a976",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:62762412c5c75f58",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:62762412c5c75f58",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:62762412c5c75f58",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:afcedcf168cfe0a7",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:afcedcf168cfe0a7",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:afcedcf168cfe0a7",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a0f6b06a8ee4a976",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a0f6b06a8ee4a976",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a0f6b06a8ee4a976",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "8f88b1fc-4adc-5b98-8539-af5f32fef5a4",
@@ -102,7 +199,7 @@
         "metadata_relative_path": "feeds/p02/metadata/p02_e04.metadata.json",
         "podcast_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
         "publish_date": "2026-07-05T12:00:00",
-        "title": "Practical Systems \u2014 Episode 4"
+        "title": "Practical Systems — Episode 4"
       },
       "type": "Episode"
     },
@@ -135,7 +232,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "# Practical Systems \u2014 Episode\n## Reliability Is a Systems Property\nHost: Ethan\nGuest: Priya Nair\n#fixture-v3: voice=en-IN host_voice=en-US\nEthan: Welcome back to Practical Systems."
+        "text": "# Practical Systems — Episode\n## Reliability Is a Systems Property\nHost: Ethan\nGuest: Priya Nair\n#fixture-v3: voice=en-IN host_voice=en-US\nEthan: Welcome back to Practical Systems.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +243,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "My guest is Priya Nair, who's spent a decade keeping large systems from falling over."
+        "text": "My guest is Priya Nair, who's spent a decade keeping large systems from falling over.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +254,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Priya Nair: Glad to be here, Ethan."
+        "text": "Priya Nair: Glad to be here, Ethan.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -248,7 +351,7 @@
         "char_start": 653,
         "episode_id": "8f88b1fc-4adc-5b98-8539-af5f32fef5a4",
         "speaker_id": "person:speaker-02",
-        "text": "So the discipline is systems thinking: you manage the interactions, not the boxes. When we tagged two years of incidents, almost none were a single component failing on its own \u2014 the data was pretty blunt about that.",
+        "text": "So the discipline is systems thinking: you manage the interactions, not the boxes. When we tagged two years of incidents, almost none were a single component failing on its own — the data was pretty blunt about that.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p02_e04.txt"
@@ -257,5 +360,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

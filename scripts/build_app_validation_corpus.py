@@ -166,6 +166,29 @@ def _stamp_publish_date(publish_iso: str, *docs: dict[str, Any]) -> None:
                 n.setdefault("properties", {})["publish_date"] = publish_iso
 
 
+def _vary_grounding(gi: dict[str, Any], ep_label: str, gt_dir: Path) -> None:
+    """Make low-grounding episodes actually ungrounded, so grounding_rate discriminates.
+
+    The builder marks every Insight ``grounded: True`` → a flat corpus rate of
+    1.0 with no signal. For episodes tagged ``low_grounding_dialogue`` (the p06
+    "Drift" show), flip alternate Insights to ``grounded: False`` so the enricher
+    sees real variation (#1148).
+    """
+    gt = gt_dir / f"{ep_label}.json"
+    if not gt.is_file():
+        return
+    try:
+        modes = json.loads(gt.read_text(encoding="utf-8")).get("failure_modes", [])
+    except (OSError, ValueError):
+        return
+    if "low_grounding_dialogue" not in modes:
+        return
+    insights = [n for n in gi.get("nodes", []) if n.get("type") == "Insight"]
+    for i, node in enumerate(insights):
+        if i % 2 == 1:  # alternate → ~half ungrounded
+            node.setdefault("properties", {})["grounded"] = False
+
+
 def _canonicalize_persons(*docs: dict[str, Any]) -> None:
     """Canonicalize Person ids across artifacts so cross-episode enrichers work.
 
@@ -477,6 +500,7 @@ def main() -> int:
             # and stamp the Episode publish_date so temporal_velocity sees it.
             _canonicalize_persons(gi, kg)
             _stamp_publish_date(publish + "T12:00:00", gi, kg)
+            _vary_grounding(gi, ep_label, gt_dir)  # #1148: real grounding variation
 
             (run_meta_dir / f"{ep_label}.gi.json").write_text(
                 json.dumps(gi, indent=2, sort_keys=True) + "\n", encoding="utf-8"

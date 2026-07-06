@@ -156,7 +156,7 @@
       "id": "insight:213c5627bf76ce4d",
       "properties": {
         "confidence": 0.7,
-        "grounded": true,
+        "grounded": false,
         "text": "Walk me through a concrete example. What's the structural angle most listeners don't have access to?"
       },
       "type": "Insight"

@@ -89,6 +89,88 @@
       "from": "insight:e4d827ca6454fa6f",
       "to": "quote:22c21c990f0f2ebe",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:c63634b4b198dfe1",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:98d2af0573fa274b",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c63634b4b198dfe1",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c63634b4b198dfe1",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c63634b4b198dfe1",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:98d2af0573fa274b",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:98d2af0573fa274b",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:98d2af0573fa274b",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e4d827ca6454fa6f",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e4d827ca6454fa6f",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e4d827ca6454fa6f",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
@@ -102,7 +184,7 @@
         "metadata_relative_path": "feeds/p04/metadata/p04_e01.metadata.json",
         "podcast_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
         "publish_date": "2026-07-03T12:00:00",
-        "title": "Frame & Light \u2014 Episode 1"
+        "title": "Frame & Light — Episode 1"
       },
       "type": "Episode"
     },
@@ -135,7 +217,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today we're talking about underwater photography, and I'm joined by Ava Lemoine, underwater photographer."
+        "text": "Today we're talking about underwater photography, and I'm joined by Ava Lemoine, underwater photographer.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +228,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Ava Lemoine, thanks for being here."
+        "text": "Ava Lemoine, thanks for being here.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +239,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Excited for this one \u2014 underwater imaging is something I've been thinking about a lot."
+        "text": "Excited for this one — underwater imaging is something I've been thinking about a lot.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -192,7 +280,7 @@
         "char_start": 191,
         "episode_id": "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
         "speaker_id": "person:speaker-02",
-        "text": "Thanks, Leo. Excited for this one \u2014 underwater imaging is something I've been thinking about a lot.",
+        "text": "Thanks, Leo. Excited for this one — underwater imaging is something I've been thinking about a lot.",
         "timestamp_end_ms": 12000,
         "timestamp_start_ms": 6000,
         "transcript_ref": "transcripts/p04_e01.txt"
@@ -220,7 +308,7 @@
         "char_start": 433,
         "episode_id": "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
         "speaker_id": "person:speaker-01",
-        "text": "I'll just say it \u2014 I genuinely love Peak Design. Not sponsored, not paid, I just think they're doing the right thing for field kit.",
+        "text": "I'll just say it — I genuinely love Peak Design. Not sponsored, not paid, I just think they're doing the right thing for field kit.",
         "timestamp_end_ms": 24000,
         "timestamp_start_ms": 18000,
         "transcript_ref": "transcripts/p04_e01.txt"
@@ -257,5 +345,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

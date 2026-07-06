@@ -89,6 +89,98 @@
       "from": "insight:e78d6fbb5cdd75b2",
       "to": "quote:b8bfdc9242ec9b1a",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:6801b329e87b1732",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:d7cd0c1a2791d2f2",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:e78d6fbb5cdd75b2",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:e78d6fbb5cdd75b2",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6801b329e87b1732",
+      "to": "topic:environment",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6801b329e87b1732",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6801b329e87b1732",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d7cd0c1a2791d2f2",
+      "to": "topic:environment",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d7cd0c1a2791d2f2",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d7cd0c1a2791d2f2",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e78d6fbb5cdd75b2",
+      "to": "topic:environment",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e78d6fbb5cdd75b2",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e78d6fbb5cdd75b2",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
@@ -102,7 +194,7 @@
         "metadata_relative_path": "feeds/p07/metadata/p07_e02.metadata.json",
         "podcast_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
         "publish_date": "2026-07-04T12:00:00",
-        "title": "The Long View \u2014 Episode 2"
+        "title": "The Long View — Episode 2"
       },
       "type": "Episode"
     },
@@ -135,7 +227,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today we're talking about macroeconomics, and I'm joined by Skanda Eminas, macro economist."
+        "text": "Today we're talking about macroeconomics, and I'm joined by Skanda Eminas, macro economist.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +238,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Skanda Eminas, thanks for being here."
+        "text": "Skanda Eminas, thanks for being here.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +249,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Skanda Eminas: Thanks, Alex Morgan."
+        "text": "Skanda Eminas: Thanks, Alex Morgan.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -171,7 +269,7 @@
         "char_start": 13,
         "episode_id": "54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
         "speaker_id": "person:speaker-01",
-        "text": "Welcome back to The Long View \u2014 Sustainability. Today we're talking about macroeconomics, and I'm joined by Skanda Eminas, macro economist. Skanda Eminas, thanks for being here.",
+        "text": "Welcome back to The Long View — Sustainability. Today we're talking about macroeconomics, and I'm joined by Skanda Eminas, macro economist. Skanda Eminas, thanks for being here.",
         "timestamp_end_ms": 6000,
         "timestamp_start_ms": 0,
         "transcript_ref": "transcripts/p07_e02.txt"
@@ -220,7 +318,7 @@
         "char_start": 395,
         "episode_id": "54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
         "speaker_id": "person:speaker-01",
-        "text": "Before we get into it \u2014 Dr. Elena Fisher was on last week talking about systems thinking.",
+        "text": "Before we get into it — Dr. Elena Fisher was on last week talking about systems thinking.",
         "timestamp_end_ms": 24000,
         "timestamp_start_ms": 18000,
         "transcript_ref": "transcripts/p07_e02.txt"
@@ -248,7 +346,7 @@
         "char_start": 572,
         "episode_id": "54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
         "speaker_id": "person:speaker-01",
-        "text": "I want to flag something \u2014 Dr. Elena Fisher mentioned this same dynamic a couple episodes back.",
+        "text": "I want to flag something — Dr. Elena Fisher mentioned this same dynamic a couple episodes back.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p07_e02.txt"
@@ -257,5 +355,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

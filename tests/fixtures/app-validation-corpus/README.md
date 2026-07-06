@@ -58,7 +58,7 @@ app's Playwright e2e), not the strict pipeline-output schema.
 ## Used by
 
 `web/learning-player/playwright.config.ts` boots the real consumer API
-(`podcast_scraper.cli serve --output-dir tests/fixtures/app-validation-corpus/v2`)
+(`podcast_scraper.cli serve --output-dir tests/fixtures/app-validation-corpus/v3`)
 over this corpus — no build step. Per-user runtime state (queue/profile/
 interests the API writes) is redirected to a gitignored `web/learning-player/e2e/.app-state/` via
 `APP_DATA_DIR`, so this committed tree is never mutated by a test run.

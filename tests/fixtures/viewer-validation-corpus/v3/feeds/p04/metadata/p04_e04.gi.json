@@ -89,6 +89,88 @@
       "from": "insight:5dc2253d421449be",
       "to": "quote:2bfc3c7d0a0e99a4",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:c675a4bd6a56d075",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:98d2af0573fa274b",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c675a4bd6a56d075",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c675a4bd6a56d075",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c675a4bd6a56d075",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:98d2af0573fa274b",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:98d2af0573fa274b",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:98d2af0573fa274b",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:5dc2253d421449be",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:5dc2253d421449be",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:5dc2253d421449be",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "47fbed20-6172-5fec-a904-656de37b88ec",
@@ -102,7 +184,7 @@
         "metadata_relative_path": "feeds/p04/metadata/p04_e04.metadata.json",
         "podcast_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
         "publish_date": "2026-07-03T12:00:00",
-        "title": "Frame & Light \u2014 Episode 4"
+        "title": "Frame & Light — Episode 4"
       },
       "type": "Episode"
     },
@@ -135,7 +217,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today we're talking about roundtable photography, and I'm joined by Ava Lemoine, underwater photographer."
+        "text": "Today we're talking about roundtable photography, and I'm joined by Ava Lemoine, underwater photographer.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +228,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Ava Lemoine, thanks for being here."
+        "text": "Ava Lemoine, thanks for being here.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +239,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today's episode is sponsored by Adobe."
+        "text": "Today's episode is sponsored by Adobe.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -220,7 +308,7 @@
         "char_start": 364,
         "episode_id": "47fbed20-6172-5fec-a904-656de37b88ec",
         "speaker_id": "person:speaker-01",
-        "text": "Before we get into it \u2014 Ava walked us through underwater work last month, Tariq covered documentary, Daniel on commercial lighting \u2014 today we get all three in the same conversation.",
+        "text": "Before we get into it — Ava walked us through underwater work last month, Tariq covered documentary, Daniel on commercial lighting — today we get all three in the same conversation.",
         "timestamp_end_ms": 24000,
         "timestamp_start_ms": 18000,
         "transcript_ref": "transcripts/p04_e04.txt"
@@ -248,7 +336,7 @@
         "char_start": 623,
         "episode_id": "47fbed20-6172-5fec-a904-656de37b88ec",
         "speaker_id": "person:speaker-01",
-        "text": "I want to flag something \u2014 Ava mentioned this same dynamic a couple episodes back.",
+        "text": "I want to flag something — Ava mentioned this same dynamic a couple episodes back.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p04_e04.txt"
@@ -257,5 +345,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

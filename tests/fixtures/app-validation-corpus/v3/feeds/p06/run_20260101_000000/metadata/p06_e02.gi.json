@@ -156,7 +156,7 @@
       "id": "insight:18426252a4a72016",
       "properties": {
         "confidence": 0.7,
-        "grounded": true,
+        "grounded": false,
         "text": "What's the one heuristic you keep coming back to? What's the structural angle most listeners don't have access to?"
       },
       "type": "Insight"

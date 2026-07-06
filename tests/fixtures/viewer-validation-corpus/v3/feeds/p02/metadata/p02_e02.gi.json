@@ -89,6 +89,74 @@
       "from": "insight:ce53f46a0943a486",
       "to": "quote:bc4717e863090833",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:dd91019976ad2564",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:488859efff6942d0",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:ce53f46a0943a486",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:ce53f46a0943a486",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:dd91019976ad2564",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:dd91019976ad2564",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:488859efff6942d0",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:488859efff6942d0",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:ce53f46a0943a486",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:ce53f46a0943a486",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
@@ -102,7 +170,7 @@
         "metadata_relative_path": "feeds/p02/metadata/p02_e02.metadata.json",
         "podcast_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
         "publish_date": "2026-07-03T12:00:00",
-        "title": "Practical Systems \u2014 Episode 2"
+        "title": "Practical Systems — Episode 2"
       },
       "type": "Episode"
     },
@@ -135,7 +203,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today we're talking about engineering communication, and I'm joined by Joll Wisenthal, staff engineer focused on platform teams."
+        "text": "Today we're talking about engineering communication, and I'm joined by Joll Wisenthal, staff engineer focused on platform teams.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +214,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Joll Wisenthal, thanks for being here."
+        "text": "Joll Wisenthal, thanks for being here.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +225,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Joll Wisenthal: Thanks, Ethan."
+        "text": "Joll Wisenthal: Thanks, Ethan.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -220,7 +294,7 @@
         "char_start": 399,
         "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
         "speaker_id": "person:speaker-01",
-        "text": "Before we get into it \u2014 Priya Nayar was on episode 1 making the case that good on-call rotations are designed so waking up is rare.",
+        "text": "Before we get into it — Priya Nayar was on episode 1 making the case that good on-call rotations are designed so waking up is rare.",
         "timestamp_end_ms": 24000,
         "timestamp_start_ms": 18000,
         "transcript_ref": "transcripts/p02_e02.txt"
@@ -248,7 +322,7 @@
         "char_start": 613,
         "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
         "speaker_id": "person:speaker-01",
-        "text": "I want to flag something \u2014 Priya Nayar mentioned this same dynamic a couple episodes back.",
+        "text": "I want to flag something — Priya Nayar mentioned this same dynamic a couple episodes back.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p02_e02.txt"
@@ -257,5 +331,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

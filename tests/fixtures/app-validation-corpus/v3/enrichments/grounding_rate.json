@@ -1,6 +1,6 @@
 {
   "derived": true,
-  "computed_at": "2026-07-06T16:42:16Z",
+  "computed_at": "2026-07-06T17:39:29Z",
   "enricher_id": "grounding_rate",
   "enricher_version": "1.0.0",
   "schema_version": "1.0",
@@ -75,13 +75,6 @@
         "person_name": "Dr. Elena Fischer",
         "total_insights": 9,
         "grounded_insights": 9,
-        "rate": 1.0
-      },
-      {
-        "person_id": "person:jordan-park",
-        "person_name": "Jordan Park",
-        "total_insights": 8,
-        "grounded_insights": 8,
         "rate": 1.0
       },
       {
@@ -237,6 +230,13 @@
         "total_insights": 1,
         "grounded_insights": 1,
         "rate": 1.0
+      },
+      {
+        "person_id": "person:jordan-park",
+        "person_name": "Jordan Park",
+        "total_insights": 8,
+        "grounded_insights": 0,
+        "rate": 0.0
       }
     ],
     "episode_count": 36

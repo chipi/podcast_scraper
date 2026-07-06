@@ -89,6 +89,88 @@
       "from": "insight:9dae8f69e31392ca",
       "to": "quote:d22170d77e6d0020",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:738c0d8597e80be9",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:49ceee537c0fbff7",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:738c0d8597e80be9",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:738c0d8597e80be9",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:738c0d8597e80be9",
+      "to": "topic:great-to-be-back",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:49ceee537c0fbff7",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:49ceee537c0fbff7",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:49ceee537c0fbff7",
+      "to": "topic:great-to-be-back",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9dae8f69e31392ca",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9dae8f69e31392ca",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9dae8f69e31392ca",
+      "to": "topic:great-to-be-back",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "55e302e4-3319-59f2-8c17-fde08bffd658",
@@ -102,7 +184,7 @@
         "metadata_relative_path": "feeds/p06/metadata/p06_e04.metadata.json",
         "podcast_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
         "publish_date": "2026-07-01T12:00:00",
-        "title": "Edge Cases Podcast \u2014 Episode 4"
+        "title": "Edge Cases Podcast — Episode 4"
       },
       "type": "Episode"
     },
@@ -135,7 +217,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic."
+        "text": "Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +228,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Jordan Park, thanks for being here."
+        "text": "Jordan Park, thanks for being here.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +239,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "This episode is brought to you by Squarespace."
+        "text": "This episode is brought to you by Squarespace.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -257,5 +345,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

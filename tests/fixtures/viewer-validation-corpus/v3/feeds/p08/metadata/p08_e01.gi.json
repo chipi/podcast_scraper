@@ -89,6 +89,83 @@
       "from": "insight:db9acd5ee7759839",
       "to": "quote:cb569c783031f8e3",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:e55eab16ac96317b",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:323c644d76b7c614",
+      "to": "topic:environment",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:323c644d76b7c614",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:323c644d76b7c614",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e55eab16ac96317b",
+      "to": "topic:environment",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e55eab16ac96317b",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e55eab16ac96317b",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:db9acd5ee7759839",
+      "to": "topic:environment",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:db9acd5ee7759839",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:db9acd5ee7759839",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "15a1cbea-1449-50ac-bb1c-11784d7421c3",
@@ -102,7 +179,7 @@
         "metadata_relative_path": "feeds/p08/metadata/p08_e01.metadata.json",
         "podcast_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
         "publish_date": "2026-07-05T12:00:00",
-        "title": "The Long View \u2014 Episode 1"
+        "title": "The Long View — Episode 1"
       },
       "type": "Episode"
     },
@@ -135,7 +212,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "# Public Hour \u2014 Episode\n## Public Radio Format Conventions\nHost: A."
+        "text": "# Public Hour — Episode\n## Public Radio Format Conventions\nHost: A.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +223,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "correspondent\nGuest: Renee Montagne-Park\n#fixture-v3: failure_modes=zero_host_ner\n#fixture-v3: voice=en-US host_voice=en-US\nA."
+        "text": "correspondent\nGuest: Renee Montagne-Park\n#fixture-v3: failure_modes=zero_host_ner\n#fixture-v3: voice=en-US host_voice=en-US\nA.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +234,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "correspondent: Welcome back to Public Hour."
+        "text": "correspondent: Welcome back to Public Hour.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -192,7 +275,7 @@
         "char_start": 203,
         "episode_id": "15a1cbea-1449-50ac-bb1c-11784d7421c3",
         "speaker_id": "person:speaker-02",
-        "text": "Thanks, A. correspondent. Excited for this one \u2014 public-radio reporting is something I've been thinking about a lot.",
+        "text": "Thanks, A. correspondent. Excited for this one — public-radio reporting is something I've been thinking about a lot.",
         "timestamp_end_ms": 12000,
         "timestamp_start_ms": 6000,
         "transcript_ref": "transcripts/p08_e01.txt"
@@ -234,7 +317,7 @@
         "char_start": 614,
         "episode_id": "15a1cbea-1449-50ac-bb1c-11784d7421c3",
         "speaker_id": "person:speaker-02",
-        "text": "Yeah, so \u2014 Public radio voice is a deliberate style, not an accident. We've seen this play out at teams using BBC. I've watched this pattern hold across three different teams.",
+        "text": "Yeah, so — Public radio voice is a deliberate style, not an accident. We've seen this play out at teams using BBC. I've watched this pattern hold across three different teams.",
         "timestamp_end_ms": 30000,
         "timestamp_start_ms": 24000,
         "transcript_ref": "transcripts/p08_e01.txt"
@@ -257,5 +340,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

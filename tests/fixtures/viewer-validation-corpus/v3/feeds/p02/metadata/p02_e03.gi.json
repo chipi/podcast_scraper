@@ -89,6 +89,88 @@
       "from": "insight:42c4a9f138eb1851",
       "to": "quote:9eb254c4a22c759b",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:762a9af431c0e8a6",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:cc8dfdce8a173576",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:762a9af431c0e8a6",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:762a9af431c0e8a6",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:762a9af431c0e8a6",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cc8dfdce8a173576",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cc8dfdce8a173576",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cc8dfdce8a173576",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:42c4a9f138eb1851",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:42c4a9f138eb1851",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:42c4a9f138eb1851",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
@@ -102,7 +184,7 @@
         "metadata_relative_path": "feeds/p02/metadata/p02_e03.metadata.json",
         "podcast_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
         "publish_date": "2026-07-01T12:00:00",
-        "title": "Practical Systems \u2014 Episode 3"
+        "title": "Practical Systems — Episode 3"
       },
       "type": "Episode"
     },
@@ -135,7 +217,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today we're talking about security design, and I'm joined by Priya Nair, principal SRE at a payments platform."
+        "text": "Today we're talking about security design, and I'm joined by Priya Nair, principal SRE at a payments platform.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +228,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Priya Nair, thanks for being here."
+        "text": "Priya Nair, thanks for being here.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +239,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today's episode is sponsored by Vanta."
+        "text": "Today's episode is sponsored by Vanta.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -220,7 +308,7 @@
         "char_start": 341,
         "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
         "speaker_id": "person:speaker-01",
-        "text": "Before we get into it \u2014 I was last on the show talking about on-call rotations. The pattern shows up again here.",
+        "text": "Before we get into it — I was last on the show talking about on-call rotations. The pattern shows up again here.",
         "timestamp_end_ms": 24000,
         "timestamp_start_ms": 18000,
         "transcript_ref": "transcripts/p02_e03.txt"
@@ -248,7 +336,7 @@
         "char_start": 524,
         "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
         "speaker_id": "person:speaker-02",
-        "text": "I used to argue for a single central security team. After the 2024 webhook incident I changed my mind \u2014 embedded ownership beats a central gatekeeper every time.",
+        "text": "I used to argue for a single central security team. After the 2024 webhook incident I changed my mind — embedded ownership beats a central gatekeeper every time.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p02_e03.txt"
@@ -257,5 +345,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

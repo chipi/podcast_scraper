@@ -89,6 +89,98 @@
       "from": "insight:e9c7625096a4818e",
       "to": "quote:d07a9be2cf661cb2",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:e2ea14821f904f6e",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:9e800db626f513b9",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:e9c7625096a4818e",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:e9c7625096a4818e",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e2ea14821f904f6e",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e2ea14821f904f6e",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e2ea14821f904f6e",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9e800db626f513b9",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9e800db626f513b9",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9e800db626f513b9",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e9c7625096a4818e",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e9c7625096a4818e",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e9c7625096a4818e",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
@@ -102,7 +194,7 @@
         "metadata_relative_path": "feeds/p03/metadata/p03_e03.metadata.json",
         "podcast_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
         "publish_date": "2026-07-06T12:00:00",
-        "title": "Below the Surface \u2014 Episode 3"
+        "title": "Below the Surface — Episode 3"
       },
       "type": "Episode"
     },
@@ -135,7 +227,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today we're talking about marine biology, and I'm joined by Hanna Krebohticker, marine biologist focused on reef systems."
+        "text": "Today we're talking about marine biology, and I'm joined by Hanna Krebohticker, marine biologist focused on reef systems.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +238,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Hanna Krebohticker, thanks for being here."
+        "text": "Hanna Krebohticker, thanks for being here.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +249,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Hanna Krebohticker: Thanks, Rina."
+        "text": "Hanna Krebohticker: Thanks, Rina.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -220,7 +318,7 @@
         "char_start": 390,
         "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
         "speaker_id": "person:speaker-01",
-        "text": "Before we get into it \u2014 Marco was on episode 1 walking through wreck planning \u2014 the same discipline applies to reef surveys.",
+        "text": "Before we get into it — Marco was on episode 1 walking through wreck planning — the same discipline applies to reef surveys.",
         "timestamp_end_ms": 24000,
         "timestamp_start_ms": 18000,
         "transcript_ref": "transcripts/p03_e03.txt"
@@ -248,7 +346,7 @@
         "char_start": 600,
         "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
         "speaker_id": "person:speaker-01",
-        "text": "I want to flag something \u2014 Marco mentioned this same dynamic a couple episodes back.",
+        "text": "I want to flag something — Marco mentioned this same dynamic a couple episodes back.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p03_e03.txt"
@@ -257,5 +355,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

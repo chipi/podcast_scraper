@@ -89,6 +89,98 @@
       "from": "insight:2bb9024a4ce54490",
       "to": "quote:92fbb6f381c6f29d",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:5e9ea66eb030430e",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:5e9ea66eb030430e",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:388dd49bfe0587ce",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:2bb9024a4ce54490",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:5e9ea66eb030430e",
+      "to": "topic:environment",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:5e9ea66eb030430e",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:5e9ea66eb030430e",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:388dd49bfe0587ce",
+      "to": "topic:environment",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:388dd49bfe0587ce",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:388dd49bfe0587ce",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2bb9024a4ce54490",
+      "to": "topic:environment",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2bb9024a4ce54490",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2bb9024a4ce54490",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "32b9679a-1a2d-5cce-b673-b489694ef798",
@@ -102,7 +194,7 @@
         "metadata_relative_path": "feeds/p07/metadata/p07_e04.metadata.json",
         "podcast_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
         "publish_date": "2026-07-06T12:00:00",
-        "title": "The Long View \u2014 Episode 4"
+        "title": "The Long View — Episode 4"
       },
       "type": "Episode"
     },
@@ -135,7 +227,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "# The Long View \u2014 Sustainability \u2014 Episode\n## Macro as Risk Management\nHost: Alex Morgan\nGuest: Skanda Amarnath\n#fixture-v3: voice=en-IN host_voice=en-AU\nAlex Morgan: Welcome back to The Long View."
+        "text": "# The Long View — Sustainability — Episode\n## Macro as Risk Management\nHost: Alex Morgan\nGuest: Skanda Amarnath\n#fixture-v3: voice=en-IN host_voice=en-AU\nAlex Morgan: Welcome back to The Long View.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +238,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "I'm joined by Skanda Amarnath, who reads the macroeconomy for a living."
+        "text": "I'm joined by Skanda Amarnath, who reads the macroeconomy for a living.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +249,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Skanda Amarnath: Thanks, Alex."
+        "text": "Skanda Amarnath: Thanks, Alex.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -234,7 +332,7 @@
         "char_start": 387,
         "episode_id": "32b9679a-1a2d-5cce-b673-b489694ef798",
         "speaker_id": "person:speaker-02",
-        "text": "Macro is risk management at scale. The job is mostly not being on the wrong side of a regime change \u2014 and the regime change you can name in advance is the one you can position for. The rest is just hoping.",
+        "text": "Macro is risk management at scale. The job is mostly not being on the wrong side of a regime change — and the regime change you can name in advance is the one you can position for. The rest is just hoping.",
         "timestamp_end_ms": 30000,
         "timestamp_start_ms": 24000,
         "transcript_ref": "transcripts/p07_e04.txt"
@@ -257,5 +355,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

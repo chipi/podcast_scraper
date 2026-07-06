@@ -89,6 +89,88 @@
       "from": "insight:ac4017ed0dd4b7af",
       "to": "quote:d1fa356c9bbb526d",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:8f1f33ab14837583",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:d161d14242939a22",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:8f1f33ab14837583",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:8f1f33ab14837583",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:8f1f33ab14837583",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d161d14242939a22",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d161d14242939a22",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d161d14242939a22",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:ac4017ed0dd4b7af",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:ac4017ed0dd4b7af",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:ac4017ed0dd4b7af",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
@@ -102,7 +184,7 @@
         "metadata_relative_path": "feeds/p09/metadata/p09_e03.metadata.json",
         "podcast_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
         "publish_date": "2026-07-06T12:00:00",
-        "title": "The Long View: Biohacking \u2014 Episode 3"
+        "title": "The Long View: Biohacking — Episode 3"
       },
       "type": "Episode"
     },
@@ -135,7 +217,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today we're talking about labor markets, and I'm joined by Skanda Amarnath, returning macro economist."
+        "text": "Today we're talking about labor markets, and I'm joined by Skanda Amarnath, returning macro economist.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +228,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Skanda Amarnath, thanks for being here."
+        "text": "Skanda Amarnath, thanks for being here.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +239,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today's episode is sponsored by Bloomberg."
+        "text": "Today's episode is sponsored by Bloomberg.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -220,7 +308,7 @@
         "char_start": 366,
         "episode_id": "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
         "speaker_id": "person:speaker-01",
-        "text": "Before we get into it \u2014 Skanda Eminas was on episode 2 making this same point on Bloomberg-data caveats.",
+        "text": "Before we get into it — Skanda Eminas was on episode 2 making this same point on Bloomberg-data caveats.",
         "timestamp_end_ms": 24000,
         "timestamp_start_ms": 18000,
         "transcript_ref": "transcripts/p09_e03.txt"
@@ -248,7 +336,7 @@
         "char_start": 552,
         "episode_id": "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
         "speaker_id": "person:speaker-01",
-        "text": "I want to flag something \u2014 Skanda Eminas mentioned this same dynamic a couple episodes back.",
+        "text": "I want to flag something — Skanda Eminas mentioned this same dynamic a couple episodes back.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p09_e03.txt"
@@ -257,5 +345,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }

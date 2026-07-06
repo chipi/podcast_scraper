@@ -89,6 +89,93 @@
       "from": "insight:230551b6c5ce8a9e",
       "to": "quote:241e804a7c872f5e",
       "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:6191892e4d27b718",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:6191892e4d27b718",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:9c3654333b6f8b01",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6191892e4d27b718",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6191892e4d27b718",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6191892e4d27b718",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9c3654333b6f8b01",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9c3654333b6f8b01",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9c3654333b6f8b01",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:230551b6c5ce8a9e",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:230551b6c5ce8a9e",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:230551b6c5ce8a9e",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
     }
   ],
   "episode_id": "2922a74e-5598-537f-a2d1-1ac08059e49d",
@@ -102,7 +189,7 @@
         "metadata_relative_path": "feeds/p03/metadata/p03_e04.metadata.json",
         "podcast_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
         "publish_date": "2026-07-04T12:00:00",
-        "title": "Below the Surface \u2014 Episode 4"
+        "title": "Below the Surface — Episode 4"
       },
       "type": "Episode"
     },
@@ -135,7 +222,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "# Below the Surface \u2014 Episode\n## Plan the Dive, Manage the Risk\nHost: Rina\nGuest: Marco Silva\n#fixture-v3: voice=pt-BR host_voice=en-US\nRina: Welcome back to Below the Surface."
+        "text": "# Below the Surface — Episode\n## Plan the Dive, Manage the Risk\nHost: Rina\nGuest: Marco Silva\n#fixture-v3: voice=pt-BR host_voice=en-US\nRina: Welcome back to Below the Surface.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -144,7 +233,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "I'm joined by Marco Silva, technical diver and instructor."
+        "text": "I'm joined by Marco Silva, technical diver and instructor.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -153,7 +244,9 @@
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Marco, thanks for surfacing for us."
+        "text": "Marco, thanks for surfacing for us.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
       },
       "type": "Insight"
     },
@@ -192,7 +285,7 @@
         "char_start": 149,
         "episode_id": "2922a74e-5598-537f-a2d1-1ac08059e49d",
         "speaker_id": "person:speaker-02",
-        "text": "Ha \u2014 happy to, Rina.",
+        "text": "Ha — happy to, Rina.",
         "timestamp_end_ms": 12000,
         "timestamp_start_ms": 6000,
         "transcript_ref": "transcripts/p03_e04.txt"
@@ -234,7 +327,7 @@
         "char_start": 377,
         "episode_id": "2922a74e-5598-537f-a2d1-1ac08059e49d",
         "speaker_id": "person:speaker-02",
-        "text": "Dive planning is risk management, plain and simple. It's the gas you don't use and the ascent you don't rush. The incident that hurts you is the one nobody named on the boat \u2014 so we name them all first.",
+        "text": "Dive planning is risk management, plain and simple. It's the gas you don't use and the ascent you don't rush. The incident that hurts you is the one nobody named on the boat — so we name them all first.",
         "timestamp_end_ms": 30000,
         "timestamp_start_ms": 24000,
         "transcript_ref": "transcripts/p03_e04.txt"
@@ -248,7 +341,7 @@
         "char_start": 579,
         "episode_id": "2922a74e-5598-537f-a2d1-1ac08059e49d",
         "speaker_id": "person:speaker-02",
-        "text": "And you plan the whole dive as one system \u2014 depth, gas, team, current \u2014 because the accidents live in how those interact, not in any single number. When we reviewed a decade of incident reports, that pattern held every time.",
+        "text": "And you plan the whole dive as one system — depth, gas, team, current — because the accidents live in how those interact, not in any single number. When we reviewed a decade of incident reports, that pattern held every time.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p03_e04.txt"
@@ -257,5 +350,5 @@
     }
   ],
   "prompt_version": "n/a",
-  "schema_version": "2"
+  "schema_version": "3.0"
 }
