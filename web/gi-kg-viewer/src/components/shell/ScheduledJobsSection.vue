@@ -109,6 +109,7 @@ function cronPreviewTitle(cron: string): string {
       <thead>
         <tr class="border-b border-border text-left text-[10px] text-muted">
           <th class="py-1 pr-2 font-medium">Name</th>
+          <th class="py-1 pr-2 font-medium">Kind</th>
           <th class="py-1 pr-2 font-medium">Cron</th>
           <th class="py-1 pr-2 font-medium">Enabled</th>
           <th class="py-1 font-medium">Next run</th>
@@ -124,6 +125,13 @@ function cronPreviewTitle(cron: string): string {
         >
           <td class="py-1 pr-2 font-medium text-surface-foreground">
             {{ job.name }}
+          </td>
+          <td class="py-1 pr-2">
+            <span
+              class="rounded bg-overlay px-1 text-[9px] font-medium"
+              :class="job.kind === 'enrichment' ? 'text-success' : 'text-muted'"
+              :data-testid="`scheduled-jobs-kind-${idx}`"
+            >{{ job.kind }}</span>
           </td>
           <td class="py-1 pr-2">
             <code

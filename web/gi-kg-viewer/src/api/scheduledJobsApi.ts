@@ -5,6 +5,8 @@ export interface ScheduledJobItem {
   name: string
   cron: string
   enabled: boolean
+  /** Job fired on the schedule: 'pipeline' (ingestion) or 'enrichment' (#1069). */
+  kind: string
   /** ISO time; null when disabled, the cron is invalid, or the scheduler is off. */
   next_run_at: string | null
 }

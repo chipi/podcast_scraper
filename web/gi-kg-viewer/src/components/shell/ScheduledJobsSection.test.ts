@@ -27,8 +27,14 @@ describe('ScheduledJobsSection', () => {
       scheduler_running: true,
       timezone: 'UTC',
       jobs: [
-        { name: 'nightly', cron: '0 2 * * *', enabled: true, next_run_at: '2099-01-01T02:00:00Z' },
-        { name: 'weekly', cron: '0 3 * * 0', enabled: false, next_run_at: null },
+        {
+          name: 'nightly',
+          cron: '0 2 * * *',
+          enabled: true,
+          kind: 'enrichment',
+          next_run_at: '2099-01-01T02:00:00Z',
+        },
+        { name: 'weekly', cron: '0 3 * * 0', enabled: false, kind: 'pipeline', next_run_at: null },
       ],
     })
     const w = mountSection()
@@ -36,6 +42,9 @@ describe('ScheduledJobsSection', () => {
     expect(w.get('[data-testid="scheduled-jobs-row-0"]').text()).toContain('nightly')
     expect(w.get('[data-testid="scheduled-jobs-next-0"]').text()).toMatch(/^in /)
     expect(w.get('[data-testid="scheduled-jobs-next-1"]').text()).toBe('—')
+    // #1069: the kind is surfaced so enrichment schedules read as peers of ingestion.
+    expect(w.get('[data-testid="scheduled-jobs-kind-0"]').text()).toBe('enrichment')
+    expect(w.get('[data-testid="scheduled-jobs-kind-1"]').text()).toBe('pipeline')
   })
 
   it('flags an invalid cron', async () => {
@@ -43,7 +52,9 @@ describe('ScheduledJobsSection', () => {
       path: '/mock/corpus',
       scheduler_running: true,
       timezone: 'UTC',
-      jobs: [{ name: 'broken', cron: 'not a cron', enabled: true, next_run_at: null }],
+      jobs: [
+        { name: 'broken', cron: 'not a cron', enabled: true, kind: 'pipeline', next_run_at: null },
+      ],
     })
     const w = mountSection()
     await flushPromises()
@@ -56,7 +67,15 @@ describe('ScheduledJobsSection', () => {
       path: '/mock/corpus',
       scheduler_running: true,
       timezone: 'UTC',
-      jobs: [{ name: 'nightly', cron: '0 2 * * *', enabled: true, next_run_at: '2099-01-01T02:00:00Z' }],
+      jobs: [
+        {
+          name: 'nightly',
+          cron: '0 2 * * *',
+          enabled: true,
+          kind: 'pipeline',
+          next_run_at: '2099-01-01T02:00:00Z',
+        },
+      ],
     })
     const w = mountSection()
     await flushPromises()
