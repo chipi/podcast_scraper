@@ -91,7 +91,7 @@ class TopicSimilarityEnricher:
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 100,
-                    "default": 10,
+                    "default": 7,
                     "description": "Number of nearest-neighbour topics to emit per topic.",
                 },
             },
@@ -102,7 +102,10 @@ class TopicSimilarityEnricher:
         ),
     )
 
-    def __init__(self, provider: EmbeddingProvider, *, top_k: int = 10) -> None:
+    # top_k default tuned 10 -> 7 (#1105): the prod-v2 Opus-silver eval measured
+    # precision/recall of 80%/80% at K=7 vs 71%/99% at K=10 — 7 trades already-saturated
+    # recall for a cleaner "related topics" surface (eval: enrichment_topic_similarity_*).
+    def __init__(self, provider: EmbeddingProvider, *, top_k: int = 7) -> None:
         if top_k < 1:
             raise ValueError("top_k must be >= 1")
         self._provider = provider
