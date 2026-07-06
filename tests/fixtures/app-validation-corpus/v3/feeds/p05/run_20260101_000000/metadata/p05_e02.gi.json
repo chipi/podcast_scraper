@@ -1,0 +1,274 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "topic:personal-finance",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "insight:d38c7a442d8d2b8c",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "insight:563dc22ce6a7cd56",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "insight:3aabb6d8787f9373",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:2c8391573f65ea49",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:d38c7a442d8d2b8c",
+      "to": "quote:2c8391573f65ea49",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:19257379f3772adf",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:563dc22ce6a7cd56",
+      "to": "quote:19257379f3772adf",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f56d71c0704d1570",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "quote:f56d71c0704d1570",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:7990c86387b90c2c",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:d38c7a442d8d2b8c",
+      "to": "quote:7990c86387b90c2c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:c1de972f14d9a623",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:563dc22ce6a7cd56",
+      "to": "quote:c1de972f14d9a623",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:88cfb4351830b57d",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "quote:88cfb4351830b57d",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "ep-1e526e495918fb27",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-1e526e495918fb27",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ep-1e526e495918fb27",
+        "metadata_relative_path": "feeds/p05/run_20260101_000000/metadata/p05_e02.metadata.json",
+        "podcast_id": "p05",
+        "publish_date": "2026-01-27T12:00:00",
+        "title": "Nickname Variance: A Fed Vice Chair Reflects"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:personal-finance",
+      "properties": {
+        "label": "personal finance",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:d38c7a442d8d2b8c",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Welcome back to Long Horizon Notes. Today we're talking about monetary policy, and I'm joined by Rich Clarida, former Fed vice chair. Rich Clarida, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:563dc22ce6a7cd56",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Before we get into it \u2014 Daniel Choh was on episode 1 making the case for behavioral discipline."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:3aabb6d8787f9373",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Yeah, exactly. And it ties into what we're covering today."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Nora"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:2c8391573f65ea49",
+      "properties": {
+        "char_end": 176,
+        "char_start": 6,
+        "episode_id": "ep-1e526e495918fb27",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Long Horizon Notes. Today we're talking about monetary policy, and I'm joined by Rich Clarida, former Fed vice chair. Rich Clarida, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p05_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Rich Clarida"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:19257379f3772adf",
+      "properties": {
+        "char_end": 222,
+        "char_start": 191,
+        "episode_id": "ep-1e526e495918fb27",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Nora. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p05_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:f56d71c0704d1570",
+      "properties": {
+        "char_end": 381,
+        "char_start": 229,
+        "episode_id": "ep-1e526e495918fb27",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Bloomberg. Bloomberg Terminal is the data spine that institutional desks run on. Get started at bloomberg.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p05_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:7990c86387b90c2c",
+      "properties": {
+        "char_end": 476,
+        "char_start": 381,
+        "episode_id": "ep-1e526e495918fb27",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Daniel Choh was on episode 1 making the case for behavioral discipline.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p05_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:c1de972f14d9a623",
+      "properties": {
+        "char_end": 549,
+        "char_start": 491,
+        "episode_id": "ep-1e526e495918fb27",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, exactly. And it ties into what we're covering today.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p05_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:88cfb4351830b57d",
+      "properties": {
+        "char_end": 646,
+        "char_start": 556,
+        "episode_id": "ep-1e526e495918fb27",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to flag something \u2014 Daniel Choh mentioned this same dynamic a couple episodes back.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p05_e02.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

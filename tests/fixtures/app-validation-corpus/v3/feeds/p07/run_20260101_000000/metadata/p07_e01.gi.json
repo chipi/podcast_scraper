@@ -1,0 +1,274 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-1979e93514355ea6",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1979e93514355ea6",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1979e93514355ea6",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1979e93514355ea6",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1979e93514355ea6",
+      "to": "insight:7d3ed2ba74a32604",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-1979e93514355ea6",
+      "to": "insight:d04df2587b2471ad",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-1979e93514355ea6",
+      "to": "insight:82d03ec8a8543c44",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:b5ce8e3d1e014a75",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:7d3ed2ba74a32604",
+      "to": "quote:b5ce8e3d1e014a75",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:7be1f2104ae20143",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:d04df2587b2471ad",
+      "to": "quote:7be1f2104ae20143",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:11fb916eac50f454",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:82d03ec8a8543c44",
+      "to": "quote:11fb916eac50f454",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:05df77ebbceaccc3",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:7d3ed2ba74a32604",
+      "to": "quote:05df77ebbceaccc3",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:36c18125ee6424ea",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:d04df2587b2471ad",
+      "to": "quote:36c18125ee6424ea",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:78beaefeba439eff",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:82d03ec8a8543c44",
+      "to": "quote:78beaefeba439eff",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "ep-1979e93514355ea6",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-1979e93514355ea6",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ep-1979e93514355ea6",
+        "metadata_relative_path": "feeds/p07/run_20260101_000000/metadata/p07_e01.metadata.json",
+        "podcast_id": "p07",
+        "publish_date": "2026-01-08T12:00:00",
+        "title": "What Sustainability Really Means"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:7d3ed2ba74a32604",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Welcome back to The Long View \u2014 Sustainability. Today we're talking about sustainability, and I'm joined by Dr. Elena Fischer, sustainability researcher and systems thinker. Dr. Elena Fischer, than\u2026"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:d04df2587b2471ad",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Thanks, Alex Morgan. Excited for this one \u2014 sustainability and systems thinking is something I've been thinking about a lot."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:82d03ec8a8543c44",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "That's a useful framing. Where do systems thinking and sustainability intersect?"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Alex Morgan"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:b5ce8e3d1e014a75",
+      "properties": {
+        "char_end": 228,
+        "char_start": 13,
+        "episode_id": "ep-1979e93514355ea6",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to The Long View \u2014 Sustainability. Today we're talking about sustainability, and I'm joined by Dr. Elena Fischer, sustainability researcher and systems thinker. Dr. Elena Fischer, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p07_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Dr. Elena Fischer"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:7be1f2104ae20143",
+      "properties": {
+        "char_end": 372,
+        "char_start": 248,
+        "episode_id": "ep-1979e93514355ea6",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Alex Morgan. Excited for this one \u2014 sustainability and systems thinking is something I've been thinking about a lot.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p07_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:11fb916eac50f454",
+      "properties": {
+        "char_end": 504,
+        "char_start": 386,
+        "episode_id": "ep-1979e93514355ea6",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Try notion.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p07_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:05df77ebbceaccc3",
+      "properties": {
+        "char_end": 584,
+        "char_start": 504,
+        "episode_id": "ep-1979e93514355ea6",
+        "speaker_id": "person:speaker-01",
+        "text": "That's a useful framing. Where do systems thinking and sustainability intersect?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p07_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:36c18125ee6424ea",
+      "properties": {
+        "char_end": 846,
+        "char_start": 604,
+        "episode_id": "ep-1979e93514355ea6",
+        "speaker_id": "person:speaker-02",
+        "text": "Let me give you the version I actually believe. Sustainability is a systems-thinking problem before it's an environmental problem. We've seen this play out at teams using Carbon Trust. And the second-order effect is the part most people miss.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p07_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:78beaefeba439eff",
+      "properties": {
+        "char_end": 942,
+        "char_start": 860,
+        "episode_id": "ep-1979e93514355ea6",
+        "speaker_id": "person:speaker-01",
+        "text": "That's a useful framing. What's the version of the question that actually matters?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p07_e01.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

@@ -1,0 +1,274 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-2a703b6f57d9020f",
+      "to": "topic:safety-practices",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-2a703b6f57d9020f",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-2a703b6f57d9020f",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-2a703b6f57d9020f",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-2a703b6f57d9020f",
+      "to": "insight:bc1e76e9bb003658",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-2a703b6f57d9020f",
+      "to": "insight:47c22603562181f7",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-2a703b6f57d9020f",
+      "to": "insight:4213c32cc839904b",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:74f9067728bebe00",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:bc1e76e9bb003658",
+      "to": "quote:74f9067728bebe00",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:80b8228fa2dbc56b",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:47c22603562181f7",
+      "to": "quote:80b8228fa2dbc56b",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f127cee5b83a112d",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:4213c32cc839904b",
+      "to": "quote:f127cee5b83a112d",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:77dc6a0f2d8c635f",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:bc1e76e9bb003658",
+      "to": "quote:77dc6a0f2d8c635f",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:099afaabf108a7be",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:47c22603562181f7",
+      "to": "quote:099afaabf108a7be",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:68e85b18af559bfb",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:4213c32cc839904b",
+      "to": "quote:68e85b18af559bfb",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "ep-2a703b6f57d9020f",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-2a703b6f57d9020f",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ep-2a703b6f57d9020f",
+        "metadata_relative_path": "feeds/p03/run_20260101_000000/metadata/p03_e01.metadata.json",
+        "podcast_id": "p03",
+        "publish_date": "2026-01-20T12:00:00",
+        "title": "Wreck Diving Fundamentals"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:safety-practices",
+      "properties": {
+        "label": "safety practices",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:bc1e76e9bb003658",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Welcome back to Below the Surface. Today we're talking about wreck diving, and I'm joined by Marco Sylva, technical diver and underwater archaeologist. Marco Sylva, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:47c22603562181f7",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Thanks, Rina. Excited for this one \u2014 wreck-diving fundamentals is something I've been thinking about a lot."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:4213c32cc839904b",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "What does the failure mode look like? What's something you used to believe about this that you've revised?"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Rina"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:74f9067728bebe00",
+      "properties": {
+        "char_end": 193,
+        "char_start": 6,
+        "episode_id": "ep-2a703b6f57d9020f",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Below the Surface. Today we're talking about wreck diving, and I'm joined by Marco Sylva, technical diver and underwater archaeologist. Marco Sylva, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p03_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Marco Sylva"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:80b8228fa2dbc56b",
+      "properties": {
+        "char_end": 314,
+        "char_start": 207,
+        "episode_id": "ep-2a703b6f57d9020f",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Rina. Excited for this one \u2014 wreck-diving fundamentals is something I've been thinking about a lot.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p03_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:f127cee5b83a112d",
+      "properties": {
+        "char_end": 447,
+        "char_start": 321,
+        "episode_id": "ep-2a703b6f57d9020f",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Suunto. Suunto builds dive computers and outdoor watches. Get started at suunto.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p03_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:77dc6a0f2d8c635f",
+      "properties": {
+        "char_end": 553,
+        "char_start": 447,
+        "episode_id": "ep-2a703b6f57d9020f",
+        "speaker_id": "person:speaker-01",
+        "text": "What does the failure mode look like? What's something you used to believe about this that you've revised?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p03_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:099afaabf108a7be",
+      "properties": {
+        "char_end": 796,
+        "char_start": 567,
+        "episode_id": "ep-2a703b6f57d9020f",
+        "speaker_id": "person:speaker-02",
+        "text": "Let me give you the version I actually believe. Wreck penetration is a planning problem first, a buoyancy problem second. We've seen this play out at teams using GoPro. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p03_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:68e85b18af559bfb",
+      "properties": {
+        "char_end": 878,
+        "char_start": 803,
+        "episode_id": "ep-2a703b6f57d9020f",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to dig into that. Where do dive planning and wreck diving intersect?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p03_e01.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

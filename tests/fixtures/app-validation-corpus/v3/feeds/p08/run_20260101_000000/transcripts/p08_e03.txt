@@ -1,0 +1,23 @@
+A. correspondent: Welcome back to Public Hour. Today we're talking about journalism, and I'm joined by Renee Montagne-Park, journalist. Renee Montagne-Park, thanks for being here.
+Renee Montagne-Park: Thanks, A. correspondent. Great to be back.
+A. correspondent: Today's episode is sponsored by Squarespace. Squarespace makes building a beautiful, branded website actually pleasant. Try squarespace.com today.What does the failure mode look like? What's the structural angle most listeners don't have access to?
+Renee Montagne-Park: Yeah, so — A newsroom is a reliability system with a deadline. We've seen this play out at teams using BBC. The framing matters because it tells you which trade-offs you're making.
+A. correspondent: Walk me through a concrete example. How does BBC fit into this picture?
+Renee Montagne-Park: Here's how I think about it. Trust is the only asset a public broadcaster actually owns. If you ignore that, you end up rebuilding it from scratch a year later.
+A. correspondent: We'll be right back after a quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Visit notion.com/podcast for a free trial.
+A. correspondent: Welcome back to the show.Walk me through a concrete example. What's the most underrated piece of journalism?
+Renee Montagne-Park: Let me give you the version I actually believe. A newsroom is a reliability system with a deadline. We've seen this play out at teams using BBC. If you ignore that, you end up rebuilding it from scratch a year later.
+A. correspondent: What's the one heuristic you keep coming back to? What's the most underrated piece of journalism?
+Renee Montagne-Park: Yeah, so — Trust is the only asset a public broadcaster actually owns. If you ignore that, you end up rebuilding it from scratch a year later.
+A. correspondent: Let's pivot — reliability is where I want to spend the last stretch.
+Renee Montagne-Park: That's where the conversation gets interesting, because the trade-offs around reliability cross-cut everything we've covered.
+A. correspondent: Push back on the conventional wisdom for me. What's the most underrated piece of journalism?
+Renee Montagne-Park: It comes down to this: A newsroom is a reliability system with a deadline. We've seen this play out at teams using BBC. And the second-order effect is the part most people miss.
+A. correspondent: Push back on the conventional wisdom for me. What's something you used to believe about this that you've revised?
+Renee Montagne-Park: It comes down to this: Trust is the only asset a public broadcaster actually owns. The framing matters because it tells you which trade-offs you're making.
+A. correspondent: Before we wrap, what's one thing listeners can try this week?
+Renee Montagne-Park: Pick one of the ideas we covered and run it for two weeks. The rest is iteration.
+A. correspondent: And finally, a big thank you to our partners at Squarespace. Squarespace makes building a beautiful, branded website actually pleasant. Check out squarespace.com.Renee Montagne-Park, thanks for the conversation.
+Renee Montagne-Park: Thanks, A. correspondent.
+A. correspondent: That's it for today's episode of Public Hour. See you next time.

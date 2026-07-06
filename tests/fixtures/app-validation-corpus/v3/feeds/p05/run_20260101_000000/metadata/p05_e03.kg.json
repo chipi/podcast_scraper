@@ -1,0 +1,121 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-8aa4d883afa10fa4",
+      "to": "entity:personal-finance",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-8aa4d883afa10fa4",
+      "to": "entity:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-8aa4d883afa10fa4",
+      "to": "topic:personal-finance",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-8aa4d883afa10fa4",
+      "to": "topic:risk-management",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-8aa4d883afa10fa4",
+      "to": "topic:lifelong-learning",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-8aa4d883afa10fa4",
+      "to": "topic:expert-interviews",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-8aa4d883afa10fa4",
+      "to": "person:nora",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-8aa4d883afa10fa4",
+      "to": "person:scott-bessett",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-8aa4d883afa10fa4",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-8aa4d883afa10fa4",
+      "properties": {
+        "episode_id": "ep-8aa4d883afa10fa4",
+        "metadata_relative_path": "feeds/p05/run_20260101_000000/metadata/p05_e03.metadata.json",
+        "title": "The Bessent Tape"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:personal-finance",
+      "properties": {
+        "category": "Concept",
+        "label": "Personal Finance"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:risk-management",
+      "properties": {
+        "category": "Concept",
+        "label": "Risk Management"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:personal-finance",
+      "properties": {
+        "label": "personal finance"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:nora",
+      "properties": {
+        "name": "Nora",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:scott-bessett",
+      "properties": {
+        "name": "Scott Bessett",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2"
+}

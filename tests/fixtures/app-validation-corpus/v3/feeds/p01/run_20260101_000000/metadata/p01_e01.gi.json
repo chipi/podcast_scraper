@@ -1,0 +1,274 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-db8f44d2e07a22bd",
+      "to": "topic:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-db8f44d2e07a22bd",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-db8f44d2e07a22bd",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-db8f44d2e07a22bd",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-db8f44d2e07a22bd",
+      "to": "insight:6d6fb38e35223abc",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-db8f44d2e07a22bd",
+      "to": "insight:26f018c921d9ba0d",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-db8f44d2e07a22bd",
+      "to": "insight:62e96736fe305ae9",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:e1291bfadaf6e9f4",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:6d6fb38e35223abc",
+      "to": "quote:e1291bfadaf6e9f4",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:8c9ba9518d70bdc1",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:26f018c921d9ba0d",
+      "to": "quote:8c9ba9518d70bdc1",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:39623af998107f2b",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:62e96736fe305ae9",
+      "to": "quote:39623af998107f2b",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:cadc1a483052154d",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:6d6fb38e35223abc",
+      "to": "quote:cadc1a483052154d",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:fd8fdcbb4b2f2e79",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:26f018c921d9ba0d",
+      "to": "quote:fd8fdcbb4b2f2e79",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:13c50d65dc901ac8",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:62e96736fe305ae9",
+      "to": "quote:13c50d65dc901ac8",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "ep-db8f44d2e07a22bd",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-db8f44d2e07a22bd",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ep-db8f44d2e07a22bd",
+        "metadata_relative_path": "feeds/p01/run_20260101_000000/metadata/p01_e01.metadata.json",
+        "podcast_id": "p01",
+        "publish_date": "2026-01-12T12:00:00",
+        "title": "Building Trails That Last"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:6d6fb38e35223abc",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Welcome back to Singletrack Sessions. Today we're talking about trail building, and I'm joined by Liam Verbeek, trail builder for the Cascadia Alliance. Liam Verbeek, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:26f018c921d9ba0d",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Thanks, Maya. Excited for this one \u2014 trail building is something I've been thinking about a lot."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:62e96736fe305ae9",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Take me through the decision. How does RockShox fit into this picture?"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Maya"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:e1291bfadaf6e9f4",
+      "properties": {
+        "char_end": 195,
+        "char_start": 6,
+        "episode_id": "ep-db8f44d2e07a22bd",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Singletrack Sessions. Today we're talking about trail building, and I'm joined by Liam Verbeek, trail builder for the Cascadia Alliance. Liam Verbeek, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p01_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Liam Verbeek"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:8c9ba9518d70bdc1",
+      "properties": {
+        "char_end": 306,
+        "char_start": 210,
+        "episode_id": "ep-db8f44d2e07a22bd",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Maya. Excited for this one \u2014 trail building is something I've been thinking about a lot.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p01_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:39623af998107f2b",
+      "properties": {
+        "char_end": 422,
+        "char_start": 313,
+        "episode_id": "ep-db8f44d2e07a22bd",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Strava. Strava is the home for athletes. Get started at strava.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p01_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:cadc1a483052154d",
+      "properties": {
+        "char_end": 492,
+        "char_start": 422,
+        "episode_id": "ep-db8f44d2e07a22bd",
+        "speaker_id": "person:speaker-01",
+        "text": "Take me through the decision. How does RockShox fit into this picture?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p01_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:fd8fdcbb4b2f2e79",
+      "properties": {
+        "char_end": 704,
+        "char_start": 507,
+        "episode_id": "ep-db8f44d2e07a22bd",
+        "speaker_id": "person:speaker-02",
+        "text": "Honestly, Drainage is the single highest-leverage design choice on any trail. We've seen this play out at teams using Cascadia Alliance. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p01_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:13c50d65dc901ac8",
+      "properties": {
+        "char_end": 798,
+        "char_start": 711,
+        "episode_id": "ep-db8f44d2e07a22bd",
+        "speaker_id": "person:speaker-01",
+        "text": "Take me through the decision. What's the version of the question that actually matters?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p01_e01.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

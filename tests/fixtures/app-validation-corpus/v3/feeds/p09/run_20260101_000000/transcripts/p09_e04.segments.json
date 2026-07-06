@@ -1,0 +1,226 @@
+[
+  {
+    "end": 6.0,
+    "id": 0,
+    "speaker_label": "Sam",
+    "start": 0.0,
+    "text": "Welcome back to Cross-Show. Today we're talking about risk management, and I'm joined by Dr. Elena Fischer, returning systems thinker. Dr. Elena Fischer, thanks for being here."
+  },
+  {
+    "end": 12.0,
+    "id": 1,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 6.0,
+    "text": "Thanks, Sam. Great to be back."
+  },
+  {
+    "end": 18.0,
+    "id": 2,
+    "speaker_label": "Sam",
+    "start": 12.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Try notion.com today."
+  },
+  {
+    "end": 24.0,
+    "id": 3,
+    "speaker_label": "Sam",
+    "start": 18.0,
+    "text": "Walk me through a concrete example. What's the version of the question that actually matters?"
+  },
+  {
+    "end": 30.0,
+    "id": 4,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 24.0,
+    "text": "Here's how I think about it. Risk lives in the couplings, not the components \u2014 same as reliability. We've seen this play out at teams using BloombergNEF. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "end": 36.0,
+    "id": 5,
+    "speaker_label": "Sam",
+    "start": 30.0,
+    "text": "I want to dig into that. How does BloombergNEF fit into this picture?"
+  },
+  {
+    "end": 42.0,
+    "id": 6,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 36.0,
+    "text": "Here's how I think about it. The dangerous risks are the slow correlated ones you can name but discount. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "end": 48.0,
+    "id": 7,
+    "speaker_label": "Sam",
+    "start": 42.0,
+    "text": "We'll be right back after a quick word from our sponsors."
+  },
+  {
+    "end": 54.0,
+    "id": 8,
+    "speaker_label": "Ad",
+    "start": 48.0,
+    "text": "Today's episode is sponsored by Bloomberg. Bloomberg Terminal is the data spine that institutional desks run on. Visit bloomberg.com/podcast for a free trial."
+  },
+  {
+    "end": 60.0,
+    "id": 9,
+    "speaker_label": "Sam",
+    "start": 54.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "end": 66.0,
+    "id": 10,
+    "speaker_label": "Sam",
+    "start": 60.0,
+    "text": "I want to dig into that. What's the most underrated piece of risk management?"
+  },
+  {
+    "end": 72.0,
+    "id": 11,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 66.0,
+    "text": "It comes down to this: Risk lives in the couplings, not the components \u2014 same as reliability. We've seen this play out at teams using IPCC. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "end": 78.0,
+    "id": 12,
+    "speaker_label": "Sam",
+    "start": 72.0,
+    "text": "Walk me through a concrete example. What's the version of the question that actually matters?"
+  },
+  {
+    "end": 84.0,
+    "id": 13,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 78.0,
+    "text": "Let me give you the version I actually believe. The dangerous risks are the slow correlated ones you can name but discount. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "end": 90.0,
+    "id": 14,
+    "speaker_label": "Sam",
+    "start": 84.0,
+    "text": "Let's pivot \u2014 reliability is where I want to spend the last stretch."
+  },
+  {
+    "end": 96.0,
+    "id": 15,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 90.0,
+    "text": "That's where the conversation gets interesting, because the trade-offs around reliability cross-cut everything we've covered."
+  },
+  {
+    "end": 102.0,
+    "id": 16,
+    "speaker_label": "Sam",
+    "start": 96.0,
+    "text": "Walk me through a concrete example. Where do systems thinking and risk management intersect?"
+  },
+  {
+    "end": 108.0,
+    "id": 17,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 102.0,
+    "text": "Here's how I think about it. Risk lives in the couplings, not the components \u2014 same as reliability. We've seen this play out at teams using IPCC. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "end": 114.0,
+    "id": 18,
+    "speaker_label": "Sam",
+    "start": 108.0,
+    "text": "Push back on the conventional wisdom for me. What's the version of the question that actually matters?"
+  },
+  {
+    "end": 120.0,
+    "id": 19,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 114.0,
+    "text": "Honestly, The dangerous risks are the slow correlated ones you can name but discount. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 126.0,
+    "id": 20,
+    "speaker_label": "Sam",
+    "start": 120.0,
+    "text": "On risk management \u2014 Dr. Elena Fischer, what's your read?"
+  },
+  {
+    "end": 132.0,
+    "id": 21,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 126.0,
+    "text": "Risk is a systems property: it lives in the interactions, not the parts."
+  },
+  {
+    "end": 138.0,
+    "id": 22,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 132.0,
+    "text": "And that's not a hunch \u2014 we measured it directly."
+  },
+  {
+    "end": 144.0,
+    "id": 23,
+    "speaker_label": "Sam",
+    "start": 138.0,
+    "text": "On systems thinking \u2014 Dr. Elena Fischer, what's your read?"
+  },
+  {
+    "end": 150.0,
+    "id": 24,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 144.0,
+    "text": "Systems thinking and risk management are one discipline in two vocabularies."
+  },
+  {
+    "end": 156.0,
+    "id": 25,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 150.0,
+    "text": "And that's not a hunch \u2014 we measured it directly."
+  },
+  {
+    "end": 162.0,
+    "id": 26,
+    "speaker_label": "Sam",
+    "start": 156.0,
+    "text": "Before we wrap, what's one thing listeners can try this week?"
+  },
+  {
+    "end": 168.0,
+    "id": 27,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 162.0,
+    "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
+  },
+  {
+    "end": 174.0,
+    "id": 28,
+    "speaker_label": "Sam",
+    "start": 168.0,
+    "text": "Before we wrap, thanks again to our friends at Notion. Notion replaces the dozen tools your team is half-using."
+  },
+  {
+    "end": 180.0,
+    "id": 29,
+    "speaker_label": "Sam",
+    "start": 174.0,
+    "text": "Dr. Elena Fischer, thanks for the conversation."
+  },
+  {
+    "end": 186.0,
+    "id": 30,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 180.0,
+    "text": "Thanks, Sam."
+  },
+  {
+    "end": 192.0,
+    "id": 31,
+    "speaker_label": "Sam",
+    "start": 186.0,
+    "text": "That's it for today's episode of Cross-Show. See you next time."
+  }
+]

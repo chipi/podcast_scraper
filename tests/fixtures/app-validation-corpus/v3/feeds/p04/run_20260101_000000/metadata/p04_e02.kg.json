@@ -1,0 +1,121 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-fb2bb5f0f4044f1d",
+      "to": "entity:visual-craft",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-fb2bb5f0f4044f1d",
+      "to": "entity:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-fb2bb5f0f4044f1d",
+      "to": "topic:visual-craft",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-fb2bb5f0f4044f1d",
+      "to": "topic:systems-thinking",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-fb2bb5f0f4044f1d",
+      "to": "topic:lifelong-learning",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-fb2bb5f0f4044f1d",
+      "to": "topic:expert-interviews",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-fb2bb5f0f4044f1d",
+      "to": "person:leo",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-fb2bb5f0f4044f1d",
+      "to": "person:tarek-hassan",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-fb2bb5f0f4044f1d",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-fb2bb5f0f4044f1d",
+      "properties": {
+        "episode_id": "ep-fb2bb5f0f4044f1d",
+        "metadata_relative_path": "feeds/p04/run_20260101_000000/metadata/p04_e02.metadata.json",
+        "title": "Documentary Workflow in the Field"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:visual-craft",
+      "properties": {
+        "category": "Concept",
+        "label": "Visual Craft"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:systems-thinking",
+      "properties": {
+        "category": "Concept",
+        "label": "Systems Thinking"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:visual-craft",
+      "properties": {
+        "label": "visual craft"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:leo",
+      "properties": {
+        "name": "Leo",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:tarek-hassan",
+      "properties": {
+        "name": "Tarek Hassan",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2"
+}

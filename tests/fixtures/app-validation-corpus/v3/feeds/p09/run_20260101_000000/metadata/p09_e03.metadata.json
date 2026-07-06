@@ -1,0 +1,49 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p09-e03",
+    "media_type": "audio/mpeg",
+    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Sam",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Skanda Amarnath",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p09_e03.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 1800,
+    "episode_id": "ep-919c77e84ad37664",
+    "published_date": "2026-01--6T00:00:00",
+    "title": "When the Severe Garble Bites"
+  },
+  "feed": {
+    "description": "Recurring guests from other shows revisit their positions.",
+    "feed_id": "p09",
+    "title": "Cross-Show",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Welcome back to Cross-Show. Today we're talking about labor markets, and I'm joined by Skanda Amarnath, returning macro economist. Skanda Amarnath, thanks for being here.",
+      "Before we get into it \u2014 Skanda Eminas was on episode 2 making this same point on Bloomberg-data caveats.",
+      "Yeah, exactly. And it ties into what we're covering today."
+    ],
+    "raw_text": "Welcome back to Cross-Show. Today we're talking about labor markets, and I'm joined by Skanda Amarnath, returning macro economist. Skanda Amarnath, thanks for being here.",
+    "title": "When the Severe Garble Bites"
+  }
+}

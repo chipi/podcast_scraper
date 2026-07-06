@@ -1,0 +1,49 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p04-e04",
+    "media_type": "audio/mpeg",
+    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Leo",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Ava Lemoine",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p04_e04.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 1800,
+    "episode_id": "ep-9b36e2e3b959298d",
+    "published_date": "2026-01-13T00:00:00",
+    "title": "Roundtable: Three Photographers on Light"
+  },
+  "feed": {
+    "description": "Photography conversations: craft, storytelling, workflow, and making images under real constraints.",
+    "feed_id": "p04",
+    "title": "Frame & Light",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Welcome back to Frame & Light. Today we're talking about roundtable photography, and I'm joined by Ava Lemoine, underwater photographer. Ava Lemoine, thanks for being here.",
+      "Before we get into it \u2014 Ava walked us through underwater work last month, Tariq covered documentary, Daniel on commercial lighting \u2014 today we get all three in the same conversation.",
+      "Yeah, exactly. And it ties into what we're covering today."
+    ],
+    "raw_text": "Welcome back to Frame & Light. Today we're talking about roundtable photography, and I'm joined by Ava Lemoine, underwater photographer. Ava Lemoine, thanks for being here.",
+    "title": "Roundtable: Three Photographers on Light"
+  }
+}

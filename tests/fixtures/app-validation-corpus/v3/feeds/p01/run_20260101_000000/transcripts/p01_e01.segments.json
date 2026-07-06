@@ -1,0 +1,436 @@
+[
+  {
+    "end": 6.0,
+    "id": 0,
+    "speaker_label": "Maya",
+    "start": 0.0,
+    "text": "Welcome back to Singletrack Sessions. Today we're talking about trail building, and I'm joined by Liam Verbeek, trail builder for the Cascadia Alliance. Liam Verbeek, thanks for being here."
+  },
+  {
+    "end": 12.0,
+    "id": 1,
+    "speaker_label": "Liam Verbeek",
+    "start": 6.0,
+    "text": "Thanks, Maya. Excited for this one \u2014 trail building is something I've been thinking about a lot."
+  },
+  {
+    "end": 18.0,
+    "id": 2,
+    "speaker_label": "Maya",
+    "start": 12.0,
+    "text": "This episode is brought to you by Strava. Strava is the home for athletes. Get started at strava.com/podcast."
+  },
+  {
+    "end": 24.0,
+    "id": 3,
+    "speaker_label": "Maya",
+    "start": 18.0,
+    "text": "Take me through the decision. How does RockShox fit into this picture?"
+  },
+  {
+    "end": 30.0,
+    "id": 4,
+    "speaker_label": "Liam Verbeek",
+    "start": 24.0,
+    "text": "Honestly, Drainage is the single highest-leverage design choice on any trail. We've seen this play out at teams using Cascadia Alliance. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 36.0,
+    "id": 5,
+    "speaker_label": "Maya",
+    "start": 30.0,
+    "text": "Take me through the decision. What's the version of the question that actually matters?"
+  },
+  {
+    "end": 42.0,
+    "id": 6,
+    "speaker_label": "Liam Verbeek",
+    "start": 36.0,
+    "text": "Yeah, so \u2014 The most common mistake new builders make is grading too aggressively. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 48.0,
+    "id": 7,
+    "speaker_label": "Maya",
+    "start": 42.0,
+    "text": "I want to dig into that. Where do soil erosion and trail building intersect?"
+  },
+  {
+    "end": 54.0,
+    "id": 8,
+    "speaker_label": "Liam Verbeek",
+    "start": 48.0,
+    "text": "Sure. Land-stewardship conversations have to happen before the first dig. We've seen this play out at teams using RockShox. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "end": 60.0,
+    "id": 9,
+    "speaker_label": "Maya",
+    "start": 54.0,
+    "text": "Say more about that."
+  },
+  {
+    "end": 66.0,
+    "id": 10,
+    "speaker_label": "Liam Verbeek",
+    "start": 60.0,
+    "text": "And when teams adopt Spoke & Wrench in that flow, the trade-off becomes visible \u2014 If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "end": 72.0,
+    "id": 11,
+    "speaker_label": "Maya",
+    "start": 66.0,
+    "text": "Take me through the decision. Where do soil erosion and trail building intersect?"
+  },
+  {
+    "end": 78.0,
+    "id": 12,
+    "speaker_label": "Liam Verbeek",
+    "start": 72.0,
+    "text": "Sure. Bench cuts on hillsides aren't optional. The shortcut on day one is the washout on year three. And the second-order effect is the part most people miss."
+  },
+  {
+    "end": 84.0,
+    "id": 13,
+    "speaker_label": "Maya",
+    "start": 78.0,
+    "text": "That's a useful framing. What's the version of the question that actually matters?"
+  },
+  {
+    "end": 90.0,
+    "id": 14,
+    "speaker_label": "Liam Verbeek",
+    "start": 84.0,
+    "text": "Yeah, so \u2014 Soil structure matters more than people think. We've seen this play out at teams using Spoke & Wrench. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 96.0,
+    "id": 15,
+    "speaker_label": "Maya",
+    "start": 90.0,
+    "text": "What does the failure mode look like? What's the structural angle most listeners don't have access to?"
+  },
+  {
+    "end": 102.0,
+    "id": 16,
+    "speaker_label": "Liam Verbeek",
+    "start": 96.0,
+    "text": "Let me give you the version I actually believe. I changed my mind about machine-built versus hand-built trails. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 108.0,
+    "id": 17,
+    "speaker_label": "Maya",
+    "start": 102.0,
+    "text": "Say more about that."
+  },
+  {
+    "end": 114.0,
+    "id": 18,
+    "speaker_label": "Liam Verbeek",
+    "start": 108.0,
+    "text": "And when teams adopt Cascadia Alliance in that flow, the trade-off becomes visible \u2014 If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "end": 120.0,
+    "id": 19,
+    "speaker_label": "Maya",
+    "start": 114.0,
+    "text": "We'll be right back after a quick word from our sponsors."
+  },
+  {
+    "end": 126.0,
+    "id": 20,
+    "speaker_label": "Ad",
+    "start": 120.0,
+    "text": "Today's episode is sponsored by Stripe. Stripe makes payments simple, whether you're running a marketplace or a subscription business. Visit stripe.com/podcast for a free trial."
+  },
+  {
+    "end": 132.0,
+    "id": 21,
+    "speaker_label": "Maya",
+    "start": 126.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "end": 138.0,
+    "id": 22,
+    "speaker_label": "Maya",
+    "start": 132.0,
+    "text": "What does the failure mode look like? Where do soil erosion and trail building intersect?"
+  },
+  {
+    "end": 144.0,
+    "id": 23,
+    "speaker_label": "Liam Verbeek",
+    "start": 138.0,
+    "text": "Here's how I think about it. Drainage is the single highest-leverage design choice on any trail. We've seen this play out at teams using Shimano. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "end": 150.0,
+    "id": 24,
+    "speaker_label": "Maya",
+    "start": 144.0,
+    "text": "Take me through the decision. How does RockShox fit into this picture?"
+  },
+  {
+    "end": 156.0,
+    "id": 25,
+    "speaker_label": "Liam Verbeek",
+    "start": 150.0,
+    "text": "Yeah, so \u2014 The most common mistake new builders make is grading too aggressively. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 162.0,
+    "id": 26,
+    "speaker_label": "Maya",
+    "start": 156.0,
+    "text": "Push back on the conventional wisdom for me. What's something you used to believe about this that you've revised?"
+  },
+  {
+    "end": 168.0,
+    "id": 27,
+    "speaker_label": "Liam Verbeek",
+    "start": 162.0,
+    "text": "Let me give you the version I actually believe. Land-stewardship conversations have to happen before the first dig. We've seen this play out at teams using Spoke & Wrench. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 174.0,
+    "id": 28,
+    "speaker_label": "Maya",
+    "start": 168.0,
+    "text": "That tracks."
+  },
+  {
+    "end": 180.0,
+    "id": 29,
+    "speaker_label": "Liam Verbeek",
+    "start": 174.0,
+    "text": "Outside of Cascadia Alliance-class tooling, the failure mode is harder to spot. And the second-order effect is the part most people miss."
+  },
+  {
+    "end": 186.0,
+    "id": 30,
+    "speaker_label": "Maya",
+    "start": 180.0,
+    "text": "What's the one heuristic you keep coming back to? What's the version of the question that actually matters?"
+  },
+  {
+    "end": 192.0,
+    "id": 31,
+    "speaker_label": "Liam Verbeek",
+    "start": 186.0,
+    "text": "It comes down to this: Bench cuts on hillsides aren't optional. The shortcut on day one is the washout on year three. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 198.0,
+    "id": 32,
+    "speaker_label": "Maya",
+    "start": 192.0,
+    "text": "What does the failure mode look like? What's the most underrated piece of trail building?"
+  },
+  {
+    "end": 204.0,
+    "id": 33,
+    "speaker_label": "Liam Verbeek",
+    "start": 198.0,
+    "text": "Let me give you the version I actually believe. Soil structure matters more than people think. We've seen this play out at teams using Cascadia Alliance. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 210.0,
+    "id": 34,
+    "speaker_label": "Maya",
+    "start": 204.0,
+    "text": "I want to dig into that. How does Shimano fit into this picture?"
+  },
+  {
+    "end": 216.0,
+    "id": 35,
+    "speaker_label": "Liam Verbeek",
+    "start": 210.0,
+    "text": "Yeah, so \u2014 I changed my mind about machine-built versus hand-built trails. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 222.0,
+    "id": 36,
+    "speaker_label": "Maya",
+    "start": 216.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "end": 228.0,
+    "id": 37,
+    "speaker_label": "Liam Verbeek",
+    "start": 222.0,
+    "text": "Outside of RockShox-class tooling, the failure mode is harder to spot. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 234.0,
+    "id": 38,
+    "speaker_label": "Maya",
+    "start": 228.0,
+    "text": "Let's pivot \u2014 land stewardship is where I want to spend the last stretch."
+  },
+  {
+    "end": 240.0,
+    "id": 39,
+    "speaker_label": "Liam Verbeek",
+    "start": 234.0,
+    "text": "That's where the conversation gets interesting, because the trade-offs around land stewardship cross-cut everything we've covered."
+  },
+  {
+    "end": 246.0,
+    "id": 40,
+    "speaker_label": "Maya",
+    "start": 240.0,
+    "text": "I want to dig into that. What's the contrarian angle most listeners don't have access to?"
+  },
+  {
+    "end": 252.0,
+    "id": 41,
+    "speaker_label": "Liam Verbeek",
+    "start": 246.0,
+    "text": "It comes down to this: Drainage is the single highest-leverage design choice on any trail. We've seen this play out at teams using RockShox. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "end": 258.0,
+    "id": 42,
+    "speaker_label": "Maya",
+    "start": 252.0,
+    "text": "What does the failure mode look like? What's the most underrated piece of trail building?"
+  },
+  {
+    "end": 264.0,
+    "id": 43,
+    "speaker_label": "Liam Verbeek",
+    "start": 258.0,
+    "text": "Honestly, The most common mistake new builders make is grading too aggressively. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "end": 270.0,
+    "id": 44,
+    "speaker_label": "Maya",
+    "start": 264.0,
+    "text": "What does the failure mode look like? What's the contrarian angle most listeners don't have access to?"
+  },
+  {
+    "end": 276.0,
+    "id": 45,
+    "speaker_label": "Liam Verbeek",
+    "start": 270.0,
+    "text": "Let me give you the version I actually believe. Land-stewardship conversations have to happen before the first dig. We've seen this play out at teams using Spoke & Wrench. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 282.0,
+    "id": 46,
+    "speaker_label": "Maya",
+    "start": 276.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "end": 288.0,
+    "id": 47,
+    "speaker_label": "Liam Verbeek",
+    "start": 282.0,
+    "text": "Cascadia Alliance is one of the platforms where this shows up cleanly. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 294.0,
+    "id": 48,
+    "speaker_label": "Maya",
+    "start": 288.0,
+    "text": "Push back on the conventional wisdom for me. Where do soil erosion and trail building intersect?"
+  },
+  {
+    "end": 300.0,
+    "id": 49,
+    "speaker_label": "Liam Verbeek",
+    "start": 294.0,
+    "text": "Honestly, Bench cuts on hillsides aren't optional. The shortcut on day one is the washout on year three. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "end": 306.0,
+    "id": 50,
+    "speaker_label": "Maya",
+    "start": 300.0,
+    "text": "That's a useful framing. What's the contrarian angle most listeners don't have access to?"
+  },
+  {
+    "end": 312.0,
+    "id": 51,
+    "speaker_label": "Liam Verbeek",
+    "start": 306.0,
+    "text": "Let me give you the version I actually believe. Soil structure matters more than people think. We've seen this play out at teams using Shimano. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 318.0,
+    "id": 52,
+    "speaker_label": "Maya",
+    "start": 312.0,
+    "text": "Walk me through a concrete example. What's something you used to believe about this that you've revised?"
+  },
+  {
+    "end": 324.0,
+    "id": 53,
+    "speaker_label": "Liam Verbeek",
+    "start": 318.0,
+    "text": "Honestly, I changed my mind about machine-built versus hand-built trails. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "end": 330.0,
+    "id": 54,
+    "speaker_label": "Maya",
+    "start": 324.0,
+    "text": "Say more about that."
+  },
+  {
+    "end": 336.0,
+    "id": 55,
+    "speaker_label": "Liam Verbeek",
+    "start": 330.0,
+    "text": "Shimano is one of the platforms where this shows up cleanly. And the second-order effect is the part most people miss."
+  },
+  {
+    "end": 342.0,
+    "id": 56,
+    "speaker_label": "Maya",
+    "start": 336.0,
+    "text": "Before we wrap, what's one thing listeners can try this week?"
+  },
+  {
+    "end": 348.0,
+    "id": 57,
+    "speaker_label": "Liam Verbeek",
+    "start": 342.0,
+    "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
+  },
+  {
+    "end": 354.0,
+    "id": 58,
+    "speaker_label": "Maya",
+    "start": 348.0,
+    "text": "And finally, a big thank you to our partners at Linear. Linear is the issue tracker built for speed \u2014 keyboard-first. Check out linear.com."
+  },
+  {
+    "end": 360.0,
+    "id": 59,
+    "speaker_label": "Maya",
+    "start": 354.0,
+    "text": "Liam Verbeek, thanks for the conversation."
+  },
+  {
+    "end": 366.0,
+    "id": 60,
+    "speaker_label": "Liam Verbeek",
+    "start": 360.0,
+    "text": "Thanks, Maya."
+  },
+  {
+    "end": 372.0,
+    "id": 61,
+    "speaker_label": "Maya",
+    "start": 366.0,
+    "text": "That's it for today's episode of Singletrack Sessions. See you next time."
+  }
+]

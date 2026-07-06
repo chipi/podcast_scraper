@@ -1,0 +1,66 @@
+{
+  "cluster_count": 2,
+  "clusters": [
+    {
+      "canonical_label": "Lifelong Learning",
+      "cil_alias_target_topic_id": "topic:lifelong-learning",
+      "graph_compound_parent_id": "tc:lifelong-learning",
+      "member_count": 2,
+      "members": [
+        {
+          "label": "lifelong learning",
+          "topic_id": "topic:lifelong-learning"
+        },
+        {
+          "label": "expert interviews",
+          "topic_id": "topic:expert-interviews"
+        }
+      ]
+    },
+    {
+      "canonical_label": "Show Themes",
+      "cil_alias_target_topic_id": "topic:personal-finance",
+      "graph_compound_parent_id": "tc:show-themes",
+      "member_count": 8,
+      "members": [
+        {
+          "label": "personal finance",
+          "topic_id": "topic:personal-finance"
+        },
+        {
+          "label": "risk management",
+          "topic_id": "topic:risk-management"
+        },
+        {
+          "label": "systems thinking",
+          "topic_id": "topic:systems-thinking"
+        },
+        {
+          "label": "safety practices",
+          "topic_id": "topic:safety-practices"
+        },
+        {
+          "label": "visual craft",
+          "topic_id": "topic:visual-craft"
+        },
+        {
+          "label": "endurance sport",
+          "topic_id": "topic:endurance-sport"
+        },
+        {
+          "label": "long-form",
+          "topic_id": "topic:long-form"
+        },
+        {
+          "label": "public radio",
+          "topic_id": "topic:public-radio"
+        }
+      ]
+    }
+  ],
+  "model": "synthetic-app-validation-corpus",
+  "schema_version": "2",
+  "singletons": 0,
+  "threshold": 0.75,
+  "topic_count": 10
+}

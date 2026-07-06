@@ -1,0 +1,67 @@
+{
+  "circuit_state": null,
+  "computed_at": "2026-01-01T00:00:00Z",
+  "data": {
+    "trending": [
+      {
+        "episodes": 36,
+        "topic_id": "topic:expert-interviews",
+        "velocity": 1.0
+      },
+      {
+        "episodes": 36,
+        "topic_id": "topic:lifelong-learning",
+        "velocity": 1.0
+      },
+      {
+        "episodes": 28,
+        "topic_id": "topic:risk-management",
+        "velocity": 0.778
+      },
+      {
+        "episodes": 20,
+        "topic_id": "topic:systems-thinking",
+        "velocity": 0.556
+      },
+      {
+        "episodes": 4,
+        "topic_id": "topic:endurance-sport",
+        "velocity": 0.111
+      },
+      {
+        "episodes": 4,
+        "topic_id": "topic:long-form",
+        "velocity": 0.111
+      },
+      {
+        "episodes": 4,
+        "topic_id": "topic:personal-finance",
+        "velocity": 0.111
+      },
+      {
+        "episodes": 4,
+        "topic_id": "topic:public-radio",
+        "velocity": 0.111
+      },
+      {
+        "episodes": 4,
+        "topic_id": "topic:safety-practices",
+        "velocity": 0.111
+      },
+      {
+        "episodes": 4,
+        "topic_id": "topic:visual-craft",
+        "velocity": 0.111
+      }
+    ]
+  },
+  "duration_ms": 0,
+  "enricher_id": "temporal_velocity",
+  "enricher_version": "1.0",
+  "error": null,
+  "error_class": null,
+  "records_written": 10,
+  "retry_count": 0,
+  "schema_version": "1.0",
+  "status": "ok"
+}

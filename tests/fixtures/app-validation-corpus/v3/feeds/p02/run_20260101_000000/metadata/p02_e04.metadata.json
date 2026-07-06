@@ -1,0 +1,44 @@
+{
+  "content": {
+    "diarization_num_speakers": 2,
+    "media_id": "sha256:p02-e04",
+    "media_type": "audio/mpeg",
+    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Ethan",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Priya Nair",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p02_e04.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 1800,
+    "episode_id": "ep-18ede6ffbd63f18f",
+    "published_date": "2026-01-21T00:00:00",
+    "title": "Reliability Is a Systems Property"
+  },
+  "feed": {
+    "description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
+    "feed_id": "p02",
+    "title": "Practical Systems",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Welcome back to Practical Systems. My guest is Priya Nair, who's spent a decade keeping large systems from falling over. Priya, thanks for coming on.",
+      "You keep saying reliability isn't a feature. What do you mean?",
+      "Reliability is a property of the whole system, not of any one component. You can have perfect services that still produce an outage, because the failure lives in how they interact. If you think in\u2026"
+    ],
+    "raw_text": "Welcome back to Practical Systems. My guest is Priya Nair, who's spent a decade keeping large systems from falling over. Priya, thanks for coming on.",
+    "title": "Reliability Is a Systems Property"
+  }
+}

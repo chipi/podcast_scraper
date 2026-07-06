@@ -1,0 +1,121 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-9f97daef33906cf6",
+      "to": "entity:visual-craft",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-9f97daef33906cf6",
+      "to": "entity:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-9f97daef33906cf6",
+      "to": "topic:visual-craft",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-9f97daef33906cf6",
+      "to": "topic:systems-thinking",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-9f97daef33906cf6",
+      "to": "topic:lifelong-learning",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-9f97daef33906cf6",
+      "to": "topic:expert-interviews",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-9f97daef33906cf6",
+      "to": "person:leo",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-9f97daef33906cf6",
+      "to": "person:daniel-olufemi",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-9f97daef33906cf6",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-9f97daef33906cf6",
+      "properties": {
+        "episode_id": "ep-9f97daef33906cf6",
+        "metadata_relative_path": "feeds/p04/run_20260101_000000/metadata/p04_e03.metadata.json",
+        "title": "Lighting Decisions That Save a Shoot"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:visual-craft",
+      "properties": {
+        "category": "Concept",
+        "label": "Visual Craft"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:systems-thinking",
+      "properties": {
+        "category": "Concept",
+        "label": "Systems Thinking"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:visual-craft",
+      "properties": {
+        "label": "visual craft"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:leo",
+      "properties": {
+        "name": "Leo",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:daniel-olufemi",
+      "properties": {
+        "name": "Daniel Olufemi",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2"
+}

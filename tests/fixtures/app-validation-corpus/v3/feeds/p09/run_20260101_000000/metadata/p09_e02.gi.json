@@ -1,0 +1,274 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-a1342cd495b1165b",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a1342cd495b1165b",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a1342cd495b1165b",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a1342cd495b1165b",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a1342cd495b1165b",
+      "to": "insight:2b0dfa9c911f2b4d",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-a1342cd495b1165b",
+      "to": "insight:1b3d89444a6f5fb7",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-a1342cd495b1165b",
+      "to": "insight:3aabb6d8787f9373",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:13041dad1c5ed848",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:2b0dfa9c911f2b4d",
+      "to": "quote:13041dad1c5ed848",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:71d81d50bc9a3a9c",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1b3d89444a6f5fb7",
+      "to": "quote:71d81d50bc9a3a9c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:a2bdc0a81e61a6d5",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "quote:a2bdc0a81e61a6d5",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:4c7c8356d2c87135",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:2b0dfa9c911f2b4d",
+      "to": "quote:4c7c8356d2c87135",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:bcf2290b7e926d06",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1b3d89444a6f5fb7",
+      "to": "quote:bcf2290b7e926d06",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:a276f0bdd91c3cf2",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "quote:a276f0bdd91c3cf2",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "ep-a1342cd495b1165b",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-a1342cd495b1165b",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ep-a1342cd495b1165b",
+        "metadata_relative_path": "feeds/p09/run_20260101_000000/metadata/p09_e02.metadata.json",
+        "podcast_id": "p09",
+        "publish_date": "2026-01--5T12:00:00",
+        "title": "Macro Without the Theatrics"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:2b0dfa9c911f2b4d",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Welcome back to Cross-Show. Today we're talking about macroeconomics, and I'm joined by Skanda Amarnauth, returning macro economist. Skanda Amarnauth, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:1b3d89444a6f5fb7",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Before we get into it \u2014 Dr. Elena Fisher was on last week revisiting her 2024 position."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:3aabb6d8787f9373",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Yeah, exactly. And it ties into what we're covering today."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Sam"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:13041dad1c5ed848",
+      "properties": {
+        "char_end": 178,
+        "char_start": 5,
+        "episode_id": "ep-a1342cd495b1165b",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Cross-Show. Today we're talking about macroeconomics, and I'm joined by Skanda Amarnauth, returning macro economist. Skanda Amarnauth, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p09_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Skanda Amarnauth"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:71d81d50bc9a3a9c",
+      "properties": {
+        "char_end": 227,
+        "char_start": 197,
+        "episode_id": "ep-a1342cd495b1165b",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Sam. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p09_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:a2bdc0a81e61a6d5",
+      "properties": {
+        "char_end": 385,
+        "char_start": 233,
+        "episode_id": "ep-a1342cd495b1165b",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Bloomberg. Bloomberg Terminal is the data spine that institutional desks run on. Get started at bloomberg.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p09_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:4c7c8356d2c87135",
+      "properties": {
+        "char_end": 472,
+        "char_start": 385,
+        "episode_id": "ep-a1342cd495b1165b",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Dr. Elena Fisher was on last week revisiting her 2024 position.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p09_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:bcf2290b7e926d06",
+      "properties": {
+        "char_end": 549,
+        "char_start": 491,
+        "episode_id": "ep-a1342cd495b1165b",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, exactly. And it ties into what we're covering today.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p09_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:a276f0bdd91c3cf2",
+      "properties": {
+        "char_end": 650,
+        "char_start": 555,
+        "episode_id": "ep-a1342cd495b1165b",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to flag something \u2014 Dr. Elena Fisher mentioned this same dynamic a couple episodes back.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p09_e02.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

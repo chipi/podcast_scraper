@@ -1,0 +1,281 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-16ff698c1bd21087",
+      "to": "topic:personal-finance",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-16ff698c1bd21087",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-16ff698c1bd21087",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-16ff698c1bd21087",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-16ff698c1bd21087",
+      "to": "insight:f4be722c05ac0adc",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-16ff698c1bd21087",
+      "to": "insight:ec9ec1e4f4e5a960",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-16ff698c1bd21087",
+      "to": "insight:473ab86045cd6865",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:544305e422db25a3",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:f4be722c05ac0adc",
+      "to": "quote:544305e422db25a3",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:c7145daaf769eb53",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ec9ec1e4f4e5a960",
+      "to": "quote:c7145daaf769eb53",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:99a418bbbd1f055d",
+      "to": "person:speaker-03",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:473ab86045cd6865",
+      "to": "quote:99a418bbbd1f055d",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f45534d5dd7356df",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:f4be722c05ac0adc",
+      "to": "quote:f45534d5dd7356df",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:76a22f574afa9264",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ec9ec1e4f4e5a960",
+      "to": "quote:76a22f574afa9264",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:be6904c60151df16",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:473ab86045cd6865",
+      "to": "quote:be6904c60151df16",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "ep-16ff698c1bd21087",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-16ff698c1bd21087",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ep-16ff698c1bd21087",
+        "metadata_relative_path": "feeds/p05/run_20260101_000000/metadata/p05_e04.metadata.json",
+        "podcast_id": "p05",
+        "publish_date": "2026-01-25T12:00:00",
+        "title": "The Risk Panel: Diversify or Concentrate?"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:personal-finance",
+      "properties": {
+        "label": "personal finance",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:f4be722c05ac0adc",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Welcome back to Long Horizon Notes. Today is a debate \u2014 one question, two people who genuinely disagree. I'm joined by Daniel Cho, who runs a low-cost index practice, and Scott Bessent, a hedge fun\u2026"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:ec9ec1e4f4e5a960",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Thanks, Nora. Happy to be the boring one today."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:473ab86045cd6865",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "And I'll be the reckless one, apparently."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Nora"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:544305e422db25a3",
+      "properties": {
+        "char_end": 272,
+        "char_start": 6,
+        "episode_id": "ep-16ff698c1bd21087",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Long Horizon Notes. Today is a debate \u2014 one question, two people who genuinely disagree. I'm joined by Daniel Cho, who runs a low-cost index practice, and Scott Bessent, a hedge fund manager who's built his career on concentrated bets. Welcome, both.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p05_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Daniel Cho"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:c7145daaf769eb53",
+      "properties": {
+        "char_end": 332,
+        "char_start": 285,
+        "episode_id": "ep-16ff698c1bd21087",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Nora. Happy to be the boring one today.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p05_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-03",
+      "properties": {
+        "name": "Scott Bessent"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:99a418bbbd1f055d",
+      "properties": {
+        "char_end": 389,
+        "char_start": 348,
+        "episode_id": "ep-16ff698c1bd21087",
+        "speaker_id": "person:speaker-03",
+        "text": "And I'll be the reckless one, apparently.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p05_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:f45534d5dd7356df",
+      "properties": {
+        "char_end": 521,
+        "char_start": 396,
+        "episode_id": "ep-16ff698c1bd21087",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we dig in \u2014 today's episode is sponsored by Vanguard. Vanguard pioneered low-cost index funds. Try vanguard.com today.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p05_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:76a22f574afa9264",
+      "properties": {
+        "char_end": 675,
+        "char_start": 521,
+        "episode_id": "ep-16ff698c1bd21087",
+        "speaker_id": "person:speaker-01",
+        "text": "Here's the proposition: for an ordinary investor, is diversification the answer \u2014 or a way to hide from decisions you should be making? Daniel, you first.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p05_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:be6904c60151df16",
+      "properties": {
+        "char_end": 927,
+        "char_start": 688,
+        "episode_id": "ep-16ff698c1bd21087",
+        "speaker_id": "person:speaker-02",
+        "text": "For an individual investor, diversification is the closest thing to a free lunch that exists. You give up almost nothing, and you remove the single biggest way people ruin themselves \u2014 one position going to zero at the worst possible time.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p05_e04.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

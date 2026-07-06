@@ -1,0 +1,79 @@
+[
+  {
+    "end": 6.0,
+    "id": 0,
+    "speaker_label": "Alex Morgan",
+    "start": 0.0,
+    "text": "Welcome back to The Long View. I'm joined by Skanda Amarnath, who reads the macroeconomy for a living. Skanda, good to have you."
+  },
+  {
+    "end": 12.0,
+    "id": 1,
+    "speaker_label": "Skanda Amarnath",
+    "start": 6.0,
+    "text": "Thanks, Alex."
+  },
+  {
+    "end": 18.0,
+    "id": 2,
+    "speaker_label": "Alex Morgan",
+    "start": 12.0,
+    "text": "Today's episode is sponsored by Bloomberg. Bloomberg Terminal is the data spine institutional desks run on. Try bloomberg.com today."
+  },
+  {
+    "end": 24.0,
+    "id": 3,
+    "speaker_label": "Alex Morgan",
+    "start": 18.0,
+    "text": "You describe macro as risk management. Unpack that."
+  },
+  {
+    "end": 30.0,
+    "id": 4,
+    "speaker_label": "Skanda Amarnath",
+    "start": 24.0,
+    "text": "Macro is risk management at scale. The job is mostly not being on the wrong side of a regime change \u2014 and the regime change you can name in advance is the one you can position for. The rest is just hoping."
+  },
+  {
+    "end": 36.0,
+    "id": 5,
+    "speaker_label": "Skanda Amarnath",
+    "start": 30.0,
+    "text": "And the economy is a system, not a set of levers. Pull one and three others move. When we back-tested the calls, the misses were always someone treating a correlated system as if the parts were independent."
+  },
+  {
+    "end": 42.0,
+    "id": 6,
+    "speaker_label": "Alex Morgan",
+    "start": 36.0,
+    "text": "So the same discipline Elena talks about in sustainability."
+  },
+  {
+    "end": 48.0,
+    "id": 7,
+    "speaker_label": "Skanda Amarnath",
+    "start": 42.0,
+    "text": "Exactly the same. A macro book and a power grid are both systems of correlated risk. Systems thinking and risk management are one discipline \u2014 you just change the vocabulary."
+  },
+  {
+    "end": 54.0,
+    "id": 8,
+    "speaker_label": "Alex Morgan",
+    "start": 48.0,
+    "text": "Thanks again to Morningstar for backing the show. Morningstar gives you independent fund ratings."
+  },
+  {
+    "end": 60.0,
+    "id": 9,
+    "speaker_label": "Skanda Amarnath",
+    "start": 54.0,
+    "text": "Thanks, Alex."
+  },
+  {
+    "end": 66.0,
+    "id": 10,
+    "speaker_label": "Alex Morgan",
+    "start": 60.0,
+    "text": "That's it for this Long View. Take care."
+  }
+]

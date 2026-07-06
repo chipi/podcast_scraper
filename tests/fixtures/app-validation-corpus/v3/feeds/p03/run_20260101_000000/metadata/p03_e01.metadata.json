@@ -1,0 +1,49 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p03-e01",
+    "media_type": "audio/mpeg",
+    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Rina",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Marco Sylva",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p03_e01.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 1800,
+    "episode_id": "ep-2a703b6f57d9020f",
+    "published_date": "2026-01-20T00:00:00",
+    "title": "Wreck Diving Fundamentals"
+  },
+  "feed": {
+    "description": "Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.",
+    "feed_id": "p03",
+    "title": "Below the Surface",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Welcome back to Below the Surface. Today we're talking about wreck diving, and I'm joined by Marco Sylva, technical diver and underwater archaeologist. Marco Sylva, thanks for being here.",
+      "Thanks, Rina. Excited for this one \u2014 wreck-diving fundamentals is something I've been thinking about a lot.",
+      "What does the failure mode look like? What's something you used to believe about this that you've revised?"
+    ],
+    "raw_text": "Welcome back to Below the Surface. Today we're talking about wreck diving, and I'm joined by Marco Sylva, technical diver and underwater archaeologist. Marco Sylva, thanks for being here.",
+    "title": "Wreck Diving Fundamentals"
+  }
+}

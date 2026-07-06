@@ -1,0 +1,44 @@
+{
+  "content": {
+    "diarization_num_speakers": 2,
+    "media_id": "sha256:p03-e04",
+    "media_type": "audio/mpeg",
+    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Rina",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Marco Silva",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p03_e04.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 1800,
+    "episode_id": "ep-916dab1698f88aec",
+    "published_date": "2026-01-17T00:00:00",
+    "title": "Plan the Dive, Manage the Risk"
+  },
+  "feed": {
+    "description": "Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.",
+    "feed_id": "p03",
+    "title": "Below the Surface",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Welcome back to Below the Surface. I'm joined by Marco Silva, technical diver and instructor. Marco, thanks for surfacing for us.",
+      "New divers think planning is paperwork. You call it survival.",
+      "Dive planning is risk management, plain and simple. It's the gas you don't use and the ascent you don't rush. The incident that hurts you is the one nobody named on the boat \u2014 so we name them all f\u2026"
+    ],
+    "raw_text": "Welcome back to Below the Surface. I'm joined by Marco Silva, technical diver and instructor. Marco, thanks for surfacing for us.",
+    "title": "Plan the Dive, Manage the Risk"
+  }
+}

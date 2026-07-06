@@ -1,0 +1,49 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p05-e04",
+    "media_type": "audio/mpeg",
+    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Nora",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Daniel Cho",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Scott Bessent",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p05_e04.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 1800,
+    "episode_id": "ep-16ff698c1bd21087",
+    "published_date": "2026-01-25T00:00:00",
+    "title": "The Risk Panel: Diversify or Concentrate?"
+  },
+  "feed": {
+    "description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
+    "feed_id": "p05",
+    "title": "Long Horizon Notes",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Welcome back to Long Horizon Notes. Today is a debate \u2014 one question, two people who genuinely disagree. I'm joined by Daniel Cho, who runs a low-cost index practice, and Scott Bessent, a hedge fun\u2026",
+      "Thanks, Nora. Happy to be the boring one today.",
+      "And I'll be the reckless one, apparently."
+    ],
+    "raw_text": "Welcome back to Long Horizon Notes. Today is a debate \u2014 one question, two people who genuinely disagree. I'm joined by Daniel Cho, who runs a low-cost index practice, and Scott Bessent, a hedge fun\u2026",
+    "title": "The Risk Panel: Diversify or Concentrate?"
+  }
+}

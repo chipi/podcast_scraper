@@ -1,0 +1,274 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-d8cc458a5f0049a8",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d8cc458a5f0049a8",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d8cc458a5f0049a8",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d8cc458a5f0049a8",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d8cc458a5f0049a8",
+      "to": "insight:fe16cc811aa5e99c",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-d8cc458a5f0049a8",
+      "to": "insight:00c37b14c35c25e2",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-d8cc458a5f0049a8",
+      "to": "insight:3aabb6d8787f9373",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:aeb886ec289fe681",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:fe16cc811aa5e99c",
+      "to": "quote:aeb886ec289fe681",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:6cae295519fc4906",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:00c37b14c35c25e2",
+      "to": "quote:6cae295519fc4906",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:8c2be914daad6bac",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "quote:8c2be914daad6bac",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:c3409f0b50bf46f4",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:fe16cc811aa5e99c",
+      "to": "quote:c3409f0b50bf46f4",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:a1451db46dcd04b4",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:00c37b14c35c25e2",
+      "to": "quote:a1451db46dcd04b4",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:5c4f8303c025b2d7",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "quote:5c4f8303c025b2d7",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "ep-d8cc458a5f0049a8",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-d8cc458a5f0049a8",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ep-d8cc458a5f0049a8",
+        "metadata_relative_path": "feeds/p02/run_20260101_000000/metadata/p02_e03.metadata.json",
+        "podcast_id": "p02",
+        "publish_date": "2026-01-22T12:00:00",
+        "title": "Frame the Decision: Pragmatic Threat Models"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:fe16cc811aa5e99c",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Welcome back to Practical Systems. Today we're talking about security design, and I'm joined by Priya Nair, principal SRE at a payments platform. Priya Nair, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:00c37b14c35c25e2",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Before we get into it \u2014 I was last on the show talking about on-call rotations. The pattern shows up again here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:3aabb6d8787f9373",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Yeah, exactly. And it ties into what we're covering today."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Ethan"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:aeb886ec289fe681",
+      "properties": {
+        "char_end": 187,
+        "char_start": 7,
+        "episode_id": "ep-d8cc458a5f0049a8",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Practical Systems. Today we're talking about security design, and I'm joined by Priya Nair, principal SRE at a payments platform. Priya Nair, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p02_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Priya Nair"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:6cae295519fc4906",
+      "properties": {
+        "char_end": 232,
+        "char_start": 200,
+        "episode_id": "ep-d8cc458a5f0049a8",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Ethan. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p02_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:8c2be914daad6bac",
+      "properties": {
+        "char_end": 341,
+        "char_start": 240,
+        "episode_id": "ep-d8cc458a5f0049a8",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Vanta. Vanta automates SOC 2 and ISO compliance. Try vanta.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p02_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:c3409f0b50bf46f4",
+      "properties": {
+        "char_end": 453,
+        "char_start": 341,
+        "episode_id": "ep-d8cc458a5f0049a8",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 I was last on the show talking about on-call rotations. The pattern shows up again here.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p02_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:a1451db46dcd04b4",
+      "properties": {
+        "char_end": 524,
+        "char_start": 466,
+        "episode_id": "ep-d8cc458a5f0049a8",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, exactly. And it ties into what we're covering today.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p02_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:5c4f8303c025b2d7",
+      "properties": {
+        "char_end": 685,
+        "char_start": 524,
+        "episode_id": "ep-d8cc458a5f0049a8",
+        "speaker_id": "person:speaker-02",
+        "text": "I used to argue for a single central security team. After the 2024 webhook incident I changed my mind \u2014 embedded ownership beats a central gatekeeper every time.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p02_e03.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

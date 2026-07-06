@@ -1,0 +1,49 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p09-e04",
+    "media_type": "audio/mpeg",
+    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Sam",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Dr. Elena Fischer",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p09_e04.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 1800,
+    "episode_id": "ep-4d94c63887afbd1a",
+    "published_date": "2026-01--7T00:00:00",
+    "title": "Risk Is a Systems Property"
+  },
+  "feed": {
+    "description": "Recurring guests from other shows revisit their positions.",
+    "feed_id": "p09",
+    "title": "Cross-Show",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Welcome back to Cross-Show. Today we're talking about risk management, and I'm joined by Dr. Elena Fischer, returning systems thinker. Dr. Elena Fischer, thanks for being here.",
+      "Walk me through a concrete example. What's the version of the question that actually matters?",
+      "Here's how I think about it. Risk lives in the couplings, not the components \u2014 same as reliability. We've seen this play out at teams using BloombergNEF. The framing matters because it tells you wh\u2026"
+    ],
+    "raw_text": "Welcome back to Cross-Show. Today we're talking about risk management, and I'm joined by Dr. Elena Fischer, returning systems thinker. Dr. Elena Fischer, thanks for being here.",
+    "title": "Risk Is a Systems Property"
+  }
+}

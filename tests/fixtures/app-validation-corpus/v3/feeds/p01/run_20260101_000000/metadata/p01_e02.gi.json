@@ -1,0 +1,274 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-60d667843dc40fca",
+      "to": "topic:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-60d667843dc40fca",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-60d667843dc40fca",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-60d667843dc40fca",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-60d667843dc40fca",
+      "to": "insight:cbc7c84bc1bfc866",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-60d667843dc40fca",
+      "to": "insight:2bc05a2a73a84912",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-60d667843dc40fca",
+      "to": "insight:3aabb6d8787f9373",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:2ae10e7de2f368cb",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:cbc7c84bc1bfc866",
+      "to": "quote:2ae10e7de2f368cb",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f1ff5ae91ae63de8",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:2bc05a2a73a84912",
+      "to": "quote:f1ff5ae91ae63de8",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:750917e1633309bf",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "quote:750917e1633309bf",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:a403e7675c5fad47",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:cbc7c84bc1bfc866",
+      "to": "quote:a403e7675c5fad47",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:c9a0f5251156d721",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:2bc05a2a73a84912",
+      "to": "quote:c9a0f5251156d721",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:313df897c17c721f",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "quote:313df897c17c721f",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "ep-60d667843dc40fca",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-60d667843dc40fca",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ep-60d667843dc40fca",
+        "metadata_relative_path": "feeds/p01/run_20260101_000000/metadata/p01_e02.metadata.json",
+        "podcast_id": "p01",
+        "publish_date": "2026-01-11T12:00:00",
+        "title": "Enduro Skills Without the Hype"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:cbc7c84bc1bfc866",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Welcome back to Singletrack Sessions. Today we're talking about enduro racing, and I'm joined by Sophie Lorenz, enduro racer and coach. Sophie Lorenz, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:2bc05a2a73a84912",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Before we get into it \u2014 Liam Verbeck was on the show talking about how drainage is the single highest-leverage design choice."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:3aabb6d8787f9373",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Yeah, exactly. And it ties into what we're covering today."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Maya"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:2ae10e7de2f368cb",
+      "properties": {
+        "char_end": 179,
+        "char_start": 6,
+        "episode_id": "ep-60d667843dc40fca",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Singletrack Sessions. Today we're talking about enduro racing, and I'm joined by Sophie Lorenz, enduro racer and coach. Sophie Lorenz, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p01_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Sophie Lorenz"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:f1ff5ae91ae63de8",
+      "properties": {
+        "char_end": 226,
+        "char_start": 195,
+        "episode_id": "ep-60d667843dc40fca",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Maya. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p01_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:750917e1633309bf",
+      "properties": {
+        "char_end": 356,
+        "char_start": 233,
+        "episode_id": "ep-60d667843dc40fca",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first. Try linear.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p01_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:a403e7675c5fad47",
+      "properties": {
+        "char_end": 481,
+        "char_start": 356,
+        "episode_id": "ep-60d667843dc40fca",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Liam Verbeck was on the show talking about how drainage is the single highest-leverage design choice.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p01_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:c9a0f5251156d721",
+      "properties": {
+        "char_end": 555,
+        "char_start": 497,
+        "episode_id": "ep-60d667843dc40fca",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, exactly. And it ties into what we're covering today.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p01_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:313df897c17c721f",
+      "properties": {
+        "char_end": 653,
+        "char_start": 562,
+        "episode_id": "ep-60d667843dc40fca",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to flag something \u2014 Liam Verbeck mentioned this same dynamic a couple episodes back.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p01_e02.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

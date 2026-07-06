@@ -1,0 +1,49 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p06-e02",
+    "media_type": "audio/mpeg",
+    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Cam",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Jordan Park",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p06_e02.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 1800,
+    "episode_id": "ep-f4b940a095192621",
+    "published_date": "2026-01-03T00:00:00",
+    "title": "More Drift, Less Signal"
+  },
+  "feed": {
+    "description": "Dialogue-heavy, meandering long-form interviews.",
+    "feed_id": "p06",
+    "title": "The Drift",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Welcome back to The Drift. Today we're talking about long form, and I'm joined by Jordan Park, cultural critic. Jordan Park, thanks for being here.",
+      "What's the one heuristic you keep coming back to? What's the structural angle most listeners don't have access to?",
+      "Here's how I think about it. Sometimes the point of a conversation is not having a point. We've seen this play out at teams using Substack. I've watched this pattern hold across three different teams."
+    ],
+    "raw_text": "Welcome back to The Drift. Today we're talking about long form, and I'm joined by Jordan Park, cultural critic. Jordan Park, thanks for being here.",
+    "title": "More Drift, Less Signal"
+  }
+}

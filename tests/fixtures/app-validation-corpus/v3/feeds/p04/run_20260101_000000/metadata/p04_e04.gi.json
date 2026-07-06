@@ -1,0 +1,274 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-9b36e2e3b959298d",
+      "to": "topic:visual-craft",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-9b36e2e3b959298d",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-9b36e2e3b959298d",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-9b36e2e3b959298d",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-9b36e2e3b959298d",
+      "to": "insight:e8f16514865f9d1a",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-9b36e2e3b959298d",
+      "to": "insight:27b94dd5bdf2158f",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-9b36e2e3b959298d",
+      "to": "insight:3aabb6d8787f9373",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:ec2226b63d7fc05d",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:e8f16514865f9d1a",
+      "to": "quote:ec2226b63d7fc05d",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:9d87b75633f6e209",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:27b94dd5bdf2158f",
+      "to": "quote:9d87b75633f6e209",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:2d56bcb9c900ad49",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "quote:2d56bcb9c900ad49",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:93362545845de03a",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:e8f16514865f9d1a",
+      "to": "quote:93362545845de03a",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:b5f98acffe6115ac",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:27b94dd5bdf2158f",
+      "to": "quote:b5f98acffe6115ac",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:5f58b668f865de01",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "quote:5f58b668f865de01",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "ep-9b36e2e3b959298d",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-9b36e2e3b959298d",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ep-9b36e2e3b959298d",
+        "metadata_relative_path": "feeds/p04/run_20260101_000000/metadata/p04_e04.metadata.json",
+        "podcast_id": "p04",
+        "publish_date": "2026-01-13T12:00:00",
+        "title": "Roundtable: Three Photographers on Light"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:visual-craft",
+      "properties": {
+        "label": "visual craft",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:e8f16514865f9d1a",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Welcome back to Frame & Light. Today we're talking about roundtable photography, and I'm joined by Ava Lemoine, underwater photographer. Ava Lemoine, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:27b94dd5bdf2158f",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Before we get into it \u2014 Ava walked us through underwater work last month, Tariq covered documentary, Daniel on commercial lighting \u2014 today we get all three in the same conversation."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:3aabb6d8787f9373",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Yeah, exactly. And it ties into what we're covering today."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Leo"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:ec2226b63d7fc05d",
+      "properties": {
+        "char_end": 177,
+        "char_start": 5,
+        "episode_id": "ep-9b36e2e3b959298d",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Frame & Light. Today we're talking about roundtable photography, and I'm joined by Ava Lemoine, underwater photographer. Ava Lemoine, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p04_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Ava Lemoine"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:9d87b75633f6e209",
+      "properties": {
+        "char_end": 221,
+        "char_start": 191,
+        "episode_id": "ep-9b36e2e3b959298d",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Leo. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p04_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:2d56bcb9c900ad49",
+      "properties": {
+        "char_end": 364,
+        "char_start": 227,
+        "episode_id": "ep-9b36e2e3b959298d",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Adobe. Adobe Creative Cloud puts Lightroom, Photoshop, and Premiere on every device. Try adobe.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p04_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:93362545845de03a",
+      "properties": {
+        "char_end": 545,
+        "char_start": 364,
+        "episode_id": "ep-9b36e2e3b959298d",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Ava walked us through underwater work last month, Tariq covered documentary, Daniel on commercial lighting \u2014 today we get all three in the same conversation.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p04_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:b5f98acffe6115ac",
+      "properties": {
+        "char_end": 617,
+        "char_start": 559,
+        "episode_id": "ep-9b36e2e3b959298d",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, exactly. And it ties into what we're covering today.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p04_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:5f58b668f865de01",
+      "properties": {
+        "char_end": 705,
+        "char_start": 623,
+        "episode_id": "ep-9b36e2e3b959298d",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to flag something \u2014 Ava mentioned this same dynamic a couple episodes back.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p04_e04.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

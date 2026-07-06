@@ -1,0 +1,49 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p02-e01",
+    "media_type": "audio/mpeg",
+    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Ethan",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Priya Nair",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p02_e01.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 1800,
+    "episode_id": "ep-4a1a673a7005a6b5",
+    "published_date": "2026-01-24T00:00:00",
+    "title": "On-Call That Doesn't Break People"
+  },
+  "feed": {
+    "description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
+    "feed_id": "p02",
+    "title": "Practical Systems",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Welcome back to Practical Systems. Today we're talking about on call rotation, and I'm joined by Priya Nair, principal SRE at a payments platform. Priya Nair, thanks for being here.",
+      "Thanks, Ethan. Excited for this one \u2014 incident response and on-call design is something I've been thinking about a lot.",
+      "I'm a believer in centralizing the security function. One team, one source of truth, one neck to wring."
+    ],
+    "raw_text": "Welcome back to Practical Systems. Today we're talking about on call rotation, and I'm joined by Priya Nair, principal SRE at a payments platform. Priya Nair, thanks for being here.",
+    "title": "On-Call That Doesn't Break People"
+  }
+}

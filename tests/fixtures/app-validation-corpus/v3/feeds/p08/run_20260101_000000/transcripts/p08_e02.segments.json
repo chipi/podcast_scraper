@@ -1,0 +1,198 @@
+[
+  {
+    "end": 6.0,
+    "id": 0,
+    "speaker_label": "A. correspondent",
+    "start": 0.0,
+    "text": "Welcome back to Public Hour. Today we're talking about public radio, and I'm joined by Renee Montague-Park, journalist. Renee Montague-Park, thanks for being here."
+  },
+  {
+    "end": 12.0,
+    "id": 1,
+    "speaker_label": "Renee Montague-Park",
+    "start": 6.0,
+    "text": "Thanks, A. correspondent. Great to be back."
+  },
+  {
+    "end": 18.0,
+    "id": 2,
+    "speaker_label": "A. correspondent",
+    "start": 12.0,
+    "text": "This episode is brought to you by Squarespace. Squarespace makes building a beautiful, branded website actually pleasant. Get started at squarespace.com/podcast."
+  },
+  {
+    "end": 24.0,
+    "id": 3,
+    "speaker_label": "A. correspondent",
+    "start": 18.0,
+    "text": "Before we get into it \u2014 Renee was on last week walking through public-radio voice conventions."
+  },
+  {
+    "end": 30.0,
+    "id": 4,
+    "speaker_label": "Renee Montague-Park",
+    "start": 24.0,
+    "text": "Yeah, exactly. And it ties into what we're covering today."
+  },
+  {
+    "end": 36.0,
+    "id": 5,
+    "speaker_label": "A. correspondent",
+    "start": 30.0,
+    "text": "What does the failure mode look like? What's the version of the question that actually matters?"
+  },
+  {
+    "end": 42.0,
+    "id": 6,
+    "speaker_label": "Renee Montague-Park",
+    "start": 36.0,
+    "text": "It comes down to this: Mispronunciation is a high-signal mistake \u2014 it tells listeners 'this person isn't paying attention'. We've seen this play out at teams using BBC. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "end": 48.0,
+    "id": 7,
+    "speaker_label": "A. correspondent",
+    "start": 42.0,
+    "text": "Push back on the conventional wisdom for me. What's something you used to believe about this that you've revised?"
+  },
+  {
+    "end": 54.0,
+    "id": 8,
+    "speaker_label": "Renee Montague-Park",
+    "start": 48.0,
+    "text": "Yeah, so \u2014 Reliability of voice is partly preparation, partly humility. And the second-order effect is the part most people miss."
+  },
+  {
+    "end": 60.0,
+    "id": 9,
+    "speaker_label": "A. correspondent",
+    "start": 54.0,
+    "text": "We'll be right back after a quick word from our sponsors."
+  },
+  {
+    "end": 66.0,
+    "id": 10,
+    "speaker_label": "Ad",
+    "start": 60.0,
+    "text": "Today's episode is sponsored by Stripe. Stripe makes payments simple, whether you're running a marketplace or a subscription business. Visit stripe.com/podcast for a free trial."
+  },
+  {
+    "end": 72.0,
+    "id": 11,
+    "speaker_label": "A. correspondent",
+    "start": 66.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "end": 78.0,
+    "id": 12,
+    "speaker_label": "A. correspondent",
+    "start": 72.0,
+    "text": "I want to dig into that. What's the most underrated piece of public radio?"
+  },
+  {
+    "end": 84.0,
+    "id": 13,
+    "speaker_label": "Renee Montague-Park",
+    "start": 78.0,
+    "text": "Sure. Mispronunciation is a high-signal mistake \u2014 it tells listeners 'this person isn't paying attention'. We've seen this play out at teams using NPR. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 90.0,
+    "id": 14,
+    "speaker_label": "A. correspondent",
+    "start": 84.0,
+    "text": "Push back on the conventional wisdom for me. What's the most underrated piece of public radio?"
+  },
+  {
+    "end": 96.0,
+    "id": 15,
+    "speaker_label": "Renee Montague-Park",
+    "start": 90.0,
+    "text": "It comes down to this: Reliability of voice is partly preparation, partly humility. And the second-order effect is the part most people miss."
+  },
+  {
+    "end": 102.0,
+    "id": 16,
+    "speaker_label": "A. correspondent",
+    "start": 96.0,
+    "text": "Let's pivot \u2014 reliability is where I want to spend the last stretch."
+  },
+  {
+    "end": 108.0,
+    "id": 17,
+    "speaker_label": "Renee Montague-Park",
+    "start": 102.0,
+    "text": "That's where the conversation gets interesting, because the trade-offs around reliability cross-cut everything we've covered."
+  },
+  {
+    "end": 114.0,
+    "id": 18,
+    "speaker_label": "A. correspondent",
+    "start": 108.0,
+    "text": "Take me through the decision. Where do journalism and public radio intersect?"
+  },
+  {
+    "end": 120.0,
+    "id": 19,
+    "speaker_label": "Renee Montague-Park",
+    "start": 114.0,
+    "text": "It comes down to this: Mispronunciation is a high-signal mistake \u2014 it tells listeners 'this person isn't paying attention'. We've seen this play out at teams using NPR. And the second-order effect is the part most people miss."
+  },
+  {
+    "end": 126.0,
+    "id": 20,
+    "speaker_label": "A. correspondent",
+    "start": 120.0,
+    "text": "Push back on the conventional wisdom for me. How does BBC fit into this picture?"
+  },
+  {
+    "end": 132.0,
+    "id": 21,
+    "speaker_label": "Renee Montague-Park",
+    "start": 126.0,
+    "text": "Honestly, Reliability of voice is partly preparation, partly humility. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "end": 138.0,
+    "id": 22,
+    "speaker_label": "A. correspondent",
+    "start": 132.0,
+    "text": "Before we wrap, what's one thing listeners can try this week?"
+  },
+  {
+    "end": 144.0,
+    "id": 23,
+    "speaker_label": "Renee Montague-Park",
+    "start": 138.0,
+    "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
+  },
+  {
+    "end": 150.0,
+    "id": 24,
+    "speaker_label": "A. correspondent",
+    "start": 144.0,
+    "text": "Before we wrap, thanks again to our friends at Notion. Notion replaces the dozen tools your team is half-using."
+  },
+  {
+    "end": 156.0,
+    "id": 25,
+    "speaker_label": "A. correspondent",
+    "start": 150.0,
+    "text": "Renee Montague-Park, thanks for the conversation."
+  },
+  {
+    "end": 162.0,
+    "id": 26,
+    "speaker_label": "Renee Montague-Park",
+    "start": 156.0,
+    "text": "Thanks, A. correspondent."
+  },
+  {
+    "end": 168.0,
+    "id": 27,
+    "speaker_label": "A. correspondent",
+    "start": 162.0,
+    "text": "That's it for today's episode of Public Hour. See you next time."
+  }
+]

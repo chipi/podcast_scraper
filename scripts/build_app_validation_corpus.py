@@ -76,11 +76,35 @@ APP_SHOWS: list[tuple[str, str]] = [
     ("p02_software", "p02"),  # Practical Systems — software/SRE
     ("p03_scuba", "p03"),  # Below the Surface — scuba diving
     # #1148: promoted into the wired set so the risk-management ↔ systems-thinking
-    # overlap web spans 6 shows (perspectives / clusters / discovery / recs).
+    # overlap web spans all 9 shows (perspectives / clusters / discovery / recs).
     ("p04_photo", "p04"),  # Frame & Light — photography
     ("p01_mtb", "p01"),  # Singletrack Sessions — mountain biking
     ("p07_sustainability", "p07"),  # The Long View — sustainability
+    # These three carry the detection-shape edge cases (low-grounding, NER-evading
+    # host, cross-show recurring guests). Their RSS fixtures are themed for other
+    # shows, so SHOW_META_OVERRIDE restores the v3 identity below.
+    ("p06_edge_cases", "p06"),  # The Drift — low-grounding dialogue
+    ("p08_solar", "p08"),  # Public Hour — NPR-shape / zero_host_ner
+    ("p09_biohacking", "p09"),  # Cross-Show — recurring-guest web
 ]
+
+# p06/p08/p09 RSS fixtures are themed for other shows (edge_cases / solar /
+# biohacking); override the display metadata to the v3 show identity when wiring
+# them as consumer shows (#1148).
+SHOW_META_OVERRIDE: dict[str, dict[str, str]] = {
+    "p06": {
+        "display_title": "The Drift",
+        "description": "Dialogue-heavy, meandering long-form interviews.",
+    },
+    "p08": {
+        "display_title": "Public Hour",
+        "description": "NPR-shape public-radio conversations.",
+    },
+    "p09": {
+        "display_title": "Cross-Show",
+        "description": "Recurring guests from other shows revisit their positions.",
+    },
+}
 
 # Stable, sortable run tag per show (single run per feed — the catalog keeps only
 # the lexicographically-greatest run_* per feed dir).
@@ -103,11 +127,14 @@ CROSS_CUTTING_TOPICS: dict[str, list[str]] = {
     "p05": ["personal finance", "risk management"],
     "p02": ["systems thinking", "risk management"],
     "p03": ["safety practices", "risk management"],
-    # #1148: risk management + systems thinking recur across the 6 wired shows so
+    # #1148: risk management + systems thinking recur across all 9 wired shows so
     # they form real multi-member clusters (not singletons the picker hides).
     "p04": ["visual craft", "systems thinking"],
     "p01": ["endurance sport", "risk management"],
     "p07": ["systems thinking", "risk management"],
+    "p06": ["long-form", "systems thinking"],
+    "p08": ["public radio", "risk management"],
+    "p09": ["systems thinking", "risk management"],
 }
 # Shared umbrellas injected into every show so clusters are genuinely multi-member.
 SHARED_UMBRELLAS: list[str] = ["lifelong learning", "expert interviews"]
@@ -287,7 +314,7 @@ def main() -> int:
         default=Path("tests/fixtures/transcripts") / default_version,
     )
     p.add_argument("--output", type=Path, default=Path("tests/fixtures/app-validation-corpus"))
-    p.add_argument("--max-feeds", type=int, default=6)
+    p.add_argument("--max-feeds", type=int, default=9)
     p.add_argument("--max-episodes-per-feed", type=int, default=4)
     args = p.parse_args()
 
@@ -310,6 +337,7 @@ def main() -> int:
             print(f"  warn: missing RSS {rss_path}; skipping show {show_dir}")
             continue
         feed_meta = parse_rss_feed_metadata(rss_path)
+        feed_meta.update(SHOW_META_OVERRIDE.get(show_dir, {}))
         # The app keys feeds by a readable feed id (the show dir), not the sha feed id,
         # so the on-disk feeds/<show_dir>/ path is human-readable in specs/debugging.
         feed_id = show_dir

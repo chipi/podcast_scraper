@@ -1,0 +1,121 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-d428e906f5affc60",
+      "to": "entity:public-radio",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d428e906f5affc60",
+      "to": "entity:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d428e906f5affc60",
+      "to": "topic:public-radio",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-d428e906f5affc60",
+      "to": "topic:risk-management",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-d428e906f5affc60",
+      "to": "topic:lifelong-learning",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-d428e906f5affc60",
+      "to": "topic:expert-interviews",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-d428e906f5affc60",
+      "to": "person:a-correspondent",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d428e906f5affc60",
+      "to": "person:renee-montagne-park",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-d428e906f5affc60",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-d428e906f5affc60",
+      "properties": {
+        "episode_id": "ep-d428e906f5affc60",
+        "metadata_relative_path": "feeds/p08/run_20260101_000000/metadata/p08_e04.metadata.json",
+        "title": "Corrections, Trust, and the Long Game"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:public-radio",
+      "properties": {
+        "category": "Concept",
+        "label": "Public Radio"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:risk-management",
+      "properties": {
+        "category": "Concept",
+        "label": "Risk Management"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:public-radio",
+      "properties": {
+        "label": "public radio"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:a-correspondent",
+      "properties": {
+        "name": "A. correspondent",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:renee-montagne-park",
+      "properties": {
+        "name": "Renee Montagne-Park",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2"
+}

@@ -1,0 +1,121 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-db8f44d2e07a22bd",
+      "to": "entity:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-db8f44d2e07a22bd",
+      "to": "entity:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-db8f44d2e07a22bd",
+      "to": "topic:endurance-sport",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-db8f44d2e07a22bd",
+      "to": "topic:risk-management",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-db8f44d2e07a22bd",
+      "to": "topic:lifelong-learning",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-db8f44d2e07a22bd",
+      "to": "topic:expert-interviews",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-db8f44d2e07a22bd",
+      "to": "person:maya",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-db8f44d2e07a22bd",
+      "to": "person:liam-verbeek",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-db8f44d2e07a22bd",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-db8f44d2e07a22bd",
+      "properties": {
+        "episode_id": "ep-db8f44d2e07a22bd",
+        "metadata_relative_path": "feeds/p01/run_20260101_000000/metadata/p01_e01.metadata.json",
+        "title": "Building Trails That Last"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:endurance-sport",
+      "properties": {
+        "category": "Concept",
+        "label": "Endurance Sport"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:risk-management",
+      "properties": {
+        "category": "Concept",
+        "label": "Risk Management"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:maya",
+      "properties": {
+        "name": "Maya",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:liam-verbeek",
+      "properties": {
+        "name": "Liam Verbeek",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2"
+}

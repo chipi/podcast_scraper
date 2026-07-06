@@ -1,0 +1,79 @@
+[
+  {
+    "end": 6.0,
+    "id": 0,
+    "speaker_label": "Rina",
+    "start": 0.0,
+    "text": "Welcome back to Below the Surface. I'm joined by Marco Silva, technical diver and instructor. Marco, thanks for surfacing for us."
+  },
+  {
+    "end": 12.0,
+    "id": 1,
+    "speaker_label": "Marco Silva",
+    "start": 6.0,
+    "text": "Ha \u2014 happy to, Rina."
+  },
+  {
+    "end": 18.0,
+    "id": 2,
+    "speaker_label": "Rina",
+    "start": 12.0,
+    "text": "This episode is brought to you by Suunto. Suunto builds dive computers and outdoor watches. Get started at suunto.com/podcast."
+  },
+  {
+    "end": 24.0,
+    "id": 3,
+    "speaker_label": "Rina",
+    "start": 18.0,
+    "text": "New divers think planning is paperwork. You call it survival."
+  },
+  {
+    "end": 30.0,
+    "id": 4,
+    "speaker_label": "Marco Silva",
+    "start": 24.0,
+    "text": "Dive planning is risk management, plain and simple. It's the gas you don't use and the ascent you don't rush. The incident that hurts you is the one nobody named on the boat \u2014 so we name them all first."
+  },
+  {
+    "end": 36.0,
+    "id": 5,
+    "speaker_label": "Marco Silva",
+    "start": 30.0,
+    "text": "And you plan the whole dive as one system \u2014 depth, gas, team, current \u2014 because the accidents live in how those interact, not in any single number. When we reviewed a decade of incident reports, that pattern held every time."
+  },
+  {
+    "end": 42.0,
+    "id": 6,
+    "speaker_label": "Rina",
+    "start": 36.0,
+    "text": "So it's not so different from managing any kind of risk."
+  },
+  {
+    "end": 48.0,
+    "id": 7,
+    "speaker_label": "Marco Silva",
+    "start": 42.0,
+    "text": "Not different at all. A dive plan and a portfolio are the same discipline \u2014 systems of correlated risk, where the one you can describe in advance is the one you can actually control."
+  },
+  {
+    "end": 54.0,
+    "id": 8,
+    "speaker_label": "Rina",
+    "start": 48.0,
+    "text": "Thanks to PADI for supporting the show. PADI is the global standard for dive education."
+  },
+  {
+    "end": 60.0,
+    "id": 9,
+    "speaker_label": "Marco Silva",
+    "start": 54.0,
+    "text": "Thanks, Rina."
+  },
+  {
+    "end": 66.0,
+    "id": 10,
+    "speaker_label": "Rina",
+    "start": 60.0,
+    "text": "That's it for this Below the Surface. Dive safe."
+  }
+]

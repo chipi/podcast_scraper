@@ -1,0 +1,49 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p09-e02",
+    "media_type": "audio/mpeg",
+    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Sam",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Skanda Amarnauth",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p09_e02.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 1800,
+    "episode_id": "ep-a1342cd495b1165b",
+    "published_date": "2026-01--5T00:00:00",
+    "title": "Macro Without the Theatrics"
+  },
+  "feed": {
+    "description": "Recurring guests from other shows revisit their positions.",
+    "feed_id": "p09",
+    "title": "Cross-Show",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Welcome back to Cross-Show. Today we're talking about macroeconomics, and I'm joined by Skanda Amarnauth, returning macro economist. Skanda Amarnauth, thanks for being here.",
+      "Before we get into it \u2014 Dr. Elena Fisher was on last week revisiting her 2024 position.",
+      "Yeah, exactly. And it ties into what we're covering today."
+    ],
+    "raw_text": "Welcome back to Cross-Show. Today we're talking about macroeconomics, and I'm joined by Skanda Amarnauth, returning macro economist. Skanda Amarnauth, thanks for being here.",
+    "title": "Macro Without the Theatrics"
+  }
+}

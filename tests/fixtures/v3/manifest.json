@@ -1,5 +1,5 @@
 {
-  "episode_count": 31,
+  "episode_count": 36,
   "episodes": [
     {
       "audio_voice_hints": {
@@ -557,6 +557,55 @@
     },
     {
       "audio_voice_hints": {
+        "guest_surface": "Jordan Park",
+        "guest_voice_accent": "en-US",
+        "host_surface": "Cam",
+        "host_voice_accent": "en-US"
+      },
+      "duration_minutes": 4.53,
+      "episode_id": "p06_e03",
+      "failure_modes": [
+        "low_grounding_dialogue"
+      ],
+      "ground_truth_path": "tests/fixtures/v3/ground_truth/p06_e03.json",
+      "podcast_id": "p06",
+      "primary_guest_canonical_name": "Jordan Park",
+      "primary_topic": "topic:dialogue",
+      "secondary_topics": [
+        "topic:cultural-drift",
+        "topic:long-form"
+      ],
+      "title": "The Conversation About Conversations",
+      "transcript_path": "tests/fixtures/transcripts/v3/p06_e03.txt",
+      "transcript_sha256": "c2323f8294a9b1d32061edba76ed82f953348c3b5dce04cb1ee37d9b3267dcdd"
+    },
+    {
+      "audio_voice_hints": {
+        "guest_surface": "Jordan Park",
+        "guest_voice_accent": "en-US",
+        "host_surface": "Cam",
+        "host_voice_accent": "en-US"
+      },
+      "duration_minutes": 5.17,
+      "episode_id": "p06_e04",
+      "failure_modes": [
+        "low_grounding_dialogue",
+        "recurring_guest"
+      ],
+      "ground_truth_path": "tests/fixtures/v3/ground_truth/p06_e04.json",
+      "podcast_id": "p06",
+      "primary_guest_canonical_name": "Jordan Park",
+      "primary_topic": "topic:cultural-drift",
+      "secondary_topics": [
+        "topic:dialogue",
+        "topic:systems-thinking"
+      ],
+      "title": "Signal, Noise, and the Space Between",
+      "transcript_path": "tests/fixtures/transcripts/v3/p06_e04.txt",
+      "transcript_sha256": "120dedc8e939c4ba30049a2ad0b27d5db4bb786278a51fd67ce7efd06aacebef"
+    },
+    {
+      "audio_voice_hints": {
         "guest_surface": "Dr. Elena Fischer",
         "guest_voice_accent": "de-DE",
         "host_surface": "Alex Morgan",
@@ -704,6 +753,55 @@
     },
     {
       "audio_voice_hints": {
+        "guest_surface": "Renee Montagne-Park",
+        "guest_voice_accent": "en-US",
+        "host_surface": "A. correspondent",
+        "host_voice_accent": "en-US"
+      },
+      "duration_minutes": 3.64,
+      "episode_id": "p08_e03",
+      "failure_modes": [
+        "zero_host_ner"
+      ],
+      "ground_truth_path": "tests/fixtures/v3/ground_truth/p08_e03.json",
+      "podcast_id": "p08",
+      "primary_guest_canonical_name": "Renee Montagne-Park",
+      "primary_topic": "topic:journalism",
+      "secondary_topics": [
+        "topic:public-radio",
+        "topic:reliability"
+      ],
+      "title": "The Desk That Never Sleeps",
+      "transcript_path": "tests/fixtures/transcripts/v3/p08_e03.txt",
+      "transcript_sha256": "78f33b10f0e26554c8da4913006c3aa0cc28e0b22059f1ea05c24ee4bbfa9475"
+    },
+    {
+      "audio_voice_hints": {
+        "guest_surface": "Renee Montagne-Park",
+        "guest_voice_accent": "en-US",
+        "host_surface": "A. correspondent",
+        "host_voice_accent": "en-US"
+      },
+      "duration_minutes": 3.63,
+      "episode_id": "p08_e04",
+      "failure_modes": [
+        "zero_host_ner",
+        "recurring_guest"
+      ],
+      "ground_truth_path": "tests/fixtures/v3/ground_truth/p08_e04.json",
+      "podcast_id": "p08",
+      "primary_guest_canonical_name": "Renee Montagne-Park",
+      "primary_topic": "topic:reliability",
+      "secondary_topics": [
+        "topic:journalism",
+        "topic:risk-management"
+      ],
+      "title": "Corrections, Trust, and the Long Game",
+      "transcript_path": "tests/fixtures/transcripts/v3/p08_e04.txt",
+      "transcript_sha256": "50441af3b26d759a0d35ac176a7e4b583f1dba85406abf126f8f21f3cb5542de"
+    },
+    {
+      "audio_voice_hints": {
         "guest_surface": "Dr. Elena Fischer",
         "guest_voice_accent": "de-DE",
         "host_surface": "Sam",
@@ -780,6 +878,31 @@
       "title": "When the Severe Garble Bites",
       "transcript_path": "tests/fixtures/transcripts/v3/p09_e03.txt",
       "transcript_sha256": "94f9a45646bde3965abf05e59bb3f773c5b6ed324ca5a36403b992133a727b37"
+    },
+    {
+      "audio_voice_hints": {
+        "guest_surface": "Dr. Elena Fischer",
+        "guest_voice_accent": "de-DE",
+        "host_surface": "Sam",
+        "host_voice_accent": "en-US"
+      },
+      "duration_minutes": 4.19,
+      "episode_id": "p09_e04",
+      "failure_modes": [
+        "recurring_guest",
+        "multi_accent"
+      ],
+      "ground_truth_path": "tests/fixtures/v3/ground_truth/p09_e04.json",
+      "podcast_id": "p09",
+      "primary_guest_canonical_name": "Dr. Elena Fischer",
+      "primary_topic": "topic:risk-management",
+      "secondary_topics": [
+        "topic:systems-thinking",
+        "topic:reliability"
+      ],
+      "title": "Risk Is a Systems Property",
+      "transcript_path": "tests/fixtures/transcripts/v3/p09_e04.txt",
+      "transcript_sha256": "de2af94cdd9809a1855a37fb81782c17011660224412afd16a861ac76a62d009"
     }
   ],
   "failure_modes_vocabulary": [

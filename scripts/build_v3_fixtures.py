@@ -2249,6 +2249,37 @@ def build_v3_spec() -> list[PodcastV3]:
                 low_grounding_filler_turns=10,
                 failure_modes=["low_grounding_dialogue", "recurring_guest"],
             ),
+            # #1148 leveling p06 to 4 (keeps its low-grounding detection character).
+            EpisodeV3(
+                ep_id="e03",
+                title="The Conversation About Conversations",
+                primary_guest="Jordan",
+                primary_topic="topic:dialogue",
+                secondary_topics=["topic:cultural-drift", "topic:long-form"],
+                sponsor_brands=["Notion", "Squarespace"],
+                talking_points=[
+                    "Meaning drifts faster than anyone admits.",
+                    "The best conversations refuse to resolve.",
+                ],
+                low_grounding_filler_turns=9,
+                publish_offset_days=40,
+                failure_modes=["low_grounding_dialogue"],
+            ),
+            EpisodeV3(
+                ep_id="e04",
+                title="Signal, Noise, and the Space Between",
+                primary_guest="Jordan",
+                primary_topic="topic:cultural-drift",
+                secondary_topics=["topic:dialogue", "topic:systems-thinking"],
+                sponsor_brands=["Squarespace", "Notion"],
+                talking_points=[
+                    "Culture is a system that never sits still.",
+                    "You can't grip drift; you can only notice it.",
+                ],
+                low_grounding_filler_turns=11,
+                publish_offset_days=110,
+                failure_modes=["low_grounding_dialogue", "recurring_guest"],
+            ),
         ],
     )
 
@@ -2447,6 +2478,35 @@ def build_v3_spec() -> list[PodcastV3]:
                 failure_modes=["zero_host_ner", "recurring_guest"],
                 guest_surface_overrides={"Renee": "garble:0"},  # Renee Montague-Park
             ),
+            # #1148 leveling p08 to 4 (keeps NPR-shape zero_host_ner character).
+            EpisodeV3(
+                ep_id="e03",
+                title="The Desk That Never Sleeps",
+                primary_guest="Renee",
+                primary_topic="topic:journalism",
+                secondary_topics=["topic:public-radio", "topic:reliability"],
+                sponsor_brands=["Squarespace", "Notion"],
+                talking_points=[
+                    "A newsroom is a reliability system with a deadline.",
+                    "Trust is the only asset a public broadcaster actually owns.",
+                ],
+                publish_offset_days=50,
+                failure_modes=["zero_host_ner"],
+            ),
+            EpisodeV3(
+                ep_id="e04",
+                title="Corrections, Trust, and the Long Game",
+                primary_guest="Renee",
+                primary_topic="topic:reliability",
+                secondary_topics=["topic:journalism", "topic:risk-management"],
+                sponsor_brands=["Notion", "Squarespace"],
+                talking_points=[
+                    "A correction is a reliability signal, not a failure.",
+                    "Managing the risk of being wrong in public is its own discipline.",
+                ],
+                publish_offset_days=130,
+                failure_modes=["zero_host_ner", "recurring_guest"],
+            ),
         ],
     )
 
@@ -2547,6 +2607,43 @@ def build_v3_spec() -> list[PodcastV3]:
                     "multi_accent",
                 ],
                 guest_surface_overrides={"Skanda": "canonical"},
+            ),
+            # #1148 leveling p09 to 4: Elena (cross-show w/ p07) ties risk ↔ systems.
+            EpisodeV3(
+                ep_id="e04",
+                title="Risk Is a Systems Property",
+                primary_guest="Elena",
+                primary_topic="topic:risk-management",
+                secondary_topics=["topic:systems-thinking", "topic:reliability"],
+                sponsor_brands=["Notion", "Bloomberg"],
+                talking_points=[
+                    "Risk lives in the couplings, not the components — same as reliability.",
+                    "The dangerous risks are the slow correlated ones you can name but discount.",
+                ],
+                topic_claims=[
+                    {
+                        "topic_id": "topic:risk-management",
+                        "speaker": "Elena",
+                        "claim": (
+                            "Risk is a systems property: it lives in the interactions, "
+                            "not the parts."
+                        ),
+                        "grounded": True,
+                    },
+                    {
+                        "topic_id": "topic:systems-thinking",
+                        "speaker": "Elena",
+                        "claim": (
+                            "Systems thinking and risk management are one discipline in "
+                            "two vocabularies."
+                        ),
+                        "grounded": True,
+                    },
+                ],
+                insight_density="high",
+                publish_offset_days=175,
+                failure_modes=["recurring_guest", "multi_accent"],
+                expected_enrichment={"grounding_rate": {"expected_rate": 0.8}},
             ),
         ],
     )

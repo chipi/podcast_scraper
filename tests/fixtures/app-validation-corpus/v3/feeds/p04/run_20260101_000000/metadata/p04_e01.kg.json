@@ -1,0 +1,121 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-febd9a8f53bf3a3a",
+      "to": "entity:visual-craft",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-febd9a8f53bf3a3a",
+      "to": "entity:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-febd9a8f53bf3a3a",
+      "to": "topic:visual-craft",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-febd9a8f53bf3a3a",
+      "to": "topic:systems-thinking",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-febd9a8f53bf3a3a",
+      "to": "topic:lifelong-learning",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-febd9a8f53bf3a3a",
+      "to": "topic:expert-interviews",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-febd9a8f53bf3a3a",
+      "to": "person:leo",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-febd9a8f53bf3a3a",
+      "to": "person:ava-lemoine",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-febd9a8f53bf3a3a",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-febd9a8f53bf3a3a",
+      "properties": {
+        "episode_id": "ep-febd9a8f53bf3a3a",
+        "metadata_relative_path": "feeds/p04/run_20260101_000000/metadata/p04_e01.metadata.json",
+        "title": "Underwater Images That Feel Alive"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:visual-craft",
+      "properties": {
+        "category": "Concept",
+        "label": "Visual Craft"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:systems-thinking",
+      "properties": {
+        "category": "Concept",
+        "label": "Systems Thinking"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:visual-craft",
+      "properties": {
+        "label": "visual craft"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:leo",
+      "properties": {
+        "name": "Leo",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:ava-lemoine",
+      "properties": {
+        "name": "Ava Lemoine",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2"
+}

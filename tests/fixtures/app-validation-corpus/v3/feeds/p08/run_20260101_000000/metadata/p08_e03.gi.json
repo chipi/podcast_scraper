@@ -1,0 +1,274 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-b3570c1ceb5eca41",
+      "to": "topic:public-radio",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-b3570c1ceb5eca41",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-b3570c1ceb5eca41",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-b3570c1ceb5eca41",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-b3570c1ceb5eca41",
+      "to": "insight:dd805d53ca392cff",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-b3570c1ceb5eca41",
+      "to": "insight:b4d1b05b601509cf",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-b3570c1ceb5eca41",
+      "to": "insight:ceb14ee5e9abd1c1",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:1954dab8d3dbc57e",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:dd805d53ca392cff",
+      "to": "quote:1954dab8d3dbc57e",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:a36135c33d22df63",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:b4d1b05b601509cf",
+      "to": "quote:a36135c33d22df63",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:03cb6dd9bc513ae2",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ceb14ee5e9abd1c1",
+      "to": "quote:03cb6dd9bc513ae2",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:27079140ddee4df8",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:dd805d53ca392cff",
+      "to": "quote:27079140ddee4df8",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:1628f2a8ea47b735",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:b4d1b05b601509cf",
+      "to": "quote:1628f2a8ea47b735",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:e076acd695fb2e3b",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ceb14ee5e9abd1c1",
+      "to": "quote:e076acd695fb2e3b",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "ep-b3570c1ceb5eca41",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-b3570c1ceb5eca41",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ep-b3570c1ceb5eca41",
+        "metadata_relative_path": "feeds/p08/run_20260101_000000/metadata/p08_e03.metadata.json",
+        "podcast_id": "p08",
+        "publish_date": "2026-01--2T12:00:00",
+        "title": "The Desk That Never Sleeps"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:public-radio",
+      "properties": {
+        "label": "public radio",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:dd805d53ca392cff",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Welcome back to Public Hour. Today we're talking about journalism, and I'm joined by Renee Montagne-Park, journalist. Renee Montagne-Park, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:b4d1b05b601509cf",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Thanks, A. correspondent. Great to be back."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:ceb14ee5e9abd1c1",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "What does the failure mode look like? What's the structural angle most listeners don't have access to?"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "A. correspondent"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:1954dab8d3dbc57e",
+      "properties": {
+        "char_end": 179,
+        "char_start": 18,
+        "episode_id": "ep-b3570c1ceb5eca41",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Public Hour. Today we're talking about journalism, and I'm joined by Renee Montagne-Park, journalist. Renee Montagne-Park, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p08_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Renee Montagne-Park"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:a36135c33d22df63",
+      "properties": {
+        "char_end": 244,
+        "char_start": 201,
+        "episode_id": "ep-b3570c1ceb5eca41",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, A. correspondent. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p08_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:03cb6dd9bc513ae2",
+      "properties": {
+        "char_end": 409,
+        "char_start": 263,
+        "episode_id": "ep-b3570c1ceb5eca41",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Squarespace. Squarespace makes building a beautiful, branded website actually pleasant. Try squarespace.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p08_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:27079140ddee4df8",
+      "properties": {
+        "char_end": 511,
+        "char_start": 409,
+        "episode_id": "ep-b3570c1ceb5eca41",
+        "speaker_id": "person:speaker-01",
+        "text": "What does the failure mode look like? What's the structural angle most listeners don't have access to?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p08_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:1628f2a8ea47b735",
+      "properties": {
+        "char_end": 713,
+        "char_start": 533,
+        "episode_id": "ep-b3570c1ceb5eca41",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, so \u2014 A newsroom is a reliability system with a deadline. We've seen this play out at teams using BBC. The framing matters because it tells you which trade-offs you're making.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p08_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:e076acd695fb2e3b",
+      "properties": {
+        "char_end": 803,
+        "char_start": 732,
+        "episode_id": "ep-b3570c1ceb5eca41",
+        "speaker_id": "person:speaker-01",
+        "text": "Walk me through a concrete example. How does BBC fit into this picture?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p08_e03.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

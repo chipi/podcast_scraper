@@ -1,0 +1,184 @@
+[
+  {
+    "end": 6.0,
+    "id": 0,
+    "speaker_label": "A. correspondent",
+    "start": 0.0,
+    "text": "Welcome back to Public Hour. Today we're talking about journalism, and I'm joined by Renee Montagne-Park, journalist. Renee Montagne-Park, thanks for being here."
+  },
+  {
+    "end": 12.0,
+    "id": 1,
+    "speaker_label": "Renee Montagne-Park",
+    "start": 6.0,
+    "text": "Thanks, A. correspondent. Great to be back."
+  },
+  {
+    "end": 18.0,
+    "id": 2,
+    "speaker_label": "A. correspondent",
+    "start": 12.0,
+    "text": "Today's episode is sponsored by Squarespace. Squarespace makes building a beautiful, branded website actually pleasant. Try squarespace.com today."
+  },
+  {
+    "end": 24.0,
+    "id": 3,
+    "speaker_label": "A. correspondent",
+    "start": 18.0,
+    "text": "What does the failure mode look like? What's the structural angle most listeners don't have access to?"
+  },
+  {
+    "end": 30.0,
+    "id": 4,
+    "speaker_label": "Renee Montagne-Park",
+    "start": 24.0,
+    "text": "Yeah, so \u2014 A newsroom is a reliability system with a deadline. We've seen this play out at teams using BBC. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "end": 36.0,
+    "id": 5,
+    "speaker_label": "A. correspondent",
+    "start": 30.0,
+    "text": "Walk me through a concrete example. How does BBC fit into this picture?"
+  },
+  {
+    "end": 42.0,
+    "id": 6,
+    "speaker_label": "Renee Montagne-Park",
+    "start": 36.0,
+    "text": "Here's how I think about it. Trust is the only asset a public broadcaster actually owns. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "end": 48.0,
+    "id": 7,
+    "speaker_label": "A. correspondent",
+    "start": 42.0,
+    "text": "We'll be right back after a quick word from our sponsors."
+  },
+  {
+    "end": 54.0,
+    "id": 8,
+    "speaker_label": "Ad",
+    "start": 48.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Visit notion.com/podcast for a free trial."
+  },
+  {
+    "end": 60.0,
+    "id": 9,
+    "speaker_label": "A. correspondent",
+    "start": 54.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "end": 66.0,
+    "id": 10,
+    "speaker_label": "A. correspondent",
+    "start": 60.0,
+    "text": "Walk me through a concrete example. What's the most underrated piece of journalism?"
+  },
+  {
+    "end": 72.0,
+    "id": 11,
+    "speaker_label": "Renee Montagne-Park",
+    "start": 66.0,
+    "text": "Let me give you the version I actually believe. A newsroom is a reliability system with a deadline. We've seen this play out at teams using BBC. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "end": 78.0,
+    "id": 12,
+    "speaker_label": "A. correspondent",
+    "start": 72.0,
+    "text": "What's the one heuristic you keep coming back to? What's the most underrated piece of journalism?"
+  },
+  {
+    "end": 84.0,
+    "id": 13,
+    "speaker_label": "Renee Montagne-Park",
+    "start": 78.0,
+    "text": "Yeah, so \u2014 Trust is the only asset a public broadcaster actually owns. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "end": 90.0,
+    "id": 14,
+    "speaker_label": "A. correspondent",
+    "start": 84.0,
+    "text": "Let's pivot \u2014 reliability is where I want to spend the last stretch."
+  },
+  {
+    "end": 96.0,
+    "id": 15,
+    "speaker_label": "Renee Montagne-Park",
+    "start": 90.0,
+    "text": "That's where the conversation gets interesting, because the trade-offs around reliability cross-cut everything we've covered."
+  },
+  {
+    "end": 102.0,
+    "id": 16,
+    "speaker_label": "A. correspondent",
+    "start": 96.0,
+    "text": "Push back on the conventional wisdom for me. What's the most underrated piece of journalism?"
+  },
+  {
+    "end": 108.0,
+    "id": 17,
+    "speaker_label": "Renee Montagne-Park",
+    "start": 102.0,
+    "text": "It comes down to this: A newsroom is a reliability system with a deadline. We've seen this play out at teams using BBC. And the second-order effect is the part most people miss."
+  },
+  {
+    "end": 114.0,
+    "id": 18,
+    "speaker_label": "A. correspondent",
+    "start": 108.0,
+    "text": "Push back on the conventional wisdom for me. What's something you used to believe about this that you've revised?"
+  },
+  {
+    "end": 120.0,
+    "id": 19,
+    "speaker_label": "Renee Montagne-Park",
+    "start": 114.0,
+    "text": "It comes down to this: Trust is the only asset a public broadcaster actually owns. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "end": 126.0,
+    "id": 20,
+    "speaker_label": "A. correspondent",
+    "start": 120.0,
+    "text": "Before we wrap, what's one thing listeners can try this week?"
+  },
+  {
+    "end": 132.0,
+    "id": 21,
+    "speaker_label": "Renee Montagne-Park",
+    "start": 126.0,
+    "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
+  },
+  {
+    "end": 138.0,
+    "id": 22,
+    "speaker_label": "A. correspondent",
+    "start": 132.0,
+    "text": "And finally, a big thank you to our partners at Squarespace. Squarespace makes building a beautiful, branded website actually pleasant. Check out squarespace.com."
+  },
+  {
+    "end": 144.0,
+    "id": 23,
+    "speaker_label": "A. correspondent",
+    "start": 138.0,
+    "text": "Renee Montagne-Park, thanks for the conversation."
+  },
+  {
+    "end": 150.0,
+    "id": 24,
+    "speaker_label": "Renee Montagne-Park",
+    "start": 144.0,
+    "text": "Thanks, A. correspondent."
+  },
+  {
+    "end": 156.0,
+    "id": 25,
+    "speaker_label": "A. correspondent",
+    "start": 150.0,
+    "text": "That's it for today's episode of Public Hour. See you next time."
+  }
+]

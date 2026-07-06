@@ -1,0 +1,47 @@
+# Public Hour — Episode
+## Corrections, Trust, and the Long Game
+Host: A. correspondent
+Guest: Renee Montagne-Park
+#fixture-v3: failure_modes=zero_host_ner,recurring_guest
+#fixture-v3: voice=en-US host_voice=en-US
+
+[00:00]
+A. correspondent: Welcome back to Public Hour. Today we're talking about reliability, and I'm joined by Renee Montagne-Park, journalist. Renee Montagne-Park, thanks for being here.
+Renee Montagne-Park: Thanks, A. correspondent. Great to be back.
+
+A. correspondent: This episode is brought to you by Notion. Notion replaces the dozen tools your team is half-using. Get started at notion.com/podcast.
+
+[03:30]
+A. correspondent: Push back on the conventional wisdom for me. What's the version of the question that actually matters?
+Renee Montagne-Park: Honestly, A correction is a reliability signal, not a failure. We've seen this play out at teams using BBC. If you ignore that, you end up rebuilding it from scratch a year later.
+A. correspondent: What does the failure mode look like? What's the version of the question that actually matters?
+Renee Montagne-Park: Let me give you the version I actually believe. Managing the risk of being wrong in public is its own discipline. I've watched this pattern hold across three different teams.
+
+[12:00]
+A. correspondent: We'll be right back after a quick word from our sponsors.
+Ad: Today's episode is sponsored by Squarespace. Squarespace makes building a beautiful, branded website actually pleasant. Visit squarespace.com/podcast for a free trial.
+A. correspondent: Welcome back to the show.
+
+[14:00]
+A. correspondent: Take me through the decision. What's the most underrated piece of reliability?
+Renee Montagne-Park: Honestly, A correction is a reliability signal, not a failure. We've seen this play out at teams using BBC. If you ignore that, you end up rebuilding it from scratch a year later.
+A. correspondent: Let's start there. How does BBC fit into this picture?
+Renee Montagne-Park: It comes down to this: Managing the risk of being wrong in public is its own discipline. I've watched this pattern hold across three different teams.
+
+[22:00]
+A. correspondent: Let's pivot — risk management is where I want to spend the last stretch.
+Renee Montagne-Park: That's where the conversation gets interesting, because the trade-offs around risk management cross-cut everything we've covered.
+A. correspondent: What does the failure mode look like? What's the most underrated piece of reliability?
+Renee Montagne-Park: Sure. A correction is a reliability signal, not a failure. We've seen this play out at teams using NPR. If you ignore that, you end up rebuilding it from scratch a year later.
+A. correspondent: Push back on the conventional wisdom for me. What's something you used to believe about this that you've revised?
+Renee Montagne-Park: Let me give you the version I actually believe. Managing the risk of being wrong in public is its own discipline. The framing matters because it tells you which trade-offs you're making.
+
+[28:00]
+A. correspondent: Before we wrap, what's one thing listeners can try this week?
+Renee Montagne-Park: Pick one of the ideas we covered and run it for two weeks. The rest is iteration.
+
+A. correspondent: And finally, a big thank you to our partners at Notion. Notion replaces the dozen tools your team is half-using. Check out notion.com.
+
+A. correspondent: Renee Montagne-Park, thanks for the conversation.
+Renee Montagne-Park: Thanks, A. correspondent.
+A. correspondent: That's it for today's episode of Public Hour. See you next time.

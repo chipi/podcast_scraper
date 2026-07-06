@@ -1,0 +1,274 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "topic:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "insight:ec5c8497949e6439",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "insight:62a7190d2a4ded85",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "insight:5e35fb7106d60df7",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:b7bf22ac35088d66",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ec5c8497949e6439",
+      "to": "quote:b7bf22ac35088d66",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:3ac43ed1aa5ae855",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:62a7190d2a4ded85",
+      "to": "quote:3ac43ed1aa5ae855",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:216a2b348df4de75",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:5e35fb7106d60df7",
+      "to": "quote:216a2b348df4de75",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:29d0d4efa0e74fde",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ec5c8497949e6439",
+      "to": "quote:29d0d4efa0e74fde",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:d1abe26e23dd55f3",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:62a7190d2a4ded85",
+      "to": "quote:d1abe26e23dd55f3",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:110b8d9d2f282113",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:5e35fb7106d60df7",
+      "to": "quote:110b8d9d2f282113",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "ep-de59d003651d9e5d",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-de59d003651d9e5d",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ep-de59d003651d9e5d",
+        "metadata_relative_path": "feeds/p01/run_20260101_000000/metadata/p01_e04.metadata.json",
+        "podcast_id": "p01",
+        "publish_date": "2026-01-09T12:00:00",
+        "title": "The Risk You Didn't Name"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:ec5c8497949e6439",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Welcome back to Singletrack Sessions. I'm with Sophie Laurent, enduro racer and coach. Sophie, good to have you."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:62a7190d2a4ded85",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Thanks, Maya. Always happy to talk shop."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:5e35fb7106d60df7",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "People think racing is about nerve. You say it's about risk."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Maya"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:b7bf22ac35088d66",
+      "properties": {
+        "char_end": 118,
+        "char_start": 6,
+        "episode_id": "ep-de59d003651d9e5d",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Singletrack Sessions. I'm with Sophie Laurent, enduro racer and coach. Sophie, good to have you.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p01_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Sophie Laurent"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:3ac43ed1aa5ae855",
+      "properties": {
+        "char_end": 175,
+        "char_start": 135,
+        "episode_id": "ep-de59d003651d9e5d",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Maya. Always happy to talk shop.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p01_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:216a2b348df4de75",
+      "properties": {
+        "char_end": 276,
+        "char_start": 182,
+        "episode_id": "ep-de59d003651d9e5d",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Strava. Strava is the home for athletes. Try strava.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p01_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:29d0d4efa0e74fde",
+      "properties": {
+        "char_end": 336,
+        "char_start": 276,
+        "episode_id": "ep-de59d003651d9e5d",
+        "speaker_id": "person:speaker-01",
+        "text": "People think racing is about nerve. You say it's about risk.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p01_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:d1abe26e23dd55f3",
+      "properties": {
+        "char_end": 560,
+        "char_start": 353,
+        "episode_id": "ep-de59d003651d9e5d",
+        "speaker_id": "person:speaker-02",
+        "text": "It's risk management, honestly. The crash that ends your season is almost never the scary-looking one \u2014 it's the boring risk you didn't name. Name the risk before it names you, and half the danger goes away.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p01_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:110b8d9d2f282113",
+      "properties": {
+        "char_end": 777,
+        "char_start": 560,
+        "episode_id": "ep-de59d003651d9e5d",
+        "speaker_id": "person:speaker-02",
+        "text": "And you have to ride the whole run as a system, not a list of corners. The mistakes come from how one section sets up the next. When I logged a full season of my own crashes, the causes were always two turns upstream.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p01_e04.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

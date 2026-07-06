@@ -1,0 +1,274 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-2cd5c6d11325a312",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-2cd5c6d11325a312",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-2cd5c6d11325a312",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-2cd5c6d11325a312",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-2cd5c6d11325a312",
+      "to": "insight:8b60cdb84d99cc9c",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-2cd5c6d11325a312",
+      "to": "insight:cecf25e240f24083",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-2cd5c6d11325a312",
+      "to": "insight:3aabb6d8787f9373",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:f14bdd36df788cb6",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:8b60cdb84d99cc9c",
+      "to": "quote:f14bdd36df788cb6",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:577d35051297ce30",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:cecf25e240f24083",
+      "to": "quote:577d35051297ce30",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:38617d93eb26dcfe",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "quote:38617d93eb26dcfe",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:a84193cce0433aad",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:8b60cdb84d99cc9c",
+      "to": "quote:a84193cce0433aad",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:ccc2125737ad5614",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:cecf25e240f24083",
+      "to": "quote:ccc2125737ad5614",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:1e0dbb1269b55685",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "quote:1e0dbb1269b55685",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "ep-2cd5c6d11325a312",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-2cd5c6d11325a312",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ep-2cd5c6d11325a312",
+        "metadata_relative_path": "feeds/p07/run_20260101_000000/metadata/p07_e02.metadata.json",
+        "podcast_id": "p07",
+        "publish_date": "2026-01-07T12:00:00",
+        "title": "Severe Garbles: A Macro Discussion"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:8b60cdb84d99cc9c",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Welcome back to The Long View \u2014 Sustainability. Today we're talking about macroeconomics, and I'm joined by Skanda Eminas, macro economist. Skanda Eminas, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:cecf25e240f24083",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Before we get into it \u2014 Dr. Elena Fisher was on last week talking about systems thinking."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:3aabb6d8787f9373",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Yeah, exactly. And it ties into what we're covering today."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Alex Morgan"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:f14bdd36df788cb6",
+      "properties": {
+        "char_end": 190,
+        "char_start": 13,
+        "episode_id": "ep-2cd5c6d11325a312",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to The Long View \u2014 Sustainability. Today we're talking about macroeconomics, and I'm joined by Skanda Eminas, macro economist. Skanda Eminas, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p07_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Skanda Eminas"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:577d35051297ce30",
+      "properties": {
+        "char_end": 244,
+        "char_start": 206,
+        "episode_id": "ep-2cd5c6d11325a312",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Alex Morgan. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p07_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:38617d93eb26dcfe",
+      "properties": {
+        "char_end": 395,
+        "char_start": 258,
+        "episode_id": "ep-2cd5c6d11325a312",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Bloomberg. Bloomberg Terminal is the data spine that institutional desks run on. Try bloomberg.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p07_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:a84193cce0433aad",
+      "properties": {
+        "char_end": 484,
+        "char_start": 395,
+        "episode_id": "ep-2cd5c6d11325a312",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Dr. Elena Fisher was on last week talking about systems thinking.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p07_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:ccc2125737ad5614",
+      "properties": {
+        "char_end": 558,
+        "char_start": 500,
+        "episode_id": "ep-2cd5c6d11325a312",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, exactly. And it ties into what we're covering today.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p07_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:1e0dbb1269b55685",
+      "properties": {
+        "char_end": 667,
+        "char_start": 572,
+        "episode_id": "ep-2cd5c6d11325a312",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to flag something \u2014 Dr. Elena Fisher mentioned this same dynamic a couple episodes back.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p07_e02.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

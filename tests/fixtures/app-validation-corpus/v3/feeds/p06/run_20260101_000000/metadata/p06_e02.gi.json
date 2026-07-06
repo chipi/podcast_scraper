@@ -1,0 +1,274 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-f4b940a095192621",
+      "to": "topic:long-form",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-f4b940a095192621",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-f4b940a095192621",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-f4b940a095192621",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-f4b940a095192621",
+      "to": "insight:5aa2ae9493ab602a",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-f4b940a095192621",
+      "to": "insight:18426252a4a72016",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-f4b940a095192621",
+      "to": "insight:44763f042472c001",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:e5b2fc4e3710c8fe",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:5aa2ae9493ab602a",
+      "to": "quote:e5b2fc4e3710c8fe",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:130d42392b964d63",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:18426252a4a72016",
+      "to": "quote:130d42392b964d63",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:c2428f1390df2c24",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:44763f042472c001",
+      "to": "quote:c2428f1390df2c24",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:e7d01da4cfb8a21f",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:5aa2ae9493ab602a",
+      "to": "quote:e7d01da4cfb8a21f",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:08d21df0bc93295c",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:18426252a4a72016",
+      "to": "quote:08d21df0bc93295c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:6165d66e79d9a00a",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:44763f042472c001",
+      "to": "quote:6165d66e79d9a00a",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "ep-f4b940a095192621",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-f4b940a095192621",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ep-f4b940a095192621",
+        "metadata_relative_path": "feeds/p06/run_20260101_000000/metadata/p06_e02.metadata.json",
+        "podcast_id": "p06",
+        "publish_date": "2026-01-03T12:00:00",
+        "title": "More Drift, Less Signal"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:long-form",
+      "properties": {
+        "label": "long-form",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:5aa2ae9493ab602a",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Welcome back to The Drift. Today we're talking about long form, and I'm joined by Jordan Park, cultural critic. Jordan Park, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:18426252a4a72016",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "What's the one heuristic you keep coming back to? What's the structural angle most listeners don't have access to?"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:44763f042472c001",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Here's how I think about it. Sometimes the point of a conversation is not having a point. We've seen this play out at teams using Substack. I've watched this pattern hold across three different teams."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Cam"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:e5b2fc4e3710c8fe",
+      "properties": {
+        "char_end": 152,
+        "char_start": 5,
+        "episode_id": "ep-f4b940a095192621",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to The Drift. Today we're talking about long form, and I'm joined by Jordan Park, cultural critic. Jordan Park, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p06_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Jordan Park"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:130d42392b964d63",
+      "properties": {
+        "char_end": 196,
+        "char_start": 166,
+        "episode_id": "ep-f4b940a095192621",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Cam. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p06_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:c2428f1390df2c24",
+      "properties": {
+        "char_end": 363,
+        "char_start": 202,
+        "episode_id": "ep-f4b940a095192621",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Squarespace. Squarespace makes building a beautiful, branded website actually pleasant. Get started at squarespace.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p06_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:e7d01da4cfb8a21f",
+      "properties": {
+        "char_end": 477,
+        "char_start": 363,
+        "episode_id": "ep-f4b940a095192621",
+        "speaker_id": "person:speaker-01",
+        "text": "What's the one heuristic you keep coming back to? What's the structural angle most listeners don't have access to?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p06_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:08d21df0bc93295c",
+      "properties": {
+        "char_end": 691,
+        "char_start": 491,
+        "episode_id": "ep-f4b940a095192621",
+        "speaker_id": "person:speaker-02",
+        "text": "Here's how I think about it. Sometimes the point of a conversation is not having a point. We've seen this play out at teams using Substack. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p06_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:6165d66e79d9a00a",
+      "properties": {
+        "char_end": 799,
+        "char_start": 697,
+        "episode_id": "ep-f4b940a095192621",
+        "speaker_id": "person:speaker-01",
+        "text": "What does the failure mode look like? What's the structural angle most listeners don't have access to?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p06_e02.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}
