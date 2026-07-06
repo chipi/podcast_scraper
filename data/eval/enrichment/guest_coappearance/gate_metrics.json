@@ -1,0 +1,9 @@
+{
+  "enricher_id": "guest_coappearance",
+  "metrics": {
+    "f1": 0.0714,
+    "precision": 0.037,
+    "recall": 1.0
+  },
+  "run_id": "v3_fixture_loop"
+}

@@ -8,7 +8,7 @@ import { signInIsolated } from './helpers'
  */
 // Two DISTINCT, non-featured episodes (the newest, "Index Investing", is the catalog hero and would
 // dedupe against its own list card → only one unique slug queued). These are different episodes.
-const EP_A = 'Real Estate: Numbers Before Narratives'
+const EP_A = 'Index Investing Without the Myths'
 const EP_B = 'Wreck Diving Fundamentals'
 
 async function firstQueuedTitle(page: import('@playwright/test').Page): Promise<string> {

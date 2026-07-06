@@ -7,7 +7,7 @@ import { expect, test } from '@playwright/test'
  * persisted through the real API). Per-user state is written to the gitignored APP_DATA_DIR, so
  * the committed corpus tree is never mutated.
  *
- * The queued episode is a real corpus one: "Real Estate: Numbers Before Narratives"
+ * The queued episode is a real corpus one: "Index Investing Without the Myths"
  * ("Long Horizon Notes" / fixture p05).
  */
 test('sign in (mock OAuth), add to queue, see it in the queue view', async ({ page }) => {
@@ -27,7 +27,7 @@ test('sign in (mock OAuth), add to queue, see it in the queue view', async ({ pa
   // race: we only ever ADD (never toggle off) — click "Add to queue" only if it isn't already
   // queued, then confirm the queued state. The shared queue monotonically keeps the episode.
   await page.goto('/catalog')
-  const card = page.locator('article').filter({ hasText: 'Real Estate: Numbers Before Narratives' })
+  const card = page.locator('article').filter({ hasText: 'Index Investing Without the Myths' })
   // Wait for the auth-gated queue control to render (the session rehydrates after the full
   // page reload). Match either label so we can branch idempotently below.
   const queueBtn = card.getByRole('button', { name: /queue/i })
@@ -38,5 +38,5 @@ test('sign in (mock OAuth), add to queue, see it in the queue view', async ({ pa
   // The queue view (auth-gated route) lists the queued episode, served by the real API.
   await page.goto('/queue')
   await expect(page).toHaveURL(/\/queue/)
-  await expect(page.getByText('Real Estate: Numbers Before Narratives').first()).toBeVisible()
+  await expect(page.getByText('Index Investing Without the Myths').first()).toBeVisible()
 })
