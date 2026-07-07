@@ -20,6 +20,7 @@ from podcast_scraper.enrichment.enrichers.insight_density import InsightDensityE
 from podcast_scraper.enrichment.enrichers.nli_contradiction import NliContradictionEnricher
 from podcast_scraper.enrichment.enrichers.stance_timeline import StanceTimelineEnricher
 from podcast_scraper.enrichment.enrichers.temporal_velocity import TemporalVelocityEnricher
+from podcast_scraper.enrichment.enrichers.topic_consensus import TopicConsensusEnricher
 from podcast_scraper.enrichment.enrichers.topic_cooccurrence_corpus import (
     TopicCooccurrenceCorpusEnricher,
 )
@@ -59,6 +60,7 @@ __all__ = [
     "NliContradictionEnricher",
     "StanceTimelineEnricher",
     "TemporalVelocityEnricher",
+    "TopicConsensusEnricher",
     "TopicCooccurrenceCorpusEnricher",
     "TopicSimilarityEnricher",
     "TopicThemeClustersEnricher",

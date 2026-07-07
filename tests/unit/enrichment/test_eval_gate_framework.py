@@ -3,7 +3,7 @@
 Covers the grading side (scorer protocol/registry/reference scorers), the
 generic gold accessors, the gate (mirror of the provider RegressionRule gate),
 and the admission cascade that makes ``data/eval`` drive registry/profile
-membership — including that ``nli_contradiction``'s exclusion is now a
+membership — including that ``topic_consensus``'s exclusion is now a
 data-driven gate decision, not a hardcoded list edit.
 """
 
@@ -199,9 +199,9 @@ def test_admission_pure_no_gate_admits_gated_drops() -> None:
 
 def test_known_manifests_cover_all_nine_and_gated_ml_declare_gates() -> None:
     mans = known_enricher_manifests()
-    # 6 deterministic + topic_similarity + nli_contradiction + stance_timeline (ADR-108).
+    # 6 deterministic + topic_similarity + topic_consensus + stance_timeline (ADR-108).
     assert len(mans) == 9
-    for gated in ("nli_contradiction", "stance_timeline"):
+    for gated in ("topic_consensus", "stance_timeline"):
         gate = mans[gated].accuracy_gate
         assert gate is not None
         assert gate.on_missing_data == "reject"
@@ -226,15 +226,15 @@ def test_admit_enrichers_gates_nli_by_default(tmp_path: Path) -> None:
     # Hermetic: no gate_metrics under this eval_root → nli rejected via on_missing=reject.
     # (Uses an injected root, not the real data/eval, which now carries a measured 0%.)
     res = admit_enrichers(
-        ["grounding_rate", "topic_similarity", "nli_contradiction"], eval_root=tmp_path
+        ["grounding_rate", "topic_similarity", "topic_consensus"], eval_root=tmp_path
     )
-    assert "nli_contradiction" not in res.admitted
+    assert "topic_consensus" not in res.admitted
     assert "grounding_rate" in res.admitted and "topic_similarity" in res.admitted
 
 
 def test_gate_specs_from_manifests_projects_gate_only() -> None:
     specs = gate_specs_from_manifests(known_enricher_manifests())
-    assert specs["nli_contradiction"] is not None
+    assert specs["topic_consensus"] is not None
     assert specs["grounding_rate"] is None
 
 
@@ -246,7 +246,7 @@ def test_gate_specs_from_manifests_projects_gate_only() -> None:
 @pytest.mark.parametrize("profile", ["cloud_thin", "cloud_quality", "prod_dgx_balanced"])
 def test_profile_sets_exclude_nli_via_gate(profile: str) -> None:
     enabled = enricher_set_for_profile(profile).enabled_enrichers
-    assert "nli_contradiction" not in enabled  # gated out, data-driven
+    assert "topic_consensus" not in enabled  # gated out, data-driven
     assert "topic_similarity" in enabled  # no gate → still shipped
     assert len(enabled) == 7  # 6 deterministic + topic_similarity, unchanged
 
@@ -281,8 +281,8 @@ def test_closed_loop_scorers_to_gate(tmp_path: Path) -> None:
 
 def test_nli_auto_promotes_when_passing_eval_recorded(tmp_path: Path) -> None:
     # The payoff: a passing precision written to data/eval promotes nli with NO code edit.
-    write_gate_metrics({"nli_contradiction": {"precision": 0.9}}, eval_root=tmp_path)
+    write_gate_metrics({"topic_consensus": {"precision": 0.9}}, eval_root=tmp_path)
     res = admit_enrichers(
-        ["grounding_rate", "topic_similarity", "nli_contradiction"], eval_root=tmp_path
+        ["grounding_rate", "topic_similarity", "topic_consensus"], eval_root=tmp_path
     )
-    assert "nli_contradiction" in res.admitted  # auto-promoted by the recorded eval
+    assert "topic_consensus" in res.admitted  # auto-promoted by the recorded eval

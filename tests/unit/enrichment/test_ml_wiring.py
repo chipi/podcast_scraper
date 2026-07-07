@@ -46,19 +46,19 @@ def test_topic_similarity_no_knob_uses_enricher_tuned_default_not_shadowed_10() 
     assert getattr(reg.get("topic_similarity"), "_top_k") == 7
 
 
-def test_register_ml_enrichers_constructs_nli_contradiction_from_fixed_scripted() -> None:
+def test_register_ml_enrichers_constructs_topic_consensus_from_fixed_scripted() -> None:
     reg = EnricherRegistry()
     s = EnricherSet(
-        enabled_enrichers=["nli_contradiction"],
+        enabled_enrichers=["topic_consensus"],
         per_enricher_config={
-            "nli_contradiction": {
+            "topic_consensus": {
                 "threshold": 0.6,
                 "provider": {"type": "fixed_scripted"},
             },
         },
     )
     register_ml_enrichers(reg, s)
-    assert "nli_contradiction" in reg.all_ids()
+    assert "topic_consensus" in reg.all_ids()
 
 
 def test_register_ml_enrichers_skips_with_hint_when_provider_block_missing(

@@ -138,7 +138,7 @@ def test_list_enabled_warns_and_skips_unregistered_ids(
 def test_list_enabled_hint_for_known_provider_wired_enrichers(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """When a profile lists ``topic_similarity`` / ``nli_contradiction`` but
+    """When a profile lists ``topic_similarity`` / ``topic_consensus`` but
     the registry doesn't carry them (the deterministic-CLI case), the
     WARNING explains they need provider / scorer wiring at the call site
     rather than leaving the operator to grep for why the run silently
@@ -146,12 +146,12 @@ def test_list_enabled_hint_for_known_provider_wired_enrichers(
     """
     reg = EnricherRegistry()
     with caplog.at_level(logging.WARNING, logger="podcast_scraper.enrichment.registry"):
-        reg.list_enabled(EnricherSet(enabled_enrichers=["topic_similarity", "nli_contradiction"]))
+        reg.list_enabled(EnricherSet(enabled_enrichers=["topic_similarity", "topic_consensus"]))
     messages = [r.message for r in caplog.records]
     # topic_similarity → EmbeddingProvider hint
     assert any("topic_similarity" in m and "EmbeddingProvider" in m for m in messages), messages
-    # nli_contradiction → NliScorer hint
-    assert any("nli_contradiction" in m and "NliScorer" in m for m in messages), messages
+    # topic_consensus → NliScorer hint
+    assert any("topic_consensus" in m and "NliScorer" in m for m in messages), messages
     # Generic "not registered" warning for unknown ids is unchanged.
     with caplog.at_level(logging.WARNING, logger="podcast_scraper.enrichment.registry"):
         reg.list_enabled(EnricherSet(enabled_enrichers=["unknown_id"]))

@@ -33,24 +33,23 @@ def test_airgapped_thin_is_deterministic_only() -> None:
     s = enricher_set_for_profile("airgapped_thin")
     assert set(s.enabled_enrichers) == set(ALL_DETERMINISTIC_ENRICHER_IDS)
     assert "topic_similarity" not in s.enabled_enrichers
-    assert "nli_contradiction" not in s.enabled_enrichers
+    assert "topic_consensus" not in s.enabled_enrichers
 
 
 def test_airgapped_adds_topic_similarity() -> None:
     s = enricher_set_for_profile("airgapped")
     assert "topic_similarity" in s.enabled_enrichers
     assert set(ALL_DETERMINISTIC_ENRICHER_IDS) <= set(s.enabled_enrichers)
-    assert "nli_contradiction" not in s.enabled_enrichers
+    assert "topic_consensus" not in s.enabled_enrichers
 
 
 @pytest.mark.parametrize("profile", ["cloud_thin", "cloud_balanced", "cloud_quality"])
 def test_cloud_profiles_get_full_stack(profile: str) -> None:
     s = enricher_set_for_profile(profile)
     assert "topic_similarity" in s.enabled_enrichers
-    # gated dark by the data-driven accuracy_gate (0% precision on prod-v2, #1106) —
-    # NOT a hardcoded disable; auto-promotes if a passing eval is ever recorded
-
-    assert "nli_contradiction" not in s.enabled_enrichers
+    # topic_consensus (ADR-108) gated dark by the data-driven accuracy_gate (no eval recorded yet →
+    # on_missing=reject) — NOT a hardcoded disable; auto-promotes when a passing eval is recorded.
+    assert "topic_consensus" not in s.enabled_enrichers
     assert set(ALL_DETERMINISTIC_ENRICHER_IDS) <= set(s.enabled_enrichers)
 
 
@@ -71,10 +70,9 @@ def test_dgx_dev_local_profiles_get_full_stack(profile: str) -> None:
     'prod' is intentionally NOT here — there is no config/profiles/prod.yaml;
     the production profiles are prod_dgx_*."""
     s = enricher_set_for_profile(profile)
-    # gated dark by the data-driven accuracy_gate (0% precision on prod-v2, #1106) —
-    # NOT a hardcoded disable; auto-promotes if a passing eval is ever recorded
-
-    assert "nli_contradiction" not in s.enabled_enrichers
+    # topic_consensus (ADR-108) gated dark by the data-driven accuracy_gate (no eval recorded yet →
+    # on_missing=reject) — NOT a hardcoded disable; auto-promotes when a passing eval is recorded.
+    assert "topic_consensus" not in s.enabled_enrichers
 
 
 def test_admit_gate_is_hermetic_via_injected_eval_root(tmp_path: Path) -> None:
@@ -86,16 +84,16 @@ def test_admit_gate_is_hermetic_via_injected_eval_root(tmp_path: Path) -> None:
     """
     from podcast_scraper.enrichment.eval.admission import write_gate_metrics
 
-    # Empty eval root → nli_contradiction + stance_timeline gated dark (on_missing=reject).
+    # Empty eval root → topic_consensus + stance_timeline gated dark (on_missing=reject).
     excluded = enricher_set_for_profile("cloud_thin", eval_root=tmp_path)
-    assert "nli_contradiction" not in excluded.enabled_enrichers
+    assert "topic_consensus" not in excluded.enabled_enrichers
     assert "stance_timeline" not in excluded.enabled_enrichers
     assert "topic_similarity" in excluded.enabled_enrichers  # no gate → always admitted
 
     # Record a passing precision → the same call now admits it.
-    write_gate_metrics({"nli_contradiction": {"precision": 0.9}}, eval_root=tmp_path)
+    write_gate_metrics({"topic_consensus": {"precision": 0.9}}, eval_root=tmp_path)
     promoted = enricher_set_for_profile("cloud_thin", eval_root=tmp_path)
-    assert "nli_contradiction" in promoted.enabled_enrichers
+    assert "topic_consensus" in promoted.enabled_enrichers
 
 
 def test_phantom_prod_profile_is_unknown() -> None:
@@ -117,7 +115,7 @@ def test_unknown_profile_is_conservative_empty_set() -> None:
 
 
 def test_no_enrichers_wins_over_everything() -> None:
-    base = EnricherSet(enabled_enrichers=["topic_similarity", "nli_contradiction"])
+    base = EnricherSet(enabled_enrichers=["topic_similarity", "topic_consensus"])
     out = apply_cli_overrides(base, only=["topic_similarity"], no_enrichers=True)
     assert out.enabled_enrichers == []
 

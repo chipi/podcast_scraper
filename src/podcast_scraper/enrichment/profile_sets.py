@@ -110,8 +110,8 @@ def _with_topic_similarity() -> list[str]:
 
 def _cloud_ml_tier_set() -> list[str]:
     # The full ML-tier CANDIDATE set. Membership is no longer hand-maintained:
-    # the reimagined NLI enrichers (``nli_contradiction`` → ``topic_consensus``,
-    # ``stance_disagreement`` → ``stance_timeline``; ADR-108) are listed here as candidates
+    # the reimagined NLI enrichers (``topic_consensus``, ``stance_timeline``; ADR-108, replacing the
+    # 0%-precision ``nli_contradiction`` / ``stance_disagreement``) are listed here as candidates
     # and excluded by their manifest ``accuracy_gate`` via ``_admit`` below — NOT by
     # commenting them out. Each stays dark until an eval records passing precision in
     # ``data/eval/enrichment/<id>/gate_metrics.json``, at which point the gate auto-promotes
@@ -119,7 +119,7 @@ def _cloud_ml_tier_set() -> list[str]:
     return [
         *ALL_DETERMINISTIC_ENRICHER_IDS,
         "topic_similarity",
-        "nli_contradiction",
+        "topic_consensus",
         "stance_timeline",
     ]
 

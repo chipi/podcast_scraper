@@ -15,7 +15,7 @@ adds detail when an attempt was made to wire one but the config was
 malformed.
 
 The set of enricher ids this helper knows how to wire is closed today
-(``topic_similarity``, ``nli_contradiction``, ``stance_timeline``). Future
+(``topic_similarity``, ``topic_consensus``, ``stance_timeline``). Future
 ML enrichers add themselves to the dispatcher map below.
 """
 
@@ -24,11 +24,11 @@ from __future__ import annotations
 import logging
 from typing import Any, Callable
 
-from podcast_scraper.enrichment.enrichers.nli_contradiction import (
-    NliContradictionEnricher,
-)
 from podcast_scraper.enrichment.enrichers.stance_timeline import (
     StanceTimelineEnricher,
+)
+from podcast_scraper.enrichment.enrichers.topic_consensus import (
+    TopicConsensusEnricher,
 )
 from podcast_scraper.enrichment.enrichers.topic_similarity import TopicSimilarityEnricher
 from podcast_scraper.enrichment.protocol import EnricherSet
@@ -55,15 +55,15 @@ def _build_topic_similarity(provider: Any, knobs: dict[str, Any]) -> TopicSimila
     return TopicSimilarityEnricher(provider=provider, top_k=top_k)
 
 
-def _build_nli_contradiction(scorer: Any, knobs: dict[str, Any]) -> NliContradictionEnricher:
-    threshold_raw = knobs.get("threshold", 0.5)
+def _build_topic_consensus(scorer: Any, knobs: dict[str, Any]) -> TopicConsensusEnricher:
+    threshold_raw = knobs.get("threshold", 0.6)
     try:
         threshold = float(threshold_raw)
     except (TypeError, ValueError):
-        threshold = 0.5
+        threshold = 0.6
     if not 0.0 <= threshold <= 1.0:
-        threshold = 0.5
-    return NliContradictionEnricher(scorer=scorer, threshold=threshold)
+        threshold = 0.6
+    return TopicConsensusEnricher(scorer=scorer, threshold=threshold)
 
 
 def _build_stance_timeline(scorer: Any, knobs: dict[str, Any]) -> StanceTimelineEnricher:
@@ -97,7 +97,7 @@ def _build_stance_timeline(scorer: Any, knobs: dict[str, Any]) -> StanceTimeline
 # here + a class-side __init__ that accepts the same shape.
 _ML_ENRICHER_BUILDERS: dict[str, Callable[[Any, dict[str, Any]], Any]] = {
     "topic_similarity": _build_topic_similarity,
-    "nli_contradiction": _build_nli_contradiction,
+    "topic_consensus": _build_topic_consensus,
     "stance_timeline": _build_stance_timeline,
 }
 

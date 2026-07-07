@@ -90,9 +90,9 @@ def known_enricher_manifests() -> dict[str, EnricherManifest]:
         GroundingRateEnricher,
         GuestCoappearanceEnricher,
         InsightDensityEnricher,
-        NliContradictionEnricher,
         StanceTimelineEnricher,
         TemporalVelocityEnricher,
+        TopicConsensusEnricher,
         TopicCooccurrenceCorpusEnricher,
         TopicSimilarityEnricher,
         TopicThemeClustersEnricher,
@@ -106,7 +106,7 @@ def known_enricher_manifests() -> dict[str, EnricherManifest]:
         GuestCoappearanceEnricher,
         InsightDensityEnricher,
         TopicSimilarityEnricher,
-        NliContradictionEnricher,
+        TopicConsensusEnricher,
         StanceTimelineEnricher,
     )
     return {cls.manifest.id: cls.manifest for cls in classes}
