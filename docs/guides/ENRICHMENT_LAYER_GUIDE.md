@@ -154,27 +154,29 @@ operator used.
 | deterministic | `guest_coappearance` | corpus | `.gi.json` | `enrichments/guest_coappearance.json` | ✅ |
 | deterministic | `insight_density` | episode | `.gi.json`, `.metadata.json` | `metadata/enrichments/{stem}.insight_density.json` | ✅ |
 | embedding | `topic_similarity` | corpus | `.kg.json` | `enrichments/topic_similarity.json` | ✅ (needs a provider) |
-| ml | `topic_consensus` | corpus | `.gi.json` | `enrichments/topic_consensus.json` | 🚫 gated dark (no eval yet, ADR-108) |
-| ml | `stance_timeline` | corpus | `.gi.json` | `enrichments/stance_timeline.json` | 🚫 gated dark (no eval yet, ADR-108) |
+| ml | `topic_consensus` | corpus | `.gi.json` | `enrichments/topic_consensus.json` | ✅ promoted (precision 0.91, ADR-108 composite) |
+| ml | `stance_timeline` | corpus | `.gi.json` | `enrichments/stance_timeline.json` | 🚫 gated dark (no eval — signal absent on prod-v2) |
 | query | `query_topic_relatedness` | per-request | `enrichments/topic_similarity.json` | annotates search hits | ✅ |
 
 > **Note (ADR-108):** the two ML enrichers are `topic_consensus` + `stance_timeline`, the
-> reimagining of the retired 0%-precision `nli_contradiction` + `stance_disagreement`. Both flip to
-> the robust entailment side of NLI and dissolve the shared-question gate without an LLM. The 9
-> above (+ the query enricher) are the real set in `enrichment/enrichers/`.
+> reimagining of the retired 0%-precision `nli_contradiction` + `stance_disagreement`. `topic_consensus`
+> is a **composite** (embedding cosine + low NLI contradiction) that cleared its eval and is admitted;
+> `stance_timeline` stays dark (its stance signal is genuinely absent on prod-v2). The 9 above (+ the
+> query enricher) are the real set in `enrichment/enrichers/`.
 
-### The accuracy gate — why two enrichers stay dark
+### The accuracy gate — why membership is data-driven
 
-The two ML enrichers (`topic_consensus`, `stance_timeline`) are wired and registered
-but **gated dark** by a data-driven accuracy gate (`enrichment/eval/admission.py` →
-`profile_sets._admit`). Each declares an `accuracy_gate` (precision ≥ 0.5) on its manifest;
-until an eval records a passing precision under `data/eval/enrichment/<id>/gate_metrics.json`,
-the gate excludes it from the registry → profiles → UI. Both currently measure **0%**
-precision (they over-fire "contradiction"/"disagreement" on merely topic-adjacent insights),
-so neither is admitted to any profile. They auto-promote — no code edit — if a future scorer
-records precision ≥ 0.5. The live multi-speaker surface users actually see is **perspectives**
-(#1146), which is a CIL query over the GI, **not** an enricher, so it sidesteps the gate.
-`GET /api/enrichment/config/admission` reports each enricher's promote/gate decision + reason.
+The two ML enrichers (`topic_consensus`, `stance_timeline`) are wired and registered, and their
+profile membership is decided by a data-driven accuracy gate (`enrichment/eval/admission.py` →
+`profile_sets._admit`), not a hand-toggle. Each declares an `accuracy_gate` (precision ≥ 0.5) on its
+manifest; until an eval records a passing precision under `data/eval/enrichment/<id>/gate_metrics.json`,
+the gate excludes it from the registry → profiles → UI. **`topic_consensus` cleared it** — precision
+0.91 on prod-v2 (ADR-108 composite) → admitted to the cloud / dgx / dev / local profiles.
+**`stance_timeline` has not** (its stance signal is ~0 on prod-v2's factual insights) → gated dark; it
+auto-promotes with no code edit if a future scorer records precision ≥ 0.5. The live multi-speaker
+surface users also see is **perspectives** (#1146), a CIL query over the GI, **not** an enricher, so it
+sidesteps the gate. `GET /api/enrichment/config/admission` reports each enricher's promote/gate
+decision and reason.
 
 The chunk-7 profile matrix (see `enrichment/profile_sets.py`) decides the CANDIDATE
 set per profile; the accuracy gate then filters the ML tier (above):
@@ -184,7 +186,7 @@ set per profile; the accuracy gate then filters the ML tier (above):
 | `test_default`, `eval_default`, `preprod_local_whisper` | (none — CI isolation) |
 | `airgapped_thin` | deterministic only |
 | `airgapped` | deterministic + `topic_similarity` |
-| `cloud_thin`, `cloud_balanced`, `cloud_quality` | deterministic + `topic_similarity` + ML candidates (`topic_consensus`, `stance_timeline` — both gated dark today) |
+| `cloud_thin`, `cloud_balanced`, `cloud_quality` | deterministic + `topic_similarity` + ML candidates (`topic_consensus` admitted — precision 0.91; `stance_timeline` gated dark) |
 | `dev`, `local`, `local_dgx_*`, `prod_dgx_*`, `cloud_with_dgx_primary` | same full candidate set (gate applies) |
 | unknown profile | (none — conservative default) |
 
@@ -290,23 +292,25 @@ types (`sentence_transformer_local`, `fake_for_test`, ...) — see
 
 ### `topic_consensus` (ml, corpus scope)
 
-The ADR-108 reimagining of `nli_contradiction`. Flips from the fragile *contradiction* side of
-NLI to the robust **entailment** side and detects cross-Person **corroboration** per Topic — "what
-the corpus agrees on" — via the injected ``NliScorer``. A pair is emitted only on **symmetric
-entailment** (A entails B *and* B entails A above threshold); mutual paraphrase can't be mere
-topic-adjacency, so symmetry *is* the shared-question gate — no LLM. **Reads:** `.gi.json` (Insight /
-Person / SPOKEN_BY / ABOUT). **Writes:** `enrichments/topic_consensus.json`.
-**Output:** `{ consensus: [{topic_id, person_a_id, person_a_name, person_b_id, person_b_name, insight_a_id, insight_a_text, insight_b_id, insight_b_text, consensus_score}], threshold, pairs_scored, model_id, model_version }`.
+The ADR-108 reimagining of `nli_contradiction`: detect cross-Person **corroboration** per Topic —
+"what the corpus agrees on". Real-corpus eval showed *symmetric NLI entailment* has ~0 recall (genuine
+agreement is phrased differently), so the emit rule is a **composite** over the injected
+``ConsensusScorer``: **embedding cosine ≥ `cos_threshold`** (the shared-question gate — same
+proposition) **AND NLI contradiction ≤ `contra_threshold`** (the direction gate — they don't disagree,
+which filters similar-but-opposite pairs). No LLM (MiniLM + DeBERTa, both CPU-local). **Reads:**
+`.gi.json` (Insight / Person / SPOKEN_BY / ABOUT). **Writes:** `enrichments/topic_consensus.json`.
+**Output:** `{ consensus: [{topic_id, person_a_id, person_a_name, person_b_id, person_b_name, insight_a_id, insight_a_text, insight_b_id, insight_b_text, consensus_score, cosine, contradiction}], cos_threshold, contra_threshold, pairs_scored, model_id, model_version }` (`consensus_score` = `cosine`).
 **Knobs:**
 
-- ``threshold`` (float, 0–1, default 0.6) — min symmetric entailment probability to emit a pair.
+- ``cos_threshold`` (float, 0–1, default 0.70) — min embedding cosine (shared-question gate).
+- ``contra_threshold`` (float, 0–1, default 0.5) — max NLI contradiction, either direction (direction gate).
 
-**Provider requirement:** `NliScorer`. Set
-`enrichers.topic_consensus.provider.type` to one of `deberta_local`
-(real DeBERTa, requires `[ml]` extra) or `fixed_scripted` (test fixture).
-**Status: gated dark** — its manifest carries `accuracy_gate(precision ≥ 0.5, on_missing=reject)`,
-so it stays dark until an eval writes `data/eval/enrichment/topic_consensus/gate_metrics.json` with
-passing precision, then auto-promotes with no code edit. Score it with
+**Provider requirement:** `ConsensusScorer`. Set
+`enrichers.topic_consensus.provider.type` to `consensus_local` (MiniLM + DeBERTa, requires `[ml]`
+extra) or `fixed_consensus` (CI-safe test fixture).
+**Status: PROMOTED** — measured **precision 0.91** on prod-v2 (curated 28-pair gold), recorded in
+`data/eval/enrichment/topic_consensus/gate_metrics.json`, so the `accuracy_gate(precision ≥ 0.5)`
+auto-admits it into the cloud / dgx / dev / local profiles. Re-score with
 `scripts/eval/score/enrichment_topic_consensus.py`.
 
 ### `stance_timeline` (ml, corpus scope)

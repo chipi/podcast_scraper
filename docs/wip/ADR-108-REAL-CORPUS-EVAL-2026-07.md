@@ -68,3 +68,20 @@ fixture corpus today — the enrichers just stay dark in real runs until an eval
 - **topic_consensus:** a curated corroboration gold on a real corpus to tune the symmetric threshold
   against measured precision/recall, rather than the strict 0.6 default that emits ~1 pair.
 - Either path is an autoresearch-style tuning loop, not a config flip.
+
+## Update — the composite works; `topic_consensus` ACTIVATED
+
+The tuning loop above resolved `topic_consensus` in the same session. Re-scoring the 2 903 pairs by
+**embedding cosine** (all-MiniLM-L6-v2) instead of symmetric entailment surfaced the genuine agreements
+that entailment scored ~0.01 (financial-history, book-sales, commodities, music, ai-governance): 28
+pairs clear cosine ≥ 0.70. Embedding **alone** hits precision 0.71 (it admits similar-but-opposite pairs
+like "AI offloads routine work" vs "AI intensifies work"). Adding an **NLI contradiction ≤ 0.5** filter
+removes exactly those (their contradiction ≈ 0.99, bimodally separated from the ≈ 0.00 of real
+agreement) → **precision 0.909** (20/22) over a curated 28-pair gold.
+
+So the winning signal is a **composite**: cosine ≥ 0.70 (shared-question gate) AND contradiction ≤ 0.5
+(direction gate) — implemented as a single `ConsensusScorer` provider (MiniLM + DeBERTa, CPU-local, no
+LLM). `topic_consensus` was rewritten to it, its real gate_metrics recorded (precision 0.91), and it
+**auto-promoted** into the cloud / dgx / dev / local profiles. `stance_timeline` remains dark — its
+signal is genuinely absent on this corpus (unchanged conclusion). ADR-108 updated with the corrected
+design + activation.

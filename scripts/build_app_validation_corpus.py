@@ -812,16 +812,16 @@ def _stance_timeline_data(
 def _topic_consensus_data(
     topic_persons: dict[str, list[tuple[str, str]]],
     *,
-    threshold: float = 0.6,
+    cos_threshold: float = 0.70,
     max_rows: int = 12,
 ) -> dict[str, Any]:
-    """Author the ``topic_consensus`` payload (ADR-108) — cross-Person corroboration per Topic.
+    """Author the ``topic_consensus`` payload (ADR-108 composite) — cross-Person corroboration.
 
     Deterministic: for each topic with ≥2 distinct persons, emit one corroborating pair between the
-    two earliest-seen persons. The two claim texts are templated on the topic label (clean synthetic
-    corroboration, not raw transcript intros) so the viewer's Consensus surfaces read as genuine
-    agreement. ``consensus_score`` is a stable per-pair hash in ``[threshold, 0.95]``. Highest score
-    first, capped at ``max_rows``.
+    two earliest-seen persons. Claim texts are templated on the topic label (clean synthetic
+    corroboration) so the viewer's Consensus surfaces read as genuine agreement. Mirrors the
+    composite enricher's output: ``consensus_score`` = ``cosine`` (a stable per-pair hash in
+    ``[cos_threshold, 0.95]``) plus a low ``contradiction``. Highest first, capped at ``max_rows``.
     """
     consensus: list[dict[str, Any]] = []
     for tid, entries in sorted(topic_persons.items()):
@@ -841,7 +841,8 @@ def _topic_consensus_data(
             "not any single call."
         )
         h = int(hashlib.sha256(f"{tid}|{pid_a}|{pid_b}".encode()).hexdigest(), 16)
-        score = round(threshold + (h % 1000) / 1000.0 * (0.95 - threshold), 6)
+        cosine = round(cos_threshold + (h % 1000) / 1000.0 * (0.95 - cos_threshold), 6)
+        contradiction = round((h % 137) / 137.0 * 0.15, 6)  # low (< contra_threshold 0.5)
         consensus.append(
             {
                 "topic_id": tid,
@@ -853,17 +854,20 @@ def _topic_consensus_data(
                 "insight_a_text": txt_a,
                 "insight_b_id": f"insight:consensus:{slug(tid)}:{slug(pid_b)}",
                 "insight_b_text": txt_b,
-                "consensus_score": score,
-                "model_id": "cross-encoder/nli-deberta-v3-small",
-                "model_version": "v1",
+                "consensus_score": cosine,
+                "cosine": cosine,
+                "contradiction": contradiction,
+                "model_id": "all-MiniLM-L6-v2+deberta-v3-small",
+                "model_version": "v2",
             }
         )
     consensus.sort(key=lambda r: (-r["consensus_score"], r["topic_id"]))
     consensus = consensus[:max_rows]
     return {
-        "model_id": "cross-encoder/nli-deberta-v3-small",
-        "model_version": "v1",
-        "threshold": threshold,
+        "model_id": "all-MiniLM-L6-v2+deberta-v3-small",
+        "model_version": "v2",
+        "cos_threshold": cos_threshold,
+        "contra_threshold": 0.5,
         "pairs_scored": len(consensus),
         "consensus": consensus,
     }

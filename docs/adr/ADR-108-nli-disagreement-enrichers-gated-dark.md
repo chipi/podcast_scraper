@@ -1,6 +1,6 @@
-# ADR-108: Reimagine the NLI enrichers — `topic_consensus` (entailment) + `stance_timeline` (per-person over time)
+# ADR-108: Reimagine the NLI enrichers — `topic_consensus` (embedding + low-contradiction composite) + `stance_timeline` (per-person over time)
 
-- **Status**: Accepted (2026-07-07; supersedes the 2026-07-07 "gated dark pending a precise scorer" decision)
+- **Status**: Accepted (2026-07-07; supersedes the 2026-07-07 "gated dark pending a precise scorer" decision). `topic_consensus` **validated + activated** (precision 0.91 on prod-v2); `stance_timeline` remains gated dark. See the 2026-07-07 update below.
 - **Date**: 2026-07-07
 - **Authors**: Marko Dragoljevic, Claude (Opus 4.8)
 - **Related ADRs**:
@@ -73,11 +73,35 @@ clears its gold — gold comes from the v3 **position-arc / debate** fixtures (#
 (#1146) stays the live neutral side-by-side; these enrichers **add** the agreement axis
 (`topic_consensus`) and the trajectory axis (`stance_timeline`), each a claim the data can back.
 
+## Update — 2026-07-07: real-corpus validation corrects the consensus signal + activates it
+
+Ran both enrichers with the real DeBERTa over prod-v2 (99 bundles; full findings in
+[docs/wip/ADR-108-REAL-CORPUS-EVAL-2026-07.md](../wip/ADR-108-REAL-CORPUS-EVAL-2026-07.md)). The eval
+**refuted the original `topic_consensus` mechanism and confirmed a corrected one**:
+
+- **`topic_consensus`: symmetric NLI *entailment* fails; the composite works.** The first cut gated on
+  *symmetric entailment* ("symmetry IS the shared-question gate"). On real data that has **~0 recall** —
+  1 pair over 2 903 scored — because genuine agreement between two speakers is phrased differently, and
+  entailment ≈ paraphrase. The signal that actually recalls agreement is a **composite**: **embedding
+  cosine ≥ 0.70** (the *shared-question* gate — same proposition) **AND NLI contradiction ≤ 0.5** (the
+  *direction* gate — they don't disagree; this filters the similar-but-opposite pairs cosine alone
+  admits). Measured **precision 0.91** (20/22) over a curated 28-pair gold → auto-promoted through the
+  accuracy gate. So the ADR's "shared-question proxy" is **embedding proximity**, not symmetric
+  entailment; the contradiction check replaces the (weak) entailment check. Implemented as a single
+  `ConsensusScorer` provider (`consensus_local`: MiniLM + DeBERTa, both CPU-local — still no LLM).
+- **`stance_timeline`: the signal is genuinely absent on prod-v2** — factual insights don't entail
+  evaluative anchors, so stance ≈ 0 (and only 13 (person, topic) trajectories have ≥2 dated points). A
+  `sign_flips`-on-noise bug flagged 11/12 flat trajectories as "shifted"; fixed with a deadzone. It
+  **stays gated dark** (honest — the gate working as designed) and would need a stance-tuned signal +
+  a corpus where guests recur on a topic to activate. The stance-anchor mechanism below is retained as
+  the framework; only its precision is unproven.
+
 ## Consequences
 
-- The DeBERTa model is reused on its **strong** task (entailment vs a hypothesis), not its weak one
-  (cross-speaker contradiction). No LLM added; the shared-question problem is dissolved by task design
-  (same-speaker) or approximated by embeddings (consensus).
+- The DeBERTa model is reused on its **strong** task (entailment vs a hypothesis / contradiction
+  detection), not its weak one (cross-speaker contradiction as a positive signal). No LLM added; the
+  shared-question problem is dissolved by task design (same-speaker) or by **embedding proximity +
+  contradiction filtering** (consensus, per the 2026-07-07 update).
 - The viewer's orphaned "Contradictions" render code is **repurposed/replaced** by consensus +
   stance-timeline surfaces, not left dark.
 - The accuracy gate remains the durable firewall: each new enricher is a *data* exercise (clear its
