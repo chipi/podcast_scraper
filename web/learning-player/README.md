@@ -43,6 +43,39 @@ npm run test:e2e     # Playwright (builds + previews, then runs e2e)
 npm run build        # vue-tsc -b && vite build  (catches strict-mode TS errors)
 ```
 
+CI runs three app-scoped jobs on any `app/**` change (see
+`.github/workflows/python-app.yml` :: `app-unit`, `app-e2e`,
+`app-lighthouse`). The Lighthouse gate hard-fails on missing/broken
+manifest, service worker, maskable icon, apple-touch-icon, viewport,
+or themed omnibox — configured in `web/learning-player/lighthouserc.json`.
+
+## PWA behavior
+
+- **Install / offline shell.** Manifest + service worker via
+  `vite-plugin-pwa`. Precache = SHELL ONLY (JS/CSS/HTML/woff2/ico/svg,
+  plus the manifest icons). Audio is NEVER cached by the SW (bridge-never-rehost);
+  artwork is runtime-cached (`CacheFirst`, 500 entries × 30d); other
+  shared GET `/api/app/*` reads are `StaleWhileRevalidate` (200 entries
+  × 7d). Per-user endpoints (`/me`, `/queue`, `/playback`, `/auth`)
+  are excluded from cache — auth-safety across sign-in/out.
+
+- **Updates.** `registerType: 'prompt'` — when a new build ships, users
+  see a "New version available — Reload" toast instead of silently
+  running the old SW forever (avoided the guide-flagged silent-update
+  stall trap). The composable also proactively calls
+  `registration.update()` on tab refocus and every 15 min.
+
+- **Build identity.** `window.__buildInfo = { sha, time }` is injected
+  by `vite.config.ts` `define:` block. When triaging "PWA isn't
+  updating" reports, ask the reporter to open DevTools console:
+  `console.info` logs the sha/time at boot, and `window.__buildInfo`
+  is inspectable.
+
+- **Subpath deploys.** Set `APP_BASE=/some-prefix/` at build time (see
+  `vite.config.ts`) — manifest `start_url`/`scope`, workbox
+  `navigateFallback`, and the Vue Router base all pick it up
+  automatically.
+
 ## Docker
 
 Its own static image (node build → nginx), independent of the API/viewer images:

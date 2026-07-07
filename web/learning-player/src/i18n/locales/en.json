@@ -8,6 +8,14 @@
     "browse": "Browse",
     "skipToContent": "Skip to content"
   },
+  "pwa": {
+    "updateAvailable": {
+      "title": "New version available",
+      "body": "Reload to get the latest.",
+      "reload": "Reload",
+      "dismiss": "Later"
+    }
+  },
   "home": {
     "askKicker": "Ask across every episode",
     "askTitle": "Find any moment you've heard.",

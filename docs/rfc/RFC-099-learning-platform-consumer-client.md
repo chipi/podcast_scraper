@@ -22,7 +22,7 @@ This RFC defines the **new top-level consumer application** (PRD-035 D1/D3): a m
 foundation (RFC-098). It specifies the transcript-sync engine, the queue, the capture UX, and the
 accessibility + internationalisation foundations that are non-negotiable from the first commit.
 
-**Architecture Alignment:** A separate top-level app (`app/`), distinct from `web/gi-kg-viewer` (operator
+**Architecture Alignment:** A separate top-level app (`web/learning-player/`), distinct from `web/gi-kg-viewer` (operator
 only). It reuses extracted UI primitives where sensible but ships its own shell, routing, and state.
 
 ## Problem Statement
@@ -42,7 +42,7 @@ intelligence + frictionless capture, accessible and localisable from day one.
 
 ## Goals
 
-1. **New top-level PWA** (`app/`): Vue 3 + TypeScript + Vite, installable, mobile-first, offline app-shell.
+1. **New top-level PWA** (`web/learning-player/`): Vue 3 + TypeScript + Vite, installable, mobile-first, offline app-shell.
 2. **Transcript-sync engine**: highlight + autoscroll the active segment; tap-to-seek; resume.
 3. **Queue**: add/reorder/auto-advance over local-ready episodes (scrape-on-demand on enqueue is
    post-#1069 — see §4).
@@ -68,7 +68,7 @@ intelligence + frictionless capture, accessible and localisable from day one.
 ### 1. App shell & stack
 
 ```text
-app/                      # new top-level project (sibling of web/)
+web/learning-player/                      # new top-level project (sibling of web/)
   index.html
   src/
     main.ts
@@ -89,7 +89,7 @@ app/                      # new top-level project (sibling of web/)
   Sign up when out. In the local dev preview, the vite proxy uses `changeOrigin:false` so the API
   builds **same-origin** OAuth callbacks (else the session cookie lands on the API origin).
 - **Visual design**: implements **UXS-011** (Editorial Bold, dark-primary). The single token layer is
-  `app/src/styles/tokens.css`; the Player's now-playing artwork zone applies the per-show adaptive accent
+  `web/learning-player/src/styles/tokens.css`; the Player's now-playing artwork zone applies the per-show adaptive accent
   (contrast-clamped per UXS-011 Accessibility). This is a **separate** design system from `gi-kg-viewer`.
 
 #### Local mocked OAuth provider (dev / e2e)
@@ -237,11 +237,11 @@ Home (`/`) is the launch surface; the full catalog moves to `/catalog`. Routes: 
 
 ### 10. Deployment & API boundary (mobile-future)
 
-- **Separate Docker container.** `app/` builds to a static bundle served by its own lightweight image
+- **Separate Docker container.** `web/learning-player/` builds to a static bundle served by its own lightweight image
   (the PWA shell + assets), independent of the API image. It talks to the backend purely over
   `/api/app/*` — no shared process, no server-rendered coupling. This keeps the consumer surface
   independently deployable/scalable and lets the operator API and pipeline images stay untouched.
-  Concretely (#1086): `app/Dockerfile` (node build → nginx; `app/nginx.conf` = SPA fallback +
+  Concretely (#1086): `web/learning-player/Dockerfile` (node build → nginx; `web/learning-player/nginx.conf` = SPA fallback +
   `/api` proxy, no audio) + the `compose/docker-compose.app.yml` overlay (adds `learning-app` to
   the stack network) + `make app-docker-build` / `app-stack-up`.
 - **API is the only contract.** Because the client consumes `/api/app/*` exclusively (session cookie
@@ -253,7 +253,7 @@ Home (`/`) is the launch surface; the full catalog moves to `/catalog`. Routes: 
 
 ## Key Decisions
 
-1. **New top-level `app/`, not an extension of `gi-kg-viewer`**
+1. **New top-level `web/learning-player/`, not an extension of `gi-kg-viewer`**
    - **Decision**: separate consumer app.
    - **Rationale**: PRD-035 D3 — operator vs consumer concerns stay separate; viewer untouched.
 2. **PWA, not native**
@@ -280,7 +280,7 @@ Home (`/`) is the launch surface; the full catalog moves to `/catalog`. Routes: 
 - **E2E (Playwright)**: sign-in (stub) → play → segment highlight + tap-seek → highlight capture; **a11y
   checks** (axe) in the listen→capture path.
 
-**Test Organization:** in `app/` (cd into it before vitest/playwright); mocked `/api/app/*`; no real audio
+**Test Organization:** in `web/learning-player/` (cd into it before vitest/playwright); mocked `/api/app/*`; no real audio
 fetched in CI (stub source / silent clip).
 
 ## Rollout & Monitoring
@@ -303,7 +303,7 @@ provider for dev/e2e). Discovery/scrape-on-demand (#1069), the audio proxy (#107
 
 ## Open Questions
 
-1. **Resolved**: top-level dir is **`app/`**, its **own** Vue 3 + Vite + Pinia build and **own Docker
+1. **Resolved**: top-level dir is **`web/learning-player/`**, its **own** Vue 3 + Vite + Pinia build and **own Docker
    image** (§10) — *not* sharing a workspace/build with `web/` (operator viewer stays separate, D3).
 2. **Resolved (direction)**: aesthetic is **Editorial Bold** (UXS-011); given the distinct design system,
    default to **reimplementing** consumer components against UXS-011 tokens and only extract a
@@ -315,4 +315,4 @@ provider for dev/e2e). Discovery/scrape-on-demand (#1069), the audio proxy (#107
 
 - **Related PRDs**: `docs/prd/PRD-039-player.md`, `docs/prd/PRD-038-catalog.md`, `docs/prd/PRD-040-capture.md`
 - **Related RFCs**: `docs/rfc/RFC-098-learning-platform-foundation.md`, `docs/rfc/RFC-100-audio-bridge-subsystem.md`
-- **Source Code**: new `app/`; primitives from `web/gi-kg-viewer/`
+- **Source Code**: new `web/learning-player/`; primitives from `web/gi-kg-viewer/`

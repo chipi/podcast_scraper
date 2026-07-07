@@ -384,7 +384,7 @@ app e2e can run against stable, version-pinned content:
   run-relative, `content.media_url`, raw canonical `*.segments.json`,
   `search/topic_clusters.json`). ~3 shows × 2 episodes; every episode is `ready`
   and carries GI insights + KG topics/people. The app's Playwright e2e
-  (`app/playwright.config.ts`) serves it via the real consumer API with no build
+  (`web/learning-player/playwright.config.ts`) serves it via the real consumer API with no build
   step. See `app-validation-corpus/README.md` for the show/episode list and the
   regenerate command.
 

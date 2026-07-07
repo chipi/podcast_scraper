@@ -108,6 +108,7 @@ jobs:
       code: ${{ steps.filter.outputs.code }}
       python: ${{ steps.filter.outputs.python }}
       viewer: ${{ steps.filter.outputs.viewer }}
+      app: ${{ steps.filter.outputs.app }}
       stack-profiles: ${{ steps.filter.outputs.stack-profiles }}
       stack-compose: ${{ steps.filter.outputs.stack-compose }}
     steps:
@@ -147,6 +148,9 @@ jobs:
           viewer:
             - 'web/gi-kg-viewer/**'
             - 'docker/viewer/**'
+          app:
+            - 'web/learning-player/**'
+            - '.github/workflows/python-app.yml'
           stack-profiles:
             - 'config/profiles/**'
             - 'compose/**'
@@ -528,6 +532,117 @@ jobs:
         # vite.config.ts fail the job if UI coverage regresses (parallel to the
         # Python coverage gate; not merged into coverage-unified).
         npm run test:coverage
+
+  # ===========================================================================
+  # Consumer Learning Player (web/learning-player/) — unit + e2e + Lighthouse PWA gate.
+  #
+  # Path-A gated: only runs when app/ or this workflow change. Same tiering as
+  # viewer-unit / viewer-e2e:
+  #   app-unit       — Vitest with coverage gate (mirrors viewer-unit)
+  #   app-e2e        — Playwright full-stack (real API + preview build)
+  #   app-lighthouse — Lighthouse PWA + Performance audit on prod build
+  #
+  # NB: app-e2e boots a real ``podcast_scraper serve`` API, so it needs the
+  # Python venv AND the fixture corpus — see playwright.config.ts webServer.
+
+  app-unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [lint, build, detect-changes]
+    if: needs.detect-changes.outputs.app == 'true'
+    steps:
+    - uses: actions/checkout@v7
+    - uses: actions/setup-node@v6
+      with:
+        node-version: "22"
+        cache: "npm"
+        cache-dependency-path: web/learning-player/package-lock.json
+    - name: Install dependencies
+      run: |
+        cd web/learning-player
+        npm ci
+    - name: Run Vitest unit tests with coverage gate
+      run: |
+        cd web/learning-player
+        # test:coverage runs vitest with --coverage; thresholds in vite.config.ts
+        # fail the job if consumer-app coverage regresses (mirrors viewer-unit).
+        npm run test:coverage
+
+  app-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: [lint, build, app-unit, detect-changes]
+    if: |
+      always() &&
+      needs.detect-changes.outputs.app == 'true' &&
+      needs.lint.result == 'success' &&
+      needs.build.result == 'success' &&
+      needs.app-unit.result == 'success'
+    steps:
+    - uses: actions/checkout@v7
+    - name: Set up Python 3.11 (for the real API server the app e2e boots)
+      uses: actions/setup-python@v6
+      with:
+        python-version: "3.11.8"
+        cache: "pip"
+        cache-dependency-path: pyproject.toml
+    - name: Install podcast_scraper (for the serve command)
+      run: |
+        python -m venv .venv
+        .venv/bin/pip install --upgrade pip
+        # [dev] pulls FastAPI + uvicorn — needed for `podcast_scraper serve`.
+        .venv/bin/pip install -e ".[dev]"
+    - uses: actions/setup-node@v6
+      with:
+        node-version: "22"
+        cache: "npm"
+        cache-dependency-path: web/learning-player/package-lock.json
+    - name: Install app dependencies + Playwright browsers
+      run: |
+        cd web/learning-player
+        npm ci
+        npx playwright install --with-deps chromium
+    - name: Run Playwright E2E (real API + preview)
+      run: |
+        cd web/learning-player
+        npm run test:e2e
+
+  # Lighthouse PWA + Performance gate. Guide §6: "ideally gated in CI".
+  # Independently gated (not fatal to app-e2e) so a temporary perf regression
+  # can be triaged without blocking the whole app pipeline; PWA-audit failures
+  # here are the real signal (broken install / manifest / SW).
+  app-lighthouse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [app-unit, detect-changes]
+    if: |
+      always() &&
+      needs.detect-changes.outputs.app == 'true' &&
+      needs.app-unit.result == 'success'
+    steps:
+    - uses: actions/checkout@v7
+    - uses: actions/setup-node@v6
+      with:
+        node-version: "22"
+        cache: "npm"
+        cache-dependency-path: web/learning-player/package-lock.json
+    - name: Install dependencies
+      run: |
+        cd web/learning-player
+        npm ci
+    - name: Install Lighthouse CI
+      run: npm install -g @lhci/cli@0.14.x
+    - name: Build the app (prod bundle for the audit)
+      run: |
+        cd web/learning-player
+        npm run build
+    - name: Run Lighthouse against the prod preview
+      run: |
+        cd web/learning-player
+        lhci autorun --config=./lighthouserc.json
+      env:
+        # Prevent LHCI from trying to upload to a public server on PRs.
+        LHCI_GITHUB_APP_TOKEN: ""
 
   # Preload ML models - runs when Python code/tests/configs change so models
   # are cached for integration and e2e tests. Path-A gate: skipped on

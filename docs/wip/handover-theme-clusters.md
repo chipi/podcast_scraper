@@ -103,16 +103,16 @@ sibling for themes:
   - `server/routes/app_episodes.py:286`
 
 ### 2. Player types + render
-- `app/src/services/types.ts` (topic type ~L162-164 and ~L328-330): add
+- `web/learning-player/src/services/types.ts` (topic type ~L162-164 and ~L328-330): add
   `theme_cluster_id/label/size`.
-- `app/src/components/KnowledgePanel.vue`: it computes `dominantClusterId` from
+- `web/learning-player/src/components/KnowledgePanel.vue`: it computes `dominantClusterId` from
   `cluster_id` and renders the "Theme ·" lead-in (`t('kp.theme', …)`, L299-300)
   + dominant `ring-topic` (L311). Add a parallel `themeDominantCluster` from
   `theme_cluster_id`; render the **Theme** lead-in from it, and **rename the
   existing semantic lead-in to "Similar ·"**. Theme chips get the theme token.
-- `app/src/components/EntityCardBody.vue`: same rename + theme section.
+- `web/learning-player/src/components/EntityCardBody.vue`: same rename + theme section.
 
-### 3. i18n (`app/src/i18n/locales/en.json`)
+### 3. i18n (`web/learning-player/src/i18n/locales/en.json`)
 - `kp.theme` currently means the *semantic* cluster → reassign: `kp.theme` = the
   co-occurrence THEME; add `kp.similar` for the semantic cluster. Update all
   locale files + the KnowledgePanel/EntityCard tests that assert these strings.

@@ -11,8 +11,8 @@
   - `docs/uxs/UXS-011-consumer-learning-app.md` — **the design-system hub**: this surface
     inherits all tokens, typography, and components from UXS-011 (Editorial Bold, dark-primary).
 - **Related issue**: GitHub #1090
-- **Implementation paths**: `app/src/views/HomeView.vue`, `app/src/views/SearchView.vue`,
-  `app/src/components/*` (reuses `EpisodeCard`)
+- **Implementation paths**: `web/learning-player/src/views/HomeView.vue`, `web/learning-player/src/views/SearchView.vue`,
+  `web/learning-player/src/components/*` (reuses `EpisodeCard`)
 
 ## Summary
 

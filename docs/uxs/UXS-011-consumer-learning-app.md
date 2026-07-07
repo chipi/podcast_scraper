@@ -16,13 +16,13 @@
 - **Related issues**:
   - GitHub #911 (Epic 1 — foundation), Epic 2 (consumer app — to be opened)
 - **Implementation paths** (where tokens and styles should land):
-  - `app/` (new top-level Vue 3 project — RFC-099 §1)
-  - `app/src/styles/tokens.css` (`:root` CSS custom properties — the single token layer)
-  - `app/tailwind.config.ts` (theme keys mapped to the CSS variables, if Tailwind is adopted)
+  - `web/learning-player/` (new top-level Vue 3 project — RFC-099 §1)
+  - `web/learning-player/src/styles/tokens.css` (`:root` CSS custom properties — the single token layer)
+  - `web/learning-player/tailwind.config.ts` (theme keys mapped to the CSS variables, if Tailwind is adopted)
 
 ## Summary
 
-This is the **shared visual contract for the new consumer Learning App** (`app/`, RFC-099) — a
+This is the **shared visual contract for the new consumer Learning App** (`web/learning-player/`, RFC-099) — a
 separate design system from the operator GI/KG viewer (UXS-001). The chosen identity is **Editorial
 Bold**: a dark-primary, high-contrast, type-led aesthetic that signals "a serious thing you learn
 from," not a jukebox. This doc holds the design-system foundation (tokens, typography, layout,
@@ -80,7 +80,7 @@ autoscroll/seek logic, keyboard shortcuts) belong in **RFC-099**. See the
 ## Semantic color tokens
 
 Use **semantic names** in code (CSS custom properties / Tailwind theme keys). No raw hex in
-components except in the single token layer (`app/src/styles/tokens.css`). Every surface token has a
+components except in the single token layer (`web/learning-player/src/styles/tokens.css`). Every surface token has a
 matching `-foreground` so contrast is validated at the token level.
 
 The **accent is per-show adaptive**: `--accent` is a runtime variable set from the episode/show
@@ -231,7 +231,7 @@ KG / grounding semantics visually consistent with the operator stack's meaning w
 
 ### How to experiment
 
-Swap values in `app/src/styles/tokens.css` (`:root`) or via DevTools; the per-show `--accent` is set
+Swap values in `web/learning-player/src/styles/tokens.css` (`:root`) or via DevTools; the per-show `--accent` is set
 on the player root element at runtime. Token **names and the contrast-clamp contract are frozen**;
 values and the extraction algorithm are open until promoted.
 

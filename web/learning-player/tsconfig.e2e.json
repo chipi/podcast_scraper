@@ -10,5 +10,9 @@
     "noEmit": true,
     "strict": true
   },
-  "include": ["playwright.config.ts", "e2e/**/*.ts"]
+  "include": [
+    "playwright.config.ts",
+    "playwright.validation.config.ts",
+    "e2e/**/*.ts"
+  ]
 }

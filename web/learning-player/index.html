@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0E0D10" />
+    <meta
+      name="description"
+      content="A podcast learning player — transcript-synced playback over grounded intelligence."
+    />
+
+    <!--
+      iOS PWA behavior is opt-in via meta tags — iOS ignores most of the
+      web app manifest. Without these, "Add to Home Screen" produces a
+      Safari bookmark, not a standalone PWA.
+    -->
+    <!--
+      The href is base-relative (no leading slash) so it resolves against
+      the deploy base (Vite's BASE_URL). At root deploys this is
+      "/apple-touch-icon-180.png"; under a subpath deploy at /app/ it
+      resolves to "/app/apple-touch-icon-180.png". Guide §5.
+    -->
+    <link rel="apple-touch-icon" href="apple-touch-icon-180.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Learning" />
+
+    <title>Learning Player</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
