@@ -31,6 +31,29 @@ export interface CilTopicTimelineMergedResponse {
   episodes: CilArcEpisodeBlock[]
 }
 
+/** One ISO-week bucket of a topic's conversation (volume + sentiment mix). */
+export interface CilTopicConversationArcWeek {
+  week: string
+  volume: number
+  negative: number
+  neutral: number
+  positive: number
+  avg_compound: number
+}
+
+/** Response for GET /api/topics/{id}/conversation-arc — the aggregate-first arc overview. */
+export interface CilTopicConversationArcResponse {
+  path: string
+  topic_id: string
+  weeks: CilTopicConversationArcWeek[]
+}
+
+/** Per-insight sentiment tag joined onto timeline / position-arc insight nodes. */
+export interface CilInsightSentiment {
+  compound: number
+  label: 'negative' | 'neutral' | 'positive'
+}
+
 export interface CilIdListResponse {
   path: string
   anchor_id: string
@@ -103,6 +126,37 @@ export async function fetchTopicTimeline(
     throw new Error(detail.trim() || `HTTP ${res.status}`)
   }
   return (await res.json()) as CilTopicTimelineResponse
+}
+
+/**
+ * Fetch a topic's conversation arc — weekly volume × sentiment mix. The aggregate-first
+ * overview so a big topic (1000s of insights) renders as a compact time-shape, not a flat list.
+ */
+export async function fetchTopicConversationArc(
+  corpusPath: string,
+  topicId: string,
+  opts?: { insightTypes?: string | null },
+): Promise<CilTopicConversationArcResponse> {
+  const root = corpusPath.trim()
+  const tid = topicId.trim()
+  if (!root) {
+    throw new Error('Corpus path is required')
+  }
+  if (!tid) {
+    throw new Error('Topic id is required')
+  }
+  const enc = encodeURIComponent(tid)
+  const q = new URLSearchParams({ path: root })
+  const it = opts?.insightTypes?.trim()
+  if (it) {
+    q.set('insight_types', it)
+  }
+  const res = await fetchWithTimeout(`/api/topics/${enc}/conversation-arc?${q.toString()}`)
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(detail.trim() || `HTTP ${res.status}`)
+  }
+  return (await res.json()) as CilTopicConversationArcResponse
 }
 
 export interface CilTopicPerspective {

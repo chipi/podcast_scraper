@@ -30,6 +30,7 @@ import { stripLayerPrefixesForCil } from '../../utils/mergeGiKg'
 import { titleCaseWords } from '../../utils/nameCase'
 import { fetchCorpusFeeds } from '../../api/corpusLibraryApi'
 import PersonInitialAvatar from '../shared/PersonInitialAvatar.vue'
+import TopicConversationArc from './TopicConversationArc.vue'
 import ShowGlyph from '../shared/ShowGlyph.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
 import HelpTip from '../shared/HelpTip.vue'
@@ -320,6 +321,13 @@ function onPrefillSearch(): void {
       >
         {{ subjectDescription }}
       </p>
+      <!-- ADR-108 — how this topic's conversation evolved: weekly volume × sentiment
+           (aggregate-first, so a big topic renders as a shape not a 1000-card list). -->
+      <TopicConversationArc
+        v-if="subjectId"
+        :topic-id="stripLayerPrefixesForCil(subjectId)"
+        class="w-full min-w-0"
+      />
       <!-- #1055 — related topics (topics that *share insights* with this one).
            Sits right under NodeDetail's "Theme" (topics *discussed together*)
            so the two co-topic signals are adjacent; a distinct colour (Topic
