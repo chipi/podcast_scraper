@@ -27,7 +27,9 @@ from podcast_scraper.server.schemas import (
     AppEntitySearchResponse,
     AppPersonCard,
     AppTopicCard,
+    AppTopicConversationArcResponse,
     AppTopicPerspectivesResponse,
+    CilTopicConversationArcWeek,
 )
 
 router = APIRouter(tags=["app"])
@@ -94,6 +96,30 @@ async def topic_perspectives_route(
     if resp is None:
         raise HTTPException(status_code=404, detail="No perspectives for this topic.")
     return resp
+
+
+@router.get(
+    "/topics/{topic_id}/conversation-arc",
+    response_model=AppTopicConversationArcResponse,
+)
+async def topic_conversation_arc_route(
+    request: Request,
+    topic_id: str,
+) -> AppTopicConversationArcResponse:
+    """Consumer conversation arc — weekly volume × sentiment for a topic (ADR-108).
+
+    The aggregate-first overview so a big topic (1000s of insights) shows as a compact time-shape.
+    KG-grounded read over the shared corpus; empty ``weeks`` when the topic has no dated insights.
+    """
+    from podcast_scraper.server import cil_queries
+
+    root = str(corpus_root_or_503(request))
+    tid = cil_queries.canonical_cil_entity_id(topic_id.strip())
+    raw = cil_queries.topic_conversation_arc(root, root, tid)
+    return AppTopicConversationArcResponse(
+        topic_id=tid,
+        weeks=[CilTopicConversationArcWeek(**w) for w in raw],
+    )
 
 
 @router.get("/entities/search", response_model=AppEntitySearchResponse)

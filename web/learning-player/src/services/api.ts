@@ -36,6 +36,7 @@ import type {
   SegmentsResponse,
   Storyline,
   TopicCard,
+  TopicConversationArcResponse,
   TopicPerspectivesResponse,
   TrendingEntity,
   UserStats,
@@ -160,6 +161,13 @@ export function getTopicPerspectives(
   return getJSON<TopicPerspectivesResponse>(`/topics/${encodeURIComponent(id)}/perspectives`, {
     scope,
   })
+}
+
+/** Topic conversation arc — weekly volume × sentiment, the aggregate-first overview (ADR-108). */
+export function getTopicConversationArc(id: string): Promise<TopicConversationArcResponse> {
+  return getJSON<TopicConversationArcResponse>(
+    `/topics/${encodeURIComponent(id)}/conversation-arc`,
+  )
 }
 
 // Corpus-scope enrichment is one static payload for the whole corpus, read by

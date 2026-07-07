@@ -378,6 +378,15 @@ class AppTopicPerspectivesResponse(BaseModel):
     )
 
 
+class AppTopicConversationArcResponse(BaseModel):
+    """Consumer projection of a topic's conversation arc — weekly volume × sentiment (ADR-108)."""
+
+    topic_id: str = Field(description="Canonical topic id.")
+    weeks: list[CilTopicConversationArcWeek] = Field(
+        default_factory=list, description="ISO-week buckets, oldest first."
+    )
+
+
 class AppInterestCluster(BaseModel):
     """One selectable interest cluster for the discovery picker (PRD-043 FR4 / 3.5)."""
 

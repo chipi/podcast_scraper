@@ -197,3 +197,55 @@ def test_entity_search_prefers_person_over_topic_on_collision(tmp_path: Path) ->
     body = _client(tmp_path).get("/api/app/entities/search", params={"q": "focus"}).json()
     assert body["entity"]["kind"] == "person"
     assert body["entity"]["id"] == "person:focus"
+
+
+def _write_arc_bundle(root: Path, stem: str, publish: str, insight_id: str, label: str) -> None:
+    """One bridge+gi+kg episode + an insight_sentiment sidecar (drives the CIL conversation arc)."""
+    md = root / "metadata"
+    md.mkdir(parents=True, exist_ok=True)
+    bridge = {
+        "schema_version": "3.0",
+        "episode_id": f"ep-{stem}",
+        "identities": [
+            {"id": "person:a", "type": "person", "sources": {"gi": True}, "display_name": "A"},
+            {"id": "topic:ai", "type": "topic", "sources": {"gi": True}, "display_name": "AI"},
+        ],
+    }
+    gi = {
+        "schema_version": "3.0",
+        "episode_id": f"ep-{stem}",
+        "nodes": [
+            {"id": insight_id, "type": "Insight", "properties": {"text": "an AI take"}},
+            {"id": f"q-{stem}", "type": "Quote", "properties": {"text": "q"}},
+        ],
+        "edges": [
+            {"type": "SPOKEN_BY", "from": f"q-{stem}", "to": "person:a"},
+            {"type": "SUPPORTED_BY", "from": insight_id, "to": f"q-{stem}"},
+            {"type": "ABOUT", "from": insight_id, "to": "topic:ai"},
+        ],
+    }
+    kg = {"nodes": [{"id": "kg:ep", "type": "Episode", "properties": {"publish_date": publish}}]}
+    (md / f"{stem}.bridge.json").write_text(json.dumps(bridge), encoding="utf-8")
+    (md / f"{stem}.gi.json").write_text(json.dumps(gi), encoding="utf-8")
+    (md / f"{stem}.kg.json").write_text(json.dumps(kg), encoding="utf-8")
+    (md / "enrichments").mkdir(parents=True, exist_ok=True)
+    (md / "enrichments" / f"{stem}.insight_sentiment.json").write_text(
+        json.dumps(
+            {"data": {"insights": [{"insight_id": insight_id, "compound": 0.7, "label": label}]}}
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_topic_conversation_arc_route(tmp_path: Path) -> None:
+    _write_arc_bundle(tmp_path, "0001-a", "2024-01-15", "i1", "positive")
+    _write_arc_bundle(tmp_path, "0002-b", "2024-01-16", "i2", "negative")
+    resp = _client(tmp_path).get("/api/app/topics/topic:ai/conversation-arc")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["topic_id"] == "topic:ai"
+    # Both dates are ISO week 2024-W03 → one bucket, volume 2, 1 pos + 1 neg.
+    assert len(body["weeks"]) == 1
+    wk = body["weeks"][0]
+    assert wk["week"] == "2024-W03"
+    assert wk["volume"] == 2 and wk["positive"] == 1 and wk["negative"] == 1

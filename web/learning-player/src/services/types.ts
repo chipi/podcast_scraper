@@ -380,6 +380,21 @@ export interface TopicPerspectivesResponse {
   perspectives: TopicPerspective[]
 }
 
+/** One ISO-week bucket of a topic's conversation (volume + sentiment mix) — ADR-108. */
+export interface TopicConversationArcWeek {
+  week: string
+  volume: number
+  negative: number
+  neutral: number
+  positive: number
+  avg_compound: number
+}
+
+export interface TopicConversationArcResponse {
+  topic_id: string
+  weeks: TopicConversationArcWeek[]
+}
+
 /** Corpus-scope enrichment signals (GET /api/app/corpus/enrichment → `signals`).
  *  Enricher id → its envelope `data`. Every field is optional/best-effort: an
  *  enricher that didn't run just doesn't appear. Only the fields the entity card

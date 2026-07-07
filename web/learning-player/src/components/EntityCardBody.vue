@@ -14,6 +14,7 @@ import { getPersonCard, getTopicCard } from '../services/api'
 import type { Entity, EpisodeSummary, PersonCard, Topic, TopicCard } from '../services/types'
 import EntitySignals from './EntitySignals.vue'
 import TopicPerspectives from './TopicPerspectives.vue'
+import TopicConversationArc from './TopicConversationArc.vue'
 import { useAuthStore } from '../stores/auth'
 import { useInterestsStore } from '../stores/interests'
 import { episodeArtwork } from '../utils/episode'
@@ -302,6 +303,8 @@ function searchLibrary(): void {
 
         <!-- Multi-perspective synthesis (#1146): each guest's take on this topic. Topic-only;
              hides itself when the topic has no speaker-attributable insight. -->
+        <TopicConversationArc v-if="isTopic" :id="current.id" />
+
         <TopicPerspectives
           v-if="isTopic"
           :id="current.id"
