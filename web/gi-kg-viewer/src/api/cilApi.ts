@@ -54,6 +54,46 @@ export interface CilInsightSentiment {
   label: 'negative' | 'neutral' | 'positive'
 }
 
+/** Response for GET /api/persons/{id}/positions — a person's insights on a topic over time. */
+export interface CilPositionArcResponse {
+  path: string
+  person_id: string
+  topic_id: string
+  episodes: CilArcEpisodeBlock[]
+}
+
+/**
+ * Fetch a person's position arc (their insights on a topic across episodes). The insights now carry
+ * `sentiment`, so the per-person timeline can tint each card. `insightTypes: 'all'` returns every type.
+ */
+export async function fetchPersonPositions(
+  corpusPath: string,
+  personId: string,
+  topicId: string,
+  opts?: { insightTypes?: string | null },
+): Promise<CilPositionArcResponse> {
+  const root = corpusPath.trim()
+  const pid = personId.trim()
+  const tid = topicId.trim()
+  if (!root) {
+    throw new Error('Corpus path is required')
+  }
+  if (!pid || !tid) {
+    throw new Error('Person id and topic id are required')
+  }
+  const q = new URLSearchParams({ path: root, topic: tid })
+  const it = opts?.insightTypes?.trim()
+  if (it) {
+    q.set('insight_types', it)
+  }
+  const res = await fetchWithTimeout(`/api/persons/${encodeURIComponent(pid)}/positions?${q.toString()}`)
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(detail.trim() || `HTTP ${res.status}`)
+  }
+  return (await res.json()) as CilPositionArcResponse
+}
+
 export interface CilIdListResponse {
   path: string
   anchor_id: string
