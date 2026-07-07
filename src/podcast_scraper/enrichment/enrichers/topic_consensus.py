@@ -2,18 +2,20 @@
 
 The reimagining of ``nli_contradiction``. The contradiction detector hit 0% precision because
 sentence-pair NLI can't tell "same contested *proposition*" from "same *topic*" (the
-shared-question gate). This enricher flips to the robust **entailment** side of NLI and detects
-**agreement** — "what the corpus corroborates" — which is more useful and far more separable from
-topic-adjacency.
+shared-question gate). This enricher detects **agreement** instead — "what the corpus corroborates".
 
-**Shared-question gate, no LLM:** a pair is emitted only on **symmetric entailment** — A entails B
-*and* B entails A above threshold. Mutual entailment (each is a paraphrase/consequence of the other)
-can't be mere topic-adjacency, so symmetry *is* the gate: two speakers making mutually-entailing
-claims on a topic are corroborating the same proposition.
+**The signal (from real-corpus eval, docs/wip/ADR-108-REAL-CORPUS-EVAL-2026-07.md):** an early
+version gated on *symmetric NLI entailment* and found almost nothing — genuine agreement between two
+speakers is expressed in different words, so mutual entailment is near-zero (1 pair / 2903 on
+prod-v2). The signal that actually recalls agreement is a **composite**:
 
-Reuses the CPU DeBERTa ``NliScorer`` the project already loads (it already returns ``entailment``);
-no scorer change, no LLM. Gated by the data-driven accuracy gate until an eval clears
-``precision ≥ 0.5`` against the corroboration gold.
+* **embedding cosine** ≥ ``cos_threshold`` — the *shared-question* gate (are the two insights about
+  the same proposition), and
+* **NLI contradiction** ≤ ``contra_threshold`` — the *direction* gate (they don't disagree),
+
+which filters the similar-but-opposite pairs embedding proximity alone admits. On prod-v2 this hits
+precision ~0.91 with ~22 pairs. Both models are CPU-local (MiniLM + DeBERTa) via the injected
+:class:`ConsensusScorer` — still no LLM. Gated by the data-driven accuracy gate.
 """
 
 from __future__ import annotations
@@ -39,7 +41,7 @@ from podcast_scraper.enrichment.protocol import (
     STATUS_CANCELLED,
     STATUS_OK,
 )
-from podcast_scraper.enrichment.scorers.protocol import NliScorer
+from podcast_scraper.enrichment.scorers.protocol import ConsensusScorer
 
 
 def _topic_insight_speaker_index(
@@ -76,36 +78,43 @@ def _topic_insight_speaker_index(
 
 
 class TopicConsensusEnricher:
-    """Corpus-scope cross-Person corroboration per Topic via symmetric NLI-entailment."""
+    """Corpus-scope cross-Person corroboration per Topic (embedding cosine + low contradiction)."""
 
     manifest = EnricherManifest(
         id="topic_consensus",
-        version="1.0.0",
+        version="2.0.0",
         scope=EnricherScope.CORPUS,
         tier=EnricherTier.ML,
         reads=[".gi.json"],
         writes="topic_consensus.json",
         description=(
-            "Cross-Person corroboration per Topic via symmetric NLI-entailment (ADR-108). "
-            "Emits agreeing (mutually-entailing) speaker pairs. No LLM."
+            "Cross-Person corroboration per Topic — embedding cosine (shared-question gate) + low "
+            "NLI contradiction (they don't disagree). ADR-108 composite. No LLM."
         ),
-        expected_duration_s=120,
+        expected_duration_s=180,
         config_schema={
             "type": "object",
             "additionalProperties": False,
             "properties": {
-                "threshold": {
+                "cos_threshold": {
                     "type": "number",
                     "minimum": 0,
                     "maximum": 1,
-                    "default": 0.6,
-                    "description": "Min symmetric entailment probability to emit a consensus pair.",
+                    "default": 0.70,
+                    "description": "Min embedding cosine — the shared-question gate.",
+                },
+                "contra_threshold": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "default": 0.5,
+                    "description": "Max NLI contradiction (either direction) — the direction gate.",
                 },
             },
         },
         provider_requirement=ProviderRequirement(
-            protocol="NliScorer",
-            description="NLI scorer (DeBERTa local, scripted fixture, or future hosted NLI).",
+            protocol="ConsensusScorer",
+            description="Composite consensus scorer (consensus_local MiniLM+DeBERTa, or fixture).",
         ),
         accuracy_gate=AccuracyGateSpec(
             rules=(AccuracyGateRule(metric_name="precision", min_value=0.5),),
@@ -115,18 +124,22 @@ class TopicConsensusEnricher:
 
     def __init__(
         self,
-        scorer: NliScorer,
+        scorer: ConsensusScorer,
         *,
-        model_id: str = "cross-encoder/nli-deberta-v3-small",
-        model_version: str = "v1",
-        threshold: float = 0.6,
+        model_id: str = "all-MiniLM-L6-v2+deberta-v3-small",
+        model_version: str = "v2",
+        cos_threshold: float = 0.70,
+        contra_threshold: float = 0.5,
     ) -> None:
-        if not 0.0 <= threshold <= 1.0:
-            raise ValueError("threshold must be in [0, 1]")
+        if not 0.0 <= cos_threshold <= 1.0:
+            raise ValueError("cos_threshold must be in [0, 1]")
+        if not 0.0 <= contra_threshold <= 1.0:
+            raise ValueError("contra_threshold must be in [0, 1]")
         self._scorer = scorer
         self._model_id = model_id
         self._model_version = model_version
-        self._threshold = threshold
+        self._cos_threshold = cos_threshold
+        self._contra_threshold = contra_threshold
 
     async def enrich(
         self,
@@ -137,8 +150,9 @@ class TopicConsensusEnricher:
         config: dict[str, Any],
         ctx: RunContext,
     ) -> EnricherResult:
-        """Emit cross-Person pairs whose insights mutually entail on a shared Topic."""
-        threshold = float(config.get("threshold", self._threshold))
+        """Emit cross-Person pairs that are semantically close AND non-contradictory on a Topic."""
+        cos_threshold = float(config.get("cos_threshold", self._cos_threshold))
+        contra_threshold = float(config.get("contra_threshold", self._contra_threshold))
         by_topic, person_label = _topic_insight_speaker_index(all_bundles or [])
 
         consensus: list[dict[str, Any]] = []
@@ -153,13 +167,12 @@ class TopicConsensusEnricher:
                         continue
                     if ctx.cancel_event.is_set():
                         return EnricherResult(status=STATUS_CANCELLED, error="cancel_requested")
-                    ab = await self._scorer.score(txt_a, txt_b)
-                    ba = await self._scorer.score(txt_b, txt_a)
+                    sig = await self._scorer.score(txt_a, txt_b)
                     pairs_scored += 1
-                    # Symmetric entailment IS the shared-question gate: mutual paraphrase can't be
-                    # mere topic-adjacency. One-directional entailment is dropped as too weak.
-                    symmetric = min(ab.entailment, ba.entailment)
-                    if symmetric < threshold:
+                    # Composite gate: embedding proximity (same proposition) AND low contradiction
+                    # (they don't disagree). Cosine alone admits similar-but-opposite pairs; the
+                    # contradiction filter removes them (ADR-108 eval).
+                    if sig.cosine < cos_threshold or sig.contradiction > contra_threshold:
                         continue
                     consensus.append(
                         {
@@ -172,7 +185,9 @@ class TopicConsensusEnricher:
                             "insight_a_text": txt_a,
                             "insight_b_id": iid_b,
                             "insight_b_text": txt_b,
-                            "consensus_score": round(symmetric, 6),
+                            "consensus_score": round(sig.cosine, 6),
+                            "cosine": round(sig.cosine, 6),
+                            "contradiction": round(sig.contradiction, 6),
                             "model_id": self._model_id,
                             "model_version": self._model_version,
                         }
@@ -184,7 +199,8 @@ class TopicConsensusEnricher:
             data={
                 "model_id": self._model_id,
                 "model_version": self._model_version,
-                "threshold": threshold,
+                "cos_threshold": cos_threshold,
+                "contra_threshold": contra_threshold,
                 "pairs_scored": pairs_scored,
                 "consensus": consensus,
             },

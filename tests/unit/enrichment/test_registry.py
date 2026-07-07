@@ -150,8 +150,8 @@ def test_list_enabled_hint_for_known_provider_wired_enrichers(
     messages = [r.message for r in caplog.records]
     # topic_similarity → EmbeddingProvider hint
     assert any("topic_similarity" in m and "EmbeddingProvider" in m for m in messages), messages
-    # topic_consensus → NliScorer hint
-    assert any("topic_consensus" in m and "NliScorer" in m for m in messages), messages
+    # topic_consensus → ConsensusScorer hint
+    assert any("topic_consensus" in m and "ConsensusScorer" in m for m in messages), messages
     # Generic "not registered" warning for unknown ids is unchanged.
     with caplog.at_level(logging.WARNING, logger="podcast_scraper.enrichment.registry"):
         reg.list_enabled(EnricherSet(enabled_enrichers=["unknown_id"]))

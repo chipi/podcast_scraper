@@ -1,8 +1,8 @@
-"""Unit tests for the ``topic_consensus`` enricher (ADR-108 reimagining of nli_contradiction).
+"""Unit tests for the ``topic_consensus`` enricher (ADR-108 composite).
 
-Cross-Person corroboration via **symmetric entailment** — mutual paraphrase is the shared-question
-gate. Scripted ``FixedNliScorer`` proves the machinery; the admission gate keeps it dark until an
-eval clears precision.
+Cross-Person corroboration via **embedding cosine (shared-question gate) + low NLI contradiction
+(direction gate)**. A scripted ``FixedConsensusScorer`` proves the machinery; the admission gate
+keeps it dark until an eval clears precision.
 """
 
 from __future__ import annotations
@@ -21,8 +21,8 @@ from podcast_scraper.enrichment.eval.admission import (
     known_enricher_manifests,
 )
 from podcast_scraper.enrichment.protocol import EpisodeArtifactBundle, RunContext, STATUS_OK
-from podcast_scraper.enrichment.scorers.nli import FixedNliScorer
-from podcast_scraper.enrichment.scorers.protocol import NliScore
+from podcast_scraper.enrichment.scorers.consensus import FixedConsensusScorer
+from podcast_scraper.enrichment.scorers.protocol import ConsensusSignal
 
 
 def _bundle(meta_dir: Path, stem: str, gi: dict[str, Any]) -> EpisodeArtifactBundle:
@@ -45,7 +45,7 @@ def _ctx() -> RunContext:
         run_id="r1",
         parent_run_id=None,
         enricher_id="topic_consensus",
-        enricher_version="1.0.0",
+        enricher_version="2.0.0",
         tier="ml",
         attempt=1,
         job_id="r1",
@@ -82,6 +82,12 @@ def _two_speaker_gi() -> dict[str, Any]:
 _TA, _TB = "diversify to survive", "spread risk to survive"
 
 
+def _scorer(cosine: float, contradiction: float) -> FixedConsensusScorer:
+    return FixedConsensusScorer(
+        signals={(_TA, _TB): ConsensusSignal(cosine=cosine, contradiction=contradiction)}
+    )
+
+
 def _run(enricher: TopicConsensusEnricher, bundles: list[EpisodeArtifactBundle]) -> dict[str, Any]:
     result = asyncio.run(
         enricher.enrich(
@@ -92,33 +98,29 @@ def _run(enricher: TopicConsensusEnricher, bundles: list[EpisodeArtifactBundle])
     return result.data
 
 
-def test_symmetric_entailment_emits_consensus(tmp_path: Path) -> None:
+def test_high_cosine_low_contradiction_emits_consensus(tmp_path: Path) -> None:
     bundle = _bundle(tmp_path / "e1", "e1", _two_speaker_gi())
-    scorer = FixedNliScorer(
-        scores={
-            (_TA, _TB): NliScore(contradiction=0.05, neutral=0.05, entailment=0.9),
-            (_TB, _TA): NliScore(contradiction=0.1, neutral=0.05, entailment=0.85),
-        }
-    )
-    data = _run(TopicConsensusEnricher(scorer, threshold=0.6), [bundle])
+    data = _run(TopicConsensusEnricher(_scorer(0.82, 0.03)), [bundle])
     assert data["pairs_scored"] == 1
     assert len(data["consensus"]) == 1
     row = data["consensus"][0]
     assert row["topic_id"] == "topic:risk"
     assert {row["person_a_id"], row["person_b_id"]} == {"person:alice", "person:bob"}
-    assert row["consensus_score"] == 0.85  # min(0.9, 0.85)
+    assert row["consensus_score"] == 0.82 and row["cosine"] == 0.82
+    assert row["contradiction"] == 0.03
 
 
-def test_asymmetric_entailment_dropped(tmp_path: Path) -> None:
-    # A entails B, but not vice-versa → not mutual paraphrase → not consensus.
+def test_high_cosine_high_contradiction_dropped(tmp_path: Path) -> None:
+    # Similar wording but they DISAGREE → contradiction gate drops it (offload-vs-intensify case).
     bundle = _bundle(tmp_path / "e1", "e1", _two_speaker_gi())
-    scorer = FixedNliScorer(
-        scores={
-            (_TA, _TB): NliScore(contradiction=0.0, neutral=0.1, entailment=0.9),
-            (_TB, _TA): NliScore(contradiction=0.1, neutral=0.7, entailment=0.2),
-        }
-    )
-    data = _run(TopicConsensusEnricher(scorer, threshold=0.6), [bundle])
+    data = _run(TopicConsensusEnricher(_scorer(0.82, 0.95)), [bundle])
+    assert data["pairs_scored"] == 1 and data["consensus"] == []
+
+
+def test_low_cosine_dropped(tmp_path: Path) -> None:
+    # Not about the same proposition → shared-question gate drops it even at zero contradiction.
+    bundle = _bundle(tmp_path / "e1", "e1", _two_speaker_gi())
+    data = _run(TopicConsensusEnricher(_scorer(0.40, 0.0)), [bundle])
     assert data["pairs_scored"] == 1 and data["consensus"] == []
 
 
@@ -129,22 +131,24 @@ def test_same_speaker_not_paired(tmp_path: Path) -> None:
         if e.get("from") == "quote:qb":
             e["to"] = "person:alice"
     bundle = _bundle(tmp_path / "e1", "e1", gi)
-    scorer = FixedNliScorer(default=NliScore(0.0, 0.0, 0.99))
-    data = _run(TopicConsensusEnricher(scorer), [bundle])
+    data = _run(TopicConsensusEnricher(_scorer(0.9, 0.0)), [bundle])
     assert data["pairs_scored"] == 0 and data["consensus"] == []
 
 
 def test_manifest_ml_tier_and_gate() -> None:
-    manifest = TopicConsensusEnricher(FixedNliScorer()).manifest
+    manifest = TopicConsensusEnricher(FixedConsensusScorer()).manifest
     assert manifest.id == "topic_consensus"
     assert manifest.tier.value == "ml" and manifest.scope.value == "corpus"
+    assert manifest.provider_requirement.protocol == "ConsensusScorer"  # type: ignore[union-attr]
     rule = manifest.accuracy_gate.rules[0]  # type: ignore[union-attr]
     assert (rule.metric_name, rule.min_value) == ("precision", 0.5)
 
 
 def test_threshold_validation() -> None:
     with pytest.raises(ValueError):
-        TopicConsensusEnricher(FixedNliScorer(), threshold=1.5)
+        TopicConsensusEnricher(FixedConsensusScorer(), cos_threshold=1.5)
+    with pytest.raises(ValueError):
+        TopicConsensusEnricher(FixedConsensusScorer(), contra_threshold=-0.1)
 
 
 def test_admission_gates_dark_until_cleared() -> None:

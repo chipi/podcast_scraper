@@ -46,14 +46,15 @@ def test_topic_similarity_no_knob_uses_enricher_tuned_default_not_shadowed_10() 
     assert getattr(reg.get("topic_similarity"), "_top_k") == 7
 
 
-def test_register_ml_enrichers_constructs_topic_consensus_from_fixed_scripted() -> None:
+def test_register_ml_enrichers_constructs_topic_consensus_from_fixed_consensus() -> None:
     reg = EnricherRegistry()
     s = EnricherSet(
         enabled_enrichers=["topic_consensus"],
         per_enricher_config={
             "topic_consensus": {
-                "threshold": 0.6,
-                "provider": {"type": "fixed_scripted"},
+                "cos_threshold": 0.7,
+                "contra_threshold": 0.5,
+                "provider": {"type": "fixed_consensus"},
             },
         },
     )

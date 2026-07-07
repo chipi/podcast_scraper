@@ -56,14 +56,18 @@ def _build_topic_similarity(provider: Any, knobs: dict[str, Any]) -> TopicSimila
 
 
 def _build_topic_consensus(scorer: Any, knobs: dict[str, Any]) -> TopicConsensusEnricher:
-    threshold_raw = knobs.get("threshold", 0.6)
-    try:
-        threshold = float(threshold_raw)
-    except (TypeError, ValueError):
-        threshold = 0.6
-    if not 0.0 <= threshold <= 1.0:
-        threshold = 0.6
-    return TopicConsensusEnricher(scorer=scorer, threshold=threshold)
+    def _clamp(key: str, default: float) -> float:
+        try:
+            val = float(knobs.get(key, default))
+        except (TypeError, ValueError):
+            return default
+        return val if 0.0 <= val <= 1.0 else default
+
+    return TopicConsensusEnricher(
+        scorer=scorer,
+        cos_threshold=_clamp("cos_threshold", 0.70),
+        contra_threshold=_clamp("contra_threshold", 0.5),
+    )
 
 
 def _build_stance_timeline(scorer: Any, knobs: dict[str, Any]) -> StanceTimelineEnricher:

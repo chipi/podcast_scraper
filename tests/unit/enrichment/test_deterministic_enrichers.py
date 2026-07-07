@@ -853,9 +853,9 @@ def test_enricher_manifest_carries_config_schema_and_provider_requirement() -> N
 
     tc = TopicConsensusEnricher.manifest
     assert tc.provider_requirement is not None
-    assert tc.provider_requirement.protocol == "NliScorer"
+    assert tc.provider_requirement.protocol == "ConsensusScorer"
     assert tc.config_schema is not None
-    assert "threshold" in tc.config_schema["properties"]
+    assert "cos_threshold" in tc.config_schema["properties"]
 
 
 def test_guest_coappearance_filters_speaker_placeholders(tmp_path: Path) -> None:
