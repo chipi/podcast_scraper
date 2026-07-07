@@ -1,6 +1,6 @@
 # RFC-099: Learning Platform Consumer Client
 
-- **Status**: Draft
+- **Status**: In Progress
 - **Authors**: Marko
 - **Stakeholders**: Frontend, Server API, Design/UX, Accessibility
 - **Related PRDs**:

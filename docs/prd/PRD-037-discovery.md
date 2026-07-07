@@ -70,8 +70,11 @@ Primary: **casual listener** (find a show fast) and **active learner** (add the 
 - **FR1.2**: Results show artwork, name, publisher, episode count, short description, and an
   "Add to Library" action.
 - **FR1.3**: Shows already in the user's library render "In Library" + a link to their Catalog view.
-- **FR1.3a**: Results may surface **related topics** from topic clustering (RFC-075) so users discover
-  adjacent shows/episodes by theme. This is discovery, not personalisation (which stays in PRD-041).
+- **FR1.3a** *(shipped on entity cards, not Discovery search — see amendment)*: Results may surface
+  **related topics** from topic clustering (RFC-075) so users discover adjacent shows/episodes by theme.
+  This is discovery, not personalisation (which stays in PRD-041). *(Amendment 2026-07-07: related-topic
+  surfacing shipped on the topic/entity cards (PRD-043 Knowledge Layer), not inline in Discovery search
+  results, which remain name/keyword today.)*
 - **FR1.4**: Results paginate via "Load more" (no full reload).
 - **FR1.5–1.7**: Empty, no-results, and error states are non-blocking; the existing library stays usable.
 

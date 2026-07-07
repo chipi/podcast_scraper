@@ -37,8 +37,11 @@ of evaporating after each episode.
   jump-to-moment citations.
 - Surface cross-episode connections (a guest across shows, a topic across episodes) within the user's corpus.
 - Resurface past highlights on a spaced schedule with reflection prompts.
-- Surface enrichment-powered signals (RFC-088, built in parallel): trending topics, contradictions, and a
-  grounding-rate credibility cue; a "Your Week" digest (RFC-068/023); clustered topic threads (RFC-075).
+- Surface enrichment-powered signals (RFC-088, built in parallel): trending topics + a grounding-rate
+  credibility cue (both shipped); a "Your Week" digest (RFC-068/023); clustered topic threads (RFC-075).
+  *(Amendment 2026-07-07: "contradictions" was originally listed here, but the contradiction/disagreement
+  enrichers measured 0% precision and are gated dark — #1106/#1144. The live cross-speaker surface is
+  instead multi-perspective synthesis, #1146, a CIL query rather than an enricher.)*
 - (North-star) expose the personal corpus via MCP (RFC-095) so the user's own agent can synthesise.
 - Maintain a personal topic/interest profile that can personalise ordering in Catalog/Discovery.
 

@@ -145,29 +145,53 @@ operator used.
 
 ## The shipped enrichers
 
-| Tier | id | Scope | Reads | Writes |
-| ---- | -- | ----- | ----- | ------ |
-| deterministic | `topic_cooccurrence` | episode | `.kg.json` | `metadata/enrichments/{stem}.topic_cooccurrence.json` |
-| deterministic | `topic_cooccurrence_corpus` | corpus | `.kg.json` | `enrichments/topic_cooccurrence_corpus.json` |
-| deterministic | `temporal_velocity` | corpus | `.kg.json` | `enrichments/temporal_velocity.json` |
-| deterministic | `grounding_rate` | corpus | `.gi.json` | `enrichments/grounding_rate.json` |
-| deterministic | `guest_coappearance` | corpus | `.gi.json` | `enrichments/guest_coappearance.json` |
-| deterministic | `insight_density` | episode | `.gi.json`, `.metadata.json` | `metadata/enrichments/{stem}.insight_density.json` |
-| embedding | `topic_similarity` | corpus | `.kg.json` | `enrichments/topic_similarity.json` |
-| ml | `nli_contradiction` | corpus | `.gi.json` | `enrichments/nli_contradiction.json` |
-| query | `query_topic_relatedness` | per-request | `enrichments/topic_similarity.json` | annotates search hits |
+| Tier | id | Scope | Reads | Writes | Ships? |
+| ---- | -- | ----- | ----- | ------ | ------ |
+| deterministic | `topic_cooccurrence_corpus` | corpus | `.kg.json` | `enrichments/topic_cooccurrence_corpus.json` | ✅ |
+| deterministic | `topic_theme_clusters` | corpus | `.kg.json` | `enrichments/topic_theme_clusters.json` | ✅ |
+| deterministic | `temporal_velocity` | corpus | `.kg.json` | `enrichments/temporal_velocity.json` | ✅ |
+| deterministic | `grounding_rate` | corpus | `.gi.json` | `enrichments/grounding_rate.json` | ✅ |
+| deterministic | `guest_coappearance` | corpus | `.gi.json` | `enrichments/guest_coappearance.json` | ✅ |
+| deterministic | `insight_density` | episode | `.gi.json`, `.metadata.json` | `metadata/enrichments/{stem}.insight_density.json` | ✅ |
+| embedding | `topic_similarity` | corpus | `.kg.json` | `enrichments/topic_similarity.json` | ✅ (needs a provider) |
+| ml | `nli_contradiction` | corpus | `.gi.json` | `enrichments/nli_contradiction.json` | 🚫 gated dark (0% precision, #1106) |
+| ml | `stance_disagreement` | corpus | `.gi.json` | `enrichments/stance_disagreement.json` | 🚫 gated dark (0% precision, #1144) |
+| query | `query_topic_relatedness` | per-request | `enrichments/topic_similarity.json` | annotates search hits | ✅ |
 
-The chunk-7 profile matrix (see `enrichment/profile_sets.py`) decides
-which set runs by default per profile:
+> **Correction (2026-07-07):** earlier revisions of this table listed a non-existent
+> episode-scope `topic_cooccurrence` enricher and omitted `topic_theme_clusters` +
+> `stance_disagreement`. The 9 above (+ the query enricher) are the real set in
+> `enrichment/enrichers/`.
 
-| Profile | Enricher set |
+### The accuracy gate — why two enrichers never run
+
+The two ML enrichers (`nli_contradiction`, `stance_disagreement`) are wired and registered
+but **gated dark** by a data-driven accuracy gate (`enrichment/eval/admission.py` →
+`profile_sets._admit`). Each declares an `accuracy_gate` (precision ≥ 0.5) on its manifest;
+until an eval records a passing precision under `data/eval/enrichment/<id>/gate_metrics.json`,
+the gate excludes it from the registry → profiles → UI. Both currently measure **0%**
+precision (they over-fire "contradiction"/"disagreement" on merely topic-adjacent insights),
+so neither is admitted to any profile. They auto-promote — no code edit — if a future scorer
+records precision ≥ 0.5. The live multi-speaker surface users actually see is **perspectives**
+(#1146), which is a CIL query over the GI, **not** an enricher, so it sidesteps the gate.
+`GET /api/enrichment/config/admission` reports each enricher's promote/gate decision + reason.
+
+The chunk-7 profile matrix (see `enrichment/profile_sets.py`) decides the CANDIDATE
+set per profile; the accuracy gate then filters the ML tier (above):
+
+| Profile | Enricher candidate set |
 | ------- | ------------ |
 | `test_default`, `eval_default`, `preprod_local_whisper` | (none — CI isolation) |
 | `airgapped_thin` | deterministic only |
 | `airgapped` | deterministic + `topic_similarity` |
-| `cloud_thin`, `cloud_balanced`, `cloud_quality` | deterministic + `topic_similarity` + `nli_contradiction` |
-| `dev`, `prod`, `local`, `local_dgx_*`, `prod_dgx_*`, `cloud_with_dgx_primary` | full set |
+| `cloud_thin`, `cloud_balanced`, `cloud_quality` | deterministic + `topic_similarity` + ML candidates (`nli_contradiction`, `stance_disagreement` — both gated dark today) |
+| `dev`, `local`, `local_dgx_*`, `prod_dgx_*`, `cloud_with_dgx_primary` | same full candidate set (gate applies) |
 | unknown profile | (none — conservative default) |
+
+Membership is **data-driven, not a hand-maintained list**: profiles list CANDIDATES; `_admit()`
+runs each through its manifest `accuracy_gate` + the recorded `data/eval` metric, so an ML
+candidate ships only once it clears precision ≥ 0.5. There is no `config/profiles/prod.yaml` —
+the production profiles are `prod_dgx_*`.
 
 CLI flags layer on top: `--profile <name>` (sets the base set per the
 matrix above) / `--enrichers <id,id>` (alias for `--only`) /
@@ -181,12 +205,15 @@ Each shipped enricher's algorithm, inputs, output shape, and tunable
 knobs. Knob keys map 1:1 to ``enrichers.<id>.<knob>:`` in the YAML
 and to form fields in the viewer Configuration → Enrichment editor.
 
-### `topic_cooccurrence` (deterministic, episode scope)
+### `topic_theme_clusters` (deterministic, corpus scope)
 
-Pairs every unordered combination of Topic nodes in an episode's KG.
-**Reads:** `.kg.json`. **Writes:** `metadata/enrichments/{stem}.topic_cooccurrence.json`.
-**Output:** `{ pairs: [{topic_a_id, topic_b_id, topic_a_label, topic_b_label}], episode_count }`.
-**Knobs:** none today.
+Groups Topics **discussed together** (co-occurrence lift + greedy average-linkage) into
+*themes* — e.g. {shadow fleet, oil prices, sanctions}. Complements the *semantic*
+`topic_clusters` (which groups topics that *mean* the same thing); uses the `thc:` graph
+compound-node prefix vs the semantic `tc:`. **Reads:** `.kg.json` (Topic nodes per episode).
+**Writes:** `enrichments/topic_theme_clusters.json`. **Output:** mirrors `topic_clusters.json`
+(`clusters[].members[]`) but tags each `cluster_type="theme"`. **Knobs:** `min_pair` (min
+co-occurring episodes to form an edge), `merge_threshold` (linkage cutoff).
 
 ### `topic_cooccurrence_corpus` (deterministic, corpus scope)
 
@@ -248,7 +275,13 @@ Per-Topic Top-K cosine-similar neighbours via the injected
 `{ topics: [{topic_id, topic_label, top_k, neighbours: [{topic_id, topic_label, similarity}]}], top_k, topic_count, missing_topic_ids }`.
 **Knobs:**
 
-- ``top_k`` (int, 1–100, default 10) — neighbours per topic.
+- ``top_k`` (int, 1–100, default **7**) — neighbours per topic. Retuned 10→7 (#1105) after
+  the accuracy eval showed recall@10 already saturated (99%) and a smaller K gives a cleaner
+  "related topics" surface (80/80 @7).
+
+**Status: validated + shipping.** Prod-v2 eval (24-topic Opus silver, #1105): recall@10 **99%**,
+precision@10 71%. Unlike the ML enrichers it declares **no** `accuracy_gate`, so it is admitted
+unconditionally (numbers measured locally, not persisted as a gate metric).
 
 **Provider requirement:** `EmbeddingProvider`. Set
 `enrichers.topic_similarity.provider.type` to one of the registered
@@ -269,6 +302,24 @@ ABOUT). **Writes:** `enrichments/nli_contradiction.json`.
 **Provider requirement:** `NliScorer`. Set
 `enrichers.nli_contradiction.provider.type` to one of `deberta_local`
 (real DeBERTa, requires `[ml]` extra) or `fixed_scripted` (test fixture).
+**Status: gated dark** — measured **0% precision** on prod-v2 (#1106); the cross-encoder
+over-fires "contradiction" on merely topic-adjacent insights, so the accuracy gate excludes
+it from every profile. Its manifest carries `accuracy_gate(precision ≥ 0.5)`;
+`data/eval/enrichment/nli_contradiction/gate_metrics.json` records the 0%.
+
+### `stance_disagreement` (ml, corpus scope)
+
+Cross-Person **stance-level** disagreement per Topic (#1144 — the successor to
+`nli_contradiction`). Aggregates each speaker's insights on a topic into one stance, scores
+the pair with the injected `NliScorer` symmetrically (both directions must clear the
+threshold). **Reads:** `.gi.json`. **Writes:** `enrichments/stance_disagreement.json`.
+**Knobs:** `min_insights` (min insights a speaker needs to have a stance, default 2),
+`threshold` (default 0.6). **Provider requirement:** `NliScorer`.
+**Status: gated dark** — measured **0% precision** (stance-aggregate) / 10% (atomic-max) vs
+the #1144 gold; DeBERTa can't separate genuine opposition from topic-adjacency without an
+LLM (ruled out). Kept as a wired, gate-guarded framework placeholder that auto-promotes if a
+future non-LLM scorer clears `data/eval/enrichment/disagreement/gold_v1.jsonl`. The live
+multi-speaker surface is `perspectives` (#1146), a CIL query — not this enricher.
 
 ### `query_topic_relatedness` (query enricher, per-request)
 

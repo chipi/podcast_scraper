@@ -1,6 +1,6 @@
 # RFC-100: Audio Bridge Subsystem
 
-- **Status**: Draft
+- **Status**: In Progress
 - **Authors**: Marko
 - **Stakeholders**: Server API, Core Pipeline, Consumer App, Legal/Licensing
 - **Related PRDs**:

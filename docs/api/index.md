@@ -41,7 +41,7 @@ endpoint catalogue; the live, always-current spec is the server's own OpenAPI at
 | Document | Description |
 | :--- | :--- |
 | [HTTP API Reference](HTTP_API.md) | **Endpoint catalogue + response models** for all `/api/*` routes (the source of truth alongside live OpenAPI) |
-| [Server Guide](../guides/SERVER_GUIDE.md) | Running the server (`make serve`), web/learning-player/route architecture, CORS, static SPA mounting, and **extending** it |
+| [Server Guide](../guides/SERVER_GUIDE.md) | Running the server (`make serve`), web/gi-kg-viewer/ route architecture, CORS, static SPA mounting, and **extending** it |
 | [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md) | Viewer milestones and architecture |
 | [RFC-067: Corpus Library](../rfc/RFC-067-corpus-library-api-viewer.md) | `/api/corpus/*` catalog, Library tab, search handoffs |
 | [RFC-068: Corpus Digest](../rfc/RFC-068-corpus-digest-api-viewer.md) | `GET /api/corpus/digest`, Digest tab, Library 24h glance (PRD-023); capability flag `corpus_digest_api` on `GET /api/health` |

@@ -1,6 +1,6 @@
 # ADR-077: Local Ollama Model Selection — Core 5 from 11
 
-**Status:** Accepted
+- **Status**: Accepted
 **Date:** 2026-04-18
 **Context:** Autoresearch v2 eval (PR #568) + pipeline validation (#591)
 
