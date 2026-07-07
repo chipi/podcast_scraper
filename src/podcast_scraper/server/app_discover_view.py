@@ -17,6 +17,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
+from podcast_scraper.search.theme_clusters import consumer_theme_cluster_map
 from podcast_scraper.search.topic_clusters import consumer_topic_cluster_map
 from podcast_scraper.server.app_content_source import row_to_summary
 from podcast_scraper.server.app_corpus_access import load_json_artifact
@@ -84,13 +85,18 @@ def _trend_boost(topic_ids: set[str], velocities: dict[str, float], cap: float) 
 
 
 def _episode_features(
-    root: Path, row: CatalogEpisodeRow, cluster_map: dict[str, dict[str, object]]
+    root: Path,
+    row: CatalogEpisodeRow,
+    cluster_map: dict[str, dict[str, object]],
+    theme_map: dict[str, dict[str, object]],
 ) -> tuple[set[str], set[str], set[str]]:
-    """Interest-matchable ids this episode touches: (topic-cluster ids, topic ids, person ids).
+    """Interest-matchable ids this episode touches: (cluster ids, topic ids, person ids).
 
     One KG load per episode. An interest token matches whichever set its prefix belongs to —
-    ``tc:`` → cluster, ``topic:`` → topic, ``person:`` → person — so a follow on any of those
-    (clusters from the picker; topics/people from entity cards) re-ranks discovery.
+    ``tc:`` (semantic cluster) / ``thc:`` (theme cluster / "storyline") → cluster, ``topic:`` →
+    topic, ``person:`` → person — so a follow on any of those (semantic clusters + storylines from
+    the picker; topics/people from entity cards) re-ranks discovery. Both cluster kinds share the
+    ``clusters`` set: their ids are prefix-disjoint, so a followed ``thc:`` only matches its own.
     """
     if not row.has_kg:
         return set(), set(), set()
@@ -106,6 +112,10 @@ def _episode_features(
         cid = info.get("cluster_id") if info else None
         if isinstance(cid, str):
             clusters.add(cid)
+        tinfo = theme_map.get(topic.id)
+        tcid = tinfo.get("theme_cluster_id") if tinfo else None
+        if isinstance(tcid, str):
+            clusters.add(tcid)
     return clusters, topic_ids, {p.id for p in persons}
 
 
@@ -125,20 +135,22 @@ def rank_discover(
 
     Signals come from ``config`` (the operator-tunable registry, one source of truth): a base
     ``significance`` depth score, multiplied by ``1 + Σ weightᵢ · signalᵢ`` over the enabled
-    boosts. ``interest_affinity`` is the fraction of followed tokens the episode matches
-    (topic-cluster ``tc:`` / ``topic:`` / ``person:``); ``trend_velocity`` (off by default) adds
-    the episode's hottest topic momentum. A disabled signal has weight 0 → no effect, so the
+    boosts. ``interest_affinity`` is the fraction of followed tokens the episode matches (semantic
+    cluster ``tc:`` / theme cluster ``thc:`` / ``topic:`` / ``person:``); ``trend_velocity`` (off
+    by default) adds the episode's hottest topic momentum. A disabled signal has weight 0 → no
+    effect, so the
     default config reproduces the prior significance × affinity behaviour exactly.
     """
     interest_set = {str(i) for i in interests if str(i)}
     if not interest_set:
         return [row_to_summary(root, r) for r in rows[:limit]]
-    # Only `tc:` / `topic:` / `person:` tokens are honored; any other prefix lands in
+    # Only `tc:` / `thc:` / `topic:` / `person:` tokens are honored; any other prefix lands in
     # `cluster_interests`, never matches an episode, and just dilutes the affinity denominator.
     person_interests = {t for t in interest_set if t.startswith("person:")}
     topic_interests = {t for t in interest_set if t.startswith("topic:")}
     cluster_interests = interest_set - person_interests - topic_interests
     cluster_map = consumer_topic_cluster_map(root)
+    theme_map = consumer_theme_cluster_map(root)
     sig_params = config.params_of(SIGNAL_SIGNIFICANCE)
     affinity_weight = config.weight_of(SIGNAL_INTEREST_AFFINITY)
     trend_weight = config.weight_of(SIGNAL_TREND_VELOCITY)
@@ -146,7 +158,7 @@ def rank_discover(
     velocities = _topic_velocities(root) if trend_weight > 0 else {}
     scored: list[tuple[float, int, CatalogEpisodeRow]] = []
     for idx, row in enumerate(rows):
-        clusters, topics, persons = _episode_features(root, row, cluster_map)
+        clusters, topics, persons = _episode_features(root, row, cluster_map, theme_map)
         matched = (
             len(clusters & cluster_interests)
             + len(topics & topic_interests)

@@ -100,6 +100,30 @@ def _corpus(root: Path) -> None:
     (root / "search" / "topic_clusters.json").write_text(json.dumps(payload), encoding="utf-8")
 
 
+def _write_theme_clusters(root: Path) -> None:
+    """One theme cluster ("storyline") over topic:ai — the co-occurrence overlay for the corpus."""
+    (root / "enrichments").mkdir(parents=True, exist_ok=True)
+    payload = {
+        "data": {
+            "clusters": [
+                {
+                    "cluster_type": "theme",
+                    "canonical_label": "AI safety",
+                    "graph_compound_parent_id": "thc:ai-safety",
+                    "member_count": 2,
+                    "members": [
+                        {"topic_id": "topic:ai", "label": "AI", "lift_to_cluster": 3.1},
+                        {"topic_id": "topic:ethics", "label": "Ethics", "lift_to_cluster": 1.2},
+                    ],
+                }
+            ]
+        }
+    }
+    (root / "enrichments" / "topic_theme_clusters.json").write_text(
+        json.dumps(payload), encoding="utf-8"
+    )
+
+
 def _client(root: Path, *, personalized: bool, derived: bool = False) -> TestClient:
     app = create_app(root, static_dir=False)
     app.state.session_secret = "test-secret"
@@ -141,6 +165,32 @@ def test_clusters_endpoint_returns_top_by_prevalence(tmp_path: Path) -> None:
     ids = [c["id"] for c in body["items"]]
     assert ids == ["tc:ai", "tc:health"]  # ranked by member_count desc
     assert body["items"][0] == {"id": "tc:ai", "label": "AI", "size": 3}
+
+
+def test_theme_clusters_endpoint_returns_storylines(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    _write_theme_clusters(tmp_path)
+    body = _client(tmp_path, personalized=False).get("/api/app/theme-clusters").json()
+    assert body["items"] == [
+        {"id": "thc:ai-safety", "label": "AI safety", "size": 2, "anchor_topic_id": "topic:ai"}
+    ]
+
+
+def test_theme_clusters_endpoint_empty_without_artifact(tmp_path: Path) -> None:
+    _corpus(tmp_path)  # no enrichments/topic_theme_clusters.json → empty items, not 404
+    body = _client(tmp_path, personalized=False).get("/api/app/theme-clusters").json()
+    assert body["items"] == []
+
+
+def test_discover_personalizes_by_followed_storyline(tmp_path: Path) -> None:
+    # Following a storyline (thc: token) re-ranks like any other interest: epOld's topic:ai is in
+    # the theme cluster, so epOld leads despite being older.
+    _corpus(tmp_path)
+    _write_theme_clusters(tmp_path)
+    client = _client(tmp_path, personalized=True)
+    _sign_in(client, tmp_path, ["thc:ai-safety"])
+    titles = [e["title"] for e in client.get("/api/app/discover").json()["items"]]
+    assert titles == ["Episode old", "Episode new"]
 
 
 def test_discover_recency_when_flag_off(tmp_path: Path) -> None:

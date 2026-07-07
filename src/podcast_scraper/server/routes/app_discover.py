@@ -14,6 +14,7 @@ from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, Response
 
+from podcast_scraper.search.theme_clusters import top_theme_clusters_by_member_count
 from podcast_scraper.search.topic_clusters import top_clusters_by_member_count
 from podcast_scraper.server import (
     app_ranking_config_store,
@@ -36,6 +37,8 @@ from podcast_scraper.server.schemas import (
     AppEpisodesResponse,
     AppInterestCluster,
     AppInterestClustersResponse,
+    AppStoryline,
+    AppStorylinesResponse,
 )
 
 router = APIRouter(tags=["app"])
@@ -50,6 +53,22 @@ async def top_clusters(
     root = corpus_root_or_503(request)
     items = [AppInterestCluster(**c) for c in top_clusters_by_member_count(root, limit)]
     return AppInterestClustersResponse(items=items)
+
+
+@router.get("/theme-clusters", response_model=AppStorylinesResponse)
+async def top_storylines(
+    request: Request,
+    limit: int = Query(default=12, ge=1, le=50, description="Max storylines (by member count)."),
+) -> AppStorylinesResponse:
+    """Top storylines (theme clusters — topics discussed together) for the Home rail + picker.
+
+    Complementary to ``/clusters`` (semantic): these group co-occurring topics. Each is followable
+    as a ``thc:`` interest and carries an ``anchor_topic_id`` so the client can open a card that
+    shows the whole storyline. Empty (never 404) when the theme-cluster artifact is absent.
+    """
+    root = corpus_root_or_503(request)
+    items = [AppStoryline(**s) for s in top_theme_clusters_by_member_count(root, limit)]
+    return AppStorylinesResponse(items=items)
 
 
 @router.get("/discover", response_model=AppEpisodesResponse)

@@ -392,6 +392,25 @@ class AppInterestClustersResponse(BaseModel):
     items: list[AppInterestCluster] = Field(default_factory=list)
 
 
+class AppStoryline(BaseModel):
+    """One THEME cluster ("storyline") — topics discussed together (co-occurrence lift).
+
+    Followable as an interest (``id`` is the ``thc:`` token) and browsable on Home: tapping opens
+    ``anchor_topic_id``'s card, whose "discussed together" set is the whole storyline.
+    """
+
+    id: str = Field(description="Theme-cluster id (graph_compound_parent_id, 'thc:{slug}').")
+    label: str = Field(description="Storyline canonical label.")
+    size: int = Field(ge=0, description="Member topic count.")
+    anchor_topic_id: str = Field(description="Most-central member topic id — the card to open.")
+
+
+class AppStorylinesResponse(BaseModel):
+    """Top storylines (theme clusters) for the Home rail + picker (GET /api/app/theme-clusters)."""
+
+    items: list[AppStoryline] = Field(default_factory=list)
+
+
 class FavoriteAdd(BaseModel):
     """Body for PUT /api/app/favorites — save a polymorphic item (idempotent on kind+ref)."""
 

@@ -206,6 +206,59 @@ def test_person_interest_reranks(tmp_path: Path) -> None:
     assert [s.title for s in out] == ["Episode old", "Episode new"]
 
 
+def _write_theme_clusters(root: Path, thc_id: str, label: str, member_topic_ids: list[str]) -> None:
+    """Write ``enrichments/topic_theme_clusters.json`` with one theme cluster (envelope-wrapped)."""
+    (root / "enrichments").mkdir(parents=True, exist_ok=True)
+    payload = {
+        "data": {
+            "clusters": [
+                {
+                    "cluster_type": "theme",
+                    "canonical_label": label,
+                    "graph_compound_parent_id": thc_id,
+                    "member_count": len(member_topic_ids),
+                    "members": [{"topic_id": t, "label": t} for t in member_topic_ids],
+                }
+            ]
+        }
+    }
+    (root / "enrichments" / "topic_theme_clusters.json").write_text(
+        json.dumps(payload), encoding="utf-8"
+    )
+
+
+def test_theme_cluster_interest_reranks_matching_episode_first(tmp_path: Path) -> None:
+    # A followed storyline (`thc:`) must re-rank exactly like a semantic cluster: the episode whose
+    # topic is in the theme cluster leads. epOld (topic:ai, +GI) is in the storyline → it wins.
+    _corpus(tmp_path)
+    _write_theme_clusters(tmp_path, "thc:ai-safety", "AI safety", ["topic:ai"])
+    rows = _rows_newest_first(tmp_path)
+    out = rank_discover(tmp_path, ["thc:ai-safety"], rows, limit=10)
+    assert [s.title for s in out] == ["Episode old", "Episode new"]
+
+
+def test_theme_cluster_token_without_artifact_grants_no_affinity(tmp_path: Path) -> None:
+    # With no theme-cluster artifact, a `thc:` token matches nothing (like any unknown prefix) —
+    # zero affinity to both equal-depth episodes → recency order is preserved.
+    _write_episode(
+        tmp_path,
+        stem="0001-old",
+        episode_id="old",
+        topics=[("topic:ai", "AI")],
+        published="2024-01-01T00:00:00",
+    )
+    _write_episode(
+        tmp_path,
+        stem="0002-new",
+        episode_id="new",
+        topics=[("topic:ai", "AI")],
+        published="2024-06-01T00:00:00",
+    )
+    rows = build_catalog_rows_cumulative(tmp_path)
+    out = rank_discover(tmp_path, ["thc:nonexistent"], rows, limit=10)
+    assert [s.title for s in out] == ["Episode new", "Episode old"]
+
+
 def _write_velocity_envelope(root: Path, topic_velocities: dict[str, float]) -> None:
     (root / "enrichments").mkdir(parents=True, exist_ok=True)
     topics = [{"topic_id": t, "velocity_last_over_6mo": v} for t, v in topic_velocities.items()]
