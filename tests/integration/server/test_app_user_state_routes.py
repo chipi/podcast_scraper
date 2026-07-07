@@ -120,6 +120,21 @@ def test_follow_unfollow_interest_token(tmp_path: Path) -> None:
     assert client.delete("/api/app/interests/topic%3Aai").json()["items"] == ["person:jane"]
 
 
+def test_follow_and_save_write_timestamped_engagement(tmp_path: Path) -> None:
+    # RFC-103 Phase 2: a follow logs a timestamped event and a save stamps added_at, so the
+    # engagement aggregator picks both up (the routes are the only writers of these signals).
+    from podcast_scraper.server.app_engagement_series import engagement_series
+
+    client = _authed_client(tmp_path)
+    data_dir = tmp_path / "appdata"
+    client.post("/api/app/interests/thc%3Amanaging-risk")  # follow a storyline
+    client.put("/api/app/favorites", json={"kind": "topic", "ref": "topic:ai", "label": "AI"})
+
+    ents = {(e["kind"], e["entity_id"]) for e in engagement_series(data_dir)["entities"]}
+    assert ("storyline", "thc:managing-risk") in ents  # follow logged with a timestamp
+    assert ("topic", "topic:ai") in ents  # favorite stamped added_at
+
+
 def _write_kg_episode(root: Path, *, stem: str, episode_id: str) -> None:
     """Minimal episode so favorite-episode hydration resolves a real slug."""
     (root / "metadata").mkdir(parents=True, exist_ok=True)
