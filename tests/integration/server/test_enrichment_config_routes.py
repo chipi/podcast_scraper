@@ -41,8 +41,8 @@ def test_admission_route_reports_gate_status(client: TestClient) -> None:
     r = client.get("/api/enrichment/config/admission")
     assert r.status_code == 200, r.text
     rows = {row["id"]: row for row in r.json()["enrichers"]}
-    # All nine known enrichers reported.
-    assert len(rows) == 9
+    # All ten known enrichers reported (7 deterministic incl. insight_sentiment + 3 ML).
+    assert len(rows) == 10
     # topic_consensus declares a gate AND cleared it (precision 0.91 on prod-v2, ADR-108 composite)
     # → promoted. The gate + the promotion are both surfaced for the UI.
     tc = rows["topic_consensus"]

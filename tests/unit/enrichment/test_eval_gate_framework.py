@@ -197,10 +197,10 @@ def test_admission_pure_no_gate_admits_gated_drops() -> None:
     assert res2.admitted == ["a", "b"]
 
 
-def test_known_manifests_cover_all_nine_and_gated_ml_declare_gates() -> None:
+def test_known_manifests_cover_all_ten_and_gated_ml_declare_gates() -> None:
     mans = known_enricher_manifests()
-    # 6 deterministic + topic_similarity + topic_consensus + stance_timeline (ADR-108).
-    assert len(mans) == 9
+    # 7 deterministic (incl. insight_sentiment) + topic_similarity + topic_consensus + stance.
+    assert len(mans) == 10
     for gated in ("topic_consensus", "stance_timeline"):
         gate = mans[gated].accuracy_gate
         assert gate is not None
@@ -251,7 +251,7 @@ def test_profile_sets_gate_is_data_driven(profile: str) -> None:
     assert "topic_consensus" in enabled  # gate cleared → admitted
     assert "stance_timeline" not in enabled  # no eval → gated out
     assert "topic_similarity" in enabled  # no gate → still shipped
-    assert len(enabled) == 8  # 6 deterministic + topic_similarity + topic_consensus
+    assert len(enabled) == 9  # 7 deterministic + topic_similarity + topic_consensus
 
 
 # --------------------------------------------------------------------------- #

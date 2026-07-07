@@ -17,6 +17,7 @@ from __future__ import annotations
 from podcast_scraper.enrichment.enrichers.grounding_rate import GroundingRateEnricher
 from podcast_scraper.enrichment.enrichers.guest_coappearance import GuestCoappearanceEnricher
 from podcast_scraper.enrichment.enrichers.insight_density import InsightDensityEnricher
+from podcast_scraper.enrichment.enrichers.insight_sentiment import InsightSentimentEnricher
 from podcast_scraper.enrichment.enrichers.stance_timeline import StanceTimelineEnricher
 from podcast_scraper.enrichment.enrichers.temporal_velocity import TemporalVelocityEnricher
 from podcast_scraper.enrichment.enrichers.topic_consensus import TopicConsensusEnricher
@@ -34,6 +35,7 @@ ALL_DETERMINISTIC_ENRICHER_IDS: tuple[str, ...] = (
     "grounding_rate",
     "guest_coappearance",
     "insight_density",
+    "insight_sentiment",
 )
 
 
@@ -41,7 +43,8 @@ def register_deterministic_enrichers(registry: EnricherRegistry) -> None:
     """Register all six deterministic enrichers on *registry*.
 
     Idempotent in the sense that the registry's ``register()`` raises
-    on duplicate ids — call once per registry instance.
+    on duplicate ids — call once per registry instance. (Seven today:
+    the six chunk-2 enrichers + ``insight_sentiment``.)
     """
     registry.register(TopicCooccurrenceCorpusEnricher())
     registry.register(TopicThemeClustersEnricher())
@@ -49,6 +52,7 @@ def register_deterministic_enrichers(registry: EnricherRegistry) -> None:
     registry.register(GroundingRateEnricher())
     registry.register(GuestCoappearanceEnricher())
     registry.register(InsightDensityEnricher())
+    registry.register(InsightSentimentEnricher())
 
 
 __all__ = [
@@ -56,6 +60,7 @@ __all__ = [
     "GroundingRateEnricher",
     "GuestCoappearanceEnricher",
     "InsightDensityEnricher",
+    "InsightSentimentEnricher",
     "StanceTimelineEnricher",
     "TemporalVelocityEnricher",
     "TopicConsensusEnricher",

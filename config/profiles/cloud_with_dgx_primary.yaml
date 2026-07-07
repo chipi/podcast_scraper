@@ -121,6 +121,7 @@ enrichment:
     grounding_rate: {}
     guest_coappearance: {}
     insight_density: {}
+    insight_sentiment: {}
     topic_similarity:
       provider:
         type: sentence_transformer_local

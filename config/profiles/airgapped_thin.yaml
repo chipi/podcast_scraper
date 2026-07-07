@@ -156,3 +156,4 @@ enrichment:
     grounding_rate: {}
     guest_coappearance: {}
     insight_density: {}
+    insight_sentiment: {}
