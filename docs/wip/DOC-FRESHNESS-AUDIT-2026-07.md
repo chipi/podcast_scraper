@@ -69,15 +69,17 @@ fields, a couple of stale paths, one filename collision, and a few decisions tha
   wording nuance only.
 - **RFC-082 / RFC-089** use a `> **Status:**` blockquote vs the list form — cosmetic, left.
 
-### Open — need an operator decision (not auto-applied)
+### Resolved (operator approved both, 2026-07-07)
 
-1. **ADR-099 number collision.** Two files are both `ADR-099`
-   (`...-lancedb-first-single-index-search.md` + `...-response-shape-guardrails-for-self-deployed-services.md`).
-   The guardrails one should be renumbered (next free = **ADR-105**), but it has **19 references across 5
-   docs** — a rename + ref-update is a discrete, careful task. Awaiting go.
-2. **Three shipped decisions lack an ADR** (agent flagged; per the RFC/ADR discipline these warrant a
-   *new* ADR, never editing an old one): transformers-v5 ML unification, ingest-primitive drop
-   (pipeline-is-ingestion), and the NLI/stance enrichers gated dark. Draft these as ADR-105/106/107?
+1. **ADR-099 collision — FIXED.** The guardrails file renumbered `ADR-099` → **ADR-105** (`git mv`),
+   12 files' references updated (filename links + bare mentions + a `TESTING_STRATEGY` anchor), the
+   LanceDB `ADR-099` left untouched. ADR-060/061 index Superseded count reconciled. `make docs` passes.
+2. **Three new ADRs written** for shipped-but-undocumented decisions:
+   [ADR-106](../adr/ADR-106-transformers-v5-ml-backend-unification.md) (transformers v5 + backend
+   unification, #382 — retroactive capture grounded in code),
+   [ADR-107](../adr/ADR-107-ingestion-is-the-pipeline-drop-ingest-primitive.md) (ingest primitive
+   dropped, #1069), [ADR-108](../adr/ADR-108-nli-disagreement-enrichers-gated-dark.md) (NLI/stance
+   enrichers gated dark, #1106/#1144). Added to `adr/index.md`.
 
 ## Progress
 

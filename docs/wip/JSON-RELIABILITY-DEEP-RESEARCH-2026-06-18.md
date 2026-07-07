@@ -645,7 +645,7 @@ of "fix" because the fix is "drop the broken path."
 - `src/podcast_scraper/providers/ollama/ollama_provider.py::summarize_bundled` (current call site, line 1241)
 - `src/podcast_scraper/schemas/summary_schema.py::_repair_json` (existing repair, line 308)
 - `docs/guides/DGX_RUNBOOK.md` §P2 ("qwen3.5:9b pipeline mode investigation")
-- `docs/adr/ADR-099-response-shape-guardrails-for-self-deployed-services.md`
+- `docs/adr/ADR-105-response-shape-guardrails-for-self-deployed-services.md`
 - `docs/adr/ADR-100-response-shape-guardrails-for-cloud-llm-providers.md`
 - `docs/wip/EVAL_1016_FINAL_REPORT_2026_06_17.md`
 - `docs/guides/eval-reports/EVAL_SUMMARY_DGX_LOCAL_2026_06.md`

@@ -1,4 +1,4 @@
-# ADR-099: Response-shape guardrails for self-deployed inference services
+# ADR-105: Response-shape guardrails for self-deployed inference services
 
 - **Status**: Accepted
 - **Date**: 2026-06-15
@@ -161,7 +161,7 @@ Other shapes were considered:
   guardrail scenarios.
 - [x] E2E test: end-to-end fallback proven on real DGX, see
   `docs/guides/eval-reports/EVAL_DGX_GUARDRAILS_REAL_VALIDATION_2026_06_15.md`.
-- [x] ADR-099 referenced from implementation sites
+- [x] ADR-105 referenced from implementation sites
   (`providers/guardrails/__init__.py`, `exceptions.py`, `_telemetry.py`,
   `tailnet_dgx/diarization_provider.py`).
 

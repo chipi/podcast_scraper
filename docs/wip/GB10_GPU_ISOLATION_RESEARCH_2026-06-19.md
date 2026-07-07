@@ -605,7 +605,7 @@ above)
 - Closed parent: [#996](https://github.com/chipi/podcast_scraper/issues/996)
   (catastrophic-tail N=20 sweep)
 - Sibling research: [#999](https://github.com/chipi/podcast_scraper/issues/999)
-  (response-shape guardrails — ADR-099)
+  (response-shape guardrails — ADR-105)
 - Profile: `config/profiles/prod_dgx_full_with_fallback.yaml`
   ([#923](https://github.com/chipi/podcast_scraper/issues/923))
 - Operator-rule home: `docs/guides/PROD_RUNBOOK.md` §

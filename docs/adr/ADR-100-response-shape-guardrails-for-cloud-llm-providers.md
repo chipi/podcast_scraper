@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-06-15
 - **Authors**: Podcast Scraper Team
-- **Related ADRs**: [ADR-099](ADR-099-response-shape-guardrails-for-self-deployed-services.md) (the self-hosted sibling; this ADR extends the same pattern to cloud APIs)
+- **Related ADRs**: [ADR-105](ADR-105-response-shape-guardrails-for-self-deployed-services.md) (the self-hosted sibling; this ADR extends the same pattern to cloud APIs)
 - **Related issues**: [#1003](https://github.com/chipi/podcast_scraper/issues/1003) (this implementation), [#999](https://github.com/chipi/podcast_scraper/issues/999) (the self-hosted precedent), [#1002](https://github.com/chipi/podcast_scraper/issues/1002) (threshold fine-tuning follow-up, shared with ADR-099)
 
 ## Context
