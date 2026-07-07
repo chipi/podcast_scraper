@@ -11,11 +11,12 @@ Source of truth ([[feedback_profiles_are_source_of_truth]]):
 - ``test_default`` runs no enrichers (CI isolation).
 - ``airgapped_thin`` runs only the 6 deterministic enrichers.
 - ``airgapped`` adds ``topic_similarity`` (local CPU embedding).
-- ``cloud_thin`` adds the ML-tier CANDIDATES (``nli_contradiction`` +
-  ``stance_disagreement``) on top — but membership is data-driven, NOT a
+- ``cloud_thin`` adds the ML-tier CANDIDATES (``topic_consensus`` +
+  ``stance_timeline``, the ADR-108 reimagining of the retired nli_contradiction /
+  stance_disagreement) on top — but membership is data-driven, NOT a
   hard list: the RFC-088 accuracy gate (``eval/admission``) filters candidates
-  by their measured precision. Both are currently **gated dark** (0% precision
-  — #1106 / #1144) so neither actually runs; each auto-promotes if a future
+  by their measured precision. Both are currently **gated dark** (no eval yet →
+  on_missing=reject) so neither actually runs; each auto-promotes if a future
   eval records precision ≥ 0.5. CI-safe regardless (FixedNliScorer fixture;
   real DeBERTa loads only when the operator runs locally).
 - ``cloud_balanced`` / ``cloud_quality`` get the full candidate set (same gate).
@@ -130,7 +131,7 @@ def _admit(candidate_ids: list[str], eval_root: Path | None = None) -> list[str]
     The single chokepoint where ``data/eval`` accuracy + each enricher's
     manifest ``accuracy_gate`` decide profile membership (RFC-088 gate
     amendment). Enrichers with no declared gate pass through unchanged; a gated
-    enricher (e.g. nli_contradiction) is dropped until a passing eval is
+    enricher (e.g. topic_consensus) is dropped until a passing eval is
     recorded — so the shipping set is data-driven, not a hand-maintained list.
     Preserves candidate order.
 
@@ -141,10 +142,10 @@ def _admit(candidate_ids: list[str], eval_root: Path | None = None) -> list[str]
     return admit_enrichers(candidate_ids, eval_root=eval_root).admitted
 
 
-# When the operator opts in to nli_contradiction this is the flag that
+# When the operator opts in to a query enricher this is the flag that
 # satisfies the LLM-tier double-opt-in for ``requires_opt_in=True``
-# enrichers. nli_contradiction itself is CPU-local so it doesn't carry
-# the flag, but future LLM query enrichers will.
+# enrichers. The NLI enrichers (topic_consensus / stance_timeline) are
+# CPU-local so they don't carry the flag, but future LLM query enrichers will.
 _DEFAULT_OPT_IN_FLAGS: dict[str, bool] = {}
 
 

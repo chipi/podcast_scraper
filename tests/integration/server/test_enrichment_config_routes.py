@@ -41,14 +41,17 @@ def test_admission_route_reports_gate_status(client: TestClient) -> None:
     r = client.get("/api/enrichment/config/admission")
     assert r.status_code == 200, r.text
     rows = {row["id"]: row for row in r.json()["enrichers"]}
-    # All eight known enrichers reported.
-    assert len(rows) == 8
-    # nli_contradiction declares a gate and is NOT promoted (0% precision, #1106) —
-    # the reason is surfaced for the UI, not a silent absence.
-    nli = rows["nli_contradiction"]
-    assert nli["has_gate"] is True
-    assert nli["promoted"] is False
-    assert "reject" in nli["reason"] or "gated" in nli["reason"]
+    # All nine known enrichers reported.
+    assert len(rows) == 9
+    # topic_consensus declares a gate and is NOT promoted (no eval yet → on_missing=reject,
+    # ADR-108) — the reason is surfaced for the UI, not a silent absence.
+    tc = rows["topic_consensus"]
+    assert tc["has_gate"] is True
+    assert tc["promoted"] is False
+    assert "reject" in tc["reason"] or "gated" in tc["reason"]
+    # stance_timeline is likewise gated dark until its eval clears.
+    assert rows["stance_timeline"]["has_gate"] is True
+    assert rows["stance_timeline"]["promoted"] is False
     # Deterministic enrichers declare no gate → promoted.
     gr = rows["grounding_rate"]
     assert gr["has_gate"] is False
@@ -68,7 +71,8 @@ def test_schema_route_composes_per_enricher_blocks(client: TestClient) -> None:
         "guest_coappearance",
         "insight_density",
         "topic_similarity",
-        "nli_contradiction",
+        "topic_consensus",
+        "stance_timeline",
     }
     assert expected <= set(enrichers.keys())
     # temporal_velocity knobs surface in its block.

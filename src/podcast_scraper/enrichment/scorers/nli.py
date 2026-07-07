@@ -97,8 +97,8 @@ class DeBERTaNliScorer:
         # them into calibrated probabilities so ``.contradiction`` is in [0, 1]
         # and the enricher threshold is a probability, not a raw-logit cutoff.
         # The pre-fix passthrough thresholded logits at 0.5 and flagged ~23% of
-        # all cross-Person pairs (0% precision on prod-v2); see #1106 and
-        # ``scripts/eval/score/enrichment_nli_eval_v1.py``.
+        # all cross-Person pairs (0% precision on prod-v2); see #1106 and ADR-108
+        # (which reimagined that detector as the entailment-side ``topic_consensus``).
         try:
             row = scores[0]
         except Exception:  # pragma: no cover

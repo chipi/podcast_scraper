@@ -286,7 +286,7 @@ def test_get_events_filters_by_enricher_id_and_event_type(app: FastAPI, corpus: 
         },
         {
             "event_type": "enrichment.enricher.started",
-            "enricher_id": "nli_contradiction",
+            "enricher_id": "topic_consensus",
             "run_id": "r1",
         },
     ]

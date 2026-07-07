@@ -1745,7 +1745,7 @@ def _maybe_spawn_enrichment_after_pipeline(cfg: config.Config, effective_output_
     #      enricher whose manifest carries provider_requirement, even
     #      though the operator YAML doesn't override anything. Without
     #      this branch, operators running ``profile: cloud_thin`` (which
-    #      enables topic_similarity + nli_contradiction by default) would
+    #      enables topic_similarity + topic_consensus by default) would
     #      see those silently warned-skipped — that's the bug the prior
     #      Option-1 hinted warning surfaced.
     enrichers_block = block.get("enrichers") if isinstance(block, dict) else None

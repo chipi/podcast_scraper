@@ -63,7 +63,7 @@ Three equivalent paths:
 ```bash
 # CLI
 python -m podcast_scraper.cli enrich \
-  --output-dir corpus --re-enable nli_contradiction \
+  --output-dir corpus --re-enable topic_consensus \
   --re-enable-reason "transient HF outage"
 ```
 
@@ -75,7 +75,7 @@ when auto_disabled).
 
 ```text
 # MCP (remote agent)
-enrichment_re_enable(enricher_id="nli_contradiction",
+enrichment_re_enable(enricher_id="topic_consensus",
                      reason="transient HF outage")
 ```
 
@@ -154,18 +154,18 @@ operator used.
 | deterministic | `guest_coappearance` | corpus | `.gi.json` | `enrichments/guest_coappearance.json` | ✅ |
 | deterministic | `insight_density` | episode | `.gi.json`, `.metadata.json` | `metadata/enrichments/{stem}.insight_density.json` | ✅ |
 | embedding | `topic_similarity` | corpus | `.kg.json` | `enrichments/topic_similarity.json` | ✅ (needs a provider) |
-| ml | `nli_contradiction` | corpus | `.gi.json` | `enrichments/nli_contradiction.json` | 🚫 gated dark (0% precision, #1106) |
-| ml | `stance_disagreement` | corpus | `.gi.json` | `enrichments/stance_disagreement.json` | 🚫 gated dark (0% precision, #1144) |
+| ml | `topic_consensus` | corpus | `.gi.json` | `enrichments/topic_consensus.json` | 🚫 gated dark (no eval yet, ADR-108) |
+| ml | `stance_timeline` | corpus | `.gi.json` | `enrichments/stance_timeline.json` | 🚫 gated dark (no eval yet, ADR-108) |
 | query | `query_topic_relatedness` | per-request | `enrichments/topic_similarity.json` | annotates search hits | ✅ |
 
-> **Correction (2026-07-07):** earlier revisions of this table listed a non-existent
-> episode-scope `topic_cooccurrence` enricher and omitted `topic_theme_clusters` +
-> `stance_disagreement`. The 9 above (+ the query enricher) are the real set in
-> `enrichment/enrichers/`.
+> **Note (ADR-108):** the two ML enrichers are `topic_consensus` + `stance_timeline`, the
+> reimagining of the retired 0%-precision `nli_contradiction` + `stance_disagreement`. Both flip to
+> the robust entailment side of NLI and dissolve the shared-question gate without an LLM. The 9
+> above (+ the query enricher) are the real set in `enrichment/enrichers/`.
 
-### The accuracy gate — why two enrichers never run
+### The accuracy gate — why two enrichers stay dark
 
-The two ML enrichers (`nli_contradiction`, `stance_disagreement`) are wired and registered
+The two ML enrichers (`topic_consensus`, `stance_timeline`) are wired and registered
 but **gated dark** by a data-driven accuracy gate (`enrichment/eval/admission.py` →
 `profile_sets._admit`). Each declares an `accuracy_gate` (precision ≥ 0.5) on its manifest;
 until an eval records a passing precision under `data/eval/enrichment/<id>/gate_metrics.json`,
@@ -184,7 +184,7 @@ set per profile; the accuracy gate then filters the ML tier (above):
 | `test_default`, `eval_default`, `preprod_local_whisper` | (none — CI isolation) |
 | `airgapped_thin` | deterministic only |
 | `airgapped` | deterministic + `topic_similarity` |
-| `cloud_thin`, `cloud_balanced`, `cloud_quality` | deterministic + `topic_similarity` + ML candidates (`nli_contradiction`, `stance_disagreement` — both gated dark today) |
+| `cloud_thin`, `cloud_balanced`, `cloud_quality` | deterministic + `topic_similarity` + ML candidates (`topic_consensus`, `stance_timeline` — both gated dark today) |
 | `dev`, `local`, `local_dgx_*`, `prod_dgx_*`, `cloud_with_dgx_primary` | same full candidate set (gate applies) |
 | unknown profile | (none — conservative default) |
 
@@ -288,38 +288,44 @@ unconditionally (numbers measured locally, not persisted as a gate metric).
 types (`sentence_transformer_local`, `fake_for_test`, ...) — see
 [Provider-type registry](#provider-type-registry).
 
-### `nli_contradiction` (ml, corpus scope)
+### `topic_consensus` (ml, corpus scope)
 
-Cross-Person Insight contradiction pairs per Topic via the injected
-``NliScorer``. **Reads:** `.gi.json` (Insight / Person / SPOKEN_BY /
-ABOUT). **Writes:** `enrichments/nli_contradiction.json`.
-**Output:** `{ contradictions: [{topic_id, insight_a_id, insight_b_id, person_a_id, person_b_id, contradiction_score}], threshold, model_id, model_version }`.
+The ADR-108 reimagining of `nli_contradiction`. Flips from the fragile *contradiction* side of
+NLI to the robust **entailment** side and detects cross-Person **corroboration** per Topic — "what
+the corpus agrees on" — via the injected ``NliScorer``. A pair is emitted only on **symmetric
+entailment** (A entails B *and* B entails A above threshold); mutual paraphrase can't be mere
+topic-adjacency, so symmetry *is* the shared-question gate — no LLM. **Reads:** `.gi.json` (Insight /
+Person / SPOKEN_BY / ABOUT). **Writes:** `enrichments/topic_consensus.json`.
+**Output:** `{ consensus: [{topic_id, person_a_id, person_a_name, person_b_id, person_b_name, insight_a_id, insight_a_text, insight_b_id, insight_b_text, consensus_score}], threshold, pairs_scored, model_id, model_version }`.
 **Knobs:**
 
-- ``threshold`` (float, 0–1, default 0.5) — contradiction probability
-  cutoff (inclusive lower bound) for emitting a pair.
+- ``threshold`` (float, 0–1, default 0.6) — min symmetric entailment probability to emit a pair.
 
 **Provider requirement:** `NliScorer`. Set
-`enrichers.nli_contradiction.provider.type` to one of `deberta_local`
+`enrichers.topic_consensus.provider.type` to one of `deberta_local`
 (real DeBERTa, requires `[ml]` extra) or `fixed_scripted` (test fixture).
-**Status: gated dark** — measured **0% precision** on prod-v2 (#1106); the cross-encoder
-over-fires "contradiction" on merely topic-adjacent insights, so the accuracy gate excludes
-it from every profile. Its manifest carries `accuracy_gate(precision ≥ 0.5)`;
-`data/eval/enrichment/nli_contradiction/gate_metrics.json` records the 0%.
+**Status: gated dark** — its manifest carries `accuracy_gate(precision ≥ 0.5, on_missing=reject)`,
+so it stays dark until an eval writes `data/eval/enrichment/topic_consensus/gate_metrics.json` with
+passing precision, then auto-promotes with no code edit. Score it with
+`scripts/eval/score/enrichment_topic_consensus.py`.
 
-### `stance_disagreement` (ml, corpus scope)
+### `stance_timeline` (ml, corpus scope)
 
-Cross-Person **stance-level** disagreement per Topic (#1144 — the successor to
-`nli_contradiction`). Aggregates each speaker's insights on a topic into one stance, scores
-the pair with the injected `NliScorer` symmetrically (both directions must clear the
-threshold). **Reads:** `.gi.json`. **Writes:** `enrichments/stance_disagreement.json`.
-**Knobs:** `min_insights` (min insights a speaker needs to have a stance, default 2),
-`threshold` (default 0.6). **Provider requirement:** `NliScorer`.
-**Status: gated dark** — measured **0% precision** (stance-aggregate) / 10% (atomic-max) vs
-the #1144 gold; DeBERTa can't separate genuine opposition from topic-adjacency without an
-LLM (ruled out). Kept as a wired, gate-guarded framework placeholder that auto-promotes if a
-future non-LLM scorer clears `data/eval/enrichment/disagreement/gold_v1.jsonl`. The live
-multi-speaker surface is `perspectives` (#1146), a CIL query — not this enricher.
+The ADR-108 reimagining of `stance_disagreement`. Instead of judging *cross-speaker* opposition (the
+unwinnable shared-question problem), it tracks a **single person's** stance on a Topic **over time** —
+same speaker deletes the shared-question gate entirely. Each insight's stance is
+`entail(insight, "{topic} is good and promising.") − entail(insight, "{topic} is bad and overhyped.")`
+∈ [−1, +1] via the injected `NliScorer`; the per-(person, topic) trajectory is classified as `shifted`
+when its range crosses the move threshold or its sign flips. **Reads:** `.gi.json`. **Writes:**
+`enrichments/stance_timeline.json`.
+**Output:** `{ timelines: [{person_id, person_name, topic_id, topic_label, points: [{date, stance}], deviation: {range, min, max, sign_flips, slope, shifted}}], min_points, move_threshold, model_id, model_version }` (biggest movers first).
+**Knobs:** `min_points` (min dated stance points to form a trajectory, default 2), `move_threshold`
+(stance swing to count as shifted, default 0.4), `positive_anchor` / `negative_anchor` (the stance-anchor
+hypotheses). **Provider requirement:** `NliScorer`.
+**Status: gated dark** — `accuracy_gate(precision ≥ 0.5, on_missing=reject)`; auto-promotes once
+`scripts/eval/score/enrichment_stance_timeline.py` writes a passing
+`data/eval/enrichment/stance_timeline/gate_metrics.json`. The live cross-speaker surface remains
+`perspectives` (#1146), a CIL query — not this enricher.
 
 ### `query_topic_relatedness` (query enricher, per-request)
 
@@ -347,7 +353,7 @@ enrichment:
       provider:                    # ML enrichers declare a provider
         type: sentence_transformer_local
         model: all-MiniLM-L6-v2
-    nli_contradiction:
+    topic_consensus:
       threshold: 0.6
       provider:
         type: deberta_local

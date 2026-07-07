@@ -42,12 +42,12 @@ def test_build_enrichment_argv_passes_only_skip_corpus_only(tmp_path: Path) -> N
     argv = build_enrichment_argv(
         tmp_path,
         only=["topic_cooccurrence", "temporal_velocity"],
-        skip=["nli_contradiction"],
+        skip=["topic_consensus"],
         corpus_only=True,
     )
     s = " ".join(argv)
     assert "--only topic_cooccurrence,temporal_velocity" in s
-    assert "--skip nli_contradiction" in s
+    assert "--skip topic_consensus" in s
     assert "--corpus-only" in argv
 
 

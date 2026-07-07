@@ -121,7 +121,7 @@ class AccuracyGateSpec:
     rules: tuple[AccuracyGateRule, ...]
     # What to do when no eval metrics exist yet (nothing has measured this
     # enricher). "reject": excluded until a passing eval is recorded — the
-    # safe default for a known-broken enricher (e.g. nli_contradiction after
+    # safe default for a known-broken enricher (e.g. topic_consensus after
     # #1106). "admit": shipped provisionally until an eval proves otherwise.
     on_missing_data: str = "reject"
 

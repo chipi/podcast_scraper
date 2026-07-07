@@ -20,7 +20,7 @@ def _ctx(*, parent_run_id: str | None = "parent-1") -> RunContext:
     return RunContext(
         run_id="run-1",
         parent_run_id=parent_run_id,
-        enricher_id="nli_contradiction",
+        enricher_id="topic_consensus",
         enricher_version="1.0.0",
         tier="ml",
         attempt=2,
@@ -39,7 +39,7 @@ def test_stamp_sentry_correlation_sets_envelope_tags() -> None:
     with patch.dict(sys.modules, {"sentry_sdk": fake}):
         stamp_sentry_correlation(_ctx())
     fake.set_tag.assert_any_call("run_id", "run-1")
-    fake.set_tag.assert_any_call("enricher_id", "nli_contradiction")
+    fake.set_tag.assert_any_call("enricher_id", "topic_consensus")
     fake.set_tag.assert_any_call("tier", "ml")
     fake.set_tag.assert_any_call("attempt", "2")
 
@@ -74,8 +74,8 @@ def test_breadcrumb_circuit_opened_fires_breadcrumb_with_category_and_data() -> 
     kwargs = fake.add_breadcrumb.call_args.kwargs
     assert kwargs["category"] == "enrichment.circuit_opened"
     assert kwargs["level"] == "warning"
-    assert "nli_contradiction circuit opened" in kwargs["message"]
-    assert kwargs["data"]["enricher_id"] == "nli_contradiction"
+    assert "topic_consensus circuit opened" in kwargs["message"]
+    assert kwargs["data"]["enricher_id"] == "topic_consensus"
     assert kwargs["data"]["consecutive_failures"] == 5
     assert kwargs["data"]["cooldown_until"] == "2026-06-26T16:01:42Z"
 
@@ -98,7 +98,7 @@ def test_message_auto_disabled_captures_warning_message() -> None:
         message_auto_disabled(_ctx(), consecutive_failed_runs=2, reason="circuit opened twice")
     fake.capture_message.assert_called_once()
     args = fake.capture_message.call_args.args
-    assert "nli_contradiction auto-disabled" in args[0]
+    assert "topic_consensus auto-disabled" in args[0]
     assert "circuit opened twice" in args[0]
 
 
@@ -122,7 +122,7 @@ def test_message_stall_escalation_captures_error_message() -> None:
         )
     fake.capture_message.assert_called_once()
     args = fake.capture_message.call_args.args
-    assert "nli_contradiction stall escalated to cancel" in args[0]
+    assert "topic_consensus stall escalated to cancel" in args[0]
 
 
 def test_message_stall_escalation_noop_without_sdk() -> None:
@@ -139,7 +139,7 @@ def test_message_stall_escalation_noop_without_sdk() -> None:
 
 def test_langfuse_kwargs_for_returns_emit_langfuse_span_extras() -> None:
     kwargs = langfuse_kwargs_for(_ctx())
-    assert kwargs["enricher_id"] == "nli_contradiction"
+    assert kwargs["enricher_id"] == "topic_consensus"
     assert kwargs["enricher_tier"] == "ml"
     assert kwargs["run_seed"] == "run-1"
 

@@ -282,7 +282,7 @@ def test_heartbeat_watchdog_factor_param_tightens_detection() -> None:
 
 def _manifest_with_cap(cap: float | None) -> EnricherManifest:
     return EnricherManifest(
-        id="nli_contradiction",
+        id="topic_consensus",
         version="1.0.0",
         scope=EnricherScope.CORPUS,
         tier=EnricherTier.ML,
@@ -301,11 +301,11 @@ def test_cost_cap_state_starts_zero() -> None:
 
 def test_cost_cap_state_accumulates_per_enricher_and_run_wide() -> None:
     s = CostCapState()
-    s.record_cost("nli_contradiction", 0.10)
-    s.record_cost("nli_contradiction", 0.05)
+    s.record_cost("topic_consensus", 0.10)
+    s.record_cost("topic_consensus", 0.05)
     s.record_cost("query_synthesis", 0.20)
     assert s.per_enricher_cost == {
-        "nli_contradiction": pytest.approx(0.15),
+        "topic_consensus": pytest.approx(0.15),
         "query_synthesis": pytest.approx(0.20),
     }
     assert s.run_total_cost == pytest.approx(0.35)
@@ -321,17 +321,17 @@ def test_cost_cap_state_ignores_zero_and_negative_costs() -> None:
 
 def test_per_enricher_cap_unbounded_when_manifest_field_is_none() -> None:
     s = CostCapState()
-    s.record_cost("nli_contradiction", 1000.0)
-    assert not s.per_enricher_cap_exceeded("nli_contradiction", _manifest_with_cap(None))
+    s.record_cost("topic_consensus", 1000.0)
+    assert not s.per_enricher_cap_exceeded("topic_consensus", _manifest_with_cap(None))
 
 
 def test_per_enricher_cap_fires_at_threshold() -> None:
     s = CostCapState()
     m = _manifest_with_cap(0.50)
-    s.record_cost("nli_contradiction", 0.40)
-    assert not s.per_enricher_cap_exceeded("nli_contradiction", m)
-    s.record_cost("nli_contradiction", 0.15)
-    assert s.per_enricher_cap_exceeded("nli_contradiction", m)
+    s.record_cost("topic_consensus", 0.40)
+    assert not s.per_enricher_cap_exceeded("topic_consensus", m)
+    s.record_cost("topic_consensus", 0.15)
+    assert s.per_enricher_cap_exceeded("topic_consensus", m)
 
 
 def test_run_wide_cap_unbounded_when_arg_is_none() -> None:

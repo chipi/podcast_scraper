@@ -108,7 +108,7 @@ def test_build_run_started_drops_none_optional_fields() -> None:
 def test_build_run_completed_carries_per_enricher_totals() -> None:
     totals = {
         "topic_cooccurrence": {"ok": 1, "failed": 0},
-        "nli_contradiction": {"ok": 0, "failed": 1, "retries": 2},
+        "topic_consensus": {"ok": 0, "failed": 1, "retries": 2},
     }
     p = build_run_completed(
         run_id="r",
@@ -210,14 +210,14 @@ def test_build_stall_warning_carries_expected_interval() -> None:
 
 def test_build_health_re_enabled_carries_audit_fields() -> None:
     p = build_health_re_enabled(
-        enricher_id="nli_contradiction",
+        enricher_id="topic_consensus",
         operator_id="ops@example.com",
         reset_counter=True,
         cleared_cooldown=True,
         reason="confirmed transient HF outage",
     )
     assert p["event_type"] == EVENT_HEALTH_RE_ENABLED
-    assert p["enricher_id"] == "nli_contradiction"
+    assert p["enricher_id"] == "topic_consensus"
     assert p["operator_id"] == "ops@example.com"
     assert p["reset_counter"] is True
     assert p["cleared_cooldown"] is True

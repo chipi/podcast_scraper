@@ -22,7 +22,7 @@ class NliScore:
     """Output of an NLI scorer for one ``(premise, hypothesis)`` pair.
 
     The three probabilities sum to ~1.0 (calibration not guaranteed —
-    that's what the ``nli_contradiction`` enricher's Brier-score eval
+    that's what the ``topic_consensus`` enricher's Brier-score eval
     measures). ``cost_usd`` is populated by remote/paid scorers; local
     CPU scorers (DeBERTa-v3-small) leave it at ``0.0``.
     """

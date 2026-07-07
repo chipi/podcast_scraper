@@ -21,7 +21,7 @@ The CLI:
 2. Builds an EnricherSet from the YAML.
 3. Registers the seven deterministic enrichers via
    :func:`enrichers.register_deterministic_enrichers`. ML / external
-   enrichers (topic_similarity, nli_contradiction) need provider /
+   enrichers (topic_similarity, topic_consensus) need provider /
    scorer wiring and are registered by callers that supply it.
 4. For ``--re-enable``: edits health and exits (no run).
 5. Otherwise: discovers episode bundles via
@@ -162,7 +162,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
         action="store_true",
         help=(
             "Wire ML / embedding / NLI enrichers (topic_similarity, "
-            "nli_contradiction, ...) from the EnricherSet's "
+            "topic_consensus, ...) from the EnricherSet's "
             "per_enricher_config[id].provider blocks. Without this flag, "
             "the deterministic enrichers run; ML enrichers are skipped "
             "with a hinted WARNING. Operators running locally with the "
@@ -220,7 +220,7 @@ def _resolve_config_path(explicit: Path | None, corpus_root: Path) -> Path | Non
 
     An explicit ``--config`` wins. Otherwise default to the corpus's stored
     ``viewer_operator.yaml`` so CLI + MCP runs pick up the operator's enrichment
-    block — including the ML provider wiring (topic_similarity / nli_contradiction
+    block — including the ML provider wiring (topic_similarity / topic_consensus
     providers) — without an explicit flag. Parity with the server/API path, which
     always reads the corpus's stored config. Returns ``None`` when neither exists
     (the caller then falls back to the ``--profile`` matrix).
@@ -265,7 +265,7 @@ async def run_cli(args: argparse.Namespace) -> int:
     # dependencies. Tier=DETERMINISTIC manifests gate their own activation
     # via the EnricherSet's enabled list; presence in the registry is
     # purely "available". Tier=ML / EXTERNAL enrichers (topic_similarity,
-    # nli_contradiction) need provider/scorer wiring and are registered
+    # topic_consensus) need provider/scorer wiring and are registered
     # by the call site that supplies that wiring.
     register_deterministic_enrichers(registry)
     yaml_set = build_enricher_set_from_yaml(_resolve_config_path(args.config, corpus_root))

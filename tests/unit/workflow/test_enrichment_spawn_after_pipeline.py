@@ -196,7 +196,7 @@ def test_spawn_passes_with_ml_for_profile_only_when_profile_enables_ml_enrichers
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Profile-only path: operator sets ``profile: cloud_thin`` (which
-    enables topic_similarity + nli_contradiction by default) but provides
+    enables topic_similarity + topic_consensus by default) but provides
     no operator-side ``provider:`` blocks. Pre-fix: the spawn helper
     only checked operator YAML providers and missed --with-ml entirely,
     leaving the ML enrichers silently warned-skipped. Post-fix:

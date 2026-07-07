@@ -521,13 +521,13 @@ def test_episode_enrichment_surfaces_ok_envelopes_and_skips_failed(tmp_path: Pat
     _write_envelope(enrich_dir / "0001-a.grounding_rate.json", "grounding_rate", {"rate": 0.9})
     # a failed envelope is present but must NOT surface
     _write_envelope(
-        enrich_dir / "0001-a.nli_contradiction.json", "nli_contradiction", None, status="failed"
+        enrich_dir / "0001-a.topic_consensus.json", "topic_consensus", None, status="failed"
     )
     body = _client(tmp_path).get(f"/api/app/episodes/{slug}/enrichment").json()
     assert body["slug"] == slug
     assert body["signals"]["topic_cooccurrence"] == {"pairs": 3}
     assert body["signals"]["grounding_rate"] == {"rate": 0.9}
-    assert "nli_contradiction" not in body["signals"]
+    assert "topic_consensus" not in body["signals"]
 
 
 def test_episode_enrichment_unknown_slug_404(tmp_path: Path) -> None:

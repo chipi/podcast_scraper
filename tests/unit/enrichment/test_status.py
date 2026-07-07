@@ -36,7 +36,7 @@ def test_write_status_serializes_full_envelope(tmp_path: Path) -> None:
         started_at="2026-06-26T00:00:00Z",
         profile="cloud_thin",
         current_enricher={
-            "enricher_id": "nli_contradiction",
+            "enricher_id": "topic_consensus",
             "scope": "corpus",
             "tier": "ml",
             "attempt": 1,
@@ -53,7 +53,7 @@ def test_write_status_serializes_full_envelope(tmp_path: Path) -> None:
     assert payload["schema_version"] == STATUS_SCHEMA_VERSION
     assert payload["run_id"] == "job-1"
     assert payload["profile"] == "cloud_thin"
-    assert payload["current_enricher"]["enricher_id"] == "nli_contradiction"
+    assert payload["current_enricher"]["enricher_id"] == "topic_consensus"
     assert payload["current_enricher"]["progress"]["items_done"] == 50
     assert payload["queue"] == ["topic_similarity"]
     assert payload["completed"][0]["duration_ms"] == 412
@@ -98,7 +98,7 @@ def test_read_status_round_trips_with_write_status(tmp_path: Path) -> None:
 
 def test_build_current_enricher_block_shape() -> None:
     block = build_current_enricher_block(
-        enricher_id="nli_contradiction",
+        enricher_id="topic_consensus",
         scope="corpus",
         tier="ml",
         attempt=2,
@@ -107,7 +107,7 @@ def test_build_current_enricher_block_shape() -> None:
         eta_seconds=142,
         last_heartbeat_at="2026-06-26T15:03:14Z",
     )
-    assert block["enricher_id"] == "nli_contradiction"
+    assert block["enricher_id"] == "topic_consensus"
     assert block["attempt"] == 2
     assert block["progress"] == {
         "items_done": 247,

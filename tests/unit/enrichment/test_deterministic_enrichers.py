@@ -838,8 +838,8 @@ def test_enricher_manifest_carries_config_schema_and_provider_requirement() -> N
     assert "window_months" in tv.config_schema["properties"]
     assert tv.provider_requirement is None
 
-    from podcast_scraper.enrichment.enrichers.nli_contradiction import (
-        NliContradictionEnricher,
+    from podcast_scraper.enrichment.enrichers.topic_consensus import (
+        TopicConsensusEnricher,
     )
     from podcast_scraper.enrichment.enrichers.topic_similarity import (
         TopicSimilarityEnricher,
@@ -851,11 +851,11 @@ def test_enricher_manifest_carries_config_schema_and_provider_requirement() -> N
     assert ts.config_schema is not None
     assert "top_k" in ts.config_schema["properties"]
 
-    nc = NliContradictionEnricher.manifest
-    assert nc.provider_requirement is not None
-    assert nc.provider_requirement.protocol == "NliScorer"
-    assert nc.config_schema is not None
-    assert "threshold" in nc.config_schema["properties"]
+    tc = TopicConsensusEnricher.manifest
+    assert tc.provider_requirement is not None
+    assert tc.provider_requirement.protocol == "NliScorer"
+    assert tc.config_schema is not None
+    assert "threshold" in tc.config_schema["properties"]
 
 
 def test_guest_coappearance_filters_speaker_placeholders(tmp_path: Path) -> None:

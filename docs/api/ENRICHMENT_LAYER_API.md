@@ -164,10 +164,9 @@ enrichment:
       provider:                          # ML enrichers declare provider
         type: sentence_transformer_local
         model: all-MiniLM-L6-v2
-    nli_contradiction:
-      threshold: 0.5
-      opt_in: false                      # LLM tier: double opt-in
-      provider:
+    topic_consensus:
+      threshold: 0.6
+      provider:                          # NLI scorer (CPU DeBERTa, local)
         type: deberta_local
     insight_density:
       enabled: false                     # explicit opt-out (preserves block)
@@ -179,10 +178,11 @@ match each enricher's ``manifest.config_schema`` properties — see
 [Enrichment Layer Guide → Per-enricher reference](../guides/ENRICHMENT_LAYER_GUIDE.md#per-enricher-reference).
 
 > **Accuracy gate:** an enricher declaring an `accuracy_gate` on its manifest is excluded
-> until an eval records precision ≥ 0.5, regardless of config. Today `nli_contradiction` and
-> `stance_disagreement` are both **gated dark** (0% precision — #1106/#1144), so a config block
-> for either is inert. `GET /api/enrichment/config/admission` reports the promote/gate decision
-> per enricher. See the guide's accuracy-gate section.
+> until an eval records precision ≥ 0.5, regardless of config. Today `topic_consensus` and
+> `stance_timeline` (the ADR-108 reimagining of the retired 0%-precision `nli_contradiction` /
+> `stance_disagreement`) are both **gated dark** (no eval yet → `on_missing=reject`), so a config
+> block for either is inert until its eval clears. `GET /api/enrichment/config/admission` reports
+> the promote/gate decision per enricher. See the guide's accuracy-gate section.
 
 JSON Schema draft 2020-12 validation:
 [`config/schema/enrichment.schema.json`](https://github.com/chipi/podcast_scraper/blob/main/config/schema/enrichment.schema.json).
@@ -200,12 +200,12 @@ python -m podcast_scraper.cli enrich \
   [--profile cloud_balanced] \
   [--enrichers topic_cooccurrence_corpus,temporal_velocity]    # alias for --only \
   [--only topic_cooccurrence_corpus,temporal_velocity] \
-  [--skip nli_contradiction] \
+  [--skip topic_consensus] \
   [--no-enrichers]                                      # disable everything \
   [--opt-in <id,id>]                                    # for requires_opt_in enrichers \
   [--with-ml]                                           # wire ML enrichers from provider blocks \
   [--corpus-only] \
-  [--re-enable nli_contradiction --re-enable-reason "transient HF outage"] \
+  [--re-enable topic_consensus --re-enable-reason "transient HF outage"] \
   [--config viewer_operator.yaml] \
   [--log-level INFO]
 ```

@@ -70,16 +70,16 @@ def test_health_registry_save_round_trip(tmp_path: Path) -> None:
     reg = HealthRegistry(tmp_path)
     p = policy_for(EnricherTier.EMBEDDING)
     reg.update_after_run("topic_similarity", run_id="job-1", status="ok", policy=p)
-    reg.update_after_run("nli_contradiction", run_id="job-1", status="failed", policy=p)
+    reg.update_after_run("topic_consensus", run_id="job-1", status="failed", policy=p)
     reg.save()
 
     # Fresh registry → same state after load.
     reg2 = HealthRegistry(tmp_path)
     reg2.load()
     snap = reg2.all()
-    assert set(snap.keys()) == {"topic_similarity", "nli_contradiction"}
+    assert set(snap.keys()) == {"topic_similarity", "topic_consensus"}
     assert snap["topic_similarity"].last_status == "ok"
-    assert snap["nli_contradiction"].consecutive_failures == 1
+    assert snap["topic_consensus"].consecutive_failures == 1
 
 
 def test_health_registry_save_payload_carries_schema_version(tmp_path: Path) -> None:

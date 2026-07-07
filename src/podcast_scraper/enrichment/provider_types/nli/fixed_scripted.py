@@ -2,7 +2,7 @@
 
 CI-safe: returns the configured ``default`` score for every pair (no
 external dependencies). Used by integration tests + smoke runs to
-exercise the ``nli_contradiction`` enricher's resilience plumbing
+exercise the ``topic_consensus`` enricher's resilience plumbing
 without loading DeBERTa.
 
 Params (all optional):
