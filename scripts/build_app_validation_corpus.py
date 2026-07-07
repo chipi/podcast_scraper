@@ -525,6 +525,91 @@ def _insight_density_envelope(gi: dict[str, Any], episode_id: str) -> dict[str, 
     )
 
 
+def _velocity_last_over_6mo(series: list[int]) -> float:
+    """Mirror the real enricher: last-month count over the trailing 6-month mean (1.0 = flat)."""
+    if not series:
+        return 0.0
+    six = series[-6:]
+    avg = sum(six) / len(six)
+    return round(series[-1] / avg, 4) if avg else 0.0
+
+
+def _temporal_velocity_data(topic_months: dict[str, list[str]]) -> dict[str, Any]:
+    """Author the canonical ``temporal_velocity`` payload from per-topic publish months.
+
+    ``window_months`` is the corpus's own sorted month axis; per topic we bucket its episodes'
+    publish months into ``monthly_counts`` and collapse the trend to ``velocity_last_over_6mo``
+    (the shape the consumer Trending surface + the real enricher share). Corpus-anchored, so the
+    signal is deterministic regardless of wall-clock ``now`` (the real enricher anchors its window
+    to the current calendar month — unstable for a committed fixture).
+    """
+    window_months = sorted({m for months in topic_months.values() for m in months})
+    topics: list[dict[str, Any]] = []
+    for tid, months in sorted(topic_months.items()):
+        counts = {m: months.count(m) for m in set(months)}
+        series = [counts.get(m, 0) for m in window_months]
+        topics.append(
+            {
+                "topic_id": tid,
+                "topic_label": tid.replace("topic:", "").replace("-", " "),
+                "monthly_counts": {m: counts.get(m, 0) for m in window_months},
+                "velocity_last_over_6mo": _velocity_last_over_6mo(series),
+                "total": sum(series),
+            }
+        )
+    topics.sort(key=lambda r: (-r["velocity_last_over_6mo"], -r["total"], r["topic_id"]))
+    return {"window_months": window_months, "topics": topics}
+
+
+def _theme_clusters_data(topic_episodes: dict[str, list[str]]) -> dict[str, Any]:
+    """Author one theme cluster ("storyline") for the consumer Storylines surface.
+
+    The cross-domain *managing risk* story: risk management, systems thinking, and safety
+    practices co-occur across shows (the transcripts frame risk as "systems of correlated bets" in
+    investing, software, racing, and diving). Members carry ``lift_to_cluster`` (anchor = highest)
+    + their episode ids, matching the enricher output the consumer readers parse. Deterministic,
+    like ``search/topic_clusters.json``.
+    """
+    members_spec = [
+        ("topic:risk-management", "risk management", 2.6),
+        ("topic:systems-thinking", "systems thinking", 2.1),
+        ("topic:safety-practices", "safety practices", 1.7),
+    ]
+    members = [
+        {
+            "topic_id": tid,
+            "label": label,
+            "lift_to_cluster": lift,
+            "episode_ids": sorted(set(topic_episodes.get(tid, []))),
+        }
+        for tid, label, lift in members_spec
+        if topic_episodes.get(tid)  # only topics that actually appear in the corpus
+    ]
+    clusters: list[dict[str, Any]] = []
+    if len(members) >= 2:
+        clusters.append(
+            {
+                "cluster_type": "theme",
+                "canonical_label": "Managing risk across domains",
+                "graph_compound_parent_id": "thc:managing-risk",
+                "member_count": len(members),
+                "members": members,
+            }
+        )
+    n_members = sum(c["member_count"] for c in clusters)
+    return {
+        "schema_version": "1",
+        "method": "cooccurrence_lift",
+        "min_pair_episode_count": 2,
+        "merge_threshold": 2.0,
+        "episode_count": len({e for eps in topic_episodes.values() for e in eps}),
+        "topic_count": len(topic_episodes),
+        "cluster_count": len(clusters),
+        "singletons": max(0, len(topic_episodes) - n_members),
+        "clusters": clusters,
+    }
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--rss-dir", type=Path, default=Path("tests/fixtures/rss"))
@@ -555,6 +640,12 @@ def main() -> int:
     pod_guests = _load_pod_guests(gt_dir.parent / "manifest.json")  # key→name for claim injection
     episode_index: list[dict[str, Any]] = []  # for the regenerate-summary print
     corpus_topic_counts: dict[str, int] = {}  # → corpus-scope temporal_velocity envelope
+    # topic_id → publish months (YYYY-MM) of the episodes it appears in. The
+    # temporal_velocity signal is authored from the corpus's OWN date axis (not
+    # wall-clock now), so the fixture's trending signal is deterministic + stable.
+    corpus_topic_months: dict[str, list[str]] = {}
+    # topic_id → episode ids (for the co-occurrence theme-cluster members).
+    corpus_topic_episodes: dict[str, list[str]] = {}
 
     for show_rss_stem, show_dir in shows:
         rss_path = args.rss_dir / f"{show_rss_stem}.xml"
@@ -660,6 +751,8 @@ def main() -> int:
             )
             for tid in topic_ids:
                 corpus_topic_counts[tid] = corpus_topic_counts.get(tid, 0) + 1
+                corpus_topic_months.setdefault(tid, []).append(publish[:7])  # YYYY-MM
+                corpus_topic_episodes.setdefault(tid, []).append(episode_id)
 
             # Transcript text + RAW canonical segments (player contract).
             (run_tr_dir / f"{ep_label}.txt").write_text(raw_text, encoding="utf-8")
@@ -778,21 +871,33 @@ def main() -> int:
         encoding="utf-8",
     )
 
-    # --- corpus-scope enrichment envelope (RFC-088) -------------------------
-    # temporal_velocity: a corpus-wide signal the consumer surface reads via
-    # GET /api/app/corpus/enrichment (P3 #1121). Rank topics by cross-episode prevalence.
-    trending = [
-        {"topic_id": tid, "episodes": n, "velocity": round(n / max(len(episode_index), 1), 3)}
-        for tid, n in sorted(corpus_topic_counts.items(), key=lambda kv: (-kv[1], kv[0]))
-    ]
+    # --- corpus-scope enrichment envelopes (RFC-088) ------------------------
     corpus_enrich_dir = out / "enrichments"
     corpus_enrich_dir.mkdir(parents=True, exist_ok=True)
+
+    # temporal_velocity — the consumer Trending surface (GET /api/app/corpus/enrichment)
+    # reads ``data.topics[]`` with ``window_months`` + per-topic ``monthly_counts`` /
+    # ``velocity_last_over_6mo`` / ``total`` (NOT the ``{trending}`` shape). We author it in
+    # that canonical shape over the corpus's OWN month axis, and mirror the real enricher's
+    # ``velocity_last_over_6mo`` = last-month count / trailing-6-month mean (1.0 = flat, >1
+    # rising). Deterministic: derived from the authored per-episode publish dates (the #1148
+    # offset schedule makes risk-management rise, per the corpus gold's ``heating_up``).
+    tv = _temporal_velocity_data(corpus_topic_months)
     (corpus_enrich_dir / "temporal_velocity.json").write_text(
-        json.dumps(
-            _enrichment_envelope("temporal_velocity", {"trending": trending}),
-            indent=2,
-            sort_keys=True,
-        )
+        json.dumps(_enrichment_envelope("temporal_velocity", tv), indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    # topic_theme_clusters — the consumer Storylines surface (theme clusters = topics
+    # discussed together). Authored deterministically (like search/topic_clusters.json) from the
+    # cross-domain "managing risk" storyline the transcripts co-author (risk management framed as
+    # "systems of correlated bets" across investing/software/racing/diving → risk-management +
+    # systems-thinking + safety-practices co-occur). Members carry the shape the consumer readers
+    # expect (graph_compound_parent_id thc:… / canonical_label / member_count / members[{topic_id,
+    # label, lift_to_cluster, episode_ids}]).
+    theme = _theme_clusters_data(corpus_topic_episodes)
+    (corpus_enrich_dir / "topic_theme_clusters.json").write_text(
+        json.dumps(_enrichment_envelope("topic_theme_clusters", theme), indent=2, sort_keys=True)
         + "\n",
         encoding="utf-8",
     )

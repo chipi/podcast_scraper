@@ -1,25 +1,106 @@
 {
-  "derived": true,
-  "computed_at": "2026-07-06T16:42:16Z",
-  "enricher_id": "topic_theme_clusters",
-  "enricher_version": "1.0.0",
-  "schema_version": "1.0",
-  "status": "ok",
+  "circuit_state": null,
+  "computed_at": "2026-01-01T00:00:00Z",
   "data": {
-    "schema_version": "1",
-    "method": "cooccurrence_lift",
+    "cluster_count": 1,
+    "clusters": [
+      {
+        "canonical_label": "Managing risk across domains",
+        "cluster_type": "theme",
+        "graph_compound_parent_id": "thc:managing-risk",
+        "member_count": 3,
+        "members": [
+          {
+            "episode_ids": [
+              "ep-0d9100843ee555f8",
+              "ep-16ff698c1bd21087",
+              "ep-18ede6ffbd63f18f",
+              "ep-1979e93514355ea6",
+              "ep-1abf911df5bea2c3",
+              "ep-1e526e495918fb27",
+              "ep-2a703b6f57d9020f",
+              "ep-2cd5c6d11325a312",
+              "ep-35f04bce441bf827",
+              "ep-362f5d463b877d2c",
+              "ep-4a1a673a7005a6b5",
+              "ep-4d94c63887afbd1a",
+              "ep-60d667843dc40fca",
+              "ep-64ef09a7ee543045",
+              "ep-8aa4d883afa10fa4",
+              "ep-916dab1698f88aec",
+              "ep-919c77e84ad37664",
+              "ep-a0a7f86b34a4de26",
+              "ep-a1342cd495b1165b",
+              "ep-a86da8f148d3bf29",
+              "ep-a884b153355070f0",
+              "ep-b3570c1ceb5eca41",
+              "ep-bccfce5798a83a6e",
+              "ep-d428e906f5affc60",
+              "ep-d8cc458a5f0049a8",
+              "ep-db8f44d2e07a22bd",
+              "ep-de59d003651d9e5d",
+              "ep-efc13989b676df9d"
+            ],
+            "label": "risk management",
+            "lift_to_cluster": 2.6,
+            "topic_id": "topic:risk-management"
+          },
+          {
+            "episode_ids": [
+              "ep-034d8bc4204034df",
+              "ep-18ede6ffbd63f18f",
+              "ep-1979e93514355ea6",
+              "ep-1abf911df5bea2c3",
+              "ep-2cd5c6d11325a312",
+              "ep-3158b8ff3e943b1e",
+              "ep-35f04bce441bf827",
+              "ep-362f5d463b877d2c",
+              "ep-4a1a673a7005a6b5",
+              "ep-4d94c63887afbd1a",
+              "ep-919c77e84ad37664",
+              "ep-9b36e2e3b959298d",
+              "ep-9f97daef33906cf6",
+              "ep-a1342cd495b1165b",
+              "ep-a86da8f148d3bf29",
+              "ep-a89e6a42509c9af0",
+              "ep-d8cc458a5f0049a8",
+              "ep-f4b940a095192621",
+              "ep-fb2bb5f0f4044f1d",
+              "ep-febd9a8f53bf3a3a"
+            ],
+            "label": "systems thinking",
+            "lift_to_cluster": 2.1,
+            "topic_id": "topic:systems-thinking"
+          },
+          {
+            "episode_ids": [
+              "ep-2a703b6f57d9020f",
+              "ep-916dab1698f88aec",
+              "ep-a0a7f86b34a4de26",
+              "ep-a884b153355070f0"
+            ],
+            "label": "safety practices",
+            "lift_to_cluster": 1.7,
+            "topic_id": "topic:safety-practices"
+          }
+        ]
+      }
+    ],
     "episode_count": 36,
-    "min_pair_episode_count": 2,
     "merge_threshold": 2.0,
-    "topic_count": 10,
-    "cluster_count": 0,
-    "singletons": 10,
-    "clusters": []
+    "method": "cooccurrence_lift",
+    "min_pair_episode_count": 2,
+    "schema_version": "1",
+    "singletons": 7,
+    "topic_count": 10
   },
+  "duration_ms": 0,
+  "enricher_id": "topic_theme_clusters",
+  "enricher_version": "1.0",
   "error": null,
   "error_class": null,
+  "records_written": 1,
   "retry_count": 0,
-  "circuit_state": null,
-  "duration_ms": 0,
-  "records_written": 0
+  "schema_version": "1.0",
+  "status": "ok"
 }
