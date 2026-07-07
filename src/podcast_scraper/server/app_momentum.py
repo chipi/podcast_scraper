@@ -55,10 +55,12 @@ class MomentumConfig:
     )
 
     def blend_for(self, kind: str) -> tuple[float, float]:
+        """The ``(content, engagement)`` blend weights for a kind (per-kind override or default)."""
         return self.blend_per_kind.get(kind, self.blend_default)
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any] | None) -> "MomentumConfig":
+        """Build a MomentumConfig from an operator ``momentum:`` block; missing keys → defaults."""
         d = raw or {}
         ewma = d.get("ewma") or {}
         heat = d.get("heating_up") or {}
@@ -219,6 +221,8 @@ def _engagement_weekly_by_entity(
 # --------------------------------------------------------------------------- #
 @dataclass
 class TrendingEntity:
+    """One ranked trending entity: its blended momentum score plus the component signals."""
+
     entity_id: str
     kind: str
     label: str
