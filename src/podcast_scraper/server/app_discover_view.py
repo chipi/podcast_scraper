@@ -51,11 +51,18 @@ def _significance(row: CatalogEpisodeRow, params: dict[str, Any] | None = None) 
 
 
 def _topic_velocities(root: Path) -> dict[str, float]:
-    """``topic_id`` → ``velocity_last_over_6mo`` from the temporal_velocity envelope.
+    """``topic_id`` → trend velocity for the discover trend boost.
 
-    Empty when the envelope is absent or malformed, so a missing enrichment just leaves the
+    RFC-103: prefer read-time content momentum (today-relative) from the enricher's
+    ``content_series``; fall back to the pre-baked ``velocity_last_over_6mo`` when a corpus has no
+    ``content_series`` yet. Empty when neither is available, so a missing enrichment just leaves the
     trend signal contributing nothing rather than erroring the ranking.
     """
+    from podcast_scraper.server.app_momentum import content_topic_velocities
+
+    momentum_vel = content_topic_velocities(root)
+    if momentum_vel is not None:
+        return momentum_vel
     env = load_json_artifact(root, _VELOCITY_REL)
     data = env.get("data", env) if isinstance(env, dict) else None
     topics = data.get("topics") if isinstance(data, dict) else None

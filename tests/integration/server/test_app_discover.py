@@ -342,3 +342,65 @@ def test_ranking_config_put_persists_and_reads_back(tmp_path: Path) -> None:
     assert trend["enabled"] is True and trend["weight"] == 5.0
     # untouched signals survive the merge
     assert any(s["name"] == "significance" for s in got["signals"])
+
+
+# --------------------------------------------------------------------------- #
+# RFC-103 momentum: GET /api/app/trending + GET /api/corpus/trending
+# --------------------------------------------------------------------------- #
+_TRENDING_NOW = "2026-07-01T00:00:00Z"
+
+
+def _write_content_series(root: Path, topics: list[dict]) -> None:
+    """A temporal_velocity envelope carrying only the RFC-103 content_series (topics)."""
+    (root / "enrichments").mkdir(parents=True, exist_ok=True)
+    env = {
+        "enricher_id": "temporal_velocity",
+        "status": "ok",
+        "data": {"content_series": {"topics": topics, "persons": []}},
+    }
+    (root / "enrichments" / "temporal_velocity.json").write_text(json.dumps(env), encoding="utf-8")
+
+
+def _rising_topics(root: Path, topic_id: str) -> None:
+    from podcast_scraper.server.app_momentum import _weeks_ending, resolve_as_of_week
+
+    weeks = _weeks_ending(resolve_as_of_week(_TRENDING_NOW))
+    _write_content_series(
+        root, [{"topic_id": topic_id, "weekly_counts": {weeks[-2]: 4, weeks[-1]: 7}}]
+    )
+
+
+def test_trending_endpoint_ranks_rising_topic(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("APP_TRENDING_NOW", _TRENDING_NOW)
+    _corpus(tmp_path)
+    _rising_topics(tmp_path, "topic:ai")
+    body = (
+        _client(tmp_path, personalized=False)
+        .get("/api/app/trending", params={"kind": "topic"})
+        .json()
+    )
+    assert body["kind"] == "topic" and body["scope"] == "corpus"
+    assert body["as_of_week"].startswith("2026-W")
+    assert body["items"][0]["entity_id"] == "topic:ai"
+    assert body["items"][0]["heating_up"] is True
+    assert body["items"][0]["series"]  # sparkline present
+
+
+def test_trending_endpoint_rejects_unknown_kind(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    r = _client(tmp_path, personalized=False).get("/api/app/trending", params={"kind": "banana"})
+    assert r.status_code == 400
+
+
+def test_corpus_trending_operator_global_view(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("APP_TRENDING_NOW", _TRENDING_NOW)
+    _corpus(tmp_path)
+    _rising_topics(tmp_path, "topic:ai")
+    body = _client(tmp_path, personalized=False).get("/api/corpus/trending").json()
+    assert body["as_of_week"].startswith("2026-W")
+    assert "topic" in body["kinds"] and "episode" in body["kinds"]  # every kind present
+    assert body["kinds"]["topic"][0]["entity_id"] == "topic:ai"

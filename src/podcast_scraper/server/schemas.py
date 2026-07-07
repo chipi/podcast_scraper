@@ -411,6 +411,34 @@ class AppStorylinesResponse(BaseModel):
     items: list[AppStoryline] = Field(default_factory=list)
 
 
+class AppTrendingEntity(BaseModel):
+    """One trending entity (RFC-103 momentum) — velocity (rising) + volume (recent level)."""
+
+    entity_id: str = Field(description="Namespaced id (topic:/tc:/thc:/person:, slug, or feed_id).")
+    kind: str = Field(description="topic|cluster|storyline|person|episode|show|insight.")
+    velocity: float = Field(description="Rising signal: fast÷slow EWMA (>1 rising, <1 cooling).")
+    volume: float = Field(description="Recent activity level (fast EWMA).")
+    heating_up: bool = Field(description="velocity ≥ τ AND total ≥ floor.")
+    total: int = Field(description="Total events over the lookback window.")
+    series: list[int] = Field(default_factory=list, description="Weekly counts (the sparkline).")
+
+
+class AppTrendingResponse(BaseModel):
+    """Trending entities of one kind (GET /api/app/trending) — read-time momentum vs today."""
+
+    kind: str
+    scope: str = Field(description="corpus | mine.")
+    as_of_week: str = Field(description="ISO reference week the momentum is anchored to.")
+    items: list[AppTrendingEntity] = Field(default_factory=list)
+
+
+class AppCorpusTrendingResponse(BaseModel):
+    """Operator global view (GET /api/corpus/trending) — top momentum per kind, corpus-wide."""
+
+    as_of_week: str
+    kinds: dict[str, list[AppTrendingEntity]] = Field(default_factory=dict)
+
+
 class FavoriteAdd(BaseModel):
     """Body for PUT /api/app/favorites — save a polymorphic item (idempotent on kind+ref)."""
 
