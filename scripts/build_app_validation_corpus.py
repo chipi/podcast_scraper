@@ -494,6 +494,44 @@ def _enrichment_envelope(enricher_id: str, data: dict[str, Any]) -> dict[str, An
     }
 
 
+_VADER: Any = None
+
+
+def _insight_sentiment_envelope(gi: dict[str, Any], episode_id: str) -> dict[str, Any]:
+    """An ``insight_sentiment`` envelope: per-Insight VADER compound + neg/neu/pos label.
+
+    Mirrors the real deterministic enricher exactly (same lexicon, same ±0.05 thresholds) so the CIL
+    timeline join reads the fixture identically to a live run.
+    """
+    global _VADER
+    if _VADER is None:
+        from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+
+        _VADER = SentimentIntensityAnalyzer()
+    gi_nodes = (gi.get("data") or gi).get("nodes", []) if isinstance(gi, dict) else []
+    insights: list[dict[str, Any]] = []
+    counts = {"negative": 0, "neutral": 0, "positive": 0}
+    for n in gi_nodes:
+        if not (isinstance(n, dict) and n.get("type") == "Insight" and n.get("id")):
+            continue
+        text = str((n.get("properties") or {}).get("text") or "").strip()
+        if not text:
+            continue
+        c = round(float(_VADER.polarity_scores(text)["compound"]), 4)
+        label = "positive" if c >= 0.05 else "negative" if c <= -0.05 else "neutral"
+        counts[label] += 1
+        insights.append({"insight_id": str(n["id"]), "compound": c, "label": label})
+    return _enrichment_envelope(
+        "insight_sentiment",
+        {
+            "episode_id": episode_id,
+            "counts": counts,
+            "total_insights": len(insights),
+            "insights": insights,
+        },
+    )
+
+
 def _insight_density_envelope(gi: dict[str, Any], episode_id: str) -> dict[str, Any]:
     """An ``insight_density`` envelope: this episode's insights bucketed early/mid/late.
 
@@ -1018,6 +1056,13 @@ def main() -> int:
             enrich_dir.mkdir(parents=True, exist_ok=True)
             (enrich_dir / f"{ep_label}.insight_density.json").write_text(
                 json.dumps(_insight_density_envelope(gi, episode_id), indent=2, sort_keys=True)
+                + "\n",
+                encoding="utf-8",
+            )
+            # ADR-108 conversation-timeline colour: per-Insight VADER sentiment sidecar (the CIL
+            # timeline/arc queries join it by insight_id).
+            (enrich_dir / f"{ep_label}.insight_sentiment.json").write_text(
+                json.dumps(_insight_sentiment_envelope(gi, episode_id), indent=2, sort_keys=True)
                 + "\n",
                 encoding="utf-8",
             )
