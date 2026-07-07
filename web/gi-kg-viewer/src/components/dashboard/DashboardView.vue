@@ -30,6 +30,7 @@ import PipelineRunHistoryStrip from './PipelineRunHistoryStrip.vue'
 import PipelineStageChart from './PipelineStageChart.vue'
 import TopicLandscape from './TopicLandscape.vue'
 import TopVoices from './TopVoices.vue'
+import TrendingGlobal from './TrendingGlobal.vue'
 import VerticalBarChart from './VerticalBarChart.vue'
 
 const emit = defineEmits<{
@@ -386,6 +387,10 @@ function openLibraryFailures(): void {
         :digest="digestIntel"
         @open-digest="emit('open-digest')"
       />
+
+      <!-- Global momentum (RFC-103): what's hot corpus-wide across every kind, with per-kind
+           sparklines. Backed by GET /api/corpus/trending. -->
+      <TrendingGlobal />
 
       <!-- Topic intelligence — the topic-related widgets grouped together (#1), laid out on a
            standard 4-col grid with per-widget spans (#2): wide/tall cards span 2 cols, compact
