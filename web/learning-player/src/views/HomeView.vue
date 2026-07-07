@@ -23,6 +23,7 @@ import { episodeArtwork, showArtwork } from '../utils/episode'
 import { useAuthStore } from '../stores/auth'
 import EntityCard from '../components/EntityCard.vue'
 import InterestsPicker from '../components/InterestsPicker.vue'
+import MomentumRail from '../components/MomentumRail.vue'
 import QueueButton from '../components/QueueButton.vue'
 import Storylines from '../components/Storylines.vue'
 import TrendingTopics from '../components/TrendingTopics.vue'
@@ -251,6 +252,13 @@ onMounted(async () => {
 
     <!-- Storylines (B): theme clusters — topics discussed together. Opens the anchor topic card. -->
     <Storylines @open="cardTarget = { kind: 'topic', id: $event }" />
+
+    <!-- Momentum (RFC-103): read-time "trending now" topics — velocity anchored to today. -->
+    <MomentumRail
+      kind="topic"
+      :title="t('home.trendingNow')"
+      @open="cardTarget = { kind: 'topic', id: $event.entity_id }"
+    />
 
     <!-- Recommended — no-scroll responsive grid -->
     <section v-if="recommended.length" class="mt-7">

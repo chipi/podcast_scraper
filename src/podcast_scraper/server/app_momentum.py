@@ -221,11 +221,47 @@ def _engagement_weekly_by_entity(
 class TrendingEntity:
     entity_id: str
     kind: str
+    label: str
     velocity: float
     volume: float
     heating_up: bool
     total: int
     series: list[int]
+
+
+def _readable_id(entity_id: str) -> str:
+    """Fallback label from a namespaced id (``topic:risk-management`` → ``risk management``)."""
+    return entity_id.split(":", 1)[-1].replace("-", " ").replace("_", " ")
+
+
+def _labels_from_content(root: Path) -> dict[str, str]:
+    env = load_json_artifact(root, _CONTENT_REL)
+    data = (env.get("data", env) if isinstance(env, dict) else {}) or {}
+    cs = data.get("content_series") or {}
+    out: dict[str, str] = {}
+    for row in cs.get("topics") or []:
+        out[str(row.get("topic_id") or "")] = str(row.get("topic_label") or "")
+    for row in cs.get("persons") or []:
+        out[str(row.get("person_id") or "")] = str(row.get("person_label") or "")
+    return out
+
+
+def _labels_from_clusters(root: Path) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for rel in (_TOPIC_CLUSTERS_REL, _THEME_CLUSTERS_REL):
+        env = load_json_artifact(root, rel)
+        data = (env.get("data", env) if isinstance(env, dict) else {}) or {}
+        for cl in data.get("clusters") or []:
+            cid = str(cl.get("graph_compound_parent_id") or "")
+            if cid:
+                out[cid] = str(cl.get("canonical_label") or "")
+    return out
+
+
+def _entity_labels(root: Path) -> dict[str, str]:
+    """``entity_id`` → display label from content_series + cluster canonical labels."""
+    labels = {**_labels_from_content(root), **_labels_from_clusters(root)}
+    return {k: v for k, v in labels.items() if k and v}
 
 
 def _blend(
@@ -262,6 +298,7 @@ def trending(
     content = _content_weekly_by_entity(root)
     eng_user = user_id if scope == "mine" else None
     engagement = _engagement_weekly_by_entity(data_dir, eng_user)
+    labels = _entity_labels(root)
 
     ids = {eid for (k, eid) in content if k == kind} | {eid for (k, eid) in engagement if k == kind}
     out: list[TrendingEntity] = []
@@ -281,7 +318,10 @@ def trending(
         total = sum((c_wc or {}).values()) + sum((e_wc or {}).values())
         series = _series(_sum_weekly([m for m in (c_wc, e_wc) if m is not None]), weeks)
         heating = velocity >= cfg.velocity_threshold and total >= cfg.min_total
-        out.append(TrendingEntity(eid, kind, velocity, round(volume, 4), heating, total, series))
+        label = labels.get(eid) or _readable_id(eid)
+        out.append(
+            TrendingEntity(eid, kind, label, velocity, round(volume, 4), heating, total, series)
+        )
     out.sort(key=lambda t: (-t.velocity, -t.volume, t.entity_id))
     return out[: max(limit, 0)]
 

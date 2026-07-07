@@ -311,6 +311,18 @@ export interface Storyline {
   anchor_topic_id: string
 }
 
+/** One trending entity (RFC-103 momentum). GET /api/app/trending?kind=… */
+export interface TrendingEntity {
+  entity_id: string
+  kind: string
+  label: string
+  velocity: number
+  volume: number
+  heating_up: boolean
+  total: number
+  series: number[]
+}
+
 /** A resolved person/topic reference (GET /api/app/entities/search — AppEntityRef). */
 export interface EntityRef {
   id: string

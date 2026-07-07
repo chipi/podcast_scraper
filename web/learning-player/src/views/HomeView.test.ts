@@ -36,6 +36,7 @@ beforeEach(() => {
   // tests off the network (their own coverage lives in TrendingTopics.test.ts / Storylines.test.ts).
   vi.spyOn(api, 'getCorpusEnrichment').mockResolvedValue({})
   vi.spyOn(api, 'getStorylines').mockResolvedValue([])
+  vi.spyOn(api, 'getTrending').mockResolvedValue([])
   try {
     localStorage.removeItem('lp.interests.dismissed')
   } catch {

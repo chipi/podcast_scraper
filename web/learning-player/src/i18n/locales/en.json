@@ -37,6 +37,7 @@
     "trendViewMomentum": "Momentum",
     "storylines": "Storylines",
     "storylinesHint": "Topics that keep coming up together",
+    "trendingNow": "Trending now",
     "storylineSize": "· {count} topic | · {count} topics",
     "storylineOpen": "Open the {label} storyline ({count} topics)",
     "storylineFollow": "Follow the {label} storyline",

@@ -37,6 +37,7 @@ import type {
   Storyline,
   TopicCard,
   TopicPerspectivesResponse,
+  TrendingEntity,
   UserStats,
 } from './types'
 
@@ -238,6 +239,15 @@ export async function getTopClusters(limit = 12): Promise<InterestCluster[]> {
 /** Top storylines (theme clusters — topics discussed together) for the Home rail + picker. */
 export async function getStorylines(limit = 12): Promise<Storyline[]> {
   return (await getJSON<{ items: Storyline[] }>('/theme-clusters', { limit })).items
+}
+
+/** Trending entities of a kind (RFC-103 momentum), corpus-wide or the signed-in user's ('mine'). */
+export async function getTrending(
+  kind: string,
+  scope: 'corpus' | 'mine' = 'corpus',
+  limit = 12,
+): Promise<TrendingEntity[]> {
+  return (await getJSON<{ items: TrendingEntity[] }>('/trending', { kind, scope, limit })).items
 }
 
 /** The signed-in user's interest cluster ids; `[]` when signed out (401). Auth-gated. */

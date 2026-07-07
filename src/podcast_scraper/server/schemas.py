@@ -416,6 +416,7 @@ class AppTrendingEntity(BaseModel):
 
     entity_id: str = Field(description="Namespaced id (topic:/tc:/thc:/person:, slug, or feed_id).")
     kind: str = Field(description="topic|cluster|storyline|person|episode|show|insight.")
+    label: str = Field(description="Display label.")
     velocity: float = Field(description="Rising signal: fast÷slow EWMA (>1 rising, <1 cooling).")
     volume: float = Field(description="Recent activity level (fast EWMA).")
     heating_up: bool = Field(description="velocity ≥ τ AND total ≥ floor.")
