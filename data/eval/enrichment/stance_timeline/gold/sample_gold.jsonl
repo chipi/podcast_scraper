@@ -1,0 +1,8 @@
+{"person_id": "person:jack-clark", "topic_id": "topic:ai-safety", "shifted": true, "rationale": "moved from 'regulation slows research' toward 'regulation is essential' across episodes."}
+{"person_id": "person:justin-boitano", "topic_id": "topic:ai-development", "shifted": false, "rationale": "consistently optimistic about enterprise agent deployment throughout."}
+{"person_id": "person:meghan-bobrowsky", "topic_id": "topic:ai-development", "shifted": true, "rationale": "warmed from skepticism about Meta's AI lag to acknowledging competitive momentum."}
+{"person_id": "person:guillaume-lample", "topic_id": "topic:audio-models", "shifted": false, "rationale": "steady conviction that compact TTS models are the winning direction."}
+{"person_id": "person:sam-altman", "topic_id": "topic:agi-timelines", "shifted": true, "rationale": "pulled timelines forward, then hedged — a clear sign flip over the window."}
+{"person_id": "person:yann-lecun", "topic_id": "topic:llm-limits", "shifted": false, "rationale": "durably argues LLMs alone will not reach human-level reasoning."}
+{"person_id": "person:demis-hassabis", "topic_id": "topic:ai-science", "shifted": true, "rationale": "grew markedly more bullish on AI-for-science after protein-folding results."}
+{"person_id": "person:gary-marcus", "topic_id": "topic:llm-limits", "shifted": false, "rationale": "consistently critical of scaling as a path to reliability."}
