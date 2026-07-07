@@ -81,7 +81,8 @@ def known_enricher_manifests() -> dict[str, EnricherManifest]:
 
     Reads each enricher's *class-level* ``manifest`` attribute — no
     instantiation, so provider-injected ML enrichers (topic_similarity,
-    nli_contradiction) are included without wiring a provider. This is the
+    nli_contradiction, stance_disagreement) are included without wiring a
+    provider. This is the
     manifest source the gate + UI config read for ``accuracy_gate`` /
     ``config_schema`` / ``provider_requirement`` without a live registry.
     """
@@ -90,6 +91,7 @@ def known_enricher_manifests() -> dict[str, EnricherManifest]:
         GuestCoappearanceEnricher,
         InsightDensityEnricher,
         NliContradictionEnricher,
+        StanceDisagreementEnricher,
         TemporalVelocityEnricher,
         TopicCooccurrenceCorpusEnricher,
         TopicSimilarityEnricher,
@@ -105,6 +107,7 @@ def known_enricher_manifests() -> dict[str, EnricherManifest]:
         InsightDensityEnricher,
         TopicSimilarityEnricher,
         NliContradictionEnricher,
+        StanceDisagreementEnricher,
     )
     return {cls.manifest.id: cls.manifest for cls in classes}
 

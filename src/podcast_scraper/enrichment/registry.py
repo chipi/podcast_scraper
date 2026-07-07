@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 _PROVIDER_WIRING_HINT: dict[str, str] = {
     "topic_similarity": "an EmbeddingProvider (see scorers/embedding.py)",
     "nli_contradiction": "an NliScorer (see scorers/nli.py)",
+    "stance_disagreement": "an NliScorer (see scorers/nli.py)",
 }
 
 

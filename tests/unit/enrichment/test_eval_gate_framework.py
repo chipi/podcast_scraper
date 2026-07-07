@@ -197,12 +197,14 @@ def test_admission_pure_no_gate_admits_gated_drops() -> None:
     assert res2.admitted == ["a", "b"]
 
 
-def test_known_manifests_cover_all_eight_and_nli_declares_gate() -> None:
+def test_known_manifests_cover_all_nine_and_gated_ml_declare_gates() -> None:
     mans = known_enricher_manifests()
-    assert len(mans) == 8
-    nli = mans["nli_contradiction"]
-    assert nli.accuracy_gate is not None
-    assert nli.accuracy_gate.on_missing_data == "reject"
+    # 6 deterministic + topic_similarity + nli_contradiction + stance_disagreement (#1144).
+    assert len(mans) == 9
+    for gated in ("nli_contradiction", "stance_disagreement"):
+        gate = mans[gated].accuracy_gate
+        assert gate is not None
+        assert gate.on_missing_data == "reject"
     # deterministic + topic_similarity declare no gate → always admitted
     assert mans["grounding_rate"].accuracy_gate is None
     assert mans["topic_similarity"].accuracy_gate is None

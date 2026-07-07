@@ -36,10 +36,15 @@ Source of truth, both on `main`:
 > contradictions even under the broad definition). Two fixes shipped: a softmax
 > calibration fix (`scorers/nli.py`; corpus flags ~660→~154) and **disabling the
 > enricher** in all shipping profiles (0% precision → every surfaced pair is fabricated).
-> Product goal moved to a stance-level detector (**#1144**) — **DECIDED 07-07: BUILD it.**
-> The spike's 0/40 on prod-v2 is a corpus property (small, curated), not a feature verdict;
-> the mechanism is proven (injected v3 panel). Build `stance_disagreement` gated on a shared
-> question (fixes nli's over-firing), accuracy-gated vs the Opus silver. See
+> Product goal moved to a stance-level detector (**#1144**) — **BUILT 07-07, measured
+> non-viable without an LLM, ships gated dark.** `stance_disagreement` (stance-aggregate
+> DeBERTa, no LLM) was built + scored vs a proper gold (`gold_v1.jsonl` = 40 prod-v2 + the
+> designed v3 Cho-vs-Bessent disagreement): **0% precision** (aggregate) / **10%** (atomic-max
+> diagnostic) — DeBERTa can't separate genuine opposition from topic-adjacency, so the
+> shared-question gate genuinely needs an LLM (operator ruled that out). The enricher is
+> wired + gate-guarded and stays dark (measured `gate_metrics.json`, precision 0.0);
+> `perspectives` (#1146) is the live no-LLM surface. `gold_v1.jsonl` is the durable
+> regression bar (auto-promotes any future non-LLM scorer that clears precision ≥ 0.5). See
 > `player/1144-DISAGREEMENT-DETECTOR-FEASIBILITY.md`.
 > #1106 is CLOSED. **#1105**
 > (topic_similarity) is now also resolved (2026-07-06): **validated** — recall@10 99%, precision retuned via default top_k 10->7. CLOSED.
