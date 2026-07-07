@@ -411,6 +411,79 @@ def test_temporal_velocity_weekly_window_read_from_config(tmp_path: Path) -> Non
     assert len(data["window_weeks"]) == 8
 
 
+def _tv_ep(
+    base: Path, stem: str, date: str, topics: list[str], persons: list[str]
+) -> "EpisodeArtifactBundle":  # noqa: F821
+    """A KG bundle with an Episode publish_date + Topic/Person nodes (for content_series tests)."""
+    nodes: list[dict] = [
+        {"type": "Episode", "id": "ep:" + stem, "properties": {"publish_date": date}}
+    ]
+    nodes += [{"type": "Topic", "id": t, "properties": {"label": t.split(":")[-1]}} for t in topics]
+    nodes += [
+        {"type": "Person", "id": p, "properties": {"name": p.split(":")[-1]}} for p in persons
+    ]
+    return _bundle(base / "metadata", stem, kg={"nodes": nodes, "edges": []})
+
+
+def test_temporal_velocity_content_series_topics_and_persons(tmp_path: Path) -> None:
+    # Two episodes ~10 months apart → content_series spans the FULL history (far beyond the 26-week
+    # now-window), and counts Topics AND Persons per ISO week.
+    bundles = [
+        _tv_ep(tmp_path, "old", "2025-03-10T00:00:00Z", ["topic:a"], ["person:alice"]),
+        _tv_ep(
+            tmp_path,
+            "new",
+            "2026-01-12T00:00:00Z",
+            ["topic:a", "topic:b"],
+            ["person:alice", "person:bob"],
+        ),
+    ]
+    data = _run(
+        TemporalVelocityEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=bundles,
+        config={"now": "2026-02-01T00:00:00Z"},
+        ctx=_ctx("temporal_velocity"),
+    )
+    cs = data["content_series"]
+    # Full history: the axis spans ~45 weeks (Mar 2025 → Jan 2026), NOT the 26-week now-window.
+    assert len(cs["window_weeks"]) > 26
+    assert cs["window_weeks"] == sorted(cs["window_weeks"])  # contiguous, oldest→newest
+
+    topics = {t["topic_id"]: t for t in cs["topics"]}
+    assert topics["topic:a"]["total"] == 2 and len(topics["topic:a"]["weekly_counts"]) == 2
+    assert topics["topic:b"]["total"] == 1
+    # every counted week is on the axis
+    assert set(topics["topic:a"]["weekly_counts"]) <= set(cs["window_weeks"])
+
+    persons = {p["person_id"]: p for p in cs["persons"]}
+    assert persons["person:alice"]["total"] == 2  # both episodes
+    assert persons["person:bob"]["total"] == 1
+    assert persons["person:alice"]["person_label"] == "alice"
+
+
+def test_temporal_velocity_content_series_is_now_independent(tmp_path: Path) -> None:
+    # The durable content_series must be identical regardless of the run-time `now` (unlike the
+    # now-anchored monthly/weekly fields) — that is the whole point of the read-time momentum split.
+    bundles = [
+        _tv_ep(tmp_path, "old", "2025-03-10T00:00:00Z", ["topic:a"], ["person:alice"]),
+        _tv_ep(tmp_path, "new", "2026-01-12T00:00:00Z", ["topic:a"], ["person:alice"]),
+    ]
+
+    def _cs(now: str) -> Any:
+        return _run(
+            TemporalVelocityEnricher(),
+            bundle=None,
+            corpus_root=tmp_path,
+            all_bundles=bundles,
+            config={"now": now},
+            ctx=_ctx("temporal_velocity"),
+        )["content_series"]
+
+    assert _cs("2026-02-01T00:00:00Z") == _cs("2031-09-09T00:00:00Z")
+
+
 # ---------------------------------------------------------------------------
 # grounding_rate (corpus scope)
 # ---------------------------------------------------------------------------

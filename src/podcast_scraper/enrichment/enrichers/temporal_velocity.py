@@ -16,11 +16,16 @@ For each Topic mentioned in any episode, compute:
 * ``weekly_velocity`` — the velocity signal computed at **every** week
   (each week's count over its trailing-average), so callers can plot
   how a topic's momentum actually moved instead of reading one scalar.
+* ``content_series`` (RFC-103 Phase 1) — the durable, ``now``-free atom
+  the momentum layer reads: full-history per-**topic** and per-**person**
+  weekly mention counts (sparse ``weekly_counts`` + a contiguous
+  ``window_weeks`` axis). The read-time momentum capability derives
+  velocity/volume from this against its own reference week, so it does
+  not depend on when this enricher ran.
 
-Output drives dashboard "trending topics" and autoresearch follow-on
-hypotheses. The window is computed relative to ``now`` (UTC); the
-envelope also surfaces ``effective_last_month`` so callers can tell
-when "now" lags the data.
+The monthly/weekly window fields above are computed relative to ``now``
+(UTC) and stay as a fallback (``effective_last_month`` flags when "now"
+lags the data); ``content_series`` is corpus-anchored and ``now``-free.
 """
 
 from __future__ import annotations
@@ -266,6 +271,94 @@ def _count_topic_mentions(
     return monthly, weekly, labels
 
 
+def _full_week_axis(dates: list[str]) -> list[str]:
+    """Contiguous ISO-week axis spanning the corpus's own publish dates (``now``-independent).
+
+    Unlike ``_window_weeks`` (a trailing window ending at ``now``), this is anchored to the corpus,
+    so the durable content series is deterministic regardless of when the enricher runs. The
+    read-time momentum layer (RFC-103) zero-fills against this axis up to its own reference week.
+    """
+    parsed: list[datetime] = []
+    for d in dates:
+        try:
+            parsed.append(datetime.fromisoformat(d.replace("Z", "+00:00")))
+        except (ValueError, TypeError):
+            continue
+    if not parsed:
+        return []
+    lo, hi = min(parsed), max(parsed)
+    weeks: list[str] = []
+    seen: set[str] = set()
+    cur = lo
+    while cur <= hi:
+        wk = _week_key(cur.isoformat())
+        if wk and wk not in seen:
+            seen.add(wk)
+            weeks.append(wk)
+        cur += timedelta(days=7)
+    hk = _week_key(hi.isoformat())  # loop can stop one step short of hi's week
+    if hk and hk not in seen:
+        weeks.append(hk)
+    return weeks
+
+
+def _tally_content_week(
+    kg: dict[str, Any],
+    node_type: str,
+    week: str,
+    weekly: dict[str, dict[str, int]],
+    labels: dict[str, str],
+) -> None:
+    """Fold one episode's nodes of ``node_type`` into the full-history weekly tally (in place)."""
+    for n in nodes_of_type(kg, node_type):
+        nid = str(n.get("id") or "")
+        if nid:
+            labels[nid] = node_label(n)
+            weekly[nid][week] += 1
+
+
+def _content_series(bundles: list[EpisodeArtifactBundle]) -> dict[str, Any]:
+    """Full-history, ``now``-free per-topic and per-person weekly mention series (RFC-103 Phase 1).
+
+    The durable "content event" atom the momentum layer reads: for every Topic and Person in the
+    corpus KG, mentions/appearances bucketed by ISO week over ALL history. ``weekly_counts`` is
+    sparse (only weeks with activity); ``window_weeks`` is the contiguous axis for zero-filling at
+    read. Emitted alongside the (``now``-anchored) monthly/weekly windows, which stay as fallback.
+    """
+    weekly_topic: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    weekly_person: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    labels: dict[str, str] = {}
+    dates: list[str] = []
+    for b in bundles:
+        kg = load_kg(b)
+        date = publish_date(kg)
+        wk = _week_key(date) if date else None
+        if not date or not wk:
+            continue
+        dates.append(date)
+        _tally_content_week(kg, "Topic", wk, weekly_topic, labels)
+        _tally_content_week(kg, "Person", wk, weekly_person, labels)
+
+    def _rows(weekly: dict[str, dict[str, int]], id_key: str, lab: str) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = [
+            {
+                id_key: eid,
+                lab: labels.get(eid, eid),
+                "weekly_counts": dict(sorted(counts.items())),
+                "total": sum(counts.values()),
+            }
+            for eid, counts in weekly.items()
+        ]
+        rows.sort(key=lambda r: (-int(r["total"]), r[id_key]))
+        return rows
+
+    return {
+        "window_weeks": _full_week_axis(dates),
+        "topics": _rows(weekly_topic, "topic_id", "topic_label"),
+        "persons": _rows(weekly_person, "person_id", "person_label"),
+    }
+
+
 def _topic_row(
     tid: str,
     monthly: dict[str, int],
@@ -325,6 +418,9 @@ def _compute(
         "alpha": alpha,
         "effective_last_month": months[effective_idx] if months else None,
         "topics": topics_out,
+        # RFC-103 Phase 1: the durable, now-free content atom the momentum layer reads. The fields
+        # above stay as the now-anchored fallback until the read-time capability supersedes them.
+        "content_series": _content_series(all_bundles or []),
     }
 
 
@@ -336,12 +432,15 @@ class TemporalVelocityEnricher:
 
     manifest = EnricherManifest(
         id="temporal_velocity",
-        version="1.1.0",
+        version="1.2.0",
         scope=EnricherScope.CORPUS,
         tier=EnricherTier.DETERMINISTIC,
         reads=[".kg.json"],
         writes="temporal_velocity.json",
-        description=("Monthly Topic mention counts + EWMA + a weekly counts/velocity time series."),
+        description=(
+            "Monthly/weekly Topic mention counts + EWMA + velocity, plus a full-history "
+            "now-free content_series (per-topic/person weekly counts) for the momentum layer."
+        ),
         expected_duration_s=30,
         config_schema={
             "type": "object",
