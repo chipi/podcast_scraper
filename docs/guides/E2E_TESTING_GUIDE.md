@@ -25,6 +25,7 @@ file remains **pytest** E2E.
 | **Config** | `web/gi-kg-viewer/playwright.config.ts` — `testDir: ./e2e`, `webServer` runs **Vite** on **127.0.0.1:5174** with **`reuseExistingServer: true`** so a dev server already bound to that port is reused (helps when **`CI=true`** is set locally and would otherwise force a second **strictPort** bind) |
 | **Specs** | `web/gi-kg-viewer/e2e/*.spec.ts` (+ `fixtures.ts`, `helpers.ts`) |
 | **Surface map** | [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) — surfaces, fixtures, stable Playwright selectors (update with UI/E2E changes) |
+| **Consumer player** | The learning player has its own parallel e2e (`web/learning-player/e2e/*.spec.ts`, mobile+desktop Chrome, **real API over the committed `app-validation-corpus/v3`** — no route mocks) and surface map: [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/learning-player/e2e/E2E_SURFACE_MAP.md). Run with `cd web/learning-player && npm run test:e2e`. |
 | **CI** | Workflow job **`viewer-e2e`** (same commands as `make test-ui-e2e`) |
 | **vs pytest E2E** | pytest proves CLI/pipeline + `e2e_server`; Playwright proves **browser UX** (graph shell, search UI, a11y paths) |
 | **vs FastAPI unit tests** | `tests/unit/podcast_scraper/server/test_viewer_*.py` cover **`/api/*`** JSON contracts; use Playwright when behavior depends on the **SPA** |
