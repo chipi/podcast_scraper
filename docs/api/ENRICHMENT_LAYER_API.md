@@ -178,11 +178,11 @@ match each enricher's ``manifest.config_schema`` properties — see
 [Enrichment Layer Guide → Per-enricher reference](../guides/ENRICHMENT_LAYER_GUIDE.md#per-enricher-reference).
 
 > **Accuracy gate:** an enricher declaring an `accuracy_gate` on its manifest is excluded
-> until an eval records precision ≥ 0.5, regardless of config. Today `topic_consensus` and
-> `stance_timeline` (the ADR-108 reimagining of the retired 0%-precision `nli_contradiction` /
-> `stance_disagreement`) are both **gated dark** (no eval yet → `on_missing=reject`), so a config
-> block for either is inert until its eval clears. `GET /api/enrichment/config/admission` reports
-> the promote/gate decision per enricher. See the guide's accuracy-gate section.
+> until an eval records precision ≥ 0.5, regardless of config. Today the one gated ML enricher is
+> `topic_consensus` (ADR-108, the reimagining of the retired 0%-precision `nli_contradiction`); it
+> **cleared** its gate (precision 0.91 on prod-v2) so it is admitted. `GET
+> /api/enrichment/config/admission` reports the promote/gate decision per enricher. See the guide's
+> accuracy-gate section.
 
 JSON Schema draft 2020-12 validation:
 [`config/schema/enrichment.schema.json`](https://github.com/chipi/podcast_scraper/blob/main/config/schema/enrichment.schema.json).

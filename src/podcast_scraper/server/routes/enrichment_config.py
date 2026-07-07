@@ -227,7 +227,6 @@ def _build_composed_schema() -> dict[str, Any]:
     the server agree on exactly what's accepted.
     """
     from podcast_scraper.enrichment.config_schema import load_schema
-    from podcast_scraper.enrichment.enrichers.stance_timeline import StanceTimelineEnricher
     from podcast_scraper.enrichment.enrichers.topic_consensus import (
         TopicConsensusEnricher,
     )
@@ -242,7 +241,7 @@ def _build_composed_schema() -> dict[str, Any]:
     for eid in reg.all_ids():
         m = reg.get(eid).manifest
         enricher_blocks[m.id] = _per_enricher_schema(m)
-    for cls in (TopicSimilarityEnricher, TopicConsensusEnricher, StanceTimelineEnricher):
+    for cls in (TopicSimilarityEnricher, TopicConsensusEnricher):
         m = cls.manifest  # type: ignore[attr-defined]
         enricher_blocks[m.id] = _per_enricher_schema(m)
     out = copy.deepcopy(base)

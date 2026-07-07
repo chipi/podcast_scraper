@@ -715,27 +715,20 @@ def _theme_clusters_data(topic_episodes: dict[str, list[str]]) -> dict[str, Any]
     }
 
 
-def _accumulate_nli_signals(
+def _accumulate_topic_persons(
     ep_persons: list[tuple[str, str]],
     topic_ids: list[str],
-    date: str,
     *,
     topic_persons: dict[str, list[tuple[str, str]]],
-    person_topic_dates: dict[tuple[str, str], list[str]],
-    person_label: dict[str, str],
 ) -> None:
-    """Fold one episode's persons × topics into the ADR-108 consensus / stance accumulators.
+    """Fold one episode's persons × topics into the topic_consensus per-Topic person set (in place).
 
-    In-place, mirroring :func:`_tally_episode_content`. Within an episode every rostered person is
-    associated with every episode topic (topics are episode-level in this fixture), which gives the
-    per-Topic person set (consensus) and per-(person, topic) date list (stance) their signal.
+    Within an episode every rostered person is associated with every episode topic (topics are
+    episode-level in this fixture), which gives topic_consensus its cross-Person pairs per Topic.
     """
-    for pid, name in ep_persons:
-        person_label[pid] = name
     for tid in topic_ids:
         for pid, name in ep_persons:
             topic_persons.setdefault(tid, []).append((pid, name))
-            person_topic_dates.setdefault((pid, tid), []).append(date)
 
 
 def _episode_persons(kg: dict[str, Any]) -> list[tuple[str, str]]:
@@ -747,104 +740,6 @@ def _episode_persons(kg: dict[str, Any]) -> list[tuple[str, str]]:
             name = str((node.get("properties") or {}).get("name") or pid)
             out.append((pid, name))
     return out
-
-
-def _unit_stance(person_id: str, topic_id: str, index: int, n: int) -> float:
-    """Deterministic pseudo-stance in [-1, 1] for a (person, topic) at step ``index`` of ``n``.
-
-    Mirrors the real ``stance_timeline`` signal shape (entail(good) − entail(bad)) without a model:
-    a stable per-(person, topic) hash picks a direction + whether the stance is flat or trending.
-    ~1/3 of trajectories stay flat (not shifted); the rest sweep the full [-0.55, +0.55] across the
-    trajectory (normalised by ``n`` so even a 2-point series clears the move threshold and flips
-    sign) — giving the fixture surfaces a realistic mix of shifted / steady opinions.
-    """
-    h = int(hashlib.sha256(f"{person_id}|{topic_id}".encode()).hexdigest(), 16)
-    base = ((h % 1000) / 1000.0 - 0.5) * 0.6  # anchor in ~[-0.3, 0.3]
-    if h % 3 == 0:  # flat trajectory — stays put (not shifted)
-        return round(base, 3)
-    direction = 1.0 if (h >> 4) % 2 == 0 else -1.0
-    frac = index / (n - 1) if n > 1 else 0.0  # 0 → 1 across the trajectory
-    return round(max(-1.0, min(1.0, direction * (-0.55 + 1.1 * frac))), 3)
-
-
-def _stance_deviation(stances: list[float], move_threshold: float) -> dict[str, Any]:
-    """The ``deviation`` block the enricher emits (range / slope / sign_flips / shifted)."""
-    if not stances:
-        return {
-            "range": 0.0,
-            "min": 0.0,
-            "max": 0.0,
-            "sign_flips": 0,
-            "slope": 0.0,
-            "shifted": False,
-        }
-    span = round(max(stances) - min(stances), 4)
-    # Deadzone (move_threshold / 2): near-zero stances are neutral, so noise around 0 can't
-    # register as a pro↔anti reversal. Mirrors the enricher's _deviation (ADR-108 eval fix).
-    deadzone = move_threshold / 2.0
-    signs = [1 if s >= deadzone else -1 if s <= -deadzone else 0 for s in stances]
-    nonzero = [s for s in signs if s != 0]
-    sign_flips = sum(1 for a, b in zip(nonzero, nonzero[1:]) if a != b)
-    n = len(stances)
-    slope = 0.0
-    if n >= 2:
-        xs = list(range(n))
-        mx = sum(xs) / n
-        my = sum(stances) / n
-        denom = sum((x - mx) ** 2 for x in xs)
-        if denom:
-            slope = round(sum((x - mx) * (y - my) for x, y in zip(xs, stances)) / denom, 4)
-    return {
-        "range": span,
-        "min": round(min(stances), 4),
-        "max": round(max(stances), 4),
-        "sign_flips": sign_flips,
-        "slope": slope,
-        "shifted": span >= move_threshold or sign_flips > 0,
-    }
-
-
-def _stance_timeline_data(
-    person_topic_dates: dict[tuple[str, str], list[str]],
-    person_label: dict[str, str],
-    *,
-    min_points: int = 2,
-    move_threshold: float = 0.4,
-) -> dict[str, Any]:
-    """Author the ``stance_timeline`` payload (ADR-108) — per-(person, topic) stance over time.
-
-    Deterministic, like ``content_series``: for every (person, topic) that appears on ≥
-    ``min_points`` distinct dates in the corpus, synthesise a stance trajectory from
-    :func:`_unit_stance` and classify its deviation. Biggest movers first, matching the enricher's
-    ordering, so the viewer's Person "Stance shifts" block has real data over the fixture.
-    """
-    timelines: list[dict[str, Any]] = []
-    for (pid, tid), dates in person_topic_dates.items():
-        uniq = sorted(set(dates))
-        if len(uniq) < min_points:
-            continue
-        stances = [_unit_stance(pid, tid, i, len(uniq)) for i in range(len(uniq))]
-        points = [{"date": d, "stance": s} for d, s in zip(uniq, stances)]
-        timelines.append(
-            {
-                "person_id": pid,
-                "person_name": person_label.get(pid, pid),
-                "topic_id": tid,
-                "topic_label": tid.replace("topic:", "").replace("-", " "),
-                "points": points,
-                "deviation": _stance_deviation(stances, move_threshold),
-            }
-        )
-    timelines.sort(
-        key=lambda r: (not r["deviation"]["shifted"], -r["deviation"]["range"], r["person_id"])
-    )
-    return {
-        "model_id": "cross-encoder/nli-deberta-v3-small",
-        "model_version": "v1",
-        "min_points": min_points,
-        "move_threshold": move_threshold,
-        "timelines": timelines,
-    }
 
 
 def _topic_consensus_data(
@@ -950,12 +845,9 @@ def main() -> int:
     # topic_id / person_id → ISO weeks (for the RFC-103 now-free content_series).
     corpus_topic_weeks: dict[str, list[str]] = {}
     corpus_person_weeks: dict[str, list[str]] = {}
-    # ADR-108 reimagined NLI enrichers: topic_id → [(person_id, name)] for topic_consensus, and
-    # (person_id, topic_id) → [publish_date] for stance_timeline. Both authored deterministically
-    # from the episode's own persons × topics × date (like content_series).
+    # ADR-108 topic_consensus: topic_id → [(person_id, name)], authored deterministically from the
+    # episode's own persons × topics (like content_series).
     corpus_topic_persons: dict[str, list[tuple[str, str]]] = {}
-    corpus_person_topic_dates: dict[tuple[str, str], list[str]] = {}
-    corpus_person_label: dict[str, str] = {}
 
     for show_rss_stem, show_dir in shows:
         rss_path = args.rss_dir / f"{show_rss_stem}.xml"
@@ -1078,14 +970,11 @@ def main() -> int:
                 weeks=corpus_topic_weeks,
                 person_weeks=corpus_person_weeks,
             )
-            # ADR-108: fold this episode's persons × topics into the consensus / stance accums.
-            _accumulate_nli_signals(
+            # ADR-108: fold this episode's persons × topics into the topic_consensus accumulator.
+            _accumulate_topic_persons(
                 _episode_persons(kg),
                 topic_ids,
-                publish[:10],
                 topic_persons=corpus_topic_persons,
-                person_topic_dates=corpus_person_topic_dates,
-                person_label=corpus_person_label,
             )
 
             # Transcript text + RAW canonical segments (player contract).
@@ -1239,18 +1128,13 @@ def main() -> int:
         encoding="utf-8",
     )
 
-    # topic_consensus + stance_timeline — the reimagined NLI enrichers (ADR-108). Authored
-    # deterministically from the corpus's own persons × topics × dates so the operator viewer's
-    # Consensus edges + Person "Consensus" / "Stance shifts" surfaces render + pivot on the fixture.
+    # topic_consensus — the reimagined NLI enricher (ADR-108). Authored deterministically from the
+    # corpus's own persons × topics so the operator viewer's Consensus edges + Person "Consensus"
+    # surfaces render + pivot on the fixture. (Per-person / per-topic stance over time is a
+    # read-time CIL query — conversation-arc / position-arc — not an enricher artifact.)
     consensus = _topic_consensus_data(corpus_topic_persons)
     (corpus_enrich_dir / "topic_consensus.json").write_text(
         json.dumps(_enrichment_envelope("topic_consensus", consensus), indent=2, sort_keys=True)
-        + "\n",
-        encoding="utf-8",
-    )
-    stance = _stance_timeline_data(corpus_person_topic_dates, corpus_person_label)
-    (corpus_enrich_dir / "stance_timeline.json").write_text(
-        json.dumps(_enrichment_envelope("stance_timeline", stance), indent=2, sort_keys=True)
         + "\n",
         encoding="utf-8",
     )

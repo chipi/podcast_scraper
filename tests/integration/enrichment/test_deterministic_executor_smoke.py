@@ -175,7 +175,7 @@ def test_executor_runs_all_six_deterministic_enrichers(tmp_path: Path) -> None:
     assert ("person:alice", "person:bob") in pair_ids
 
 
-def test_all_six_register_in_correct_scope() -> None:
+def test_all_deterministic_register_in_correct_scope() -> None:
     """Sanity: catch refactors that move an enricher to the wrong phase."""
     registry = EnricherRegistry()
     register_deterministic_enrichers(registry)
@@ -184,4 +184,4 @@ def test_all_six_register_in_correct_scope() -> None:
         for eid in ALL_DETERMINISTIC_ENRICHER_IDS
         if registry.get(eid).manifest.scope is EnricherScope.EPISODE
     }
-    assert episode_ids == {"insight_density"}
+    assert episode_ids == {"insight_density", "insight_sentiment"}

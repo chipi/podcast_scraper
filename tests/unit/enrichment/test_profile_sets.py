@@ -50,8 +50,6 @@ def test_cloud_profiles_get_full_stack(profile: str) -> None:
     # topic_consensus (ADR-108 composite) cleared its eval — precision 0.91 on prod-v2 recorded in
     # data/eval/enrichment/topic_consensus/gate_metrics.json → admitted by the data-driven gate.
     assert "topic_consensus" in s.enabled_enrichers
-    # stance_timeline has no eval → still gated dark (on_missing=reject).
-    assert "stance_timeline" not in s.enabled_enrichers
     assert set(ALL_DETERMINISTIC_ENRICHER_IDS) <= set(s.enabled_enrichers)
 
 
@@ -72,10 +70,8 @@ def test_dgx_dev_local_profiles_get_full_stack(profile: str) -> None:
     'prod' is intentionally NOT here — there is no config/profiles/prod.yaml;
     the production profiles are prod_dgx_*."""
     s = enricher_set_for_profile(profile)
-    # topic_consensus (ADR-108 composite) cleared its eval → admitted; stance_timeline has no eval
-    # → still gated dark. Membership is data-driven, not hardcoded.
+    # topic_consensus (ADR-108 composite) cleared its eval → admitted. Membership is data-driven.
     assert "topic_consensus" in s.enabled_enrichers
-    assert "stance_timeline" not in s.enabled_enrichers
 
 
 def test_admit_gate_is_hermetic_via_injected_eval_root(tmp_path: Path) -> None:
@@ -87,10 +83,9 @@ def test_admit_gate_is_hermetic_via_injected_eval_root(tmp_path: Path) -> None:
     """
     from podcast_scraper.enrichment.eval.admission import write_gate_metrics
 
-    # Empty eval root → topic_consensus + stance_timeline gated dark (on_missing=reject).
+    # Empty eval root → topic_consensus gated dark (on_missing=reject).
     excluded = enricher_set_for_profile("cloud_thin", eval_root=tmp_path)
     assert "topic_consensus" not in excluded.enabled_enrichers
-    assert "stance_timeline" not in excluded.enabled_enrichers
     assert "topic_similarity" in excluded.enabled_enrichers  # no gate → always admitted
 
     # Record a passing precision → the same call now admits it.

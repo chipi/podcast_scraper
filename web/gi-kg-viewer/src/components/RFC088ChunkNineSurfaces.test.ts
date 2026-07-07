@@ -116,11 +116,6 @@ describe('Gap 4 — NodeEnrichmentSection surfaces consensus rows', () => {
     expect(src).toContain('data-testid="node-enrichment-consensus"')
   })
 
-  it('loads stance_timeline and renders the stance-shifts hook (ADR-108)', () => {
-    expect(src).toContain("'stance_timeline'")
-    expect(src).toContain('data-testid="node-enrichment-stance-shifts"')
-  })
-
   it('row clicks pivot subject focus to partner / topic', () => {
     expect(src).toContain('subject.focusPerson(r.person_id)')
     expect(src).toContain('subject.focusTopic(r.topic_id)')

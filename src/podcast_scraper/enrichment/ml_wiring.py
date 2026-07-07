@@ -15,8 +15,8 @@ adds detail when an attempt was made to wire one but the config was
 malformed.
 
 The set of enricher ids this helper knows how to wire is closed today
-(``topic_similarity``, ``topic_consensus``, ``stance_timeline``). Future
-ML enrichers add themselves to the dispatcher map below.
+(``topic_similarity``, ``topic_consensus``). Future ML enrichers add
+themselves to the dispatcher map below.
 """
 
 from __future__ import annotations
@@ -24,9 +24,6 @@ from __future__ import annotations
 import logging
 from typing import Any, Callable
 
-from podcast_scraper.enrichment.enrichers.stance_timeline import (
-    StanceTimelineEnricher,
-)
 from podcast_scraper.enrichment.enrichers.topic_consensus import (
     TopicConsensusEnricher,
 )
@@ -70,39 +67,12 @@ def _build_topic_consensus(scorer: Any, knobs: dict[str, Any]) -> TopicConsensus
     )
 
 
-def _build_stance_timeline(scorer: Any, knobs: dict[str, Any]) -> StanceTimelineEnricher:
-    def _clamp_float(key: str, default: float, hi: float) -> float:
-        try:
-            val = float(knobs.get(key, default))
-        except (TypeError, ValueError):
-            return default
-        return val if 0.0 <= val <= hi else default
-
-    def _clamp_int(key: str, default: int, lo: int) -> int:
-        try:
-            val = int(knobs.get(key, default))
-        except (TypeError, ValueError):
-            return default
-        return val if val >= lo else default
-
-    kwargs: dict[str, Any] = {
-        "scorer": scorer,
-        "min_points": _clamp_int("min_points", 2, 2),
-        "move_threshold": _clamp_float("move_threshold", 0.4, 2.0),
-    }
-    for anchor in ("positive_anchor", "negative_anchor"):
-        if isinstance(knobs.get(anchor), str) and knobs[anchor].strip():
-            kwargs[anchor] = knobs[anchor]
-    return StanceTimelineEnricher(**kwargs)
-
-
 # Each entry: enricher_id → builder taking (provider/scorer, knobs dict)
 # and returning the constructed enricher. Future ML enrichers add a row
 # here + a class-side __init__ that accepts the same shape.
 _ML_ENRICHER_BUILDERS: dict[str, Callable[[Any, dict[str, Any]], Any]] = {
     "topic_similarity": _build_topic_similarity,
     "topic_consensus": _build_topic_consensus,
-    "stance_timeline": _build_stance_timeline,
 }
 
 

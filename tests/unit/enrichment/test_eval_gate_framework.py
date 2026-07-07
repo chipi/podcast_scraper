@@ -197,14 +197,13 @@ def test_admission_pure_no_gate_admits_gated_drops() -> None:
     assert res2.admitted == ["a", "b"]
 
 
-def test_known_manifests_cover_all_ten_and_gated_ml_declare_gates() -> None:
+def test_known_manifests_cover_all_nine_and_gated_ml_declare_gates() -> None:
     mans = known_enricher_manifests()
-    # 7 deterministic (incl. insight_sentiment) + topic_similarity + topic_consensus + stance.
-    assert len(mans) == 10
-    for gated in ("topic_consensus", "stance_timeline"):
-        gate = mans[gated].accuracy_gate
-        assert gate is not None
-        assert gate.on_missing_data == "reject"
+    # 7 deterministic (incl. insight_sentiment) + topic_similarity + topic_consensus.
+    assert len(mans) == 9
+    gate = mans["topic_consensus"].accuracy_gate  # the one gated ML enricher
+    assert gate is not None
+    assert gate.on_missing_data == "reject"
     # deterministic + topic_similarity declare no gate → always admitted
     assert mans["grounding_rate"].accuracy_gate is None
     assert mans["topic_similarity"].accuracy_gate is None
@@ -245,11 +244,10 @@ def test_gate_specs_from_manifests_projects_gate_only() -> None:
 
 @pytest.mark.parametrize("profile", ["cloud_thin", "cloud_quality", "prod_dgx_balanced"])
 def test_profile_sets_gate_is_data_driven(profile: str) -> None:
-    # topic_consensus cleared its eval (precision 0.91 on prod-v2, ADR-108 composite) → admitted;
-    # stance_timeline has no eval → gated dark. Membership is data-driven, not hand-maintained.
+    # topic_consensus cleared its eval (precision 0.91 on prod-v2, ADR-108 composite) → admitted.
+    # A gated candidate with no passing eval would be excluded — membership is data-driven.
     enabled = enricher_set_for_profile(profile).enabled_enrichers
     assert "topic_consensus" in enabled  # gate cleared → admitted
-    assert "stance_timeline" not in enabled  # no eval → gated out
     assert "topic_similarity" in enabled  # no gate → still shipped
     assert len(enabled) == 9  # 7 deterministic + topic_similarity + topic_consensus
 

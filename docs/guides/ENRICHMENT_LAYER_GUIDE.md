@@ -153,30 +153,29 @@ operator used.
 | deterministic | `grounding_rate` | corpus | `.gi.json` | `enrichments/grounding_rate.json` | ✅ |
 | deterministic | `guest_coappearance` | corpus | `.gi.json` | `enrichments/guest_coappearance.json` | ✅ |
 | deterministic | `insight_density` | episode | `.gi.json`, `.metadata.json` | `metadata/enrichments/{stem}.insight_density.json` | ✅ |
+| deterministic | `insight_sentiment` | episode | `.gi.json` | `metadata/enrichments/{stem}.insight_sentiment.json` | ✅ (VADER — timeline colour) |
 | embedding | `topic_similarity` | corpus | `.kg.json` | `enrichments/topic_similarity.json` | ✅ (needs a provider) |
 | ml | `topic_consensus` | corpus | `.gi.json` | `enrichments/topic_consensus.json` | ✅ promoted (precision 0.91, ADR-108 composite) |
-| ml | `stance_timeline` | corpus | `.gi.json` | `enrichments/stance_timeline.json` | 🚫 gated dark (no eval — signal absent on prod-v2) |
 | query | `query_topic_relatedness` | per-request | `enrichments/topic_similarity.json` | annotates search hits | ✅ |
 
-> **Note (ADR-108):** the two ML enrichers are `topic_consensus` + `stance_timeline`, the
-> reimagining of the retired 0%-precision `nli_contradiction` + `stance_disagreement`. `topic_consensus`
-> is a **composite** (embedding cosine + low NLI contradiction) that cleared its eval and is admitted;
-> `stance_timeline` stays dark (its stance signal is genuinely absent on prod-v2). The 9 above (+ the
-> query enricher) are the real set in `enrichment/enrichers/`.
+> **Note (ADR-108):** the one gated ML enricher is `topic_consensus` — the reimagining of the retired
+> 0%-precision `nli_contradiction`, a **composite** (embedding cosine + low NLI contradiction) that
+> cleared its eval and is admitted. Its sibling stance enricher (`stance_disagreement`/`stance_timeline`)
+> was **retired**: per-person / per-topic stance over time is a read-time CIL query
+> (`conversation-arc` / `position-arc`) coloured by the deterministic `insight_sentiment` (VADER), not a
+> gated ML enricher. The 9 above (+ the query enricher) are the real set in `enrichment/enrichers/`.
 
 ### The accuracy gate — why membership is data-driven
 
-The two ML enrichers (`topic_consensus`, `stance_timeline`) are wired and registered, and their
-profile membership is decided by a data-driven accuracy gate (`enrichment/eval/admission.py` →
-`profile_sets._admit`), not a hand-toggle. Each declares an `accuracy_gate` (precision ≥ 0.5) on its
-manifest; until an eval records a passing precision under `data/eval/enrichment/<id>/gate_metrics.json`,
-the gate excludes it from the registry → profiles → UI. **`topic_consensus` cleared it** — precision
-0.91 on prod-v2 (ADR-108 composite) → admitted to the cloud / dgx / dev / local profiles.
-**`stance_timeline` has not** (its stance signal is ~0 on prod-v2's factual insights) → gated dark; it
-auto-promotes with no code edit if a future scorer records precision ≥ 0.5. The live multi-speaker
-surface users also see is **perspectives** (#1146), a CIL query over the GI, **not** an enricher, so it
-sidesteps the gate. `GET /api/enrichment/config/admission` reports each enricher's promote/gate
-decision and reason.
+The one gated ML enricher (`topic_consensus`) is wired and registered, and its profile membership is
+decided by a data-driven accuracy gate (`enrichment/eval/admission.py` → `profile_sets._admit`), not a
+hand-toggle. It declares an `accuracy_gate` (precision ≥ 0.5) on its manifest; until an eval records a
+passing precision under `data/eval/enrichment/<id>/gate_metrics.json`, the gate excludes it from the
+registry → profiles → UI. **`topic_consensus` cleared it** — precision 0.91 on prod-v2 (ADR-108
+composite) → admitted to the cloud / dgx / dev / local profiles. A candidate with no passing eval
+auto-promotes with no code edit once one is recorded. The live multi-speaker surface users also see is
+**perspectives** (#1146), a CIL query over the GI, **not** an enricher, so it sidesteps the gate. `GET
+/api/enrichment/config/admission` reports each enricher's promote/gate decision and reason.
 
 The chunk-7 profile matrix (see `enrichment/profile_sets.py`) decides the CANDIDATE
 set per profile; the accuracy gate then filters the ML tier (above):
@@ -186,7 +185,7 @@ set per profile; the accuracy gate then filters the ML tier (above):
 | `test_default`, `eval_default`, `preprod_local_whisper` | (none — CI isolation) |
 | `airgapped_thin` | deterministic only |
 | `airgapped` | deterministic + `topic_similarity` |
-| `cloud_thin`, `cloud_balanced`, `cloud_quality` | deterministic + `topic_similarity` + ML candidates (`topic_consensus` admitted — precision 0.91; `stance_timeline` gated dark) |
+| `cloud_thin`, `cloud_balanced`, `cloud_quality` | deterministic + `topic_similarity` + ML candidate `topic_consensus` (admitted — precision 0.91) |
 | `dev`, `local`, `local_dgx_*`, `prod_dgx_*`, `cloud_with_dgx_primary` | same full candidate set (gate applies) |
 | unknown profile | (none — conservative default) |
 
@@ -313,23 +312,24 @@ extra) or `fixed_consensus` (CI-safe test fixture).
 auto-admits it into the cloud / dgx / dev / local profiles. Re-score with
 `scripts/eval/score/enrichment_topic_consensus.py`.
 
-### `stance_timeline` (ml, corpus scope)
+### `insight_sentiment` (deterministic, episode scope)
 
-The ADR-108 reimagining of `stance_disagreement`. Instead of judging *cross-speaker* opposition (the
-unwinnable shared-question problem), it tracks a **single person's** stance on a Topic **over time** —
-same speaker deletes the shared-question gate entirely. Each insight's stance is
-`entail(insight, "{topic} is good and promising.") − entail(insight, "{topic} is bad and overhyped.")`
-∈ [−1, +1] via the injected `NliScorer`; the per-(person, topic) trajectory is classified as `shifted`
-when its range crosses the move threshold or its sign flips. **Reads:** `.gi.json`. **Writes:**
-`enrichments/stance_timeline.json`.
-**Output:** `{ timelines: [{person_id, person_name, topic_id, topic_label, points: [{date, stance}], deviation: {range, min, max, sign_flips, slope, shifted}}], min_points, move_threshold, model_id, model_version }` (biggest movers first).
-**Knobs:** `min_points` (min dated stance points to form a trajectory, default 2), `move_threshold`
-(stance swing to count as shifted, default 0.4), `positive_anchor` / `negative_anchor` (the stance-anchor
-hypotheses). **Provider requirement:** `NliScorer`.
-**Status: gated dark** — `accuracy_gate(precision ≥ 0.5, on_missing=reject)`; auto-promotes once
-`scripts/eval/score/enrichment_stance_timeline.py` writes a passing
-`data/eval/enrichment/stance_timeline/gate_metrics.json`. The live cross-speaker surface remains
-`perspectives` (#1146), a CIL query — not this enricher.
+The colour layer for the conversation-timeline surfaces. Scores every Insight's text with **VADER** (a
+pure-Python lexicon analyzer that bundles its own lexicon — no model download, no network) → a
+`compound` in [−1, +1] + a `negative` / `neutral` / `positive` label (VADER's ±0.05 thresholds).
+**Reads:** `.gi.json`. **Writes:** `metadata/enrichments/{stem}.insight_sentiment.json`.
+**Output:** `{ episode_id, counts: {negative, neutral, positive}, total_insights, insights: [{insight_id, compound, label}] }`.
+Deterministic tier → **no accuracy gate** (unlike a stance *score*, sentiment is a decoration — a
+neutral factual insight is a fine grey). The CIL timeline queries (`position-arc`, `topic-timeline`,
+`conversation-arc`) join it by `insight_id` to tint each insight.
+
+> **Retired: `stance_timeline` / `stance_disagreement`.** An earlier ADR-108 cut tried to *auto-score*
+> a −1..+1 stance per (person, topic) via NLI-entailment vs "{topic} is good/bad" anchors. Real-corpus
+> eval showed the stance signal is ~0 on factual insights, so the score was the wrong frame. Per-person
+> / per-topic stance **over time** is now a **read-time CIL query** — `GET /api/persons/{id}/positions`
+> (per-`(person, topic)` arc), `GET /api/topics/{id}/timeline` (all speakers), and `GET
+> /api/topics/{id}/conversation-arc` (aggregate-first weekly volume × sentiment) — coloured by
+> `insight_sentiment`. No gated ML enricher, no LLM.
 
 ### `query_topic_relatedness` (query enricher, per-request)
 

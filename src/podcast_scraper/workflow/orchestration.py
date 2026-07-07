@@ -1757,7 +1757,6 @@ def _maybe_spawn_enrichment_after_pipeline(cfg: config.Config, effective_output_
     if profile and not operator_has_provider:
         try:
             from podcast_scraper.enrichment.enrichers import (
-                StanceTimelineEnricher,
                 TopicConsensusEnricher,
                 TopicSimilarityEnricher,
             )
@@ -1767,8 +1766,7 @@ def _maybe_spawn_enrichment_after_pipeline(cfg: config.Config, effective_output_
 
             _resolved = _resolver(str(profile))
             _ml_manifests = {
-                m.manifest.id: m.manifest
-                for m in (TopicSimilarityEnricher, TopicConsensusEnricher, StanceTimelineEnricher)
+                m.manifest.id: m.manifest for m in (TopicSimilarityEnricher, TopicConsensusEnricher)
             }
             for eid in _resolved.enabled_enrichers:
                 m = _ml_manifests.get(eid)

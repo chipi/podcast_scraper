@@ -18,7 +18,6 @@ from podcast_scraper.enrichment.enrichers.grounding_rate import GroundingRateEnr
 from podcast_scraper.enrichment.enrichers.guest_coappearance import GuestCoappearanceEnricher
 from podcast_scraper.enrichment.enrichers.insight_density import InsightDensityEnricher
 from podcast_scraper.enrichment.enrichers.insight_sentiment import InsightSentimentEnricher
-from podcast_scraper.enrichment.enrichers.stance_timeline import StanceTimelineEnricher
 from podcast_scraper.enrichment.enrichers.temporal_velocity import TemporalVelocityEnricher
 from podcast_scraper.enrichment.enrichers.topic_consensus import TopicConsensusEnricher
 from podcast_scraper.enrichment.enrichers.topic_cooccurrence_corpus import (
@@ -61,7 +60,6 @@ __all__ = [
     "GuestCoappearanceEnricher",
     "InsightDensityEnricher",
     "InsightSentimentEnricher",
-    "StanceTimelineEnricher",
     "TemporalVelocityEnricher",
     "TopicConsensusEnricher",
     "TopicCooccurrenceCorpusEnricher",

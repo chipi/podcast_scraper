@@ -29,7 +29,6 @@ logger = logging.getLogger(__name__)
 _PROVIDER_WIRING_HINT: dict[str, str] = {
     "topic_similarity": "an EmbeddingProvider (see scorers/embedding.py)",
     "topic_consensus": "a ConsensusScorer (see scorers/consensus.py)",
-    "stance_timeline": "an NliScorer (see scorers/nli.py)",
 }
 
 

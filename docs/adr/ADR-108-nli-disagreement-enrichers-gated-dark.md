@@ -1,6 +1,6 @@
-# ADR-108: Reimagine the NLI enrichers — `topic_consensus` (embedding + low-contradiction composite) + `stance_timeline` (per-person over time)
+# ADR-108: Reimagine the NLI enrichers — `topic_consensus` (embedding + low-contradiction composite, activated) + retire stance scoring for a read-time timeline
 
-- **Status**: Accepted (2026-07-07; supersedes the 2026-07-07 "gated dark pending a precise scorer" decision). `topic_consensus` **validated + activated** (precision 0.91 on prod-v2); `stance_timeline` remains gated dark. See the 2026-07-07 update below.
+- **Status**: Accepted (2026-07-07; supersedes the 2026-07-07 "gated dark pending a precise scorer" decision). `topic_consensus` **validated + activated** (precision 0.91 on prod-v2); the `stance_timeline` enricher was **retired** in favour of a read-time CIL conversation/position timeline coloured by the deterministic `insight_sentiment` (VADER). See the 2026-07-07 updates below.
 - **Date**: 2026-07-07
 - **Authors**: Marko Dragoljevic, Claude (Opus 4.8)
 - **Related ADRs**:
@@ -91,10 +91,27 @@ Ran both enrichers with the real DeBERTa over prod-v2 (99 bundles; full findings
   `ConsensusScorer` provider (`consensus_local`: MiniLM + DeBERTa, both CPU-local — still no LLM).
 - **`stance_timeline`: the signal is genuinely absent on prod-v2** — factual insights don't entail
   evaluative anchors, so stance ≈ 0 (and only 13 (person, topic) trajectories have ≥2 dated points). A
-  `sign_flips`-on-noise bug flagged 11/12 flat trajectories as "shifted"; fixed with a deadzone. It
-  **stays gated dark** (honest — the gate working as designed) and would need a stance-tuned signal +
-  a corpus where guests recur on a topic to activate. The stance-anchor mechanism below is retained as
-  the framework; only its precision is unproven.
+  `sign_flips`-on-noise bug even flagged 11/12 flat trajectories as "shifted". So auto-scoring a stance
+  was the wrong frame here.
+
+## Update — 2026-07-08: retire the `stance_timeline` enricher for a read-time timeline + sentiment colour
+
+The stance *score* was the mistake, not the goal. A "how did this person's / the corpus's view on a
+topic evolve" timeline already exists as **read-time CIL queries** — `GET /api/persons/{id}/positions`
+(per-`(person, topic)` arc) and `GET /api/topics/{id}/timeline` (all speakers). The `stance_timeline`
+enricher was a worse, gated reinvention of those. So it was **removed** (like `nli_contradiction`),
+and the direction pivoted to what actually scales + is honest:
+
+- **`insight_sentiment`** — a *deterministic* VADER enricher (pure-Python lexicon, no model / no
+  network) tags every Insight with a compound + neg/neu/pos label. Unlike a stance *score* (useless
+  when neutral), sentiment is a **decoration** — a neutral factual insight is a fine grey.
+- **`GET /api/topics/{id}/conversation-arc`** — the *aggregate-first* answer for a big topic (1000s of
+  insights): weekly **volume × sentiment** buckets, so the UI shows the *shape* of the conversation and
+  drills into a week on demand, never rendering thousands of cards. The position-arc / topic-timeline
+  insights now carry `sentiment` for per-card tint.
+
+Net: per-person + global stance-over-time ships as timelines the corpus can actually back, without a
+gated ML enricher or an LLM.
 
 ## Consequences
 

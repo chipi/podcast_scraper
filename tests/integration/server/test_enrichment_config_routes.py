@@ -41,19 +41,14 @@ def test_admission_route_reports_gate_status(client: TestClient) -> None:
     r = client.get("/api/enrichment/config/admission")
     assert r.status_code == 200, r.text
     rows = {row["id"]: row for row in r.json()["enrichers"]}
-    # All ten known enrichers reported (7 deterministic incl. insight_sentiment + 3 ML).
-    assert len(rows) == 10
+    # All nine known enrichers reported (7 deterministic incl. insight_sentiment + topic_similarity
+    # + topic_consensus).
+    assert len(rows) == 9
     # topic_consensus declares a gate AND cleared it (precision 0.91 on prod-v2, ADR-108 composite)
     # → promoted. The gate + the promotion are both surfaced for the UI.
     tc = rows["topic_consensus"]
     assert tc["has_gate"] is True
     assert tc["promoted"] is True
-    # stance_timeline declares a gate but has no eval yet → gated dark (on_missing=reject); the
-    # reason is surfaced, not a silent absence.
-    st = rows["stance_timeline"]
-    assert st["has_gate"] is True
-    assert st["promoted"] is False
-    assert "reject" in st["reason"] or "gated" in st["reason"]
     # Deterministic enrichers declare no gate → promoted.
     gr = rows["grounding_rate"]
     assert gr["has_gate"] is False
@@ -72,9 +67,9 @@ def test_schema_route_composes_per_enricher_blocks(client: TestClient) -> None:
         "grounding_rate",
         "guest_coappearance",
         "insight_density",
+        "insight_sentiment",
         "topic_similarity",
         "topic_consensus",
-        "stance_timeline",
     }
     assert expected <= set(enrichers.keys())
     # temporal_velocity knobs surface in its block.

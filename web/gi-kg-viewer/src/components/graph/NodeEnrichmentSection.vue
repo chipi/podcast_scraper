@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
  * Enrichment signals for a graph node's Enrichment tab (#1128 follow-up). Topic → temporal velocity
- * + corpus co-occurrence; Person → grounding rate + guest co-appearance + consensus + stance shifts
- * (the reimagined NLI enrichers, ADR-108). Best-effort: missing envelopes are silently hidden.
+ * + corpus co-occurrence; Person → grounding rate + guest co-appearance + consensus
+ * (topic_consensus, ADR-108). Best-effort: missing envelopes are silently hidden.
  * `nodeId` is the canonical prefixed id (topic:/person:).
  */
 import { computed, ref, watch } from 'vue'
@@ -56,17 +56,6 @@ const consensus = ref<
     otherText?: string
   }>
 >([])
-// Stance shifts (ADR-108) — this person's (topic) opinions that genuinely moved
-// over time: ``range`` is the stance swing, ``rising`` its direction.
-const stanceShifts = ref<
-  Array<{
-    topic_id: string
-    topic_label?: string
-    range: number
-    rising: boolean
-    points: number
-  }>
->([])
 
 function shortId(id: string): string {
   return id.replace(/^(podcast|person|topic|org):/, '').replace(/[-_]/g, ' ').trim() || id
@@ -79,7 +68,6 @@ function reset(): void {
   grounding.value = null
   coappearances.value = []
   consensus.value = []
-  stanceShifts.value = []
   emit('has-content', false)
 }
 
@@ -89,8 +77,7 @@ function currentHasContent(): boolean {
     return (
       grounding.value !== null ||
       coappearances.value.length > 0 ||
-      consensus.value.length > 0 ||
-      stanceShifts.value.length > 0
+      consensus.value.length > 0
     )
   }
   return false
@@ -119,11 +106,10 @@ async function load(): Promise<void> {
       cooccurrence.value = partners
     }
   } else if (isPerson()) {
-    const [gr, co, cs, st] = await Promise.all([
+    const [gr, co, cs] = await Promise.all([
       fetchCachedCorpusEnvelope<{ persons: Array<{ person_id: string; grounded_insights: number; total_insights: number; rate: number }> }>(root, 'grounding_rate').catch(() => null),
       fetchCachedCorpusEnvelope<{ pairs: Array<{ person_a_id: string; person_b_id: string; person_a_name?: string; person_b_name?: string; episode_count: number }> }>(root, 'guest_coappearance').catch(() => null),
       fetchCachedCorpusEnvelope<{ consensus: Array<{ topic_id: string; person_a_id: string; person_b_id: string; person_a_name?: string; person_b_name?: string; insight_a_text?: string; insight_b_text?: string }> }>(root, 'topic_consensus').catch(() => null),
-      fetchCachedCorpusEnvelope<{ timelines: Array<{ person_id: string; topic_id: string; topic_label?: string; points?: unknown[]; deviation?: { range?: number; slope?: number; shifted?: boolean } }> }>(root, 'stance_timeline').catch(() => null),
     ])
     const grow = gr?.data?.persons?.find((p) => p.person_id === id) ?? null
     if (grow) grounding.value = { grounded: grow.grounded_insights, total: grow.total_insights, rate: grow.rate }
@@ -159,19 +145,6 @@ async function load(): Promise<void> {
         }
       }
       consensus.value = out.slice(0, 8)
-    }
-    if (st?.data?.timelines) {
-      stanceShifts.value = st.data.timelines
-        .filter((t) => t.person_id === id && t.deviation?.shifted)
-        .map((t) => ({
-          topic_id: t.topic_id,
-          topic_label: t.topic_label,
-          range: t.deviation?.range ?? 0,
-          rising: (t.deviation?.slope ?? 0) >= 0,
-          points: Array.isArray(t.points) ? t.points.length : 0,
-        }))
-        .sort((a, b) => b.range - a.range)
-        .slice(0, 8)
     }
   }
   loaded.value = true
@@ -257,20 +230,7 @@ watch(() => props.nodeId, () => void load(), { immediate: true })
           </li>
         </ul>
       </div>
-      <div v-if="stanceShifts.length" data-testid="node-enrichment-stance-shifts">
-        <p class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">Stance shifts · over time</p>
-        <div class="flex flex-wrap gap-1">
-          <button
-            v-for="r in stanceShifts"
-            :key="r.topic_id"
-            type="button"
-            class="inline-flex items-center gap-1 rounded border border-amber-700/40 bg-amber-900/10 px-2 py-0.5 hover:bg-amber-900/20"
-            :title="`Stance moved ${r.range.toFixed(2)} across ${r.points} points — open ${titleCaseWords(shortId(r.topic_id).replace(/[-_]+/g, ' '))}`"
-            @click="subject.focusTopic(r.topic_id)"
-          >{{ r.topic_label || titleCaseWords(shortId(r.topic_id).replace(/[-_]+/g, ' ')) }}<span class="ml-0.5 text-amber-300" aria-hidden="true">{{ r.rising ? '↗' : '↘' }}</span><span class="ml-0.5 text-muted">·{{ r.range.toFixed(1) }}</span></button>
-        </div>
-      </div>
-      <p v-if="loaded && !grounding && !coappearances.length && !consensus.length && !stanceShifts.length" class="text-muted">No enrichment signals for this person.</p>
+      <p v-if="loaded && !grounding && !coappearances.length && !consensus.length" class="text-muted">No enrichment signals for this person.</p>
     </template>
   </div>
 </template>
