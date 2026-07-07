@@ -8,7 +8,7 @@
     [ADR-043](ADR-043-hybrid-map-reduce-summarization.md) — the summarization architecture
     whose HF-loading plumbing this change consolidates.
 - **Related RFCs**:
-  - [RFC-042](../rfc/RFC-042-hybrid-summarization.md) — hybrid MAP-REDUCE summarization.
+  - [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md) — hybrid MAP-REDUCE summarization.
 
 > **Note:** #382 merged with only a one-line message ("Upgrade transformers to v5 + unify ML
 > architecture"). This ADR is a *retroactive capture* grounded in the shipped code
