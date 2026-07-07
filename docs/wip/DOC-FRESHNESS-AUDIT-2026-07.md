@@ -89,4 +89,18 @@ fields, a couple of stale paths, one filename collision, and a few decisions tha
 | A | Guides + architecture + api + README | ✅ audited + fixed (2 stale paths + 1 version) |
 | B | RFC status + bodies | ✅ audited (0 body divergence) + 4 status fixes |
 | C | PRD status + bodies | ✅ audited (0 status errors) + 2 body amendments |
-| D | ADR status + supersession | ✅ audited + 3 status fixes; ADR-099 rename + 3 new ADRs pending decision |
+| D | ADR status + supersession | ✅ audited + 3 status fixes; ADR-099 renamed to ADR-105; ADR-106/107/108 added |
+| E | UXS (17 specs) + `ENRICHMENT_LAYER_API` spot-check | ✅ audited — 13/17 UXS current; `ENRICHMENT_LAYER_API` had the same stale enricher ids the guide had (fixed) |
+
+### Wave E result (UXS + API spot-check)
+
+- **`api/ENRICHMENT_LAYER_API.md` — FIXED.** Had the same staleness as the guide (the earlier
+  api auditor verified endpoints but not enricher ids): `topic_cooccurrence` (non-existent) in
+  the config + CLI examples → `topic_cooccurrence_corpus`; added an accuracy-gate note so the
+  `nli_contradiction` config example isn't read as "it runs" (it's gated dark, inert).
+- **UXS: 13/17 clearly CURRENT.** No forced amendments — the two the UXS auditor flagged are
+  **non-issues**: UXS-008 (Enriched Search) is honestly **Draft** and its phase-1 related-topics
+  decoration *did* ship (`ResultCard.vue` renders `query_enrichments.related_topics`); UXS-004
+  §3.6 is explicitly "phase 1" aspirational. The auditor also **erred** on UXS-006 (claimed the
+  operator Dashboard has no multi-perspective card — it does, `DashboardTopicPerspectives.vue`).
+  Left as-is; flagged here for the record.

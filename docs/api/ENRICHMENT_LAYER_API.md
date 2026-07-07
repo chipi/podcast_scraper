@@ -153,7 +153,7 @@ enrichment:
   fail_on_run_cost_cap: true             # set cancel_event when cap fires
   enrichers:                             # Shape B: per-enricher block,
                                          # block-present = enabled
-    topic_cooccurrence:
+    topic_cooccurrence_corpus:
       max_cost_usd_per_run: 0.10
       expected_duration_s: 30
     temporal_velocity:
@@ -178,6 +178,12 @@ without losing the configuration (Shape B, RFC-088 v2). Knob keys
 match each enricher's ``manifest.config_schema`` properties — see
 [Enrichment Layer Guide → Per-enricher reference](../guides/ENRICHMENT_LAYER_GUIDE.md#per-enricher-reference).
 
+> **Accuracy gate:** an enricher declaring an `accuracy_gate` on its manifest is excluded
+> until an eval records precision ≥ 0.5, regardless of config. Today `nli_contradiction` and
+> `stance_disagreement` are both **gated dark** (0% precision — #1106/#1144), so a config block
+> for either is inert. `GET /api/enrichment/config/admission` reports the promote/gate decision
+> per enricher. See the guide's accuracy-gate section.
+
 JSON Schema draft 2020-12 validation:
 [`config/schema/enrichment.schema.json`](https://github.com/chipi/podcast_scraper/blob/main/config/schema/enrichment.schema.json).
 The CLI exits non-zero on invalid config. The viewer's
@@ -192,8 +198,8 @@ generation.
 python -m podcast_scraper.cli enrich \
   --output-dir <corpus> \
   [--profile cloud_balanced] \
-  [--enrichers topic_cooccurrence,temporal_velocity]    # alias for --only \
-  [--only topic_cooccurrence,temporal_velocity] \
+  [--enrichers topic_cooccurrence_corpus,temporal_velocity]    # alias for --only \
+  [--only topic_cooccurrence_corpus,temporal_velocity] \
   [--skip nli_contradiction] \
   [--no-enrichers]                                      # disable everything \
   [--opt-in <id,id>]                                    # for requires_opt_in enrichers \
