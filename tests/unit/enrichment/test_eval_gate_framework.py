@@ -199,9 +199,9 @@ def test_admission_pure_no_gate_admits_gated_drops() -> None:
 
 def test_known_manifests_cover_all_nine_and_gated_ml_declare_gates() -> None:
     mans = known_enricher_manifests()
-    # 6 deterministic + topic_similarity + nli_contradiction + stance_disagreement (#1144).
+    # 6 deterministic + topic_similarity + nli_contradiction + stance_timeline (ADR-108).
     assert len(mans) == 9
-    for gated in ("nli_contradiction", "stance_disagreement"):
+    for gated in ("nli_contradiction", "stance_timeline"):
         gate = mans[gated].accuracy_gate
         assert gate is not None
         assert gate.on_missing_data == "reject"

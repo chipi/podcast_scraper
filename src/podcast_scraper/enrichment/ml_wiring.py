@@ -15,7 +15,7 @@ adds detail when an attempt was made to wire one but the config was
 malformed.
 
 The set of enricher ids this helper knows how to wire is closed today
-(``topic_similarity``, ``nli_contradiction``, ``stance_disagreement``). Future
+(``topic_similarity``, ``nli_contradiction``, ``stance_timeline``). Future
 ML enrichers add themselves to the dispatcher map below.
 """
 
@@ -27,8 +27,8 @@ from typing import Any, Callable
 from podcast_scraper.enrichment.enrichers.nli_contradiction import (
     NliContradictionEnricher,
 )
-from podcast_scraper.enrichment.enrichers.stance_disagreement import (
-    StanceDisagreementEnricher,
+from podcast_scraper.enrichment.enrichers.stance_timeline import (
+    StanceTimelineEnricher,
 )
 from podcast_scraper.enrichment.enrichers.topic_similarity import TopicSimilarityEnricher
 from podcast_scraper.enrichment.protocol import EnricherSet
@@ -66,26 +66,30 @@ def _build_nli_contradiction(scorer: Any, knobs: dict[str, Any]) -> NliContradic
     return NliContradictionEnricher(scorer=scorer, threshold=threshold)
 
 
-def _build_stance_disagreement(scorer: Any, knobs: dict[str, Any]) -> StanceDisagreementEnricher:
-    def _clamp_float(key: str, default: float) -> float:
+def _build_stance_timeline(scorer: Any, knobs: dict[str, Any]) -> StanceTimelineEnricher:
+    def _clamp_float(key: str, default: float, hi: float) -> float:
         try:
             val = float(knobs.get(key, default))
         except (TypeError, ValueError):
             return default
-        return val if 0.0 <= val <= 1.0 else default
+        return val if 0.0 <= val <= hi else default
 
-    def _clamp_int(key: str, default: int) -> int:
+    def _clamp_int(key: str, default: int, lo: int) -> int:
         try:
             val = int(knobs.get(key, default))
         except (TypeError, ValueError):
             return default
-        return val if val >= 1 else default
+        return val if val >= lo else default
 
-    return StanceDisagreementEnricher(
-        scorer=scorer,
-        min_insights=_clamp_int("min_insights", 2),
-        threshold=_clamp_float("threshold", 0.6),
-    )
+    kwargs: dict[str, Any] = {
+        "scorer": scorer,
+        "min_points": _clamp_int("min_points", 2, 2),
+        "move_threshold": _clamp_float("move_threshold", 0.4, 2.0),
+    }
+    for anchor in ("positive_anchor", "negative_anchor"):
+        if isinstance(knobs.get(anchor), str) and knobs[anchor].strip():
+            kwargs[anchor] = knobs[anchor]
+    return StanceTimelineEnricher(**kwargs)
 
 
 # Each entry: enricher_id → builder taking (provider/scorer, knobs dict)
@@ -94,7 +98,7 @@ def _build_stance_disagreement(scorer: Any, knobs: dict[str, Any]) -> StanceDisa
 _ML_ENRICHER_BUILDERS: dict[str, Callable[[Any, dict[str, Any]], Any]] = {
     "topic_similarity": _build_topic_similarity,
     "nli_contradiction": _build_nli_contradiction,
-    "stance_disagreement": _build_stance_disagreement,
+    "stance_timeline": _build_stance_timeline,
 }
 
 

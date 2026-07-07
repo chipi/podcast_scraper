@@ -86,10 +86,10 @@ def test_admit_gate_is_hermetic_via_injected_eval_root(tmp_path: Path) -> None:
     """
     from podcast_scraper.enrichment.eval.admission import write_gate_metrics
 
-    # Empty eval root → nli_contradiction + stance_disagreement gated dark (on_missing=reject).
+    # Empty eval root → nli_contradiction + stance_timeline gated dark (on_missing=reject).
     excluded = enricher_set_for_profile("cloud_thin", eval_root=tmp_path)
     assert "nli_contradiction" not in excluded.enabled_enrichers
-    assert "stance_disagreement" not in excluded.enabled_enrichers
+    assert "stance_timeline" not in excluded.enabled_enrichers
     assert "topic_similarity" in excluded.enabled_enrichers  # no gate → always admitted
 
     # Record a passing precision → the same call now admits it.
