@@ -1,0 +1,8 @@
+{
+  "enricher_id": "topic_consensus",
+  "metrics": {
+    "precision": 0.9091,
+    "f1": 0.9524
+  },
+  "run_id": "composite_prodv2_2026-07-07"
+}

@@ -43,15 +43,17 @@ def test_admission_route_reports_gate_status(client: TestClient) -> None:
     rows = {row["id"]: row for row in r.json()["enrichers"]}
     # All nine known enrichers reported.
     assert len(rows) == 9
-    # topic_consensus declares a gate and is NOT promoted (no eval yet → on_missing=reject,
-    # ADR-108) — the reason is surfaced for the UI, not a silent absence.
+    # topic_consensus declares a gate AND cleared it (precision 0.91 on prod-v2, ADR-108 composite)
+    # → promoted. The gate + the promotion are both surfaced for the UI.
     tc = rows["topic_consensus"]
     assert tc["has_gate"] is True
-    assert tc["promoted"] is False
-    assert "reject" in tc["reason"] or "gated" in tc["reason"]
-    # stance_timeline is likewise gated dark until its eval clears.
-    assert rows["stance_timeline"]["has_gate"] is True
-    assert rows["stance_timeline"]["promoted"] is False
+    assert tc["promoted"] is True
+    # stance_timeline declares a gate but has no eval yet → gated dark (on_missing=reject); the
+    # reason is surfaced, not a silent absence.
+    st = rows["stance_timeline"]
+    assert st["has_gate"] is True
+    assert st["promoted"] is False
+    assert "reject" in st["reason"] or "gated" in st["reason"]
     # Deterministic enrichers declare no gate → promoted.
     gr = rows["grounding_rate"]
     assert gr["has_gate"] is False

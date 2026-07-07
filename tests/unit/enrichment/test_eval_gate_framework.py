@@ -244,11 +244,14 @@ def test_gate_specs_from_manifests_projects_gate_only() -> None:
 
 
 @pytest.mark.parametrize("profile", ["cloud_thin", "cloud_quality", "prod_dgx_balanced"])
-def test_profile_sets_exclude_nli_via_gate(profile: str) -> None:
+def test_profile_sets_gate_is_data_driven(profile: str) -> None:
+    # topic_consensus cleared its eval (precision 0.91 on prod-v2, ADR-108 composite) → admitted;
+    # stance_timeline has no eval → gated dark. Membership is data-driven, not hand-maintained.
     enabled = enricher_set_for_profile(profile).enabled_enrichers
-    assert "topic_consensus" not in enabled  # gated out, data-driven
+    assert "topic_consensus" in enabled  # gate cleared → admitted
+    assert "stance_timeline" not in enabled  # no eval → gated out
     assert "topic_similarity" in enabled  # no gate → still shipped
-    assert len(enabled) == 7  # 6 deterministic + topic_similarity, unchanged
+    assert len(enabled) == 8  # 6 deterministic + topic_similarity + topic_consensus
 
 
 # --------------------------------------------------------------------------- #
