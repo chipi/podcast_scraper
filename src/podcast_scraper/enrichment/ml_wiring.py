@@ -39,13 +39,19 @@ logger = logging.getLogger(__name__)
 
 
 def _build_topic_similarity(provider: Any, knobs: dict[str, Any]) -> TopicSimilarityEnricher:
-    top_k_raw = knobs.get("top_k", 10)
+    # Only override the enricher's OWN tuned default (top_k=7, #1105) when the operator
+    # actually sets the knob. A hardcoded default here would silently shadow the tuning —
+    # which it did: this builder defaulted to 10, so the --with-ml path shipped top_k=10
+    # (untuned) whenever no profile set the knob (none do). The enricher default is the
+    # single source of truth.
+    if "top_k" not in knobs:
+        return TopicSimilarityEnricher(provider=provider)
     try:
-        top_k = int(top_k_raw)
+        top_k = int(knobs["top_k"])
     except (TypeError, ValueError):
-        top_k = 10
+        return TopicSimilarityEnricher(provider=provider)
     if top_k < 1 or top_k > 100:
-        top_k = 10
+        return TopicSimilarityEnricher(provider=provider)
     return TopicSimilarityEnricher(provider=provider, top_k=top_k)
 
 
