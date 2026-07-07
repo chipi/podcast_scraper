@@ -141,6 +141,48 @@ describe('EntityCardBody — Follow control', () => {
     expect(themeMembers.text()).toContain('oil')
   })
 
+  it('follows the whole storyline (thc:) via the Theme-line toggle, distinct from the topic follow', async () => {
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+    vi.spyOn(api, 'addInterest').mockResolvedValue(['thc:sanctions'])
+    vi.spyOn(api, 'getTopicCard').mockResolvedValue(
+      topicCard({
+        theme_cluster_id: 'thc:sanctions',
+        theme_cluster_label: 'sanctions',
+        theme_cluster_size: 3,
+      }),
+    )
+    const w = mountAuthed({ kind: 'topic', id: 'topic:ai' })
+    await flushPromises()
+
+    const btn = () => w.find('[data-testid="ec-follow-storyline"]')
+    expect(btn().exists()).toBe(true)
+    expect(btn().attributes('aria-pressed')).toBe('false')
+
+    await btn().trigger('click')
+    await flushPromises()
+
+    // Follows the theme-cluster token, NOT the topic id (that's the header button's job).
+    expect(api.addInterest).toHaveBeenCalledWith('thc:sanctions')
+    expect(btn().attributes('aria-pressed')).toBe('true')
+    expect(btn().text()).toContain('Following storyline')
+  })
+
+  it('starts Following storyline when the thc: token is already an interest', async () => {
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue(['thc:sanctions'])
+    vi.spyOn(api, 'getTopicCard').mockResolvedValue(
+      topicCard({
+        theme_cluster_id: 'thc:sanctions',
+        theme_cluster_label: 'sanctions',
+        theme_cluster_size: 3,
+      }),
+    )
+    const w = mountAuthed({ kind: 'topic', id: 'topic:ai' })
+    await flushPromises()
+    const btn = w.find('[data-testid="ec-follow-storyline"]')
+    expect(btn.attributes('aria-pressed')).toBe('true')
+    expect(btn.text()).toContain('Following storyline')
+  })
+
   it('hides the Follow control when signed out', async () => {
     setActivePinia(createPinia()) // fresh pinia, no user → signed out
     vi.spyOn(api, 'getPersonCard').mockResolvedValue(personCard())

@@ -116,6 +116,17 @@ const clusterSize = computed(() => topic.value?.cluster_size ?? 0)
 const themeClusterLabel = computed(() => topic.value?.theme_cluster_label ?? null)
 const themeClusterSize = computed(() => topic.value?.theme_cluster_size ?? 0)
 const themeSiblings = computed<Topic[]>(() => topic.value?.theme_sibling_topics ?? [])
+// Follow the whole storyline (the theme cluster, `thc:…`) as one interest token — distinct from
+// following just this topic (the header button). Feeds the same personalized discovery ranking.
+const themeClusterId = computed(() => topic.value?.theme_cluster_id ?? null)
+const followingStoryline = computed(() => {
+  const id = themeClusterId.value
+  return id != null && interests.has(id)
+})
+function toggleStoryline(): void {
+  const id = themeClusterId.value
+  if (id) void interests.toggle(id)
+}
 const isTopic = computed(() => current.value.kind === 'topic')
 
 const epArt = episodeArtwork
@@ -182,11 +193,27 @@ function searchLibrary(): void {
       <p v-else-if="failed || (!person && !topic)" class="text-sm text-muted">{{ t('ec.notFound') }}</p>
 
       <template v-else>
-        <!-- Cluster identity: theme (co-occurrence "Theme") + semantic ("Similar"), or standalone. -->
-        <p v-if="themeClusterLabel" class="mb-1 text-xs text-theme">
-          {{ t('kp.theme', { cluster: themeClusterLabel })
-          }}<span v-if="themeClusterSize"> · {{ t('ec.clusterSize', themeClusterSize, { named: { count: themeClusterSize } }) }}</span>
-        </p>
+        <!-- Cluster identity: theme (co-occurrence "Theme") + semantic ("Similar"), or standalone.
+             The Theme line carries a "Follow storyline" toggle (follows the whole thc: cluster). -->
+        <div v-if="themeClusterLabel" class="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+          <p class="text-xs text-theme">
+            {{ t('kp.theme', { cluster: themeClusterLabel })
+            }}<span v-if="themeClusterSize"> · {{ t('ec.clusterSize', themeClusterSize, { named: { count: themeClusterSize } }) }}</span>
+          </p>
+          <button
+            v-if="auth.isAuthenticated && themeClusterId"
+            type="button"
+            data-testid="ec-follow-storyline"
+            class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.7rem] font-bold transition"
+            :class="followingStoryline ? 'bg-accent text-accent-foreground' : 'bg-overlay text-canvas-foreground hover:bg-elevated'"
+            :aria-pressed="followingStoryline"
+            :title="t('ec.followStorylineHint')"
+            @click="toggleStoryline"
+          >
+            <span aria-hidden="true">{{ followingStoryline ? '✓' : '+' }}</span>
+            {{ followingStoryline ? t('ec.followingStoryline') : t('ec.followStoryline') }}
+          </button>
+        </div>
         <p v-if="themeLabel" class="mb-3 text-xs text-topic">
           {{ t('kp.similar', { cluster: themeLabel })
           }}<span v-if="clusterSize"> · {{ t('ec.clusterSize', clusterSize, { named: { count: clusterSize } }) }}</span>
