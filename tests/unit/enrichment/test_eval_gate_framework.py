@@ -222,9 +222,12 @@ def test_load_latest_eval_metrics_absent_and_present(tmp_path: Path) -> None:
     assert got == {"topic_similarity": {"precision_at_k": 0.8}}
 
 
-def test_admit_enrichers_gates_nli_by_default() -> None:
-    # With no data/eval gate_metrics authored, nli is rejected (on_missing=reject).
-    res = admit_enrichers(["grounding_rate", "topic_similarity", "nli_contradiction"])
+def test_admit_enrichers_gates_nli_by_default(tmp_path: Path) -> None:
+    # Hermetic: no gate_metrics under this eval_root → nli rejected via on_missing=reject.
+    # (Uses an injected root, not the real data/eval, which now carries a measured 0%.)
+    res = admit_enrichers(
+        ["grounding_rate", "topic_similarity", "nli_contradiction"], eval_root=tmp_path
+    )
     assert "nli_contradiction" not in res.admitted
     assert "grounding_rate" in res.admitted and "topic_similarity" in res.admitted
 

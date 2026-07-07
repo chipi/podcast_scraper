@@ -47,7 +47,9 @@ def test_airgapped_adds_topic_similarity() -> None:
 def test_cloud_profiles_get_full_stack(profile: str) -> None:
     s = enricher_set_for_profile(profile)
     assert "topic_similarity" in s.enabled_enrichers
-    # disabled pending stance-level redesign — 0% precision on prod-v2 (#1106)
+    # gated dark by the data-driven accuracy_gate (0% precision on prod-v2, #1106) —
+    # NOT a hardcoded disable; auto-promotes if a passing eval is ever recorded
+
     assert "nli_contradiction" not in s.enabled_enrichers
     assert set(ALL_DETERMINISTIC_ENRICHER_IDS) <= set(s.enabled_enrichers)
 
@@ -69,8 +71,31 @@ def test_dgx_dev_local_profiles_get_full_stack(profile: str) -> None:
     'prod' is intentionally NOT here — there is no config/profiles/prod.yaml;
     the production profiles are prod_dgx_*."""
     s = enricher_set_for_profile(profile)
-    # disabled pending stance-level redesign — 0% precision on prod-v2 (#1106)
+    # gated dark by the data-driven accuracy_gate (0% precision on prod-v2, #1106) —
+    # NOT a hardcoded disable; auto-promotes if a passing eval is ever recorded
+
     assert "nli_contradiction" not in s.enabled_enrichers
+
+
+def test_admit_gate_is_hermetic_via_injected_eval_root(tmp_path: Path) -> None:
+    """The gate decision is deterministic under an injected eval_root, not coupled to
+    whatever ``gate_metrics.json`` happens to be committed under ``data/eval`` (review H1).
+
+    Also pins the auto-promotion contract: a recorded passing precision admits a gated
+    enricher with no code edit.
+    """
+    from podcast_scraper.enrichment.eval.admission import write_gate_metrics
+
+    # Empty eval root → nli_contradiction + stance_disagreement gated dark (on_missing=reject).
+    excluded = enricher_set_for_profile("cloud_thin", eval_root=tmp_path)
+    assert "nli_contradiction" not in excluded.enabled_enrichers
+    assert "stance_disagreement" not in excluded.enabled_enrichers
+    assert "topic_similarity" in excluded.enabled_enrichers  # no gate → always admitted
+
+    # Record a passing precision → the same call now admits it.
+    write_gate_metrics({"nli_contradiction": {"precision": 0.9}}, eval_root=tmp_path)
+    promoted = enricher_set_for_profile("cloud_thin", eval_root=tmp_path)
+    assert "nli_contradiction" in promoted.enabled_enrichers
 
 
 def test_phantom_prod_profile_is_unknown() -> None:

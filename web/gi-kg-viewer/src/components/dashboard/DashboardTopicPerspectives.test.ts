@@ -42,4 +42,13 @@ describe('DashboardTopicPerspectives (#1146)', () => {
     await flushPromises()
     expect(w.text()).toContain('No multi-perspective topics')
   })
+
+  it('shows a distinct error state on fetch failure (not "empty") — #1146 review M2', async () => {
+    fetchMock.mockRejectedValue(new Error('503'))
+    useShellStore().corpusPath = '/corpus'
+    const w = mount(DashboardTopicPerspectives)
+    await flushPromises()
+    expect(w.text()).toContain("Couldn't load perspectives")
+    expect(w.text()).not.toContain('No multi-perspective topics')
+  })
 })

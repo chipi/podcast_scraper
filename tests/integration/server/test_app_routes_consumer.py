@@ -599,6 +599,25 @@ def test_topic_card_scope_mine_filters_to_heard_corpus(tmp_path: Path) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# topic perspectives (#1146) + corpus scope (#1149)
+# --------------------------------------------------------------------------- #
+
+
+def test_topic_perspectives_scope_mine_requires_auth(tmp_path: Path) -> None:
+    """The #1149 scope=mine lens on perspectives is auth-gated (was untested — R3-B1).
+
+    Guards the ``_user_set`` 401 on ``topic_perspectives_route``; every sibling
+    scope=mine route has this test, perspectives did not. The scope *filtering* itself
+    is code-verified leak-safe (server-side additive heard-set filter) and exercised by
+    the Playwright e2e; a route-level filter test would need a perspectives-shaped GI
+    fixture the shared ``_corpus`` helper does not build.
+    """
+    _corpus(tmp_path)
+    resp = _client(tmp_path).get("/api/app/topics/topic:ai/perspectives", params={"scope": "mine"})
+    assert resp.status_code == 401
+
+
+# --------------------------------------------------------------------------- #
 # resurfacing + derived interests (#1123)
 # --------------------------------------------------------------------------- #
 

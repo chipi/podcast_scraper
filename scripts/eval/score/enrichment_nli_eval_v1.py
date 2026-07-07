@@ -32,10 +32,17 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from enrichment_nli_harvest_v1 import (  # noqa: E402 — sibling-module import
-    _all_cross_person_pairs,
-    _load_flagged,
-)
+try:
+    from enrichment_nli_harvest_v1 import (  # noqa: E402 — sibling-module import
+        _all_cross_person_pairs,
+        _load_flagged,
+    )
+except ModuleNotFoundError as exc:  # pragma: no cover — only if the sibling is moved/renamed
+    raise SystemExit(
+        "enrichment_nli_eval_v1 imports helpers from its sibling "
+        "'enrichment_nli_harvest_v1.py' (same dir, scripts/eval/score/) via sys.path; "
+        f"it was not importable — did it move or get renamed? Original error: {exc}"
+    ) from exc
 
 
 def _is_contra(row: dict[str, Any], lens: str) -> bool:

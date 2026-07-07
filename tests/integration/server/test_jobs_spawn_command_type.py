@@ -10,6 +10,7 @@ ingestion across the trigger surfaces.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 
@@ -19,7 +20,12 @@ from fastapi.testclient import TestClient
 pytest.importorskip("fastapi")
 
 from podcast_scraper.server.app import create_app
-from podcast_scraper.server.jobs import argv_from_record, argv_summary, promote_queued_if_slot
+from podcast_scraper.server.jobs import (
+    argv_from_record,
+    argv_summary,
+    drain_queue_async,
+    promote_queued_if_slot,
+)
 from podcast_scraper.server.pipeline_job_registry import with_jobs_locked_mutate
 
 pytestmark = [pytest.mark.integration]
@@ -131,3 +137,75 @@ def test_argv_from_record_reads_the_stored_command() -> None:
     assert argv_from_record({"argv_summary": "{}"}) is None  # object, not a list
     assert argv_from_record({"argv_summary": "[]"}) is None  # empty list
     assert argv_from_record({"argv_summary": json.dumps([1, 2])}) is None  # non-str items
+
+
+def _job(**over: object) -> dict[str, object]:
+    base: dict[str, object] = {
+        "job_id": "",
+        "command_type": "full",
+        "status": "queued",
+        "created_at": "2026-04-19T12:00:00Z",
+        "started_at": None,
+        "ended_at": None,
+        "pid": None,
+        "argv_summary": "[]",
+        "exit_code": None,
+        "log_relpath": "",
+        "error_reason": None,
+        "cancel_requested": False,
+    }
+    base.update(over)
+    base["log_relpath"] = f".viewer/jobs/{base['job_id']}.log"
+    return base
+
+
+def test_queued_enrichment_job_spawns_enrich_when_promoted(corpus: Path) -> None:
+    """End-to-end promote path: an enrichment job queued BEHIND a running job spawns the
+    ENRICH CLI (not the pipeline) once the slot frees (#1069, R1-L1).
+
+    The units were covered (initial enrichment spawn, promote-preserves-argv) but not the
+    full submit→queue→drain→spawn scenario that was the actual regression. Drives the real
+    ``drain_queue_async`` (promote_queued_if_slot → start_job_if_running_record) with a
+    captured subprocess factory, at the default concurrency cap of 1.
+    """
+    captured: list[list[str]] = []
+    app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    app.state.jobs_subprocess_factory = _capturing_factory(captured)
+
+    running_id = "00000000-0000-4000-8000-00000000aaaa"
+    queued_id = "00000000-0000-4000-8000-00000000bbbb"
+    enrich_argv = ["py", "-m", "podcast_scraper.cli", "enrich", "--output-dir", str(corpus)]
+
+    def seed(jobs: list) -> None:
+        jobs.append(
+            _job(job_id=running_id, status="running", pid=42, started_at="2026-04-19T12:00:01Z")
+        )
+        jobs.append(
+            _job(
+                job_id=queued_id,
+                command_type="corpus_enrichment",
+                argv_summary=argv_summary(enrich_argv),
+            )
+        )
+
+    with_jobs_locked_mutate(corpus, seed)
+
+    # Slot full (cap=1, one running) → drain promotes/spawns nothing.
+    asyncio.run(drain_queue_async(app, corpus))
+    assert captured == [], "queued enrichment job spawned while the slot was still full"
+
+    # The running job finishes → the slot frees.
+    def finish(jobs: list) -> None:
+        for j in jobs:
+            if j["job_id"] == running_id:
+                j["status"] = "succeeded"
+                j["ended_at"] = "2026-04-19T12:05:00Z"
+                j["exit_code"] = 0
+
+    with_jobs_locked_mutate(corpus, finish)
+
+    # Drain again → the queued enrichment job is promoted and spawns its OWN stored argv.
+    asyncio.run(drain_queue_async(app, corpus))
+    assert captured, "promotion never spawned the queued enrichment job"
+    argv = captured[-1]
+    assert "podcast_scraper.cli" in argv and "enrich" in argv, argv

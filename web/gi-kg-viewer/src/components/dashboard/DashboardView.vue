@@ -399,7 +399,7 @@ function openLibraryFailures(): void {
         </h3>
         <div class="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div class="xl:col-span-2"><DashboardTrendingTopics /></div>
-          <div><DashboardTopicPerspectives /></div>
+          <div class="xl:col-span-2"><DashboardTopicPerspectives /></div>
           <div class="xl:col-span-2">
             <TopicLandscape @go-graph="(id, fb) => emit('go-graph', id, fb)" />
           </div>

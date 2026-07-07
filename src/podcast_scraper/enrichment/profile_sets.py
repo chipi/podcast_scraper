@@ -11,10 +11,14 @@ Source of truth ([[feedback_profiles_are_source_of_truth]]):
 - ``test_default`` runs no enrichers (CI isolation).
 - ``airgapped_thin`` runs only the 6 deterministic enrichers.
 - ``airgapped`` adds ``topic_similarity`` (local CPU embedding).
-- ``cloud_thin`` adds ``nli_contradiction`` on top (CPU NLI, CI-safe
-  with the FixedNliScorer fixture; the real DeBERTa loads only when
-  the operator runs locally).
-- ``cloud_balanced`` / ``cloud_quality`` get the full set.
+- ``cloud_thin`` adds the ML-tier CANDIDATES (``nli_contradiction`` +
+  ``stance_disagreement``) on top — but membership is data-driven, NOT a
+  hard list: the RFC-088 accuracy gate (``eval/admission``) filters candidates
+  by their measured precision. Both are currently **gated dark** (0% precision
+  — #1106 / #1144) so neither actually runs; each auto-promotes if a future
+  eval records precision ≥ 0.5. CI-safe regardless (FixedNliScorer fixture;
+  real DeBERTa loads only when the operator runs locally).
+- ``cloud_balanced`` / ``cloud_quality`` get the full candidate set (same gate).
 - ``dev`` / ``prod`` / ``local`` / DGX variants mirror their parent
   level — they don't carry their own enricher policies yet.
 
@@ -120,7 +124,7 @@ def _cloud_ml_tier_set() -> list[str]:
     ]
 
 
-def _admit(candidate_ids: list[str]) -> list[str]:
+def _admit(candidate_ids: list[str], eval_root: Path | None = None) -> list[str]:
     """Filter candidate enricher ids through the data-driven accuracy gate.
 
     The single chokepoint where ``data/eval`` accuracy + each enricher's
@@ -129,8 +133,12 @@ def _admit(candidate_ids: list[str]) -> list[str]:
     enricher (e.g. nli_contradiction) is dropped until a passing eval is
     recorded — so the shipping set is data-driven, not a hand-maintained list.
     Preserves candidate order.
+
+    ``eval_root`` overrides the on-disk ``data/eval`` root (defaults to the repo
+    tree). Tests inject a ``tmp_path`` so the gate decision is hermetic instead of
+    silently coupled to whatever ``gate_metrics.json`` happens to be committed.
     """
-    return admit_enrichers(candidate_ids).admitted
+    return admit_enrichers(candidate_ids, eval_root=eval_root).admitted
 
 
 # When the operator opts in to nli_contradiction this is the flag that
@@ -140,7 +148,7 @@ def _admit(candidate_ids: list[str]) -> list[str]:
 _DEFAULT_OPT_IN_FLAGS: dict[str, bool] = {}
 
 
-def enricher_set_for_profile(profile: str | None) -> EnricherSet:
+def enricher_set_for_profile(profile: str | None, *, eval_root: Path | None = None) -> EnricherSet:
     """Return the canonical EnricherSet for *profile*.
 
     Unknown / None profiles return the empty no-enricher set — safe
@@ -158,20 +166,20 @@ def enricher_set_for_profile(profile: str | None) -> EnricherSet:
 
     if name == "airgapped_thin":
         return EnricherSet(
-            enabled_enrichers=_admit(_deterministic_only()),
+            enabled_enrichers=_admit(_deterministic_only(), eval_root=eval_root),
             per_enricher_config=per_enricher_config,
         )
 
     if name in ("airgapped",):
         return EnricherSet(
-            enabled_enrichers=_admit(_with_topic_similarity()),
+            enabled_enrichers=_admit(_with_topic_similarity(), eval_root=eval_root),
             per_enricher_config=per_enricher_config,
             opt_in_flags=dict(_DEFAULT_OPT_IN_FLAGS),
         )
 
     if name in ("cloud_thin", "cloud_balanced", "cloud_quality"):
         return EnricherSet(
-            enabled_enrichers=_admit(_cloud_ml_tier_set()),
+            enabled_enrichers=_admit(_cloud_ml_tier_set(), eval_root=eval_root),
             per_enricher_config=per_enricher_config,
             opt_in_flags=dict(_DEFAULT_OPT_IN_FLAGS),
         )
@@ -193,7 +201,7 @@ def enricher_set_for_profile(profile: str | None) -> EnricherSet:
         )
     ):
         return EnricherSet(
-            enabled_enrichers=_admit(_cloud_ml_tier_set()),
+            enabled_enrichers=_admit(_cloud_ml_tier_set(), eval_root=eval_root),
             per_enricher_config=per_enricher_config,
             opt_in_flags=dict(_DEFAULT_OPT_IN_FLAGS),
         )

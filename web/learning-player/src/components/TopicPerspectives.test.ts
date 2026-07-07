@@ -89,4 +89,24 @@ describe('TopicPerspectives', () => {
     await flushPromises()
     expect(w.find('[data-testid="topic-perspectives"]').exists()).toBe(false)
   })
+
+  it('threads the corpus scope through to the API (#1149)', async () => {
+    const spy = vi.spyOn(api, 'getTopicPerspectives').mockResolvedValue(RESP)
+    mount(TopicPerspectives, { props: { id: 'topic:ai', scope: 'mine' }, global: { plugins: [i18n] } })
+    await flushPromises()
+    expect(spy).toHaveBeenCalledWith('topic:ai', 'mine')
+  })
+
+  it('refetches when the scope prop changes (#1149)', async () => {
+    const spy = vi.spyOn(api, 'getTopicPerspectives').mockResolvedValue(RESP)
+    const w = mount(TopicPerspectives, {
+      props: { id: 'topic:ai', scope: 'all' },
+      global: { plugins: [i18n] },
+    })
+    await flushPromises()
+    expect(spy).toHaveBeenLastCalledWith('topic:ai', 'all')
+    await w.setProps({ scope: 'mine' })
+    await flushPromises()
+    expect(spy).toHaveBeenLastCalledWith('topic:ai', 'mine')
+  })
 })
