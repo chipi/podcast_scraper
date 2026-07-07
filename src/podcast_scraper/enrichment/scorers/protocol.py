@@ -58,6 +58,34 @@ class EmbeddingProvider(Protocol):
         ...
 
 
+@dataclass(frozen=True)
+class ConsensusSignal:
+    """Composite cross-Person *agreement* signal for one Insight pair (ADR-108).
+
+    ``cosine`` — embedding cosine similarity of the two insight texts (the
+    *shared-question* gate: are they about the same proposition). ``contradiction``
+    — the max NLI-contradiction probability over both directions (the *direction*
+    gate: do they disagree). A pair corroborates when ``cosine`` is high AND
+    ``contradiction`` is low. Real-corpus eval showed embedding proximity — not the
+    symmetric NLI *entailment* the enricher originally used — is the signal that
+    actually recalls genuine agreement; contradiction filters the
+    similar-but-opposite pairs. Still no LLM (MiniLM + DeBERTa, both CPU-local).
+    """
+
+    cosine: float
+    contradiction: float
+    cost_usd: float = 0.0
+
+
+@runtime_checkable
+class ConsensusScorer(Protocol):
+    """Async composite consensus scorer — local MiniLM+DeBERTa or a scripted mock."""
+
+    async def score(self, text_a: str, text_b: str) -> ConsensusSignal:
+        """Return the composite (cosine, contradiction) agreement signal for the pair."""
+        ...
+
+
 @runtime_checkable
 class LLMScorer(Protocol):
     """Async LLM scorer for future LLM-tier query enrichers.
