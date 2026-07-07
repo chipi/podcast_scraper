@@ -1,0 +1,13 @@
+# Edge Cases — Episode e05
+## Stage Directions
+Host: Maya
+
+[00:00]
+Maya: This is an edge-case fixture used for parser and processor robustness tests.
+
+*Theme music plays.*
+Maya: Welcome back.
+*Short break.*
+Maya: We are now back.
+
+Maya: End of edge-case episode e05.
