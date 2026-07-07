@@ -93,7 +93,7 @@ const personId = computed(() => props.subjectIdOverride?.trim() || subject.perso
 type PersonTab = 'profile' | 'position_tracker'
 const activeTab = ref<PersonTab>('profile')
 
-// Person enrichment signals (grounding rate / co-appearances / contradictions)
+// Person enrichment signals (grounding rate / co-appearances / consensus / stance shifts)
 // and the mentions-by-month timeline live in the Signals tab
 // (NodeEnrichmentSection + the rail's signalsTimeline) — not duplicated here.
 

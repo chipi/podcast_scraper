@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * RFC-088 chunk-9 follow-up: graph-view companion panel listing
- * enrichment-layer edges (topic_similarity + nli_contradiction).
+ * enrichment-layer edges (topic_similarity + topic_consensus).
  *
  * Cytoscape-integrating the new edges would require deep changes to
  * graph construction, dedup, and focus state. This panel keeps that
@@ -11,8 +11,8 @@
  *
  * Two sections:
  *   - Topic similarity (top-K per topic, from topic_similarity.json)
- *   - Contradictions (per-Topic cross-Person Insight pairs, from
- *     nli_contradiction.json)
+ *   - Consensus (per-Topic cross-Person corroborating Insight pairs, from
+ *     topic_consensus.json — the reimagined NLI enricher, ADR-108)
  *
  * Self-loading via the chunk-8 cache composable so re-mounting is
  * free.
@@ -42,7 +42,7 @@ interface SimData {
   topics: SimTopic[]
 }
 
-interface Contradiction {
+interface Consensus {
   topic_id: string
   person_a_id: string
   person_b_id: string
@@ -50,15 +50,15 @@ interface Contradiction {
   person_b_name?: string
   insight_a_id: string
   insight_b_id: string
-  contradiction_score: number
+  consensus_score: number
   model_id?: string
 }
-interface ContraData {
-  contradictions: Contradiction[]
+interface ConsensusData {
+  consensus: Consensus[]
 }
 
 const similarity = ref<SimData | null>(null)
-const contradictions = ref<ContraData | null>(null)
+const consensus = ref<ConsensusData | null>(null)
 const loaded = ref(false)
 const error = ref<string | null>(null)
 
@@ -72,13 +72,13 @@ const focusedTopicId = computed(() => {
 })
 const focusedPersonId = computed(() => {
   // Persons now focus as graph nodes too; derive the CIL person id from the cy id
-  // so the contradiction list still narrows to the focused person.
+  // so the consensus list still narrows to the focused person.
   const gn = subject.graphNodeCyId?.trim()
   return gn ? stripLayerPrefixesForCil(gn) : ''
 })
 
 const SIM_TOP_N = 5
-const CONTRADICTIONS_TOP_N = 10
+const CONSENSUS_TOP_N = 10
 
 /**
  * Sim edges for the panel: when a topic is focused, narrow to that
@@ -101,11 +101,11 @@ const visibleSimRows = computed<{ a: SimTopic; n: SimNeighbour }[]>(() => {
 })
 
 /**
- * Contradictions for the panel: when a person is focused, narrow to
- * contradictions involving them; otherwise show the strongest globally.
+ * Consensus for the panel: when a person is focused, narrow to
+ * corroborations involving them; otherwise show the strongest globally.
  */
-const visibleContradictions = computed<Contradiction[]>(() => {
-  const rows = contradictions.value?.contradictions ?? []
+const visibleConsensus = computed<Consensus[]>(() => {
+  const rows = consensus.value?.consensus ?? []
   const focused = focusedPersonId.value
   let filtered = rows
   if (focused) {
@@ -115,12 +115,12 @@ const visibleContradictions = computed<Contradiction[]>(() => {
   }
   return filtered
     .slice()
-    .sort((x, y) => y.contradiction_score - x.contradiction_score)
-    .slice(0, CONTRADICTIONS_TOP_N)
+    .sort((x, y) => y.consensus_score - x.consensus_score)
+    .slice(0, CONSENSUS_TOP_N)
 })
 
 const hasAny = computed(
-  () => visibleSimRows.value.length > 0 || visibleContradictions.value.length > 0,
+  () => visibleSimRows.value.length > 0 || visibleConsensus.value.length > 0,
 )
 
 // Collapsed by default so the panel doesn't bury the graph canvas; a one-line
@@ -129,8 +129,8 @@ const expanded = ref(false)
 const summary = computed(() => {
   const parts: string[] = []
   if (visibleSimRows.value.length) parts.push(`${visibleSimRows.value.length} similar`)
-  const c = visibleContradictions.value.length
-  if (c) parts.push(`${c} contradiction${c === 1 ? '' : 's'}`)
+  const c = visibleConsensus.value.length
+  if (c) parts.push(`${c} consensus`)
   return parts.join(' · ')
 })
 
@@ -138,7 +138,7 @@ async function load(): Promise<void> {
   const root = props.corpusPath?.trim()
   if (!root) {
     similarity.value = null
-    contradictions.value = null
+    consensus.value = null
     loaded.value = true
     return
   }
@@ -146,10 +146,10 @@ async function load(): Promise<void> {
   try {
     const [sim, con] = await Promise.all([
       fetchCachedCorpusEnvelope<SimData>(root, 'topic_similarity').catch(() => null),
-      fetchCachedCorpusEnvelope<ContraData>(root, 'nli_contradiction').catch(() => null),
+      fetchCachedCorpusEnvelope<ConsensusData>(root, 'topic_consensus').catch(() => null),
     ])
     similarity.value = sim?.data ?? null
-    contradictions.value = con?.data ?? null
+    consensus.value = con?.data ?? null
   } catch (exc) {
     error.value = exc instanceof Error ? exc.message : String(exc)
   } finally {
@@ -241,26 +241,26 @@ watch(() => props.corpusPath, () => void load())
       </ul>
     </div>
 
-    <!-- Contradiction edges -->
-    <div v-if="visibleContradictions.length" data-testid="enrichment-edges-contradictions">
+    <!-- Consensus edges -->
+    <div v-if="visibleConsensus.length" data-testid="enrichment-edges-consensus">
       <p class="mb-1 text-[10px] text-muted">
-        Contradictions
+        Consensus
         <span v-if="focusedPersonId">· involving focused person</span>
         <span v-else>· strongest corpus-wide</span>
       </p>
       <ul class="flex flex-col gap-1">
         <li
-          v-for="row in visibleContradictions"
+          v-for="row in visibleConsensus"
           :key="`${row.insight_a_id}::${row.insight_b_id}`"
-          class="flex items-center gap-2 rounded border border-rose-700/50 bg-rose-900/20 px-2 py-0.5"
-          :data-testid="`enrichment-edges-contra-${row.insight_a_id}--${row.insight_b_id}`"
+          class="flex items-center gap-2 rounded border border-emerald-700/50 bg-emerald-900/20 px-2 py-0.5"
+          :data-testid="`enrichment-edges-consensus-${row.insight_a_id}--${row.insight_b_id}`"
         >
           <button
             type="button"
             class="font-mono hover:underline"
             @click="subject.focusPerson(row.person_a_id)"
           >{{ row.person_a_name || row.person_a_id }}</button>
-          <span class="text-rose-300">⚡</span>
+          <span class="text-emerald-300">🤝</span>
           <button
             type="button"
             class="font-mono hover:underline"
@@ -273,9 +273,9 @@ watch(() => props.corpusPath, () => void load())
             @click="subject.focusTopic(row.topic_id)"
           >{{ row.topic_id }}</button>
           <span
-            class="ml-auto rounded bg-rose-800/30 px-1 text-[9px] text-rose-200"
-            :title="`Contradiction score ${row.contradiction_score.toFixed(4)} · ${row.model_id ?? ''}`"
-          >{{ row.contradiction_score.toFixed(2) }}</span>
+            class="ml-auto rounded bg-emerald-800/30 px-1 text-[9px] text-emerald-200"
+            :title="`Consensus score ${row.consensus_score.toFixed(4)} · ${row.model_id ?? ''}`"
+          >{{ row.consensus_score.toFixed(2) }}</span>
         </li>
       </ul>
     </div>

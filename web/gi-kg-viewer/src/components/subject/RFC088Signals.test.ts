@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest'
  * Both TopicEntityView and PersonLandingView now delegate their enrichment
  * signals to the shared ``NodeEnrichmentSection`` in the node view's Signals
  * tab (the signal rendering itself — velocity, co-occurrence, grounding,
- * contradictions, focus-pivot clicks — is covered by NodeEnrichmentSection.test.ts).
+ * consensus, focus-pivot clicks — is covered by NodeEnrichmentSection.test.ts).
  * Neither view inlines its own enrichment section any more.
  *
  * Static-source guards. We check:
@@ -51,12 +51,12 @@ describe('PersonLandingView.vue — enrichment signals moved to the Signals tab'
     expect(src).not.toMatch(/v-html\s*=/)
   })
 
-  it('no longer inlines the enrichment-signals section (grounding / co-guests / contradictions)', () => {
+  it('no longer inlines the enrichment-signals section (grounding / co-guests / consensus)', () => {
     for (const hook of [
       'person-landing-enrichment-signals',
       'person-landing-grounding-rate',
       'person-landing-coguests',
-      'person-landing-contradictions',
+      'person-landing-consensus',
     ]) {
       expect(src).not.toContain(`data-testid="${hook}"`)
     }

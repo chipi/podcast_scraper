@@ -67,11 +67,11 @@ describe('EnrichmentEdgesPanel — mount + behaviour', () => {
     },
   }
 
-  const CONTRA = {
+  const CONSENSUS = {
     schema_version: '1.0',
-    enricher_id: 'nli_contradiction',
+    enricher_id: 'topic_consensus',
     data: {
-      contradictions: [
+      consensus: [
         {
           topic_id: 'topic:ai',
           person_a_id: 'person:alice',
@@ -80,7 +80,7 @@ describe('EnrichmentEdgesPanel — mount + behaviour', () => {
           person_b_name: 'Bob',
           insight_a_id: 'i1',
           insight_b_id: 'i2',
-          contradiction_score: 0.92,
+          consensus_score: 0.92,
         },
         {
           topic_id: 'topic:climate',
@@ -88,7 +88,7 @@ describe('EnrichmentEdgesPanel — mount + behaviour', () => {
           person_b_id: 'person:dave',
           insight_a_id: 'i3',
           insight_b_id: 'i4',
-          contradiction_score: 0.7,
+          consensus_score: 0.7,
         },
       ],
     },
@@ -101,25 +101,25 @@ describe('EnrichmentEdgesPanel — mount + behaviour', () => {
     expect(w.find('[data-testid="enrichment-edges-panel"]').exists()).toBe(false)
   })
 
-  it('renders similarity + contradiction rows when both envelopes present', async () => {
+  it('renders similarity + consensus rows when both envelopes present', async () => {
     stubFetch({
       '/api/corpus/enrichments/topic_similarity': SIM,
-      '/api/corpus/enrichments/nli_contradiction': CONTRA,
+      '/api/corpus/enrichments/topic_consensus': CONSENSUS,
     })
     const w = mount(EnrichmentEdgesPanel, { props: { corpusPath: '/c' } })
     await flushPromises()
     expect(w.find('[data-testid="enrichment-edges-panel"]').exists()).toBe(true)
     expect(w.find('[data-testid="enrichment-edges-similarity"]').exists()).toBe(true)
-    expect(w.find('[data-testid="enrichment-edges-contradictions"]').exists()).toBe(true)
-    // 2 similarity edges (top 5 across corpus) + 1 contradiction visible.
+    expect(w.find('[data-testid="enrichment-edges-consensus"]').exists()).toBe(true)
+    // 2 similarity edges (top 5 across corpus) + 1 consensus visible.
     expect(w.findAll('[data-testid^="enrichment-edges-sim-"]').length).toBeGreaterThan(0)
-    expect(w.findAll('[data-testid^="enrichment-edges-contra-"]').length).toBe(2)
+    expect(w.findAll('[data-testid^="enrichment-edges-consensus-"]').length).toBe(2)
   })
 
   it('narrows similarity to the focused topic', async () => {
     stubFetch({
       '/api/corpus/enrichments/topic_similarity': SIM,
-      '/api/corpus/enrichments/nli_contradiction': CONTRA,
+      '/api/corpus/enrichments/topic_consensus': CONSENSUS,
     })
     const subject = useSubjectStore()
     subject.focusTopic('topic:ai')
@@ -132,24 +132,24 @@ describe('EnrichmentEdgesPanel — mount + behaviour', () => {
     expect(w.find('[data-testid="enrichment-edges-sim-topic:climate--topic:policy"]').exists()).toBe(false)
   })
 
-  it('narrows contradictions to the focused person', async () => {
+  it('narrows consensus to the focused person', async () => {
     stubFetch({
       '/api/corpus/enrichments/topic_similarity': SIM,
-      '/api/corpus/enrichments/nli_contradiction': CONTRA,
+      '/api/corpus/enrichments/topic_consensus': CONSENSUS,
     })
     const subject = useSubjectStore()
     subject.focusPerson('person:alice')
     const w = mount(EnrichmentEdgesPanel, { props: { corpusPath: '/c' } })
     await flushPromises()
-    expect(w.find('[data-testid="enrichment-edges-contra-i1--i2"]').exists()).toBe(true)
-    // The carol/dave contradiction is filtered out.
-    expect(w.find('[data-testid="enrichment-edges-contra-i3--i4"]').exists()).toBe(false)
+    expect(w.find('[data-testid="enrichment-edges-consensus-i1--i2"]').exists()).toBe(true)
+    // The carol/dave consensus is filtered out.
+    expect(w.find('[data-testid="enrichment-edges-consensus-i3--i4"]').exists()).toBe(false)
   })
 
   it('clicking a similarity row pivots subject focus to the partner topic', async () => {
     stubFetch({
       '/api/corpus/enrichments/topic_similarity': SIM,
-      '/api/corpus/enrichments/nli_contradiction': CONTRA,
+      '/api/corpus/enrichments/topic_consensus': CONSENSUS,
     })
     const subject = useSubjectStore()
     subject.focusTopic('topic:ai')
@@ -166,15 +166,15 @@ describe('EnrichmentEdgesPanel — mount + behaviour', () => {
     expect(subject.graphNodeCyId).toBe('topic:ml')
   })
 
-  it('clicking a contradiction row pivots focus to a person', async () => {
+  it('clicking a consensus row pivots focus to a person', async () => {
     stubFetch({
       '/api/corpus/enrichments/topic_similarity': SIM,
-      '/api/corpus/enrichments/nli_contradiction': CONTRA,
+      '/api/corpus/enrichments/topic_consensus': CONSENSUS,
     })
     const subject = useSubjectStore()
     const w = mount(EnrichmentEdgesPanel, { props: { corpusPath: '/c' } })
     await flushPromises()
-    const row = w.get('[data-testid="enrichment-edges-contra-i1--i2"]')
+    const row = w.get('[data-testid="enrichment-edges-consensus-i1--i2"]')
     const buttons = row.findAll('button')
     // Buttons in order: person_a, person_b, topic — click person_b.
     await buttons[1].trigger('click')
