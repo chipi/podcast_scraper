@@ -741,7 +741,10 @@ def _stance_deviation(stances: list[float], move_threshold: float) -> dict[str, 
             "shifted": False,
         }
     span = round(max(stances) - min(stances), 4)
-    signs = [1 if s > 0 else -1 if s < 0 else 0 for s in stances]
+    # Deadzone (move_threshold / 2): near-zero stances are neutral, so noise around 0 can't
+    # register as a pro↔anti reversal. Mirrors the enricher's _deviation (ADR-108 eval fix).
+    deadzone = move_threshold / 2.0
+    signs = [1 if s >= deadzone else -1 if s <= -deadzone else 0 for s in stances]
     nonzero = [s for s in signs if s != 0]
     sign_flips = sum(1 for a, b in zip(nonzero, nonzero[1:]) if a != b)
     n = len(stances)

@@ -128,6 +128,26 @@ def test_flat_stance_is_not_shifted(tmp_path: Path) -> None:
     assert tl["deviation"]["shifted"] is False and tl["deviation"]["sign_flips"] == 0
 
 
+def test_near_zero_noise_does_not_count_as_a_shift(tmp_path: Path) -> None:
+    """Deadzone regression (ADR-108 real-corpus eval): near-zero stance jitter that straddles
+    zero (``+0.01`` / ``-0.01`` — the NLI entailment difference for factual insights is ~0) must
+    NOT register as a pro↔anti reversal. The naive straddle-zero rule flagged 11 of 12
+    essentially-flat prod-v2 trajectories as ``shifted``."""
+    bundles = [
+        _bundle(tmp_path / "e1", "e1", _ep_gi("2024-01-01", "noise a")),
+        _bundle(tmp_path / "e2", "e2", _ep_gi("2025-01-01", "noise b")),
+        _bundle(tmp_path / "e3", "e3", _ep_gi("2026-01-01", "noise c")),
+    ]
+    # stance = entail(H+) − entail(H−): +0.01, −0.01, +0.01 — sign jitters around 0.
+    scorer = _scorer({"noise a": (0.51, 0.50), "noise b": (0.50, 0.51), "noise c": (0.51, 0.50)})
+    tl = _run(StanceTimelineEnricher(scorer), bundles)["timelines"][0]
+    stances = [p["stance"] for p in tl["points"]]
+    assert stances == [0.01, -0.01, 0.01]
+    dev = tl["deviation"]
+    assert dev["sign_flips"] == 0  # deadzone neutralises the near-zero jitter
+    assert dev["shifted"] is False
+
+
 def test_min_points_filters_single_episode(tmp_path: Path) -> None:
     # One episode → fewer than min_points distinct dates → no timeline.
     bundles = [_bundle(tmp_path / "e1", "e1", _ep_gi("2024-01-01", "ai is bad"))]

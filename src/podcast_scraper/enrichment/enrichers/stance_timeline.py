@@ -104,13 +104,19 @@ def _slope(values: list[float]) -> float:
 
 
 def _deviation(stances: list[float], move_threshold: float) -> dict[str, Any]:
-    """Deterministic 'did the view move?' — range, sign-flips, slope, and a shifted flag."""
+    """Deterministic 'did the view move?' — range, sign-flips, slope, and a shifted flag.
+
+    Sign-flips use a **deadzone** (``move_threshold / 2``): a stance within the deadzone of 0 is
+    "neutral", so microscopic NLI noise jittering around 0 (``+0.001`` / ``-0.001``) can't
+    masquerade as a pro↔anti reversal. A flip counts only between stances that clearly land on
+    opposite sides — a genuine change of view. (Real-corpus eval showed the naive
+    straddle-zero rule flagged 11 of 12 essentially-flat trajectories as "shifted".)
+    """
     lo, hi = min(stances), max(stances)
-    sign_flips = sum(
-        1
-        for a, b in zip(stances, stances[1:])
-        if (a > 0 > b) or (a < 0 < b)  # a and b straddle zero
-    )
+    deadzone = move_threshold / 2.0
+    signs = [1 if s >= deadzone else -1 if s <= -deadzone else 0 for s in stances]
+    non_neutral = [s for s in signs if s != 0]
+    sign_flips = sum(1 for a, b in zip(non_neutral, non_neutral[1:]) if a != b)
     span = round(hi - lo, 6)
     slope = _slope(stances)
     return {
