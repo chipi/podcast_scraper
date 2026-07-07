@@ -134,6 +134,12 @@ class TopicSimilarityEnricher:
                 status=STATUS_OK,
                 data={"topics": [], "top_k": top_k, "topic_count": 0, "missing_topic_ids": []},
             )
+        # Feed the corpus id→label map to the provider so embeddings use the human topic
+        # label ("AI development"), not the id slug ("ai-development"). The provider is built
+        # from the profile (model / device) with no corpus access, so the enricher — which
+        # has the KG labels — must supply them, or every vector is a slug embedding.
+        if hasattr(self._provider, "labels"):
+            self._provider.labels = dict(labels)  # type: ignore[attr-defined]
         vectors: dict[str, list[float]] = {}
         missing: list[str] = []
         for tid in ids:
