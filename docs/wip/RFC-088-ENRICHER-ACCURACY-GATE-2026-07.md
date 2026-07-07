@@ -1,6 +1,12 @@
 # RFC-088 amendment — enricher accuracy gate: data/eval → registry → profiles → UI
 
-Status: **design, being implemented** (2026-07-06) · Amends `docs/rfc/RFC-088-enrichment-layer-architecture.md`
+Status: **Shipped** (2026-07-06) · Amends `docs/rfc/RFC-088-enrichment-layer-architecture.md`
+
+> The gate is live on `main`-bound code: `src/podcast_scraper/enrichment/eval/`
+> (`gate.py` + `admission.py` + `runner.py` + `gold.py`) drives `profile_sets._admit()`,
+> which filters the registry → profiles → UI. `nli_contradiction` (#1106) and
+> `stance_disagreement` (#1144) are both gated dark by it today (0% precision); each
+> auto-promotes when an eval records precision ≥ 0.5, no code edit.
 
 ## Problem
 

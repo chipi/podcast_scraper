@@ -2270,7 +2270,7 @@ ci-ui-full:
 	echo ""; echo "=== ci-ui-full DONE $$(date '+%Y-%m-%d %H:%M:%S') ==="; echo ""
 
 # Synthetic validation corpus root — MUST include the FIXTURES_VERSION subdir
-# (e.g. ``.../viewer-validation-corpus/v2``). The raw ``feeds/<feed>/metadata/``
+# (e.g. ``.../viewer-validation-corpus/v3``). The raw ``feeds/<feed>/metadata/``
 # artifacts that serve-api computes episodes from live under the version dir, NOT
 # the version-less parent — pointing the walk at the parent discovers 0 episodes
 # (empty Library → every handoff spec fails on the first row-click).

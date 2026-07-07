@@ -85,7 +85,7 @@ ollama_summary_model: llama3.1:8b
 # operator-side-only profile). The Python matrix at
 # src/podcast_scraper/enrichment/profile_sets.py is the source of truth.
 # Override per run via:
-#   python -m podcast_scraper.enrichment.cli --profile test_default \
+#   python -m podcast_scraper.cli enrich --profile test_default \
 #     --enrichers topic_cooccurrence,topic_cooccurrence_corpus
 enrichment:
   enabled: false

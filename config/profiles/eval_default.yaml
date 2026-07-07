@@ -112,7 +112,7 @@ log_level: INFO
 # operator-side-only profile). The Python matrix at
 # src/podcast_scraper/enrichment/profile_sets.py is the source of truth.
 # Override per run via:
-#   python -m podcast_scraper.enrichment.cli --profile eval_default \
+#   python -m podcast_scraper.cli enrich --profile eval_default \
 #     --enrichers topic_cooccurrence,topic_cooccurrence_corpus
 enrichment:
   enabled: false

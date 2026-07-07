@@ -13,13 +13,12 @@ v3-shape fields/edges from every Insight artifact they render:
 - ``Insight.properties.position_hint`` (strict-required per ADR-101;
   Position Tracker timeline sort depends on it)
 
-Today the validation corpus
-(``tests/fixtures/viewer-validation-corpus/v2/``) has v2 KG Person nodes
-but **zero** of the four v3 fields/edges (audited 2026-06-23). Without
-this contract test the GI pipeline could silently regress to emitting
-artifacts that the viewer panels then render as blank rails, and the
-viewer's own unit tests (which craft synthetic artifacts inline) would
-not catch it.
+The active validation corpus
+(``tests/fixtures/viewer-validation-corpus/v3/``) now carries all four
+v3 fields/edges. Without this contract test the GI pipeline could
+silently regress to emitting artifacts that the viewer panels then
+render as blank rails, and the viewer's own unit tests (which craft
+synthetic artifacts inline) would not catch it.
 
 This test is **the contract** between the pipeline's emit side and the
 viewer's consume side. If it fails:
@@ -28,13 +27,13 @@ viewer's consume side. If it fails:
 2. If the contract changed deliberately, update this test AND every
    viewer helper that reads the affected field/edge.
 
-NB: Until chunk 2 lands and ``viewer-validation-corpus/v2/`` is
-regenerated as a true v3 fixture set, this test uses an
-inline-constructed artifact that exercises the same emit functions the
-real pipeline calls (``_artifact_from_multi_insight`` for topic/about
-edges + ``add_insight_entity_edges`` for typed mentions). Chunk 2 will
-add a sibling test that asserts the same contract against a real
-on-disk artifact.
+Two layers now exist: ``test_v3_emission_contract_real_fields_present``
+exercises the same emit functions the real pipeline calls
+(``_artifact_from_multi_insight`` for topic/about edges +
+``add_insight_entity_edges`` for typed mentions) on an inline artifact;
+``test_v3_emission_contract_real_validation_corpus_artifacts`` asserts the
+same contract against the real on-disk ``viewer-validation-corpus/v3/``
+fixtures (the chunk-2 sibling — landed with the v3 corpus).
 """
 
 from __future__ import annotations
@@ -152,7 +151,7 @@ def test_v3_emission_contract_real_fields_present() -> None:
 
 def test_v3_emission_contract_real_validation_corpus_artifacts() -> None:
     """The same contract holds when loaded from the real on-disk
-    ``tests/fixtures/viewer-validation-corpus/v2/`` artifacts (#1075
+    ``tests/fixtures/viewer-validation-corpus/v3/`` artifacts (#1075
     chunk 2 upgrade).
 
     Catches a regression where the on-disk fixtures fall out of sync

@@ -37,13 +37,22 @@ Two claims in that earlier note were wrong:
 - `data/eval/enrichment/disagreement/gold_v1.jsonl` — the regression bar: the 40 prod-v2
   silver pairs (0 real disagreements) **plus** the designed v3 Cho-vs-Bessent debate
   (known positive, `disagree`) and the Cho-vs-Fischer topic-adjacent hard negative
-  (`no_shared_question`).
+  (`no_shared_question`). **Thin-gold caveat (review M2):** exactly **one** positive today
+  (the v3 debate) — prod podcasts are near-uniformly agreeable, so the corpus supplies no
+  more. That is enough to *disprove* the no-LLM scorer (it misses the one clear positive),
+  but a future scorer near threshold should NOT be auto-promoted on this alone — grow the
+  gold with more genuine debate pairs (or a debate-format corpus) before trusting a pass.
 - `scripts/eval/score/disagreement_stance_eval_v1.py` — scores the real DeBERTa output vs
   the gold, reports stance-aggregate (shipping signal) + atomic-max (diagnostic), writes
   the `gate_metrics.json` the accuracy gate reads. Local-only (real model, never CI —
   [[feedback_no_llm_in_ci]]).
 - `data/eval/enrichment/stance_disagreement/gate_metrics.json` — the measured result
   (`precision 0.0`), which keeps the enricher dark.
+
+> **Directory split (intentional):** the eval *input* (gold + harvest + silver) lives under
+> `data/eval/enrichment/disagreement/` alongside its siblings; the gate *output* the admission
+> loader reads lives under the enricher id, `data/eval/enrichment/stance_disagreement/`. A future
+> scorer script must read gold from `disagreement/` and write gate metrics to `stance_disagreement/`.
 
 ## The measurement (2026-07-07, `cross-encoder/nli-deberta-v3-small`)
 

@@ -8,7 +8,7 @@ latest-run-per-feed bundles after dedup).
 ## Setup
 
 ```
-.venv/bin/python -m podcast_scraper.enrichment.cli \
+.venv/bin/python -m podcast_scraper.cli enrich \
   --output-dir .test_outputs/manual/prod-v2/corpus \
   --enrichers grounding_rate,guest_coappearance,insight_density,\
               temporal_velocity,topic_cooccurrence,topic_cooccurrence_corpus \

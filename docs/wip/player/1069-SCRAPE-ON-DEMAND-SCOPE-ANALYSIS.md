@@ -102,22 +102,28 @@ Items 1 is small (glue over existing primitives). Items 2–4 are the large, gen
 
 ## Build plan
 
-**Now (this work):** the ingestion primitive.
+> **Superseded — see the update note at the top of this doc.** The "ingestion primitive"
+> below was built (`ingest(feed_url | episode)` + `IngestPolicy` seam) and then **dropped**:
+> the single-feed **pipeline already *is* the ingestion** (run it against one feed → merges
+> into the corpus, deduped), so a second `ingest` verb was redundant. The durable outcome
+> of this work is instead **enrichment made a consistent peer of the pipeline** across every
+> operator surface (CLI verb `enrich`, docker, admin-UI job kind, scheduler `kind`,
+> auto-after-pipeline chain). The consumer self-serve surface is unchanged: still a later epic.
 
-- `ingest(feed_url | episode)` → runs the single-feed pipeline as a **job** (jobs API) → merges the
-  resulting artifacts into the corpus, **globally deduped** (an already-ingested feed/episode is a
-  no-op, per PRD-037 "globally deduped" + PRD-035 shared-artifacts principle).
-- An **authorization/policy seam** on the trigger — operator/admin path no-ops; the shape is ready
-  for per-user quotas/rate limits later.
-- Operator entry point (CLI and/or admin-gated endpoint) — *not* a public consumer route yet.
+**What actually shipped (this work):**
+
+- No `ingest` primitive. The pipeline is the ingestion trigger; `podcast_scraper.cli enrich`
+  is its enrichment peer, invoked/managed/scheduled/dockerised identically.
+- The jobs registry spawns each job's own stored command (`argv_from_record`), so pipeline
+  vs enrichment jobs no longer both run the pipeline (the latent bug this work fixed).
 
 **Later (separate epic, deps-gated):** the consumer self-serve surface — Podcast Index
 `DiscoverySource`, add-to-library + scrape-progress UI, and the guardrail implementations.
 
 ## Housekeeping
 
-- Split #1069: the ingestion primitive = build-now; the consumer-discovery surface = later epic.
-  (Operator opens the issues.)
+- ~~Split #1069: the ingestion primitive = build-now.~~ **Dropped** — the pipeline is the
+  ingestion; #1069's remaining scope is the consumer-discovery surface (later epic).
 - Reconcile PRD-037: it is **curated first, self-serve second — phased**, not "self-serve in v2.7".
-- Update the PLATFORM_API "blocked on a pipeline enhancement" note — the single-feed primitive
-  (#807) exists; what remains is the ingest orchestration + dedup, built here.
+- The PLATFORM_API "blocked on a pipeline enhancement" note is resolved: the single-feed
+  primitive (#807) exists and *is* the ingestion path.
