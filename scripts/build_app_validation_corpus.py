@@ -53,6 +53,7 @@ import argparse
 import hashlib
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -534,6 +535,72 @@ def _velocity_last_over_6mo(series: list[int]) -> float:
     return round(series[-1] / avg, 4) if avg else 0.0
 
 
+def _iso_week(publish: str) -> str:
+    """``YYYY-MM-DD`` → ISO year-week ``YYYY-Www`` (for the content_series axis)."""
+    iso = datetime.fromisoformat(publish[:10]).isocalendar()
+    return f"{iso.year:04d}-W{iso.week:02d}"
+
+
+def _tally_episode_content(
+    kg: dict[str, Any],
+    topic_ids: list[str],
+    week: str,
+    month: str,
+    episode_id: str,
+    *,
+    counts: dict[str, int],
+    months: dict[str, list[str]],
+    episodes: dict[str, list[str]],
+    weeks: dict[str, list[str]],
+    person_weeks: dict[str, list[str]],
+) -> None:
+    """Fold one episode's Topic + Person mentions into the corpus-scope accumulators (in place)."""
+    for tid in topic_ids:
+        counts[tid] = counts.get(tid, 0) + 1
+        months.setdefault(tid, []).append(month)
+        episodes.setdefault(tid, []).append(episode_id)
+        weeks.setdefault(tid, []).append(week)
+    for node in kg.get("nodes", []):
+        if isinstance(node, dict) and node.get("type") == "Person" and node.get("id"):
+            person_weeks.setdefault(str(node["id"]), []).append(week)
+
+
+def _content_series_data(
+    topic_weeks: dict[str, list[str]], person_weeks: dict[str, list[str]]
+) -> dict[str, Any]:
+    """The RFC-103 now-free content_series (per-topic + per-person weekly counts).
+
+    Matches the ``temporal_velocity`` enricher's ``content_series`` shape, authored
+    deterministically from the corpus's own ISO weeks so the momentum layer works over the fixture.
+    """
+    all_weeks = sorted(
+        {w for weeks in (*topic_weeks.values(), *person_weeks.values()) for w in weeks}
+    )
+
+    def _rows(by_id: dict[str, list[str]], id_key: str, lab_key: str) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        for eid, weeks in sorted(by_id.items()):
+            counts: dict[str, int] = {}
+            for w in weeks:
+                counts[w] = counts.get(w, 0) + 1
+            rows.append(
+                {
+                    id_key: eid,
+                    lab_key: eid.split(":", 1)[-1].replace("-", " "),
+                    "weekly_counts": dict(sorted(counts.items())),
+                    "total": len(weeks),
+                }
+            )
+        rows.sort(key=lambda r: (-int(r["total"]), str(r[id_key])))
+        return rows
+
+    return {
+        "window_weeks": all_weeks,
+        "topics": _rows(topic_weeks, "topic_id", "topic_label"),
+        "persons": _rows(person_weeks, "person_id", "person_label"),
+    }
+
+
 def _temporal_velocity_data(topic_months: dict[str, list[str]]) -> dict[str, Any]:
     """Author the canonical ``temporal_velocity`` payload from per-topic publish months.
 
@@ -646,6 +713,9 @@ def main() -> int:
     corpus_topic_months: dict[str, list[str]] = {}
     # topic_id → episode ids (for the co-occurrence theme-cluster members).
     corpus_topic_episodes: dict[str, list[str]] = {}
+    # topic_id / person_id → ISO weeks (for the RFC-103 now-free content_series).
+    corpus_topic_weeks: dict[str, list[str]] = {}
+    corpus_person_weeks: dict[str, list[str]] = {}
 
     for show_rss_stem, show_dir in shows:
         rss_path = args.rss_dir / f"{show_rss_stem}.xml"
@@ -749,10 +819,18 @@ def main() -> int:
                 + "\n",
                 encoding="utf-8",
             )
-            for tid in topic_ids:
-                corpus_topic_counts[tid] = corpus_topic_counts.get(tid, 0) + 1
-                corpus_topic_months.setdefault(tid, []).append(publish[:7])  # YYYY-MM
-                corpus_topic_episodes.setdefault(tid, []).append(episode_id)
+            _tally_episode_content(
+                kg,
+                topic_ids,
+                _iso_week(publish),
+                publish[:7],
+                episode_id,
+                counts=corpus_topic_counts,
+                months=corpus_topic_months,
+                episodes=corpus_topic_episodes,
+                weeks=corpus_topic_weeks,
+                person_weeks=corpus_person_weeks,
+            )
 
             # Transcript text + RAW canonical segments (player contract).
             (run_tr_dir / f"{ep_label}.txt").write_text(raw_text, encoding="utf-8")
@@ -883,6 +961,9 @@ def main() -> int:
     # rising). Deterministic: derived from the authored per-episode publish dates (the #1148
     # offset schedule makes risk-management rise, per the corpus gold's ``heating_up``).
     tv = _temporal_velocity_data(corpus_topic_months)
+    # RFC-103 Phase 1: the durable, now-free content_series the momentum layer + trending endpoints
+    # read (per-topic + per-person weekly counts). Same shape the enricher emits in production.
+    tv["content_series"] = _content_series_data(corpus_topic_weeks, corpus_person_weeks)
     (corpus_enrich_dir / "temporal_velocity.json").write_text(
         json.dumps(_enrichment_envelope("temporal_velocity", tv), indent=2, sort_keys=True) + "\n",
         encoding="utf-8",

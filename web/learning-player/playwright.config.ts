@@ -64,6 +64,9 @@ export default defineConfig({
         // re-ranks toward a followed interest. With no interests the feed is recency (unchanged), so
         // this is inert for every other spec.
         APP_PERSONALIZED_RANKING: 'true',
+        // RFC-103: pin the momentum "now" so trending is deterministic (the corpus's newest episode
+        // is 2026-07-16 → anchor just after it, when the risk/systems content is freshest → rising).
+        APP_TRENDING_NOW: '2026-07-20T00:00:00Z',
         // Keep per-user writes (queue/profile/interests) OUT of the committed corpus tree.
         // Relative to the webServer cwd (web/learning-player/); the server resolve()s it against cwd.
         APP_DATA_DIR: 'e2e/.app-state',
