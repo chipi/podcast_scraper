@@ -6,8 +6,9 @@ import { signInIsolated } from './helpers'
  * committed corpus. Add two distinct episodes, then move the first one down and assert the order
  * actually changed — robust across retries (swapping two items always changes which is first).
  */
-// Two DISTINCT, non-featured episodes (the newest, "Index Investing", is the catalog hero and would
-// dedupe against its own list card → only one unique slug queued). These are different episodes.
+// Two DISTINCT episodes, each reached via its own show page (#1148: date-independent — no reliance
+// on catalog ordering / the landing hero). Persisting each add before navigating away is essential:
+// a full-page goto resets the Pinia queue store and can abort an in-flight PUT /queue.
 const EP_A = 'Index Investing Without the Myths'
 const EP_B = 'Wreck Diving Fundamentals'
 
@@ -27,7 +28,16 @@ test('reorder the queue with the ↑/↓ chevrons', async ({ page }, testInfo) =
     const card = page.locator('article').filter({ hasText: title }).first()
     const btn = card.getByRole('button', { name: /queue/i }).first()
     await expect(btn).toBeVisible()
-    if ((await btn.getAttribute('aria-label')) === 'Add to queue') await btn.click()
+    if ((await btn.getAttribute('aria-label')) === 'Add to queue') {
+      // Wait for the PUT /queue write to land before the next full-page goto, which would otherwise
+      // reset the store and abort the in-flight persist → the episode silently drops from the queue.
+      await Promise.all([
+        page.waitForResponse(
+          (r) => r.url().includes('/queue') && r.request().method() === 'PUT' && r.ok(),
+        ),
+        btn.click(),
+      ])
+    }
     await expect(card.getByRole('button', { name: 'Remove from queue' }).first()).toBeVisible()
   }
 
