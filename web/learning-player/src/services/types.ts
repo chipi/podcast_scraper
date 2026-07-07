@@ -302,6 +302,15 @@ export interface InterestCluster {
   size: number
 }
 
+/** One storyline — a THEME cluster (topics discussed together). GET /api/app/theme-clusters.
+ *  `id` is the `thc:` interest token; `anchor_topic_id` is the representative topic card to open. */
+export interface Storyline {
+  id: string
+  label: string
+  size: number
+  anchor_topic_id: string
+}
+
 /** A resolved person/topic reference (GET /api/app/entities/search — AppEntityRef). */
 export interface EntityRef {
   id: string

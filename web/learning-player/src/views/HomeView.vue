@@ -24,6 +24,7 @@ import { useAuthStore } from '../stores/auth'
 import EntityCard from '../components/EntityCard.vue'
 import InterestsPicker from '../components/InterestsPicker.vue'
 import QueueButton from '../components/QueueButton.vue'
+import Storylines from '../components/Storylines.vue'
 import TrendingTopics from '../components/TrendingTopics.vue'
 
 const INTERESTS_DISMISSED_KEY = 'lp.interests.dismissed'
@@ -247,6 +248,9 @@ onMounted(async () => {
 
     <!-- Trending topics (Plan B): corpus-wide "heating up" from temporal_velocity. -->
     <TrendingTopics @open="cardTarget = { kind: 'topic', id: $event }" />
+
+    <!-- Storylines (B): theme clusters — topics discussed together. Opens the anchor topic card. -->
+    <Storylines @open="cardTarget = { kind: 'topic', id: $event }" />
 
     <!-- Recommended — no-scroll responsive grid -->
     <section v-if="recommended.length" class="mt-7">

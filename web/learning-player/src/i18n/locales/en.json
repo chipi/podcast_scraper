@@ -34,7 +34,13 @@
     "trendViewChips": "Pills",
     "trendViewSparks": "Sparklines",
     "trendViewStream": "Over time",
-    "trendViewMomentum": "Momentum"
+    "trendViewMomentum": "Momentum",
+    "storylines": "Storylines",
+    "storylinesHint": "Topics that keep coming up together",
+    "storylineSize": "· {count} topic | · {count} topics",
+    "storylineOpen": "Open the {label} storyline ({count} topics)",
+    "storylineFollow": "Follow the {label} storyline",
+    "storylineFollowing": "Following the {label} storyline"
   },
   "rail": {
     "prev": "Scroll left",

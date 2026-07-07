@@ -34,6 +34,7 @@ import type {
   ResurfacingSettings,
   SearchResponse,
   SegmentsResponse,
+  Storyline,
   TopicCard,
   TopicPerspectivesResponse,
   UserStats,
@@ -232,6 +233,11 @@ export function recordDiscoverClick(slug: string, position: number): void {
 /** Top interest clusters for the picker, by corpus prevalence. */
 export async function getTopClusters(limit = 12): Promise<InterestCluster[]> {
   return (await getJSON<{ items: InterestCluster[] }>('/clusters', { limit })).items
+}
+
+/** Top storylines (theme clusters — topics discussed together) for the Home rail + picker. */
+export async function getStorylines(limit = 12): Promise<Storyline[]> {
+  return (await getJSON<{ items: Storyline[] }>('/theme-clusters', { limit })).items
 }
 
 /** The signed-in user's interest cluster ids; `[]` when signed out (401). Auth-gated. */
