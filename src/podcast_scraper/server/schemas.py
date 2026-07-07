@@ -1936,6 +1936,30 @@ class CilTopicTimelineResponse(BaseModel):
     episodes: list[CilArcEpisodeBlock] = Field(default_factory=list)
 
 
+class CilTopicConversationArcWeek(BaseModel):
+    """One ISO-week bucket of a topic's conversation: volume + sentiment mix."""
+
+    week: str  # ISO year-week, e.g. "2026-W12"
+    volume: int = Field(ge=0)
+    negative: int = Field(ge=0)
+    neutral: int = Field(ge=0)
+    positive: int = Field(ge=0)
+    avg_compound: float  # mean VADER compound over the week's insights, in [-1, 1]
+
+
+class CilTopicConversationArcResponse(BaseModel):
+    """Response for GET /api/cil/topics/{topic_id}/conversation-arc.
+
+    The aggregate-first overview for a topic's conversation over time — weekly volume × sentiment,
+    so the UI shows the *shape* of a big topic (like "AI", 1000s of insights) not a flat list. Drill
+    into any week via the existing /timeline endpoint (its insights now carry ``sentiment``).
+    """
+
+    path: str
+    topic_id: str
+    weeks: list[CilTopicConversationArcWeek] = Field(default_factory=list)
+
+
 class CilTopicPerspectiveLeader(BaseModel):
     """A multi-perspective topic for the dashboard (#1146)."""
 

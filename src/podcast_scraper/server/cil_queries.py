@@ -17,6 +17,7 @@ import json
 import logging
 import os
 import threading
+from datetime import date
 from pathlib import Path
 from typing import Any, Iterator, Sequence
 
@@ -515,6 +516,57 @@ def _cil_episode_metadata_fields(
     return out
 
 
+def _iso_week(publish_date: str | None) -> str | None:
+    """``YYYY-MM-DD`` → ISO year-week ``YYYY-Www`` (the conversation-arc time axis)."""
+    if not publish_date or len(publish_date) < 10:
+        return None
+    try:
+        iso = date.fromisoformat(publish_date[:10]).isocalendar()
+    except ValueError:
+        return None
+    return f"{iso[0]:04d}-W{iso[1]:02d}"
+
+
+def _episode_sentiment_map(safe_bridge: str) -> dict[str, dict[str, Any]]:
+    """``insight_id → {compound, label}`` from an episode's ``insight_sentiment`` artifact.
+
+    The sidecar lives next to the bridge:
+    ``<metadata_dir>/enrichments/{stem}.insight_sentiment.json``. Missing / malformed → empty map
+    (the surfaces just render un-tinted, never error).
+    """
+    base = os.path.basename(safe_bridge)
+    stem = base[: -len(".bridge.json")] if base.endswith(".bridge.json") else base.split(".")[0]
+    path = os.path.join(
+        os.path.dirname(safe_bridge), "enrichments", f"{stem}.insight_sentiment.json"
+    )
+    try:
+        doc = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    data = doc.get("data") if isinstance(doc, dict) else None
+    rows = (data or doc or {}).get("insights") if isinstance(data or doc, dict) else None
+    out: dict[str, dict[str, Any]] = {}
+    if isinstance(rows, list):
+        for r in rows:
+            if isinstance(r, dict) and r.get("insight_id"):
+                out[str(r["insight_id"])] = {
+                    "compound": r.get("compound", 0.0),
+                    "label": r.get("label", "neutral"),
+                }
+    return out
+
+
+def _attach_sentiment(safe_bridge: str, insights: list[dict[str, Any]]) -> None:
+    """Tag each Insight node (in place) with ``sentiment: {compound, label}`` for the timelines."""
+    smap = _episode_sentiment_map(safe_bridge)
+    if not smap:
+        return
+    for n in insights:
+        sid = str(n.get("id") or "")
+        if sid in smap:
+            n["sentiment"] = smap[sid]
+
+
 def position_arc(
     root_path: str,
     anchor_path: str,
@@ -568,6 +620,7 @@ def position_arc(
         insights.sort(key=_position_hint)
         if not insights:
             continue
+        _attach_sentiment(safe_bridge, insights)
         episode_id = _episode_id_from_bridge(bridge)
         if not episode_id:
             continue
@@ -700,6 +753,7 @@ def topic_timeline(
         insights.sort(key=_position_hint)
         if not insights:
             continue
+        _attach_sentiment(safe_bridge, insights)
         episode_id = _episode_id_from_bridge(bridge)
         if not episode_id:
             continue
@@ -717,6 +771,55 @@ def topic_timeline(
         results.append(row_tl)
 
     return sorted(results, key=lambda r: (r.get("publish_date") or "", r.get("episode_id") or ""))
+
+
+def topic_conversation_arc(
+    root_path: str,
+    anchor_path: str,
+    target_topic: str,
+    insight_types: tuple[str, ...] | None = None,
+) -> list[dict[str, Any]]:
+    """Weekly sentiment×volume aggregation of a topic's conversation — the arc-overview data.
+
+    Reuses :func:`topic_timeline` (which now tags each Insight with ``sentiment``) and rolls it up
+    by ISO week: per week, how many insights (volume) + the neg/neu/pos mix + mean compound. The
+    at-a-glance shape of a big topic's conversation over time, so the UI never renders 1000s cards.
+    """
+    blocks = topic_timeline(root_path, anchor_path, target_topic, insight_types=insight_types)
+    weeks: dict[str, dict[str, Any]] = {}
+    for b in blocks:
+        wk = _iso_week(b.get("publish_date"))
+        if not wk:
+            continue
+        acc = weeks.setdefault(
+            wk,
+            {"week": wk, "volume": 0, "negative": 0, "neutral": 0, "positive": 0, "_sum": 0.0},
+        )
+        for n in b.get("insights") or []:
+            if not isinstance(n, dict):
+                continue
+            sent = n.get("sentiment") or {}
+            label = sent.get("label", "neutral")
+            if label not in ("negative", "neutral", "positive"):
+                label = "neutral"
+            acc["volume"] += 1
+            acc[label] += 1
+            acc["_sum"] += float(sent.get("compound", 0.0) or 0.0)
+    out: list[dict[str, Any]] = []
+    for wk in sorted(weeks):
+        a = weeks[wk]
+        vol = a["volume"] or 1
+        out.append(
+            {
+                "week": a["week"],
+                "volume": a["volume"],
+                "negative": a["negative"],
+                "neutral": a["neutral"],
+                "positive": a["positive"],
+                "avg_compound": round(a["_sum"] / vol, 4),
+            }
+        )
+    return out
 
 
 def topic_timeline_merged(
@@ -792,6 +895,7 @@ def topic_timeline_merged(
         insights.sort(key=_position_hint)
         if not insights:
             continue
+        _attach_sentiment(safe_bridge, insights)
         episode_id = _episode_id_from_bridge(bridge)
         if not episode_id:
             continue

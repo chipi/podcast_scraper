@@ -16,6 +16,8 @@ from podcast_scraper.server.schemas import (
     CilPersonProfileQuoteRow,
     CilPersonProfileResponse,
     CilPositionArcResponse,
+    CilTopicConversationArcResponse,
+    CilTopicConversationArcWeek,
     CilTopicPerspective,
     CilTopicPerspectiveLeader,
     CilTopicPerspectiveLeadersResponse,
@@ -227,6 +229,34 @@ async def topic_timeline(
         path=root_safe,
         topic_id=tid,
         episodes=episodes,
+    )
+
+
+@router.get(
+    "/topics/{topic_id}/conversation-arc",
+    response_model=CilTopicConversationArcResponse,
+)
+async def topic_conversation_arc(
+    request: Request,
+    topic_id: str,
+    path: str | None = Query(
+        default=None,
+        description="Corpus root. Omit when server default output_dir is set.",
+    ),
+    insight_types: str | None = Query(
+        default=None,
+        description="Comma-separated insight_type filter; omit for all types.",
+    ),
+) -> CilTopicConversationArcResponse:
+    """Conversation arc — weekly volume × sentiment mix for a topic (aggregate-first overview)."""
+    root_safe, anchor_safe = _require_root_and_anchor(request, path)
+    types = _parse_insight_types(insight_types, default=None)
+    tid = cil_queries.canonical_cil_entity_id(topic_id)
+    raw = cil_queries.topic_conversation_arc(root_safe, anchor_safe, tid, insight_types=types)
+    return CilTopicConversationArcResponse(
+        path=root_safe,
+        topic_id=tid,
+        weeks=[CilTopicConversationArcWeek(**w) for w in raw],
     )
 
 

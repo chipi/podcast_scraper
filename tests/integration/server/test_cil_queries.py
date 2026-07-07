@@ -1111,3 +1111,54 @@ def test_topic_perspectives_scope_filters_by_episode(tmp_path: Path) -> None:
     only_a = cil_queries.topic_perspectives(root, root, "topic:ai", keep_episode_ids={"episode:a"})
     assert {p["person_id"] for p in only_a} == {"person:alice"}
     assert cil_queries.topic_perspectives(root, root, "topic:ai", keep_episode_ids=set()) == []
+
+
+def _write_sentiment(directory: Path, stem: str, rows: list) -> None:
+    """Write an episode's insight_sentiment sidecar next to its bridge (enrichments/ subdir)."""
+    ed = directory / "enrichments"
+    ed.mkdir(parents=True, exist_ok=True)
+    (ed / f"{stem}.insight_sentiment.json").write_text(
+        json.dumps({"data": {"insights": rows}}), encoding="utf-8"
+    )
+
+
+def test_conversation_arc_and_timeline_sentiment(tmp_path: Path) -> None:
+    corpus = tmp_path / "c"
+    _write_bundle(
+        corpus,
+        "e1",
+        episode_id="ep1",
+        publish_date="2024-01-15",
+        person="person:a",
+        topic="topic:ai",
+        insight_id="i1",
+        quote_id="q1",
+        insight_text="a great breakthrough",
+    )
+    _write_sentiment(corpus, "e1", [{"insight_id": "i1", "compound": 0.8, "label": "positive"}])
+    _write_bundle(
+        corpus,
+        "e2",
+        episode_id="ep2",
+        publish_date="2024-01-16",
+        person="person:b",
+        topic="topic:ai",
+        insight_id="i2",
+        quote_id="q2",
+        insight_text="a serious risk",
+    )
+    _write_sentiment(corpus, "e2", [{"insight_id": "i2", "compound": -0.6, "label": "negative"}])
+    root = str(corpus)
+
+    # topic_timeline now tags each Insight with sentiment (join by insight_id).
+    tl = cil_queries.topic_timeline(root, root, "topic:ai", insight_types=None)
+    labels = {n.get("sentiment", {}).get("label") for b in tl for n in b["insights"]}
+    assert {"positive", "negative"} <= labels
+
+    # conversation arc: both dates are ISO week 2024-W03 → one bucket, 1 pos + 1 neg.
+    arc = cil_queries.topic_conversation_arc(root, root, "topic:ai", insight_types=None)
+    assert len(arc) == 1
+    wk = arc[0]
+    assert wk["week"] == "2024-W03"
+    assert wk["volume"] == 2 and wk["positive"] == 1 and wk["negative"] == 1
+    assert abs(wk["avg_compound"] - 0.1) < 1e-6  # (0.8 + -0.6) / 2
