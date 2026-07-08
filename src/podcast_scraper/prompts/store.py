@@ -123,8 +123,7 @@ def _load_template(name: str) -> Template:
     rel_path = _rel_path_for_name(name)
     path = _template_path_or_raise(prompt_dir, rel_path, name)
     text = path.read_text(encoding="utf-8")
-    template: Template = Template(text)
-    return template
+    return Template(text)
 
 
 def render_prompt(name: str, **params: Any) -> str:
