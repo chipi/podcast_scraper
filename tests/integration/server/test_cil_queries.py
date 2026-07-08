@@ -1162,3 +1162,45 @@ def test_conversation_arc_and_timeline_sentiment(tmp_path: Path) -> None:
     assert wk["week"] == "2024-W03"
     assert wk["volume"] == 2 and wk["positive"] == 1 and wk["negative"] == 1
     assert abs(wk["avg_compound"] - 0.1) < 1e-6  # (0.8 + -0.6) / 2
+
+
+def test_conversation_arc_drops_insights_with_unparsable_dates(tmp_path: Path) -> None:
+    """An episode with a malformed publish_date yields no ISO week (``_iso_week`` → None), so its
+    insight is dropped from the arc rather than crashing the weekly aggregation."""
+    corpus = tmp_path / "c"
+    _write_bundle(
+        corpus,
+        "e1",
+        episode_id="ep1",
+        publish_date="not-a-date",
+        person="person:a",
+        topic="topic:ai",
+        insight_id="i1",
+        quote_id="q1",
+        insight_text="undated take",
+    )
+    _write_sentiment(corpus, "e1", [{"insight_id": "i1", "compound": 0.5, "label": "positive"}])
+    root = str(corpus)
+    assert cil_queries.topic_conversation_arc(root, root, "topic:ai", insight_types=None) == []
+
+
+def test_timeline_sentiment_missing_sidecar_leaves_insights_untinted(tmp_path: Path) -> None:
+    """With no ``insight_sentiment`` sidecar, timeline insights come back with no ``sentiment`` key
+    (surfaces render un-tinted) rather than raising."""
+    corpus = tmp_path / "c"
+    _write_bundle(
+        corpus,
+        "e1",
+        episode_id="ep1",
+        publish_date="2024-01-15",
+        person="person:a",
+        topic="topic:ai",
+        insight_id="i1",
+        quote_id="q1",
+        insight_text="a take",
+    )
+    # Deliberately no _write_sentiment: the sidecar is absent.
+    root = str(corpus)
+    tl = cil_queries.topic_timeline(root, root, "topic:ai", insight_types=None)
+    assert tl, "timeline still returns the episode even without a sentiment sidecar"
+    assert all("sentiment" not in n for b in tl for n in b["insights"])

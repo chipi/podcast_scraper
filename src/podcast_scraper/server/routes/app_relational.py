@@ -38,12 +38,16 @@ _Card = TypeVar("_Card", AppPersonCard, AppTopicCard)
 
 
 def _user_set(request: Request, user: User | None) -> set[str]:
-    """The signed-in user's heard∪captured slugs; 401 when ``scope=mine`` but signed out."""
+    """The signed-in user's heard∪captured slugs; 401 when ``scope=mine`` but signed out,
+    503 when the user store isn't configured (so ``scope=mine`` doesn't masquerade as a 404
+    empty result on a misconfigured server)."""
     if user is None:
         raise HTTPException(status_code=401, detail="Sign in to scope to your corpus.")
     root = corpus_root_or_503(request)
     data_dir = getattr(request.app.state, "app_data_dir", None)
-    return user_episode_set(root, Path(data_dir), user.user_id) if data_dir is not None else set()
+    if data_dir is None:
+        raise HTTPException(status_code=503, detail="User store is not configured.")
+    return user_episode_set(root, Path(data_dir), user.user_id)
 
 
 def _scope_to_corpus(card: _Card, mine: set[str]) -> _Card:

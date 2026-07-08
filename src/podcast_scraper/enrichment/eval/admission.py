@@ -81,7 +81,7 @@ def known_enricher_manifests() -> dict[str, EnricherManifest]:
 
     Reads each enricher's *class-level* ``manifest`` attribute — no
     instantiation, so provider-injected ML enrichers (topic_similarity,
-    topic_consensus, stance_timeline) are included without wiring a
+    topic_consensus) are included without wiring a
     provider. This is the
     manifest source the gate + UI config read for ``accuracy_gate`` /
     ``config_schema`` / ``provider_requirement`` without a live registry.

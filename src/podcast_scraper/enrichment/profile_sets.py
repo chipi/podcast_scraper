@@ -117,7 +117,7 @@ def _cloud_ml_tier_set() -> list[str]:
     # until an eval records passing precision in ``data/eval/enrichment/<id>/gate_metrics.json`` (it
     # has, 0.91 on prod-v2, so it is admitted). Per-person / per-topic stance-over-time is now a
     # read-time CIL query (conversation-arc / position-arc), not a gated enricher — see ADR-108's
-    # 2026-07-08 update on why the stance_timeline enricher was retired.
+    # 2026-07-08 update on why stance-over-time is a read-time query, not a gated enricher.
     return [
         *ALL_DETERMINISTIC_ENRICHER_IDS,
         "topic_similarity",

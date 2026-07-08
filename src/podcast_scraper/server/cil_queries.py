@@ -543,8 +543,15 @@ def _episode_sentiment_map(safe_bridge: str) -> dict[str, dict[str, Any]]:
         doc = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
+    # Prefer the envelope's ``data.insights``; fall back to a flat top-level ``insights`` list.
+    # Keyed on type (not truthiness) so an empty ``data: {}`` envelope isn't misread as the doc.
     data = doc.get("data") if isinstance(doc, dict) else None
-    rows = (data or doc or {}).get("insights") if isinstance(data or doc, dict) else None
+    if isinstance(data, dict):
+        rows = data.get("insights")
+    elif isinstance(doc, dict):
+        rows = doc.get("insights")
+    else:
+        rows = None
     out: dict[str, dict[str, Any]] = {}
     if isinstance(rows, list):
         for r in rows:

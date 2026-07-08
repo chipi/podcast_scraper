@@ -9,9 +9,15 @@ real model over a real corpus — the eval the accuracy gate needs before either
 
 ## Headline
 
-**Neither enricher clears a meaningful precision bar on prod-v2. Both correctly stay dark.** The
+> **SUPERSEDED — see the Update at the bottom of this file.** This headline records the *symmetric-
+> entailment* result only. The follow-up tuning loop found a working **composite** signal (embedding
+> cosine ≥ 0.70 AND NLI contradiction ≤ 0.5 → **precision 0.91**), so `topic_consensus` was rewritten
+> to it and **activated** (auto-promoted). `stance_timeline` was retired for a read-time CIL timeline.
+
+**Symmetric entailment clears no meaningful precision bar on prod-v2 — it stays dark.** The initial
 ADR-108 thesis — that flipping to NLI *entailment* makes these winnable *without an LLM* — is **not
-borne out** on this corpus. The data-driven gate is doing exactly its job.
+borne out** on this corpus; the data-driven gate is doing exactly its job. (The composite signal in
+the Update below is what ultimately won.)
 
 ## `topic_consensus` — corroboration is too sparse
 

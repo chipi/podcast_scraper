@@ -83,4 +83,27 @@ describe('TopicConversationArc', () => {
     expect(w.find('[data-testid="tca-week-filter"]').exists()).toBe(true)
     expect(w.findAll('[data-testid="tca-insights"] > li').length).toBe(2)
   })
+
+  it('renders nothing when the topic has no dated insights', async () => {
+    fetchTopicConversationArc.mockResolvedValue({ path: '/c', topic_id: 'topic:x', weeks: [] })
+    fetchTopicTimeline.mockResolvedValue({ path: '/c', topic_id: 'topic:x', episodes: [] })
+    const w = mount(TopicConversationArc, { props: { topicId: 'topic:x' } })
+    useShellStore().corpusPath = '/c'
+    await w.setProps({ topicId: 'topic:x ' })
+    await w.setProps({ topicId: 'topic:x' })
+    await flushPromises()
+    expect(w.find('[data-testid="topic-conversation-arc"]').exists()).toBe(false)
+  })
+
+  it('degrades gracefully when the arc fetch fails', async () => {
+    fetchTopicConversationArc.mockRejectedValue(new Error('boom'))
+    fetchTopicTimeline.mockResolvedValue({ path: '/c', topic_id: 'topic:ai', episodes: [] })
+    const w = mount(TopicConversationArc, { props: { topicId: 'topic:ai' } })
+    useShellStore().corpusPath = '/c'
+    await w.setProps({ topicId: 'topic:ai ' })
+    await w.setProps({ topicId: 'topic:ai' })
+    await flushPromises()
+    // Error with no weeks → the section stays hidden; the failure must not throw or blank the tab.
+    expect(w.find('[data-testid="topic-conversation-arc"]').exists()).toBe(false)
+  })
 })

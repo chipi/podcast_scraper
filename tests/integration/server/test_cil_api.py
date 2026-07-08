@@ -246,6 +246,56 @@ def client(cil_corpus: Path) -> TestClient:
     return TestClient(create_app(cil_corpus, static_dir=False))
 
 
+def _write_arc_bundle(
+    root: Path,
+    stem: str,
+    *,
+    publish: str,
+    insight_id: str,
+    label: str,
+    insight_type: str = "claim",
+) -> None:
+    """A bridge+gi+kg episode + ``insight_sentiment`` sidecar for the ``topic:ai`` conversation arc."""
+    md = root / "metadata"
+    md.mkdir(parents=True, exist_ok=True)
+    bridge = {
+        "schema_version": "3.0",
+        "episode_id": f"ep-{stem}",
+        "identities": [
+            {"id": "person:a", "type": "person", "sources": {"gi": True}, "display_name": "A"},
+            {"id": "topic:ai", "type": "topic", "sources": {"gi": True}, "display_name": "AI"},
+        ],
+    }
+    gi = {
+        "schema_version": "3.0",
+        "episode_id": f"ep-{stem}",
+        "nodes": [
+            {
+                "id": insight_id,
+                "type": "Insight",
+                "properties": {"text": "an AI take", "insight_type": insight_type},
+            },
+            {"id": f"q-{stem}", "type": "Quote", "properties": {"text": "q"}},
+        ],
+        "edges": [
+            {"type": "SPOKEN_BY", "from": f"q-{stem}", "to": "person:a"},
+            {"type": "SUPPORTED_BY", "from": insight_id, "to": f"q-{stem}"},
+            {"type": "ABOUT", "from": insight_id, "to": "topic:ai"},
+        ],
+    }
+    kg = {"nodes": [{"id": "kg:ep", "type": "Episode", "properties": {"publish_date": publish}}]}
+    (md / f"{stem}.bridge.json").write_text(json.dumps(bridge), encoding="utf-8")
+    (md / f"{stem}.gi.json").write_text(json.dumps(gi), encoding="utf-8")
+    (md / f"{stem}.kg.json").write_text(json.dumps(kg), encoding="utf-8")
+    (md / "enrichments").mkdir(parents=True, exist_ok=True)
+    (md / "enrichments" / f"{stem}.insight_sentiment.json").write_text(
+        json.dumps(
+            {"data": {"insights": [{"insight_id": insight_id, "compound": 0.7, "label": label}]}}
+        ),
+        encoding="utf-8",
+    )
+
+
 class TestCilApi:
     def test_positions(self, client: TestClient, cil_corpus: Path) -> None:
         pid = quote("person:pat", safe="")
@@ -500,3 +550,60 @@ class TestCilApi:
         )
         assert resp.status_code == 200
         assert len(resp.json()["episodes"]) == 1
+
+    def test_conversation_arc_route_buckets_by_week_with_sentiment(self, tmp_path: Path) -> None:
+        """The operator ``/conversation-arc`` route (path query) rolls insights up by ISO week and
+        tints each bucket from the ``insight_sentiment`` sidecar."""
+        _write_arc_bundle(
+            tmp_path, "0001-a", publish="2024-01-15", insight_id="i1", label="positive"
+        )
+        _write_arc_bundle(
+            tmp_path, "0002-b", publish="2024-01-16", insight_id="i2", label="negative"
+        )
+        client = TestClient(create_app(tmp_path, static_dir=False))
+        tid = quote("topic:ai", safe="")
+        resp = client.get(f"/api/topics/{tid}/conversation-arc", params={"path": str(tmp_path)})
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["path"] == str(tmp_path) and body["topic_id"] == "topic:ai"
+        # Both dates fall in ISO week 2024-W03 → one bucket, volume 2, 1 pos + 1 neg.
+        assert len(body["weeks"]) == 1
+        wk = body["weeks"][0]
+        assert wk["week"] == "2024-W03"
+        assert wk["volume"] == 2 and wk["positive"] == 1 and wk["negative"] == 1
+
+    def test_conversation_arc_empty_for_unknown_topic(self, tmp_path: Path) -> None:
+        """A topic with no dated insights returns 200 + empty ``weeks`` (never 404)."""
+        _write_arc_bundle(
+            tmp_path, "0001-a", publish="2024-01-15", insight_id="i1", label="positive"
+        )
+        client = TestClient(create_app(tmp_path, static_dir=False))
+        tid = quote("topic:nonexistent", safe="")
+        resp = client.get(f"/api/topics/{tid}/conversation-arc", params={"path": str(tmp_path)})
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["weeks"] == []
+
+    def test_conversation_arc_insight_types_filter(self, tmp_path: Path) -> None:
+        """The route's ``insight_types`` param filters the arc: ``claim`` keeps the one insight,
+        ``question`` drops it → empty arc."""
+        _write_arc_bundle(
+            tmp_path,
+            "0001-a",
+            publish="2024-01-15",
+            insight_id="i1",
+            label="positive",
+            insight_type="claim",
+        )
+        client = TestClient(create_app(tmp_path, static_dir=False))
+        tid = quote("topic:ai", safe="")
+        keep = client.get(
+            f"/api/topics/{tid}/conversation-arc",
+            params={"path": str(tmp_path), "insight_types": "claim"},
+        )
+        drop = client.get(
+            f"/api/topics/{tid}/conversation-arc",
+            params={"path": str(tmp_path), "insight_types": "question"},
+        )
+        assert keep.status_code == 200 and drop.status_code == 200, (keep.text, drop.text)
+        assert keep.json()["weeks"] and keep.json()["weeks"][0]["volume"] == 1
+        assert drop.json()["weeks"] == []

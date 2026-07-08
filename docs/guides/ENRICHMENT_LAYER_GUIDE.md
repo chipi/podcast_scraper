@@ -358,9 +358,10 @@ enrichment:
         type: sentence_transformer_local
         model: all-MiniLM-L6-v2
     topic_consensus:
-      threshold: 0.6
+      cos_threshold: 0.70          # embedding cosine gate (shared-question)
+      contra_threshold: 0.5        # max NLI contradiction gate (direction)
       provider:
-        type: deberta_local
+        type: consensus_local
     grounding_rate: {}             # empty block = enabled, no knobs
     insight_density:
       enabled: false               # explicit opt-out (preserves block)
