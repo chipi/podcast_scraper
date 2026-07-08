@@ -1,6 +1,6 @@
 # RFC-098: Learning Platform Foundation
 
-- **Status**: Draft
+- **Status**: In Progress
 - **Authors**: Marko
 - **Stakeholders**: Server API, Core Pipeline, Consumer App
 - **Related PRDs**:

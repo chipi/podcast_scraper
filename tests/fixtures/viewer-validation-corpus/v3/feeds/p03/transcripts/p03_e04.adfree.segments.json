@@ -1,0 +1,90 @@
+[
+  {
+    "char_end": 135,
+    "char_start": 6,
+    "end": 6.0,
+    "speaker_label": "Rina",
+    "start": 0.0,
+    "text": "Welcome back to Below the Surface. I'm joined by Marco Silva, technical diver and instructor. Marco, thanks for surfacing for us."
+  },
+  {
+    "char_end": 169,
+    "char_start": 149,
+    "end": 12.0,
+    "speaker_label": "Marco Silva",
+    "start": 6.0,
+    "text": "Ha \u2014 happy to, Rina."
+  },
+  {
+    "char_end": 302,
+    "char_start": 176,
+    "end": 18.0,
+    "speaker_label": "Rina",
+    "start": 12.0,
+    "text": "This episode is brought to you by Suunto. Suunto builds dive computers and outdoor watches. Get started at suunto.com/podcast."
+  },
+  {
+    "char_end": 363,
+    "char_start": 302,
+    "end": 24.0,
+    "speaker_label": "Rina",
+    "start": 18.0,
+    "text": "New divers think planning is paperwork. You call it survival."
+  },
+  {
+    "char_end": 579,
+    "char_start": 377,
+    "end": 30.0,
+    "speaker_label": "Marco Silva",
+    "start": 24.0,
+    "text": "Dive planning is risk management, plain and simple. It's the gas you don't use and the ascent you don't rush. The incident that hurts you is the one nobody named on the boat \u2014 so we name them all first."
+  },
+  {
+    "char_end": 803,
+    "char_start": 579,
+    "end": 36.0,
+    "speaker_label": "Marco Silva",
+    "start": 30.0,
+    "text": "And you plan the whole dive as one system \u2014 depth, gas, team, current \u2014 because the accidents live in how those interact, not in any single number. When we reviewed a decade of incident reports, that pattern held every time."
+  },
+  {
+    "char_end": 866,
+    "char_start": 810,
+    "end": 42.0,
+    "speaker_label": "Rina",
+    "start": 36.0,
+    "text": "So it's not so different from managing any kind of risk."
+  },
+  {
+    "char_end": 1062,
+    "char_start": 880,
+    "end": 48.0,
+    "speaker_label": "Marco Silva",
+    "start": 42.0,
+    "text": "Not different at all. A dive plan and a portfolio are the same discipline \u2014 systems of correlated risk, where the one you can describe in advance is the one you can actually control."
+  },
+  {
+    "char_end": 1156,
+    "char_start": 1069,
+    "end": 54.0,
+    "speaker_label": "Rina",
+    "start": 48.0,
+    "text": "Thanks to PADI for supporting the show. PADI is the global standard for dive education."
+  },
+  {
+    "char_end": 1183,
+    "char_start": 1170,
+    "end": 60.0,
+    "speaker_label": "Marco Silva",
+    "start": 54.0,
+    "text": "Thanks, Rina."
+  },
+  {
+    "char_end": 1238,
+    "char_start": 1190,
+    "end": 66.0,
+    "speaker_label": "Rina",
+    "start": 60.0,
+    "text": "That's it for this Below the Surface. Dive safe."
+  }
+]

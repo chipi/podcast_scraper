@@ -23,7 +23,7 @@ Tests: Vitest (unit/component) + Playwright (e2e). Dark-primary; a11y + i18n fro
 ## Develop
 
 ```bash
-cd app
+cd web/learning-player
 npm install
 npm run dev          # http://localhost:5174 (proxies /api → 127.0.0.1:8000; override VITE_API_TARGET)
 ```

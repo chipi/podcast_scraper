@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest'
  *   1. Search ResultCard renders related_topics chips
  *   2. EpisodeDetailPanel mounts EpisodeEnrichmentSection
  *   3. GraphTabPanel mounts EnrichmentEdgesPanel
- *   4. PersonLandingView surfaces contradiction rows
+ *   4. PersonLandingView surfaces consensus rows
  *
  * Static-source guards: no v-html sinks, data-testid hooks present,
  * imports + bindings wired.
@@ -22,9 +22,9 @@ const EPISODE_DETAIL_PANEL = resolve(HERE, 'episode/EpisodeDetailPanel.vue')
 const EPISODE_ENRICHMENT_SECTION = resolve(HERE, 'episode/EpisodeEnrichmentSection.vue')
 const GRAPH_TAB_PANEL = resolve(HERE, 'graph/GraphTabPanel.vue')
 const ENRICHMENT_EDGES_PANEL = resolve(HERE, 'graph/EnrichmentEdgesPanel.vue')
-// RFC-088 chunk-9 contradictions moved out of PersonLandingView Details into
+// RFC-088 chunk-9 consensus moved out of PersonLandingView Details into
 // the Signals-tab NodeEnrichmentSection (de-duplicated with the rail's Signals
-// tab, which already loads the same nli_contradiction envelope).
+// tab, which already loads the same topic_consensus envelope).
 const NODE_ENRICHMENT_SECTION = resolve(HERE, 'graph/NodeEnrichmentSection.vue')
 
 
@@ -84,13 +84,13 @@ describe('Gap 3 — GraphTabPanel mounts EnrichmentEdgesPanel', () => {
   it('panel uses the cache composable for both envelopes', () => {
     expect(panel).toContain('fetchCachedCorpusEnvelope')
     expect(panel).toContain("'topic_similarity'")
-    expect(panel).toContain("'nli_contradiction'")
+    expect(panel).toContain("'topic_consensus'")
   })
 
-  it('panel renders the similarity and contradictions data-testid hooks', () => {
+  it('panel renders the similarity and consensus data-testid hooks', () => {
     expect(panel).toContain('data-testid="enrichment-edges-panel"')
     expect(panel).toContain('data-testid="enrichment-edges-similarity"')
-    expect(panel).toContain('data-testid="enrichment-edges-contradictions"')
+    expect(panel).toContain('data-testid="enrichment-edges-consensus"')
   })
 
   it('panel rows bind clicks to subject store focus methods', () => {
@@ -104,16 +104,16 @@ describe('Gap 3 — GraphTabPanel mounts EnrichmentEdgesPanel', () => {
 })
 
 
-describe('Gap 4 — NodeEnrichmentSection surfaces contradiction rows', () => {
+describe('Gap 4 — NodeEnrichmentSection surfaces consensus rows', () => {
   const src = readFileSync(NODE_ENRICHMENT_SECTION, 'utf-8')
 
-  it('loads nli_contradiction via the cache composable', () => {
-    expect(src).toContain("'nli_contradiction'")
+  it('loads topic_consensus via the cache composable', () => {
+    expect(src).toContain("'topic_consensus'")
     expect(src).toContain('fetchCachedCorpusEnvelope')
   })
 
-  it('template renders the contradictions data-testid hook', () => {
-    expect(src).toContain('data-testid="node-enrichment-contradictions"')
+  it('template renders the consensus data-testid hook', () => {
+    expect(src).toContain('data-testid="node-enrichment-consensus"')
   })
 
   it('row clicks pivot subject focus to partner / topic', () => {

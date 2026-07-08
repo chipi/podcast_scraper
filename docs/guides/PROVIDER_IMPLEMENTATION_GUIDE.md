@@ -200,7 +200,7 @@ def create_transcription_provider(cfg: config.Config) -> TranscriptionProvider:
 
 ---
 
-## Response-shape guardrails (ADR-099 / ADR-100)
+## Response-shape guardrails (ADR-105 / ADR-100)
 
 When you add a new chat-completion provider (cloud or self-hosted), wire the
 response-shape guardrail at every content-producing call site — summarize,

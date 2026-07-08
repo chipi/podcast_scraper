@@ -1,0 +1,274 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-3158b8ff3e943b1e",
+      "to": "topic:long-form",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-3158b8ff3e943b1e",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-3158b8ff3e943b1e",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-3158b8ff3e943b1e",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-3158b8ff3e943b1e",
+      "to": "insight:c2ea54ba4b0825a6",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-3158b8ff3e943b1e",
+      "to": "insight:3e28facea19a8b67",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-3158b8ff3e943b1e",
+      "to": "insight:838e5efad224f1fa",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:3b38271f9aad647c",
+      "to": "person:cam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:c2ea54ba4b0825a6",
+      "to": "quote:3b38271f9aad647c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f250d014b71b1f82",
+      "to": "person:jordan-park",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3e28facea19a8b67",
+      "to": "quote:f250d014b71b1f82",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:fa39e06908d84677",
+      "to": "person:cam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:838e5efad224f1fa",
+      "to": "quote:fa39e06908d84677",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:2714f4a25baec7ed",
+      "to": "person:cam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:c2ea54ba4b0825a6",
+      "to": "quote:2714f4a25baec7ed",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:85d4ee9dc97b1fe1",
+      "to": "person:jordan-park",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3e28facea19a8b67",
+      "to": "quote:85d4ee9dc97b1fe1",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:c6d3548cd36e1bc5",
+      "to": "person:cam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:838e5efad224f1fa",
+      "to": "quote:c6d3548cd36e1bc5",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "ep-3158b8ff3e943b1e",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-3158b8ff3e943b1e",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ep-3158b8ff3e943b1e",
+        "metadata_relative_path": "feeds/p06/run_20260101_000000/metadata/p06_e04.metadata.json",
+        "podcast_id": "p06",
+        "publish_date": "2026-01-11T12:00:00",
+        "title": "Signal, Noise, and the Space Between"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:long-form",
+      "properties": {
+        "label": "long-form",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:c2ea54ba4b0825a6",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Welcome back to The Drift. Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic. Jordan Park, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:3e28facea19a8b67",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": false,
+        "text": "Take me through the decision. Where do dialogue and cultural drift intersect?"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:838e5efad224f1fa",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Honestly, Culture is a system that never sits still. We've seen this play out at teams using Substack. The framing matters because it tells you which trade-offs you're making."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:cam",
+      "properties": {
+        "name": "Cam"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:3b38271f9aad647c",
+      "properties": {
+        "char_end": 157,
+        "char_start": 5,
+        "episode_id": "ep-3158b8ff3e943b1e",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to The Drift. Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic. Jordan Park, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p06_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:jordan-park",
+      "properties": {
+        "name": "Jordan Park"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:f250d014b71b1f82",
+      "properties": {
+        "char_end": 201,
+        "char_start": 171,
+        "episode_id": "ep-3158b8ff3e943b1e",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Cam. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p06_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:fa39e06908d84677",
+      "properties": {
+        "char_end": 368,
+        "char_start": 207,
+        "episode_id": "ep-3158b8ff3e943b1e",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Squarespace. Squarespace makes building a beautiful, branded website actually pleasant. Get started at squarespace.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p06_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:2714f4a25baec7ed",
+      "properties": {
+        "char_end": 445,
+        "char_start": 368,
+        "episode_id": "ep-3158b8ff3e943b1e",
+        "speaker_id": "person:speaker-01",
+        "text": "Take me through the decision. Where do dialogue and cultural drift intersect?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p06_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:85d4ee9dc97b1fe1",
+      "properties": {
+        "char_end": 634,
+        "char_start": 459,
+        "episode_id": "ep-3158b8ff3e943b1e",
+        "speaker_id": "person:speaker-02",
+        "text": "Honestly, Culture is a system that never sits still. We've seen this play out at teams using Substack. The framing matters because it tells you which trade-offs you're making.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p06_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:c6d3548cd36e1bc5",
+      "properties": {
+        "char_end": 740,
+        "char_start": 640,
+        "episode_id": "ep-3158b8ff3e943b1e",
+        "speaker_id": "person:speaker-01",
+        "text": "Walk me through a concrete example. What's the structural angle most listeners don't have access to?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p06_e04.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

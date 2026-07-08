@@ -1,0 +1,49 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p09-e01",
+    "media_type": "audio/mpeg",
+    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Sam",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Dr. Elena Fischer",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p09_e01.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 1800,
+    "episode_id": "ep-1abf911df5bea2c3",
+    "published_date": "2025-05-12T00:00:00",
+    "title": "Systems Thinking, Two Years Later"
+  },
+  "feed": {
+    "description": "Recurring guests from other shows revisit their positions.",
+    "feed_id": "p09",
+    "title": "Cross-Show",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Welcome back to Cross-Show. Today we're talking about systems thinking, and I'm joined by Dr. Elena Fischer, returning systems thinker. Dr. Elena Fischer, thanks for being here.",
+      "Thanks, Sam. Excited for this one \u2014 systems thinking is something I've been thinking about a lot.",
+      "In our 2024 conversation I was more optimistic about top-down interventions. I've revised that \u2014 the work happens at the seams."
+    ],
+    "raw_text": "Welcome back to Cross-Show. Today we're talking about systems thinking, and I'm joined by Dr. Elena Fischer, returning systems thinker. Dr. Elena Fischer, thanks for being here.",
+    "title": "Systems Thinking, Two Years Later"
+  }
+}

@@ -1,0 +1,27 @@
+Sam: Welcome back to Cross-Show. Today we're talking about labor markets, and I'm joined by Skanda Amarnath, returning macro economist. Skanda Amarnath, thanks for being here.
+Skanda Amarnath: Thanks, Sam. Great to be back.
+Sam: Today's episode is sponsored by Bloomberg. Bloomberg Terminal is the data spine that institutional desks run on. Try bloomberg.com today.Before we get into it — Skanda Eminas was on episode 2 making this same point on Bloomberg-data caveats.
+Skanda Amarnath: Yeah, exactly. And it ties into what we're covering today.
+Sam: I want to flag something — Skanda Eminas mentioned this same dynamic a couple episodes back.
+Skanda Amarnath: Two years ago I argued labor data was reliable at quarterly frequency. I now think only annual averages are trustworthy.
+Sam: That's a real shift. Worth pulling on.Let's start there. What's the structural angle most listeners don't have access to?
+Skanda Amarnath: Yeah, so — Labor markets are where macro stops being abstract. We've seen this play out at teams using IPCC. If you ignore that, you end up rebuilding it from scratch a year later.
+Sam: Walk me through a concrete example. What's the structural angle most listeners don't have access to?
+Skanda Amarnath: Here's how I think about it. Risk is a household-level variable, not a portfolio-level one. The framing matters because it tells you which trade-offs you're making.
+Sam: We'll be right back after a quick word from our sponsors.
+Ad: Today's episode is sponsored by Linear. Linear is the issue tracker built for speed — keyboard-first. Visit linear.com/podcast for a free trial.
+Sam: Welcome back to the show.Let's start there. What's the version of the question that actually matters?
+Skanda Amarnath: Sure. Labor markets are where macro stops being abstract. We've seen this play out at teams using Bloomberg. If you ignore that, you end up rebuilding it from scratch a year later.
+Sam: I want to dig into that. What's the version of the question that actually matters?
+Skanda Amarnath: Sure. Risk is a household-level variable, not a portfolio-level one. I've watched this pattern hold across three different teams.
+Sam: Let's pivot — systems thinking is where I want to spend the last stretch.
+Skanda Amarnath: That's where the conversation gets interesting, because the trade-offs around systems thinking cross-cut everything we've covered.
+Sam: Walk me through a concrete example. Where do risk management and labor markets intersect?
+Skanda Amarnath: Honestly, Labor markets are where macro stops being abstract. We've seen this play out at teams using BloombergNEF. If you ignore that, you end up rebuilding it from scratch a year later.
+Sam: What does the failure mode look like? What's the version of the question that actually matters?
+Skanda Amarnath: Yeah, so — Risk is a household-level variable, not a portfolio-level one. If you ignore that, you end up rebuilding it from scratch a year later.
+Sam: Before we wrap, what's one thing listeners can try this week?
+Skanda Amarnath: Pick one of the ideas we covered and run it for two weeks. The rest is iteration.
+Sam: And finally, a big thank you to our partners at Stripe. Stripe makes payments simple, whether you're running a marketplace or a subscription business. Check out stripe.com.Skanda Amarnath, thanks for the conversation.
+Skanda Amarnath: Thanks, Sam.
+Sam: That's it for today's episode of Cross-Show. See you next time.

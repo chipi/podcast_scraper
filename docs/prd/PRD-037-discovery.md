@@ -17,6 +17,18 @@ catalog (Podcast Index to start), a personal library view, and scrape-on-demand.
 `Discover → Catalog → Player` loop. Sources are pluggable via a `DiscoverySource` abstraction so new
 sources (OPML, manual RSS) can be added without touching core logic.
 
+> **Phasing note (2026-07-06, rev. 2026-07-07).** This PRD is delivered in two phases, **curated
+> first, user self-serve second** — not all at once in v2.7. **Phase 1 (now):** the corpus is
+> operator-curated; the **pipeline itself** grows it (`--feeds-spec` / `--rss`, single-feed over
+> #807 — run manually, on a cron schedule, or auto-after-ingest), and the search / library /
+> personalization surfaces run over what's ingested (already shipped: entity search #1097, ranking
+> #1098 / #1139, home + search #1090). **Phase 2 (later epic, gated on
+> real persistence + the PWA + real users):** the consumer self-serve surface — Podcast Index
+> `DiscoverySource` (FR1), user-triggered scrape (FR2 / FR4), and the guardrail implementations
+> (rate / quota / cost / abuse). The FRs below describe the full Phase-2 target; the
+> `DiscoverySource` seam (`app_content_source`) is scaffolded now so Phase 2 adds no API reshape.
+> See `docs/wip/player/1069-SCRAPE-ON-DEMAND-SCOPE-ANALYSIS.md` for the decision + build plan.
+
 ## Background & Context
 
 - Without discovery, users must hand-supply RSS URLs — technical-only and hostile. Podcast Index is a
@@ -58,8 +70,11 @@ Primary: **casual listener** (find a show fast) and **active learner** (add the 
 - **FR1.2**: Results show artwork, name, publisher, episode count, short description, and an
   "Add to Library" action.
 - **FR1.3**: Shows already in the user's library render "In Library" + a link to their Catalog view.
-- **FR1.3a**: Results may surface **related topics** from topic clustering (RFC-075) so users discover
-  adjacent shows/episodes by theme. This is discovery, not personalisation (which stays in PRD-041).
+- **FR1.3a** *(shipped on entity cards, not Discovery search — see amendment)*: Results may surface
+  **related topics** from topic clustering (RFC-075) so users discover adjacent shows/episodes by theme.
+  This is discovery, not personalisation (which stays in PRD-041). *(Amendment 2026-07-07: related-topic
+  surfacing shipped on the topic/entity cards (PRD-043 Knowledge Layer), not inline in Discovery search
+  results, which remain name/keyword today.)*
 - **FR1.4**: Results paginate via "Load more" (no full reload).
 - **FR1.5–1.7**: Empty, no-results, and error states are non-blocking; the existing library stays usable.
 

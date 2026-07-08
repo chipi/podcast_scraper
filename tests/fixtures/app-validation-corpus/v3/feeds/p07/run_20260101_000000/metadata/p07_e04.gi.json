@@ -1,0 +1,348 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-362f5d463b877d2c",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-362f5d463b877d2c",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-362f5d463b877d2c",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-362f5d463b877d2c",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-362f5d463b877d2c",
+      "to": "insight:f983a076829f066f",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-362f5d463b877d2c",
+      "to": "insight:e561fff4c04db8b9",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-362f5d463b877d2c",
+      "to": "insight:646137f8417f698c",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:ee1fc2d926ba7c3e",
+      "to": "person:alex-morgan",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:f983a076829f066f",
+      "to": "quote:ee1fc2d926ba7c3e",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:5cb8f51439ae79fb",
+      "to": "person:skanda-amarnath",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:e561fff4c04db8b9",
+      "to": "quote:5cb8f51439ae79fb",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:216aee56b3035d1a",
+      "to": "person:alex-morgan",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:646137f8417f698c",
+      "to": "quote:216aee56b3035d1a",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:3edd6e5aca821d29",
+      "to": "person:alex-morgan",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:f983a076829f066f",
+      "to": "quote:3edd6e5aca821d29",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:9cc51569717a08f6",
+      "to": "person:skanda-amarnath",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:e561fff4c04db8b9",
+      "to": "quote:9cc51569717a08f6",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:676a9e80bbe0a042",
+      "to": "person:skanda-amarnath",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:646137f8417f698c",
+      "to": "quote:676a9e80bbe0a042",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:authored-p07_e04-0",
+      "to": "quote:authored-p07_e04-0",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:authored-p07_e04-0",
+      "to": "person:skanda-amarnath",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:authored-p07_e04-0",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p07_e04-0",
+      "to": "person:skanda-amarnath",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:authored-p07_e04-1",
+      "to": "quote:authored-p07_e04-1",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:authored-p07_e04-1",
+      "to": "person:skanda-amarnath",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:authored-p07_e04-1",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p07_e04-1",
+      "to": "person:skanda-amarnath",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-362f5d463b877d2c",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-362f5d463b877d2c",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ep-362f5d463b877d2c",
+        "metadata_relative_path": "feeds/p07/run_20260101_000000/metadata/p07_e04.metadata.json",
+        "podcast_id": "p07",
+        "publish_date": "2025-12-24T12:00:00",
+        "title": "Macro as Risk Management"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:f983a076829f066f",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Welcome back to The Long View. I'm joined by Skanda Amarnath, who reads the macroeconomy for a living. Skanda, good to have you."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:e561fff4c04db8b9",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "You describe macro as risk management. Unpack that."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:646137f8417f698c",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Macro is risk management at scale. The job is mostly not being on the wrong side of a regime change \u2014 and the regime change you can name in advance is the one you can position for. The rest is just\u2026"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:alex-morgan",
+      "properties": {
+        "name": "Alex Morgan"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:ee1fc2d926ba7c3e",
+      "properties": {
+        "char_end": 141,
+        "char_start": 13,
+        "episode_id": "ep-362f5d463b877d2c",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to The Long View. I'm joined by Skanda Amarnath, who reads the macroeconomy for a living. Skanda, good to have you.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p07_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:skanda-amarnath",
+      "properties": {
+        "name": "Skanda Amarnath"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:5cb8f51439ae79fb",
+      "properties": {
+        "char_end": 172,
+        "char_start": 159,
+        "episode_id": "ep-362f5d463b877d2c",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Alex.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p07_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:216aee56b3035d1a",
+      "properties": {
+        "char_end": 318,
+        "char_start": 186,
+        "episode_id": "ep-362f5d463b877d2c",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Bloomberg. Bloomberg Terminal is the data spine institutional desks run on. Try bloomberg.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p07_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:3edd6e5aca821d29",
+      "properties": {
+        "char_end": 369,
+        "char_start": 318,
+        "episode_id": "ep-362f5d463b877d2c",
+        "speaker_id": "person:speaker-01",
+        "text": "You describe macro as risk management. Unpack that.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p07_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:9cc51569717a08f6",
+      "properties": {
+        "char_end": 592,
+        "char_start": 387,
+        "episode_id": "ep-362f5d463b877d2c",
+        "speaker_id": "person:speaker-02",
+        "text": "Macro is risk management at scale. The job is mostly not being on the wrong side of a regime change \u2014 and the regime change you can name in advance is the one you can position for. The rest is just hoping.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p07_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:676a9e80bbe0a042",
+      "properties": {
+        "char_end": 798,
+        "char_start": 592,
+        "episode_id": "ep-362f5d463b877d2c",
+        "speaker_id": "person:speaker-02",
+        "text": "And the economy is a system, not a set of levers. Pull one and three others move. When we back-tested the calls, the misses were always someone treating a correlated system as if the parts were independent.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p07_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "insight:authored-p07_e04-0",
+      "properties": {
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.5,
+        "text": "Macro is risk management at scale \u2014 not being on the wrong side of a regime change."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:authored-p07_e04-0",
+      "properties": {
+        "text": "Macro is risk management at scale \u2014 not being on the wrong side of a regime change."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "insight:authored-p07_e04-1",
+      "properties": {
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.5,
+        "text": "The economy is a system, not a set of levers."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:authored-p07_e04-1",
+      "properties": {
+        "text": "The economy is a system, not a set of levers."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

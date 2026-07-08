@@ -1,0 +1,354 @@
+{
+  "edges": [
+    {
+      "from": "episode:2922a74e-5598-537f-a2d1-1ac08059e49d",
+      "to": "topic:outdoor-activities",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:2922a74e-5598-537f-a2d1-1ac08059e49d",
+      "to": "topic:gear",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:2922a74e-5598-537f-a2d1-1ac08059e49d",
+      "to": "topic:science-research",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:2922a74e-5598-537f-a2d1-1ac08059e49d",
+      "to": "insight:6191892e4d27b718",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:2922a74e-5598-537f-a2d1-1ac08059e49d",
+      "to": "insight:9c3654333b6f8b01",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:2922a74e-5598-537f-a2d1-1ac08059e49d",
+      "to": "insight:230551b6c5ce8a9e",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:6e303c97ef6d6d7b",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:6191892e4d27b718",
+      "to": "quote:6e303c97ef6d6d7b",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:aded400ed5c94ea3",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:9c3654333b6f8b01",
+      "to": "quote:aded400ed5c94ea3",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:0dc2e9360b0ae956",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:230551b6c5ce8a9e",
+      "to": "quote:0dc2e9360b0ae956",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:ec3f8b0330cc9718",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:6191892e4d27b718",
+      "to": "quote:ec3f8b0330cc9718",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:1b4c6b9fc79963aa",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:9c3654333b6f8b01",
+      "to": "quote:1b4c6b9fc79963aa",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:241e804a7c872f5e",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:230551b6c5ce8a9e",
+      "to": "quote:241e804a7c872f5e",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:6191892e4d27b718",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:6191892e4d27b718",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:9c3654333b6f8b01",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6191892e4d27b718",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6191892e4d27b718",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6191892e4d27b718",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9c3654333b6f8b01",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9c3654333b6f8b01",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9c3654333b6f8b01",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:230551b6c5ce8a9e",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:230551b6c5ce8a9e",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:230551b6c5ce8a9e",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    }
+  ],
+  "episode_id": "2922a74e-5598-537f-a2d1-1ac08059e49d",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:2922a74e-5598-537f-a2d1-1ac08059e49d",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "2922a74e-5598-537f-a2d1-1ac08059e49d",
+        "metadata_relative_path": "feeds/p03/metadata/p03_e04.metadata.json",
+        "podcast_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+        "publish_date": "2026-07-04T12:00:00",
+        "title": "Below the Surface — Episode 4"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:outdoor-activities",
+      "properties": {
+        "label": "outdoor activities",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:gear",
+      "properties": {
+        "label": "gear",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:6191892e4d27b718",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Below the Surface — Episode\n## Plan the Dive, Manage the Risk\nHost: Rina\nGuest: Marco Silva\n#fixture-v3: voice=pt-BR host_voice=en-US\nRina: Welcome back to Below the Surface.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:9c3654333b6f8b01",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "I'm joined by Marco Silva, technical diver and instructor.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:230551b6c5ce8a9e",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Marco, thanks for surfacing for us.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Rina"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:6e303c97ef6d6d7b",
+      "properties": {
+        "char_end": 135,
+        "char_start": 6,
+        "episode_id": "2922a74e-5598-537f-a2d1-1ac08059e49d",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Below the Surface. I'm joined by Marco Silva, technical diver and instructor. Marco, thanks for surfacing for us.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p03_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Marco Silva"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:aded400ed5c94ea3",
+      "properties": {
+        "char_end": 169,
+        "char_start": 149,
+        "episode_id": "2922a74e-5598-537f-a2d1-1ac08059e49d",
+        "speaker_id": "person:speaker-02",
+        "text": "Ha — happy to, Rina.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p03_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:0dc2e9360b0ae956",
+      "properties": {
+        "char_end": 302,
+        "char_start": 176,
+        "episode_id": "2922a74e-5598-537f-a2d1-1ac08059e49d",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Suunto. Suunto builds dive computers and outdoor watches. Get started at suunto.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p03_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:ec3f8b0330cc9718",
+      "properties": {
+        "char_end": 363,
+        "char_start": 302,
+        "episode_id": "2922a74e-5598-537f-a2d1-1ac08059e49d",
+        "speaker_id": "person:speaker-01",
+        "text": "New divers think planning is paperwork. You call it survival.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p03_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:1b4c6b9fc79963aa",
+      "properties": {
+        "char_end": 579,
+        "char_start": 377,
+        "episode_id": "2922a74e-5598-537f-a2d1-1ac08059e49d",
+        "speaker_id": "person:speaker-02",
+        "text": "Dive planning is risk management, plain and simple. It's the gas you don't use and the ascent you don't rush. The incident that hurts you is the one nobody named on the boat — so we name them all first.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p03_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:241e804a7c872f5e",
+      "properties": {
+        "char_end": 803,
+        "char_start": 579,
+        "episode_id": "2922a74e-5598-537f-a2d1-1ac08059e49d",
+        "speaker_id": "person:speaker-02",
+        "text": "And you plan the whole dive as one system — depth, gas, team, current — because the accidents live in how those interact, not in any single number. When we reviewed a decade of incident reports, that pattern held every time.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p03_e04.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.0"
+}

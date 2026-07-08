@@ -21,6 +21,7 @@ test('home → player renders the transcript + insights (no mocks)', async ({ pa
   expect(homeAxe.violations.filter((v) => v.impact === 'critical' || v.impact === 'serious')).toEqual([])
 
   // Open the newest episode from What's new (real navigation; slug computed by the backend).
+  await page.goto('/podcast/p05') // #1148: reach the episode via its show page (date-independent)
   await page.getByText('Index Investing Without the Myths').first().click()
   await expect(
     page.getByRole('heading', { name: /Index Investing Without the Myths/ }),

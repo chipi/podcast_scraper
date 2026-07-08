@@ -234,6 +234,20 @@ def remove_interest(data_dir: Path, user_id: str, token: str) -> list[str]:
         )
 
 
+# Follow events — an append-only, timestamped log of interest follows (momentum engagement source,
+# RFC-103). The interest LIST above stays the source of truth for "what's followed"; this log is the
+# timestamped history a weekly-momentum series needs (the list carries no per-token time). One line
+# of JSON ({token, ts}) per newly-followed token, in <data_dir>/users/<id>/interest_events.jsonl.
+
+
+def record_interest_follow(data_dir: Path, user_id: str, token: str, ts: int) -> None:
+    """Append a timestamped follow event for *token* (call only when it was newly followed)."""
+    path = data_dir / "users" / user_id / "interest_events.jsonl"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps({"token": str(token), "ts": int(ts)}, ensure_ascii=False) + "\n")
+
+
 # --- library (subscriptions; list of {feed_id, feed_url?, title?, added_at?}) ---
 
 

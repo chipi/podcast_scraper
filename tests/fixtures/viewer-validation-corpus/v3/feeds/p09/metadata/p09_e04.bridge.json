@@ -1,0 +1,18 @@
+{
+  "episode_id": "e5f72053-f000-519e-95cb-204c957f7ab3",
+  "identities": [
+    {
+      "display_name": "technology",
+      "id": "topic:technology"
+    },
+    {
+      "display_name": "health",
+      "id": "topic:health"
+    },
+    {
+      "display_name": "Science & research",
+      "id": "topic:science-research"
+    }
+  ],
+  "schema_version": "1"
+}

@@ -1,0 +1,90 @@
+[
+  {
+    "char_end": 141,
+    "char_start": 13,
+    "end": 6.0,
+    "speaker_label": "Alex Morgan",
+    "start": 0.0,
+    "text": "Welcome back to The Long View. I'm joined by Skanda Amarnath, who reads the macroeconomy for a living. Skanda, good to have you."
+  },
+  {
+    "char_end": 172,
+    "char_start": 159,
+    "end": 12.0,
+    "speaker_label": "Skanda Amarnath",
+    "start": 6.0,
+    "text": "Thanks, Alex."
+  },
+  {
+    "char_end": 318,
+    "char_start": 186,
+    "end": 18.0,
+    "speaker_label": "Alex Morgan",
+    "start": 12.0,
+    "text": "Today's episode is sponsored by Bloomberg. Bloomberg Terminal is the data spine institutional desks run on. Try bloomberg.com today."
+  },
+  {
+    "char_end": 369,
+    "char_start": 318,
+    "end": 24.0,
+    "speaker_label": "Alex Morgan",
+    "start": 18.0,
+    "text": "You describe macro as risk management. Unpack that."
+  },
+  {
+    "char_end": 592,
+    "char_start": 387,
+    "end": 30.0,
+    "speaker_label": "Skanda Amarnath",
+    "start": 24.0,
+    "text": "Macro is risk management at scale. The job is mostly not being on the wrong side of a regime change \u2014 and the regime change you can name in advance is the one you can position for. The rest is just hoping."
+  },
+  {
+    "char_end": 798,
+    "char_start": 592,
+    "end": 36.0,
+    "speaker_label": "Skanda Amarnath",
+    "start": 30.0,
+    "text": "And the economy is a system, not a set of levers. Pull one and three others move. When we back-tested the calls, the misses were always someone treating a correlated system as if the parts were independent."
+  },
+  {
+    "char_end": 871,
+    "char_start": 812,
+    "end": 42.0,
+    "speaker_label": "Alex Morgan",
+    "start": 36.0,
+    "text": "So the same discipline Elena talks about in sustainability."
+  },
+  {
+    "char_end": 1063,
+    "char_start": 889,
+    "end": 48.0,
+    "speaker_label": "Skanda Amarnath",
+    "start": 42.0,
+    "text": "Exactly the same. A macro book and a power grid are both systems of correlated risk. Systems thinking and risk management are one discipline \u2014 you just change the vocabulary."
+  },
+  {
+    "char_end": 1174,
+    "char_start": 1077,
+    "end": 54.0,
+    "speaker_label": "Alex Morgan",
+    "start": 48.0,
+    "text": "Thanks again to Morningstar for backing the show. Morningstar gives you independent fund ratings."
+  },
+  {
+    "char_end": 1205,
+    "char_start": 1192,
+    "end": 60.0,
+    "speaker_label": "Skanda Amarnath",
+    "start": 54.0,
+    "text": "Thanks, Alex."
+  },
+  {
+    "char_end": 1259,
+    "char_start": 1219,
+    "end": 66.0,
+    "speaker_label": "Alex Morgan",
+    "start": 60.0,
+    "text": "That's it for this Long View. Take care."
+  }
+]

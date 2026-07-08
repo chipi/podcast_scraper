@@ -16,7 +16,7 @@ JSONL surface itself is documented in
 
 Set `enrichment.enabled: true` in `viewer_operator.yaml`. The
 pipeline's finalize step then spawns
-`python -m podcast_scraper.enrichment.cli` as a **detached background
+`python -m podcast_scraper.cli enrich` as a **detached background
 subprocess** after every successful pipeline run. Three properties:
 
 - The pipeline returns its own count/summary immediately — wall-clock
@@ -35,7 +35,7 @@ WARNING and the pipeline returns normally.
 ### Run an enrichment pass
 
 ```bash
-python -m podcast_scraper.enrichment.cli \
+python -m podcast_scraper.cli enrich \
   --output-dir path/to/corpus \
   --profile cloud_balanced
 ```
@@ -62,8 +62,8 @@ Three equivalent paths:
 
 ```bash
 # CLI
-python -m podcast_scraper.enrichment.cli \
-  --output-dir corpus --re-enable nli_contradiction \
+python -m podcast_scraper.cli enrich \
+  --output-dir corpus --re-enable topic_consensus \
   --re-enable-reason "transient HF outage"
 ```
 
@@ -75,7 +75,7 @@ when auto_disabled).
 
 ```text
 # MCP (remote agent)
-enrichment_re_enable(enricher_id="nli_contradiction",
+enrichment_re_enable(enricher_id="topic_consensus",
                      reason="transient HF outage")
 ```
 
@@ -145,29 +145,54 @@ operator used.
 
 ## The shipped enrichers
 
-| Tier | id | Scope | Reads | Writes |
-| ---- | -- | ----- | ----- | ------ |
-| deterministic | `topic_cooccurrence` | episode | `.kg.json` | `metadata/enrichments/{stem}.topic_cooccurrence.json` |
-| deterministic | `topic_cooccurrence_corpus` | corpus | `.kg.json` | `enrichments/topic_cooccurrence_corpus.json` |
-| deterministic | `temporal_velocity` | corpus | `.kg.json` | `enrichments/temporal_velocity.json` |
-| deterministic | `grounding_rate` | corpus | `.gi.json` | `enrichments/grounding_rate.json` |
-| deterministic | `guest_coappearance` | corpus | `.gi.json` | `enrichments/guest_coappearance.json` |
-| deterministic | `insight_density` | episode | `.gi.json`, `.metadata.json` | `metadata/enrichments/{stem}.insight_density.json` |
-| embedding | `topic_similarity` | corpus | `.kg.json` | `enrichments/topic_similarity.json` |
-| ml | `nli_contradiction` | corpus | `.gi.json` | `enrichments/nli_contradiction.json` |
-| query | `query_topic_relatedness` | per-request | `enrichments/topic_similarity.json` | annotates search hits |
+| Tier | id | Scope | Reads | Writes | Ships? |
+| ---- | -- | ----- | ----- | ------ | ------ |
+| deterministic | `topic_cooccurrence_corpus` | corpus | `.kg.json` | `enrichments/topic_cooccurrence_corpus.json` | ✅ |
+| deterministic | `topic_theme_clusters` | corpus | `.kg.json` | `enrichments/topic_theme_clusters.json` | ✅ |
+| deterministic | `temporal_velocity` | corpus | `.kg.json` | `enrichments/temporal_velocity.json` | ✅ |
+| deterministic | `grounding_rate` | corpus | `.gi.json` | `enrichments/grounding_rate.json` | ✅ |
+| deterministic | `guest_coappearance` | corpus | `.gi.json` | `enrichments/guest_coappearance.json` | ✅ |
+| deterministic | `insight_density` | episode | `.gi.json`, `.metadata.json` | `metadata/enrichments/{stem}.insight_density.json` | ✅ |
+| deterministic | `insight_sentiment` | episode | `.gi.json` | `metadata/enrichments/{stem}.insight_sentiment.json` | ✅ (VADER — timeline colour) |
+| embedding | `topic_similarity` | corpus | `.kg.json` | `enrichments/topic_similarity.json` | ✅ (needs a provider) |
+| ml | `topic_consensus` | corpus | `.gi.json` | `enrichments/topic_consensus.json` | ✅ promoted (precision 0.91, ADR-108 composite) |
+| query | `query_topic_relatedness` | per-request | `enrichments/topic_similarity.json` | annotates search hits | ✅ |
 
-The chunk-7 profile matrix (see `enrichment/profile_sets.py`) decides
-which set runs by default per profile:
+> **Note (ADR-108):** the one gated ML enricher is `topic_consensus` — the reimagining of the retired
+> 0%-precision `nli_contradiction`, a **composite** (embedding cosine + low NLI contradiction) that
+> cleared its eval and is admitted. Its sibling stance enricher (`stance_disagreement`/`stance_timeline`)
+> was **retired**: per-person / per-topic stance over time is a read-time CIL query
+> (`conversation-arc` / `position-arc`) coloured by the deterministic `insight_sentiment` (VADER), not a
+> gated ML enricher. The 9 above (+ the query enricher) are the real set in `enrichment/enrichers/`.
 
-| Profile | Enricher set |
+### The accuracy gate — why membership is data-driven
+
+The one gated ML enricher (`topic_consensus`) is wired and registered, and its profile membership is
+decided by a data-driven accuracy gate (`enrichment/eval/admission.py` → `profile_sets._admit`), not a
+hand-toggle. It declares an `accuracy_gate` (precision ≥ 0.5) on its manifest; until an eval records a
+passing precision under `data/eval/enrichment/<id>/gate_metrics.json`, the gate excludes it from the
+registry → profiles → UI. **`topic_consensus` cleared it** — precision 0.91 on prod-v2 (ADR-108
+composite) → admitted to the cloud / dgx / dev / local profiles. A candidate with no passing eval
+auto-promotes with no code edit once one is recorded. The live multi-speaker surface users also see is
+**perspectives** (#1146), a CIL query over the GI, **not** an enricher, so it sidesteps the gate. `GET
+/api/enrichment/config/admission` reports each enricher's promote/gate decision and reason.
+
+The chunk-7 profile matrix (see `enrichment/profile_sets.py`) decides the CANDIDATE
+set per profile; the accuracy gate then filters the ML tier (above):
+
+| Profile | Enricher candidate set |
 | ------- | ------------ |
 | `test_default`, `eval_default`, `preprod_local_whisper` | (none — CI isolation) |
 | `airgapped_thin` | deterministic only |
 | `airgapped` | deterministic + `topic_similarity` |
-| `cloud_thin`, `cloud_balanced`, `cloud_quality` | deterministic + `topic_similarity` + `nli_contradiction` |
-| `dev`, `prod`, `local`, `local_dgx_*`, `prod_dgx_*`, `cloud_with_dgx_primary` | full set |
+| `cloud_thin`, `cloud_balanced`, `cloud_quality` | deterministic + `topic_similarity` + ML candidate `topic_consensus` (admitted — precision 0.91) |
+| `dev`, `local`, `local_dgx_*`, `prod_dgx_*`, `cloud_with_dgx_primary` | same full candidate set (gate applies) |
 | unknown profile | (none — conservative default) |
+
+Membership is **data-driven, not a hand-maintained list**: profiles list CANDIDATES; `_admit()`
+runs each through its manifest `accuracy_gate` + the recorded `data/eval` metric, so an ML
+candidate ships only once it clears precision ≥ 0.5. There is no `config/profiles/prod.yaml` —
+the production profiles are `prod_dgx_*`.
 
 CLI flags layer on top: `--profile <name>` (sets the base set per the
 matrix above) / `--enrichers <id,id>` (alias for `--only`) /
@@ -181,12 +206,15 @@ Each shipped enricher's algorithm, inputs, output shape, and tunable
 knobs. Knob keys map 1:1 to ``enrichers.<id>.<knob>:`` in the YAML
 and to form fields in the viewer Configuration → Enrichment editor.
 
-### `topic_cooccurrence` (deterministic, episode scope)
+### `topic_theme_clusters` (deterministic, corpus scope)
 
-Pairs every unordered combination of Topic nodes in an episode's KG.
-**Reads:** `.kg.json`. **Writes:** `metadata/enrichments/{stem}.topic_cooccurrence.json`.
-**Output:** `{ pairs: [{topic_a_id, topic_b_id, topic_a_label, topic_b_label}], episode_count }`.
-**Knobs:** none today.
+Groups Topics **discussed together** (co-occurrence lift + greedy average-linkage) into
+*themes* — e.g. {shadow fleet, oil prices, sanctions}. Complements the *semantic*
+`topic_clusters` (which groups topics that *mean* the same thing); uses the `thc:` graph
+compound-node prefix vs the semantic `tc:`. **Reads:** `.kg.json` (Topic nodes per episode).
+**Writes:** `enrichments/topic_theme_clusters.json`. **Output:** mirrors `topic_clusters.json`
+(`clusters[].members[]`) but tags each `cluster_type="theme"`. **Knobs:** `min_pair` (min
+co-occurring episodes to form an edge), `merge_threshold` (linkage cutoff).
 
 ### `topic_cooccurrence_corpus` (deterministic, corpus scope)
 
@@ -248,27 +276,60 @@ Per-Topic Top-K cosine-similar neighbours via the injected
 `{ topics: [{topic_id, topic_label, top_k, neighbours: [{topic_id, topic_label, similarity}]}], top_k, topic_count, missing_topic_ids }`.
 **Knobs:**
 
-- ``top_k`` (int, 1–100, default 10) — neighbours per topic.
+- ``top_k`` (int, 1–100, default **7**) — neighbours per topic. Retuned 10→7 (#1105) after
+  the accuracy eval showed recall@10 already saturated (99%) and a smaller K gives a cleaner
+  "related topics" surface (80/80 @7).
+
+**Status: validated + shipping.** Prod-v2 eval (24-topic Opus silver, #1105): recall@10 **99%**,
+precision@10 71%. Unlike the ML enrichers it declares **no** `accuracy_gate`, so it is admitted
+unconditionally (numbers measured locally, not persisted as a gate metric).
 
 **Provider requirement:** `EmbeddingProvider`. Set
 `enrichers.topic_similarity.provider.type` to one of the registered
 types (`sentence_transformer_local`, `fake_for_test`, ...) — see
 [Provider-type registry](#provider-type-registry).
 
-### `nli_contradiction` (ml, corpus scope)
+### `topic_consensus` (ml, corpus scope)
 
-Cross-Person Insight contradiction pairs per Topic via the injected
-``NliScorer``. **Reads:** `.gi.json` (Insight / Person / SPOKEN_BY /
-ABOUT). **Writes:** `enrichments/nli_contradiction.json`.
-**Output:** `{ contradictions: [{topic_id, insight_a_id, insight_b_id, person_a_id, person_b_id, contradiction_score}], threshold, model_id, model_version }`.
+The ADR-108 reimagining of `nli_contradiction`: detect cross-Person **corroboration** per Topic —
+"what the corpus agrees on". Real-corpus eval showed *symmetric NLI entailment* has ~0 recall (genuine
+agreement is phrased differently), so the emit rule is a **composite** over the injected
+``ConsensusScorer``: **embedding cosine ≥ `cos_threshold`** (the shared-question gate — same
+proposition) **AND NLI contradiction ≤ `contra_threshold`** (the direction gate — they don't disagree,
+which filters similar-but-opposite pairs). No LLM (MiniLM + DeBERTa, both CPU-local). **Reads:**
+`.gi.json` (Insight / Person / SPOKEN_BY / ABOUT). **Writes:** `enrichments/topic_consensus.json`.
+**Output:** `{ consensus: [{topic_id, person_a_id, person_a_name, person_b_id, person_b_name, insight_a_id, insight_a_text, insight_b_id, insight_b_text, consensus_score, cosine, contradiction}], cos_threshold, contra_threshold, pairs_scored, model_id, model_version }` (`consensus_score` = `cosine`).
 **Knobs:**
 
-- ``threshold`` (float, 0–1, default 0.5) — contradiction probability
-  cutoff (inclusive lower bound) for emitting a pair.
+- ``cos_threshold`` (float, 0–1, default 0.70) — min embedding cosine (shared-question gate).
+- ``contra_threshold`` (float, 0–1, default 0.5) — max NLI contradiction, either direction (direction gate).
 
-**Provider requirement:** `NliScorer`. Set
-`enrichers.nli_contradiction.provider.type` to one of `deberta_local`
-(real DeBERTa, requires `[ml]` extra) or `fixed_scripted` (test fixture).
+**Provider requirement:** `ConsensusScorer`. Set
+`enrichers.topic_consensus.provider.type` to `consensus_local` (MiniLM + DeBERTa, requires `[ml]`
+extra) or `fixed_consensus` (CI-safe test fixture).
+**Status: PROMOTED** — measured **precision 0.91** on prod-v2 (curated 28-pair gold), recorded in
+`data/eval/enrichment/topic_consensus/gate_metrics.json`, so the `accuracy_gate(precision ≥ 0.5)`
+auto-admits it into the cloud / dgx / dev / local profiles. Re-score with
+`scripts/eval/score/enrichment_topic_consensus.py`.
+
+### `insight_sentiment` (deterministic, episode scope)
+
+The colour layer for the conversation-timeline surfaces. Scores every Insight's text with **VADER** (a
+pure-Python lexicon analyzer that bundles its own lexicon — no model download, no network) → a
+`compound` in [−1, +1] + a `negative` / `neutral` / `positive` label (VADER's ±0.05 thresholds).
+**Reads:** `.gi.json`. **Writes:** `metadata/enrichments/{stem}.insight_sentiment.json`.
+**Output:** `{ episode_id, counts: {negative, neutral, positive}, total_insights, insights: [{insight_id, compound, label}] }`.
+Deterministic tier → **no accuracy gate** (unlike a stance *score*, sentiment is a decoration — a
+neutral factual insight is a fine grey). The CIL timeline queries (`position-arc`, `topic-timeline`,
+`conversation-arc`) join it by `insight_id` to tint each insight.
+
+> **Retired: `stance_timeline` / `stance_disagreement`.** An earlier ADR-108 cut tried to *auto-score*
+> a −1..+1 stance per (person, topic) via NLI-entailment vs "{topic} is good/bad" anchors. Real-corpus
+> eval showed the stance signal is ~0 on factual insights, so the score was the wrong frame. Per-person
+> / per-topic stance **over time** is now a **read-time CIL query** — `GET /api/persons/{id}/positions`
+> (per-`(person, topic)` arc), `GET /api/topics/{id}/timeline` (all speakers), and `GET
+> /api/topics/{id}/conversation-arc` (aggregate-first weekly volume × sentiment) — coloured by
+> `insight_sentiment`. No gated ML enricher, no LLM.
 
 ### `query_topic_relatedness` (query enricher, per-request)
 
@@ -296,10 +357,11 @@ enrichment:
       provider:                    # ML enrichers declare a provider
         type: sentence_transformer_local
         model: all-MiniLM-L6-v2
-    nli_contradiction:
-      threshold: 0.6
+    topic_consensus:
+      cos_threshold: 0.70          # embedding cosine gate (shared-question)
+      contra_threshold: 0.5        # max NLI contradiction gate (direction)
       provider:
-        type: deberta_local
+        type: consensus_local
     grounding_rate: {}             # empty block = enabled, no knobs
     insight_density:
       enabled: false               # explicit opt-out (preserves block)
@@ -645,7 +707,7 @@ pipeline run.
 2. Check `GET /api/enrichment/events?enricher_id=<id>&limit=20` for
    the failure events that led to the cross-run threshold.
 3. If transient (HF rate-limit, network blip), click **Re-enable**
-   or run `python -m podcast_scraper.enrichment.cli --re-enable <id>
+   or run `python -m podcast_scraper.cli enrich --re-enable <id>
    --re-enable-reason "transient ..."`.
 4. If persistent, investigate via `enrichment_recent_events` +
    Langfuse + Loki via `prod_correlate(<run_id>)`.

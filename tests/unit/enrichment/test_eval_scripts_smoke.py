@@ -18,7 +18,7 @@ _SCRIPTS = _REPO_ROOT / "scripts" / "eval" / "score"
 _SCRIPTS_TO_CHECK = [
     "enrichment_deterministic.py",
     "enrichment_topic_similarity.py",
-    "enrichment_nli_contradiction.py",
+    "enrichment_topic_consensus.py",
 ]
 
 
@@ -165,12 +165,12 @@ def test_enrichment_topic_similarity_scores_recall_at_k(tmp_path: Path) -> None:
     assert abs(body["macro_recall@3"] - 0.6667) < 0.01
 
 
-def test_nli_with_live_model_flag_accepted(tmp_path: Path) -> None:
-    """The --with-live-model flag must be accepted by argparse.
+def test_topic_consensus_with_live_model_flag_accepted(tmp_path: Path) -> None:
+    """The --with-live-model flag must be accepted by argparse (ADR-108).
     (Exercising the actual model load lives in
-    tests/integration/enrichment/test_deberta_real_model_optin.py
-    under the ml_models marker.)"""
-    script = _SCRIPTS / "enrichment_nli_contradiction.py"
+    tests/e2e/enrichment/test_deberta_real_model_optin.py under the
+    ml_models marker.)"""
+    script = _SCRIPTS / "enrichment_topic_consensus.py"
     result = subprocess.run(
         [sys.executable, str(script), "--help"],
         capture_output=True,
@@ -181,96 +181,12 @@ def test_nli_with_live_model_flag_accepted(tmp_path: Path) -> None:
     assert "Brier" in result.stdout
 
 
-def test_enrichment_nli_contradiction_scores_precision_recall(tmp_path: Path) -> None:
-    """Wires the P/R/F1 loop end-to-end."""
-    import json
-
-    corpus = tmp_path / "corpus"
-    out = corpus / "enrichments"
-    out.mkdir(parents=True)
-    # Model detected 2 pairs as contradictions.
-    (out / "nli_contradiction.json").write_text(
-        json.dumps(
-            {
-                "data": {
-                    "contradictions": [
-                        {
-                            "insight_a_id": "i1",
-                            "insight_b_id": "i2",
-                            "contradiction_score": 0.92,
-                        },
-                        {
-                            "insight_a_id": "i3",
-                            "insight_b_id": "i4",
-                            "contradiction_score": 0.85,
-                        },
-                    ]
-                }
-            }
-        ),
-        encoding="utf-8",
-    )
-    gold = tmp_path / "gold"
-    gold.mkdir()
-    # Gold labels: 2 contradictions, 1 neutral, 1 entailment.
-    # Model finds i1+i2 (TP) and i3+i4 (FP — labeled neutral).
-    # Missing: i5+i6 contradiction (FN).
-    (gold / "g.jsonl").write_text(
-        "\n".join(
-            [
-                '{"insight_a_id": "i1", "insight_b_id": "i2", "label": "contradiction"}',
-                '{"insight_a_id": "i3", "insight_b_id": "i4", "label": "neutral"}',
-                '{"insight_a_id": "i5", "insight_b_id": "i6", "label": "contradiction"}',
-                '{"insight_a_id": "i7", "insight_b_id": "i8", "label": "entailment"}',
-            ]
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-    script = _SCRIPTS / "enrichment_nli_contradiction.py"
-    result = subprocess.run(
-        [
-            sys.executable,
-            str(script),
-            "--corpus",
-            str(corpus),
-            "--gold",
-            str(gold),
-        ],
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode == 0
-    body = json.loads(result.stdout)
-    assert body["true_positives"] == 1
-    assert body["false_positives"] == 1
-    assert body["false_negatives"] == 1
-    assert body["precision"] == 0.5
-    assert body["recall"] == 0.5
-    assert body["f1"] == 0.5
-
-
 def test_enrichment_topic_similarity_missing_corpus_output_exits_one(
     tmp_path: Path,
 ) -> None:
     """topic_similarity scorer requires the corpus to have produced
     enrichments/topic_similarity.json — exits 1 when missing."""
     script = _SCRIPTS / "enrichment_topic_similarity.py"
-    result = subprocess.run(
-        [sys.executable, str(script), "--corpus", str(tmp_path)],
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode == 1
-    assert "no_corpus_output" in result.stdout
-
-
-def test_enrichment_nli_contradiction_missing_corpus_output_exits_one(
-    tmp_path: Path,
-) -> None:
-    """nli_contradiction scorer requires enrichments/nli_contradiction.json
-    on disk — exits 1 when missing."""
-    script = _SCRIPTS / "enrichment_nli_contradiction.py"
     result = subprocess.run(
         [sys.executable, str(script), "--corpus", str(tmp_path)],
         capture_output=True,
@@ -295,3 +211,68 @@ def test_enrichment_deterministic_gold_present_without_corpus_exits_two(
     )
     assert result.returncode == 2
     assert "no_corpus" in result.stdout
+
+
+def test_enrichment_topic_consensus_scores_precision_recall(tmp_path: Path) -> None:
+    """Wires the consensus P/R/F1 loop end-to-end (ADR-108)."""
+    import json
+
+    corpus = tmp_path / "corpus"
+    out = corpus / "enrichments"
+    out.mkdir(parents=True)
+    # Enricher emitted 2 consensus pairs.
+    (out / "topic_consensus.json").write_text(
+        json.dumps(
+            {
+                "data": {
+                    "consensus": [
+                        {"insight_a_id": "i1", "insight_b_id": "i2", "consensus_score": 0.88},
+                        {"insight_a_id": "i3", "insight_b_id": "i4", "consensus_score": 0.71},
+                    ]
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    gold = tmp_path / "gold"
+    gold.mkdir()
+    # i1+i2 consensus (TP), i3+i4 no_consensus (FP), i5+i6 consensus missed (FN).
+    (gold / "g.jsonl").write_text(
+        "\n".join(
+            [
+                '{"insight_a_id": "i1", "insight_b_id": "i2", "label": "consensus"}',
+                '{"insight_a_id": "i3", "insight_b_id": "i4", "label": "no_consensus"}',
+                '{"insight_a_id": "i5", "insight_b_id": "i6", "label": "consensus"}',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    script = _SCRIPTS / "enrichment_topic_consensus.py"
+    result = subprocess.run(
+        [sys.executable, str(script), "--corpus", str(corpus), "--gold", str(gold)],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    body = json.loads(result.stdout)
+    assert body["true_positives"] == 1
+    assert body["false_positives"] == 1
+    assert body["false_negatives"] == 1
+    assert body["precision"] == 0.5
+    assert body["recall"] == 0.5
+    assert body["f1"] == 0.5
+
+
+def test_enrichment_topic_consensus_missing_corpus_output_exits_one(
+    tmp_path: Path,
+) -> None:
+    """topic_consensus scorer requires enrichments/topic_consensus.json — exit 1."""
+    script = _SCRIPTS / "enrichment_topic_consensus.py"
+    result = subprocess.run(
+        [sys.executable, str(script), "--corpus", str(tmp_path)],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 1
+    assert "no_corpus_output" in result.stdout

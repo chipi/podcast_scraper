@@ -1,0 +1,22 @@
+{
+  "captured_topics": [
+    "topic:index-investing",
+    "topic:macro-policy"
+  ],
+  "expected_interests": [
+    "topic:index-investing",
+    "topic:monetary-policy",
+    "topic:macroeconomics"
+  ],
+  "expected_relevant_shows": [
+    "p05"
+  ],
+  "heard": [
+    "p05_e01",
+    "p05_e02",
+    "p05_e03",
+    "p05_e04"
+  ],
+  "persona": "investing-only",
+  "user_id": "u_invest"
+}

@@ -249,14 +249,14 @@ class TestEnrichmentHelpers(unittest.TestCase):
         with patch.dict(sys.modules, {"sentry_sdk": fake}):
             emit_enrichment_breadcrumb(
                 "enrichment.circuit_opened",
-                "circuit opened for nli_contradiction",
+                "circuit opened for topic_consensus",
                 level="warning",
-                data={"enricher_id": "nli_contradiction"},
+                data={"enricher_id": "topic_consensus"},
             )
         fake.add_breadcrumb.assert_called_once()
         kwargs = fake.add_breadcrumb.call_args.kwargs
         self.assertEqual(kwargs["category"], "enrichment.circuit_opened")
-        self.assertEqual(kwargs["message"], "circuit opened for nli_contradiction")
+        self.assertEqual(kwargs["message"], "circuit opened for topic_consensus")
         self.assertEqual(kwargs["level"], "warning")
 
     def test_emit_enrichment_breadcrumb_noop_when_sdk_unimportable(self) -> None:
@@ -271,14 +271,14 @@ class TestEnrichmentHelpers(unittest.TestCase):
         fake = MagicMock()
         with patch.dict(sys.modules, {"sentry_sdk": fake}):
             capture_enrichment_message(
-                "nli_contradiction auto-disabled after 2 failed runs",
+                "topic_consensus auto-disabled after 2 failed runs",
                 level="warning",
-                tags={"enricher_id": "nli_contradiction", "run_id": "job-1"},
+                tags={"enricher_id": "topic_consensus", "run_id": "job-1"},
             )
         fake.capture_message.assert_called_once()
         self.assertEqual(
             fake.capture_message.call_args.args[0],
-            "nli_contradiction auto-disabled after 2 failed runs",
+            "topic_consensus auto-disabled after 2 failed runs",
         )
 
     def test_capture_enrichment_message_noop_when_sdk_unimportable(self) -> None:

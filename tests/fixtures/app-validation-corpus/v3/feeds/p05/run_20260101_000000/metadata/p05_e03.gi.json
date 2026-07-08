@@ -1,0 +1,274 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-8aa4d883afa10fa4",
+      "to": "topic:personal-finance",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-8aa4d883afa10fa4",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-8aa4d883afa10fa4",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-8aa4d883afa10fa4",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-8aa4d883afa10fa4",
+      "to": "insight:695aed544e7fbef4",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-8aa4d883afa10fa4",
+      "to": "insight:859a389940dcde54",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-8aa4d883afa10fa4",
+      "to": "insight:3aabb6d8787f9373",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:4e369690b5c9d57f",
+      "to": "person:nora",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:695aed544e7fbef4",
+      "to": "quote:4e369690b5c9d57f",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:360c28233ec933cc",
+      "to": "person:scott-bessett",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:859a389940dcde54",
+      "to": "quote:360c28233ec933cc",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:5fd398097ae0f32a",
+      "to": "person:nora",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "quote:5fd398097ae0f32a",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:a42a8fd1e536da48",
+      "to": "person:nora",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:695aed544e7fbef4",
+      "to": "quote:a42a8fd1e536da48",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:13f87beb607add86",
+      "to": "person:scott-bessett",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:859a389940dcde54",
+      "to": "quote:13f87beb607add86",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:373f8e83a2d34916",
+      "to": "person:nora",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "quote:373f8e83a2d34916",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "ep-8aa4d883afa10fa4",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-8aa4d883afa10fa4",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ep-8aa4d883afa10fa4",
+        "metadata_relative_path": "feeds/p05/run_20260101_000000/metadata/p05_e03.metadata.json",
+        "podcast_id": "p05",
+        "publish_date": "2025-02-28T12:00:00",
+        "title": "The Bessent Tape"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:personal-finance",
+      "properties": {
+        "label": "personal finance",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:695aed544e7fbef4",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Welcome back to Long Horizon Notes. Today we're talking about macro policy, and I'm joined by Scott Bessett, hedge fund manager and policy adviser. Scott Bessett, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:859a389940dcde54",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Before we get into it \u2014 Rich Clarida was on last week \u2014 the same point about credibility applies here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:3aabb6d8787f9373",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Yeah, exactly. And it ties into what we're covering today."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:nora",
+      "properties": {
+        "name": "Nora"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:4e369690b5c9d57f",
+      "properties": {
+        "char_end": 191,
+        "char_start": 6,
+        "episode_id": "ep-8aa4d883afa10fa4",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Long Horizon Notes. Today we're talking about macro policy, and I'm joined by Scott Bessett, hedge fund manager and policy adviser. Scott Bessett, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p05_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:scott-bessett",
+      "properties": {
+        "name": "Scott Bessett"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:360c28233ec933cc",
+      "properties": {
+        "char_end": 238,
+        "char_start": 207,
+        "episode_id": "ep-8aa4d883afa10fa4",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Nora. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p05_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:5fd398097ae0f32a",
+      "properties": {
+        "char_end": 397,
+        "char_start": 245,
+        "episode_id": "ep-8aa4d883afa10fa4",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Bloomberg. Bloomberg Terminal is the data spine that institutional desks run on. Get started at bloomberg.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p05_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:a42a8fd1e536da48",
+      "properties": {
+        "char_end": 499,
+        "char_start": 397,
+        "episode_id": "ep-8aa4d883afa10fa4",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Rich Clarida was on last week \u2014 the same point about credibility applies here.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p05_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:13f87beb607add86",
+      "properties": {
+        "char_end": 573,
+        "char_start": 515,
+        "episode_id": "ep-8aa4d883afa10fa4",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, exactly. And it ties into what we're covering today.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p05_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:373f8e83a2d34916",
+      "properties": {
+        "char_end": 671,
+        "char_start": 580,
+        "episode_id": "ep-8aa4d883afa10fa4",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to flag something \u2014 Rich Clarida mentioned this same dynamic a couple episodes back.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p05_e03.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

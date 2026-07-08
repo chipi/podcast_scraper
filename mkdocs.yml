@@ -372,6 +372,7 @@ nav:
       - RFC-100 Audio Bridge Subsystem: rfc/RFC-100-audio-bridge-subsystem.md
       - RFC-101 Personal Knowledge Corpus: rfc/RFC-101-personal-knowledge-corpus.md
       - RFC-102 Knowledge Clusters & Entity Cards: rfc/RFC-102-knowledge-clusters-entity-cards.md
+      - RFC-103 Momentum Layer (Trending): rfc/RFC-103-momentum-layer.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md

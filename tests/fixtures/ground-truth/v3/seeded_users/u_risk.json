@@ -1,0 +1,24 @@
+{
+  "captured_topics": [
+    "topic:risk-management",
+    "topic:systems-thinking"
+  ],
+  "expected_interests": [
+    "topic:risk-management",
+    "topic:systems-thinking",
+    "topic:reliability"
+  ],
+  "expected_relevant_shows": [
+    "p02",
+    "p07",
+    "p09"
+  ],
+  "heard": [
+    "p05_e04",
+    "p02_e04",
+    "p01_e04",
+    "p07_e03"
+  ],
+  "persona": "risk-and-systems generalist",
+  "user_id": "u_risk"
+}

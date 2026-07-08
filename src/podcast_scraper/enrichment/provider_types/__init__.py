@@ -8,7 +8,11 @@ side-effecting — every shipped provider type registers on import.
 from __future__ import annotations
 
 # Side-effect: import the protocol subpackages so their types register.
-from podcast_scraper.enrichment.provider_types import embedding, nli  # noqa: F401
+from podcast_scraper.enrichment.provider_types import (  # noqa: F401
+    consensus,
+    embedding,
+    nli,
+)
 from podcast_scraper.enrichment.provider_types.registry import (
     get_global_registry,
     ProviderType,

@@ -1,6 +1,6 @@
 # PRD-026: Topic Entity View
 
-- **Status**: Implemented (RFC-088 chunk 6c, 2026-06-27) — Topic Entity View now consumes `topic_cooccurrence_corpus` (co-occurring topics as clickable chips) + `temporal_velocity` (velocity badge with rising/falling colour signal) from the enrichment layer. Click a chip to pivot subject focus. See [Enrichment Layer Guide](../guides/ENRICHMENT_LAYER_GUIDE.md) and the chunk-8 follow-up that cached envelope fetches via `useEnrichmentEnvelopeCache`.
+- **Status**: Implemented (RFC-088 chunk 6c, 2026-06-27) — Topic Entity View now consumes `topic_cooccurrence_corpus` (co-occurring topics as clickable chips) + `temporal_velocity` (velocity badge with rising/falling colour signal) from the enrichment layer. Click a chip to pivot subject focus. See [Enrichment Layer Guide](../guides/ENRICHMENT_LAYER_GUIDE.md) and the chunk-8 follow-up that cached envelope fetches via `useEnrichmentEnvelopeCache`. **Scope: this is the OPERATOR viewer's Topic Entity View** (`web/gi-kg-viewer/`); the consumer-app equivalent (topic entity cards + EntitySignals in `web/learning-player/`) is [PRD-043](PRD-043-knowledge-layer.md).
 - **v2 enablement (RFC-097, 2026-06-20)**: Topic-centric querying foundation (stable `topic:` IDs via CIL) + cross-episode topic aggregation (bridge connects episodes) shipped via RFC-097 v2. UI/UX surface (PRD-026 scope) + contradiction detection across persons (analysis layer, v3) remain open. See [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md).
 - **Authors**: Marko
 - **Target Release**: TBD

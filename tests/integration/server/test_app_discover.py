@@ -100,6 +100,30 @@ def _corpus(root: Path) -> None:
     (root / "search" / "topic_clusters.json").write_text(json.dumps(payload), encoding="utf-8")
 
 
+def _write_theme_clusters(root: Path) -> None:
+    """One theme cluster ("storyline") over topic:ai — the co-occurrence overlay for the corpus."""
+    (root / "enrichments").mkdir(parents=True, exist_ok=True)
+    payload = {
+        "data": {
+            "clusters": [
+                {
+                    "cluster_type": "theme",
+                    "canonical_label": "AI safety",
+                    "graph_compound_parent_id": "thc:ai-safety",
+                    "member_count": 2,
+                    "members": [
+                        {"topic_id": "topic:ai", "label": "AI", "lift_to_cluster": 3.1},
+                        {"topic_id": "topic:ethics", "label": "Ethics", "lift_to_cluster": 1.2},
+                    ],
+                }
+            ]
+        }
+    }
+    (root / "enrichments" / "topic_theme_clusters.json").write_text(
+        json.dumps(payload), encoding="utf-8"
+    )
+
+
 def _client(root: Path, *, personalized: bool, derived: bool = False) -> TestClient:
     app = create_app(root, static_dir=False)
     app.state.session_secret = "test-secret"
@@ -141,6 +165,32 @@ def test_clusters_endpoint_returns_top_by_prevalence(tmp_path: Path) -> None:
     ids = [c["id"] for c in body["items"]]
     assert ids == ["tc:ai", "tc:health"]  # ranked by member_count desc
     assert body["items"][0] == {"id": "tc:ai", "label": "AI", "size": 3}
+
+
+def test_theme_clusters_endpoint_returns_storylines(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    _write_theme_clusters(tmp_path)
+    body = _client(tmp_path, personalized=False).get("/api/app/theme-clusters").json()
+    assert body["items"] == [
+        {"id": "thc:ai-safety", "label": "AI safety", "size": 2, "anchor_topic_id": "topic:ai"}
+    ]
+
+
+def test_theme_clusters_endpoint_empty_without_artifact(tmp_path: Path) -> None:
+    _corpus(tmp_path)  # no enrichments/topic_theme_clusters.json → empty items, not 404
+    body = _client(tmp_path, personalized=False).get("/api/app/theme-clusters").json()
+    assert body["items"] == []
+
+
+def test_discover_personalizes_by_followed_storyline(tmp_path: Path) -> None:
+    # Following a storyline (thc: token) re-ranks like any other interest: epOld's topic:ai is in
+    # the theme cluster, so epOld leads despite being older.
+    _corpus(tmp_path)
+    _write_theme_clusters(tmp_path)
+    client = _client(tmp_path, personalized=True)
+    _sign_in(client, tmp_path, ["thc:ai-safety"])
+    titles = [e["title"] for e in client.get("/api/app/discover").json()["items"]]
+    assert titles == ["Episode old", "Episode new"]
 
 
 def test_discover_recency_when_flag_off(tmp_path: Path) -> None:
@@ -292,3 +342,65 @@ def test_ranking_config_put_persists_and_reads_back(tmp_path: Path) -> None:
     assert trend["enabled"] is True and trend["weight"] == 5.0
     # untouched signals survive the merge
     assert any(s["name"] == "significance" for s in got["signals"])
+
+
+# --------------------------------------------------------------------------- #
+# RFC-103 momentum: GET /api/app/trending + GET /api/corpus/trending
+# --------------------------------------------------------------------------- #
+_TRENDING_NOW = "2026-07-01T00:00:00Z"
+
+
+def _write_content_series(root: Path, topics: list[dict]) -> None:
+    """A temporal_velocity envelope carrying only the RFC-103 content_series (topics)."""
+    (root / "enrichments").mkdir(parents=True, exist_ok=True)
+    env = {
+        "enricher_id": "temporal_velocity",
+        "status": "ok",
+        "data": {"content_series": {"topics": topics, "persons": []}},
+    }
+    (root / "enrichments" / "temporal_velocity.json").write_text(json.dumps(env), encoding="utf-8")
+
+
+def _rising_topics(root: Path, topic_id: str) -> None:
+    from podcast_scraper.server.app_momentum import _weeks_ending, resolve_as_of_week
+
+    weeks = _weeks_ending(resolve_as_of_week(_TRENDING_NOW))
+    _write_content_series(
+        root, [{"topic_id": topic_id, "weekly_counts": {weeks[-2]: 4, weeks[-1]: 7}}]
+    )
+
+
+def test_trending_endpoint_ranks_rising_topic(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("APP_TRENDING_NOW", _TRENDING_NOW)
+    _corpus(tmp_path)
+    _rising_topics(tmp_path, "topic:ai")
+    body = (
+        _client(tmp_path, personalized=False)
+        .get("/api/app/trending", params={"kind": "topic"})
+        .json()
+    )
+    assert body["kind"] == "topic" and body["scope"] == "corpus"
+    assert body["as_of_week"].startswith("2026-W")
+    assert body["items"][0]["entity_id"] == "topic:ai"
+    assert body["items"][0]["heating_up"] is True
+    assert body["items"][0]["series"]  # sparkline present
+
+
+def test_trending_endpoint_rejects_unknown_kind(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    r = _client(tmp_path, personalized=False).get("/api/app/trending", params={"kind": "banana"})
+    assert r.status_code == 400
+
+
+def test_corpus_trending_operator_global_view(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("APP_TRENDING_NOW", _TRENDING_NOW)
+    _corpus(tmp_path)
+    _rising_topics(tmp_path, "topic:ai")
+    body = _client(tmp_path, personalized=False).get("/api/corpus/trending").json()
+    assert body["as_of_week"].startswith("2026-W")
+    assert "topic" in body["kinds"] and "episode" in body["kinds"]  # every kind present
+    assert body["kinds"]["topic"][0]["entity_id"] == "topic:ai"

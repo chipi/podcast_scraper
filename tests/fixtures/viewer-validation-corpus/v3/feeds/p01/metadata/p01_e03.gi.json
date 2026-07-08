@@ -1,0 +1,349 @@
+{
+  "edges": [
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "topic:outdoor-activities",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "topic:gear",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "topic:business-markets",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "insight:75528dd34e88bedc",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "insight:c4d1e8940d7ed9a3",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "insight:3e91ef621d0c5cbf",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:308e126122dc6c2b",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:75528dd34e88bedc",
+      "to": "quote:308e126122dc6c2b",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:10cc4d3d3a67609b",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:c4d1e8940d7ed9a3",
+      "to": "quote:10cc4d3d3a67609b",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:afece98b267a124c",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3e91ef621d0c5cbf",
+      "to": "quote:afece98b267a124c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:224f6e39fc5667a2",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:75528dd34e88bedc",
+      "to": "quote:224f6e39fc5667a2",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:ea4a04163cf76f01",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:c4d1e8940d7ed9a3",
+      "to": "quote:ea4a04163cf76f01",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:db176270413f3c7e",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3e91ef621d0c5cbf",
+      "to": "quote:db176270413f3c7e",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:75528dd34e88bedc",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:c4d1e8940d7ed9a3",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:75528dd34e88bedc",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:75528dd34e88bedc",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:75528dd34e88bedc",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c4d1e8940d7ed9a3",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c4d1e8940d7ed9a3",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c4d1e8940d7ed9a3",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:3e91ef621d0c5cbf",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:3e91ef621d0c5cbf",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:3e91ef621d0c5cbf",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    }
+  ],
+  "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
+        "metadata_relative_path": "feeds/p01/metadata/p01_e03.metadata.json",
+        "podcast_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+        "publish_date": "2026-07-02T12:00:00",
+        "title": "Singletrack Sessions — Episode 3"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:outdoor-activities",
+      "properties": {
+        "label": "outdoor activities",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:gear",
+      "properties": {
+        "label": "gear",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:business-markets",
+      "properties": {
+        "label": "Business & markets",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:75528dd34e88bedc",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we're talking about drivetrain mechanics, and I'm joined by Noah Bryer, mechanic at Spoke & Wrench.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:c4d1e8940d7ed9a3",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Noah Bryer, thanks for being here.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:3e91ef621d0c5cbf",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today's episode is sponsored by Notion.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Maya"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:308e126122dc6c2b",
+      "properties": {
+        "char_end": 184,
+        "char_start": 6,
+        "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Singletrack Sessions. Today we're talking about drivetrain mechanics, and I'm joined by Noah Bryer, mechanic at Spoke & Wrench. Noah Bryer, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p01_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Noah Bryer"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:10cc4d3d3a67609b",
+      "properties": {
+        "char_end": 228,
+        "char_start": 197,
+        "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Maya. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p01_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:afece98b267a124c",
+      "properties": {
+        "char_end": 353,
+        "char_start": 235,
+        "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Try notion.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p01_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:224f6e39fc5667a2",
+      "properties": {
+        "char_end": 477,
+        "char_start": 353,
+        "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it — Sophie Lorent was on last episode talking about tire pressure mattering more than suspension tweaks.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p01_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:ea4a04163cf76f01",
+      "properties": {
+        "char_end": 548,
+        "char_start": 490,
+        "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, exactly. And it ties into what we're covering today.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p01_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:db176270413f3c7e",
+      "properties": {
+        "char_end": 647,
+        "char_start": 555,
+        "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to flag something — Sophie Lorent mentioned this same dynamic a couple episodes back.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p01_e03.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.0"
+}

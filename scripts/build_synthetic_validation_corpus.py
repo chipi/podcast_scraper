@@ -483,7 +483,7 @@ def main() -> int:
         default=Path("tests/fixtures/viewer-validation-corpus"),
     )
     p.add_argument("--max-feeds", type=int, default=9)
-    p.add_argument("--max-episodes-per-feed", type=int, default=3)
+    p.add_argument("--max-episodes-per-feed", type=int, default=4)
     args = p.parse_args()
 
     if not args.rss_dir.is_dir():
@@ -491,7 +491,10 @@ def main() -> int:
     if not args.transcripts_dir.is_dir():
         sys.exit(f"--transcripts-dir does not exist: {args.transcripts_dir}")
 
-    out = args.output.resolve()
+    # Version the output under <output>/<version> (like the app corpus) so the
+    # viewer corpus follows the <category>/<version> pattern — not a root dump.
+    version = Path("tests/fixtures/FIXTURES_VERSION").read_text(encoding="utf-8").strip()
+    out = (args.output / version).resolve()
     out.mkdir(parents=True, exist_ok=True)
     (out / "corpus").mkdir(exist_ok=True)
     (out / "artifacts").mkdir(exist_ok=True)

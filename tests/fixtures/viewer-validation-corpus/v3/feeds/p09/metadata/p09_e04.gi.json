@@ -1,0 +1,349 @@
+{
+  "edges": [
+    {
+      "from": "episode:e5f72053-f000-519e-95cb-204c957f7ab3",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e5f72053-f000-519e-95cb-204c957f7ab3",
+      "to": "topic:health",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e5f72053-f000-519e-95cb-204c957f7ab3",
+      "to": "topic:science-research",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e5f72053-f000-519e-95cb-204c957f7ab3",
+      "to": "insight:9224ea104d8f83b3",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:e5f72053-f000-519e-95cb-204c957f7ab3",
+      "to": "insight:25c50b72853ecec5",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:e5f72053-f000-519e-95cb-204c957f7ab3",
+      "to": "insight:417c935b40909f74",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:f8c3d2fc26fd969b",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:9224ea104d8f83b3",
+      "to": "quote:f8c3d2fc26fd969b",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:a043012e9439e055",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:25c50b72853ecec5",
+      "to": "quote:a043012e9439e055",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:b055865bcef215b5",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:417c935b40909f74",
+      "to": "quote:b055865bcef215b5",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:92f29f94096a8303",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:9224ea104d8f83b3",
+      "to": "quote:92f29f94096a8303",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:8af69d8fbbfde5cf",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:25c50b72853ecec5",
+      "to": "quote:8af69d8fbbfde5cf",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:354f1b03b6622af5",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:417c935b40909f74",
+      "to": "quote:354f1b03b6622af5",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:9224ea104d8f83b3",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:25c50b72853ecec5",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9224ea104d8f83b3",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9224ea104d8f83b3",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9224ea104d8f83b3",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:25c50b72853ecec5",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:25c50b72853ecec5",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:25c50b72853ecec5",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:417c935b40909f74",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:417c935b40909f74",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:417c935b40909f74",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    }
+  ],
+  "episode_id": "e5f72053-f000-519e-95cb-204c957f7ab3",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:e5f72053-f000-519e-95cb-204c957f7ab3",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "e5f72053-f000-519e-95cb-204c957f7ab3",
+        "metadata_relative_path": "feeds/p09/metadata/p09_e04.metadata.json",
+        "podcast_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+        "publish_date": "2026-07-04T12:00:00",
+        "title": "The Long View: Biohacking — Episode 4"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:health",
+      "properties": {
+        "label": "health",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:9224ea104d8f83b3",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Cross-Show — Episode\n## Risk Is a Systems Property\nHost: Sam\nGuest: Dr.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:25c50b72853ecec5",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Elena Fischer\n#fixture-v3: failure_modes=recurring_guest,multi_accent\n#fixture-v3: voice=de-DE host_voice=en-US\nSam: Welcome back to Cross-Show.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:417c935b40909f74",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we're talking about risk management, and I'm joined by Dr.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Sam"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:f8c3d2fc26fd969b",
+      "properties": {
+        "char_end": 181,
+        "char_start": 5,
+        "episode_id": "e5f72053-f000-519e-95cb-204c957f7ab3",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Cross-Show. Today we're talking about risk management, and I'm joined by Dr. Elena Fischer, returning systems thinker. Dr. Elena Fischer, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p09_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Dr. Elena Fischer"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:a043012e9439e055",
+      "properties": {
+        "char_end": 231,
+        "char_start": 201,
+        "episode_id": "e5f72053-f000-519e-95cb-204c957f7ab3",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Sam. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p09_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:b055865bcef215b5",
+      "properties": {
+        "char_end": 355,
+        "char_start": 237,
+        "episode_id": "e5f72053-f000-519e-95cb-204c957f7ab3",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Try notion.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p09_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:92f29f94096a8303",
+      "properties": {
+        "char_end": 448,
+        "char_start": 355,
+        "episode_id": "e5f72053-f000-519e-95cb-204c957f7ab3",
+        "speaker_id": "person:speaker-01",
+        "text": "Walk me through a concrete example. What's the version of the question that actually matters?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p09_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:8af69d8fbbfde5cf",
+      "properties": {
+        "char_end": 694,
+        "char_start": 468,
+        "episode_id": "e5f72053-f000-519e-95cb-204c957f7ab3",
+        "speaker_id": "person:speaker-02",
+        "text": "Here's how I think about it. Risk lives in the couplings, not the components — same as reliability. We've seen this play out at teams using BloombergNEF. The framing matters because it tells you which trade-offs you're making.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p09_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:354f1b03b6622af5",
+      "properties": {
+        "char_end": 769,
+        "char_start": 700,
+        "episode_id": "e5f72053-f000-519e-95cb-204c957f7ab3",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to dig into that. How does BloombergNEF fit into this picture?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p09_e04.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.0"
+}

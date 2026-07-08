@@ -34,7 +34,11 @@ import type {
   ResurfacingSettings,
   SearchResponse,
   SegmentsResponse,
+  Storyline,
   TopicCard,
+  TopicConversationArcResponse,
+  TopicPerspectivesResponse,
+  TrendingEntity,
   UserStats,
 } from './types'
 
@@ -149,6 +153,23 @@ export function getTopicCard(id: string, scope?: 'all' | 'mine'): Promise<TopicC
   return getJSON<TopicCard>(`/topics/${encodeURIComponent(id)}`, { scope })
 }
 
+/** Topic perspectives — each speaker's grounded insights on the topic (#1146). */
+export function getTopicPerspectives(
+  id: string,
+  scope?: 'all' | 'mine',
+): Promise<TopicPerspectivesResponse> {
+  return getJSON<TopicPerspectivesResponse>(`/topics/${encodeURIComponent(id)}/perspectives`, {
+    scope,
+  })
+}
+
+/** Topic conversation arc — weekly volume × sentiment, the aggregate-first overview (ADR-108). */
+export function getTopicConversationArc(id: string): Promise<TopicConversationArcResponse> {
+  return getJSON<TopicConversationArcResponse>(
+    `/topics/${encodeURIComponent(id)}/conversation-arc`,
+  )
+}
+
 // Corpus-scope enrichment is one static payload for the whole corpus, read by
 // every entity card — fetch it once per session and share the promise. On
 // failure the cache is cleared so a later card can retry.
@@ -221,6 +242,20 @@ export function recordDiscoverClick(slug: string, position: number): void {
 /** Top interest clusters for the picker, by corpus prevalence. */
 export async function getTopClusters(limit = 12): Promise<InterestCluster[]> {
   return (await getJSON<{ items: InterestCluster[] }>('/clusters', { limit })).items
+}
+
+/** Top storylines (theme clusters — topics discussed together) for the Home rail + picker. */
+export async function getStorylines(limit = 12): Promise<Storyline[]> {
+  return (await getJSON<{ items: Storyline[] }>('/theme-clusters', { limit })).items
+}
+
+/** Trending entities of a kind (RFC-103 momentum), corpus-wide or the signed-in user's ('mine'). */
+export async function getTrending(
+  kind: string,
+  scope: 'corpus' | 'mine' = 'corpus',
+  limit = 12,
+): Promise<TrendingEntity[]> {
+  return (await getJSON<{ items: TrendingEntity[] }>('/trending', { kind, scope, limit })).items
 }
 
 /** The signed-in user's interest cluster ids; `[]` when signed out (401). Auth-gated. */

@@ -20,9 +20,13 @@ uses (``app_gi_view`` / ``app_kg_view`` read them defensively).
 It differs from the viewer corpus only in the *on-disk layout* and the *extra
 fields the consumer readers require*, derived from studying the consumer readers:
 
-* Run-dir layout ``feeds/<show>/run_<tag>/metadata/<ep>.{metadata,gi,kg}.json``
-  and ``feeds/<show>/run_<tag>/transcripts/<ep>.{txt,segments.json}`` — what
-  ``corpus_catalog`` / ``corpus_scope.discover_metadata_files`` expect.
+* Run-dir layout
+  ``feeds/<show>/run_<tag>/metadata/<ep>.{metadata,gi,kg,bridge}.json`` and
+  ``feeds/<show>/run_<tag>/transcripts/<ep>.{txt,segments.json}`` — what
+  ``corpus_catalog`` / ``corpus_scope.discover_metadata_files`` expect. The
+  ``.bridge.json`` sidecar (topic identities mirroring the GI) is what
+  ``iter_cil_episode_bundles`` pairs with the GI so the #1146 perspectives
+  surface reads real speaker-attributed insights (see ``_bridge_from_gi``).
 * ``metadata.content.transcript_file_path`` stored **run-relative**
   (``transcripts/<ep>.txt``) — ``app_content_source.transcript_corpus_relpath``
   joins it onto the run dir.
@@ -49,6 +53,7 @@ import argparse
 import hashlib
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -75,7 +80,253 @@ APP_SHOWS: list[tuple[str, str]] = [
     ("p05_investing", "p05"),  # Long Horizon Notes — investing
     ("p02_software", "p02"),  # Practical Systems — software/SRE
     ("p03_scuba", "p03"),  # Below the Surface — scuba diving
+    # #1148: promoted into the wired set so the risk-management ↔ systems-thinking
+    # overlap web spans all 9 shows (perspectives / clusters / discovery / recs).
+    ("p04_photo", "p04"),  # Frame & Light — photography
+    ("p01_mtb", "p01"),  # Singletrack Sessions — mountain biking
+    ("p07_sustainability", "p07"),  # The Long View — sustainability
+    # These three carry the detection-shape edge cases (low-grounding, NER-evading
+    # host, cross-show recurring guests). Their RSS fixtures are themed for other
+    # shows, so SHOW_META_OVERRIDE restores the v3 identity below.
+    ("p06_edge_cases", "p06"),  # The Drift — low-grounding dialogue
+    ("p08_solar", "p08"),  # Public Hour — NPR-shape / zero_host_ner
+    ("p09_biohacking", "p09"),  # Cross-Show — recurring-guest web
 ]
+
+# p06/p08/p09 RSS fixtures are themed for other shows (edge_cases / solar /
+# biohacking); override the display metadata to the v3 show identity when wiring
+# them as consumer shows (#1148).
+SHOW_META_OVERRIDE: dict[str, dict[str, str]] = {
+    "p06": {
+        "display_title": "The Drift",
+        "description": "Dialogue-heavy, meandering long-form interviews.",
+    },
+    "p08": {
+        "display_title": "Public Hour",
+        "description": "NPR-shape public-radio conversations.",
+    },
+    "p09": {
+        "display_title": "Cross-Show",
+        "description": "Recurring guests from other shows revisit their positions.",
+    },
+}
+
+
+def _publish_date_for(ep_label: str, gt_dir: Path) -> str | None:
+    """Publish date from the v3 ground truth (CORPUS_EPOCH + publish_offset_days).
+
+    Returns the authored ``publish_date`` (``YYYY-MM-DD``) when the episode set
+    ``publish_offset_days`` (#1148 time spread), else ``None`` so the caller
+    falls back to the legacy single-month scheme. This is what gives
+    ``temporal_velocity`` a real multi-month signal.
+    """
+    gt = gt_dir / f"{ep_label}.json"
+    if not gt.is_file():
+        return None
+    try:
+        pd = json.loads(gt.read_text(encoding="utf-8")).get("publish_date")
+    except (OSError, ValueError):
+        return None
+    return pd if isinstance(pd, str) else None
+
+
+def _canonicalize_persons_in(doc: dict[str, Any]) -> None:
+    """Rewrite one artifact's ``person:speaker-NN`` ids to name-based ids, in place."""
+    idmap: dict[str, str] = {}
+    for n in doc.get("nodes", []):
+        if n.get("type") != "Person":
+            continue
+        name = str((n.get("properties") or {}).get("name") or "").strip()
+        if name:
+            new_id = f"person:{slug(name)}"
+            idmap[str(n.get("id"))] = new_id
+            n["id"] = new_id
+    for e in doc.get("edges", []):
+        if e.get("from") in idmap:
+            e["from"] = idmap[e["from"]]
+        if e.get("to") in idmap:
+            e["to"] = idmap[e["to"]]
+    seen: set[str] = set()
+    kept: list[dict[str, Any]] = []
+    for n in doc.get("nodes", []):
+        if n.get("type") == "Person" and str(n.get("id")) in seen:
+            continue
+        if n.get("type") == "Person":
+            seen.add(str(n.get("id")))
+        kept.append(n)
+    doc["nodes"] = kept
+
+
+def _stamp_publish_date(publish_iso: str, *docs: dict[str, Any]) -> None:
+    """Set each artifact's Episode node ``properties.publish_date`` (#1148).
+
+    temporal_velocity / trending read ``publish_date(kg)`` from the Episode node;
+    the deterministic builder left it unset, so every topic fell outside the
+    date window and the temporal signal was flat. Stamping the authored date
+    (the #1148 varied 2024→now schedule) lights it up.
+    """
+    for doc in docs:
+        for n in doc.get("nodes", []):
+            if n.get("type") == "Episode":
+                n.setdefault("properties", {})["publish_date"] = publish_iso
+
+
+def _bridge_from_gi(gi: dict[str, Any], episode_id: str) -> dict[str, Any]:
+    """Minimal CIL bridge asserting every Topic the GI has an insight about.
+
+    ``topic_perspectives`` (the #1146 perspectives surface) walks sibling
+    ``.bridge.json`` files via ``iter_cil_episode_bundles`` and only considers
+    an episode when the bridge's identities intersect the target topic. The app
+    corpus never wrote bridges, so perspectives read empty even though the GI
+    carried the Insight→ABOUT→Topic chains. Identities mirror the GI's Topic
+    nodes so the bridge can't drift from what the insights actually reference.
+    """
+    identities: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for n in gi.get("nodes", []):
+        if n.get("type") != "Topic":
+            continue
+        tid = str(n.get("id") or "")
+        if not tid or tid in seen:
+            continue
+        seen.add(tid)
+        props = n.get("properties") or {}
+        name = str(props.get("name") or props.get("label") or props.get("title") or "").strip()
+        if not name:
+            name = tid.split(":", 1)[-1].replace("-", " ").title()
+        identities.append({"id": tid, "display_name": name})
+    return {"schema_version": "1", "episode_id": episode_id, "identities": identities}
+
+
+def _load_pod_guests(manifest_path: Path) -> dict[str, dict[str, str]]:
+    """Map ``pod_id -> {guest_key: canonical_name}`` from the v3 manifest.
+
+    The authored claims reference guests by key (``"Daniel"``); the GI uses
+    canonical ``person:<name-slug>`` ids. This bridges the two.
+    """
+    out: dict[str, dict[str, str]] = {}
+    if not manifest_path.is_file():
+        return out
+    try:
+        doc = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return out
+    for pod in doc.get("podcasts", []):
+        pid = str(pod.get("pod_id") or "")
+        if pid:
+            out[pid] = {
+                str(g.get("key")): str(g.get("canonical_name") or "")
+                for g in pod.get("guests", [])
+                if g.get("key")
+            }
+    return out
+
+
+def _inject_authored_claims(
+    gi: dict[str, Any], ep_label: str, gt_dir: Path, name_by_key: dict[str, str]
+) -> None:
+    """Inject authored topic/contradiction claims into the GI as real Insights.
+
+    The deterministic extractor takes ``sentences[:3]`` — the greetings — so the
+    engineered claims (perspectives, the diversify-vs-concentrate opposition)
+    never become Insights. This adds each authored claim as an Insight with the
+    full chain the enrichers read: SUPPORTED_BY→Quote→SPOKEN_BY→Person and
+    ABOUT→Topic. Makes multi-perspective (#1146) + nli/disagreement (#1144) work
+    on the real corpus (#1148).
+    """
+    gt = gt_dir / f"{ep_label}.json"
+    if not gt.is_file():
+        return
+    try:
+        doc = json.loads(gt.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    claims: list[tuple[str, str, str, bool]] = []
+    for tc in doc.get("topic_claims", []):
+        claims.append(
+            (
+                str(tc.get("speaker", "")),
+                str(tc.get("topic_id", "")),
+                str(tc.get("claim", "")),
+                bool(tc.get("grounded", True)),
+            )
+        )
+    for cc in doc.get("contradiction_claims", []):
+        tid = str(cc.get("topic_id", ""))
+        claims.append((str(cc.get("speaker_a", "")), tid, str(cc.get("claim_a", "")), True))
+        claims.append((str(cc.get("speaker_b", "")), tid, str(cc.get("claim_b", "")), True))
+    if not claims:
+        return
+    nodes = gi.setdefault("nodes", [])
+    edges = gi.setdefault("edges", [])
+    ids = {str(n.get("id")) for n in nodes}
+    for i, (key, tid, text, grounded) in enumerate(claims):
+        name = name_by_key.get(key)
+        if not (name and tid and text):
+            continue
+        pid = f"person:{slug(name)}"
+        if pid not in ids:
+            nodes.append({"id": pid, "type": "Person", "properties": {"name": name}})
+            ids.add(pid)
+        if tid not in ids:
+            label = tid.replace("topic:", "").replace("-", " ")
+            nodes.append({"id": tid, "type": "Topic", "properties": {"name": label}})
+            ids.add(tid)
+        iid, qid = f"insight:authored-{ep_label}-{i}", f"quote:authored-{ep_label}-{i}"
+        nodes.append(
+            {
+                "id": iid,
+                "type": "Insight",
+                "properties": {
+                    "text": text,
+                    "grounded": grounded,
+                    "insight_type": "claim",
+                    "position_hint": 0.5,
+                },
+            }
+        )
+        nodes.append({"id": qid, "type": "Quote", "properties": {"text": text}})
+        edges.append({"from": iid, "to": qid, "type": "SUPPORTED_BY"})
+        edges.append({"from": qid, "to": pid, "type": "SPOKEN_BY"})
+        edges.append({"from": iid, "to": tid, "type": "ABOUT"})
+        edges.append({"from": iid, "to": pid, "type": "MENTIONS_PERSON"})
+
+
+def _vary_grounding(gi: dict[str, Any], ep_label: str, gt_dir: Path) -> None:
+    """Make low-grounding episodes actually ungrounded, so grounding_rate discriminates.
+
+    The builder marks every Insight ``grounded: True`` → a flat corpus rate of
+    1.0 with no signal. For episodes tagged ``low_grounding_dialogue`` (the p06
+    "Drift" show), flip alternate Insights to ``grounded: False`` so the enricher
+    sees real variation (#1148).
+    """
+    gt = gt_dir / f"{ep_label}.json"
+    if not gt.is_file():
+        return
+    try:
+        modes = json.loads(gt.read_text(encoding="utf-8")).get("failure_modes", [])
+    except (OSError, ValueError):
+        return
+    if "low_grounding_dialogue" not in modes:
+        return
+    insights = [n for n in gi.get("nodes", []) if n.get("type") == "Insight"]
+    for i, node in enumerate(insights):
+        if i % 2 == 1:  # alternate → ~half ungrounded
+            node.setdefault("properties", {})["grounded"] = False
+
+
+def _canonicalize_persons(*docs: dict[str, Any]) -> None:
+    """Canonicalize Person ids across artifacts so cross-episode enrichers work.
+
+    The deterministic builder assigns raw diarization ids (``person:speaker-02``)
+    that differ per episode, so cross-episode enrichers (guest_coappearance,
+    grounding_rate — which filter speaker-NN by design) see no signal. Mapping
+    each Person to ``person:<name-slug>`` makes the same guest identical across
+    episodes and canonical for the enrichers (#1148 corpus evolution).
+    """
+    for doc in docs:
+        _canonicalize_persons_in(doc)
+
 
 # Stable, sortable run tag per show (single run per feed — the catalog keeps only
 # the lexicographically-greatest run_* per feed dir).
@@ -95,9 +346,17 @@ _SILENT_MP3_DATA_URI = (
 # clusters (the interests picker only surfaces multi-member clusters; singletons
 # are hidden). Each umbrella spans 2+ shows.
 CROSS_CUTTING_TOPICS: dict[str, list[str]] = {
-    "p05": ["personal finance"],
-    "p02": ["systems thinking"],
-    "p03": ["safety practices"],
+    "p05": ["personal finance", "risk management"],
+    "p02": ["systems thinking", "risk management"],
+    "p03": ["safety practices", "risk management"],
+    # #1148: risk management + systems thinking recur across all 9 wired shows so
+    # they form real multi-member clusters (not singletons the picker hides).
+    "p04": ["visual craft", "systems thinking"],
+    "p01": ["endurance sport", "risk management"],
+    "p07": ["systems thinking", "risk management"],
+    "p06": ["long-form", "systems thinking"],
+    "p08": ["public radio", "risk management"],
+    "p09": ["systems thinking", "risk management"],
 }
 # Shared umbrellas injected into every show so clusters are genuinely multi-member.
 SHARED_UMBRELLAS: list[str] = ["lifelong learning", "expert interviews"]
@@ -235,6 +494,44 @@ def _enrichment_envelope(enricher_id: str, data: dict[str, Any]) -> dict[str, An
     }
 
 
+_VADER: Any = None
+
+
+def _insight_sentiment_envelope(gi: dict[str, Any], episode_id: str) -> dict[str, Any]:
+    """An ``insight_sentiment`` envelope: per-Insight VADER compound + neg/neu/pos label.
+
+    Mirrors the real deterministic enricher exactly (same lexicon, same ±0.05 thresholds) so the CIL
+    timeline join reads the fixture identically to a live run.
+    """
+    global _VADER
+    if _VADER is None:
+        from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+
+        _VADER = SentimentIntensityAnalyzer()
+    gi_nodes = (gi.get("data") or gi).get("nodes", []) if isinstance(gi, dict) else []
+    insights: list[dict[str, Any]] = []
+    counts = {"negative": 0, "neutral": 0, "positive": 0}
+    for n in gi_nodes:
+        if not (isinstance(n, dict) and n.get("type") == "Insight" and n.get("id")):
+            continue
+        text = str((n.get("properties") or {}).get("text") or "").strip()
+        if not text:
+            continue
+        c = round(float(_VADER.polarity_scores(text)["compound"]), 4)
+        label = "positive" if c >= 0.05 else "negative" if c <= -0.05 else "neutral"
+        counts[label] += 1
+        insights.append({"insight_id": str(n["id"]), "compound": c, "label": label})
+    return _enrichment_envelope(
+        "insight_sentiment",
+        {
+            "episode_id": episode_id,
+            "counts": counts,
+            "total_insights": len(insights),
+            "insights": insights,
+        },
+    )
+
+
 def _insight_density_envelope(gi: dict[str, Any], episode_id: str) -> dict[str, Any]:
     """An ``insight_density`` envelope: this episode's insights bucketed early/mid/late.
 
@@ -267,6 +564,248 @@ def _insight_density_envelope(gi: dict[str, Any], episode_id: str) -> dict[str, 
     )
 
 
+def _velocity_last_over_6mo(series: list[int]) -> float:
+    """Mirror the real enricher: last-month count over the trailing 6-month mean (1.0 = flat)."""
+    if not series:
+        return 0.0
+    six = series[-6:]
+    avg = sum(six) / len(six)
+    return round(series[-1] / avg, 4) if avg else 0.0
+
+
+def _iso_week(publish: str) -> str:
+    """``YYYY-MM-DD`` → ISO year-week ``YYYY-Www`` (for the content_series axis)."""
+    iso = datetime.fromisoformat(publish[:10]).isocalendar()
+    return f"{iso.year:04d}-W{iso.week:02d}"
+
+
+def _tally_episode_content(
+    kg: dict[str, Any],
+    topic_ids: list[str],
+    week: str,
+    month: str,
+    episode_id: str,
+    *,
+    counts: dict[str, int],
+    months: dict[str, list[str]],
+    episodes: dict[str, list[str]],
+    weeks: dict[str, list[str]],
+    person_weeks: dict[str, list[str]],
+) -> None:
+    """Fold one episode's Topic + Person mentions into the corpus-scope accumulators (in place)."""
+    for tid in topic_ids:
+        counts[tid] = counts.get(tid, 0) + 1
+        months.setdefault(tid, []).append(month)
+        episodes.setdefault(tid, []).append(episode_id)
+        weeks.setdefault(tid, []).append(week)
+    for node in kg.get("nodes", []):
+        if isinstance(node, dict) and node.get("type") == "Person" and node.get("id"):
+            person_weeks.setdefault(str(node["id"]), []).append(week)
+
+
+def _content_series_data(
+    topic_weeks: dict[str, list[str]], person_weeks: dict[str, list[str]]
+) -> dict[str, Any]:
+    """The RFC-103 now-free content_series (per-topic + per-person weekly counts).
+
+    Matches the ``temporal_velocity`` enricher's ``content_series`` shape, authored
+    deterministically from the corpus's own ISO weeks so the momentum layer works over the fixture.
+    """
+    all_weeks = sorted(
+        {w for weeks in (*topic_weeks.values(), *person_weeks.values()) for w in weeks}
+    )
+
+    def _rows(by_id: dict[str, list[str]], id_key: str, lab_key: str) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        for eid, weeks in sorted(by_id.items()):
+            counts: dict[str, int] = {}
+            for w in weeks:
+                counts[w] = counts.get(w, 0) + 1
+            rows.append(
+                {
+                    id_key: eid,
+                    lab_key: eid.split(":", 1)[-1].replace("-", " "),
+                    "weekly_counts": dict(sorted(counts.items())),
+                    "total": len(weeks),
+                }
+            )
+        rows.sort(key=lambda r: (-int(r["total"]), str(r[id_key])))
+        return rows
+
+    return {
+        "window_weeks": all_weeks,
+        "topics": _rows(topic_weeks, "topic_id", "topic_label"),
+        "persons": _rows(person_weeks, "person_id", "person_label"),
+    }
+
+
+def _temporal_velocity_data(topic_months: dict[str, list[str]]) -> dict[str, Any]:
+    """Author the canonical ``temporal_velocity`` payload from per-topic publish months.
+
+    ``window_months`` is the corpus's own sorted month axis; per topic we bucket its episodes'
+    publish months into ``monthly_counts`` and collapse the trend to ``velocity_last_over_6mo``
+    (the shape the consumer Trending surface + the real enricher share). Corpus-anchored, so the
+    signal is deterministic regardless of wall-clock ``now`` (the real enricher anchors its window
+    to the current calendar month — unstable for a committed fixture).
+    """
+    window_months = sorted({m for months in topic_months.values() for m in months})
+    topics: list[dict[str, Any]] = []
+    for tid, months in sorted(topic_months.items()):
+        counts = {m: months.count(m) for m in set(months)}
+        series = [counts.get(m, 0) for m in window_months]
+        topics.append(
+            {
+                "topic_id": tid,
+                "topic_label": tid.replace("topic:", "").replace("-", " "),
+                "monthly_counts": {m: counts.get(m, 0) for m in window_months},
+                "velocity_last_over_6mo": _velocity_last_over_6mo(series),
+                "total": sum(series),
+            }
+        )
+    topics.sort(key=lambda r: (-r["velocity_last_over_6mo"], -r["total"], r["topic_id"]))
+    return {"window_months": window_months, "topics": topics}
+
+
+def _theme_clusters_data(topic_episodes: dict[str, list[str]]) -> dict[str, Any]:
+    """Author one theme cluster ("storyline") for the consumer Storylines surface.
+
+    The cross-domain *managing risk* story: risk management, systems thinking, and safety
+    practices co-occur across shows (the transcripts frame risk as "systems of correlated bets" in
+    investing, software, racing, and diving). Members carry ``lift_to_cluster`` (anchor = highest)
+    + their episode ids, matching the enricher output the consumer readers parse. Deterministic,
+    like ``search/topic_clusters.json``.
+    """
+    members_spec = [
+        ("topic:risk-management", "risk management", 2.6),
+        ("topic:systems-thinking", "systems thinking", 2.1),
+        ("topic:safety-practices", "safety practices", 1.7),
+    ]
+    members = [
+        {
+            "topic_id": tid,
+            "label": label,
+            "lift_to_cluster": lift,
+            "episode_ids": sorted(set(topic_episodes.get(tid, []))),
+        }
+        for tid, label, lift in members_spec
+        if topic_episodes.get(tid)  # only topics that actually appear in the corpus
+    ]
+    clusters: list[dict[str, Any]] = []
+    if len(members) >= 2:
+        clusters.append(
+            {
+                "cluster_type": "theme",
+                "canonical_label": "Managing risk across domains",
+                "graph_compound_parent_id": "thc:managing-risk",
+                "member_count": len(members),
+                "members": members,
+            }
+        )
+    n_members = sum(c["member_count"] for c in clusters)
+    return {
+        "schema_version": "1",
+        "method": "cooccurrence_lift",
+        "min_pair_episode_count": 2,
+        "merge_threshold": 2.0,
+        "episode_count": len({e for eps in topic_episodes.values() for e in eps}),
+        "topic_count": len(topic_episodes),
+        "cluster_count": len(clusters),
+        "singletons": max(0, len(topic_episodes) - n_members),
+        "clusters": clusters,
+    }
+
+
+def _accumulate_topic_persons(
+    ep_persons: list[tuple[str, str]],
+    topic_ids: list[str],
+    *,
+    topic_persons: dict[str, list[tuple[str, str]]],
+) -> None:
+    """Fold one episode's persons × topics into the topic_consensus per-Topic person set (in place).
+
+    Within an episode every rostered person is associated with every episode topic (topics are
+    episode-level in this fixture), which gives topic_consensus its cross-Person pairs per Topic.
+    """
+    for tid in topic_ids:
+        for pid, name in ep_persons:
+            topic_persons.setdefault(tid, []).append((pid, name))
+
+
+def _episode_persons(kg: dict[str, Any]) -> list[tuple[str, str]]:
+    """``[(person_id, person_name)]`` from a KG's canonicalised Person nodes."""
+    out: list[tuple[str, str]] = []
+    for node in kg.get("nodes", []):
+        if isinstance(node, dict) and node.get("type") == "Person" and node.get("id"):
+            pid = str(node["id"])
+            name = str((node.get("properties") or {}).get("name") or pid)
+            out.append((pid, name))
+    return out
+
+
+def _topic_consensus_data(
+    topic_persons: dict[str, list[tuple[str, str]]],
+    *,
+    cos_threshold: float = 0.70,
+    max_rows: int = 12,
+) -> dict[str, Any]:
+    """Author the ``topic_consensus`` payload (ADR-108 composite) — cross-Person corroboration.
+
+    Deterministic: for each topic with ≥2 distinct persons, emit one corroborating pair between the
+    two earliest-seen persons. Claim texts are templated on the topic label (clean synthetic
+    corroboration) so the viewer's Consensus surfaces read as genuine agreement. Mirrors the
+    composite enricher's output: ``consensus_score`` = ``cosine`` (a stable per-pair hash in
+    ``[cos_threshold, 0.95]``) plus a low ``contradiction``. Highest first, capped at ``max_rows``.
+    """
+    consensus: list[dict[str, Any]] = []
+    for tid, entries in sorted(topic_persons.items()):
+        by_person: dict[str, str] = {}  # person_id -> name, first-seen order preserved
+        for pid, name in entries:
+            by_person.setdefault(pid, name)
+        persons = list(by_person.items())
+        if len(persons) < 2:
+            continue
+        (pid_a, name_a), (pid_b, name_b) = persons[0], persons[1]
+        label = tid.replace("topic:", "").replace("-", " ")
+        txt_a = (
+            f"With {label}, the durable wins come from managing the whole system, not one-off bets."
+        )
+        txt_b = (
+            f"Agreed — {label} rewards a systems view; the edge is in the process, "
+            "not any single call."
+        )
+        h = int(hashlib.sha256(f"{tid}|{pid_a}|{pid_b}".encode()).hexdigest(), 16)
+        cosine = round(cos_threshold + (h % 1000) / 1000.0 * (0.95 - cos_threshold), 6)
+        contradiction = round((h % 137) / 137.0 * 0.15, 6)  # low (< contra_threshold 0.5)
+        consensus.append(
+            {
+                "topic_id": tid,
+                "person_a_id": pid_a,
+                "person_a_name": name_a,
+                "person_b_id": pid_b,
+                "person_b_name": name_b,
+                "insight_a_id": f"insight:consensus:{slug(tid)}:{slug(pid_a)}",
+                "insight_a_text": txt_a,
+                "insight_b_id": f"insight:consensus:{slug(tid)}:{slug(pid_b)}",
+                "insight_b_text": txt_b,
+                "consensus_score": cosine,
+                "cosine": cosine,
+                "contradiction": contradiction,
+                "model_id": "all-MiniLM-L6-v2+deberta-v3-small",
+                "model_version": "v2",
+            }
+        )
+    consensus.sort(key=lambda r: (-r["consensus_score"], r["topic_id"]))
+    consensus = consensus[:max_rows]
+    return {
+        "model_id": "all-MiniLM-L6-v2+deberta-v3-small",
+        "model_version": "v2",
+        "cos_threshold": cos_threshold,
+        "contra_threshold": 0.5,
+        "pairs_scored": len(consensus),
+        "consensus": consensus,
+    }
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--rss-dir", type=Path, default=Path("tests/fixtures/rss"))
@@ -277,8 +816,8 @@ def main() -> int:
         default=Path("tests/fixtures/transcripts") / default_version,
     )
     p.add_argument("--output", type=Path, default=Path("tests/fixtures/app-validation-corpus"))
-    p.add_argument("--max-feeds", type=int, default=3)
-    p.add_argument("--max-episodes-per-feed", type=int, default=2)
+    p.add_argument("--max-feeds", type=int, default=9)
+    p.add_argument("--max-episodes-per-feed", type=int, default=4)
     args = p.parse_args()
 
     if not args.rss_dir.is_dir():
@@ -291,8 +830,24 @@ def main() -> int:
     out.mkdir(parents=True, exist_ok=True)
 
     shows = APP_SHOWS[: args.max_feeds]
+    # v3 ground-truth dir (sibling of the transcripts dir) — carries the authored
+    # publish dates (#1148 varied 2024→now schedule).
+    gt_dir = args.transcripts_dir.parent.parent / "ground-truth" / version / "ground_truth"
+    pod_guests = _load_pod_guests(gt_dir.parent / "manifest.json")  # key→name for claim injection
     episode_index: list[dict[str, Any]] = []  # for the regenerate-summary print
     corpus_topic_counts: dict[str, int] = {}  # → corpus-scope temporal_velocity envelope
+    # topic_id → publish months (YYYY-MM) of the episodes it appears in. The
+    # temporal_velocity signal is authored from the corpus's OWN date axis (not
+    # wall-clock now), so the fixture's trending signal is deterministic + stable.
+    corpus_topic_months: dict[str, list[str]] = {}
+    # topic_id → episode ids (for the co-occurrence theme-cluster members).
+    corpus_topic_episodes: dict[str, list[str]] = {}
+    # topic_id / person_id → ISO weeks (for the RFC-103 now-free content_series).
+    corpus_topic_weeks: dict[str, list[str]] = {}
+    corpus_person_weeks: dict[str, list[str]] = {}
+    # ADR-108 topic_consensus: topic_id → [(person_id, name)], authored deterministically from the
+    # episode's own persons × topics (like content_series).
+    corpus_topic_persons: dict[str, list[tuple[str, str]]] = {}
 
     for show_rss_stem, show_dir in shows:
         rss_path = args.rss_dir / f"{show_rss_stem}.xml"
@@ -300,6 +855,7 @@ def main() -> int:
             print(f"  warn: missing RSS {rss_path}; skipping show {show_dir}")
             continue
         feed_meta = parse_rss_feed_metadata(rss_path)
+        feed_meta.update(SHOW_META_OVERRIDE.get(show_dir, {}))
         # The app keys feeds by a readable feed id (the show dir), not the sha feed id,
         # so the on-disk feeds/<show_dir>/ path is human-readable in specs/debugging.
         feed_id = show_dir
@@ -320,8 +876,10 @@ def main() -> int:
             episode_title = _episode_subtitle(transcript_path, f"{feed_title} — Episode {ei + 1}")
             # Deterministic publish dates, newest-first by show then episode so the
             # app's "What's new" (recency) order is stable. Show 0 ep 0 is newest.
+            # Prefer the authored v3 date (#1148 varied 2024→now schedule, unique
+            # per episode); fall back to the legacy single-month scheme.
             day = 28 - (shows.index((show_rss_stem, show_dir)) * len(transcripts) + ei)
-            publish = f"2026-01-{day:02d}"
+            publish = _publish_date_for(ep_label, gt_dir) or f"2026-01-{day:02d}"
 
             diar_segments, roster = parse_diarized_segments(transcript_path)
             raw_text, offset_segs = format_screenplay_with_offsets(diar_segments)
@@ -356,12 +914,30 @@ def main() -> int:
             # The viewer build_kg emits no Person nodes; add the diarized roster so the
             # consumer entity-card people surface has real data (host/guest).
             _enrich_kg_with_people(kg, roster)
+            # #1148: canonicalize Person ids (speaker-NN → name-slug) so the
+            # cross-episode enrichers (guest_coappearance / grounding_rate) work,
+            # and stamp the Episode publish_date so temporal_velocity sees it.
+            _canonicalize_persons(gi, kg)
+            _stamp_publish_date(publish + "T12:00:00", gi, kg)
+            _vary_grounding(gi, ep_label, gt_dir)  # #1148: real grounding variation
+            # #1148: surface the authored claims (perspectives + opposition) the
+            # naive sentences[:3] extractor drops.
+            _inject_authored_claims(
+                gi, ep_label, gt_dir, pod_guests.get(ep_label.split("_")[0], {})
+            )
 
             (run_meta_dir / f"{ep_label}.gi.json").write_text(
                 json.dumps(gi, indent=2, sort_keys=True) + "\n", encoding="utf-8"
             )
             (run_meta_dir / f"{ep_label}.kg.json").write_text(
                 json.dumps(kg, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+            # CIL bridge — unblocks the #1146 perspectives surface (see
+            # _bridge_from_gi). Sibling of the .gi.json so iter_cil_episode_bundles
+            # pairs them; identities mirror the GI's (post-injection) topics.
+            (run_meta_dir / f"{ep_label}.bridge.json").write_text(
+                json.dumps(_bridge_from_gi(gi, episode_id), indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
             )
 
             # Episode-scope enrichment envelope (RFC-088) so the consumer enrichment read surface
@@ -375,8 +951,31 @@ def main() -> int:
                 + "\n",
                 encoding="utf-8",
             )
-            for tid in topic_ids:
-                corpus_topic_counts[tid] = corpus_topic_counts.get(tid, 0) + 1
+            # ADR-108 conversation-timeline colour: per-Insight VADER sentiment sidecar (the CIL
+            # timeline/arc queries join it by insight_id).
+            (enrich_dir / f"{ep_label}.insight_sentiment.json").write_text(
+                json.dumps(_insight_sentiment_envelope(gi, episode_id), indent=2, sort_keys=True)
+                + "\n",
+                encoding="utf-8",
+            )
+            _tally_episode_content(
+                kg,
+                topic_ids,
+                _iso_week(publish),
+                publish[:7],
+                episode_id,
+                counts=corpus_topic_counts,
+                months=corpus_topic_months,
+                episodes=corpus_topic_episodes,
+                weeks=corpus_topic_weeks,
+                person_weeks=corpus_person_weeks,
+            )
+            # ADR-108: fold this episode's persons × topics into the topic_consensus accumulator.
+            _accumulate_topic_persons(
+                _episode_persons(kg),
+                topic_ids,
+                topic_persons=corpus_topic_persons,
+            )
 
             # Transcript text + RAW canonical segments (player contract).
             (run_tr_dir / f"{ep_label}.txt").write_text(raw_text, encoding="utf-8")
@@ -495,21 +1094,47 @@ def main() -> int:
         encoding="utf-8",
     )
 
-    # --- corpus-scope enrichment envelope (RFC-088) -------------------------
-    # temporal_velocity: a corpus-wide signal the consumer surface reads via
-    # GET /api/app/corpus/enrichment (P3 #1121). Rank topics by cross-episode prevalence.
-    trending = [
-        {"topic_id": tid, "episodes": n, "velocity": round(n / max(len(episode_index), 1), 3)}
-        for tid, n in sorted(corpus_topic_counts.items(), key=lambda kv: (-kv[1], kv[0]))
-    ]
+    # --- corpus-scope enrichment envelopes (RFC-088) ------------------------
     corpus_enrich_dir = out / "enrichments"
     corpus_enrich_dir.mkdir(parents=True, exist_ok=True)
+
+    # temporal_velocity — the consumer Trending surface (GET /api/app/corpus/enrichment)
+    # reads ``data.topics[]`` with ``window_months`` + per-topic ``monthly_counts`` /
+    # ``velocity_last_over_6mo`` / ``total`` (NOT the ``{trending}`` shape). We author it in
+    # that canonical shape over the corpus's OWN month axis, and mirror the real enricher's
+    # ``velocity_last_over_6mo`` = last-month count / trailing-6-month mean (1.0 = flat, >1
+    # rising). Deterministic: derived from the authored per-episode publish dates (the #1148
+    # offset schedule makes risk-management rise, per the corpus gold's ``heating_up``).
+    tv = _temporal_velocity_data(corpus_topic_months)
+    # RFC-103 Phase 1: the durable, now-free content_series the momentum layer + trending endpoints
+    # read (per-topic + per-person weekly counts). Same shape the enricher emits in production.
+    tv["content_series"] = _content_series_data(corpus_topic_weeks, corpus_person_weeks)
     (corpus_enrich_dir / "temporal_velocity.json").write_text(
-        json.dumps(
-            _enrichment_envelope("temporal_velocity", {"trending": trending}),
-            indent=2,
-            sort_keys=True,
-        )
+        json.dumps(_enrichment_envelope("temporal_velocity", tv), indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    # topic_theme_clusters — the consumer Storylines surface (theme clusters = topics
+    # discussed together). Authored deterministically (like search/topic_clusters.json) from the
+    # cross-domain "managing risk" storyline the transcripts co-author (risk management framed as
+    # "systems of correlated bets" across investing/software/racing/diving → risk-management +
+    # systems-thinking + safety-practices co-occur). Members carry the shape the consumer readers
+    # expect (graph_compound_parent_id thc:… / canonical_label / member_count / members[{topic_id,
+    # label, lift_to_cluster, episode_ids}]).
+    theme = _theme_clusters_data(corpus_topic_episodes)
+    (corpus_enrich_dir / "topic_theme_clusters.json").write_text(
+        json.dumps(_enrichment_envelope("topic_theme_clusters", theme), indent=2, sort_keys=True)
+        + "\n",
+        encoding="utf-8",
+    )
+
+    # topic_consensus — the reimagined NLI enricher (ADR-108). Authored deterministically from the
+    # corpus's own persons × topics so the operator viewer's Consensus edges + Person "Consensus"
+    # surfaces render + pivot on the fixture. (Per-person / per-topic stance over time is a
+    # read-time CIL query — conversation-arc / position-arc — not an enricher artifact.)
+    consensus = _topic_consensus_data(corpus_topic_persons)
+    (corpus_enrich_dir / "topic_consensus.json").write_text(
+        json.dumps(_enrichment_envelope("topic_consensus", consensus), indent=2, sort_keys=True)
         + "\n",
         encoding="utf-8",
     )

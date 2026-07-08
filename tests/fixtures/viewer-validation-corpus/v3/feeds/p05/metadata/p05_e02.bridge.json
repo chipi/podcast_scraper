@@ -1,0 +1,18 @@
+{
+  "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+  "identities": [
+    {
+      "display_name": "Technology",
+      "id": "topic:technology"
+    },
+    {
+      "display_name": "welcome back to",
+      "id": "topic:welcome-back-to"
+    },
+    {
+      "display_name": "fed vice chair",
+      "id": "topic:fed-vice-chair"
+    }
+  ],
+  "schema_version": "1"
+}

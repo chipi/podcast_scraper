@@ -50,7 +50,7 @@ def test_validate_full_block_passes() -> None:
             "fail_on_run_cost_cap": True,
             "enrichers": {
                 "topic_cooccurrence": {"enabled": True},
-                "nli_contradiction": {
+                "topic_consensus": {
                     "enabled": False,
                     "opt_in": False,
                     "max_cost_usd_per_run": 0.50,

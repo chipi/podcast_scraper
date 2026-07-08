@@ -1,0 +1,274 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-1abf911df5bea2c3",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1abf911df5bea2c3",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1abf911df5bea2c3",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1abf911df5bea2c3",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1abf911df5bea2c3",
+      "to": "insight:3db573b5d4da9a1f",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-1abf911df5bea2c3",
+      "to": "insight:1805640e7650c366",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-1abf911df5bea2c3",
+      "to": "insight:56ffd3b93643f310",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:dfa81ea82fbebe59",
+      "to": "person:sam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3db573b5d4da9a1f",
+      "to": "quote:dfa81ea82fbebe59",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:e8fcc8424d300993",
+      "to": "person:dr-elena-fischer",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1805640e7650c366",
+      "to": "quote:e8fcc8424d300993",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:8d52e9f09be8291d",
+      "to": "person:sam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:56ffd3b93643f310",
+      "to": "quote:8d52e9f09be8291d",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:dab23071ba27b0e2",
+      "to": "person:dr-elena-fischer",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3db573b5d4da9a1f",
+      "to": "quote:dab23071ba27b0e2",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:189bc167abf1f85a",
+      "to": "person:sam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1805640e7650c366",
+      "to": "quote:189bc167abf1f85a",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:8dfa6b04d001a312",
+      "to": "person:sam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:56ffd3b93643f310",
+      "to": "quote:8dfa6b04d001a312",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "ep-1abf911df5bea2c3",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-1abf911df5bea2c3",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ep-1abf911df5bea2c3",
+        "metadata_relative_path": "feeds/p09/run_20260101_000000/metadata/p09_e01.metadata.json",
+        "podcast_id": "p09",
+        "publish_date": "2025-05-12T12:00:00",
+        "title": "Systems Thinking, Two Years Later"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:3db573b5d4da9a1f",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Welcome back to Cross-Show. Today we're talking about systems thinking, and I'm joined by Dr. Elena Fischer, returning systems thinker. Dr. Elena Fischer, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:1805640e7650c366",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Thanks, Sam. Excited for this one \u2014 systems thinking is something I've been thinking about a lot."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:56ffd3b93643f310",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "In our 2024 conversation I was more optimistic about top-down interventions. I've revised that \u2014 the work happens at the seams."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:sam",
+      "properties": {
+        "name": "Sam"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:dfa81ea82fbebe59",
+      "properties": {
+        "char_end": 182,
+        "char_start": 5,
+        "episode_id": "ep-1abf911df5bea2c3",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Cross-Show. Today we're talking about systems thinking, and I'm joined by Dr. Elena Fischer, returning systems thinker. Dr. Elena Fischer, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p09_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:dr-elena-fischer",
+      "properties": {
+        "name": "Dr. Elena Fischer"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:e8fcc8424d300993",
+      "properties": {
+        "char_end": 299,
+        "char_start": 202,
+        "episode_id": "ep-1abf911df5bea2c3",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Sam. Excited for this one \u2014 systems thinking is something I've been thinking about a lot.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p09_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:8d52e9f09be8291d",
+      "properties": {
+        "char_end": 423,
+        "char_start": 305,
+        "episode_id": "ep-1abf911df5bea2c3",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Try notion.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p09_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:dab23071ba27b0e2",
+      "properties": {
+        "char_end": 570,
+        "char_start": 443,
+        "episode_id": "ep-1abf911df5bea2c3",
+        "speaker_id": "person:speaker-02",
+        "text": "In our 2024 conversation I was more optimistic about top-down interventions. I've revised that \u2014 the work happens at the seams.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p09_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:189bc167abf1f85a",
+      "properties": {
+        "char_end": 614,
+        "char_start": 576,
+        "episode_id": "ep-1abf911df5bea2c3",
+        "speaker_id": "person:speaker-01",
+        "text": "That's a real shift. Worth pulling on.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p09_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:8dfa6b04d001a312",
+      "properties": {
+        "char_end": 680,
+        "char_start": 614,
+        "episode_id": "ep-1abf911df5bea2c3",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to dig into that. How does Bloomberg fit into this picture?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p09_e01.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

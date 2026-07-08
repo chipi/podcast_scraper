@@ -48,7 +48,12 @@ from podcast_scraper.server.jobs import (
     list_jobs_snapshot,
     schedule_post_submit,
 )
-from podcast_scraper.server.operator_paths import viewer_operator_yaml_path
+from podcast_scraper.server.operator_paths import (
+    viewer_operator_extras_source,
+    viewer_operator_yaml_path,
+)
+from podcast_scraper.server.pipeline_docker_factory import validate_operator_pipeline_extras
+from podcast_scraper.server.profile_presets import validate_operator_profile_allowed
 from podcast_scraper.server.routes.index_rebuild import _resolve_corpus_root
 
 logger = logging.getLogger(__name__)
@@ -117,6 +122,29 @@ async def _kickoff_job(request: Request, corpus: Path, rec: dict[str, Any]) -> N
 # ---------------------------------------------------------------------------
 
 
+async def _validate_docker_job_prereqs(
+    request: Request, corpus: Path, operator_yaml: Path | None
+) -> None:
+    """Fail fast (400) on an invalid extras declaration / disallowed profile.
+
+    Peer of the pipeline route (#1069): enrichment spawns through the same docker factory,
+    so an invalid operator config must 400 here rather than 202-ing and crashing inside the
+    container at spawn time. ``operator_yaml`` is None only when its path couldn't be
+    resolved (defensive helper) — nothing to profile-validate in that case.
+    """
+    pipe_mode = getattr(request.app.state, "pipeline_exec_mode", "")
+    try:
+        await asyncio.to_thread(
+            validate_operator_pipeline_extras,
+            viewer_operator_extras_source(request.app, corpus),
+            pipe_mode,
+        )
+        if operator_yaml is not None:
+            await asyncio.to_thread(validate_operator_profile_allowed, operator_yaml)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
 @router.post(
     "/jobs/enrichment",
     response_model=EnrichmentJobAccepted,
@@ -129,6 +157,7 @@ async def submit_enrichment_job(
 ) -> EnrichmentJobAccepted:
     """Enqueue a ``corpus_enrichment`` job (202 + optional queue position)."""
     corpus, operator_yaml = _corpus_and_operator(request, path)
+    await _validate_docker_job_prereqs(request, corpus, operator_yaml)
     body = body or EnrichmentJobRequest()
     rec = await asyncio.to_thread(
         enqueue_enrichment_job,

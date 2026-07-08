@@ -302,6 +302,27 @@ export interface InterestCluster {
   size: number
 }
 
+/** One storyline — a THEME cluster (topics discussed together). GET /api/app/theme-clusters.
+ *  `id` is the `thc:` interest token; `anchor_topic_id` is the representative topic card to open. */
+export interface Storyline {
+  id: string
+  label: string
+  size: number
+  anchor_topic_id: string
+}
+
+/** One trending entity (RFC-103 momentum). GET /api/app/trending?kind=… */
+export interface TrendingEntity {
+  entity_id: string
+  kind: string
+  label: string
+  velocity: number
+  volume: number
+  heating_up: boolean
+  total: number
+  series: number[]
+}
+
 /** A resolved person/topic reference (GET /api/app/entities/search — AppEntityRef). */
 export interface EntityRef {
   id: string
@@ -340,6 +361,38 @@ export interface TopicCard {
   episode_count: number
   episodes: EpisodeSummary[]
   related_people: Entity[]
+}
+
+/** One speaker's take on a topic — their grounded insights (#1146). */
+export interface TopicPerspective {
+  person_id: string
+  person_name: string
+  insight_count: number
+  episode_count: number
+  insights: Insight[]
+}
+
+/** Multi-perspective synthesis (GET /api/app/topics/{id}/perspectives → AppTopicPerspectivesResponse). */
+export interface TopicPerspectivesResponse {
+  topic_id: string
+  topic_label: string
+  perspective_count: number
+  perspectives: TopicPerspective[]
+}
+
+/** One ISO-week bucket of a topic's conversation (volume + sentiment mix) — ADR-108. */
+export interface TopicConversationArcWeek {
+  week: string
+  volume: number
+  negative: number
+  neutral: number
+  positive: number
+  avg_compound: number
+}
+
+export interface TopicConversationArcResponse {
+  topic_id: string
+  weeks: TopicConversationArcWeek[]
 }
 
 /** Corpus-scope enrichment signals (GET /api/app/corpus/enrichment → `signals`).

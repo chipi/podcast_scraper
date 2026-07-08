@@ -1,0 +1,274 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-9f97daef33906cf6",
+      "to": "topic:visual-craft",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-9f97daef33906cf6",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-9f97daef33906cf6",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-9f97daef33906cf6",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-9f97daef33906cf6",
+      "to": "insight:0b24940158f8521b",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-9f97daef33906cf6",
+      "to": "insight:cb626e0a5fe29a63",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-9f97daef33906cf6",
+      "to": "insight:72fd97ce71dea026",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:4d5eb3b1e48280b9",
+      "to": "person:leo",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:0b24940158f8521b",
+      "to": "quote:4d5eb3b1e48280b9",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:5666adbf193d9abd",
+      "to": "person:daniel-olufemi",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:cb626e0a5fe29a63",
+      "to": "quote:5666adbf193d9abd",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:d98acfb7b11b5679",
+      "to": "person:leo",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:72fd97ce71dea026",
+      "to": "quote:d98acfb7b11b5679",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:a870989ee323ba33",
+      "to": "person:leo",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:0b24940158f8521b",
+      "to": "quote:a870989ee323ba33",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:2ea5bf3099f7d653",
+      "to": "person:daniel-olufemi",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:cb626e0a5fe29a63",
+      "to": "quote:2ea5bf3099f7d653",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:e1aaf6cc542c2585",
+      "to": "person:leo",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:72fd97ce71dea026",
+      "to": "quote:e1aaf6cc542c2585",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "ep-9f97daef33906cf6",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-9f97daef33906cf6",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ep-9f97daef33906cf6",
+        "metadata_relative_path": "feeds/p04/run_20260101_000000/metadata/p04_e03.metadata.json",
+        "podcast_id": "p04",
+        "publish_date": "2025-02-01T12:00:00",
+        "title": "Lighting Decisions That Save a Shoot"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:visual-craft",
+      "properties": {
+        "label": "visual craft",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:0b24940158f8521b",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Welcome back to Frame & Light. Today we're talking about lighting design, and I'm joined by Daniel Olufemi, commercial lighting director. Daniel Olufemi, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:cb626e0a5fe29a63",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Walk me through a concrete example. What's something you used to believe about this that you've revised?"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:72fd97ce71dea026",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Here's how I think about it. On location, the first decision is always: am I shaping the existing light? We've seen this play out at teams using Adobe. Once you internalize that, the rest of the de\u2026"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:leo",
+      "properties": {
+        "name": "Leo"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:4d5eb3b1e48280b9",
+      "properties": {
+        "char_end": 181,
+        "char_start": 5,
+        "episode_id": "ep-9f97daef33906cf6",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Frame & Light. Today we're talking about lighting design, and I'm joined by Daniel Olufemi, commercial lighting director. Daniel Olufemi, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p04_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:daniel-olufemi",
+      "properties": {
+        "name": "Daniel Olufemi"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:5666adbf193d9abd",
+      "properties": {
+        "char_end": 228,
+        "char_start": 198,
+        "episode_id": "ep-9f97daef33906cf6",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Leo. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p04_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:d98acfb7b11b5679",
+      "properties": {
+        "char_end": 386,
+        "char_start": 234,
+        "episode_id": "ep-9f97daef33906cf6",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Adobe. Adobe Creative Cloud puts Lightroom, Photoshop, and Premiere on every device. Get started at adobe.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p04_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:a870989ee323ba33",
+      "properties": {
+        "char_end": 490,
+        "char_start": 386,
+        "episode_id": "ep-9f97daef33906cf6",
+        "speaker_id": "person:speaker-01",
+        "text": "Walk me through a concrete example. What's something you used to believe about this that you've revised?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p04_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:2ea5bf3099f7d653",
+      "properties": {
+        "char_end": 723,
+        "char_start": 507,
+        "episode_id": "ep-9f97daef33906cf6",
+        "speaker_id": "person:speaker-02",
+        "text": "Here's how I think about it. On location, the first decision is always: am I shaping the existing light? We've seen this play out at teams using Adobe. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p04_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:e1aaf6cc542c2585",
+      "properties": {
+        "char_end": 793,
+        "char_start": 729,
+        "episode_id": "ep-9f97daef33906cf6",
+        "speaker_id": "person:speaker-01",
+        "text": "That's a useful framing. How does Profoto fit into this picture?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p04_e03.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

@@ -1,0 +1,49 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p08-e04",
+    "media_type": "audio/mpeg",
+    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "A. correspondent",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Renee Montagne-Park",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p08_e04.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 1800,
+    "episode_id": "ep-d428e906f5affc60",
+    "published_date": "2026-01-05T00:00:00",
+    "title": "Corrections, Trust, and the Long Game"
+  },
+  "feed": {
+    "description": "NPR-shape public-radio conversations.",
+    "feed_id": "p08",
+    "title": "Public Hour",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Welcome back to Public Hour. Today we're talking about reliability, and I'm joined by Renee Montagne-Park, journalist. Renee Montagne-Park, thanks for being here.",
+      "Thanks, A. correspondent. Great to be back.",
+      "Push back on the conventional wisdom for me. What's the version of the question that actually matters?"
+    ],
+    "raw_text": "Welcome back to Public Hour. Today we're talking about reliability, and I'm joined by Renee Montagne-Park, journalist. Renee Montagne-Park, thanks for being here.",
+    "title": "Corrections, Trust, and the Long Game"
+  }
+}

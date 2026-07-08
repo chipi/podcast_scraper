@@ -538,7 +538,7 @@ trap (see [ADR-100 §A](../adr/ADR-100-response-shape-guardrails-for-cloud-llm-p
 When you wire a new chat-completion provider, add it to
 `test_cloud_guardrails_e2e.py` and `test_cloud_resilience_e2e.py` (one
 test class per provider, ~15 lines). See
-[PROVIDER_IMPLEMENTATION_GUIDE.md — Response-shape guardrails](../guides/PROVIDER_IMPLEMENTATION_GUIDE.md#response-shape-guardrails-adr-099-adr-100)
+[PROVIDER_IMPLEMENTATION_GUIDE.md — Response-shape guardrails](../guides/PROVIDER_IMPLEMENTATION_GUIDE.md#response-shape-guardrails-adr-105-adr-100)
 for the wiring template.
 
 ### Prompt Management (RFC-017)

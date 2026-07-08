@@ -142,7 +142,7 @@ def test_enrichment_run_summary_path_is_in_enrichments_dir(tmp_path: Path) -> No
 
 @pytest.mark.parametrize(
     "writes",
-    ["topic_cooccurrence.json", "temporal_velocity.json", "nli_contradiction.json"],
+    ["topic_cooccurrence.json", "temporal_velocity.json", "topic_consensus.json"],
 )
 def test_enrichment_paths_always_under_enrichments_dir(tmp_path: Path, writes: str) -> None:
     """No enrichment output ever lands outside an ``enrichments/`` directory."""

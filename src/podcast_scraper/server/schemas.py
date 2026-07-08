@@ -355,6 +355,38 @@ class AppTopicCard(BaseModel):
     )
 
 
+class AppTopicPerspective(BaseModel):
+    """One speaker's take on a topic — their grounded insights (#1146)."""
+
+    person_id: str = Field(description="Speaker person id (person:{slug}).")
+    person_name: str = Field(description="Speaker display name.")
+    insight_count: int = Field(ge=0, description="Number of this speaker's insights on the topic.")
+    episode_count: int = Field(ge=0, description="Episodes in which they spoke on the topic.")
+    insights: list[AppInsight] = Field(
+        default_factory=list, description="Their insights on the topic (position-ordered)."
+    )
+
+
+class AppTopicPerspectivesResponse(BaseModel):
+    """Multi-perspective synthesis: each speaker's take on a topic (#1146)."""
+
+    topic_id: str = Field(description="Canonical topic id.")
+    topic_label: str = Field(description="Topic display label.")
+    perspective_count: int = Field(ge=0, description="Number of distinct speakers with a take.")
+    perspectives: list[AppTopicPerspective] = Field(
+        default_factory=list, description="Speakers' takes, most-insights first."
+    )
+
+
+class AppTopicConversationArcResponse(BaseModel):
+    """Consumer projection of a topic's conversation arc — weekly volume × sentiment (ADR-108)."""
+
+    topic_id: str = Field(description="Canonical topic id.")
+    weeks: list[CilTopicConversationArcWeek] = Field(
+        default_factory=list, description="ISO-week buckets, oldest first."
+    )
+
+
 class AppInterestCluster(BaseModel):
     """One selectable interest cluster for the discovery picker (PRD-043 FR4 / 3.5)."""
 
@@ -367,6 +399,54 @@ class AppInterestClustersResponse(BaseModel):
     """Top interest clusters for the picker (GET /api/app/clusters)."""
 
     items: list[AppInterestCluster] = Field(default_factory=list)
+
+
+class AppStoryline(BaseModel):
+    """One THEME cluster ("storyline") — topics discussed together (co-occurrence lift).
+
+    Followable as an interest (``id`` is the ``thc:`` token) and browsable on Home: tapping opens
+    ``anchor_topic_id``'s card, whose "discussed together" set is the whole storyline.
+    """
+
+    id: str = Field(description="Theme-cluster id (graph_compound_parent_id, 'thc:{slug}').")
+    label: str = Field(description="Storyline canonical label.")
+    size: int = Field(ge=0, description="Member topic count.")
+    anchor_topic_id: str = Field(description="Most-central member topic id — the card to open.")
+
+
+class AppStorylinesResponse(BaseModel):
+    """Top storylines (theme clusters) for the Home rail + picker (GET /api/app/theme-clusters)."""
+
+    items: list[AppStoryline] = Field(default_factory=list)
+
+
+class AppTrendingEntity(BaseModel):
+    """One trending entity (RFC-103 momentum) — velocity (rising) + volume (recent level)."""
+
+    entity_id: str = Field(description="Namespaced id (topic:/tc:/thc:/person:, slug, or feed_id).")
+    kind: str = Field(description="topic|cluster|storyline|person|episode|show|insight.")
+    label: str = Field(description="Display label.")
+    velocity: float = Field(description="Rising signal: fast÷slow EWMA (>1 rising, <1 cooling).")
+    volume: float = Field(description="Recent activity level (fast EWMA).")
+    heating_up: bool = Field(description="velocity ≥ τ AND total ≥ floor.")
+    total: int = Field(description="Total events over the lookback window.")
+    series: list[int] = Field(default_factory=list, description="Weekly counts (the sparkline).")
+
+
+class AppTrendingResponse(BaseModel):
+    """Trending entities of one kind (GET /api/app/trending) — read-time momentum vs today."""
+
+    kind: str
+    scope: str = Field(description="corpus | mine.")
+    as_of_week: str = Field(description="ISO reference week the momentum is anchored to.")
+    items: list[AppTrendingEntity] = Field(default_factory=list)
+
+
+class AppCorpusTrendingResponse(BaseModel):
+    """Operator global view (GET /api/corpus/trending) — top momentum per kind, corpus-wide."""
+
+    as_of_week: str
+    kinds: dict[str, list[AppTrendingEntity]] = Field(default_factory=dict)
 
 
 class FavoriteAdd(BaseModel):
@@ -911,6 +991,10 @@ class ScheduledJobItem(BaseModel):
     name: str
     cron: str
     enabled: bool
+    kind: str = Field(
+        default="pipeline",
+        description="Job fired on the schedule: ``pipeline`` (ingestion) or ``enrichment``.",
+    )
     next_run_at: str | None = Field(
         default=None,
         description=(
@@ -1859,6 +1943,64 @@ class CilTopicTimelineResponse(BaseModel):
     path: str
     topic_id: str
     episodes: list[CilArcEpisodeBlock] = Field(default_factory=list)
+
+
+class CilTopicConversationArcWeek(BaseModel):
+    """One ISO-week bucket of a topic's conversation: volume + sentiment mix."""
+
+    week: str  # ISO year-week, e.g. "2026-W12"
+    volume: int = Field(ge=0)
+    negative: int = Field(ge=0)
+    neutral: int = Field(ge=0)
+    positive: int = Field(ge=0)
+    avg_compound: float  # mean VADER compound over the week's insights, in [-1, 1]
+
+
+class CilTopicConversationArcResponse(BaseModel):
+    """Response for GET /api/cil/topics/{topic_id}/conversation-arc.
+
+    The aggregate-first overview for a topic's conversation over time — weekly volume × sentiment,
+    so the UI shows the *shape* of a big topic (like "AI", 1000s of insights) not a flat list. Drill
+    into any week via the existing /timeline endpoint (its insights now carry ``sentiment``).
+    """
+
+    path: str
+    topic_id: str
+    weeks: list[CilTopicConversationArcWeek] = Field(default_factory=list)
+
+
+class CilTopicPerspectiveLeader(BaseModel):
+    """A multi-perspective topic for the dashboard (#1146)."""
+
+    topic_id: str
+    topic_label: str
+    speaker_count: int = Field(ge=0)
+    insight_count: int = Field(ge=0)
+
+
+class CilTopicPerspectiveLeadersResponse(BaseModel):
+    """Response for GET /api/topics/perspective-leaders (#1146)."""
+
+    path: str
+    topics: list[CilTopicPerspectiveLeader] = Field(default_factory=list)
+
+
+class CilTopicPerspective(BaseModel):
+    """One speaker's take on a topic — their grounded insights (operator CIL view; #1146)."""
+
+    person_id: str
+    person_name: str
+    insight_count: int = Field(ge=0)
+    episode_count: int = Field(ge=0)
+    insights: list[dict[str, Any]] = Field(default_factory=list)  # raw GI Insight nodes
+
+
+class CilTopicPerspectivesResponse(BaseModel):
+    """Response for GET /api/topics/{topic_id}/perspectives (#1146)."""
+
+    path: str
+    topic_id: str
+    perspectives: list[CilTopicPerspective] = Field(default_factory=list)
 
 
 class CilTopicTimelineMergeRequest(BaseModel):

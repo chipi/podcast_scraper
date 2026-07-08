@@ -88,12 +88,13 @@ def test_deberta_lazy_load_only_fires_on_first_call() -> None:
     assert scorer._model is not None
 
 
-def test_nli_eval_script_with_live_model_emits_brier(  # type: ignore[no-untyped-def]
+def test_consensus_eval_script_with_live_model_emits_brier(  # type: ignore[no-untyped-def]
     tmp_path,
 ) -> None:
     """End-to-end test for the ``--with-live-model`` Brier path on the
-    eval scoring script. Loads the real DeBERTa model + re-scores a tiny
-    gold set + asserts Brier comes back in the result payload."""
+    topic_consensus eval scoring script (ADR-108). Loads the real DeBERTa
+    model + re-scores a tiny gold set (symmetric entailment) + asserts
+    Brier comes back in the result payload."""
     pytest.importorskip(
         "sentence_transformers",
         reason="install [ml] extra (sentence-transformers) to run this test",
@@ -104,31 +105,31 @@ def test_nli_eval_script_with_live_model_emits_brier(  # type: ignore[no-untyped
     from pathlib import Path
 
     scripts_dir = Path(__file__).resolve().parents[3] / "scripts" / "eval" / "score"
-    script = scripts_dir / "enrichment_nli_contradiction.py"
+    script = scripts_dir / "enrichment_topic_consensus.py"
 
     corpus = tmp_path / "corpus"
     out = corpus / "enrichments"
     out.mkdir(parents=True)
-    (out / "nli_contradiction.json").write_text(
-        json.dumps({"data": {"contradictions": []}}), encoding="utf-8"
+    (out / "topic_consensus.json").write_text(
+        json.dumps({"data": {"consensus": []}}), encoding="utf-8"
     )
     gold = tmp_path / "gold"
     gold.mkdir()
-    # Two-row gold so Brier has a denominator.
+    # Two-row gold so Brier has a denominator: one non-corroborating pair, one corroborating.
     rows = [
         {
             "insight_a_id": "i1",
             "insight_b_id": "i2",
             "insight_a_text": "AI safety regulation is essential.",
             "insight_b_text": "AI safety regulation will slow research without preventing risks.",
-            "label": "contradiction",
+            "label": "no_consensus",
         },
         {
             "insight_a_id": "i3",
             "insight_b_id": "i4",
             "insight_a_text": "Demographic shifts will pressure entitlements.",
             "insight_b_text": "Demographic shifts will pressure entitlements next decade.",
-            "label": "entailment",
+            "label": "consensus",
         },
     ]
     (gold / "g.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")

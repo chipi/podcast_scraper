@@ -1,0 +1,22 @@
+{
+  "episode_id": "ep-b3570c1ceb5eca41",
+  "identities": [
+    {
+      "display_name": "public radio",
+      "id": "topic:public-radio"
+    },
+    {
+      "display_name": "risk management",
+      "id": "topic:risk-management"
+    },
+    {
+      "display_name": "lifelong learning",
+      "id": "topic:lifelong-learning"
+    },
+    {
+      "display_name": "expert interviews",
+      "id": "topic:expert-interviews"
+    }
+  ],
+  "schema_version": "1"
+}

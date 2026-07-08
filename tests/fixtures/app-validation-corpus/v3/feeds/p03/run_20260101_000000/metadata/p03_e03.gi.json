@@ -1,0 +1,274 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-a884b153355070f0",
+      "to": "topic:safety-practices",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a884b153355070f0",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a884b153355070f0",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a884b153355070f0",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a884b153355070f0",
+      "to": "insight:1a4e5aea5c8867a2",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-a884b153355070f0",
+      "to": "insight:dc5e6437623bc58f",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-a884b153355070f0",
+      "to": "insight:3aabb6d8787f9373",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:6d732fe3bf83fe82",
+      "to": "person:rina",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1a4e5aea5c8867a2",
+      "to": "quote:6d732fe3bf83fe82",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:2a4f0e5dd3e8121f",
+      "to": "person:hanna-krebohticker",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:dc5e6437623bc58f",
+      "to": "quote:2a4f0e5dd3e8121f",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:c64f0b5d836d6902",
+      "to": "person:rina",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "quote:c64f0b5d836d6902",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:fbc39c36c7f03ac2",
+      "to": "person:rina",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1a4e5aea5c8867a2",
+      "to": "quote:fbc39c36c7f03ac2",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f63658cf1005dc9e",
+      "to": "person:hanna-krebohticker",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:dc5e6437623bc58f",
+      "to": "quote:f63658cf1005dc9e",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:55dd777396c19e6e",
+      "to": "person:rina",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "quote:55dd777396c19e6e",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "ep-a884b153355070f0",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-a884b153355070f0",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ep-a884b153355070f0",
+        "metadata_relative_path": "feeds/p03/run_20260101_000000/metadata/p03_e03.metadata.json",
+        "podcast_id": "p03",
+        "publish_date": "2024-12-31T12:00:00",
+        "title": "Severe Surname Garbles: A Marine Biologist's Return"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:safety-practices",
+      "properties": {
+        "label": "safety practices",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:1a4e5aea5c8867a2",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Welcome back to Below the Surface. Today we're talking about marine biology, and I'm joined by Hanna Krebohticker, marine biologist focused on reef systems. Hanna Krebohticker, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:dc5e6437623bc58f",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Before we get into it \u2014 Marco was on episode 1 walking through wreck planning \u2014 the same discipline applies to reef surveys."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:3aabb6d8787f9373",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Yeah, exactly. And it ties into what we're covering today."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:rina",
+      "properties": {
+        "name": "Rina"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:6d732fe3bf83fe82",
+      "properties": {
+        "char_end": 205,
+        "char_start": 6,
+        "episode_id": "ep-a884b153355070f0",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Below the Surface. Today we're talking about marine biology, and I'm joined by Hanna Krebohticker, marine biologist focused on reef systems. Hanna Krebohticker, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p03_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:hanna-krebohticker",
+      "properties": {
+        "name": "Hanna Krebohticker"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:2a4f0e5dd3e8121f",
+      "properties": {
+        "char_end": 257,
+        "char_start": 226,
+        "episode_id": "ep-a884b153355070f0",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Rina. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p03_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:c64f0b5d836d6902",
+      "properties": {
+        "char_end": 390,
+        "char_start": 264,
+        "episode_id": "ep-a884b153355070f0",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Suunto. Suunto builds dive computers and outdoor watches. Get started at suunto.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p03_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:fbc39c36c7f03ac2",
+      "properties": {
+        "char_end": 514,
+        "char_start": 390,
+        "episode_id": "ep-a884b153355070f0",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Marco was on episode 1 walking through wreck planning \u2014 the same discipline applies to reef surveys.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p03_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:f63658cf1005dc9e",
+      "properties": {
+        "char_end": 593,
+        "char_start": 535,
+        "episode_id": "ep-a884b153355070f0",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, exactly. And it ties into what we're covering today.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p03_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:55dd777396c19e6e",
+      "properties": {
+        "char_end": 684,
+        "char_start": 600,
+        "episode_id": "ep-a884b153355070f0",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to flag something \u2014 Marco mentioned this same dynamic a couple episodes back.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p03_e03.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

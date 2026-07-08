@@ -1,0 +1,362 @@
+[
+  {
+    "char_end": 177,
+    "char_start": 5,
+    "end": 6.0,
+    "speaker_label": "Leo",
+    "start": 0.0,
+    "text": "Welcome back to Frame & Light. Today we're talking about underwater photography, and I'm joined by Ava Lemoine, underwater photographer. Ava Lemoine, thanks for being here."
+  },
+  {
+    "char_end": 290,
+    "char_start": 191,
+    "end": 12.0,
+    "speaker_label": "Ava Lemoine",
+    "start": 6.0,
+    "text": "Thanks, Leo. Excited for this one \u2014 underwater imaging is something I've been thinking about a lot."
+  },
+  {
+    "char_end": 433,
+    "char_start": 296,
+    "end": 18.0,
+    "speaker_label": "Leo",
+    "start": 12.0,
+    "text": "Today's episode is sponsored by Adobe. Adobe Creative Cloud puts Lightroom, Photoshop, and Premiere on every device. Try adobe.com today."
+  },
+  {
+    "char_end": 564,
+    "char_start": 433,
+    "end": 24.0,
+    "speaker_label": "Leo",
+    "start": 18.0,
+    "text": "I'll just say it \u2014 I genuinely love Peak Design. Not sponsored, not paid, I just think they're doing the right thing for field kit."
+  },
+  {
+    "char_end": 647,
+    "char_start": 564,
+    "end": 30.0,
+    "speaker_label": "Leo",
+    "start": 24.0,
+    "text": "Let's start there. What's the structural angle most listeners don't have access to?"
+  },
+  {
+    "char_end": 876,
+    "char_start": 661,
+    "end": 36.0,
+    "speaker_label": "Ava Lemoine",
+    "start": 30.0,
+    "text": "Here's how I think about it. An underwater frame is built around backscatter management before composition. We've seen this play out at teams using Adobe. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 964,
+    "char_start": 882,
+    "end": 42.0,
+    "speaker_label": "Leo",
+    "start": 36.0,
+    "text": "I want to dig into that. What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 1142,
+    "char_start": 978,
+    "end": 48.0,
+    "speaker_label": "Ava Lemoine",
+    "start": 42.0,
+    "text": "It comes down to this: Strobe positioning at 45 degrees is the starting point, not the destination. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 1237,
+    "char_start": 1148,
+    "end": 54.0,
+    "speaker_label": "Leo",
+    "start": 48.0,
+    "text": "I want to dig into that. What's the structural angle most listeners don't have access to?"
+  },
+  {
+    "char_end": 1470,
+    "char_start": 1251,
+    "end": 60.0,
+    "speaker_label": "Ava Lemoine",
+    "start": 54.0,
+    "text": "Yeah, so \u2014 Adobe Lightroom underwater is half about white balance and half about removing magenta. We've seen this play out at teams using Profoto. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 1496,
+    "char_start": 1476,
+    "end": 66.0,
+    "speaker_label": "Leo",
+    "start": 60.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 1656,
+    "char_start": 1510,
+    "end": 72.0,
+    "speaker_label": "Ava Lemoine",
+    "start": 66.0,
+    "text": "Outside of Peak Design-class tooling, the failure mode is harder to spot. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "char_end": 1739,
+    "char_start": 1662,
+    "end": 78.0,
+    "speaker_label": "Leo",
+    "start": 72.0,
+    "text": "I want to dig into that. Where do frame and underwater photography intersect?"
+  },
+  {
+    "char_end": 1881,
+    "char_start": 1753,
+    "end": 84.0,
+    "speaker_label": "Ava Lemoine",
+    "start": 78.0,
+    "text": "Yeah, so \u2014 The frame should reward the eye in the first three seconds. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 1944,
+    "char_start": 1887,
+    "end": 90.0,
+    "speaker_label": "Leo",
+    "start": 84.0,
+    "text": "We'll be right back after a quick word from our sponsors."
+  },
+  {
+    "char_end": 2119,
+    "char_start": 1949,
+    "end": 96.0,
+    "speaker_label": "Ad",
+    "start": 90.0,
+    "text": "Today's episode is sponsored by Peak Design. Peak Design builds camera bags, straps, and tripods designed by photographers. Visit peakdesign.com/podcast for a free trial."
+  },
+  {
+    "char_end": 2150,
+    "char_start": 2125,
+    "end": 102.0,
+    "speaker_label": "Leo",
+    "start": 96.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 2253,
+    "char_start": 2150,
+    "end": 108.0,
+    "speaker_label": "Leo",
+    "start": 102.0,
+    "text": "What does the failure mode look like? What's the operational angle most listeners don't have access to?"
+  },
+  {
+    "char_end": 2467,
+    "char_start": 2267,
+    "end": 114.0,
+    "speaker_label": "Ava Lemoine",
+    "start": 108.0,
+    "text": "Honestly, An underwater frame is built around backscatter management before composition. We've seen this play out at teams using Adobe. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 2535,
+    "char_start": 2473,
+    "end": 120.0,
+    "speaker_label": "Leo",
+    "start": 114.0,
+    "text": "Let's start there. How does Capture One fit into this picture?"
+  },
+  {
+    "char_end": 2709,
+    "char_start": 2549,
+    "end": 126.0,
+    "speaker_label": "Ava Lemoine",
+    "start": 120.0,
+    "text": "It comes down to this: Strobe positioning at 45 degrees is the starting point, not the destination. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 2833,
+    "char_start": 2715,
+    "end": 132.0,
+    "speaker_label": "Leo",
+    "start": 126.0,
+    "text": "What's the one heuristic you keep coming back to? What's something you used to believe about this that you've revised?"
+  },
+  {
+    "char_end": 3058,
+    "char_start": 2847,
+    "end": 138.0,
+    "speaker_label": "Ava Lemoine",
+    "start": 132.0,
+    "text": "Sure. Adobe Lightroom underwater is half about white balance and half about removing magenta. We've seen this play out at teams using Peak Design. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 3091,
+    "char_start": 3064,
+    "end": 144.0,
+    "speaker_label": "Leo",
+    "start": 138.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 3230,
+    "char_start": 3105,
+    "end": 150.0,
+    "speaker_label": "Ava Lemoine",
+    "start": 144.0,
+    "text": "Peak Design is one of the platforms where this shows up cleanly. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 3309,
+    "char_start": 3236,
+    "end": 156.0,
+    "speaker_label": "Leo",
+    "start": 150.0,
+    "text": "Walk me through a concrete example. How does Adobe fit into this picture?"
+  },
+  {
+    "char_end": 3466,
+    "char_start": 3323,
+    "end": 162.0,
+    "speaker_label": "Ava Lemoine",
+    "start": 156.0,
+    "text": "Yeah, so \u2014 The frame should reward the eye in the first three seconds. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "char_end": 3544,
+    "char_start": 3472,
+    "end": 168.0,
+    "speaker_label": "Leo",
+    "start": 162.0,
+    "text": "Let's pivot \u2014 strobe lighting is where I want to spend the last stretch."
+  },
+  {
+    "char_end": 3687,
+    "char_start": 3558,
+    "end": 174.0,
+    "speaker_label": "Ava Lemoine",
+    "start": 168.0,
+    "text": "That's where the conversation gets interesting, because the trade-offs around strobe lighting cross-cut everything we've covered."
+  },
+  {
+    "char_end": 3776,
+    "char_start": 3693,
+    "end": 180.0,
+    "speaker_label": "Leo",
+    "start": 174.0,
+    "text": "Let's start there. What's the contrarian angle most listeners don't have access to?"
+  },
+  {
+    "char_end": 4035,
+    "char_start": 3790,
+    "end": 186.0,
+    "speaker_label": "Ava Lemoine",
+    "start": 180.0,
+    "text": "Let me give you the version I actually believe. An underwater frame is built around backscatter management before composition. We've seen this play out at teams using Adobe. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 4134,
+    "char_start": 4041,
+    "end": 192.0,
+    "speaker_label": "Leo",
+    "start": 186.0,
+    "text": "I want to dig into that. What's something you used to believe about this that you've revised?"
+  },
+  {
+    "char_end": 4307,
+    "char_start": 4148,
+    "end": 198.0,
+    "speaker_label": "Ava Lemoine",
+    "start": 192.0,
+    "text": "Yeah, so \u2014 Strobe positioning at 45 degrees is the starting point, not the destination. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 4427,
+    "char_start": 4313,
+    "end": 204.0,
+    "speaker_label": "Leo",
+    "start": 198.0,
+    "text": "What's the one heuristic you keep coming back to? What's the contrarian angle most listeners don't have access to?"
+  },
+  {
+    "char_end": 4687,
+    "char_start": 4441,
+    "end": 210.0,
+    "speaker_label": "Ava Lemoine",
+    "start": 204.0,
+    "text": "Let me give you the version I actually believe. Adobe Lightroom underwater is half about white balance and half about removing magenta. We've seen this play out at teams using Peak Design. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 4705,
+    "char_start": 4693,
+    "end": 216.0,
+    "speaker_label": "Leo",
+    "start": 210.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 4853,
+    "char_start": 4719,
+    "end": 222.0,
+    "speaker_label": "Ava Lemoine",
+    "start": 216.0,
+    "text": "Outside of Capture One-class tooling, the failure mode is harder to spot. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 4959,
+    "char_start": 4859,
+    "end": 228.0,
+    "speaker_label": "Leo",
+    "start": 222.0,
+    "text": "Walk me through a concrete example. What's the contrarian angle most listeners don't have access to?"
+  },
+  {
+    "char_end": 5133,
+    "char_start": 4973,
+    "end": 234.0,
+    "speaker_label": "Ava Lemoine",
+    "start": 228.0,
+    "text": "Here's how I think about it. The frame should reward the eye in the first three seconds. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 5200,
+    "char_start": 5139,
+    "end": 240.0,
+    "speaker_label": "Leo",
+    "start": 234.0,
+    "text": "Before we wrap, what's one thing listeners can try this week?"
+  },
+  {
+    "char_end": 5295,
+    "char_start": 5214,
+    "end": 246.0,
+    "speaker_label": "Ava Lemoine",
+    "start": 240.0,
+    "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
+  },
+  {
+    "char_end": 5435,
+    "char_start": 5301,
+    "end": 252.0,
+    "speaker_label": "Leo",
+    "start": 246.0,
+    "text": "Before we wrap, thanks again to our friends at Squarespace. Squarespace makes building a beautiful, branded website actually pleasant."
+  },
+  {
+    "char_end": 5476,
+    "char_start": 5435,
+    "end": 258.0,
+    "speaker_label": "Leo",
+    "start": 252.0,
+    "text": "Ava Lemoine, thanks for the conversation."
+  },
+  {
+    "char_end": 5502,
+    "char_start": 5490,
+    "end": 264.0,
+    "speaker_label": "Ava Lemoine",
+    "start": 258.0,
+    "text": "Thanks, Leo."
+  },
+  {
+    "char_end": 5574,
+    "char_start": 5508,
+    "end": 270.0,
+    "speaker_label": "Leo",
+    "start": 264.0,
+    "text": "That's it for today's episode of Frame & Light. See you next time."
+  }
+]

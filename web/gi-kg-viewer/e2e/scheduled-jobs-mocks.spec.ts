@@ -80,9 +80,10 @@ test.describe('Scheduled jobs section (#709)', () => {
               name: 'nightly',
               cron: '0 2 * * *',
               enabled: nightlyEnabled,
+              kind: 'pipeline',
               next_run_at: nightlyEnabled ? '2099-01-01T02:00:00Z' : null,
             },
-            { name: 'weekly', cron: '0 3 * * 0', enabled: false, next_run_at: null },
+            { name: 'weekly', cron: '0 3 * * 0', enabled: false, kind: 'enrichment', next_run_at: null },
           ],
         }),
       })

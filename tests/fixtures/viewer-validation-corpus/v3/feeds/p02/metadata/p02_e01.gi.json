@@ -1,0 +1,349 @@
+{
+  "edges": [
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "topic:science-research",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "topic:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "insight:6e4d637fbcef879f",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "insight:cc8dfdce8a173576",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "insight:2104f2725b7b11dc",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:49f2595c32a2796a",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:6e4d637fbcef879f",
+      "to": "quote:49f2595c32a2796a",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:13ef2f5e00a094a2",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:cc8dfdce8a173576",
+      "to": "quote:13ef2f5e00a094a2",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:d8e261d5d8676f34",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:2104f2725b7b11dc",
+      "to": "quote:d8e261d5d8676f34",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:b7962939c97adb5a",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:6e4d637fbcef879f",
+      "to": "quote:b7962939c97adb5a",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:4be83f808a814fff",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:cc8dfdce8a173576",
+      "to": "quote:4be83f808a814fff",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:0145ac7cd061fb02",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:2104f2725b7b11dc",
+      "to": "quote:0145ac7cd061fb02",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:6e4d637fbcef879f",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:cc8dfdce8a173576",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6e4d637fbcef879f",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6e4d637fbcef879f",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6e4d637fbcef879f",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cc8dfdce8a173576",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cc8dfdce8a173576",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cc8dfdce8a173576",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2104f2725b7b11dc",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2104f2725b7b11dc",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2104f2725b7b11dc",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    }
+  ],
+  "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
+        "metadata_relative_path": "feeds/p02/metadata/p02_e01.metadata.json",
+        "podcast_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+        "publish_date": "2026-07-05T12:00:00",
+        "title": "Practical Systems — Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:6e4d637fbcef879f",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we're talking about on call rotation, and I'm joined by Priya Nair, principal SRE at a payments platform.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:cc8dfdce8a173576",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Priya Nair, thanks for being here.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:2104f2725b7b11dc",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Excited for this one — incident response and on-call design is something I've been thinking about a lot.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Ethan"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:49f2595c32a2796a",
+      "properties": {
+        "char_end": 188,
+        "char_start": 7,
+        "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Practical Systems. Today we're talking about on call rotation, and I'm joined by Priya Nair, principal SRE at a payments platform. Priya Nair, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p02_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Priya Nair"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:13ef2f5e00a094a2",
+      "properties": {
+        "char_end": 320,
+        "char_start": 201,
+        "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Ethan. Excited for this one — incident response and on-call design is something I've been thinking about a lot.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p02_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:d8e261d5d8676f34",
+      "properties": {
+        "char_end": 466,
+        "char_start": 328,
+        "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Linear. Linear is the issue tracker built for speed — keyboard-first. Get started at linear.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p02_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:b7962939c97adb5a",
+      "properties": {
+        "char_end": 582,
+        "char_start": 479,
+        "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
+        "speaker_id": "person:speaker-02",
+        "text": "I'm a believer in centralizing the security function. One team, one source of truth, one neck to wring.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p02_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:4be83f808a814fff",
+      "properties": {
+        "char_end": 628,
+        "char_start": 590,
+        "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
+        "speaker_id": "person:speaker-01",
+        "text": "That's a real shift. Worth pulling on.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p02_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:0145ac7cd061fb02",
+      "properties": {
+        "char_end": 723,
+        "char_start": 628,
+        "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
+        "speaker_id": "person:speaker-01",
+        "text": "What does the failure mode look like? What's the version of the question that actually matters?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p02_e01.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.0"
+}

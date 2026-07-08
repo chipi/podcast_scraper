@@ -1,0 +1,348 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-a86da8f148d3bf29",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a86da8f148d3bf29",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a86da8f148d3bf29",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a86da8f148d3bf29",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a86da8f148d3bf29",
+      "to": "insight:5323cd36e981d158",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-a86da8f148d3bf29",
+      "to": "insight:7d6f7075083505ad",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-a86da8f148d3bf29",
+      "to": "insight:4dd75a8b258e871f",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:92f336ef824c8fa6",
+      "to": "person:alex-morgan",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:5323cd36e981d158",
+      "to": "quote:92f336ef824c8fa6",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:c02f3fe19db74de4",
+      "to": "person:dr-elena-fischer",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:7d6f7075083505ad",
+      "to": "quote:c02f3fe19db74de4",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:3f62db000e1050db",
+      "to": "person:alex-morgan",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:4dd75a8b258e871f",
+      "to": "quote:3f62db000e1050db",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f950f0601250ecdf",
+      "to": "person:alex-morgan",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:5323cd36e981d158",
+      "to": "quote:f950f0601250ecdf",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:48d038c0da6395e7",
+      "to": "person:dr-elena-fischer",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:7d6f7075083505ad",
+      "to": "quote:48d038c0da6395e7",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:77b8047c51ea5f8a",
+      "to": "person:dr-elena-fischer",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:4dd75a8b258e871f",
+      "to": "quote:77b8047c51ea5f8a",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:authored-p07_e03-0",
+      "to": "quote:authored-p07_e03-0",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:authored-p07_e03-0",
+      "to": "person:dr-elena-fischer",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:authored-p07_e03-0",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p07_e03-0",
+      "to": "person:dr-elena-fischer",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:authored-p07_e03-1",
+      "to": "quote:authored-p07_e03-1",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:authored-p07_e03-1",
+      "to": "person:dr-elena-fischer",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:authored-p07_e03-1",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p07_e03-1",
+      "to": "person:dr-elena-fischer",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-a86da8f148d3bf29",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-a86da8f148d3bf29",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ep-a86da8f148d3bf29",
+        "metadata_relative_path": "feeds/p07/run_20260101_000000/metadata/p07_e03.metadata.json",
+        "podcast_id": "p07",
+        "publish_date": "2025-08-06T12:00:00",
+        "title": "Sustainability Is a Systems Problem"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:5323cd36e981d158",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Welcome back to The Long View. I'm Alex Morgan, and my guest is Dr. Elena Fischer, a sustainability researcher and systems thinker. Elena, welcome."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:7d6f7075083505ad",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "You resist the word 'sustainability'. Why?"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:4dd75a8b258e871f",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Because it hides the hard part. Sustainability is a systems problem \u2014 you cannot optimize one part without moving another. Fix emissions in isolation and you push the cost into water, or land, or t\u2026"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:alex-morgan",
+      "properties": {
+        "name": "Alex Morgan"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:92f336ef824c8fa6",
+      "properties": {
+        "char_end": 160,
+        "char_start": 13,
+        "episode_id": "ep-a86da8f148d3bf29",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to The Long View. I'm Alex Morgan, and my guest is Dr. Elena Fischer, a sustainability researcher and systems thinker. Elena, welcome.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p07_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:dr-elena-fischer",
+      "properties": {
+        "name": "Dr. Elena Fischer"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:c02f3fe19db74de4",
+      "properties": {
+        "char_end": 208,
+        "char_start": 180,
+        "episode_id": "ep-a86da8f148d3bf29",
+        "speaker_id": "person:speaker-02",
+        "text": "Thank you, Alex. A pleasure.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p07_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:3f62db000e1050db",
+      "properties": {
+        "char_end": 355,
+        "char_start": 222,
+        "episode_id": "ep-a86da8f148d3bf29",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Notion. Notion replaces the dozen tools your team is half-using. Get started at notion.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p07_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:f950f0601250ecdf",
+      "properties": {
+        "char_end": 397,
+        "char_start": 355,
+        "episode_id": "ep-a86da8f148d3bf29",
+        "speaker_id": "person:speaker-01",
+        "text": "You resist the word 'sustainability'. Why?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p07_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:48d038c0da6395e7",
+      "properties": {
+        "char_end": 660,
+        "char_start": 417,
+        "episode_id": "ep-a86da8f148d3bf29",
+        "speaker_id": "person:speaker-02",
+        "text": "Because it hides the hard part. Sustainability is a systems problem \u2014 you cannot optimize one part without moving another. Fix emissions in isolation and you push the cost into water, or land, or the grid. The interactions are the whole story.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p07_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:77b8047c51ea5f8a",
+      "properties": {
+        "char_end": 868,
+        "char_start": 660,
+        "episode_id": "ep-a86da8f148d3bf29",
+        "speaker_id": "person:speaker-02",
+        "text": "So it is systems thinking, first and last: manage the couplings, not the components. When we modeled a decade of interventions, the ones that failed failed because someone treated a system as a list of parts.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p07_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "insight:authored-p07_e03-0",
+      "properties": {
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.5,
+        "text": "Sustainability is a systems problem \u2014 you cannot optimize one part without moving another."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:authored-p07_e03-0",
+      "properties": {
+        "text": "Sustainability is a systems problem \u2014 you cannot optimize one part without moving another."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "insight:authored-p07_e03-1",
+      "properties": {
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.5,
+        "text": "The dangerous risks are the slow ones you can name but discount."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:authored-p07_e03-1",
+      "properties": {
+        "text": "The dangerous risks are the slow ones you can name but discount."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

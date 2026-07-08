@@ -1,0 +1,18 @@
+{
+  "episode_id": "5250652d-f8da-5799-91da-8b1ce4991232",
+  "identities": [
+    {
+      "display_name": "environment",
+      "id": "topic:environment"
+    },
+    {
+      "display_name": "technology",
+      "id": "topic:technology"
+    },
+    {
+      "display_name": "Technology",
+      "id": "topic:technology"
+    }
+  ],
+  "schema_version": "1"
+}

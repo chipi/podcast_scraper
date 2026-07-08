@@ -80,7 +80,7 @@ describe('EnrichmentPanel — mount + behaviour', () => {
             circuit_state: 'closed',
             last_status: 'ok',
           },
-          nli_contradiction: {
+          topic_consensus: {
             consecutive_failures: 3,
             auto_disabled: true,
             circuit_state: 'open',
@@ -93,7 +93,7 @@ describe('EnrichmentPanel — mount + behaviour', () => {
         window: '24h',
         per_enricher: {
           topic_similarity: { runs_total: 5, runs_ok: 5, runs_failed: 0 },
-          nli_contradiction: { runs_total: 4, runs_ok: 1, runs_failed: 3 },
+          topic_consensus: { runs_total: 4, runs_ok: 1, runs_failed: 3 },
         },
       },
       '/api/enrichment/run-summary': { available: false },
@@ -106,10 +106,10 @@ describe('EnrichmentPanel — mount + behaviour', () => {
     expect(w.get('[data-testid="enrichment-autodisabled-count"]').text()).toBe('1')
     // Each row rendered.
     expect(w.find('[data-testid="enrichment-row-topic_similarity"]').exists()).toBe(true)
-    expect(w.find('[data-testid="enrichment-row-nli_contradiction"]').exists()).toBe(true)
+    expect(w.find('[data-testid="enrichment-row-topic_consensus"]').exists()).toBe(true)
     // Re-enable button appears ONLY on auto_disabled rows.
     expect(w.find('[data-testid="enrichment-re-enable-topic_similarity"]').exists()).toBe(false)
-    expect(w.find('[data-testid="enrichment-re-enable-nli_contradiction"]').exists()).toBe(true)
+    expect(w.find('[data-testid="enrichment-re-enable-topic_consensus"]').exists()).toBe(true)
   })
 
   it('Run enrichment now → POSTs /api/jobs/enrichment and shows the notice', async () => {
@@ -144,7 +144,7 @@ describe('EnrichmentPanel — mount + behaviour', () => {
       '/api/enrichment/status': { available: false },
       '/api/enrichment/health': {
         enrichers: {
-          nli_contradiction: {
+          topic_consensus: {
             consecutive_failures: 3,
             auto_disabled: true,
             circuit_state: 'open',
@@ -155,18 +155,18 @@ describe('EnrichmentPanel — mount + behaviour', () => {
       '/api/enrichment/metrics': { window: '24h', per_enricher: {} },
       '/api/enrichment/run-summary': { available: false },
       '/api/corpus/enrichments?': { enrichments: [] },
-      '/api/enrichment/health/nli_contradiction/re-enable': () => ({
-        enricher_id: 'nli_contradiction',
+      '/api/enrichment/health/topic_consensus/re-enable': () => ({
+        enricher_id: 'topic_consensus',
         auto_disabled: false,
         consecutive_failures: 0,
       }),
     })
     const w = mount(EnrichmentPanel, { props: { corpusPath: '/c' } })
     await flushPromises()
-    await w.get('[data-testid="enrichment-re-enable-nli_contradiction"]').trigger('click')
+    await w.get('[data-testid="enrichment-re-enable-topic_consensus"]').trigger('click')
     await flushPromises()
     const reEnable = calls.find((c) =>
-      c.url.includes('/api/enrichment/health/nli_contradiction/re-enable'),
+      c.url.includes('/api/enrichment/health/topic_consensus/re-enable'),
     )
     expect(reEnable).toBeTruthy()
     expect(reEnable!.init?.method).toBe('POST')

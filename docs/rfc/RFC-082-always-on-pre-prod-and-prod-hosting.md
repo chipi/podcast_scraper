@@ -1,6 +1,6 @@
 # RFC-082: Production hosting (always-on VPS, IaC + GitOps)
 
-> **Status:** Completed (v2.7) — `.github/workflows/deploy-prod.yml` deploys to the VPS via GitOps; `backup-corpus-prod.yml` + `prod-restore-corpus.yml` cover the persistence + restore contract; `docs/guides/PROD_RUNBOOK.md` documents day-2 ops. Public-edge TLS termination (Caddy / Cloudflare Tunnel) is **NOT** part of this RFC — see RFC-087 for that. Picks up where RFC-081 ended.
+- **Status**: Completed (v2.7) — `.github/workflows/deploy-prod.yml` deploys to the VPS via GitOps; `backup-corpus-prod.yml` + `prod-restore-corpus.yml` cover the persistence + restore contract; `docs/guides/PROD_RUNBOOK.md` documents day-2 ops. Public-edge TLS termination (Caddy / Cloudflare Tunnel) is **NOT** part of this RFC — see RFC-087 for that. Picks up where RFC-081 ended.
 >
 > **Naming:** RFC-081 covers **pre-prod** (Codespaces, auto-suspend, ad-hoc validation surface). This RFC covers **prod** — the always-on host that real corpus building runs against. Pre-prod and prod coexist; pre-prod stays as a free fallback / smoke surface.
 

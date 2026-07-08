@@ -1,0 +1,43 @@
+Maya: Welcome back to Singletrack Sessions. Today we're talking about enduro racing, and I'm joined by Sophie Lorenz, enduro racer and coach. Sophie Lorenz, thanks for being here.
+Sophie Lorenz: Thanks, Maya. Great to be back.
+Maya: Today's episode is sponsored by Linear. Linear is the issue tracker built for speed — keyboard-first. Try linear.com today.Before we get into it — Liam Verbeck was on the show talking about how drainage is the single highest-leverage design choice.
+Sophie Lorenz: Yeah, exactly. And it ties into what we're covering today.
+Maya: I want to flag something — Liam Verbeck mentioned this same dynamic a couple episodes back.Walk me through a concrete example. Where do soil erosion and enduro racing intersect?
+Sophie Lorenz: Honestly, Speed comes from braking earlier and smoother, not from taking bigger risks. We've seen this play out at teams using RockShox. I've watched this pattern hold across three different teams.
+Maya: I want to dig into that. Where do soil erosion and enduro racing intersect?
+Sophie Lorenz: Sure. Tire pressure and casing choice often matter more than a minor suspension tweak. The framing matters because it tells you which trade-offs you're making.
+Maya: Let's start there. Where do soil erosion and enduro racing intersect?
+Sophie Lorenz: Honestly, Risk management in racing isn't avoiding crashes — it's choosing which crashes are survivable. We've seen this play out at teams using Shimano. If you ignore that, you end up rebuilding it from scratch a year later.
+Maya: Where does that break down?
+Sophie Lorenz: Cascadia Alliance is one of the platforms where this shows up cleanly. And the second-order effect is the part most people miss.
+Maya: What's the one heuristic you keep coming back to? How does Spoke & Wrench fit into this picture?
+Sophie Lorenz: Here's how I think about it. Erosion patterns on race-tracks change line choice from practice to race day. Once you internalize that, the rest of the decisions get easier.
+Maya: Before we keep going — head over to our sponsor's website if you want to support the show. Strava is the home for athletes.We'll be right back after a quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Visit notion.com/podcast for a free trial.
+Maya: Welcome back to the show.I want to dig into that. What's the version of the question that actually matters?
+Sophie Lorenz: Let me give you the version I actually believe. Speed comes from braking earlier and smoother, not from taking bigger risks. We've seen this play out at teams using RockShox. And the second-order effect is the part most people miss.
+Maya: What does the failure mode look like? What's the operational angle most listeners don't have access to?
+Sophie Lorenz: Yeah, so — Tire pressure and casing choice often matter more than a minor suspension tweak. The framing matters because it tells you which trade-offs you're making.
+Maya: Walk me through a concrete example. What's the version of the question that actually matters?
+Sophie Lorenz: Yeah, so — Risk management in racing isn't avoiding crashes — it's choosing which crashes are survivable. We've seen this play out at teams using RockShox. I've watched this pattern hold across three different teams.
+Maya: Say more about that.
+Sophie Lorenz: Cascadia Alliance is one of the platforms where this shows up cleanly. Once you internalize that, the rest of the decisions get easier.
+Maya: Let's start there. What's the most underrated piece of enduro racing?
+Sophie Lorenz: It comes down to this: Erosion patterns on race-tracks change line choice from practice to race day. I've watched this pattern hold across three different teams.
+Maya: Let's pivot — risk management is where I want to spend the last stretch.
+Sophie Lorenz: That's where the conversation gets interesting, because the trade-offs around risk management cross-cut everything we've covered.
+Maya: What does the failure mode look like? What's the contrarian angle most listeners don't have access to?
+Sophie Lorenz: Sure. Speed comes from braking earlier and smoother, not from taking bigger risks. We've seen this play out at teams using RockShox. I've watched this pattern hold across three different teams.
+Maya: Walk me through a concrete example. What's the most underrated piece of enduro racing?
+Sophie Lorenz: Yeah, so — Tire pressure and casing choice often matter more than a minor suspension tweak. I've watched this pattern hold across three different teams.
+Maya: Walk me through a concrete example. What's the version of the question that actually matters?
+Sophie Lorenz: Let me give you the version I actually believe. Risk management in racing isn't avoiding crashes — it's choosing which crashes are survivable. We've seen this play out at teams using Spoke & Wrench. I've watched this pattern hold across three different teams.
+Maya: That tracks.
+Sophie Lorenz: And when teams adopt Spoke & Wrench in that flow, the trade-off becomes visible — I've watched this pattern hold across three different teams.
+Maya: What's the one heuristic you keep coming back to? What's the version of the question that actually matters?
+Sophie Lorenz: Here's how I think about it. Erosion patterns on race-tracks change line choice from practice to race day. I've watched this pattern hold across three different teams.
+Maya: Before we wrap, what's one thing listeners can try this week?
+Sophie Lorenz: Pick one of the ideas we covered and run it for two weeks. The rest is iteration.
+Maya: And finally, a big thank you to our partners at Vanta. Vanta automates SOC 2 and ISO compliance. Check out vanta.com.Sophie Lorenz, thanks for the conversation.
+Sophie Lorenz: Thanks, Maya.
+Maya: That's it for today's episode of Singletrack Sessions. See you next time.

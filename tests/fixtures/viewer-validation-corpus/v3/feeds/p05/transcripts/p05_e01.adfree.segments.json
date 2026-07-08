@@ -1,0 +1,402 @@
+[
+  {
+    "char_end": 191,
+    "char_start": 6,
+    "end": 6.0,
+    "speaker_label": "Nora",
+    "start": 0.0,
+    "text": "Welcome back to Long Horizon Notes. Today we're talking about index investing, and I'm joined by Daniel Cho, former bond trader turned index advocate. Daniel Cho, thanks for being here."
+  },
+  {
+    "char_end": 301,
+    "char_start": 204,
+    "end": 12.0,
+    "speaker_label": "Daniel Cho",
+    "start": 6.0,
+    "text": "Thanks, Nora. Excited for this one \u2014 index investing is something I've been thinking about a lot."
+  },
+  {
+    "char_end": 429,
+    "char_start": 308,
+    "end": 18.0,
+    "speaker_label": "Nora",
+    "start": 12.0,
+    "text": "This episode is brought to you by Vanguard. Vanguard pioneered low-cost index funds. Get started at vanguard.com/podcast."
+  },
+  {
+    "char_end": 507,
+    "char_start": 429,
+    "end": 24.0,
+    "speaker_label": "Nora",
+    "start": 18.0,
+    "text": "What does the failure mode look like? How does Vanguard fit into this picture?"
+  },
+  {
+    "char_end": 736,
+    "char_start": 520,
+    "end": 30.0,
+    "speaker_label": "Daniel Cho",
+    "start": 24.0,
+    "text": "Let me give you the version I actually believe. Index funds are not a strategy \u2014 they're the absence of one. We've seen this play out at teams using Vanguard. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 861,
+    "char_start": 743,
+    "end": 36.0,
+    "speaker_label": "Nora",
+    "start": 30.0,
+    "text": "What's the one heuristic you keep coming back to? What's something you used to believe about this that you've revised?"
+  },
+  {
+    "char_end": 986,
+    "char_start": 874,
+    "end": 42.0,
+    "speaker_label": "Daniel Cho",
+    "start": 36.0,
+    "text": "Honestly, Vanguard's structure pioneered low costs. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 1063,
+    "char_start": 993,
+    "end": 48.0,
+    "speaker_label": "Nora",
+    "start": 42.0,
+    "text": "Let's start there. Where do reliability and index investing intersect?"
+  },
+  {
+    "char_end": 1292,
+    "char_start": 1076,
+    "end": 54.0,
+    "speaker_label": "Daniel Cho",
+    "start": 48.0,
+    "text": "Sure. Frame the market reaction first, then look at fundamentals \u2014 most decisions get this backwards. We've seen this play out at teams using Vanguard. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 1319,
+    "char_start": 1299,
+    "end": 60.0,
+    "speaker_label": "Nora",
+    "start": 54.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 1471,
+    "char_start": 1332,
+    "end": 66.0,
+    "speaker_label": "Daniel Cho",
+    "start": 60.0,
+    "text": "And when teams adopt Wealthfront in that flow, the trade-off becomes visible \u2014 I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 1575,
+    "char_start": 1478,
+    "end": 72.0,
+    "speaker_label": "Nora",
+    "start": 66.0,
+    "text": "Push back on the conventional wisdom for me. What's the most underrated piece of index investing?"
+  },
+  {
+    "char_end": 1725,
+    "char_start": 1588,
+    "end": 78.0,
+    "speaker_label": "Daniel Cho",
+    "start": 72.0,
+    "text": "Honestly, Risk management for individual investors is mostly behavioral. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 1839,
+    "char_start": 1732,
+    "end": 84.0,
+    "speaker_label": "Nora",
+    "start": 78.0,
+    "text": "What's the one heuristic you keep coming back to? What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 2025,
+    "char_start": 1852,
+    "end": 90.0,
+    "speaker_label": "Daniel Cho",
+    "start": 84.0,
+    "text": "It comes down to this: I changed my mind on small-value tilts. We've seen this play out at teams using Morningstar. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 2089,
+    "char_start": 2032,
+    "end": 96.0,
+    "speaker_label": "Nora",
+    "start": 90.0,
+    "text": "We'll be right back after a quick word from our sponsors."
+  },
+  {
+    "char_end": 2239,
+    "char_start": 2094,
+    "end": 102.0,
+    "speaker_label": "Ad",
+    "start": 96.0,
+    "text": "Today's episode is sponsored by Wealthfront. Wealthfront automates the boring parts of investing. Visit wealthfront.com/podcast for a free trial."
+  },
+  {
+    "char_end": 2271,
+    "char_start": 2246,
+    "end": 108.0,
+    "speaker_label": "Nora",
+    "start": 102.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 2373,
+    "char_start": 2271,
+    "end": 114.0,
+    "speaker_label": "Nora",
+    "start": 108.0,
+    "text": "What's the one heuristic you keep coming back to? What's the most underrated piece of index investing?"
+  },
+  {
+    "char_end": 2565,
+    "char_start": 2386,
+    "end": 120.0,
+    "speaker_label": "Daniel Cho",
+    "start": 114.0,
+    "text": "Yeah, so \u2014 Index funds are not a strategy \u2014 they're the absence of one. We've seen this play out at teams using Vanguard. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 2649,
+    "char_start": 2572,
+    "end": 126.0,
+    "speaker_label": "Nora",
+    "start": 120.0,
+    "text": "That's a useful framing. What's the most underrated piece of index investing?"
+  },
+  {
+    "char_end": 2767,
+    "char_start": 2662,
+    "end": 132.0,
+    "speaker_label": "Daniel Cho",
+    "start": 126.0,
+    "text": "Sure. Vanguard's structure pioneered low costs. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 2856,
+    "char_start": 2774,
+    "end": 138.0,
+    "speaker_label": "Nora",
+    "start": 132.0,
+    "text": "I want to dig into that. What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 3128,
+    "char_start": 2869,
+    "end": 144.0,
+    "speaker_label": "Daniel Cho",
+    "start": 138.0,
+    "text": "Let me give you the version I actually believe. Frame the market reaction first, then look at fundamentals \u2014 most decisions get this backwards. We've seen this play out at teams using Bloomberg. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 3147,
+    "char_start": 3135,
+    "end": 150.0,
+    "speaker_label": "Nora",
+    "start": 144.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 3308,
+    "char_start": 3160,
+    "end": 156.0,
+    "speaker_label": "Daniel Cho",
+    "start": 150.0,
+    "text": "And when teams adopt Bloomberg in that flow, the trade-off becomes visible \u2014 If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 3405,
+    "char_start": 3315,
+    "end": 162.0,
+    "speaker_label": "Nora",
+    "start": 156.0,
+    "text": "That's a useful framing. What's the operational angle most listeners don't have access to?"
+  },
+  {
+    "char_end": 3547,
+    "char_start": 3418,
+    "end": 168.0,
+    "speaker_label": "Daniel Cho",
+    "start": 162.0,
+    "text": "Sure. Risk management for individual investors is mostly behavioral. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 3641,
+    "char_start": 3554,
+    "end": 174.0,
+    "speaker_label": "Nora",
+    "start": 168.0,
+    "text": "Take me through the decision. What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 3827,
+    "char_start": 3654,
+    "end": 180.0,
+    "speaker_label": "Daniel Cho",
+    "start": 174.0,
+    "text": "It comes down to this: I changed my mind on small-value tilts. We've seen this play out at teams using Wealthfront. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 3896,
+    "char_start": 3834,
+    "end": 186.0,
+    "speaker_label": "Nora",
+    "start": 180.0,
+    "text": "Let's pivot \u2014 frame is where I want to spend the last stretch."
+  },
+  {
+    "char_end": 4028,
+    "char_start": 3909,
+    "end": 192.0,
+    "speaker_label": "Daniel Cho",
+    "start": 186.0,
+    "text": "That's where the conversation gets interesting, because the trade-offs around frame cross-cut everything we've covered."
+  },
+  {
+    "char_end": 4111,
+    "char_start": 4035,
+    "end": 198.0,
+    "speaker_label": "Nora",
+    "start": 192.0,
+    "text": "I want to dig into that. Where do reliability and index investing intersect?"
+  },
+  {
+    "char_end": 4306,
+    "char_start": 4124,
+    "end": 204.0,
+    "speaker_label": "Daniel Cho",
+    "start": 198.0,
+    "text": "Yeah, so \u2014 Index funds are not a strategy \u2014 they're the absence of one. We've seen this play out at teams using Wealthfront. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 4384,
+    "char_start": 4313,
+    "end": 210.0,
+    "speaker_label": "Nora",
+    "start": 204.0,
+    "text": "Let's start there. What's the most underrated piece of index investing?"
+  },
+  {
+    "char_end": 4558,
+    "char_start": 4397,
+    "end": 216.0,
+    "speaker_label": "Daniel Cho",
+    "start": 210.0,
+    "text": "Let me give you the version I actually believe. Vanguard's structure pioneered low costs. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 4658,
+    "char_start": 4565,
+    "end": 222.0,
+    "speaker_label": "Nora",
+    "start": 216.0,
+    "text": "I want to dig into that. What's something you used to believe about this that you've revised?"
+  },
+  {
+    "char_end": 4890,
+    "char_start": 4671,
+    "end": 228.0,
+    "speaker_label": "Daniel Cho",
+    "start": 222.0,
+    "text": "Sure. Frame the market reaction first, then look at fundamentals \u2014 most decisions get this backwards. We've seen this play out at teams using Morningstar. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 4909,
+    "char_start": 4897,
+    "end": 234.0,
+    "speaker_label": "Nora",
+    "start": 228.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 5058,
+    "char_start": 4922,
+    "end": 240.0,
+    "speaker_label": "Daniel Cho",
+    "start": 234.0,
+    "text": "Morningstar is one of the platforms where this shows up cleanly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 5162,
+    "char_start": 5065,
+    "end": 246.0,
+    "speaker_label": "Nora",
+    "start": 240.0,
+    "text": "Push back on the conventional wisdom for me. What's the most underrated piece of index investing?"
+  },
+  {
+    "char_end": 5318,
+    "char_start": 5175,
+    "end": 252.0,
+    "speaker_label": "Daniel Cho",
+    "start": 246.0,
+    "text": "It comes down to this: Risk management for individual investors is mostly behavioral. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 5414,
+    "char_start": 5325,
+    "end": 258.0,
+    "speaker_label": "Nora",
+    "start": 252.0,
+    "text": "What does the failure mode look like? Where do reliability and index investing intersect?"
+  },
+  {
+    "char_end": 5585,
+    "char_start": 5427,
+    "end": 264.0,
+    "speaker_label": "Daniel Cho",
+    "start": 258.0,
+    "text": "Yeah, so \u2014 I changed my mind on small-value tilts. We've seen this play out at teams using Vanguard. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 5653,
+    "char_start": 5592,
+    "end": 270.0,
+    "speaker_label": "Nora",
+    "start": 264.0,
+    "text": "Before we wrap, what's one thing listeners can try this week?"
+  },
+  {
+    "char_end": 5747,
+    "char_start": 5666,
+    "end": 276.0,
+    "speaker_label": "Daniel Cho",
+    "start": 270.0,
+    "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
+  },
+  {
+    "char_end": 5926,
+    "char_start": 5754,
+    "end": 282.0,
+    "speaker_label": "Nora",
+    "start": 276.0,
+    "text": "And finally, a big thank you to our partners at Stripe. Stripe makes payments simple, whether you're running a marketplace or a subscription business. Check out stripe.com."
+  },
+  {
+    "char_end": 5966,
+    "char_start": 5926,
+    "end": 288.0,
+    "speaker_label": "Nora",
+    "start": 282.0,
+    "text": "Daniel Cho, thanks for the conversation."
+  },
+  {
+    "char_end": 5992,
+    "char_start": 5979,
+    "end": 294.0,
+    "speaker_label": "Daniel Cho",
+    "start": 288.0,
+    "text": "Thanks, Nora."
+  },
+  {
+    "char_end": 6070,
+    "char_start": 5999,
+    "end": 300.0,
+    "speaker_label": "Nora",
+    "start": 294.0,
+    "text": "That's it for today's episode of Long Horizon Notes. See you next time."
+  }
+]

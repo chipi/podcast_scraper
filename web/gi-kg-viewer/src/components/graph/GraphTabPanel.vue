@@ -56,7 +56,7 @@ defineExpose({
         Dismiss
       </button>
     </div>
-    <!-- RFC-088 chunk-9: enrichment-layer edges (topic_similarity + nli_contradiction).
+    <!-- RFC-088 chunk-9: enrichment-layer edges (topic_similarity + topic_consensus).
          Self-hides when no envelopes present. Above the canvas so it's scannable
          without scrolling, but small footprint when populated. -->
     <EnrichmentEdgesPanel

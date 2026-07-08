@@ -97,6 +97,67 @@ def consumer_theme_cluster_map(corpus_root: Path) -> Dict[str, Dict[str, Any]]:
     return out
 
 
+def _anchor_topic_id(members: list[Any]) -> Optional[str]:
+    """Most-central member of a theme cluster — highest ``lift_to_cluster`` (tie: topic_id asc).
+
+    The Home "Storylines" rail opens this topic's card on tap; every member's card shows the same
+    "discussed together" set, so the anchor just picks the most representative entry. Falls back to
+    the first valid ``topic_id`` when lifts are absent.
+    """
+    best_id: Optional[str] = None
+    best_lift = float("-inf")
+    for m in members:
+        if not isinstance(m, Mapping):
+            continue
+        tid = m.get("topic_id")
+        if not isinstance(tid, str) or not tid.strip():
+            continue
+        lift_raw = m.get("lift_to_cluster")
+        lift = float(lift_raw) if isinstance(lift_raw, (int, float)) else 0.0
+        if best_id is None or lift > best_lift or (lift == best_lift and tid.strip() < best_id):
+            best_id, best_lift = tid.strip(), lift
+    return best_id
+
+
+def _theme_cluster_summary(cl: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
+    """Project a theme cluster to ``{id, label, size, anchor_topic_id}`` (``None`` if unusable)."""
+    gpid = cl.get("graph_compound_parent_id")
+    if not isinstance(gpid, str) or not gpid.strip():
+        return None
+    members = cl.get("members")
+    members_list = members if isinstance(members, list) else []
+    anchor = _anchor_topic_id(members_list)
+    if anchor is None:
+        return None  # a themeless / empty cluster can't be opened — skip it
+    mc = cl.get("member_count")
+    size = mc if isinstance(mc, int) else len(members_list)
+    label_raw = cl.get("canonical_label")
+    label = (
+        str(label_raw).strip() if isinstance(label_raw, str) and label_raw.strip() else gpid.strip()
+    )
+    return {"id": gpid.strip(), "label": label, "size": size, "anchor_topic_id": anchor}
+
+
+def top_theme_clusters_by_member_count(corpus_root: Path, top_n: int = 12) -> list[Dict[str, Any]]:
+    """Top-N THEME clusters ("storylines") by member count (desc) — for the picker + Home rail.
+
+    Returns ``[{"id", "label", "size", "anchor_topic_id"}, ...]``; empty when the artifact is
+    missing/invalid. ``id`` is the cluster's ``graph_compound_parent_id`` (``thc:…``, the interest
+    key stored per-user); ``size`` is ``member_count`` when present else ``len(members)``;
+    ``anchor_topic_id`` is the most-central member (see :func:`_anchor_topic_id`). Sibling of the
+    semantic ``top_clusters_by_member_count`` but over ``enrichments/topic_theme_clusters.json``.
+    """
+    payload = _load_theme_clusters_payload(corpus_root)
+    if payload is None:
+        return []
+    raw = payload.get("clusters")
+    if not isinstance(raw, list):
+        return []
+    out = [s for cl in raw if isinstance(cl, Mapping) and (s := _theme_cluster_summary(cl))]
+    out.sort(key=lambda c: c["size"], reverse=True)
+    return out[: max(top_n, 0)]
+
+
 def consumer_theme_cluster_siblings(corpus_root: Path, topic_id: str) -> list[Dict[str, str]]:
     """Sibling topics sharing ``topic_id``'s THEME cluster, excluding itself.
 
@@ -147,4 +208,8 @@ def consumer_theme_cluster_siblings(corpus_root: Path, topic_id: str) -> list[Di
     return []
 
 
-__all__ = ["consumer_theme_cluster_map", "consumer_theme_cluster_siblings"]
+__all__ = [
+    "consumer_theme_cluster_map",
+    "consumer_theme_cluster_siblings",
+    "top_theme_clusters_by_member_count",
+]

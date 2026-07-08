@@ -253,6 +253,55 @@ def test_topic_similarity_empty_corpus_returns_empty(tmp_path: Path) -> None:
     assert data["topic_count"] == 0
 
 
+def test_enricher_feeds_labels_to_provider_not_id_slug(tmp_path: Path) -> None:
+    """The enricher must feed the KG id->label map to the provider so it embeds the human
+    label ("AI development"), not the id slug ("ai-development"). The profile-wired provider is
+    built without corpus access, so the enricher is the only path that can supply labels."""
+    meta = tmp_path / "metadata"
+    meta.mkdir(parents=True, exist_ok=True)
+    (meta / "ep.metadata.json").write_text("{}", encoding="utf-8")
+    (meta / "ep.kg.json").write_text(
+        json.dumps(
+            {
+                "nodes": [
+                    {
+                        "type": "Topic",
+                        "id": "topic:ai-development",
+                        "properties": {"label": "AI development"},
+                    },
+                    {
+                        "type": "Topic",
+                        "id": "topic:oil-prices",
+                        "properties": {"label": "Oil prices"},
+                    },
+                ],
+                "edges": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    bundle = EpisodeArtifactBundle(
+        metadata_path=meta / "ep.metadata.json",
+        gi_path=None,
+        kg_path=meta / "ep.kg.json",
+        bridge_path=None,
+        episode_id="episode:ep",
+        stem="ep",
+    )
+    embedded: list[str] = []
+
+    def recording_embed(text: str) -> list[float]:
+        embedded.append(text)
+        return [float(len(text)), 1.0]
+
+    # Provider built WITHOUT labels — mirrors the profile-wired provider (no corpus access).
+    enricher = TopicSimilarityEnricher(TopicEmbeddingProvider(embed_text=recording_embed))
+    data = _run(enricher, [bundle])
+    assert data["topic_count"] == 2
+    assert "AI development" in embedded and "Oil prices" in embedded
+    assert "ai-development" not in embedded and "topic:ai-development" not in embedded
+
+
 def test_topic_similarity_top_k_config_override(tmp_path: Path) -> None:
     bundles = [_bundle(tmp_path / "metadata", "ep1", ["topic:a", "topic:b", "topic:c", "topic:d"])]
     enricher = TopicSimilarityEnricher(TopicEmbeddingProvider(embed_text=HashEmbedder()))

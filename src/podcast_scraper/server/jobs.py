@@ -312,13 +312,15 @@ def build_enrichment_argv(
     """Build CLI argv for an enrichment job (RFC-088 / Epic #1101).
 
     Mirrors ``build_pipeline_argv`` shape — the child process is
-    ``python -m podcast_scraper.enrichment.cli`` with operator-facing
-    flags surfaced to the API client.
+    ``python -m podcast_scraper.cli enrich`` (the ``enrich`` main-CLI subcommand,
+    #1069 consistency), so it invokes, schedules, and runs in docker exactly like
+    the pipeline. The subcommand delegates to the enrichment CLI verbatim.
     """
     argv: list[str] = [
         sys.executable,
         "-m",
-        "podcast_scraper.enrichment.cli",
+        "podcast_scraper.cli",
+        "enrich",
         "--output-dir",
         str(corpus_root),
         "--log-level",
@@ -386,46 +388,6 @@ def enqueue_enrichment_job(
         return rec
 
     return with_jobs_locked_mutate(corpus_root, fn)
-
-
-async def spawn_enrichment_subprocess(
-    app: Any,
-    corpus_root: Path,
-    job_id: str,
-    argv: list[str],
-    log_abs: Path,
-) -> asyncio.subprocess.Process:
-    """Spawn the enrichment-CLI child via the same pump as pipeline jobs.
-
-    The factory injection (``app.state.jobs_subprocess_factory``) +
-    capped log pump (``_pump_subprocess_to_log``) work identically
-    for both job kinds.
-    """
-    factory = getattr(app.state, "jobs_subprocess_factory", None)
-    if factory is not None:
-        proc = await factory(argv, corpus_root, log_abs)
-        return cast(asyncio.subprocess.Process, proc)
-
-    log_abs.parent.mkdir(parents=True, exist_ok=True)
-    proc = await asyncio.create_subprocess_exec(
-        *argv,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.STDOUT,
-        cwd=str(corpus_root),
-        start_new_session=os.name != "nt",
-    )
-    assert proc.stdout is not None
-    pump_task = asyncio.create_task(
-        _pump_subprocess_to_log(
-            proc.stdout,
-            log_abs,
-            max_bytes=job_log_max_bytes(),
-            job_id=job_id,
-        ),
-        name=f"enrichment-log-pump-{job_id}",
-    )
-    setattr(proc, "_ps_log_pump", pump_task)
-    return proc
 
 
 def enqueue_pipeline_job(corpus_root: Path, operator_yaml: Path) -> dict[str, Any]:
@@ -553,10 +515,12 @@ def promote_queued_if_slot(corpus_root: Path, operator_yaml: Path) -> dict[str, 
         if not q:
             return None
         j = q[0]
-        argv = build_pipeline_argv(corpus_root, operator_yaml)
+        # Promotion only flips the lifecycle state — it must NOT rewrite the
+        # command. The enqueue-time (command-typed) ``argv_summary`` is the
+        # source of truth; overwriting it here is what made queued enrichment
+        # jobs spawn the pipeline.
         j["status"] = STATUS_RUNNING
         j["started_at"] = _utc_iso()
-        j["argv_summary"] = argv_summary(argv)
         j["cancel_requested"] = False
         j["pid"] = None
         return dict(j)
@@ -706,6 +670,28 @@ async def monitor_subprocess(
                 logger.warning("job log close failed job=%s: %s", job_id, exc)
 
 
+def argv_from_record(job: dict[str, Any]) -> list[str] | None:
+    """The exact command to spawn, taken from the job's stored ``argv_summary``.
+
+    The registry row is the single source of truth for *what to run*: the argv
+    is built once at enqueue (command-typed via ``build_pipeline_argv`` /
+    ``build_enrichment_argv`` / …) and persisted. Every spawn executes it
+    verbatim, so each ``command_type`` runs its own CLI instead of always the
+    pipeline. Returns ``None`` for a legacy/blank row so the caller can fall
+    back to rebuilding the pipeline argv.
+    """
+    raw = job.get("argv_summary")
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    try:
+        parsed = json.loads(raw)
+    except (ValueError, TypeError):
+        return None
+    if isinstance(parsed, list) and parsed and all(isinstance(a, str) for a in parsed):
+        return [str(a) for a in parsed]
+    return None
+
+
 async def start_job_if_running_record(
     app: Any,
     corpus_root: Path,
@@ -716,7 +702,10 @@ async def start_job_if_running_record(
     if job.get("status") != STATUS_RUNNING:
         return
     job_id = str(job["job_id"])
-    argv = build_pipeline_argv(corpus_root, operator_yaml)
+    # Source of truth = the row's stored (command-typed) argv; rebuild only for
+    # a legacy row that predates argv persistence. This is what lets an
+    # enrichment (or any non-pipeline) job spawn its own CLI, not the pipeline.
+    argv = argv_from_record(job) or build_pipeline_argv(corpus_root, operator_yaml)
     log_abs = corpus_root / str(job.get("log_relpath", f".viewer/jobs/{job_id}.log"))
     try:
         proc = await spawn_pipeline_subprocess(app, corpus_root, job_id, argv, log_abs)

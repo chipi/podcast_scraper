@@ -1,0 +1,208 @@
+{
+  "derived": true,
+  "computed_at": "2026-07-06T16:42:16Z",
+  "enricher_id": "guest_coappearance",
+  "enricher_version": "1.0.0",
+  "schema_version": "1.0",
+  "status": "ok",
+  "data": {
+    "pairs": [
+      {
+        "person_a_id": "person:cam",
+        "person_b_id": "person:jordan-park",
+        "person_a_name": "Cam",
+        "person_b_name": "Jordan Park",
+        "episode_count": 4
+      },
+      {
+        "person_a_id": "person:a-correspondent",
+        "person_b_id": "person:renee-montagne-park",
+        "person_a_name": "A. correspondent",
+        "person_b_name": "Renee Montagne-Park",
+        "episode_count": 3
+      },
+      {
+        "person_a_id": "person:ethan",
+        "person_b_id": "person:priya-nair",
+        "person_a_name": "Ethan",
+        "person_b_name": "Priya Nair",
+        "episode_count": 3
+      },
+      {
+        "person_a_id": "person:alex-morgan",
+        "person_b_id": "person:dr-elena-fischer",
+        "person_a_name": "Alex Morgan",
+        "person_b_name": "Dr. Elena Fischer",
+        "episode_count": 2
+      },
+      {
+        "person_a_id": "person:ava-lemoine",
+        "person_b_id": "person:leo",
+        "person_a_name": "Ava Lemoine",
+        "person_b_name": "Leo",
+        "episode_count": 2
+      },
+      {
+        "person_a_id": "person:daniel-cho",
+        "person_b_id": "person:nora",
+        "person_a_name": "Daniel Cho",
+        "person_b_name": "Nora",
+        "episode_count": 2
+      },
+      {
+        "person_a_id": "person:dr-elena-fischer",
+        "person_b_id": "person:sam",
+        "person_a_name": "Dr. Elena Fischer",
+        "person_b_name": "Sam",
+        "episode_count": 2
+      },
+      {
+        "person_a_id": "person:a-correspondent",
+        "person_b_id": "person:renee-montague-park",
+        "person_a_name": "A. correspondent",
+        "person_b_name": "Renee Montague-Park",
+        "episode_count": 1
+      },
+      {
+        "person_a_id": "person:alex-morgan",
+        "person_b_id": "person:skanda-amarnath",
+        "person_a_name": "Alex Morgan",
+        "person_b_name": "Skanda Amarnath",
+        "episode_count": 1
+      },
+      {
+        "person_a_id": "person:alex-morgan",
+        "person_b_id": "person:skanda-eminas",
+        "person_a_name": "Alex Morgan",
+        "person_b_name": "Skanda Eminas",
+        "episode_count": 1
+      },
+      {
+        "person_a_id": "person:daniel-cho",
+        "person_b_id": "person:scott-bessent",
+        "person_a_name": "Daniel Cho",
+        "person_b_name": "Scott Bessent",
+        "episode_count": 1
+      },
+      {
+        "person_a_id": "person:daniel-olufemi",
+        "person_b_id": "person:leo",
+        "person_a_name": "Daniel Olufemi",
+        "person_b_name": "Leo",
+        "episode_count": 1
+      },
+      {
+        "person_a_id": "person:ethan",
+        "person_b_id": "person:joll-wisenthal",
+        "person_a_name": "Ethan",
+        "person_b_name": "Joll Wisenthal",
+        "episode_count": 1
+      },
+      {
+        "person_a_id": "person:hanna-crebo-rediker",
+        "person_b_id": "person:rina",
+        "person_a_name": "Hanna Crebo Rediker",
+        "person_b_name": "Rina",
+        "episode_count": 1
+      },
+      {
+        "person_a_id": "person:hanna-krebohticker",
+        "person_b_id": "person:rina",
+        "person_a_name": "Hanna Krebohticker",
+        "person_b_name": "Rina",
+        "episode_count": 1
+      },
+      {
+        "person_a_id": "person:leo",
+        "person_b_id": "person:tarek-hassan",
+        "person_a_name": "Leo",
+        "person_b_name": "Tarek Hassan",
+        "episode_count": 1
+      },
+      {
+        "person_a_id": "person:liam-verbeek",
+        "person_b_id": "person:maya",
+        "person_a_name": "Liam Verbeek",
+        "person_b_name": "Maya",
+        "episode_count": 1
+      },
+      {
+        "person_a_id": "person:marco-silva",
+        "person_b_id": "person:rina",
+        "person_a_name": "Marco Silva",
+        "person_b_name": "Rina",
+        "episode_count": 1
+      },
+      {
+        "person_a_id": "person:marco-sylva",
+        "person_b_id": "person:rina",
+        "person_a_name": "Marco Sylva",
+        "person_b_name": "Rina",
+        "episode_count": 1
+      },
+      {
+        "person_a_id": "person:maya",
+        "person_b_id": "person:noah-bryer",
+        "person_a_name": "Maya",
+        "person_b_name": "Noah Bryer",
+        "episode_count": 1
+      },
+      {
+        "person_a_id": "person:maya",
+        "person_b_id": "person:sophie-laurent",
+        "person_a_name": "Maya",
+        "person_b_name": "Sophie Laurent",
+        "episode_count": 1
+      },
+      {
+        "person_a_id": "person:maya",
+        "person_b_id": "person:sophie-lorenz",
+        "person_a_name": "Maya",
+        "person_b_name": "Sophie Lorenz",
+        "episode_count": 1
+      },
+      {
+        "person_a_id": "person:nora",
+        "person_b_id": "person:rich-clarida",
+        "person_a_name": "Nora",
+        "person_b_name": "Rich Clarida",
+        "episode_count": 1
+      },
+      {
+        "person_a_id": "person:nora",
+        "person_b_id": "person:scott-bessent",
+        "person_a_name": "Nora",
+        "person_b_name": "Scott Bessent",
+        "episode_count": 1
+      },
+      {
+        "person_a_id": "person:nora",
+        "person_b_id": "person:scott-bessett",
+        "person_a_name": "Nora",
+        "person_b_name": "Scott Bessett",
+        "episode_count": 1
+      },
+      {
+        "person_a_id": "person:sam",
+        "person_b_id": "person:skanda-amarnath",
+        "person_a_name": "Sam",
+        "person_b_name": "Skanda Amarnath",
+        "episode_count": 1
+      },
+      {
+        "person_a_id": "person:sam",
+        "person_b_id": "person:skanda-amarnauth",
+        "person_a_name": "Sam",
+        "person_b_name": "Skanda Amarnauth",
+        "episode_count": 1
+      }
+    ],
+    "episode_count": 36
+  },
+  "error": null,
+  "error_class": null,
+  "retry_count": 0,
+  "circuit_state": null,
+  "duration_ms": 0,
+  "records_written": 27
+}

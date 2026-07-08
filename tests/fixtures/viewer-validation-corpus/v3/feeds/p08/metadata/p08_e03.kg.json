@@ -1,0 +1,83 @@
+{
+  "edges": [
+    {
+      "from": "episode:1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+      "to": "entity:environment",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+      "to": "entity:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+      "to": "topic:environment",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+      "to": "topic:technology",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+      "to": "topic:business-markets",
+      "type": "RELATES_TO"
+    }
+  ],
+  "episode_id": "1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+      "properties": {
+        "episode_id": "1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+        "metadata_relative_path": "feeds/p08/metadata/p08_e03.metadata.json",
+        "title": "The Long View \u2014 Episode 3"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:environment",
+      "properties": {
+        "category": "Concept",
+        "label": "Environment"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:technology",
+      "properties": {
+        "category": "Concept",
+        "label": "Technology"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:environment",
+      "properties": {
+        "label": "environment"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "technology"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:business-markets",
+      "properties": {
+        "label": "Business & markets"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2"
+}

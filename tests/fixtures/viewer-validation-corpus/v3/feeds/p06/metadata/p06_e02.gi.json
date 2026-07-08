@@ -1,0 +1,349 @@
+{
+  "edges": [
+    {
+      "from": "episode:e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+      "to": "topic:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+      "to": "topic:great-to-be-back",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+      "to": "insight:157bc9c5953c5326",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+      "to": "insight:49ceee537c0fbff7",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+      "to": "insight:9dae8f69e31392ca",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:0b0cbc0f9138190c",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:157bc9c5953c5326",
+      "to": "quote:0b0cbc0f9138190c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:db8fb147134e9fe2",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:49ceee537c0fbff7",
+      "to": "quote:db8fb147134e9fe2",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:49a162acacb92572",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:9dae8f69e31392ca",
+      "to": "quote:49a162acacb92572",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:5b010352c7825b70",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:157bc9c5953c5326",
+      "to": "quote:5b010352c7825b70",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:af4db0eb2b93ae72",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:49ceee537c0fbff7",
+      "to": "quote:af4db0eb2b93ae72",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:eb931c27f723aeea",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:9dae8f69e31392ca",
+      "to": "quote:eb931c27f723aeea",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:157bc9c5953c5326",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:49ceee537c0fbff7",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:157bc9c5953c5326",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:157bc9c5953c5326",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:157bc9c5953c5326",
+      "to": "topic:great-to-be-back",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:49ceee537c0fbff7",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:49ceee537c0fbff7",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:49ceee537c0fbff7",
+      "to": "topic:great-to-be-back",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9dae8f69e31392ca",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9dae8f69e31392ca",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9dae8f69e31392ca",
+      "to": "topic:great-to-be-back",
+      "properties": {
+        "confidence": 0.5
+      }
+    }
+  ],
+  "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+        "metadata_relative_path": "feeds/p06/metadata/p06_e02.metadata.json",
+        "podcast_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
+        "publish_date": "2026-07-05T12:00:00",
+        "title": "Edge Cases Podcast — Episode 2"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "Technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:great-to-be-back",
+      "properties": {
+        "label": "great to be back",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:157bc9c5953c5326",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we're talking about long form, and I'm joined by Jordan Park, cultural critic.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:49ceee537c0fbff7",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Jordan Park, thanks for being here.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:9dae8f69e31392ca",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "This episode is brought to you by Squarespace.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Cam"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:0b0cbc0f9138190c",
+      "properties": {
+        "char_end": 152,
+        "char_start": 5,
+        "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to The Drift. Today we're talking about long form, and I'm joined by Jordan Park, cultural critic. Jordan Park, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p06_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Jordan Park"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:db8fb147134e9fe2",
+      "properties": {
+        "char_end": 196,
+        "char_start": 166,
+        "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Cam. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p06_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:49a162acacb92572",
+      "properties": {
+        "char_end": 363,
+        "char_start": 202,
+        "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Squarespace. Squarespace makes building a beautiful, branded website actually pleasant. Get started at squarespace.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p06_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:5b010352c7825b70",
+      "properties": {
+        "char_end": 477,
+        "char_start": 363,
+        "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+        "speaker_id": "person:speaker-01",
+        "text": "What's the one heuristic you keep coming back to? What's the structural angle most listeners don't have access to?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p06_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:af4db0eb2b93ae72",
+      "properties": {
+        "char_end": 691,
+        "char_start": 491,
+        "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+        "speaker_id": "person:speaker-02",
+        "text": "Here's how I think about it. Sometimes the point of a conversation is not having a point. We've seen this play out at teams using Substack. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p06_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:eb931c27f723aeea",
+      "properties": {
+        "char_end": 799,
+        "char_start": 697,
+        "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+        "speaker_id": "person:speaker-01",
+        "text": "What does the failure mode look like? What's the structural angle most listeners don't have access to?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p06_e02.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.0"
+}

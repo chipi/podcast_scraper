@@ -1,0 +1,95 @@
+{
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": true,
+      "label": "environment",
+      "topic_cluster_compound_id": "tc:environment-cluster",
+      "topic_id": "topic:environment"
+    },
+    {
+      "in_topic_cluster": true,
+      "label": "health",
+      "topic_cluster_compound_id": "tc:health-cluster",
+      "topic_id": "topic:health"
+    }
+  ],
+  "content": {
+    "diarization_num_speakers": 3,
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Alex Morgan",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Skanda Eminas",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p07_e02.txt",
+    "transcript_source": "synthetic"
+  },
+  "episode": {
+    "episode_id": "54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
+    "published_date": "2026-07-04",
+    "title": "The Long View \u2014 Episode 2"
+  },
+  "episode_id": "54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
+  "episode_title": "The Long View \u2014 Episode 2",
+  "feed": {
+    "description": "Long-form conversations about sustainability, systems thinking, and the ideas shaping our shared future.",
+    "feed_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
+    "title": "The Long View",
+    "url": "http://localhost/"
+  },
+  "feed_display_title": "The Long View",
+  "feed_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
+  "gi_relative_path": "feeds/p07/metadata/p07_e02.gi.json",
+  "grounded_insights": {
+    "artifact_path": "feeds/p07/metadata/p07_e02.gi.json",
+    "schema_version": "1.0"
+  },
+  "has_gi": true,
+  "has_kg": true,
+  "kg_relative_path": "feeds/p07/metadata/p07_e02.kg.json",
+  "knowledge_graph": {
+    "artifact_path": "feeds/p07/metadata/p07_e02.kg.json",
+    "schema_version": "1.1"
+  },
+  "publish_date": "2026-07-04",
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Today we're talking about macroeconomics, and I'm joined by Skanda Eminas, macro economist.",
+      "Skanda Eminas, thanks for being here.",
+      "Skanda Eminas: Thanks, Alex Morgan."
+    ],
+    "preview": "Today we're talking about macroeconomics, and I'm joined by Skanda Eminas, macro economist.",
+    "text": "Today we're talking about macroeconomics, and I'm joined by Skanda Eminas, macro economist.\nSkanda Eminas, thanks for being here.\nSkanda Eminas: Thanks, Alex Morgan.",
+    "title": "The Long View \u2014 Episode 2 \u2014 synthetic"
+  },
+  "summary_bullet_graph_topic_ids": [
+    "topic:environment",
+    "topic:health",
+    "topic:technology"
+  ],
+  "summary_bullets": [
+    "Today we're talking about macroeconomics, and I'm joined by Skanda Eminas, macro economist.",
+    "Skanda Eminas, thanks for being here.",
+    "Skanda Eminas: Thanks, Alex Morgan."
+  ],
+  "summary_preview": "Today we're talking about macroeconomics, and I'm joined by Skanda Eminas, macro economist.",
+  "summary_text": "Today we're talking about macroeconomics, and I'm joined by Skanda Eminas, macro economist.\nSkanda Eminas, thanks for being here.\nSkanda Eminas: Thanks, Alex Morgan.",
+  "summary_title": "The Long View \u2014 Episode 2 \u2014 synthetic",
+  "topics": [
+    "environment",
+    "health",
+    "Technology"
+  ]
+}

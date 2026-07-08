@@ -1,0 +1,47 @@
+{
+  "callbacks": [],
+  "episode_id": "p01_e01",
+  "extra_alias_callbacks": [],
+  "failure_modes": [
+    "asr_garble"
+  ],
+  "guest_accent": "en-US",
+  "host_accent": "en-US",
+  "host_canonical_name": "Maya",
+  "podcast_id": "p01",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p01:Liam",
+  "primary_guest_canonical_name": "Liam Verbeek",
+  "primary_guest_surface_in_transcript": "Liam Verbeek",
+  "primary_topic": "topic:trail-building",
+  "publish_date": "2024-01-02",
+  "publish_offset_days": 1,
+  "secondary_topics": [
+    "topic:soil-erosion",
+    "topic:land-stewardship"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Strava",
+      "kind": "template_opening",
+      "line_index": 11
+    },
+    {
+      "brand": "Stripe",
+      "kind": "template_midroll",
+      "line_index": 33
+    },
+    {
+      "brand": "Linear",
+      "kind": "template_closing",
+      "line_index": 78
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p01:Liam",
+      "kind": "canonical",
+      "surface": "Liam Verbeek"
+    }
+  ]
+}

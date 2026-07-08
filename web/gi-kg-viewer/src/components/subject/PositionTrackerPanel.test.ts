@@ -5,7 +5,14 @@
 // with arc rows + insight_type filter chips.
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+// ADR-108 sentiment tint fetches the corpus-wide position arc; mock it (default: no sentiment,
+// so the existing UXS-009 tests are unaffected — cards fall back to the neutral tint).
+const fetchPersonPositions = vi.fn()
+vi.mock('../../api/cilApi', () => ({
+  fetchPersonPositions: (...a: unknown[]) => fetchPersonPositions(...a),
+}))
 
 import PositionTrackerPanel from './PositionTrackerPanel.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
@@ -87,6 +94,33 @@ async function mountPanel(opts?: {
 describe('PositionTrackerPanel (#1049)', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    fetchPersonPositions.mockReset()
+    fetchPersonPositions.mockResolvedValue({ path: '/c', person_id: '', topic_id: '', episodes: [] })
+  })
+
+  it('ADR-108: tints each arc card by its insight sentiment (best-effort join)', async () => {
+    fetchPersonPositions.mockResolvedValue({
+      path: '/c',
+      person_id: 'person:alice',
+      topic_id: 'topic:ai',
+      episodes: [
+        {
+          episode_id: 'ep:1',
+          publish_date: '2026-02-01',
+          insights: [
+            { id: 'i_claim', sentiment: { compound: 0.6, label: 'positive' } },
+            { id: 'i_obs', sentiment: { compound: -0.5, label: 'negative' } },
+          ],
+        },
+      ],
+    })
+    const w = await mountPanel({ topic: 'topic:ai' })
+    await flushPromises()
+    const rows = w.findAll('[data-testid="position-tracker-row"]')
+    const claim = rows.find((r) => r.attributes('data-insight-type') === 'claim')
+    const obs = rows.find((r) => r.attributes('data-insight-type') === 'observation')
+    expect(claim?.classes()).toContain('bg-emerald-900/10') // positive
+    expect(obs?.classes()).toContain('bg-rose-900/10') // negative
   })
 
   it('UXS-009 state 1: no Topic selected → placeholder copy', async () => {

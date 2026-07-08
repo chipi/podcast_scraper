@@ -1,0 +1,90 @@
+{
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": true,
+      "label": "environment",
+      "topic_cluster_compound_id": "tc:environment-cluster",
+      "topic_id": "topic:environment"
+    },
+    {
+      "in_topic_cluster": true,
+      "label": "health",
+      "topic_cluster_compound_id": "tc:health-cluster",
+      "topic_id": "topic:health"
+    }
+  ],
+  "content": {
+    "diarization_num_speakers": 2,
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Alex Morgan",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Skanda Amarnath",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p07_e04.txt",
+    "transcript_source": "synthetic"
+  },
+  "episode": {
+    "episode_id": "32b9679a-1a2d-5cce-b673-b489694ef798",
+    "published_date": "2026-07-06",
+    "title": "The Long View \u2014 Episode 4"
+  },
+  "episode_id": "32b9679a-1a2d-5cce-b673-b489694ef798",
+  "episode_title": "The Long View \u2014 Episode 4",
+  "feed": {
+    "description": "Long-form conversations about sustainability, systems thinking, and the ideas shaping our shared future.",
+    "feed_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
+    "title": "The Long View",
+    "url": "http://localhost/"
+  },
+  "feed_display_title": "The Long View",
+  "feed_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
+  "gi_relative_path": "feeds/p07/metadata/p07_e04.gi.json",
+  "grounded_insights": {
+    "artifact_path": "feeds/p07/metadata/p07_e04.gi.json",
+    "schema_version": "1.0"
+  },
+  "has_gi": true,
+  "has_kg": true,
+  "kg_relative_path": "feeds/p07/metadata/p07_e04.kg.json",
+  "knowledge_graph": {
+    "artifact_path": "feeds/p07/metadata/p07_e04.kg.json",
+    "schema_version": "1.1"
+  },
+  "publish_date": "2026-07-06",
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "# The Long View \u2014 Sustainability \u2014 Episode\n## Macro as Risk Management\nHost: Alex Morgan\nGuest: Skanda Amarnath\n#fixture-v3: voice=en-IN host_voice=en-AU\nAlex Morgan: Welcome back to The Long View.",
+      "I'm joined by Skanda Amarnath, who reads the macroeconomy for a living.",
+      "Skanda Amarnath: Thanks, Alex."
+    ],
+    "preview": "# The Long View \u2014 Sustainability \u2014 Episode\n## Macro as Risk Management\nHost: Alex Morgan\nGuest: Skanda Amarnath\n#fixture-v3: voice=en-IN hos\u2026",
+    "text": "# The Long View \u2014 Sustainability \u2014 Episode\n## Macro as Risk Management\nHost: Alex Morgan\nGuest: Skanda Amarnath\n#fixture-v3: voice=en-IN host_voice=en-AU\nAlex Morgan: Welcome back to The Long View.\nI'm joined by Skanda Amarnath, who reads the macroeconomy for a living.\nSkanda Amarnath: Thanks, Alex.",
+    "title": "The Long View \u2014 Episode 4 \u2014 synthetic"
+  },
+  "summary_bullet_graph_topic_ids": [
+    "topic:environment",
+    "topic:health",
+    "topic:science-research"
+  ],
+  "summary_bullets": [
+    "# The Long View \u2014 Sustainability \u2014 Episode\n## Macro as Risk Management\nHost: Alex Morgan\nGuest: Skanda Amarnath\n#fixture-v3: voice=en-IN host_voice=en-AU\nAlex Morgan: Welcome back to The Long View.",
+    "I'm joined by Skanda Amarnath, who reads the macroeconomy for a living.",
+    "Skanda Amarnath: Thanks, Alex."
+  ],
+  "summary_preview": "# The Long View \u2014 Sustainability \u2014 Episode\n## Macro as Risk Management\nHost: Alex Morgan\nGuest: Skanda Amarnath\n#fixture-v3: voice=en-IN hos\u2026",
+  "summary_text": "# The Long View \u2014 Sustainability \u2014 Episode\n## Macro as Risk Management\nHost: Alex Morgan\nGuest: Skanda Amarnath\n#fixture-v3: voice=en-IN host_voice=en-AU\nAlex Morgan: Welcome back to The Long View.\nI'm joined by Skanda Amarnath, who reads the macroeconomy for a living.\nSkanda Amarnath: Thanks, Alex.",
+  "summary_title": "The Long View \u2014 Episode 4 \u2014 synthetic",
+  "topics": [
+    "environment",
+    "health",
+    "Science & research"
+  ]
+}

@@ -1,6 +1,8 @@
 # RFC-088: Enrichment Layer Architecture
 
 - **Status**: Completed (2026-06-27) — Epic [#1101](https://github.com/chipi/podcast_scraper/issues/1101) shipped all 9 chunks: chunk 0 (ADR-104 Accepted), chunk 1 (foundation: protocol, resilience + cost-cap, health, metrics, status, JSONL events, observability, executor, CLI + JSON Schema, jobs API + HTTP routes, MCP enrichment source + 8 tools, mock scorers + resilience integration tests, stack-test E2E specs, `docs/api/ENRICHMENT_LAYER_API.md`), chunk 2 (6 deterministic enrichers), chunk 3 (topic_similarity embedding tier), chunk 4 (nli_contradiction ML tier), chunk 5 (QueryEnricher protocol + query_topic_relatedness + /api/search enrich_results wiring), chunk 6 (user-facing corpus_enrichments routes + viewer Configuration popup Enrichment tab + Dashboard pipeline-runs kind filter + Topic / Person rail enrichment signals), chunk 7 (profile-preset matrix + CLI --enrichers/--no-enrichers/--opt-in/--profile overrides + drift gate), chunk 8 (this promotion + ADR-104 Accepted + `docs/guides/ENRICHMENT_LAYER_GUIDE.md`). Plan: `docs/wip/RFC-088-ENRICHMENT-LAYER-IMPLEMENTATION-PLAN.md`; lock audit: `docs/wip/RFC-088-CHUNK1-LOCK-AUDIT.md`; chunks 2-8 replan: `docs/wip/RFC-088-CHUNKS-2-8-REPLAN.md`.
+- **Accuracy finding — `nli_contradiction` disabled (2026-07-05)**: the deferred chunk-4 accuracy eval landed (#1106; `scripts/eval/score/enrichment_nli_*`) and measured **0% precision** on prod-v2 — the NLI cross-encoder over-fires "contradiction" on merely topic-adjacent Insight pairs, and true cross-Person *atomic-insight* contradictions are near-absent at this grain. A softmax calibration fix shipped (`scorers/nli.py`: raw logits → probabilities, cutting corpus flags ~660→~154) but precision stays ~0%, so the enricher is **removed from every shipping profile**. See `docs/wip/RFC-088-ENRICHMENT-EPIC-1101-AUDIT-2026-07.md`.
+- **Reimagined — `nli_contradiction` → `topic_consensus` (activated); stance scoring retired for a CIL timeline ([ADR-108](../adr/ADR-108-nli-disagreement-enrichers-gated-dark.md), 2026-07-07)**: both disagreement enrichers hit **0% precision** because sentence-pair NLI can't tell "same contested proposition" from "same topic" (the *shared-question gate*), which needs an LLM the operator ruled out. `nli_contradiction` → **`topic_consensus`**: real-corpus eval showed *symmetric entailment* has ~0 recall, so the winning signal is a **composite — embedding cosine (the shared-question gate) + low NLI contradiction (the direction gate)** — measured **precision 0.91** on prod-v2, so it **auto-promoted**. Stance-over-time (`stance_disagreement`/`stance_timeline`) was **retired as an enricher**: its stance signal is genuinely absent on factual insights, and per-`(person, topic)` / per-topic stance over time is served better as a **read-time CIL query** (`conversation-arc` / `position-arc`) coloured by the deterministic `insight_sentiment` (VADER) enricher — no gated ML needed.
 - **v2 cross-reference (RFC-097, 2026-06-20)**: enricher input data (`bridge.json` + typed Person/Org/Podcast nodes + descriptive ABOUT/MENTIONS_* edges) shipped per-artifact via RFC-097 v2. QueryEnricher protocol (Phase 4), typed contradiction enricher output (needs CONTRADICTS edges, v3), and LLM tier enrichers remain open. See [RFC-097](RFC-097-unified-kg-gi-ontology-v2.md).
 - **v2 config surface delta (2026-06-28)**: the *configuration* surface evolved after this RFC was first written. Key deltas the body sections below do NOT yet reflect:
   - **Shape B YAML** — ``enrichment.enrichers:`` is a per-enricher dict (``temporal_velocity: {alpha: 0.7}``), NOT the list-of-dicts the body shows. Block-present = enabled (implicit ``enabled: true``); explicit ``enabled: false`` opts an enricher out without losing its knobs.
@@ -1025,13 +1027,17 @@ pattern.
 | `guest_coappearance` | deterministic | corpus | kg + bridge | On | Which persons appear together across episodes |
 | `insight_density` | deterministic | episode | gi | On | Insight count per episode segment (early/mid/late) |
 | `topic_similarity` | embedding | corpus | FAISS index | Off | Cosine similarity between topic embeddings |
-| `nli_contradiction` | ml | corpus | gi + bridge | Off | NLI-scored contradiction pairs across Insights on shared topics |
+| `nli_contradiction` → **`topic_consensus`** | ml | corpus | gi + bridge | **On (precision 0.91)** | Cross-speaker **corroboration** — a composite of embedding cosine + low NLI contradiction; speakers who *agree* on a topic ([ADR-108](../adr/ADR-108-nli-disagreement-enrichers-gated-dark.md)) |
+| `insight_sentiment` | deterministic | episode | gi | On | Per-Insight VADER compound + neg/neu/pos — the colour layer for the CIL conversation/position timelines ([ADR-108](../adr/ADR-108-nli-disagreement-enrichers-gated-dark.md)) |
+| ~~`stance_disagreement` → `stance_timeline`~~ | — | — | — | **Retired** | Stance-over-time is a read-time CIL query (`conversation-arc` / `position-arc`) + `insight_sentiment`, not an enricher — the stance signal is absent on factual insights ([ADR-108](../adr/ADR-108-nli-disagreement-enrichers-gated-dark.md)) |
 
 The first six are pure arithmetic -- no model, no external dependency, trivially
-testable. They ship enabled by default. The last two require opt-in.
+testable. They ship enabled by default. The NLI-based two require opt-in and are being
+**reimagined** off "disagreement-as-assertion" (0% precision) onto the robust **entailment**
+side of NLI — consensus + stance-timeline (see the reimagining note above + ADR-108).
 
-**`nli_contradiction` scope clarification:** This enricher produces **candidate
-contradiction pairs** -- each record contains `topic_id`, `person_a_id`,
+**Reimagining note (ADR-108):** the original `nli_contradiction` produced **candidate
+contradiction pairs** -- each record `topic_id`, `person_a_id`,
 `person_b_id`, `insight_a_id`, `insight_b_id`, and a `contradiction_score`
 (0.0 -- 1.0). It does **not** generate human-readable position summaries or
 rankings.

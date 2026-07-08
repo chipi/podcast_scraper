@@ -1,0 +1,122 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-916dab1698f88aec",
+      "to": "entity:safety-practices",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-916dab1698f88aec",
+      "to": "entity:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-916dab1698f88aec",
+      "to": "topic:safety-practices",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-916dab1698f88aec",
+      "to": "topic:risk-management",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-916dab1698f88aec",
+      "to": "topic:lifelong-learning",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-916dab1698f88aec",
+      "to": "topic:expert-interviews",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-916dab1698f88aec",
+      "to": "person:rina",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-916dab1698f88aec",
+      "to": "person:marco-silva",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-916dab1698f88aec",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-916dab1698f88aec",
+      "properties": {
+        "episode_id": "ep-916dab1698f88aec",
+        "metadata_relative_path": "feeds/p03/run_20260101_000000/metadata/p03_e04.metadata.json",
+        "publish_date": "2025-07-09T12:00:00",
+        "title": "Plan the Dive, Manage the Risk"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:safety-practices",
+      "properties": {
+        "category": "Concept",
+        "label": "Safety Practices"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:risk-management",
+      "properties": {
+        "category": "Concept",
+        "label": "Risk Management"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:safety-practices",
+      "properties": {
+        "label": "safety practices"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:rina",
+      "properties": {
+        "name": "Rina",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:marco-silva",
+      "properties": {
+        "name": "Marco Silva",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2"
+}

@@ -38,6 +38,25 @@ class TestParseScheduledJobs:
         with pytest.raises(ScheduledJobsParseError, match="must be a list"):
             parse_scheduled_jobs("scheduled_jobs: not-a-list\n")
 
+    def test_kind_defaults_to_pipeline(self) -> None:
+        # Back-compat: an entry with no ``kind`` fires the pipeline (ingestion).
+        jobs = parse_scheduled_jobs("scheduled_jobs:\n  - name: sweep\n    cron: '0 4 * * *'\n")
+        assert jobs[0].kind == "pipeline"
+
+    def test_kind_enrichment_parses(self) -> None:
+        # #1069 consistency: enrichment is schedulable exactly like ingestion.
+        jobs = parse_scheduled_jobs(
+            "scheduled_jobs:\n  - name: nightly-enrich\n"
+            "    cron: '0 5 * * *'\n    kind: enrichment\n"
+        )
+        assert jobs[0].kind == "enrichment"
+
+    def test_invalid_kind_raises(self) -> None:
+        with pytest.raises(ScheduledJobsParseError, match="kind must be one of"):
+            parse_scheduled_jobs(
+                "scheduled_jobs:\n  - name: bad\n    cron: '0 4 * * *'\n    kind: bogus\n"
+            )
+
     def test_non_mapping_entry_raises(self) -> None:
         yaml_text = "scheduled_jobs:\n  - just-a-string\n"
         with pytest.raises(ScheduledJobsParseError, match="must be a mapping"):

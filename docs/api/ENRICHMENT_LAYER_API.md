@@ -153,7 +153,7 @@ enrichment:
   fail_on_run_cost_cap: true             # set cancel_event when cap fires
   enrichers:                             # Shape B: per-enricher block,
                                          # block-present = enabled
-    topic_cooccurrence:
+    topic_cooccurrence_corpus:
       max_cost_usd_per_run: 0.10
       expected_duration_s: 30
     temporal_velocity:
@@ -164,10 +164,9 @@ enrichment:
       provider:                          # ML enrichers declare provider
         type: sentence_transformer_local
         model: all-MiniLM-L6-v2
-    nli_contradiction:
-      threshold: 0.5
-      opt_in: false                      # LLM tier: double opt-in
-      provider:
+    topic_consensus:
+      threshold: 0.6
+      provider:                          # NLI scorer (CPU DeBERTa, local)
         type: deberta_local
     insight_density:
       enabled: false                     # explicit opt-out (preserves block)
@@ -177,6 +176,13 @@ Presence of a block is the enable; ``enabled: false`` opts out
 without losing the configuration (Shape B, RFC-088 v2). Knob keys
 match each enricher's ``manifest.config_schema`` properties — see
 [Enrichment Layer Guide → Per-enricher reference](../guides/ENRICHMENT_LAYER_GUIDE.md#per-enricher-reference).
+
+> **Accuracy gate:** an enricher declaring an `accuracy_gate` on its manifest is excluded
+> until an eval records precision ≥ 0.5, regardless of config. Today the one gated ML enricher is
+> `topic_consensus` (ADR-108, the reimagining of the retired 0%-precision `nli_contradiction`); it
+> **cleared** its gate (precision 0.91 on prod-v2) so it is admitted. `GET
+> /api/enrichment/config/admission` reports the promote/gate decision per enricher. See the guide's
+> accuracy-gate section.
 
 JSON Schema draft 2020-12 validation:
 [`config/schema/enrichment.schema.json`](https://github.com/chipi/podcast_scraper/blob/main/config/schema/enrichment.schema.json).
@@ -189,17 +195,17 @@ generation.
 ## CLI
 
 ```bash
-python -m podcast_scraper.enrichment.cli \
+python -m podcast_scraper.cli enrich \
   --output-dir <corpus> \
   [--profile cloud_balanced] \
-  [--enrichers topic_cooccurrence,temporal_velocity]    # alias for --only \
-  [--only topic_cooccurrence,temporal_velocity] \
-  [--skip nli_contradiction] \
+  [--enrichers topic_cooccurrence_corpus,temporal_velocity]    # alias for --only \
+  [--only topic_cooccurrence_corpus,temporal_velocity] \
+  [--skip topic_consensus] \
   [--no-enrichers]                                      # disable everything \
   [--opt-in <id,id>]                                    # for requires_opt_in enrichers \
   [--with-ml]                                           # wire ML enrichers from provider blocks \
   [--corpus-only] \
-  [--re-enable nli_contradiction --re-enable-reason "transient HF outage"] \
+  [--re-enable topic_consensus --re-enable-reason "transient HF outage"] \
   [--config viewer_operator.yaml] \
   [--log-level INFO]
 ```
@@ -226,7 +232,7 @@ Deterministic-only profiles get a plain spawn so the spawn log stays
 honest about what runs.
 
 The viewer surfaces the same CLI as the `POST /api/jobs/enrichment`
-handler (spawns `python -m podcast_scraper.enrichment.cli` in a
+handler (spawns `python -m podcast_scraper.cli enrich` in a
 subprocess and tracks it through the shared jobs registry).
 
 ## References

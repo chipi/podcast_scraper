@@ -1,0 +1,274 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-febd9a8f53bf3a3a",
+      "to": "topic:visual-craft",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-febd9a8f53bf3a3a",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-febd9a8f53bf3a3a",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-febd9a8f53bf3a3a",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-febd9a8f53bf3a3a",
+      "to": "insight:8b04cb73a2488e81",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-febd9a8f53bf3a3a",
+      "to": "insight:455872aaecba2cea",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-febd9a8f53bf3a3a",
+      "to": "insight:6076c20099448055",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:ebd3129f171ca39e",
+      "to": "person:leo",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:8b04cb73a2488e81",
+      "to": "quote:ebd3129f171ca39e",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:4a8c7bacaa503032",
+      "to": "person:ava-lemoine",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:455872aaecba2cea",
+      "to": "quote:4a8c7bacaa503032",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:c175af979661b7b0",
+      "to": "person:leo",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:6076c20099448055",
+      "to": "quote:c175af979661b7b0",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:eb1b288c987075ef",
+      "to": "person:leo",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:8b04cb73a2488e81",
+      "to": "quote:eb1b288c987075ef",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:8690deabcdc3a894",
+      "to": "person:leo",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:455872aaecba2cea",
+      "to": "quote:8690deabcdc3a894",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:375f251a56e4390d",
+      "to": "person:ava-lemoine",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:6076c20099448055",
+      "to": "quote:375f251a56e4390d",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "ep-febd9a8f53bf3a3a",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-febd9a8f53bf3a3a",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ep-febd9a8f53bf3a3a",
+        "metadata_relative_path": "feeds/p04/run_20260101_000000/metadata/p04_e01.metadata.json",
+        "podcast_id": "p04",
+        "publish_date": "2024-07-06T12:00:00",
+        "title": "Underwater Images That Feel Alive"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:visual-craft",
+      "properties": {
+        "label": "visual craft",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:8b04cb73a2488e81",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Welcome back to Frame & Light. Today we're talking about underwater photography, and I'm joined by Ava Lemoine, underwater photographer. Ava Lemoine, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:455872aaecba2cea",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Thanks, Leo. Excited for this one \u2014 underwater imaging is something I've been thinking about a lot."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:6076c20099448055",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Let's start there. What's the structural angle most listeners don't have access to?"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:leo",
+      "properties": {
+        "name": "Leo"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:ebd3129f171ca39e",
+      "properties": {
+        "char_end": 177,
+        "char_start": 5,
+        "episode_id": "ep-febd9a8f53bf3a3a",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Frame & Light. Today we're talking about underwater photography, and I'm joined by Ava Lemoine, underwater photographer. Ava Lemoine, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p04_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:ava-lemoine",
+      "properties": {
+        "name": "Ava Lemoine"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:4a8c7bacaa503032",
+      "properties": {
+        "char_end": 290,
+        "char_start": 191,
+        "episode_id": "ep-febd9a8f53bf3a3a",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Leo. Excited for this one \u2014 underwater imaging is something I've been thinking about a lot.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p04_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:c175af979661b7b0",
+      "properties": {
+        "char_end": 433,
+        "char_start": 296,
+        "episode_id": "ep-febd9a8f53bf3a3a",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Adobe. Adobe Creative Cloud puts Lightroom, Photoshop, and Premiere on every device. Try adobe.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p04_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:eb1b288c987075ef",
+      "properties": {
+        "char_end": 564,
+        "char_start": 433,
+        "episode_id": "ep-febd9a8f53bf3a3a",
+        "speaker_id": "person:speaker-01",
+        "text": "I'll just say it \u2014 I genuinely love Peak Design. Not sponsored, not paid, I just think they're doing the right thing for field kit.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p04_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:8690deabcdc3a894",
+      "properties": {
+        "char_end": 647,
+        "char_start": 564,
+        "episode_id": "ep-febd9a8f53bf3a3a",
+        "speaker_id": "person:speaker-01",
+        "text": "Let's start there. What's the structural angle most listeners don't have access to?",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p04_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:375f251a56e4390d",
+      "properties": {
+        "char_end": 876,
+        "char_start": 661,
+        "episode_id": "ep-febd9a8f53bf3a3a",
+        "speaker_id": "person:speaker-02",
+        "text": "Here's how I think about it. An underwater frame is built around backscatter management before composition. We've seen this play out at teams using Adobe. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p04_e01.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

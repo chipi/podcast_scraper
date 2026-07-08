@@ -15,9 +15,9 @@ import { signInIsolated } from './helpers'
  * Saved highlights produce derived-interest *suggestions* but don't auto-re-rank the feed (the user
  * must follow a suggestion) — so the lever asserted end-to-end here is an explicit topic follow.
  */
-const NEWEST = 'Index Investing Without the Myths' // p05_e01 — leads recency
+const NEWEST = 'Risk Is a Systems Property' // p09_e04 — newest on the #1148 2024→now schedule, leads recency
 const FOLLOW_TOPIC = 'topic:safety-practices' // p03-only → the dive episodes
-const FOLLOWED_EPISODES = ['Wreck Diving Fundamentals', 'Marine Biology for Divers']
+const FOLLOWED_EPISODES = ['Wreck Diving Fundamentals', 'Marine Biology for Divers', 'Calm Under Pressure', 'Plan the Dive, Manage the Risk'] // all p03 dive eps (#1148: p03 now has 4)
 
 async function discoverTitles(page: import('@playwright/test').Page): Promise<string[]> {
   const res = await page.request.get('/api/app/discover?limit=8')

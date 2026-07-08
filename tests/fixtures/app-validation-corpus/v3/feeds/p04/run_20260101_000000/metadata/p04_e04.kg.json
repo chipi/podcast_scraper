@@ -1,0 +1,122 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-9b36e2e3b959298d",
+      "to": "entity:visual-craft",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-9b36e2e3b959298d",
+      "to": "entity:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-9b36e2e3b959298d",
+      "to": "topic:visual-craft",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-9b36e2e3b959298d",
+      "to": "topic:systems-thinking",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-9b36e2e3b959298d",
+      "to": "topic:lifelong-learning",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-9b36e2e3b959298d",
+      "to": "topic:expert-interviews",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-9b36e2e3b959298d",
+      "to": "person:leo",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-9b36e2e3b959298d",
+      "to": "person:ava-lemoine",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-9b36e2e3b959298d",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-9b36e2e3b959298d",
+      "properties": {
+        "episode_id": "ep-9b36e2e3b959298d",
+        "metadata_relative_path": "feeds/p04/run_20260101_000000/metadata/p04_e04.metadata.json",
+        "publish_date": "2025-06-21T12:00:00",
+        "title": "Roundtable: Three Photographers on Light"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:visual-craft",
+      "properties": {
+        "category": "Concept",
+        "label": "Visual Craft"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:systems-thinking",
+      "properties": {
+        "category": "Concept",
+        "label": "Systems Thinking"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:visual-craft",
+      "properties": {
+        "label": "visual craft"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:leo",
+      "properties": {
+        "name": "Leo",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:ava-lemoine",
+      "properties": {
+        "name": "Ava Lemoine",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2"
+}

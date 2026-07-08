@@ -17,6 +17,7 @@ from podcast_scraper.server.app_corpus_access import corpus_root_or_503
 from podcast_scraper.server.app_relational_view import (
     build_person_card,
     build_topic_card,
+    build_topic_perspectives,
     resolve_entity,
 )
 from podcast_scraper.server.app_user_corpus import user_episode_set
@@ -26,6 +27,9 @@ from podcast_scraper.server.schemas import (
     AppEntitySearchResponse,
     AppPersonCard,
     AppTopicCard,
+    AppTopicConversationArcResponse,
+    AppTopicPerspectivesResponse,
+    CilTopicConversationArcWeek,
 )
 
 router = APIRouter(tags=["app"])
@@ -34,12 +38,16 @@ _Card = TypeVar("_Card", AppPersonCard, AppTopicCard)
 
 
 def _user_set(request: Request, user: User | None) -> set[str]:
-    """The signed-in user's heard∪captured slugs; 401 when ``scope=mine`` but signed out."""
+    """The signed-in user's heard∪captured slugs; 401 when ``scope=mine`` but signed out,
+    503 when the user store isn't configured (so ``scope=mine`` doesn't masquerade as a 404
+    empty result on a misconfigured server)."""
     if user is None:
         raise HTTPException(status_code=401, detail="Sign in to scope to your corpus.")
     root = corpus_root_or_503(request)
     data_dir = getattr(request.app.state, "app_data_dir", None)
-    return user_episode_set(root, Path(data_dir), user.user_id) if data_dir is not None else set()
+    if data_dir is None:
+        raise HTTPException(status_code=503, detail="User store is not configured.")
+    return user_episode_set(root, Path(data_dir), user.user_id)
 
 
 def _scope_to_corpus(card: _Card, mine: set[str]) -> _Card:
@@ -72,6 +80,50 @@ async def person_card(
     if scope == "mine":
         card = _scope_to_corpus(card, _user_set(request, user))
     return card
+
+
+@router.get("/topics/{topic_id}/perspectives", response_model=AppTopicPerspectivesResponse)
+async def topic_perspectives_route(
+    request: Request,
+    topic_id: str,
+    scope: Literal["all", "mine"] = Query(default="all"),
+    user: User | None = Depends(get_optional_user),
+) -> AppTopicPerspectivesResponse:
+    """Multi-perspective synthesis — each speaker's take on the topic (#1146).
+
+    ``scope=mine`` (#1149) restricts to the episodes the user has heard∪captured; auth-gated
+    (401 signed out). 404 when the topic has no speaker-attributable insight in the (scoped) GI.
+    """
+    root = corpus_root_or_503(request)
+    mine = _user_set(request, user) if scope == "mine" else None
+    resp = build_topic_perspectives(root, topic_id.strip(), mine_slugs=mine)
+    if resp is None:
+        raise HTTPException(status_code=404, detail="No perspectives for this topic.")
+    return resp
+
+
+@router.get(
+    "/topics/{topic_id}/conversation-arc",
+    response_model=AppTopicConversationArcResponse,
+)
+async def topic_conversation_arc_route(
+    request: Request,
+    topic_id: str,
+) -> AppTopicConversationArcResponse:
+    """Consumer conversation arc — weekly volume × sentiment for a topic (ADR-108).
+
+    The aggregate-first overview so a big topic (1000s of insights) shows as a compact time-shape.
+    KG-grounded read over the shared corpus; empty ``weeks`` when the topic has no dated insights.
+    """
+    from podcast_scraper.server import cil_queries
+
+    root = str(corpus_root_or_503(request))
+    tid = cil_queries.canonical_cil_entity_id(topic_id.strip())
+    raw = cil_queries.topic_conversation_arc(root, root, tid)
+    return AppTopicConversationArcResponse(
+        topic_id=tid,
+        weeks=[CilTopicConversationArcWeek(**w) for w in raw],
+    )
 
 
 @router.get("/entities/search", response_model=AppEntitySearchResponse)

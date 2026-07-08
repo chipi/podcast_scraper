@@ -36,7 +36,7 @@ export default defineConfig({
   // server-contract bugs (e.g. the transcript_file_path metadata key) that a client-mocked e2e
   // cannot.
   //
-  // The corpus is tests/fixtures/app-validation-corpus/v2 — checked in, version-pinned, and built
+  // The corpus is tests/fixtures/app-validation-corpus/v3 — checked in, version-pinned, and built
   // by scripts/build_app_validation_corpus.py (deterministic, no pipeline, no ML). There is NO
   // build step here: `serve` reads the committed corpus directly, so boot is fast and stable.
   // Per-user runtime state (queue/profile/interests the API writes) is redirected via APP_DATA_DIR
@@ -50,7 +50,7 @@ export default defineConfig({
       // failed with `../.venv/bin/python: No such file or directory`.
       command:
         '../../.venv/bin/python -m podcast_scraper.cli serve ' +
-        '--output-dir ../../tests/fixtures/app-validation-corpus/v2 --port 8011 --host 127.0.0.1',
+        '--output-dir ../../tests/fixtures/app-validation-corpus/v3 --port 8011 --host 127.0.0.1',
       url: 'http://127.0.0.1:8011/api/health',
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
@@ -64,6 +64,9 @@ export default defineConfig({
         // re-ranks toward a followed interest. With no interests the feed is recency (unchanged), so
         // this is inert for every other spec.
         APP_PERSONALIZED_RANKING: 'true',
+        // RFC-103: pin the momentum "now" so trending is deterministic (the corpus's newest episode
+        // is 2026-07-16 → anchor just after it, when the risk/systems content is freshest → rising).
+        APP_TRENDING_NOW: '2026-07-20T00:00:00Z',
         // Keep per-user writes (queue/profile/interests) OUT of the committed corpus tree.
         // Relative to the webServer cwd (web/learning-player/); the server resolve()s it against cwd.
         APP_DATA_DIR: 'e2e/.app-state',

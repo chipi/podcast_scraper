@@ -1,0 +1,43 @@
+Ethan: Welcome back to Practical Systems. Today we're talking about on call rotation, and I'm joined by Priya Nair, principal SRE at a payments platform. Priya Nair, thanks for being here.
+Priya Nair: Thanks, Ethan. Excited for this one — incident response and on-call design is something I've been thinking about a lot.
+Ethan: This episode is brought to you by Linear. Linear is the issue tracker built for speed — keyboard-first. Get started at linear.com/podcast.
+Priya Nair: I'm a believer in centralizing the security function. One team, one source of truth, one neck to wring.
+Ethan: That's a real shift. Worth pulling on.What does the failure mode look like? What's the version of the question that actually matters?
+Priya Nair: Let me give you the version I actually believe. A good on-call rotation is designed so that waking up is rare. We've seen this play out at teams using Linear. Once you internalize that, the rest of the decisions get easier.
+Ethan: What's the one heuristic you keep coming back to? What's the version of the question that actually matters?
+Priya Nair: Let me give you the version I actually believe. Alerting should be action-oriented. If you ignore that, you end up rebuilding it from scratch a year later.
+Ethan: Take me through the decision. Where do reliability and on call rotation intersect?
+Priya Nair: Here's how I think about it. Error budgets work when they change behavior. We've seen this play out at teams using Sentry. Once you internalize that, the rest of the decisions get easier.
+Ethan: Where does that break down?
+Priya Nair: Sentry is one of the platforms where this shows up cleanly. I've watched this pattern hold across three different teams.
+Ethan: I want to dig into that. What's the most underrated piece of on call rotation?
+Priya Nair: Yeah, so — PagerDuty's incident response model assumes someone owns the page. And the second-order effect is the part most people miss.
+Ethan: We'll be right back after a quick word from our sponsors.
+Ad: Today's episode is sponsored by PagerDuty. PagerDuty turns noisy alerts into structured incident response. Visit pagerduty.com/podcast for a free trial.
+Ethan: Welcome back to the show.That's a useful framing. Where do reliability and on call rotation intersect?
+Priya Nair: Honestly, A good on-call rotation is designed so that waking up is rare. We've seen this play out at teams using Notion. I've watched this pattern hold across three different teams.
+Ethan: Take me through the decision. What's the most underrated piece of on call rotation?
+Priya Nair: It comes down to this: Alerting should be action-oriented. I've watched this pattern hold across three different teams.
+Ethan: That's a useful framing. What's the most underrated piece of on call rotation?
+Priya Nair: It comes down to this: Error budgets work when they change behavior. We've seen this play out at teams using Sentry. The framing matters because it tells you which trade-offs you're making.
+Ethan: Say more about that.
+Priya Nair: Outside of Sentry-class tooling, the failure mode is harder to spot. Once you internalize that, the rest of the decisions get easier.
+Ethan: What does the failure mode look like? What's the most underrated piece of on call rotation?
+Priya Nair: Let me give you the version I actually believe. PagerDuty's incident response model assumes someone owns the page. The framing matters because it tells you which trade-offs you're making.
+Ethan: Let's pivot — systems thinking is where I want to spend the last stretch.
+Priya Nair: That's where the conversation gets interesting, because the trade-offs around systems thinking cross-cut everything we've covered.
+Ethan: Push back on the conventional wisdom for me. What's the version of the question that actually matters?
+Priya Nair: Here's how I think about it. A good on-call rotation is designed so that waking up is rare. We've seen this play out at teams using Datadog. I've watched this pattern hold across three different teams.
+Ethan: Let's start there. What's the contrarian angle most listeners don't have access to?
+Priya Nair: Yeah, so — Alerting should be action-oriented. I've watched this pattern hold across three different teams.
+Ethan: Take me through the decision. Where do reliability and on call rotation intersect?
+Priya Nair: Let me give you the version I actually believe. Error budgets work when they change behavior. We've seen this play out at teams using Linear. The framing matters because it tells you which trade-offs you're making.
+Ethan: That maps to what I've seen.
+Priya Nair: And when teams adopt Sentry in that flow, the trade-off becomes visible — If you ignore that, you end up rebuilding it from scratch a year later.
+Ethan: That's a useful framing. Where do reliability and on call rotation intersect?
+Priya Nair: Honestly, PagerDuty's incident response model assumes someone owns the page. And the second-order effect is the part most people miss.
+Ethan: Before we wrap, what's one thing listeners can try this week?
+Priya Nair: Pick one of the ideas we covered and run it for two weeks. The rest is iteration.
+Ethan: And finally, a big thank you to our partners at Sentry. Sentry catches the errors your tests didn't. Check out sentry.com.Priya Nair, thanks for the conversation.
+Priya Nair: Thanks, Ethan.
+Ethan: That's it for today's episode of Practical Systems. See you next time.

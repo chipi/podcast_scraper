@@ -1,0 +1,48 @@
+{
+  "callbacks": [],
+  "episode_id": "p04_e03",
+  "extra_alias_callbacks": [],
+  "failure_modes": [
+    "frame_topic_cross_domain",
+    "same_first_distinct"
+  ],
+  "guest_accent": "en-NG",
+  "host_accent": "en-GB",
+  "host_canonical_name": "Leo",
+  "podcast_id": "p04",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p04:Daniel",
+  "primary_guest_canonical_name": "Daniel Olufemi",
+  "primary_guest_surface_in_transcript": "Daniel Olufemi",
+  "primary_topic": "topic:lighting-design",
+  "publish_date": "2025-02-01",
+  "publish_offset_days": 397,
+  "secondary_topics": [
+    "topic:strobe-lighting",
+    "topic:frame"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Adobe",
+      "kind": "template_opening",
+      "line_index": 11
+    },
+    {
+      "brand": "Peak Design",
+      "kind": "template_midroll",
+      "line_index": 27
+    },
+    {
+      "brand": "Stripe",
+      "kind": "template_closing",
+      "line_index": 60
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p04:Daniel",
+      "kind": "canonical",
+      "surface": "Daniel Olufemi"
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p06-e03",
+    "media_type": "audio/mpeg",
+    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Cam",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Jordan Park",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p06_e03.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 1800,
+    "episode_id": "ep-034d8bc4204034df",
+    "published_date": "2025-07-05T00:00:00",
+    "title": "The Conversation About Conversations"
+  },
+  "feed": {
+    "description": "Dialogue-heavy, meandering long-form interviews.",
+    "feed_id": "p06",
+    "title": "The Drift",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Welcome back to The Drift. Today we're talking about dialogue, and I'm joined by Jordan Park, cultural critic. Jordan Park, thanks for being here.",
+      "Walk me through a concrete example. What's the structural angle most listeners don't have access to?",
+      "It comes down to this: Meaning drifts faster than anyone admits. We've seen this play out at teams using Substack. I've watched this pattern hold across three different teams."
+    ],
+    "raw_text": "Welcome back to The Drift. Today we're talking about dialogue, and I'm joined by Jordan Park, cultural critic. Jordan Park, thanks for being here.",
+    "title": "The Conversation About Conversations"
+  }
+}

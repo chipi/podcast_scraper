@@ -66,22 +66,22 @@ describe('NodeEnrichmentSection — has-content reporting', () => {
   })
 })
 
-// N7 — the contradiction row shows the two opposing claims (persisted by the
-// nli_contradiction enricher v1.1.0), oriented to the focused person.
-function contradictionEnvelope() {
+// ADR-108 — the consensus row shows the two corroborating claims (persisted by
+// the topic_consensus enricher), oriented to the focused person.
+function consensusEnvelope() {
   fetchEnvelope.mockImplementation((_root: string, enricher: string) => {
-    if (enricher === 'nli_contradiction') {
+    if (enricher === 'topic_consensus') {
       return Promise.resolve({
         data: {
-          contradictions: [
+          consensus: [
             {
               topic_id: 'topic:venture-capital',
               person_a_id: 'person:alice',
               person_a_name: 'Alice',
               person_b_id: 'person:bob',
               person_b_name: 'Bob',
-              insight_a_text: 'VC returns concentrate in a few funds.',
-              insight_b_text: 'We built the company without venture capital.',
+              insight_a_text: 'Most VC returns concentrate in a handful of funds.',
+              insight_b_text: 'A small number of funds capture the bulk of venture returns.',
             },
           ],
         },
@@ -91,35 +91,35 @@ function contradictionEnvelope() {
   })
 }
 
-describe('NodeEnrichmentSection — contradiction claims (N7)', () => {
+describe('NodeEnrichmentSection — consensus claims (ADR-108)', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     fetchEnvelope.mockReset()
   })
 
-  it('renders both opposing claims, attributed, oriented to the focused person', async () => {
-    contradictionEnvelope()
+  it('renders both corroborating claims, attributed, oriented to the focused person', async () => {
+    consensusEnvelope()
     const w = await mountFor({ nodeId: 'person:alice', nodeType: 'person' })
-    const claims = w.find('[data-testid="node-enrichment-contradiction-claims"]')
+    const claims = w.find('[data-testid="node-enrichment-consensus-claims"]')
     expect(claims.exists()).toBe(true)
     const text = claims.text()
     // Focused = person_a → self claim is insight_a_text; counterpart Bob's is insight_b_text.
     expect(text).toContain('Alice:')
-    expect(text).toContain('VC returns concentrate in a few funds.')
+    expect(text).toContain('Most VC returns concentrate in a handful of funds.')
     expect(text).toContain('Bob:')
-    expect(text).toContain('We built the company without venture capital.')
+    expect(text).toContain('A small number of funds capture the bulk of venture returns.')
   })
 
   it('flips claim orientation when the counterpart is focused', async () => {
-    contradictionEnvelope()
+    consensusEnvelope()
     const w = await mountFor({ nodeId: 'person:bob', nodeType: 'person' })
-    const claims = w.find('[data-testid="node-enrichment-contradiction-claims"]')
+    const claims = w.find('[data-testid="node-enrichment-consensus-claims"]')
     expect(claims.exists()).toBe(true)
     // Focused = person_b → their claim is insight_b_text; the row's counterpart is Alice.
     const text = claims.text()
     expect(text).toContain('Bob:')
-    expect(text).toContain('We built the company without venture capital.')
+    expect(text).toContain('A small number of funds capture the bulk of venture returns.')
     expect(text).toContain('Alice:')
-    expect(text).toContain('VC returns concentrate in a few funds.')
+    expect(text).toContain('Most VC returns concentrate in a handful of funds.')
   })
 })

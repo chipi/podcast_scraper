@@ -91,7 +91,7 @@ class TopicSimilarityEnricher:
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 100,
-                    "default": 10,
+                    "default": 7,
                     "description": "Number of nearest-neighbour topics to emit per topic.",
                 },
             },
@@ -102,7 +102,10 @@ class TopicSimilarityEnricher:
         ),
     )
 
-    def __init__(self, provider: EmbeddingProvider, *, top_k: int = 10) -> None:
+    # top_k default tuned 10 -> 7 (#1105): the prod-v2 Opus-silver eval measured
+    # precision/recall of 80%/80% at K=7 vs 71%/99% at K=10 — 7 trades already-saturated
+    # recall for a cleaner "related topics" surface (eval: enrichment_topic_similarity_*).
+    def __init__(self, provider: EmbeddingProvider, *, top_k: int = 7) -> None:
         if top_k < 1:
             raise ValueError("top_k must be >= 1")
         self._provider = provider
@@ -131,6 +134,12 @@ class TopicSimilarityEnricher:
                 status=STATUS_OK,
                 data={"topics": [], "top_k": top_k, "topic_count": 0, "missing_topic_ids": []},
             )
+        # Feed the corpus id→label map to the provider so embeddings use the human topic
+        # label ("AI development"), not the id slug ("ai-development"). The provider is built
+        # from the profile (model / device) with no corpus access, so the enricher — which
+        # has the KG labels — must supply them, or every vector is a slug embedding.
+        if hasattr(self._provider, "labels"):
+            self._provider.labels = dict(labels)  # type: ignore[attr-defined]
         vectors: dict[str, list[float]] = {}
         missing: list[str] = []
         for tid in ids:

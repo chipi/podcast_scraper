@@ -1,0 +1,83 @@
+{
+  "edges": [
+    {
+      "from": "episode:55e302e4-3319-59f2-8c17-fde08bffd658",
+      "to": "entity:science-research",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:55e302e4-3319-59f2-8c17-fde08bffd658",
+      "to": "entity:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:55e302e4-3319-59f2-8c17-fde08bffd658",
+      "to": "topic:science-research",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:55e302e4-3319-59f2-8c17-fde08bffd658",
+      "to": "topic:welcome-back-to",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:55e302e4-3319-59f2-8c17-fde08bffd658",
+      "to": "topic:great-to-be-back",
+      "type": "RELATES_TO"
+    }
+  ],
+  "episode_id": "55e302e4-3319-59f2-8c17-fde08bffd658",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:55e302e4-3319-59f2-8c17-fde08bffd658",
+      "properties": {
+        "episode_id": "55e302e4-3319-59f2-8c17-fde08bffd658",
+        "metadata_relative_path": "feeds/p06/metadata/p06_e04.metadata.json",
+        "title": "Edge Cases Podcast \u2014 Episode 4"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:science-research",
+      "properties": {
+        "category": "Concept",
+        "label": "Science & Research"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:welcome-back-to",
+      "properties": {
+        "category": "Concept",
+        "label": "Welcome Back To"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:great-to-be-back",
+      "properties": {
+        "label": "great to be back"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2"
+}

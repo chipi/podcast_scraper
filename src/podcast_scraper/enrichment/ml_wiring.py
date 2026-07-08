@@ -15,7 +15,7 @@ adds detail when an attempt was made to wire one but the config was
 malformed.
 
 The set of enricher ids this helper knows how to wire is closed today
-(``topic_similarity``, ``nli_contradiction``). Future ML enrichers add
+(``topic_similarity``, ``topic_consensus``). Future ML enrichers add
 themselves to the dispatcher map below.
 """
 
@@ -24,8 +24,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Callable
 
-from podcast_scraper.enrichment.enrichers.nli_contradiction import (
-    NliContradictionEnricher,
+from podcast_scraper.enrichment.enrichers.topic_consensus import (
+    TopicConsensusEnricher,
 )
 from podcast_scraper.enrichment.enrichers.topic_similarity import TopicSimilarityEnricher
 from podcast_scraper.enrichment.protocol import EnricherSet
@@ -36,25 +36,35 @@ logger = logging.getLogger(__name__)
 
 
 def _build_topic_similarity(provider: Any, knobs: dict[str, Any]) -> TopicSimilarityEnricher:
-    top_k_raw = knobs.get("top_k", 10)
+    # Only override the enricher's OWN tuned default (top_k=7, #1105) when the operator
+    # actually sets the knob. A hardcoded default here would silently shadow the tuning —
+    # which it did: this builder defaulted to 10, so the --with-ml path shipped top_k=10
+    # (untuned) whenever no profile set the knob (none do). The enricher default is the
+    # single source of truth.
+    if "top_k" not in knobs:
+        return TopicSimilarityEnricher(provider=provider)
     try:
-        top_k = int(top_k_raw)
+        top_k = int(knobs["top_k"])
     except (TypeError, ValueError):
-        top_k = 10
+        return TopicSimilarityEnricher(provider=provider)
     if top_k < 1 or top_k > 100:
-        top_k = 10
+        return TopicSimilarityEnricher(provider=provider)
     return TopicSimilarityEnricher(provider=provider, top_k=top_k)
 
 
-def _build_nli_contradiction(scorer: Any, knobs: dict[str, Any]) -> NliContradictionEnricher:
-    threshold_raw = knobs.get("threshold", 0.5)
-    try:
-        threshold = float(threshold_raw)
-    except (TypeError, ValueError):
-        threshold = 0.5
-    if not 0.0 <= threshold <= 1.0:
-        threshold = 0.5
-    return NliContradictionEnricher(scorer=scorer, threshold=threshold)
+def _build_topic_consensus(scorer: Any, knobs: dict[str, Any]) -> TopicConsensusEnricher:
+    def _clamp(key: str, default: float) -> float:
+        try:
+            val = float(knobs.get(key, default))
+        except (TypeError, ValueError):
+            return default
+        return val if 0.0 <= val <= 1.0 else default
+
+    return TopicConsensusEnricher(
+        scorer=scorer,
+        cos_threshold=_clamp("cos_threshold", 0.70),
+        contra_threshold=_clamp("contra_threshold", 0.5),
+    )
 
 
 # Each entry: enricher_id → builder taking (provider/scorer, knobs dict)
@@ -62,7 +72,7 @@ def _build_nli_contradiction(scorer: Any, knobs: dict[str, Any]) -> NliContradic
 # here + a class-side __init__ that accepts the same shape.
 _ML_ENRICHER_BUILDERS: dict[str, Callable[[Any, dict[str, Any]], Any]] = {
     "topic_similarity": _build_topic_similarity,
-    "nli_contradiction": _build_nli_contradiction,
+    "topic_consensus": _build_topic_consensus,
 }
 
 

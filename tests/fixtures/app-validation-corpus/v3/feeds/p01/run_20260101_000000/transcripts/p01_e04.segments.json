@@ -1,0 +1,79 @@
+[
+  {
+    "end": 6.0,
+    "id": 0,
+    "speaker_label": "Maya",
+    "start": 0.0,
+    "text": "Welcome back to Singletrack Sessions. I'm with Sophie Laurent, enduro racer and coach. Sophie, good to have you."
+  },
+  {
+    "end": 12.0,
+    "id": 1,
+    "speaker_label": "Sophie Laurent",
+    "start": 6.0,
+    "text": "Thanks, Maya. Always happy to talk shop."
+  },
+  {
+    "end": 18.0,
+    "id": 2,
+    "speaker_label": "Maya",
+    "start": 12.0,
+    "text": "Today's episode is sponsored by Strava. Strava is the home for athletes. Try strava.com today."
+  },
+  {
+    "end": 24.0,
+    "id": 3,
+    "speaker_label": "Maya",
+    "start": 18.0,
+    "text": "People think racing is about nerve. You say it's about risk."
+  },
+  {
+    "end": 30.0,
+    "id": 4,
+    "speaker_label": "Sophie Laurent",
+    "start": 24.0,
+    "text": "It's risk management, honestly. The crash that ends your season is almost never the scary-looking one \u2014 it's the boring risk you didn't name. Name the risk before it names you, and half the danger goes away."
+  },
+  {
+    "end": 36.0,
+    "id": 5,
+    "speaker_label": "Sophie Laurent",
+    "start": 30.0,
+    "text": "And you have to ride the whole run as a system, not a list of corners. The mistakes come from how one section sets up the next. When I logged a full season of my own crashes, the causes were always two turns upstream."
+  },
+  {
+    "end": 42.0,
+    "id": 6,
+    "speaker_label": "Maya",
+    "start": 36.0,
+    "text": "That's almost word-for-word what a friend in finance says about a portfolio."
+  },
+  {
+    "end": 48.0,
+    "id": 7,
+    "speaker_label": "Sophie Laurent",
+    "start": 42.0,
+    "text": "It's the same discipline. A race line and a portfolio are both systems of correlated bets \u2014 you're managing the interactions, and the risk you can describe is the one you can design around."
+  },
+  {
+    "end": 54.0,
+    "id": 8,
+    "speaker_label": "Maya",
+    "start": 48.0,
+    "text": "Thanks to Peak Design for backing the show. Peak Design builds bags and straps designed by people who actually ride."
+  },
+  {
+    "end": 60.0,
+    "id": 9,
+    "speaker_label": "Sophie Laurent",
+    "start": 54.0,
+    "text": "Cheers, Maya."
+  },
+  {
+    "end": 66.0,
+    "id": 10,
+    "speaker_label": "Maya",
+    "start": 60.0,
+    "text": "That's it for this Singletrack Sessions. Ride safe."
+  }
+]

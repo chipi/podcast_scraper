@@ -77,7 +77,7 @@ log_level: INFO
 # operator-side-only profile). The Python matrix at
 # src/podcast_scraper/enrichment/profile_sets.py is the source of truth.
 # Override per run via:
-#   python -m podcast_scraper.enrichment.cli --profile preprod_local_whisper \
+#   python -m podcast_scraper.cli enrich --profile preprod_local_whisper \
 #     --enrichers topic_cooccurrence,topic_cooccurrence_corpus
 enrichment:
   enabled: false

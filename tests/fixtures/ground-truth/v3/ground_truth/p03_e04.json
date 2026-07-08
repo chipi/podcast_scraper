@@ -1,0 +1,61 @@
+{
+  "callbacks": [],
+  "episode_id": "p03_e04",
+  "expected_enrichment": {
+    "grounding_rate": {
+      "expected_rate": 0.8
+    }
+  },
+  "extra_alias_callbacks": [],
+  "failure_modes": [],
+  "guest_accent": "pt-BR",
+  "host_accent": "en-US",
+  "host_canonical_name": "Rina",
+  "insight_density": "high",
+  "podcast_id": "p03",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p03:Marco",
+  "primary_guest_canonical_name": "Marco Silva",
+  "primary_guest_surface_in_transcript": "Marco Silva",
+  "primary_topic": "topic:risk-management",
+  "publish_date": "2025-07-09",
+  "publish_offset_days": 555,
+  "scripted": true,
+  "secondary_topics": [
+    "topic:systems-thinking",
+    "topic:dive-planning"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Suunto",
+      "kind": "template_opening",
+      "line_index": 9
+    },
+    {
+      "brand": "PADI",
+      "kind": "template_closing",
+      "line_index": 15
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p03:Marco",
+      "kind": "canonical",
+      "surface": "Marco Silva"
+    }
+  ],
+  "topic_claims": [
+    {
+      "claim": "Dive planning is risk management \u2014 the gas you don't use, the ascent you don't rush.",
+      "grounded": true,
+      "speaker": "Marco",
+      "topic_id": "topic:risk-management"
+    },
+    {
+      "claim": "You plan the whole dive as one system; accidents live in the interactions.",
+      "grounded": true,
+      "speaker": "Marco",
+      "topic_id": "topic:systems-thinking"
+    }
+  ]
+}

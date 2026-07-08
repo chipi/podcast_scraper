@@ -1,0 +1,349 @@
+{
+  "edges": [
+    {
+      "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
+      "to": "topic:business-markets",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
+      "to": "topic:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
+      "to": "topic:great-to-be-back",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
+      "to": "insight:5955ee3ddf40392f",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
+      "to": "insight:49ceee537c0fbff7",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
+      "to": "insight:3e91ef621d0c5cbf",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:fe003442987de13c",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:5955ee3ddf40392f",
+      "to": "quote:fe003442987de13c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:99bd9a7f988d7a5c",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:49ceee537c0fbff7",
+      "to": "quote:99bd9a7f988d7a5c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:87063352e9c90cad",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3e91ef621d0c5cbf",
+      "to": "quote:87063352e9c90cad",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:c31747bd512271b7",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:5955ee3ddf40392f",
+      "to": "quote:c31747bd512271b7",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:b9dc92c5018a24fb",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:49ceee537c0fbff7",
+      "to": "quote:b9dc92c5018a24fb",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:89215b5b47c87d5f",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3e91ef621d0c5cbf",
+      "to": "quote:89215b5b47c87d5f",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:5955ee3ddf40392f",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:49ceee537c0fbff7",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:5955ee3ddf40392f",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:5955ee3ddf40392f",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:5955ee3ddf40392f",
+      "to": "topic:great-to-be-back",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:49ceee537c0fbff7",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:49ceee537c0fbff7",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:49ceee537c0fbff7",
+      "to": "topic:great-to-be-back",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:3e91ef621d0c5cbf",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:3e91ef621d0c5cbf",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:3e91ef621d0c5cbf",
+      "to": "topic:great-to-be-back",
+      "properties": {
+        "confidence": 0.5
+      }
+    }
+  ],
+  "episode_id": "01835c28-431e-5b5a-adbb-5ec01411a299",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "01835c28-431e-5b5a-adbb-5ec01411a299",
+        "metadata_relative_path": "feeds/p06/metadata/p06_e03.metadata.json",
+        "podcast_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
+        "publish_date": "2026-07-03T12:00:00",
+        "title": "Edge Cases Podcast — Episode 3"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:business-markets",
+      "properties": {
+        "label": "Business & markets",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:great-to-be-back",
+      "properties": {
+        "label": "great to be back",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:5955ee3ddf40392f",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we're talking about dialogue, and I'm joined by Jordan Park, cultural critic.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:49ceee537c0fbff7",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Jordan Park, thanks for being here.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:3e91ef621d0c5cbf",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today's episode is sponsored by Notion.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Cam"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:fe003442987de13c",
+      "properties": {
+        "char_end": 151,
+        "char_start": 5,
+        "episode_id": "01835c28-431e-5b5a-adbb-5ec01411a299",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to The Drift. Today we're talking about dialogue, and I'm joined by Jordan Park, cultural critic. Jordan Park, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p06_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Jordan Park"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:99bd9a7f988d7a5c",
+      "properties": {
+        "char_end": 195,
+        "char_start": 165,
+        "episode_id": "01835c28-431e-5b5a-adbb-5ec01411a299",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Cam. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p06_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:87063352e9c90cad",
+      "properties": {
+        "char_end": 319,
+        "char_start": 201,
+        "episode_id": "01835c28-431e-5b5a-adbb-5ec01411a299",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Try notion.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p06_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:c31747bd512271b7",
+      "properties": {
+        "char_end": 419,
+        "char_start": 319,
+        "episode_id": "01835c28-431e-5b5a-adbb-5ec01411a299",
+        "speaker_id": "person:speaker-01",
+        "text": "Walk me through a concrete example. What's the structural angle most listeners don't have access to?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p06_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:b9dc92c5018a24fb",
+      "properties": {
+        "char_end": 608,
+        "char_start": 433,
+        "episode_id": "01835c28-431e-5b5a-adbb-5ec01411a299",
+        "speaker_id": "person:speaker-02",
+        "text": "It comes down to this: Meaning drifts faster than anyone admits. We've seen this play out at teams using Substack. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p06_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:89215b5b47c87d5f",
+      "properties": {
+        "char_end": 707,
+        "char_start": 614,
+        "episode_id": "01835c28-431e-5b5a-adbb-5ec01411a299",
+        "speaker_id": "person:speaker-01",
+        "text": "Walk me through a concrete example. What's the version of the question that actually matters?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p06_e03.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.0"
+}

@@ -1,0 +1,95 @@
+{
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": true,
+      "label": "technology",
+      "topic_cluster_compound_id": "tc:technology-cluster",
+      "topic_id": "topic:technology"
+    },
+    {
+      "in_topic_cluster": true,
+      "label": "gear",
+      "topic_cluster_compound_id": "tc:gear-cluster",
+      "topic_id": "topic:gear"
+    }
+  ],
+  "content": {
+    "diarization_num_speakers": 3,
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Leo",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Daniel Olufemi",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p04_e03.txt",
+    "transcript_source": "synthetic"
+  },
+  "episode": {
+    "episode_id": "e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+    "published_date": "2026-07-05",
+    "title": "Frame & Light \u2014 Episode 3"
+  },
+  "episode_id": "e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+  "episode_title": "Frame & Light \u2014 Episode 3",
+  "feed": {
+    "description": "Photography conversations: craft, storytelling, workflow, and making images under real constraints.",
+    "feed_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
+    "title": "Frame & Light",
+    "url": "http://localhost/"
+  },
+  "feed_display_title": "Frame & Light",
+  "feed_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
+  "gi_relative_path": "feeds/p04/metadata/p04_e03.gi.json",
+  "grounded_insights": {
+    "artifact_path": "feeds/p04/metadata/p04_e03.gi.json",
+    "schema_version": "1.0"
+  },
+  "has_gi": true,
+  "has_kg": true,
+  "kg_relative_path": "feeds/p04/metadata/p04_e03.kg.json",
+  "knowledge_graph": {
+    "artifact_path": "feeds/p04/metadata/p04_e03.kg.json",
+    "schema_version": "1.1"
+  },
+  "publish_date": "2026-07-05",
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Today we're talking about lighting design, and I'm joined by Daniel Olufemi, commercial lighting director.",
+      "Daniel Olufemi, thanks for being here.",
+      "This episode is brought to you by Adobe."
+    ],
+    "preview": "Today we're talking about lighting design, and I'm joined by Daniel Olufemi, commercial lighting director.",
+    "text": "Today we're talking about lighting design, and I'm joined by Daniel Olufemi, commercial lighting director.\nDaniel Olufemi, thanks for being here.\nThis episode is brought to you by Adobe.",
+    "title": "Frame & Light \u2014 Episode 3 \u2014 synthetic"
+  },
+  "summary_bullet_graph_topic_ids": [
+    "topic:technology",
+    "topic:gear",
+    "topic:business-markets"
+  ],
+  "summary_bullets": [
+    "Today we're talking about lighting design, and I'm joined by Daniel Olufemi, commercial lighting director.",
+    "Daniel Olufemi, thanks for being here.",
+    "This episode is brought to you by Adobe."
+  ],
+  "summary_preview": "Today we're talking about lighting design, and I'm joined by Daniel Olufemi, commercial lighting director.",
+  "summary_text": "Today we're talking about lighting design, and I'm joined by Daniel Olufemi, commercial lighting director.\nDaniel Olufemi, thanks for being here.\nThis episode is brought to you by Adobe.",
+  "summary_title": "Frame & Light \u2014 Episode 3 \u2014 synthetic",
+  "topics": [
+    "technology",
+    "gear",
+    "Business & markets"
+  ]
+}

@@ -17,6 +17,7 @@ import json
 import logging
 import os
 import threading
+from datetime import date
 from pathlib import Path
 from typing import Any, Iterator, Sequence
 
@@ -515,6 +516,64 @@ def _cil_episode_metadata_fields(
     return out
 
 
+def _iso_week(publish_date: str | None) -> str | None:
+    """``YYYY-MM-DD`` → ISO year-week ``YYYY-Www`` (the conversation-arc time axis)."""
+    if not publish_date or len(publish_date) < 10:
+        return None
+    try:
+        iso = date.fromisoformat(publish_date[:10]).isocalendar()
+    except ValueError:
+        return None
+    return f"{iso[0]:04d}-W{iso[1]:02d}"
+
+
+def _episode_sentiment_map(safe_bridge: str) -> dict[str, dict[str, Any]]:
+    """``insight_id → {compound, label}`` from an episode's ``insight_sentiment`` artifact.
+
+    The sidecar lives next to the bridge:
+    ``<metadata_dir>/enrichments/{stem}.insight_sentiment.json``. Missing / malformed → empty map
+    (the surfaces just render un-tinted, never error).
+    """
+    base = os.path.basename(safe_bridge)
+    stem = base[: -len(".bridge.json")] if base.endswith(".bridge.json") else base.split(".")[0]
+    path = os.path.join(
+        os.path.dirname(safe_bridge), "enrichments", f"{stem}.insight_sentiment.json"
+    )
+    try:
+        doc = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    # Prefer the envelope's ``data.insights``; fall back to a flat top-level ``insights`` list.
+    # Keyed on type (not truthiness) so an empty ``data: {}`` envelope isn't misread as the doc.
+    data = doc.get("data") if isinstance(doc, dict) else None
+    if isinstance(data, dict):
+        rows = data.get("insights")
+    elif isinstance(doc, dict):
+        rows = doc.get("insights")
+    else:
+        rows = None
+    out: dict[str, dict[str, Any]] = {}
+    if isinstance(rows, list):
+        for r in rows:
+            if isinstance(r, dict) and r.get("insight_id"):
+                out[str(r["insight_id"])] = {
+                    "compound": r.get("compound", 0.0),
+                    "label": r.get("label", "neutral"),
+                }
+    return out
+
+
+def _attach_sentiment(safe_bridge: str, insights: list[dict[str, Any]]) -> None:
+    """Tag each Insight node (in place) with ``sentiment: {compound, label}`` for the timelines."""
+    smap = _episode_sentiment_map(safe_bridge)
+    if not smap:
+        return
+    for n in insights:
+        sid = str(n.get("id") or "")
+        if sid in smap:
+            n["sentiment"] = smap[sid]
+
+
 def position_arc(
     root_path: str,
     anchor_path: str,
@@ -568,6 +627,7 @@ def position_arc(
         insights.sort(key=_position_hint)
         if not insights:
             continue
+        _attach_sentiment(safe_bridge, insights)
         episode_id = _episode_id_from_bridge(bridge)
         if not episode_id:
             continue
@@ -700,6 +760,7 @@ def topic_timeline(
         insights.sort(key=_position_hint)
         if not insights:
             continue
+        _attach_sentiment(safe_bridge, insights)
         episode_id = _episode_id_from_bridge(bridge)
         if not episode_id:
             continue
@@ -717,6 +778,55 @@ def topic_timeline(
         results.append(row_tl)
 
     return sorted(results, key=lambda r: (r.get("publish_date") or "", r.get("episode_id") or ""))
+
+
+def topic_conversation_arc(
+    root_path: str,
+    anchor_path: str,
+    target_topic: str,
+    insight_types: tuple[str, ...] | None = None,
+) -> list[dict[str, Any]]:
+    """Weekly sentiment×volume aggregation of a topic's conversation — the arc-overview data.
+
+    Reuses :func:`topic_timeline` (which now tags each Insight with ``sentiment``) and rolls it up
+    by ISO week: per week, how many insights (volume) + the neg/neu/pos mix + mean compound. The
+    at-a-glance shape of a big topic's conversation over time, so the UI never renders 1000s cards.
+    """
+    blocks = topic_timeline(root_path, anchor_path, target_topic, insight_types=insight_types)
+    weeks: dict[str, dict[str, Any]] = {}
+    for b in blocks:
+        wk = _iso_week(b.get("publish_date"))
+        if not wk:
+            continue
+        acc = weeks.setdefault(
+            wk,
+            {"week": wk, "volume": 0, "negative": 0, "neutral": 0, "positive": 0, "_sum": 0.0},
+        )
+        for n in b.get("insights") or []:
+            if not isinstance(n, dict):
+                continue
+            sent = n.get("sentiment") or {}
+            label = sent.get("label", "neutral")
+            if label not in ("negative", "neutral", "positive"):
+                label = "neutral"
+            acc["volume"] += 1
+            acc[label] += 1
+            acc["_sum"] += float(sent.get("compound", 0.0) or 0.0)
+    out: list[dict[str, Any]] = []
+    for wk in sorted(weeks):
+        a = weeks[wk]
+        vol = a["volume"] or 1
+        out.append(
+            {
+                "week": a["week"],
+                "volume": a["volume"],
+                "negative": a["negative"],
+                "neutral": a["neutral"],
+                "positive": a["positive"],
+                "avg_compound": round(a["_sum"] / vol, 4),
+            }
+        )
+    return out
 
 
 def topic_timeline_merged(
@@ -792,6 +902,7 @@ def topic_timeline_merged(
         insights.sort(key=_position_hint)
         if not insights:
             continue
+        _attach_sentiment(safe_bridge, insights)
         episode_id = _episode_id_from_bridge(bridge)
         if not episode_id:
             continue
@@ -809,6 +920,148 @@ def topic_timeline_merged(
         results.append(row_tl)
 
     return sorted(results, key=lambda r: (r.get("publish_date") or "", r.get("episode_id") or ""))
+
+
+def topic_perspective_leaders(
+    root_path: str,
+    anchor_path: str,
+    limit: int = 12,
+) -> list[dict[str, Any]]:
+    """Topics ranked by distinct speakers with an attributed insight (#1146 dashboard).
+
+    One GI pass over the corpus: for each topic, count distinct speakers (and insights)
+    with an Insight ABOUT the topic attributed via SUPPORTED_BY -> SPOKEN_BY. Only topics
+    with >= 2 speakers (a *multi*-perspective topic) are returned, most-speakers first.
+    """
+    from collections import defaultdict
+
+    speakers: dict[str, set[str]] = defaultdict(set)
+    counts: dict[str, int] = defaultdict(int)
+    label: dict[str, str] = {}
+    for _safe_bridge, _bridge, gi, _kg in iter_cil_episode_bundles(root_path, anchor_path):
+        about: dict[str, set[str]] = defaultdict(set)
+        insight_quote: dict[str, str] = {}
+        quote_person: dict[str, str] = {}
+        for e in gi.get("edges") or []:
+            if not isinstance(e, dict):
+                continue
+            etype = normalize_gil_edge_type(e.get("type"))
+            if etype == "ABOUT":
+                about[_strip_layer_prefixes_for_cil(str(e.get("to")))].add(str(e.get("from")))
+            elif etype == "SUPPORTED_BY":
+                insight_quote.setdefault(str(e.get("from")), str(e.get("to")))
+            elif etype == "SPOKEN_BY":
+                quote_person[str(e.get("from"))] = str(e.get("to"))
+        for n in gi.get("nodes") or []:
+            if isinstance(n, dict) and n.get("type") == "Topic":
+                tid = _strip_layer_prefixes_for_cil(str(n.get("id")))
+                lbl = (n.get("properties") or {}).get("label")
+                if tid and isinstance(lbl, str) and lbl.strip():
+                    label.setdefault(tid, lbl.strip())
+        for tid, insights in about.items():
+            for iid in insights:
+                qid = insight_quote.get(iid)
+                pid = quote_person.get(qid) if qid else None
+                if pid:
+                    speakers[tid].add(pid)
+                    counts[tid] += 1
+    out: list[dict[str, Any]] = [
+        {
+            "topic_id": tid,
+            "topic_label": label.get(tid, tid.split(":", 1)[-1]),
+            "speaker_count": len(spk),
+            "insight_count": counts[tid],
+        }
+        for tid, spk in speakers.items()
+        if len(spk) >= 2
+    ]
+    out.sort(key=lambda r: (-r["speaker_count"], -r["insight_count"], r["topic_id"]))
+    return out[: max(0, limit)]
+
+
+def topic_perspectives(
+    root_path: str,
+    anchor_path: str,
+    target_topic: str,
+    insight_types: tuple[str, ...] | None = None,
+    keep_episode_ids: set[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Pattern — Insights ABOUT a topic grouped by SPEAKER (multi-perspective, #1146).
+
+    For every episode whose bridge asserts the topic, collect the Insights ABOUT it and
+    attribute each to its speaker (Insight -SUPPORTED_BY-> Quote -SPOKEN_BY-> Person),
+    then group across episodes by person. Returns one entry per speaker with >=1
+    attributable insight on the topic, most-insights first. Insights with no resolvable
+    speaker are dropped — a perspective needs an owner.
+    """
+    topic = canonical_cil_entity_id(target_topic)
+    equiv = _canonical_equivalents(root_path, topic)
+    allowed = {x.strip().lower() for x in insight_types if x.strip()} if insight_types else None
+    by_person: dict[str, dict[str, Any]] = {}
+    person_name: dict[str, str] = {}
+    for _safe_bridge, bridge, gi, _kg in iter_cil_episode_bundles(root_path, anchor_path):
+        if not (equiv & _bridge_all_ids(bridge)):
+            continue
+        if keep_episode_ids is not None and _episode_id_from_bridge(bridge) not in keep_episode_ids:
+            continue  # scope=mine (#1149): only episodes in the user's heard∪captured set
+        match_ids = equiv | _bridge_gi_topic_ids(bridge)
+
+        about_insights: set[str] = set()
+        insight_quote: dict[str, str] = {}
+        quote_person: dict[str, str] = {}
+        for e in gi.get("edges") or []:
+            if not isinstance(e, dict):
+                continue
+            etype = normalize_gil_edge_type(e.get("type"))
+            if etype == "ABOUT":
+                if _strip_layer_prefixes_for_cil(str(e.get("to"))) in match_ids:
+                    fr = e.get("from")
+                    if fr is not None:
+                        about_insights.add(str(fr))
+            elif etype == "SUPPORTED_BY":
+                insight_quote.setdefault(str(e.get("from")), str(e.get("to")))
+            elif etype == "SPOKEN_BY":
+                quote_person[str(e.get("from"))] = str(e.get("to"))
+        if not about_insights:
+            continue
+
+        for n in gi.get("nodes") or []:
+            if isinstance(n, dict) and n.get("type") == "Person":
+                pid = str(n.get("id"))
+                nm = (n.get("properties") or {}).get("name")
+                if pid and isinstance(nm, str) and nm.strip():
+                    person_name.setdefault(pid, nm.strip())
+
+        episode_id = _episode_id_from_bridge(bridge)
+        for iid in about_insights:
+            node = _node_by_id(gi, iid)
+            if node is None:
+                continue
+            if allowed is not None and _insight_type(node).lower() not in allowed:
+                continue
+            qid = insight_quote.get(iid)
+            speaker_id = quote_person.get(qid) if qid else None
+            if not speaker_id:
+                continue
+            entry = by_person.setdefault(speaker_id, {"insights": [], "episodes": set()})
+            entry["insights"].append(node)
+            if episode_id:
+                entry["episodes"].add(episode_id)
+
+    out: list[dict[str, Any]] = []
+    for pid, data in by_person.items():
+        insights = sorted(data["insights"], key=_position_hint)
+        out.append(
+            {
+                "person_id": pid,
+                "person_name": person_name.get(pid, pid.split(":", 1)[-1]),
+                "insight_count": len(insights),
+                "episode_count": len(data["episodes"]),
+                "insights": insights,
+            }
+        )
+    out.sort(key=lambda r: (-r["insight_count"], r["person_id"]))
+    return out
 
 
 def person_topic_ids(root_path: str, anchor_path: str, target_person: str) -> list[str]:

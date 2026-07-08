@@ -1696,8 +1696,13 @@ def _finalize_pipeline(
 
 
 def _maybe_spawn_enrichment_after_pipeline(cfg: config.Config, effective_output_dir: str) -> None:
-    """Spawn ``python -m podcast_scraper.enrichment.cli`` as a detached
+    """Spawn ``python -m podcast_scraper.cli enrich`` as a detached
     background subprocess (RFC-088 chunk 9 — Mode B integration).
+
+    This is the automatic ingest → enrich chain: when the pipeline finalizes and
+    ``enrichment.enabled`` is set, enrichment runs over the just-ingested corpus.
+    It invokes the same ``enrich`` main-CLI verb as a manual / scheduled run
+    (#1069 consistency).
 
     The pipeline doesn't block on enrichment. The subprocess writes its
     JSONL + run_summary + envelopes under the same corpus root and tracks
@@ -1723,7 +1728,8 @@ def _maybe_spawn_enrichment_after_pipeline(cfg: config.Config, effective_output_
     argv: list[str] = [
         _sys.executable,
         "-m",
-        "podcast_scraper.enrichment.cli",
+        "podcast_scraper.cli",
+        "enrich",
         "--output-dir",
         str(effective_output_dir),
     ]
@@ -1739,7 +1745,7 @@ def _maybe_spawn_enrichment_after_pipeline(cfg: config.Config, effective_output_
     #      enricher whose manifest carries provider_requirement, even
     #      though the operator YAML doesn't override anything. Without
     #      this branch, operators running ``profile: cloud_thin`` (which
-    #      enables topic_similarity + nli_contradiction by default) would
+    #      enables topic_similarity + topic_consensus by default) would
     #      see those silently warned-skipped — that's the bug the prior
     #      Option-1 hinted warning surfaced.
     enrichers_block = block.get("enrichers") if isinstance(block, dict) else None
@@ -1751,7 +1757,7 @@ def _maybe_spawn_enrichment_after_pipeline(cfg: config.Config, effective_output_
     if profile and not operator_has_provider:
         try:
             from podcast_scraper.enrichment.enrichers import (
-                NliContradictionEnricher,
+                TopicConsensusEnricher,
                 TopicSimilarityEnricher,
             )
             from podcast_scraper.enrichment.profile_sets import (
@@ -1760,8 +1766,7 @@ def _maybe_spawn_enrichment_after_pipeline(cfg: config.Config, effective_output_
 
             _resolved = _resolver(str(profile))
             _ml_manifests = {
-                m.manifest.id: m.manifest
-                for m in (TopicSimilarityEnricher, NliContradictionEnricher)
+                m.manifest.id: m.manifest for m in (TopicSimilarityEnricher, TopicConsensusEnricher)
             }
             for eid in _resolved.enabled_enrichers:
                 m = _ml_manifests.get(eid)

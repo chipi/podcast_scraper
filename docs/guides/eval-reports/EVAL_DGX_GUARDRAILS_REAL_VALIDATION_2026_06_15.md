@@ -261,6 +261,6 @@ ships, deciding whether to act based on real production signal.
 ## Verdict for #999
 
 The wiring works on real DGX. The whole guardrails batch (which is
-about 7 commits deep at this point — ADR-099, the resilience refactor,
+about 7 commits deep at this point — ADR-105, the resilience refactor,
 ADR-100 cloud, all the close-outs, Mistral + Grok extensions, #920
 Speaches hardening, this validation) can ship.

@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 # silence. Keep this map narrow — only known optional enrichers.
 _PROVIDER_WIRING_HINT: dict[str, str] = {
     "topic_similarity": "an EmbeddingProvider (see scorers/embedding.py)",
-    "nli_contradiction": "an NliScorer (see scorers/nli.py)",
+    "topic_consensus": "a ConsensusScorer (see scorers/consensus.py)",
 }
 
 

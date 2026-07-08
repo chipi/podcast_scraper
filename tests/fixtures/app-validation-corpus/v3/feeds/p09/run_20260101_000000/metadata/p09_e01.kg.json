@@ -1,0 +1,122 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-1abf911df5bea2c3",
+      "to": "entity:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1abf911df5bea2c3",
+      "to": "entity:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1abf911df5bea2c3",
+      "to": "topic:systems-thinking",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-1abf911df5bea2c3",
+      "to": "topic:risk-management",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-1abf911df5bea2c3",
+      "to": "topic:lifelong-learning",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-1abf911df5bea2c3",
+      "to": "topic:expert-interviews",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-1abf911df5bea2c3",
+      "to": "person:sam",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1abf911df5bea2c3",
+      "to": "person:dr-elena-fischer",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-1abf911df5bea2c3",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-1abf911df5bea2c3",
+      "properties": {
+        "episode_id": "ep-1abf911df5bea2c3",
+        "metadata_relative_path": "feeds/p09/run_20260101_000000/metadata/p09_e01.metadata.json",
+        "publish_date": "2025-05-12T12:00:00",
+        "title": "Systems Thinking, Two Years Later"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:systems-thinking",
+      "properties": {
+        "category": "Concept",
+        "label": "Systems Thinking"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:risk-management",
+      "properties": {
+        "category": "Concept",
+        "label": "Risk Management"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:sam",
+      "properties": {
+        "name": "Sam",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:dr-elena-fischer",
+      "properties": {
+        "name": "Dr. Elena Fischer",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2"
+}

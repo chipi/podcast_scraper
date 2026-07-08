@@ -76,6 +76,39 @@ def test_app_spawn_callback_enqueues_via_real_path(tmp_path: Path, fake_factory:
         assert any(j.get("status") in ("queued", "running", "succeeded") for j in rows)
 
 
+def test_app_spawn_callback_enrichment_kind_runs_enrichment(tmp_path: Path) -> None:
+    """A scheduled ``kind=enrichment`` fire spawns the enrichment CLI, not the pipeline (#1069)."""
+    (tmp_path / "viewer_operator.yaml").write_text("max_episodes: 1\n", encoding="utf-8")
+    captured: list[list[str]] = []
+
+    async def _factory(argv: list[str], corpus_root: Path, log_abs: Path):  # noqa: ARG001
+        captured.append(list(argv))
+        log_abs.parent.mkdir(parents=True, exist_ok=True)
+        log_abs.write_bytes(b"fake-log\n")
+        return _FakeProcImmediate()
+
+    app = create_app(tmp_path, static_dir=False, enable_jobs_api=True)
+    app.state.jobs_subprocess_factory = _factory
+
+    with TestClient(app) as client:
+        spawn = make_app_spawn_callback(app)
+        operator_yaml = tmp_path / "viewer_operator.yaml"
+
+        def _fire() -> None:
+            spawn("enrich-sched", tmp_path, operator_yaml, "enrichment")
+
+        t = threading.Thread(target=_fire)
+        t.start()
+        t.join(timeout=2.0)
+        assert not t.is_alive(), "spawn callback hung"
+        time.sleep(0.2)
+        client.get("/api/jobs", params={"path": str(tmp_path)})  # drain
+
+    assert captured, "subprocess factory was never invoked"
+    argv = captured[0]
+    assert "podcast_scraper.cli" in argv and "enrich" in argv, argv
+
+
 def test_app_spawn_callback_raises_when_event_loop_missing(tmp_path: Path) -> None:
     """When ``app.state.event_loop`` isn't set yet (lifespan hasn't run), spawn raises."""
     (tmp_path / "viewer_operator.yaml").write_text("max_episodes: 1\n", encoding="utf-8")

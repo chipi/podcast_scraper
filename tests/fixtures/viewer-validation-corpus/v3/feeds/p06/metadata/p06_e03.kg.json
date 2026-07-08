@@ -1,0 +1,83 @@
+{
+  "edges": [
+    {
+      "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
+      "to": "entity:business-markets",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
+      "to": "entity:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
+      "to": "topic:business-markets",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
+      "to": "topic:welcome-back-to",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
+      "to": "topic:great-to-be-back",
+      "type": "RELATES_TO"
+    }
+  ],
+  "episode_id": "01835c28-431e-5b5a-adbb-5ec01411a299",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
+      "properties": {
+        "episode_id": "01835c28-431e-5b5a-adbb-5ec01411a299",
+        "metadata_relative_path": "feeds/p06/metadata/p06_e03.metadata.json",
+        "title": "Edge Cases Podcast \u2014 Episode 3"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:business-markets",
+      "properties": {
+        "category": "Concept",
+        "label": "Business & Markets"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:welcome-back-to",
+      "properties": {
+        "category": "Concept",
+        "label": "Welcome Back To"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:business-markets",
+      "properties": {
+        "label": "Business & markets"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:great-to-be-back",
+      "properties": {
+        "label": "great to be back"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2"
+}

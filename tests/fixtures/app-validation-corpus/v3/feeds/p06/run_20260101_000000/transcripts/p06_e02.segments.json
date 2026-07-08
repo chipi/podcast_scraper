@@ -1,0 +1,324 @@
+[
+  {
+    "end": 6.0,
+    "id": 0,
+    "speaker_label": "Cam",
+    "start": 0.0,
+    "text": "Welcome back to The Drift. Today we're talking about long form, and I'm joined by Jordan Park, cultural critic. Jordan Park, thanks for being here."
+  },
+  {
+    "end": 12.0,
+    "id": 1,
+    "speaker_label": "Jordan Park",
+    "start": 6.0,
+    "text": "Thanks, Cam. Great to be back."
+  },
+  {
+    "end": 18.0,
+    "id": 2,
+    "speaker_label": "Cam",
+    "start": 12.0,
+    "text": "This episode is brought to you by Squarespace. Squarespace makes building a beautiful, branded website actually pleasant. Get started at squarespace.com/podcast."
+  },
+  {
+    "end": 24.0,
+    "id": 3,
+    "speaker_label": "Cam",
+    "start": 18.0,
+    "text": "What's the one heuristic you keep coming back to? What's the structural angle most listeners don't have access to?"
+  },
+  {
+    "end": 30.0,
+    "id": 4,
+    "speaker_label": "Jordan Park",
+    "start": 24.0,
+    "text": "Here's how I think about it. Sometimes the point of a conversation is not having a point. We've seen this play out at teams using Substack. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 36.0,
+    "id": 5,
+    "speaker_label": "Cam",
+    "start": 30.0,
+    "text": "What does the failure mode look like? What's the structural angle most listeners don't have access to?"
+  },
+  {
+    "end": 42.0,
+    "id": 6,
+    "speaker_label": "Jordan Park",
+    "start": 36.0,
+    "text": "It comes down to this: Dialogue-heavy formats trade grounding for texture. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 48.0,
+    "id": 7,
+    "speaker_label": "Cam",
+    "start": 42.0,
+    "text": "We'll be right back after a quick word from our sponsors."
+  },
+  {
+    "end": 54.0,
+    "id": 8,
+    "speaker_label": "Ad",
+    "start": 48.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Visit notion.com/podcast for a free trial."
+  },
+  {
+    "end": 60.0,
+    "id": 9,
+    "speaker_label": "Cam",
+    "start": 54.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "end": 66.0,
+    "id": 10,
+    "speaker_label": "Cam",
+    "start": 60.0,
+    "text": "What does the failure mode look like? Where do dialogue and long form intersect?"
+  },
+  {
+    "end": 72.0,
+    "id": 11,
+    "speaker_label": "Jordan Park",
+    "start": 66.0,
+    "text": "Let me give you the version I actually believe. Sometimes the point of a conversation is not having a point. We've seen this play out at teams using Patreon. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 78.0,
+    "id": 12,
+    "speaker_label": "Cam",
+    "start": 72.0,
+    "text": "Take me through the decision. What's the operational angle most listeners don't have access to?"
+  },
+  {
+    "end": 84.0,
+    "id": 13,
+    "speaker_label": "Jordan Park",
+    "start": 78.0,
+    "text": "It comes down to this: Dialogue-heavy formats trade grounding for texture. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 90.0,
+    "id": 14,
+    "speaker_label": "Cam",
+    "start": 84.0,
+    "text": "Right, right. I think about that all the time, honestly."
+  },
+  {
+    "end": 96.0,
+    "id": 15,
+    "speaker_label": "Jordan Park",
+    "start": 90.0,
+    "text": "Right? Right. Exactly. That's the thing."
+  },
+  {
+    "end": 102.0,
+    "id": 16,
+    "speaker_label": "Cam",
+    "start": 96.0,
+    "text": "So, like, yeah \u2014 that's kind of where I land too."
+  },
+  {
+    "end": 108.0,
+    "id": 17,
+    "speaker_label": "Jordan Park",
+    "start": 102.0,
+    "text": "Right? Right. Exactly. That's the thing."
+  },
+  {
+    "end": 114.0,
+    "id": 18,
+    "speaker_label": "Cam",
+    "start": 108.0,
+    "text": "Right, right. I think about that all the time, honestly."
+  },
+  {
+    "end": 120.0,
+    "id": 19,
+    "speaker_label": "Jordan Park",
+    "start": 114.0,
+    "text": "Hmm, that's a good question. Let me think about that."
+  },
+  {
+    "end": 126.0,
+    "id": 20,
+    "speaker_label": "Cam",
+    "start": 120.0,
+    "text": "Mmm. Yeah, it's interesting, isn't it?"
+  },
+  {
+    "end": 132.0,
+    "id": 21,
+    "speaker_label": "Jordan Park",
+    "start": 126.0,
+    "text": "Right? Right. Exactly. That's the thing."
+  },
+  {
+    "end": 138.0,
+    "id": 22,
+    "speaker_label": "Cam",
+    "start": 132.0,
+    "text": "Right, right. I think about that all the time, honestly."
+  },
+  {
+    "end": 144.0,
+    "id": 23,
+    "speaker_label": "Jordan Park",
+    "start": 138.0,
+    "text": "Yeah. Yeah. I don't know if I'd put it that way exactly, but close."
+  },
+  {
+    "end": 150.0,
+    "id": 24,
+    "speaker_label": "Cam",
+    "start": 144.0,
+    "text": "And you've felt that too, I think? Yeah, you have."
+  },
+  {
+    "end": 156.0,
+    "id": 25,
+    "speaker_label": "Jordan Park",
+    "start": 150.0,
+    "text": "Yeah. Yeah. I don't know if I'd put it that way exactly, but close."
+  },
+  {
+    "end": 162.0,
+    "id": 26,
+    "speaker_label": "Cam",
+    "start": 156.0,
+    "text": "And you've felt that too, I think? Yeah, you have."
+  },
+  {
+    "end": 168.0,
+    "id": 27,
+    "speaker_label": "Jordan Park",
+    "start": 162.0,
+    "text": "Hmm, that's a good question. Let me think about that."
+  },
+  {
+    "end": 174.0,
+    "id": 28,
+    "speaker_label": "Cam",
+    "start": 168.0,
+    "text": "There's something almost \u2014 I don't know. Hard to name."
+  },
+  {
+    "end": 180.0,
+    "id": 29,
+    "speaker_label": "Jordan Park",
+    "start": 174.0,
+    "text": "Hmm, that's a good question. Let me think about that."
+  },
+  {
+    "end": 186.0,
+    "id": 30,
+    "speaker_label": "Cam",
+    "start": 180.0,
+    "text": "Right, right. I think about that all the time, honestly."
+  },
+  {
+    "end": 192.0,
+    "id": 31,
+    "speaker_label": "Jordan Park",
+    "start": 186.0,
+    "text": "Totally. That's exactly the kind of thing I was getting at."
+  },
+  {
+    "end": 198.0,
+    "id": 32,
+    "speaker_label": "Cam",
+    "start": 192.0,
+    "text": "And you've felt that too, I think? Yeah, you have."
+  },
+  {
+    "end": 204.0,
+    "id": 33,
+    "speaker_label": "Jordan Park",
+    "start": 198.0,
+    "text": "Right? Right. Exactly. That's the thing."
+  },
+  {
+    "end": 210.0,
+    "id": 34,
+    "speaker_label": "Cam",
+    "start": 204.0,
+    "text": "Let's pivot \u2014 cultural drift is where I want to spend the last stretch."
+  },
+  {
+    "end": 216.0,
+    "id": 35,
+    "speaker_label": "Jordan Park",
+    "start": 210.0,
+    "text": "That's where the conversation gets interesting, because the trade-offs around cultural drift cross-cut everything we've covered."
+  },
+  {
+    "end": 222.0,
+    "id": 36,
+    "speaker_label": "Cam",
+    "start": 216.0,
+    "text": "That's a useful framing. What's something you used to believe about this that you've revised?"
+  },
+  {
+    "end": 228.0,
+    "id": 37,
+    "speaker_label": "Jordan Park",
+    "start": 222.0,
+    "text": "Yeah, so \u2014 Sometimes the point of a conversation is not having a point. We've seen this play out at teams using Substack. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 234.0,
+    "id": 38,
+    "speaker_label": "Cam",
+    "start": 228.0,
+    "text": "Walk me through a concrete example. What's the version of the question that actually matters?"
+  },
+  {
+    "end": 240.0,
+    "id": 39,
+    "speaker_label": "Jordan Park",
+    "start": 234.0,
+    "text": "Honestly, Dialogue-heavy formats trade grounding for texture. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 246.0,
+    "id": 40,
+    "speaker_label": "Cam",
+    "start": 240.0,
+    "text": "Before we wrap, what's one thing listeners can try this week?"
+  },
+  {
+    "end": 252.0,
+    "id": 41,
+    "speaker_label": "Jordan Park",
+    "start": 246.0,
+    "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
+  },
+  {
+    "end": 258.0,
+    "id": 42,
+    "speaker_label": "Cam",
+    "start": 252.0,
+    "text": "And finally, a big thank you to our partners at Stripe. Stripe makes payments simple, whether you're running a marketplace or a subscription business. Check out stripe.com."
+  },
+  {
+    "end": 264.0,
+    "id": 43,
+    "speaker_label": "Cam",
+    "start": 258.0,
+    "text": "Jordan Park, thanks for the conversation."
+  },
+  {
+    "end": 270.0,
+    "id": 44,
+    "speaker_label": "Jordan Park",
+    "start": 264.0,
+    "text": "Thanks, Cam."
+  },
+  {
+    "end": 276.0,
+    "id": 45,
+    "speaker_label": "Cam",
+    "start": 270.0,
+    "text": "That's it for today's episode of The Drift. See you next time."
+  }
+]

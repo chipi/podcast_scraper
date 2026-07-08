@@ -1046,3 +1046,161 @@ def test_v3_vocabulary_full_loop_query_layer(tmp_path: Path) -> None:
                 ph, (int, float)
             ), f"position_hint not propagated to query layer: {ins!r}"
             assert 0.0 <= float(ph) <= 1.0
+
+
+def test_topic_perspectives_groups_insights_by_speaker(tmp_path: Path) -> None:
+    """#1146 — insights ABOUT a topic are grouped per speaker, most-insights first."""
+    meta = tmp_path / "metadata"
+    _write_bundle(
+        meta,
+        "a",
+        episode_id="episode:a",
+        publish_date="2024-01-01",
+        person="person:alice",
+        topic="topic:ai",
+        insight_id="ia",
+        quote_id="qa",
+        insight_text="Alice on AI",
+    )
+    _write_bundle(
+        meta,
+        "b",
+        episode_id="episode:b",
+        publish_date="2024-02-01",
+        person="person:bob",
+        topic="topic:ai",
+        insight_id="ib",
+        quote_id="qb",
+        insight_text="Bob on AI",
+    )
+    root = str(tmp_path)
+    persp = cil_queries.topic_perspectives(root, root, "topic:ai")
+    by_person = {p["person_id"]: p for p in persp}
+    assert set(by_person) == {"person:alice", "person:bob"}
+    assert by_person["person:alice"]["insight_count"] == 1
+    assert by_person["person:alice"]["episode_count"] == 1
+    assert by_person["person:alice"]["insights"][0]["properties"]["text"] == "Alice on AI"
+
+
+def test_topic_perspectives_scope_filters_by_episode(tmp_path: Path) -> None:
+    """#1149 — keep_episode_ids restricts perspectives to the given episode set."""
+    meta = tmp_path / "metadata"
+    _write_bundle(
+        meta,
+        "a",
+        episode_id="episode:a",
+        publish_date="2024-01-01",
+        person="person:alice",
+        topic="topic:ai",
+        insight_id="ia",
+        quote_id="qa",
+        insight_text="Alice on AI",
+    )
+    _write_bundle(
+        meta,
+        "b",
+        episode_id="episode:b",
+        publish_date="2024-02-01",
+        person="person:bob",
+        topic="topic:ai",
+        insight_id="ib",
+        quote_id="qb",
+        insight_text="Bob on AI",
+    )
+    root = str(tmp_path)
+    only_a = cil_queries.topic_perspectives(root, root, "topic:ai", keep_episode_ids={"episode:a"})
+    assert {p["person_id"] for p in only_a} == {"person:alice"}
+    assert cil_queries.topic_perspectives(root, root, "topic:ai", keep_episode_ids=set()) == []
+
+
+def _write_sentiment(directory: Path, stem: str, rows: list) -> None:
+    """Write an episode's insight_sentiment sidecar next to its bridge (enrichments/ subdir)."""
+    ed = directory / "enrichments"
+    ed.mkdir(parents=True, exist_ok=True)
+    (ed / f"{stem}.insight_sentiment.json").write_text(
+        json.dumps({"data": {"insights": rows}}), encoding="utf-8"
+    )
+
+
+def test_conversation_arc_and_timeline_sentiment(tmp_path: Path) -> None:
+    corpus = tmp_path / "c"
+    _write_bundle(
+        corpus,
+        "e1",
+        episode_id="ep1",
+        publish_date="2024-01-15",
+        person="person:a",
+        topic="topic:ai",
+        insight_id="i1",
+        quote_id="q1",
+        insight_text="a great breakthrough",
+    )
+    _write_sentiment(corpus, "e1", [{"insight_id": "i1", "compound": 0.8, "label": "positive"}])
+    _write_bundle(
+        corpus,
+        "e2",
+        episode_id="ep2",
+        publish_date="2024-01-16",
+        person="person:b",
+        topic="topic:ai",
+        insight_id="i2",
+        quote_id="q2",
+        insight_text="a serious risk",
+    )
+    _write_sentiment(corpus, "e2", [{"insight_id": "i2", "compound": -0.6, "label": "negative"}])
+    root = str(corpus)
+
+    # topic_timeline now tags each Insight with sentiment (join by insight_id).
+    tl = cil_queries.topic_timeline(root, root, "topic:ai", insight_types=None)
+    labels = {n.get("sentiment", {}).get("label") for b in tl for n in b["insights"]}
+    assert {"positive", "negative"} <= labels
+
+    # conversation arc: both dates are ISO week 2024-W03 → one bucket, 1 pos + 1 neg.
+    arc = cil_queries.topic_conversation_arc(root, root, "topic:ai", insight_types=None)
+    assert len(arc) == 1
+    wk = arc[0]
+    assert wk["week"] == "2024-W03"
+    assert wk["volume"] == 2 and wk["positive"] == 1 and wk["negative"] == 1
+    assert abs(wk["avg_compound"] - 0.1) < 1e-6  # (0.8 + -0.6) / 2
+
+
+def test_conversation_arc_drops_insights_with_unparsable_dates(tmp_path: Path) -> None:
+    """An episode with a malformed publish_date yields no ISO week (``_iso_week`` → None), so its
+    insight is dropped from the arc rather than crashing the weekly aggregation."""
+    corpus = tmp_path / "c"
+    _write_bundle(
+        corpus,
+        "e1",
+        episode_id="ep1",
+        publish_date="not-a-date",
+        person="person:a",
+        topic="topic:ai",
+        insight_id="i1",
+        quote_id="q1",
+        insight_text="undated take",
+    )
+    _write_sentiment(corpus, "e1", [{"insight_id": "i1", "compound": 0.5, "label": "positive"}])
+    root = str(corpus)
+    assert cil_queries.topic_conversation_arc(root, root, "topic:ai", insight_types=None) == []
+
+
+def test_timeline_sentiment_missing_sidecar_leaves_insights_untinted(tmp_path: Path) -> None:
+    """With no ``insight_sentiment`` sidecar, timeline insights come back with no ``sentiment`` key
+    (surfaces render un-tinted) rather than raising."""
+    corpus = tmp_path / "c"
+    _write_bundle(
+        corpus,
+        "e1",
+        episode_id="ep1",
+        publish_date="2024-01-15",
+        person="person:a",
+        topic="topic:ai",
+        insight_id="i1",
+        quote_id="q1",
+        insight_text="a take",
+    )
+    # Deliberately no _write_sentiment: the sidecar is absent.
+    root = str(corpus)
+    tl = cil_queries.topic_timeline(root, root, "topic:ai", insight_types=None)
+    assert tl, "timeline still returns the episode even without a sentiment sidecar"
+    assert all("sentiment" not in n for b in tl for n in b["insights"])

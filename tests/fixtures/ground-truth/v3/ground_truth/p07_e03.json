@@ -1,0 +1,61 @@
+{
+  "callbacks": [],
+  "episode_id": "p07_e03",
+  "expected_enrichment": {
+    "grounding_rate": {
+      "expected_rate": 0.8
+    }
+  },
+  "extra_alias_callbacks": [],
+  "failure_modes": [],
+  "guest_accent": "de-DE",
+  "host_accent": "en-AU",
+  "host_canonical_name": "Alex Morgan",
+  "insight_density": "high",
+  "podcast_id": "p07",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p07:Elena",
+  "primary_guest_canonical_name": "Dr. Elena Fischer",
+  "primary_guest_surface_in_transcript": "Dr. Elena Fischer",
+  "primary_topic": "topic:systems-thinking",
+  "publish_date": "2025-08-06",
+  "publish_offset_days": 583,
+  "scripted": true,
+  "secondary_topics": [
+    "topic:sustainability",
+    "topic:risk-management"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Notion",
+      "kind": "template_opening",
+      "line_index": 9
+    },
+    {
+      "brand": "Squarespace",
+      "kind": "template_closing",
+      "line_index": 15
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p07:Elena",
+      "kind": "canonical",
+      "surface": "Dr. Elena Fischer"
+    }
+  ],
+  "topic_claims": [
+    {
+      "claim": "Sustainability is a systems problem \u2014 you cannot optimize one part without moving another.",
+      "grounded": true,
+      "speaker": "Elena",
+      "topic_id": "topic:systems-thinking"
+    },
+    {
+      "claim": "The dangerous risks are the slow ones you can name but discount.",
+      "grounded": true,
+      "speaker": "Elena",
+      "topic_id": "topic:risk-management"
+    }
+  ]
+}

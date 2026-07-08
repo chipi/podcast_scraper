@@ -1,0 +1,49 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p04-e03",
+    "media_type": "audio/mpeg",
+    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Leo",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Daniel Olufemi",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p04_e03.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 1800,
+    "episode_id": "ep-9f97daef33906cf6",
+    "published_date": "2025-02-01T00:00:00",
+    "title": "Lighting Decisions That Save a Shoot"
+  },
+  "feed": {
+    "description": "Photography conversations: craft, storytelling, workflow, and making images under real constraints.",
+    "feed_id": "p04",
+    "title": "Frame & Light",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Welcome back to Frame & Light. Today we're talking about lighting design, and I'm joined by Daniel Olufemi, commercial lighting director. Daniel Olufemi, thanks for being here.",
+      "Walk me through a concrete example. What's something you used to believe about this that you've revised?",
+      "Here's how I think about it. On location, the first decision is always: am I shaping the existing light? We've seen this play out at teams using Adobe. Once you internalize that, the rest of the de\u2026"
+    ],
+    "raw_text": "Welcome back to Frame & Light. Today we're talking about lighting design, and I'm joined by Daniel Olufemi, commercial lighting director. Daniel Olufemi, thanks for being here.",
+    "title": "Lighting Decisions That Save a Shoot"
+  }
+}

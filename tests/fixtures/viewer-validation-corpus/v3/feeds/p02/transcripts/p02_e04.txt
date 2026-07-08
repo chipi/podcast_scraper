@@ -1,0 +1,11 @@
+Ethan: Welcome back to Practical Systems. My guest is Priya Nair, who's spent a decade keeping large systems from falling over. Priya, thanks for coming on.
+Priya Nair: Glad to be here, Ethan.
+Ethan: This episode is brought to you by Datadog. Datadog gives unified observability across logs, metrics, and traces. Get started at datadog.com/podcast.You keep saying reliability isn't a feature. What do you mean?
+Priya Nair: Reliability is a property of the whole system, not of any one component. You can have perfect services that still produce an outage, because the failure lives in how they interact. If you think in parts, you'll miss it every time.So the discipline is systems thinking: you manage the interactions, not the boxes. When we tagged two years of incidents, almost none were a single component failing on its own — the data was pretty blunt about that.
+Ethan: You once told me production risk is the same as portfolio risk. Say more.
+Priya Nair: It really is the same discipline. Risk management in production is mostly about naming the risk before it names you. The outage you can describe in advance is the one you can design around; the one that takes you down is the one nobody would say out loud.
+Ethan: That sounds a lot like what the investing folks say about a portfolio.
+Priya Nair: Exactly — a service mesh and a portfolio are both systems of correlated bets. The reliability question and the risk question are the same question wearing different clothes.
+Ethan: Thanks again to PagerDuty for supporting the show. PagerDuty turns noisy alerts into structured incident response.
+Priya Nair: Thanks, Ethan.
+Ethan: That's it for this episode of Practical Systems. Take care.

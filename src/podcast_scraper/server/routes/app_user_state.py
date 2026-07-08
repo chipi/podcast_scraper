@@ -160,11 +160,16 @@ async def put_interests(
 async def add_interest(
     request: Request, token: str, user: User = Depends(get_current_user)
 ) -> InterestsResponse:
-    """Follow one interest token — a cluster (``tc:``), topic (``topic:``) or person (``person:``)
-    from an entity card. Influences personalized discovery; idempotent."""
-    return InterestsResponse(
-        items=app_user_state.add_interest(_data_dir(request), user.user_id, token)
-    )
+    """Follow one interest token — a cluster (``tc:``), topic (``topic:``), storyline (``thc:``) or
+    person (``person:``) from an entity card. Influences personalized discovery; idempotent."""
+    data_dir = _data_dir(request)
+    was_following = token in set(app_user_state.get_interests(data_dir, user.user_id))
+    items = app_user_state.add_interest(data_dir, user.user_id, token)
+    # Log the follow as a timestamped engagement event only on a NEW follow (momentum, RFC-103) —
+    # idempotent re-follows don't inflate the signal.
+    if not was_following:
+        app_user_state.record_interest_follow(data_dir, user.user_id, token, int(time.time()))
+    return InterestsResponse(items=items)
 
 
 @router.delete("/interests/{token}", response_model=InterestsResponse)
@@ -195,9 +200,10 @@ async def put_favorite(
     request: Request, body: FavoriteAdd, user: User = Depends(get_current_user)
 ) -> AppFavoritesResponse:
     """Save an item (idempotent on kind+ref); returns the updated favorites."""
-    app_user_state.add_favorite(
-        _data_dir(request), user.user_id, body.model_dump(exclude_none=True)
-    )
+    # Stamp added_at (momentum engagement source, RFC-103) — the save's timestamp, so saves can be
+    # bucketed into a weekly momentum series. Preserves a client-supplied added_at if present.
+    item = {"added_at": int(time.time()), **body.model_dump(exclude_none=True)}
+    app_user_state.add_favorite(_data_dir(request), user.user_id, item)
     return _favorites(request, user)
 
 

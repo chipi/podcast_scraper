@@ -1,0 +1,25 @@
+Sam: Welcome back to Cross-Show. Today we're talking about systems thinking, and I'm joined by Dr. Elena Fischer, returning systems thinker. Dr. Elena Fischer, thanks for being here.
+Dr. Elena Fischer: Thanks, Sam. Excited for this one — systems thinking is something I've been thinking about a lot.
+Sam: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Try notion.com today.
+Dr. Elena Fischer: In our 2024 conversation I was more optimistic about top-down interventions. I've revised that — the work happens at the seams.
+Sam: That's a real shift. Worth pulling on.I want to dig into that. How does Bloomberg fit into this picture?
+Dr. Elena Fischer: Let me give you the version I actually believe. Two years of systems-thinking work has made me more humble about leverage points. We've seen this play out at teams using IPCC. I've watched this pattern hold across three different teams.
+Sam: What's the one heuristic you keep coming back to? What's the version of the question that actually matters?
+Dr. Elena Fischer: It comes down to this: Reliability and sustainability share more vocabulary than I used to admit. Once you internalize that, the rest of the decisions get easier.
+Sam: We'll be right back after a quick word from our sponsors.
+Ad: Today's episode is sponsored by Linear. Linear is the issue tracker built for speed — keyboard-first. Visit linear.com/podcast for a free trial.
+Sam: Welcome back to the show.What does the failure mode look like? What's the version of the question that actually matters?
+Dr. Elena Fischer: Yeah, so — Two years of systems-thinking work has made me more humble about leverage points. We've seen this play out at teams using Bloomberg. If you ignore that, you end up rebuilding it from scratch a year later.
+Sam: Push back on the conventional wisdom for me. Where do sustainability and systems thinking intersect?
+Dr. Elena Fischer: Let me give you the version I actually believe. Reliability and sustainability share more vocabulary than I used to admit. And the second-order effect is the part most people miss.
+Sam: Let's pivot — reliability is where I want to spend the last stretch.
+Dr. Elena Fischer: That's where the conversation gets interesting, because the trade-offs around reliability cross-cut everything we've covered.
+Sam: That's a useful framing. How does Bloomberg fit into this picture?
+Dr. Elena Fischer: It comes down to this: Two years of systems-thinking work has made me more humble about leverage points. We've seen this play out at teams using IPCC. Once you internalize that, the rest of the decisions get easier.
+Sam: Push back on the conventional wisdom for me. What's the most underrated piece of systems thinking?
+Dr. Elena Fischer: Let me give you the version I actually believe. Reliability and sustainability share more vocabulary than I used to admit. And the second-order effect is the part most people miss.
+Sam: Before we wrap, what's one thing listeners can try this week?
+Dr. Elena Fischer: Pick one of the ideas we covered and run it for two weeks. The rest is iteration.
+Sam: And finally, a big thank you to our partners at Stripe. Stripe makes payments simple, whether you're running a marketplace or a subscription business. Check out stripe.com.Dr. Elena Fischer, thanks for the conversation.
+Dr. Elena Fischer: Thanks, Sam.
+Sam: That's it for today's episode of Cross-Show. See you next time.

@@ -14,7 +14,7 @@ from __future__ import annotations
 import re
 from collections import Counter
 from pathlib import Path
-from typing import Iterator, Sequence
+from typing import Any, Iterator, Sequence
 
 from podcast_scraper.search.theme_clusters import (
     consumer_theme_cluster_map,
@@ -27,6 +27,7 @@ from podcast_scraper.search.topic_clusters import (
 from podcast_scraper.server.app_content_source import row_to_summary
 from podcast_scraper.server.app_corpus_access import load_json_artifact
 from podcast_scraper.server.app_kg_view import entities_from_kg
+from podcast_scraper.server.cil_queries import topic_perspectives
 from podcast_scraper.server.corpus_catalog import (
     build_catalog_rows_cumulative,
     CatalogEpisodeRow,
@@ -35,9 +36,12 @@ from podcast_scraper.server.schemas import (
     AppEntity,
     AppEntityRef,
     AppEpisodeSummary,
+    AppInsight,
     AppPersonCard,
     AppTopic,
     AppTopicCard,
+    AppTopicPerspective,
+    AppTopicPerspectivesResponse,
 )
 
 _DEFAULT_TOP_K = 12
@@ -236,4 +240,60 @@ def build_topic_card(
         episode_count=len(about),
         episodes=_sorted_episode_cards(root, about),
         related_people=related_people,
+    )
+
+
+def _node_to_app_insight(node: dict[str, Any]) -> AppInsight:
+    """Project a GI Insight node to AppInsight (grounded; quotes omitted here)."""
+    props = node.get("properties") or {}
+    text = props.get("text") or props.get("title") or ""
+    conf = props.get("confidence")
+    itype = props.get("insight_type") or props.get("type")
+    phint = props.get("position_hint")
+    return AppInsight(
+        id=str(node.get("id") or ""),
+        text=str(text),
+        grounded=True,
+        insight_type=str(itype) if isinstance(itype, str) and itype.strip() else None,
+        confidence=float(conf) if isinstance(conf, (int, float)) else None,
+        position_hint=str(phint) if phint is not None else None,
+        quotes=[],
+    )
+
+
+def build_topic_perspectives(
+    root: Path, topic_id: str, *, mine_slugs: set[str] | None = None
+) -> AppTopicPerspectivesResponse | None:
+    """Group a topic's grounded insights by speaker — one take per speaker (#1146).
+
+    ``mine_slugs`` (scope=mine, #1149) restricts to episodes in the user's heard∪captured
+    set; an empty set yields no perspectives (honest-empty). Returns ``None`` when the topic
+    has no speaker-attributable insight in the (scoped) GI.
+    """
+    keep: set[str] | None = None
+    if mine_slugs is not None:
+        rows = build_catalog_rows_cumulative(root)
+        keep = {
+            r.episode_id
+            for r in rows
+            if r.episode_id and row_to_summary(root, r).slug in mine_slugs
+        }
+    groups = topic_perspectives(str(root), str(root), topic_id, keep_episode_ids=keep)
+    if not groups:
+        return None
+    perspectives = [
+        AppTopicPerspective(
+            person_id=str(g["person_id"]),
+            person_name=str(g["person_name"]),
+            insight_count=int(g["insight_count"]),
+            episode_count=int(g["episode_count"]),
+            insights=[_node_to_app_insight(n) for n in g["insights"]],
+        )
+        for g in groups
+    ]
+    return AppTopicPerspectivesResponse(
+        topic_id=topic_id,
+        topic_label=topic_id.split(":", 1)[-1],
+        perspective_count=len(perspectives),
+        perspectives=perspectives,
     )

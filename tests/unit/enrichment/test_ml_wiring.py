@@ -26,21 +26,40 @@ def test_register_ml_enrichers_constructs_topic_similarity_from_fake_provider() 
     assert "topic_similarity" in reg.all_ids()
     enricher = reg.get("topic_similarity")
     assert enricher.manifest.id == "topic_similarity"
+    assert getattr(enricher, "_top_k") == 5  # explicit knob honored
 
 
-def test_register_ml_enrichers_constructs_nli_contradiction_from_fixed_scripted() -> None:
+def test_topic_similarity_no_knob_uses_enricher_tuned_default_not_shadowed_10() -> None:
+    """Regression: with no top_k knob, the enricher's tuned default (7, #1105) must be used.
+
+    The builder used to default top_k to 10, silently shadowing the tuning on the --with-ml
+    path (no profile sets the knob), so topic_similarity shipped untuned at 10.
+    """
     reg = EnricherRegistry()
     s = EnricherSet(
-        enabled_enrichers=["nli_contradiction"],
+        enabled_enrichers=["topic_similarity"],
         per_enricher_config={
-            "nli_contradiction": {
-                "threshold": 0.6,
-                "provider": {"type": "fixed_scripted"},
+            "topic_similarity": {"provider": {"type": "fake_for_test", "dim": 16}},
+        },
+    )
+    register_ml_enrichers(reg, s)
+    assert getattr(reg.get("topic_similarity"), "_top_k") == 7
+
+
+def test_register_ml_enrichers_constructs_topic_consensus_from_fixed_consensus() -> None:
+    reg = EnricherRegistry()
+    s = EnricherSet(
+        enabled_enrichers=["topic_consensus"],
+        per_enricher_config={
+            "topic_consensus": {
+                "cos_threshold": 0.7,
+                "contra_threshold": 0.5,
+                "provider": {"type": "fixed_consensus"},
             },
         },
     )
     register_ml_enrichers(reg, s)
-    assert "nli_contradiction" in reg.all_ids()
+    assert "topic_consensus" in reg.all_ids()
 
 
 def test_register_ml_enrichers_skips_with_hint_when_provider_block_missing(

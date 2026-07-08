@@ -1,0 +1,274 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-a89e6a42509c9af0",
+      "to": "topic:long-form",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a89e6a42509c9af0",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a89e6a42509c9af0",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a89e6a42509c9af0",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a89e6a42509c9af0",
+      "to": "insight:c2ea54ba4b0825a6",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-a89e6a42509c9af0",
+      "to": "insight:cc2e4424701733c3",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-a89e6a42509c9af0",
+      "to": "insight:781d2f5960d956a0",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:d38cfe1fb28e0345",
+      "to": "person:cam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:c2ea54ba4b0825a6",
+      "to": "quote:d38cfe1fb28e0345",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:b1d1a4fd9bfc195d",
+      "to": "person:jordan-park",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:cc2e4424701733c3",
+      "to": "quote:b1d1a4fd9bfc195d",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f995bd2e04164ec2",
+      "to": "person:cam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:781d2f5960d956a0",
+      "to": "quote:f995bd2e04164ec2",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:30dc95a47740bc4b",
+      "to": "person:cam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:c2ea54ba4b0825a6",
+      "to": "quote:30dc95a47740bc4b",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:68454abdfcc7b326",
+      "to": "person:jordan-park",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:cc2e4424701733c3",
+      "to": "quote:68454abdfcc7b326",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:97c57ef5fff12273",
+      "to": "person:cam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:781d2f5960d956a0",
+      "to": "quote:97c57ef5fff12273",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "ep-a89e6a42509c9af0",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-a89e6a42509c9af0",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ep-a89e6a42509c9af0",
+        "metadata_relative_path": "feeds/p06/run_20260101_000000/metadata/p06_e01.metadata.json",
+        "podcast_id": "p06",
+        "publish_date": "2024-11-07T12:00:00",
+        "title": "On Drifting (a meandering conversation)"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:long-form",
+      "properties": {
+        "label": "long-form",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:c2ea54ba4b0825a6",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Welcome back to The Drift. Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic. Jordan Park, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:cc2e4424701733c3",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": false,
+        "text": "Thanks, Cam. Excited for this one \u2014 dialogue and conversational drift is something I've been thinking about a lot."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:781d2f5960d956a0",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "I want to dig into that. What's the most underrated piece of cultural drift?"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:cam",
+      "properties": {
+        "name": "Cam"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:d38cfe1fb28e0345",
+      "properties": {
+        "char_end": 157,
+        "char_start": 5,
+        "episode_id": "ep-a89e6a42509c9af0",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to The Drift. Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic. Jordan Park, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p06_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:jordan-park",
+      "properties": {
+        "name": "Jordan Park"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:b1d1a4fd9bfc195d",
+      "properties": {
+        "char_end": 285,
+        "char_start": 171,
+        "episode_id": "ep-a89e6a42509c9af0",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Cam. Excited for this one \u2014 dialogue and conversational drift is something I've been thinking about a lot.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p06_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:f995bd2e04164ec2",
+      "properties": {
+        "char_end": 409,
+        "char_start": 291,
+        "episode_id": "ep-a89e6a42509c9af0",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Try notion.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p06_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:30dc95a47740bc4b",
+      "properties": {
+        "char_end": 485,
+        "char_start": 409,
+        "episode_id": "ep-a89e6a42509c9af0",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to dig into that. What's the most underrated piece of cultural drift?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p06_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:68454abdfcc7b326",
+      "properties": {
+        "char_end": 712,
+        "char_start": 499,
+        "episode_id": "ep-a89e6a42509c9af0",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, so \u2014 There's something about the way conversations actually unfold that essays can't capture. We've seen this play out at teams using Patreon. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p06_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:97c57ef5fff12273",
+      "properties": {
+        "char_end": 790,
+        "char_start": 718,
+        "episode_id": "ep-a89e6a42509c9af0",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to dig into that. Where do dialogue and cultural drift intersect?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p06_e01.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

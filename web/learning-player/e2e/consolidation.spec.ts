@@ -14,8 +14,9 @@ test('enrichment read surface + recall toggle + your-corpus lens + Revisit inbox
 
   // Open an episode and capture its slug from the URL.
   await page.goto('/')
-  await page.getByText('Index Investing Without the Myths').first().click()
-  await expect(page.getByText(/Index funds are not a strategy/).first()).toBeVisible()
+  await page.goto('/podcast/p09') // #1148: open a RECENT episode so it isn't due for resurfacing
+  await page.getByText('Risk Is a Systems Property').first().click()
+  await expect(page.getByText(/Risk lives in the couplings/).first()).toBeVisible()
   const slug = new URL(page.url()).pathname.split('/').pop()!
 
   // #1121: the consumer enrichment read surface serves the committed envelopes.

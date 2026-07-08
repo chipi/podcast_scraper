@@ -950,7 +950,7 @@ is available for any profile that wants to opt in via
 `degradation_policy.fallback_provider_on_failure`, but the local-DGX profiles
 intentionally don't.
 
-As of [ADR-099](../adr/ADR-099-response-shape-guardrails-for-self-deployed-services.md)
+As of [ADR-105](../adr/ADR-105-response-shape-guardrails-for-self-deployed-services.md)
 / [ADR-100](../adr/ADR-100-response-shape-guardrails-for-cloud-llm-providers.md)
 (2026-06-15), the `FallbackAware*` layer also routes on `GuardrailViolation` —
 not just connection-level failures. A `200 OK` from any configured chat

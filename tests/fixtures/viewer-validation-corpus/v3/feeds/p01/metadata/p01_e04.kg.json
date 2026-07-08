@@ -1,0 +1,83 @@
+{
+  "edges": [
+    {
+      "from": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+      "to": "entity:outdoor-activities",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+      "to": "entity:gear",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+      "to": "topic:outdoor-activities",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+      "to": "topic:gear",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+      "to": "topic:science-research",
+      "type": "RELATES_TO"
+    }
+  ],
+  "episode_id": "4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+      "properties": {
+        "episode_id": "4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+        "metadata_relative_path": "feeds/p01/metadata/p01_e04.metadata.json",
+        "title": "Singletrack Sessions \u2014 Episode 4"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:outdoor-activities",
+      "properties": {
+        "category": "Concept",
+        "label": "Outdoor Activities"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:gear",
+      "properties": {
+        "category": "Concept",
+        "label": "Gear"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:outdoor-activities",
+      "properties": {
+        "label": "outdoor activities"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:gear",
+      "properties": {
+        "label": "gear"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2"
+}

@@ -11,10 +11,15 @@ Source of truth ([[feedback_profiles_are_source_of_truth]]):
 - ``test_default`` runs no enrichers (CI isolation).
 - ``airgapped_thin`` runs only the 6 deterministic enrichers.
 - ``airgapped`` adds ``topic_similarity`` (local CPU embedding).
-- ``cloud_thin`` adds ``nli_contradiction`` on top (CPU NLI, CI-safe
-  with the FixedNliScorer fixture; the real DeBERTa loads only when
-  the operator runs locally).
-- ``cloud_balanced`` / ``cloud_quality`` get the full set.
+- ``cloud_thin`` adds the ML-tier CANDIDATE ``topic_consensus`` (the ADR-108
+  reimagining of the retired nli_contradiction — a composite of embedding cosine
+  + low NLI contradiction) on top — but membership is data-driven, NOT a hard
+  list: the RFC-088 accuracy gate (``eval/admission``) filters candidates by
+  their measured precision. topic_consensus **cleared** its eval (precision 0.91
+  on prod-v2) so it is admitted; a candidate with no passing eval stays dark and
+  auto-promotes only once one is recorded. CI-safe regardless (FixedConsensusScorer
+  fixture; real MiniLM+DeBERTa loads only when the operator runs locally).
+- ``cloud_balanced`` / ``cloud_quality`` get the full candidate set (same gate).
 - ``dev`` / ``prod`` / ``local`` / DGX variants mirror their parent
   level — they don't carry their own enricher policies yet.
 
@@ -30,6 +35,7 @@ from pathlib import Path
 from typing import Any
 
 from podcast_scraper.enrichment.enrichers import ALL_DETERMINISTIC_ENRICHER_IDS
+from podcast_scraper.enrichment.eval.admission import admit_enrichers
 from podcast_scraper.enrichment.protocol import EnricherSet
 
 logger = logging.getLogger(__name__)
@@ -103,18 +109,47 @@ def _with_topic_similarity() -> list[str]:
     return [*ALL_DETERMINISTIC_ENRICHER_IDS, "topic_similarity"]
 
 
-def _with_nli_too() -> list[str]:
-    return [*ALL_DETERMINISTIC_ENRICHER_IDS, "topic_similarity", "nli_contradiction"]
+def _cloud_ml_tier_set() -> list[str]:
+    # The full ML-tier CANDIDATE set. Membership is not hand-maintained: the reimagined
+    # ``topic_consensus`` (ADR-108, a composite of embedding cosine + low NLI contradiction that
+    # replaced the 0%-precision ``nli_contradiction``) is listed here and admitted / excluded by
+    # its manifest ``accuracy_gate`` via ``_admit`` below — NOT by commenting it out. It stays dark
+    # until an eval records passing precision in ``data/eval/enrichment/<id>/gate_metrics.json`` (it
+    # has, 0.91 on prod-v2, so it is admitted). Per-person / per-topic stance-over-time is now a
+    # read-time CIL query (conversation-arc / position-arc), not a gated enricher — see ADR-108's
+    # 2026-07-08 update on why stance-over-time is a read-time query, not a gated enricher.
+    return [
+        *ALL_DETERMINISTIC_ENRICHER_IDS,
+        "topic_similarity",
+        "topic_consensus",
+    ]
 
 
-# When the operator opts in to nli_contradiction this is the flag that
+def _admit(candidate_ids: list[str], eval_root: Path | None = None) -> list[str]:
+    """Filter candidate enricher ids through the data-driven accuracy gate.
+
+    The single chokepoint where ``data/eval`` accuracy + each enricher's
+    manifest ``accuracy_gate`` decide profile membership (RFC-088 gate
+    amendment). Enrichers with no declared gate pass through unchanged; a gated
+    enricher (e.g. topic_consensus) is dropped until a passing eval is
+    recorded — so the shipping set is data-driven, not a hand-maintained list.
+    Preserves candidate order.
+
+    ``eval_root`` overrides the on-disk ``data/eval`` root (defaults to the repo
+    tree). Tests inject a ``tmp_path`` so the gate decision is hermetic instead of
+    silently coupled to whatever ``gate_metrics.json`` happens to be committed.
+    """
+    return admit_enrichers(candidate_ids, eval_root=eval_root).admitted
+
+
+# When the operator opts in to a query enricher this is the flag that
 # satisfies the LLM-tier double-opt-in for ``requires_opt_in=True``
-# enrichers. nli_contradiction itself is CPU-local so it doesn't carry
-# the flag, but future LLM query enrichers will.
+# enrichers. topic_consensus is CPU-local so it doesn't carry the flag,
+# but future LLM query enrichers will.
 _DEFAULT_OPT_IN_FLAGS: dict[str, bool] = {}
 
 
-def enricher_set_for_profile(profile: str | None) -> EnricherSet:
+def enricher_set_for_profile(profile: str | None, *, eval_root: Path | None = None) -> EnricherSet:
     """Return the canonical EnricherSet for *profile*.
 
     Unknown / None profiles return the empty no-enricher set — safe
@@ -132,20 +167,20 @@ def enricher_set_for_profile(profile: str | None) -> EnricherSet:
 
     if name == "airgapped_thin":
         return EnricherSet(
-            enabled_enrichers=_deterministic_only(),
+            enabled_enrichers=_admit(_deterministic_only(), eval_root=eval_root),
             per_enricher_config=per_enricher_config,
         )
 
     if name in ("airgapped",):
         return EnricherSet(
-            enabled_enrichers=_with_topic_similarity(),
+            enabled_enrichers=_admit(_with_topic_similarity(), eval_root=eval_root),
             per_enricher_config=per_enricher_config,
             opt_in_flags=dict(_DEFAULT_OPT_IN_FLAGS),
         )
 
     if name in ("cloud_thin", "cloud_balanced", "cloud_quality"):
         return EnricherSet(
-            enabled_enrichers=_with_nli_too(),
+            enabled_enrichers=_admit(_cloud_ml_tier_set(), eval_root=eval_root),
             per_enricher_config=per_enricher_config,
             opt_in_flags=dict(_DEFAULT_OPT_IN_FLAGS),
         )
@@ -167,7 +202,7 @@ def enricher_set_for_profile(profile: str | None) -> EnricherSet:
         )
     ):
         return EnricherSet(
-            enabled_enrichers=_with_nli_too(),
+            enabled_enrichers=_admit(_cloud_ml_tier_set(), eval_root=eval_root),
             per_enricher_config=per_enricher_config,
             opt_in_flags=dict(_DEFAULT_OPT_IN_FLAGS),
         )

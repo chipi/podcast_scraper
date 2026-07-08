@@ -1,0 +1,122 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-64ef09a7ee543045",
+      "to": "entity:public-radio",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-64ef09a7ee543045",
+      "to": "entity:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-64ef09a7ee543045",
+      "to": "topic:public-radio",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-64ef09a7ee543045",
+      "to": "topic:risk-management",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-64ef09a7ee543045",
+      "to": "topic:lifelong-learning",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-64ef09a7ee543045",
+      "to": "topic:expert-interviews",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-64ef09a7ee543045",
+      "to": "person:a-correspondent",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-64ef09a7ee543045",
+      "to": "person:renee-montague-park",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-64ef09a7ee543045",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-64ef09a7ee543045",
+      "properties": {
+        "episode_id": "ep-64ef09a7ee543045",
+        "metadata_relative_path": "feeds/p08/run_20260101_000000/metadata/p08_e02.metadata.json",
+        "publish_date": "2025-04-25T12:00:00",
+        "title": "Pronunciation as a Reliability Signal"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:public-radio",
+      "properties": {
+        "category": "Concept",
+        "label": "Public Radio"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:risk-management",
+      "properties": {
+        "category": "Concept",
+        "label": "Risk Management"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:public-radio",
+      "properties": {
+        "label": "public radio"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:a-correspondent",
+      "properties": {
+        "name": "A. correspondent",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:renee-montague-park",
+      "properties": {
+        "name": "Renee Montague-Park",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2"
+}

@@ -1,0 +1,44 @@
+{
+  "content": {
+    "diarization_num_speakers": 2,
+    "media_id": "sha256:p01-e04",
+    "media_type": "audio/mpeg",
+    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Maya",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Sophie Laurent",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p01_e04.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 1800,
+    "episode_id": "ep-de59d003651d9e5d",
+    "published_date": "2024-12-17T00:00:00",
+    "title": "The Risk You Didn't Name"
+  },
+  "feed": {
+    "description": "Mountain biking talk: trails, technique, gear, and the people who build the ride.",
+    "feed_id": "p01",
+    "title": "Singletrack Sessions",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Welcome back to Singletrack Sessions. I'm with Sophie Laurent, enduro racer and coach. Sophie, good to have you.",
+      "Thanks, Maya. Always happy to talk shop.",
+      "People think racing is about nerve. You say it's about risk."
+    ],
+    "raw_text": "Welcome back to Singletrack Sessions. I'm with Sophie Laurent, enduro racer and coach. Sophie, good to have you.",
+    "title": "The Risk You Didn't Name"
+  }
+}

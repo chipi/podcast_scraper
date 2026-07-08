@@ -1,0 +1,387 @@
+[
+  {
+    "end": 6.0,
+    "id": 0,
+    "speaker_label": "Cam",
+    "start": 0.0,
+    "text": "Welcome back to The Drift. Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic. Jordan Park, thanks for being here."
+  },
+  {
+    "end": 12.0,
+    "id": 1,
+    "speaker_label": "Jordan Park",
+    "start": 6.0,
+    "text": "Thanks, Cam. Excited for this one \u2014 dialogue and conversational drift is something I've been thinking about a lot."
+  },
+  {
+    "end": 18.0,
+    "id": 2,
+    "speaker_label": "Cam",
+    "start": 12.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Try notion.com today."
+  },
+  {
+    "end": 24.0,
+    "id": 3,
+    "speaker_label": "Cam",
+    "start": 18.0,
+    "text": "I want to dig into that. What's the most underrated piece of cultural drift?"
+  },
+  {
+    "end": 30.0,
+    "id": 4,
+    "speaker_label": "Jordan Park",
+    "start": 24.0,
+    "text": "Yeah, so \u2014 There's something about the way conversations actually unfold that essays can't capture. We've seen this play out at teams using Patreon. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 36.0,
+    "id": 5,
+    "speaker_label": "Cam",
+    "start": 30.0,
+    "text": "I want to dig into that. Where do dialogue and cultural drift intersect?"
+  },
+  {
+    "end": 42.0,
+    "id": 6,
+    "speaker_label": "Jordan Park",
+    "start": 36.0,
+    "text": "Sure. The texture of dialogue is the work. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "end": 48.0,
+    "id": 7,
+    "speaker_label": "Cam",
+    "start": 42.0,
+    "text": "Let's start there. What's the structural angle most listeners don't have access to?"
+  },
+  {
+    "end": 54.0,
+    "id": 8,
+    "speaker_label": "Jordan Park",
+    "start": 48.0,
+    "text": "It comes down to this: Long-form is not a length, it's a posture. We've seen this play out at teams using Substack. And the second-order effect is the part most people miss."
+  },
+  {
+    "end": 60.0,
+    "id": 9,
+    "speaker_label": "Cam",
+    "start": 54.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "end": 66.0,
+    "id": 10,
+    "speaker_label": "Jordan Park",
+    "start": 60.0,
+    "text": "Substack is one of the platforms where this shows up cleanly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "end": 72.0,
+    "id": 11,
+    "speaker_label": "Cam",
+    "start": 66.0,
+    "text": "Quick aside \u2014 I've actually been using Notion for the last six months and it's changed how I work. Notion replaces the dozen tools your team is half-using. If you want to check it out, the link's in the show notes."
+  },
+  {
+    "end": 78.0,
+    "id": 12,
+    "speaker_label": "Cam",
+    "start": 72.0,
+    "text": "We'll be right back after a quick word from our sponsors."
+  },
+  {
+    "end": 84.0,
+    "id": 13,
+    "speaker_label": "Ad",
+    "start": 78.0,
+    "text": "Today's episode is sponsored by Squarespace. Squarespace makes building a beautiful, branded website actually pleasant. Visit squarespace.com/podcast for a free trial."
+  },
+  {
+    "end": 90.0,
+    "id": 14,
+    "speaker_label": "Cam",
+    "start": 84.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "end": 96.0,
+    "id": 15,
+    "speaker_label": "Cam",
+    "start": 90.0,
+    "text": "That's a useful framing. What's the operational angle most listeners don't have access to?"
+  },
+  {
+    "end": 102.0,
+    "id": 16,
+    "speaker_label": "Jordan Park",
+    "start": 96.0,
+    "text": "It comes down to this: There's something about the way conversations actually unfold that essays can't capture. We've seen this play out at teams using Substack. And the second-order effect is the part most people miss."
+  },
+  {
+    "end": 108.0,
+    "id": 17,
+    "speaker_label": "Cam",
+    "start": 102.0,
+    "text": "What's the one heuristic you keep coming back to? What's the operational angle most listeners don't have access to?"
+  },
+  {
+    "end": 114.0,
+    "id": 18,
+    "speaker_label": "Jordan Park",
+    "start": 108.0,
+    "text": "Let me give you the version I actually believe. The texture of dialogue is the work. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 120.0,
+    "id": 19,
+    "speaker_label": "Cam",
+    "start": 114.0,
+    "text": "Let's start there. What's something you used to believe about this that you've revised?"
+  },
+  {
+    "end": 126.0,
+    "id": 20,
+    "speaker_label": "Jordan Park",
+    "start": 120.0,
+    "text": "Sure. Long-form is not a length, it's a posture. We've seen this play out at teams using Substack. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 132.0,
+    "id": 21,
+    "speaker_label": "Cam",
+    "start": 126.0,
+    "text": "Say more about that."
+  },
+  {
+    "end": 138.0,
+    "id": 22,
+    "speaker_label": "Jordan Park",
+    "start": 132.0,
+    "text": "Outside of Patreon-class tooling, the failure mode is harder to spot. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "end": 144.0,
+    "id": 23,
+    "speaker_label": "Cam",
+    "start": 138.0,
+    "text": "And you've felt that too, I think? Yeah, you have."
+  },
+  {
+    "end": 150.0,
+    "id": 24,
+    "speaker_label": "Jordan Park",
+    "start": 144.0,
+    "text": "Right? Right. Exactly. That's the thing."
+  },
+  {
+    "end": 156.0,
+    "id": 25,
+    "speaker_label": "Cam",
+    "start": 150.0,
+    "text": "There's something almost \u2014 I don't know. Hard to name."
+  },
+  {
+    "end": 162.0,
+    "id": 26,
+    "speaker_label": "Jordan Park",
+    "start": 156.0,
+    "text": "Hmm, that's a good question. Let me think about that."
+  },
+  {
+    "end": 168.0,
+    "id": 27,
+    "speaker_label": "Cam",
+    "start": 162.0,
+    "text": "There's something almost \u2014 I don't know. Hard to name."
+  },
+  {
+    "end": 174.0,
+    "id": 28,
+    "speaker_label": "Jordan Park",
+    "start": 168.0,
+    "text": "It depends, right? Like, on the day, on the mood \u2014"
+  },
+  {
+    "end": 180.0,
+    "id": 29,
+    "speaker_label": "Cam",
+    "start": 174.0,
+    "text": "Mmm. Yeah, it's interesting, isn't it?"
+  },
+  {
+    "end": 186.0,
+    "id": 30,
+    "speaker_label": "Jordan Park",
+    "start": 180.0,
+    "text": "Right? Right. Exactly. That's the thing."
+  },
+  {
+    "end": 192.0,
+    "id": 31,
+    "speaker_label": "Cam",
+    "start": 186.0,
+    "text": "There's something almost \u2014 I don't know. Hard to name."
+  },
+  {
+    "end": 198.0,
+    "id": 32,
+    "speaker_label": "Jordan Park",
+    "start": 192.0,
+    "text": "Yeah. Yeah. I don't know if I'd put it that way exactly, but close."
+  },
+  {
+    "end": 204.0,
+    "id": 33,
+    "speaker_label": "Cam",
+    "start": 198.0,
+    "text": "Mmm. Yeah, it's interesting, isn't it?"
+  },
+  {
+    "end": 210.0,
+    "id": 34,
+    "speaker_label": "Jordan Park",
+    "start": 204.0,
+    "text": "Hmm, that's a good question. Let me think about that."
+  },
+  {
+    "end": 216.0,
+    "id": 35,
+    "speaker_label": "Cam",
+    "start": 210.0,
+    "text": "Right, right. I think about that all the time, honestly."
+  },
+  {
+    "end": 222.0,
+    "id": 36,
+    "speaker_label": "Jordan Park",
+    "start": 216.0,
+    "text": "Hmm, that's a good question. Let me think about that."
+  },
+  {
+    "end": 228.0,
+    "id": 37,
+    "speaker_label": "Cam",
+    "start": 222.0,
+    "text": "There's something almost \u2014 I don't know. Hard to name."
+  },
+  {
+    "end": 234.0,
+    "id": 38,
+    "speaker_label": "Jordan Park",
+    "start": 228.0,
+    "text": "Yeah. Yeah. I don't know if I'd put it that way exactly, but close."
+  },
+  {
+    "end": 240.0,
+    "id": 39,
+    "speaker_label": "Cam",
+    "start": 234.0,
+    "text": "Let's pivot \u2014 long form is where I want to spend the last stretch."
+  },
+  {
+    "end": 246.0,
+    "id": 40,
+    "speaker_label": "Jordan Park",
+    "start": 240.0,
+    "text": "That's where the conversation gets interesting, because the trade-offs around long form cross-cut everything we've covered."
+  },
+  {
+    "end": 252.0,
+    "id": 41,
+    "speaker_label": "Cam",
+    "start": 246.0,
+    "text": "Push back on the conventional wisdom for me. Where do dialogue and cultural drift intersect?"
+  },
+  {
+    "end": 258.0,
+    "id": 42,
+    "speaker_label": "Jordan Park",
+    "start": 252.0,
+    "text": "It comes down to this: There's something about the way conversations actually unfold that essays can't capture. We've seen this play out at teams using Substack. And the second-order effect is the part most people miss."
+  },
+  {
+    "end": 264.0,
+    "id": 43,
+    "speaker_label": "Cam",
+    "start": 258.0,
+    "text": "What's the one heuristic you keep coming back to? How does Patreon fit into this picture?"
+  },
+  {
+    "end": 270.0,
+    "id": 44,
+    "speaker_label": "Jordan Park",
+    "start": 264.0,
+    "text": "Sure. The texture of dialogue is the work. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "end": 276.0,
+    "id": 45,
+    "speaker_label": "Cam",
+    "start": 270.0,
+    "text": "What does the failure mode look like? What's the version of the question that actually matters?"
+  },
+  {
+    "end": 282.0,
+    "id": 46,
+    "speaker_label": "Jordan Park",
+    "start": 276.0,
+    "text": "Yeah, so \u2014 Long-form is not a length, it's a posture. We've seen this play out at teams using Substack. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 288.0,
+    "id": 47,
+    "speaker_label": "Cam",
+    "start": 282.0,
+    "text": "Say more about that."
+  },
+  {
+    "end": 294.0,
+    "id": 48,
+    "speaker_label": "Jordan Park",
+    "start": 288.0,
+    "text": "Outside of Patreon-class tooling, the failure mode is harder to spot. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "end": 300.0,
+    "id": 49,
+    "speaker_label": "Cam",
+    "start": 294.0,
+    "text": "Before we wrap, what's one thing listeners can try this week?"
+  },
+  {
+    "end": 306.0,
+    "id": 50,
+    "speaker_label": "Jordan Park",
+    "start": 300.0,
+    "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
+  },
+  {
+    "end": 312.0,
+    "id": 51,
+    "speaker_label": "Cam",
+    "start": 306.0,
+    "text": "Before we wrap, thanks again to our friends at Stripe. Stripe makes payments simple, whether you're running a marketplace or a subscription business."
+  },
+  {
+    "end": 318.0,
+    "id": 52,
+    "speaker_label": "Cam",
+    "start": 312.0,
+    "text": "Jordan Park, thanks for the conversation."
+  },
+  {
+    "end": 324.0,
+    "id": 53,
+    "speaker_label": "Jordan Park",
+    "start": 318.0,
+    "text": "Thanks, Cam."
+  },
+  {
+    "end": 330.0,
+    "id": 54,
+    "speaker_label": "Cam",
+    "start": 324.0,
+    "text": "That's it for today's episode of The Drift. See you next time."
+  }
+]

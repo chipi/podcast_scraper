@@ -88,13 +88,13 @@ def test_arg_parser_accepts_chunk_7_profile_flags(tmp_path: Path) -> None:
             "topic_cooccurrence",
             "--no-enrichers",
             "--opt-in",
-            "nli_contradiction",
+            "topic_consensus",
         ]
     )
     assert args.profile == "airgapped_thin"
     assert args.enrichers == "topic_cooccurrence"
     assert args.no_enrichers is True
-    assert args.opt_in == "nli_contradiction"
+    assert args.opt_in == "topic_consensus"
 
 
 def test_arg_parser_profile_flags_default_to_none(tmp_path: Path) -> None:
@@ -153,14 +153,14 @@ def test_build_enricher_set_from_yaml_reads_enabled_list(tmp_path: Path) -> None
         "  enrichers:\n"
         "    topic_cooccurrence:\n"
         "      enabled: true\n"
-        "    nli_contradiction:\n"
+        "    topic_consensus:\n"
         "      enabled: false\n"
         "      opt_in: false\n",
         encoding="utf-8",
     )
     s = build_enricher_set_from_yaml(config)
     assert s.enabled_enrichers == ["topic_cooccurrence"]
-    assert s.has_opt_in("nli_contradiction") is False
+    assert s.has_opt_in("topic_consensus") is False
 
 
 def test_build_enricher_set_from_yaml_per_enricher_config(tmp_path: Path) -> None:

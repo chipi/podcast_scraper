@@ -3605,6 +3605,67 @@ def _parse_kg_args(kg_argv: Sequence[str]) -> argparse.Namespace:
     return args
 
 
+def _parse_pipeline_argv(argv: Optional[Sequence[str]]) -> argparse.Namespace:
+    """Build + parse the full pipeline arg surface (the default run).
+
+    Extracted so the parser build is a named unit; ``--profile`` / ``--config``
+    resolution + every ML flag live here.
+    """
+    parser = argparse.ArgumentParser(
+        description="Download podcast episode transcripts from an RSS feed."
+    )
+
+    # Add argument groups
+    _add_common_arguments(parser)
+    _add_transcription_arguments(parser)
+    _add_preprocessing_arguments(parser)
+    _add_metadata_arguments(parser)
+    _add_speaker_detection_arguments(parser)
+    _add_summarization_arguments(parser)
+    _add_openai_arguments(parser)
+    _add_gemini_arguments(parser)
+    _add_anthropic_arguments(parser)
+    _add_mistral_arguments(parser)
+    _add_deepgram_arguments(parser)
+    _add_diarization_arguments(parser)
+    _add_pipeline_stage_arguments(parser)
+    _add_deepseek_arguments(parser)
+    _add_grok_arguments(parser)
+    _add_ollama_arguments(parser)
+    _add_cache_arguments(parser)
+
+    initial_args, _ = parser.parse_known_args(argv)
+
+    if initial_args.version:
+        print(f"podcast_scraper {__version__}")
+        raise SystemExit(0)
+
+    # Resolve --profile NAME to its YAML path and route through
+    # _load_and_merge_config — same path as --config. Without this, argparse
+    # defaults (e.g. --summary-provider's default "transformers") silently
+    # override profile values, and users of cloud_balanced/cloud_quality got
+    # 13 wrong fields (#646 real-episode audit).
+    effective_config_path: Optional[str] = initial_args.config
+    if not effective_config_path and getattr(initial_args, "profile", None):
+        profile_name = str(initial_args.profile).strip()
+        from pathlib import Path as _P
+
+        candidate = (
+            _P(__file__).resolve().parents[2] / "config" / "profiles" / f"{profile_name}.yaml"
+        )
+        if candidate.is_file():
+            effective_config_path = str(candidate)
+
+    if effective_config_path:
+        args = _load_and_merge_config(parser, effective_config_path, argv)
+    else:
+        args = parser.parse_args(argv)
+        _attach_cli_merge_metadata(parser, argv, args)
+
+    validate_args(args)
+    return args
+
+
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     """Parse CLI arguments, optionally merging configuration file defaults."""
     # Check if first argument is "gi" subcommand (#438)
@@ -3733,60 +3794,19 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         args.command = "pricing-assumptions"
         return args
 
-    # Normal parsing for main command
-    parser = argparse.ArgumentParser(
-        description="Download podcast episode transcripts from an RSS feed."
-    )
-
-    # Add argument groups
-    _add_common_arguments(parser)
-    _add_transcription_arguments(parser)
-    _add_preprocessing_arguments(parser)
-    _add_metadata_arguments(parser)
-    _add_speaker_detection_arguments(parser)
-    _add_summarization_arguments(parser)
-    _add_openai_arguments(parser)
-    _add_gemini_arguments(parser)
-    _add_anthropic_arguments(parser)
-    _add_mistral_arguments(parser)
-    _add_deepgram_arguments(parser)
-    _add_diarization_arguments(parser)
-    _add_pipeline_stage_arguments(parser)
-    _add_deepseek_arguments(parser)
-    _add_grok_arguments(parser)
-    _add_ollama_arguments(parser)
-    _add_cache_arguments(parser)
-
-    initial_args, _ = parser.parse_known_args(argv)
-
-    if initial_args.version:
-        print(f"podcast_scraper {__version__}")
-        raise SystemExit(0)
-
-    # Resolve --profile NAME to its YAML path and route through
-    # _load_and_merge_config — same path as --config. Without this, argparse
-    # defaults (e.g. --summary-provider's default "transformers") silently
-    # override profile values, and users of cloud_balanced/cloud_quality got
-    # 13 wrong fields (#646 real-episode audit).
-    effective_config_path: Optional[str] = initial_args.config
-    if not effective_config_path and getattr(initial_args, "profile", None):
-        profile_name = str(initial_args.profile).strip()
-        from pathlib import Path as _P
-
-        candidate = (
-            _P(__file__).resolve().parents[2] / "config" / "profiles" / f"{profile_name}.yaml"
+    if argv and len(argv) > 0 and argv[0] == "enrich":
+        # #1069 consistency: ``enrich`` is a main-CLI subcommand — like the
+        # pipeline run and ``ingest`` — so enrichment invokes, schedules, and
+        # runs in docker exactly like ingestion (``-m podcast_scraper.cli
+        # enrich``). It delegates to the enrichment CLI verbatim; args pass
+        # through untouched (parsed by ``enrichment.cli``, not here).
+        return argparse.Namespace(
+            command="enrich",
+            enrich_argv=list(argv[1:]) if len(argv) > 1 else [],
         )
-        if candidate.is_file():
-            effective_config_path = str(candidate)
 
-    if effective_config_path:
-        args = _load_and_merge_config(parser, effective_config_path, argv)
-    else:
-        args = parser.parse_args(argv)
-        _attach_cli_merge_metadata(parser, argv, args)
-
-    validate_args(args)
-    return args
+    # Normal parsing for the main pipeline command.
+    return _parse_pipeline_argv(argv)
 
 
 def _build_config_for_feed(
@@ -4703,6 +4723,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
             "corpus-status",
             "corpus-cost",
             "doctor",
+            "enrich",
             "gi",
             "index",
             "insight-clusters",
@@ -4743,6 +4764,13 @@ def main(  # noqa: C901 - main function handles multiple command paths
             check_network=getattr(args, "check_network", False),
             check_models=getattr(args, "check_models", False),
         )
+
+    # #1069 consistency: enrich delegates to the enrichment CLI, so it invokes +
+    # runs (incl. in docker) exactly like the pipeline.
+    if hasattr(args, "command") and args.command == "enrich":
+        from podcast_scraper.enrichment import cli as _enrichment_cli
+
+        return _enrichment_cli.main(getattr(args, "enrich_argv", []))
 
     if hasattr(args, "command") and args.command == "corpus-status":
         import json as _json

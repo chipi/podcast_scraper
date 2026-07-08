@@ -1,0 +1,95 @@
+{
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": true,
+      "label": "technology",
+      "topic_cluster_compound_id": "tc:technology-cluster",
+      "topic_id": "topic:technology"
+    },
+    {
+      "in_topic_cluster": false,
+      "label": "Technology",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:technology"
+    }
+  ],
+  "content": {
+    "diarization_num_speakers": 3,
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Ethan",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Joll Wisenthal",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p02_e02.txt",
+    "transcript_source": "synthetic"
+  },
+  "episode": {
+    "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
+    "published_date": "2026-07-03",
+    "title": "Practical Systems \u2014 Episode 2"
+  },
+  "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
+  "episode_title": "Practical Systems \u2014 Episode 2",
+  "feed": {
+    "description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
+    "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+    "title": "Practical Systems",
+    "url": "http://localhost/"
+  },
+  "feed_display_title": "Practical Systems",
+  "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+  "gi_relative_path": "feeds/p02/metadata/p02_e02.gi.json",
+  "grounded_insights": {
+    "artifact_path": "feeds/p02/metadata/p02_e02.gi.json",
+    "schema_version": "1.0"
+  },
+  "has_gi": true,
+  "has_kg": true,
+  "kg_relative_path": "feeds/p02/metadata/p02_e02.kg.json",
+  "knowledge_graph": {
+    "artifact_path": "feeds/p02/metadata/p02_e02.kg.json",
+    "schema_version": "1.1"
+  },
+  "publish_date": "2026-07-03",
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Today we're talking about engineering communication, and I'm joined by Joll Wisenthal, staff engineer focused on platform teams.",
+      "Joll Wisenthal, thanks for being here.",
+      "Joll Wisenthal: Thanks, Ethan."
+    ],
+    "preview": "Today we're talking about engineering communication, and I'm joined by Joll Wisenthal, staff engineer focused on platform teams.",
+    "text": "Today we're talking about engineering communication, and I'm joined by Joll Wisenthal, staff engineer focused on platform teams.\nJoll Wisenthal, thanks for being here.\nJoll Wisenthal: Thanks, Ethan.",
+    "title": "Practical Systems \u2014 Episode 2 \u2014 synthetic"
+  },
+  "summary_bullet_graph_topic_ids": [
+    "topic:technology",
+    "topic:technology",
+    "topic:welcome-back-to"
+  ],
+  "summary_bullets": [
+    "Today we're talking about engineering communication, and I'm joined by Joll Wisenthal, staff engineer focused on platform teams.",
+    "Joll Wisenthal, thanks for being here.",
+    "Joll Wisenthal: Thanks, Ethan."
+  ],
+  "summary_preview": "Today we're talking about engineering communication, and I'm joined by Joll Wisenthal, staff engineer focused on platform teams.",
+  "summary_text": "Today we're talking about engineering communication, and I'm joined by Joll Wisenthal, staff engineer focused on platform teams.\nJoll Wisenthal, thanks for being here.\nJoll Wisenthal: Thanks, Ethan.",
+  "summary_title": "Practical Systems \u2014 Episode 2 \u2014 synthetic",
+  "topics": [
+    "technology",
+    "Technology",
+    "welcome back to"
+  ]
+}

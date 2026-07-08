@@ -1,0 +1,344 @@
+{
+  "edges": [
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "topic:environment",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "topic:science-research",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "insight:323c644d76b7c614",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "insight:e55eab16ac96317b",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "insight:db9acd5ee7759839",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:2c04af9010267734",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:323c644d76b7c614",
+      "to": "quote:2c04af9010267734",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:d2da2497eeb3919b",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:e55eab16ac96317b",
+      "to": "quote:d2da2497eeb3919b",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:62273cf1ac2fe494",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:db9acd5ee7759839",
+      "to": "quote:62273cf1ac2fe494",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:aaf712ec09ce77dc",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:323c644d76b7c614",
+      "to": "quote:aaf712ec09ce77dc",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:1e38115bb042863b",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:e55eab16ac96317b",
+      "to": "quote:1e38115bb042863b",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:cb569c783031f8e3",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:db9acd5ee7759839",
+      "to": "quote:cb569c783031f8e3",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:e55eab16ac96317b",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:323c644d76b7c614",
+      "to": "topic:environment",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:323c644d76b7c614",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:323c644d76b7c614",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e55eab16ac96317b",
+      "to": "topic:environment",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e55eab16ac96317b",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e55eab16ac96317b",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:db9acd5ee7759839",
+      "to": "topic:environment",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:db9acd5ee7759839",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:db9acd5ee7759839",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    }
+  ],
+  "episode_id": "15a1cbea-1449-50ac-bb1c-11784d7421c3",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "15a1cbea-1449-50ac-bb1c-11784d7421c3",
+        "metadata_relative_path": "feeds/p08/metadata/p08_e01.metadata.json",
+        "podcast_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
+        "publish_date": "2026-07-05T12:00:00",
+        "title": "The Long View — Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:environment",
+      "properties": {
+        "label": "environment",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:323c644d76b7c614",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Public Hour — Episode\n## Public Radio Format Conventions\nHost: A.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:e55eab16ac96317b",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "correspondent\nGuest: Renee Montagne-Park\n#fixture-v3: failure_modes=zero_host_ner\n#fixture-v3: voice=en-US host_voice=en-US\nA.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:db9acd5ee7759839",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "correspondent: Welcome back to Public Hour.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "A. correspondent"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:2c04af9010267734",
+      "properties": {
+        "char_end": 181,
+        "char_start": 18,
+        "episode_id": "15a1cbea-1449-50ac-bb1c-11784d7421c3",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Public Hour. Today we're talking about public radio, and I'm joined by Renee Montagne-Park, journalist. Renee Montagne-Park, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p08_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Renee Montagne-Park"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:d2da2497eeb3919b",
+      "properties": {
+        "char_end": 319,
+        "char_start": 203,
+        "episode_id": "15a1cbea-1449-50ac-bb1c-11784d7421c3",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, A. correspondent. Excited for this one — public-radio reporting is something I've been thinking about a lot.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p08_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:62273cf1ac2fe494",
+      "properties": {
+        "char_end": 499,
+        "char_start": 338,
+        "episode_id": "15a1cbea-1449-50ac-bb1c-11784d7421c3",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Squarespace. Squarespace makes building a beautiful, branded website actually pleasant. Get started at squarespace.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p08_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:aaf712ec09ce77dc",
+      "properties": {
+        "char_end": 592,
+        "char_start": 499,
+        "episode_id": "15a1cbea-1449-50ac-bb1c-11784d7421c3",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to dig into that. What's something you used to believe about this that you've revised?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p08_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:1e38115bb042863b",
+      "properties": {
+        "char_end": 789,
+        "char_start": 614,
+        "episode_id": "15a1cbea-1449-50ac-bb1c-11784d7421c3",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, so — Public radio voice is a deliberate style, not an accident. We've seen this play out at teams using BBC. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p08_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:cb569c783031f8e3",
+      "properties": {
+        "char_end": 873,
+        "char_start": 808,
+        "episode_id": "15a1cbea-1449-50ac-bb1c-11784d7421c3",
+        "speaker_id": "person:speaker-01",
+        "text": "Take me through the decision. How does NPR fit into this picture?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p08_e01.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.0"
+}

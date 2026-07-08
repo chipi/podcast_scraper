@@ -1,0 +1,274 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-d428e906f5affc60",
+      "to": "topic:public-radio",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d428e906f5affc60",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d428e906f5affc60",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d428e906f5affc60",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d428e906f5affc60",
+      "to": "insight:6aa3f1d522693d5c",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-d428e906f5affc60",
+      "to": "insight:b4d1b05b601509cf",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-d428e906f5affc60",
+      "to": "insight:edbfab0054c27324",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:019f156e66fb39c5",
+      "to": "person:a-correspondent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:6aa3f1d522693d5c",
+      "to": "quote:019f156e66fb39c5",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:abcdd16197de765c",
+      "to": "person:renee-montagne-park",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:b4d1b05b601509cf",
+      "to": "quote:abcdd16197de765c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:cbe4b6e56e92087f",
+      "to": "person:a-correspondent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:edbfab0054c27324",
+      "to": "quote:cbe4b6e56e92087f",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:827c5fc1a6442f1b",
+      "to": "person:a-correspondent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:6aa3f1d522693d5c",
+      "to": "quote:827c5fc1a6442f1b",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:90bee7c5f56e34d2",
+      "to": "person:renee-montagne-park",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:b4d1b05b601509cf",
+      "to": "quote:90bee7c5f56e34d2",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:49fe0da261635fdf",
+      "to": "person:a-correspondent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:edbfab0054c27324",
+      "to": "quote:49fe0da261635fdf",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "ep-d428e906f5affc60",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-d428e906f5affc60",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ep-d428e906f5affc60",
+        "metadata_relative_path": "feeds/p08/run_20260101_000000/metadata/p08_e04.metadata.json",
+        "podcast_id": "p08",
+        "publish_date": "2026-01-05T12:00:00",
+        "title": "Corrections, Trust, and the Long Game"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:public-radio",
+      "properties": {
+        "label": "public radio",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:6aa3f1d522693d5c",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Welcome back to Public Hour. Today we're talking about reliability, and I'm joined by Renee Montagne-Park, journalist. Renee Montagne-Park, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:b4d1b05b601509cf",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Thanks, A. correspondent. Great to be back."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:edbfab0054c27324",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Push back on the conventional wisdom for me. What's the version of the question that actually matters?"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:a-correspondent",
+      "properties": {
+        "name": "A. correspondent"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:019f156e66fb39c5",
+      "properties": {
+        "char_end": 180,
+        "char_start": 18,
+        "episode_id": "ep-d428e906f5affc60",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Public Hour. Today we're talking about reliability, and I'm joined by Renee Montagne-Park, journalist. Renee Montagne-Park, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p08_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:renee-montagne-park",
+      "properties": {
+        "name": "Renee Montagne-Park"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:abcdd16197de765c",
+      "properties": {
+        "char_end": 245,
+        "char_start": 202,
+        "episode_id": "ep-d428e906f5affc60",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, A. correspondent. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p08_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:cbe4b6e56e92087f",
+      "properties": {
+        "char_end": 397,
+        "char_start": 264,
+        "episode_id": "ep-d428e906f5affc60",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Notion. Notion replaces the dozen tools your team is half-using. Get started at notion.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p08_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:827c5fc1a6442f1b",
+      "properties": {
+        "char_end": 499,
+        "char_start": 397,
+        "episode_id": "ep-d428e906f5affc60",
+        "speaker_id": "person:speaker-01",
+        "text": "Push back on the conventional wisdom for me. What's the version of the question that actually matters?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p08_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:90bee7c5f56e34d2",
+      "properties": {
+        "char_end": 700,
+        "char_start": 521,
+        "episode_id": "ep-d428e906f5affc60",
+        "speaker_id": "person:speaker-02",
+        "text": "Honestly, A correction is a reliability signal, not a failure. We've seen this play out at teams using BBC. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p08_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:49fe0da261635fdf",
+      "properties": {
+        "char_end": 814,
+        "char_start": 719,
+        "episode_id": "ep-d428e906f5affc60",
+        "speaker_id": "person:speaker-01",
+        "text": "What does the failure mode look like? What's the version of the question that actually matters?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p08_e04.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

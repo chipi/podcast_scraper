@@ -1,0 +1,274 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-efc13989b676df9d",
+      "to": "topic:public-radio",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-efc13989b676df9d",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-efc13989b676df9d",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-efc13989b676df9d",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-efc13989b676df9d",
+      "to": "insight:545cdaee7ad70ca9",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-efc13989b676df9d",
+      "to": "insight:60ab353f2b28b593",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-efc13989b676df9d",
+      "to": "insight:ac49c363a6ff3818",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:09cb22cca08a9cc6",
+      "to": "person:a-correspondent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:545cdaee7ad70ca9",
+      "to": "quote:09cb22cca08a9cc6",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:ab6a3a9fc0d23ce9",
+      "to": "person:renee-montagne-park",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:60ab353f2b28b593",
+      "to": "quote:ab6a3a9fc0d23ce9",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:86889e4d196fa749",
+      "to": "person:a-correspondent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ac49c363a6ff3818",
+      "to": "quote:86889e4d196fa749",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f78db871a95295b6",
+      "to": "person:a-correspondent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:545cdaee7ad70ca9",
+      "to": "quote:f78db871a95295b6",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:b92627507c9097a7",
+      "to": "person:renee-montagne-park",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:60ab353f2b28b593",
+      "to": "quote:b92627507c9097a7",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:67f5e78dc5732b4e",
+      "to": "person:a-correspondent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ac49c363a6ff3818",
+      "to": "quote:67f5e78dc5732b4e",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "ep-efc13989b676df9d",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-efc13989b676df9d",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ep-efc13989b676df9d",
+        "metadata_relative_path": "feeds/p08/run_20260101_000000/metadata/p08_e01.metadata.json",
+        "podcast_id": "p08",
+        "publish_date": "2025-03-11T12:00:00",
+        "title": "Public Radio Format Conventions"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:public-radio",
+      "properties": {
+        "label": "public radio",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:545cdaee7ad70ca9",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Welcome back to Public Hour. Today we're talking about public radio, and I'm joined by Renee Montagne-Park, journalist. Renee Montagne-Park, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:60ab353f2b28b593",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Thanks, A. correspondent. Excited for this one \u2014 public-radio reporting is something I've been thinking about a lot."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:ac49c363a6ff3818",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "I want to dig into that. What's something you used to believe about this that you've revised?"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:a-correspondent",
+      "properties": {
+        "name": "A. correspondent"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:09cb22cca08a9cc6",
+      "properties": {
+        "char_end": 181,
+        "char_start": 18,
+        "episode_id": "ep-efc13989b676df9d",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Public Hour. Today we're talking about public radio, and I'm joined by Renee Montagne-Park, journalist. Renee Montagne-Park, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p08_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:renee-montagne-park",
+      "properties": {
+        "name": "Renee Montagne-Park"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:ab6a3a9fc0d23ce9",
+      "properties": {
+        "char_end": 319,
+        "char_start": 203,
+        "episode_id": "ep-efc13989b676df9d",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, A. correspondent. Excited for this one \u2014 public-radio reporting is something I've been thinking about a lot.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p08_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:86889e4d196fa749",
+      "properties": {
+        "char_end": 499,
+        "char_start": 338,
+        "episode_id": "ep-efc13989b676df9d",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Squarespace. Squarespace makes building a beautiful, branded website actually pleasant. Get started at squarespace.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p08_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:f78db871a95295b6",
+      "properties": {
+        "char_end": 592,
+        "char_start": 499,
+        "episode_id": "ep-efc13989b676df9d",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to dig into that. What's something you used to believe about this that you've revised?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p08_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:b92627507c9097a7",
+      "properties": {
+        "char_end": 789,
+        "char_start": 614,
+        "episode_id": "ep-efc13989b676df9d",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, so \u2014 Public radio voice is a deliberate style, not an accident. We've seen this play out at teams using BBC. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p08_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:67f5e78dc5732b4e",
+      "properties": {
+        "char_end": 873,
+        "char_start": 808,
+        "episode_id": "ep-efc13989b676df9d",
+        "speaker_id": "person:speaker-01",
+        "text": "Take me through the decision. How does NPR fit into this picture?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p08_e01.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

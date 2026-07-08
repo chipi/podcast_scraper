@@ -521,13 +521,13 @@ def test_episode_enrichment_surfaces_ok_envelopes_and_skips_failed(tmp_path: Pat
     _write_envelope(enrich_dir / "0001-a.grounding_rate.json", "grounding_rate", {"rate": 0.9})
     # a failed envelope is present but must NOT surface
     _write_envelope(
-        enrich_dir / "0001-a.nli_contradiction.json", "nli_contradiction", None, status="failed"
+        enrich_dir / "0001-a.topic_consensus.json", "topic_consensus", None, status="failed"
     )
     body = _client(tmp_path).get(f"/api/app/episodes/{slug}/enrichment").json()
     assert body["slug"] == slug
     assert body["signals"]["topic_cooccurrence"] == {"pairs": 3}
     assert body["signals"]["grounding_rate"] == {"rate": 0.9}
-    assert "nli_contradiction" not in body["signals"]
+    assert "topic_consensus" not in body["signals"]
 
 
 def test_episode_enrichment_unknown_slug_404(tmp_path: Path) -> None:
@@ -596,6 +596,25 @@ def test_topic_card_scope_mine_filters_to_heard_corpus(tmp_path: Path) -> None:
     mine = client.get("/api/app/topics/topic:ai", params={"scope": "mine"}).json()
     assert [e["slug"] for e in mine["episodes"]] == [ep2]
     assert mine["episode_count"] == 1
+
+
+# --------------------------------------------------------------------------- #
+# topic perspectives (#1146) + corpus scope (#1149)
+# --------------------------------------------------------------------------- #
+
+
+def test_topic_perspectives_scope_mine_requires_auth(tmp_path: Path) -> None:
+    """The #1149 scope=mine lens on perspectives is auth-gated (was untested — R3-B1).
+
+    Guards the ``_user_set`` 401 on ``topic_perspectives_route``; every sibling
+    scope=mine route has this test, perspectives did not. The scope *filtering* itself
+    is code-verified leak-safe (server-side additive heard-set filter) and exercised by
+    the Playwright e2e; a route-level filter test would need a perspectives-shaped GI
+    fixture the shared ``_corpus`` helper does not build.
+    """
+    _corpus(tmp_path)
+    resp = _client(tmp_path).get("/api/app/topics/topic:ai/perspectives", params={"scope": "mine"})
+    assert resp.status_code == 401
 
 
 # --------------------------------------------------------------------------- #

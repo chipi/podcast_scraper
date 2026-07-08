@@ -54,7 +54,7 @@ Ratchet the thresholds a few points below the new baseline when coverage climbs.
 
 | Corpus | What | Where |
 | --- | --- | --- |
-| **Synthetic validation corpus** | in-repo, deterministic. Two layers: **raw artifacts** `feeds/<feed>/metadata/*.{metadata,gi,kg,bridge}.json` (what the live `serve-api` computes episodes from — point `CORPUS=` at the **version dir**) **plus** pre-built top-level `corpus/*.json` (`digest.json`, `episodes.json`, …, for the mocked tier-3 / static serving). 9 podcasts / 23 episodes / GI+KG nodes / 5 cross-cutting umbrella topics. ~340 KB. | corpus root = `tests/fixtures/viewer-validation-corpus/v2` (`FIXTURES_VERSION` selects the version; raw artifacts under `v2/feeds/`, pre-built JSONs under `v2/corpus/`; see `tests/fixtures/VIEWER_VALIDATION_CORPUS.md`) |
+| **Synthetic validation corpus** | in-repo, deterministic. Two layers: **raw artifacts** `feeds/<feed>/metadata/*.{metadata,gi,kg,bridge}.json` (what the live `serve-api` computes episodes from — point `CORPUS=` at the **version dir**) **plus** pre-built top-level `corpus/*.json` (`digest.json`, `episodes.json`, …, for the mocked tier-3 / static serving). 9 podcasts / 23 episodes / GI+KG nodes / 5 cross-cutting umbrella topics. ~340 KB. | corpus root = `tests/fixtures/viewer-validation-corpus/v3` (`FIXTURES_VERSION` selects the version; raw artifacts under `v2/feeds/`, pre-built JSONs under `v2/corpus/`; see `tests/fixtures/VIEWER_VALIDATION_CORPUS.md`) |
 | **BYOC (real / prod)** | a raw pipeline-output corpus (`metadata/*.gi.json` + `*.kg.json`). Never named in committed code (copyright/privacy) — always supplied via `CORPUS=`. | e.g. a prod backup under `.test_outputs/manual/…/corpus` |
 
 Regenerate the synthetic corpus (deterministic, idempotent):

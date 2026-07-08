@@ -113,12 +113,12 @@ def test_enricher_manifest_defaults_for_cost_cap_are_none() -> None:
 
 def test_enricher_manifest_carries_cost_cap_when_set() -> None:
     m = EnricherManifest(
-        id="nli_contradiction",
+        id="topic_consensus",
         version="1.0.0",
         scope=EnricherScope.CORPUS,
         tier=EnricherTier.ML,
         reads=[".gi.json", ".bridge.json"],
-        writes="nli_contradiction.json",
+        writes="topic_consensus.json",
         description="...",
         max_cost_usd_per_run=0.50,
         expected_duration_s=300,
@@ -310,12 +310,12 @@ def test_enricher_set_is_enabled_tracks_explicit_list() -> None:
     s = EnricherSet(enabled_enrichers=["topic_cooccurrence", "temporal_velocity"])
     assert s.is_enabled("topic_cooccurrence")
     assert s.is_enabled("temporal_velocity")
-    assert not s.is_enabled("nli_contradiction")
+    assert not s.is_enabled("topic_consensus")
 
 
 def test_enricher_set_per_enricher_config_lookup() -> None:
-    s = EnricherSet(per_enricher_config={"nli_contradiction": {"threshold": 0.6}})
-    assert s.get_config("nli_contradiction") == {"threshold": 0.6}
+    s = EnricherSet(per_enricher_config={"topic_consensus": {"threshold": 0.6}})
+    assert s.get_config("topic_consensus") == {"threshold": 0.6}
     assert s.get_config("other") == {}
 
 

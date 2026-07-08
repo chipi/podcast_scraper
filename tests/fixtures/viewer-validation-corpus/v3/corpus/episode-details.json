@@ -1,0 +1,722 @@
+{
+  "feeds/p01/metadata/p01_e01.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+    "episode_title": "Singletrack Sessions \u2014 Episode 1",
+    "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+    "gi_relative_path": "feeds/p01/metadata/p01_e01.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p01/metadata/p01_e01.kg.json",
+    "metadata_relative_path": "feeds/p01/metadata/p01_e01.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-06",
+    "summary_bullets": [
+      "Today we're talking about trail building, and I'm joined by Liam Verbeek, trail builder for the Cascadia Alliance.",
+      "Liam Verbeek, thanks for being here.",
+      "Excited for this one \u2014 trail building is something I've been thinking about a lot."
+    ],
+    "summary_text": "Today we're talking about trail building, and I'm joined by Liam Verbeek, trail builder for the Cascadia Alliance.\nLiam Verbeek, thanks for being here.\nExcited for this one \u2014 trail building is something I've been thinking about a lot.",
+    "summary_title": "Singletrack Sessions \u2014 Episode 1 \u2014 synthetic"
+  },
+  "feeds/p01/metadata/p01_e02.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+    "episode_title": "Singletrack Sessions \u2014 Episode 2",
+    "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+    "gi_relative_path": "feeds/p01/metadata/p01_e02.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p01/metadata/p01_e02.kg.json",
+    "metadata_relative_path": "feeds/p01/metadata/p01_e02.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-04",
+    "summary_bullets": [
+      "Today we're talking about enduro racing, and I'm joined by Sophie Lorenz, enduro racer and coach.",
+      "Sophie Lorenz, thanks for being here.",
+      "Today's episode is sponsored by Linear."
+    ],
+    "summary_text": "Today we're talking about enduro racing, and I'm joined by Sophie Lorenz, enduro racer and coach.\nSophie Lorenz, thanks for being here.\nToday's episode is sponsored by Linear.",
+    "summary_title": "Singletrack Sessions \u2014 Episode 2 \u2014 synthetic"
+  },
+  "feeds/p01/metadata/p01_e03.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
+    "episode_title": "Singletrack Sessions \u2014 Episode 3",
+    "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+    "gi_relative_path": "feeds/p01/metadata/p01_e03.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p01/metadata/p01_e03.kg.json",
+    "metadata_relative_path": "feeds/p01/metadata/p01_e03.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-02",
+    "summary_bullets": [
+      "Today we're talking about drivetrain mechanics, and I'm joined by Noah Bryer, mechanic at Spoke & Wrench.",
+      "Noah Bryer, thanks for being here.",
+      "Today's episode is sponsored by Notion."
+    ],
+    "summary_text": "Today we're talking about drivetrain mechanics, and I'm joined by Noah Bryer, mechanic at Spoke & Wrench.\nNoah Bryer, thanks for being here.\nToday's episode is sponsored by Notion.",
+    "summary_title": "Singletrack Sessions \u2014 Episode 3 \u2014 synthetic"
+  },
+  "feeds/p01/metadata/p01_e04.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+    "episode_title": "Singletrack Sessions \u2014 Episode 4",
+    "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+    "gi_relative_path": "feeds/p01/metadata/p01_e04.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p01/metadata/p01_e04.kg.json",
+    "metadata_relative_path": "feeds/p01/metadata/p01_e04.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-06",
+    "summary_bullets": [
+      "# Singletrack Sessions \u2014 Episode\n## The Risk You Didn't Name\nHost: Maya\nGuest: Sophie Laurent\n#fixture-v3: voice=en-US host_voice=en-US\nMaya: Welcome back to Singletrack Sessions.",
+      "I'm with Sophie Laurent, enduro racer and coach.",
+      "Today's episode is sponsored by Strava."
+    ],
+    "summary_text": "# Singletrack Sessions \u2014 Episode\n## The Risk You Didn't Name\nHost: Maya\nGuest: Sophie Laurent\n#fixture-v3: voice=en-US host_voice=en-US\nMaya: Welcome back to Singletrack Sessions.\nI'm with Sophie Laurent, enduro racer and coach.\nToday's episode is sponsored by Strava.",
+    "summary_title": "Singletrack Sessions \u2014 Episode 4 \u2014 synthetic"
+  },
+  "feeds/p02/metadata/p02_e01.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
+    "episode_title": "Practical Systems \u2014 Episode 1",
+    "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+    "gi_relative_path": "feeds/p02/metadata/p02_e01.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p02/metadata/p02_e01.kg.json",
+    "metadata_relative_path": "feeds/p02/metadata/p02_e01.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-05",
+    "summary_bullets": [
+      "Today we're talking about on call rotation, and I'm joined by Priya Nair, principal SRE at a payments platform.",
+      "Priya Nair, thanks for being here.",
+      "Excited for this one \u2014 incident response and on-call design is something I've been thinking about a lot."
+    ],
+    "summary_text": "Today we're talking about on call rotation, and I'm joined by Priya Nair, principal SRE at a payments platform.\nPriya Nair, thanks for being here.\nExcited for this one \u2014 incident response and on-call design is something I've been thinking about a lot.",
+    "summary_title": "Practical Systems \u2014 Episode 1 \u2014 synthetic"
+  },
+  "feeds/p02/metadata/p02_e02.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
+    "episode_title": "Practical Systems \u2014 Episode 2",
+    "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+    "gi_relative_path": "feeds/p02/metadata/p02_e02.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p02/metadata/p02_e02.kg.json",
+    "metadata_relative_path": "feeds/p02/metadata/p02_e02.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-03",
+    "summary_bullets": [
+      "Today we're talking about engineering communication, and I'm joined by Joll Wisenthal, staff engineer focused on platform teams.",
+      "Joll Wisenthal, thanks for being here.",
+      "Joll Wisenthal: Thanks, Ethan."
+    ],
+    "summary_text": "Today we're talking about engineering communication, and I'm joined by Joll Wisenthal, staff engineer focused on platform teams.\nJoll Wisenthal, thanks for being here.\nJoll Wisenthal: Thanks, Ethan.",
+    "summary_title": "Practical Systems \u2014 Episode 2 \u2014 synthetic"
+  },
+  "feeds/p02/metadata/p02_e03.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+    "episode_title": "Practical Systems \u2014 Episode 3",
+    "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+    "gi_relative_path": "feeds/p02/metadata/p02_e03.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p02/metadata/p02_e03.kg.json",
+    "metadata_relative_path": "feeds/p02/metadata/p02_e03.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-01",
+    "summary_bullets": [
+      "Today we're talking about security design, and I'm joined by Priya Nair, principal SRE at a payments platform.",
+      "Priya Nair, thanks for being here.",
+      "Today's episode is sponsored by Vanta."
+    ],
+    "summary_text": "Today we're talking about security design, and I'm joined by Priya Nair, principal SRE at a payments platform.\nPriya Nair, thanks for being here.\nToday's episode is sponsored by Vanta.",
+    "summary_title": "Practical Systems \u2014 Episode 3 \u2014 synthetic"
+  },
+  "feeds/p02/metadata/p02_e04.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "8f88b1fc-4adc-5b98-8539-af5f32fef5a4",
+    "episode_title": "Practical Systems \u2014 Episode 4",
+    "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+    "gi_relative_path": "feeds/p02/metadata/p02_e04.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p02/metadata/p02_e04.kg.json",
+    "metadata_relative_path": "feeds/p02/metadata/p02_e04.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-05",
+    "summary_bullets": [
+      "# Practical Systems \u2014 Episode\n## Reliability Is a Systems Property\nHost: Ethan\nGuest: Priya Nair\n#fixture-v3: voice=en-IN host_voice=en-US\nEthan: Welcome back to Practical Systems.",
+      "My guest is Priya Nair, who's spent a decade keeping large systems from falling over.",
+      "Priya Nair: Glad to be here, Ethan."
+    ],
+    "summary_text": "# Practical Systems \u2014 Episode\n## Reliability Is a Systems Property\nHost: Ethan\nGuest: Priya Nair\n#fixture-v3: voice=en-IN host_voice=en-US\nEthan: Welcome back to Practical Systems.\nMy guest is Priya Nair, who's spent a decade keeping large systems from falling over.\nPriya Nair: Glad to be here, Ethan.",
+    "summary_title": "Practical Systems \u2014 Episode 4 \u2014 synthetic"
+  },
+  "feeds/p03/metadata/p03_e01.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
+    "episode_title": "Below the Surface \u2014 Episode 1",
+    "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+    "gi_relative_path": "feeds/p03/metadata/p03_e01.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p03/metadata/p03_e01.kg.json",
+    "metadata_relative_path": "feeds/p03/metadata/p03_e01.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-04",
+    "summary_bullets": [
+      "Today we're talking about wreck diving, and I'm joined by Marco Sylva, technical diver and underwater archaeologist.",
+      "Marco Sylva, thanks for being here.",
+      "Excited for this one \u2014 wreck-diving fundamentals is something I've been thinking about a lot."
+    ],
+    "summary_text": "Today we're talking about wreck diving, and I'm joined by Marco Sylva, technical diver and underwater archaeologist.\nMarco Sylva, thanks for being here.\nExcited for this one \u2014 wreck-diving fundamentals is something I've been thinking about a lot.",
+    "summary_title": "Below the Surface \u2014 Episode 1 \u2014 synthetic"
+  },
+  "feeds/p03/metadata/p03_e02.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
+    "episode_title": "Below the Surface \u2014 Episode 2",
+    "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+    "gi_relative_path": "feeds/p03/metadata/p03_e02.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p03/metadata/p03_e02.kg.json",
+    "metadata_relative_path": "feeds/p03/metadata/p03_e02.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-02",
+    "summary_bullets": [
+      "Today we're talking about marine biology, and I'm joined by Hanna Crebo Rediker, marine biologist focused on reef systems.",
+      "Hanna Crebo Rediker, thanks for being here.",
+      "Hanna Crebo Rediker: Thanks, Rina."
+    ],
+    "summary_text": "Today we're talking about marine biology, and I'm joined by Hanna Crebo Rediker, marine biologist focused on reef systems.\nHanna Crebo Rediker, thanks for being here.\nHanna Crebo Rediker: Thanks, Rina.",
+    "summary_title": "Below the Surface \u2014 Episode 2 \u2014 synthetic"
+  },
+  "feeds/p03/metadata/p03_e03.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+    "episode_title": "Below the Surface \u2014 Episode 3",
+    "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+    "gi_relative_path": "feeds/p03/metadata/p03_e03.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p03/metadata/p03_e03.kg.json",
+    "metadata_relative_path": "feeds/p03/metadata/p03_e03.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-06",
+    "summary_bullets": [
+      "Today we're talking about marine biology, and I'm joined by Hanna Krebohticker, marine biologist focused on reef systems.",
+      "Hanna Krebohticker, thanks for being here.",
+      "Hanna Krebohticker: Thanks, Rina."
+    ],
+    "summary_text": "Today we're talking about marine biology, and I'm joined by Hanna Krebohticker, marine biologist focused on reef systems.\nHanna Krebohticker, thanks for being here.\nHanna Krebohticker: Thanks, Rina.",
+    "summary_title": "Below the Surface \u2014 Episode 3 \u2014 synthetic"
+  },
+  "feeds/p03/metadata/p03_e04.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "2922a74e-5598-537f-a2d1-1ac08059e49d",
+    "episode_title": "Below the Surface \u2014 Episode 4",
+    "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+    "gi_relative_path": "feeds/p03/metadata/p03_e04.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p03/metadata/p03_e04.kg.json",
+    "metadata_relative_path": "feeds/p03/metadata/p03_e04.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-04",
+    "summary_bullets": [
+      "# Below the Surface \u2014 Episode\n## Plan the Dive, Manage the Risk\nHost: Rina\nGuest: Marco Silva\n#fixture-v3: voice=pt-BR host_voice=en-US\nRina: Welcome back to Below the Surface.",
+      "I'm joined by Marco Silva, technical diver and instructor.",
+      "Marco, thanks for surfacing for us."
+    ],
+    "summary_text": "# Below the Surface \u2014 Episode\n## Plan the Dive, Manage the Risk\nHost: Rina\nGuest: Marco Silva\n#fixture-v3: voice=pt-BR host_voice=en-US\nRina: Welcome back to Below the Surface.\nI'm joined by Marco Silva, technical diver and instructor.\nMarco, thanks for surfacing for us.",
+    "summary_title": "Below the Surface \u2014 Episode 4 \u2014 synthetic"
+  },
+  "feeds/p04/metadata/p04_e01.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+    "episode_title": "Frame & Light \u2014 Episode 1",
+    "feed_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
+    "gi_relative_path": "feeds/p04/metadata/p04_e01.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p04/metadata/p04_e01.kg.json",
+    "metadata_relative_path": "feeds/p04/metadata/p04_e01.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-03",
+    "summary_bullets": [
+      "Today we're talking about underwater photography, and I'm joined by Ava Lemoine, underwater photographer.",
+      "Ava Lemoine, thanks for being here.",
+      "Excited for this one \u2014 underwater imaging is something I've been thinking about a lot."
+    ],
+    "summary_text": "Today we're talking about underwater photography, and I'm joined by Ava Lemoine, underwater photographer.\nAva Lemoine, thanks for being here.\nExcited for this one \u2014 underwater imaging is something I've been thinking about a lot.",
+    "summary_title": "Frame & Light \u2014 Episode 1 \u2014 synthetic"
+  },
+  "feeds/p04/metadata/p04_e02.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+    "episode_title": "Frame & Light \u2014 Episode 2",
+    "feed_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
+    "gi_relative_path": "feeds/p04/metadata/p04_e02.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p04/metadata/p04_e02.kg.json",
+    "metadata_relative_path": "feeds/p04/metadata/p04_e02.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-01",
+    "summary_bullets": [
+      "Today we're talking about documentary photography, and I'm joined by Tarek Hassan, documentary photographer.",
+      "Tarek Hassan, thanks for being here.",
+      "Today's episode is sponsored by Adobe."
+    ],
+    "summary_text": "Today we're talking about documentary photography, and I'm joined by Tarek Hassan, documentary photographer.\nTarek Hassan, thanks for being here.\nToday's episode is sponsored by Adobe.",
+    "summary_title": "Frame & Light \u2014 Episode 2 \u2014 synthetic"
+  },
+  "feeds/p04/metadata/p04_e03.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+    "episode_title": "Frame & Light \u2014 Episode 3",
+    "feed_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
+    "gi_relative_path": "feeds/p04/metadata/p04_e03.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p04/metadata/p04_e03.kg.json",
+    "metadata_relative_path": "feeds/p04/metadata/p04_e03.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-05",
+    "summary_bullets": [
+      "Today we're talking about lighting design, and I'm joined by Daniel Olufemi, commercial lighting director.",
+      "Daniel Olufemi, thanks for being here.",
+      "This episode is brought to you by Adobe."
+    ],
+    "summary_text": "Today we're talking about lighting design, and I'm joined by Daniel Olufemi, commercial lighting director.\nDaniel Olufemi, thanks for being here.\nThis episode is brought to you by Adobe.",
+    "summary_title": "Frame & Light \u2014 Episode 3 \u2014 synthetic"
+  },
+  "feeds/p04/metadata/p04_e04.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "47fbed20-6172-5fec-a904-656de37b88ec",
+    "episode_title": "Frame & Light \u2014 Episode 4",
+    "feed_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
+    "gi_relative_path": "feeds/p04/metadata/p04_e04.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p04/metadata/p04_e04.kg.json",
+    "metadata_relative_path": "feeds/p04/metadata/p04_e04.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-03",
+    "summary_bullets": [
+      "Today we're talking about roundtable photography, and I'm joined by Ava Lemoine, underwater photographer.",
+      "Ava Lemoine, thanks for being here.",
+      "Today's episode is sponsored by Adobe."
+    ],
+    "summary_text": "Today we're talking about roundtable photography, and I'm joined by Ava Lemoine, underwater photographer.\nAva Lemoine, thanks for being here.\nToday's episode is sponsored by Adobe.",
+    "summary_title": "Frame & Light \u2014 Episode 4 \u2014 synthetic"
+  },
+  "feeds/p05/metadata/p05_e01.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+    "episode_title": "Long Horizon Notes \u2014 Episode 1",
+    "feed_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+    "gi_relative_path": "feeds/p05/metadata/p05_e01.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p05/metadata/p05_e01.kg.json",
+    "metadata_relative_path": "feeds/p05/metadata/p05_e01.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-02",
+    "summary_bullets": [
+      "Today we're talking about index investing, and I'm joined by Daniel Cho, former bond trader turned index advocate.",
+      "Daniel Cho, thanks for being here.",
+      "Excited for this one \u2014 index investing is something I've been thinking about a lot."
+    ],
+    "summary_text": "Today we're talking about index investing, and I'm joined by Daniel Cho, former bond trader turned index advocate.\nDaniel Cho, thanks for being here.\nExcited for this one \u2014 index investing is something I've been thinking about a lot.",
+    "summary_title": "Long Horizon Notes \u2014 Episode 1 \u2014 synthetic"
+  },
+  "feeds/p05/metadata/p05_e02.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+    "episode_title": "Long Horizon Notes \u2014 Episode 2",
+    "feed_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+    "gi_relative_path": "feeds/p05/metadata/p05_e02.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p05/metadata/p05_e02.kg.json",
+    "metadata_relative_path": "feeds/p05/metadata/p05_e02.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-06",
+    "summary_bullets": [
+      "Today we're talking about monetary policy, and I'm joined by Rich Clarida, former Fed vice chair.",
+      "Rich Clarida, thanks for being here.",
+      "This episode is brought to you by Bloomberg."
+    ],
+    "summary_text": "Today we're talking about monetary policy, and I'm joined by Rich Clarida, former Fed vice chair.\nRich Clarida, thanks for being here.\nThis episode is brought to you by Bloomberg.",
+    "summary_title": "Long Horizon Notes \u2014 Episode 2 \u2014 synthetic"
+  },
+  "feeds/p05/metadata/p05_e03.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "7f877683-ea36-55d1-94f7-a5cc051ff3d0",
+    "episode_title": "Long Horizon Notes \u2014 Episode 3",
+    "feed_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+    "gi_relative_path": "feeds/p05/metadata/p05_e03.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p05/metadata/p05_e03.kg.json",
+    "metadata_relative_path": "feeds/p05/metadata/p05_e03.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-04",
+    "summary_bullets": [
+      "Today we're talking about macro policy, and I'm joined by Scott Bessett, hedge fund manager and policy adviser.",
+      "Scott Bessett, thanks for being here.",
+      "This episode is brought to you by Bloomberg."
+    ],
+    "summary_text": "Today we're talking about macro policy, and I'm joined by Scott Bessett, hedge fund manager and policy adviser.\nScott Bessett, thanks for being here.\nThis episode is brought to you by Bloomberg.",
+    "summary_title": "Long Horizon Notes \u2014 Episode 3 \u2014 synthetic"
+  },
+  "feeds/p05/metadata/p05_e04.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+    "episode_title": "Long Horizon Notes \u2014 Episode 4",
+    "feed_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+    "gi_relative_path": "feeds/p05/metadata/p05_e04.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p05/metadata/p05_e04.kg.json",
+    "metadata_relative_path": "feeds/p05/metadata/p05_e04.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-02",
+    "summary_bullets": [
+      "# Long Horizon Notes \u2014 Episode\n## The Risk Panel: Diversify or Concentrate?",
+      "Nora\nGuest: Daniel Cho\n#fixture-v3: failure_modes=high_person_density\n#fixture-v3: voice=en-US host_voice=en-US\nNora: Welcome back to Long Horizon Notes.",
+      "Today is a debate \u2014 one question, two people who genuinely disagree."
+    ],
+    "summary_text": "# Long Horizon Notes \u2014 Episode\n## The Risk Panel: Diversify or Concentrate?\nNora\nGuest: Daniel Cho\n#fixture-v3: failure_modes=high_person_density\n#fixture-v3: voice=en-US host_voice=en-US\nNora: Welcome back to Long Horizon Notes.\nToday is a debate \u2014 one question, two people who genuinely disagree.",
+    "summary_title": "Long Horizon Notes \u2014 Episode 4 \u2014 synthetic"
+  },
+  "feeds/p06/metadata/p06_e01.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+    "episode_title": "Edge Cases Podcast \u2014 Episode 1",
+    "feed_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
+    "gi_relative_path": "feeds/p06/metadata/p06_e01.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p06/metadata/p06_e01.kg.json",
+    "metadata_relative_path": "feeds/p06/metadata/p06_e01.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-01",
+    "summary_bullets": [
+      "Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic.",
+      "Jordan Park, thanks for being here.",
+      "Excited for this one \u2014 dialogue and conversational drift is something I've been thinking about a lot."
+    ],
+    "summary_text": "Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic.\nJordan Park, thanks for being here.\nExcited for this one \u2014 dialogue and conversational drift is something I've been thinking about a lot.",
+    "summary_title": "Edge Cases Podcast \u2014 Episode 1 \u2014 synthetic"
+  },
+  "feeds/p06/metadata/p06_e02.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+    "episode_title": "Edge Cases Podcast \u2014 Episode 2",
+    "feed_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
+    "gi_relative_path": "feeds/p06/metadata/p06_e02.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p06/metadata/p06_e02.kg.json",
+    "metadata_relative_path": "feeds/p06/metadata/p06_e02.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-05",
+    "summary_bullets": [
+      "Today we're talking about long form, and I'm joined by Jordan Park, cultural critic.",
+      "Jordan Park, thanks for being here.",
+      "This episode is brought to you by Squarespace."
+    ],
+    "summary_text": "Today we're talking about long form, and I'm joined by Jordan Park, cultural critic.\nJordan Park, thanks for being here.\nThis episode is brought to you by Squarespace.",
+    "summary_title": "Edge Cases Podcast \u2014 Episode 2 \u2014 synthetic"
+  },
+  "feeds/p06/metadata/p06_e03.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "01835c28-431e-5b5a-adbb-5ec01411a299",
+    "episode_title": "Edge Cases Podcast \u2014 Episode 3",
+    "feed_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
+    "gi_relative_path": "feeds/p06/metadata/p06_e03.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p06/metadata/p06_e03.kg.json",
+    "metadata_relative_path": "feeds/p06/metadata/p06_e03.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-03",
+    "summary_bullets": [
+      "Today we're talking about dialogue, and I'm joined by Jordan Park, cultural critic.",
+      "Jordan Park, thanks for being here.",
+      "Today's episode is sponsored by Notion."
+    ],
+    "summary_text": "Today we're talking about dialogue, and I'm joined by Jordan Park, cultural critic.\nJordan Park, thanks for being here.\nToday's episode is sponsored by Notion.",
+    "summary_title": "Edge Cases Podcast \u2014 Episode 3 \u2014 synthetic"
+  },
+  "feeds/p06/metadata/p06_e04.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "55e302e4-3319-59f2-8c17-fde08bffd658",
+    "episode_title": "Edge Cases Podcast \u2014 Episode 4",
+    "feed_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
+    "gi_relative_path": "feeds/p06/metadata/p06_e04.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p06/metadata/p06_e04.kg.json",
+    "metadata_relative_path": "feeds/p06/metadata/p06_e04.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-01",
+    "summary_bullets": [
+      "Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic.",
+      "Jordan Park, thanks for being here.",
+      "This episode is brought to you by Squarespace."
+    ],
+    "summary_text": "Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic.\nJordan Park, thanks for being here.\nThis episode is brought to you by Squarespace.",
+    "summary_title": "Edge Cases Podcast \u2014 Episode 4 \u2014 synthetic"
+  },
+  "feeds/p07/metadata/p07_e01.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+    "episode_title": "The Long View \u2014 Episode 1",
+    "feed_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
+    "gi_relative_path": "feeds/p07/metadata/p07_e01.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p07/metadata/p07_e01.kg.json",
+    "metadata_relative_path": "feeds/p07/metadata/p07_e01.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-06",
+    "summary_bullets": [
+      "# The Long View \u2014 Sustainability \u2014 Episode\n## What Sustainability Really Means\nHost: Alex Morgan\nGuest: Dr.",
+      "Today we're talking about sustainability, and I'm joined by Dr.",
+      "Elena Fischer, sustainability researcher and systems thinker."
+    ],
+    "summary_text": "# The Long View \u2014 Sustainability \u2014 Episode\n## What Sustainability Really Means\nHost: Alex Morgan\nGuest: Dr.\nToday we're talking about sustainability, and I'm joined by Dr.\nElena Fischer, sustainability researcher and systems thinker.",
+    "summary_title": "The Long View \u2014 Episode 1 \u2014 synthetic"
+  },
+  "feeds/p07/metadata/p07_e02.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
+    "episode_title": "The Long View \u2014 Episode 2",
+    "feed_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
+    "gi_relative_path": "feeds/p07/metadata/p07_e02.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p07/metadata/p07_e02.kg.json",
+    "metadata_relative_path": "feeds/p07/metadata/p07_e02.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-04",
+    "summary_bullets": [
+      "Today we're talking about macroeconomics, and I'm joined by Skanda Eminas, macro economist.",
+      "Skanda Eminas, thanks for being here.",
+      "Skanda Eminas: Thanks, Alex Morgan."
+    ],
+    "summary_text": "Today we're talking about macroeconomics, and I'm joined by Skanda Eminas, macro economist.\nSkanda Eminas, thanks for being here.\nSkanda Eminas: Thanks, Alex Morgan.",
+    "summary_title": "The Long View \u2014 Episode 2 \u2014 synthetic"
+  },
+  "feeds/p07/metadata/p07_e03.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "a6d9a4a0-6c21-5c3e-ba1f-3fb5fdb79207",
+    "episode_title": "The Long View \u2014 Episode 3",
+    "feed_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
+    "gi_relative_path": "feeds/p07/metadata/p07_e03.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p07/metadata/p07_e03.kg.json",
+    "metadata_relative_path": "feeds/p07/metadata/p07_e03.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-02",
+    "summary_bullets": [
+      "# The Long View \u2014 Sustainability \u2014 Episode\n## Sustainability Is a Systems Problem\nHost: Alex Morgan\nGuest: Dr.",
+      "Elena Fischer\n#fixture-v3: voice=de-DE host_voice=en-AU\nAlex Morgan: Welcome back to The Long View.",
+      "I'm Alex Morgan, and my guest is Dr."
+    ],
+    "summary_text": "# The Long View \u2014 Sustainability \u2014 Episode\n## Sustainability Is a Systems Problem\nHost: Alex Morgan\nGuest: Dr.\nElena Fischer\n#fixture-v3: voice=de-DE host_voice=en-AU\nAlex Morgan: Welcome back to The Long View.\nI'm Alex Morgan, and my guest is Dr.",
+    "summary_title": "The Long View \u2014 Episode 3 \u2014 synthetic"
+  },
+  "feeds/p07/metadata/p07_e04.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "32b9679a-1a2d-5cce-b673-b489694ef798",
+    "episode_title": "The Long View \u2014 Episode 4",
+    "feed_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
+    "gi_relative_path": "feeds/p07/metadata/p07_e04.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p07/metadata/p07_e04.kg.json",
+    "metadata_relative_path": "feeds/p07/metadata/p07_e04.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-06",
+    "summary_bullets": [
+      "# The Long View \u2014 Sustainability \u2014 Episode\n## Macro as Risk Management\nHost: Alex Morgan\nGuest: Skanda Amarnath\n#fixture-v3: voice=en-IN host_voice=en-AU\nAlex Morgan: Welcome back to The Long View.",
+      "I'm joined by Skanda Amarnath, who reads the macroeconomy for a living.",
+      "Skanda Amarnath: Thanks, Alex."
+    ],
+    "summary_text": "# The Long View \u2014 Sustainability \u2014 Episode\n## Macro as Risk Management\nHost: Alex Morgan\nGuest: Skanda Amarnath\n#fixture-v3: voice=en-IN host_voice=en-AU\nAlex Morgan: Welcome back to The Long View.\nI'm joined by Skanda Amarnath, who reads the macroeconomy for a living.\nSkanda Amarnath: Thanks, Alex.",
+    "summary_title": "The Long View \u2014 Episode 4 \u2014 synthetic"
+  },
+  "feeds/p08/metadata/p08_e01.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "15a1cbea-1449-50ac-bb1c-11784d7421c3",
+    "episode_title": "The Long View \u2014 Episode 1",
+    "feed_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
+    "gi_relative_path": "feeds/p08/metadata/p08_e01.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p08/metadata/p08_e01.kg.json",
+    "metadata_relative_path": "feeds/p08/metadata/p08_e01.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-05",
+    "summary_bullets": [
+      "# Public Hour \u2014 Episode\n## Public Radio Format Conventions\nHost: A.",
+      "correspondent\nGuest: Renee Montagne-Park\n#fixture-v3: failure_modes=zero_host_ner\n#fixture-v3: voice=en-US host_voice=en-US\nA.",
+      "correspondent: Welcome back to Public Hour."
+    ],
+    "summary_text": "# Public Hour \u2014 Episode\n## Public Radio Format Conventions\nHost: A.\ncorrespondent\nGuest: Renee Montagne-Park\n#fixture-v3: failure_modes=zero_host_ner\n#fixture-v3: voice=en-US host_voice=en-US\nA.\ncorrespondent: Welcome back to Public Hour.",
+    "summary_title": "The Long View \u2014 Episode 1 \u2014 synthetic"
+  },
+  "feeds/p08/metadata/p08_e02.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "5250652d-f8da-5799-91da-8b1ce4991232",
+    "episode_title": "The Long View \u2014 Episode 2",
+    "feed_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
+    "gi_relative_path": "feeds/p08/metadata/p08_e02.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p08/metadata/p08_e02.kg.json",
+    "metadata_relative_path": "feeds/p08/metadata/p08_e02.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-03",
+    "summary_bullets": [
+      "# Public Hour \u2014 Episode\n## Pronunciation as a Reliability Signal\nHost: A.",
+      "correspondent\nGuest: Renee Montague-Park\n#fixture-v3: failure_modes=zero_host_ner,recurring_guest\n#fixture-v3: voice=en-US host_voice=en-US\nA.",
+      "correspondent: Welcome back to Public Hour."
+    ],
+    "summary_text": "# Public Hour \u2014 Episode\n## Pronunciation as a Reliability Signal\nHost: A.\ncorrespondent\nGuest: Renee Montague-Park\n#fixture-v3: failure_modes=zero_host_ner,recurring_guest\n#fixture-v3: voice=en-US host_voice=en-US\nA.\ncorrespondent: Welcome back to Public Hour.",
+    "summary_title": "The Long View \u2014 Episode 2 \u2014 synthetic"
+  },
+  "feeds/p08/metadata/p08_e03.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+    "episode_title": "The Long View \u2014 Episode 3",
+    "feed_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
+    "gi_relative_path": "feeds/p08/metadata/p08_e03.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p08/metadata/p08_e03.kg.json",
+    "metadata_relative_path": "feeds/p08/metadata/p08_e03.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-01",
+    "summary_bullets": [
+      "# Public Hour \u2014 Episode\n## The Desk That Never Sleeps\nHost: A.",
+      "correspondent\nGuest: Renee Montagne-Park\n#fixture-v3: failure_modes=zero_host_ner\n#fixture-v3: voice=en-US host_voice=en-US\nA.",
+      "correspondent: Welcome back to Public Hour."
+    ],
+    "summary_text": "# Public Hour \u2014 Episode\n## The Desk That Never Sleeps\nHost: A.\ncorrespondent\nGuest: Renee Montagne-Park\n#fixture-v3: failure_modes=zero_host_ner\n#fixture-v3: voice=en-US host_voice=en-US\nA.\ncorrespondent: Welcome back to Public Hour.",
+    "summary_title": "The Long View \u2014 Episode 3 \u2014 synthetic"
+  },
+  "feeds/p08/metadata/p08_e04.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "1b3a6ea0-3cfe-5f9b-a562-a0e49e2b4130",
+    "episode_title": "The Long View \u2014 Episode 4",
+    "feed_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
+    "gi_relative_path": "feeds/p08/metadata/p08_e04.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p08/metadata/p08_e04.kg.json",
+    "metadata_relative_path": "feeds/p08/metadata/p08_e04.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-05",
+    "summary_bullets": [
+      "# Public Hour \u2014 Episode\n## Corrections, Trust, and the Long Game\nHost: A.",
+      "correspondent\nGuest: Renee Montagne-Park\n#fixture-v3: failure_modes=zero_host_ner,recurring_guest\n#fixture-v3: voice=en-US host_voice=en-US\nA.",
+      "correspondent: Welcome back to Public Hour."
+    ],
+    "summary_text": "# Public Hour \u2014 Episode\n## Corrections, Trust, and the Long Game\nHost: A.\ncorrespondent\nGuest: Renee Montagne-Park\n#fixture-v3: failure_modes=zero_host_ner,recurring_guest\n#fixture-v3: voice=en-US host_voice=en-US\nA.\ncorrespondent: Welcome back to Public Hour.",
+    "summary_title": "The Long View \u2014 Episode 4 \u2014 synthetic"
+  },
+  "feeds/p09/metadata/p09_e01.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+    "episode_title": "The Long View: Biohacking \u2014 Episode 1",
+    "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+    "gi_relative_path": "feeds/p09/metadata/p09_e01.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p09/metadata/p09_e01.kg.json",
+    "metadata_relative_path": "feeds/p09/metadata/p09_e01.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-04",
+    "summary_bullets": [
+      "# Cross-Show \u2014 Episode\n## Systems Thinking, Two Years Later\nHost: Sam\nGuest: Dr.",
+      "Elena Fischer\n#fixture-v3: failure_modes=recurring_guest,position_arc_multi,multi_accent\n#fixture-v3: voice=de-DE host_voice=en-US\nSam: Welcome back to Cross-Show.",
+      "Today we're talking about systems thinking, and I'm joined by Dr."
+    ],
+    "summary_text": "# Cross-Show \u2014 Episode\n## Systems Thinking, Two Years Later\nHost: Sam\nGuest: Dr.\nElena Fischer\n#fixture-v3: failure_modes=recurring_guest,position_arc_multi,multi_accent\n#fixture-v3: voice=de-DE host_voice=en-US\nSam: Welcome back to Cross-Show.\nToday we're talking about systems thinking, and I'm joined by Dr.",
+    "summary_title": "The Long View: Biohacking \u2014 Episode 1 \u2014 synthetic"
+  },
+  "feeds/p09/metadata/p09_e02.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "d24c1620-8d16-54dd-b681-2f2e06c0b579",
+    "episode_title": "The Long View: Biohacking \u2014 Episode 2",
+    "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+    "gi_relative_path": "feeds/p09/metadata/p09_e02.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p09/metadata/p09_e02.kg.json",
+    "metadata_relative_path": "feeds/p09/metadata/p09_e02.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-02",
+    "summary_bullets": [
+      "Today we're talking about macroeconomics, and I'm joined by Skanda Amarnauth, returning macro economist.",
+      "Skanda Amarnauth, thanks for being here.",
+      "Skanda Amarnauth: Thanks, Sam."
+    ],
+    "summary_text": "Today we're talking about macroeconomics, and I'm joined by Skanda Amarnauth, returning macro economist.\nSkanda Amarnauth, thanks for being here.\nSkanda Amarnauth: Thanks, Sam.",
+    "summary_title": "The Long View: Biohacking \u2014 Episode 2 \u2014 synthetic"
+  },
+  "feeds/p09/metadata/p09_e03.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+    "episode_title": "The Long View: Biohacking \u2014 Episode 3",
+    "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+    "gi_relative_path": "feeds/p09/metadata/p09_e03.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p09/metadata/p09_e03.kg.json",
+    "metadata_relative_path": "feeds/p09/metadata/p09_e03.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-06",
+    "summary_bullets": [
+      "Today we're talking about labor markets, and I'm joined by Skanda Amarnath, returning macro economist.",
+      "Skanda Amarnath, thanks for being here.",
+      "Today's episode is sponsored by Bloomberg."
+    ],
+    "summary_text": "Today we're talking about labor markets, and I'm joined by Skanda Amarnath, returning macro economist.\nSkanda Amarnath, thanks for being here.\nToday's episode is sponsored by Bloomberg.",
+    "summary_title": "The Long View: Biohacking \u2014 Episode 3 \u2014 synthetic"
+  },
+  "feeds/p09/metadata/p09_e04.metadata.json": {
+    "cil_digest_topics": [],
+    "episode_id": "e5f72053-f000-519e-95cb-204c957f7ab3",
+    "episode_title": "The Long View: Biohacking \u2014 Episode 4",
+    "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+    "gi_relative_path": "feeds/p09/metadata/p09_e04.gi.json",
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/p09/metadata/p09_e04.kg.json",
+    "metadata_relative_path": "feeds/p09/metadata/p09_e04.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-ai-ml-improvements/tests/fixtures/viewer-validation-corpus/v3",
+    "publish_date": "2026-07-04",
+    "summary_bullets": [
+      "# Cross-Show \u2014 Episode\n## Risk Is a Systems Property\nHost: Sam\nGuest: Dr.",
+      "Elena Fischer\n#fixture-v3: failure_modes=recurring_guest,multi_accent\n#fixture-v3: voice=de-DE host_voice=en-US\nSam: Welcome back to Cross-Show.",
+      "Today we're talking about risk management, and I'm joined by Dr."
+    ],
+    "summary_text": "# Cross-Show \u2014 Episode\n## Risk Is a Systems Property\nHost: Sam\nGuest: Dr.\nElena Fischer\n#fixture-v3: failure_modes=recurring_guest,multi_accent\n#fixture-v3: voice=de-DE host_voice=en-US\nSam: Welcome back to Cross-Show.\nToday we're talking about risk management, and I'm joined by Dr.",
+    "summary_title": "The Long View: Biohacking \u2014 Episode 4 \u2014 synthetic"
+  }
+}

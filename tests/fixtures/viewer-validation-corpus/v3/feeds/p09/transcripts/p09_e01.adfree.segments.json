@@ -1,0 +1,226 @@
+[
+  {
+    "char_end": 182,
+    "char_start": 5,
+    "end": 6.0,
+    "speaker_label": "Sam",
+    "start": 0.0,
+    "text": "Welcome back to Cross-Show. Today we're talking about systems thinking, and I'm joined by Dr. Elena Fischer, returning systems thinker. Dr. Elena Fischer, thanks for being here."
+  },
+  {
+    "char_end": 299,
+    "char_start": 202,
+    "end": 12.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 6.0,
+    "text": "Thanks, Sam. Excited for this one \u2014 systems thinking is something I've been thinking about a lot."
+  },
+  {
+    "char_end": 423,
+    "char_start": 305,
+    "end": 18.0,
+    "speaker_label": "Sam",
+    "start": 12.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Try notion.com today."
+  },
+  {
+    "char_end": 570,
+    "char_start": 443,
+    "end": 24.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 18.0,
+    "text": "In our 2024 conversation I was more optimistic about top-down interventions. I've revised that \u2014 the work happens at the seams."
+  },
+  {
+    "char_end": 614,
+    "char_start": 576,
+    "end": 30.0,
+    "speaker_label": "Sam",
+    "start": 24.0,
+    "text": "That's a real shift. Worth pulling on."
+  },
+  {
+    "char_end": 680,
+    "char_start": 614,
+    "end": 36.0,
+    "speaker_label": "Sam",
+    "start": 30.0,
+    "text": "I want to dig into that. How does Bloomberg fit into this picture?"
+  },
+  {
+    "char_end": 936,
+    "char_start": 700,
+    "end": 42.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 36.0,
+    "text": "Let me give you the version I actually believe. Two years of systems-thinking work has made me more humble about leverage points. We've seen this play out at teams using IPCC. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 1049,
+    "char_start": 942,
+    "end": 48.0,
+    "speaker_label": "Sam",
+    "start": 42.0,
+    "text": "What's the one heuristic you keep coming back to? What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 1231,
+    "char_start": 1069,
+    "end": 54.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 48.0,
+    "text": "It comes down to this: Reliability and sustainability share more vocabulary than I used to admit. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 1294,
+    "char_start": 1237,
+    "end": 60.0,
+    "speaker_label": "Sam",
+    "start": 54.0,
+    "text": "We'll be right back after a quick word from our sponsors."
+  },
+  {
+    "char_end": 1443,
+    "char_start": 1299,
+    "end": 66.0,
+    "speaker_label": "Ad",
+    "start": 60.0,
+    "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first. Visit linear.com/podcast for a free trial."
+  },
+  {
+    "char_end": 1474,
+    "char_start": 1449,
+    "end": 72.0,
+    "speaker_label": "Sam",
+    "start": 66.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 1569,
+    "char_start": 1474,
+    "end": 78.0,
+    "speaker_label": "Sam",
+    "start": 72.0,
+    "text": "What does the failure mode look like? What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 1804,
+    "char_start": 1589,
+    "end": 84.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 78.0,
+    "text": "Yeah, so \u2014 Two years of systems-thinking work has made me more humble about leverage points. We've seen this play out at teams using Bloomberg. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 1910,
+    "char_start": 1810,
+    "end": 90.0,
+    "speaker_label": "Sam",
+    "start": 84.0,
+    "text": "Push back on the conventional wisdom for me. Where do sustainability and systems thinking intersect?"
+  },
+  {
+    "char_end": 2110,
+    "char_start": 1930,
+    "end": 96.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 90.0,
+    "text": "Let me give you the version I actually believe. Reliability and sustainability share more vocabulary than I used to admit. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 2184,
+    "char_start": 2116,
+    "end": 102.0,
+    "speaker_label": "Sam",
+    "start": 96.0,
+    "text": "Let's pivot \u2014 reliability is where I want to spend the last stretch."
+  },
+  {
+    "char_end": 2329,
+    "char_start": 2204,
+    "end": 108.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 102.0,
+    "text": "That's where the conversation gets interesting, because the trade-offs around reliability cross-cut everything we've covered."
+  },
+  {
+    "char_end": 2401,
+    "char_start": 2335,
+    "end": 114.0,
+    "speaker_label": "Sam",
+    "start": 108.0,
+    "text": "That's a useful framing. How does Bloomberg fit into this picture?"
+  },
+  {
+    "char_end": 2636,
+    "char_start": 2421,
+    "end": 120.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 114.0,
+    "text": "It comes down to this: Two years of systems-thinking work has made me more humble about leverage points. We've seen this play out at teams using IPCC. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 2740,
+    "char_start": 2642,
+    "end": 126.0,
+    "speaker_label": "Sam",
+    "start": 120.0,
+    "text": "Push back on the conventional wisdom for me. What's the most underrated piece of systems thinking?"
+  },
+  {
+    "char_end": 2940,
+    "char_start": 2760,
+    "end": 132.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 126.0,
+    "text": "Let me give you the version I actually believe. Reliability and sustainability share more vocabulary than I used to admit. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 3007,
+    "char_start": 2946,
+    "end": 138.0,
+    "speaker_label": "Sam",
+    "start": 132.0,
+    "text": "Before we wrap, what's one thing listeners can try this week?"
+  },
+  {
+    "char_end": 3108,
+    "char_start": 3027,
+    "end": 144.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 138.0,
+    "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
+  },
+  {
+    "char_end": 3286,
+    "char_start": 3114,
+    "end": 150.0,
+    "speaker_label": "Sam",
+    "start": 144.0,
+    "text": "And finally, a big thank you to our partners at Stripe. Stripe makes payments simple, whether you're running a marketplace or a subscription business. Check out stripe.com."
+  },
+  {
+    "char_end": 3333,
+    "char_start": 3286,
+    "end": 156.0,
+    "speaker_label": "Sam",
+    "start": 150.0,
+    "text": "Dr. Elena Fischer, thanks for the conversation."
+  },
+  {
+    "char_end": 3365,
+    "char_start": 3353,
+    "end": 162.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 156.0,
+    "text": "Thanks, Sam."
+  },
+  {
+    "char_end": 3434,
+    "char_start": 3371,
+    "end": 168.0,
+    "speaker_label": "Sam",
+    "start": 162.0,
+    "text": "That's it for today's episode of Cross-Show. See you next time."
+  }
+]

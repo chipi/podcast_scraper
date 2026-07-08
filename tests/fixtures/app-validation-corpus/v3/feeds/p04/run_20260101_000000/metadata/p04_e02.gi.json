@@ -1,0 +1,274 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-fb2bb5f0f4044f1d",
+      "to": "topic:visual-craft",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-fb2bb5f0f4044f1d",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-fb2bb5f0f4044f1d",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-fb2bb5f0f4044f1d",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-fb2bb5f0f4044f1d",
+      "to": "insight:25d37c9e4c351594",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-fb2bb5f0f4044f1d",
+      "to": "insight:28764c321ca4022e",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-fb2bb5f0f4044f1d",
+      "to": "insight:3aabb6d8787f9373",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:029339886a2dc5e0",
+      "to": "person:leo",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:25d37c9e4c351594",
+      "to": "quote:029339886a2dc5e0",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:7202ffabafd4777c",
+      "to": "person:tarek-hassan",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:28764c321ca4022e",
+      "to": "quote:7202ffabafd4777c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:d0b7843396548a26",
+      "to": "person:leo",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "quote:d0b7843396548a26",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:5fb8793d82edf4f2",
+      "to": "person:leo",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:25d37c9e4c351594",
+      "to": "quote:5fb8793d82edf4f2",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:45cbdce869fe2bb0",
+      "to": "person:tarek-hassan",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:28764c321ca4022e",
+      "to": "quote:45cbdce869fe2bb0",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f3aa5622f6cbd3b7",
+      "to": "person:leo",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "quote:f3aa5622f6cbd3b7",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "ep-fb2bb5f0f4044f1d",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-fb2bb5f0f4044f1d",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ep-fb2bb5f0f4044f1d",
+        "metadata_relative_path": "feeds/p04/run_20260101_000000/metadata/p04_e02.metadata.json",
+        "podcast_id": "p04",
+        "publish_date": "2024-10-04T12:00:00",
+        "title": "Documentary Workflow in the Field"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:visual-craft",
+      "properties": {
+        "label": "visual craft",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:25d37c9e4c351594",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Welcome back to Frame & Light. Today we're talking about documentary photography, and I'm joined by Tarek Hassan, documentary photographer. Tarek Hassan, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:28764c321ca4022e",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Before we get into it \u2014 Ava Lemoyne was on last week talking about strobe positioning underwater."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:3aabb6d8787f9373",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Yeah, exactly. And it ties into what we're covering today."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:leo",
+      "properties": {
+        "name": "Leo"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:029339886a2dc5e0",
+      "properties": {
+        "char_end": 181,
+        "char_start": 5,
+        "episode_id": "ep-fb2bb5f0f4044f1d",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Frame & Light. Today we're talking about documentary photography, and I'm joined by Tarek Hassan, documentary photographer. Tarek Hassan, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p04_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:tarek-hassan",
+      "properties": {
+        "name": "Tarek Hassan"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:7202ffabafd4777c",
+      "properties": {
+        "char_end": 226,
+        "char_start": 196,
+        "episode_id": "ep-fb2bb5f0f4044f1d",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Leo. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p04_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:d0b7843396548a26",
+      "properties": {
+        "char_end": 369,
+        "char_start": 232,
+        "episode_id": "ep-fb2bb5f0f4044f1d",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Adobe. Adobe Creative Cloud puts Lightroom, Photoshop, and Premiere on every device. Try adobe.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p04_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:5fb8793d82edf4f2",
+      "properties": {
+        "char_end": 466,
+        "char_start": 369,
+        "episode_id": "ep-fb2bb5f0f4044f1d",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Ava Lemoyne was on last week talking about strobe positioning underwater.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p04_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:45cbdce869fe2bb0",
+      "properties": {
+        "char_end": 539,
+        "char_start": 481,
+        "episode_id": "ep-fb2bb5f0f4044f1d",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, exactly. And it ties into what we're covering today.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p04_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:f3aa5622f6cbd3b7",
+      "properties": {
+        "char_end": 635,
+        "char_start": 545,
+        "episode_id": "ep-fb2bb5f0f4044f1d",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to flag something \u2014 Ava Lemoyne mentioned this same dynamic a couple episodes back.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p04_e02.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

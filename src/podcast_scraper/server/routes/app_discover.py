@@ -14,6 +14,7 @@ from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, Response
 
+from podcast_scraper.search.theme_clusters import top_theme_clusters_by_member_count
 from podcast_scraper.search.topic_clusters import top_clusters_by_member_count
 from podcast_scraper.server import (
     app_ranking_config_store,
@@ -22,6 +23,7 @@ from podcast_scraper.server import (
 )
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
 from podcast_scraper.server.app_discover_view import rank_discover
+from podcast_scraper.server.app_momentum import MomentumConfig, resolve_as_of_week, trending
 from podcast_scraper.server.app_ranking_config import (
     DEFAULT_RANKING_CONFIG,
     ranking_config_from_dict,
@@ -36,7 +38,20 @@ from podcast_scraper.server.schemas import (
     AppEpisodesResponse,
     AppInterestCluster,
     AppInterestClustersResponse,
+    AppStoryline,
+    AppStorylinesResponse,
+    AppTrendingEntity,
+    AppTrendingResponse,
 )
+
+# Every kind the momentum layer can rank (RFC-103). Namespaced ids per kind.
+_TRENDING_KINDS = ("topic", "cluster", "storyline", "person", "episode", "show", "insight")
+
+
+def _momentum_config(request: Request) -> MomentumConfig:
+    """Momentum config from ``app.state.momentum_config`` (dict), else the packaged defaults."""
+    return MomentumConfig.from_dict(getattr(request.app.state, "momentum_config", None))
+
 
 router = APIRouter(tags=["app"])
 
@@ -50,6 +65,59 @@ async def top_clusters(
     root = corpus_root_or_503(request)
     items = [AppInterestCluster(**c) for c in top_clusters_by_member_count(root, limit)]
     return AppInterestClustersResponse(items=items)
+
+
+@router.get("/theme-clusters", response_model=AppStorylinesResponse)
+async def top_storylines(
+    request: Request,
+    limit: int = Query(default=12, ge=1, le=50, description="Max storylines (by member count)."),
+) -> AppStorylinesResponse:
+    """Top storylines (theme clusters — topics discussed together) for the Home rail + picker.
+
+    Complementary to ``/clusters`` (semantic): these group co-occurring topics. Each is followable
+    as a ``thc:`` interest and carries an ``anchor_topic_id`` so the client can open a card that
+    shows the whole storyline. Empty (never 404) when the theme-cluster artifact is absent.
+    """
+    root = corpus_root_or_503(request)
+    items = [AppStoryline(**s) for s in top_theme_clusters_by_member_count(root, limit)]
+    return AppStorylinesResponse(items=items)
+
+
+@router.get("/trending", response_model=AppTrendingResponse)
+async def app_trending(
+    request: Request,
+    kind: str = Query(default="topic", description=f"One of {_TRENDING_KINDS}."),
+    scope: str = Query(default="corpus", description="corpus (all) | mine (per-user; needs auth)."),
+    limit: int = Query(default=12, ge=1, le=50),
+    user: User | None = Depends(get_optional_user),
+) -> AppTrendingResponse:
+    """Trending entities of ``kind`` — read-time momentum (velocity + volume) anchored to today.
+
+    Blends the corpus content series (mentions/appearances) with engagement (saves/plays/opens/
+    follows), per-kind. ``scope=mine`` ranks the signed-in user's own engagement; corpus otherwise.
+    """
+    if kind not in _TRENDING_KINDS:
+        raise HTTPException(status_code=400, detail=f"kind must be one of {_TRENDING_KINDS}.")
+    root = corpus_root_or_503(request)
+    raw_dir = getattr(request.app.state, "app_data_dir", None)
+    data_dir = Path(raw_dir) if raw_dir is not None else None
+    eff_scope = "mine" if (scope == "mine" and user is not None) else "corpus"
+    uid = user.user_id if (eff_scope == "mine" and user is not None) else None
+    rows = trending(
+        root,
+        data_dir,
+        kind=kind,
+        scope=eff_scope,
+        user_id=uid,
+        limit=limit,
+        config=_momentum_config(request),
+    )
+    return AppTrendingResponse(
+        kind=kind,
+        scope=eff_scope,
+        as_of_week=resolve_as_of_week(),
+        items=[AppTrendingEntity(**vars(r)) for r in rows],
+    )
 
 
 @router.get("/discover", response_model=AppEpisodesResponse)

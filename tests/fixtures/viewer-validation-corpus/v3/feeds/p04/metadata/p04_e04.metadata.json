@@ -1,0 +1,95 @@
+{
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": true,
+      "label": "technology",
+      "topic_cluster_compound_id": "tc:technology-cluster",
+      "topic_id": "topic:technology"
+    },
+    {
+      "in_topic_cluster": true,
+      "label": "gear",
+      "topic_cluster_compound_id": "tc:gear-cluster",
+      "topic_id": "topic:gear"
+    }
+  ],
+  "content": {
+    "diarization_num_speakers": 3,
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Leo",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Ava Lemoine",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p04_e04.txt",
+    "transcript_source": "synthetic"
+  },
+  "episode": {
+    "episode_id": "47fbed20-6172-5fec-a904-656de37b88ec",
+    "published_date": "2026-07-03",
+    "title": "Frame & Light \u2014 Episode 4"
+  },
+  "episode_id": "47fbed20-6172-5fec-a904-656de37b88ec",
+  "episode_title": "Frame & Light \u2014 Episode 4",
+  "feed": {
+    "description": "Photography conversations: craft, storytelling, workflow, and making images under real constraints.",
+    "feed_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
+    "title": "Frame & Light",
+    "url": "http://localhost/"
+  },
+  "feed_display_title": "Frame & Light",
+  "feed_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
+  "gi_relative_path": "feeds/p04/metadata/p04_e04.gi.json",
+  "grounded_insights": {
+    "artifact_path": "feeds/p04/metadata/p04_e04.gi.json",
+    "schema_version": "1.0"
+  },
+  "has_gi": true,
+  "has_kg": true,
+  "kg_relative_path": "feeds/p04/metadata/p04_e04.kg.json",
+  "knowledge_graph": {
+    "artifact_path": "feeds/p04/metadata/p04_e04.kg.json",
+    "schema_version": "1.1"
+  },
+  "publish_date": "2026-07-03",
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Today we're talking about roundtable photography, and I'm joined by Ava Lemoine, underwater photographer.",
+      "Ava Lemoine, thanks for being here.",
+      "Today's episode is sponsored by Adobe."
+    ],
+    "preview": "Today we're talking about roundtable photography, and I'm joined by Ava Lemoine, underwater photographer.",
+    "text": "Today we're talking about roundtable photography, and I'm joined by Ava Lemoine, underwater photographer.\nAva Lemoine, thanks for being here.\nToday's episode is sponsored by Adobe.",
+    "title": "Frame & Light \u2014 Episode 4 \u2014 synthetic"
+  },
+  "summary_bullet_graph_topic_ids": [
+    "topic:technology",
+    "topic:gear",
+    "topic:science-research"
+  ],
+  "summary_bullets": [
+    "Today we're talking about roundtable photography, and I'm joined by Ava Lemoine, underwater photographer.",
+    "Ava Lemoine, thanks for being here.",
+    "Today's episode is sponsored by Adobe."
+  ],
+  "summary_preview": "Today we're talking about roundtable photography, and I'm joined by Ava Lemoine, underwater photographer.",
+  "summary_text": "Today we're talking about roundtable photography, and I'm joined by Ava Lemoine, underwater photographer.\nAva Lemoine, thanks for being here.\nToday's episode is sponsored by Adobe.",
+  "summary_title": "Frame & Light \u2014 Episode 4 \u2014 synthetic",
+  "topics": [
+    "technology",
+    "gear",
+    "Science & research"
+  ]
+}

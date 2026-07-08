@@ -1,0 +1,892 @@
+{
+  "circuit_state": null,
+  "computed_at": "2026-01-01T00:00:00Z",
+  "data": {
+    "content_series": {
+      "persons": [
+        {
+          "person_id": "person:a-correspondent",
+          "person_label": "a correspondent",
+          "total": 4,
+          "weekly_counts": {
+            "2025-W11": 1,
+            "2025-W17": 1,
+            "2025-W36": 1,
+            "2026-W02": 1
+          }
+        },
+        {
+          "person_id": "person:alex-morgan",
+          "person_label": "alex morgan",
+          "total": 4,
+          "weekly_counts": {
+            "2025-W02": 1,
+            "2025-W15": 1,
+            "2025-W32": 1,
+            "2025-W52": 1
+          }
+        },
+        {
+          "person_id": "person:cam",
+          "person_label": "cam",
+          "total": 4,
+          "weekly_counts": {
+            "2024-W45": 1,
+            "2025-W12": 1,
+            "2025-W27": 1,
+            "2026-W02": 1
+          }
+        },
+        {
+          "person_id": "person:dr-elena-fischer",
+          "person_label": "dr elena fischer",
+          "total": 4,
+          "weekly_counts": {
+            "2025-W02": 1,
+            "2025-W20": 1,
+            "2025-W32": 1,
+            "2026-W29": 1
+          }
+        },
+        {
+          "person_id": "person:ethan",
+          "person_label": "ethan",
+          "total": 4,
+          "weekly_counts": {
+            "2024-W10": 1,
+            "2024-W16": 1,
+            "2024-W35": 1,
+            "2024-W52": 1
+          }
+        },
+        {
+          "person_id": "person:jordan-park",
+          "person_label": "jordan park",
+          "total": 4,
+          "weekly_counts": {
+            "2024-W45": 1,
+            "2025-W12": 1,
+            "2025-W27": 1,
+            "2026-W02": 1
+          }
+        },
+        {
+          "person_id": "person:leo",
+          "person_label": "leo",
+          "total": 4,
+          "weekly_counts": {
+            "2024-W27": 1,
+            "2024-W40": 1,
+            "2025-W05": 1,
+            "2025-W25": 1
+          }
+        },
+        {
+          "person_id": "person:maya",
+          "person_label": "maya",
+          "total": 4,
+          "weekly_counts": {
+            "2024-W01": 1,
+            "2024-W14": 1,
+            "2024-W31": 1,
+            "2024-W51": 1
+          }
+        },
+        {
+          "person_id": "person:nora",
+          "person_label": "nora",
+          "total": 4,
+          "weekly_counts": {
+            "2024-W36": 1,
+            "2024-W43": 1,
+            "2025-W09": 1,
+            "2025-W27": 1
+          }
+        },
+        {
+          "person_id": "person:rina",
+          "person_label": "rina",
+          "total": 4,
+          "weekly_counts": {
+            "2024-W18": 1,
+            "2024-W37": 1,
+            "2025-W01": 1,
+            "2025-W28": 1
+          }
+        },
+        {
+          "person_id": "person:sam",
+          "person_label": "sam",
+          "total": 4,
+          "weekly_counts": {
+            "2025-W20": 1,
+            "2025-W38": 1,
+            "2026-W02": 1,
+            "2026-W29": 1
+          }
+        },
+        {
+          "person_id": "person:priya-nair",
+          "person_label": "priya nair",
+          "total": 3,
+          "weekly_counts": {
+            "2024-W10": 1,
+            "2024-W35": 1,
+            "2024-W52": 1
+          }
+        },
+        {
+          "person_id": "person:renee-montagne-park",
+          "person_label": "renee montagne park",
+          "total": 3,
+          "weekly_counts": {
+            "2025-W11": 1,
+            "2025-W36": 1,
+            "2026-W02": 1
+          }
+        },
+        {
+          "person_id": "person:ava-lemoine",
+          "person_label": "ava lemoine",
+          "total": 2,
+          "weekly_counts": {
+            "2024-W27": 1,
+            "2025-W25": 1
+          }
+        },
+        {
+          "person_id": "person:daniel-cho",
+          "person_label": "daniel cho",
+          "total": 2,
+          "weekly_counts": {
+            "2024-W36": 1,
+            "2025-W27": 1
+          }
+        },
+        {
+          "person_id": "person:skanda-amarnath",
+          "person_label": "skanda amarnath",
+          "total": 2,
+          "weekly_counts": {
+            "2025-W52": 1,
+            "2026-W02": 1
+          }
+        },
+        {
+          "person_id": "person:daniel-olufemi",
+          "person_label": "daniel olufemi",
+          "total": 1,
+          "weekly_counts": {
+            "2025-W05": 1
+          }
+        },
+        {
+          "person_id": "person:hanna-crebo-rediker",
+          "person_label": "hanna crebo rediker",
+          "total": 1,
+          "weekly_counts": {
+            "2024-W37": 1
+          }
+        },
+        {
+          "person_id": "person:hanna-krebohticker",
+          "person_label": "hanna krebohticker",
+          "total": 1,
+          "weekly_counts": {
+            "2025-W01": 1
+          }
+        },
+        {
+          "person_id": "person:joll-wisenthal",
+          "person_label": "joll wisenthal",
+          "total": 1,
+          "weekly_counts": {
+            "2024-W16": 1
+          }
+        },
+        {
+          "person_id": "person:liam-verbeek",
+          "person_label": "liam verbeek",
+          "total": 1,
+          "weekly_counts": {
+            "2024-W01": 1
+          }
+        },
+        {
+          "person_id": "person:marco-silva",
+          "person_label": "marco silva",
+          "total": 1,
+          "weekly_counts": {
+            "2025-W28": 1
+          }
+        },
+        {
+          "person_id": "person:marco-sylva",
+          "person_label": "marco sylva",
+          "total": 1,
+          "weekly_counts": {
+            "2024-W18": 1
+          }
+        },
+        {
+          "person_id": "person:noah-bryer",
+          "person_label": "noah bryer",
+          "total": 1,
+          "weekly_counts": {
+            "2024-W31": 1
+          }
+        },
+        {
+          "person_id": "person:renee-montague-park",
+          "person_label": "renee montague park",
+          "total": 1,
+          "weekly_counts": {
+            "2025-W17": 1
+          }
+        },
+        {
+          "person_id": "person:rich-clarida",
+          "person_label": "rich clarida",
+          "total": 1,
+          "weekly_counts": {
+            "2024-W43": 1
+          }
+        },
+        {
+          "person_id": "person:scott-bessent",
+          "person_label": "scott bessent",
+          "total": 1,
+          "weekly_counts": {
+            "2025-W27": 1
+          }
+        },
+        {
+          "person_id": "person:scott-bessett",
+          "person_label": "scott bessett",
+          "total": 1,
+          "weekly_counts": {
+            "2025-W09": 1
+          }
+        },
+        {
+          "person_id": "person:skanda-amarnauth",
+          "person_label": "skanda amarnauth",
+          "total": 1,
+          "weekly_counts": {
+            "2025-W38": 1
+          }
+        },
+        {
+          "person_id": "person:skanda-eminas",
+          "person_label": "skanda eminas",
+          "total": 1,
+          "weekly_counts": {
+            "2025-W15": 1
+          }
+        },
+        {
+          "person_id": "person:sophie-laurent",
+          "person_label": "sophie laurent",
+          "total": 1,
+          "weekly_counts": {
+            "2024-W51": 1
+          }
+        },
+        {
+          "person_id": "person:sophie-lorenz",
+          "person_label": "sophie lorenz",
+          "total": 1,
+          "weekly_counts": {
+            "2024-W14": 1
+          }
+        },
+        {
+          "person_id": "person:tarek-hassan",
+          "person_label": "tarek hassan",
+          "total": 1,
+          "weekly_counts": {
+            "2024-W40": 1
+          }
+        }
+      ],
+      "topics": [
+        {
+          "topic_id": "topic:expert-interviews",
+          "topic_label": "expert interviews",
+          "total": 36,
+          "weekly_counts": {
+            "2024-W01": 1,
+            "2024-W10": 1,
+            "2024-W14": 1,
+            "2024-W16": 1,
+            "2024-W18": 1,
+            "2024-W27": 1,
+            "2024-W31": 1,
+            "2024-W35": 1,
+            "2024-W36": 1,
+            "2024-W37": 1,
+            "2024-W40": 1,
+            "2024-W43": 1,
+            "2024-W45": 1,
+            "2024-W51": 1,
+            "2024-W52": 1,
+            "2025-W01": 1,
+            "2025-W02": 1,
+            "2025-W05": 1,
+            "2025-W09": 1,
+            "2025-W11": 1,
+            "2025-W12": 1,
+            "2025-W15": 1,
+            "2025-W17": 1,
+            "2025-W20": 1,
+            "2025-W25": 1,
+            "2025-W27": 2,
+            "2025-W28": 1,
+            "2025-W32": 1,
+            "2025-W36": 1,
+            "2025-W38": 1,
+            "2025-W52": 1,
+            "2026-W02": 3,
+            "2026-W29": 1
+          }
+        },
+        {
+          "topic_id": "topic:lifelong-learning",
+          "topic_label": "lifelong learning",
+          "total": 36,
+          "weekly_counts": {
+            "2024-W01": 1,
+            "2024-W10": 1,
+            "2024-W14": 1,
+            "2024-W16": 1,
+            "2024-W18": 1,
+            "2024-W27": 1,
+            "2024-W31": 1,
+            "2024-W35": 1,
+            "2024-W36": 1,
+            "2024-W37": 1,
+            "2024-W40": 1,
+            "2024-W43": 1,
+            "2024-W45": 1,
+            "2024-W51": 1,
+            "2024-W52": 1,
+            "2025-W01": 1,
+            "2025-W02": 1,
+            "2025-W05": 1,
+            "2025-W09": 1,
+            "2025-W11": 1,
+            "2025-W12": 1,
+            "2025-W15": 1,
+            "2025-W17": 1,
+            "2025-W20": 1,
+            "2025-W25": 1,
+            "2025-W27": 2,
+            "2025-W28": 1,
+            "2025-W32": 1,
+            "2025-W36": 1,
+            "2025-W38": 1,
+            "2025-W52": 1,
+            "2026-W02": 3,
+            "2026-W29": 1
+          }
+        },
+        {
+          "topic_id": "topic:risk-management",
+          "topic_label": "risk management",
+          "total": 28,
+          "weekly_counts": {
+            "2024-W01": 1,
+            "2024-W10": 1,
+            "2024-W14": 1,
+            "2024-W16": 1,
+            "2024-W18": 1,
+            "2024-W31": 1,
+            "2024-W35": 1,
+            "2024-W36": 1,
+            "2024-W37": 1,
+            "2024-W43": 1,
+            "2024-W51": 1,
+            "2024-W52": 1,
+            "2025-W01": 1,
+            "2025-W02": 1,
+            "2025-W09": 1,
+            "2025-W11": 1,
+            "2025-W15": 1,
+            "2025-W17": 1,
+            "2025-W20": 1,
+            "2025-W27": 1,
+            "2025-W28": 1,
+            "2025-W32": 1,
+            "2025-W36": 1,
+            "2025-W38": 1,
+            "2025-W52": 1,
+            "2026-W02": 2,
+            "2026-W29": 1
+          }
+        },
+        {
+          "topic_id": "topic:systems-thinking",
+          "topic_label": "systems thinking",
+          "total": 20,
+          "weekly_counts": {
+            "2024-W10": 1,
+            "2024-W16": 1,
+            "2024-W27": 1,
+            "2024-W35": 1,
+            "2024-W40": 1,
+            "2024-W45": 1,
+            "2024-W52": 1,
+            "2025-W02": 1,
+            "2025-W05": 1,
+            "2025-W12": 1,
+            "2025-W15": 1,
+            "2025-W20": 1,
+            "2025-W25": 1,
+            "2025-W27": 1,
+            "2025-W32": 1,
+            "2025-W38": 1,
+            "2025-W52": 1,
+            "2026-W02": 2,
+            "2026-W29": 1
+          }
+        },
+        {
+          "topic_id": "topic:endurance-sport",
+          "topic_label": "endurance sport",
+          "total": 4,
+          "weekly_counts": {
+            "2024-W01": 1,
+            "2024-W14": 1,
+            "2024-W31": 1,
+            "2024-W51": 1
+          }
+        },
+        {
+          "topic_id": "topic:long-form",
+          "topic_label": "long form",
+          "total": 4,
+          "weekly_counts": {
+            "2024-W45": 1,
+            "2025-W12": 1,
+            "2025-W27": 1,
+            "2026-W02": 1
+          }
+        },
+        {
+          "topic_id": "topic:personal-finance",
+          "topic_label": "personal finance",
+          "total": 4,
+          "weekly_counts": {
+            "2024-W36": 1,
+            "2024-W43": 1,
+            "2025-W09": 1,
+            "2025-W27": 1
+          }
+        },
+        {
+          "topic_id": "topic:public-radio",
+          "topic_label": "public radio",
+          "total": 4,
+          "weekly_counts": {
+            "2025-W11": 1,
+            "2025-W17": 1,
+            "2025-W36": 1,
+            "2026-W02": 1
+          }
+        },
+        {
+          "topic_id": "topic:safety-practices",
+          "topic_label": "safety practices",
+          "total": 4,
+          "weekly_counts": {
+            "2024-W18": 1,
+            "2024-W37": 1,
+            "2025-W01": 1,
+            "2025-W28": 1
+          }
+        },
+        {
+          "topic_id": "topic:visual-craft",
+          "topic_label": "visual craft",
+          "total": 4,
+          "weekly_counts": {
+            "2024-W27": 1,
+            "2024-W40": 1,
+            "2025-W05": 1,
+            "2025-W25": 1
+          }
+        }
+      ],
+      "window_weeks": [
+        "2024-W01",
+        "2024-W10",
+        "2024-W14",
+        "2024-W16",
+        "2024-W18",
+        "2024-W27",
+        "2024-W31",
+        "2024-W35",
+        "2024-W36",
+        "2024-W37",
+        "2024-W40",
+        "2024-W43",
+        "2024-W45",
+        "2024-W51",
+        "2024-W52",
+        "2025-W01",
+        "2025-W02",
+        "2025-W05",
+        "2025-W09",
+        "2025-W11",
+        "2025-W12",
+        "2025-W15",
+        "2025-W17",
+        "2025-W20",
+        "2025-W25",
+        "2025-W27",
+        "2025-W28",
+        "2025-W32",
+        "2025-W36",
+        "2025-W38",
+        "2025-W52",
+        "2026-W02",
+        "2026-W29"
+      ]
+    },
+    "topics": [
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 1,
+          "2024-04": 1,
+          "2024-05": 0,
+          "2024-07": 1,
+          "2024-08": 1,
+          "2024-09": 0,
+          "2024-10": 1,
+          "2024-11": 1,
+          "2024-12": 1,
+          "2025-01": 1,
+          "2025-02": 1,
+          "2025-03": 1,
+          "2025-04": 1,
+          "2025-05": 1,
+          "2025-06": 1,
+          "2025-07": 1,
+          "2025-08": 1,
+          "2025-09": 1,
+          "2025-12": 1,
+          "2026-01": 2,
+          "2026-07": 1
+        },
+        "topic_id": "topic:systems-thinking",
+        "topic_label": "systems thinking",
+        "total": 20,
+        "velocity_last_over_6mo": 0.8571
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 1,
+          "2024-03": 1,
+          "2024-04": 2,
+          "2024-05": 1,
+          "2024-07": 1,
+          "2024-08": 1,
+          "2024-09": 2,
+          "2024-10": 1,
+          "2024-11": 0,
+          "2024-12": 3,
+          "2025-01": 1,
+          "2025-02": 1,
+          "2025-03": 1,
+          "2025-04": 2,
+          "2025-05": 1,
+          "2025-06": 0,
+          "2025-07": 2,
+          "2025-08": 1,
+          "2025-09": 2,
+          "2025-12": 1,
+          "2026-01": 2,
+          "2026-07": 1
+        },
+        "topic_id": "topic:risk-management",
+        "topic_label": "risk management",
+        "total": 28,
+        "velocity_last_over_6mo": 0.6667
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 1,
+          "2024-03": 1,
+          "2024-04": 2,
+          "2024-05": 1,
+          "2024-07": 2,
+          "2024-08": 1,
+          "2024-09": 2,
+          "2024-10": 2,
+          "2024-11": 1,
+          "2024-12": 3,
+          "2025-01": 1,
+          "2025-02": 2,
+          "2025-03": 2,
+          "2025-04": 2,
+          "2025-05": 1,
+          "2025-06": 1,
+          "2025-07": 3,
+          "2025-08": 1,
+          "2025-09": 2,
+          "2025-12": 1,
+          "2026-01": 3,
+          "2026-07": 1
+        },
+        "topic_id": "topic:expert-interviews",
+        "topic_label": "expert interviews",
+        "total": 36,
+        "velocity_last_over_6mo": 0.5455
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 1,
+          "2024-03": 1,
+          "2024-04": 2,
+          "2024-05": 1,
+          "2024-07": 2,
+          "2024-08": 1,
+          "2024-09": 2,
+          "2024-10": 2,
+          "2024-11": 1,
+          "2024-12": 3,
+          "2025-01": 1,
+          "2025-02": 2,
+          "2025-03": 2,
+          "2025-04": 2,
+          "2025-05": 1,
+          "2025-06": 1,
+          "2025-07": 3,
+          "2025-08": 1,
+          "2025-09": 2,
+          "2025-12": 1,
+          "2026-01": 3,
+          "2026-07": 1
+        },
+        "topic_id": "topic:lifelong-learning",
+        "topic_label": "lifelong learning",
+        "total": 36,
+        "velocity_last_over_6mo": 0.5455
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 1,
+          "2024-03": 0,
+          "2024-04": 1,
+          "2024-05": 0,
+          "2024-07": 1,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 1,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:endurance-sport",
+        "topic_label": "endurance sport",
+        "total": 4,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 1,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 1,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 1,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 1,
+          "2026-07": 0
+        },
+        "topic_id": "topic:long-form",
+        "topic_label": "long form",
+        "total": 4,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 1,
+          "2024-10": 1,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 1,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 1,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:personal-finance",
+        "topic_label": "personal finance",
+        "total": 4,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 1,
+          "2025-04": 1,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 1,
+          "2025-12": 0,
+          "2026-01": 1,
+          "2026-07": 0
+        },
+        "topic_id": "topic:public-radio",
+        "topic_label": "public radio",
+        "total": 4,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 1,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 1,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 1,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 1,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:safety-practices",
+        "topic_label": "safety practices",
+        "total": 4,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 1,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 1,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 1,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 1,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:visual-craft",
+        "topic_label": "visual craft",
+        "total": 4,
+        "velocity_last_over_6mo": 0.0
+      }
+    ],
+    "window_months": [
+      "2024-01",
+      "2024-03",
+      "2024-04",
+      "2024-05",
+      "2024-07",
+      "2024-08",
+      "2024-09",
+      "2024-10",
+      "2024-11",
+      "2024-12",
+      "2025-01",
+      "2025-02",
+      "2025-03",
+      "2025-04",
+      "2025-05",
+      "2025-06",
+      "2025-07",
+      "2025-08",
+      "2025-09",
+      "2025-12",
+      "2026-01",
+      "2026-07"
+    ]
+  },
+  "duration_ms": 0,
+  "enricher_id": "temporal_velocity",
+  "enricher_version": "1.0",
+  "error": null,
+  "error_class": null,
+  "records_written": 22,
+  "retry_count": 0,
+  "schema_version": "1.0",
+  "status": "ok"
+}

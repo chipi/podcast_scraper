@@ -87,8 +87,9 @@ and [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md).
 `make test-ui` / `make test-ui-e2e` run from the root. See
 [Polyglot repository guide](POLYGLOT_REPO_GUIDE.md).
 
-**E2E surface map:** [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) lists
-viewer surfaces, entry paths, and stable selectors. Use it when **debugging** Playwright failures,
+**E2E surface maps:** the operator viewer's [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
+and the consumer player's [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/learning-player/e2e/E2E_SURFACE_MAP.md) list
+each app's surfaces, entry paths, and stable selectors. Use them when **debugging** Playwright failures,
 manual repros, or **agent-driven** browser tools (same a11y vocabulary as the tests). **Whenever you change viewer UX** (labels,
 layout, routes, tokens, a11y names, or E2E flows), update artifacts in this order: **(1)** the
 surface map, **(2)** `e2e/*.spec.ts` / `helpers.ts` / `fixtures.ts` and run **`make test-ui-e2e`**,

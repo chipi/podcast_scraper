@@ -1,0 +1,349 @@
+{
+  "edges": [
+    {
+      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "to": "topic:outdoor-activities",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "to": "topic:gear",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "to": "topic:science-research",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "to": "insight:9e81c80cb0d583e7",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "to": "insight:6a337835e5094de9",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "to": "insight:f247d55c98c9b199",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:73daf6464cff7348",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:9e81c80cb0d583e7",
+      "to": "quote:73daf6464cff7348",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f6fc35aad65210f8",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:6a337835e5094de9",
+      "to": "quote:f6fc35aad65210f8",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:c7adee17351c9f53",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:f247d55c98c9b199",
+      "to": "quote:c7adee17351c9f53",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:b361c4a0b17bab22",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:9e81c80cb0d583e7",
+      "to": "quote:b361c4a0b17bab22",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:c842e5fe8b174fe5",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:6a337835e5094de9",
+      "to": "quote:c842e5fe8b174fe5",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:e88d783dcfed1867",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:f247d55c98c9b199",
+      "to": "quote:e88d783dcfed1867",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:9e81c80cb0d583e7",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:6a337835e5094de9",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9e81c80cb0d583e7",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9e81c80cb0d583e7",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9e81c80cb0d583e7",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6a337835e5094de9",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6a337835e5094de9",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6a337835e5094de9",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:f247d55c98c9b199",
+      "to": "topic:outdoor-activities",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:f247d55c98c9b199",
+      "to": "topic:gear",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:f247d55c98c9b199",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    }
+  ],
+  "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+        "metadata_relative_path": "feeds/p01/metadata/p01_e01.metadata.json",
+        "podcast_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+        "publish_date": "2026-07-06T12:00:00",
+        "title": "Singletrack Sessions — Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:outdoor-activities",
+      "properties": {
+        "label": "outdoor activities",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:gear",
+      "properties": {
+        "label": "gear",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:9e81c80cb0d583e7",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we're talking about trail building, and I'm joined by Liam Verbeek, trail builder for the Cascadia Alliance.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:6a337835e5094de9",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Liam Verbeek, thanks for being here.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:f247d55c98c9b199",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Excited for this one — trail building is something I've been thinking about a lot.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Maya"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:73daf6464cff7348",
+      "properties": {
+        "char_end": 195,
+        "char_start": 6,
+        "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Singletrack Sessions. Today we're talking about trail building, and I'm joined by Liam Verbeek, trail builder for the Cascadia Alliance. Liam Verbeek, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p01_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Liam Verbeek"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:f6fc35aad65210f8",
+      "properties": {
+        "char_end": 306,
+        "char_start": 210,
+        "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Maya. Excited for this one — trail building is something I've been thinking about a lot.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p01_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:c7adee17351c9f53",
+      "properties": {
+        "char_end": 422,
+        "char_start": 313,
+        "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Strava. Strava is the home for athletes. Get started at strava.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p01_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:b361c4a0b17bab22",
+      "properties": {
+        "char_end": 492,
+        "char_start": 422,
+        "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+        "speaker_id": "person:speaker-01",
+        "text": "Take me through the decision. How does RockShox fit into this picture?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p01_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:c842e5fe8b174fe5",
+      "properties": {
+        "char_end": 704,
+        "char_start": 507,
+        "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+        "speaker_id": "person:speaker-02",
+        "text": "Honestly, Drainage is the single highest-leverage design choice on any trail. We've seen this play out at teams using Cascadia Alliance. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p01_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:e88d783dcfed1867",
+      "properties": {
+        "char_end": 798,
+        "char_start": 711,
+        "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+        "speaker_id": "person:speaker-01",
+        "text": "Take me through the decision. What's the version of the question that actually matters?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p01_e01.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.0"
+}

@@ -1,0 +1,359 @@
+{
+  "edges": [
+    {
+      "from": "episode:32b9679a-1a2d-5cce-b673-b489694ef798",
+      "to": "topic:environment",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:32b9679a-1a2d-5cce-b673-b489694ef798",
+      "to": "topic:health",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:32b9679a-1a2d-5cce-b673-b489694ef798",
+      "to": "topic:science-research",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:32b9679a-1a2d-5cce-b673-b489694ef798",
+      "to": "insight:5e9ea66eb030430e",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:32b9679a-1a2d-5cce-b673-b489694ef798",
+      "to": "insight:388dd49bfe0587ce",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:32b9679a-1a2d-5cce-b673-b489694ef798",
+      "to": "insight:2bb9024a4ce54490",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:66da6d012bb305a9",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:5e9ea66eb030430e",
+      "to": "quote:66da6d012bb305a9",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:3612d89c17b0c2ec",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:388dd49bfe0587ce",
+      "to": "quote:3612d89c17b0c2ec",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:60d3f3f06f703039",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:2bb9024a4ce54490",
+      "to": "quote:60d3f3f06f703039",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:70e2fb8a138bd5e6",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:5e9ea66eb030430e",
+      "to": "quote:70e2fb8a138bd5e6",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:0bd8a63391d40d60",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:388dd49bfe0587ce",
+      "to": "quote:0bd8a63391d40d60",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:92fbb6f381c6f29d",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:2bb9024a4ce54490",
+      "to": "quote:92fbb6f381c6f29d",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:5e9ea66eb030430e",
+      "to": "person:speaker-01"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:5e9ea66eb030430e",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:388dd49bfe0587ce",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:2bb9024a4ce54490",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:5e9ea66eb030430e",
+      "to": "topic:environment",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:5e9ea66eb030430e",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:5e9ea66eb030430e",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:388dd49bfe0587ce",
+      "to": "topic:environment",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:388dd49bfe0587ce",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:388dd49bfe0587ce",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2bb9024a4ce54490",
+      "to": "topic:environment",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2bb9024a4ce54490",
+      "to": "topic:health",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2bb9024a4ce54490",
+      "to": "topic:science-research",
+      "properties": {
+        "confidence": 0.5
+      }
+    }
+  ],
+  "episode_id": "32b9679a-1a2d-5cce-b673-b489694ef798",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:32b9679a-1a2d-5cce-b673-b489694ef798",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "32b9679a-1a2d-5cce-b673-b489694ef798",
+        "metadata_relative_path": "feeds/p07/metadata/p07_e04.metadata.json",
+        "podcast_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
+        "publish_date": "2026-07-06T12:00:00",
+        "title": "The Long View — Episode 4"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:environment",
+      "properties": {
+        "label": "environment",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:health",
+      "properties": {
+        "label": "health",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:5e9ea66eb030430e",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# The Long View — Sustainability — Episode\n## Macro as Risk Management\nHost: Alex Morgan\nGuest: Skanda Amarnath\n#fixture-v3: voice=en-IN host_voice=en-AU\nAlex Morgan: Welcome back to The Long View.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:388dd49bfe0587ce",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "I'm joined by Skanda Amarnath, who reads the macroeconomy for a living.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:2bb9024a4ce54490",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Skanda Amarnath: Thanks, Alex.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Alex Morgan"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:66da6d012bb305a9",
+      "properties": {
+        "char_end": 141,
+        "char_start": 13,
+        "episode_id": "32b9679a-1a2d-5cce-b673-b489694ef798",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to The Long View. I'm joined by Skanda Amarnath, who reads the macroeconomy for a living. Skanda, good to have you.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p07_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Skanda Amarnath"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:3612d89c17b0c2ec",
+      "properties": {
+        "char_end": 172,
+        "char_start": 159,
+        "episode_id": "32b9679a-1a2d-5cce-b673-b489694ef798",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Alex.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p07_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:60d3f3f06f703039",
+      "properties": {
+        "char_end": 318,
+        "char_start": 186,
+        "episode_id": "32b9679a-1a2d-5cce-b673-b489694ef798",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Bloomberg. Bloomberg Terminal is the data spine institutional desks run on. Try bloomberg.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p07_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:70e2fb8a138bd5e6",
+      "properties": {
+        "char_end": 369,
+        "char_start": 318,
+        "episode_id": "32b9679a-1a2d-5cce-b673-b489694ef798",
+        "speaker_id": "person:speaker-01",
+        "text": "You describe macro as risk management. Unpack that.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p07_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:0bd8a63391d40d60",
+      "properties": {
+        "char_end": 592,
+        "char_start": 387,
+        "episode_id": "32b9679a-1a2d-5cce-b673-b489694ef798",
+        "speaker_id": "person:speaker-02",
+        "text": "Macro is risk management at scale. The job is mostly not being on the wrong side of a regime change — and the regime change you can name in advance is the one you can position for. The rest is just hoping.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p07_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:92fbb6f381c6f29d",
+      "properties": {
+        "char_end": 798,
+        "char_start": 592,
+        "episode_id": "32b9679a-1a2d-5cce-b673-b489694ef798",
+        "speaker_id": "person:speaker-02",
+        "text": "And the economy is a system, not a set of levers. Pull one and three others move. When we back-tested the calls, the misses were always someone treating a correlated system as if the parts were independent.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p07_e04.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.0"
+}

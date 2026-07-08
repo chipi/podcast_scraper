@@ -31,6 +31,69 @@ export interface CilTopicTimelineMergedResponse {
   episodes: CilArcEpisodeBlock[]
 }
 
+/** One ISO-week bucket of a topic's conversation (volume + sentiment mix). */
+export interface CilTopicConversationArcWeek {
+  week: string
+  volume: number
+  negative: number
+  neutral: number
+  positive: number
+  avg_compound: number
+}
+
+/** Response for GET /api/topics/{id}/conversation-arc — the aggregate-first arc overview. */
+export interface CilTopicConversationArcResponse {
+  path: string
+  topic_id: string
+  weeks: CilTopicConversationArcWeek[]
+}
+
+/** Per-insight sentiment tag joined onto timeline / position-arc insight nodes. */
+export interface CilInsightSentiment {
+  compound: number
+  label: 'negative' | 'neutral' | 'positive'
+}
+
+/** Response for GET /api/persons/{id}/positions — a person's insights on a topic over time. */
+export interface CilPositionArcResponse {
+  path: string
+  person_id: string
+  topic_id: string
+  episodes: CilArcEpisodeBlock[]
+}
+
+/**
+ * Fetch a person's position arc (their insights on a topic across episodes). The insights now carry
+ * `sentiment`, so the per-person timeline can tint each card. `insightTypes: 'all'` returns every type.
+ */
+export async function fetchPersonPositions(
+  corpusPath: string,
+  personId: string,
+  topicId: string,
+  opts?: { insightTypes?: string | null },
+): Promise<CilPositionArcResponse> {
+  const root = corpusPath.trim()
+  const pid = personId.trim()
+  const tid = topicId.trim()
+  if (!root) {
+    throw new Error('Corpus path is required')
+  }
+  if (!pid || !tid) {
+    throw new Error('Person id and topic id are required')
+  }
+  const q = new URLSearchParams({ path: root, topic: tid })
+  const it = opts?.insightTypes?.trim()
+  if (it) {
+    q.set('insight_types', it)
+  }
+  const res = await fetchWithTimeout(`/api/persons/${encodeURIComponent(pid)}/positions?${q.toString()}`)
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(detail.trim() || `HTTP ${res.status}`)
+  }
+  return (await res.json()) as CilPositionArcResponse
+}
+
 export interface CilIdListResponse {
   path: string
   anchor_id: string
@@ -103,6 +166,104 @@ export async function fetchTopicTimeline(
     throw new Error(detail.trim() || `HTTP ${res.status}`)
   }
   return (await res.json()) as CilTopicTimelineResponse
+}
+
+/**
+ * Fetch a topic's conversation arc — weekly volume × sentiment mix. The aggregate-first
+ * overview so a big topic (1000s of insights) renders as a compact time-shape, not a flat list.
+ */
+export async function fetchTopicConversationArc(
+  corpusPath: string,
+  topicId: string,
+  opts?: { insightTypes?: string | null },
+): Promise<CilTopicConversationArcResponse> {
+  const root = corpusPath.trim()
+  const tid = topicId.trim()
+  if (!root) {
+    throw new Error('Corpus path is required')
+  }
+  if (!tid) {
+    throw new Error('Topic id is required')
+  }
+  const enc = encodeURIComponent(tid)
+  const q = new URLSearchParams({ path: root })
+  const it = opts?.insightTypes?.trim()
+  if (it) {
+    q.set('insight_types', it)
+  }
+  const res = await fetchWithTimeout(`/api/topics/${enc}/conversation-arc?${q.toString()}`)
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(detail.trim() || `HTTP ${res.status}`)
+  }
+  return (await res.json()) as CilTopicConversationArcResponse
+}
+
+export interface CilTopicPerspective {
+  person_id: string
+  person_name: string
+  insight_count: number
+  episode_count: number
+  insights: Array<Record<string, unknown>>
+}
+
+export interface CilTopicPerspectivesResponse {
+  path: string
+  topic_id: string
+  perspectives: CilTopicPerspective[]
+}
+
+/** Each speaker's grounded insights on a topic, grouped by speaker (#1146). */
+export async function fetchTopicPerspectives(
+  corpusPath: string,
+  topicId: string,
+): Promise<CilTopicPerspectivesResponse> {
+  const root = corpusPath.trim()
+  const tid = topicId.trim()
+  if (!root) {
+    throw new Error('Corpus path is required')
+  }
+  if (!tid) {
+    throw new Error('Topic id is required')
+  }
+  const enc = encodeURIComponent(tid)
+  const q = new URLSearchParams({ path: root })
+  const res = await fetchWithTimeout(`/api/topics/${enc}/perspectives?${q.toString()}`)
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(detail.trim() || `HTTP ${res.status}`)
+  }
+  return (await res.json()) as CilTopicPerspectivesResponse
+}
+
+export interface CilTopicPerspectiveLeader {
+  topic_id: string
+  topic_label: string
+  speaker_count: number
+  insight_count: number
+}
+
+export interface CilTopicPerspectiveLeadersResponse {
+  path: string
+  topics: CilTopicPerspectiveLeader[]
+}
+
+/** Topics ranked by distinct-speaker perspectives, corpus-wide (#1146 dashboard). */
+export async function fetchTopicPerspectiveLeaders(
+  corpusPath: string,
+  limit = 12,
+): Promise<CilTopicPerspectiveLeadersResponse> {
+  const root = corpusPath.trim()
+  if (!root) {
+    throw new Error('Corpus path is required')
+  }
+  const q = new URLSearchParams({ path: root, limit: String(limit) })
+  const res = await fetchWithTimeout(`/api/topics/perspective-leaders?${q.toString()}`)
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(detail.trim() || `HTTP ${res.status}`)
+  }
+  return (await res.json()) as CilTopicPerspectiveLeadersResponse
 }
 
 export async function fetchTopicTimelineMerged(

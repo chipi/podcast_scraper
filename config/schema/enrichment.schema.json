@@ -54,7 +54,7 @@
                 "properties": {
                   "type": {
                     "type": "string",
-                    "description": "Provider-type registry key (e.g. `sentence_transformer_local`, `deberta_local`, `fake_for_test`, `fixed_scripted`)."
+                    "description": "Provider-type registry key (e.g. `sentence_transformer_local`, `deberta_local`, `consensus_local`, `fake_for_test`, `fixed_scripted`, `fixed_consensus`)."
                   }
                 },
                 "additionalProperties": true

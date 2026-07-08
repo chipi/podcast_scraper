@@ -1,0 +1,274 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-4a1a673a7005a6b5",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-4a1a673a7005a6b5",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-4a1a673a7005a6b5",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-4a1a673a7005a6b5",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-4a1a673a7005a6b5",
+      "to": "insight:dff2b7b8b5c7fadc",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-4a1a673a7005a6b5",
+      "to": "insight:c3641325c5f58acd",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-4a1a673a7005a6b5",
+      "to": "insight:7d5cfd740812ebf7",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:7631bc23e4c7df82",
+      "to": "person:ethan",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:dff2b7b8b5c7fadc",
+      "to": "quote:7631bc23e4c7df82",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:a328c706a32f4c6b",
+      "to": "person:priya-nair",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:c3641325c5f58acd",
+      "to": "quote:a328c706a32f4c6b",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:5928c440c18a20d9",
+      "to": "person:ethan",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:7d5cfd740812ebf7",
+      "to": "quote:5928c440c18a20d9",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:84b6b39b57f8734f",
+      "to": "person:priya-nair",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:dff2b7b8b5c7fadc",
+      "to": "quote:84b6b39b57f8734f",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:44f7ac8de96626fc",
+      "to": "person:ethan",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:c3641325c5f58acd",
+      "to": "quote:44f7ac8de96626fc",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:0add46826b9a2c91",
+      "to": "person:ethan",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:7d5cfd740812ebf7",
+      "to": "quote:0add46826b9a2c91",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "ep-4a1a673a7005a6b5",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-4a1a673a7005a6b5",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ep-4a1a673a7005a6b5",
+        "metadata_relative_path": "feeds/p02/run_20260101_000000/metadata/p02_e01.metadata.json",
+        "podcast_id": "p02",
+        "publish_date": "2024-03-04T12:00:00",
+        "title": "On-Call That Doesn't Break People"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:dff2b7b8b5c7fadc",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Welcome back to Practical Systems. Today we're talking about on call rotation, and I'm joined by Priya Nair, principal SRE at a payments platform. Priya Nair, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:c3641325c5f58acd",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Thanks, Ethan. Excited for this one \u2014 incident response and on-call design is something I've been thinking about a lot."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:7d5cfd740812ebf7",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "I'm a believer in centralizing the security function. One team, one source of truth, one neck to wring."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:ethan",
+      "properties": {
+        "name": "Ethan"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:7631bc23e4c7df82",
+      "properties": {
+        "char_end": 188,
+        "char_start": 7,
+        "episode_id": "ep-4a1a673a7005a6b5",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Practical Systems. Today we're talking about on call rotation, and I'm joined by Priya Nair, principal SRE at a payments platform. Priya Nair, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p02_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:priya-nair",
+      "properties": {
+        "name": "Priya Nair"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:a328c706a32f4c6b",
+      "properties": {
+        "char_end": 320,
+        "char_start": 201,
+        "episode_id": "ep-4a1a673a7005a6b5",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Ethan. Excited for this one \u2014 incident response and on-call design is something I've been thinking about a lot.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p02_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:5928c440c18a20d9",
+      "properties": {
+        "char_end": 466,
+        "char_start": 328,
+        "episode_id": "ep-4a1a673a7005a6b5",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first. Get started at linear.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p02_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:84b6b39b57f8734f",
+      "properties": {
+        "char_end": 582,
+        "char_start": 479,
+        "episode_id": "ep-4a1a673a7005a6b5",
+        "speaker_id": "person:speaker-02",
+        "text": "I'm a believer in centralizing the security function. One team, one source of truth, one neck to wring.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p02_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:44f7ac8de96626fc",
+      "properties": {
+        "char_end": 628,
+        "char_start": 590,
+        "episode_id": "ep-4a1a673a7005a6b5",
+        "speaker_id": "person:speaker-01",
+        "text": "That's a real shift. Worth pulling on.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p02_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:0add46826b9a2c91",
+      "properties": {
+        "char_end": 723,
+        "char_start": 628,
+        "episode_id": "ep-4a1a673a7005a6b5",
+        "speaker_id": "person:speaker-01",
+        "text": "What does the failure mode look like? What's the version of the question that actually matters?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p02_e01.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

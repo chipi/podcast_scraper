@@ -1,0 +1,61 @@
+{
+  "callbacks": [
+    "Priya Nayar was on episode 1 making the case that good on-call rotations are designed so waking up is rare."
+  ],
+  "episode_id": "p02_e02",
+  "extra_alias_callbacks": [
+    {
+      "canonical_id": "p02:Priya",
+      "surface": "Priya Nayar"
+    }
+  ],
+  "failure_modes": [
+    "asr_garble",
+    "asr_garble_severe"
+  ],
+  "guest_accent": "en-US",
+  "host_accent": "en-US",
+  "host_canonical_name": "Ethan",
+  "podcast_id": "p02",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p02:Jonas",
+  "primary_guest_canonical_name": "Jonas Weisenthal",
+  "primary_guest_surface_in_transcript": "Joll Wisenthal",
+  "primary_topic": "topic:engineering-communication",
+  "publish_date": "2024-04-18",
+  "publish_offset_days": 108,
+  "secondary_topics": [
+    "topic:reliability",
+    "topic:incident-postmortems",
+    "topic:risk-management"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Notion",
+      "kind": "template_opening",
+      "line_index": 11
+    },
+    {
+      "brand": "Linear",
+      "kind": "template_midroll",
+      "line_index": 33
+    },
+    {
+      "brand": "Datadog",
+      "kind": "template_closing",
+      "line_index": 70
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p02:Jonas",
+      "kind": "severe",
+      "surface": "Joll Wisenthal"
+    },
+    {
+      "canonical_id": "p02:Priya",
+      "kind": "first_name_only",
+      "surface": "Priya Nayar"
+    }
+  ]
+}

@@ -1,0 +1,349 @@
+{
+  "edges": [
+    {
+      "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+      "to": "topic:business-markets",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+      "to": "topic:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+      "to": "insight:762a9af431c0e8a6",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+      "to": "insight:cc8dfdce8a173576",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+      "to": "insight:42c4a9f138eb1851",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:4e74d383ee0139f5",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:762a9af431c0e8a6",
+      "to": "quote:4e74d383ee0139f5",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:c4a97578abf51afe",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:cc8dfdce8a173576",
+      "to": "quote:c4a97578abf51afe",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:fe1c36101dd7560f",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:42c4a9f138eb1851",
+      "to": "quote:fe1c36101dd7560f",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f32f2bb682e5695a",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:762a9af431c0e8a6",
+      "to": "quote:f32f2bb682e5695a",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:1218c8c935ade6c9",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:cc8dfdce8a173576",
+      "to": "quote:1218c8c935ade6c9",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:9eb254c4a22c759b",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:42c4a9f138eb1851",
+      "to": "quote:9eb254c4a22c759b",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:762a9af431c0e8a6",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "MENTIONS_PERSON",
+      "from": "insight:cc8dfdce8a173576",
+      "to": "person:speaker-02"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:762a9af431c0e8a6",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:762a9af431c0e8a6",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:762a9af431c0e8a6",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cc8dfdce8a173576",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cc8dfdce8a173576",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cc8dfdce8a173576",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:42c4a9f138eb1851",
+      "to": "topic:technology",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:42c4a9f138eb1851",
+      "to": "topic:business-markets",
+      "properties": {
+        "confidence": 0.5
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:42c4a9f138eb1851",
+      "to": "topic:welcome-back-to",
+      "properties": {
+        "confidence": 0.5
+      }
+    }
+  ],
+  "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+        "metadata_relative_path": "feeds/p02/metadata/p02_e03.metadata.json",
+        "podcast_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+        "publish_date": "2026-07-01T12:00:00",
+        "title": "Practical Systems — Episode 3"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:business-markets",
+      "properties": {
+        "label": "Business & markets",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:762a9af431c0e8a6",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we're talking about security design, and I'm joined by Priya Nair, principal SRE at a payments platform.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:cc8dfdce8a173576",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Priya Nair, thanks for being here.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:42c4a9f138eb1851",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today's episode is sponsored by Vanta.",
+        "insight_type": "unknown",
+        "position_hint": 0.5
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Ethan"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:4e74d383ee0139f5",
+      "properties": {
+        "char_end": 187,
+        "char_start": 7,
+        "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Practical Systems. Today we're talking about security design, and I'm joined by Priya Nair, principal SRE at a payments platform. Priya Nair, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p02_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Priya Nair"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:c4a97578abf51afe",
+      "properties": {
+        "char_end": 232,
+        "char_start": 200,
+        "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Ethan. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p02_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:fe1c36101dd7560f",
+      "properties": {
+        "char_end": 341,
+        "char_start": 240,
+        "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Vanta. Vanta automates SOC 2 and ISO compliance. Try vanta.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p02_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:f32f2bb682e5695a",
+      "properties": {
+        "char_end": 453,
+        "char_start": 341,
+        "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it — I was last on the show talking about on-call rotations. The pattern shows up again here.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p02_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:1218c8c935ade6c9",
+      "properties": {
+        "char_end": 524,
+        "char_start": 466,
+        "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, exactly. And it ties into what we're covering today.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p02_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:9eb254c4a22c759b",
+      "properties": {
+        "char_end": 685,
+        "char_start": 524,
+        "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+        "speaker_id": "person:speaker-02",
+        "text": "I used to argue for a single central security team. After the 2024 webhook incident I changed my mind — embedded ownership beats a central gatekeeper every time.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p02_e03.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.0"
+}

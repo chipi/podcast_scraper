@@ -84,7 +84,7 @@ def test_build_run_summary_includes_per_enricher_counters() -> None:
 
 
 def test_build_run_summary_includes_token_and_cost_for_smart_tiers() -> None:
-    m = _populated_metrics(enricher_id="nli_contradiction", tier="ml", cost_usd=0.10)
+    m = _populated_metrics(enricher_id="topic_consensus", tier="ml", cost_usd=0.10)
     m.record_tokens(tokens_in=100, tokens_out=20)
     summary = build_run_summary(
         run_id="r",
@@ -94,9 +94,9 @@ def test_build_run_summary_includes_token_and_cost_for_smart_tiers() -> None:
         finished_at="t1",
         duration_ms=1,
         status="ok",
-        per_enricher={"nli_contradiction": m},
+        per_enricher={"topic_consensus": m},
     )
-    per_enr = summary["per_enricher"]["nli_contradiction"]
+    per_enr = summary["per_enricher"]["topic_consensus"]
     assert per_enr["tokens_in"] == 100
     assert per_enr["tokens_out"] == 20
     assert per_enr["cost_usd"] == 0.10

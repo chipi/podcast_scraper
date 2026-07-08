@@ -1,0 +1,68 @@
+{
+  "callbacks": [],
+  "episode_id": "p09_e04",
+  "expected_enrichment": {
+    "grounding_rate": {
+      "expected_rate": 0.8
+    }
+  },
+  "extra_alias_callbacks": [],
+  "failure_modes": [
+    "recurring_guest",
+    "multi_accent"
+  ],
+  "guest_accent": "de-DE",
+  "host_accent": "en-US",
+  "host_canonical_name": "Sam",
+  "insight_density": "high",
+  "podcast_id": "p09",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p09:Elena",
+  "primary_guest_canonical_name": "Dr. Elena Fischer",
+  "primary_guest_surface_in_transcript": "Dr. Elena Fischer",
+  "primary_topic": "topic:risk-management",
+  "publish_date": "2026-07-16",
+  "publish_offset_days": 927,
+  "secondary_topics": [
+    "topic:systems-thinking",
+    "topic:reliability"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Notion",
+      "kind": "template_opening",
+      "line_index": 11
+    },
+    {
+      "brand": "Bloomberg",
+      "kind": "template_midroll",
+      "line_index": 21
+    },
+    {
+      "brand": "Notion",
+      "kind": "template_closing",
+      "line_index": 50
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p09:Elena",
+      "kind": "canonical",
+      "surface": "Dr. Elena Fischer"
+    }
+  ],
+  "topic_claims": [
+    {
+      "claim": "Risk is a systems property: it lives in the interactions, not the parts.",
+      "grounded": true,
+      "speaker": "Elena",
+      "topic_id": "topic:risk-management"
+    },
+    {
+      "claim": "Systems thinking and risk management are one discipline in two vocabularies.",
+      "grounded": true,
+      "speaker": "Elena",
+      "topic_id": "topic:systems-thinking"
+    }
+  ]
+}

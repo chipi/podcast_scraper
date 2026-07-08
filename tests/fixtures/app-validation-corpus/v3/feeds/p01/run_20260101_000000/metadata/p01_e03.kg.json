@@ -1,0 +1,122 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-0d9100843ee555f8",
+      "to": "entity:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-0d9100843ee555f8",
+      "to": "entity:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-0d9100843ee555f8",
+      "to": "topic:endurance-sport",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-0d9100843ee555f8",
+      "to": "topic:risk-management",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-0d9100843ee555f8",
+      "to": "topic:lifelong-learning",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-0d9100843ee555f8",
+      "to": "topic:expert-interviews",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:ep-0d9100843ee555f8",
+      "to": "person:maya",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-0d9100843ee555f8",
+      "to": "person:noah-bryer",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-0d9100843ee555f8",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-0d9100843ee555f8",
+      "properties": {
+        "episode_id": "ep-0d9100843ee555f8",
+        "metadata_relative_path": "feeds/p01/run_20260101_000000/metadata/p01_e03.metadata.json",
+        "publish_date": "2024-07-30T12:00:00",
+        "title": "The Mechanics of a Quiet, Fast Bike"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:endurance-sport",
+      "properties": {
+        "category": "Concept",
+        "label": "Endurance Sport"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:risk-management",
+      "properties": {
+        "category": "Concept",
+        "label": "Risk Management"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:maya",
+      "properties": {
+        "name": "Maya",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:noah-bryer",
+      "properties": {
+        "name": "Noah Bryer",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2"
+}

@@ -1,0 +1,330 @@
+[
+  {
+    "char_end": 205,
+    "char_start": 6,
+    "end": 6.0,
+    "speaker_label": "Rina",
+    "start": 0.0,
+    "text": "Welcome back to Below the Surface. Today we're talking about marine biology, and I'm joined by Hanna Krebohticker, marine biologist focused on reef systems. Hanna Krebohticker, thanks for being here."
+  },
+  {
+    "char_end": 257,
+    "char_start": 226,
+    "end": 12.0,
+    "speaker_label": "Hanna Krebohticker",
+    "start": 6.0,
+    "text": "Thanks, Rina. Great to be back."
+  },
+  {
+    "char_end": 390,
+    "char_start": 264,
+    "end": 18.0,
+    "speaker_label": "Rina",
+    "start": 12.0,
+    "text": "This episode is brought to you by Suunto. Suunto builds dive computers and outdoor watches. Get started at suunto.com/podcast."
+  },
+  {
+    "char_end": 514,
+    "char_start": 390,
+    "end": 24.0,
+    "speaker_label": "Rina",
+    "start": 18.0,
+    "text": "Before we get into it \u2014 Marco was on episode 1 walking through wreck planning \u2014 the same discipline applies to reef surveys."
+  },
+  {
+    "char_end": 593,
+    "char_start": 535,
+    "end": 30.0,
+    "speaker_label": "Hanna Krebohticker",
+    "start": 24.0,
+    "text": "Yeah, exactly. And it ties into what we're covering today."
+  },
+  {
+    "char_end": 684,
+    "char_start": 600,
+    "end": 36.0,
+    "speaker_label": "Rina",
+    "start": 30.0,
+    "text": "I want to flag something \u2014 Marco mentioned this same dynamic a couple episodes back."
+  },
+  {
+    "char_end": 760,
+    "char_start": 684,
+    "end": 42.0,
+    "speaker_label": "Rina",
+    "start": 36.0,
+    "text": "I want to dig into that. What's the most underrated piece of marine biology?"
+  },
+  {
+    "char_end": 977,
+    "char_start": 781,
+    "end": 48.0,
+    "speaker_label": "Hanna Krebohticker",
+    "start": 42.0,
+    "text": "Yeah, so \u2014 Reef-conservation policy is a systems problem at planetary scale. We've seen this play out at teams using GoPro. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "char_end": 1102,
+    "char_start": 984,
+    "end": 54.0,
+    "speaker_label": "Rina",
+    "start": 48.0,
+    "text": "What's the one heuristic you keep coming back to? What's something you used to believe about this that you've revised?"
+  },
+  {
+    "char_end": 1269,
+    "char_start": 1123,
+    "end": 60.0,
+    "speaker_label": "Hanna Krebohticker",
+    "start": 54.0,
+    "text": "It comes down to this: Most operational dive safety is about not pushing tired teams. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 1370,
+    "char_start": 1276,
+    "end": 66.0,
+    "speaker_label": "Rina",
+    "start": 60.0,
+    "text": "What does the failure mode look like? Where do reef conservation and marine biology intersect?"
+  },
+  {
+    "char_end": 1585,
+    "char_start": 1391,
+    "end": 72.0,
+    "speaker_label": "Hanna Krebohticker",
+    "start": 66.0,
+    "text": "Yeah, so \u2014 Risk management on extended dives is mostly about exit planning. We've seen this play out at teams using GoPro. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 1619,
+    "char_start": 1592,
+    "end": 78.0,
+    "speaker_label": "Rina",
+    "start": 72.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 1772,
+    "char_start": 1640,
+    "end": 84.0,
+    "speaker_label": "Hanna Krebohticker",
+    "start": 78.0,
+    "text": "Suunto is one of the platforms where this shows up cleanly. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "char_end": 1836,
+    "char_start": 1779,
+    "end": 90.0,
+    "speaker_label": "Rina",
+    "start": 84.0,
+    "text": "We'll be right back after a quick word from our sponsors."
+  },
+  {
+    "char_end": 1967,
+    "char_start": 1841,
+    "end": 96.0,
+    "speaker_label": "Ad",
+    "start": 90.0,
+    "text": "Today's episode is sponsored by GoPro. GoPro captures the moments words don't reach. Visit gopro.com/podcast for a free trial."
+  },
+  {
+    "char_end": 1999,
+    "char_start": 1974,
+    "end": 102.0,
+    "speaker_label": "Rina",
+    "start": 96.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 2100,
+    "char_start": 1999,
+    "end": 108.0,
+    "speaker_label": "Rina",
+    "start": 102.0,
+    "text": "What's the one heuristic you keep coming back to? What's the most underrated piece of marine biology?"
+  },
+  {
+    "char_end": 2355,
+    "char_start": 2121,
+    "end": 114.0,
+    "speaker_label": "Hanna Krebohticker",
+    "start": 108.0,
+    "text": "Let me give you the version I actually believe. Reef-conservation policy is a systems problem at planetary scale. We've seen this play out at teams using Suunto. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "char_end": 2480,
+    "char_start": 2362,
+    "end": 120.0,
+    "speaker_label": "Rina",
+    "start": 114.0,
+    "text": "What's the one heuristic you keep coming back to? What's something you used to believe about this that you've revised?"
+  },
+  {
+    "char_end": 2647,
+    "char_start": 2501,
+    "end": 126.0,
+    "speaker_label": "Hanna Krebohticker",
+    "start": 120.0,
+    "text": "Yeah, so \u2014 Most operational dive safety is about not pushing tired teams. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "char_end": 2747,
+    "char_start": 2654,
+    "end": 132.0,
+    "speaker_label": "Rina",
+    "start": 126.0,
+    "text": "Walk me through a concrete example. What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 2946,
+    "char_start": 2768,
+    "end": 138.0,
+    "speaker_label": "Hanna Krebohticker",
+    "start": 132.0,
+    "text": "Sure. Risk management on extended dives is mostly about exit planning. We've seen this play out at teams using GoPro. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 2965,
+    "char_start": 2953,
+    "end": 144.0,
+    "speaker_label": "Rina",
+    "start": 138.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 3116,
+    "char_start": 2986,
+    "end": 150.0,
+    "speaker_label": "Hanna Krebohticker",
+    "start": 144.0,
+    "text": "And when teams adopt GoPro in that flow, the trade-off becomes visible \u2014 And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 3195,
+    "char_start": 3123,
+    "end": 156.0,
+    "speaker_label": "Rina",
+    "start": 150.0,
+    "text": "Let's pivot \u2014 risk management is where I want to spend the last stretch."
+  },
+  {
+    "char_end": 3345,
+    "char_start": 3216,
+    "end": 162.0,
+    "speaker_label": "Hanna Krebohticker",
+    "start": 156.0,
+    "text": "That's where the conversation gets interesting, because the trade-offs around risk management cross-cut everything we've covered."
+  },
+  {
+    "char_end": 3458,
+    "char_start": 3352,
+    "end": 168.0,
+    "speaker_label": "Rina",
+    "start": 162.0,
+    "text": "What does the failure mode look like? What's something you used to believe about this that you've revised?"
+  },
+  {
+    "char_end": 3693,
+    "char_start": 3479,
+    "end": 174.0,
+    "speaker_label": "Hanna Krebohticker",
+    "start": 168.0,
+    "text": "Here's how I think about it. Reef-conservation policy is a systems problem at planetary scale. We've seen this play out at teams using Suunto. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 3776,
+    "char_start": 3700,
+    "end": 180.0,
+    "speaker_label": "Rina",
+    "start": 174.0,
+    "text": "I want to dig into that. What's the most underrated piece of marine biology?"
+  },
+  {
+    "char_end": 3980,
+    "char_start": 3797,
+    "end": 186.0,
+    "speaker_label": "Hanna Krebohticker",
+    "start": 180.0,
+    "text": "Let me give you the version I actually believe. Most operational dive safety is about not pushing tired teams. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "char_end": 4057,
+    "char_start": 3987,
+    "end": 192.0,
+    "speaker_label": "Rina",
+    "start": 186.0,
+    "text": "Let's start there. What's the most underrated piece of marine biology?"
+  },
+  {
+    "char_end": 4260,
+    "char_start": 4078,
+    "end": 198.0,
+    "speaker_label": "Hanna Krebohticker",
+    "start": 192.0,
+    "text": "Honestly, Risk management on extended dives is mostly about exit planning. We've seen this play out at teams using GoPro. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 4294,
+    "char_start": 4267,
+    "end": 204.0,
+    "speaker_label": "Rina",
+    "start": 198.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 4460,
+    "char_start": 4315,
+    "end": 210.0,
+    "speaker_label": "Hanna Krebohticker",
+    "start": 204.0,
+    "text": "And when teams adopt Suunto in that flow, the trade-off becomes visible \u2014 If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 4528,
+    "char_start": 4467,
+    "end": 216.0,
+    "speaker_label": "Rina",
+    "start": 210.0,
+    "text": "Before we wrap, what's one thing listeners can try this week?"
+  },
+  {
+    "char_end": 4630,
+    "char_start": 4549,
+    "end": 222.0,
+    "speaker_label": "Hanna Krebohticker",
+    "start": 216.0,
+    "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
+  },
+  {
+    "char_end": 4758,
+    "char_start": 4637,
+    "end": 228.0,
+    "speaker_label": "Rina",
+    "start": 222.0,
+    "text": "And finally, a big thank you to our partners at PADI. PADI is the global standard for dive education. Check out padi.com."
+  },
+  {
+    "char_end": 4806,
+    "char_start": 4758,
+    "end": 234.0,
+    "speaker_label": "Rina",
+    "start": 228.0,
+    "text": "Hanna Krebohticker, thanks for the conversation."
+  },
+  {
+    "char_end": 4840,
+    "char_start": 4827,
+    "end": 240.0,
+    "speaker_label": "Hanna Krebohticker",
+    "start": 234.0,
+    "text": "Thanks, Rina."
+  },
+  {
+    "char_end": 4917,
+    "char_start": 4847,
+    "end": 246.0,
+    "speaker_label": "Rina",
+    "start": 240.0,
+    "text": "That's it for today's episode of Below the Surface. See you next time."
+  }
+]

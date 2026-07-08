@@ -60,6 +60,7 @@ async def list_scheduled_jobs(
                     name=cfg.name,
                     cron=cfg.cron,
                     enabled=cfg.enabled,
+                    kind=cfg.kind,
                     next_run_at=scheduler.next_run_at(cfg.name) if cfg.enabled else None,
                 )
             )

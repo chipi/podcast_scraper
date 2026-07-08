@@ -31,6 +31,10 @@ dependencies = [
   # TODO(CVE-2026-4539): After pygments ships a fixed release and pip-audit/OSV match NVD ranges, bump the cap and drop Makefile ignore.
   "pygments>=2.20.0,<2.21.0",
   "psutil>=5.9.0,<8.0.0",  # RFC-065 monitor / sampler (imported with orchestration); Docker base image
+  # Pure-Python VADER lexicon sentiment for the deterministic `insight_sentiment` enricher
+  # (conversation-timeline sentiment colour). Bundles its own lexicon → no network / no model
+  # download → CI-safe + airgapped-safe; a true deterministic-tier dep, so it lives in core.
+  "vaderSentiment>=3.3.2,<4.0.0",
   # NOTE: no 3rd-party observability SaaS SDKs here — Sentry/Langfuse are fully
   # optional opt-in extras ([sentry] / [langfuse]); the core no-ops without them.
   # See the [project.optional-dependencies] header + docs/guides/OBSERVABILITY_EXTENSIONS.md.

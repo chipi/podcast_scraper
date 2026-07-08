@@ -1,0 +1,31 @@
+{
+  "duration_ms": 39,
+  "finished_at": "2026-07-06T17:39:29Z",
+  "parent_run_id": null,
+  "per_enricher": {
+    "grounding_rate": {
+      "cost_usd": 0.0,
+      "duration_ms": 1,
+      "error_samples": [],
+      "model_id": "",
+      "model_version": "",
+      "records_written": 33,
+      "retries": 0,
+      "runs_cancelled": 0,
+      "runs_failed": 0,
+      "runs_ok": 1,
+      "runs_quarantined": 0,
+      "runs_skipped": 0,
+      "runs_timeout": 0,
+      "runs_total": 1,
+      "status": "ok",
+      "tokens_in": 0,
+      "tokens_out": 0
+    }
+  },
+  "profile": null,
+  "run_id": "1c62ed67-8e2b-42fe-aae2-e8634a0c5eae",
+  "schema_version": "1",
+  "started_at": "2026-07-06T17:39:29Z",
+  "status": "ok"
+}

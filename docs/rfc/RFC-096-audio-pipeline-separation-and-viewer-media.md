@@ -1,6 +1,6 @@
 # RFC-096: Audio Pipeline Separation and Corpus Media for Viewer Playback
 
-- **Status**: Draft
+- **Status**: Completed
 - **Authors**: Architecture Review
 - **Stakeholders**: Core Pipeline, Server API, GI/KG Viewer
 - **Related PRDs**:

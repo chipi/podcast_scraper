@@ -1,0 +1,39 @@
+{
+  "circuit_state": null,
+  "computed_at": "2026-01-01T00:00:00Z",
+  "data": {
+    "counts": {
+      "negative": 0,
+      "neutral": 1,
+      "positive": 2
+    },
+    "episode_id": "ep-3158b8ff3e943b1e",
+    "insights": [
+      {
+        "compound": 0.5859,
+        "insight_id": "insight:c2ea54ba4b0825a6",
+        "label": "positive"
+      },
+      {
+        "compound": 0.0,
+        "insight_id": "insight:3e28facea19a8b67",
+        "label": "neutral"
+      },
+      {
+        "compound": 0.705,
+        "insight_id": "insight:838e5efad224f1fa",
+        "label": "positive"
+      }
+    ],
+    "total_insights": 3
+  },
+  "duration_ms": 0,
+  "enricher_id": "insight_sentiment",
+  "enricher_version": "1.0",
+  "error": null,
+  "error_class": null,
+  "records_written": 19,
+  "retry_count": 0,
+  "schema_version": "1.0",
+  "status": "ok"
+}

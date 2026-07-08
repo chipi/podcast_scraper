@@ -1,0 +1,62 @@
+{
+  "callbacks": [
+    "Skanda Eminas was on episode 2 making this same point on Bloomberg-data caveats."
+  ],
+  "episode_id": "p09_e03",
+  "extra_alias_callbacks": [
+    {
+      "canonical_id": "p09:Skanda",
+      "surface": "Skanda Eminas"
+    }
+  ],
+  "failure_modes": [
+    "asr_garble_severe",
+    "position_arc_multi",
+    "recurring_guest",
+    "multi_accent"
+  ],
+  "guest_accent": "en-IN",
+  "host_accent": "en-US",
+  "host_canonical_name": "Sam",
+  "podcast_id": "p09",
+  "position_arc": "Two years ago I argued labor data was reliable at quarterly frequency. I now think only annual averages are trustworthy.",
+  "primary_guest_canonical_id": "p09:Skanda",
+  "primary_guest_canonical_name": "Skanda Amarnath",
+  "primary_guest_surface_in_transcript": "Skanda Amarnath",
+  "primary_topic": "topic:labor-markets",
+  "publish_date": "2026-01-07",
+  "publish_offset_days": 737,
+  "secondary_topics": [
+    "topic:risk-management",
+    "topic:systems-thinking"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Bloomberg",
+      "kind": "template_opening",
+      "line_index": 11
+    },
+    {
+      "brand": "Linear",
+      "kind": "template_midroll",
+      "line_index": 27
+    },
+    {
+      "brand": "Stripe",
+      "kind": "template_closing",
+      "line_index": 48
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p09:Skanda",
+      "kind": "canonical",
+      "surface": "Skanda Amarnath"
+    },
+    {
+      "canonical_id": "p09:Skanda",
+      "kind": "first_name_only",
+      "surface": "Skanda Eminas"
+    }
+  ]
+}

@@ -1,0 +1,210 @@
+[
+  {
+    "char_end": 180,
+    "char_start": 18,
+    "end": 6.0,
+    "speaker_label": "A. correspondent",
+    "start": 0.0,
+    "text": "Welcome back to Public Hour. Today we're talking about reliability, and I'm joined by Renee Montagne-Park, journalist. Renee Montagne-Park, thanks for being here."
+  },
+  {
+    "char_end": 245,
+    "char_start": 202,
+    "end": 12.0,
+    "speaker_label": "Renee Montagne-Park",
+    "start": 6.0,
+    "text": "Thanks, A. correspondent. Great to be back."
+  },
+  {
+    "char_end": 397,
+    "char_start": 264,
+    "end": 18.0,
+    "speaker_label": "A. correspondent",
+    "start": 12.0,
+    "text": "This episode is brought to you by Notion. Notion replaces the dozen tools your team is half-using. Get started at notion.com/podcast."
+  },
+  {
+    "char_end": 499,
+    "char_start": 397,
+    "end": 24.0,
+    "speaker_label": "A. correspondent",
+    "start": 18.0,
+    "text": "Push back on the conventional wisdom for me. What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 700,
+    "char_start": 521,
+    "end": 30.0,
+    "speaker_label": "Renee Montagne-Park",
+    "start": 24.0,
+    "text": "Honestly, A correction is a reliability signal, not a failure. We've seen this play out at teams using BBC. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 814,
+    "char_start": 719,
+    "end": 36.0,
+    "speaker_label": "A. correspondent",
+    "start": 30.0,
+    "text": "What does the failure mode look like? What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 1010,
+    "char_start": 836,
+    "end": 42.0,
+    "speaker_label": "Renee Montagne-Park",
+    "start": 36.0,
+    "text": "Let me give you the version I actually believe. Managing the risk of being wrong in public is its own discipline. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 1086,
+    "char_start": 1029,
+    "end": 48.0,
+    "speaker_label": "A. correspondent",
+    "start": 42.0,
+    "text": "We'll be right back after a quick word from our sponsors."
+  },
+  {
+    "char_end": 1258,
+    "char_start": 1091,
+    "end": 54.0,
+    "speaker_label": "Ad",
+    "start": 48.0,
+    "text": "Today's episode is sponsored by Squarespace. Squarespace makes building a beautiful, branded website actually pleasant. Visit squarespace.com/podcast for a free trial."
+  },
+  {
+    "char_end": 1302,
+    "char_start": 1277,
+    "end": 60.0,
+    "speaker_label": "A. correspondent",
+    "start": 54.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 1380,
+    "char_start": 1302,
+    "end": 66.0,
+    "speaker_label": "A. correspondent",
+    "start": 60.0,
+    "text": "Take me through the decision. What's the most underrated piece of reliability?"
+  },
+  {
+    "char_end": 1581,
+    "char_start": 1402,
+    "end": 72.0,
+    "speaker_label": "Renee Montagne-Park",
+    "start": 66.0,
+    "text": "Honestly, A correction is a reliability signal, not a failure. We've seen this play out at teams using BBC. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 1654,
+    "char_start": 1600,
+    "end": 78.0,
+    "speaker_label": "A. correspondent",
+    "start": 72.0,
+    "text": "Let's start there. How does BBC fit into this picture?"
+  },
+  {
+    "char_end": 1825,
+    "char_start": 1676,
+    "end": 84.0,
+    "speaker_label": "Renee Montagne-Park",
+    "start": 78.0,
+    "text": "It comes down to this: Managing the risk of being wrong in public is its own discipline. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 1916,
+    "char_start": 1844,
+    "end": 90.0,
+    "speaker_label": "A. correspondent",
+    "start": 84.0,
+    "text": "Let's pivot \u2014 risk management is where I want to spend the last stretch."
+  },
+  {
+    "char_end": 2067,
+    "char_start": 1938,
+    "end": 96.0,
+    "speaker_label": "Renee Montagne-Park",
+    "start": 90.0,
+    "text": "That's where the conversation gets interesting, because the trade-offs around risk management cross-cut everything we've covered."
+  },
+  {
+    "char_end": 2172,
+    "char_start": 2086,
+    "end": 102.0,
+    "speaker_label": "A. correspondent",
+    "start": 96.0,
+    "text": "What does the failure mode look like? What's the most underrated piece of reliability?"
+  },
+  {
+    "char_end": 2369,
+    "char_start": 2194,
+    "end": 108.0,
+    "speaker_label": "Renee Montagne-Park",
+    "start": 102.0,
+    "text": "Sure. A correction is a reliability signal, not a failure. We've seen this play out at teams using NPR. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 2501,
+    "char_start": 2388,
+    "end": 114.0,
+    "speaker_label": "A. correspondent",
+    "start": 108.0,
+    "text": "Push back on the conventional wisdom for me. What's something you used to believe about this that you've revised?"
+  },
+  {
+    "char_end": 2709,
+    "char_start": 2523,
+    "end": 120.0,
+    "speaker_label": "Renee Montagne-Park",
+    "start": 114.0,
+    "text": "Let me give you the version I actually believe. Managing the risk of being wrong in public is its own discipline. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "char_end": 2789,
+    "char_start": 2728,
+    "end": 126.0,
+    "speaker_label": "A. correspondent",
+    "start": 120.0,
+    "text": "Before we wrap, what's one thing listeners can try this week?"
+  },
+  {
+    "char_end": 2892,
+    "char_start": 2811,
+    "end": 132.0,
+    "speaker_label": "Renee Montagne-Park",
+    "start": 126.0,
+    "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
+  },
+  {
+    "char_end": 3045,
+    "char_start": 2911,
+    "end": 138.0,
+    "speaker_label": "A. correspondent",
+    "start": 132.0,
+    "text": "And finally, a big thank you to our partners at Notion. Notion replaces the dozen tools your team is half-using. Check out notion.com."
+  },
+  {
+    "char_end": 3094,
+    "char_start": 3045,
+    "end": 144.0,
+    "speaker_label": "A. correspondent",
+    "start": 138.0,
+    "text": "Renee Montagne-Park, thanks for the conversation."
+  },
+  {
+    "char_end": 3141,
+    "char_start": 3116,
+    "end": 150.0,
+    "speaker_label": "Renee Montagne-Park",
+    "start": 144.0,
+    "text": "Thanks, A. correspondent."
+  },
+  {
+    "char_end": 3224,
+    "char_start": 3160,
+    "end": 156.0,
+    "speaker_label": "A. correspondent",
+    "start": 150.0,
+    "text": "That's it for today's episode of Public Hour. See you next time."
+  }
+]

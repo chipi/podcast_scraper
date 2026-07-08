@@ -1,0 +1,18 @@
+# The Long View — Sustainability — Episode
+## Macro as Risk Management
+Host: Alex Morgan
+Guest: Skanda Amarnath
+#fixture-v3: voice=en-IN host_voice=en-AU
+
+[00:00]
+Alex Morgan: Welcome back to The Long View. I'm joined by Skanda Amarnath, who reads the macroeconomy for a living. Skanda, good to have you.
+Skanda Amarnath: Thanks, Alex.
+Alex Morgan: Today's episode is sponsored by Bloomberg. Bloomberg Terminal is the data spine institutional desks run on. Try bloomberg.com today.
+Alex Morgan: You describe macro as risk management. Unpack that.
+Skanda Amarnath: Macro is risk management at scale. The job is mostly not being on the wrong side of a regime change — and the regime change you can name in advance is the one you can position for. The rest is just hoping.
+Skanda Amarnath: And the economy is a system, not a set of levers. Pull one and three others move. When we back-tested the calls, the misses were always someone treating a correlated system as if the parts were independent.
+Alex Morgan: So the same discipline Elena talks about in sustainability.
+Skanda Amarnath: Exactly the same. A macro book and a power grid are both systems of correlated risk. Systems thinking and risk management are one discipline — you just change the vocabulary.
+Alex Morgan: Thanks again to Morningstar for backing the show. Morningstar gives you independent fund ratings.
+Skanda Amarnath: Thanks, Alex.
+Alex Morgan: That's it for this Long View. Take care.

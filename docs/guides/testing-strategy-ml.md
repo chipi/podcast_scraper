@@ -13,7 +13,7 @@ is testing the wrong thing.
 
 ## Why library-internal patches don't work
 
-`transformers` (since >=4.40) exposes the top-level module as a
+`transformers` (since >=5.0.0) exposes the top-level module as a
 `_LazyModule` whose `__getattr__` resolves `pipeline` / `AutoTokenizer` /
 `AutoModelForSeq2SeqLM` from a submodule on first access. This means:
 

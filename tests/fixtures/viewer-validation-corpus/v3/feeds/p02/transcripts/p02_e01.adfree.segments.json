@@ -1,0 +1,370 @@
+[
+  {
+    "char_end": 188,
+    "char_start": 7,
+    "end": 6.0,
+    "speaker_label": "Ethan",
+    "start": 0.0,
+    "text": "Welcome back to Practical Systems. Today we're talking about on call rotation, and I'm joined by Priya Nair, principal SRE at a payments platform. Priya Nair, thanks for being here."
+  },
+  {
+    "char_end": 320,
+    "char_start": 201,
+    "end": 12.0,
+    "speaker_label": "Priya Nair",
+    "start": 6.0,
+    "text": "Thanks, Ethan. Excited for this one \u2014 incident response and on-call design is something I've been thinking about a lot."
+  },
+  {
+    "char_end": 466,
+    "char_start": 328,
+    "end": 18.0,
+    "speaker_label": "Ethan",
+    "start": 12.0,
+    "text": "This episode is brought to you by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first. Get started at linear.com/podcast."
+  },
+  {
+    "char_end": 582,
+    "char_start": 479,
+    "end": 24.0,
+    "speaker_label": "Priya Nair",
+    "start": 18.0,
+    "text": "I'm a believer in centralizing the security function. One team, one source of truth, one neck to wring."
+  },
+  {
+    "char_end": 628,
+    "char_start": 590,
+    "end": 30.0,
+    "speaker_label": "Ethan",
+    "start": 24.0,
+    "text": "That's a real shift. Worth pulling on."
+  },
+  {
+    "char_end": 723,
+    "char_start": 628,
+    "end": 36.0,
+    "speaker_label": "Ethan",
+    "start": 30.0,
+    "text": "What does the failure mode look like? What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 959,
+    "char_start": 736,
+    "end": 42.0,
+    "speaker_label": "Priya Nair",
+    "start": 36.0,
+    "text": "Let me give you the version I actually believe. A good on-call rotation is designed so that waking up is rare. We've seen this play out at teams using Linear. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 1074,
+    "char_start": 967,
+    "end": 48.0,
+    "speaker_label": "Ethan",
+    "start": 42.0,
+    "text": "What's the one heuristic you keep coming back to? What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 1242,
+    "char_start": 1087,
+    "end": 54.0,
+    "speaker_label": "Priya Nair",
+    "start": 48.0,
+    "text": "Let me give you the version I actually believe. Alerting should be action-oriented. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 1332,
+    "char_start": 1250,
+    "end": 60.0,
+    "speaker_label": "Ethan",
+    "start": 54.0,
+    "text": "Take me through the decision. Where do reliability and on call rotation intersect?"
+  },
+  {
+    "char_end": 1532,
+    "char_start": 1345,
+    "end": 66.0,
+    "speaker_label": "Priya Nair",
+    "start": 60.0,
+    "text": "Here's how I think about it. Error budgets work when they change behavior. We've seen this play out at teams using Sentry. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 1567,
+    "char_start": 1540,
+    "end": 72.0,
+    "speaker_label": "Ethan",
+    "start": 66.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 1700,
+    "char_start": 1580,
+    "end": 78.0,
+    "speaker_label": "Priya Nair",
+    "start": 72.0,
+    "text": "Sentry is one of the platforms where this shows up cleanly. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 1786,
+    "char_start": 1708,
+    "end": 84.0,
+    "speaker_label": "Ethan",
+    "start": 78.0,
+    "text": "I want to dig into that. What's the most underrated piece of on call rotation?"
+  },
+  {
+    "char_end": 1934,
+    "char_start": 1799,
+    "end": 90.0,
+    "speaker_label": "Priya Nair",
+    "start": 84.0,
+    "text": "Yeah, so \u2014 PagerDuty's incident response model assumes someone owns the page. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 1999,
+    "char_start": 1942,
+    "end": 96.0,
+    "speaker_label": "Ethan",
+    "start": 90.0,
+    "text": "We'll be right back after a quick word from our sponsors."
+  },
+  {
+    "char_end": 2156,
+    "char_start": 2004,
+    "end": 102.0,
+    "speaker_label": "Ad",
+    "start": 96.0,
+    "text": "Today's episode is sponsored by PagerDuty. PagerDuty turns noisy alerts into structured incident response. Visit pagerduty.com/podcast for a free trial."
+  },
+  {
+    "char_end": 2189,
+    "char_start": 2164,
+    "end": 108.0,
+    "speaker_label": "Ethan",
+    "start": 102.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 2266,
+    "char_start": 2189,
+    "end": 114.0,
+    "speaker_label": "Ethan",
+    "start": 108.0,
+    "text": "That's a useful framing. Where do reliability and on call rotation intersect?"
+  },
+  {
+    "char_end": 2460,
+    "char_start": 2279,
+    "end": 120.0,
+    "speaker_label": "Priya Nair",
+    "start": 114.0,
+    "text": "Honestly, A good on-call rotation is designed so that waking up is rare. We've seen this play out at teams using Notion. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 2551,
+    "char_start": 2468,
+    "end": 126.0,
+    "speaker_label": "Ethan",
+    "start": 120.0,
+    "text": "Take me through the decision. What's the most underrated piece of on call rotation?"
+  },
+  {
+    "char_end": 2683,
+    "char_start": 2564,
+    "end": 132.0,
+    "speaker_label": "Priya Nair",
+    "start": 126.0,
+    "text": "It comes down to this: Alerting should be action-oriented. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 2769,
+    "char_start": 2691,
+    "end": 138.0,
+    "speaker_label": "Ethan",
+    "start": 132.0,
+    "text": "That's a useful framing. What's the most underrated piece of on call rotation?"
+  },
+  {
+    "char_end": 2971,
+    "char_start": 2782,
+    "end": 144.0,
+    "speaker_label": "Priya Nair",
+    "start": 138.0,
+    "text": "It comes down to this: Error budgets work when they change behavior. We've seen this play out at teams using Sentry. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "char_end": 2999,
+    "char_start": 2979,
+    "end": 150.0,
+    "speaker_label": "Ethan",
+    "start": 144.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 3145,
+    "char_start": 3012,
+    "end": 156.0,
+    "speaker_label": "Priya Nair",
+    "start": 150.0,
+    "text": "Outside of Sentry-class tooling, the failure mode is harder to spot. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 3244,
+    "char_start": 3153,
+    "end": 162.0,
+    "speaker_label": "Ethan",
+    "start": 156.0,
+    "text": "What does the failure mode look like? What's the most underrated piece of on call rotation?"
+  },
+  {
+    "char_end": 3444,
+    "char_start": 3257,
+    "end": 168.0,
+    "speaker_label": "Priya Nair",
+    "start": 162.0,
+    "text": "Let me give you the version I actually believe. PagerDuty's incident response model assumes someone owns the page. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "char_end": 3525,
+    "char_start": 3452,
+    "end": 174.0,
+    "speaker_label": "Ethan",
+    "start": 168.0,
+    "text": "Let's pivot \u2014 systems thinking is where I want to spend the last stretch."
+  },
+  {
+    "char_end": 3668,
+    "char_start": 3538,
+    "end": 180.0,
+    "speaker_label": "Priya Nair",
+    "start": 174.0,
+    "text": "That's where the conversation gets interesting, because the trade-offs around systems thinking cross-cut everything we've covered."
+  },
+  {
+    "char_end": 3778,
+    "char_start": 3676,
+    "end": 186.0,
+    "speaker_label": "Ethan",
+    "start": 180.0,
+    "text": "Push back on the conventional wisdom for me. What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 3992,
+    "char_start": 3791,
+    "end": 192.0,
+    "speaker_label": "Priya Nair",
+    "start": 186.0,
+    "text": "Here's how I think about it. A good on-call rotation is designed so that waking up is rare. We've seen this play out at teams using Datadog. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 4083,
+    "char_start": 4000,
+    "end": 198.0,
+    "speaker_label": "Ethan",
+    "start": 192.0,
+    "text": "Let's start there. What's the contrarian angle most listeners don't have access to?"
+  },
+  {
+    "char_end": 4203,
+    "char_start": 4096,
+    "end": 204.0,
+    "speaker_label": "Priya Nair",
+    "start": 198.0,
+    "text": "Yeah, so \u2014 Alerting should be action-oriented. I've watched this pattern hold across three different teams."
+  },
+  {
+    "char_end": 4293,
+    "char_start": 4211,
+    "end": 210.0,
+    "speaker_label": "Ethan",
+    "start": 204.0,
+    "text": "Take me through the decision. Where do reliability and on call rotation intersect?"
+  },
+  {
+    "char_end": 4520,
+    "char_start": 4306,
+    "end": 216.0,
+    "speaker_label": "Priya Nair",
+    "start": 210.0,
+    "text": "Let me give you the version I actually believe. Error budgets work when they change behavior. We've seen this play out at teams using Linear. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "char_end": 4556,
+    "char_start": 4528,
+    "end": 222.0,
+    "speaker_label": "Ethan",
+    "start": 216.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 4714,
+    "char_start": 4569,
+    "end": 228.0,
+    "speaker_label": "Priya Nair",
+    "start": 222.0,
+    "text": "And when teams adopt Sentry in that flow, the trade-off becomes visible \u2014 If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 4799,
+    "char_start": 4722,
+    "end": 234.0,
+    "speaker_label": "Ethan",
+    "start": 228.0,
+    "text": "That's a useful framing. Where do reliability and on call rotation intersect?"
+  },
+  {
+    "char_end": 4946,
+    "char_start": 4812,
+    "end": 240.0,
+    "speaker_label": "Priya Nair",
+    "start": 234.0,
+    "text": "Honestly, PagerDuty's incident response model assumes someone owns the page. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 5015,
+    "char_start": 4954,
+    "end": 246.0,
+    "speaker_label": "Ethan",
+    "start": 240.0,
+    "text": "Before we wrap, what's one thing listeners can try this week?"
+  },
+  {
+    "char_end": 5109,
+    "char_start": 5028,
+    "end": 252.0,
+    "speaker_label": "Priya Nair",
+    "start": 246.0,
+    "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
+  },
+  {
+    "char_end": 5239,
+    "char_start": 5117,
+    "end": 258.0,
+    "speaker_label": "Ethan",
+    "start": 252.0,
+    "text": "And finally, a big thank you to our partners at Sentry. Sentry catches the errors your tests didn't. Check out sentry.com."
+  },
+  {
+    "char_end": 5279,
+    "char_start": 5239,
+    "end": 264.0,
+    "speaker_label": "Ethan",
+    "start": 258.0,
+    "text": "Priya Nair, thanks for the conversation."
+  },
+  {
+    "char_end": 5306,
+    "char_start": 5292,
+    "end": 270.0,
+    "speaker_label": "Priya Nair",
+    "start": 264.0,
+    "text": "Thanks, Ethan."
+  },
+  {
+    "char_end": 5384,
+    "char_start": 5314,
+    "end": 276.0,
+    "speaker_label": "Ethan",
+    "start": 270.0,
+    "text": "That's it for today's episode of Practical Systems. See you next time."
+  }
+]

@@ -1,0 +1,274 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-0d9100843ee555f8",
+      "to": "topic:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-0d9100843ee555f8",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-0d9100843ee555f8",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-0d9100843ee555f8",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-0d9100843ee555f8",
+      "to": "insight:1c057c4c80fc3cb8",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-0d9100843ee555f8",
+      "to": "insight:0f09b8a5a1d5f64c",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-0d9100843ee555f8",
+      "to": "insight:3aabb6d8787f9373",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:2347bd84ba7d0751",
+      "to": "person:maya",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1c057c4c80fc3cb8",
+      "to": "quote:2347bd84ba7d0751",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:890d70ded1f097d2",
+      "to": "person:noah-bryer",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:0f09b8a5a1d5f64c",
+      "to": "quote:890d70ded1f097d2",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:9f5e99c36fd0245e",
+      "to": "person:maya",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "quote:9f5e99c36fd0245e",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:20ee6b23889c741c",
+      "to": "person:maya",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1c057c4c80fc3cb8",
+      "to": "quote:20ee6b23889c741c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:2788014fef761fb0",
+      "to": "person:noah-bryer",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:0f09b8a5a1d5f64c",
+      "to": "quote:2788014fef761fb0",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:1fcc09f6975d3f8d",
+      "to": "person:maya",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3aabb6d8787f9373",
+      "to": "quote:1fcc09f6975d3f8d",
+      "type": "SUPPORTED_BY"
+    }
+  ],
+  "episode_id": "ep-0d9100843ee555f8",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-0d9100843ee555f8",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ep-0d9100843ee555f8",
+        "metadata_relative_path": "feeds/p01/run_20260101_000000/metadata/p01_e03.metadata.json",
+        "podcast_id": "p01",
+        "publish_date": "2024-07-30T12:00:00",
+        "title": "The Mechanics of a Quiet, Fast Bike"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:1c057c4c80fc3cb8",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Welcome back to Singletrack Sessions. Today we're talking about drivetrain mechanics, and I'm joined by Noah Bryer, mechanic at Spoke & Wrench. Noah Bryer, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:0f09b8a5a1d5f64c",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Before we get into it \u2014 Sophie Lorent was on last episode talking about tire pressure mattering more than suspension tweaks."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:3aabb6d8787f9373",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Yeah, exactly. And it ties into what we're covering today."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:maya",
+      "properties": {
+        "name": "Maya"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:2347bd84ba7d0751",
+      "properties": {
+        "char_end": 184,
+        "char_start": 6,
+        "episode_id": "ep-0d9100843ee555f8",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Singletrack Sessions. Today we're talking about drivetrain mechanics, and I'm joined by Noah Bryer, mechanic at Spoke & Wrench. Noah Bryer, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p01_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:noah-bryer",
+      "properties": {
+        "name": "Noah Bryer"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:890d70ded1f097d2",
+      "properties": {
+        "char_end": 228,
+        "char_start": 197,
+        "episode_id": "ep-0d9100843ee555f8",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Maya. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p01_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:9f5e99c36fd0245e",
+      "properties": {
+        "char_end": 353,
+        "char_start": 235,
+        "episode_id": "ep-0d9100843ee555f8",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Try notion.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p01_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:20ee6b23889c741c",
+      "properties": {
+        "char_end": 477,
+        "char_start": 353,
+        "episode_id": "ep-0d9100843ee555f8",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Sophie Lorent was on last episode talking about tire pressure mattering more than suspension tweaks.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p01_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:2788014fef761fb0",
+      "properties": {
+        "char_end": 548,
+        "char_start": 490,
+        "episode_id": "ep-0d9100843ee555f8",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, exactly. And it ties into what we're covering today.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p01_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:1fcc09f6975d3f8d",
+      "properties": {
+        "char_end": 647,
+        "char_start": 555,
+        "episode_id": "ep-0d9100843ee555f8",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to flag something \u2014 Sophie Lorent mentioned this same dynamic a couple episodes back.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p01_e03.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}
