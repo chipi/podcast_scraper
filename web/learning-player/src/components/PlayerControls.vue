@@ -104,11 +104,18 @@ function onScrub(ev: Event): void {
       </button>
       <button
         type="button"
-        class="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-2xl text-accent-foreground"
+        class="flex h-16 w-16 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-[0_6px_20px_rgba(255,106,61,0.4)] ring-1 ring-inset ring-white/20 transition active:scale-95"
         :aria-label="playing ? t('player.pause') : t('player.play')"
         @click="emit('toggle')"
       >
-        {{ playing ? '⏸' : '►' }}
+        <!-- Crisp SVG icons, perfectly centred, identical visual weight in both states. -->
+        <svg v-if="!playing" viewBox="0 0 24 24" fill="currentColor" class="h-7 w-7" aria-hidden="true">
+          <path d="M8 5.14v13.72a1 1 0 0 0 1.53.85l10.4-6.86a1 1 0 0 0 0-1.7L9.53 4.29A1 1 0 0 0 8 5.14z" />
+        </svg>
+        <svg v-else viewBox="0 0 24 24" fill="currentColor" class="h-7 w-7" aria-hidden="true">
+          <rect x="6.5" y="5" width="4.2" height="14" rx="1.4" />
+          <rect x="13.3" y="5" width="4.2" height="14" rx="1.4" />
+        </svg>
       </button>
       <button type="button" class="font-bold" :aria-label="t('player.forward30')" @click="emit('skip', 30)">
         30↻
