@@ -20,18 +20,18 @@ function isFollowed(id: string): boolean {
     <div
       v-for="tp in topics"
       :key="tp.id"
-      class="inline-flex items-center rounded-full bg-overlay text-sm text-topic transition hover:bg-elevated"
+      class="inline-flex min-w-0 max-w-[calc(50%-0.375rem)] items-center rounded-full bg-overlay text-sm text-topic transition hover:bg-elevated sm:max-w-none"
       data-testid="trend-chip"
     >
       <button
         type="button"
-        class="inline-flex items-center gap-1.5 py-1.5 pl-3"
+        class="inline-flex min-w-0 items-center gap-1.5 py-1.5 pl-3"
         :class="canFollow ? 'pr-1.5' : 'rounded-full pr-3'"
         :aria-label="`${tp.label}, trending at ${tp.v} times its recent average`"
         @click="emit('open', tp.id)"
       >
-        {{ tp.label }}
-        <span class="text-xs font-semibold" :style="{ color: trendColor(tp.v) }"
+        <span class="truncate">{{ tp.label }}</span>
+        <span class="shrink-0 text-xs font-semibold" :style="{ color: trendColor(tp.v) }"
           >{{ trendArrow(tp.v) }} {{ tp.v }}×</span
         >
       </button>
