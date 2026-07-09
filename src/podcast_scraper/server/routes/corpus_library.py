@@ -61,8 +61,11 @@ from podcast_scraper.server.schemas import (
     CorpusResolveEpisodesResponse,
     CorpusSimilarEpisodeItem,
     CorpusSimilarEpisodesResponse,
+    FeedGroundingSummary,
     FeedSignalPerson,
+    FeedSignalTheme,
     FeedSignalTopic,
+    FeedSignalTrend,
 )
 from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
 
@@ -286,6 +289,24 @@ def _read_kg_artifact(root: str, relpath: str) -> dict[str, Any] | None:
         return None
 
 
+def _person_like_nodes(art: dict[str, Any]) -> list[dict[str, Any]]:
+    """People in a per-episode KG.
+
+    Real KGs slug people as ``type:"Entity"`` with ``properties.kind == "person"``
+    (id ``person:…``); a dedicated ``type:"Person"`` is also accepted for forward
+    compatibility. Orgs (``kind:"org"``) are excluded.
+    """
+    out: list[dict[str, Any]] = []
+    for n in art.get("nodes") or []:
+        if not isinstance(n, dict):
+            continue
+        t = n.get("type")
+        kind = (n.get("properties") or {}).get("kind")
+        if t == "Person" or (t == "Entity" and kind == "person"):
+            out.append(n)
+    return out
+
+
 def _accumulate_kg_entities(
     art: dict[str, Any],
     ep_key: str,
@@ -303,7 +324,7 @@ def _accumulate_kg_entities(
         if tid:
             _, eps = topic_eps.setdefault(tid, (node_label(n) or tid, set()))
             eps.add(ep_key)
-    for n in nodes_of_type(art, "Person"):
+    for n in _person_like_nodes(art):
         pid = str(n.get("id") or "")
         if not pid:
             continue
@@ -312,6 +333,118 @@ def _accumulate_kg_entities(
             continue
         _, eps = person_eps.setdefault(pid, (name, set()))
         eps.add(ep_key)
+
+
+def _read_enrichment_data(root: str, enricher_id: str) -> dict[str, Any] | None:
+    """The ``data`` payload of a corpus-scope enricher envelope, or None (absent/not-ok)."""
+    try:
+        obj = json.loads(
+            Path(os.path.join(root, "enrichments", f"{enricher_id}.json")).read_text(
+                encoding="utf-8"
+            )
+        )
+    except (OSError, ValueError):
+        return None
+    if not isinstance(obj, dict) or obj.get("status") not in (None, "ok"):
+        return None
+    data = obj.get("data")
+    return data if isinstance(data, dict) else None
+
+
+def _recurring_guests(
+    person_eps: dict[str, tuple[str, set[str]]], top_k: int
+) -> list[FeedSignalPerson]:
+    """People in ≥2 of the show's episodes (regulars vs one-off guests)."""
+    out = [
+        FeedSignalPerson(person_id=pid, name=name, episode_count=len(eps))
+        for pid, (name, eps) in person_eps.items()
+        if len(eps) >= 2
+    ]
+    out.sort(key=lambda p: (-p.episode_count, p.name))
+    return out[:top_k]
+
+
+def _dominant_themes(root: str, show_topic_ids: set[str], top_k: int) -> list[FeedSignalTheme]:
+    """Theme clusters (topic_theme_clusters) that the show's topics fall into, by overlap."""
+    data = _read_enrichment_data(root, "topic_theme_clusters")
+    if not data:
+        return []
+    out: list[FeedSignalTheme] = []
+    for c in data.get("clusters") or []:
+        if not isinstance(c, dict):
+            continue
+        matched = sum(
+            1
+            for m in (c.get("members") or [])
+            if isinstance(m, dict) and str(m.get("topic_id") or "") in show_topic_ids
+        )
+        tid = str(c.get("graph_compound_parent_id") or "")
+        label = str(c.get("canonical_label") or "").strip()
+        if matched >= 1 and tid and label:
+            out.append(FeedSignalTheme(theme_id=tid, label=label, topic_count=matched))
+    out.sort(key=lambda t: (-t.topic_count, t.label))
+    return out[:top_k]
+
+
+def _trending_topics(
+    root: str,
+    topic_eps: dict[str, tuple[str, set[str]]],
+    top_k: int,
+    min_velocity: float = 1.5,
+    min_total: int = 3,
+) -> list[FeedSignalTrend]:
+    """Show topics that are genuinely heating up (temporal_velocity).
+
+    Requires velocity ≥ ``min_velocity`` AND corpus ``total`` ≥ ``min_total`` — the
+    same total gate the Home trending chips use — so a topic mentioned twice in one
+    month (velocity math inflates it to ~6×) doesn't crowd out real momentum.
+    """
+    data = _read_enrichment_data(root, "temporal_velocity")
+    if not data:
+        return []
+    vel: dict[str, tuple[float, int]] = {}
+    for t in data.get("topics") or []:
+        if isinstance(t, dict) and t.get("topic_id") is not None:
+            v = t.get("velocity_last_over_6mo")
+            total = t.get("total")
+            if isinstance(v, (int, float)) and isinstance(total, int):
+                vel[str(t["topic_id"])] = (float(v), total)
+    out: list[FeedSignalTrend] = []
+    for tid, (label, eps) in topic_eps.items():
+        hit = vel.get(tid)
+        if hit is not None and hit[0] >= min_velocity and hit[1] >= min_total:
+            out.append(
+                FeedSignalTrend(
+                    topic_id=tid, label=label, velocity=round(hit[0], 2), episode_count=len(eps)
+                )
+            )
+    out.sort(key=lambda t: (-t.velocity, t.label))
+    return out[:top_k]
+
+
+def _show_grounding(root: str, show_person_ids: set[str]) -> FeedGroundingSummary | None:
+    """Pooled quote-backing rate across the show's people (grounding_rate)."""
+    data = _read_enrichment_data(root, "grounding_rate")
+    if not data:
+        return None
+    grounded = total = people = 0
+    for p in data.get("persons") or []:
+        if not isinstance(p, dict) or str(p.get("person_id") or "") not in show_person_ids:
+            continue
+        gi = p.get("grounded_insights")
+        ti = p.get("total_insights")
+        if isinstance(gi, int) and isinstance(ti, int) and ti > 0:
+            grounded += gi
+            total += ti
+            people += 1
+    if total == 0:
+        return None
+    return FeedGroundingSummary(
+        grounded_insights=grounded,
+        total_insights=total,
+        rate=round(grounded / total, 4),
+        people_count=people,
+    )
 
 
 @router.get("/corpus/feed-signals", response_model=CorpusFeedSignalsResponse)
@@ -326,8 +459,12 @@ async def corpus_feed_signals(
 ) -> CorpusFeedSignalsResponse:
     """Show-level aggregate signals for the Show rail landing (UXS-015 / RFC-104).
 
-    Counts the Topic + Person nodes across a feed's episode KGs, ranks by episode
-    count. Cross-show overlap is a deferred follow-up (needs an all-feeds pass).
+    Counts the Topic + Person nodes across a feed's episode KGs (ranked by episode
+    count), then projects corpus-scope enrichment onto the show's entities:
+    recurring guests (≥2 episodes), dominant themes (topic_theme_clusters), trending
+    topics (temporal_velocity), and a pooled grounding score (grounding_rate). Each
+    enrichment fold is best-effort — absent envelopes yield empty/None. Cross-show
+    overlap is a deferred follow-up (needs an all-feeds pass).
     """
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, anchor)
@@ -359,12 +496,17 @@ async def corpus_feed_signals(
             person_eps.items(), key=lambda kv: (-len(kv[1][1]), kv[1][0])
         )[:top_k]
     ]
+    root_s = str(root)
     return CorpusFeedSignalsResponse(
-        path=str(root),
+        path=root_s,
         feed_id=feed_id,
         episode_count=scanned,
         top_topics=top_topics,
         key_people=key_people,
+        recurring_guests=_recurring_guests(person_eps, top_k),
+        dominant_themes=_dominant_themes(root_s, set(topic_eps.keys()), top_k),
+        trending_topics=_trending_topics(root_s, topic_eps, top_k),
+        grounding=_show_grounding(root_s, set(person_eps.keys())),
     )
 
 
@@ -392,6 +534,17 @@ async def corpus_episodes(
     ),
     limit: int = Query(default=50, ge=1, le=1000),
     cursor: str | None = Query(default=None, description="Pagination cursor from previous page."),
+    sort: str = Query(
+        default="newest",
+        pattern="^(newest|oldest)$",
+        description="Publish-date order: newest-first (default) or oldest-first.",
+    ),
+    with_cil_topics: bool = Query(
+        default=False,
+        description="When true, populate cil_digest_topics per row (bridge identities + "
+        "topic-cluster membership), like the detail endpoint. Off by default to keep the "
+        "list light; the show rail opts in for digest-parity topic pills.",
+    ),
 ) -> CorpusEpisodesResponse:
     """Paginated episode list with optional feed, title, topic, and date filters.
 
@@ -415,11 +568,17 @@ async def corpus_episodes(
         until=until,
         has_gi=has_gi,
     )
-    if topic_cluster_only:
-        cluster_index = load_topic_cluster_index(root)
+    cluster_index = (
+        load_topic_cluster_index(root) if (topic_cluster_only or with_cil_topics) else None
+    )
+    if topic_cluster_only and cluster_index is not None:
         filtered = [
             r for r in filtered if row_matches_library_topic_cluster_filter(root, r, cluster_index)
         ]
+    if sort == "oldest":
+        # ``filtered`` is newest-first (catalog sort_key); reverse before paginating so the
+        # cursor walks oldest-first correctly across pages.
+        filtered = list(reversed(filtered))
     offset = decode_catalog_cursor(cursor)
     page_rows, next_cur = slice_page(filtered, offset, limit)
     items = [
@@ -442,7 +601,11 @@ async def corpus_episodes(
             episode_number=r.episode_number,
             feed_image_local_relpath=r.feed_image_local_relpath,
             episode_image_local_relpath=r.episode_image_local_relpath,
-            cil_digest_topics=[],
+            cil_digest_topics=(
+                build_cil_digest_topics_for_row(root, r, cluster_index)
+                if with_cil_topics and cluster_index is not None
+                else []
+            ),
             gi_relative_path=r.gi_relative_path or "",
             kg_relative_path=r.kg_relative_path or "",
             has_gi=r.has_gi,

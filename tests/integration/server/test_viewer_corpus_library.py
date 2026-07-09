@@ -43,6 +43,23 @@ def _kg_node(node_id: str, node_type: str, label: str) -> dict:
     return {"id": node_id, "type": node_type, "properties": {"label": label}}
 
 
+def _kg_person(node_id: str, name: str, kind: str = "person") -> dict:
+    """A person the way real KGs slug them: type Entity + properties.kind=person."""
+    return {
+        "id": node_id,
+        "type": "Entity",
+        "properties": {"label": name, "name": name, "kind": kind},
+    }
+
+
+def _write_enrichment(root: Path, enricher_id: str, data: dict) -> None:
+    enr = root / "enrichments"
+    enr.mkdir(exist_ok=True)
+    (enr / f"{enricher_id}.json").write_text(
+        json.dumps({"enricher_id": enricher_id, "status": "ok", "data": data}), encoding="utf-8"
+    )
+
+
 def _write_ep_with_kg(
     meta: Path, stem: str, *, feed_id: str, episode_id: str, nodes: list[dict]
 ) -> None:
@@ -155,6 +172,174 @@ def test_corpus_feed_signals_unknown_feed_is_empty(tmp_path: Path) -> None:
     assert body["episode_count"] == 0
     assert body["top_topics"] == []
     assert body["key_people"] == []
+
+
+def test_corpus_episodes_sort_oldest_first(tmp_path: Path) -> None:
+    """``sort=oldest`` flips the default newest-first order (item 6)."""
+    meta = tmp_path / "metadata"
+    meta.mkdir()
+    for i, month in enumerate(("01", "02", "03")):
+        (meta / f"e{i}.metadata.json").write_text(
+            json.dumps(
+                _episode_doc(
+                    episode_id=f"id{i}",
+                    episode_title=f"T{i}",
+                    published=f"2024-{month}-15T00:00:00",
+                )
+            ),
+            encoding="utf-8",
+        )
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+
+    newest = client.get("/api/corpus/episodes", params={"path": str(tmp_path), "limit": 10})
+    assert [i["episode_title"] for i in newest.json()["items"]] == ["T2", "T1", "T0"]
+
+    oldest = client.get(
+        "/api/corpus/episodes", params={"path": str(tmp_path), "limit": 10, "sort": "oldest"}
+    )
+    assert [i["episode_title"] for i in oldest.json()["items"]] == ["T0", "T1", "T2"]
+
+    bad = client.get("/api/corpus/episodes", params={"path": str(tmp_path), "sort": "sideways"})
+    assert bad.status_code == 422
+
+
+def test_corpus_episodes_with_cil_topics_opt_in(tmp_path: Path) -> None:
+    """``with_cil_topics`` populates cil_digest_topics per row; default stays empty (items 3/4)."""
+    meta = tmp_path / "metadata"
+    meta.mkdir()
+    (meta / "e.metadata.json").write_text(
+        json.dumps(_episode_doc(episode_id="e1", episode_title="Ep")),
+        encoding="utf-8",
+    )
+    (meta / "e.gi.json").write_text("{}", encoding="utf-8")
+    (meta / "e.bridge.json").write_text(
+        json.dumps({"identities": [{"id": "topic:alpha", "display_name": "Alpha"}]}),
+        encoding="utf-8",
+    )
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+
+    default = client.get("/api/corpus/episodes", params={"path": str(tmp_path), "limit": 10})
+    assert default.json()["items"][0]["cil_digest_topics"] == []
+
+    withp = client.get(
+        "/api/corpus/episodes",
+        params={"path": str(tmp_path), "limit": 10, "with_cil_topics": True},
+    )
+    pills = withp.json()["items"][0]["cil_digest_topics"]
+    assert pills, "expected cil_digest_topics when with_cil_topics=true"
+    assert any(p["label"] == "Alpha" for p in pills)
+
+
+def test_corpus_feed_signals_real_person_format_and_enrichment_aggregates(tmp_path: Path) -> None:
+    """People come from Entity+kind=person nodes (real KG format), and the endpoint folds
+    in recurring guests, dominant themes, trending topics, and pooled grounding.
+
+    Regression guard: keying people on ``type == "Person"`` matched synthetic fixtures but
+    NOTHING in a real corpus (people are ``Entity`` with ``kind: person``) — key_people was
+    silently empty on prod data until this was fixed (operator feedback #9 discovery).
+    """
+    meta = tmp_path / "metadata"
+    meta.mkdir()
+    _write_ep_with_kg(
+        meta,
+        "x1",
+        feed_id="showx",
+        episode_id="x1",
+        nodes=[
+            _kg_node("topic:ai", "Topic", "AI"),
+            _kg_node("topic:ml", "Topic", "ML"),
+            _kg_person("person:jane", "Jane Doe"),
+            _kg_person("org:acme", "Acme Corp", kind="org"),  # org — excluded
+        ],
+    )
+    _write_ep_with_kg(
+        meta,
+        "x2",
+        feed_id="showx",
+        episode_id="x2",
+        nodes=[
+            _kg_node("topic:ai", "Topic", "AI"),
+            _kg_person("person:jane", "Jane Doe"),
+            _kg_person("person:bob", "Bob Lee"),
+            _kg_person("person:speaker-01", "SPEAKER_01"),  # placeholder — excluded
+        ],
+    )
+    _write_ep_with_kg(
+        meta,
+        "x3",
+        feed_id="showx",
+        episode_id="x3",
+        nodes=[_kg_node("topic:ai", "Topic", "AI"), _kg_node("topic:ethics", "Topic", "Ethics")],
+    )
+    _write_enrichment(
+        tmp_path,
+        "topic_theme_clusters",
+        {
+            "clusters": [
+                {
+                    "cluster_type": "theme",
+                    "canonical_label": "AI stuff",
+                    "graph_compound_parent_id": "thc:ai-stuff",
+                    "members": [{"topic_id": "topic:ai"}, {"topic_id": "topic:ml"}],
+                }
+            ]
+        },
+    )
+    _write_enrichment(
+        tmp_path,
+        "temporal_velocity",
+        {
+            "topics": [
+                {"topic_id": "topic:ai", "velocity_last_over_6mo": 2.0, "total": 5},
+                {"topic_id": "topic:ethics", "velocity_last_over_6mo": 9.0, "total": 2},  # total<3
+            ]
+        },
+    )
+    _write_enrichment(
+        tmp_path,
+        "grounding_rate",
+        {
+            "persons": [
+                {"person_id": "person:jane", "grounded_insights": 8, "total_insights": 10},
+                {"person_id": "person:bob", "grounded_insights": 5, "total_insights": 5},
+                {"person_id": "person:nobody", "grounded_insights": 1, "total_insights": 4},
+            ]
+        },
+    )
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    s = client.get(
+        "/api/corpus/feed-signals", params={"path": str(tmp_path), "feed_id": "showx"}
+    ).json()
+
+    people = {p["person_id"]: p for p in s["key_people"]}
+    assert people["person:jane"]["episode_count"] == 2
+    assert people["person:bob"]["name"] == "Bob Lee"
+    assert "org:acme" not in people  # org excluded
+    assert "person:speaker-01" not in people  # placeholder excluded
+
+    recurring = {p["person_id"] for p in s["recurring_guests"]}
+    assert recurring == {"person:jane"}  # only jane is in ≥2 episodes
+
+    themes = {t["theme_id"]: t for t in s["dominant_themes"]}
+    assert themes["thc:ai-stuff"]["topic_count"] == 2  # both topic:ai + topic:ml are members
+
+    trending = {t["topic_id"] for t in s["trending_topics"]}
+    assert "topic:ai" in trending  # velocity 2.0, total 5 ≥ 3
+    assert "topic:ethics" not in trending  # velocity 9.0 but total 2 < 3 (sparse-noise gate)
+
+    # Pooled grounding over the show's people only (jane + bob), not person:nobody.
+    assert s["grounding"] == {
+        "grounded_insights": 13,
+        "total_insights": 15,
+        "rate": round(13 / 15, 4),
+        "people_count": 2,
+    }
 
 
 def test_corpus_feeds_and_episodes_flat_layout(tmp_path: Path) -> None:
