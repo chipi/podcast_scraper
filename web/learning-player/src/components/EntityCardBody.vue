@@ -312,7 +312,7 @@ function searchLibrary(): void {
           @open="(p) => open(p.kind, p.id)"
         />
 
-        <!-- Enrichment signals (Plan B): grounding / co-appears / disagreements (person);
+        <!-- Enrichment signals (Plan B): grounding / co-appears (person);
              momentum / similar / discussed-alongside (topic). Hides itself when empty. -->
         <EntitySignals
           :kind="current.kind"

@@ -7,7 +7,7 @@
  * the whole block renders nothing when there's no signal. Chips emit `open` so
  * the parent card can walk the graph (person↔topic), same as its other rows.
  *
- *   Person → grounding %, often-appears-with, disagreements (the two claims).
+ *   Person → grounding %, often-appears-with.
  *   Topic  → momentum (velocity), similar topics, often-discussed-alongside.
  */
 import { computed, ref, watch } from 'vue'
@@ -50,30 +50,6 @@ function nameOf(name: string | undefined, id: string): string {
   return name?.trim() ? name.trim() : titleCase(shortId(id))
 }
 
-// Real topic labels (e.g. "AI ethics", not slug-cased "Ai Ethics") harvested from
-// every signal that carries one — velocity covers the whole corpus, so a
-// contradiction's topic_id (which ships without a label) resolves cleanly.
-const topicLabels = computed(() => {
-  const m = new Map<string, string>()
-  const add = (id?: string, label?: string): void => {
-    const key = id ? norm(id) : ''
-    if (key && label?.trim() && !m.has(key)) m.set(key, label.trim())
-  }
-  for (const t of signals.value?.temporal_velocity?.topics ?? []) add(t.topic_id, t.topic_label)
-  for (const t of signals.value?.topic_similarity?.topics ?? [])
-    for (const k of t.top_k ?? []) add(k.topic_id, k.topic_label)
-  for (const p of signals.value?.topic_cooccurrence_corpus?.pairs ?? []) {
-    add(p.topic_a_id, p.topic_a_label)
-    add(p.topic_b_id, p.topic_b_label)
-  }
-  return m
-})
-// Topics render with their raw corpus label (lowercase in this corpus) to match
-// how every other topic chip in the player is shown — consistency over cosmetics.
-function topicName(id: string): string {
-  return topicLabels.value.get(norm(id)) || shortId(id)
-}
-
 // ── Person signals ───────────────────────────────────────────────────────────
 const grounding = computed(() => {
   if (props.kind !== 'person') return null
@@ -89,19 +65,6 @@ const coappears = computed(() => {
     else if (norm(p.person_b_id) === self.value) out.push({ id: p.person_a_id, name: nameOf(p.person_a_name, p.person_a_id), count: p.episode_count })
   }
   return out.sort((a, b) => b.count - a.count).slice(0, MAX)
-})
-const disagreements = computed(() => {
-  if (props.kind !== 'person') return []
-  const out: Array<{ otherId: string; otherName: string; topic: string; selfText: string; otherText: string }> = []
-  for (const c of signals.value?.nli_contradiction?.contradictions ?? []) {
-    const isA = norm(c.person_a_id) === self.value
-    const isB = norm(c.person_b_id) === self.value
-    if (!isA && !isB) continue
-    const topic = topicName(c.topic_id)
-    if (isA) out.push({ otherId: c.person_b_id, otherName: nameOf(c.person_b_name, c.person_b_id), topic, selfText: c.insight_a_text ?? '', otherText: c.insight_b_text ?? '' })
-    else out.push({ otherId: c.person_a_id, otherName: nameOf(c.person_a_name, c.person_a_id), topic, selfText: c.insight_b_text ?? '', otherText: c.insight_a_text ?? '' })
-  }
-  return out.slice(0, MAX)
 })
 
 // ── Topic signals ────────────────────────────────────────────────────────────
@@ -136,7 +99,6 @@ const hasAny = computed(() =>
   Boolean(
     grounding.value ||
       coappears.value.length ||
-      disagreements.value.length ||
       momentum.value ||
       similarTopics.value.length ||
       alongside.value.length,
@@ -165,29 +127,6 @@ const hasAny = computed(() =>
           @click="emit('open', { kind: 'person', id: p.id })"
         >{{ p.name }} <span class="text-muted">· {{ p.count }}</span></button>
       </div>
-    </section>
-
-    <section v-if="disagreements.length" class="mb-4" data-testid="es-disagreements">
-      <h3 class="lp-section mb-2">{{ t('ec.sigDisagreements') }}</h3>
-      <ul class="flex flex-col gap-2">
-        <li
-          v-for="(d, i) in disagreements"
-          :key="i"
-          class="rounded-md bg-overlay px-3 py-2"
-          data-testid="es-disagreement-row"
-        >
-          <p class="text-xs">
-            <button
-              type="button"
-              class="font-semibold text-person hover:underline"
-              @click="emit('open', { kind: 'person', id: d.otherId })"
-            >{{ d.otherName }}</button>
-            <span class="text-muted">{{ ' ' + t('ec.sigOn', { topic: d.topic }) }}</span>
-          </p>
-          <p v-if="d.selfText" class="mt-1 text-xs text-muted"><span class="text-canvas-foreground">“{{ d.selfText }}”</span></p>
-          <p v-if="d.otherText" class="mt-0.5 text-xs text-muted">{{ d.otherName }}: “{{ d.otherText }}”</p>
-        </li>
-      </ul>
     </section>
 
     <!-- Topic -->
