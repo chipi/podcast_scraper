@@ -24,7 +24,15 @@ test('reorder the queue with the ↑/↓ chevrons', async ({ page }, testInfo) =
     { title: EP_A, show: 'p05' },
     { title: EP_B, show: 'p03' },
   ]) {
+    // A full-page goto resets the Pinia queue store; it re-hydrates via GET /queue. Adding before
+    // that GET resolves lets the stale fetch (server state WITHOUT this episode) clobber the
+    // optimistic add → the button never flips to Remove and the episode drops. Wait for the
+    // hydration GET (armed before the goto so it can't be missed) before touching the button.
+    const hydrated = page.waitForResponse(
+      (r) => r.url().includes('/api/app/queue') && r.request().method() === 'GET',
+    )
     await page.goto(`/podcast/${show}`) // #1148: reach each episode via its show page
+    await hydrated
     const card = page.locator('article').filter({ hasText: title }).first()
     const btn = card.getByRole('button', { name: /queue/i }).first()
     await expect(btn).toBeVisible()
