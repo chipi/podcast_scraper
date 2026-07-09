@@ -39,6 +39,124 @@ def _episode_doc(
     }
 
 
+def _kg_node(node_id: str, node_type: str, label: str) -> dict:
+    return {"id": node_id, "type": node_type, "properties": {"label": label}}
+
+
+def _write_ep_with_kg(
+    meta: Path, stem: str, *, feed_id: str, episode_id: str, nodes: list[dict]
+) -> None:
+    """One episode row + its per-episode KG artifact (``{stem}.kg.json``)."""
+    (meta / f"{stem}.metadata.json").write_text(
+        json.dumps(_episode_doc(feed_id=feed_id, episode_id=episode_id, episode_title=stem)),
+        encoding="utf-8",
+    )
+    (meta / f"{stem}.kg.json").write_text(json.dumps({"nodes": nodes}), encoding="utf-8")
+
+
+def test_corpus_feed_signals_aggregates_topics_and_people(tmp_path: Path) -> None:
+    """Show-level signals count Topic/Person nodes across a feed's episode KGs.
+
+    Ranks by episode count, filters diarization placeholders, scopes to the feed.
+    """
+    meta = tmp_path / "metadata"
+    meta.mkdir()
+    _write_ep_with_kg(
+        meta,
+        "x1",
+        feed_id="showx",
+        episode_id="x1",
+        nodes=[
+            _kg_node("topic:ai", "Topic", "AI"),
+            _kg_node("topic:ml", "Topic", "ML"),
+            _kg_node("person:jane", "Person", "Jane Doe"),
+        ],
+    )
+    _write_ep_with_kg(
+        meta,
+        "x2",
+        feed_id="showx",
+        episode_id="x2",
+        nodes=[
+            _kg_node("topic:ai", "Topic", "AI"),
+            _kg_node("person:jane", "Person", "Jane Doe"),
+            _kg_node("person:speaker-00", "Person", "SPEAKER_00"),
+        ],
+    )
+    _write_ep_with_kg(
+        meta,
+        "x3",
+        feed_id="showx",
+        episode_id="x3",
+        nodes=[
+            _kg_node("topic:ai", "Topic", "AI"),
+            _kg_node("topic:ethics", "Topic", "Ethics"),
+        ],
+    )
+    # A different show — must be excluded by feed scoping.
+    _write_ep_with_kg(
+        meta,
+        "y1",
+        feed_id="showy",
+        episode_id="y1",
+        nodes=[_kg_node("topic:other", "Topic", "Other")],
+    )
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    r = client.get("/api/corpus/feed-signals", params={"path": str(tmp_path), "feed_id": "showx"})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["feed_id"] == "showx"
+    assert body["episode_count"] == 3
+
+    topics = {t["topic_id"]: t for t in body["top_topics"]}
+    assert topics["topic:ai"]["episode_count"] == 3
+    assert topics["topic:ai"]["label"] == "AI"
+    assert topics["topic:ml"]["episode_count"] == 1
+    assert topics["topic:ethics"]["episode_count"] == 1
+    assert "topic:other" not in topics  # scoped to showx, showy excluded
+    assert body["top_topics"][0]["topic_id"] == "topic:ai"  # ranked by episode count desc
+
+    people = {p["person_id"]: p for p in body["key_people"]}
+    assert people["person:jane"]["episode_count"] == 2
+    assert people["person:jane"]["name"] == "Jane Doe"
+    assert "person:speaker-00" not in people  # diarization placeholder filtered
+
+
+def test_corpus_feed_signals_top_k_caps_results(tmp_path: Path) -> None:
+    meta = tmp_path / "metadata"
+    meta.mkdir()
+    nodes = [_kg_node(f"topic:t{i}", "Topic", f"T{i}") for i in range(5)]
+    _write_ep_with_kg(meta, "e1", feed_id="showz", episode_id="e1", nodes=nodes)
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    r = client.get(
+        "/api/corpus/feed-signals",
+        params={"path": str(tmp_path), "feed_id": "showz", "top_k": 2},
+    )
+    assert r.status_code == 200
+    assert len(r.json()["top_topics"]) == 2
+
+
+def test_corpus_feed_signals_unknown_feed_is_empty(tmp_path: Path) -> None:
+    meta = tmp_path / "metadata"
+    meta.mkdir()
+    _write_ep_with_kg(
+        meta, "e1", feed_id="showx", episode_id="e1", nodes=[_kg_node("topic:ai", "Topic", "AI")]
+    )
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    r = client.get("/api/corpus/feed-signals", params={"path": str(tmp_path), "feed_id": "ghost"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["episode_count"] == 0
+    assert body["top_topics"] == []
+    assert body["key_people"] == []
+
+
 def test_corpus_feeds_and_episodes_flat_layout(tmp_path: Path) -> None:
     meta = tmp_path / "metadata"
     meta.mkdir()

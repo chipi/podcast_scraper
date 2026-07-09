@@ -52,6 +52,17 @@ const ALPHA_EPISODES = {
   next_cursor: null,
 }
 
+const ALPHA_SIGNALS = {
+  path: '/mock/corpus',
+  feed_id: 'alpha',
+  episode_count: 2,
+  top_topics: [
+    { topic_id: 'topic:ai', label: 'AI', episode_count: 2 },
+    { topic_id: 'topic:ethics', label: 'Ethics', episode_count: 1 },
+  ],
+  key_people: [{ person_id: 'person:jane', name: 'Jane Doe', episode_count: 2 }],
+}
+
 test.describe('Operator Shows Library (shows-first browse)', () => {
   test.beforeEach(async ({ page }) => {
     await page.route('**/api/health', async (route) => {
@@ -95,6 +106,13 @@ test.describe('Operator Shows Library (shows-first browse)', () => {
           has_kg: true,
           cil_digest_topics: [],
         }),
+      })
+    })
+    await page.route('**/api/corpus/feed-signals**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(ALPHA_SIGNALS),
       })
     })
     // Feed-scoped episode list (the show detail fetch).
@@ -170,6 +188,21 @@ test.describe('Operator Shows Library (shows-first browse)', () => {
     await expect(page.getByTestId('show-rail-episode-1')).toContainText('Alpha Episode Two')
     // The grid remains — the show opened in the rail, not the same surface.
     await expect(page.getByTestId('shows-grid')).toBeVisible()
+  })
+
+  test('the show rail shows a Signals band (top topics + key people)', async ({ page }) => {
+    await openShowsMode(page)
+    await page.getByTestId('shows-card-alpha').click()
+    await expect(page.getByTestId('show-rail-panel')).toBeVisible()
+
+    const signals = page.getByTestId('show-rail-signals')
+    await expect(signals).toBeVisible()
+    const topics = page.getByTestId('show-rail-topic')
+    await expect(topics).toHaveCount(2)
+    await expect(topics.first()).toContainText('AI')
+    const people = page.getByTestId('show-rail-person')
+    await expect(people).toHaveCount(1)
+    await expect(people.first()).toContainText('Jane Doe')
   })
 
   test('episode in the show rail opens in the same rail, with ‹ Back to the show', async ({

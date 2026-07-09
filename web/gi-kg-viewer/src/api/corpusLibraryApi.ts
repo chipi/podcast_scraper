@@ -125,6 +125,49 @@ export async function fetchCorpusFeeds(corpusPath: string): Promise<CorpusFeedsR
   })
 }
 
+export type FeedSignalTopic = {
+  topic_id: string
+  label: string
+  episode_count: number
+}
+
+export type FeedSignalPerson = {
+  person_id: string
+  name: string
+  episode_count: number
+}
+
+/**
+ * Show-level aggregate signals (UXS-015 / RFC-104): the show's most-covered
+ * topics + most-featured people, counted across its episode KGs server-side
+ * (``GET /api/corpus/feed-signals``). Diarization placeholders are filtered out.
+ */
+export type CorpusFeedSignalsResponse = {
+  path: string
+  feed_id: string
+  episode_count: number
+  top_topics: FeedSignalTopic[]
+  key_people: FeedSignalPerson[]
+}
+
+export async function fetchFeedSignals(
+  corpusPath: string,
+  feedId: string,
+  topK?: number,
+): Promise<CorpusFeedSignalsResponse> {
+  const q = new URLSearchParams({ path: corpusPath.trim(), feed_id: feedId })
+  if (topK != null) q.set('top_k', String(topK))
+  const qs = q.toString()
+  return dedupeInFlight(`GET|/api/corpus/feed-signals?${qs}`, async () => {
+    const res = await fetchWithTimeout(`/api/corpus/feed-signals?${qs}`)
+    if (!res.ok) {
+      const t = await res.text()
+      raiseCorpusHttpError(res, t)
+    }
+    return (await res.json()) as CorpusFeedSignalsResponse
+  })
+}
+
 export type FetchEpisodesOptions = {
   /** When set (including empty string for ungrouped episodes), filters by ``feed_id``. */
   feedId?: string

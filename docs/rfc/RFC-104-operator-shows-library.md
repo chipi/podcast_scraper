@@ -33,8 +33,12 @@ No new endpoints. No new stores. Three new components + one toggle, wired into t
 > show onto the subject Back stack, so the episode rail carries a ‹ Back to the show). The grid stays in
 > the main library surface. The former in-panel `ShowDetailView` is retired from the path (file kept,
 > dormant). §1 below describes the original in-panel plan; the rail wiring supersedes the grid⇄detail
-> hop. **Phase 2 (deferred):** a richer show landing (top topics / key people / cross-show overlaps)
-> needs a new aggregation endpoint — none exists today.
+> hop. **Phase 2 (shipped, 2026-07-09):** a richer show landing — a Signals band above the episode
+> list shows the show's **top topics** + **key people**, from a new `GET /api/corpus/feed-signals`
+> endpoint that counts Topic/Person nodes across the feed's per-episode KGs (ranked by episode count,
+> diarization placeholders filtered). Chips open the node view in the same rail via
+> `subject.focusTopic`/`focusPerson` (each pushes the show onto the Back stack). **Cross-show overlaps
+> remain deferred** — they need an all-feeds pass, not a single-feed aggregate.
 
 ### §1 Component tree
 

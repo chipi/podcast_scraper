@@ -9,6 +9,11 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
+from podcast_scraper.enrichment.enrichers._loaders import (
+    is_unresolved_speaker_placeholder,
+    node_label,
+    nodes_of_type,
+)
 from podcast_scraper.search.corpus_similar import episode_scope_key, run_similar_episodes
 from podcast_scraper.server.cil_digest_topics import (
     build_cil_digest_topics_for_row,
@@ -46,6 +51,7 @@ from podcast_scraper.server.schemas import (
     CorpusEpisodeListItem,
     CorpusEpisodesResponse,
     CorpusFeedItem,
+    CorpusFeedSignalsResponse,
     CorpusFeedsResponse,
     CorpusNodeEpisodeItem,
     CorpusNodeEpisodesRequest,
@@ -55,6 +61,8 @@ from podcast_scraper.server.schemas import (
     CorpusResolveEpisodesResponse,
     CorpusSimilarEpisodeItem,
     CorpusSimilarEpisodesResponse,
+    FeedSignalPerson,
+    FeedSignalTopic,
 )
 from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
 
@@ -259,6 +267,105 @@ async def corpus_feeds(
         for f in feeds_raw
     ]
     return CorpusFeedsResponse(path=str(root), feeds=feeds)
+
+
+def _read_kg_artifact(root: str, relpath: str) -> dict[str, Any] | None:
+    """Read a catalog-derived KG relpath under the corpus root; None if unreadable.
+
+    ``relpath`` comes from the corpus scan (trusted), but the realpath-under-root
+    check is a cheap defensive guard against a traversal in a malformed row.
+    """
+    try:
+        root_real = os.path.realpath(root)
+        target = os.path.realpath(os.path.join(root, relpath))
+        if not (target == root_real or target.startswith(root_real + os.sep)):
+            return None
+        obj = json.loads(Path(target).read_text(encoding="utf-8"))
+        return obj if isinstance(obj, dict) else None
+    except (OSError, ValueError):
+        return None
+
+
+def _accumulate_kg_entities(
+    art: dict[str, Any],
+    ep_key: str,
+    topic_eps: dict[str, tuple[str, set[str]]],
+    person_eps: dict[str, tuple[str, set[str]]],
+) -> None:
+    """Fold one episode KG's Topic + Person nodes into the running per-feed aggregates.
+
+    A per-episode KG carries only that episode's entities, so each Topic/Person node
+    counts as one "mention in this episode" (``ep_key`` is de-duped in the set).
+    Diarization placeholders (``SPEAKER_NN``) are dropped from people.
+    """
+    for n in nodes_of_type(art, "Topic"):
+        tid = str(n.get("id") or "")
+        if tid:
+            _, eps = topic_eps.setdefault(tid, (node_label(n) or tid, set()))
+            eps.add(ep_key)
+    for n in nodes_of_type(art, "Person"):
+        pid = str(n.get("id") or "")
+        if not pid:
+            continue
+        name = node_label(n) or pid
+        if is_unresolved_speaker_placeholder(pid, name):
+            continue
+        _, eps = person_eps.setdefault(pid, (name, set()))
+        eps.add(ep_key)
+
+
+@router.get("/corpus/feed-signals", response_model=CorpusFeedSignalsResponse)
+async def corpus_feed_signals(
+    request: Request,
+    path: str | None = Query(default=None, description="Corpus root."),
+    feed_id: str = Query(min_length=1, description="Feed id to aggregate signals for."),
+    top_k: int = Query(default=8, ge=1, le=25),
+    max_episodes: int = Query(
+        default=500, ge=1, le=2000, description="Cap episodes scanned for the aggregate."
+    ),
+) -> CorpusFeedSignalsResponse:
+    """Show-level aggregate signals for the Show rail landing (UXS-015 / RFC-104).
+
+    Counts the Topic + Person nodes across a feed's episode KGs, ranks by episode
+    count. Cross-show overlap is a deferred follow-up (needs an all-feeds pass).
+    """
+    anchor = getattr(request.app.state, "output_dir", None)
+    root = _resolve_corpus_root(path, anchor)
+    rows = filter_rows(build_catalog_rows_cumulative(root), feed_id=feed_id)
+
+    topic_eps: dict[str, tuple[str, set[str]]] = {}
+    person_eps: dict[str, tuple[str, set[str]]] = {}
+    scanned = 0
+    for r in rows[:max_episodes]:
+        if not r.has_kg or not r.kg_relative_path:
+            continue
+        art = _read_kg_artifact(str(root), r.kg_relative_path)
+        if art is None:
+            continue
+        scanned += 1
+        _accumulate_kg_entities(
+            art, r.episode_id or r.metadata_relative_path, topic_eps, person_eps
+        )
+
+    top_topics = [
+        FeedSignalTopic(topic_id=tid, label=label, episode_count=len(eps))
+        for tid, (label, eps) in sorted(
+            topic_eps.items(), key=lambda kv: (-len(kv[1][1]), kv[1][0])
+        )[:top_k]
+    ]
+    key_people = [
+        FeedSignalPerson(person_id=pid, name=name, episode_count=len(eps))
+        for pid, (name, eps) in sorted(
+            person_eps.items(), key=lambda kv: (-len(kv[1][1]), kv[1][0])
+        )[:top_k]
+    ]
+    return CorpusFeedSignalsResponse(
+        path=str(root),
+        feed_id=feed_id,
+        episode_count=scanned,
+        top_topics=top_topics,
+        key_people=key_people,
+    )
 
 
 @router.get("/corpus/episodes", response_model=CorpusEpisodesResponse)

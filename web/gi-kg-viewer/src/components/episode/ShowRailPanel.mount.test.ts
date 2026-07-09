@@ -47,11 +47,26 @@ const EPISODES = [
   },
 ]
 
-function stubApi(nextCursor: string | null = null): void {
+const SIGNALS = {
+  path: '/corpus',
+  feed_id: 'alpha',
+  episode_count: 2,
+  top_topics: [
+    { topic_id: 'topic:ai', label: 'AI', episode_count: 2 },
+    { topic_id: 'topic:ethics', label: 'Ethics', episode_count: 1 },
+  ],
+  key_people: [{ person_id: 'person:jane', name: 'Jane Doe', episode_count: 2 }],
+}
+
+function stubApi(
+  nextCursor: string | null = null,
+  signals: unknown = SIGNALS,
+): void {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input)
+      if (url.includes('/api/corpus/feed-signals')) return res(signals)
       if (url.includes('/api/corpus/feeds')) return res({ path: '/corpus', feeds: [FEED] })
       if (url.includes('/api/corpus/episodes'))
         return res({ path: '/corpus', feed_id: 'alpha', items: EPISODES, next_cursor: nextCursor })
@@ -114,5 +129,51 @@ describe('ShowRailPanel — header + episodes', () => {
     const w = mount(ShowRailPanel)
     await flushPromises()
     expect(w.find('[data-testid="show-rail-load-more"]').exists()).toBe(true)
+  })
+})
+
+describe('ShowRailPanel — show signals', () => {
+  it('renders top topics + key people with episode counts', async () => {
+    stubApi()
+    const w = mount(ShowRailPanel)
+    await flushPromises()
+
+    const sig = w.find('[data-testid="show-rail-signals"]')
+    expect(sig.exists()).toBe(true)
+    const topics = w.findAll('[data-testid="show-rail-topic"]')
+    expect(topics.map((t) => t.text().replace(/\s+/g, ' '))).toEqual(['AI · 2', 'Ethics · 1'])
+    const people = w.findAll('[data-testid="show-rail-person"]')
+    expect(people.map((p) => p.text().replace(/\s+/g, ' '))).toEqual(['Jane Doe · 2'])
+  })
+
+  it('opens a topic chip via subject.focusTopic (Back-to-show set up)', async () => {
+    stubApi()
+    const subject = useSubjectStore()
+    const spy = vi.spyOn(subject, 'focusTopic')
+    const w = mount(ShowRailPanel)
+    await flushPromises()
+
+    await w.findAll('[data-testid="show-rail-topic"]')[0].trigger('click')
+    expect(spy).toHaveBeenCalledWith('topic:ai')
+    expect(subject.kind).toBe('graph-node')
+    expect(subject.canGoBack).toBe(true)
+  })
+
+  it('opens a person chip via subject.focusPerson', async () => {
+    stubApi()
+    const subject = useSubjectStore()
+    const spy = vi.spyOn(subject, 'focusPerson')
+    const w = mount(ShowRailPanel)
+    await flushPromises()
+
+    await w.find('[data-testid="show-rail-person"]').trigger('click')
+    expect(spy).toHaveBeenCalledWith('person:jane')
+  })
+
+  it('hides the signals block when the feed has no topics or people', async () => {
+    stubApi(null, { path: '/corpus', feed_id: 'alpha', episode_count: 0, top_topics: [], key_people: [] })
+    const w = mount(ShowRailPanel)
+    await flushPromises()
+    expect(w.find('[data-testid="show-rail-signals"]').exists()).toBe(false)
   })
 })

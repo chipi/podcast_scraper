@@ -211,9 +211,10 @@ export const useSubjectStore = defineStore('subject', () => {
       kind.value = null
       return
     }
-    // Record the current graph node for Back — only node→node chains (and not a
-    // no-op re-focus of the same node), so Back stays within the node rail.
-    if (kind.value === 'graph-node' && graphNodeCyId.value !== t) {
+    // Record the prior subject for Back — node→node chains (not a no-op re-focus of
+    // the same node), and show → node (a topic/person opened from a Show rail should
+    // let you return to the show, mirroring focusEpisode's show → episode handling).
+    if ((kind.value === 'graph-node' && graphNodeCyId.value !== t) || kind.value === 'show') {
       pushHistory()
     }
     clearFields()

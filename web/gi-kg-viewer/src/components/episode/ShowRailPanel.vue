@@ -2,12 +2,14 @@
 /**
  * ShowRailPanel (UXS-015 / RFC-104) — a Show opened in the right subject rail.
  *
- * Mirrors EpisodeDetailPanel's header (compact cover + title + meta line), then
- * the show's episode list. Reads `subject.feedId` (set by `subject.focusShow`
- * from the Shows grid) and re-fetches the feed (header) + its episodes. Clicking
- * an episode calls `subject.focusEpisode` → the episode opens in the same rail;
- * `focusEpisode` pushes the show onto the Back stack, so the episode rail's Back
- * returns here. Pure read over existing endpoints — no backend change.
+ * Mirrors EpisodeDetailPanel's header (compact cover + title + meta line), then a
+ * show-level Signals band (top topics + key people, from `GET /corpus/feed-signals`
+ * — Topic/Person nodes counted across the show's episode KGs), then the episode
+ * list. Reads `subject.feedId` (set by `subject.focusShow` from the Shows grid) and
+ * re-fetches feed (header) + episodes + signals. Clicking an episode calls
+ * `subject.focusEpisode`, a topic/person chip calls `subject.focusTopic`/`focusPerson`
+ * — each opens in this same rail and pushes the show onto the Back stack, so the
+ * child rail's Back returns here.
  */
 import { computed, ref, watch } from 'vue'
 import { useShellStore } from '../../stores/shell'
@@ -15,8 +17,10 @@ import { useSubjectStore } from '../../stores/subject'
 import {
   fetchCorpusEpisodes,
   fetchCorpusFeeds,
+  fetchFeedSignals,
   type CorpusEpisodeListItem,
   type CorpusFeedItem,
+  type CorpusFeedSignalsResponse,
 } from '../../api/corpusLibraryApi'
 import PodcastCover from '../shared/PodcastCover.vue'
 
@@ -25,6 +29,7 @@ const subject = useSubjectStore()
 
 const feed = ref<CorpusFeedItem | null>(null)
 const episodes = ref<CorpusEpisodeListItem[]>([])
+const signals = ref<CorpusFeedSignalsResponse | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
 const nextCursor = ref<string | null>(null)
@@ -32,6 +37,11 @@ const descExpanded = ref(false)
 
 const PAGE = 50
 const DESC_CLAMP = 180
+const SIGNALS_TOP_K = 8
+
+const topTopics = computed(() => signals.value?.top_topics ?? [])
+const keyPeople = computed(() => signals.value?.key_people ?? [])
+const hasSignals = computed(() => topTopics.value.length > 0 || keyPeople.value.length > 0)
 
 const title = computed(
   () => feed.value?.display_title?.trim() || subject.feedUiLabel || subject.feedId || 'Show',
@@ -92,6 +102,20 @@ async function loadEpisodes(reset: boolean): Promise<void> {
   }
 }
 
+async function loadSignals(): Promise<void> {
+  const path = shell.corpusPath.trim()
+  const id = subject.feedId?.trim()
+  if (!path || !id) {
+    signals.value = null
+    return
+  }
+  try {
+    signals.value = await fetchFeedSignals(path, id, SIGNALS_TOP_K)
+  } catch {
+    signals.value = null
+  }
+}
+
 function selectEpisode(e: CorpusEpisodeListItem): void {
   subject.focusEpisode(e.metadata_relative_path, {
     uiTitle: e.episode_title?.trim() || null,
@@ -99,13 +123,24 @@ function selectEpisode(e: CorpusEpisodeListItem): void {
   })
 }
 
+// Topic / person chips open the unified node view in this same rail; Back returns
+// here (focusGraphNode pushes the show onto the history stack).
+function openTopic(id: string): void {
+  subject.focusTopic(id)
+}
+function openPerson(id: string): void {
+  subject.focusPerson(id)
+}
+
 watch(
   () => subject.feedId,
   () => {
     nextCursor.value = null
     descExpanded.value = false
+    signals.value = null
     void loadFeed()
     void loadEpisodes(true)
+    void loadSignals()
   },
   { immediate: true },
 )
@@ -160,6 +195,49 @@ watch(
             @click="descExpanded = !descExpanded"
           >
             {{ descExpanded ? 'Show less' : 'Show more' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Show-level signals (UXS-015 / RFC-104): most-covered topics + key people,
+         counted across the show's episode KGs. Chips open the node view in-rail. -->
+    <div
+      v-if="hasSignals"
+      class="shrink-0 border-b border-border px-3 py-2"
+      data-testid="show-rail-signals"
+    >
+      <div v-if="topTopics.length" class="mb-2">
+        <h4 class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted">
+          Top topics
+        </h4>
+        <div class="flex flex-wrap gap-1">
+          <button
+            v-for="tp in topTopics"
+            :key="tp.topic_id"
+            type="button"
+            data-testid="show-rail-topic"
+            class="rounded-full bg-overlay px-2 py-0.5 text-[11px] text-topic outline-none transition hover:bg-overlay-2 focus-visible:ring-2 focus-visible:ring-primary"
+            @click="openTopic(tp.topic_id)"
+          >
+            {{ tp.label }} <span class="text-muted">· {{ tp.episode_count }}</span>
+          </button>
+        </div>
+      </div>
+      <div v-if="keyPeople.length">
+        <h4 class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted">
+          Key people
+        </h4>
+        <div class="flex flex-wrap gap-1">
+          <button
+            v-for="p in keyPeople"
+            :key="p.person_id"
+            type="button"
+            data-testid="show-rail-person"
+            class="rounded-full bg-overlay px-2 py-0.5 text-[11px] text-person outline-none transition hover:bg-overlay-2 focus-visible:ring-2 focus-visible:ring-primary"
+            @click="openPerson(p.person_id)"
+          >
+            {{ p.name }} <span class="text-muted">· {{ p.episode_count }}</span>
           </button>
         </div>
       </div>

@@ -25,6 +25,15 @@ episode-row; introduces no new tokens.
 > (ShowDetailView)" section below described the original in-panel layout; the tokens/rows carry over to
 > `ShowRailPanel`, but the surface is the rail, and the header follows the `EpisodeDetailPanel` header
 > exactly.
+>
+> **Signals band (Phase 2, 2026-07-09).** Between the header and the episode list, a compact
+> `show-rail-signals` block surfaces the show's **Top topics** and **Key people** as count-labelled
+> chips (`show-rail-topic` / `show-rail-person`), from `GET /api/corpus/feed-signals` (Topic/Person
+> nodes counted across the show's episode KGs, ranked by episode count; diarization placeholders
+> filtered). Topic chips use `text-topic`, people chips `text-person` (rounded-full `bg-overlay`,
+> `text-[11px]`, count in `text-muted`). Clicking a chip opens that node in the same rail
+> (`subject.focusTopic` / `focusPerson`, Back returns to the show). The whole band hides when the feed
+> has no topics or people. Cross-show overlaps remain deferred (need an all-feeds pass).
 
 ## Mode toggle
 

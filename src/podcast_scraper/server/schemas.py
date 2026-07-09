@@ -1295,6 +1295,37 @@ class CorpusFeedsResponse(BaseModel):
     feeds: list[CorpusFeedItem] = Field(default_factory=list)
 
 
+class FeedSignalTopic(BaseModel):
+    """One aggregated topic for a show (UXS-015 / RFC-104 show landing)."""
+
+    topic_id: str
+    label: str
+    episode_count: int = Field(ge=1, description="Episodes of this show that mention the topic.")
+
+
+class FeedSignalPerson(BaseModel):
+    """One aggregated person for a show (diarization placeholders filtered out)."""
+
+    person_id: str
+    name: str
+    episode_count: int = Field(ge=1, description="Episodes of this show that mention the person.")
+
+
+class CorpusFeedSignalsResponse(BaseModel):
+    """Response for GET /api/corpus/feed-signals — show-level aggregate signals.
+
+    Aggregates the Topic + Person nodes across a feed's episode KGs (each per-episode
+    KG carries only that episode's entities, so counting nodes = "mentions in that
+    episode"). Cross-show overlap is a deferred follow-up (needs an all-feeds pass).
+    """
+
+    path: str = Field(description="Resolved corpus root.")
+    feed_id: str
+    episode_count: int = Field(ge=0, description="Episodes scanned for this feed.")
+    top_topics: list[FeedSignalTopic] = Field(default_factory=list)
+    key_people: list[FeedSignalPerson] = Field(default_factory=list)
+
+
 class CilDigestTopicPill(BaseModel):
     """One CIL topic chip for digest / library (bridge identity + optional topic cluster)."""
 
