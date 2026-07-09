@@ -816,7 +816,7 @@ jobs:
   # ===========================================================================
   # Tier-3 consumer-app validation (mirrors nightly-tier3-validation for the
   # viewer). Runs the real-backend Playwright walk against the committed
-  # app-validation-corpus/v2 fixture — screenshots + logs upload as an
+  # app-validation-corpus/v3 fixture — screenshots + logs upload as an
   # artifact, and a deduped ``tier3-app-regression`` issue is auto-filed
   # on scheduled failures.
   #
@@ -876,10 +876,10 @@ jobs:
       - name: Start API server against the app-validation-corpus
         run: |
           # Background the API so subsequent steps can hit it. The
-          # committed app-validation-corpus/v2 is the default; an
+          # committed app-validation-corpus/v3 is the default; an
           # operator-driven run overrides via APP_CORPUS_PATH env.
           nohup .venv/bin/python -m podcast_scraper.cli serve \
-            --output-dir tests/fixtures/app-validation-corpus/v2 \
+            --output-dir tests/fixtures/app-validation-corpus/v3 \
             --port 8000 --host 127.0.0.1 \
             > tier3-app-api.log 2>&1 &
           echo $! > tier3-app-api.pid
@@ -974,7 +974,7 @@ jobs:
                 '',
                 `**Date:** ${date}`,
                 `**Run:** [${context.runId}](https://github.com/${owner}/${repo}/actions/runs/${context.runId})`,
-                `**Corpus:** \`tests/fixtures/app-validation-corpus/v2\` (committed synthetic)`,
+                `**Corpus:** \`tests/fixtures/app-validation-corpus/v3\` (committed synthetic)`,
                 '',
                 'Screenshots + logs are attached to the run under the',
                 '`tier3-app-validation-failures` artifact.',

@@ -60,7 +60,7 @@ user's own experience.
 ## Testing
 
 - **Unit / integration / e2e** mirror the project pyramid. The e2e runs against a **committed,
-  deterministically-synthesised** corpus (`tests/fixtures/app-validation-corpus/v2`, built by
+  deterministically-synthesised** corpus (`tests/fixtures/app-validation-corpus/v3`, built by
   `scripts/build_app_validation_corpus.py` — now carrying RFC-088 enrichment envelopes), served by
   the real API with **no mocks**; per-user state goes to a gitignored `APP_DATA_DIR`.
 - CI must never call a real LLM; recall/connections/resurfacing are deterministic + extractive.

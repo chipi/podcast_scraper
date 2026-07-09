@@ -30,7 +30,7 @@ APP_CORPUS_PATH=/abs/path/to/your/corpus \
 ```
 
 `APP_CORPUS_PATH` is optional. When unset, the specs use the committed
-synthetic fixture at `tests/fixtures/app-validation-corpus/v2/` (same
+synthetic fixture at `tests/fixtures/app-validation-corpus/v3/` (same
 one the fast app-e2e suite uses) — good enough for drift detection,
 but the whole point of Tier-3 is to catch things the synthetic corpus
 can't. Point it at a real corpus for operator drift walks.
