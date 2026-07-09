@@ -72,33 +72,48 @@ defineExpose({ reload: load })
     </p>
     <ul v-else class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
       <li v-for="f in feeds" :key="f.feed_id">
+        <!--
+          Editorial cover-forward card (operator feedback 2026-07-09): no border frame —
+          a full-bleed square cover with the title over a bottom gradient, meta + a roomier
+          summary below. rounded-xl + ring/shadow on hover; the fixed aspect-square keeps every
+          card identical height regardless of art or summary length.
+        -->
         <div
           role="button"
           tabindex="0"
           :data-testid="`shows-card-${f.feed_id}`"
           data-shows-card
-          class="group flex w-full flex-col gap-1.5 rounded-lg border border-default bg-overlay p-2 text-left outline-none hover:bg-overlay-2 focus-visible:ring-2 focus-visible:ring-primary"
+          class="group flex w-full flex-col overflow-hidden rounded-xl bg-overlay/40 text-left shadow-sm outline-none ring-1 ring-border/60 transition hover:shadow-md hover:ring-primary/60 focus-visible:ring-2 focus-visible:ring-primary"
           :aria-label="`${showLabel(f)}, ${f.episode_count} episodes`"
           @click="emit('select', f)"
           @keydown.enter.prevent="emit('select', f)"
           @keydown.space.prevent="emit('select', f)"
         >
-          <PodcastCover
-            :corpus-path="shell.corpusPath"
-            :feed-image-local-relpath="f.image_local_relpath"
-            :feed-image-url="f.image_url"
-            :alt="`Cover for ${showLabel(f)}`"
-            size-class="aspect-square w-full rounded-lg"
-          />
-          <p class="line-clamp-2 text-sm font-semibold leading-snug text-surface-foreground">
-            {{ showLabel(f) }}
-          </p>
-          <p class="text-[11px] text-muted">
-            {{ f.episode_count }} {{ f.episode_count === 1 ? 'episode' : 'episodes' }}
-          </p>
-          <p v-if="f.description" class="line-clamp-2 text-[11px] text-muted">
-            {{ f.description }}
-          </p>
+          <div class="relative">
+            <PodcastCover
+              frameless
+              :corpus-path="shell.corpusPath"
+              :feed-image-local-relpath="f.image_local_relpath"
+              :feed-image-url="f.image_url"
+              :alt="`Cover for ${showLabel(f)}`"
+              size-class="aspect-square w-full"
+            />
+            <div
+              class="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-2.5 pb-2 pt-10"
+            >
+              <p class="line-clamp-2 text-sm font-semibold leading-snug text-white drop-shadow-sm">
+                {{ showLabel(f) }}
+              </p>
+            </div>
+          </div>
+          <div class="flex flex-col gap-1 px-2.5 pb-2.5 pt-2">
+            <p class="text-[11px] font-medium text-muted">
+              {{ f.episode_count }} {{ f.episode_count === 1 ? 'episode' : 'episodes' }}
+            </p>
+            <p v-if="f.description" class="line-clamp-4 text-xs leading-snug text-muted">
+              {{ f.description }}
+            </p>
+          </div>
         </div>
       </li>
     </ul>
