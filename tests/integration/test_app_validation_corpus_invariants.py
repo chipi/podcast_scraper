@@ -76,6 +76,17 @@ def test_topic_consensus_has_cross_person_pairs() -> None:
     assert p["topic_id"].startswith("topic:")
 
 
+def test_topic_theme_clusters_form_and_membership_sane() -> None:
+    """The theme-cluster surface needs ≥1 real cluster (≥2 topics) whose members
+    reference known topics and whose declared count matches the member list."""
+    d = _data("topic_theme_clusters")
+    multi = [c for c in d.get("clusters", []) if c.get("member_count", 0) >= 2]
+    assert multi, "no theme cluster with ≥2 members in v3"
+    c = multi[0]
+    assert len(c["members"]) == c["member_count"]
+    assert all(m["topic_id"].startswith("topic:") for m in c["members"])
+
+
 def test_insight_sentiment_has_label_spread() -> None:
     """Sentiment tint needs more than one label across the corpus (not degenerate all-neutral)."""
     labels: Counter[str] = Counter()
