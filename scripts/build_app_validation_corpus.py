@@ -806,6 +806,69 @@ def _topic_consensus_data(
     }
 
 
+def _topic_similarity_data(
+    topic_episodes: dict[str, list[str]],
+    top_k: int = 5,
+) -> dict[str, Any]:
+    """Author the ``topic_similarity`` payload (embedding-cosine neighbours) deterministically.
+
+    The real enricher embeds topic labels + ranks by cosine (needs ML, so it runs separately
+    ``--with-ml`` and is absent from the committed no-ML fixture). To give the surface real data we
+    proxy similarity with a **shared-episode Jaccard** over the corpus's own topics — topics
+    discussed in the same episodes are "similar". Emits the exact shape the viewer
+    ``EnrichmentEdgesPanel`` + consumer "Similar topics" read: ``{topic_count, top_k,
+    missing_topic_ids, topics[{topic_id, topic_label, top_k[{...similarity}]}]}``.
+    """
+
+    def _label(tid: str) -> str:
+        return tid.replace("topic:", "").replace("-", " ")
+
+    topics = sorted(topic_episodes)
+    ep_sets = {t: set(topic_episodes.get(t, [])) for t in topics}
+    out_topics: list[dict[str, Any]] = []
+    missing: list[str] = []
+    for t in topics:
+        a = ep_sets[t]
+        scored: list[tuple[str, float]] = []
+        for u in topics:
+            if u == t:
+                continue
+            union = a | ep_sets[u]
+            if not union:
+                continue
+            jac = len(a & ep_sets[u]) / len(union)
+            if jac > 0:
+                scored.append((u, jac))
+        scored.sort(key=lambda x: (-x[1], x[0]))
+        nbrs = scored[:top_k]
+        if not nbrs:
+            missing.append(t)
+            continue
+        out_topics.append(
+            {
+                "topic_id": t,
+                "topic_label": _label(t),
+                # Map Jaccard [0,1] into a plausible cosine band [0.55, 0.95], deterministic.
+                "top_k": [
+                    {
+                        "topic_id": u,
+                        "topic_label": _label(u),
+                        "similarity": round(0.55 + 0.40 * s, 6),
+                    }
+                    for u, s in nbrs
+                ],
+            }
+        )
+    # ``topics`` first so the fixture envelope's ``records_written`` (len of the first data value)
+    # counts topics; ``sort_keys=True`` on write makes the on-disk key order canonical anyway.
+    return {
+        "topics": out_topics,
+        "topic_count": len(out_topics),
+        "top_k": top_k,
+        "missing_topic_ids": missing,
+    }
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--rss-dir", type=Path, default=Path("tests/fixtures/rss"))
@@ -1135,6 +1198,16 @@ def main() -> int:
     consensus = _topic_consensus_data(corpus_topic_persons)
     (corpus_enrich_dir / "topic_consensus.json").write_text(
         json.dumps(_enrichment_envelope("topic_consensus", consensus), indent=2, sort_keys=True)
+        + "\n",
+        encoding="utf-8",
+    )
+
+    # topic_similarity — the operator EnrichmentEdges "similar" surface + consumer "Similar topics".
+    # The real enricher is embedding-cosine (ML, runs separately --with-ml); the fixture authors a
+    # no-ML shared-episode-Jaccard proxy so the surface renders + pivots on committed data.
+    similarity = _topic_similarity_data(corpus_topic_episodes)
+    (corpus_enrich_dir / "topic_similarity.json").write_text(
+        json.dumps(_enrichment_envelope("topic_similarity", similarity), indent=2, sort_keys=True)
         + "\n",
         encoding="utf-8",
     )
