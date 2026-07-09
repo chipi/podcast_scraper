@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import type { SearchHit } from '../../api/searchApi'
 import EpisodeDetailPanel from '../episode/EpisodeDetailPanel.vue'
+import ShowRailPanel from '../episode/ShowRailPanel.vue'
 import GraphConnectionsSection from '../graph/GraphConnectionsSection.vue'
 import GraphNodeRailPanel from '../graph/GraphNodeRailPanel.vue'
 import { useGraphFilterStore } from '../../stores/graphFilters'
@@ -214,6 +215,42 @@ const emptyHint =
               />
             </template>
           </EpisodeDetailPanel>
+        </div>
+      </template>
+      <template v-else-if="subject.kind === 'show' && subject.feedId?.trim()">
+        <div
+          class="mx-3 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+          role="region"
+          aria-label="Show"
+          data-testid="show-detail-rail"
+        >
+          <div class="mt-1 flex shrink-0 items-center justify-between gap-2 border-b border-border pb-2">
+            <div class="flex min-w-0 items-center gap-1.5">
+              <button
+                v-if="subject.canGoBack"
+                type="button"
+                class="shrink-0 rounded border border-border px-1.5 py-0.5 text-xs font-medium text-elevated-foreground hover:bg-overlay"
+                data-testid="subject-rail-back"
+                aria-label="Back to previous subject"
+                @click="subject.back()"
+              >
+                ←
+              </button>
+              <h2 class="min-w-0 truncate text-xs font-semibold text-surface-foreground">
+                Show
+              </h2>
+            </div>
+            <button
+              type="button"
+              class="shrink-0 self-center rounded border border-border px-1.5 py-0.5 text-xs font-medium text-elevated-foreground hover:bg-overlay"
+              data-testid="subject-rail-close"
+              aria-label="Close show detail"
+              @click="emit('closeSubject')"
+            >
+              ×
+            </button>
+          </div>
+          <ShowRailPanel class="min-h-0 min-w-0 flex-1" />
         </div>
       </template>
     </template>

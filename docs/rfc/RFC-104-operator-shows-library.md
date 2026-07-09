@@ -26,6 +26,16 @@ missing. The consumer player already ships the shows-first shape (Home "Your sho
 
 No new endpoints. No new stores. Three new components + one toggle, wired into the existing library tab.
 
+> **Amendment (operator feedback, 2026-07-09).** A show now opens **in the right subject rail**, not
+> in-panel. The card-click calls `subject.focusShow(feed_id)` → a new `'show'` subject kind →
+> **`ShowRailPanel`** (mirrors `EpisodeDetailPanel`'s header: cover + title + "N episodes · RSS", then
+> the episode list). Clicking an episode in the show rail → `subject.focusEpisode` (which now pushes the
+> show onto the subject Back stack, so the episode rail carries a ‹ Back to the show). The grid stays in
+> the main library surface. The former in-panel `ShowDetailView` is retired from the path (file kept,
+> dormant). §1 below describes the original in-panel plan; the rail wiring supersedes the grid⇄detail
+> hop. **Phase 2 (deferred):** a richer show landing (top topics / key people / cross-show overlaps)
+> needs a new aggregation endpoint — none exists today.
+
 ### §1 Component tree
 
 ```text

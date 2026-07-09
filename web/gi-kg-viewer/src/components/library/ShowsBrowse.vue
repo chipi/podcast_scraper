@@ -1,23 +1,23 @@
 <script setup lang="ts">
 /**
- * ShowsBrowse (UXS-015 / RFC-104) — shows-first sub-state for the Library tab.
+ * ShowsBrowse (UXS-015 / RFC-104) — the Shows mode of the Library tab.
  *
- * ``null`` selectedFeed → grid (``ShowsView``); a selection → ``ShowDetailView``
- * for that feed (replace-in-panel, house pattern — no modal / second backdrop).
+ * Renders the shows grid; selecting a card opens that show in the **right subject
+ * rail** (`subject.focusShow` → `ShowRailPanel`), consistent with how episodes
+ * open — not replacing the grid in-panel. (The former in-panel `ShowDetailView`
+ * is retired from this path; the file is kept but no longer rendered here.)
  */
-import { ref } from 'vue'
+import { useSubjectStore } from '../../stores/subject'
 import type { CorpusFeedItem } from '../../api/corpusLibraryApi'
 import ShowsView from './ShowsView.vue'
-import ShowDetailView from './ShowDetailView.vue'
 
-const selectedFeed = ref<CorpusFeedItem | null>(null)
+const subject = useSubjectStore()
+
+function openShowInRail(feed: CorpusFeedItem): void {
+  subject.focusShow(feed.feed_id, { uiTitle: feed.display_title?.trim() || feed.feed_id })
+}
 </script>
 
 <template>
-  <ShowDetailView
-    v-if="selectedFeed"
-    :feed="selectedFeed"
-    @back="selectedFeed = null"
-  />
-  <ShowsView v-else @select="selectedFeed = $event" />
+  <ShowsView @select="openShowInRail" />
 </template>

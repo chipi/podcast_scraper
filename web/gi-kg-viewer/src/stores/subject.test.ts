@@ -43,6 +43,34 @@ describe('useSubjectStore', () => {
     expect(s.kind).toBeNull()
   })
 
+  it('focusShow sets kind=show + feedId + label (UXS-015)', () => {
+    const s = useSubjectStore()
+    s.focusShow('feed:abc', { uiTitle: 'Odd Lots' })
+    expect(s.kind).toBe('show')
+    expect(s.feedId).toBe('feed:abc')
+    expect(s.feedUiLabel).toBe('Odd Lots')
+  })
+
+  it('show → episode pushes Back history; back() restores the show', () => {
+    const s = useSubjectStore()
+    s.focusShow('feed:abc', { uiTitle: 'Odd Lots' })
+    s.focusEpisode('metadata/ep.json', { uiTitle: 'An episode' })
+    expect(s.kind).toBe('episode')
+    expect(s.canGoBack).toBe(true)
+    s.back()
+    expect(s.kind).toBe('show')
+    expect(s.feedId).toBe('feed:abc')
+    expect(s.feedUiLabel).toBe('Odd Lots')
+  })
+
+  it('focusShow with a blank id clears the subject', () => {
+    const s = useSubjectStore()
+    s.focusShow('feed:abc')
+    s.focusShow('  ')
+    expect(s.kind).toBeNull()
+    expect(s.feedId).toBeNull()
+  })
+
   it('stores optional episode UI label from focusEpisode opts', () => {
     const s = useSubjectStore()
     s.focusEpisode('metadata/a.json', { uiTitle: 'Hello world' })

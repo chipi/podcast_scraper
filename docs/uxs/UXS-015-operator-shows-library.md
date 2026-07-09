@@ -10,12 +10,21 @@ Behavioral rules (fetch strategy, state machine, cross-link) live in RFC-104.
 
 ## Scope
 
-Two views inside the Library tab's **Shows** mode:
+Two surfaces:
 
-1. **Shows grid** — the corpus's shows as cover cards.
-2. **Show detail** — one show's header + its episode list.
+1. **Shows grid** — the corpus's shows as cover cards, in the Library tab's **Shows** mode.
+2. **Show detail** — one show's header + its episode list, **in the right subject rail**
+   (`ShowRailPanel`, `'show'` subject kind).
 Plus the **mode toggle** (Shows | Episodes) at the tab head. Reuses `PodcastCover` and the UXS-003
 episode-row; introduces no new tokens.
+
+> **Amendment (operator feedback, 2026-07-09).** Show detail now opens **in the right subject rail**,
+> not in-panel — a card-click calls `subject.focusShow`; the rail header **mirrors the episode rail**
+> (compact cover + title + "N episodes · RSS" meta), then the episode list. Clicking an episode in the
+> show rail opens it in the same rail with a ‹ **Back to the show** (subject history). The "Show detail
+> (ShowDetailView)" section below described the original in-panel layout; the tokens/rows carry over to
+> `ShowRailPanel`, but the surface is the rail, and the header follows the `EpisodeDetailPanel` header
+> exactly.
 
 ## Mode toggle
 

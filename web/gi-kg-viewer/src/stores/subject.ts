@@ -5,7 +5,7 @@ import { useGraphNavigationStore } from './graphNavigation'
 
 import { e2eHooksEnabled } from '../utils/e2eHooks'
 
-export type SubjectKind = 'episode' | 'topic' | 'person' | 'graph-node' | null
+export type SubjectKind = 'episode' | 'topic' | 'person' | 'graph-node' | 'show' | null
 
 /** Full subject state captured for the rail's Back history. */
 interface SubjectSnapshot {
@@ -18,6 +18,8 @@ interface SubjectSnapshot {
   topicId: string | null
   personId: string | null
   positionTrackerTopicId: string | null
+  feedId: string | null
+  feedUiLabel: string | null
 }
 
 /**
@@ -59,6 +61,14 @@ export const useSubjectStore = defineStore('subject', () => {
    * never bleeds into a new one.
    */
   const positionTrackerTopicId = ref<string | null>(null)
+  /**
+   * Focused Show (feed) for the Show rail (UXS-015 / RFC-104). ``feedId`` is the
+   * corpus feed id; ``feedUiLabel`` is the show title, kept for the Back
+   * affordance's label. The Show rail (``ShowRailPanel``) re-fetches the feed +
+   * its episodes from ``feedId`` so a Back-restore needs only these two fields.
+   */
+  const feedId = ref<string | null>(null)
+  const feedUiLabel = ref<string | null>(null)
 
   // Back history for the subject rail. Node→node navigations (topic → entity →
   // person → co-speaker) push the prior subject so the rail can offer a Back
@@ -77,6 +87,8 @@ export const useSubjectStore = defineStore('subject', () => {
       topicId: topicId.value,
       personId: personId.value,
       positionTrackerTopicId: positionTrackerTopicId.value,
+      feedId: feedId.value,
+      feedUiLabel: feedUiLabel.value,
     }
   }
 
@@ -97,6 +109,8 @@ export const useSubjectStore = defineStore('subject', () => {
     topicId.value = s.topicId
     personId.value = s.personId
     positionTrackerTopicId.value = s.positionTrackerTopicId
+    feedId.value = s.feedId
+    feedUiLabel.value = s.feedUiLabel
   }
 
   /** Pop the previous subject off the history and restore it (rail Back). */
@@ -114,6 +128,8 @@ export const useSubjectStore = defineStore('subject', () => {
     topicId.value = null
     personId.value = null
     positionTrackerTopicId.value = null
+    feedId.value = null
+    feedUiLabel.value = null
   }
 
   function focusEpisode(
@@ -134,9 +150,9 @@ export const useSubjectStore = defineStore('subject', () => {
     const sameEpisode =
       kind.value === 'episode' && episodeMetadataPath.value?.trim() === t
     if (!sameEpisode) {
-      // Record the prior graph-node subject for Back — e.g. podcast → episode
-      // should let you return to the podcast (the episode rail carries a Back).
-      if (kind.value === 'graph-node') pushHistory()
+      // Record the prior graph-node OR show subject for Back — e.g. show → episode
+      // should let you return to the show (the episode rail carries a Back).
+      if (kind.value === 'graph-node' || kind.value === 'show') pushHistory()
       clearFields()
     } else {
       graphNodeCyId.value = null
@@ -156,6 +172,31 @@ export const useSubjectStore = defineStore('subject', () => {
     episodeUiLabel.value = lab ? truncateUiLabel(lab) : null
     const eid = opts?.episodeId?.trim()
     episodeId.value = eid ? eid : null
+  }
+
+  /**
+   * Focus a Show (feed) in the right rail (UXS-015 / RFC-104). The show detail
+   * opens as its own rail subject — **not** inside the Library surface. Pushes the
+   * prior subject onto Back history (no-op when the rail was empty) so a show
+   * reached from another subject can return. ``ShowRailPanel`` reads ``feedId``
+   * and re-fetches the feed + its episodes.
+   */
+  function focusShow(id: string, opts?: { uiTitle?: string | null }): void {
+    const t = id.trim()
+    if (!t) {
+      clearFields()
+      kind.value = null
+      return
+    }
+    const sameShow = kind.value === 'show' && feedId.value === t
+    if (!sameShow) {
+      pushHistory()
+      clearFields()
+    }
+    kind.value = 'show'
+    feedId.value = t
+    const lab = opts?.uiTitle?.trim()
+    feedUiLabel.value = lab ? truncateUiLabel(lab) : null
   }
 
   function setEpisodeId(v: string | null): void {
@@ -277,6 +318,9 @@ export const useSubjectStore = defineStore('subject', () => {
       get positionTrackerTopicId() {
         return positionTrackerTopicId.value
       },
+      get feedId() {
+        return feedId.value
+      },
       get canGoBack() {
         return canGoBack.value
       },
@@ -287,6 +331,7 @@ export const useSubjectStore = defineStore('subject', () => {
       focusTopic,
       focusEntity,
       focusPerson,
+      focusShow,
       clearSubject,
       selectTopicForPositionTracker,
       back,
@@ -303,7 +348,10 @@ export const useSubjectStore = defineStore('subject', () => {
     topicId,
     personId,
     positionTrackerTopicId,
+    feedId,
+    feedUiLabel,
     focusEpisode,
+    focusShow,
     focusGraphNode,
     focusTopic,
     focusEntity,
