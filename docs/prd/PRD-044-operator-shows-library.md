@@ -78,9 +78,10 @@ surfaced; here the *data path* is built but the shows-first *browse* is not.
 ## Functional Requirements
 
 ### FR1: Library mode toggle (Shows ⇄ Episodes)
-The `library` tab gains a segmented control: **Shows** (new, default) and **Episodes** (existing
-`LibraryView`). The toggle persists per session; the shared corpus/date lens (`corpusLens`) is
-unchanged across modes. `data-testid="library-mode-shows"` / `library-mode-episodes`.
+The `library` tab gains a segmented control: **Episodes** (existing `LibraryView`, the **default** —
+status quo, so nothing regresses) and **Shows** (new, opt-in). The chosen mode persists per browser
+(`localStorage`); the shared corpus/date lens (`corpusLens`) is unchanged across modes.
+`data-testid="library-mode-shows"` / `library-mode-episodes`. (Promoting Shows to the default is OQ1.)
 
 ### FR2: Shows grid (ShowsView)
 From `GET /api/corpus/feeds`: a responsive grid of show cards, each with `PodcastCover`, `display_title`
@@ -126,8 +127,10 @@ No new endpoints. Reuses:
 
 ## Open Questions
 
-- **OQ1** — Default Library mode: **Shows** (proposed, more discoverable) vs **Episodes** (status quo)?
-  Proposed: Shows default, remembered per session.
+- **OQ1** — Default Library mode. **Implemented default = Episodes** (status quo — keeps the existing
+  operator flow + all 9 `library.spec.ts` e2e unchanged; Shows is opt-in and remembered once chosen).
+  Open: promote **Shows** to the default (more discoverable) once the operator has lived with it? A
+  one-line change in `LibraryTab.readMode()`.
 - **OQ2** — Show sort: episode_count desc (proposed) vs alphabetical vs recency of newest episode?
 - **OQ3** — Should the Feed filter chip in the flat Episodes mode deep-link into a show detail (unify
   the two entry points)? Proposed: later; keep modes independent for v1.

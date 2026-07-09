@@ -22,10 +22,13 @@ const emit = defineEmits<{
 }>()
 
 function readMode(): Mode {
+  // Default to Episodes (status quo, UXS-003) so the existing operator flow +
+  // e2e are unchanged; Shows is opt-in via the toggle and remembered once chosen.
+  // Promoting Shows to the default is PRD-044 OQ1 — an operator decision.
   try {
-    return localStorage.getItem(STORAGE_KEY) === 'episodes' ? 'episodes' : 'shows'
+    return localStorage.getItem(STORAGE_KEY) === 'shows' ? 'shows' : 'episodes'
   } catch {
-    return 'shows'
+    return 'episodes'
   }
 }
 

@@ -90,11 +90,11 @@ does not clear the subject rail. Running a search does not change the active tab
 **Library tab modes (UXS-015 / RFC-104).** The `library` main tab has two browse modes, toggled at the
 tab head and persisted per session:
 
-- **Shows** (shows-first, default) — a grid of the corpus's shows (`GET /api/corpus/feeds`); selecting
+- **Episodes** (episode-first, **default** — status quo, UXS-003) — the flat, paginated episode list
+  with the Feed filter chip.
+- **Shows** (shows-first, opt-in) — a grid of the corpus's shows (`GET /api/corpus/feeds`); selecting
   one replaces the grid in-panel with a **show detail** (cover, description, episode count, RSS) and
   that show's episodes (`GET /api/corpus/episodes?feed_id=…`).
-- **Episodes** (episode-first, status quo, UXS-003) — the flat, paginated episode list with the Feed
-  filter chip.
 
 Both modes cross-link an episode into the graph via the shared `subject.focusEpisode`
 (`metadata_relative_path`) path — a Shows-mode episode behaves identically to an Episodes-mode row.

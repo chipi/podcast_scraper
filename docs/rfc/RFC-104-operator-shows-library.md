@@ -28,7 +28,7 @@ No new endpoints. No new stores. Three new components + one toggle, wired into t
 
 ### §1 Component tree
 
-```
+```text
 library tab (App.vue)
 ├─ LibraryModeToggle.vue      [new]  segmented control: Shows | Episodes (persisted per session)
 ├─ v-if mode==='shows'
@@ -62,8 +62,10 @@ not a modal or stacked overlay.
 ### §3 State, persistence, lens
 
 - Library **mode** (`shows` | `episodes`) is a ref in the library-tab host, persisted to
-  `localStorage` under an existing viewer-prefs key namespace (mirrors other viewer toggles). Default
-  `shows` (PRD-044 OQ1).
+  `localStorage` (`gikg.library.mode`, mirroring the theme/shell stores). **Default `episodes`**
+  (status quo — the existing operator flow + the 9 `library.spec.ts` e2e are unchanged); **Shows is
+  opt-in** via the toggle and remembered once chosen. Promoting Shows to the default is PRD-044 OQ1 —
+  a deliberate operator decision, not baked in here.
 - `selectedFeedId` is ephemeral sub-state of `ShowsBrowse` (not persisted across reloads for v1; a
   return from the graph to the Library tab preserves it because the component is kept alive under the
   tab, matching how `LibraryView` retains its scroll/selection).
