@@ -250,7 +250,10 @@ const emptyHint =
               ×
             </button>
           </div>
-          <ShowRailPanel class="min-h-0 min-w-0 flex-1" />
+          <ShowRailPanel
+            class="min-h-0 min-w-0 flex-1"
+            @switch-main-tab="emit('switchMainTab', $event)"
+          />
         </div>
       </template>
     </template>
