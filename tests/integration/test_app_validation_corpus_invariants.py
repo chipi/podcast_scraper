@@ -87,6 +87,57 @@ def test_topic_theme_clusters_form_and_membership_sane() -> None:
     assert all(m["topic_id"].startswith("topic:") for m in c["members"])
 
 
+def test_temporal_velocity_has_mention_signal() -> None:
+    """Velocity/momentum surfaces need ≥1 topic carrying real mention counts (not an empty series)."""
+    topics = _data("temporal_velocity").get("topics", [])
+    assert any(
+        (t.get("total") or 0) >= 1 for t in topics
+    ), "no temporal_velocity topic has mentions"
+
+
+def test_topic_cooccurrence_corpus_has_pairs_with_lift() -> None:
+    """The "co-occurs with" / "discussed alongside" surfaces need ≥1 pair carrying lift + pmi."""
+    pairs = _data("topic_cooccurrence_corpus").get("pairs", [])
+    assert pairs, "no topic co-occurrence pairs"
+    p = pairs[0]
+    assert "lift" in p and "pmi" in p
+    assert p["topic_a_id"] != p["topic_b_id"]
+
+
+def test_grounding_rate_discriminates() -> None:
+    """The grounding-rate row needs real, discriminating rates (not all-0 / all-1), each in [0, 1]."""
+    persons = _data("grounding_rate").get("persons", [])
+    assert len(persons) >= 2, persons
+    rates = [p["rate"] for p in persons]
+    assert all(0.0 <= r <= 1.0 for r in rates)
+    assert min(rates) < max(
+        rates
+    ), f"grounding_rate does not discriminate across the corpus: {rates}"
+
+
+def test_guest_coappearance_has_pairs() -> None:
+    """The "co-appears with" row needs ≥1 real cross-person pair."""
+    pairs = _data("guest_coappearance").get("pairs", [])
+    assert pairs, "no guest co-appearance pairs"
+    p = pairs[0]
+    assert p["person_a_id"] != p["person_b_id"]
+    assert (p.get("episode_count") or 0) >= 1
+
+
+def test_insight_density_bins_insights() -> None:
+    """The insight-density strip needs ≥1 episode whose insights bin into segments that sum back to
+    the episode total (not an empty/degenerate strip)."""
+    seen_nonzero = False
+    for f in _V3.glob("feeds/*/run_*/metadata/enrichments/*.insight_density.json"):
+        d = json.loads(f.read_text(encoding="utf-8")).get("data") or {}
+        counts = d.get("counts") or {}
+        total = d.get("total_insights") or 0
+        assert sum(counts.values()) == total, f"{f.name}: segment counts != total_insights"
+        if total >= 1:
+            seen_nonzero = True
+    assert seen_nonzero, "no episode carries an insight-density signal"
+
+
 def test_insight_sentiment_has_label_spread() -> None:
     """Sentiment tint needs more than one label across the corpus (not degenerate all-neutral)."""
     labels: Counter[str] = Counter()
