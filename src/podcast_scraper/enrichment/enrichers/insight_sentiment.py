@@ -12,6 +12,15 @@ summaries) is a perfectly fine grey, so a mostly-neutral corpus is not a failure
 Deterministic tier: the lexicon is fixed, so the same insight always scores the same →
 no accuracy gate, always admitted. Reads ``*.gi.json`` (Insight nodes); writes
 ``metadata/enrichments/{stem}.insight_sentiment.json``.
+
+**Consumption is indirect — do not expect a frontend reader.** No viewer/player
+component reads this artifact directly. The read-time CIL layer joins it:
+``cil_queries._attach_sentiment`` (``server/cil_queries.py``) reads the
+``{stem}.insight_sentiment.json`` sidecar and tags each Insight node with
+``sentiment: {compound, label}`` so the conversation-arc / position-arc responses
+carry the tint. So the enricher → server-join → arc-tint chain is easy to break
+silently in a refactor (deleting the artifact or renaming ``label`` / ``compound``
+de-colours the arcs with no failing frontend read). See the player walkthrough v3.
 """
 
 from __future__ import annotations
