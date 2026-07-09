@@ -134,4 +134,36 @@ describe('ShowDetailView — mount + behaviour', () => {
 
     expect(w.find('[data-testid="show-detail-load-more"]').exists()).toBe(true)
   })
+
+  it('appends the next page and hides Load more when the cursor is exhausted', async () => {
+    let call = 0
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        call += 1
+        return call === 1
+          ? res({ path: '/corpus', feed_id: 'big', items: [EPISODES[0]], next_cursor: 'c2' })
+          : res({ path: '/corpus', feed_id: 'big', items: [EPISODES[1]], next_cursor: null })
+      }),
+    )
+    const w = mount(ShowDetailView, { props: { feed: FEED } })
+    await flushPromises()
+    expect(w.find('[data-testid="show-detail-episode-1"]').exists()).toBe(false)
+
+    await w.find('[data-testid="show-detail-load-more"]').trigger('click')
+    await flushPromises()
+    expect(w.find('[data-testid="show-detail-episode-1"]').text()).toContain('Episode Two')
+    expect(w.find('[data-testid="show-detail-load-more"]').exists()).toBe(false)
+  })
+
+  it('shows an error state when the episodes request fails', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => res({ detail: 'boom' }, 500)),
+    )
+    const w = mount(ShowDetailView, { props: { feed: FEED } })
+    await flushPromises()
+
+    expect(w.find('[data-testid="show-detail-error"]').exists()).toBe(true)
+  })
 })

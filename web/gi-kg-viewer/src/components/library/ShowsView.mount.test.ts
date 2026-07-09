@@ -86,6 +86,19 @@ describe('ShowsView — mount + behaviour', () => {
     expect(w.findAll('[data-shows-card]')).toHaveLength(0)
   })
 
+  it('shows an error state when the feeds request fails', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => res({ detail: 'boom' }, 500)),
+    )
+    withCorpus()
+    const w = mount(ShowsView)
+    await flushPromises()
+
+    expect(w.find('[data-testid="shows-grid-error"]').exists()).toBe(true)
+    expect(w.findAll('[data-shows-card]')).toHaveLength(0)
+  })
+
   it('falls back to feed_id when a show has no display title', async () => {
     stubFeeds([{ feed_id: 'raw-id', display_title: null, episode_count: 1 }])
     withCorpus()
