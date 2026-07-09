@@ -45,19 +45,22 @@ test.describe("Stack — operator Shows Library", () => {
     const cards = page.locator("[data-shows-card]")
     await expect(cards.first()).toBeVisible({ timeout: 10_000 })
 
-    // Open the first show → its detail + episode list (or explicit empty state).
+    // Open the first show → it opens in the RIGHT RAIL (ShowRailPanel), not in-panel; the
+    // grid stays put. Its episode list (or an explicit empty state) renders.
     await cards.first().click()
-    await expect(page.getByTestId("show-detail")).toBeVisible({ timeout: 10_000 })
-    const firstEpisode = page.getByTestId("show-detail-episode-0")
-    const empty = page.getByTestId("show-detail-empty")
+    await expect(page.getByTestId("show-rail-panel")).toBeVisible({ timeout: 10_000 })
+    const firstEpisode = page.getByTestId("show-rail-episode-0")
+    const empty = page.getByTestId("show-rail-empty")
     await expect(firstEpisode.or(empty).first()).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByTestId("shows-grid")).toBeVisible()
 
-    // Back returns to the grid.
-    await page.getByTestId("show-detail-back").click()
+    // Closing the rail leaves the grid in place.
+    await page.getByTestId("show-detail-rail").getByTestId("subject-rail-close").click()
+    await expect(page.getByTestId("show-rail-panel")).toHaveCount(0)
     await expect(page.getByTestId("shows-grid")).toBeVisible()
   })
 
-  test("an episode in a show opens in the subject rail", async ({ page }) => {
+  test("an episode in a show opens in the subject rail with Back to the show", async ({ page }) => {
     await page.goto("/")
     await page
       .getByRole("navigation", { name: "Main views" })
@@ -66,13 +69,15 @@ test.describe("Stack — operator Shows Library", () => {
     await page.getByTestId("library-mode-shows").click()
     await page.locator("[data-shows-card]").first().click()
 
-    const firstEpisode = page.getByTestId("show-detail-episode-0")
+    const firstEpisode = page.getByTestId("show-rail-episode-0")
     // Only assert the rail handoff when the opened show actually has episodes.
     if (await firstEpisode.isVisible().catch(() => false)) {
       await firstEpisode.click()
-      await expect(
-        page.getByRole("region", { name: "Episode", exact: true }),
-      ).toBeVisible({ timeout: 10_000 })
+      const episodeRegion = page.getByRole("region", { name: "Episode", exact: true })
+      await expect(episodeRegion).toBeVisible({ timeout: 10_000 })
+      // ‹ Back returns to the show rail (subject history).
+      await episodeRegion.getByTestId("subject-rail-back").click()
+      await expect(page.getByTestId("show-rail-panel")).toBeVisible({ timeout: 10_000 })
     }
   })
 })

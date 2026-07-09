@@ -146,7 +146,7 @@ test.describe('Operator Shows Library (shows-first browse)', () => {
     await expect(page.getByTestId('shows-grid')).toBeVisible()
   }
 
-  test('grid lists shows sorted by episode count; opening one shows its episodes', async ({
+  test('grid lists shows; opening one opens the show in the RIGHT RAIL (grid stays)', async ({
     page,
   }) => {
     await openShowsMode(page)
@@ -156,41 +156,47 @@ test.describe('Operator Shows Library (shows-first browse)', () => {
     await expect(page.getByTestId('shows-card-beta')).toBeVisible()
     await expect(page.getByTestId('shows-card-alpha')).toContainText('2 episodes')
 
-    // Open Alpha → show detail with header + episodes (feed-scoped fetch).
+    // Open Alpha → the show opens in the RIGHT SUBJECT RAIL (ShowRailPanel), not in-panel;
+    // the grid stays put in the main library surface. Header + feed-scoped episodes.
     const scopedReq = page.waitForRequest(
       (r) => r.url().includes('/api/corpus/episodes') && r.url().includes('feed_id=alpha'),
     )
     await page.getByTestId('shows-card-alpha').click()
     await scopedReq
-    await expect(page.getByTestId('show-detail')).toBeVisible()
-    await expect(page.getByTestId('show-detail')).toContainText('Alpha Show')
-    await expect(page.getByTestId('show-detail-episode-0')).toContainText('Alpha Episode One')
-    await expect(page.getByTestId('show-detail-episode-1')).toContainText('Alpha Episode Two')
+    const rail = page.getByTestId('show-rail-panel')
+    await expect(rail).toBeVisible()
+    await expect(rail).toContainText('Alpha Show')
+    await expect(page.getByTestId('show-rail-episode-0')).toContainText('Alpha Episode One')
+    await expect(page.getByTestId('show-rail-episode-1')).toContainText('Alpha Episode Two')
+    // The grid remains — the show opened in the rail, not the same surface.
+    await expect(page.getByTestId('shows-grid')).toBeVisible()
   })
 
-  test('episode row opens the episode in the subject rail (focusEpisode handoff)', async ({
+  test('episode in the show rail opens in the same rail, with ‹ Back to the show', async ({
     page,
   }) => {
     await openShowsMode(page)
     await page.getByTestId('shows-card-alpha').click()
-    await expect(page.getByTestId('show-detail-episode-0')).toBeVisible()
+    await expect(page.getByTestId('show-rail-episode-0')).toBeVisible()
 
-    await page.getByTestId('show-detail-episode-0').click()
-    await expect(
-      page
-        .getByRole('region', { name: 'Episode', exact: true })
-        .getByRole('heading', { name: 'Alpha Episode One' }),
-    ).toBeVisible()
+    // Click an episode → it opens in the same rail (focusEpisode); the show rail is replaced.
+    await page.getByTestId('show-rail-episode-0').click()
+    const episodeRegion = page.getByRole('region', { name: 'Episode', exact: true })
+    await expect(episodeRegion.getByRole('heading', { name: 'Alpha Episode One' })).toBeVisible()
+
+    // ‹ Back returns to the show rail (subject history stack).
+    await episodeRegion.getByTestId('subject-rail-back').click()
+    await expect(page.getByTestId('show-rail-panel')).toContainText('Alpha Show')
   })
 
-  test('Back returns from show detail to the grid', async ({ page }) => {
+  test('closing the show rail leaves the grid in place', async ({ page }) => {
     await openShowsMode(page)
     await page.getByTestId('shows-card-alpha').click()
-    await expect(page.getByTestId('show-detail')).toBeVisible()
+    await expect(page.getByTestId('show-rail-panel')).toBeVisible()
 
-    await page.getByTestId('show-detail-back').click()
+    await page.getByTestId('show-detail-rail').getByTestId('subject-rail-close').click()
+    await expect(page.getByTestId('show-rail-panel')).toHaveCount(0)
     await expect(page.getByTestId('shows-grid')).toBeVisible()
-    await expect(page.getByTestId('shows-card-alpha')).toBeVisible()
   })
 
   test('mode is remembered: Episodes remains the default until Shows is chosen', async ({
