@@ -177,3 +177,42 @@ feed to drive real data).
 3. Every enricher surface (operator + consumer) has e2e/tier-3 on a served fixture.
 4. Every cross-link (episode / show / person) has an e2e that renders it.
 5. No row in the coverage matrix reads gap / weak / partial.
+
+---
+
+## Full re-analysis (2026-07-09) — hunting more Phase-D-type mislabels
+
+After PR-D, three parallel recon agents re-audited **every remaining graded-thin row** to find more of
+the same pattern (graded thin, actually built+tested; the gap was *data/screenshot* absence, not code).
+**The pattern is pervasive.**
+
+**#1168 premise — MISLABELED.** The operator viewer is **not** missing an e2e harness. It has
+`web/gi-kg-viewer/playwright.config.ts` (50+ mocked specs, `viewer-e2e` CI job in `python-app.yml`),
+`playwright.validation.config.ts` (tier-3 real-corpus), and `tests/stack-test/*.spec.ts`
+(Docker-served, run by `.github/workflows/stack-test.yml`: `stack-viewer`, `stack-person-profile`,
+`stack-topic-entity`, `stack-enrichment-*`). The real gap is only that operator tier-3 runs
+**post-gate** (stack-test) / operator-local (validation), not on the **fast PR path** like the
+consumer's `app-e2e`. **#1168 shrinks: "wire operator tier-3 into the fast CI gate," not "build a
+harness from scratch."**
+
+**PR-C rows (11) — 10 MISLABELED, 1 genuinely thin.** All already built **and** vitest-tested (most +
+e2e): TopicConversationArc, PositionTrackerPanel, EnrichmentEdgesPanel, TopicTimelineDialog (topic
+timeline), position arc, conversation arc, perspectives, PersonLandingView (person profile — the
+"no vitest" grade is **false**, 30+ tests), Storylines (cross-show cluster), NodeEnrichmentSection
+(cross-person consensus). Only genuine thin spot: **cross-episode render has no *dedicated* test**
+(covered only indirectly by `graph-expansion-mocks.spec.ts`).
+
+**Genuine gaps found (small, real):**
+1. **Dead surface** — consumer `EntitySignals.vue:96` renders a "disagreements" row from
+   `nli_contradiction`, a **retired** enricher (replaced by `topic_consensus` per ADR-108); also
+   `services/types.ts:421-430` + `EntitySignals.test.ts:27-37` still declare/mock it. Optional-chaining
+   makes it graceful-degrade (benign at runtime) but it's stale. **Decision for operator:** delete the
+   row, or repurpose it to `topic_consensus`? *(Left for review — won't silently drop a surface.)*
+2. **cross-episode render** — add one dedicated test asserting a shared topic renders ≥N episodes.
+3. **insight_sentiment** — *not* dark: no **frontend** reads the artifact directly, but it's consumed
+   **server-side** by `cil_queries.py:_attach_sentiment` (L583-591), which tags each Insight with
+   sentiment for the position/conversation-arc timelines. **Benign** (confirmed).
+
+**Net:** the enricher surface area is in far better shape than the walkthrough grades implied. PR-A/B
+closed the fixture + emission gaps; the surfaces and their tests already exist. #1168's real remaining
+work is CI-wiring + the two small gaps above — not the large lift the roadmap assumed.
