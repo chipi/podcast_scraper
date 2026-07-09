@@ -231,6 +231,15 @@ function searchLibrary(): void {
           {{ t('ec.searchLibrary', { term: label }) }}
         </button>
 
+        <!-- Enrichment signals (Plan B) — momentum first, up top (operator feedback): momentum /
+             similar / discussed-alongside (topic); grounding / co-appears / consensus (person).
+             Hides itself when empty. -->
+        <EntitySignals
+          :kind="current.kind"
+          :id="current.id"
+          @open="(p) => open(p.kind, p.id)"
+        />
+
         <!-- All topics in this cluster: the one you're on (ringed) + every sibling, with a count. -->
         <section v-if="siblings.length" class="mb-4">
           <h3 class="lp-section mb-2">
@@ -302,21 +311,15 @@ function searchLibrary(): void {
         </section>
 
         <!-- Multi-perspective synthesis (#1146): each guest's take on this topic. Topic-only;
-             hides itself when the topic has no speaker-attributable insight. -->
-        <TopicConversationArc v-if="isTopic" :id="current.id" />
+             hides itself when the topic has no speaker-attributable insight. The arc is a
+             corpus-wide aggregate (no per-user cut), so it clears under "My corpus" like the
+             rest of the card (operator feedback). -->
+        <TopicConversationArc v-if="isTopic" :id="current.id" :scope="corpusScope" />
 
         <TopicPerspectives
           v-if="isTopic"
           :id="current.id"
           :scope="corpusScope"
-          @open="(p) => open(p.kind, p.id)"
-        />
-
-        <!-- Enrichment signals (Plan B): grounding / co-appears (person);
-             momentum / similar / discussed-alongside (topic). Hides itself when empty. -->
-        <EntitySignals
-          :kind="current.kind"
-          :id="current.id"
           @open="(p) => open(p.kind, p.id)"
         />
 

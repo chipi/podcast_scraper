@@ -457,6 +457,14 @@ export interface CorpusEnrichmentSignals {
       lift?: number
     }>
   }
+  /** Co-occurrence theme clusters ("storylines"); used to mark which topics belong to a theme. */
+  topic_theme_clusters?: {
+    clusters?: Array<{
+      graph_compound_parent_id?: string
+      canonical_label?: string
+      members?: Array<{ topic_id: string }>
+    }>
+  }
 }
 
 /** Per-episode enrichment signals (GET /api/app/episodes/{slug}/enrichment → `signals`).

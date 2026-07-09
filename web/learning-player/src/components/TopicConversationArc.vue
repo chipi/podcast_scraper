@@ -12,14 +12,17 @@ import { useI18n } from 'vue-i18n'
 import { getTopicConversationArc } from '../services/api'
 import type { TopicConversationArcWeek } from '../services/types'
 
-const props = defineProps<{ id: string }>()
+const props = defineProps<{ id: string; scope?: 'all' | 'mine' }>()
 const { t } = useI18n()
 
 const weeks = ref<TopicConversationArcWeek[]>([])
 watch(
-  () => props.id,
+  [() => props.id, () => props.scope],
   () => {
     weeks.value = []
+    // The arc is a corpus-wide aggregate with no per-user cut, so under "My corpus" it
+    // clears (renders nothing) like the rest of the card rather than showing all-corpus data.
+    if (props.scope === 'mine') return
     void getTopicConversationArc(props.id)
       .then((r) => {
         weeks.value = r.weeks

@@ -8,7 +8,7 @@
 import { computed } from 'vue'
 import type { RisingTopic } from './trending'
 
-const props = defineProps<{ topics: RisingTopic[] }>()
+const props = defineProps<{ topics: RisingTopic[]; themeMemberIds?: Set<string> }>()
 const emit = defineEmits<{ (e: 'open', id: string): void }>()
 
 const PAD = 6
@@ -39,6 +39,7 @@ interface Bubble {
   showLabel: boolean
   labelSize: number
   colorIndex: number
+  theme: boolean
 }
 
 function shortLabel(label: string, r: number): string {
@@ -100,6 +101,7 @@ const packed = computed(() => {
       showLabel: p.r >= 22,
       labelSize: Math.max(9, Math.min(13, Math.round(p.r / 2.6))),
       colorIndex: p.colorIndex,
+      theme: props.themeMemberIds?.has(p.id) ?? false,
     }
   })
   return { w: maxX - minX + PAD * 2, h: maxY - minY + PAD * 2, bubbles }
@@ -131,9 +133,21 @@ const packed = computed(() => {
         @click="emit('open', b.id)"
       >
         <circle :cx="b.cx" :cy="b.cy" :r="b.r" :fill="b.fill" :stroke="b.stroke" stroke-width="1.5">
-          <title>{{ b.label }} — {{ b.v }}× · {{ b.total }} episodes</title>
+          <title>{{ b.label }} — {{ b.v }}× · {{ b.total }} episodes{{ b.theme ? ' · in a storyline' : '' }}</title>
         </circle>
         <circle :cx="b.cx" :cy="b.cy" :r="b.r" fill="url(#momentumGloss)" pointer-events="none" />
+        <!-- Theme-cluster ("storyline") members get the standard teal ring. -->
+        <circle
+          v-if="b.theme"
+          :cx="b.cx"
+          :cy="b.cy"
+          :r="b.r + 2.5"
+          fill="none"
+          stroke="#7dd3c0"
+          stroke-width="1.5"
+          stroke-dasharray="3 3"
+          pointer-events="none"
+        />
         <template v-if="b.showLabel">
           <text :x="b.cx" :y="b.cy - 1" text-anchor="middle" class="fill-canvas-foreground font-semibold" :style="{ fontSize: b.labelSize + 'px' }" pointer-events="none">{{ b.short }}</text>
           <text :x="b.cx" :y="b.cy + b.labelSize" text-anchor="middle" class="fill-canvas-foreground" :style="{ fontSize: Math.max(8, b.labelSize - 2) + 'px', opacity: 0.72 }" pointer-events="none">↑ {{ b.v }}×</text>

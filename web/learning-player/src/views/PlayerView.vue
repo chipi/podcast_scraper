@@ -51,6 +51,13 @@ const props = defineProps<{ slug: string }>()
 const { t, locale } = useI18n()
 const router = useRouter()
 const route = useRoute()
+
+// Back = return to wherever you came from (Library, Home, Search, a show…), not a hardcoded
+// catalog. Falls back to the catalog on a cold deep-link with no in-app history.
+function goBack(): void {
+  if (window.history.length > 1) router.back()
+  else void router.push({ name: 'catalog' })
+}
 const queue = useQueueStore()
 const auth = useAuthStore()
 const capture = useCaptureStore()
@@ -326,7 +333,7 @@ onBeforeUnmount(() => {
 
 <template>
   <section>
-    <RouterLink :to="{ name: 'catalog' }" class="lp-nav">‹ {{ t('player.back') }}</RouterLink>
+    <button type="button" class="lp-nav" @click="goBack">‹ {{ t('player.back') }}</button>
     <!-- Polite SR confirmation for captures (mark-moment / save line or phrase). -->
     <p aria-live="polite" class="sr-only">{{ captureAnnounce }}</p>
 

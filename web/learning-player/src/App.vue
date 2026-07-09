@@ -59,19 +59,22 @@ async function onSignOut(): Promise<void> {
           </NavIconLink>
           <button
             type="button"
-            class="ml-1 rounded-full border border-border px-4 py-2 font-bold text-canvas-foreground"
+            class="ml-1 shrink-0 whitespace-nowrap rounded-full border border-border px-4 py-2 font-bold text-canvas-foreground transition hover:bg-overlay"
             @click="onSignOut"
           >
             {{ t('auth.signOut') }}
           </button>
         </template>
         <template v-else>
-          <RouterLink :to="{ name: 'login' }" class="text-muted no-underline">
+          <RouterLink
+            :to="{ name: 'login' }"
+            class="shrink-0 whitespace-nowrap rounded-full border border-border px-4 py-2 font-bold text-canvas-foreground no-underline transition hover:bg-overlay"
+          >
             {{ t('auth.signIn') }}
           </RouterLink>
           <RouterLink
             :to="{ name: 'login', query: { mode: 'signup' } }"
-            class="rounded-full bg-accent px-4 py-2 font-bold text-accent-foreground no-underline"
+            class="shrink-0 whitespace-nowrap rounded-full bg-accent px-4 py-2 font-bold text-accent-foreground no-underline"
           >
             {{ t('auth.signUp') }}
           </RouterLink>

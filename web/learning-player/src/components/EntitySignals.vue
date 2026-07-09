@@ -172,7 +172,10 @@ const hasAny = computed(() =>
     <section v-if="momentum" class="mb-4" data-testid="es-momentum">
       <h3 class="lp-section mb-2">{{ t('ec.sigMomentum') }}</h3>
       <p class="text-sm">
-        <span class="rounded-full bg-accent/20 px-2 py-0.5 text-xs font-semibold text-accent">
+        <span
+          class="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-semibold text-emerald-300"
+        >
+          <span aria-hidden="true">↑</span>
           {{ t('ec.sig_rising') }} · {{ momentum.v }}× {{ t('ec.sigVsAvg') }}
         </span>
       </p>

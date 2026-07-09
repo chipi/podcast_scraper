@@ -7,11 +7,16 @@ const props = defineProps<{
   topics: RisingTopic[]
   followedIds?: string[]
   canFollow?: boolean
+  /** Topic ids in a co-occurrence theme cluster — marked with the standard teal theme chrome. */
+  themeMemberIds?: Set<string>
 }>()
 const emit = defineEmits<{ (e: 'open', id: string): void; (e: 'follow', id: string): void }>()
 
 function isFollowed(id: string): boolean {
   return props.followedIds?.includes(id) ?? false
+}
+function isTheme(id: string): boolean {
+  return props.themeMemberIds?.has(id) ?? false
 }
 </script>
 
@@ -20,7 +25,9 @@ function isFollowed(id: string): boolean {
     <div
       v-for="tp in topics"
       :key="tp.id"
-      class="inline-flex min-w-0 max-w-[calc(50%-0.375rem)] items-center rounded-full bg-overlay text-sm text-topic transition hover:bg-elevated sm:max-w-none"
+      class="inline-flex min-w-0 max-w-[calc(50%-0.375rem)] items-center rounded-full text-sm transition sm:max-w-none"
+      :class="isTheme(tp.id) ? 'lp-theme-chip text-surface-foreground' : 'bg-overlay text-topic hover:bg-elevated'"
+      :data-theme-member="isTheme(tp.id) ? '' : undefined"
       data-testid="trend-chip"
     >
       <button
