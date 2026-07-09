@@ -146,6 +146,24 @@ describe('EnrichmentEdgesPanel — mount + behaviour', () => {
     expect(w.find('[data-testid="enrichment-edges-consensus-i3--i4"]').exists()).toBe(false)
   })
 
+  it('narrows consensus to the focused topic (ADR-108: consensus surfaces on the topic node)', async () => {
+    stubFetch({
+      '/api/corpus/enrichments/topic_similarity': SIM,
+      '/api/corpus/enrichments/topic_consensus': CONSENSUS,
+    })
+    const subject = useSubjectStore()
+    subject.focusTopic('topic:ai')
+    const w = mount(EnrichmentEdgesPanel, { props: { corpusPath: '/c' } })
+    await flushPromises()
+    // topic:ai's cross-person pair shows; topic:climate's is filtered out (previously the topic id
+    // was matched against person_a/b_id → zero consensus on any topic node).
+    expect(w.find('[data-testid="enrichment-edges-consensus"]').exists()).toBe(true)
+    expect(w.find('[data-testid="enrichment-edges-consensus-i1--i2"]').exists()).toBe(true)
+    expect(w.find('[data-testid="enrichment-edges-consensus-i3--i4"]').exists()).toBe(false)
+    // The consensus label reflects topic focus.
+    expect(w.find('[data-testid="enrichment-edges-consensus"]').text()).toContain('on focused topic')
+  })
+
   it('clicking a similarity row pivots subject focus to the partner topic', async () => {
     stubFetch({
       '/api/corpus/enrichments/topic_similarity': SIM,

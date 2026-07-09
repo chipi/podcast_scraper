@@ -64,18 +64,16 @@ const error = ref<string | null>(null)
 
 const subject = useSubjectStore()
 
-const focusedTopicId = computed(() => {
-  // Topics now focus as graph nodes (unified node view); derive the CIL topic id
-  // from the cy id so the sim list still narrows to the focused topic.
+const focusedId = computed(() => {
+  // Topics and persons both focus as graph nodes (unified node view); derive the CIL id from the cy
+  // id. The ``topic:`` / ``person:`` prefix survives the strip, so the panel can tell them apart.
   const gn = subject.graphNodeCyId?.trim()
   return gn ? stripLayerPrefixesForCil(gn) : ''
 })
-const focusedPersonId = computed(() => {
-  // Persons now focus as graph nodes too; derive the CIL person id from the cy id
-  // so the consensus list still narrows to the focused person.
-  const gn = subject.graphNodeCyId?.trim()
-  return gn ? stripLayerPrefixesForCil(gn) : ''
-})
+const isTopicFocus = computed(() => focusedId.value.startsWith('topic:'))
+const isPersonFocus = computed(() => focusedId.value.startsWith('person:'))
+// Sim edges narrow only on a focused topic (topic↔topic relation).
+const focusedTopicId = computed(() => (isTopicFocus.value ? focusedId.value : ''))
 
 const SIM_TOP_N = 5
 const CONSENSUS_TOP_N = 10
@@ -101,17 +99,18 @@ const visibleSimRows = computed<{ a: SimTopic; n: SimNeighbour }[]>(() => {
 })
 
 /**
- * Consensus for the panel: when a person is focused, narrow to
- * corroborations involving them; otherwise show the strongest globally.
+ * Consensus for the panel: narrow to the focused subject — a focused person's corroborations, or a
+ * focused topic's cross-person pairs (ADR-108: consensus is per-Topic, so it surfaces on the topic
+ * node too, not only on a person); otherwise show the strongest globally.
  */
 const visibleConsensus = computed<Consensus[]>(() => {
   const rows = consensus.value?.consensus ?? []
-  const focused = focusedPersonId.value
+  const id = focusedId.value
   let filtered = rows
-  if (focused) {
-    filtered = rows.filter(
-      (r) => r.person_a_id === focused || r.person_b_id === focused,
-    )
+  if (isPersonFocus.value) {
+    filtered = rows.filter((r) => r.person_a_id === id || r.person_b_id === id)
+  } else if (isTopicFocus.value) {
+    filtered = rows.filter((r) => r.topic_id === id)
   }
   return filtered
     .slice()
@@ -188,7 +187,7 @@ watch(() => props.corpusPath, () => void load())
         >· {{ summary }}</span>
       </button>
       <button
-        v-if="(focusedTopicId || focusedPersonId) && expanded"
+        v-if="focusedId && expanded"
         type="button"
         class="shrink-0 text-[9px] text-muted hover:underline"
         title="Clear subject focus"
@@ -245,7 +244,8 @@ watch(() => props.corpusPath, () => void load())
     <div v-if="visibleConsensus.length" data-testid="enrichment-edges-consensus">
       <p class="mb-1 text-[10px] text-muted">
         Consensus
-        <span v-if="focusedPersonId">· involving focused person</span>
+        <span v-if="isPersonFocus">· involving focused person</span>
+        <span v-else-if="isTopicFocus">· on focused topic</span>
         <span v-else>· strongest corpus-wide</span>
       </p>
       <ul class="flex flex-col gap-1">
