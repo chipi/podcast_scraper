@@ -115,6 +115,7 @@ rows in random and repeated order in automation when stable.
 | Entry | Action (example) | Notes |
 | ----- | ---------------- | ----- |
 | Library | **G** / open in graph on row A, then row B, repeat | Catches incremental redraw / `lastLoadSource` / stale `episodeId` |
+| Library → Shows (UXS-015) | Shows mode → open show A → episode → graph; back → show B → episode → graph | Same `metadata_relative_path` handoff as Library rows; catches show-detail → graph stale-focus across two shows (`shows-library.spec.ts` mocked; `stack-shows-library.spec.ts` served) |
 | Digest | Topic pill / cluster / open graph | Catches `pendingFocus` vs same-episode topic changes |
 | Search | **Show on graph** | Catches search handoff + focus id |
 | Dashboard | Intelligence → topic / cluster → graph | Catches tab + async load |

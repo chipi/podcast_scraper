@@ -153,6 +153,7 @@ nav:
       - PRD-041 Consolidation: prd/PRD-041-consolidation.md
       - PRD-042 Home: prd/PRD-042-home.md
       - PRD-043 Knowledge Layer: prd/PRD-043-knowledge-layer.md
+      - PRD-044 Operator Shows Library: prd/PRD-044-operator-shows-library.md
       - PRD Template: prd/PRD_TEMPLATE.md
   - UX Specifications:
       - uxs/index.md
@@ -170,6 +171,7 @@ nav:
       - UXS-012 Consumer Home: uxs/UXS-012-consumer-home.md
       - UXS-013 Knowledge Clusters: uxs/UXS-013-knowledge-clusters.md
       - UXS-014 Interaction Patterns: uxs/UXS-014-interaction-patterns.md
+      - UXS-015 Operator Shows Library: uxs/UXS-015-operator-shows-library.md
       - UXS Template: uxs/UXS_TEMPLATE.md
   - Architecture Decisions:
       - adr/index.md
@@ -373,6 +375,7 @@ nav:
       - RFC-101 Personal Knowledge Corpus: rfc/RFC-101-personal-knowledge-corpus.md
       - RFC-102 Knowledge Clusters & Entity Cards: rfc/RFC-102-knowledge-clusters-entity-cards.md
       - RFC-103 Momentum Layer (Trending): rfc/RFC-103-momentum-layer.md
+      - RFC-104 Operator Shows Library: rfc/RFC-104-operator-shows-library.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md
