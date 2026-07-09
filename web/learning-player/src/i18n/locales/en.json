@@ -216,6 +216,8 @@
     "sigGrounding": "Grounding",
     "sigGroundedLine": "{grounded} of {total} claims backed by quotes ({pct}%)",
     "sigCoappears": "Often appears with",
+    "sigConsensus": "Where they agree",
+    "sigOn": "on {topic}",
     "sigMomentum": "Momentum",
     "sig_rising": "Rising",
     "sigVsAvg": "vs its 6-month average",

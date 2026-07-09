@@ -418,6 +418,18 @@ export interface CorpusEnrichmentSignals {
       episode_count: number
     }>
   }
+  /** ADR-108 cross-person corroboration on a topic (embedding cosine + low NLI contradiction). */
+  topic_consensus?: {
+    consensus?: Array<{
+      topic_id: string
+      person_a_id: string
+      person_b_id: string
+      person_a_name?: string
+      person_b_name?: string
+      insight_a_text?: string
+      insight_b_text?: string
+    }>
+  }
   temporal_velocity?: {
     /** Ordered YYYY-MM axis the monthly_counts are keyed on. */
     window_months?: string[]

@@ -7,7 +7,7 @@
  * the whole block renders nothing when there's no signal. Chips emit `open` so
  * the parent card can walk the graph (person↔topic), same as its other rows.
  *
- *   Person → grounding %, often-appears-with.
+ *   Person → grounding %, often-appears-with, where-they-agree (consensus).
  *   Topic  → momentum (velocity), similar topics, often-discussed-alongside.
  */
 import { computed, ref, watch } from 'vue'
@@ -66,6 +66,21 @@ const coappears = computed(() => {
   }
   return out.sort((a, b) => b.count - a.count).slice(0, MAX)
 })
+// Cross-person corroboration on a topic (topic_consensus, ADR-108): who else makes
+// the same point as this person, oriented so the focused person's claim is "self".
+const consensus = computed(() => {
+  if (props.kind !== 'person') return []
+  const out: Array<{ otherId: string; otherName: string; topic: string; selfText: string; otherText: string }> = []
+  for (const c of signals.value?.topic_consensus?.consensus ?? []) {
+    const isA = norm(c.person_a_id) === self.value
+    const isB = norm(c.person_b_id) === self.value
+    if (!isA && !isB) continue
+    const topic = shortId(c.topic_id)
+    if (isA) out.push({ otherId: c.person_b_id, otherName: nameOf(c.person_b_name, c.person_b_id), topic, selfText: c.insight_a_text ?? '', otherText: c.insight_b_text ?? '' })
+    else out.push({ otherId: c.person_a_id, otherName: nameOf(c.person_a_name, c.person_a_id), topic, selfText: c.insight_b_text ?? '', otherText: c.insight_a_text ?? '' })
+  }
+  return out.slice(0, MAX)
+})
 
 // ── Topic signals ────────────────────────────────────────────────────────────
 const momentum = computed(() => {
@@ -99,6 +114,7 @@ const hasAny = computed(() =>
   Boolean(
     grounding.value ||
       coappears.value.length ||
+      consensus.value.length ||
       momentum.value ||
       similarTopics.value.length ||
       alongside.value.length,
@@ -127,6 +143,29 @@ const hasAny = computed(() =>
           @click="emit('open', { kind: 'person', id: p.id })"
         >{{ p.name }} <span class="text-muted">· {{ p.count }}</span></button>
       </div>
+    </section>
+
+    <section v-if="consensus.length" class="mb-4" data-testid="es-consensus">
+      <h3 class="lp-section mb-2">{{ t('ec.sigConsensus') }}</h3>
+      <ul class="flex flex-col gap-2">
+        <li
+          v-for="(c, i) in consensus"
+          :key="i"
+          class="rounded-md bg-overlay px-3 py-2"
+          data-testid="es-consensus-row"
+        >
+          <p class="text-xs">
+            <button
+              type="button"
+              class="font-semibold text-person hover:underline"
+              @click="emit('open', { kind: 'person', id: c.otherId })"
+            >{{ c.otherName }}</button>
+            <span class="text-muted">{{ ' ' + t('ec.sigOn', { topic: c.topic }) }}</span>
+          </p>
+          <p v-if="c.selfText" class="mt-1 text-xs text-muted"><span class="text-canvas-foreground">“{{ c.selfText }}”</span></p>
+          <p v-if="c.otherText" class="mt-0.5 text-xs text-muted">{{ c.otherName }}: “{{ c.otherText }}”</p>
+        </li>
+      </ul>
     </section>
 
     <!-- Topic -->
