@@ -102,6 +102,21 @@ function onBack(): void {
 }
 
 const label = computed(() => person.value?.label ?? topic.value?.label ?? '')
+
+// Speaker role badge (host / guest / mentioned) — mirrors the operator viewer's person role
+// badge, KG-grounded from the person node's aggregate role. Empty for topics / unknown role.
+const ROLE_LABEL_KEYS: Record<string, string> = {
+  host: 'ec.roleHost',
+  guest: 'ec.roleGuest',
+  mentioned: 'ec.roleMentioned',
+}
+const personRole = computed(() =>
+  current.value.kind === 'person' ? (person.value?.role ?? '').toLowerCase() : '',
+)
+const personRoleLabel = computed(() => {
+  const key = ROLE_LABEL_KEYS[personRole.value]
+  return key ? t(key) : ''
+})
 const episodes = computed<EpisodeSummary[]>(
   () => person.value?.episodes ?? topic.value?.episodes ?? [],
 )
@@ -153,7 +168,18 @@ function searchLibrary(): void {
         <span aria-hidden="true" class="text-base leading-none">{{ atRoot && variant === 'overlay' ? '✕' : '‹' }}</span>
         <span>{{ atRoot && variant === 'overlay' ? t('ec.close') : t('ec.back') }}</span>
       </button>
-      <span class="lp-kicker mt-3 block">{{ current.kind === 'person' ? t('ec.person') : t('ec.topic') }}</span>
+      <span class="mt-3 flex items-center gap-2">
+        <span class="lp-kicker">{{ current.kind === 'person' ? t('ec.person') : t('ec.topic') }}</span>
+        <!-- Host / guest / mentioned — the person's aggregate speaker role (mirrors the operator
+             viewer). Host gets the ringed emphasis idiom used for the "current" chip elsewhere. -->
+        <span
+          v-if="personRoleLabel"
+          data-testid="ec-person-role"
+          :data-role="personRole"
+          class="rounded-full bg-overlay px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide text-person"
+          :class="personRole === 'host' ? 'ring-1 ring-person' : ''"
+        >{{ personRoleLabel }}</span>
+      </span>
       <span class="block truncate font-display text-xl font-extrabold">{{ label || '…' }}</span>
       <button
         v-if="auth.isAuthenticated && label"

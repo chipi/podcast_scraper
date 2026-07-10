@@ -31,6 +31,7 @@ def _write_episode(
     published: str = "2024-03-10T00:00:00",
     write_kg: bool = True,
     corrupt_kg: bool = False,
+    roles: dict[str, str] | None = None,
 ) -> None:
     """Write one episode (metadata + KG with the given person/topic nodes)."""
     (root / "metadata").mkdir(parents=True, exist_ok=True)
@@ -53,7 +54,15 @@ def _write_episode(
     if corrupt_kg:
         (root / "metadata" / f"{stem}.kg.json").write_text("{not json", encoding="utf-8")
         return
-    nodes = [{"id": pid, "type": "Person", "properties": {"name": name}} for pid, name in persons]
+    role_of = roles or {}
+    nodes = [
+        {
+            "id": pid,
+            "type": "Person",
+            "properties": {"name": name, **({"role": role_of[pid]} if pid in role_of else {})},
+        }
+        for pid, name in persons
+    ]
     nodes += [{"id": tid, "type": "Topic", "properties": {"label": label}} for tid, label in topics]
     kg = {"episode_id": episode_id, "nodes": nodes}
     (root / "metadata" / f"{stem}.kg.json").write_text(json.dumps(kg), encoding="utf-8")
@@ -144,6 +153,39 @@ def test_build_person_card_topics_carry_cluster_info(tmp_path: Path) -> None:
 def test_build_person_card_unknown_returns_none(tmp_path: Path) -> None:
     _two_episode_corpus(tmp_path)
     assert build_person_card(tmp_path, "person:nobody") is None
+
+
+def test_build_person_card_aggregates_role_by_precedence(tmp_path: Path) -> None:
+    # Jane hosts ep1 but is only mentioned in ep2 → the card's aggregate role is the strongest
+    # (host > guest > mentioned). Bob is a guest in ep1.
+    _write_episode(
+        tmp_path,
+        stem="0001-a",
+        episode_id="ep1",
+        persons=[("person:jane-doe", "Jane Doe"), ("person:bob", "Bob")],
+        topics=[("topic:ai", "AI")],
+        published="2024-01-01T00:00:00",
+        roles={"person:jane-doe": "host", "person:bob": "guest"},
+    )
+    _write_episode(
+        tmp_path,
+        stem="0002-b",
+        episode_id="ep2",
+        persons=[("person:jane-doe", "Jane Doe")],
+        topics=[("topic:ai", "AI")],
+        published="2024-06-01T00:00:00",
+        roles={"person:jane-doe": "mentioned"},
+    )
+    jane = build_person_card(tmp_path, "person:jane-doe")
+    bob = build_person_card(tmp_path, "person:bob")
+    assert jane is not None and jane.role == "host"
+    assert bob is not None and bob.role == "guest"
+
+
+def test_build_person_card_role_none_when_no_role_on_nodes(tmp_path: Path) -> None:
+    _two_episode_corpus(tmp_path)  # nodes carry no role property
+    card = build_person_card(tmp_path, "person:jane-doe")
+    assert card is not None and card.role is None
 
 
 def test_build_topic_card_episodes_siblings_people(tmp_path: Path) -> None:

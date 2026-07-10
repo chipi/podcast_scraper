@@ -174,6 +174,8 @@ export interface Entity {
   id: string
   name: string
   kind: 'person' | 'org'
+  /** Speaker role in the episode KG (host / guest / mentioned); null for orgs / older data. */
+  role?: string | null
 }
 
 /** A KG topic. Cluster fields (RFC-102) drive cluster-first grouping; null/0 = singleton/no artifact.
@@ -361,6 +363,8 @@ export interface EntitySearchResponse {
 export interface PersonCard {
   id: string
   label: string
+  /** Aggregate speaker role across the corpus (host / guest / mentioned); null when unknown. */
+  role?: string | null
   episode_count: number
   episodes: EpisodeSummary[]
   related_people: Entity[]

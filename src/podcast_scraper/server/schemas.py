@@ -225,6 +225,11 @@ class AppEntity(BaseModel):
     id: str = Field(description="Canonical entity id (person:{slug} / org:{slug}).")
     name: str = Field(description="Display name.")
     kind: Literal["person", "org"] = Field(description="Entity kind.")
+    role: str | None = Field(
+        default=None,
+        description="Speaker role in this episode's KG (host / guest / mentioned); null when "
+        "the node carries no role (orgs, older artifacts).",
+    )
 
 
 class AppTopic(BaseModel):
@@ -294,6 +299,11 @@ class AppPersonCard(BaseModel):
 
     id: str = Field(description="Canonical person id (person:{slug}).")
     label: str = Field(description="Display name.")
+    role: str | None = Field(
+        default=None,
+        description="Aggregate speaker role across the corpus (host / guest / mentioned); the "
+        "strongest role the person holds in any episode KG. Null when unknown.",
+    )
     episode_count: int = Field(ge=0, description="Episodes this person appears in.")
     episodes: list[AppEpisodeSummary] = Field(
         default_factory=list, description="Appears-in episode cards (newest-first)."

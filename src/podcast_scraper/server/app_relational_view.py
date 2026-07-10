@@ -125,6 +125,19 @@ def _sorted_episode_cards(root: Path, rows: list[CatalogEpisodeRow]) -> list[App
     return cards
 
 
+# Role precedence for the aggregate card badge: a person who hosts anywhere is a "host",
+# a guest anywhere (but never a host) is a "guest", otherwise the weakest role seen.
+_ROLE_RANK = {"host": 3, "guest": 2, "mentioned": 1}
+
+
+def _aggregate_role(roles: Sequence[str | None]) -> str | None:
+    """The strongest speaker role across a person's episode nodes (host > guest > mentioned)."""
+    ranked = [r for r in roles if r]
+    if not ranked:
+        return None
+    return max(ranked, key=lambda r: _ROLE_RANK.get(r, 0))
+
+
 def build_person_card(
     root: Path,
     person_id: str,
@@ -138,6 +151,7 @@ def build_person_card(
     theme_map: ClusterMap = consumer_theme_cluster_map(root)
 
     label = ""
+    roles: list[str | None] = []
     appears_in: list[CatalogEpisodeRow] = []
     people_by_id: dict[str, AppEntity] = {}
     topics_by_id: dict[str, AppTopic] = {}
@@ -150,6 +164,7 @@ def build_person_card(
             continue
         if not label:
             label = match.name
+        roles.append(match.role)
         appears_in.append(row)
         for p in persons:
             if p.id == person_id:
@@ -171,6 +186,7 @@ def build_person_card(
     return AppPersonCard(
         id=person_id,
         label=label or person_id.split(":", 1)[-1],
+        role=_aggregate_role(roles),
         episode_count=len(appears_in),
         episodes=_sorted_episode_cards(root, appears_in),
         related_people=related_people,

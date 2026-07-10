@@ -12,6 +12,14 @@ from typing import Any
 from podcast_scraper.server.schemas import AppEntity, AppTopic
 
 
+def _role_of(props: dict) -> str | None:
+    """Normalised speaker role (``host``/``guest``/``mentioned``) from a person node, else None."""
+    role = props.get("role")
+    if isinstance(role, str) and role.strip():
+        return role.strip().lower()
+    return None
+
+
 def _name(props: dict, fallback_id: Any) -> str:
     for key in ("name", "label", "display_name"):
         val = props.get(key)
@@ -52,7 +60,10 @@ def entities_from_kg(artifact: Any) -> tuple[list[AppEntity], list[AppEntity], l
         kind = props.get("kind")
         if ntype == "Person" or node_id.startswith("person:") or kind == "person":
             persons.setdefault(
-                node_id, AppEntity(id=node_id, name=_name(props, node_id), kind="person")
+                node_id,
+                AppEntity(
+                    id=node_id, name=_name(props, node_id), kind="person", role=_role_of(props)
+                ),
             )
         elif ntype in ("Organization", "Org") or node_id.startswith("org:") or kind == "org":
             orgs.setdefault(node_id, AppEntity(id=node_id, name=_name(props, node_id), kind="org"))

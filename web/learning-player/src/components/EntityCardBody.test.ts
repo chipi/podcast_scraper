@@ -223,3 +223,44 @@ describe('EntityCardBody — your-corpus lens (P3 #1125)', () => {
     expect(w.find('[role="tablist"]').exists()).toBe(false)
   })
 })
+
+describe('EntityCardBody — speaker role badge (#3)', () => {
+  beforeEach(() => {
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+  })
+
+  it('shows a Host badge with the ringed-emphasis class for a host', async () => {
+    vi.spyOn(api, 'getPersonCard').mockResolvedValue(personCard({ role: 'host' }))
+    const w = mountAuthed({ kind: 'person', id: 'person:jane-doe' })
+    await flushPromises()
+    const badge = w.find('[data-testid="ec-person-role"]')
+    expect(badge.exists()).toBe(true)
+    expect(badge.text()).toBe('Host')
+    expect(badge.attributes('data-role')).toBe('host')
+    expect(badge.classes()).toContain('ring-person')
+  })
+
+  it('shows a Guest badge without the host ring', async () => {
+    vi.spyOn(api, 'getPersonCard').mockResolvedValue(personCard({ role: 'guest' }))
+    const w = mountAuthed({ kind: 'person', id: 'person:jane-doe' })
+    await flushPromises()
+    const badge = w.find('[data-testid="ec-person-role"]')
+    expect(badge.text()).toBe('Guest')
+    expect(badge.attributes('data-role')).toBe('guest')
+    expect(badge.classes()).not.toContain('ring-person')
+  })
+
+  it('renders no badge when the person has no role', async () => {
+    vi.spyOn(api, 'getPersonCard').mockResolvedValue(personCard({ role: null }))
+    const w = mountAuthed({ kind: 'person', id: 'person:jane-doe' })
+    await flushPromises()
+    expect(w.find('[data-testid="ec-person-role"]').exists()).toBe(false)
+  })
+
+  it('renders no role badge for a topic card', async () => {
+    vi.spyOn(api, 'getTopicCard').mockResolvedValue(topicCard())
+    const w = mountAuthed({ kind: 'topic', id: 'topic:ai' })
+    await flushPromises()
+    expect(w.find('[data-testid="ec-person-role"]').exists()).toBe(false)
+  })
+})
