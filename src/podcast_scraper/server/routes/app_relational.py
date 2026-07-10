@@ -8,6 +8,7 @@ operator relational API (the consumer/operator boundary stays clean). Mounted un
 
 from __future__ import annotations
 
+from collections import Counter
 from pathlib import Path
 from typing import Literal, TypeVar
 
@@ -52,9 +53,17 @@ def _user_set(request: Request, user: User | None) -> set[str]:
 
 def _scope_to_corpus(card: _Card, mine: set[str]) -> _Card:
     """Filter a card's appears-in episodes to the user's set (the "you heard X in …" lens),
-    recomputing ``episode_count`` so the card reads honestly per RFC-101 §4."""
+    recomputing ``episode_count`` so the card reads honestly per RFC-101 §4. For a person card the
+    per-show breakdown is re-scoped too — drop shows with no heard episode, recount the rest."""
     card.episodes = [e for e in card.episodes if e.slug in mine]
     card.episode_count = len(card.episodes)
+    if isinstance(card, AppPersonCard):
+        heard_by_feed = Counter(e.feed_id for e in card.episodes)
+        card.shows = [
+            s.model_copy(update={"episode_count": heard_by_feed[s.feed_id]})
+            for s in card.shows
+            if heard_by_feed.get(s.feed_id)
+        ]
     return card
 
 

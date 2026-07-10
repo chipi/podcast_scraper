@@ -359,12 +359,23 @@ export interface EntitySearchResponse {
   entity: EntityRef | null
 }
 
+/** One show a person appears in, with their role there (AppPersonShow). Per-show, not global. */
+export interface PersonShow {
+  feed_id: string
+  title: string
+  /** Aggregate role within this show (host / guest / mentioned); null when unknown. */
+  role?: string | null
+  episode_count: number
+}
+
 /** Person profile card (GET /api/app/persons/{id} — AppPersonCard). KG co-occurrence. */
 export interface PersonCard {
   id: string
   label: string
-  /** Aggregate speaker role across the corpus (host / guest / mentioned); null when unknown. */
+  /** Headline speaker role across the corpus (host / guest / mentioned); null when unknown. */
   role?: string | null
+  /** Per-show role breakdown — hosts of one show can be guests on another. Hosted shows first. */
+  shows?: PersonShow[]
   episode_count: number
   episodes: EpisodeSummary[]
   related_people: Entity[]

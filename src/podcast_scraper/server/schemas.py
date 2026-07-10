@@ -288,6 +288,24 @@ class AppEntitySearchResponse(BaseModel):
     )
 
 
+class AppPersonShow(BaseModel):
+    """One show a person appears in, with their role *within that show*.
+
+    A person can host one show and guest on another, so role is per-show — the aggregate
+    ``AppPersonCard.role`` is only a headline summary. Used to render a person card's "Host of"
+    section (their own shows) separately from appearances on other shows.
+    """
+
+    feed_id: str = Field(description="Owning feed id.")
+    title: str = Field(description="Show display title.")
+    role: str | None = Field(
+        default=None,
+        description="Aggregate role within this show (host / guest / mentioned); the strongest "
+        "role the person holds across this show's episodes. Null when unknown.",
+    )
+    episode_count: int = Field(ge=0, description="Episodes of this show the person appears in.")
+
+
 class AppPersonCard(BaseModel):
     """Person profile card (PRD-043 FR2; GET /api/app/persons/{id}).
 
@@ -301,8 +319,14 @@ class AppPersonCard(BaseModel):
     label: str = Field(description="Display name.")
     role: str | None = Field(
         default=None,
-        description="Aggregate speaker role across the corpus (host / guest / mentioned); the "
-        "strongest role the person holds in any episode KG. Null when unknown.",
+        description="Headline speaker role across the corpus (host / guest / mentioned); the "
+        "strongest role the person holds in any episode KG. Null when unknown. Per-show roles "
+        "live in ``shows``.",
+    )
+    shows: list[AppPersonShow] = Field(
+        default_factory=list,
+        description="Per-show role breakdown — every show the person appears in, each with their "
+        "role there (host of one show, guest on another). Hosted shows first, then by footprint.",
     )
     episode_count: int = Field(ge=0, description="Episodes this person appears in.")
     episodes: list[AppEpisodeSummary] = Field(

@@ -38,6 +38,7 @@ from podcast_scraper.server.schemas import (
     AppEpisodeSummary,
     AppInsight,
     AppPersonCard,
+    AppPersonShow,
     AppTopic,
     AppTopicCard,
     AppTopicPerspective,
@@ -138,6 +139,35 @@ def _aggregate_role(roles: Sequence[str | None]) -> str | None:
     return max(ranked, key=lambda r: _ROLE_RANK.get(r, 0))
 
 
+def _person_shows(pairs: Sequence[tuple[CatalogEpisodeRow, str | None]]) -> list[AppPersonShow]:
+    """Group a person's appearances by show, aggregating their role within each show.
+
+    A person can host one show and guest on another, so role is resolved per-feed. Hosted shows
+    sort first, then by episode footprint, then title — so the card leads with "their" shows.
+    """
+    by_feed: dict[str, dict[str, Any]] = {}
+    for row, role in pairs:
+        fid = row.feed_id or ""
+        if not fid:
+            continue
+        slot = by_feed.setdefault(fid, {"title": row.feed_title or fid, "roles": [], "count": 0})
+        if row.feed_title:
+            slot["title"] = row.feed_title
+        slot["roles"].append(role)
+        slot["count"] += 1
+    shows = [
+        AppPersonShow(
+            feed_id=fid,
+            title=slot["title"],
+            role=_aggregate_role(slot["roles"]),
+            episode_count=slot["count"],
+        )
+        for fid, slot in by_feed.items()
+    ]
+    shows.sort(key=lambda s: (-_ROLE_RANK.get(s.role or "", 0), -s.episode_count, s.title))
+    return shows
+
+
 def build_person_card(
     root: Path,
     person_id: str,
@@ -187,6 +217,7 @@ def build_person_card(
         id=person_id,
         label=label or person_id.split(":", 1)[-1],
         role=_aggregate_role(roles),
+        shows=_person_shows(list(zip(appears_in, roles))),
         episode_count=len(appears_in),
         episodes=_sorted_episode_cards(root, appears_in),
         related_people=related_people,

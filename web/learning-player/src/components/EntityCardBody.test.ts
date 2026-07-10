@@ -5,7 +5,7 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
-import type { PersonCard, TopicCard } from '../services/types'
+import type { EpisodeSummary, PersonCard, TopicCard } from '../services/types'
 import { useAuthStore } from '../stores/auth'
 import EntityCardBody from './EntityCardBody.vue'
 
@@ -15,6 +15,7 @@ const router = createRouter({
   routes: [
     { path: '/episode/:slug', name: 'player', component: { template: '<div/>' } },
     { path: '/search', name: 'search', component: { template: '<div/>' } },
+    { path: '/podcast/:feedId', name: 'podcast', component: { template: '<div/>' } },
   ],
 })
 
@@ -27,6 +28,30 @@ function personCard(over: Partial<PersonCard> = {}): PersonCard {
     related_people: [],
     related_topics: [],
     ...over,
+  }
+}
+
+function ep(slug: string, feed_id: string, title = slug): EpisodeSummary {
+  return {
+    slug,
+    title,
+    feed_id,
+    podcast_title: feed_id,
+    publish_date: '2024-03-10',
+    duration_seconds: null,
+    episode_image_url: null,
+    feed_image_url: null,
+    artwork_url: null,
+    status: 'ready',
+    summary_preview: null,
+    summary_text: null,
+    summary_bullets: [],
+    topics: [],
+    has_transcript: true,
+    has_summary: true,
+    has_gi: false,
+    has_kg: true,
+    has_bridge: false,
   }
 }
 
@@ -262,5 +287,55 @@ describe('EntityCardBody — speaker role badge (#3)', () => {
     const w = mountAuthed({ kind: 'topic', id: 'topic:ai' })
     await flushPromises()
     expect(w.find('[data-testid="ec-person-role"]').exists()).toBe(false)
+  })
+})
+
+describe('EntityCardBody — per-show roles (host of one, guest of another)', () => {
+  beforeEach(() => {
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+  })
+
+  it('shows a "Host of" section and drops the hosted show\'s episodes from the list', async () => {
+    vi.spyOn(api, 'getPersonCard').mockResolvedValue(
+      personCard({
+        role: 'host',
+        shows: [
+          { feed_id: 'showA', title: 'Show A', role: 'host', episode_count: 2 },
+          { feed_id: 'showB', title: 'Show B', role: 'guest', episode_count: 1 },
+        ],
+        episode_count: 3,
+        episodes: [ep('a1', 'showA'), ep('a2', 'showA'), ep('b1', 'showB', 'Guest spot')],
+      }),
+    )
+    const w = mountAuthed({ kind: 'person', id: 'person:jane-doe' })
+    await flushPromises()
+
+    // "Host of" lists the hosted show and links to its show page.
+    const hostShows = w.find('[data-testid="ec-host-shows"]')
+    expect(hostShows.exists()).toBe(true)
+    expect(hostShows.text()).toContain('Show A')
+    expect(hostShows.find('a').attributes('href')).toContain('/podcast/showA')
+
+    // The episode list drops Show A's back-catalogue and shows only the other-show appearance.
+    expect(w.text()).toContain('Also appears in')
+    expect(w.text()).toContain('Guest spot')
+    expect(w.text()).not.toContain('a1')
+    expect(w.text()).not.toContain('a2')
+  })
+
+  it('renders no "Host of" section when the person hosts nothing', async () => {
+    vi.spyOn(api, 'getPersonCard').mockResolvedValue(
+      personCard({
+        role: 'guest',
+        shows: [{ feed_id: 'showB', title: 'Show B', role: 'guest', episode_count: 1 }],
+        episode_count: 1,
+        episodes: [ep('b1', 'showB')],
+      }),
+    )
+    const w = mountAuthed({ kind: 'person', id: 'person:jane-doe' })
+    await flushPromises()
+    expect(w.find('[data-testid="ec-host-shows"]').exists()).toBe(false)
+    // Non-host keeps the plain "In N episodes" heading (all episodes shown).
+    expect(w.text()).toContain('In 1 episode')
   })
 })
