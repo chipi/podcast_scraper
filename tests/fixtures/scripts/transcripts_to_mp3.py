@@ -103,6 +103,14 @@ SPEAKER_VOICE_MAP: dict[str, str] = {
     # into the host voice. Now they get their own distinct, accent-appropriate voice.
     "A. correspondent": "Tom",  # en_US male host (host_voice=en-US); non-NER name kept
     "Dr. Elena Fischer": "Anna",  # de_DE female guest (voice=de-DE)
+    # p02/p04/p05/p06 guests+hosts that were falling to novelty hash-fallback
+    # voices (Trinoids/Nicky/Bells/Whisper) — unrealistic for humans and fragile
+    # to diarize. Curated to natural, accent-appropriate, in-fixture-distinct voices.
+    "Joll": "Nathan",  # en_US male guest (voice=en-US), distinct from host Ethan
+    "Tarek": "Majed",  # ar male guest (voice=ar-EG), multi-accent vs en_GB host Leo
+    "Rich": "Tom",  # en_US male guest (voice=en-US), distinct from en_IE host Nora
+    "Cam": "Evan",  # en_US host of p06 (host_voice=en-US)
+    "Jordan": "Allison",  # en_US female guest of p06 (voice=en-US), distinct from Cam
     # Synthetic / non-human speakers (RFC-059 §3 / issue #109).
     # Pre-recorded mid-roll ads use the ``Ad:`` speaker label; Zarvox is
     # deliberately robotic so listeners + diarization both flag it as
