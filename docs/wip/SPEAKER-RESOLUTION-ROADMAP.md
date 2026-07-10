@@ -34,12 +34,26 @@ people** to name. #1b is a correctness fix orthogonal to naming.
 
 ---
 
-## Where the remaining unknowns are (prioritisation)
+## Final accounting — what is TRULY unknown (prod-v2, 579 voices)
 
-After #1a: **326 / 579 voices still unknown (56.3%)** — but they hold only **~24% of talk
-time** (named voices hold 76%). So most remaining unknowns are **short cameo interjections**
-(a few seconds), not the people carrying the episode. Chase the high-talk-time unknowns
-first; the long tail of 5-second cameos is low value.
+After **all** steps (self-intro + intro-guest NER + voice-type + Host + show-centric), categorise
+every diarized voice and accept Host / cameo / commercial as resolved outcomes:
+
+| bucket | voices | % | status |
+|---|---|---|---|
+| named (real person) | 253 | 44% | resolved |
+| **Host** (unnamed, show-centric) | 31 | 5% | accepted — correct outcome |
+| cameo (<20s) | 181 | 31% | parked as noise |
+| commercial | 1 | 0% | parked |
+| **TRULY UNKNOWN** | **113** | **20%** | a real person we failed to name |
+
+**→ 466 / 579 (80%) handled; 113 truly unknown remain.** The residual is **almost entirely
+guests** (110 guests + 3 role-unknown, **0 hosts**) — hosts are effectively solved (named or
+"Host"). The 113 are **panel-show guests** who are never introduced with a "my guest is X" cue
+(e.g. NPR Planet Money "How to make a BOOK" has 6, prediction-markets has 5), several with real
+talk time (100–216 s). That — un-introduced multi-guest panels — is the remaining frontier; it
+needs a recall lever beyond the intro (voice-diarization-aware attribution or a looser,
+verified guest pass), which trades against the precision we protected in Step D.
 
 ---
 

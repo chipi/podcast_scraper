@@ -189,6 +189,9 @@ def test_speaker_diagnostics_explains_what_tried_and_why_unresolved() -> None:
         "named": 1,
         "unresolved": 1,
         "by_voice_type": {"person": 1, "unknown": 1},
+        "show_centric": False,
+        "expected_unresolved": 0,
+        "truly_unknown": 1,  # SPEAKER_01 is a substantive person we failed to name
     }
     assert diag["tried"]["host_self_intro"] == "Noah Kravitz"
     by_voice = {v["voice"]: v for v in diag["voices"]}
@@ -196,7 +199,24 @@ def test_speaker_diagnostics_explains_what_tried_and_why_unresolved() -> None:
     assert by_voice["HOST"]["voice_type"] == "person"
     assert by_voice["SPEAKER_01"]["named"] is False
     assert by_voice["SPEAKER_01"]["voice_type"] == "unknown"  # 340s talk time -> substantive
+    assert by_voice["SPEAKER_01"]["expected"] is False  # a genuine miss, not expected
     assert by_voice["SPEAKER_01"]["reason"]  # a non-empty "why it failed" explanation
+
+
+def test_speaker_diagnostics_show_centric_host_is_expected() -> None:
+    # On a show-centric feed an unnamed host is the EXPECTED outcome, not a miss.
+    diar = _diar([("HOST", 0, 60), ("GUEST", 60, 400)], 2)
+    r = resolve_speaker_roster(diar, "Welcome back.", detected_guests=[])  # host unnamed
+    diag = build_speaker_diagnostics(diar, r, transcript_text="Welcome back.", show_centric=True)
+    by_voice = {v["voice"]: v for v in diag["voices"]}
+    assert r.by_voice["HOST"].role == "host" and r.by_voice["HOST"].named is False
+    assert by_voice["HOST"]["expected"] is True
+    assert "show-centric" in by_voice["HOST"]["reason"]
+    # The substantive guest is still a genuine miss.
+    assert by_voice["GUEST"]["expected"] is False
+    assert diag["summary"]["show_centric"] is True
+    assert diag["summary"]["expected_unresolved"] == 1
+    assert diag["summary"]["truly_unknown"] == 1  # the guest
 
 
 def test_voice_type_cameo_commercial_and_unknown() -> None:

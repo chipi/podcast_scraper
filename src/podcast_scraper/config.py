@@ -1019,6 +1019,15 @@ class Config(BaseModel):
             "These will be used as hosts if auto-detection fails or finds no hosts."
         ),
     )
+    show_centric: bool = Field(
+        default=False,
+        alias="show_centric",
+        description=(
+            "The show is the brand, not the host (news desks like WSJ/NPR). When true, an "
+            "unnamed but intro-dominant host voice (rendered 'Host') is treated as the EXPECTED "
+            "outcome, not a speaker-detection failure — the diagnostics mark it accordingly."
+        ),
+    )
     # Provider selection fields (Stage 0: Foundation)
     speaker_detector_provider: Literal[
         "spacy", "openai", "gemini", "mistral", "grok", "deepseek", "anthropic", "ollama"

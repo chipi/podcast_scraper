@@ -77,6 +77,18 @@ def test_merge_feed_entry_overrides_known_hosts_per_feed() -> None:
     assert inherit.known_hosts == ["Global Host"]
 
 
+def test_merge_feed_entry_show_centric_per_feed() -> None:
+    # A news-desk feed marks itself show-centric so an unnamed "Host" is expected, not a failure.
+    base = cfg_mod.Config(rss="https://ignored.example/x")
+    assert base.show_centric is False
+    merged = merge_feed_entry_into_config(
+        base, RssFeedEntry(url="https://feed.example/rss", show_centric=True)
+    )
+    assert merged.show_centric is True
+    inherit = merge_feed_entry_into_config(base, RssFeedEntry(url="https://feed.example/rss"))
+    assert inherit.show_centric is False
+
+
 def test_feeds_spec_document_accepts_comment_keys() -> None:
     doc = FeedsSpecDocument.model_validate(
         {"_comment": "x", "_comment_resilience": "y", "feeds": ["https://a.example/z"]}

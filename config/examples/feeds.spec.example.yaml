@@ -59,3 +59,8 @@ feeds:
     known_hosts:
       - Alexi Horowitz-Ghazi
       - Katie Martin
+
+  # Feed D: a news desk where the show is the brand, not the host. show_centric marks an unnamed
+  # host (rendered "Host") as the EXPECTED outcome, so it is not flagged as a detection failure.
+  - url: https://example.com/news-desk.xml
+    show_centric: true

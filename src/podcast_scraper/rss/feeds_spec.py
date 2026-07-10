@@ -50,6 +50,7 @@ RSS_FEED_ENTRY_OVERRIDE_KEYS: frozenset[str] = frozenset(
         "episode_since",
         "episode_until",
         "known_hosts",
+        "show_centric",
     }
 )
 
@@ -96,6 +97,8 @@ class RssFeedEntry(BaseModel):
     # author tag is the org and whose hosts never self-introduce, this is the cheapest way to
     # name a recurring host that would otherwise stay SPEAKER_NN. Overrides global known_hosts.
     known_hosts: Optional[List[str]] = None
+    # The show is the brand, not the host — an unnamed "Host" is expected here, not a failure.
+    show_centric: Optional[bool] = None
 
     @field_validator("url", mode="after")
     @classmethod

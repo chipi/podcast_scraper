@@ -138,6 +138,7 @@ def apply_diarization_to_result(
         voice_texts=voice_texts,
         detected_guests=guests,
         known_hosts=known_hosts,
+        show_centric=bool(getattr(cfg, "show_centric", False)),
     )
     enriched_result["diarization_num_speakers"] = roster.num_speakers
     return enriched_result

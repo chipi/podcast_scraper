@@ -380,10 +380,14 @@ def build_speaker_diagnostics(
     voice_texts: Optional[Dict[str, str]] = None,
     detected_guests: Sequence[str] = (),
     known_hosts: Sequence[str] = (),
+    show_centric: bool = False,
 ) -> Dict[str, Any]:
     """Per-episode speaker-resolution diagnostics — *what we tried, what we resolved, and why
     each voice that stayed raw failed*. Written as a sidecar so an operator can see why a
     speaker is unrecognized without re-running the pipeline.
+
+    ``show_centric`` marks feeds where the host is deliberately unnamed (news desks): an unnamed
+    host is then flagged ``expected`` (rendered "Host"), not a detection failure.
     """
     talk = _talk_time(diarization)
     per_voice_intro = _self_intros_by_voice(voice_texts)
@@ -394,6 +398,7 @@ def build_speaker_diagnostics(
         type_counts[r.voice_type] = type_counts.get(r.voice_type, 0) + 1
 
     voices: List[Dict[str, Any]] = []
+    expected_unnamed = 0
     for v, role in roster.by_voice.items():
         entry: Dict[str, Any] = {
             "voice": v,
@@ -405,17 +410,36 @@ def build_speaker_diagnostics(
             "talk_time_s": round(talk.get(v, 0.0), 1),
         }
         if not role.named:
-            entry["reason"] = _why_unresolved(v, per_voice_intro, guests_available)
+            # A show-centric feed's unnamed host is the expected outcome, not a failure — it
+            # renders "Host". So are cameo/commercial voices (noise, not people we missed).
+            expected = (show_centric and role.role == "host") or role.voice_type in (
+                VOICE_CAMEO,
+                VOICE_COMMERCIAL,
+            )
+            entry["expected"] = expected
+            entry["reason"] = (
+                "show-centric feed — host name not expected"
+                if (show_centric and role.role == "host")
+                else _why_unresolved(v, per_voice_intro, guests_available)
+            )
+            if expected:
+                expected_unnamed += 1
         voices.append(entry)
 
+    unresolved = len(roster.by_voice) - named
     return {
         "summary": {
             "num_speakers": roster.num_speakers,
             "named": named,
-            "unresolved": len(roster.by_voice) - named,
+            "unresolved": unresolved,
             # Of the unresolved voices, how many are noise (cameo/commercial) vs a real person
             # we failed to name (unknown) — so an operator can tell "worth chasing" from "junk".
             "by_voice_type": type_counts,
+            "show_centric": show_centric,
+            # Unresolved voices that are the EXPECTED outcome (show-centric host, cameo, ad) vs a
+            # genuine miss — ``truly_unknown`` is the real "we failed to name a person" residual.
+            "expected_unresolved": expected_unnamed,
+            "truly_unknown": unresolved - expected_unnamed,
         },
         "tried": {
             "host_self_intro": (
