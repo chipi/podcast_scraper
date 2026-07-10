@@ -132,6 +132,78 @@ def _host_name_pool(
     return pool
 
 
+def _self_intros_by_voice(voice_texts: Optional[Dict[str, str]]) -> Dict[str, str]:
+    """Per-voice self-introductions ``{voice: name}`` — a voice that says "I'm <First Last>"
+    in its *own* turns IS that person. The most reliable per-voice signal, so it names the
+    guests/co-hosts that the opening-host self-intro + position-ordered detected-guest list
+    miss (the #876 "partial-naming" case: "Hi, I'm Nic Harrigan" rendering as SPEAKER_1).
+
+    Requires a first+last name (≥2 tokens) — guarding the guest path against "I'm American"-style
+    false positives; the single main host is still covered by the opening-intro pool.
+    """
+    out: Dict[str, str] = {}
+    for voice, text in (voice_texts or {}).items():
+        name = extract_self_introduced_host(text, intro_chars=5000)
+        if name and len(name.split()) >= 2:
+            out[voice] = name
+    return out
+
+
+def _name_host_voices(
+    host_voices: Sequence[str],
+    host_pool: Sequence[Tuple[str, str]],
+    voice_intro: Dict[str, str],
+    used_lower: set,
+) -> Dict[str, SpeakerRole]:
+    """Name host voices: own self-introduction first, else the ordered host-name pool."""
+    out: Dict[str, SpeakerRole] = {}
+    hi = 0
+    for v in host_voices:
+        iname = voice_intro.get(v)
+        if iname and iname.lower() not in used_lower:
+            used_lower.add(iname.lower())
+            out[v] = SpeakerRole(name=iname, role="host", named=True, source="self_intro")
+            continue
+        while hi < len(host_pool) and host_pool[hi][0].lower() in used_lower:
+            hi += 1
+        if hi < len(host_pool):
+            name, source = host_pool[hi]
+            used_lower.add(name.lower())
+            hi += 1
+            out[v] = SpeakerRole(name=name, role="host", named=True, source=source)
+        else:
+            out[v] = SpeakerRole(name=v, role="host", named=False, source="raw")
+    return out
+
+
+def _name_guest_voices(
+    voices_by_total: Sequence[str],
+    assigned: Dict[str, SpeakerRole],
+    voice_intro: Dict[str, str],
+    guest_names: Sequence[str],
+    host_names_lower: set,
+    used_lower: set,
+) -> Dict[str, SpeakerRole]:
+    """Name the remaining voices: own self-introduction first, else the detected-guest list by
+    talk-time; unmatched voices stay raw (never painted with someone else's name)."""
+    out: Dict[str, SpeakerRole] = {}
+    gi = 0
+    for v in voices_by_total:
+        if v in assigned:
+            continue
+        iname = voice_intro.get(v)
+        if iname and iname.lower() not in used_lower and iname.lower() not in host_names_lower:
+            used_lower.add(iname.lower())
+            out[v] = SpeakerRole(name=iname, role="guest", named=True, source="self_intro")
+        elif gi < len(guest_names):
+            out[v] = SpeakerRole(name=guest_names[gi], role="guest", named=True, source="guest")
+            gi += 1
+        else:
+            role = "guest" if (guest_names or voice_intro) else "unknown"
+            out[v] = SpeakerRole(name=v, role=role, named=False, source="raw")
+    return out
+
+
 def resolve_speaker_roster(
     diarization: DiarizationResult,
     transcript_text: Optional[str],
@@ -139,9 +211,15 @@ def resolve_speaker_roster(
     host_candidates: Sequence[str] = (),
     detected_guests: Sequence[str] = (),
     known_hosts: Sequence[str] = (),
+    voice_texts: Optional[Dict[str, str]] = None,
     intro_window_s: float = INTRO_WINDOW_SECONDS,
 ) -> SpeakerRoster:
-    """Resolve every diarized voice to a ``SpeakerRole`` (see module docstring)."""
+    """Resolve every diarized voice to a ``SpeakerRole`` (see module docstring).
+
+    ``voice_texts`` maps each diarized voice id to the concatenation of *its own* turns; when
+    supplied it lets a voice be named from its own self-introduction (#876). Omitted → the
+    previous host-pool + ordered-guest behaviour (fully backward-compatible).
+    """
     if not diarization.segments:
         return SpeakerRoster(by_voice={}, num_speakers=diarization.num_speakers or 0)
 
@@ -164,32 +242,22 @@ def resolve_speaker_roster(
             if intro[v] / intro_total >= CO_HOST_INTRO_SHARE:
                 host_voices.append(v)
 
-    by_voice: Dict[str, SpeakerRole] = {}
-    for i, v in enumerate(host_voices):
-        if i < len(host_pool):
-            name, source = host_pool[i]
-            by_voice[v] = SpeakerRole(name=name, role="host", named=True, source=source)
-        else:
-            by_voice[v] = SpeakerRole(name=v, role="host", named=False, source="raw")
-
-    # Guests: remaining voices by total speaking time, named from detected guests (minus hosts).
+    # A voice that introduces itself in its own turns is named from that, most-trusted (#876).
+    voice_intro = _self_intros_by_voice(voice_texts)
     host_names_lower = {n.lower() for n, _ in host_pool}
-    guest_names = [
-        g for g in _clean_person_names(detected_guests) if g.lower() not in host_names_lower
-    ]
-    gi = 0
-    for v in voices_by_total:
-        if v in by_voice:
-            continue
-        if gi < len(guest_names):
-            by_voice[v] = SpeakerRole(
-                name=guest_names[gi], role="guest", named=True, source="guest"
-            )
-            gi += 1
-        else:
-            # Unmatched voice: a guest role if guests exist, else unknown — kept raw, never
-            # painted with someone else's name.
-            role = "guest" if guest_names else "unknown"
-            by_voice[v] = SpeakerRole(name=v, role=role, named=False, source="raw")
+    used_lower: set[str] = set()
 
+    by_voice = _name_host_voices(host_voices, host_pool, voice_intro, used_lower)
+
+    intro_names_lower = {n.lower() for n in voice_intro.values()}
+    guest_names = [
+        g
+        for g in _clean_person_names(detected_guests)
+        if g.lower() not in host_names_lower and g.lower() not in intro_names_lower
+    ]
+    by_voice.update(
+        _name_guest_voices(
+            voices_by_total, by_voice, voice_intro, guest_names, host_names_lower, used_lower
+        )
+    )
     return SpeakerRoster(by_voice=by_voice, num_speakers=diarization.num_speakers or len(by_voice))

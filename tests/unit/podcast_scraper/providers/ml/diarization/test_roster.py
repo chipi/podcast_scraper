@@ -139,3 +139,29 @@ def test_more_names_than_voices_drops_extras() -> None:
 def test_empty_diarization_returns_empty_roster() -> None:
     r = resolve_speaker_roster(_diar([], 0), "I'm Patrick O'Shaughnessy.")
     assert r.by_voice == {} and r.num_speakers == 0
+
+
+def test_guest_named_from_own_self_intro_when_not_detected() -> None:
+    # #876 partial-naming: a guest whose voice self-introduces ("Hi, I'm Nic Harrigan") is named
+    # from its OWN turns even when it is NOT in the detected-guest list — previously stayed raw.
+    diar = _diar([("HOST", 0, 60), ("SPEAKER_01", 60, 400), ("HOST", 400, 420)], 2)
+    r = resolve_speaker_roster(
+        diar,
+        "Welcome. I'm Noah Kravitz.",
+        detected_guests=[],  # guest NOT detected upstream
+        voice_texts={
+            "HOST": "Welcome to the show. I'm Noah Kravitz and today we go deep.",
+            "SPEAKER_01": "Thanks for having me. Hi, I'm Nic Harrigan and I work on quantum.",
+        },
+    )
+    assert r.by_voice["HOST"].name == "Noah Kravitz"
+    guest = r.by_voice["SPEAKER_01"]
+    assert guest.name == "Nic Harrigan"  # named from its own self-introduction
+    assert guest.role == "guest" and guest.source == "self_intro"
+
+
+def test_own_self_intro_ignored_without_voice_texts() -> None:
+    # Backward-compat: with no voice_texts, an undetected guest still stays raw (old behaviour).
+    diar = _diar([("HOST", 0, 60), ("SPEAKER_01", 60, 400)], 2)
+    r = resolve_speaker_roster(diar, "Welcome. I'm Noah Kravitz.", detected_guests=[])
+    assert r.by_voice["SPEAKER_01"].named is False

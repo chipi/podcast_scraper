@@ -20,6 +20,16 @@ from .roster import resolve_speaker_roster
 logger = logging.getLogger(__name__)
 
 
+def _voice_texts_from_aligned(aligned: List[Any]) -> Dict[str, str]:
+    """``voice_id -> concatenated text of its own turns`` (for own-turn self-intro naming, #876)."""
+    chunks: Dict[str, List[str]] = {}
+    for segment, speaker_id in aligned:
+        txt = str(segment.get("text", "") or "") if isinstance(segment, dict) else ""
+        if txt:
+            chunks.setdefault(speaker_id, []).append(txt)
+    return {v: " ".join(c) for v, c in chunks.items()}
+
+
 def _resolve_diarization_cache_dir(cfg: config.Config, cache_dir: Optional[str]) -> Optional[str]:
     if cache_dir:
         return cache_dir
@@ -81,13 +91,16 @@ def apply_diarization_to_result(
     transcript_text = result.get("text") or " ".join(
         str(seg.get("text", "")) for seg in segments if isinstance(seg, dict)
     )
+    # Align first so the roster can name a voice from its *own* turns' self-introduction (#876),
+    # not only the episode-opening host intro.
+    aligned = align_segments_to_speakers(segments, diarization)
     roster = resolve_speaker_roster(
         diarization,
         transcript_text,
         detected_guests=detected_speaker_names or [],
         known_hosts=list(getattr(cfg, "known_hosts", None) or []),
+        voice_texts=_voice_texts_from_aligned(aligned),
     )
-    aligned = align_segments_to_speakers(segments, diarization)
 
     enriched_segments: List[Dict[str, Any]] = []
     for segment, speaker_id in aligned:
