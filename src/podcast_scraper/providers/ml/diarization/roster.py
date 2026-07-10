@@ -21,7 +21,7 @@ Resolution, per diarized **voice** (``SPEAKER_xx``):
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from ....speaker_detectors.hosts import (
@@ -35,6 +35,19 @@ INTRO_WINDOW_SECONDS = 90.0
 # A non-primary voice is also treated as a host when it owns at least this share of the intro
 # speaking time AND a host name is available for it (co-hosted shows).
 CO_HOST_INTRO_SHARE = 0.30
+# An unnamed voice with less than this much total speaking time is a one-off "cameo" — a brief
+# interjection not worth naming (measured: ~60% of unresolved voices, ~4% of unknown talk time).
+CAMEO_MAX_TALK_S = 20.0
+# An unnamed voice whose turns sit mostly inside ad regions is an ad read, not a person.
+COMMERCIAL_AD_FRACTION = 0.6
+
+# voice_type values (the *nature* of a voice, distinct from the host/guest role):
+VOICE_PERSON = "person"  # a named real person
+VOICE_CAMEO = "cameo"  # unnamed, trivially brief
+VOICE_COMMERCIAL = "commercial"  # unnamed, mostly inside ad regions
+VOICE_UNKNOWN = "unknown"  # unnamed, substantive — a real person we failed to name
+# Friendly display labels for the non-person types (surfaces render these instead of SPEAKER_xx).
+_VOICE_TYPE_LABELS = {VOICE_CAMEO: "Brief speaker", VOICE_COMMERCIAL: "Advertisement"}
 
 
 @dataclass(frozen=True)
@@ -45,6 +58,7 @@ class SpeakerRole:
     role: str  # "host" | "guest" | "unknown"
     named: bool  # True when ``name`` is a real name (not a raw diarization id)
     source: str  # provenance: self_intro | known_hosts | feed | guest | raw
+    voice_type: str = VOICE_PERSON  # person | cameo | commercial | unknown (see constants)
 
 
 @dataclass(frozen=True)
@@ -55,9 +69,24 @@ class SpeakerRoster:
     num_speakers: int
 
     def label_for(self, voice_id: str) -> str:
-        """Display label for a diarized voice id (falls back to the raw id when unknown)."""
+        """Display label for a diarized voice id (falls back to the raw id when unknown).
+
+        This is the **id-bearing** label (a real name or the raw ``SPEAKER_xx``) — do NOT swap in
+        the friendly type label here, or the person-node id would change. Use
+        :meth:`display_label_for` for a human surface.
+        """
         role = self.by_voice.get(voice_id)
         return role.name if role else voice_id
+
+    def display_label_for(self, voice_id: str) -> str:
+        """Human-facing label: a real name, else "Brief speaker" / "Advertisement" for a
+        cameo/commercial voice, else the raw id. For rendering only — never for id generation."""
+        role = self.by_voice.get(voice_id)
+        if role is None:
+            return voice_id
+        if not role.named and role.voice_type in _VOICE_TYPE_LABELS:
+            return _VOICE_TYPE_LABELS[role.voice_type]
+        return role.name
 
     def named_count(self) -> int:
         """Number of voices resolved to a real name (not a raw ``SPEAKER_xx``)."""
@@ -76,6 +105,50 @@ def _talk_time(
             continue
         totals[seg.speaker] = totals.get(seg.speaker, 0.0) + (end - seg.start)
     return totals
+
+
+def _ad_overlap_by_voice(
+    diarization: DiarizationResult, ad_intervals: Sequence[Tuple[float, float]]
+) -> Dict[str, float]:
+    """Seconds of each voice's speaking time that fall inside an ad region."""
+    out: Dict[str, float] = {}
+    for seg in diarization.segments:
+        ov = 0.0
+        for a_start, a_end in ad_intervals:
+            ov += max(0.0, min(seg.end, a_end) - max(seg.start, a_start))
+        if ov > 0:
+            out[seg.speaker] = out.get(seg.speaker, 0.0) + ov
+    return out
+
+
+def _classify_voice_types(
+    by_voice: Dict[str, "SpeakerRole"],
+    diarization: DiarizationResult,
+    ad_intervals: Optional[Sequence[Tuple[float, float]]],
+) -> Dict[str, "SpeakerRole"]:
+    """Tag every *unnamed* voice as cameo / commercial / unknown; named voices are ``person``.
+
+    Lets surfaces show "Brief speaker" / "Advertisement" instead of ``SPEAKER_03`` and lets
+    corpus enrichers drop the noise, while the id-bearing raw label is untouched. ``ad_intervals``
+    is optional — without it, commercial is not attempted (only cameo vs unknown by talk time).
+    """
+    talk = _talk_time(diarization)
+    ad_by_voice = _ad_overlap_by_voice(diarization, ad_intervals) if ad_intervals else {}
+    out: Dict[str, SpeakerRole] = {}
+    for v, role in by_voice.items():
+        if role.named:
+            out[v] = replace(role, voice_type=VOICE_PERSON)
+            continue
+        total = talk.get(v, 0.0)
+        ad_frac = (ad_by_voice.get(v, 0.0) / total) if total else 0.0
+        if ad_intervals and ad_frac >= COMMERCIAL_AD_FRACTION:
+            vt = VOICE_COMMERCIAL
+        elif total < CAMEO_MAX_TALK_S:
+            vt = VOICE_CAMEO
+        else:
+            vt = VOICE_UNKNOWN
+        out[v] = replace(role, voice_type=vt)
+    return out
 
 
 def _dedupe(names: Sequence[str], *, reject) -> List[str]:
@@ -212,6 +285,7 @@ def resolve_speaker_roster(
     detected_guests: Sequence[str] = (),
     known_hosts: Sequence[str] = (),
     voice_texts: Optional[Dict[str, str]] = None,
+    ad_intervals: Optional[Sequence[Tuple[float, float]]] = None,
     intro_window_s: float = INTRO_WINDOW_SECONDS,
 ) -> SpeakerRoster:
     """Resolve every diarized voice to a ``SpeakerRole`` (see module docstring).
@@ -219,6 +293,9 @@ def resolve_speaker_roster(
     ``voice_texts`` maps each diarized voice id to the concatenation of *its own* turns; when
     supplied it lets a voice be named from its own self-introduction (#876). Omitted → the
     previous host-pool + ordered-guest behaviour (fully backward-compatible).
+
+    ``ad_intervals`` (``(start_s, end_s)`` ad regions) lets an unnamed voice that speaks mostly
+    inside ads be typed ``commercial``; omitted → only cameo vs unknown by talk time.
     """
     if not diarization.segments:
         return SpeakerRoster(by_voice={}, num_speakers=diarization.num_speakers or 0)
@@ -260,6 +337,7 @@ def resolve_speaker_roster(
             voices_by_total, by_voice, voice_intro, guest_names, host_names_lower, used_lower
         )
     )
+    by_voice = _classify_voice_types(by_voice, diarization, ad_intervals)
     return SpeakerRoster(by_voice=by_voice, num_speakers=diarization.num_speakers or len(by_voice))
 
 
@@ -289,6 +367,9 @@ def build_speaker_diagnostics(
     per_voice_intro = _self_intros_by_voice(voice_texts)
     guests_available = bool(_clean_person_names(detected_guests))
     named = sum(1 for r in roster.by_voice.values() if r.named)
+    type_counts: Dict[str, int] = {}
+    for r in roster.by_voice.values():
+        type_counts[r.voice_type] = type_counts.get(r.voice_type, 0) + 1
 
     voices: List[Dict[str, Any]] = []
     for v, role in roster.by_voice.items():
@@ -298,6 +379,7 @@ def build_speaker_diagnostics(
             "role": role.role,
             "named": role.named,
             "source": role.source,
+            "voice_type": role.voice_type,
             "talk_time_s": round(talk.get(v, 0.0), 1),
         }
         if not role.named:
@@ -309,6 +391,9 @@ def build_speaker_diagnostics(
             "num_speakers": roster.num_speakers,
             "named": named,
             "unresolved": len(roster.by_voice) - named,
+            # Of the unresolved voices, how many are noise (cameo/commercial) vs a real person
+            # we failed to name (unknown) — so an operator can tell "worth chasing" from "junk".
+            "by_voice_type": type_counts,
         },
         "tried": {
             "host_self_intro": (

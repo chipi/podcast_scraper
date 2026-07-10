@@ -184,9 +184,51 @@ def test_speaker_diagnostics_explains_what_tried_and_why_unresolved() -> None:
         detected_guests=[],
         known_hosts=[],
     )
-    assert diag["summary"] == {"num_speakers": 2, "named": 1, "unresolved": 1}
+    assert diag["summary"] == {
+        "num_speakers": 2,
+        "named": 1,
+        "unresolved": 1,
+        "by_voice_type": {"person": 1, "unknown": 1},
+    }
     assert diag["tried"]["host_self_intro"] == "Noah Kravitz"
     by_voice = {v["voice"]: v for v in diag["voices"]}
     assert by_voice["HOST"]["named"] is True and by_voice["HOST"]["source"] == "self_intro"
+    assert by_voice["HOST"]["voice_type"] == "person"
     assert by_voice["SPEAKER_01"]["named"] is False
+    assert by_voice["SPEAKER_01"]["voice_type"] == "unknown"  # 340s talk time -> substantive
     assert by_voice["SPEAKER_01"]["reason"]  # a non-empty "why it failed" explanation
+
+
+def test_voice_type_cameo_commercial_and_unknown() -> None:
+    # HOST named; SPEAKER_01 is a long unnamed voice (unknown), SPEAKER_02 a brief cameo (<20s),
+    # SPEAKER_03 speaks only inside an ad region (commercial).
+    diar = _diar(
+        [
+            ("HOST", 0, 60),
+            ("SPEAKER_01", 60, 400),  # 340s -> unknown (substantive)
+            ("SPEAKER_02", 400, 408),  # 8s -> cameo
+            ("SPEAKER_03", 500, 560),  # 60s but all inside the ad region -> commercial
+        ],
+        4,
+    )
+    r = resolve_speaker_roster(
+        diar,
+        "Welcome. I'm Noah Kravitz.",
+        ad_intervals=[(495.0, 570.0)],
+    )
+    assert r.by_voice["HOST"].voice_type == "person"
+    assert r.by_voice["SPEAKER_01"].voice_type == "unknown"
+    assert r.by_voice["SPEAKER_02"].voice_type == "cameo"
+    assert r.by_voice["SPEAKER_03"].voice_type == "commercial"
+    # Friendly display labels for the non-person voices (id-bearing label stays raw).
+    assert r.display_label_for("SPEAKER_02") == "Brief speaker"
+    assert r.display_label_for("SPEAKER_03") == "Advertisement"
+    assert r.display_label_for("SPEAKER_01") == "SPEAKER_01"  # substantive unknown keeps raw id
+    assert r.label_for("SPEAKER_02") == "SPEAKER_02"  # id-bearing label never swapped
+
+
+def test_voice_type_commercial_needs_ad_intervals() -> None:
+    # Without ad_intervals the same in-ad voice is only cameo/unknown (no commercial guess).
+    diar = _diar([("HOST", 0, 60), ("SPEAKER_03", 500, 560)], 2)
+    r = resolve_speaker_roster(diar, "I'm Noah Kravitz.")
+    assert r.by_voice["SPEAKER_03"].voice_type == "unknown"  # 60s, no ad info -> substantive
