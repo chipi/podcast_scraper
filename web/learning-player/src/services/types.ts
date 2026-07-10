@@ -126,7 +126,12 @@ export interface Podcast {
 export interface PodcastSignals {
   feed_id: string
   episode_count: number
-  top_topics: Array<{ topic_id: string; label: string; episode_count: number }>
+  top_topics: Array<{
+    topic_id: string
+    label: string
+    episode_count: number
+    velocity: number | null
+  }>
   key_people: Array<{ person_id: string; name: string; episode_count: number }>
   recurring_guests: Array<{ person_id: string; name: string; episode_count: number }>
   dominant_themes: Array<{

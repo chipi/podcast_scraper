@@ -13,6 +13,8 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getPodcastSignals } from '../services/api'
 import type { PodcastSignals } from '../services/types'
+import type { RisingTopic } from './trending'
+import TrendingMomentum from './TrendingMomentum.vue'
 
 const props = defineProps<{ feedId: string }>()
 const emit = defineEmits<{ (e: 'open', payload: { kind: 'topic' | 'person'; id: string }): void }>()
@@ -38,6 +40,18 @@ const themes = computed(() => signals.value?.dominant_themes ?? [])
 const topics = computed(() => signals.value?.top_topics ?? [])
 const trending = computed(() => signals.value?.trending_topics ?? [])
 const people = computed(() => signals.value?.key_people ?? [])
+
+// The show's topics as a momentum bubble cloud — size = velocity (how hot the topic is;
+// falls back to 1× when the corpus has no velocity for it), reusing the Home component.
+const bubbleTopics = computed<RisingTopic[]>(() =>
+  topics.value.map((t) => ({
+    id: t.topic_id,
+    label: t.label,
+    v: t.velocity ?? 1,
+    total: t.episode_count,
+    series: [],
+  })),
+)
 const hasAny = computed(
   () =>
     themes.value.length > 0 ||
@@ -54,6 +68,14 @@ const hasAny = computed(
     data-testid="podcast-signals"
   >
     <h2 class="lp-section mb-3">{{ t('podcast.about') }}</h2>
+
+    <!-- A momentum bubble of the show's topics (the "little chart") — bigger = hotter. -->
+    <div v-if="bubbleTopics.length >= 3" class="mb-3" data-testid="ps-bubbles">
+      <TrendingMomentum
+        :topics="bubbleTopics"
+        @open="emit('open', { kind: 'topic', id: $event })"
+      />
+    </div>
 
     <div v-if="themes.length" class="mb-3">
       <h3 class="lp-kicker mb-1.5">{{ t('podcast.sigThemes') }}</h3>

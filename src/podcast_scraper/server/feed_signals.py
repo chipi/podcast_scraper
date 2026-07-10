@@ -158,8 +158,23 @@ def _dominant_themes(root: str, show_topic_ids: set[str], top_k: int) -> list[Fe
     return out[:top_k]
 
 
+def _topic_velocity_map(root: str) -> dict[str, tuple[float, int]]:
+    """``topic_id → (velocity_last_over_6mo, total)`` from the temporal_velocity envelope."""
+    data = _read_enrichment_data(root, "temporal_velocity")
+    if not data:
+        return {}
+    vel: dict[str, tuple[float, int]] = {}
+    for t in data.get("topics") or []:
+        if isinstance(t, dict) and t.get("topic_id") is not None:
+            v = t.get("velocity_last_over_6mo")
+            total = t.get("total")
+            if isinstance(v, (int, float)) and isinstance(total, int):
+                vel[str(t["topic_id"])] = (float(v), total)
+    return vel
+
+
 def _trending_topics(
-    root: str,
+    vel: dict[str, tuple[float, int]],
     topic_eps: dict[str, tuple[str, set[str]]],
     top_k: int,
     min_velocity: float = 1.5,
@@ -171,16 +186,6 @@ def _trending_topics(
     same total gate the Home trending chips use — so a topic mentioned twice in one
     month (velocity math inflates it to ~6×) doesn't crowd out real momentum.
     """
-    data = _read_enrichment_data(root, "temporal_velocity")
-    if not data:
-        return []
-    vel: dict[str, tuple[float, int]] = {}
-    for t in data.get("topics") or []:
-        if isinstance(t, dict) and t.get("topic_id") is not None:
-            v = t.get("velocity_last_over_6mo")
-            total = t.get("total")
-            if isinstance(v, (int, float)) and isinstance(total, int):
-                vel[str(t["topic_id"])] = (float(v), total)
     out: list[FeedSignalTrend] = []
     for tid, (label, eps) in topic_eps.items():
         hit = vel.get(tid)
@@ -243,8 +248,15 @@ def compute_feed_signals(
             art, r.episode_id or r.metadata_relative_path, topic_eps, person_eps
         )
 
+    root_s = str(root)
+    vel = _topic_velocity_map(root_s)
     top_topics = [
-        FeedSignalTopic(topic_id=tid, label=label, episode_count=len(eps))
+        FeedSignalTopic(
+            topic_id=tid,
+            label=label,
+            episode_count=len(eps),
+            velocity=(round(vel[tid][0], 2) if tid in vel else None),
+        )
         for tid, (label, eps) in sorted(
             topic_eps.items(), key=lambda kv: (-len(kv[1][1]), kv[1][0])
         )[:top_k]
@@ -255,7 +267,6 @@ def compute_feed_signals(
             person_eps.items(), key=lambda kv: (-len(kv[1][1]), kv[1][0])
         )[:top_k]
     ]
-    root_s = str(root)
     return CorpusFeedSignalsResponse(
         path=root_s,
         feed_id=feed_id,
@@ -264,6 +275,6 @@ def compute_feed_signals(
         key_people=key_people,
         recurring_guests=_recurring_guests(person_eps, top_k),
         dominant_themes=_dominant_themes(root_s, set(topic_eps.keys()), top_k),
-        trending_topics=_trending_topics(root_s, topic_eps, top_k),
+        trending_topics=_trending_topics(vel, topic_eps, top_k),
         grounding=_show_grounding(root_s, set(person_eps.keys())),
     )

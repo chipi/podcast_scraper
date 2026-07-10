@@ -1301,6 +1301,10 @@ class FeedSignalTopic(BaseModel):
     topic_id: str
     label: str
     episode_count: int = Field(ge=1, description="Episodes of this show that mention the topic.")
+    velocity: float | None = Field(
+        default=None,
+        description="Corpus temporal_velocity for this topic (for bubble sizing); None if unknown.",
+    )
 
 
 class FeedSignalPerson(BaseModel):

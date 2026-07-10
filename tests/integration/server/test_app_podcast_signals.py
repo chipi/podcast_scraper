@@ -101,6 +101,9 @@ def test_consumer_podcast_signals(tmp_path: Path) -> None:
     assert body["feed_id"] == "showx"
     assert body["episode_count"] == 2
     assert {t["topic_id"] for t in body["top_topics"]} >= {"topic:ai", "topic:ml"}
+    # top_topics carry velocity (for bubble sizing) from temporal_velocity.
+    ai = next(t for t in body["top_topics"] if t["topic_id"] == "topic:ai")
+    assert ai["velocity"] == 2.0
     people = {p["person_id"]: p for p in body["key_people"]}
     assert people["person:jane"]["episode_count"] == 2
     assert "org:acme" not in people  # org excluded
