@@ -87,6 +87,22 @@ SPEAKER_VOICE_MAP: dict[str, str] = {
     "Daniel": "Oliver",  # en_GB male
     "Isabel": "Mónica",  # es_ES female (exact installed name carries the accent)
     "Kasper": "Ralph",  # en_US male
+    # p07-p09 recurring cast (#1170). Were falling to the novelty hash-fallback,
+    # which collided two humans onto one voice (p09_e03: Sam+Skanda both -> Shelley,
+    # so exp=3 was acoustically unreachable) and voiced the recurring guest
+    # inconsistently across episodes (Skanda -> Trinoids in e02 but Shelley in e03).
+    # Curated to distinct, natural, accent-appropriate voices matching each
+    # sidecar's declared voice/host_voice intent.
+    "Sam": "Nathan",  # en_US male host (host_voice=en-US)
+    "Skanda": "Rishi",  # en_IN male guest (voice=en-IN); first-word rule covers
+    #                     both "Skanda Amarnauth" (e02) and "Skanda Amarnath" (e03)
+    "Renee": "Allison",  # en_US female guest (voice=en-US)
+    "Scott": "Fred",  # en_US male panelist (was Whisper; distinct from Oliver/Moira)
+    # Period-names — exact-match keys (first-word "A."/"Dr." would over-match). These
+    # were regex-dropped before (#1170): host folded into hash voice / guest folded
+    # into the host voice. Now they get their own distinct, accent-appropriate voice.
+    "A. correspondent": "Tom",  # en_US male host (host_voice=en-US); non-NER name kept
+    "Dr. Elena Fischer": "Anna",  # de_DE female guest (voice=de-DE)
     # Synthetic / non-human speakers (RFC-059 §3 / issue #109).
     # Pre-recorded mid-roll ads use the ``Ad:`` speaker label; Zarvox is
     # deliberately robotic so listeners + diarization both flag it as
@@ -155,7 +171,9 @@ GEMINI_FALLBACK_VOICES: list[str] = [
 ]
 
 TS_RE = re.compile(r"^\[\s*\d{1,2}:\d{2}(:\d{2})?\s*\]$")
-SPEAKER_RE = re.compile(r"^([A-Za-z][A-Za-z '\-]{0,40}):\s+(.*)$")
+# Names may contain internal periods ("A. correspondent", "Dr. Elena Fischer");
+# without '.' those turns fall through to the host voice instead of their own (#1170).
+SPEAKER_RE = re.compile(r"^([A-Za-z][A-Za-z .'\-]{0,40}):\s+(.*)$")
 FILE_PREFIX_RE = re.compile(r"^(p\d{2})_", re.IGNORECASE)
 VERSION_SEGMENT_RE = re.compile(r"^v\d+$")
 

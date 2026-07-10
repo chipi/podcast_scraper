@@ -2,14 +2,15 @@
   "fixture": "p09_e04",
   "podcast": "Cross-Show",
   "episode": "Risk Is a Systems Property",
-  "type": "monologue",
+  "type": "interview",
   "speakers": [
-    "Sam"
+    "Sam",
+    "Dr. Elena Fischer"
   ],
-  "num_human_speakers": 1,
+  "num_human_speakers": 2,
   "has_commercial": true,
   "num_ad_voices": 1,
-  "expected_diarized_voices": 2,
+  "expected_diarized_voices": 3,
   "failure_modes": [
     "multi_accent",
     "recurring_guest"

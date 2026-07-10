@@ -2,13 +2,14 @@
   "fixture": "p07_e03",
   "podcast": "The Long View — Sustainability",
   "episode": "Sustainability Is a Systems Problem",
-  "type": "monologue",
+  "type": "interview",
   "speakers": [
-    "Alex Morgan"
+    "Alex Morgan",
+    "Dr. Elena Fischer"
   ],
-  "num_human_speakers": 1,
+  "num_human_speakers": 2,
   "has_commercial": false,
   "num_ad_voices": 0,
-  "expected_diarized_voices": 1,
+  "expected_diarized_voices": 2,
   "failure_modes": []
 }

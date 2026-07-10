@@ -28,7 +28,10 @@ import re
 import sys
 
 V3_DIR = os.path.join(os.path.dirname(__file__), "..", "transcripts", "v3")
-SPEAKER_RE = re.compile(r"^([A-Za-z][A-Za-z '\-]{0,40}):\s+(.*)$")
+# Names may contain internal periods ("A. correspondent", "Dr. Elena Fischer");
+# without '.' in the class those speakers are silently dropped, undercounting
+# expected_diarized_voices and mislabelling type (#1170).
+SPEAKER_RE = re.compile(r"^([A-Za-z][A-Za-z .'\-]{0,40}):\s+(.*)$")
 HEADER_PREFIXES = ("podcast:", "episode:", "host:", "guest:", "guests:", "title:", "co-host:")
 FAILURE_RE = re.compile(r"failure_modes\s*=\s*([^\s]+)")
 

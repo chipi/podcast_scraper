@@ -2,14 +2,15 @@
   "fixture": "p08_e03",
   "podcast": "Public Hour",
   "episode": "The Desk That Never Sleeps",
-  "type": "monologue",
+  "type": "interview",
   "speakers": [
+    "A. correspondent",
     "Renee Montagne-Park"
   ],
-  "num_human_speakers": 1,
+  "num_human_speakers": 2,
   "has_commercial": true,
   "num_ad_voices": 1,
-  "expected_diarized_voices": 2,
+  "expected_diarized_voices": 3,
   "failure_modes": [
     "zero_host_ner"
   ]
