@@ -22,7 +22,7 @@ Resolution, per diarized **voice** (``SPEAKER_xx``):
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from ....speaker_detectors.hosts import (
     extract_self_introduced_host,
@@ -261,3 +261,62 @@ def resolve_speaker_roster(
         )
     )
     return SpeakerRoster(by_voice=by_voice, num_speakers=diarization.num_speakers or len(by_voice))
+
+
+def _why_unresolved(voice: str, per_voice_intro: Dict[str, str], guests_available: bool) -> str:
+    """Best-effort reason a voice stayed raw (for the diagnostics sidecar)."""
+    if voice in per_voice_intro:
+        return "self-introduction found but it collided with a host/used name"
+    if guests_available:
+        return "no first+last self-introduction in own turns; detected-guest names exhausted"
+    return "no self-introduction in own turns and no guests were detected for this episode"
+
+
+def build_speaker_diagnostics(
+    diarization: DiarizationResult,
+    roster: SpeakerRoster,
+    *,
+    transcript_text: Optional[str] = None,
+    voice_texts: Optional[Dict[str, str]] = None,
+    detected_guests: Sequence[str] = (),
+    known_hosts: Sequence[str] = (),
+) -> Dict[str, Any]:
+    """Per-episode speaker-resolution diagnostics — *what we tried, what we resolved, and why
+    each voice that stayed raw failed*. Written as a sidecar so an operator can see why a
+    speaker is unrecognized without re-running the pipeline.
+    """
+    talk = _talk_time(diarization)
+    per_voice_intro = _self_intros_by_voice(voice_texts)
+    guests_available = bool(_clean_person_names(detected_guests))
+    named = sum(1 for r in roster.by_voice.values() if r.named)
+
+    voices: List[Dict[str, Any]] = []
+    for v, role in roster.by_voice.items():
+        entry: Dict[str, Any] = {
+            "voice": v,
+            "resolved_name": role.name,
+            "role": role.role,
+            "named": role.named,
+            "source": role.source,
+            "talk_time_s": round(talk.get(v, 0.0), 1),
+        }
+        if not role.named:
+            entry["reason"] = _why_unresolved(v, per_voice_intro, guests_available)
+        voices.append(entry)
+
+    return {
+        "summary": {
+            "num_speakers": roster.num_speakers,
+            "named": named,
+            "unresolved": len(roster.by_voice) - named,
+        },
+        "tried": {
+            "host_self_intro": (
+                extract_self_introduced_host(transcript_text) if transcript_text else None
+            ),
+            "known_hosts": list(known_hosts),
+            "detected_guests": list(detected_guests),
+            "per_voice_self_intro": {v: per_voice_intro.get(v) for v in roster.by_voice},
+        },
+        "voices": voices,
+    }

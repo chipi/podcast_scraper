@@ -12,7 +12,10 @@ from typing import List, Tuple
 import pytest
 
 from podcast_scraper.providers.ml.diarization.base import DiarizationResult, DiarizationSegment
-from podcast_scraper.providers.ml.diarization.roster import resolve_speaker_roster
+from podcast_scraper.providers.ml.diarization.roster import (
+    build_speaker_diagnostics,
+    resolve_speaker_roster,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -165,3 +168,25 @@ def test_own_self_intro_ignored_without_voice_texts() -> None:
     diar = _diar([("HOST", 0, 60), ("SPEAKER_01", 60, 400)], 2)
     r = resolve_speaker_roster(diar, "Welcome. I'm Noah Kravitz.", detected_guests=[])
     assert r.by_voice["SPEAKER_01"].named is False
+
+
+def test_speaker_diagnostics_explains_what_tried_and_why_unresolved() -> None:
+    diar = _diar([("HOST", 0, 60), ("SPEAKER_01", 60, 400)], 2)
+    voice_texts = {"HOST": "Welcome. I'm Noah Kravitz.", "SPEAKER_01": "No introduction here."}
+    r = resolve_speaker_roster(
+        diar, "Welcome. I'm Noah Kravitz.", detected_guests=[], voice_texts=voice_texts
+    )
+    diag = build_speaker_diagnostics(
+        diar,
+        r,
+        transcript_text="Welcome. I'm Noah Kravitz.",
+        voice_texts=voice_texts,
+        detected_guests=[],
+        known_hosts=[],
+    )
+    assert diag["summary"] == {"num_speakers": 2, "named": 1, "unresolved": 1}
+    assert diag["tried"]["host_self_intro"] == "Noah Kravitz"
+    by_voice = {v["voice"]: v for v in diag["voices"]}
+    assert by_voice["HOST"]["named"] is True and by_voice["HOST"]["source"] == "self_intro"
+    assert by_voice["SPEAKER_01"]["named"] is False
+    assert by_voice["SPEAKER_01"]["reason"]  # a non-empty "why it failed" explanation

@@ -15,7 +15,7 @@ from .cache import (
     save_diarization_cache,
 )
 from .factory import create_diarization_provider
-from .roster import resolve_speaker_roster
+from .roster import build_speaker_diagnostics, resolve_speaker_roster
 
 logger = logging.getLogger(__name__)
 
@@ -94,12 +94,15 @@ def apply_diarization_to_result(
     # Align first so the roster can name a voice from its *own* turns' self-introduction (#876),
     # not only the episode-opening host intro.
     aligned = align_segments_to_speakers(segments, diarization)
+    voice_texts = _voice_texts_from_aligned(aligned)
+    guests = detected_speaker_names or []
+    known_hosts = list(getattr(cfg, "known_hosts", None) or [])
     roster = resolve_speaker_roster(
         diarization,
         transcript_text,
-        detected_guests=detected_speaker_names or [],
-        known_hosts=list(getattr(cfg, "known_hosts", None) or []),
-        voice_texts=_voice_texts_from_aligned(aligned),
+        detected_guests=guests,
+        known_hosts=known_hosts,
+        voice_texts=voice_texts,
     )
 
     enriched_segments: List[Dict[str, Any]] = []
@@ -111,5 +114,15 @@ def apply_diarization_to_result(
 
     enriched_result = dict(result)
     enriched_result["segments"] = enriched_segments
+    # Diagnostics sidecar (what we tried / resolved / why each voice failed) — the caller
+    # persists it next to the episode so unrecognized speakers are explainable without a re-run.
+    enriched_result["speaker_diagnostics"] = build_speaker_diagnostics(
+        diarization,
+        roster,
+        transcript_text=transcript_text,
+        voice_texts=voice_texts,
+        detected_guests=guests,
+        known_hosts=known_hosts,
+    )
     enriched_result["diarization_num_speakers"] = roster.num_speakers
     return enriched_result
