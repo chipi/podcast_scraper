@@ -55,6 +55,7 @@ def create_local_pyannote_provider(cfg: config.Config) -> PyAnnoteDiarizationPro
         model_name=cfg.diarization_model,
         clustering_threshold=cfg.diarization_clustering_threshold,
         min_cluster_size=cfg.diarization_min_cluster_size,
+        min_segment_ms=cfg.diarization_min_segment_ms,
     )
 
 

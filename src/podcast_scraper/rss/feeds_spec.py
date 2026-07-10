@@ -51,6 +51,7 @@ RSS_FEED_ENTRY_OVERRIDE_KEYS: frozenset[str] = frozenset(
         "episode_until",
         "known_hosts",
         "show_centric",
+        "diarization_min_segment_ms",
     }
 )
 
@@ -99,6 +100,9 @@ class RssFeedEntry(BaseModel):
     known_hosts: Optional[List[str]] = None
     # The show is the brand, not the host — an unnamed "Host" is expected here, not a failure.
     show_centric: Optional[bool] = None
+    # Per-feed diarization squelch (ms). Override the global diarization_min_segment_ms — e.g. a
+    # news-desk feed with no real brief cameos can squelch harder to kill phantom micro-speakers.
+    diarization_min_segment_ms: Optional[int] = Field(default=None, ge=0, le=60000)
 
     @field_validator("url", mode="after")
     @classmethod

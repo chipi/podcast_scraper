@@ -882,6 +882,21 @@ class Config(BaseModel):
             "quiet real speakers the way a high clustering_threshold can. Tune via the harness."
         ),
     )
+    diarization_min_segment_ms: Optional[int] = Field(
+        default=None,
+        ge=0,
+        le=60000,
+        alias="diarization_min_segment_ms",
+        description=(
+            "Squelch (like a walkie-talkie noise gate): drop any diarized speaker whose LONGEST "
+            "single segment is shorter than this many milliseconds (None/0 = off). Removes the "
+            "spurious sub-second micro-clusters pyannote spawns as a phantom extra speaker on "
+            "noisy audio, WITHOUT touching a real brief cameo (which has one contiguous "
+            "multi-second segment) — the discriminator is longest-segment length, not total "
+            "talk-time. Global default; override per feed (news-desk feeds with no real cameos "
+            "can squelch harder). Validated at ~1000ms on the eval harness (#1170)."
+        ),
+    )
     diarization_device: str = Field(
         default="auto",
         alias="diarization_device",

@@ -112,6 +112,38 @@ def _load_waveform(audio_path: str) -> tuple[Any, int]:
     return waveform, int(sample_rate)
 
 
+def _apply_segment_squelch(
+    segments: list[DiarizationSegment], min_segment_ms: Optional[int]
+) -> list[DiarizationSegment]:
+    """Drop speakers whose LONGEST segment is shorter than ``min_segment_ms`` (a squelch).
+
+    pyannote over-segmentation spawns a phantom extra speaker out of a handful of sub-second
+    snippets (audited: 0.3–0.9s fragments, <1% of audio). A real brief cameo, by contrast, is one
+    contiguous multi-second turn. So the discriminator is the *longest* segment per speaker, not
+    total talk-time (which overlaps: a 2.5s fragment cluster can out-total a <1.5s cameo). Speakers
+    below the gate have all their segments removed; ``None``/0 disables the filter. See #1170.
+    """
+    if not min_segment_ms:
+        return segments
+    threshold_s = min_segment_ms / 1000.0
+    longest: dict[str, float] = {}
+    for seg in segments:
+        dur = seg.end - seg.start
+        if dur > longest.get(seg.speaker, 0.0):
+            longest[seg.speaker] = dur
+    kept = {speaker for speaker, dur in longest.items() if dur >= threshold_s}
+    if len(kept) == len(longest):
+        return segments
+    dropped = sorted(set(longest) - kept)
+    logger.debug(
+        "diarization squelch (min_segment_ms=%s) dropped %d phantom speaker(s): %s",
+        min_segment_ms,
+        len(dropped),
+        dropped,
+    )
+    return [seg for seg in segments if seg.speaker in kept]
+
+
 class PyAnnoteDiarizationProvider:
     """Speaker diarization using pyannote.audio."""
 
@@ -123,8 +155,10 @@ class PyAnnoteDiarizationProvider:
         model_name: str = "pyannote/speaker-diarization-3.1",
         clustering_threshold: Optional[float] = None,
         min_cluster_size: Optional[int] = None,
+        min_segment_ms: Optional[int] = None,
     ) -> None:
         self.model_name = model_name
+        self._min_segment_ms = min_segment_ms
         self._pipeline = _create_pyannote_pipeline(hf_token, model_name)
         _apply_clustering_overrides(
             self._pipeline,
@@ -193,6 +227,7 @@ class PyAnnoteDiarizationProvider:
                     start=float(turn.start), end=float(turn.end), speaker=str(speaker)
                 )
             )
+        segments = _apply_segment_squelch(segments, self._min_segment_ms)
         unique_speakers = {segment.speaker for segment in segments}
         return DiarizationResult(
             segments=segments,

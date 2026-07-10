@@ -140,3 +140,49 @@ def test_diarize_rejects_min_greater_than_max(mock_create, mock_load_waveform) -
     provider = PyAnnoteDiarizationProvider("token", device="cpu")
     with pytest.raises(ValueError):
         provider.diarize("/tmp/audio.wav", num_speakers=None, min_speakers=5, max_speakers=2)
+
+
+def _seg(start: float, end: float, speaker: str):
+    from podcast_scraper.providers.ml.diarization.base import DiarizationSegment
+
+    return DiarizationSegment(start=start, end=end, speaker=speaker)
+
+
+def test_segment_squelch_drops_phantom_subsecond_speaker() -> None:
+    # A phantom over-segmentation cluster (only sub-second snippets) is dropped, while the two
+    # real voices — each with a multi-second segment — survive. Mirrors the audited p03/p05 case.
+    from podcast_scraper.providers.ml.diarization.pyannote_provider import _apply_segment_squelch
+
+    segments = [
+        _seg(0.0, 20.0, "SPEAKER_00"),  # real
+        _seg(20.0, 40.0, "SPEAKER_01"),  # real
+        _seg(12.0, 12.6, "SPEAKER_02"),  # phantom: 0.6s
+        _seg(30.0, 30.3, "SPEAKER_02"),  # phantom: 0.3s
+    ]
+    kept = _apply_segment_squelch(segments, 1000)  # 1000ms squelch
+    speakers = {s.speaker for s in kept}
+    assert speakers == {"SPEAKER_00", "SPEAKER_01"}  # phantom dropped
+    assert all(s.speaker != "SPEAKER_02" for s in kept)
+
+
+def test_segment_squelch_keeps_real_cameo_by_longest_segment() -> None:
+    # A real ~3s cameo has one contiguous segment above the gate — kept — even though its TOTAL
+    # talk-time is small. The discriminator is longest segment, not total (that's the whole point).
+    from podcast_scraper.providers.ml.diarization.pyannote_provider import _apply_segment_squelch
+
+    segments = [
+        _seg(0.0, 30.0, "HOST"),
+        _seg(30.0, 33.0, "CAMEO"),  # one 3s turn
+        _seg(45.0, 45.4, "PHANTOM"),  # 0.4s snippet
+    ]
+    kept = _apply_segment_squelch(segments, 1200)  # 1200ms squelch
+    speakers = {s.speaker for s in kept}
+    assert speakers == {"HOST", "CAMEO"}  # cameo kept, phantom dropped
+
+
+def test_segment_squelch_disabled_when_none_or_zero() -> None:
+    from podcast_scraper.providers.ml.diarization.pyannote_provider import _apply_segment_squelch
+
+    segments = [_seg(0.0, 20.0, "A"), _seg(12.0, 12.3, "B")]
+    assert _apply_segment_squelch(segments, None) is segments  # off → identity
+    assert _apply_segment_squelch(segments, 0) is segments  # 0 → identity
