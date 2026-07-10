@@ -111,6 +111,10 @@ SPEAKER_VOICE_MAP: dict[str, str] = {
     "Rich": "Tom",  # en_US male guest (voice=en-US), distinct from en_IE host Nora
     "Cam": "Evan",  # en_US host of p06 (host_voice=en-US)
     "Jordan": "Allison",  # en_US female guest of p06 (voice=en-US), distinct from Cam
+    # #1170 cameo voices — a genuine brief 3rd voice, distinct from that episode's
+    # host + guest, so the diarization squelch keeps a real ~3s cameo.
+    "Caller": "Karen",  # en_AU F call-in (p02_e05) — max-distinct from Ethan/Priya
+    "Nadia Sereni": "Anna",  # de_DE F archival clip (p05_e05) — max-distinct from Nora/Daniel
     # Synthetic / non-human speakers (RFC-059 §3 / issue #109).
     # Pre-recorded mid-roll ads use the ``Ad:`` speaker label; Zarvox is
     # deliberately robotic so listeners + diarization both flag it as

@@ -1,5 +1,5 @@
 {
-  "episode_count": 36,
+  "episode_count": 38,
   "episodes": [
     {
       "audio_voice_hints": {
@@ -199,6 +199,29 @@
       "title": "Reliability Is a Systems Property",
       "transcript_path": "tests/fixtures/transcripts/v3/p02_e04.txt",
       "transcript_sha256": "51e596f2b4abb4e55b898b1152ec485fe3dd3b36c73acfe7f9d83e691f238041"
+    },
+    {
+      "audio_voice_hints": {
+        "guest_surface": "Priya Nair",
+        "guest_voice_accent": "en-IN",
+        "host_surface": "Ethan",
+        "host_voice_accent": "en-US"
+      },
+      "duration_minutes": 1.33,
+      "episode_id": "p02_e05",
+      "failure_modes": [
+        "cameo"
+      ],
+      "ground_truth_path": "tests/fixtures/ground-truth/v3/ground_truth/p02_e05.json",
+      "podcast_id": "p02",
+      "primary_guest_canonical_name": "Priya Nair",
+      "primary_topic": "topic:reliability",
+      "secondary_topics": [
+        "topic:on-call"
+      ],
+      "title": "Reliability, Live",
+      "transcript_path": "tests/fixtures/transcripts/v3/p02_e05.txt",
+      "transcript_sha256": "d6a9fb11c9d75327d17ffbe07f8b78f49e519563eb384eb58fcf91ffc12d41fc"
     },
     {
       "audio_voice_hints": {
@@ -503,6 +526,29 @@
       "title": "The Risk Panel: Diversify or Concentrate?",
       "transcript_path": "tests/fixtures/transcripts/v3/p05_e04.txt",
       "transcript_sha256": "3c41d471851440db06a2c889be678c24ae690a6b8e6cb41b1200c829e4336d42"
+    },
+    {
+      "audio_voice_hints": {
+        "guest_surface": "Daniel Cho",
+        "guest_voice_accent": "en-US",
+        "host_surface": "Nora",
+        "host_voice_accent": "en-US"
+      },
+      "duration_minutes": 1.26,
+      "episode_id": "p05_e05",
+      "failure_modes": [
+        "cameo"
+      ],
+      "ground_truth_path": "tests/fixtures/ground-truth/v3/ground_truth/p05_e05.json",
+      "podcast_id": "p05",
+      "primary_guest_canonical_name": "Daniel Cho",
+      "primary_topic": "topic:index-investing",
+      "secondary_topics": [
+        "topic:risk-management"
+      ],
+      "title": "From the Archive",
+      "transcript_path": "tests/fixtures/transcripts/v3/p05_e05.txt",
+      "transcript_sha256": "ac769eda455d234224aafda2b07879630e01453b27b65e733a993e75844d403f"
     },
     {
       "audio_voice_hints": {
@@ -921,7 +967,8 @@
     "frame_topic_cross_domain",
     "high_person_density",
     "long_context_chunk_boundary",
-    "reliability_burst"
+    "reliability_burst",
+    "cameo"
   ],
   "podcast_count": 9,
   "podcasts": [

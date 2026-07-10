@@ -125,6 +125,7 @@ FAILURE_MODES: tuple[str, ...] = (
     "high_person_density",  # host + 2 guests + ≥ 2 callbacks
     "long_context_chunk_boundary",  # key claim across default 900-word boundary
     "reliability_burst",  # sustained-load 503 simulation hook
+    "cameo",  # a genuine brief 3rd voice (~3s: caller / archival clip) — squelch must keep it
 )
 
 
@@ -1465,6 +1466,109 @@ def _assign_publish_offsets(podcasts: list[PodcastV3]) -> None:
             ep.publish_offset_days = off
 
 
+# Cameo fixtures (#1170): a realistic interview with ONE genuine brief 3rd voice
+# (~3s) — the deliberate anchor for detecting brief voices AND for the diarization
+# squelch (min_segment_ms), which must KEEP a ~3s cameo while dropping <1s phantom
+# fragments. The cameo speaker is a raw label ("Caller" / "Nadia Sereni") that
+# _scripted_speaker_label passes through verbatim; transcripts_to_mp3 gives it a
+# distinct curated voice.
+_P02_E05_CAMEO_DIALOGUE: list[dict] = [
+    {
+        "speaker": "host",
+        "text": (
+            "Welcome back to Practical Systems. I'm joined again by Priya Nair, who spends "
+            "her days keeping large systems upright. Priya, good to have you back."
+        ),
+    },
+    {"speaker": "Priya", "text": "Good to be back, Ethan."},
+    {
+        "speaker": "host",
+        "text": (
+            "This episode is brought to you by Datadog — unified observability across logs, "
+            "metrics, and traces. Start at datadog.com/podcast."
+        ),
+        "sponsor": {"kind": "template_opening", "brand": "Datadog"},
+    },
+    {
+        "speaker": "host",
+        "text": (
+            "We opened the phones this week. Here's a question that came in from a listener "
+            "out in the field."
+        ),
+    },
+    {"speaker": "Caller", "text": "Hi Ethan — how do you tell alert fatigue from a real incident?"},
+    {
+        "speaker": "Priya",
+        "text": (
+            "Great question. Alert fatigue is a signal-to-noise problem, not a discipline "
+            "problem. If the team ignores pages, the pages are wrong, not the people."
+        ),
+    },
+    {"speaker": "host", "text": "So you'd tune the alerts before you tune the humans."},
+    {
+        "speaker": "Priya",
+        "text": (
+            "Every time. Measure how many pages led to action. Under half, and you have a "
+            "noise problem — no amount of willpower fixes noise."
+        ),
+    },
+    {
+        "speaker": "host",
+        "text": "Before we wrap — thanks to the caller for that one. Priya, always a pleasure.",
+    },
+    {"speaker": "Priya", "text": "Anytime, Ethan."},
+    {"speaker": "host", "text": "That's it for Practical Systems. See you next week."},
+]
+
+_P05_E05_CAMEO_DIALOGUE: list[dict] = [
+    {
+        "speaker": "host",
+        "text": (
+            "Welcome to Long Horizon Notes. My guest today is Daniel Cho, former bond trader "
+            "turned index advocate. Daniel, welcome back."
+        ),
+    },
+    {"speaker": "Daniel", "text": "Thanks, Nora. Glad to be here."},
+    {
+        "speaker": "host",
+        "text": (
+            "Today's episode is supported by Betterment — automated investing that keeps your "
+            "fees low and your plan boring. Visit betterment.com/podcast."
+        ),
+        "sponsor": {"kind": "template_opening", "brand": "Betterment"},
+    },
+    {
+        "speaker": "host",
+        "text": (
+            "I want to start with a warning that's aged well. Here's economist Nadia Sereni, "
+            "from a talk back in 2016."
+        ),
+    },
+    {"speaker": "Nadia Sereni", "text": "Leverage feels free until the day it isn't."},
+    {
+        "speaker": "Daniel",
+        "text": (
+            "That line held up. Most blow-ups I've seen weren't bad bets — they were fine bets "
+            "financed the wrong way."
+        ),
+    },
+    {"speaker": "host", "text": "So the risk isn't the asset, it's the borrowing against it."},
+    {
+        "speaker": "Daniel",
+        "text": (
+            "Right. An index fund you own outright is patient. The same fund on margin can be "
+            "forced to sell at the worst possible moment."
+        ),
+    },
+    {
+        "speaker": "host",
+        "text": "We'll leave the archive there. Daniel, thanks for coming back on.",
+    },
+    {"speaker": "Daniel", "text": "My pleasure, Nora."},
+    {"speaker": "host", "text": "That's Long Horizon Notes for this week. Take care."},
+]
+
+
 def build_v3_spec() -> list[PodcastV3]:
     """Construct the v3 podcast specs.
 
@@ -1782,6 +1886,18 @@ def build_v3_spec() -> list[PodcastV3]:
                 publish_offset_days=60,
                 expected_enrichment={"grounding_rate": {"expected_rate": 0.8}},
                 scripted_dialogue=_P02_E04_DIALOGUE,
+            ),
+            # #1170 cameo fixture: a listener call-in (brief 3rd voice ~3s).
+            EpisodeV3(
+                ep_id="e05",
+                title="Reliability, Live",
+                primary_guest="Priya",
+                primary_topic="topic:reliability",
+                secondary_topics=["topic:on-call"],
+                sponsor_brands=["Datadog"],
+                talking_points=[],
+                failure_modes=["cameo"],
+                scripted_dialogue=_P02_E05_CAMEO_DIALOGUE,
             ),
         ],
     )
@@ -2236,6 +2352,18 @@ def build_v3_spec() -> list[PodcastV3]:
                     "grounding_rate": {"expected_rate": 0.8},
                 },
                 scripted_dialogue=_P05_E04_PANEL_DIALOGUE,
+            ),
+            # #1170 cameo fixture: a brief archival clip voice (~3s).
+            EpisodeV3(
+                ep_id="e05",
+                title="From the Archive",
+                primary_guest="Daniel",
+                primary_topic="topic:index-investing",
+                secondary_topics=["topic:risk-management"],
+                sponsor_brands=["Betterment"],
+                talking_points=[],
+                failure_modes=["cameo"],
+                scripted_dialogue=_P05_E05_CAMEO_DIALOGUE,
             ),
         ],
     )

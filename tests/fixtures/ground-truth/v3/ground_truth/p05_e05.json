@@ -1,0 +1,37 @@
+{
+  "callbacks": [],
+  "episode_id": "p05_e05",
+  "extra_alias_callbacks": [],
+  "failure_modes": [
+    "cameo"
+  ],
+  "guest_accent": "en-US",
+  "host_accent": "en-US",
+  "host_canonical_name": "Nora",
+  "podcast_id": "p05",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p05:Daniel",
+  "primary_guest_canonical_name": "Daniel Cho",
+  "primary_guest_surface_in_transcript": "Daniel Cho",
+  "primary_topic": "topic:index-investing",
+  "publish_date": "2025-09-11",
+  "publish_offset_days": 619,
+  "scripted": true,
+  "secondary_topics": [
+    "topic:risk-management"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Betterment",
+      "kind": "template_opening",
+      "line_index": 10
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p05:Daniel",
+      "kind": "canonical",
+      "surface": "Daniel Cho"
+    }
+  ]
+}
