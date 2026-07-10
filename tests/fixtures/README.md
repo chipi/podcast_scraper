@@ -1,5 +1,18 @@
 # Offline Podcast Fixtures (RSS + Transcripts + Audio)
 
+> ## ⚠️ Which version — use **v3** (v1 and v2 are DEPRECATED)
+>
+> `transcripts/` and `audio/` are **versioned** (`v1/`, `v2/`, `v3/`). The current set is named
+> in [`FIXTURES_VERSION`](./FIXTURES_VERSION) — today that is **`v3`**. **v1 and v2 are old and
+> no longer used** (they each carry a `DEPRECATED` README). New work and all eval runs read
+> `tests/fixtures/{transcripts,audio}/v3/`. **Always check `FIXTURES_VERSION` first** — do not
+> assume a bare `transcripts/*.txt` path is current (that reflex analyses the wrong, dead set).
+>
+> Each **v3** episode has a co-located **ground-truth sidecar** `<name>.groundtruth.json`
+> (speaker count, `has_commercial`, `type`, `failure_modes`) — the source of truth for the
+> speaker / diarization eval. See [`transcripts/v3/README.md`](./transcripts/v3/README.md) and,
+> for the diarization tuning workflow, [`docs/wip/DIARIZATION-TUNING-EVAL.md`](../../docs/wip/DIARIZATION-TUNING-EVAL.md).
+
 This directory contains **synthetic podcast fixtures** used for **offline,
 deterministic end-to-end testing**.
 
