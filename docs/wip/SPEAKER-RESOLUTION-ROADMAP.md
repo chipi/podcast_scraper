@@ -51,15 +51,22 @@ forever. Hand-name the recurring hosts per feed in config; the roster already co
 `known_hosts`. **Measure:** inject `known_hosts` for the top-N feeds, re-run `measure_1a.py`,
 report the additional named voices + talk-time coverage.
 
-### Step C — make host reconciliation usable on real data  ·  medium
-`reconcile_hosts` (#1056) names a recurring unnamed host from a sibling episode — but
-**measured fuel on this corpus = 0**: unnamed hosts are dropped by the
-`startswith("speaker")` filter in `metadata_generation` before they ever reach the KG as a
-`role=host` node, and the `person:speaker-NN` nodes that *do* exist come from the GI
-(SPOKEN_BY) layer with **no role**. So the lever is real but currently starved. Precursor:
-either (a) carry an unnamed *host* voice into the KG as a `role=host` node (so reconcile can
-merge it), or (b) extend reconcile to GI person nodes keyed on feed. **Measure:** build the
-corpus graph reconcile-off vs reconcile-on, count voices named/tagged.
+### Step C — label unnamed hosts "Host" (SHIPPED lean)
+Measured the reconciliation ceiling first: of **31 unnamed-host episodes across 7 feeds**, only
+**6 are NAMEABLE** by `reconcile_hosts` (a feed with exactly one recurring *named* host to borrow
+from — Katie Martin ×4, Noah Kravitz ×2). The other **23 are feeds where the host is never named
+in any episode** (news desks / show-centric feeds — NPR, flightcast, megaphone) so there is no
+sibling name to reconcile from. So the heavy KG-reconciliation precursor buys a 6-episode naming
+gain — **not worth the plumbing**.
+
+Instead, the lean win: the roster already marks an intro-dominant unnamed voice `role=host`, so
+render it **"Host"** (via the same `friendly_speaker_label` display path as cameo/ad) — **31
+unnamed-host voices across 31 episodes** now read "Host" instead of `SPEAKER_00`, the correct
+outcome for a show-centric feed. The id-bearing label stays raw. To actually *name* those 31,
+point **Step B** (`known_hosts`) at the 7 feeds.
+
+Follow-up (optional): a per-feed `show_centric` flag so the diagnostics treat an unnamed host as
+*expected*, not a detection failure, for feeds like WSJ/NPR where the host isn't the point.
 
 ### Step D — intro as a guest source (SHIPPED)
 The feed metadata often omits guests the opening minutes name ("joining me today is X"). Treat

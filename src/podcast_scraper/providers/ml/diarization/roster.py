@@ -49,6 +49,9 @@ VOICE_UNKNOWN = "unknown"  # unnamed, substantive — a real person we failed to
 # Friendly display labels for the non-person types (surfaces render these instead of SPEAKER_xx).
 # ``unknown`` (a substantive person we failed to name) deliberately keeps its raw id, not a label.
 VOICE_TYPE_LABELS = {VOICE_CAMEO: "Brief speaker", VOICE_COMMERCIAL: "Advertisement"}
+# An unnamed but intro-dominant voice is the host — many show-centric feeds (news desks) never
+# name the host, and "Host" is the correct outcome there, not a bare SPEAKER_NN failure.
+UNNAMED_HOST_LABEL = "Host"
 
 
 def friendly_voice_label(voice_type: Optional[str]) -> Optional[str]:
@@ -59,6 +62,15 @@ def friendly_voice_label(voice_type: Optional[str]) -> Optional[str]:
     name, a substantive ``unknown`` voice, or an unrecognised type — the caller keeps its raw id.
     """
     return VOICE_TYPE_LABELS.get(voice_type or "")
+
+
+def friendly_speaker_label(role: Optional[str], voice_type: Optional[str]) -> Optional[str]:
+    """Display label for an UNNAMED voice: "Host" for an unnamed host, else the cameo/commercial
+    label, else None (a substantive unknown keeps its raw ``SPEAKER_NN`` id). Shared by the roster
+    and the segment view so the surface label is derived one way only."""
+    if role == "host":
+        return UNNAMED_HOST_LABEL
+    return friendly_voice_label(voice_type)
 
 
 @dataclass(frozen=True)
@@ -95,7 +107,7 @@ class SpeakerRoster:
         role = self.by_voice.get(voice_id)
         if role is None:
             return voice_id
-        friendly = friendly_voice_label(role.voice_type) if not role.named else None
+        friendly = friendly_speaker_label(role.role, role.voice_type) if not role.named else None
         return friendly or role.name
 
     def named_count(self) -> int:

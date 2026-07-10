@@ -227,6 +227,17 @@ def test_voice_type_cameo_commercial_and_unknown() -> None:
     assert r.label_for("SPEAKER_02") == "SPEAKER_02"  # id-bearing label never swapped
 
 
+def test_unnamed_host_displays_as_host() -> None:
+    # A show-centric feed never names the host; the intro-dominant unnamed voice is role=host and
+    # renders as "Host" (not SPEAKER_00), while its id-bearing label stays raw (#1056 / Step C).
+    diar = _diar([("HOST", 0, 60), ("GUEST", 60, 400)], 2)
+    r = resolve_speaker_roster(diar, "Welcome back to the show.", detected_guests=[])
+    host = r.by_voice["HOST"]
+    assert host.role == "host" and host.named is False
+    assert r.display_label_for("HOST") == "Host"
+    assert r.label_for("HOST") == "HOST"  # id-bearing label untouched
+
+
 def test_voice_type_commercial_needs_ad_intervals() -> None:
     # Without ad_intervals the same in-ad voice is only cameo/unknown (no commercial guess).
     diar = _diar([("HOST", 0, 60), ("SPEAKER_03", 500, 560)], 2)

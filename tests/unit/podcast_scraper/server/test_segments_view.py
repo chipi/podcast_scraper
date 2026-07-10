@@ -83,6 +83,20 @@ class TestToContractSegments:
         assert out[2].speaker == "SPEAKER_04"  # substantive unknown keeps its raw id
         assert out[3].speaker == "Alice"
 
+    def test_unnamed_host_renders_as_host(self) -> None:
+        # An unnamed intro-dominant voice (role=host) shows "Host", not SPEAKER_00 (Step C).
+        raw = [
+            {
+                "start": 0.0,
+                "end": 1.0,
+                "text": "a",
+                "speaker_label": "SPEAKER_00",
+                "speaker_role": "host",
+            },
+        ]
+        out = to_contract_segments(raw)
+        assert out[0].speaker == "Host"
+
     def test_skips_malformed_entries(self) -> None:
         raw = [
             {"start": 0.0, "end": 1.0, "text": "ok"},

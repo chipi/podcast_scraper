@@ -43,8 +43,11 @@ def _enriched_segments(aligned: List[Any], roster: Any) -> List[Dict[str, Any]]:
         enriched["speaker"] = speaker_id
         enriched["speaker_label"] = roster.label_for(speaker_id)
         role = roster.by_voice.get(speaker_id)
-        if role is not None and not role.named and role.voice_type != "person":
-            enriched["voice_type"] = role.voice_type
+        if role is not None and not role.named:
+            if role.voice_type != "person":
+                enriched["voice_type"] = role.voice_type
+            if role.role == "host":
+                enriched["speaker_role"] = "host"  # an unnamed host renders as "Host", not SPEAKER
         out.append(enriched)
     return out
 
