@@ -72,6 +72,8 @@ def test_consumer_podcast_signals(tmp_path: Path) -> None:
             _topic("topic:ai", "AI"),
             _person("person:jane", "Jane Doe"),
             _person("org:acme", "Acme", "org"),
+            # A publisher mislabelled as a person on older data — must be stripped (#2).
+            _person("person:the-new-york-times", "The New York Times"),
         ],
     )
     _enrich(
@@ -107,6 +109,7 @@ def test_consumer_podcast_signals(tmp_path: Path) -> None:
     people = {p["person_id"]: p for p in body["key_people"]}
     assert people["person:jane"]["episode_count"] == 2
     assert "org:acme" not in people  # org excluded
+    assert "person:the-new-york-times" not in people  # publisher stripped from people (#2)
     assert {p["person_id"] for p in body["recurring_guests"]} == {"person:jane"}
     assert {t["theme_id"] for t in body["dominant_themes"]} == {"thc:ai"}
     assert {t["topic_id"] for t in body["trending_topics"]} == {"topic:ai"}

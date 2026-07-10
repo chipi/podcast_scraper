@@ -35,6 +35,7 @@ from podcast_scraper.server.schemas import (
     FeedSignalTopic,
     FeedSignalTrend,
 )
+from podcast_scraper.speaker_detectors.hosts import looks_like_publisher
 
 
 def _read_kg_artifact(root: str, relpath: str) -> dict[str, Any] | None:
@@ -95,6 +96,8 @@ def _accumulate_kg_entities(
             continue
         name = node_label(n) or pid
         if is_unresolved_speaker_placeholder(pid, name):
+            continue
+        if looks_like_publisher(name):  # publisher mislabelled a person on older data (#2)
             continue
         _, eps = person_eps.setdefault(pid, (name, set()))
         eps.add(ep_key)

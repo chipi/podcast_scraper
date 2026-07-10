@@ -25,6 +25,7 @@ import yaml
 from pydantic import BaseModel, computed_field, Field, field_serializer
 
 from .. import config, config_constants, models
+from ..speaker_detectors.hosts import looks_like_publisher
 
 if TYPE_CHECKING:
     from ..models import Episode, RssFeed
@@ -701,7 +702,12 @@ def _build_speakers_from_diarized_segments(
         if raw:
             raw_ids.add(raw)
         label = str(s.get("speaker_label") or "").strip()
-        if label and not label.lower().startswith("speaker") and label not in named_order:
+        if (
+            label
+            and not label.lower().startswith("speaker")
+            and not looks_like_publisher(label)  # a publisher/network is not a host/guest person
+            and label not in named_order
+        ):
             named_order.append(label)
 
     num_speakers = len(raw_ids) or (len(named_order) or None)
