@@ -109,7 +109,12 @@
   "podcast": {
     "episodeCount": "{count} episode | {count} episodes",
     "showMore": "Show more",
-    "showLess": "Show less"
+    "showLess": "Show less",
+    "about": "What this show’s about",
+    "sigThemes": "Themes",
+    "sigTopics": "Topics",
+    "sigTrending": "Trending here",
+    "sigPeople": "Key people"
   },
   "player": {
     "back": "Back",

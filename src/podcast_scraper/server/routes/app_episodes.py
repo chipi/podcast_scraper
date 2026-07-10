@@ -42,12 +42,14 @@ from podcast_scraper.server.corpus_catalog import (
     CatalogEpisodeRow,
     index_rows_by_feed_episode,
 )
+from podcast_scraper.server.feed_signals import compute_feed_signals
 from podcast_scraper.server.schemas import (
     AppEntitiesResponse,
     AppEpisodeDetail,
     AppEpisodesResponse,
     AppInsightsResponse,
     AppPodcastItem,
+    AppPodcastSignalsResponse,
     AppPodcastsResponse,
     AudioSourceResponse,
     CorpusSearchApiResponse,
@@ -154,6 +156,31 @@ async def podcast_episodes_list(
 ) -> AppEpisodesResponse:
     """Catalog: one podcast's episodes, newest-first (PRD-038 FR2)."""
     return _episodes_page(request, feed_id=feed_id, status=status, page=page, page_size=page_size)
+
+
+@router.get("/podcasts/{feed_id}/signals", response_model=AppPodcastSignalsResponse)
+async def podcast_signals(
+    request: Request,
+    feed_id: str,
+    top_k: int = Query(default=8, ge=1, le=25),
+) -> AppPodcastSignalsResponse:
+    """Show-level signals for the consumer show page: what it's about (topics + themes),
+    who's on it (key people + recurring guests), and what's heating up (trending).
+
+    A listener-shaped projection over the same aggregation the operator Show rail uses
+    (``server.feed_signals``); the operator-only grounding/QA score is dropped.
+    """
+    root = corpus_root_or_503(request)
+    s = compute_feed_signals(root, feed_id, top_k=top_k)
+    return AppPodcastSignalsResponse(
+        feed_id=feed_id,
+        episode_count=s.episode_count,
+        top_topics=s.top_topics,
+        key_people=s.key_people,
+        recurring_guests=s.recurring_guests,
+        dominant_themes=s.dominant_themes,
+        trending_topics=s.trending_topics,
+    )
 
 
 @router.get("/episodes/{slug}", response_model=AppEpisodeDetail)

@@ -1317,6 +1317,10 @@ class FeedSignalTheme(BaseModel):
     theme_id: str = Field(description="Graph compound id (thc:…) for graph linking.")
     label: str
     topic_count: int = Field(ge=1, description="Show topics that are members of this theme.")
+    anchor_topic_id: str | None = Field(
+        default=None,
+        description="A member topic present in this show — the click target for a topic card.",
+    )
 
 
 class FeedSignalTrend(BaseModel):
@@ -1357,6 +1361,23 @@ class CorpusFeedSignalsResponse(BaseModel):
     dominant_themes: list[FeedSignalTheme] = Field(default_factory=list)
     trending_topics: list[FeedSignalTrend] = Field(default_factory=list)
     grounding: FeedGroundingSummary | None = None
+
+
+class AppPodcastSignalsResponse(BaseModel):
+    """Consumer projection of a show's signals (GET /api/app/podcasts/{feed_id}/signals).
+
+    A listener-shaped subset of the operator feed-signals: what the show is about
+    (topics + themes), who's on it (key people + recurring guests), and what's heating
+    up (trending). The operator-only grounding/QA score is intentionally omitted.
+    """
+
+    feed_id: str
+    episode_count: int = Field(ge=0, description="Episodes scanned for this show.")
+    top_topics: list[FeedSignalTopic] = Field(default_factory=list)
+    key_people: list[FeedSignalPerson] = Field(default_factory=list)
+    recurring_guests: list[FeedSignalPerson] = Field(default_factory=list)
+    dominant_themes: list[FeedSignalTheme] = Field(default_factory=list)
+    trending_topics: list[FeedSignalTrend] = Field(default_factory=list)
 
 
 class CilDigestTopicPill(BaseModel):

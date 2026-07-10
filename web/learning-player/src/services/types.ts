@@ -122,6 +122,22 @@ export interface Podcast {
   episode_count: number
 }
 
+/** Show-level signals for the consumer show page (GET /api/app/podcasts/{feed_id}/signals). */
+export interface PodcastSignals {
+  feed_id: string
+  episode_count: number
+  top_topics: Array<{ topic_id: string; label: string; episode_count: number }>
+  key_people: Array<{ person_id: string; name: string; episode_count: number }>
+  recurring_guests: Array<{ person_id: string; name: string; episode_count: number }>
+  dominant_themes: Array<{
+    theme_id: string
+    label: string
+    topic_count: number
+    anchor_topic_id: string | null
+  }>
+  trending_topics: Array<{ topic_id: string; label: string; velocity: number; episode_count: number }>
+}
+
 /** A verbatim quote supporting an insight. */
 export interface Quote {
   text: string
