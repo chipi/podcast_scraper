@@ -37,27 +37,44 @@ def _create_pyannote_pipeline(hf_token: str, model_name: str) -> Any:
         )
 
 
-def _apply_clustering_threshold(pipeline: Any, threshold: float) -> None:
-    """Override just the agglomerative-clustering threshold on an instantiated pyannote pipeline.
+def _apply_clustering_overrides(
+    pipeline: Any,
+    *,
+    threshold: Optional[float] = None,
+    min_cluster_size: Optional[int] = None,
+) -> None:
+    """Override agglomerative-clustering hyperparameters on an instantiated pyannote pipeline.
 
+    ``clustering.threshold`` (higher → merge more → fewer speakers) and
+    ``clustering.min_cluster_size`` (higher → drop small over-segmentation fragments) are the two
+    over-segmentation levers.
     ``pipeline.instantiate`` replaces ALL hyperparameters, so read the current instantiated params,
-    deep-merge the new ``clustering.threshold``, and re-instantiate. Best-effort: a pipeline that
-    exposes no ``clustering`` block is left unchanged (logged), never broken — the tuning override
-    is a diarization-quality lever, not a correctness requirement.
+    deep-merge only the provided override(s), and re-instantiate. Best-effort: a pipeline that
+    exposes no ``clustering`` block is left unchanged (logged), never broken — these are
+    diarization-quality levers, not a correctness requirement.
     """
+    if threshold is None and min_cluster_size is None:
+        return
     try:
         current = dict(pipeline.parameters(instantiated=True))
     except Exception as exc:  # pragma: no cover - pyannote version / model dependent
-        logger.warning("Cannot read pyannote params to set clustering threshold: %s", exc)
+        logger.warning("Cannot read pyannote params to set clustering overrides: %s", exc)
         return
     clustering = current.get("clustering")
     if not isinstance(clustering, dict):
         logger.warning(
-            "pyannote pipeline exposes no 'clustering' block; clustering_threshold=%s ignored.",
+            "pyannote pipeline exposes no 'clustering' block; clustering overrides "
+            "(threshold=%s, min_cluster_size=%s) ignored.",
             threshold,
+            min_cluster_size,
         )
         return
-    current["clustering"] = {**clustering, "threshold": float(threshold)}
+    merged = dict(clustering)
+    if threshold is not None:
+        merged["threshold"] = float(threshold)
+    if min_cluster_size is not None:
+        merged["min_cluster_size"] = int(min_cluster_size)
+    current["clustering"] = merged
     pipeline.instantiate(current)
 
 
@@ -105,20 +122,26 @@ class PyAnnoteDiarizationProvider:
         device: str = "auto",
         model_name: str = "pyannote/speaker-diarization-3.1",
         clustering_threshold: Optional[float] = None,
+        min_cluster_size: Optional[int] = None,
     ) -> None:
         self.model_name = model_name
         self._pipeline = _create_pyannote_pipeline(hf_token, model_name)
-        if clustering_threshold is not None:
-            _apply_clustering_threshold(self._pipeline, clustering_threshold)
+        _apply_clustering_overrides(
+            self._pipeline,
+            threshold=clustering_threshold,
+            min_cluster_size=min_cluster_size,
+        )
         resolved = _resolve_device(device)
         import torch
 
         self._pipeline.to(torch.device(resolved))
         logger.debug(
-            "Loaded pyannote diarization model %s on %s (clustering_threshold=%s)",
+            "Loaded pyannote diarization model %s on %s "
+            "(clustering_threshold=%s, min_cluster_size=%s)",
             model_name,
             resolved,
             clustering_threshold,
+            min_cluster_size,
         )
 
     def diarize(

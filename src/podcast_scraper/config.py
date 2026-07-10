@@ -871,6 +871,17 @@ class Config(BaseModel):
             "montage podcast audio; lower splits more. Tune via the diarization eval harness."
         ),
     )
+    diarization_min_cluster_size: Optional[int] = Field(
+        default=None,
+        ge=1,
+        alias="diarization_min_cluster_size",
+        description=(
+            "pyannote clustering min_cluster_size override (None = the model default, ~12). "
+            "Clusters smaller than this are reassigned to the nearest real speaker — raising it "
+            "drops the short (6–30s) over-segmentation FRAGMENTS surgically, without over-merging "
+            "quiet real speakers the way a high clustering_threshold can. Tune via the harness."
+        ),
+    )
     diarization_device: str = Field(
         default="auto",
         alias="diarization_device",
