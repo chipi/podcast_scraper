@@ -87,6 +87,47 @@ def test_detect_combines_known_host_and_detected_guest(monkeypatch: pytest.Monke
     assert used_defaults is False
 
 
+def test_detect_names_guest_from_transcript_intro(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The guest is absent from the title/description; only the transcript intro introduces them,
+    # and the SAME NER + interview-indicator filter names them (operator concept — intro as desc).
+    def fake_ner(text: str, _nlp: object) -> list[tuple[str, float]]:
+        return [("Nic Harrigan", 1.0)] if text and "Nic Harrigan" in text else []
+
+    monkeypatch.setattr(detection, "_extract_person_entities", fake_ner)
+    cfg = create_test_config(auto_speakers=True)
+    names, _hosts, succeeded, _used = detect_speaker_names(
+        "Quantum computing",
+        episode_description="A deep dive on quantum.",
+        nlp=object(),
+        cfg=cfg,
+        known_hosts={"Noah Kravitz"},
+        transcript_text="Welcome to the show. I'm joined by Nic Harrigan today to talk quantum.",
+    )
+    assert "Nic Harrigan" in names  # named from the intro
+    assert succeeded is True
+
+
+def test_detect_ignores_intro_person_without_interview_intent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A person merely NER-found in the intro with NO interview phrasing is not made a guest
+    # (precision: a wrong name on a voice is worse than SPEAKER_NN).
+    def fake_ner(text: str, _nlp: object) -> list[tuple[str, float]]:
+        return [("Elon Musk", 1.0)] if text and "Elon Musk" in text else []
+
+    monkeypatch.setattr(detection, "_extract_person_entities", fake_ner)
+    cfg = create_test_config(auto_speakers=True)
+    names, _hosts, _succeeded, _used = detect_speaker_names(
+        "Markets today",
+        episode_description="Markets recap.",
+        nlp=object(),
+        cfg=cfg,
+        known_hosts={"Noah Kravitz"},
+        transcript_text="Today we talk about what Elon Musk said about rockets.",
+    )
+    assert "Elon Musk" not in names  # mentioned, not introduced as a guest
+
+
 def test_detect_drops_guest_that_is_a_known_host(monkeypatch: pytest.MonkeyPatch) -> None:
     # A detected name matching a known host is not double-counted as a guest.
     monkeypatch.setattr(

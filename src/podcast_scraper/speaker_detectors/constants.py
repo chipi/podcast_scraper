@@ -18,6 +18,9 @@ DEFAULT_CONFIDENCE_SCORE = 1.0
 PATTERN_BASED_CONFIDENCE_SCORE = 0.7
 
 DESCRIPTION_SNIPPET_LENGTH = 500
+# Transcript-intro window scanned for guests with the SAME NER + interview-indicator logic used on
+# the feed description — the opening few minutes name the guests the feed metadata often omits.
+INTRO_SNIPPET_LENGTH = 3000
 DEFAULT_SAMPLE_SIZE = 5
 MIN_SPEAKERS_REQUIRED = 2
 

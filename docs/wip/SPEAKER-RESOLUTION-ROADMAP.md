@@ -61,10 +61,20 @@ either (a) carry an unnamed *host* voice into the KG as a `role=host` node (so r
 merge it), or (b) extend reconcile to GI person nodes keyed on feed. **Measure:** build the
 corpus graph reconcile-off vs reconcile-on, count voices named/tagged.
 
-### Step D — NER on the transcript intro for guests  ·  medium
-The self-intro regex catches "I'm X"; it misses host-introduces-guest phrasings ("joining me
-today is X", "my guest X"). Run NER / a pattern set over the intro window and feed matches
-into `detected_guests`. **Measure:** re-run `measure_1a.py` with the enriched guest list.
+### Step D — intro as a guest source (SHIPPED)
+The feed metadata often omits guests the opening minutes name ("joining me today is X"). Treat
+the transcript intro as another *description*: run the SAME NER + interview-indicator filter on
+the first ~3000 chars (`INTRO_SNIPPET_LENGTH`) in `detect_speaker_names`.
+
+**Precision was the whole game.** The naive "same logic as description" over-fires badly on ASR:
+a first pass named **+85 voices — but mostly garbage** (mononym fragments "Ezra"/"Kevin", people
+merely *mentioned* — Trump, Tucker, Khamenei — ASR noise "Diva Down"/"Squix", and hosts
+mislabelled as guests). `_is_likely_actual_guest`'s `.*?` proximity lets a cue "introduce" a name
+1000s of chars away. Added an ASR-grade guard `is_introduced_guest`: **First-Last name AND an
+interview cue within 40 chars of it**. Result: **+7 named (194 → 201), high precision** — real
+interviewees only (Robert Armstrong, Chris Wright, RJ Honecke, Nick Allardyce, Nicolas
+Serissier…). Modest but clean; the guard cut ~90% false positives. Description behaviour
+unchanged (only the intro path uses the strict filter).
 
 ### Step E — cross-episode voice fingerprinting  ·  out of scope (ML)
 The real fix for recurring anonymous hosts, but explicitly a non-goal in #1056 (no ML voice
