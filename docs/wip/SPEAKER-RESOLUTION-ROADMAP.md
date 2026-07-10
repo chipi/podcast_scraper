@@ -25,9 +25,12 @@ Baseline is **not** a single number — separate "did we NAME more voices" (redu
 | **#2** publisher denylist | A network/publisher (`The New York Times`) is never a host/guest | Removes *wrong* names; not a reducer. |
 | **#1c** diagnostics sidecar | Per-episode `what we tried / resolved / why unresolved` | The measurement substrate — makes "why still unknown" auditable. |
 | **#3** host/guest role on card | Per-show role surfaced in the player | UX; not a reducer. |
+| **voice_type** cameo/commercial/unknown | Classify each *unnamed* voice so noise is labelled and only real people count as "unknown" | **RECLASSIFIES:** of 326 unresolved voices, **196 (60%) are noise** — 195 cameo (<20s) + 1 commercial — leaving **130 real people** to chase. Carried on the roster + diagnostics; `display_label_for()` renders "Brief speaker"/"Advertisement". |
+| **Step B** per-feed `known_hosts` | Name a network feed's recurring host that never self-introduces | **NAMES MORE:** 253 → **272** named (43.7% → **47.0%**), **+19** (recurring hosts named in episodes with no "I'm …": Alexi Horowitz-Ghazi ×5, Katie Martin ×4, Brandon ×4). Config-only, wired into `feeds.spec.yaml`. |
 
-**Headline:** the only shipped *reducer* is **#1a (+41 voices)**. #1b is a correctness fix for
-the ones that stay unknown.
+**Cumulative on prod-v2:** named **212 → 272** (36.6% → **47.0%**) via #1a + Step B; of the
+**307 still unresolved**, **~196 are labelled noise** (cameo/commercial), leaving **~111 real
+people** to name. #1b is a correctness fix orthogonal to naming.
 
 ---
 

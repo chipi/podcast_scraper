@@ -64,6 +64,19 @@ def test_merge_feed_entry_overrides_global_timeout() -> None:
     assert merged.rss_urls is None
 
 
+def test_merge_feed_entry_overrides_known_hosts_per_feed() -> None:
+    # Step B: a network feed can name its recurring hosts that never self-introduce.
+    base = cfg_mod.Config(rss="https://ignored.example/x", known_hosts=["Global Host"])
+    ent = RssFeedEntry(
+        url="https://feed.example/rss", known_hosts=["Erika Barris", "Nick Fountain"]
+    )
+    merged = merge_feed_entry_into_config(base, ent)
+    assert merged.known_hosts == ["Erika Barris", "Nick Fountain"]  # feed overrides global
+    # A feed that omits known_hosts inherits the global list.
+    inherit = merge_feed_entry_into_config(base, RssFeedEntry(url="https://feed.example/rss"))
+    assert inherit.known_hosts == ["Global Host"]
+
+
 def test_feeds_spec_document_accepts_comment_keys() -> None:
     doc = FeedsSpecDocument.model_validate(
         {"_comment": "x", "_comment_resilience": "y", "feeds": ["https://a.example/z"]}

@@ -2,6 +2,7 @@
   "_comment": "Structured feeds (#626). Non-canonical illustration — semantics: docs/api/CONFIGURATION.md#download-resilience. Root: `feeds` plus optional `_comment*`.",
   "_comment_resilience": "Per-feed overrides merge after global Config (and packaged profile:). Field names match CONFIGURATION.md Download resilience. RSS uses rss_retry_*; media uses http_retry_*.",
   "_comment_polite": "Issue #522: host_request_interval_ms, host_max_concurrent, rss_conditional_get — see CONFIGURATION.md recommended presets.",
+  "_comment_known_hosts": "Network feed (last entry): per-feed known_hosts names a recurring host that rarely self-introduces, so it is not left as SPEAKER_NN. Overrides global known_hosts.",
   "feeds": [
     {
       "url": "https://example.com/podcast-feed-a.xml",
@@ -18,6 +19,10 @@
       "episode_retry_max": 1,
       "episode_retry_delay_sec": 10.0,
       "timeout": 120
+    },
+    {
+      "url": "https://example.com/network-show.xml",
+      "known_hosts": ["Alexi Horowitz-Ghazi", "Katie Martin"]
     }
   ]
 }
