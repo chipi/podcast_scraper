@@ -11,6 +11,34 @@ from podcast_scraper.providers.ml.diarization.pyannote_provider import PyAnnoteD
 pytestmark = pytest.mark.unit
 
 
+@patch("podcast_scraper.providers.ml.diarization.pyannote_provider._create_pyannote_pipeline")
+def test_clustering_threshold_merges_into_pipeline_params(mock_create) -> None:
+    # The tuning override re-instantiates the pipeline with ONLY clustering.threshold changed,
+    # preserving the rest of the hyperparameters (the over-segmentation knob, GPU-free plumbing).
+    mock_pipeline = MagicMock()
+    mock_pipeline.parameters.return_value = {
+        "segmentation": {"min_duration_off": 0.5},
+        "clustering": {"method": "centroid", "threshold": 0.7},
+    }
+    mock_create.return_value = mock_pipeline
+
+    PyAnnoteDiarizationProvider("token", device="cpu", clustering_threshold=0.85)
+
+    mock_pipeline.instantiate.assert_called_once()
+    applied = mock_pipeline.instantiate.call_args[0][0]
+    assert applied["clustering"]["threshold"] == 0.85  # overridden
+    assert applied["clustering"]["method"] == "centroid"  # preserved
+    assert applied["segmentation"] == {"min_duration_off": 0.5}  # untouched
+
+
+@patch("podcast_scraper.providers.ml.diarization.pyannote_provider._create_pyannote_pipeline")
+def test_clustering_threshold_none_leaves_pipeline_untouched(mock_create) -> None:
+    mock_pipeline = MagicMock()
+    mock_create.return_value = mock_pipeline
+    PyAnnoteDiarizationProvider("token", device="cpu")  # no threshold
+    mock_pipeline.instantiate.assert_not_called()
+
+
 @patch("podcast_scraper.providers.ml.diarization.pyannote_provider._load_waveform")
 @patch("podcast_scraper.providers.ml.diarization.pyannote_provider._create_pyannote_pipeline")
 def test_diarize_maps_pyannote_output(mock_create, mock_load_waveform) -> None:

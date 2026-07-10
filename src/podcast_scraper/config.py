@@ -862,6 +862,15 @@ class Config(BaseModel):
         alias="diarization_max_speakers",
         description="Maximum speakers when auto-detecting diarization count",
     )
+    diarization_clustering_threshold: Optional[float] = Field(
+        default=None,
+        alias="diarization_clustering_threshold",
+        description=(
+            "pyannote clustering threshold override (None = the model default). Higher merges "
+            "more agglomerative clusters → FEWER speakers, curbing over-segmentation on noisy / "
+            "montage podcast audio; lower splits more. Tune via the diarization eval harness."
+        ),
+    )
     diarization_device: str = Field(
         default="auto",
         alias="diarization_device",

@@ -37,6 +37,30 @@ def _create_pyannote_pipeline(hf_token: str, model_name: str) -> Any:
         )
 
 
+def _apply_clustering_threshold(pipeline: Any, threshold: float) -> None:
+    """Override just the agglomerative-clustering threshold on an instantiated pyannote pipeline.
+
+    ``pipeline.instantiate`` replaces ALL hyperparameters, so read the current instantiated params,
+    deep-merge the new ``clustering.threshold``, and re-instantiate. Best-effort: a pipeline that
+    exposes no ``clustering`` block is left unchanged (logged), never broken — the tuning override
+    is a diarization-quality lever, not a correctness requirement.
+    """
+    try:
+        current = dict(pipeline.parameters(instantiated=True))
+    except Exception as exc:  # pragma: no cover - pyannote version / model dependent
+        logger.warning("Cannot read pyannote params to set clustering threshold: %s", exc)
+        return
+    clustering = current.get("clustering")
+    if not isinstance(clustering, dict):
+        logger.warning(
+            "pyannote pipeline exposes no 'clustering' block; clustering_threshold=%s ignored.",
+            threshold,
+        )
+        return
+    current["clustering"] = {**clustering, "threshold": float(threshold)}
+    pipeline.instantiate(current)
+
+
 def _resolve_device(device: str) -> str:
     try:
         import torch
@@ -80,14 +104,22 @@ class PyAnnoteDiarizationProvider:
         *,
         device: str = "auto",
         model_name: str = "pyannote/speaker-diarization-3.1",
+        clustering_threshold: Optional[float] = None,
     ) -> None:
         self.model_name = model_name
         self._pipeline = _create_pyannote_pipeline(hf_token, model_name)
+        if clustering_threshold is not None:
+            _apply_clustering_threshold(self._pipeline, clustering_threshold)
         resolved = _resolve_device(device)
         import torch
 
         self._pipeline.to(torch.device(resolved))
-        logger.debug("Loaded pyannote diarization model %s on %s", model_name, resolved)
+        logger.debug(
+            "Loaded pyannote diarization model %s on %s (clustering_threshold=%s)",
+            model_name,
+            resolved,
+            clustering_threshold,
+        )
 
     def diarize(
         self,
