@@ -415,6 +415,86 @@ def test_reconcile_skips_cohost_show_but_tags_recurring_voice():
     assert note.startswith("recurring host of") and "not auto-named" in note
 
 
+def test_reconcile_merges_episode_scoped_unnamed_hosts_into_recurring_named_host():
+    # #1b: unnamed voices are episode-scoped (person:speaker-<ep>-NN), so a recurring unnamed
+    # host is TWO singleton nodes under one show, not one shared node. The per-podcast aggregation
+    # still merges both into the show's single recurring named host.
+    g = _graph_from(
+        _kg_episode(
+            "podcast:unhedged",
+            "episode:u1",
+            host_id="person:katie-martin",
+            host_name="Katie Martin",
+        ),
+        _kg_episode(
+            "podcast:unhedged",
+            "episode:u2",
+            host_id="person:katie-martin",
+            host_name="Katie Martin",
+        ),
+        _kg_episode(
+            "podcast:unhedged", "episode:u3", host_id="person:speaker-u3-03", host_name="SPEAKER_03"
+        ),
+        _kg_episode(
+            "podcast:unhedged", "episode:u4", host_id="person:speaker-u4-03", host_name="SPEAKER_03"
+        ),
+    )
+    g._reconcile_feed_hosts()
+    assert g.get_node("person:speaker-u3-03") is None  # both episode-scoped voices merged away
+    assert g.get_node("person:speaker-u4-03") is None
+    assert "episode:u3" in g.neighbors("person:katie-martin")
+    assert "episode:u4" in g.neighbors("person:katie-martin")
+
+
+def test_reconcile_tags_episode_scoped_recurring_unnamed_host_in_cohost_show():
+    # Co-host show (two recurring named hosts) → episode-scoped unnamed voices aren't merged, but
+    # their episodes union to >=2, so both get the honest "recurring host" note via aggregation.
+    g = _graph_from(
+        _kg_episode(
+            "podcast:fx", "episode:f1", host_id="person:katie", host_name="Katie", title="FX Show"
+        ),
+        _kg_episode("podcast:fx", "episode:f2", host_id="person:katie", host_name="Katie"),
+        _kg_episode("podcast:fx", "episode:f3", host_id="person:rob", host_name="Rob"),
+        _kg_episode("podcast:fx", "episode:f4", host_id="person:rob", host_name="Rob"),
+        _kg_episode(
+            "podcast:fx", "episode:f5", host_id="person:speaker-f5-07", host_name="SPEAKER_07"
+        ),
+        _kg_episode(
+            "podcast:fx", "episode:f6", host_id="person:speaker-f6-07", host_name="SPEAKER_07"
+        ),
+    )
+    g._reconcile_feed_hosts()
+    for vid in ("person:speaker-f5-07", "person:speaker-f6-07"):
+        voice = g.get_node(vid)
+        assert voice is not None  # co-host ambiguity → not merged
+        note = voice.payload.get("recurring_host_note", "")
+        assert note.startswith("recurring host of") and "not auto-named" in note
+
+
+def test_reconcile_does_not_merge_same_label_across_shows_when_episode_scoped():
+    # The core #1b guarantee: SPEAKER_00 in show A and show B are DISTINCT episode-scoped nodes,
+    # so the diarization label number never collapses into one phantom cross-show person.
+    g = _graph_from(
+        _kg_episode(
+            "podcast:a",
+            "episode:a1",
+            host_id="person:speaker-a1-00",
+            host_name="SPEAKER_00",
+            title="Show A",
+        ),
+        _kg_episode(
+            "podcast:b",
+            "episode:b1",
+            host_id="person:speaker-b1-00",
+            host_name="SPEAKER_00",
+            title="Show B",
+        ),
+    )
+    g._reconcile_feed_hosts()
+    assert g.get_node("person:speaker-a1-00") is not None  # two separate voices, never merged
+    assert g.get_node("person:speaker-b1-00") is not None
+
+
 def test_reconcile_skips_voice_shared_across_feeds():
     # A bare person:speaker-00 node MENTIONS episodes in TWO different shows — it's not
     # feed-exclusive, so merging it into one show's host would wrongly absorb the other.

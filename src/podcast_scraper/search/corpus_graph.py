@@ -207,17 +207,48 @@ class CorpusGraph:
         - the target must recur as host in ≥2 episodes of that feed;
         - exactly one such recurring named host per feed (else it's a co-host show).
         """
-        # Group host Person nodes per podcast into named vs. unnamed voices, with the
-        # episode set each owns under that podcast.
+        named, unnamed_pods, unnamed_eps = self._collect_feed_host_voices()
+
+        # Aggregate feed-exclusive unnamed host voices per podcast. Episode-scoped ids (#1b) turn
+        # a recurring unnamed host into many singleton nodes under one show rather than a single
+        # shared node; deciding merge/tag on the *union* of their episodes makes the outcome
+        # identical whether the corpus carries the legacy shared id or the new per-episode one.
+        pod_voices: Dict[str, Set[str]] = defaultdict(set)  # pod -> its feed-exclusive voice ids
+        pod_unnamed_eps: Dict[str, Set[str]] = defaultdict(set)  # pod -> union of their episodes
+        for voice_id, pods in unnamed_pods.items():
+            if len(pods) != 1:
+                continue  # ambiguous: a shared SPEAKER_00 node spanning shows (legacy) — skip
+            pod = next(iter(pods))
+            pod_voices[pod].add(voice_id)
+            pod_unnamed_eps[pod] |= unnamed_eps[voice_id]
+
+        merge_map: Dict[str, str] = {}
+        for pod, voices in pod_voices.items():
+            recurring = {h for h, eps in named.get(pod, {}).items() if len(eps) >= 2}
+            if len(recurring) == 1:
+                merge_map.update({v: next(iter(recurring)) for v in voices})
+            elif len(pod_unnamed_eps[pod]) >= 2:
+                # Opt1: can't name it, but the show has a recurring unnamed host — say so honestly.
+                note = self._recurring_host_note(pod)
+                for voice_id in voices:
+                    self._nodes[voice_id].payload["recurring_host_note"] = note
+
+        if merge_map:
+            self._apply_identity_map(merge_map)
+
+    def _collect_feed_host_voices(
+        self,
+    ) -> "tuple[Dict[str, Dict[str, Set[str]]], Dict[str, Set[str]], Dict[str, Set[str]]]":
+        """Group host Person nodes per podcast into named vs. unnamed voices (#1056 helper).
+
+        Returns ``(named, unnamed_pods, unnamed_eps)``: ``named[pod][host_id] -> episodes``;
+        ``unnamed_pods[voice_id] -> podcasts it spans``; ``unnamed_eps[voice_id] -> its episodes``.
+        """
         named: Dict[str, Dict[str, Set[str]]] = defaultdict(lambda: defaultdict(set))
-        unnamed_pods: Dict[str, Set[str]] = defaultdict(set)  # voice id -> podcasts it spans
-        unnamed_eps: Dict[str, Set[str]] = defaultdict(set)  # voice id -> all its episodes
+        unnamed_pods: Dict[str, Set[str]] = defaultdict(set)
+        unnamed_eps: Dict[str, Set[str]] = defaultdict(set)
         for pid, node in self._nodes.items():
-            if node.type != "person":
-                continue
-            if str(node.payload.get("role") or "").lower() != "host":
-                continue
-            episodes = self._person_episodes(pid)
+            episodes = self._host_person_episodes(pid, node)
             if not episodes:
                 continue
             is_unnamed = _looks_like_speaker_label(
@@ -232,25 +263,21 @@ class CorpusGraph:
                     unnamed_eps[pid].add(ep)
                 else:
                     named[pod][pid].add(ep)
+        return named, unnamed_pods, unnamed_eps
 
-        merge_map: Dict[str, str] = {}
-        for voice_id, pods in unnamed_pods.items():
-            if len(pods) != 1:
-                continue  # ambiguous: a SPEAKER_00 node shared across shows
-            pod = next(iter(pods))
-            recurring = {h for h, eps in named.get(pod, {}).items() if len(eps) >= 2}
-            if len(recurring) == 1:
-                merge_map[voice_id] = next(iter(recurring))
-            elif len(unnamed_eps[voice_id]) >= 2:
-                # Opt1: can't name it, but it's a recurring voice — say so honestly.
-                show = self._nodes.get(pod)
-                show_title = (show.payload.get("title") if show else None) or "this show"
-                self._nodes[voice_id].payload[
-                    "recurring_host_note"
-                ] = f"recurring host of {show_title} — not auto-named"
+    def _host_person_episodes(self, pid: str, node: Any) -> Optional[List[str]]:
+        """Episodes a ``role == "host"`` Person node owns, or None when it isn't a host voice."""
+        if node.type != "person":
+            return None
+        if str(node.payload.get("role") or "").lower() != "host":
+            return None
+        return self._person_episodes(pid) or None
 
-        if merge_map:
-            self._apply_identity_map(merge_map)
+    def _recurring_host_note(self, pod: str) -> str:
+        """The honest "recurring host — not auto-named" tag for a show's unnamed host voice."""
+        show = self._nodes.get(pod)
+        show_title = (show.payload.get("title") if show else None) or "this show"
+        return f"recurring host of {show_title} — not auto-named"
 
     def _apply_identity_map(self, extra_map: Dict[str, str]) -> None:
         """Collapse nodes per ``extra_map`` (variant→canonical), rebuilding adjacency.

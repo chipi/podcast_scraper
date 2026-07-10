@@ -19,7 +19,8 @@ from typing import Any
 from podcast_scraper.enrichment.protocol import EpisodeArtifactBundle
 
 _SPEAKER_PLACEHOLDER_PATTERN = re.compile(
-    r"^(?:person:)?speaker[_\-]?\d+$",
+    r"^(?:person:)?speaker[_\-]?\d+$"  # global: SPEAKER_03 / person:speaker-03
+    r"|^person:speaker-.+-\d+$",  # episode-scoped: person:speaker-{ep}-03 (#1b)
     re.IGNORECASE,
 )
 

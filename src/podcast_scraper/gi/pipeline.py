@@ -1497,7 +1497,9 @@ def _artifact_from_multi_insight(
                     transcript_segments,
                 )
                 if speaker_label:
-                    person_id_for_quote = person_node_id(speaker_label)
+                    # Episode-scope the id for an unnamed voice (SPEAKER_00) so it can't merge
+                    # across episodes; a real, resolved name stays a global person id (#1b).
+                    person_id_for_quote = person_node_id(speaker_label, episode_id)
             nodes.append(
                 {
                     "id": quote_id,
