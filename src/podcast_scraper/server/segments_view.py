@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from podcast_scraper.providers.ml.diarization.roster import friendly_voice_label
 from podcast_scraper.server.schemas import TranscriptSegment
 
 
@@ -33,7 +34,15 @@ def segments_relpaths_for_transcript(transcript_relpath: str) -> list[str]:
 
 
 def _segment_speaker(raw: dict[str, Any]) -> str | None:
-    """Best available speaker label: human label, then id, then raw diarization tag."""
+    """Best display speaker for a segment: a real name, else a friendly type label for a
+    cameo/commercial voice ("Brief speaker" / "Advertisement"), else the raw diarization tag.
+
+    ``voice_type`` is set by the roster only for an *unnamed* cameo/ad voice; a named voice has a
+    real ``speaker_label`` and no ``voice_type``, so it is returned as-is. This maps display only —
+    the id-bearing ``speaker_label`` in the artifact is untouched (the GI still owns the ids)."""
+    friendly = friendly_voice_label(raw.get("voice_type"))
+    if friendly:
+        return friendly
     for key in ("speaker_label", "speaker_id", "speaker"):
         val = raw.get(key)
         if isinstance(val, str) and val.strip():

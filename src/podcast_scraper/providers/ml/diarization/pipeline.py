@@ -30,6 +30,25 @@ def _voice_texts_from_aligned(aligned: List[Any]) -> Dict[str, str]:
     return {v: " ".join(c) for v, c in chunks.items()}
 
 
+def _enriched_segments(aligned: List[Any], roster: Any) -> List[Dict[str, Any]]:
+    """Attach the resolved ``speaker`` + id-bearing ``speaker_label`` to each aligned segment.
+
+    ``speaker_label`` stays the raw/real label (the GI mints person ids and the screenplay
+    offsets from it). ``voice_type`` is an additive display hint so a surface can render
+    "Brief speaker" / "Advertisement" for a cameo/ad voice without changing that id.
+    """
+    out: List[Dict[str, Any]] = []
+    for segment, speaker_id in aligned:
+        enriched = dict(segment)
+        enriched["speaker"] = speaker_id
+        enriched["speaker_label"] = roster.label_for(speaker_id)
+        role = roster.by_voice.get(speaker_id)
+        if role is not None and not role.named and role.voice_type != "person":
+            enriched["voice_type"] = role.voice_type
+        out.append(enriched)
+    return out
+
+
 def _resolve_diarization_cache_dir(cfg: config.Config, cache_dir: Optional[str]) -> Optional[str]:
     if cache_dir:
         return cache_dir
@@ -105,15 +124,8 @@ def apply_diarization_to_result(
         voice_texts=voice_texts,
     )
 
-    enriched_segments: List[Dict[str, Any]] = []
-    for segment, speaker_id in aligned:
-        enriched = dict(segment)
-        enriched["speaker"] = speaker_id
-        enriched["speaker_label"] = roster.label_for(speaker_id)
-        enriched_segments.append(enriched)
-
     enriched_result = dict(result)
-    enriched_result["segments"] = enriched_segments
+    enriched_result["segments"] = _enriched_segments(aligned, roster)
     # Diagnostics sidecar (what we tried / resolved / why each voice failed) — the caller
     # persists it next to the episode so unrecognized speakers are explainable without a re-run.
     enriched_result["speaker_diagnostics"] = build_speaker_diagnostics(

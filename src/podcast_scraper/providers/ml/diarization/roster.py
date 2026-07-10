@@ -47,7 +47,18 @@ VOICE_CAMEO = "cameo"  # unnamed, trivially brief
 VOICE_COMMERCIAL = "commercial"  # unnamed, mostly inside ad regions
 VOICE_UNKNOWN = "unknown"  # unnamed, substantive — a real person we failed to name
 # Friendly display labels for the non-person types (surfaces render these instead of SPEAKER_xx).
-_VOICE_TYPE_LABELS = {VOICE_CAMEO: "Brief speaker", VOICE_COMMERCIAL: "Advertisement"}
+# ``unknown`` (a substantive person we failed to name) deliberately keeps its raw id, not a label.
+VOICE_TYPE_LABELS = {VOICE_CAMEO: "Brief speaker", VOICE_COMMERCIAL: "Advertisement"}
+
+
+def friendly_voice_label(voice_type: Optional[str]) -> Optional[str]:
+    """Human label for a cameo/commercial voice ("Brief speaker" / "Advertisement"), else None.
+
+    The single source of truth for rendering an *unnamed-but-typed* voice on any surface, so the
+    player transcript, the diagnostics, and the roster never disagree. Returns None for a real
+    name, a substantive ``unknown`` voice, or an unrecognised type — the caller keeps its raw id.
+    """
+    return VOICE_TYPE_LABELS.get(voice_type or "")
 
 
 @dataclass(frozen=True)
@@ -84,9 +95,8 @@ class SpeakerRoster:
         role = self.by_voice.get(voice_id)
         if role is None:
             return voice_id
-        if not role.named and role.voice_type in _VOICE_TYPE_LABELS:
-            return _VOICE_TYPE_LABELS[role.voice_type]
-        return role.name
+        friendly = friendly_voice_label(role.voice_type) if not role.named else None
+        return friendly or role.name
 
     def named_count(self) -> int:
         """Number of voices resolved to a real name (not a raw ``SPEAKER_xx``)."""

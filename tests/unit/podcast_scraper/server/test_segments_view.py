@@ -50,6 +50,39 @@ class TestToContractSegments:
         assert out[1].speaker == "SPEAKER_01"  # speaker_id fallback
         assert out[2].speaker == "raw-tag"  # speaker fallback
 
+    def test_voice_type_renders_friendly_label(self) -> None:
+        # A cameo/commercial voice shows a friendly label; a substantive unknown keeps its raw id;
+        # a named voice with no voice_type is unchanged. The id-bearing speaker_label is untouched.
+        raw = [
+            {
+                "start": 0.0,
+                "end": 1.0,
+                "text": "a",
+                "speaker_label": "SPEAKER_02",
+                "voice_type": "cameo",
+            },
+            {
+                "start": 1.0,
+                "end": 2.0,
+                "text": "b",
+                "speaker_label": "S_03",
+                "voice_type": "commercial",
+            },
+            {
+                "start": 2.0,
+                "end": 3.0,
+                "text": "c",
+                "speaker_label": "SPEAKER_04",
+                "voice_type": "unknown",
+            },
+            {"start": 3.0, "end": 4.0, "text": "d", "speaker_label": "Alice"},  # named
+        ]
+        out = to_contract_segments(raw)
+        assert out[0].speaker == "Brief speaker"
+        assert out[1].speaker == "Advertisement"
+        assert out[2].speaker == "SPEAKER_04"  # substantive unknown keeps its raw id
+        assert out[3].speaker == "Alice"
+
     def test_skips_malformed_entries(self) -> None:
         raw = [
             {"start": 0.0, "end": 1.0, "text": "ok"},
