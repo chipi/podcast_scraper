@@ -1,0 +1,19 @@
+{
+  "fixture": "p07_e02",
+  "podcast": "The Long View — Sustainability",
+  "episode": "Severe Garbles: A Macro Discussion",
+  "type": "interview",
+  "speakers": [
+    "Alex Morgan",
+    "Skanda Eminas"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 3,
+  "failure_modes": [
+    "asr_garble_severe",
+    "multi_accent",
+    "recurring_guest"
+  ]
+}

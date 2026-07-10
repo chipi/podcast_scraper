@@ -1,0 +1,19 @@
+{
+  "fixture": "p03_e03",
+  "podcast": "Below the Surface",
+  "episode": "Severe Surname Garbles: A Marine Biologist's Return",
+  "type": "interview",
+  "speakers": [
+    "Rina",
+    "Hanna Krebohticker"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 3,
+  "failure_modes": [
+    "alias_invention",
+    "asr_garble_severe",
+    "recurring_guest"
+  ]
+}

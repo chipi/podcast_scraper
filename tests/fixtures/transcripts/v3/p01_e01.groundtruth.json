@@ -1,0 +1,17 @@
+{
+  "fixture": "p01_e01",
+  "podcast": "Singletrack Sessions",
+  "episode": "Building Trails That Last",
+  "type": "interview",
+  "speakers": [
+    "Maya",
+    "Liam Verbeek"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 3,
+  "failure_modes": [
+    "asr_garble"
+  ]
+}

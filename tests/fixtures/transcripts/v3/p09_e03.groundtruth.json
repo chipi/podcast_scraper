@@ -1,0 +1,20 @@
+{
+  "fixture": "p09_e03",
+  "podcast": "Cross-Show",
+  "episode": "When the Severe Garble Bites",
+  "type": "interview",
+  "speakers": [
+    "Sam",
+    "Skanda Amarnath"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 3,
+  "failure_modes": [
+    "asr_garble_severe",
+    "multi_accent",
+    "position_arc_multi",
+    "recurring_guest"
+  ]
+}

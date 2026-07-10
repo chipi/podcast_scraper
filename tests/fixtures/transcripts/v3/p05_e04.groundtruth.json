@@ -1,0 +1,18 @@
+{
+  "fixture": "p05_e04",
+  "podcast": "Long Horizon Notes",
+  "episode": "The Risk Panel: Diversify or Concentrate?",
+  "type": "panel",
+  "speakers": [
+    "Nora",
+    "Daniel Cho",
+    "Scott Bessent"
+  ],
+  "num_human_speakers": 3,
+  "has_commercial": false,
+  "num_ad_voices": 0,
+  "expected_diarized_voices": 3,
+  "failure_modes": [
+    "high_person_density"
+  ]
+}

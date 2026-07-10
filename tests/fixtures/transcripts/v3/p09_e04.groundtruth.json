@@ -1,0 +1,17 @@
+{
+  "fixture": "p09_e04",
+  "podcast": "Cross-Show",
+  "episode": "Risk Is a Systems Property",
+  "type": "monologue",
+  "speakers": [
+    "Sam"
+  ],
+  "num_human_speakers": 1,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 2,
+  "failure_modes": [
+    "multi_accent",
+    "recurring_guest"
+  ]
+}

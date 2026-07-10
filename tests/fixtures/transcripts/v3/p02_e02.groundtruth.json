@@ -1,0 +1,18 @@
+{
+  "fixture": "p02_e02",
+  "podcast": "Practical Systems",
+  "episode": "Staff-Engineer Communication Patterns",
+  "type": "interview",
+  "speakers": [
+    "Ethan",
+    "Joll Wisenthal"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 3,
+  "failure_modes": [
+    "asr_garble",
+    "asr_garble_severe"
+  ]
+}

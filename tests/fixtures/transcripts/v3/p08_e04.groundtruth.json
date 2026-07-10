@@ -1,0 +1,17 @@
+{
+  "fixture": "p08_e04",
+  "podcast": "Public Hour",
+  "episode": "Corrections, Trust, and the Long Game",
+  "type": "monologue",
+  "speakers": [
+    "Renee Montagne-Park"
+  ],
+  "num_human_speakers": 1,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 2,
+  "failure_modes": [
+    "recurring_guest",
+    "zero_host_ner"
+  ]
+}

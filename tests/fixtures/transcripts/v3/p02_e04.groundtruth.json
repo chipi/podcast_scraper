@@ -1,0 +1,15 @@
+{
+  "fixture": "p02_e04",
+  "podcast": "Practical Systems",
+  "episode": "Reliability Is a Systems Property",
+  "type": "interview",
+  "speakers": [
+    "Ethan",
+    "Priya Nair"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": false,
+  "num_ad_voices": 0,
+  "expected_diarized_voices": 2,
+  "failure_modes": []
+}

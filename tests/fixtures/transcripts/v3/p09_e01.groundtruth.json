@@ -1,0 +1,18 @@
+{
+  "fixture": "p09_e01",
+  "podcast": "Cross-Show",
+  "episode": "Systems Thinking, Two Years Later",
+  "type": "monologue",
+  "speakers": [
+    "Sam"
+  ],
+  "num_human_speakers": 1,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 2,
+  "failure_modes": [
+    "multi_accent",
+    "position_arc_multi",
+    "recurring_guest"
+  ]
+}

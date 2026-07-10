@@ -1,0 +1,16 @@
+{
+  "fixture": "p08_e01",
+  "podcast": "Public Hour",
+  "episode": "Public Radio Format Conventions",
+  "type": "monologue",
+  "speakers": [
+    "Renee Montagne-Park"
+  ],
+  "num_human_speakers": 1,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 2,
+  "failure_modes": [
+    "zero_host_ner"
+  ]
+}

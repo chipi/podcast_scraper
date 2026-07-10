@@ -1,0 +1,18 @@
+{
+  "fixture": "p05_e01",
+  "podcast": "Long Horizon Notes",
+  "episode": "Index Investing Without the Myths",
+  "type": "interview",
+  "speakers": [
+    "Nora",
+    "Daniel Cho"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 3,
+  "failure_modes": [
+    "frame_topic_cross_domain",
+    "same_first_distinct"
+  ]
+}

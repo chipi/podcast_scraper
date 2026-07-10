@@ -1,0 +1,18 @@
+{
+  "fixture": "p03_e01",
+  "podcast": "Below the Surface",
+  "episode": "Wreck Diving Fundamentals",
+  "type": "interview",
+  "speakers": [
+    "Rina",
+    "Marco Sylva"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 3,
+  "failure_modes": [
+    "asr_garble",
+    "same_first_distinct"
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "fixture": "p07_e01",
+  "podcast": "The Long View — Sustainability",
+  "episode": "What Sustainability Really Means",
+  "type": "monologue",
+  "speakers": [
+    "Alex Morgan"
+  ],
+  "num_human_speakers": 1,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 2,
+  "failure_modes": [
+    "high_person_density",
+    "long_context_chunk_boundary",
+    "multi_accent",
+    "recurring_guest"
+  ]
+}

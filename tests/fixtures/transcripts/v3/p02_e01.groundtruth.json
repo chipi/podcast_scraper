@@ -1,0 +1,19 @@
+{
+  "fixture": "p02_e01",
+  "podcast": "Practical Systems",
+  "episode": "On-Call That Doesn't Break People",
+  "type": "interview",
+  "speakers": [
+    "Ethan",
+    "Priya Nair"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 3,
+  "failure_modes": [
+    "asr_garble",
+    "position_arc_multi",
+    "recurring_guest"
+  ]
+}

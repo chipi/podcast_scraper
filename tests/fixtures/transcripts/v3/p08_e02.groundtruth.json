@@ -1,0 +1,17 @@
+{
+  "fixture": "p08_e02",
+  "podcast": "Public Hour",
+  "episode": "Pronunciation as a Reliability Signal",
+  "type": "monologue",
+  "speakers": [
+    "Renee Montague-Park"
+  ],
+  "num_human_speakers": 1,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 2,
+  "failure_modes": [
+    "recurring_guest",
+    "zero_host_ner"
+  ]
+}

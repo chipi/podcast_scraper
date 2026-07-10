@@ -1,0 +1,18 @@
+{
+  "fixture": "p04_e03",
+  "podcast": "Frame & Light",
+  "episode": "Lighting Decisions That Save a Shoot",
+  "type": "interview",
+  "speakers": [
+    "Leo",
+    "Daniel Olufemi"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 3,
+  "failure_modes": [
+    "frame_topic_cross_domain",
+    "same_first_distinct"
+  ]
+}
