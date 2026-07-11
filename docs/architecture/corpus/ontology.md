@@ -58,7 +58,7 @@ discovery.
 | **evidentiary** | Proves an Insight is grounded — load-bearing for the grounding contract. | `SUPPORTED_BY` |
 | **descriptive** | Classifies / labels an Insight. Does **not** prove. Does **not** promote `grounded=true`. | `ABOUT`, `MENTIONS_PERSON`, `MENTIONS_ORG` |
 | **discovery** | Co-occurrence; useful for browse + relational queries but **not** for ranking (RFC-091). | KG `MENTIONS`, `RELATED_TO` (reserved) |
-| **structural** | Parent / child / containment. | `HAS_EPISODE`, `HAS_INSIGHT` |
+| **structural** | Parent / child / containment, and durable person↔show affiliation. | `HAS_EPISODE`, `HAS_INSIGHT`, `HOSTS`, `GUESTS_ON` |
 | **attribution** | Who-said-what. | `SPOKE_IN`, `SPOKEN_BY` |
 
 **Hard rule.** Only `edge_class: evidentiary` edges decide
@@ -71,9 +71,9 @@ should we add it) does not change this contract.
 
 | Node | `edge_class` interactions | Required properties | Optional |
 | --- | --- | --- | --- |
-| `Podcast` | source of `HAS_EPISODE` | `title`, `rss_url` | `publisher` |
+| `Podcast` | source of `HAS_EPISODE`; target of `HOSTS` / `GUESTS_ON` | `title`, `rss_url` | `publisher` |
 | `Episode` | target of `HAS_EPISODE`, source of `HAS_INSIGHT` | `podcast_id`, `title`, `publish_date` (ISO-8601) | `audio_url`, `duration_ms`, `feed_id` |
-| `Person` | target of `SPOKEN_BY` / `MENTIONS_PERSON`, source of `SPOKE_IN` | `name` | `aliases[]` |
+| `Person` | target of `SPOKEN_BY` / `MENTIONS_PERSON`, source of `SPOKE_IN` / `HOSTS` / `GUESTS_ON` | `name` | `aliases[]` |
 | `Organization` | target of `MENTIONS_ORG` / KG `MENTIONS` | `name` | `aliases[]` |
 | `Topic` | target of `ABOUT` / KG `MENTIONS` | `label`, `slug` | `aliases[]`, `description` |
 | `Insight` | source of `SUPPORTED_BY` / `ABOUT` / `MENTIONS_PERSON` / `MENTIONS_ORG`, target of `HAS_INSIGHT` | `text`, `episode_id`, `grounded` | `confidence`, `insight_type`, `position_hint` |

@@ -203,8 +203,8 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["MENTIONS", "RELATED_TO", "HAS_EPISODE"],
-          "description": "Edge type. v1 builder emits **MENTIONS** (Topic|Entity → Episode). **HAS_EPISODE** (Podcast → Episode) lands in v2.0 (RFC-097). **RELATED_TO** is reserved for future use (see docs/architecture/corpus/ontology.md)."
+          "enum": ["MENTIONS", "RELATED_TO", "HAS_EPISODE", "HOSTS", "GUESTS_ON"],
+          "description": "Edge type. v1 builder emits **MENTIONS** (Topic|Entity → Episode). **HAS_EPISODE** (Podcast → Episode) lands in v2.0 (RFC-097). **HOSTS** / **GUESTS_ON** (Person → Podcast) make host/guest a durable per-show fact, not just a per-episode mention (#1169 host-identification Path A). **RELATED_TO** is reserved for future use (see docs/architecture/corpus/ontology.md)."
         },
         "from": { "type": "string", "minLength": 1 },
         "to": { "type": "string", "minLength": 1 },
@@ -220,7 +220,9 @@
       "classes": {
         "MENTIONS": "discovery",
         "RELATED_TO": "discovery",
-        "HAS_EPISODE": "structural"
+        "HAS_EPISODE": "structural",
+        "HOSTS": "structural",
+        "GUESTS_ON": "structural"
       }
     }
   }

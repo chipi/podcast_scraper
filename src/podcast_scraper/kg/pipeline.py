@@ -380,6 +380,7 @@ def build_artifact(
             edges,
             existing_entity_keys=_entity_identity_keys(nodes),
             episode_id=episode_id,
+            podcast_id=ep_props["podcast_id"],
         )
 
     extracted_at = (
@@ -473,6 +474,19 @@ def _typed_person_org_node(
     }
 
 
+def _podcast_node_id(raw_podcast_id: str) -> Optional[str]:
+    """Normalised ``podcast:{slug}`` node id for a raw feed/podcast id, or ``None`` for the
+    ``podcast:unknown`` placeholder / empty input. Single source of truth so the Podcast node
+    and the per-show host/guest edges (#1169 Path A) always reference the same id."""
+    raw = (raw_podcast_id or "").strip()
+    if not raw or raw == "podcast:unknown":
+        return None
+    pid = raw if raw.startswith("podcast:") else f"podcast:{slugify_label(raw)}"
+    if pid in ("podcast:", "podcast:unknown"):
+        return None
+    return pid
+
+
 def _append_podcast_and_has_episode(
     raw_podcast_id: str,
     ep_node_id: str,
@@ -487,11 +501,8 @@ def _append_podcast_and_has_episode(
     from the slug as a readable default; downstream code can refine via
     feed metadata if/when needed.
     """
-    raw = (raw_podcast_id or "").strip()
-    if not raw or raw == "podcast:unknown":
-        return
-    pid = raw if raw.startswith("podcast:") else f"podcast:{slugify_label(raw)}"
-    if pid == "podcast:" or pid == "podcast:unknown":
+    pid = _podcast_node_id(raw_podcast_id)
+    if pid is None:
         return
     slug = pid[len("podcast:") :]
     title = slug.replace("-", " ").replace("_", " ").strip().title() or pid
@@ -626,22 +637,40 @@ def _append_pipeline_entities(
     edges: List[Dict[str, Any]],
     existing_entity_keys: Set[str],
     episode_id: Optional[str] = None,
+    podcast_id: Optional[str] = None,
 ) -> None:
-    def _add(names: List[str], role: str, kind: str) -> None:
+    podcast_nid = _podcast_node_id(podcast_id or "")
+    seen_show_edges: Set[tuple[str, str]] = set()
+
+    def _add(names: List[str], role: str, kind: str, show_edge: Optional[str]) -> None:
         for name in names:
             n = (name or "").strip()
             if not n:
                 continue
-            key = _entity_dedup_key(name=n, entity_kind=kind)
-            if key in existing_entity_keys:
-                continue
-            existing_entity_keys.add(key)
             v2_node = _typed_person_org_node(
                 name=n[:500],
                 entity_kind=kind,
                 role=role,
                 episode_id=episode_id,
             )
+            # Per-SHOW host/guest fact — person HOSTS / GUESTS_ON the podcast, not just a
+            # per-episode MENTIONS. Durable across episodes so a host in one sampled episode
+            # is known show-wide (#1169 epic Path A). Emitted even when the person node is
+            # deduped, and de-duplicated itself.
+            if podcast_nid and show_edge and (v2_node["id"], show_edge) not in seen_show_edges:
+                seen_show_edges.add((v2_node["id"], show_edge))
+                edges.append(
+                    {
+                        "from": v2_node["id"],
+                        "to": podcast_nid,
+                        "type": show_edge,
+                        "properties": {},
+                    }
+                )
+            key = _entity_dedup_key(name=n, entity_kind=kind)
+            if key in existing_entity_keys:
+                continue
+            existing_entity_keys.add(key)
             nodes.append(v2_node)
             edges.append(
                 {
@@ -654,5 +683,5 @@ def _append_pipeline_entities(
 
     hosts = [h for h in (detected_hosts or []) if isinstance(h, str)]
     guests = [g for g in (detected_guests or []) if isinstance(g, str)]
-    _add(hosts[:20], "host", "person")
-    _add(guests[:20], "guest", "person")
+    _add(hosts[:20], "host", "person", "HOSTS")
+    _add(guests[:20], "guest", "person", "GUESTS_ON")

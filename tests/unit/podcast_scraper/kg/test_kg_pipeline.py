@@ -77,6 +77,42 @@ class TestKgPipeline(unittest.TestCase):
         self.assertIn("Person", types)  # RFC-097: hosts/guests emit as Person
         self.assertTrue(any(e["type"] == "MENTIONS" for e in art["edges"]))
 
+    def test_build_artifact_emits_host_guest_show_edges(self) -> None:
+        """Path A (#1169): a host/guest emits a per-show HOSTS / GUESTS_ON edge to the Podcast,
+        so the host is a durable show-level fact, not just a per-episode mention."""
+        art = build_artifact(
+            "ep:x",
+            "x",
+            podcast_id="podcast:p1",
+            episode_title="T",
+            detected_hosts=["Alice"],
+            detected_guests=["Bob"],
+        )
+        validate_artifact(art, strict=True)
+        hosts_edges = [e for e in art["edges"] if e["type"] == "HOSTS"]
+        guests_edges = [e for e in art["edges"] if e["type"] == "GUESTS_ON"]
+        self.assertEqual(len(hosts_edges), 1)
+        self.assertEqual(hosts_edges[0]["to"], "podcast:p1")
+        self.assertEqual(len(guests_edges), 1)
+        self.assertEqual(guests_edges[0]["to"], "podcast:p1")
+        alice = next(
+            n
+            for n in art["nodes"]
+            if n["type"] == "Person" and n["properties"].get("name") == "Alice"
+        )
+        self.assertEqual(hosts_edges[0]["from"], alice["id"])
+
+    def test_build_artifact_no_show_edges_for_unknown_podcast(self) -> None:
+        """No HOSTS edge when the podcast is the unknown placeholder — there is no real show."""
+        art = build_artifact(
+            "ep:x",
+            "x",
+            podcast_id="podcast:unknown",
+            episode_title="T",
+            detected_hosts=["Alice"],
+        )
+        self.assertFalse(any(e["type"] in ("HOSTS", "GUESTS_ON") for e in art["edges"]))
+
     def test_stub_source_skips_summary_topics(self) -> None:
         """stub + cfg: topic hints do not create Topic nodes; v2.0 Person for host."""
         cfg = SimpleNamespace(kg_extraction_source="stub")
