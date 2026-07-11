@@ -1,0 +1,270 @@
+{
+  "circuit_state": null,
+  "computed_at": "2026-01-01T00:00:00Z",
+  "data": {
+    "missing_topic_ids": [],
+    "top_k": 5,
+    "topic_count": 10,
+    "topics": [
+      {
+        "top_k": [
+          {
+            "similarity": 0.607143,
+            "topic_id": "topic:risk-management",
+            "topic_label": "risk management"
+          },
+          {
+            "similarity": 0.594444,
+            "topic_id": "topic:expert-interviews",
+            "topic_label": "expert interviews"
+          },
+          {
+            "similarity": 0.594444,
+            "topic_id": "topic:lifelong-learning",
+            "topic_label": "lifelong learning"
+          }
+        ],
+        "topic_id": "topic:endurance-sport",
+        "topic_label": "endurance sport"
+      },
+      {
+        "top_k": [
+          {
+            "similarity": 0.95,
+            "topic_id": "topic:lifelong-learning",
+            "topic_label": "lifelong learning"
+          },
+          {
+            "similarity": 0.861111,
+            "topic_id": "topic:risk-management",
+            "topic_label": "risk management"
+          },
+          {
+            "similarity": 0.772222,
+            "topic_id": "topic:systems-thinking",
+            "topic_label": "systems thinking"
+          },
+          {
+            "similarity": 0.594444,
+            "topic_id": "topic:endurance-sport",
+            "topic_label": "endurance sport"
+          },
+          {
+            "similarity": 0.594444,
+            "topic_id": "topic:long-form",
+            "topic_label": "long form"
+          }
+        ],
+        "topic_id": "topic:expert-interviews",
+        "topic_label": "expert interviews"
+      },
+      {
+        "top_k": [
+          {
+            "similarity": 0.95,
+            "topic_id": "topic:expert-interviews",
+            "topic_label": "expert interviews"
+          },
+          {
+            "similarity": 0.861111,
+            "topic_id": "topic:risk-management",
+            "topic_label": "risk management"
+          },
+          {
+            "similarity": 0.772222,
+            "topic_id": "topic:systems-thinking",
+            "topic_label": "systems thinking"
+          },
+          {
+            "similarity": 0.594444,
+            "topic_id": "topic:endurance-sport",
+            "topic_label": "endurance sport"
+          },
+          {
+            "similarity": 0.594444,
+            "topic_id": "topic:long-form",
+            "topic_label": "long form"
+          }
+        ],
+        "topic_id": "topic:lifelong-learning",
+        "topic_label": "lifelong learning"
+      },
+      {
+        "top_k": [
+          {
+            "similarity": 0.63,
+            "topic_id": "topic:systems-thinking",
+            "topic_label": "systems thinking"
+          },
+          {
+            "similarity": 0.594444,
+            "topic_id": "topic:expert-interviews",
+            "topic_label": "expert interviews"
+          },
+          {
+            "similarity": 0.594444,
+            "topic_id": "topic:lifelong-learning",
+            "topic_label": "lifelong learning"
+          }
+        ],
+        "topic_id": "topic:long-form",
+        "topic_label": "long form"
+      },
+      {
+        "top_k": [
+          {
+            "similarity": 0.607143,
+            "topic_id": "topic:risk-management",
+            "topic_label": "risk management"
+          },
+          {
+            "similarity": 0.594444,
+            "topic_id": "topic:expert-interviews",
+            "topic_label": "expert interviews"
+          },
+          {
+            "similarity": 0.594444,
+            "topic_id": "topic:lifelong-learning",
+            "topic_label": "lifelong learning"
+          }
+        ],
+        "topic_id": "topic:personal-finance",
+        "topic_label": "personal finance"
+      },
+      {
+        "top_k": [
+          {
+            "similarity": 0.607143,
+            "topic_id": "topic:risk-management",
+            "topic_label": "risk management"
+          },
+          {
+            "similarity": 0.594444,
+            "topic_id": "topic:expert-interviews",
+            "topic_label": "expert interviews"
+          },
+          {
+            "similarity": 0.594444,
+            "topic_id": "topic:lifelong-learning",
+            "topic_label": "lifelong learning"
+          }
+        ],
+        "topic_id": "topic:public-radio",
+        "topic_label": "public radio"
+      },
+      {
+        "top_k": [
+          {
+            "similarity": 0.861111,
+            "topic_id": "topic:expert-interviews",
+            "topic_label": "expert interviews"
+          },
+          {
+            "similarity": 0.861111,
+            "topic_id": "topic:lifelong-learning",
+            "topic_label": "lifelong learning"
+          },
+          {
+            "similarity": 0.683333,
+            "topic_id": "topic:systems-thinking",
+            "topic_label": "systems thinking"
+          },
+          {
+            "similarity": 0.607143,
+            "topic_id": "topic:endurance-sport",
+            "topic_label": "endurance sport"
+          },
+          {
+            "similarity": 0.607143,
+            "topic_id": "topic:personal-finance",
+            "topic_label": "personal finance"
+          }
+        ],
+        "topic_id": "topic:risk-management",
+        "topic_label": "risk management"
+      },
+      {
+        "top_k": [
+          {
+            "similarity": 0.607143,
+            "topic_id": "topic:risk-management",
+            "topic_label": "risk management"
+          },
+          {
+            "similarity": 0.594444,
+            "topic_id": "topic:expert-interviews",
+            "topic_label": "expert interviews"
+          },
+          {
+            "similarity": 0.594444,
+            "topic_id": "topic:lifelong-learning",
+            "topic_label": "lifelong learning"
+          }
+        ],
+        "topic_id": "topic:safety-practices",
+        "topic_label": "safety practices"
+      },
+      {
+        "top_k": [
+          {
+            "similarity": 0.772222,
+            "topic_id": "topic:expert-interviews",
+            "topic_label": "expert interviews"
+          },
+          {
+            "similarity": 0.772222,
+            "topic_id": "topic:lifelong-learning",
+            "topic_label": "lifelong learning"
+          },
+          {
+            "similarity": 0.683333,
+            "topic_id": "topic:risk-management",
+            "topic_label": "risk management"
+          },
+          {
+            "similarity": 0.63,
+            "topic_id": "topic:long-form",
+            "topic_label": "long form"
+          },
+          {
+            "similarity": 0.63,
+            "topic_id": "topic:visual-craft",
+            "topic_label": "visual craft"
+          }
+        ],
+        "topic_id": "topic:systems-thinking",
+        "topic_label": "systems thinking"
+      },
+      {
+        "top_k": [
+          {
+            "similarity": 0.63,
+            "topic_id": "topic:systems-thinking",
+            "topic_label": "systems thinking"
+          },
+          {
+            "similarity": 0.594444,
+            "topic_id": "topic:expert-interviews",
+            "topic_label": "expert interviews"
+          },
+          {
+            "similarity": 0.594444,
+            "topic_id": "topic:lifelong-learning",
+            "topic_label": "lifelong learning"
+          }
+        ],
+        "topic_id": "topic:visual-craft",
+        "topic_label": "visual craft"
+      }
+    ]
+  },
+  "duration_ms": 0,
+  "enricher_id": "topic_similarity",
+  "enricher_version": "1.0",
+  "error": null,
+  "error_class": null,
+  "records_written": 10,
+  "retry_count": 0,
+  "schema_version": "1.0",
+  "status": "ok"
+}

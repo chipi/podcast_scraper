@@ -123,3 +123,66 @@ describe('NodeEnrichmentSection — consensus claims (ADR-108)', () => {
     expect(text).toContain('Most VC returns concentrate in a handful of funds.')
   })
 })
+
+// The has-content tests above prove the signal LOADS; these prove the rendered
+// VALUE is correct (velocity number + rising tint, grounding %, co-appears order).
+describe('NodeEnrichmentSection — renders the signal values', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    fetchEnvelope.mockReset()
+  })
+
+  it('renders the velocity value + a rising (emerald) badge for a hot topic', async () => {
+    velocityFor('topic:ai') // velocity 2 (> 1.5) → rising
+    const w = await mountFor({ nodeId: 'topic:ai', nodeType: 'topic' })
+    const badge = w.find('[data-testid="node-enrichment-velocity"]')
+    expect(badge.exists()).toBe(true)
+    expect(badge.text()).toContain('2.00×')
+    expect(badge.text()).toContain('10 mentions')
+    // > 1.5 → the "rising" emerald tint (not the neutral/rose class).
+    expect(badge.html()).toContain('emerald')
+  })
+
+  it('renders the grounding rate as a percentage + grounded/total for a person', async () => {
+    fetchEnvelope.mockImplementation((_r: string, enricher: string) => {
+      if (enricher === 'grounding_rate')
+        return Promise.resolve({
+          data: {
+            persons: [
+              { person_id: 'person:alice', grounded_insights: 17, total_insights: 20, rate: 0.85 },
+            ],
+          },
+        } as never)
+      return Promise.resolve({ data: {} } as never)
+    })
+    const w = await mountFor({ nodeId: 'person:alice', nodeType: 'person' })
+    const g = w.find('[data-testid="node-enrichment-grounding"]')
+    expect(g.exists()).toBe(true)
+    expect(g.text()).toContain('85%')
+    expect(g.text()).toContain('17/20 insights grounded')
+  })
+
+  it('renders co-appearance chips sorted by shared-episode count for a person', async () => {
+    fetchEnvelope.mockImplementation((_r: string, enricher: string) => {
+      if (enricher === 'guest_coappearance')
+        return Promise.resolve({
+          data: {
+            pairs: [
+              { person_a_id: 'person:alice', person_b_id: 'person:bob', person_b_name: 'Bob', episode_count: 4 },
+              { person_a_id: 'person:amy', person_b_id: 'person:alice', person_a_name: 'Amy', episode_count: 9 },
+            ],
+          },
+        } as never)
+      return Promise.resolve({ data: {} } as never)
+    })
+    const w = await mountFor({ nodeId: 'person:alice', nodeType: 'person' })
+    const co = w.find('[data-testid="node-enrichment-coappearance"]')
+    expect(co.exists()).toBe(true)
+    const chips = co.findAll('button')
+    // Sorted by episode_count desc: Amy (9) before Bob (4).
+    expect(chips[0].text()).toContain('Amy')
+    expect(chips[0].text()).toContain('9')
+    expect(chips[1].text()).toContain('Bob')
+    expect(chips[1].text()).toContain('4')
+  })
+})

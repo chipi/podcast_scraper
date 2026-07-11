@@ -24,25 +24,22 @@ const SIGNALS: CorpusEnrichmentSignals = {
       { person_a_id: 'person:amy-ng', person_b_id: 'person:jane-doe', person_a_name: 'Amy Ng', episode_count: 9 },
     ],
   },
-  nli_contradiction: {
-    contradictions: [
+  topic_consensus: {
+    consensus: [
       {
-        topic_id: 'topic:ai-ethics',
+        topic_id: 'topic:ai-regulation',
         person_a_id: 'person:jane-doe',
         person_a_name: 'Jane Doe',
         person_b_id: 'person:bob-lee',
         person_b_name: 'Bob Lee',
-        insight_a_text: 'AI needs strict regulation.',
-        insight_b_text: 'Regulation will stifle AI progress.',
+        insight_a_text: 'AI needs guardrails to be safe.',
+        insight_b_text: 'Sensible AI rules protect users.',
       },
     ],
   },
   temporal_velocity: {
     topics: [
       { topic_id: 'topic:ai', topic_label: 'AI', velocity_last_over_6mo: 2.1, total: 40 },
-      // Carries the real label so the contradiction topic resolves to "AI ethics",
-      // not the slug-cased "Ai Ethics".
-      { topic_id: 'topic:ai-ethics', topic_label: 'AI ethics', velocity_last_over_6mo: 0.2, total: 5 },
     ],
   },
   topic_similarity: {
@@ -67,7 +64,7 @@ const SIGNALS: CorpusEnrichmentSignals = {
 afterEach(() => vi.restoreAllMocks())
 
 describe('EntitySignals — person', () => {
-  it('shows grounding, co-appears (sorted), and disagreements with both claims', async () => {
+  it('shows grounding and co-appears (sorted)', async () => {
     vi.spyOn(api, 'getCorpusEnrichment').mockResolvedValue(SIGNALS)
     const w = mountSignals('person', 'person:jane-doe')
     await flushPromises()
@@ -78,14 +75,18 @@ describe('EntitySignals — person', () => {
     // Co-appears sorted by episode_count desc: Amy Ng (9) before Bob Lee (4).
     const co = w.get('[data-testid="es-coappears"]').findAll('button')
     expect(co.map((b) => b.text().replace(/\s+/g, ' '))).toEqual(['Amy Ng · 9', 'Bob Lee · 4'])
+  })
 
-    // Disagreement: counterpart + both opposing claims, oriented to the focused person.
-    const row = w.get('[data-testid="es-disagreement-row"]')
+  it('shows the consensus row: counterpart + topic + both claims, oriented to the person', async () => {
+    vi.spyOn(api, 'getCorpusEnrichment').mockResolvedValue(SIGNALS)
+    const w = mountSignals('person', 'person:jane-doe')
+    await flushPromises()
+    const row = w.get('[data-testid="es-consensus-row"]')
     expect(row.text()).toContain('Bob Lee')
-    // Real topic label resolved from the velocity signal (not slug-cased "Ai Ethics").
-    expect(row.text()).toContain('AI ethics')
-    expect(row.text()).toContain('AI needs strict regulation.')
-    expect(row.text()).toContain('Regulation will stifle AI progress.')
+    expect(row.text()).toContain('ai regulation') // shortId(topic:ai-regulation)
+    // Focused = person_a → self claim is insight_a_text; counterpart's is insight_b_text.
+    expect(row.text()).toContain('AI needs guardrails to be safe.')
+    expect(row.text()).toContain('Sensible AI rules protect users.')
   })
 
   it('emits open when a co-appears chip is clicked', async () => {

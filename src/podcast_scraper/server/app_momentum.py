@@ -19,6 +19,7 @@ from typing import Any
 
 from podcast_scraper.server.app_corpus_access import load_json_artifact
 from podcast_scraper.server.app_engagement_series import engagement_series
+from podcast_scraper.server.corpus_catalog import aggregate_feeds, build_catalog_rows_cumulative
 
 _CONTENT_REL = "enrichments/temporal_velocity.json"
 _TOPIC_CLUSTERS_REL = "search/topic_clusters.json"
@@ -159,8 +160,31 @@ def _sum_weekly(maps: list[dict[str, int]]) -> dict[str, int]:
 # --------------------------------------------------------------------------- #
 # Content momentum — from the enricher's content_series (+ cluster/storyline aggregation).
 # --------------------------------------------------------------------------- #
+def _show_content_series(root: Path) -> dict[tuple[str, str], dict[str, int]]:
+    """``("show", feed_id) → weekly episode-publish counts`` — a show's publishing cadence.
+
+    A whole show has no per-week "mention count" the way a topic does; its *content* momentum
+    is how often it ships episodes (RFC-103 §show). Blended with engagement (opens/subscribes)
+    this gives "trending show" = publishing actively + people engaging — not merely covering a
+    hot topic. Built from catalog publish dates.
+    """
+    out: dict[tuple[str, str], dict[str, int]] = {}
+    for row in build_catalog_rows_cumulative(root):
+        fid = (row.feed_id or "").strip()
+        pub = (row.publish_date or "").strip()
+        if not fid or len(pub) < 10:
+            continue
+        try:
+            wk = _iso_week(datetime.fromisoformat(pub[:10]).replace(tzinfo=timezone.utc))
+        except ValueError:
+            continue
+        bucket = out.setdefault(("show", fid), {})
+        bucket[wk] = bucket.get(wk, 0) + 1
+    return out
+
+
 def _content_weekly_by_entity(root: Path) -> dict[tuple[str, str], dict[str, int]]:
-    """``(kind, id)`` → weekly_counts for content entities (topic/person/cluster/storyline)."""
+    """``(kind, id)`` → weekly_counts for content entities (topic/person/cluster/storyline/show)."""
     env = load_json_artifact(root, _CONTENT_REL)
     data = (env.get("data", env) if isinstance(env, dict) else {}) or {}
     cs = data.get("content_series") or {}
@@ -177,6 +201,7 @@ def _content_weekly_by_entity(root: Path) -> dict[tuple[str, str], dict[str, int
             out[("person", pid)] = dict(row.get("weekly_counts") or {})
     _add_cluster_series(out, by_topic, root, _TOPIC_CLUSTERS_REL, "cluster")
     _add_cluster_series(out, by_topic, root, _THEME_CLUSTERS_REL, "storyline")
+    out.update(_show_content_series(root))  # shows: publishing cadence (RFC-103 §show)
     return out
 
 
@@ -262,9 +287,20 @@ def _labels_from_clusters(root: Path) -> dict[str, str]:
     return out
 
 
+def _show_labels(root: Path) -> dict[str, str]:
+    """``feed_id`` → show display title (so trending shows read as titles, not sha256 ids)."""
+    out: dict[str, str] = {}
+    for f in aggregate_feeds(build_catalog_rows_cumulative(root)):
+        fid = str(f.get("feed_id") or "")
+        title = str(f.get("display_title") or "")
+        if fid and title:
+            out[fid] = title
+    return out
+
+
 def _entity_labels(root: Path) -> dict[str, str]:
-    """``entity_id`` → display label from content_series + cluster canonical labels."""
-    labels = {**_labels_from_content(root), **_labels_from_clusters(root)}
+    """``entity_id`` → display label from content_series + cluster + show titles."""
+    labels = {**_labels_from_content(root), **_labels_from_clusters(root), **_show_labels(root)}
     return {k: v for k, v in labels.items() if k and v}
 
 

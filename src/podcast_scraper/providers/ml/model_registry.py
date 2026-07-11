@@ -761,12 +761,12 @@ class ModelRegistry:
 class StageOption:
     """A single provider/model option for a pipeline stage.
 
-    Used for transcription, summary, GI, KG, NER, clustering. Holds the
-    runtime knobs plus the research_ref that justified the choice.
+    Used for transcription, summary, GI, KG, NER, clustering, diarization.
+    Holds the runtime knobs plus the research_ref that justified the choice.
     """
 
     # Identity
-    stage: str  # "transcription" | "summary" | "gi" | "kg" | "ner" | "clustering"
+    stage: str  # "transcription"|"summary"|"gi"|"kg"|"ner"|"clustering"|"diarization"
     option_id: str  # stable key, e.g. "openai_whisper_1", "ollama_qwen35_35b"
 
     # Runtime knobs
@@ -1367,6 +1367,83 @@ _CLUSTERING_OPTIONS: Dict[str, StageOption] = {
 }
 
 
+# Diarization — pyannote pipeline choice (in-process ML provider vs the DGX
+# diarize service). community-1 (v4) beats 3.1 on the full v3 fixture set
+# (count 40/45 vs 32/45, DER 7.1% vs 10.8%) by fixing 3.1's multi-speaker
+# panel merges; 3.1 kept as fallback (better on brief-cameo count). community-1
+# is non-gated (no HF token, unlike 3.1). See the eval report.
+_DIARIZATION_RESEARCH_REF = (
+    "docs/guides/eval-reports/EVAL_DIARIZATION_31_VS_COMMUNITY1_RTTM_2026_07.md"
+)
+_DIARIZATION_OPTIONS: Dict[str, StageOption] = {
+    "pyannote_diarization_community1": StageOption(
+        stage="diarization",
+        option_id="pyannote_diarization_community1",
+        provider="pyannote",
+        model="pyannote/speaker-diarization-community-1",
+        research_ref=_DIARIZATION_RESEARCH_REF,
+        headline_metric=(
+            "count 40/45 + DER 7.1% on v3 fixtures (vs 3.1's 32/45 / 10.8%); "
+            "fixes 3.1's multi-speaker panel merges; non-gated"
+        ),
+        measured_at="2026-07-11",
+        tier="primary",
+        resident_memory_gb=2.0,
+    ),
+    "tailnet_dgx_diarization_community1": StageOption(
+        stage="diarization",
+        option_id="tailnet_dgx_diarization_community1",
+        provider="tailnet_dgx",
+        model="pyannote/speaker-diarization-community-1",
+        endpoint="http://{dgx_tailnet_host}:8001",
+        research_ref=_DIARIZATION_RESEARCH_REF,
+        headline_metric=(
+            "same community-1 win, served by the DGX diarize service on a "
+            "parallel pyannote-4 container (3.1 kept ready for rollback)"
+        ),
+        measured_at="2026-07-11",
+        tier="primary",
+        resident_memory_gb=2.0,
+    ),
+    "pyannote_diarization_31": StageOption(
+        stage="diarization",
+        option_id="pyannote_diarization_31",
+        provider="pyannote",
+        model="pyannote/speaker-diarization-3.1",
+        research_ref=_DIARIZATION_RESEARCH_REF,
+        headline_metric="prior default; wins brief-cameo count, merges panels. Gated (HF token).",
+        measured_at="2026-07-11",
+        tier="fallback",
+        resident_memory_gb=2.0,
+    ),
+    "tailnet_dgx_diarization_31": StageOption(
+        stage="diarization",
+        option_id="tailnet_dgx_diarization_31",
+        provider="tailnet_dgx",
+        model="pyannote/speaker-diarization-3.1",
+        endpoint="http://{dgx_tailnet_host}:8001",
+        research_ref=_DIARIZATION_RESEARCH_REF,
+        headline_metric="prior DGX default; kept deployable for instant rollback.",
+        measured_at="2026-07-11",
+        tier="fallback",
+        resident_memory_gb=2.0,
+    ),
+    # Deepgram standalone diarization pass — the cloud profiles' backend
+    # (``diarization_provider: deepgram``). Not pyannote: Deepgram diarizes as a
+    # separate cloud call, so these profiles never touch the pyannote pipeline.
+    "deepgram_diarization_nova3": StageOption(
+        stage="diarization",
+        option_id="deepgram_diarization_nova3",
+        provider="deepgram",
+        model="nova-3-general",
+        research_ref="docs/guides/eval-reports/EVAL_DEEPGRAM_TRANSCRIPTION_2026_06_13.md",
+        headline_metric="cloud-profile diarization via Deepgram nova-3-general (standalone pass)",
+        measured_at="2026-06-13",
+        tier="primary",
+    ),
+}
+
+
 @dataclass(frozen=True)
 class ProfilePreset:
     """A named composition of StageOptions — the registry-driven view of a profile.
@@ -1385,6 +1462,7 @@ class ProfilePreset:
     ner: str  # StageOption.option_id key into _NER_OPTIONS
     clustering: str  # StageOption.option_id key into _CLUSTERING_OPTIONS
     gi: str  # StageOption.option_id key into _GI_OPTIONS
+    diarization: str  # StageOption.option_id key into _DIARIZATION_OPTIONS
     notes: Optional[str] = None
 
 
@@ -1398,6 +1476,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         ner="gemini_speaker_detector",
         clustering="topic_clusters_default_0_75",
         gi="provider_n12_grounded_bundled",
+        diarization="deepgram_diarization_nova3",
         notes="Production cloud default. Best compound (quality × cost × latency).",
     ),
     "cloud_thin": ProfilePreset(
@@ -1408,6 +1487,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         ner="gemini_speaker_detector",
         clustering="topic_clusters_default_0_75",
         gi="provider_n12_grounded_bundled",
+        diarization="deepgram_diarization_nova3",
         notes="Minimal cloud feature set. Same providers as cloud_balanced.",
     ),
     "cloud_with_dgx_primary": ProfilePreset(
@@ -1418,6 +1498,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         ner="gemini_speaker_detector",
         clustering="topic_clusters_default_0_75",
         gi="provider_n12_grounded_bundled",
+        diarization="tailnet_dgx_diarization_community1",
         notes=(
             "Production hybrid: DGX whisper-openai for transcription, cloud Gemini for summary. "
             "Was previously tailnet_dgx_speaches; flipped after #968 Thread B confirmed "
@@ -1432,6 +1513,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         ner="spacy_trf",  # +13pp v2 recall vs sm per #906 Tier 3
         clustering="topic_clusters_default_0_75",
         gi="provider_n12_grounded_bundled",
+        diarization="tailnet_dgx_diarization_community1",
         notes="Local pipeline with DGX summary; laptop runs MPS transcription.",
     ),
     "local_dgx_full": ProfilePreset(
@@ -1442,6 +1524,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         ner="spacy_trf",
         clustering="topic_clusters_default_0_75",
         gi="provider_n12_grounded_bundled",
+        diarization="tailnet_dgx_diarization_community1",
         notes="Higher resident memory budget; same registry choices as balanced today.",
     ),
     "prod_dgx_full_with_fallback": ProfilePreset(
@@ -1453,6 +1536,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         ner="gemini_speaker_detector",  # sub-cent, better than spacy on names
         clustering="topic_clusters_default_0_75",
         gi="provider_n12_grounded_bundled",
+        diarization="tailnet_dgx_diarization_community1",
         notes=(
             "Prod-ready all-DGX (#923): whisper + summary + GI + KG on the GB10, "
             "Gemini for the cheap speaker-detect, cloud Gemini as the summary "
@@ -1489,6 +1573,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         ner="gemini_speaker_detector",
         clustering="topic_clusters_default_0_75",
         gi="provider_n12_grounded_bundled",
+        diarization="tailnet_dgx_diarization_community1",
         notes=(
             "Prod variant of prod_dgx_full_with_fallback that swaps the summary "
             "stage to vLLM-served Moonlight-16B-A3B (#1016 Round 3 safe pick). "
@@ -1521,6 +1606,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         ner="gemini_speaker_detector",
         clustering="topic_clusters_default_0_75",
         gi="provider_n12_grounded_bundled",
+        diarization="tailnet_dgx_diarization_community1",
         notes=(
             "Internal autoresearch eval-loop default. Uses Moonlight-16B-A3B "
             "(#1016 Round 3 safe pick) as the summary stage because we're our "
@@ -1547,6 +1633,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         ner="gemini_speaker_detector",  # 2026-06-17 drift fix: YAML chose Gemini per v3 research
         clustering="topic_clusters_default_0_75",
         gi="provider_n12_grounded_bundled",
+        diarization="deepgram_diarization_nova3",
         notes=(
             "Cloud quality-first profile: Deepgram for transcription (best WER + best "
             "latency on v2 fixtures), Anthropic Haiku 4.5 for summary "
@@ -1562,6 +1649,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         ner="spacy_trf",
         clustering="topic_clusters_default_0_75",
         gi="provider_n12_grounded_bundled",
+        diarization="pyannote_diarization_community1",
         notes=(
             "Laptop-only profile: small.en whisper (quality upgrade over base.en) + "
             "Ollama hermes3:8b summary. No DGX, no cloud."
@@ -1580,6 +1668,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         ner="spacy_trf",
         clustering="topic_clusters_default_0_75",
         gi="provider_n12_grounded_bundled",
+        diarization="pyannote_diarization_community1",
         notes=(
             "Airgapped quality default: medium.en Whisper + SummLlama 3.2-3B "
             "paragraph + spaCy trf. No network, no Ollama. SummLlama is "
@@ -1597,6 +1686,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         ner="spacy_sm",
         clustering="topic_clusters_default_0_75",
         gi="provider_n12_grounded_bundled",
+        diarization="pyannote_diarization_community1",
         notes=(
             "Airgapped thin: tiny.en Whisper + bart-small+long-fast "
             "(ml_small_authority mode) + spaCy sm. Lowest RAM / startup "
@@ -1616,6 +1706,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         ner="spacy_sm",
         clustering="topic_clusters_default_0_75",
         gi="provider_n12_grounded_bundled",
+        diarization="pyannote_diarization_community1",
         notes=(
             "Dev / CI: same shape as airgapped_thin (tiny.en + "
             "bart-small+long-fast + spaCy sm) but the YAML disables GI / "
@@ -1635,6 +1726,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         ner="gemini_speaker_detector",
         clustering="topic_clusters_default_0_75",
         gi="provider_n12_grounded_bundled",
+        diarization="pyannote_diarization_community1",
         notes=(
             "Stage-A dress rehearsal for cloud_with_dgx_primary: mirrors "
             "every stage choice EXCEPT transcription, which runs on the "
@@ -1717,6 +1809,18 @@ def get_clustering_option(option_id: str) -> StageOption:
     return _CLUSTERING_OPTIONS[option_id]
 
 
+def get_diarization_options() -> Dict[str, StageOption]:
+    """All registered diarization options (id → StageOption)."""
+    return dict(_DIARIZATION_OPTIONS)
+
+
+def get_diarization_option(option_id: str) -> StageOption:
+    """Look up a single diarization option by id."""
+    if option_id not in _DIARIZATION_OPTIONS:
+        raise ValueError(f"Unknown diarization option '{option_id}'")
+    return _DIARIZATION_OPTIONS[option_id]
+
+
 def get_gi_option(option_id: str) -> StageOption:
     """Look up a single GI option by id."""
     if option_id not in _GI_OPTIONS:
@@ -1783,6 +1887,7 @@ def resolve_profile_to_settings(
     ner = get_ner_option(preset.ner)
     clustering = get_clustering_option(preset.clustering)
     gi = get_gi_option(preset.gi)
+    dia = get_diarization_option(preset.diarization)
 
     settings: Dict[str, Any] = {
         "transcription_provider": tx.provider,
@@ -1842,11 +1947,24 @@ def resolve_profile_to_settings(
         settings["insight_cluster_threshold"] = threshold
     settings["_clustering_research_ref"] = clustering.research_ref
 
+    # Diarization: route the model id to the backend's config field by the option's
+    # provider — pyannote in-process (``diarization_model``), the DGX diarize service
+    # (``dgx_diarize_model``), or the Deepgram standalone pass
+    # (``deepgram_diarization_model``). The stage on/off (``diarize``) is a YAML toggle.
+    if dia.model is not None:
+        if dia.provider == "tailnet_dgx":
+            settings["dgx_diarize_model"] = dia.model
+        elif dia.provider == "deepgram":
+            settings["deepgram_diarization_model"] = dia.model
+        else:  # pyannote / local
+            settings["diarization_model"] = dia.model
+
     settings["_profile_preset"] = preset.name
     settings["_transcription_research_ref"] = tx.research_ref
     settings["_summary_research_ref"] = sm.research_ref
     settings["_kg_research_ref"] = kg.research_ref
     settings["_ner_research_ref"] = ner.research_ref
     settings["_gi_research_ref"] = gi.research_ref
+    settings["_diarization_research_ref"] = dia.research_ref
 
     return settings

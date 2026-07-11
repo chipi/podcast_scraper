@@ -1,0 +1,27 @@
+{
+  "fixture": "p06_e04",
+  "podcast": "The Drift",
+  "episode": "Signal, Noise, and the Space Between",
+  "type": "interview",
+  "speakers": [
+    "Cam",
+    "Jordan Park"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 3,
+  "failure_modes": [
+    "low_grounding_dialogue",
+    "recurring_guest"
+  ],
+  "voice_map": {
+    "Cam": "Fiona",
+    "Jordan Park": "Matilda",
+    "Ad": "Zarvox"
+  },
+  "cameo": null,
+  "transcript_sha256": "120dedc8e939c4ba30049a2ad0b27d5db4bb786278a51fd67ce7efd06aacebef",
+  "audio_sha256": "4692d5b913e1138459f325ea332e42ed90800aaeb61eee7801189ac723dead3c",
+  "rttm_sha256": "5e9cbf78e5b4b325697284369277eebde3aaebdb9dac596977aca63c17f6a320"
+}

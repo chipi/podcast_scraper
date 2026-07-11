@@ -1,0 +1,28 @@
+{
+  "fixture": "p06_e01",
+  "podcast": "The Drift",
+  "episode": "On Drifting (a meandering conversation)",
+  "type": "interview",
+  "speakers": [
+    "Cam",
+    "Jordan Park"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 3,
+  "failure_modes": [
+    "low_grounding_dialogue",
+    "native_ad",
+    "reliability_burst"
+  ],
+  "voice_map": {
+    "Cam": "Fiona",
+    "Jordan Park": "Matilda",
+    "Ad": "Zarvox"
+  },
+  "cameo": null,
+  "transcript_sha256": "3922a602cbd59422026efea95084a33142c824eb02fa4a0acfcfa168d74f7851",
+  "audio_sha256": "35baa217c15e0ba608c4a4ea7d25a88f7b68ba8220a72f525438793053b5b7e4",
+  "rttm_sha256": "4fc45a6a025d0ce82463ebdc46a1b0dd6dd383bb0d77550f1aac1cb15eb47ad4"
+}

@@ -153,6 +153,7 @@ def test_executor_runs_all_six_deterministic_enrichers(tmp_path: Path) -> None:
     # Corpus-scope envelopes exist.
     for writes in (
         "topic_cooccurrence_corpus.json",
+        "topic_theme_clusters.json",
         "temporal_velocity.json",
         "grounding_rate.json",
         "guest_coappearance.json",
@@ -161,18 +162,72 @@ def test_executor_runs_all_six_deterministic_enrichers(tmp_path: Path) -> None:
 
     # Episode-scope envelopes for both episodes.
     for stem in ("ep1", "ep2"):
-        for writes in ("insight_density.json",):
+        for writes in ("insight_density.json", "insight_sentiment.json"):
             assert (tmp_path / "metadata" / "enrichments" / f"{stem}.{writes}").is_file(), (
                 stem,
                 writes,
             )
 
-    # Sanity: validate one of the corpus-scope JSON payloads.
-    payload = json.loads((tmp_path / "enrichments" / "guest_coappearance.json").read_text())
-    assert "pairs" in payload["data"]
-    # ep1 had alice+bob → 1 pair counted once.
-    pair_ids = {(p["person_a_id"], p["person_b_id"]) for p in payload["data"]["pairs"]}
+    # ------------------------------------------------------------------
+    # Output non-degeneracy: each deterministic enricher must emit a
+    # *correct, non-empty* artifact — not just an on-disk file. This is
+    # the emission contract the enricher surfaces render against.
+    # (insight_sentiment / topic_theme_clusters need a richer corpus to
+    # exercise their signal — their non-degeneracy is asserted on the v3
+    # fixture in test_app_validation_corpus_invariants.py.)
+    # ------------------------------------------------------------------
+    def _corpus_data(name: str) -> dict[str, Any]:
+        env = json.loads((tmp_path / "enrichments" / f"{name}.json").read_text())
+        data: dict[str, Any] = env["data"]
+        return data
+
+    def _episode_data(stem: str, name: str) -> dict[str, Any]:
+        p = tmp_path / "metadata" / "enrichments" / f"{stem}.{name}.json"
+        data: dict[str, Any] = json.loads(p.read_text())["data"]
+        return data
+
+    # guest_coappearance: ep1's alice+bob co-appear → exactly that pair.
+    guest = _corpus_data("guest_coappearance")
+    pair_ids = {(p["person_a_id"], p["person_b_id"]) for p in guest["pairs"]}
     assert ("person:alice", "person:bob") in pair_ids
+
+    # grounding_rate: rate is computed per person AND discriminates — alice's
+    # insight is grounded, bob's is not, so rates must span (not all-1/all-0).
+    persons = _corpus_data("grounding_rate")["persons"]
+    assert len(persons) >= 2, persons
+    rates = [p["rate"] for p in persons]
+    assert all(0.0 <= r <= 1.0 for r in rates), rates
+    assert min(rates) < max(rates), f"grounding_rate does not discriminate: {rates}"
+    assert sum(p["grounded_insights"] for p in persons) < sum(
+        p["total_insights"] for p in persons
+    ), "every insight counted as grounded — enricher not discriminating"
+
+    # topic_cooccurrence_corpus: co-occurring pairs discovered, with lift + pmi.
+    cooc = _corpus_data("topic_cooccurrence_corpus")
+    assert cooc["pairs"], "no co-occurrence pairs"
+    assert all("lift" in p and "pmi" in p for p in cooc["pairs"])
+    cooc_ids = {frozenset((p["topic_a_id"], p["topic_b_id"])) for p in cooc["pairs"]}
+    assert frozenset(("topic:a", "topic:b")) in cooc_ids  # ep1 co-occurrence
+
+    # temporal_velocity: ≥1 topic with a non-empty weekly series + real total.
+    vtopics = _corpus_data("temporal_velocity")["topics"]
+    assert vtopics, "no velocity topics"
+    assert any(t["total"] >= 1 and t["weekly_counts"] for t in vtopics)
+
+    # topic_theme_clusters: structurally sound — clustered members + singletons
+    # never exceed the topic count. (Real cluster formation: v3 invariants.)
+    themes = _corpus_data("topic_theme_clusters")
+    assert isinstance(themes["clusters"], list)
+    assert isinstance(themes["singletons"], int)
+    clustered = sum(c["member_count"] for c in themes["clusters"])
+    assert clustered + themes["singletons"] <= themes["topic_count"], themes
+
+    # insight_density: ≥1 episode has timed insights binned into segments,
+    # and every segment count sums back to the episode's total.
+    densities = [_episode_data(stem, "insight_density") for stem in ("ep1", "ep2")]
+    assert any(d["total_insights"] >= 1 for d in densities), densities
+    for d in densities:
+        assert sum(d["counts"].values()) == d["total_insights"]
 
 
 def test_all_deterministic_register_in_correct_scope() -> None:

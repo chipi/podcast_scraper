@@ -71,7 +71,10 @@ voice embeddings, aligned to Whisper segments by maximum overlap.
 | `diarization_min_speakers` | `2` | Auto-detect floor |
 | `diarization_max_speakers` | `20` | Auto-detect ceiling |
 | `diarization_device` | `auto` | `cpu`, `cuda`, or `mps` |
-| `diarization_model` | `pyannote/speaker-diarization-3.1` | HuggingFace pipeline id |
+| `diarization_model` | `pyannote/speaker-diarization-community-1` | HuggingFace pipeline id (v4, non-gated; 3.1 fallback) |
+| `diarization_clustering_threshold` | `None` | pyannote clustering-threshold override; higher merges → fewer speakers (curbs over-segmentation) |
+| `diarization_min_cluster_size` | `None` | Clusters smaller than this (≈12) reassigned to nearest speaker — drops short over-seg fragments |
+| `diarization_min_segment_ms` | `None` | Squelch: drop any speaker whose longest segment < this (ms); kills phantom micro-clusters, keeps real cameos. Per-feed overridable |
 
 **Install:** `pip install -e ".[ml]"` (pyannote + torchaudio bundled in `[ml]`; pinned in `[dev]` for
 CI). Lazy-imported — package loads without pyannote when diarization is off.
@@ -169,7 +172,7 @@ in the processing stage is the sole progress indicator during local Whisper runs
 
 | Symptom | Likely cause | Action |
 | ------- | ------------- | ------ |
-| Diarization skipped with warning | No `HF_TOKEN` / model terms not accepted | Export `HF_TOKEN`; accept terms at HuggingFace for `pyannote/speaker-diarization-3.1` |
+| Diarization skipped with warning | Only when using the gated `3.1` fallback with no `HF_TOKEN` (the default `community-1` is non-gated — no token needed) | Keep the `community-1` default, or export `HF_TOKEN` + accept terms for `pyannote/speaker-diarization-3.1` |
 | `ProviderDependencyError` for pyannote | `[ml]` not installed | `pip install -e ".[ml]"` |
 | `diarize` false despite YAML `true` | API transcription provider | Expected — only local Whisper paths diarize |
 | Deepgram validation error | Missing API key | Set `DEEPGRAM_API_KEY` |

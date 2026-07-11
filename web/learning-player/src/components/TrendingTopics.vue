@@ -40,11 +40,19 @@ const MAX = 12
 
 const months = ref<string[]>([])
 const topics = ref<RisingTopic[]>([])
+// Topic ids that belong to a co-occurrence theme cluster ("storyline") — used to mark them
+// the standard way (teal theme chrome), same as the topic card + storyline chips.
+const themeMemberIds = ref<Set<string>>(new Set())
 
 void getCorpusEnrichment()
   .then((s) => {
     const tv = s.temporal_velocity
     const rows = tv?.topics ?? []
+    themeMemberIds.value = new Set(
+      (s.topic_theme_clusters?.clusters ?? []).flatMap((c) =>
+        (c.members ?? []).map((m) => m.topic_id),
+      ),
+    )
     // Month axis: the envelope's window_months, else the union of keys seen.
     const axis =
       tv?.window_months && tv.window_months.length
@@ -108,6 +116,7 @@ const hasAny = computed(() => topics.value.length > 0)
       :topics="topics"
       :followed-ids="followedIds"
       :can-follow="canFollow"
+      :theme-member-ids="themeMemberIds"
       @open="emit('open', $event)"
       @follow="onFollow"
     />
@@ -125,6 +134,11 @@ const hasAny = computed(() => topics.value.length > 0)
       :months="months"
       @open="emit('open', $event)"
     />
-    <TrendingMomentum v-else :topics="topics" @open="emit('open', $event)" />
+    <TrendingMomentum
+      v-else
+      :topics="topics"
+      :theme-member-ids="themeMemberIds"
+      @open="emit('open', $event)"
+    />
   </section>
 </template>

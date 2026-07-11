@@ -1,0 +1,19 @@
+# Long Horizon Notes — Episode
+## From the Archive
+Host: Nora
+Guest: Daniel Cho
+#fixture-v3: failure_modes=cameo
+#fixture-v3: voice=en-US host_voice=en-US
+
+[00:00]
+Nora: Welcome to Long Horizon Notes. My guest today is Daniel Cho, former bond trader turned index advocate. Daniel, welcome back.
+Daniel Cho: Thanks, Nora. Glad to be here.
+Nora: Today's episode is supported by Betterment — automated investing that keeps your fees low and your plan boring. Visit betterment.com/podcast.
+Nora: I want to start with a warning that's aged well. Here's economist Nadia Sereni, from a talk back in 2016.
+Nadia Sereni: Leverage feels free until the day it isn't.
+Daniel Cho: That line held up. Most blow-ups I've seen weren't bad bets — they were fine bets financed the wrong way.
+Nora: So the risk isn't the asset, it's the borrowing against it.
+Daniel Cho: Right. An index fund you own outright is patient. The same fund on margin can be forced to sell at the worst possible moment.
+Nora: We'll leave the archive there. Daniel, thanks for coming back on.
+Daniel Cho: My pleasure, Nora.
+Nora: That's Long Horizon Notes for this week. Take care.

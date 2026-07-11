@@ -24,6 +24,21 @@ def test_maps_typed_and_legacy_nodes() -> None:
     assert [(t.id, t.label) for t in topics] == [("topic:ai-policy", "AI Policy")]
 
 
+def test_person_role_projected_and_normalized() -> None:
+    kg = {
+        "nodes": [
+            {"id": "person:h", "type": "Person", "properties": {"name": "H", "role": "Host"}},
+            {"id": "person:g", "type": "Person", "properties": {"name": "G", "role": "guest"}},
+            {"id": "person:m", "type": "Person", "properties": {"name": "M"}},  # no role → None
+            {"id": "org:acme", "type": "Entity", "properties": {"kind": "org", "role": "host"}},
+        ]
+    }
+    persons, orgs, _ = entities_from_kg(kg)
+    roles = {p.id: p.role for p in persons}
+    assert roles == {"person:h": "host", "person:g": "guest", "person:m": None}  # normalized lower
+    assert orgs[0].role is None  # org role not projected
+
+
 def test_dedupes_by_id() -> None:
     kg = {
         "nodes": [

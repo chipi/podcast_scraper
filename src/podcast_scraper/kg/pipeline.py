@@ -344,6 +344,7 @@ def build_artifact(
             edges,
             _max_topics(cfg),
             _max_entities(cfg),
+            episode_id=episode_id,
         )
         if resolved_model is None:
             mid = None
@@ -378,6 +379,7 @@ def build_artifact(
             nodes,
             edges,
             existing_entity_keys=_entity_identity_keys(nodes),
+            episode_id=episode_id,
         )
 
     extracted_at = (
@@ -444,12 +446,15 @@ def _typed_person_org_node(
     entity_kind: str,
     role: str,
     description: Optional[str] = None,
+    episode_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """RFC-097 v2.0 emission: typed ``Person`` / ``Organization`` node.
 
     Replaces legacy ``Entity(kind=...)``: node type encodes the discriminator,
     so ``kind`` is no longer a property. Id format ``person:{slug}`` /
-    ``org:{slug}`` stays identical (preserves cross-layer canonical ids).
+    ``org:{slug}`` stays identical (preserves cross-layer canonical ids) — except a bare
+    diarization label (``SPEAKER_03``) is episode-scoped when ``episode_id`` is given, so an
+    unnamed voice never merges across episodes into a phantom person (#1b).
     """
     name_s = (name or "").strip()[:500]
     ek = _normalize_entity_kind(entity_kind)
@@ -462,7 +467,7 @@ def _typed_person_org_node(
     if description and str(description).strip():
         props["description"] = str(description).strip()[:2000]
     return {
-        "id": entity_node_id(ek, name_s),
+        "id": entity_node_id(ek, name_s, episode_id),
         "type": node_type,
         "properties": props,
     }
@@ -540,6 +545,7 @@ def _append_topics_and_entities_from_partial(
     edges: List[Dict[str, Any]],
     max_topics: int,
     max_entities: int,
+    episode_id: Optional[str] = None,
 ) -> None:
     topics = partial.get("topics") or []
     entities = partial.get("entities") or []
@@ -598,6 +604,7 @@ def _append_topics_and_entities_from_partial(
                 entity_kind=ek,
                 role="mentioned",
                 description=ent_desc,
+                episode_id=episode_id,
             )
             nodes.append(v2_node)
             edges.append(
@@ -618,6 +625,7 @@ def _append_pipeline_entities(
     nodes: List[Dict[str, Any]],
     edges: List[Dict[str, Any]],
     existing_entity_keys: Set[str],
+    episode_id: Optional[str] = None,
 ) -> None:
     def _add(names: List[str], role: str, kind: str) -> None:
         for name in names:
@@ -632,6 +640,7 @@ def _append_pipeline_entities(
                 name=n[:500],
                 entity_kind=kind,
                 role=role,
+                episode_id=episode_id,
             )
             nodes.append(v2_node)
             edges.append(

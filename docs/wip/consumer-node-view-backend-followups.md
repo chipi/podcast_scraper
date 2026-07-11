@@ -1,9 +1,10 @@
 # Consumer node-view — backend follow-ups (feat/consumer-remember)
 
-Two follow-ups surfaced while shipping the review-round node-view work on
+Three follow-ups surfaced while shipping the review-round node-view work on
 `feat/consumer-remember` (person/topic/podcast panels, Across-shows, back-nav,
-"Appears in" shows, timeline mention drill). Both were shipped as **viewer-side
-approximations**; the precise versions need backend work and are captured here.
+"Appears in" shows, timeline mention drill). Each was shipped as a **viewer-side
+approximation**; the precise versions need backend work and are captured here
+(#1 open, #2 done, #3 open — #3 rides on #1's missing edge).
 
 Status: **Backlog** (viewer approximations already shipped; these are the
 accurate versions). Operator files GH issues.
@@ -24,6 +25,7 @@ claim). The person node also carries a single coarse `role` (host/guest/
 mentioned) with **no per-show link**.
 
 **Precise fix (pipeline):**
+
 - Emit a typed `person —hosts→ podcast` (and/or `person —guests_on→ podcast`)
   edge during GI/KG extraction, sourced from feed metadata (RSS `<itunes:author>`
   / author fields) and/or a per-episode speaker-role signal, not transcript
@@ -67,6 +69,7 @@ out-of-slice insight, that node isn't in the artifact, and the relational routes
 an insight, never the insight's **own** text/quotes.
 
 **Fix (backend endpoint + small viewer view):**
+
 - Add `GET /api/relational/insight-detail?insight=<id>` (or `/api/cil/insights/{id}`)
   that resolves the insight on the **full server graph** (`_graph_or_none`, which
   already spans the whole corpus, not the slice) and returns its `text`,
@@ -97,3 +100,22 @@ renders the two claims under each row. No id → text endpoint needed, no
 
 Note the out-of-slice insight endpoint (#2) is still wanted for the *timeline
 mention drill* — that's a different consumer and remains open.
+
+---
+
+## 3. Per-show role "Host of" + back-catalogue drop — reuses #1's `person → hosts → show` edge
+
+**Shipped approximation** (`EntityCardBody.vue`, `// Per-show role (#3 follow-up)`):
+the person panel surfaces the shows a person **hosts** in a "Host of" section up top
+and drops those shows' back-catalogue from the episode list below (a daily-show host
+shouldn't list 500 of their own episodes; show their appearances on *other* shows
+instead). Host-vs-guest per show is inferred viewer-side from a `hostFeedIds`
+coverage filter — the same episode-coverage heuristic as #1.
+
+**Why it's only an approximation:** identical root cause to #1 — there is no typed
+per-show role from the pipeline, so the "Host of" set and the back-catalogue drop
+both ride on coverage inference and misfire on sample-sparse hosts.
+
+**Precise fix:** none beyond #1 — once the `person → hosts → show` edge + relational
+role query land, `hostShows` reads the real role and the back-catalogue drop keys off
+it. Tracked here so the viewer approximation isn't mistaken for the accurate version.

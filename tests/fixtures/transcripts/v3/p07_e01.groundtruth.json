@@ -1,0 +1,29 @@
+{
+  "fixture": "p07_e01",
+  "podcast": "The Long View — Sustainability",
+  "episode": "What Sustainability Really Means",
+  "type": "interview",
+  "speakers": [
+    "Alex Morgan",
+    "Dr. Elena Fischer"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 3,
+  "failure_modes": [
+    "high_person_density",
+    "long_context_chunk_boundary",
+    "multi_accent",
+    "recurring_guest"
+  ],
+  "voice_map": {
+    "Alex Morgan": "Lee",
+    "Dr. Elena Fischer": "Anna",
+    "Ad": "Zarvox"
+  },
+  "cameo": null,
+  "transcript_sha256": "27ff3e4852c835c1402c0b4969cf9f29d6916050120bbd6ca1e6fec978df225d",
+  "audio_sha256": "91ee8d7e680b326f51aa158e7382b6bf4f4fddc287b4ba919c6e7f1e4b7952cd",
+  "rttm_sha256": "a493f60ec93c7ad31a2b8d437a345bf5bfb3580a8354a029245be09f1d5a9ce6"
+}

@@ -17,7 +17,11 @@ logger = logging.getLogger(__name__)
 _NONPERSON_AUTHOR_MARKERS = re.compile(
     r"[|/&@]|\d|"
     r"\b(?:podcasts?|media|networks?|productions?|studios?|radio|fm|news|inc|llc|ltd|"
-    r"co|company|corp|shows?|entertainment|audio|broadcasting|group|labs?)\b",
+    r"co|company|corp|shows?|entertainment|audio|broadcasting|group|labs?|"
+    # News-outlet suffixes — a publisher, not a person ("The New York Times", "Financial
+    # Times", "Wall Street Journal", "Chicago Tribune"). Standalone-surname words (Post, Press)
+    # are left out here and caught by KNOWN_NETWORKS to avoid flagging people like "Emily Post".
+    r"times|journal|tribune|gazette|herald|chronicle|magazine|quarterly|newspaper|gmbh|plc)\b",
     re.IGNORECASE,
 )
 
@@ -56,6 +60,19 @@ KNOWN_NETWORKS: frozenset[str] = frozenset(
         "substack",
         "bloomberg",
         "kaleidoscope",
+        # Multi-token news publishers not caught by the org-marker suffixes (Post/Guardian/etc.).
+        "the new york times",
+        "new york times",
+        "the washington post",
+        "washington post",
+        "the guardian",
+        "the economist",
+        "the atlantic",
+        "reuters",
+        "associated press",
+        "the wall street journal",
+        "financial times",
+        "pushkin industries",
     }
 )
 
@@ -107,6 +124,17 @@ def is_network_or_org_author(name: str) -> bool:
     if len(n.split()) < 2:  # mononym ("Colossus", "NPR") — not a "First Last" host name
         return True
     return False
+
+
+def looks_like_publisher(name: str) -> bool:
+    """True when a name is a network / publisher / organisation rather than a person.
+
+    Combines the known-network denylist with the generic org-marker + news-outlet-suffix regex.
+    Unlike :func:`is_network_or_org_author` this does NOT apply the mononym rule, so a
+    single-token real person (Oprah, Sting) is kept — use it to strip publishers from
+    already-resolved person surfaces (key people, host/guest roles) without dropping people.
+    """
+    return is_known_network(name) or has_org_markers(name)
 
 
 # Host self-introduction in the transcript intro, e.g. "I'm Patrick O'Shaughnessy".

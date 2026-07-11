@@ -13,6 +13,7 @@ from podcast_scraper.speaker_detectors.hosts import (
     has_org_markers,
     is_known_network,
     is_network_or_org_author,
+    looks_like_publisher,
 )
 
 pytestmark = pytest.mark.unit
@@ -58,6 +59,29 @@ def test_has_org_markers(name: str, expected: bool) -> None:
 )
 def test_is_network_or_org_author(name: str, expected: bool) -> None:
     assert is_network_or_org_author(name) is expected
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("The New York Times", True),  # multi-token publisher on the known list
+        ("Reuters", True),  # single-token publisher on the known list
+        ("The Economist", True),
+        ("Bloomberg Businessweek", True),  # first token is a known network
+        ("Chicago Tribune", True),  # news-outlet suffix (no known-list entry needed)
+        ("The Daily Gazette", True),
+        ("Rolling Stone Magazine", True),
+        ("Oprah", False),  # real-person mononym is kept (unlike is_network_or_org_author)
+        ("Sting", False),
+        ("Patrick O'Shaughnessy", False),
+        ("Emily Post", False),  # a person whose surname collides with a publisher word
+        ("", True),
+    ],
+)
+def test_looks_like_publisher(name: str, expected: bool) -> None:
+    # Unlike is_network_or_org_author, a lone real-person token is NOT flagged: this guard
+    # strips publishers from already-resolved person surfaces without dropping mononym people.
+    assert looks_like_publisher(name) is expected
 
 
 def test_extract_self_introduced_host_basic() -> None:

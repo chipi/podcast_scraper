@@ -225,6 +225,11 @@ class AppEntity(BaseModel):
     id: str = Field(description="Canonical entity id (person:{slug} / org:{slug}).")
     name: str = Field(description="Display name.")
     kind: Literal["person", "org"] = Field(description="Entity kind.")
+    role: str | None = Field(
+        default=None,
+        description="Speaker role in this episode's KG (host / guest / mentioned); null when "
+        "the node carries no role (orgs, older artifacts).",
+    )
 
 
 class AppTopic(BaseModel):
@@ -283,6 +288,24 @@ class AppEntitySearchResponse(BaseModel):
     )
 
 
+class AppPersonShow(BaseModel):
+    """One show a person appears in, with their role *within that show*.
+
+    A person can host one show and guest on another, so role is per-show — the aggregate
+    ``AppPersonCard.role`` is only a headline summary. Used to render a person card's "Host of"
+    section (their own shows) separately from appearances on other shows.
+    """
+
+    feed_id: str = Field(description="Owning feed id.")
+    title: str = Field(description="Show display title.")
+    role: str | None = Field(
+        default=None,
+        description="Aggregate role within this show (host / guest / mentioned); the strongest "
+        "role the person holds across this show's episodes. Null when unknown.",
+    )
+    episode_count: int = Field(ge=0, description="Episodes of this show the person appears in.")
+
+
 class AppPersonCard(BaseModel):
     """Person profile card (PRD-043 FR2; GET /api/app/persons/{id}).
 
@@ -294,6 +317,17 @@ class AppPersonCard(BaseModel):
 
     id: str = Field(description="Canonical person id (person:{slug}).")
     label: str = Field(description="Display name.")
+    role: str | None = Field(
+        default=None,
+        description="Headline speaker role across the corpus (host / guest / mentioned); the "
+        "strongest role the person holds in any episode KG. Null when unknown. Per-show roles "
+        "live in ``shows``.",
+    )
+    shows: list[AppPersonShow] = Field(
+        default_factory=list,
+        description="Per-show role breakdown — every show the person appears in, each with their "
+        "role there (host of one show, guest on another). Hosted shows first, then by footprint.",
+    )
     episode_count: int = Field(ge=0, description="Episodes this person appears in.")
     episodes: list[AppEpisodeSummary] = Field(
         default_factory=list, description="Appears-in episode cards (newest-first)."
@@ -1293,6 +1327,95 @@ class CorpusFeedsResponse(BaseModel):
 
     path: str = Field(description="Resolved corpus root.")
     feeds: list[CorpusFeedItem] = Field(default_factory=list)
+
+
+class FeedSignalTopic(BaseModel):
+    """One aggregated topic for a show (UXS-015 / RFC-104 show landing)."""
+
+    topic_id: str
+    label: str
+    episode_count: int = Field(ge=1, description="Episodes of this show that mention the topic.")
+    velocity: float | None = Field(
+        default=None,
+        description="Corpus temporal_velocity for this topic (for bubble sizing); None if unknown.",
+    )
+
+
+class FeedSignalPerson(BaseModel):
+    """One aggregated person for a show (diarization placeholders filtered out)."""
+
+    person_id: str
+    name: str
+    episode_count: int = Field(ge=1, description="Episodes of this show that mention the person.")
+
+
+class FeedSignalTheme(BaseModel):
+    """A theme cluster (topic_theme_clusters) the show's topics fall into."""
+
+    theme_id: str = Field(description="Graph compound id (thc:…) for graph linking.")
+    label: str
+    topic_count: int = Field(ge=1, description="Show topics that are members of this theme.")
+    anchor_topic_id: str | None = Field(
+        default=None,
+        description="A member topic present in this show — the click target for a topic card.",
+    )
+
+
+class FeedSignalTrend(BaseModel):
+    """A show topic that is heating up (temporal_velocity ≥ threshold)."""
+
+    topic_id: str
+    label: str
+    velocity: float = Field(description="Last-month count over the 6-month average.")
+    episode_count: int = Field(ge=1, description="Episodes of this show that mention the topic.")
+
+
+class FeedGroundingSummary(BaseModel):
+    """Show-level grounding: pooled quote-backing rate across the show's people."""
+
+    grounded_insights: int = Field(ge=0)
+    total_insights: int = Field(ge=0)
+    rate: float = Field(ge=0.0, le=1.0, description="grounded_insights / total_insights.")
+    people_count: int = Field(ge=0, description="Show people with grounding data.")
+
+
+class CorpusFeedSignalsResponse(BaseModel):
+    """Response for GET /api/corpus/feed-signals — show-level aggregate signals.
+
+    Aggregates the Topic + Person nodes across a feed's episode KGs (each per-episode
+    KG carries only that episode's entities, so counting nodes = "mentions in that
+    episode"), then folds in corpus-scope enrichment (themes, velocity, grounding)
+    projected onto the show's entities. Cross-show overlap is a deferred follow-up.
+    """
+
+    path: str = Field(description="Resolved corpus root.")
+    feed_id: str
+    episode_count: int = Field(ge=0, description="Episodes scanned for this feed.")
+    top_topics: list[FeedSignalTopic] = Field(default_factory=list)
+    key_people: list[FeedSignalPerson] = Field(default_factory=list)
+    recurring_guests: list[FeedSignalPerson] = Field(
+        default_factory=list, description="People in ≥2 of this show's episodes."
+    )
+    dominant_themes: list[FeedSignalTheme] = Field(default_factory=list)
+    trending_topics: list[FeedSignalTrend] = Field(default_factory=list)
+    grounding: FeedGroundingSummary | None = None
+
+
+class AppPodcastSignalsResponse(BaseModel):
+    """Consumer projection of a show's signals (GET /api/app/podcasts/{feed_id}/signals).
+
+    A listener-shaped subset of the operator feed-signals: what the show is about
+    (topics + themes), who's on it (key people + recurring guests), and what's heating
+    up (trending). The operator-only grounding/QA score is intentionally omitted.
+    """
+
+    feed_id: str
+    episode_count: int = Field(ge=0, description="Episodes scanned for this show.")
+    top_topics: list[FeedSignalTopic] = Field(default_factory=list)
+    key_people: list[FeedSignalPerson] = Field(default_factory=list)
+    recurring_guests: list[FeedSignalPerson] = Field(default_factory=list)
+    dominant_themes: list[FeedSignalTheme] = Field(default_factory=list)
+    trending_topics: list[FeedSignalTrend] = Field(default_factory=list)
 
 
 class CilDigestTopicPill(BaseModel):

@@ -15,9 +15,12 @@ export default defineConfig({
   testIgnore: ['**/validation/**'],
   fullyParallel: true,
   // The heavy auth-gated specs (capture, consolidation) sign in as ISOLATED per-(spec,project) mock
-  // identities (see e2e/helpers.ts) so they never share per-user files — eliminating the
-  // concurrency race at its source. auth-queue keeps the default mock user via the real Sign-in UI
-  // (its own 2-project scenario, reliable). No globalSetup / retry band-aid needed.
+  // identities (see e2e/helpers.ts) so they never share per-user files WITHIN a run. But those ids
+  // are STABLE across runs and APP_DATA_DIR (e2e/.app-state) is gitignored, not cleaned — so a prior
+  // run's writes (e.g. a Pause click persisting resurfacing_settings.paused=true) leaked into the
+  // next local run and broke fresh-user "honest-empty" assertions. globalSetup wipes that dir so
+  // every local run starts clean, matching CI's fresh checkout.
+  globalSetup: './e2e/globalSetup.ts',
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? 'github' : 'list',
   use: {

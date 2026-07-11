@@ -1208,7 +1208,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         """
         self._send_json_200(
             {
-                "model_name": "pyannote/speaker-diarization-3.1",
+                "model_name": "pyannote/speaker-diarization-community-1",
                 "num_speakers": 0,
                 "segments": [],
             }
@@ -1344,14 +1344,14 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         if path == "/health":
             body: Dict[str, Any] = {
                 "status": "ok",
-                "model": "pyannote/speaker-diarization-3.1",
+                "model": "pyannote/speaker-diarization-community-1",
             }
         else:  # /v1/models
             body = {
                 "object": "list",
                 "data": [
                     {"id": "large-v3", "object": "model", "owned_by": "openai"},
-                    {"id": "pyannote/speaker-diarization-3.1", "object": "model"},
+                    {"id": "pyannote/speaker-diarization-community-1", "object": "model"},
                 ],
             }
         response_json = json.dumps(body)
@@ -1381,7 +1381,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             if content_length:
                 self.rfile.read(content_length)  # drain the uploaded audio
             body = {
-                "model_name": "pyannote/speaker-diarization-3.1",
+                "model_name": "pyannote/speaker-diarization-community-1",
                 "num_speakers": 2,
                 "segments": [
                     {"start": 0.0, "end": 4.5, "speaker": "SPEAKER_00"},

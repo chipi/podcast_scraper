@@ -1,116 +1,157 @@
 <script setup lang="ts">
-/** Trending view 4 — a momentum map: x = volume (total mentions), y = velocity
- *  (× its 6-month average), bubble size = volume. Separates "big & rising" (upper
- *  right) from "niche & spiking" (upper left). SVG, no lib. Points → topic card.
- *
- *  Mobile (#13): the old fixed 320×150 box crowded the bubbles and overlapped the
- *  8px labels into an unreadable mess on a phone. Now it is taller + responsive,
- *  labels appear only on the most-notable points (with greedy vertical de-overlap),
- *  fonts + tap targets are larger, and every bubble keeps a <title> tooltip. */
+/** Trending view 4 — a **momentum bubble cloud**. Each topic is a translucent balloon:
+ *  size = momentum (velocity × its 6-month average), its own hue from a categorical palette,
+ *  a soft gloss highlight. Circle-packed into an organic cloud (the biggest nested in the
+ *  middle) rather than an x/y scatter: with only ~12 rising topics — many sharing the same
+ *  velocity — a scatter stacks them into one blob with colliding labels. Big balloons carry
+ *  their label inside; the rest keep a <title> tooltip. Tap a balloon → its topic card. */
 import { computed } from 'vue'
-import { trendColor, type RisingTopic } from './trending'
+import type { RisingTopic } from './trending'
 
-const props = defineProps<{ topics: RisingTopic[] }>()
+const props = defineProps<{ topics: RisingTopic[]; themeMemberIds?: Set<string> }>()
 const emit = defineEmits<{ (e: 'open', id: string): void }>()
 
-const W = 320
-const H = 210
-const PAD_L = 12
-const PAD_R = 14
-const PAD_T = 20
-const PAD_B = 26
-// Cap on-canvas labels — beyond this they collide on a phone. The rest stay tappable
-// with a <title> tooltip. Tuned for a ~340px-wide phone column.
-const MAX_LABELS = 5
-// Approx label line height for the greedy vertical de-overlap.
-const LABEL_H = 13
+const PAD = 6
+const GAP = 3.5
 
-interface Pt {
+// Categorical palette from the app's own hues (topic / theme / green / accent / peach / amber).
+const PALETTE: [number, number, number][] = [
+  [201, 182, 255],
+  [125, 211, 192],
+  [63, 185, 132],
+  [255, 106, 61],
+  [255, 179, 122],
+  [232, 179, 57],
+  [124, 230, 176],
+]
+
+interface Bubble {
   id: string
   label: string
+  short: string
   v: number
+  total: number
   cx: number
   cy: number
   r: number
+  fill: string
+  stroke: string
   showLabel: boolean
-  lx: number
-  ly: number
-  anchor: 'start' | 'end'
+  labelSize: number
+  colorIndex: number
+  theme: boolean
 }
 
-const points = computed<Pt[]>(() => {
+function shortLabel(label: string, r: number): string {
+  const max = Math.max(3, Math.floor((r * 2) / 7))
+  return label.length > max ? `${label.slice(0, max - 1).trimEnd()}…` : label
+}
+
+const packed = computed(() => {
   const t = props.topics
-  if (!t.length) return []
-  const maxTotal = Math.max(1, ...t.map((x) => x.total))
-  const maxV = Math.max(1.6, ...t.map((x) => x.v))
-  const xOf = (total: number): number => PAD_L + (total / maxTotal) * (W - PAD_L - PAD_R)
-  const yOf = (v: number): number => H - PAD_B - ((v - 1) / (maxV - 1)) * (H - PAD_B - PAD_T)
-  // Keep input order for rendering (stable point identity + tests); the ranking below only
-  // decides which points earn a text label.
-  const base = t.map((tp) => {
-    const cx = xOf(tp.total)
-    const cy = yOf(tp.v)
-    const r = 4 + (tp.total / maxTotal) * 6
-    return { id: tp.id, label: tp.label, v: tp.v, cx, cy, r }
-  })
-  // Label the most notable (highest velocity, then rightmost/most volume), capped, dropping any
-  // whose label row would collide vertically with an already-placed one.
-  const labelled = new Set<string>()
-  const placedY: number[] = []
-  for (const p of [...base].sort((a, b) => b.v - a.v || b.cx - a.cx)) {
-    if (labelled.size >= MAX_LABELS) break
-    const ly = Math.max(PAD_T, p.cy - p.r - 4)
-    if (placedY.some((y) => Math.abs(y - ly) < LABEL_H)) continue
-    placedY.push(ly)
-    labelled.add(p.id)
+  if (!t.length) return { w: 320, h: 180, bubbles: [] as Bubble[] }
+  const vs = t.map((x) => x.v)
+  const minV = Math.min(...vs)
+  const maxV = Math.max(minV + 0.1, ...vs)
+  // Size by momentum — the widest-ranging signal, so a 6× topic clearly dwarfs a 1.5× one.
+  const rOf = (v: number): number => 16 + ((v - minV) / (maxV - minV)) * 36
+
+  // Keep the original index (for a stable hue) while packing biggest-first.
+  const sized = t
+    .map((tp, i) => ({ ...tp, r: rOf(tp.v), colorIndex: i }))
+    .sort((a, b) => b.r - a.r)
+
+  // Deterministic spiral circle-pack: biggest at the origin, each next spiralled outward to
+  // the first non-colliding spot. No RNG → stable render + testable.
+  const placed: Array<(typeof sized)[number] & { cx: number; cy: number }> = []
+  for (const b of sized) {
+    if (!placed.length) {
+      placed.push({ ...b, cx: 0, cy: 0 })
+      continue
+    }
+    let cx = 0
+    let cy = 0
+    for (let step = 0; step < 5000; step += 1) {
+      const ang = step * 0.5
+      const rad = step * 0.32
+      cx = Math.cos(ang) * rad
+      cy = Math.sin(ang) * rad
+      if (placed.every((p) => Math.hypot(p.cx - cx, p.cy - cy) >= p.r + b.r + GAP)) break
+    }
+    placed.push({ ...b, cx, cy })
   }
-  return base.map((p) => {
-    // Anchor labels toward the interior so they never run off an edge on a narrow canvas.
-    const right = p.cx > W / 2
+
+  const minX = Math.min(...placed.map((p) => p.cx - p.r))
+  const minY = Math.min(...placed.map((p) => p.cy - p.r))
+  const maxX = Math.max(...placed.map((p) => p.cx + p.r))
+  const maxY = Math.max(...placed.map((p) => p.cy + p.r))
+  const bubbles: Bubble[] = placed.map((p) => {
+    const [r, g, bl] = PALETTE[p.colorIndex % PALETTE.length]
     return {
-      ...p,
-      showLabel: labelled.has(p.id),
-      anchor: right ? ('end' as const) : ('start' as const),
-      lx: right ? Math.max(PAD_L, p.cx - p.r - 4) : Math.min(W - PAD_R, p.cx + p.r + 4),
-      ly: Math.max(PAD_T, p.cy - p.r - 4),
+      id: p.id,
+      label: p.label,
+      short: shortLabel(p.label, p.r),
+      v: p.v,
+      total: p.total,
+      cx: p.cx - minX + PAD,
+      cy: p.cy - minY + PAD,
+      r: p.r,
+      fill: `rgba(${r}, ${g}, ${bl}, 0.42)`,
+      stroke: `rgba(${r}, ${g}, ${bl}, 0.92)`,
+      showLabel: p.r >= 22,
+      labelSize: Math.max(9, Math.min(13, Math.round(p.r / 2.6))),
+      colorIndex: p.colorIndex,
+      theme: props.themeMemberIds?.has(p.id) ?? false,
     }
   })
+  return { w: maxX - minX + PAD * 2, h: maxY - minY + PAD * 2, bubbles }
 })
 </script>
 
 <template>
   <div data-testid="trend-momentum">
     <svg
-      :viewBox="`0 0 ${W} ${H}`"
-      class="w-full"
-      :style="{ minHeight: '190px' }"
+      :viewBox="`0 0 ${packed.w} ${packed.h}`"
+      class="mx-auto w-full"
+      :style="{ maxHeight: '360px' }"
       preserveAspectRatio="xMidYMid meet"
       role="img"
-      aria-label="Topic momentum: episode volume versus velocity"
+      aria-label="Trending topics as a bubble cloud; bigger balloons are rising faster"
     >
-      <!-- axes -->
-      <line :x1="PAD_L" :y1="H - PAD_B" :x2="W - PAD_R" :y2="H - PAD_B" stroke="currentColor" class="text-border" stroke-width="1" />
-      <line :x1="PAD_L" :y1="PAD_T" :x2="PAD_L" :y2="H - PAD_B" stroke="currentColor" class="text-border" stroke-width="1" />
-      <text :x="W - PAD_R" :y="H - 8" text-anchor="end" class="fill-muted" style="font-size: 10px">more episodes →</text>
-      <text :x="PAD_L" :y="PAD_T - 7" class="fill-muted" style="font-size: 10px">↑ rising faster</text>
+      <defs>
+        <radialGradient id="momentumGloss" cx="38%" cy="30%" r="72%">
+          <stop offset="0%" stop-color="rgba(255,255,255,0.45)" />
+          <stop offset="46%" stop-color="rgba(255,255,255,0.07)" />
+          <stop offset="100%" stop-color="rgba(255,255,255,0)" />
+        </radialGradient>
+      </defs>
       <g
-        v-for="p in points"
-        :key="p.id"
+        v-for="b in packed.bubbles"
+        :key="b.id"
         class="cursor-pointer"
         data-testid="trend-momentum-point"
-        @click="emit('open', p.id)"
+        @click="emit('open', b.id)"
       >
-        <circle :cx="p.cx" :cy="p.cy" :r="p.r" :fill="trendColor(p.v)" fill-opacity="0.55" :stroke="trendColor(p.v)" stroke-width="1.25">
-          <title>{{ p.label }} — {{ p.v }}×</title>
+        <circle :cx="b.cx" :cy="b.cy" :r="b.r" :fill="b.fill" :stroke="b.stroke" stroke-width="1.5">
+          <title>{{ b.label }} — {{ b.v }}× · {{ b.total }} episodes{{ b.theme ? ' · in a storyline' : '' }}</title>
         </circle>
-        <text
-          v-if="p.showLabel"
-          :x="p.lx"
-          :y="p.ly"
-          :text-anchor="p.anchor"
-          class="fill-canvas-foreground"
-          style="font-size: 10px"
-        >{{ p.label }}</text>
+        <circle :cx="b.cx" :cy="b.cy" :r="b.r" fill="url(#momentumGloss)" pointer-events="none" />
+        <!-- Theme-cluster ("storyline") members get the standard teal ring. -->
+        <circle
+          v-if="b.theme"
+          :cx="b.cx"
+          :cy="b.cy"
+          :r="b.r + 2.5"
+          fill="none"
+          stroke="#7dd3c0"
+          stroke-width="1.5"
+          stroke-dasharray="3 3"
+          pointer-events="none"
+        />
+        <template v-if="b.showLabel">
+          <text :x="b.cx" :y="b.cy - 1" text-anchor="middle" class="fill-canvas-foreground font-semibold" :style="{ fontSize: b.labelSize + 'px' }" pointer-events="none">{{ b.short }}</text>
+          <text :x="b.cx" :y="b.cy + b.labelSize" text-anchor="middle" class="fill-canvas-foreground" :style="{ fontSize: Math.max(8, b.labelSize - 2) + 'px', opacity: 0.72 }" pointer-events="none">↑ {{ b.v }}×</text>
+        </template>
       </g>
     </svg>
   </div>

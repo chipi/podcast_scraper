@@ -7,7 +7,10 @@
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
+import EntityCard from '../components/EntityCard.vue'
 import EpisodeCard from '../components/EpisodeCard.vue'
+import PodcastSignalsBand from '../components/PodcastSignalsBand.vue'
+import ShowActivityChart from '../components/ShowActivityChart.vue'
 import { getPodcasts, listPodcastEpisodes } from '../services/api'
 import { showArtwork } from '../utils/episode'
 import type { EpisodeSummary, Podcast } from '../services/types'
@@ -24,6 +27,7 @@ const loading = ref(false)
 const error = ref(false)
 const show = ref<Podcast | null>(null)
 const descExpanded = ref(false)
+const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
 
 const showArt = showArtwork
 async function loadShow(): Promise<void> {
@@ -102,6 +106,12 @@ watch(() => props.feedId, reset)
       </div>
     </header>
 
+    <!-- Show-level signals: what this show's about + who's on it (taps open the entity card). -->
+    <PodcastSignalsBand :feed-id="feedId" @open="cardTarget = $event" />
+
+    <!-- Publishing cadence over time (from the loaded episodes' dates). -->
+    <ShowActivityChart :episodes="episodes" />
+
     <p v-if="loading && episodes.length === 0" class="text-muted">{{ t('catalog.loading') }}</p>
     <p v-else-if="error && episodes.length === 0" class="text-danger">{{ t('catalog.loadError') }}</p>
     <p v-else-if="episodes.length === 0" class="text-muted">{{ t('catalog.empty') }}</p>
@@ -120,5 +130,12 @@ watch(() => props.feedId, reset)
         </button>
       </div>
     </div>
+
+    <EntityCard
+      v-if="cardTarget"
+      :kind="cardTarget.kind"
+      :id="cardTarget.id"
+      @close="cardTarget = null"
+    />
   </section>
 </template>

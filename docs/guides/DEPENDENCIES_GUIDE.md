@@ -138,7 +138,7 @@ Use `pip install -e ".[<extra>]"` from the repo root. Combine extras with commas
 - **Why chosen**: Production-grade diarization with HuggingFace model distribution; additive
   second pass after Whisper preserves existing transcription code paths.
 
-- **Key features utilized**: `pyannote/speaker-diarization-3.1` pipeline, waveform loading via
+- **Key features utilized**: `pyannote/speaker-diarization-community-1` pipeline (v4; 3.1 fallback), waveform loading via
   `torchaudio` (avoids slow file-path loading in pyannote), segment-level alignment to Whisper
   segments.
 

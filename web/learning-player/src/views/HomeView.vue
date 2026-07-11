@@ -260,6 +260,13 @@ onMounted(async () => {
       @open="cardTarget = { kind: 'topic', id: $event.entity_id }"
     />
 
+    <!-- Trending shows (RFC-103 §show): publishing cadence + engagement → the show page. -->
+    <MomentumRail
+      kind="show"
+      :title="t('home.trendingShows')"
+      @open="router.push({ name: 'podcast', params: { feedId: $event.entity_id } })"
+    />
+
     <!-- Recommended — no-scroll responsive grid -->
     <section v-if="recommended.length" class="mt-7">
       <h2 class="lp-section mb-3">{{ t('home.recommended') }}</h2>

@@ -1,0 +1,21 @@
+{
+  "fixture": "p06_e05",
+  "podcast": "Edge Cases e05",
+  "episode": "Stage Directions",
+  "type": "monologue",
+  "speakers": [
+    "Maya"
+  ],
+  "num_human_speakers": 1,
+  "has_commercial": false,
+  "num_ad_voices": 0,
+  "expected_diarized_voices": 1,
+  "failure_modes": [],
+  "voice_map": {
+    "Maya": "Samantha"
+  },
+  "cameo": null,
+  "transcript_sha256": "45fb4e30dda0b19466e4dbcf503c2cb2658a3bb36c81d76244094360266fef7b",
+  "audio_sha256": "86027b92f62fad1d413a597d9d02dc471f7d2e9ebd15d3904c9c8b7d3ff6f7a0",
+  "rttm_sha256": "ba5563e545bde8cb6534b25ccbc2e2c5d6e7f1c6304d89b93d873c13ee172887"
+}

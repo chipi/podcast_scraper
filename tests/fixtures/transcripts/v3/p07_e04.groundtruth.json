@@ -1,0 +1,23 @@
+{
+  "fixture": "p07_e04",
+  "podcast": "The Long View — Sustainability",
+  "episode": "Macro as Risk Management",
+  "type": "interview",
+  "speakers": [
+    "Alex Morgan",
+    "Skanda Amarnath"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": false,
+  "num_ad_voices": 0,
+  "expected_diarized_voices": 2,
+  "failure_modes": [],
+  "voice_map": {
+    "Alex Morgan": "Lee",
+    "Skanda Amarnath": "Rishi"
+  },
+  "cameo": null,
+  "transcript_sha256": "2448a2e77bd359096e86072a0e4a26f2fbca8e49f1fca78d123efcba3796ee22",
+  "audio_sha256": "afb73b07292157d8b174d59551643cc19dd904cb2ed602c14612f4f09f70beed",
+  "rttm_sha256": "8e86a9997aae8d23b415e4ec8bce6f5d6fedfee409064ccea9523c59867cf918"
+}

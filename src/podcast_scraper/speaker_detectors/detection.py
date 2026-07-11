@@ -6,8 +6,13 @@ import logging
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from .. import config
-from .constants import DEFAULT_SPEAKER_NAMES, DESCRIPTION_SNIPPET_LENGTH, MIN_SPEAKERS_REQUIRED
-from .guests import _is_likely_actual_guest
+from .constants import (
+    DEFAULT_SPEAKER_NAMES,
+    DESCRIPTION_SNIPPET_LENGTH,
+    INTRO_SNIPPET_LENGTH,
+    MIN_SPEAKERS_REQUIRED,
+)
+from .guests import _is_likely_actual_guest, is_introduced_guest
 from .hosts import detect_hosts_from_transcript_intro
 
 logger = logging.getLogger(__name__)
@@ -64,17 +69,17 @@ def detect_speaker_names(
 
     desc_persons = _extract_person_entities(description_snippet, nlp) if description_snippet else []
 
-    hosts_lower = {h.lower().strip() for h in hosts}
-    seen: Set[str] = set()
-    guests: List[str] = []
-    for name, _score in title_persons + desc_persons:
-        key = name.lower().strip()
-        if key in hosts_lower or key in seen:
-            continue
-        if not _is_likely_actual_guest(name, episode_title, episode_description):
-            continue
-        seen.add(key)
-        guests.append(name)
+    guests = _guests_from_candidates(
+        title_persons + desc_persons, hosts, episode_title, episode_description
+    )
+
+    # The transcript intro is another "description" — the opening minutes name the guests the feed
+    # metadata omits ("joining me today is …"). Same NER, but an ASR-grade strict filter
+    # (First-Last + an adjacent interview cue) so noisy mentions don't become phantom guests.
+    intro_snippet = transcript_text[:INTRO_SNIPPET_LENGTH].strip() if transcript_text else None
+    if intro_snippet:
+        intro_persons = _extract_person_entities(intro_snippet, nlp)
+        guests = _merge_intro_guests(guests, intro_persons, hosts, intro_snippet)
 
     if guests:
         logger.info("  → Guest: %s", ", ".join(guests))
@@ -84,6 +89,55 @@ def detect_speaker_names(
         hosts, guests, max_names
     )
     return speaker_names, hosts, detection_succeeded, used_defaults
+
+
+def _guests_from_candidates(
+    candidates: List[Tuple[str, float]],
+    hosts: Set[str],
+    episode_title: str,
+    guest_context: Optional[str],
+) -> List[str]:
+    """Filter NER person candidates (title + description + intro) to actual guests.
+
+    Drops names that are hosts or already seen, and keeps only those with an interview intent
+    (``_is_likely_actual_guest``) in ``guest_context`` (description + transcript intro). Order kept.
+    """
+    hosts_lower = {h.lower().strip() for h in hosts}
+    seen: Set[str] = set()
+    guests: List[str] = []
+    for name, _score in candidates:
+        key = name.lower().strip()
+        if key in hosts_lower or key in seen:
+            continue
+        if not _is_likely_actual_guest(name, episode_title, guest_context):
+            continue
+        seen.add(key)
+        guests.append(name)
+    return guests
+
+
+def _merge_intro_guests(
+    existing: List[str],
+    intro_persons: List[Tuple[str, float]],
+    hosts: Set[str],
+    intro_snippet: str,
+) -> List[str]:
+    """Add transcript-intro persons that the intro *introduces* as guests (strict ASR filter).
+
+    Skips hosts + already-found guests; only keeps a name with a First-Last shape and an adjacent
+    interview cue (``is_introduced_guest``). Order preserved (existing guests first).
+    """
+    blocked = {h.lower().strip() for h in hosts} | {g.lower().strip() for g in existing}
+    out = list(existing)
+    for name, _score in intro_persons:
+        key = name.lower().strip()
+        if key in blocked:
+            continue
+        if not is_introduced_guest(name, intro_snippet):
+            continue
+        blocked.add(key)
+        out.append(name)
+    return out
 
 
 def _build_speaker_names_list(

@@ -1,0 +1,28 @@
+{
+  "fixture": "p05_e03",
+  "podcast": "Long Horizon Notes",
+  "episode": "The Bessent Tape",
+  "type": "interview",
+  "speakers": [
+    "Nora",
+    "Scott Bessett"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 3,
+  "failure_modes": [
+    "asr_garble",
+    "nickname_variant",
+    "same_first_distinct"
+  ],
+  "voice_map": {
+    "Nora": "Kathy",
+    "Scott Bessett": "Jamie",
+    "Ad": "Zarvox"
+  },
+  "cameo": null,
+  "transcript_sha256": "0024083e57728ad78ba6947eda290e3968d3cca0845594b9f1cf2b43746d0d57",
+  "audio_sha256": "c03d70a2620991c75b91a4df0e0515a9750703ba8c738fa1b772b8ebfcefd5e5",
+  "rttm_sha256": "18d9205822510ab5149c7818c5bef160a53ecac3e65e57044111a02813e3b50d"
+}

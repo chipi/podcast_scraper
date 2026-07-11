@@ -99,6 +99,7 @@ describe('PositionTrackerPanel (#1049)', () => {
   })
 
   it('ADR-108: tints each arc card by its insight sentiment (best-effort join)', async () => {
+    // Server arc drives both the rows AND the tint — insights carry properties + sentiment.
     fetchPersonPositions.mockResolvedValue({
       path: '/c',
       person_id: 'person:alice',
@@ -108,8 +109,22 @@ describe('PositionTrackerPanel (#1049)', () => {
           episode_id: 'ep:1',
           publish_date: '2026-02-01',
           insights: [
-            { id: 'i_claim', sentiment: { compound: 0.6, label: 'positive' } },
-            { id: 'i_obs', sentiment: { compound: -0.5, label: 'negative' } },
+            {
+              id: 'i_claim',
+              type: 'Insight',
+              properties: { text: 'We must regulate AI.', insight_type: 'claim', position_hint: 0.4 },
+              sentiment: { compound: 0.6, label: 'positive' },
+            },
+            {
+              id: 'i_obs',
+              type: 'Insight',
+              properties: {
+                text: 'AI labs trail in red-teaming.',
+                insight_type: 'observation',
+                position_hint: 0.7,
+              },
+              sentiment: { compound: -0.5, label: 'negative' },
+            },
           ],
         },
       ],
@@ -121,6 +136,39 @@ describe('PositionTrackerPanel (#1049)', () => {
     const obs = rows.find((r) => r.attributes('data-insight-type') === 'observation')
     expect(claim?.classes()).toContain('bg-emerald-900/10') // positive
     expect(obs?.classes()).toContain('bg-rose-900/10') // negative
+  })
+
+  it('ADR-108 fix: renders rows from the server arc even when the loaded graph has no matching insights', async () => {
+    // The bug: the tracker computed rows off the loaded graph slice, so a (person, topic) the corpus
+    // has but the current slice doesn't → empty tracker (+ invisible sentiment tint). Now the server
+    // arc is the row source, so it renders regardless of what's loaded into the graph.
+    fetchPersonPositions.mockResolvedValue({
+      path: '/c',
+      person_id: 'person:bob',
+      topic_id: 'topic:x',
+      episodes: [
+        {
+          episode_id: 'ep:9',
+          publish_date: '2026-05-01',
+          insights: [
+            {
+              id: 'i_srv',
+              type: 'Insight',
+              properties: { text: 'server-only insight', insight_type: 'claim', position_hint: 0.2 },
+              sentiment: { compound: -0.6, label: 'negative' },
+            },
+          ],
+        },
+      ],
+    })
+    // withArtifact:false → no graph slice at all; the old path would show the empty state.
+    const w = await mountPanel({ topic: 'topic:x', withArtifact: false, personId: 'person:bob' })
+    await flushPromises()
+    expect(w.find('[data-testid="position-tracker-empty"]').exists()).toBe(false)
+    const rows = w.findAll('[data-testid="position-tracker-row"]')
+    expect(rows.length).toBe(1)
+    expect(rows[0].get('[data-testid="position-tracker-row-text"]').text()).toBe('server-only insight')
+    expect(rows[0].classes()).toContain('bg-rose-900/10') // negative tint from the server arc
   })
 
   it('UXS-009 state 1: no Topic selected → placeholder copy', async () => {

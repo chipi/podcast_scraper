@@ -125,6 +125,76 @@ export async function fetchCorpusFeeds(corpusPath: string): Promise<CorpusFeedsR
   })
 }
 
+export type FeedSignalTopic = {
+  topic_id: string
+  label: string
+  episode_count: number
+}
+
+export type FeedSignalPerson = {
+  person_id: string
+  name: string
+  episode_count: number
+}
+
+export type FeedSignalTheme = {
+  theme_id: string
+  label: string
+  topic_count: number
+}
+
+export type FeedSignalTrend = {
+  topic_id: string
+  label: string
+  velocity: number
+  episode_count: number
+}
+
+export type FeedGroundingSummary = {
+  grounded_insights: number
+  total_insights: number
+  rate: number
+  people_count: number
+}
+
+/**
+ * Show-level aggregate signals (UXS-015 / RFC-104): the show's most-covered
+ * topics + most-featured people (counted across its episode KGs), plus
+ * corpus-scope enrichment projected onto the show — recurring guests, dominant
+ * themes, trending topics, and a pooled grounding score
+ * (``GET /api/corpus/feed-signals``). Diarization placeholders are filtered out;
+ * every enrichment fold is best-effort (empty/null when the envelope is absent).
+ */
+export type CorpusFeedSignalsResponse = {
+  path: string
+  feed_id: string
+  episode_count: number
+  top_topics: FeedSignalTopic[]
+  key_people: FeedSignalPerson[]
+  recurring_guests: FeedSignalPerson[]
+  dominant_themes: FeedSignalTheme[]
+  trending_topics: FeedSignalTrend[]
+  grounding: FeedGroundingSummary | null
+}
+
+export async function fetchFeedSignals(
+  corpusPath: string,
+  feedId: string,
+  topK?: number,
+): Promise<CorpusFeedSignalsResponse> {
+  const q = new URLSearchParams({ path: corpusPath.trim(), feed_id: feedId })
+  if (topK != null) q.set('top_k', String(topK))
+  const qs = q.toString()
+  return dedupeInFlight(`GET|/api/corpus/feed-signals?${qs}`, async () => {
+    const res = await fetchWithTimeout(`/api/corpus/feed-signals?${qs}`)
+    if (!res.ok) {
+      const t = await res.text()
+      raiseCorpusHttpError(res, t)
+    }
+    return (await res.json()) as CorpusFeedSignalsResponse
+  })
+}
+
 export type FetchEpisodesOptions = {
   /** When set (including empty string for ungrouped episodes), filters by ``feed_id``. */
   feedId?: string
@@ -138,6 +208,10 @@ export type FetchEpisodesOptions = {
   until?: string
   /** When false, only episodes missing a GI artifact. */
   hasGi?: boolean
+  /** Publish-date order: ``newest`` (default) or ``oldest``. */
+  sort?: 'newest' | 'oldest'
+  /** When true, ask the server to populate cil_digest_topics per row (digest-parity pills). */
+  withCilTopics?: boolean
   limit?: number
   cursor?: string | null
 }
@@ -157,6 +231,8 @@ export async function fetchCorpusEpisodes(
   if (options.until?.trim()) q.set('until', options.until.trim())
   if (options.hasGi === true) q.set('has_gi', 'true')
   if (options.hasGi === false) q.set('has_gi', 'false')
+  if (options.sort) q.set('sort', options.sort)
+  if (options.withCilTopics) q.set('with_cil_topics', 'true')
   if (options.limit != null) q.set('limit', String(options.limit))
   if (options.cursor) q.set('cursor', options.cursor)
   const qs = q.toString()

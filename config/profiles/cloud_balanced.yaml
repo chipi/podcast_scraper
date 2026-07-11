@@ -43,6 +43,7 @@ openai_transcription_model: whisper-1
 # diarize call on top of OpenAI Whisper ($0.006/min) for transcription.
 diarize: true
 diarization_provider: deepgram
+deepgram_diarization_model: nova-3-general  # from registry: deepgram_diarization_nova3
 screenplay: true
 
 # Audio preprocessing — named preset in config/profiles/audio/ (#634 Scope 1).

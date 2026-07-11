@@ -117,7 +117,7 @@ def test_healthy_dgx_path(
             DiarizationSegment(start=4.5, end=10.0, speaker="SPEAKER_01"),
         ],
         num_speakers=2,
-        model_name="pyannote/speaker-diarization-3.1",
+        model_name="pyannote/speaker-diarization-community-1",
     )
 
     provider = TailnetDgxDiarizationProvider(_dgx_cfg())

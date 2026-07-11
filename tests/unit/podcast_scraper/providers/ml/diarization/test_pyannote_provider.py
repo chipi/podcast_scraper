@@ -11,6 +11,55 @@ from podcast_scraper.providers.ml.diarization.pyannote_provider import PyAnnoteD
 pytestmark = pytest.mark.unit
 
 
+@patch("podcast_scraper.providers.ml.diarization.pyannote_provider._create_pyannote_pipeline")
+def test_clustering_threshold_merges_into_pipeline_params(mock_create) -> None:
+    # The tuning override re-instantiates the pipeline with ONLY clustering.threshold changed,
+    # preserving the rest of the hyperparameters (the over-segmentation knob, GPU-free plumbing).
+    mock_pipeline = MagicMock()
+    mock_pipeline.parameters.return_value = {
+        "segmentation": {"min_duration_off": 0.5},
+        "clustering": {"method": "centroid", "threshold": 0.7},
+    }
+    mock_create.return_value = mock_pipeline
+
+    PyAnnoteDiarizationProvider("token", device="cpu", clustering_threshold=0.85)
+
+    mock_pipeline.instantiate.assert_called_once()
+    applied = mock_pipeline.instantiate.call_args[0][0]
+    assert applied["clustering"]["threshold"] == 0.85  # overridden
+    assert applied["clustering"]["method"] == "centroid"  # preserved
+    assert applied["segmentation"] == {"min_duration_off": 0.5}  # untouched
+
+
+@patch("podcast_scraper.providers.ml.diarization.pyannote_provider._create_pyannote_pipeline")
+def test_clustering_min_cluster_size_and_threshold_merge(mock_create) -> None:
+    # Both over-segmentation levers merge into clustering, preserving other hyperparameters.
+    mock_pipeline = MagicMock()
+    mock_pipeline.parameters.return_value = {
+        "segmentation": {"min_duration_off": 0.5},
+        "clustering": {"method": "centroid", "threshold": 0.7, "min_cluster_size": 12},
+    }
+    mock_create.return_value = mock_pipeline
+
+    PyAnnoteDiarizationProvider(
+        "token", device="cpu", clustering_threshold=0.8, min_cluster_size=20
+    )
+
+    applied = mock_pipeline.instantiate.call_args[0][0]
+    assert applied["clustering"]["threshold"] == 0.8
+    assert applied["clustering"]["min_cluster_size"] == 20  # fragments dropped
+    assert applied["clustering"]["method"] == "centroid"  # preserved
+    assert applied["segmentation"] == {"min_duration_off": 0.5}
+
+
+@patch("podcast_scraper.providers.ml.diarization.pyannote_provider._create_pyannote_pipeline")
+def test_clustering_overrides_none_leaves_pipeline_untouched(mock_create) -> None:
+    mock_pipeline = MagicMock()
+    mock_create.return_value = mock_pipeline
+    PyAnnoteDiarizationProvider("token", device="cpu")  # no threshold, no min_cluster_size
+    mock_pipeline.instantiate.assert_not_called()
+
+
 @patch("podcast_scraper.providers.ml.diarization.pyannote_provider._load_waveform")
 @patch("podcast_scraper.providers.ml.diarization.pyannote_provider._create_pyannote_pipeline")
 def test_diarize_maps_pyannote_output(mock_create, mock_load_waveform) -> None:
@@ -91,3 +140,49 @@ def test_diarize_rejects_min_greater_than_max(mock_create, mock_load_waveform) -
     provider = PyAnnoteDiarizationProvider("token", device="cpu")
     with pytest.raises(ValueError):
         provider.diarize("/tmp/audio.wav", num_speakers=None, min_speakers=5, max_speakers=2)
+
+
+def _seg(start: float, end: float, speaker: str):
+    from podcast_scraper.providers.ml.diarization.base import DiarizationSegment
+
+    return DiarizationSegment(start=start, end=end, speaker=speaker)
+
+
+def test_segment_squelch_drops_phantom_subsecond_speaker() -> None:
+    # A phantom over-segmentation cluster (only sub-second snippets) is dropped, while the two
+    # real voices — each with a multi-second segment — survive. Mirrors the audited p03/p05 case.
+    from podcast_scraper.providers.ml.diarization.pyannote_provider import _apply_segment_squelch
+
+    segments = [
+        _seg(0.0, 20.0, "SPEAKER_00"),  # real
+        _seg(20.0, 40.0, "SPEAKER_01"),  # real
+        _seg(12.0, 12.6, "SPEAKER_02"),  # phantom: 0.6s
+        _seg(30.0, 30.3, "SPEAKER_02"),  # phantom: 0.3s
+    ]
+    kept = _apply_segment_squelch(segments, 1000)  # 1000ms squelch
+    speakers = {s.speaker for s in kept}
+    assert speakers == {"SPEAKER_00", "SPEAKER_01"}  # phantom dropped
+    assert all(s.speaker != "SPEAKER_02" for s in kept)
+
+
+def test_segment_squelch_keeps_real_cameo_by_longest_segment() -> None:
+    # A real ~3s cameo has one contiguous segment above the gate — kept — even though its TOTAL
+    # talk-time is small. The discriminator is longest segment, not total (that's the whole point).
+    from podcast_scraper.providers.ml.diarization.pyannote_provider import _apply_segment_squelch
+
+    segments = [
+        _seg(0.0, 30.0, "HOST"),
+        _seg(30.0, 33.0, "CAMEO"),  # one 3s turn
+        _seg(45.0, 45.4, "PHANTOM"),  # 0.4s snippet
+    ]
+    kept = _apply_segment_squelch(segments, 1200)  # 1200ms squelch
+    speakers = {s.speaker for s in kept}
+    assert speakers == {"HOST", "CAMEO"}  # cameo kept, phantom dropped
+
+
+def test_segment_squelch_disabled_when_none_or_zero() -> None:
+    from podcast_scraper.providers.ml.diarization.pyannote_provider import _apply_segment_squelch
+
+    segments = [_seg(0.0, 20.0, "A"), _seg(12.0, 12.3, "B")]
+    assert _apply_segment_squelch(segments, None) is segments  # off → identity
+    assert _apply_segment_squelch(segments, 0) is segments  # 0 → identity

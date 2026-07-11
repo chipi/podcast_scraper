@@ -6,7 +6,7 @@ import { useViewerKeyboard } from './composables/useViewerKeyboard'
 import DashboardView from './components/dashboard/DashboardView.vue'
 import DigestView from './components/digest/DigestView.vue'
 import GraphTabPanel from './components/graph/GraphTabPanel.vue'
-import LibraryView from './components/library/LibraryView.vue'
+import LibraryTab from './components/library/LibraryTab.vue'
 import OpsView from './components/ops/OpsView.vue'
 import UsersAdminView from './components/admin/UsersAdminView.vue'
 import RankingConfigAdminView from './components/admin/RankingConfigAdminView.vue'
@@ -822,7 +822,7 @@ watch(
             />
           </keep-alive>
           <keep-alive>
-            <LibraryView
+            <LibraryTab
               v-if="mainTab === 'library'"
               class="h-full"
               @switch-main-tab="onSwitchMainTab($event)"

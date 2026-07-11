@@ -122,6 +122,27 @@ export interface Podcast {
   episode_count: number
 }
 
+/** Show-level signals for the consumer show page (GET /api/app/podcasts/{feed_id}/signals). */
+export interface PodcastSignals {
+  feed_id: string
+  episode_count: number
+  top_topics: Array<{
+    topic_id: string
+    label: string
+    episode_count: number
+    velocity: number | null
+  }>
+  key_people: Array<{ person_id: string; name: string; episode_count: number }>
+  recurring_guests: Array<{ person_id: string; name: string; episode_count: number }>
+  dominant_themes: Array<{
+    theme_id: string
+    label: string
+    topic_count: number
+    anchor_topic_id: string | null
+  }>
+  trending_topics: Array<{ topic_id: string; label: string; velocity: number; episode_count: number }>
+}
+
 /** A verbatim quote supporting an insight. */
 export interface Quote {
   text: string
@@ -153,6 +174,8 @@ export interface Entity {
   id: string
   name: string
   kind: 'person' | 'org'
+  /** Speaker role in the episode KG (host / guest / mentioned); null for orgs / older data. */
+  role?: string | null
 }
 
 /** A KG topic. Cluster fields (RFC-102) drive cluster-first grouping; null/0 = singleton/no artifact.
@@ -336,10 +359,23 @@ export interface EntitySearchResponse {
   entity: EntityRef | null
 }
 
+/** One show a person appears in, with their role there (AppPersonShow). Per-show, not global. */
+export interface PersonShow {
+  feed_id: string
+  title: string
+  /** Aggregate role within this show (host / guest / mentioned); null when unknown. */
+  role?: string | null
+  episode_count: number
+}
+
 /** Person profile card (GET /api/app/persons/{id} — AppPersonCard). KG co-occurrence. */
 export interface PersonCard {
   id: string
   label: string
+  /** Headline speaker role across the corpus (host / guest / mentioned); null when unknown. */
+  role?: string | null
+  /** Per-show role breakdown — hosts of one show can be guests on another. Hosted shows first. */
+  shows?: PersonShow[]
   episode_count: number
   episodes: EpisodeSummary[]
   related_people: Entity[]
@@ -418,8 +454,9 @@ export interface CorpusEnrichmentSignals {
       episode_count: number
     }>
   }
-  nli_contradiction?: {
-    contradictions?: Array<{
+  /** ADR-108 cross-person corroboration on a topic (embedding cosine + low NLI contradiction). */
+  topic_consensus?: {
+    consensus?: Array<{
       topic_id: string
       person_a_id: string
       person_b_id: string
@@ -454,6 +491,14 @@ export interface CorpusEnrichmentSignals {
       topic_b_label?: string
       episode_count: number
       lift?: number
+    }>
+  }
+  /** Co-occurrence theme clusters ("storylines"); used to mark which topics belong to a theme. */
+  topic_theme_clusters?: {
+    clusters?: Array<{
+      graph_compound_parent_id?: string
+      canonical_label?: string
+      members?: Array<{ topic_id: string }>
     }>
   }
 }

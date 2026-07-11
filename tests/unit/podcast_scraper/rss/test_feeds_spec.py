@@ -14,6 +14,7 @@ from podcast_scraper.rss.feeds_spec import (
     FeedsSpecDocument,
     load_feeds_spec_file,
     merge_feed_entry_into_config,
+    RSS_FEED_ENTRY_OVERRIDE_KEYS,
     RssFeedEntry,
 )
 
@@ -62,6 +63,55 @@ def test_merge_feed_entry_overrides_global_timeout() -> None:
     assert merged.timeout == 77
     assert merged.user_agent == "global-ua"
     assert merged.rss_urls is None
+
+
+def test_merge_feed_entry_overrides_known_hosts_per_feed() -> None:
+    # Step B: a network feed can name its recurring hosts that never self-introduce.
+    base = cfg_mod.Config(rss="https://ignored.example/x", known_hosts=["Global Host"])
+    ent = RssFeedEntry(
+        url="https://feed.example/rss", known_hosts=["Erika Barris", "Nick Fountain"]
+    )
+    merged = merge_feed_entry_into_config(base, ent)
+    assert merged.known_hosts == ["Erika Barris", "Nick Fountain"]  # feed overrides global
+    # A feed that omits known_hosts inherits the global list.
+    inherit = merge_feed_entry_into_config(base, RssFeedEntry(url="https://feed.example/rss"))
+    assert inherit.known_hosts == ["Global Host"]
+
+
+def test_merge_feed_entry_show_centric_per_feed() -> None:
+    # A news-desk feed marks itself show-centric so an unnamed "Host" is expected, not a failure.
+    base = cfg_mod.Config(rss="https://ignored.example/x")
+    assert base.show_centric is False
+    merged = merge_feed_entry_into_config(
+        base, RssFeedEntry(url="https://feed.example/rss", show_centric=True)
+    )
+    assert merged.show_centric is True
+    inherit = merge_feed_entry_into_config(base, RssFeedEntry(url="https://feed.example/rss"))
+    assert inherit.show_centric is False
+
+
+def test_merge_feed_entry_diarization_min_segment_ms_per_feed() -> None:
+    # A news-desk feed with no real cameos can squelch phantom micro-speakers harder (#1170).
+    base = cfg_mod.Config(rss="https://ignored.example/x")
+    merged = merge_feed_entry_into_config(
+        base, RssFeedEntry(url="https://feed.example/rss", diarization_min_segment_ms=1500)
+    )
+    assert merged.diarization_min_segment_ms == 1500
+    # omitted -> inherits the base (global) value
+    inherit = merge_feed_entry_into_config(base, RssFeedEntry(url="https://feed.example/rss"))
+    assert inherit.diarization_min_segment_ms == base.diarization_min_segment_ms
+    # in the override-key allowlist so the merge propagates it
+    assert "diarization_min_segment_ms" in RSS_FEED_ENTRY_OVERRIDE_KEYS
+
+
+def test_feed_entry_diarization_min_segment_ms_range_validated() -> None:
+    # Field validator: 0 <= ms <= 60000.
+    RssFeedEntry(url="https://feed.example/rss", diarization_min_segment_ms=0)
+    RssFeedEntry(url="https://feed.example/rss", diarization_min_segment_ms=60000)
+    with pytest.raises(ValidationError):
+        RssFeedEntry(url="https://feed.example/rss", diarization_min_segment_ms=60001)
+    with pytest.raises(ValidationError):
+        RssFeedEntry(url="https://feed.example/rss", diarization_min_segment_ms=-1)
 
 
 def test_feeds_spec_document_accepts_comment_keys() -> None:

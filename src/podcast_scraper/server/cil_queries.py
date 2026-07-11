@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any, Iterator, Sequence
 
 from podcast_scraper.gi.edge_normalization import normalize_gil_edge_type
+from podcast_scraper.search.corpus_scope import latest_feed_run_allowed_relpaths
 from podcast_scraper.server.corpus_catalog import (
     _optional_image_url,
     _optional_relpath_field,
@@ -29,6 +30,20 @@ from podcast_scraper.server.corpus_catalog import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _latest_run_bridge_paths(bridge_paths: list[str], corpus_base: str) -> list[str]:
+    """Drop bridges under superseded ``feeds/<feed>/run_*`` siblings — keep the latest run per feed.
+
+    The CIL read surfaces (timeline / position-arc / conversation-arc) walk every ``*.bridge.json``
+    under the corpus. When a feed has been re-run, that includes insights from older runs, which
+    then double-count in the timeline and render un-tinted (enrichment only writes the latest run).
+    Apply the same latest-run-per-feed dedup the indexer + enrichment use so the reads match the
+    enriched set. Non-run (flat) layouts are unaffected.
+    """
+    rel_by_abs = {p: os.path.relpath(p, corpus_base).replace(os.sep, "/") for p in bridge_paths}
+    allowed = latest_feed_run_allowed_relpaths(rel_by_abs.values())
+    return [p for p in bridge_paths if rel_by_abs[p] in allowed]
 
 
 def canonical_cil_entity_id(viewer_graph_id: str) -> str:
@@ -158,6 +173,7 @@ def iter_cil_episode_bundles(
             if os.path.isfile(joined):
                 bridge_paths.append(joined)
     bridge_paths.sort()
+    bridge_paths = _latest_run_bridge_paths(bridge_paths, anchor_s)
 
     for safe_bridge in bridge_paths:
         if not safe_bridge.startswith(root_prefix):
@@ -218,6 +234,7 @@ def iter_cil_bridge_bundles(
             if os.path.isfile(joined):
                 bridge_paths.append(joined)
     bridge_paths.sort()
+    bridge_paths = _latest_run_bridge_paths(bridge_paths, anchor_s)
 
     for safe_bridge in bridge_paths:
         if not safe_bridge.startswith(root_prefix):

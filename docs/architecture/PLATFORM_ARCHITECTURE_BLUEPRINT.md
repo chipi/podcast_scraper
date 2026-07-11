@@ -839,7 +839,7 @@ current codebase (`providers/ml/`, `evaluation/`, `search/`, `gi/`, `kg/`):
 | Component | Models (from `model_registry.py`) | VRAM / RAM | GPU benefit | Typical duration |
 | --- | --- | --- | --- | --- |
 | **Whisper transcription** | `openai/whisper` (base/small/medium/large-v3) | 1–6 GB VRAM | **Critical** (10–40× faster) | 5–60 min per episode |
-| **Speaker diarization** | `pyannote/speaker-diarization-3.1` (RFC-058) | 2–4 GB VRAM | **Critical** | 2–10 min per episode |
+| **Speaker diarization** | `pyannote/speaker-diarization-community-1` (v4; RFC-058, 3.1 fallback) | 2–4 GB VRAM | **Critical** | 2–10 min per episode |
 | **Summarization (local)** | BART, DistilBART, PEGASUS, LED-16384 | 1–3 GB RAM/VRAM | Helpful (2–5× faster) | 30s–5 min per episode |
 | **Hybrid MAP-REDUCE** | LongT5 MAP + Ollama/FLAN-T5 REDUCE (RFC-042) | 2–6 GB RAM | Helpful | 1–5 min per episode |
 | **GIL extraction** | Provider-dependent (ML tier: FLAN-T5 + QA + NLI) | 2–4 GB RAM | Moderate | 1–3 min per episode |

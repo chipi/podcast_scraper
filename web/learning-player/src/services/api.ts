@@ -30,6 +30,7 @@ import type {
   PersonCard,
   PlaybackPosition,
   Podcast,
+  PodcastSignals,
   ResurfacingResponse,
   ResurfacingSettings,
   SearchResponse,
@@ -175,7 +176,7 @@ export function getTopicConversationArc(id: string): Promise<TopicConversationAr
 // failure the cache is cleared so a later card can retry.
 let _corpusEnrichment: Promise<CorpusEnrichmentSignals> | null = null
 /** Corpus-scope enrichment signals (RFC-088) — grounding / co-appearance /
- *  contradictions / velocity / similarity / co-occurrence, keyed by enricher id. */
+ *  velocity / similarity / co-occurrence, keyed by enricher id. */
 export function getCorpusEnrichment(): Promise<CorpusEnrichmentSignals> {
   if (!_corpusEnrichment) {
     _corpusEnrichment = getJSON<{ signals: CorpusEnrichmentSignals }>('/corpus/enrichment')
@@ -337,6 +338,12 @@ export async function putUserInterests(clusterIds: string[]): Promise<string[]> 
 /** Shows in the user's library (Home "Your shows"). */
 export async function getPodcasts(): Promise<Podcast[]> {
   return (await getJSON<{ items: Podcast[] }>('/podcasts')).items
+}
+
+/** Show-level signals for a show page: topics/themes it's about, who's on it, what's trending. */
+export function getPodcastSignals(feedId: string, topK?: number): Promise<PodcastSignals> {
+  const q = topK != null ? `?top_k=${topK}` : ''
+  return getJSON<PodcastSignals>(`/podcasts/${encodeURIComponent(feedId)}/signals${q}`)
 }
 
 /** Saved playback positions, newest-first (Home "Continue"); `[]` when signed out. */

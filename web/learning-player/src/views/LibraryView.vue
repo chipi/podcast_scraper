@@ -55,13 +55,14 @@ onMounted(async () => {
   <section>
     <h1 class="mb-4 font-display text-3xl font-extrabold tracking-tight">{{ t('library.title') }}</h1>
 
-    <!-- Tabs -->
-    <div class="mb-6 flex gap-1 border-b border-border">
+    <!-- Tabs — horizontally scrollable so all five stay reachable on a phone (Recent was
+         pushed off-screen). -->
+    <div class="mb-6 flex gap-1 overflow-x-auto border-b border-border [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <button
         v-for="tb in tabs"
         :key="tb.key"
         type="button"
-        class="-mb-px border-b-2 px-4 py-2 text-sm font-bold transition"
+        class="-mb-px shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-bold transition"
         :class="tab === tb.key ? 'border-accent text-canvas-foreground' : 'border-transparent text-muted hover:text-canvas-foreground'"
         @click="tab = tb.key"
       >{{ t(tb.label) }}</button>

@@ -15,9 +15,41 @@ from .cache import (
     save_diarization_cache,
 )
 from .factory import create_diarization_provider
-from .roster import resolve_speaker_roster
+from .roster import build_speaker_diagnostics, resolve_speaker_roster
 
 logger = logging.getLogger(__name__)
+
+
+def _voice_texts_from_aligned(aligned: List[Any]) -> Dict[str, str]:
+    """``voice_id -> concatenated text of its own turns`` (for own-turn self-intro naming, #876)."""
+    chunks: Dict[str, List[str]] = {}
+    for segment, speaker_id in aligned:
+        txt = str(segment.get("text", "") or "") if isinstance(segment, dict) else ""
+        if txt:
+            chunks.setdefault(speaker_id, []).append(txt)
+    return {v: " ".join(c) for v, c in chunks.items()}
+
+
+def _enriched_segments(aligned: List[Any], roster: Any) -> List[Dict[str, Any]]:
+    """Attach the resolved ``speaker`` + id-bearing ``speaker_label`` to each aligned segment.
+
+    ``speaker_label`` stays the raw/real label (the GI mints person ids and the screenplay
+    offsets from it). ``voice_type`` is an additive display hint so a surface can render
+    "Brief speaker" / "Advertisement" for a cameo/ad voice without changing that id.
+    """
+    out: List[Dict[str, Any]] = []
+    for segment, speaker_id in aligned:
+        enriched = dict(segment)
+        enriched["speaker"] = speaker_id
+        enriched["speaker_label"] = roster.label_for(speaker_id)
+        role = roster.by_voice.get(speaker_id)
+        if role is not None and not role.named:
+            if role.voice_type != "person":
+                enriched["voice_type"] = role.voice_type
+            if role.role == "host":
+                enriched["speaker_role"] = "host"  # an unnamed host renders as "Host", not SPEAKER
+        out.append(enriched)
+    return out
 
 
 def _resolve_diarization_cache_dir(cfg: config.Config, cache_dir: Optional[str]) -> Optional[str]:
@@ -81,22 +113,32 @@ def apply_diarization_to_result(
     transcript_text = result.get("text") or " ".join(
         str(seg.get("text", "")) for seg in segments if isinstance(seg, dict)
     )
+    # Align first so the roster can name a voice from its *own* turns' self-introduction (#876),
+    # not only the episode-opening host intro.
+    aligned = align_segments_to_speakers(segments, diarization)
+    voice_texts = _voice_texts_from_aligned(aligned)
+    guests = detected_speaker_names or []
+    known_hosts = list(getattr(cfg, "known_hosts", None) or [])
     roster = resolve_speaker_roster(
         diarization,
         transcript_text,
-        detected_guests=detected_speaker_names or [],
-        known_hosts=list(getattr(cfg, "known_hosts", None) or []),
+        detected_guests=guests,
+        known_hosts=known_hosts,
+        voice_texts=voice_texts,
     )
-    aligned = align_segments_to_speakers(segments, diarization)
-
-    enriched_segments: List[Dict[str, Any]] = []
-    for segment, speaker_id in aligned:
-        enriched = dict(segment)
-        enriched["speaker"] = speaker_id
-        enriched["speaker_label"] = roster.label_for(speaker_id)
-        enriched_segments.append(enriched)
 
     enriched_result = dict(result)
-    enriched_result["segments"] = enriched_segments
+    enriched_result["segments"] = _enriched_segments(aligned, roster)
+    # Diagnostics sidecar (what we tried / resolved / why each voice failed) — the caller
+    # persists it next to the episode so unrecognized speakers are explainable without a re-run.
+    enriched_result["speaker_diagnostics"] = build_speaker_diagnostics(
+        diarization,
+        roster,
+        transcript_text=transcript_text,
+        voice_texts=voice_texts,
+        detected_guests=guests,
+        known_hosts=known_hosts,
+        show_centric=bool(getattr(cfg, "show_centric", False)),
+    )
     enriched_result["diarization_num_speakers"] = roster.num_speakers
     return enriched_result

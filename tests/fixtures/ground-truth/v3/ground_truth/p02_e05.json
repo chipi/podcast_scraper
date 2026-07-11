@@ -1,0 +1,37 @@
+{
+  "callbacks": [],
+  "episode_id": "p02_e05",
+  "extra_alias_callbacks": [],
+  "failure_modes": [
+    "cameo"
+  ],
+  "guest_accent": "en-IN",
+  "host_accent": "en-US",
+  "host_canonical_name": "Ethan",
+  "podcast_id": "p02",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p02:Priya",
+  "primary_guest_canonical_name": "Priya Nair",
+  "primary_guest_surface_in_transcript": "Priya Nair",
+  "primary_topic": "topic:reliability",
+  "publish_date": "2025-03-09",
+  "publish_offset_days": 433,
+  "scripted": true,
+  "secondary_topics": [
+    "topic:on-call"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Datadog",
+      "kind": "template_opening",
+      "line_index": 10
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p02:Priya",
+      "kind": "canonical",
+      "surface": "Priya Nair"
+    }
+  ]
+}

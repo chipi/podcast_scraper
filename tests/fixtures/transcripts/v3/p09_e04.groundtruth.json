@@ -1,0 +1,27 @@
+{
+  "fixture": "p09_e04",
+  "podcast": "Cross-Show",
+  "episode": "Risk Is a Systems Property",
+  "type": "interview",
+  "speakers": [
+    "Sam",
+    "Dr. Elena Fischer"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 3,
+  "failure_modes": [
+    "multi_accent",
+    "recurring_guest"
+  ],
+  "voice_map": {
+    "Sam": "Evan",
+    "Dr. Elena Fischer": "Anna",
+    "Ad": "Zarvox"
+  },
+  "cameo": null,
+  "transcript_sha256": "de2af94cdd9809a1855a37fb81782c17011660224412afd16a861ac76a62d009",
+  "audio_sha256": "87678c5d417387bb5dc4599d70425c0d57a2a9124114b54a97ec3781df2401f5",
+  "rttm_sha256": "2032ddd8f73d5fc693f2dcf3321bfbde77208ef7a19ffbfd316d8aa1da1cda54"
+}

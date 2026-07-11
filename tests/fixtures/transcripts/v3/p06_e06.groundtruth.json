@@ -1,0 +1,23 @@
+{
+  "fixture": "p06_e06",
+  "podcast": "Edge Cases e06",
+  "episode": "Mixed Languages",
+  "type": "interview",
+  "speakers": [
+    "Maya",
+    "Liam"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": false,
+  "num_ad_voices": 0,
+  "expected_diarized_voices": 2,
+  "failure_modes": [],
+  "voice_map": {
+    "Maya": "Samantha",
+    "Liam": "Ralph"
+  },
+  "cameo": null,
+  "transcript_sha256": "768c0d9c3f5f8691bf6bc633717d71bc707e18c3c429cc274086f0393e8a8c3a",
+  "audio_sha256": "827f57d0c9403869c049b20e718bf04c5e4b1c2bc36c13465bf4d2a7e6739adc",
+  "rttm_sha256": "ab9abda1009d727d6720174eb4e28a04097156f8996c2c51341f513d1784f721"
+}

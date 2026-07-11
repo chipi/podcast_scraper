@@ -1,0 +1,27 @@
+{
+  "fixture": "p05_e01",
+  "podcast": "Long Horizon Notes",
+  "episode": "Index Investing Without the Myths",
+  "type": "interview",
+  "speakers": [
+    "Nora",
+    "Daniel Cho"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 3,
+  "failure_modes": [
+    "frame_topic_cross_domain",
+    "same_first_distinct"
+  ],
+  "voice_map": {
+    "Nora": "Kathy",
+    "Daniel Cho": "Fred",
+    "Ad": "Zarvox"
+  },
+  "cameo": null,
+  "transcript_sha256": "e1556d125bde8832b1302d89387e7a1b0b24d5f861f570eb566cfb86d5795382",
+  "audio_sha256": "c1bc73eb7bc03e26268d0521a8676934917cc47b22f2aa384f2467e776507be7",
+  "rttm_sha256": "37a0125ff3b9e2f7f099e0d85d5f5de568e105d10f377df36596ce3698e81e63"
+}

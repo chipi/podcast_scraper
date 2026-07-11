@@ -7,7 +7,7 @@
  * the whole block renders nothing when there's no signal. Chips emit `open` so
  * the parent card can walk the graph (person↔topic), same as its other rows.
  *
- *   Person → grounding %, often-appears-with, disagreements (the two claims).
+ *   Person → grounding %, often-appears-with, where-they-agree (consensus).
  *   Topic  → momentum (velocity), similar topics, often-discussed-alongside.
  */
 import { computed, ref, watch } from 'vue'
@@ -50,30 +50,6 @@ function nameOf(name: string | undefined, id: string): string {
   return name?.trim() ? name.trim() : titleCase(shortId(id))
 }
 
-// Real topic labels (e.g. "AI ethics", not slug-cased "Ai Ethics") harvested from
-// every signal that carries one — velocity covers the whole corpus, so a
-// contradiction's topic_id (which ships without a label) resolves cleanly.
-const topicLabels = computed(() => {
-  const m = new Map<string, string>()
-  const add = (id?: string, label?: string): void => {
-    const key = id ? norm(id) : ''
-    if (key && label?.trim() && !m.has(key)) m.set(key, label.trim())
-  }
-  for (const t of signals.value?.temporal_velocity?.topics ?? []) add(t.topic_id, t.topic_label)
-  for (const t of signals.value?.topic_similarity?.topics ?? [])
-    for (const k of t.top_k ?? []) add(k.topic_id, k.topic_label)
-  for (const p of signals.value?.topic_cooccurrence_corpus?.pairs ?? []) {
-    add(p.topic_a_id, p.topic_a_label)
-    add(p.topic_b_id, p.topic_b_label)
-  }
-  return m
-})
-// Topics render with their raw corpus label (lowercase in this corpus) to match
-// how every other topic chip in the player is shown — consistency over cosmetics.
-function topicName(id: string): string {
-  return topicLabels.value.get(norm(id)) || shortId(id)
-}
-
 // ── Person signals ───────────────────────────────────────────────────────────
 const grounding = computed(() => {
   if (props.kind !== 'person') return null
@@ -90,14 +66,16 @@ const coappears = computed(() => {
   }
   return out.sort((a, b) => b.count - a.count).slice(0, MAX)
 })
-const disagreements = computed(() => {
+// Cross-person corroboration on a topic (topic_consensus, ADR-108): who else makes
+// the same point as this person, oriented so the focused person's claim is "self".
+const consensus = computed(() => {
   if (props.kind !== 'person') return []
   const out: Array<{ otherId: string; otherName: string; topic: string; selfText: string; otherText: string }> = []
-  for (const c of signals.value?.nli_contradiction?.contradictions ?? []) {
+  for (const c of signals.value?.topic_consensus?.consensus ?? []) {
     const isA = norm(c.person_a_id) === self.value
     const isB = norm(c.person_b_id) === self.value
     if (!isA && !isB) continue
-    const topic = topicName(c.topic_id)
+    const topic = shortId(c.topic_id)
     if (isA) out.push({ otherId: c.person_b_id, otherName: nameOf(c.person_b_name, c.person_b_id), topic, selfText: c.insight_a_text ?? '', otherText: c.insight_b_text ?? '' })
     else out.push({ otherId: c.person_a_id, otherName: nameOf(c.person_a_name, c.person_a_id), topic, selfText: c.insight_b_text ?? '', otherText: c.insight_a_text ?? '' })
   }
@@ -136,7 +114,7 @@ const hasAny = computed(() =>
   Boolean(
     grounding.value ||
       coappears.value.length ||
-      disagreements.value.length ||
+      consensus.value.length ||
       momentum.value ||
       similarTopics.value.length ||
       alongside.value.length,
@@ -167,25 +145,25 @@ const hasAny = computed(() =>
       </div>
     </section>
 
-    <section v-if="disagreements.length" class="mb-4" data-testid="es-disagreements">
-      <h3 class="lp-section mb-2">{{ t('ec.sigDisagreements') }}</h3>
+    <section v-if="consensus.length" class="mb-4" data-testid="es-consensus">
+      <h3 class="lp-section mb-2">{{ t('ec.sigConsensus') }}</h3>
       <ul class="flex flex-col gap-2">
         <li
-          v-for="(d, i) in disagreements"
+          v-for="(c, i) in consensus"
           :key="i"
           class="rounded-md bg-overlay px-3 py-2"
-          data-testid="es-disagreement-row"
+          data-testid="es-consensus-row"
         >
           <p class="text-xs">
             <button
               type="button"
               class="font-semibold text-person hover:underline"
-              @click="emit('open', { kind: 'person', id: d.otherId })"
-            >{{ d.otherName }}</button>
-            <span class="text-muted">{{ ' ' + t('ec.sigOn', { topic: d.topic }) }}</span>
+              @click="emit('open', { kind: 'person', id: c.otherId })"
+            >{{ c.otherName }}</button>
+            <span class="text-muted">{{ ' ' + t('ec.sigOn', { topic: c.topic }) }}</span>
           </p>
-          <p v-if="d.selfText" class="mt-1 text-xs text-muted"><span class="text-canvas-foreground">“{{ d.selfText }}”</span></p>
-          <p v-if="d.otherText" class="mt-0.5 text-xs text-muted">{{ d.otherName }}: “{{ d.otherText }}”</p>
+          <p v-if="c.selfText" class="mt-1 text-xs text-muted"><span class="text-canvas-foreground">“{{ c.selfText }}”</span></p>
+          <p v-if="c.otherText" class="mt-0.5 text-xs text-muted">{{ c.otherName }}: “{{ c.otherText }}”</p>
         </li>
       </ul>
     </section>
@@ -194,7 +172,10 @@ const hasAny = computed(() =>
     <section v-if="momentum" class="mb-4" data-testid="es-momentum">
       <h3 class="lp-section mb-2">{{ t('ec.sigMomentum') }}</h3>
       <p class="text-sm">
-        <span class="rounded-full bg-accent/20 px-2 py-0.5 text-xs font-semibold text-accent">
+        <span
+          class="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-semibold text-emerald-300"
+        >
+          <span aria-hidden="true">↑</span>
           {{ t('ec.sig_rising') }} · {{ momentum.v }}× {{ t('ec.sigVsAvg') }}
         </span>
       </p>

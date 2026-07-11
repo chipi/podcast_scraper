@@ -11,6 +11,8 @@ const props = withDefaults(
     corpusPath?: string | null
     alt: string
     sizeClass?: string
+    /** Drop the default border + rounding so a parent can own the frame (cover-forward cards). */
+    frameless?: boolean
   }>(),
   {
     episodeImageUrl: null,
@@ -19,6 +21,7 @@ const props = withDefaults(
     feedImageLocalRelpath: null,
     corpusPath: null,
     sizeClass: 'h-10 w-10',
+    frameless: false,
   },
 )
 
@@ -92,7 +95,8 @@ function onError(): void {
 <template>
   <div
     :class="[
-      'shrink-0 overflow-hidden rounded border border-border bg-elevated',
+      'shrink-0 overflow-hidden bg-elevated',
+      frameless ? '' : 'rounded border border-border',
       sizeClass,
     ]"
     data-testid="podcast-cover"

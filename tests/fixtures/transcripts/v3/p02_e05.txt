@@ -1,0 +1,19 @@
+# Practical Systems — Episode
+## Reliability, Live
+Host: Ethan
+Guest: Priya Nair
+#fixture-v3: failure_modes=cameo
+#fixture-v3: voice=en-IN host_voice=en-US
+
+[00:00]
+Ethan: Welcome back to Practical Systems. I'm joined again by Priya Nair, who spends her days keeping large systems upright. Priya, good to have you back.
+Priya Nair: Good to be back, Ethan.
+Ethan: This episode is brought to you by Datadog — unified observability across logs, metrics, and traces. Start at datadog.com/podcast.
+Ethan: We opened the phones this week. Here's a question that came in from a listener out in the field.
+Caller: Hi Ethan — how do you tell alert fatigue from a real incident?
+Priya Nair: Great question. Alert fatigue is a signal-to-noise problem, not a discipline problem. If the team ignores pages, the pages are wrong, not the people.
+Ethan: So you'd tune the alerts before you tune the humans.
+Priya Nair: Every time. Measure how many pages led to action. Under half, and you have a noise problem — no amount of willpower fixes noise.
+Ethan: Before we wrap — thanks to the caller for that one. Priya, always a pleasure.
+Priya Nair: Anytime, Ethan.
+Ethan: That's it for Practical Systems. See you next week.

@@ -1,6 +1,7 @@
 # RFC-058: Audio-Based Speaker Diarization
 
 - **Status**: Completed (v2.6.0–v2.7) — pyannote provider + alignment shipped (`src/podcast_scraper/diarization/`), ADR-058 ratified, providers wired into pipeline + evaluation harness. WhisperX comparison eval is future scope, not a gating deliverable.
+- **Update (2026-07-11, #1170)**: the default pipeline was promoted from `speaker-diarization-3.1` to `speaker-diarization-community-1` (v4) — it beats 3.1 on the full v3 fixture set (count 40/45, DER 7.1%) and is non-gated. 3.1 is now the registry fallback. Historical `3.1` snippets below are preserved as the original design. See [`EVAL_DIARIZATION_31_VS_COMMUNITY1_RTTM_2026_07`](../guides/eval-reports/EVAL_DIARIZATION_31_VS_COMMUNITY1_RTTM_2026_07.md).
 - **Authors**: Architecture Review
 - **Stakeholders**: Core Pipeline, ML Providers, Transcription Consumers
 - **Related PRDs**:
@@ -321,7 +322,7 @@ diarization_num_speakers: Optional[int] = None  # None = auto-detect
 diarization_min_speakers: int = 2
 diarization_max_speakers: int = 20
 diarization_device: str = "auto"  # "cpu", "cuda", "mps"
-diarization_model: str = "pyannote/speaker-diarization-3.1"
+diarization_model: str = "pyannote/speaker-diarization-community-1"  # 3.1 = fallback (#1170)
 ```
 
 CLI flags:

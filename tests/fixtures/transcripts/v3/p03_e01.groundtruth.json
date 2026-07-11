@@ -1,0 +1,27 @@
+{
+  "fixture": "p03_e01",
+  "podcast": "Below the Surface",
+  "episode": "Wreck Diving Fundamentals",
+  "type": "interview",
+  "speakers": [
+    "Rina",
+    "Marco Sylva"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 3,
+  "failure_modes": [
+    "asr_garble",
+    "same_first_distinct"
+  ],
+  "voice_map": {
+    "Rina": "Allison",
+    "Marco Sylva": "Jacques",
+    "Ad": "Zarvox"
+  },
+  "cameo": null,
+  "transcript_sha256": "cbc4dae40910dc1fba95dd698bfcf5b91c6997899a1425dbb72e0208056d476d",
+  "audio_sha256": "f7d78f34a6c0f6dd9a4638569ef8a7630cf92824a651983e7c9f0d1a6e976535",
+  "rttm_sha256": "841982cc878adc6d909eaa2fb69932b8f287a7982d4585cfbd23343879f5a459"
+}

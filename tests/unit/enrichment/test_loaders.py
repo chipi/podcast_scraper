@@ -25,6 +25,8 @@ from podcast_scraper.enrichment.enrichers._loaders import (
         "person:speaker-05",
         "person:SPEAKER_07",
         "person:speaker_99",
+        "person:speaker-u3-03",  # episode-scoped fallback id (#1b)
+        "person:speaker-episode-abc123-00",  # episode-scoped with a slugged episode id
     ],
 )
 def test_is_unresolved_speaker_placeholder_matches_known_shapes(pid: str) -> None:

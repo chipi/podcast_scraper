@@ -862,15 +862,54 @@ class Config(BaseModel):
         alias="diarization_max_speakers",
         description="Maximum speakers when auto-detecting diarization count",
     )
+    diarization_clustering_threshold: Optional[float] = Field(
+        default=None,
+        alias="diarization_clustering_threshold",
+        description=(
+            "pyannote clustering threshold override (None = the model default). Higher merges "
+            "more agglomerative clusters → FEWER speakers, curbing over-segmentation on noisy / "
+            "montage podcast audio; lower splits more. Tune via the diarization eval harness."
+        ),
+    )
+    diarization_min_cluster_size: Optional[int] = Field(
+        default=None,
+        ge=1,
+        alias="diarization_min_cluster_size",
+        description=(
+            "pyannote clustering min_cluster_size override (None = the model default, ~12). "
+            "Clusters smaller than this are reassigned to the nearest real speaker — raising it "
+            "drops the short (6–30s) over-segmentation FRAGMENTS surgically, without over-merging "
+            "quiet real speakers the way a high clustering_threshold can. Tune via the harness."
+        ),
+    )
+    diarization_min_segment_ms: Optional[int] = Field(
+        default=None,
+        ge=0,
+        le=60000,
+        alias="diarization_min_segment_ms",
+        description=(
+            "Squelch (like a walkie-talkie noise gate): drop any diarized speaker whose LONGEST "
+            "single segment is shorter than this many milliseconds (None/0 = off). Removes the "
+            "spurious sub-second micro-clusters pyannote spawns as a phantom extra speaker on "
+            "noisy audio, WITHOUT touching a real brief cameo (which has one contiguous "
+            "multi-second segment) — the discriminator is longest-segment length, not total "
+            "talk-time. Global default; override per feed (news-desk feeds with no real cameos "
+            "can squelch harder). Validated at ~1000ms on the eval harness (#1170)."
+        ),
+    )
     diarization_device: str = Field(
         default="auto",
         alias="diarization_device",
         description="Device for diarization: auto, cpu, cuda, or mps",
     )
     diarization_model: str = Field(
-        default="pyannote/speaker-diarization-3.1",
+        default="pyannote/speaker-diarization-community-1",
         alias="diarization_model",
-        description="HuggingFace pyannote diarization pipeline model id",
+        description=(
+            "HuggingFace pyannote diarization pipeline model id. Default community-1 "
+            "(v4) — beats 3.1 on the v3 fixtures (count 40/45, DER 7.1%); non-gated. "
+            "Registry: pyannote_diarization_community1. 3.1 is the fallback."
+        ),
     )
     run_id: Optional[str] = Field(default=None, alias="run_id")
     seed: Optional[int] = Field(
@@ -1019,6 +1058,15 @@ class Config(BaseModel):
             "These will be used as hosts if auto-detection fails or finds no hosts."
         ),
     )
+    show_centric: bool = Field(
+        default=False,
+        alias="show_centric",
+        description=(
+            "The show is the brand, not the host (news desks like WSJ/NPR). When true, an "
+            "unnamed but intro-dominant host voice (rendered 'Host') is treated as the EXPECTED "
+            "outcome, not a speaker-detection failure — the diagnostics mark it accordingly."
+        ),
+    )
     # Provider selection fields (Stage 0: Foundation)
     speaker_detector_provider: Literal[
         "spacy", "openai", "gemini", "mistral", "grok", "deepseek", "anthropic", "ollama"
@@ -1133,13 +1181,13 @@ class Config(BaseModel):
         ),
     )
     dgx_diarize_model: str = Field(
-        default="pyannote/speaker-diarization-3.1",
+        default="pyannote/speaker-diarization-community-1",
         alias="dgx_diarize_model",
         description=(
             "Hugging Face repo ID for the pyannote model that the DGX diarize "
-            "service loads. The HF model is gated; HF_TOKEN must be in the "
-            "operator's ~/.env on DGX, which the deploy env_file injects into the "
-            "container."
+            "service loads. Default community-1 (v4, non-gated — no HF_TOKEN needed, "
+            "unlike 3.1). Registry: tailnet_dgx_diarization_community1; 3.1 is the "
+            "fallback, kept deployable on a parallel container for instant rollback."
         ),
     )
     dgx_request_timeout_sec: float = Field(

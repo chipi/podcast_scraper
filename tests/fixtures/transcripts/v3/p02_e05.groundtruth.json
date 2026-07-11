@@ -1,0 +1,31 @@
+{
+  "fixture": "p02_e05",
+  "podcast": "Practical Systems",
+  "episode": "Reliability, Live",
+  "type": "panel",
+  "speakers": [
+    "Ethan",
+    "Priya Nair",
+    "Caller"
+  ],
+  "num_human_speakers": 3,
+  "has_commercial": false,
+  "num_ad_voices": 0,
+  "expected_diarized_voices": 3,
+  "failure_modes": [
+    "cameo"
+  ],
+  "voice_map": {
+    "Ethan": "Alex",
+    "Priya Nair": "Isha",
+    "Caller": "Veena"
+  },
+  "cameo": {
+    "speaker": "Caller",
+    "voice": "Veena",
+    "turns": 1
+  },
+  "transcript_sha256": "d6a9fb11c9d75327d17ffbe07f8b78f49e519563eb384eb58fcf91ffc12d41fc",
+  "audio_sha256": "122587b2c8ad7767c3b407b3c07d9f5c5d3aaf859944a5f9f5299cc0b6ef1008",
+  "rttm_sha256": "ddeab946bf22429b823807f75733b65956ca5043950be40880b3aafb4ce86b1f"
+}

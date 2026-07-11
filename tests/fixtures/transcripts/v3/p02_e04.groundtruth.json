@@ -1,0 +1,23 @@
+{
+  "fixture": "p02_e04",
+  "podcast": "Practical Systems",
+  "episode": "Reliability Is a Systems Property",
+  "type": "interview",
+  "speakers": [
+    "Ethan",
+    "Priya Nair"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": false,
+  "num_ad_voices": 0,
+  "expected_diarized_voices": 2,
+  "failure_modes": [],
+  "voice_map": {
+    "Ethan": "Alex",
+    "Priya Nair": "Isha"
+  },
+  "cameo": null,
+  "transcript_sha256": "51e596f2b4abb4e55b898b1152ec485fe3dd3b36c73acfe7f9d83e691f238041",
+  "audio_sha256": "0b4616b4cc5382ffa4788aec199066ec3474fcbdaecd14ff0f722e83ab6de5fb",
+  "rttm_sha256": "fa1f06bbd726ea62e14f708e94cf5dfdee4c110d6139c69a869e7e07e5aff0a5"
+}

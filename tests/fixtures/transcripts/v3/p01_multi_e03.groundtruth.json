@@ -1,0 +1,23 @@
+{
+  "fixture": "p01_multi_e03",
+  "podcast": "Singletrack Sessions",
+  "episode": "Mechanics (Multi)",
+  "type": "interview",
+  "speakers": [
+    "Maya",
+    "Noah"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": false,
+  "num_ad_voices": 0,
+  "expected_diarized_voices": 2,
+  "failure_modes": [],
+  "voice_map": {
+    "Maya": "Samantha",
+    "Noah": "Tom"
+  },
+  "cameo": null,
+  "transcript_sha256": "eafe9891f8dbc9fad3c714b7f9fa38594f8b797adf4ec70cf6aafca62bf1e89b",
+  "audio_sha256": "1843d51200f2041858bf321e4d187e7453d89fd91aada8f6a7bb9a6763431cea",
+  "rttm_sha256": "3db85635cd8f85cb778cfe3bb70154544003a556bebc40e4e30e2daaf0ac634c"
+}

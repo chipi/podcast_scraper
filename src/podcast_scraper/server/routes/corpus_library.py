@@ -39,6 +39,7 @@ from podcast_scraper.server.corpus_catalog import (
     resolve_feed_rss_url,
     slice_page,
 )
+from podcast_scraper.server.feed_signals import compute_feed_signals
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.server.schemas import (
     BridgePartitionSummary,
@@ -46,6 +47,7 @@ from podcast_scraper.server.schemas import (
     CorpusEpisodeListItem,
     CorpusEpisodesResponse,
     CorpusFeedItem,
+    CorpusFeedSignalsResponse,
     CorpusFeedsResponse,
     CorpusNodeEpisodeItem,
     CorpusNodeEpisodesRequest,
@@ -261,6 +263,30 @@ async def corpus_feeds(
     return CorpusFeedsResponse(path=str(root), feeds=feeds)
 
 
+@router.get("/corpus/feed-signals", response_model=CorpusFeedSignalsResponse)
+async def corpus_feed_signals(
+    request: Request,
+    path: str | None = Query(default=None, description="Corpus root."),
+    feed_id: str = Query(min_length=1, description="Feed id to aggregate signals for."),
+    top_k: int = Query(default=8, ge=1, le=25),
+    max_episodes: int = Query(
+        default=500, ge=1, le=2000, description="Cap episodes scanned for the aggregate."
+    ),
+) -> CorpusFeedSignalsResponse:
+    """Show-level aggregate signals for the Show rail landing (UXS-015 / RFC-104).
+
+    Counts the Topic + Person nodes across a feed's episode KGs (ranked by episode
+    count), then projects corpus-scope enrichment onto the show's entities:
+    recurring guests (≥2 episodes), dominant themes (topic_theme_clusters), trending
+    topics (temporal_velocity), and a pooled grounding score (grounding_rate). Each
+    enrichment fold is best-effort — absent envelopes yield empty/None. Cross-show
+    overlap is a deferred follow-up (needs an all-feeds pass).
+    """
+    anchor = getattr(request.app.state, "output_dir", None)
+    root = _resolve_corpus_root(path, anchor)
+    return compute_feed_signals(root, feed_id, top_k=top_k, max_episodes=max_episodes)
+
+
 @router.get("/corpus/episodes", response_model=CorpusEpisodesResponse)
 async def corpus_episodes(
     request: Request,
@@ -285,6 +311,17 @@ async def corpus_episodes(
     ),
     limit: int = Query(default=50, ge=1, le=1000),
     cursor: str | None = Query(default=None, description="Pagination cursor from previous page."),
+    sort: str = Query(
+        default="newest",
+        pattern="^(newest|oldest)$",
+        description="Publish-date order: newest-first (default) or oldest-first.",
+    ),
+    with_cil_topics: bool = Query(
+        default=False,
+        description="When true, populate cil_digest_topics per row (bridge identities + "
+        "topic-cluster membership), like the detail endpoint. Off by default to keep the "
+        "list light; the show rail opts in for digest-parity topic pills.",
+    ),
 ) -> CorpusEpisodesResponse:
     """Paginated episode list with optional feed, title, topic, and date filters.
 
@@ -308,11 +345,17 @@ async def corpus_episodes(
         until=until,
         has_gi=has_gi,
     )
-    if topic_cluster_only:
-        cluster_index = load_topic_cluster_index(root)
+    cluster_index = (
+        load_topic_cluster_index(root) if (topic_cluster_only or with_cil_topics) else None
+    )
+    if topic_cluster_only and cluster_index is not None:
         filtered = [
             r for r in filtered if row_matches_library_topic_cluster_filter(root, r, cluster_index)
         ]
+    if sort == "oldest":
+        # ``filtered`` is newest-first (catalog sort_key); reverse before paginating so the
+        # cursor walks oldest-first correctly across pages.
+        filtered = list(reversed(filtered))
     offset = decode_catalog_cursor(cursor)
     page_rows, next_cur = slice_page(filtered, offset, limit)
     items = [
@@ -335,7 +378,11 @@ async def corpus_episodes(
             episode_number=r.episode_number,
             feed_image_local_relpath=r.feed_image_local_relpath,
             episode_image_local_relpath=r.episode_image_local_relpath,
-            cil_digest_topics=[],
+            cil_digest_topics=(
+                build_cil_digest_topics_for_row(root, r, cluster_index)
+                if with_cil_topics and cluster_index is not None
+                else []
+            ),
             gi_relative_path=r.gi_relative_path or "",
             kg_relative_path=r.kg_relative_path or "",
             has_gi=r.has_gi,

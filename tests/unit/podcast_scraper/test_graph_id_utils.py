@@ -7,6 +7,7 @@ from podcast_scraper.graph_id_utils import (
     episode_node_id,
     gil_insight_node_id,
     gil_quote_node_id,
+    is_bare_speaker_label,
     is_person_or_org_node,
     normalized_entity_kind_from_node,
     person_node_id,
@@ -27,6 +28,31 @@ def test_entity_and_person_ids() -> None:
     assert entity_node_id("person", "Jane Doe") == "person:jane-doe"
     assert entity_node_id("organization", "Acme") == "org:acme"
     assert person_node_id("Sam Altman") == "person:sam-altman"
+
+
+def test_is_bare_speaker_label() -> None:
+    assert is_bare_speaker_label("SPEAKER_00")
+    assert is_bare_speaker_label("Speaker 3")
+    assert is_bare_speaker_label("speaker-12")
+    assert not is_bare_speaker_label("Sam Altman")
+    assert not is_bare_speaker_label("Speaker Jones")  # a real surname, not a diarization id
+    assert not is_bare_speaker_label(None)
+    assert not is_bare_speaker_label("")
+
+
+def test_bare_speaker_label_is_episode_scoped_but_real_names_stay_global() -> None:
+    # A resolved name is a global id regardless of episode (a recurring person is one node).
+    assert person_node_id("Sam Altman", "ep1") == "person:sam-altman"
+    assert entity_node_id("person", "Sam Altman", "ep1") == "person:sam-altman"
+    # An unresolved diarization voice is scoped to the episode so it can't merge across episodes.
+    assert person_node_id("SPEAKER_00", "u3") == "person:speaker-u3-00"
+    assert entity_node_id("person", "SPEAKER_00", "u3") == "person:speaker-u3-00"
+    # Same label, different episode → different id (diarization numbers aren't stable across eps).
+    assert person_node_id("SPEAKER_00", "u3") != person_node_id("SPEAKER_00", "u7")
+    # Without an episode scope, behaviour is unchanged (global slug) — backward compatible.
+    assert person_node_id("SPEAKER_00") == "person:speaker-00"
+    # An org that happens to look like a label is never person-scoped.
+    assert entity_node_id("organization", "SPEAKER_00", "u3") == "org:speaker-00"
 
 
 def test_gil_hashes_stable() -> None:

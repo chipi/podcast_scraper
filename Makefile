@@ -350,6 +350,8 @@ MARKDOWNLINT_CLI_ARGS = "**/*.md" \
 	--ignore "$(WEB_VIEWER_DIR)/validation-results/**" \
 	--ignore "tests/stack-test/playwright-report/**" \
 	--ignore "tests/stack-test/test-results/**" \
+	--ignore "$(APP_DIR)/playwright-report/**" \
+	--ignore "$(APP_DIR)/test-results/**" \
 	--config .markdownlint.json
 
 lint-markdown:

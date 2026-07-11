@@ -50,7 +50,7 @@ screenplay: true
 diarize: true
 diarization_provider: tailnet_dgx
 dgx_diarize_port: 8001
-dgx_diarize_model: pyannote/speaker-diarization-3.1
+dgx_diarize_model: pyannote/speaker-diarization-community-1
 dgx_diarize_request_timeout_sec: 180.0  # #954: per-request hard ceiling
 
 audio_preprocessing_profile: speech_optimal_v1

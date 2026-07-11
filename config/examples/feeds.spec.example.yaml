@@ -51,3 +51,16 @@ feeds:
     episode_retry_max: 1
     episode_retry_delay_sec: 10.0
     timeout: 120
+
+  # Feed C: network feed whose RSS author is the org and whose hosts rarely self-introduce.
+  # Per-feed known_hosts names the recurring host so it is not left as SPEAKER_NN when a given
+  # episode has no "I'm ..." intro. Overrides global known_hosts; omit to inherit the global list.
+  - url: https://example.com/network-show.xml
+    known_hosts:
+      - Alexi Horowitz-Ghazi
+      - Katie Martin
+
+  # Feed D: a news desk where the show is the brand, not the host. show_centric marks an unnamed
+  # host (rendered "Host") as the EXPECTED outcome, so it is not flagged as a detection failure.
+  - url: https://example.com/news-desk.xml
+    show_centric: true

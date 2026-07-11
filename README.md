@@ -288,11 +288,12 @@ docker run -v ./config.yaml:/app/config.yaml \
            podcast-scraper:ml
 ```
 
-> **Neural diarization needs your own Hugging Face token at runtime.** The ML image
-> ships **without** the gated pyannote models (their licence forbids redistributing
-> them in a published image). To enable neural speaker diarization, accept the terms
-> for `pyannote/speaker-diarization-3.1` + `pyannote/segmentation-3.0` on Hugging Face,
-> then pass your token and a persistent cache so the one-time download survives restarts:
+> **The default diarization model (`community-1`, v4) is non-gated — no Hugging Face
+> token needed**, and the ML image bakes it in. A token is only required if you switch
+> to the gated `pyannote/speaker-diarization-3.1` fallback (whose `segmentation-3.0` is
+> also gated and cannot be redistributed in a published image). For that fallback,
+> accept the terms on Hugging Face, then pass your token and a persistent cache so the
+> one-time download survives restarts:
 >
 > ```bash
 > docker run -v ./config.yaml:/app/config.yaml \

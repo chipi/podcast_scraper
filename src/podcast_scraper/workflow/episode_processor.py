@@ -552,6 +552,30 @@ def _save_transcript_segments_file(
         logger.debug("Could not save segments file %s: %s", segments_path, e)
 
 
+def _save_speaker_diagnostics_file(
+    diagnostics: Optional[Dict[str, Any]],
+    rel_transcript_path: str,
+    effective_output_dir: str,
+) -> None:
+    """Persist per-episode speaker-resolution diagnostics next to the transcript.
+
+    ``<base>.speakers.diagnostics.json`` records what the roster tried, what it resolved, and
+    why each unresolved voice failed — so an operator can explain unrecognized speakers without
+    re-running the pipeline. No-op when diarization produced no diagnostics.
+    """
+    if not diagnostics or not rel_transcript_path:
+        return
+    full_path = os.path.join(effective_output_dir, rel_transcript_path)
+    base, _ = os.path.splitext(full_path)
+    diag_path = base + ".speakers.diagnostics.json"
+    try:
+        with open(diag_path, "w", encoding="utf-8") as f:
+            json.dump(diagnostics, f, indent=2, allow_nan=False)
+        logger.debug("Saved speaker diagnostics: %s", diag_path)
+    except OSError as e:
+        logger.debug("Could not save speaker diagnostics %s: %s", diag_path, e)
+
+
 def _maybe_produce_adfree(
     cfg: config.Config,
     text: str,
@@ -1623,6 +1647,11 @@ def transcribe_media_to_text(
         segments = result.get("segments") if isinstance(result, dict) else None
         if isinstance(segments, list) and len(segments) > 0:
             _save_transcript_segments_file(segments, rel_path, effective_output_dir)
+            _save_speaker_diagnostics_file(
+                result.get("speaker_diagnostics") if isinstance(result, dict) else None,
+                rel_path,
+                effective_output_dir,
+            )
             # #974: derive the ad-free processing-base sibling. Raw .txt left untouched.
             _maybe_produce_adfree(cfg, text, segments, rel_path, effective_output_dir)
 

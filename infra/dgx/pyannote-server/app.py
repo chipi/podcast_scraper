@@ -87,10 +87,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Load the pyannote pipeline once at startup."""
     global _PIPELINE
     hf_token = os.environ.get("HF_TOKEN")
-    if not hf_token:
+    # community-1 (v4) is non-gated — it loads with no token (and offline from a
+    # mounted cache). Only the gated models (3.1 + segmentation-3.0) need a token.
+    _is_gated = "community-1" not in _MODEL_NAME
+    if _is_gated and not hf_token:
         raise RuntimeError(
-            "HF_TOKEN env var required (pyannote models are gated). "
-            "Set it in /home/markodragoljevic/.env on DGX."
+            f"HF_TOKEN env var required for gated model {_MODEL_NAME}. "
+            "Set it in /home/markodragoljevic/.env on DGX, or use the non-gated "
+            "community-1 default."
         )
 
     logger.info("Loading pyannote model %s on %s", _MODEL_NAME, _DEVICE)

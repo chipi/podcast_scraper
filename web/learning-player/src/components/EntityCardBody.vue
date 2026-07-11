@@ -11,7 +11,14 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 import { getPersonCard, getTopicCard } from '../services/api'
-import type { Entity, EpisodeSummary, PersonCard, Topic, TopicCard } from '../services/types'
+import type {
+  Entity,
+  EpisodeSummary,
+  PersonCard,
+  PersonShow,
+  Topic,
+  TopicCard,
+} from '../services/types'
 import EntitySignals from './EntitySignals.vue'
 import TopicPerspectives from './TopicPerspectives.vue'
 import TopicConversationArc from './TopicConversationArc.vue'
@@ -102,8 +109,34 @@ function onBack(): void {
 }
 
 const label = computed(() => person.value?.label ?? topic.value?.label ?? '')
+
+// Speaker role badge (host / guest / mentioned) — mirrors the operator viewer's person role
+// badge, KG-grounded from the person node's aggregate role. Empty for topics / unknown role.
+const ROLE_LABEL_KEYS: Record<string, string> = {
+  host: 'ec.roleHost',
+  guest: 'ec.roleGuest',
+  mentioned: 'ec.roleMentioned',
+}
+const personRole = computed(() =>
+  current.value.kind === 'person' ? (person.value?.role ?? '').toLowerCase() : '',
+)
+const personRoleLabel = computed(() => {
+  const key = ROLE_LABEL_KEYS[personRole.value]
+  return key ? t(key) : ''
+})
 const episodes = computed<EpisodeSummary[]>(
   () => person.value?.episodes ?? topic.value?.episodes ?? [],
+)
+
+// Per-show role (#3 follow-up): a person hosts some shows and guests on others. Surface the
+// shows they HOST up top ("Host of"), and drop those shows' back-catalogue from the episode
+// list below — a daily-show host shouldn't list 500 own episodes; show other-show appearances.
+const hostShows = computed<PersonShow[]>(() =>
+  (person.value?.shows ?? []).filter((s) => (s.role ?? '').toLowerCase() === 'host'),
+)
+const hostFeedIds = computed(() => new Set(hostShows.value.map((s) => s.feed_id)))
+const shownEpisodes = computed<EpisodeSummary[]>(() =>
+  hostShows.value.length ? episodes.value.filter((e) => !hostFeedIds.value.has(e.feed_id)) : episodes.value,
 )
 const relatedPeople = computed<Entity[]>(
   () => person.value?.related_people ?? topic.value?.related_people ?? [],
@@ -153,7 +186,18 @@ function searchLibrary(): void {
         <span aria-hidden="true" class="text-base leading-none">{{ atRoot && variant === 'overlay' ? '✕' : '‹' }}</span>
         <span>{{ atRoot && variant === 'overlay' ? t('ec.close') : t('ec.back') }}</span>
       </button>
-      <span class="lp-kicker mt-3 block">{{ current.kind === 'person' ? t('ec.person') : t('ec.topic') }}</span>
+      <span class="mt-3 flex items-center gap-2">
+        <span class="lp-kicker">{{ current.kind === 'person' ? t('ec.person') : t('ec.topic') }}</span>
+        <!-- Host / guest / mentioned — the person's aggregate speaker role (mirrors the operator
+             viewer). Host gets the ringed emphasis idiom used for the "current" chip elsewhere. -->
+        <span
+          v-if="personRoleLabel"
+          data-testid="ec-person-role"
+          :data-role="personRole"
+          class="rounded-full bg-overlay px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide text-person"
+          :class="personRole === 'host' ? 'ring-1 ring-person' : ''"
+        >{{ personRoleLabel }}</span>
+      </span>
       <span class="block truncate font-display text-xl font-extrabold">{{ label || '…' }}</span>
       <button
         v-if="auth.isAuthenticated && label"
@@ -231,6 +275,15 @@ function searchLibrary(): void {
           {{ t('ec.searchLibrary', { term: label }) }}
         </button>
 
+        <!-- Enrichment signals (Plan B) — momentum first, up top (operator feedback): momentum /
+             similar / discussed-alongside (topic); grounding / co-appears / consensus (person).
+             Hides itself when empty. -->
+        <EntitySignals
+          :kind="current.kind"
+          :id="current.id"
+          @open="(p) => open(p.kind, p.id)"
+        />
+
         <!-- All topics in this cluster: the one you're on (ringed) + every sibling, with a count. -->
         <section v-if="siblings.length" class="mb-4">
           <h3 class="lp-section mb-2">
@@ -269,16 +322,38 @@ function searchLibrary(): void {
           </div>
         </section>
 
-        <section v-if="episodes.length" class="mb-4">
+        <!-- Shows this person hosts (their own shows) — kept distinct from guest appearances
+             below. A host can be a guest elsewhere, so this is per-show, not a global role. -->
+        <section v-if="hostShows.length" class="mb-4" data-testid="ec-host-shows">
+          <h3 class="lp-section mb-2">{{ t('ec.hostOf') }}</h3>
+          <div class="flex flex-col">
+            <RouterLink
+              v-for="s in hostShows"
+              :key="s.feed_id"
+              :to="{ name: 'podcast', params: { feedId: s.feed_id } }"
+              class="flex items-center gap-3 border-b border-border py-2 no-underline text-canvas-foreground hover:bg-overlay"
+              @click="emit('close')"
+            >
+              <span class="min-w-0 flex-1 truncate text-sm font-semibold">{{ s.title }}</span>
+              <span class="lp-kicker shrink-0">{{
+                t('ec.showEpisodeCount', s.episode_count, { named: { count: s.episode_count } })
+              }}</span>
+            </RouterLink>
+          </div>
+        </section>
+
+        <section v-if="shownEpisodes.length" class="mb-4">
           <h3 class="lp-section mb-2">
             {{
-              current.kind === 'person'
-                ? t('ec.personEpisodes', episodeCount, { named: { count: episodeCount } })
-                : t('ec.topicEpisodes', episodeCount, { named: { count: episodeCount } })
+              current.kind !== 'person'
+                ? t('ec.topicEpisodes', episodeCount, { named: { count: episodeCount } })
+                : hostShows.length
+                  ? t('ec.personOtherEpisodes', shownEpisodes.length, { named: { count: shownEpisodes.length } })
+                  : t('ec.personEpisodes', episodeCount, { named: { count: episodeCount } })
             }}
           </h3>
           <ul class="flex flex-col">
-            <li v-for="e in episodes" :key="e.slug">
+            <li v-for="e in shownEpisodes" :key="e.slug">
               <RouterLink
                 :to="{ name: 'player', params: { slug: e.slug } }"
                 class="flex items-center gap-3 border-b border-border py-2 no-underline text-canvas-foreground hover:bg-overlay"
@@ -302,21 +377,15 @@ function searchLibrary(): void {
         </section>
 
         <!-- Multi-perspective synthesis (#1146): each guest's take on this topic. Topic-only;
-             hides itself when the topic has no speaker-attributable insight. -->
-        <TopicConversationArc v-if="isTopic" :id="current.id" />
+             hides itself when the topic has no speaker-attributable insight. The arc is a
+             corpus-wide aggregate (no per-user cut), so it clears under "My corpus" like the
+             rest of the card (operator feedback). -->
+        <TopicConversationArc v-if="isTopic" :id="current.id" :scope="corpusScope" />
 
         <TopicPerspectives
           v-if="isTopic"
           :id="current.id"
           :scope="corpusScope"
-          @open="(p) => open(p.kind, p.id)"
-        />
-
-        <!-- Enrichment signals (Plan B): grounding / co-appears / disagreements (person);
-             momentum / similar / discussed-alongside (topic). Hides itself when empty. -->
-        <EntitySignals
-          :kind="current.kind"
-          :id="current.id"
           @open="(p) => open(p.kind, p.id)"
         />
 

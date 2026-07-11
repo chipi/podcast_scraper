@@ -1,0 +1,26 @@
+{
+  "fixture": "p08_e03",
+  "podcast": "Public Hour",
+  "episode": "The Desk That Never Sleeps",
+  "type": "interview",
+  "speakers": [
+    "A. correspondent",
+    "Renee Montagne-Park"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 3,
+  "failure_modes": [
+    "zero_host_ner"
+  ],
+  "voice_map": {
+    "A. correspondent": "Karen",
+    "Renee Montagne-Park": "Moira",
+    "Ad": "Zarvox"
+  },
+  "cameo": null,
+  "transcript_sha256": "78f33b10f0e26554c8da4913006c3aa0cc28e0b22059f1ea05c24ee4bbfa9475",
+  "audio_sha256": "076fd767c2cc2c0a5d0f13db520164ad0fa9529380d6830ebbd6cebd3c5a8031",
+  "rttm_sha256": "dea516673c74c4c77fe7715c362bf2a7c202d7b029492920648003d76ae90b90"
+}

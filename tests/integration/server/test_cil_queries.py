@@ -1184,6 +1184,42 @@ def test_conversation_arc_drops_insights_with_unparsable_dates(tmp_path: Path) -
     assert cil_queries.topic_conversation_arc(root, root, "topic:ai", insight_types=None) == []
 
 
+def test_timeline_dedups_to_latest_run_per_feed(tmp_path: Path) -> None:
+    """When a feed has been re-run, the CIL timeline uses only the latest run's insights (matching
+    the enrichment / indexer latest-run-per-feed dedup) so superseded runs don't double-count."""
+    corpus = tmp_path / "c"
+    feed = corpus / "feeds" / "f1"
+    old_run = feed / "run_20260101_000000" / "metadata"
+    new_run = feed / "run_20260201_000000" / "metadata"
+    _write_bundle(
+        old_run,
+        "e1",
+        episode_id="ep1",
+        publish_date="2024-01-15",
+        person="person:a",
+        topic="topic:ai",
+        insight_id="i_old",
+        quote_id="q_old",
+        insight_text="old run take",
+    )
+    _write_bundle(
+        new_run,
+        "e1",
+        episode_id="ep1",
+        publish_date="2024-01-15",
+        person="person:a",
+        topic="topic:ai",
+        insight_id="i_new",
+        quote_id="q_new",
+        insight_text="new run take",
+    )
+    root = str(corpus)
+    tl = cil_queries.topic_timeline(root, root, "topic:ai", insight_types=None)
+    ids = {n.get("id") for b in tl for n in b["insights"]}
+    assert "i_new" in ids
+    assert "i_old" not in ids  # the superseded run is dropped
+
+
 def test_timeline_sentiment_missing_sidecar_leaves_insights_untinted(tmp_path: Path) -> None:
     """With no ``insight_sentiment`` sidecar, timeline insights come back with no ``sentiment`` key
     (surfaces render un-tinted) rather than raising."""

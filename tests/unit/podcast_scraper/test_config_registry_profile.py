@@ -18,6 +18,12 @@ from __future__ import annotations
 import pytest
 
 from podcast_scraper.config import Config
+from podcast_scraper.providers.ml.model_registry import (
+    get_diarization_option,
+    get_diarization_options,
+    get_profile_preset,
+    resolve_profile_to_settings,
+)
 
 
 @pytest.fixture
@@ -84,3 +90,60 @@ class TestRegistryLayering:
         # Construction must not raise.
         cfg = Config.model_validate({"profile": "cloud_with_dgx_primary"})
         assert not hasattr(cfg, "transcription_endpoint")
+
+
+class TestStageOptionRegistries:
+    """Diarization registry — provenance + tier coverage missing from integration suite."""
+
+    def test_every_option_has_research_provenance(self) -> None:
+        """Every diarization StageOption must cite the eval report that justified it."""
+        for opts in (get_diarization_options(),):
+            for opt in opts.values():
+                assert opt.research_ref, f"{opt.option_id} missing research_ref"
+                assert opt.headline_metric, f"{opt.option_id} missing headline_metric"
+
+    def test_every_option_has_valid_tier(self) -> None:
+        valid_tiers = {"primary", "fallback", "experimental", "deprecated"}
+        for opts in (get_diarization_options(),):
+            for opt in opts.values():
+                assert opt.tier in valid_tiers, f"{opt.option_id}: bad tier {opt.tier!r}"
+
+    def test_unknown_option_id_raises(self) -> None:
+        with pytest.raises(ValueError, match="Unknown diarization option"):
+            get_diarization_option("not-a-real-option")
+
+
+class TestProfilePresets:
+    """Drift catch: preset diarization fields must reference registered diarization options."""
+
+    def test_every_preset_references_real_options(self) -> None:
+        all_dia = set(get_diarization_options())
+        for name in [
+            "cloud_balanced",
+            "cloud_thin",
+            "cloud_with_dgx_primary",
+            "local_dgx_balanced",
+            "local_dgx_full",
+        ]:
+            preset = get_profile_preset(name)
+            assert preset.diarization in all_dia, (
+                f"profile {name!r} references unknown diarization option " f"{preset.diarization!r}"
+            )
+
+    def test_resolver_routes_diarization_model_by_backend(self) -> None:
+        """resolve_profile_to_settings routes the diarization model to the config field
+        for the option's backend (pyannote->diarization_model, tailnet_dgx->
+        dgx_diarize_model, deepgram->deepgram_diarization_model) + a research ref."""
+        # local -> in-process pyannote
+        s = resolve_profile_to_settings("local", dgx_tailnet_host="h")
+        assert s["diarization_model"] == "pyannote/speaker-diarization-community-1"
+        assert "dgx_diarize_model" not in s and "deepgram_diarization_model" not in s
+        assert s.get("_diarization_research_ref")
+        # eval_default -> DGX diarize service
+        s = resolve_profile_to_settings("eval_default", dgx_tailnet_host="h")
+        assert s["dgx_diarize_model"] == "pyannote/speaker-diarization-community-1"
+        assert "diarization_model" not in s and "deepgram_diarization_model" not in s
+        # cloud_balanced -> standalone Deepgram pass
+        s = resolve_profile_to_settings("cloud_balanced", dgx_tailnet_host="h")
+        assert s["deepgram_diarization_model"] == "nova-3-general"
+        assert "diarization_model" not in s and "dgx_diarize_model" not in s

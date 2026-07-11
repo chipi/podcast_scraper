@@ -59,38 +59,120 @@ PODCAST_HOSTS: dict[str, str] = {
     "p09": "Alex Morgan",  # The Long View - Biohacking
 }
 
-# Per-speaker voice mapping (RFC-059 §2). Each fixture speaker gets a distinct
-# macOS ``say`` voice with accent variety so diarization can actually separate
-# them. Listing-order convention: hosts first, then guests, then synthetic.
+# Per-speaker voice mapping (#1170): ONE voice per PERSON across the whole corpus.
+# This is the CANONICAL, NON-NEGOTIABLE rule — see tests/fixtures/FIXTURES_SPEC.md
+# ("Voices — ONE VOICE PER PERSON"). Enforced by
+# tests/integration/eval/test_voice_assignment.py (deviation fails CI).
+# - each show host has a single voice; each guest identity has a single voice, kept
+#   across shows (cross-show guests) AND across every garble/nickname surface form;
+# - distinct identities NEVER share a voice (incl. same-first-name pairs, e.g. the
+#   two Daniels / two Marcos), so voice == identity;
+# - accent-matched where a macOS voice exists; en-US overflow spills to other ENGLISH
+#   accents (only 9 en_US voices exist); a few non-US guests have no matching-locale
+#   voice (Nigerian/Italian/Brazilian) and take the nearest distinct voice.
+# Derived deterministically from the scripts/build_v3_fixtures.py roster.
 SPEAKER_VOICE_MAP: dict[str, str] = {
-    # Hosts (varied accents)
-    "Maya": "Samantha",  # en_US female
-    "Ethan": "Alex",  # en_US male
-    "Rina": "Karen",  # en_AU female
-    "Leo": "Daniel",  # en_GB male
-    "Nora": "Moira",  # en_IE female
-    "Alex": "Evan",  # en_US male (p07-p09 host: "Alex Morgan" -> first word)
-    # Guests (varied accents for speaker distinction)
-    "Liam": "Daniel",  # en_GB male (cross-accent from host Samantha so pyannote
-    #                    reliably separates them on the short p01_multi_e01 clip)
-    "Sophie": "Flo",  # en_GB female
-    "Noah": "Tom",  # en_US male
-    "Priya": "Isha",  # en_IN female
-    "Jonas": "Eddy",  # en_US male
-    "Camila": "Paulina",  # es_MX female
-    "Marco": "Lee",  # en_AU male (it_IT "Luca" not installed; Lee keeps it male + distinct)
-    "Hanna": "Anna",  # de_DE female
-    "Owen": "Reed",  # en_US male
-    "Ava": "Kathy",  # en_US female
-    "Tariq": "Rishi",  # en_IN male
-    "Elise": "Amélie",  # fr_CA female (exact installed name carries the accent)
-    "Daniel": "Oliver",  # en_GB male
-    "Isabel": "Mónica",  # es_ES female (exact installed name carries the accent)
-    "Kasper": "Ralph",  # en_US male
-    # Synthetic / non-human speakers (RFC-059 §3 / issue #109).
-    # Pre-recorded mid-roll ads use the ``Ad:`` speaker label; Zarvox is
-    # deliberately robotic so listeners + diarization both flag it as
-    # distinct from the host-read sponsor segments.
+    # --- Hosts (one voice per show host) ---
+    # Maya @en-US (host)
+    "Maya": "Samantha",
+    # Ethan @en-US (host)
+    "Ethan": "Alex",
+    # Rina @en-US (host)
+    "Rina": "Allison",
+    # Leo @en-GB (host)
+    "Leo": "Daniel",
+    # Nora @en-US (host)
+    "Nora": "Kathy",
+    # Cam @en-US (host)
+    "Cam": "Fiona",
+    # Alex Morgan @en-AU (host)
+    "Alex Morgan": "Lee",
+    # A. correspondent @en-US (host)
+    "A. correspondent": "Karen",
+    # Sam @en-US (host)
+    "Sam": "Evan",
+    # --- Guests (one voice per identity; cross-show guests keep it; garbles fold in) ---
+    # Ava Lemoine @fr-CA (guest)
+    "Ava Lemoine": "Amélie",
+    "Ava Lemonne": "Amélie",
+    "Ava Lemoyne": "Amélie",
+    # Daniel Cho @en-US (guest)
+    "Daniel Cho": "Fred",
+    "Daniel Choh": "Fred",
+    "Daniel Joh": "Fred",
+    # Daniel Olufemi @en-NG (guest)
+    "Daniel Olufemi": "Xander",
+    "Daniel Olufemy": "Xander",
+    "Daniel Olufoemi": "Xander",
+    # Dr. Elena Fischer @de-DE (guest)
+    "Dr. Elena Fischer": "Anna",
+    "Dr. Elena Fischner": "Anna",
+    "Dr. Elena Fisher": "Anna",
+    # Hanna Crebo-Rediker @en-GB (guest)
+    "Hanna Crebo Rediker": "Kate",
+    "Hanna Crebo-Rediker": "Kate",
+    "Hanna Krebo-Rediker": "Kate",
+    "Hanna Krebohticker": "Kate",
+    # Jonas Weisenthal @en-US (guest)
+    "Joll Wisenthal": "Nathan",
+    "Jonas Wassenthal": "Nathan",
+    "Jonas Weisenthal": "Nathan",
+    "Jonas Wisenthal": "Nathan",
+    # Jordan Park @en-US (guest)
+    "Jordan Park": "Matilda",
+    # Liam Verbeek @en-US (guest)
+    "Liam Verbeak": "Ralph",
+    "Liam Verbeck": "Ralph",
+    "Liam Verbeek": "Ralph",
+    # Marco Bianchi @it-IT (guest)
+    "Marco Biancchi": "Thomas",
+    "Marco Bianchi": "Thomas",
+    "Marco Bianci": "Thomas",
+    # Marco Silva @pt-BR (guest)
+    "Marco Silva": "Jacques",
+    "Marco Silvah": "Jacques",
+    "Marco Sylva": "Jacques",
+    # Noah Brier @en-US (guest)
+    "Noah Brier": "Tom",
+    "Noah Brier-ah": "Tom",
+    "Noah Bryer": "Tom",
+    # Priya Nair @en-IN (guest)
+    "Priya Naar": "Isha",
+    "Priya Nair": "Isha",
+    "Priya Nayar": "Isha",
+    # Renee Montagne-Park @en-US (guest)
+    "Renee Montagne-Park": "Moira",
+    "Renee Montague-Park": "Moira",
+    # Richard Clarida @en-US (guest)
+    "Rich Clarida": "Oliver",
+    "Richard Clarida": "Oliver",
+    "Richard Claridah": "Oliver",
+    # Scott Bessent @en-US (guest)
+    "Scott Bessant": "Jamie",
+    "Scott Bessent": "Jamie",
+    "Scott Bessett": "Jamie",
+    # Skanda Amarnath @en-IN (guest)
+    "Skanda Amarnath": "Rishi",
+    "Skanda Amarnauth": "Rishi",
+    "Skanda Eminas": "Rishi",
+    # Sophie Laurent @en-US (guest)
+    "Sophie Laurent": "Tessa",
+    "Sophie Lorent": "Tessa",
+    "Sophie Lorenz": "Tessa",
+    # Tariq Hassan @ar-EG (guest)
+    "Tarek Hassan": "Majed",
+    "Tariq Hasaan": "Majed",
+    "Tariq Hassan": "Majed",
+    # --- Cameos (#1170) ---
+    # Caller @ (cameo)
+    "Caller": "Veena",
+    # Nadia Sereni @ (cameo)
+    "Nadia Sereni": "Alice",
+    # Bare first-name aliases (standalone smoke fixtures; unambiguous)
+    "Liam": "Ralph",
+    "Noah": "Tom",
+    "Sophie": "Tessa",
+    # Synthetic / non-human
     "Ad": "Zarvox",
 }
 
@@ -155,7 +237,9 @@ GEMINI_FALLBACK_VOICES: list[str] = [
 ]
 
 TS_RE = re.compile(r"^\[\s*\d{1,2}:\d{2}(:\d{2})?\s*\]$")
-SPEAKER_RE = re.compile(r"^([A-Za-z][A-Za-z '\-]{0,40}):\s+(.*)$")
+# Names may contain internal periods ("A. correspondent", "Dr. Elena Fischer");
+# without '.' those turns fall through to the host voice instead of their own (#1170).
+SPEAKER_RE = re.compile(r"^([A-Za-z][A-Za-z .'\-]{0,40}):\s+(.*)$")
 FILE_PREFIX_RE = re.compile(r"^(p\d{2})_", re.IGNORECASE)
 VERSION_SEGMENT_RE = re.compile(r"^v\d+$")
 
@@ -426,6 +510,34 @@ def render_segments_via_gemini(
         )
 
 
+def aiff_duration(path: Path) -> float:
+    """Duration (seconds) of a rendered aiff via ffprobe. The ``say`` aiff render is
+    byte-deterministic, so these durations reproduce the concatenated mp3's timeline
+    exactly — the basis for the free per-turn RTTM ground truth (#1170)."""
+    out = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=True,
+    )
+    return float(out.stdout.strip())
+
+
+def write_rttm(file_id: str, turns: list[tuple[str, float]], out_rttm: Path) -> None:
+    """Write a NIST RTTM from ``(speaker_label, duration_s)`` turns in speaking order.
+
+    Onset is the cumulative sum of prior turn durations. The speaker label is the
+    ``say`` voice (one-voice-per-person makes it a faithful person identity, and DER
+    solves the optimal label mapping so the string itself is irrelevant)."""
+    lines: list[str] = []
+    onset = 0.0
+    for label, dur in turns:
+        lines.append(f"SPEAKER {file_id} 1 {onset:.3f} {dur:.3f} <NA> <NA> {label} <NA> <NA>")
+        onset += dur
+    out_rttm.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def concat_aiff_to_mp3(aiffs: list[Path], out_mp3: Path, bitrate: str) -> None:
     with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as f:
         playlist = Path(f.name)
@@ -454,6 +566,35 @@ def concat_aiff_to_mp3(aiffs: list[Path], out_mp3: Path, bitrate: str) -> None:
         )
     finally:
         playlist.unlink(missing_ok=True)
+
+
+def render_say_fixture(
+    segments: list[tuple[str, str]],
+    *,
+    stem: str,
+    out_mp3: Path,
+    rttm_path: Path,
+    rate: int | None,
+    bitrate: str,
+    rttm_only: bool,
+) -> None:
+    """Render one fixture with the ``say`` backend: one aiff per turn, an exact per-turn
+    RTTM from the (deterministic) aiff durations, and — unless ``rttm_only`` — the
+    concatenated mp3. The RTTM therefore matches the mp3 timeline turn-for-turn."""
+    with tempfile.TemporaryDirectory() as td:
+        td_path = Path(td)
+        aiffs: list[Path] = []
+        turns: list[tuple[str, float]] = []
+        for i, (speaker, text) in enumerate(segments, start=1):
+            voice = get_voice_for_speaker(speaker)
+            safe_speaker = re.sub(r"[^A-Za-z0-9_]", "_", speaker)[:24] or "spk"
+            out_aiff = td_path / f"{stem}_{i:03d}_{safe_speaker}.aiff"
+            say_to_aiff(text.strip(), out_aiff, voice=voice, rate=rate)
+            aiffs.append(out_aiff)
+            turns.append((voice, aiff_duration(out_aiff)))
+        write_rttm(stem, turns, rttm_path)
+        if not rttm_only:
+            concat_aiff_to_mp3(aiffs, out_mp3, bitrate=bitrate)
 
 
 def host_for_file(stem: str) -> str:
@@ -513,6 +654,14 @@ def main() -> int:
     ap.add_argument("--bitrate", default="64k", help="MP3 bitrate (default: 64k)")
     ap.add_argument("--overwrite", action="store_true", help="Overwrite existing mp3 files")
     ap.add_argument(
+        "--rttm-only",
+        action="store_true",
+        help=(
+            "Emit per-turn RTTM ground truth next to each transcript and skip mp3 output "
+            "(say backend only). Pure additive artifact — never touches the audio."
+        ),
+    )
+    ap.add_argument(
         "--list-voices",
         action="store_true",
         help="List available macOS 'say' voices and exit",
@@ -535,6 +684,9 @@ def main() -> int:
 
     if not args.transcripts:
         ap.error("transcripts argument required (unless --list-voices)")
+
+    if args.rttm_only and args.backend != "say":
+        ap.error("--rttm-only requires --backend say (per-turn timings need the aiff render)")
 
     # Collect all transcript files
     txt_files: list[Path] = []
@@ -586,10 +738,18 @@ def main() -> int:
             continue
 
         audio_dir = fixtures_dir / "audio" / version
-        audio_dir.mkdir(parents=True, exist_ok=True)
         out_mp3 = audio_dir / f"{txt.stem}.mp3"
-        if out_mp3.exists() and not args.overwrite:
-            continue
+        rttm_path = txt.with_suffix(".rttm")
+        if args.rttm_only:
+            # `_fast` is an ffmpeg 60s truncation of p01_e01 (not a `say` render), so a
+            # re-rendered RTTM would not match its audio — and it is not a diarization
+            # eval fixture. Skip it.
+            if txt.stem.endswith("_fast"):
+                continue
+        else:
+            audio_dir.mkdir(parents=True, exist_ok=True)
+            if out_mp3.exists() and not args.overwrite:
+                continue
 
         raw = txt.read_text(encoding="utf-8").strip()
         if not raw:
@@ -615,19 +775,17 @@ def main() -> int:
                 api_key=gemini_api_key,
             )
         else:
-            with tempfile.TemporaryDirectory() as td:
-                td_path = Path(td)
-                aiffs: list[Path] = []
-                for i, (speaker, text) in enumerate(segments, start=1):
-                    voice = get_voice_for_speaker(speaker)
-                    chunk = text.strip()
-                    safe_speaker = re.sub(r"[^A-Za-z0-9_]", "_", speaker)[:24] or "spk"
-                    out_aiff = td_path / f"{txt.stem}_{i:03d}_{safe_speaker}.aiff"
-                    say_to_aiff(chunk, out_aiff, voice=voice, rate=args.rate)
-                    aiffs.append(out_aiff)
-                concat_aiff_to_mp3(aiffs, out_mp3, bitrate=args.bitrate)
+            render_say_fixture(
+                segments,
+                stem=txt.stem,
+                out_mp3=out_mp3,
+                rttm_path=rttm_path,
+                rate=args.rate,
+                bitrate=args.bitrate,
+                rttm_only=args.rttm_only,
+            )
 
-        print(f"Wrote {out_mp3}")
+        print(f"Wrote {rttm_path if args.rttm_only else out_mp3}")
 
     return 0
 

@@ -44,18 +44,18 @@ const hasAny = computed(() => storylines.value.length > 0)
       <div
         v-for="s in storylines"
         :key="s.id"
-        class="lp-theme-chip inline-flex items-center rounded-full text-sm text-surface-foreground transition"
+        class="lp-theme-chip inline-flex min-w-0 max-w-[calc(50%-0.375rem)] items-center rounded-full text-sm text-surface-foreground transition sm:max-w-none"
         data-testid="storyline-chip"
       >
         <button
           type="button"
-          class="inline-flex items-center gap-1.5 py-1.5 pl-3"
+          class="inline-flex min-w-0 items-center gap-1.5 py-1.5 pl-3"
           :class="canFollow ? 'pr-1.5' : 'rounded-full pr-3'"
           :aria-label="t('home.storylineOpen', { label: s.label, count: s.size })"
           @click="emit('open', s.anchor_topic_id)"
         >
-          <span class="font-semibold">{{ s.label }}</span>
-          <span class="text-xs opacity-80">{{
+          <span class="truncate font-semibold">{{ s.label }}</span>
+          <span class="shrink-0 text-xs opacity-80">{{
             t('home.storylineSize', s.size, { named: { count: s.size } })
           }}</span>
         </button>

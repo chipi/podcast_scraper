@@ -149,3 +149,30 @@ def test_corpus_engagement_floor_hides_thin_signals(tmp_path: Path) -> None:
     _seed_opens(data, "u1", "ep-thin", "p05", ["2026-06-27T00:00:00"])  # 1 event < floor 5
     corpus = trending(root, data, kind="episode", now=_NOW, scope="corpus", limit=5)
     assert corpus == []  # below min_events_corpus → hidden corpus-wide
+
+
+# --------------------------------------------------------------------------- #
+# trending — shows (RFC-103 §show: publishing cadence from the catalog)
+# --------------------------------------------------------------------------- #
+def _write_episode(root: Path, stem: str, feed_id: str, title: str, published: str) -> None:
+    meta = root / "metadata"
+    meta.mkdir(parents=True, exist_ok=True)
+    doc = {
+        "feed": {"feed_id": feed_id, "title": title},
+        "episode": {"episode_id": stem, "title": stem, "published_date": published},
+        "summary": {"title": "s", "bullets": ["a"]},
+    }
+    (meta / f"{stem}.metadata.json").write_text(json.dumps(doc), encoding="utf-8")
+
+
+def test_trending_shows_from_publishing_cadence(tmp_path: Path) -> None:
+    """A show that shipped episodes in recent weeks trends (content = publishing cadence),
+    labelled by its title — not the feed id."""
+    for i, wk in enumerate(("2026-06-08", "2026-06-15", "2026-06-22", "2026-06-29")):
+        _write_episode(tmp_path, f"e{i}", "myfeed", "My Show", wk)
+    rows = trending(tmp_path, None, kind="show", now=_NOW)
+    shows = {r.entity_id: r for r in rows}
+    assert "myfeed" in shows
+    assert shows["myfeed"].label == "My Show"  # real title, not the raw feed id
+    assert shows["myfeed"].total == 4
+    assert shows["myfeed"].velocity > 1.0  # recent, regular publishing → rising

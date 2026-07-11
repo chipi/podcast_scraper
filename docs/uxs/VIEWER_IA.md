@@ -87,6 +87,21 @@ The app has no URL routing. Navigation is tab and store state.
 Changing one axis does not reset the others. Switching from Library to Graph
 does not clear the subject rail. Running a search does not change the active tab.
 
+**Library tab modes (UXS-015 / RFC-104).** The `library` main tab has two browse modes, toggled at the
+tab head and persisted per session:
+
+- **Episodes** (episode-first, **default** — status quo, UXS-003) — the flat, paginated episode list
+  with the Feed filter chip.
+- **Shows** (shows-first, opt-in) — a grid of the corpus's shows (`GET /api/corpus/feeds`). Selecting a
+  card opens that show **in the right subject rail** (`subject.focusShow` → the `'show'` subject kind →
+  `ShowRailPanel`) — *not* in-panel; the grid stays put so you can open another. The show rail mirrors
+  the episode rail (cover + title + "N episodes · RSS" meta, then the show's episodes).
+
+Both modes cross-link an episode into the graph via the shared `subject.focusEpisode`
+(`metadata_relative_path`) path — a Shows-mode episode behaves identically to an Episodes-mode row.
+Clicking an episode **inside the show rail** opens it in the same rail (with a ‹ Back to the show, via
+the subject history stack).
+
 ---
 
 ## Left panel — Query interface
@@ -149,6 +164,7 @@ nothing is selected.
 | Subject | Store kind | Entry points | Component |
 | --- | --- | --- | --- |
 | **Episode** | `episode` | Library row click, Library row **G** button (#674), Digest row, Search **L** button | `EpisodeDetailPanel` |
+| **Show** | `show` | Library **Shows**-mode grid card click (`focusShow`); episode-in-show → episode subject with ‹ Back (UXS-015 / RFC-104) | `ShowRailPanel` |
 | **Topic / Entity** | `topic` | Digest topic-band title (#674); programmatic `focusTopic` / `focusEntity` | `TopicEntityView` (UXS-007) |
 | **Person** | `person` | Search supporting-quote speaker name (#674), Explore **Top speakers** rollup (#674) | `PersonLandingView` (UXS-010) |
 | **Graph node** | `graph-node` | Any graph node click (Topic / Insight / Quote / Person / Entity / Episode in graph) | `GraphNodeRailPanel` (uses `NodeDetail`) |

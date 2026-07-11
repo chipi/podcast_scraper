@@ -3,7 +3,7 @@
 **Status:** Ready to execute once PR #944 merges. Drafted 2026-06-09.
 
 Re-process the ~100-episode `whisper_transcription` corpus through **DGX Whisper
-(large-v3) + DGX pyannote (speaker-diarization-3.1)** so episodes gain real
+(large-v3) + DGX pyannote (speaker-diarization-community-1; 3.1 fallback)** so episodes gain real
 multi-speaker diarization + named screenplays, and the relational layer
 (corpus-wide `SPOKEN_BY`) is re-derived.
 
@@ -58,7 +58,7 @@ pyannote fallback on DGX health failure).
 | Dependency | Status |
 | --- | --- |
 | DGX Whisper (Speaches, `:8000`, `Systran/faster-whisper-large-v3`) | ✅ healthy |
-| DGX pyannote (`:8001`, `pyannote/speaker-diarization-3.1`) | ✅ healthy |
+| DGX pyannote (`:8001`, `pyannote/speaker-diarization-community-1`) | ✅ healthy |
 | Tailnet reachability to `your-dgx.tailnet.ts.net` | ✅ active/direct |
 | `cloud_with_dgx_primary` profile on `main` | ✅ (#941) |
 | `--reprocess-source` / `--reprocess-existing-only` / `make migrate-diarization` tooling | ✅ (#944 merged) |
@@ -75,7 +75,7 @@ w = health.check_faster_whisper_health(HOST, port=8000,
 d = health.check_pyannote_diarize_health(HOST, port=8001)
 assert w, "DGX Whisper (:8000) not healthy — abort"
 assert d, "DGX pyannote (:8001) not healthy — abort"
-print("DGX health OK: Whisper large-v3 + pyannote 3.1")
+print("DGX health OK: Whisper large-v3 + pyannote community-1")
 PY
 ```
 

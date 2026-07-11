@@ -1,0 +1,28 @@
+{
+  "fixture": "p01_e03",
+  "podcast": "Singletrack Sessions",
+  "episode": "The Mechanics of a Quiet, Fast Bike",
+  "type": "interview",
+  "speakers": [
+    "Maya",
+    "Noah Bryer"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 3,
+  "failure_modes": [
+    "alias_invention",
+    "asr_garble",
+    "native_ad"
+  ],
+  "voice_map": {
+    "Maya": "Samantha",
+    "Noah Bryer": "Tom",
+    "Ad": "Zarvox"
+  },
+  "cameo": null,
+  "transcript_sha256": "fe046e605b62591ff98c0d39f18aa6e8673c88b26a350ab7b7b79fc807736f24",
+  "audio_sha256": "b4cc188bad5703370c551029c4b7b3b20339a7071f655647ae3db88a05998c66",
+  "rttm_sha256": "624f79c229c7fe3db4989bd43b751cbe9453119466ff87f73e1a1e5a5cb3e6a3"
+}
