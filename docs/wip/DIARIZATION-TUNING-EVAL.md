@@ -24,7 +24,7 @@ merges more → fewer speakers).
 3. **The sweep** — `scripts/eval/score/diarization_tuning_sweep_v1.py`: sweeps the grid, scores
    `detected == expected` per fixture, reports per-combo match-rate + misses + best combo.
 
-The eval set (44 fixtures): 34 interview, 9 monologue, **1 true 3-voice panel (p05_e04)**, **30
+The eval set (45 fixtures): 34 interview, 9 monologue, **1 true 3-voice panel (p05_e04)**, **30
 with a mid-roll ad voice**. The panel + ad cases are the **guardrails** — they stop the sweep from
 "winning" with a degenerate always-merge-to-2 (which would break real panels and misplace ad reads).
 
@@ -34,11 +34,11 @@ with a mid-roll ad voice**. The panel + ad cases are the **guardrails** — they
 # GPU-free sanity check (loads fixtures + grid, no diarization):
 python scripts/eval/score/diarization_tuning_sweep_v1.py --dry-run
 
-# Round 1 — full sweep on the DGX GPU (15 combos × 44 fixtures ≈ minutes on GPU, hours on CPU):
+# Round 1 — full sweep on the DGX GPU (15 combos × 45 fixtures ≈ minutes on GPU, hours on CPU):
 #   switch the shared GPU first:  gpu-mode-swap.sh research   (NEVER `code` — that's coder-next)
 python scripts/eval/score/diarization_tuning_sweep_v1.py --device cuda \
     --out data/eval/runs/diarization_tuning_v1
-# -> prints BEST: thr=<x> max_speakers=<n> -> M/44 (P%); results.json has the full grid.
+# -> prints BEST: thr=<x> max_speakers=<n> -> M/45 (P%); results.json has the full grid.
 ```
 
 Local CPU/MPS works but is slow (pyannote-on-MPS falls back to CPU for its ops); use the DGX for
@@ -46,7 +46,7 @@ the sweep. Default model is the non-gated `speaker-diarization-community-1` (no 
 
 ## Rounds
 
-- **Round 1 (fixtures):** sweep until a param combo hits **100% count-match** across all 44 v3
+- **Round 1 (fixtures):** sweep until a param combo hits **100% count-match** across all 45 v3
   fixtures (incl. the panel + ad cases). Record the winning `clustering_threshold` / `max_speakers`.
 - **Round 2 (real episodes):** apply the winning params to the real over-segmented corpus episodes
   (audio is under `.test_outputs/manual/prod-v2/corpus/**/media/*.mp3`), confirm the 15→~2–4 count

@@ -189,6 +189,7 @@ never modified after creation — new measurements get a new report file.
 | [Benchmark v1 (2026-04)](EVAL_BENCHMARK_V1_2026_04.md) | Apr 2026 | `curated_5feeds_benchmark_v1` | `silver_sonnet46_benchmark_v1` / `_bullets_v1` | 6 cloud + 12 Ollama, paragraphs + bullets | First 10-episode benchmark sweep; Anthropic leads cloud; qwen3.5:35b leads Ollama paragraphs and bullets; smoke/benchmark delta table. **Superseded by Held-out v2 for all providers (cloud + local); preserved for reproducibility of prior runs.** |
 | [Smoke v1 (2026-04)](EVAL_SMOKE_V1_2026_04.md) | Apr 2026 | `curated_5feeds_smoke_v1` | `silver_sonnet46_smoke_v1` | 6 cloud + 12 Ollama, paragraphs + bullets | New Sonnet 4.6 silver; Anthropic leads cloud; Qwen 3.5:35b leads Ollama paragraphs; llama3.2:3b leads Ollama bullets; on-prem vs cloud comparison |
 | [Smoke v1 (2026-03)](EVAL_SMOKE_V1_2026_03.md) | Mar 2026 | `curated_5feeds_smoke_v1` | `silver_gpt4o_smoke_v1` | 6 cloud + 11 Ollama | First full provider sweep; Gemini leads cloud non-OpenAI; Mistral Small 3.2 / Qwen 2.5:32b tie for Ollama lead |
+| **[Diarization: pyannote 3.1 vs community-1, count + DER (2026-07)](EVAL_DIARIZATION_31_VS_COMMUNITY1_RTTM_2026_07.md)** | Jul 2026 | v3 fixtures (45 eps) | RTTM ground truth | pyannote 3.1 vs community-1 (v4) | community-1 wins full set (40/45 count, 7.1% DER vs 10.8%); 3.1 wins curated-8 count (8/8) but loses DER. Entire gap is speaker confusion. |
 
 ---
 

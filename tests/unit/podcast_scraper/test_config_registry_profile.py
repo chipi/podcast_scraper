@@ -18,6 +18,11 @@ from __future__ import annotations
 import pytest
 
 from podcast_scraper.config import Config
+from podcast_scraper.providers.ml.model_registry import (
+    get_diarization_option,
+    get_diarization_options,
+    get_profile_preset,
+)
 
 
 @pytest.fixture
@@ -84,3 +89,42 @@ class TestRegistryLayering:
         # Construction must not raise.
         cfg = Config.model_validate({"profile": "cloud_with_dgx_primary"})
         assert not hasattr(cfg, "transcription_endpoint")
+
+
+class TestStageOptionRegistries:
+    """Diarization registry — provenance + tier coverage missing from integration suite."""
+
+    def test_every_option_has_research_provenance(self) -> None:
+        """Every diarization StageOption must cite the eval report that justified it."""
+        for opts in (get_diarization_options(),):
+            for opt in opts.values():
+                assert opt.research_ref, f"{opt.option_id} missing research_ref"
+                assert opt.headline_metric, f"{opt.option_id} missing headline_metric"
+
+    def test_every_option_has_valid_tier(self) -> None:
+        valid_tiers = {"primary", "fallback", "experimental", "deprecated"}
+        for opts in (get_diarization_options(),):
+            for opt in opts.values():
+                assert opt.tier in valid_tiers, f"{opt.option_id}: bad tier {opt.tier!r}"
+
+    def test_unknown_option_id_raises(self) -> None:
+        with pytest.raises(ValueError, match="Unknown diarization option"):
+            get_diarization_option("not-a-real-option")
+
+
+class TestProfilePresets:
+    """Drift catch: preset diarization fields must reference registered diarization options."""
+
+    def test_every_preset_references_real_options(self) -> None:
+        all_dia = set(get_diarization_options())
+        for name in [
+            "cloud_balanced",
+            "cloud_thin",
+            "cloud_with_dgx_primary",
+            "local_dgx_balanced",
+            "local_dgx_full",
+        ]:
+            preset = get_profile_preset(name)
+            assert preset.diarization in all_dia, (
+                f"profile {name!r} references unknown diarization option " f"{preset.diarization!r}"
+            )

@@ -75,7 +75,7 @@ w = health.check_faster_whisper_health(HOST, port=8000,
 d = health.check_pyannote_diarize_health(HOST, port=8001)
 assert w, "DGX Whisper (:8000) not healthy — abort"
 assert d, "DGX pyannote (:8001) not healthy — abort"
-print("DGX health OK: Whisper large-v3 + pyannote 3.1")
+print("DGX health OK: Whisper large-v3 + pyannote community-1")
 PY
 ```
 
