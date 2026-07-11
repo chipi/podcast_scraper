@@ -44,6 +44,11 @@ def _read_kg_artifact(root: str, relpath: str) -> dict[str, Any] | None:
     ``relpath`` comes from the corpus scan (trusted), but the realpath-under-root
     check is a cheap defensive guard against a traversal in a malformed row.
     """
+    # Reject an absolute path or any ``..`` segment before it reaches os.path.join, so a
+    # malformed catalog row can never escape the corpus root (defense-in-depth; the
+    # realpath-under-root check below is the actual containment guard) (#1172).
+    if os.path.isabs(relpath) or os.pardir in Path(relpath).parts:
+        return None
     try:
         root_real = os.path.realpath(root)
         target = os.path.realpath(os.path.join(root, relpath))
@@ -105,6 +110,10 @@ def _accumulate_kg_entities(
 
 def _read_enrichment_data(root: str, enricher_id: str) -> dict[str, Any] | None:
     """The ``data`` payload of a corpus-scope enricher envelope, or None (absent/not-ok)."""
+    # enricher_id must be a bare token (never a path fragment): reject anything with a
+    # path separator or traversal before it reaches os.path.join (defense-in-depth; #1172).
+    if not enricher_id or not enricher_id.replace("_", "").replace("-", "").isalnum():
+        return None
     try:
         obj = json.loads(
             Path(os.path.join(root, "enrichments", f"{enricher_id}.json")).read_text(
