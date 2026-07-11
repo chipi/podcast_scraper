@@ -16,6 +16,41 @@ Baseline is **not** a single number — separate "did we NAME more voices" (redu
 
 ---
 
+## How host/guest detection works (two stages)
+
+Detection separates **"who are the people?"** (names, mined from *text*) from **"which voice
+is which person?"** (roles, resolved against the *audio* diarization). Episode title and
+description feed the **first** stage only.
+
+```mermaid
+flowchart TD
+    subgraph S1["Stage 1 — NAMES from text (no audio)"]
+        direction TB
+        AUTH["feed author / itunes:author"] -->|"reject network/org<br/>(Pushkin, Colossus)"| HP["host-name pool"]
+        KH["config known_hosts (per-feed)"] --> HP
+        SI["transcript self-intro<br/>&quot;I'm Patrick O'Shaughnessy&quot;"] --> HP
+        TITLE["episode TITLE"] -->|"NER + interview-intent"| GN["guest names"]
+        DESC["episode DESCRIPTION"] -->|"NER + interview-intent<br/>(drop &quot;mentioned-only&quot;)"| GN
+        INTRO["transcript intro NER<br/>&quot;joining me today is X&quot;"] -->|"strict ASR filter"| GN
+    end
+    DIA["diarization →<br/>SPEAKER_00, SPEAKER_01, …<br/>(anonymous voices + timings)"]
+    HP --> RR["resolve_speaker_roster"]
+    GN --> RR
+    DIA --> RR
+    RR --> O1["host = the OPENING voice (#1169),<br/>named from self-intro → known_hosts → feed"]
+    RR --> O2["guests = remaining voices by talk-time,<br/>from the detected-guest list"]
+    RR --> O3["leftovers → cameo / commercial / unknown<br/>(#1167 keeps these off person surfaces)"]
+```
+
+**The host is currently re-derived per episode** from opening-voice + self-intro signals,
+because diarization is per-episode and anonymous (no cross-episode voice identity) and the
+show's host is not yet persisted. Making the host a **known show-level constant** — so each
+episode only has to *map* a known host name to a voice, not *discover* who the host is — is
+[EPIC-HOST-IDENTIFICATION.md](EPIC-HOST-IDENTIFICATION.md) Path A (persist `person —HOSTS→
+podcast`) + Path C (parse "Host: …" from show notes).
+
+---
+
 ## Shipped this branch — measured contribution
 
 | Step | What it does | Measured effect (prod-v2, 90 eps / 579 voices) |

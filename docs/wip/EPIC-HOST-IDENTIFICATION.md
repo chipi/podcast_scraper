@@ -30,6 +30,35 @@ Host detection is already multi-source per episode; the weak link is everything
 | `reconcile_hosts` (#1056) | graph-build, no ML — merge unnamed feed-exclusive host into the show's one recurring named host, else tag | can't do co-hosts / recurring guests / ambiguous shows |
 | Viewer | infers per-show "Host" from **episode coverage** (≥50%, ≥2 eps) | **sample-bias bug**: a true host in few sampled eps reads as not-host (Katie Martin: Unhedged host, 1/10 sampled) |
 
+**The shape of the gap in one picture.** A show almost always has the *same* host(s) across
+every episode — that is a **show-level constant**. Today we *re-derive* it from scratch each
+episode using per-episode signals (opening voice, self-intro), because diarization is
+per-episode + anonymous and the host is never persisted. Knowing it **once** turns the
+per-episode job from "discover the host" into "map a known name to a voice":
+
+```mermaid
+flowchart LR
+    subgraph TODAY["Today — host re-derived every episode (fragile, per-episode)"]
+        direction TB
+        E1["ep 1"] --> D1["opening voice? self-intro?"]
+        E2["ep 2"] --> D2["opening voice? self-intro?"]
+        E3["ep 3"] --> D3["opening voice? self-intro?"]
+    end
+    subgraph TARGET["Target — host known once, reused (Paths A + C)"]
+        direction TB
+        SH["show host(s): persisted<br/>person —HOSTS→ podcast"] --> M1["ep 1: map known host + guest → voices"]
+        SH --> M2["ep 2: map known host + guest → voices"]
+        SH --> M3["ep 3: map known host + guest → voices"]
+    end
+    TODAY -.->|"Path A persists the signal;<br/>Path C recovers it from show notes"| TARGET
+```
+
+The guest side is already close to this ideal: the episode **title / description** usually
+name the guest explicitly, and Stage-1 NER + interview-intent filtering already extracts them
+(see [SPEAKER-RESOLUTION-ROADMAP.md](SPEAKER-RESOLUTION-ROADMAP.md)). The unsolved half is
+**persisting the host** so the episode-level resolver starts from ground truth instead of a
+heuristic — which is why Path A is *do-first*.
+
 ## 3. Approach — TDD: measure → target → slice
 
 The spine of the epic is a **host scorecard** (Slice 0). Every path runs it
