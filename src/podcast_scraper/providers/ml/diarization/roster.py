@@ -9,10 +9,11 @@ metadata says Colossus" class of bug).
 
 Resolution, per diarized **voice** (``SPEAKER_xx``):
 
-- **Host voice(s)** = the intro-dominant speaker(s). Named, most-trusted first, from: the
-  transcript self-introduction (``I'm …``) → config ``known_hosts`` → filtered feed authors/NER.
-  Co-hosts are supported when ≥2 host names are available and a second voice owns a meaningful
-  share of the intro.
+- **Host voice(s)** = the **opening** speaker (whoever starts the episode — the host doing the
+  intro), not the intro-window talk-time leader, which the guest wins whenever they answer at
+  length early (#1169). Named, most-trusted first, from: the transcript self-introduction
+  (``I'm …``) → config ``known_hosts`` → filtered feed authors/NER. Co-hosts are supported when
+  ≥2 host names are available and a second voice owns a meaningful share of the intro.
 - **Guest voice(s)** = the remaining voices by total speaking time, named from the detected
   guest list (de-duplicated against host names).
 - Network/organisation names ("Colossus") are filtered once, here.
@@ -141,6 +142,35 @@ def _ad_overlap_by_voice(
         if ov > 0:
             out[seg.speaker] = out.get(seg.speaker, 0.0) + ov
     return out
+
+
+def _opening_voice(
+    diarization: DiarizationResult,
+    *,
+    window_end: float,
+    ad_intervals: Optional[Sequence[Tuple[float, float]]] = None,
+) -> Optional[str]:
+    """The voice that OPENS the episode — the speaker of the earliest turn in the intro window
+    (the host doing the intro). A turn sitting mostly inside an ad region is skipped (a pre-roll
+    ad read is not the host). This mirrors ``gi.speakers``' "opening cluster -> host" rule over
+    diarization time, and beats intro-window talk-time — which the guest wins whenever they
+    answer at length early, swapping the roles (#1169). ``None`` when no turn qualifies.
+    """
+    ads = ad_intervals or ()
+    best_start: Optional[float] = None
+    best_voice: Optional[str] = None
+    for seg in diarization.segments:
+        dur = seg.end - seg.start
+        if seg.start >= window_end or dur <= 0:
+            continue
+        in_ad = sum(
+            max(0.0, min(seg.end, a_end) - max(seg.start, a_start)) for a_start, a_end in ads
+        )
+        if in_ad / dur >= COMMERCIAL_AD_FRACTION:
+            continue
+        if best_start is None or seg.start < best_start:
+            best_start, best_voice = seg.start, seg.speaker
+    return best_voice
 
 
 def _classify_voice_types(
@@ -334,13 +364,21 @@ def resolve_speaker_roster(
 
     host_pool = _host_name_pool(transcript_text, known_hosts, host_candidates)
 
-    # Which voices are hosts: the intro-dominant voice, plus co-hosts when more host names are
-    # available and another voice owns a meaningful share of the intro.
+    # Which voices are hosts: the OPENING voice (whoever starts the episode — the host doing
+    # the intro), plus co-hosts when more host names are available and another voice owns a
+    # meaningful share of the intro. The opener beats raw intro-window talk-time: in an
+    # interview the guest often out-talks the host inside the intro window, and naming the
+    # talk-time leader would swap the two (#1169).
     host_voices: List[str] = []
-    if voices_by_intro:
-        host_voices.append(voices_by_intro[0])
+    opener = _opening_voice(diarization, window_end=intro_window_s, ad_intervals=ad_intervals)
+    if opener is None and voices_by_intro:
+        opener = voices_by_intro[0]
+    if opener is not None:
+        host_voices.append(opener)
         intro_total = sum(intro.values()) or 1.0
-        for v in voices_by_intro[1:]:
+        for v in voices_by_intro:
+            if v in host_voices:
+                continue
             if len(host_voices) >= max(1, len(host_pool)):
                 break
             if intro[v] / intro_total >= CO_HOST_INTRO_SHARE:

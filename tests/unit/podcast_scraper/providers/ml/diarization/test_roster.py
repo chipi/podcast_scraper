@@ -43,6 +43,32 @@ def test_host_guest_basic() -> None:
     assert r.num_speakers == 2 and r.named_count() == 2
 
 
+def test_host_is_opener_even_when_guest_out_talks_intro() -> None:
+    # #1169 host/guest swap: the HOST opens the episode ("welcome back…") but the GUEST
+    # gives a long early answer and out-talks the host WITHIN the 90s intro window
+    # (guest 60s vs host 30s). The host is the OPENER (earliest turn), not the
+    # intro-window talk-time leader — otherwise the known-host name lands on the guest.
+    diar = _diar(
+        [
+            ("SPEAKER_00", 0, 20),
+            ("SPEAKER_01", 20, 80),
+            ("SPEAKER_00", 80, 95),
+            ("SPEAKER_01", 95, 400),
+        ],
+        2,
+    )
+    r = resolve_speaker_roster(
+        diar,
+        "Welcome back to the show. Today my guest is Brian Chesky.",
+        known_hosts=["Patrick O'Shaughnessy"],
+        detected_guests=["Brian Chesky"],
+    )
+    assert r.by_voice["SPEAKER_00"].role == "host"
+    assert r.by_voice["SPEAKER_00"].name == "Patrick O'Shaughnessy"
+    assert r.by_voice["SPEAKER_01"].role == "guest"
+    assert r.by_voice["SPEAKER_01"].name == "Brian Chesky"
+
+
 def test_solo_monologue_named_by_self_intro() -> None:
     diar = _diar([("SPEAKER_00", 0, 300)], 1)
     r = resolve_speaker_roster(diar, "I'm Patrick O'Shaughnessy and today we talk markets.")

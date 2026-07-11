@@ -105,11 +105,11 @@ def apply_diarization_to_result(
         )
         return result
 
-    # Resolve every diarized voice once via the unified roster (#876): host = intro-dominant,
-    # named by transcript self-intro ("I'm Patrick O'Shaughnessy") → config known_hosts;
-    # guests by talk-time; leftovers kept raw; a guest's name never lands on a host. For
-    # network-published feeds the host name isn't in the metadata (the author tag is the
-    # network), so the transcript self-intro the roster reads is the only reliable source.
+    # Resolve every diarized voice once via the unified roster (#876): host = the opening
+    # voice (#1169), named by transcript self-intro ("I'm Patrick O'Shaughnessy") → config
+    # known_hosts; guests by talk-time; leftovers kept raw; a guest's name never lands on a
+    # host. For network-published feeds the host name isn't in the metadata (the author tag is
+    # the network), so the transcript self-intro the roster reads is the only reliable source.
     transcript_text = result.get("text") or " ".join(
         str(seg.get("text", "")) for seg in segments if isinstance(seg, dict)
     )
