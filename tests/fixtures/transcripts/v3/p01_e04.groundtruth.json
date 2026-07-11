@@ -11,5 +11,12 @@
   "has_commercial": false,
   "num_ad_voices": 0,
   "expected_diarized_voices": 2,
-  "failure_modes": []
+  "failure_modes": [],
+  "voice_map": {
+    "Maya": "Samantha",
+    "Sophie Laurent": "Tessa"
+  },
+  "cameo": null,
+  "transcript_sha256": "d368c85ae8b8ae1aff9938fae37578ec1e42646c82d6096add069f65c4b9d442",
+  "audio_sha256": "7f1fd0ae3c1be6d1bfda2c9c60d3a9690dbdf2904ba6c6d03a3e9be4d050cbb9"
 }

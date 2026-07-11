@@ -15,5 +15,13 @@
     "alias_invention",
     "asr_garble",
     "native_ad"
-  ]
+  ],
+  "voice_map": {
+    "Maya": "Samantha",
+    "Noah Bryer": "Tom",
+    "Ad": "Zarvox"
+  },
+  "cameo": null,
+  "transcript_sha256": "fe046e605b62591ff98c0d39f18aa6e8673c88b26a350ab7b7b79fc807736f24",
+  "audio_sha256": "b4cc188bad5703370c551029c4b7b3b20339a7071f655647ae3db88a05998c66"
 }

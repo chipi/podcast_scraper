@@ -11,5 +11,12 @@
   "has_commercial": false,
   "num_ad_voices": 0,
   "expected_diarized_voices": 2,
-  "failure_modes": []
+  "failure_modes": [],
+  "voice_map": {
+    "Maya": "Samantha",
+    "Liam": "Ralph"
+  },
+  "cameo": null,
+  "transcript_sha256": "9561743469547b2578c4458bfc7b935f989f143a37e9362fb4da044606b43cf7",
+  "audio_sha256": "5d58eb80a57ce561193a2cc3e9861cff506becb29016c982f7745fdfe9b4e0c2"
 }

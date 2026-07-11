@@ -14,5 +14,13 @@
   "failure_modes": [
     "low_grounding_dialogue",
     "recurring_guest"
-  ]
+  ],
+  "voice_map": {
+    "Cam": "Fiona",
+    "Jordan Park": "Matilda",
+    "Ad": "Zarvox"
+  },
+  "cameo": null,
+  "transcript_sha256": "489c5371016d1a2eee4c341ed9d63bc520ecae2c1881bdf055ab4248e0a5cefe",
+  "audio_sha256": "b9de60b0ed0a7989aae59c7260dbeb2d25b4bb0cbfea2da657bfd32662d72e94"
 }

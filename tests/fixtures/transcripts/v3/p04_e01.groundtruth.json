@@ -14,5 +14,13 @@
   "failure_modes": [
     "frame_topic_cross_domain",
     "multi_accent"
-  ]
+  ],
+  "voice_map": {
+    "Leo": "Daniel",
+    "Ava Lemoine": "Amélie",
+    "Ad": "Zarvox"
+  },
+  "cameo": null,
+  "transcript_sha256": "a4a1d475185e045d6042790e663cc14bf5e81e3b2eff616d6ebbe705ba0e8a0c",
+  "audio_sha256": "aed6be9012c32cde4be29075c25aaa6a0876ec45c15208ff5bf653ab4ad21db2"
 }

@@ -15,5 +15,13 @@
     "asr_garble",
     "position_arc_multi",
     "recurring_guest"
-  ]
+  ],
+  "voice_map": {
+    "Ethan": "Alex",
+    "Priya Nair": "Isha",
+    "Ad": "Zarvox"
+  },
+  "cameo": null,
+  "transcript_sha256": "89f7c332768d201877b98a4a8d140122d8fd3032d2419c81b7df8e98b814a7c4",
+  "audio_sha256": "01f63a4aead9f5c1ea43ed1fc0b7caa6870a61ccef362f9a14d19864250b2518"
 }

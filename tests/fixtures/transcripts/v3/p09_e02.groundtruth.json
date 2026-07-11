@@ -15,5 +15,13 @@
     "asr_garble",
     "multi_accent",
     "recurring_guest"
-  ]
+  ],
+  "voice_map": {
+    "Sam": "Evan",
+    "Skanda Amarnauth": "Rishi",
+    "Ad": "Zarvox"
+  },
+  "cameo": null,
+  "transcript_sha256": "9d941b6243c5c07d72c7328fa07e12fc17b3fb43b2d22b7d5d8ac79e1d11912c",
+  "audio_sha256": "2ecd94bba5eec161bfdb3951588974a978e6ad71bfc7c425f122b68403345008"
 }

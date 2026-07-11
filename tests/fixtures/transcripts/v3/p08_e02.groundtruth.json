@@ -14,5 +14,13 @@
   "failure_modes": [
     "recurring_guest",
     "zero_host_ner"
-  ]
+  ],
+  "voice_map": {
+    "A. correspondent": "Karen",
+    "Renee Montague-Park": "Moira",
+    "Ad": "Zarvox"
+  },
+  "cameo": null,
+  "transcript_sha256": "a2a41502ef4b62e3be9db9f91e351fce3b570f83be7f7d05ce88b81de52e954d",
+  "audio_sha256": "25155fcc08c03ab9279feca03cf9045d034c957853aeda6c61932f4f0dd22f02"
 }

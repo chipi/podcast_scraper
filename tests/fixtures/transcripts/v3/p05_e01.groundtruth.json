@@ -14,5 +14,13 @@
   "failure_modes": [
     "frame_topic_cross_domain",
     "same_first_distinct"
-  ]
+  ],
+  "voice_map": {
+    "Nora": "Kathy",
+    "Daniel Cho": "Fred",
+    "Ad": "Zarvox"
+  },
+  "cameo": null,
+  "transcript_sha256": "e1556d125bde8832b1302d89387e7a1b0b24d5f861f570eb566cfb86d5795382",
+  "audio_sha256": "c1bc73eb7bc03e26268d0521a8676934917cc47b22f2aa384f2467e776507be7"
 }

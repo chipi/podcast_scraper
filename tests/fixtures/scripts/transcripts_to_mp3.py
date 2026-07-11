@@ -59,66 +59,120 @@ PODCAST_HOSTS: dict[str, str] = {
     "p09": "Alex Morgan",  # The Long View - Biohacking
 }
 
-# Per-speaker voice mapping (RFC-059 §2). Each fixture speaker gets a distinct
-# macOS ``say`` voice with accent variety so diarization can actually separate
-# them. Listing-order convention: hosts first, then guests, then synthetic.
+# Per-speaker voice mapping (#1170): ONE voice per PERSON across the whole corpus.
+# This is the CANONICAL, NON-NEGOTIABLE rule — see tests/fixtures/FIXTURES_SPEC.md
+# ("Voices — ONE VOICE PER PERSON"). Enforced by
+# tests/integration/eval/test_voice_assignment.py (deviation fails CI).
+# - each show host has a single voice; each guest identity has a single voice, kept
+#   across shows (cross-show guests) AND across every garble/nickname surface form;
+# - distinct identities NEVER share a voice (incl. same-first-name pairs, e.g. the
+#   two Daniels / two Marcos), so voice == identity;
+# - accent-matched where a macOS voice exists; en-US overflow spills to other ENGLISH
+#   accents (only 9 en_US voices exist); a few non-US guests have no matching-locale
+#   voice (Nigerian/Italian/Brazilian) and take the nearest distinct voice.
+# Derived deterministically from the scripts/build_v3_fixtures.py roster.
 SPEAKER_VOICE_MAP: dict[str, str] = {
-    # Hosts (varied accents)
-    "Maya": "Samantha",  # en_US female
-    "Ethan": "Alex",  # en_US male
-    "Rina": "Karen",  # en_AU female
-    "Leo": "Daniel",  # en_GB male
-    "Nora": "Moira",  # en_IE female
-    "Alex": "Evan",  # en_US male (p07-p09 host: "Alex Morgan" -> first word)
-    # Guests (varied accents for speaker distinction)
-    "Liam": "Daniel",  # en_GB male (cross-accent from host Samantha so pyannote
-    #                    reliably separates them on the short p01_multi_e01 clip)
-    "Sophie": "Flo",  # en_GB female
-    "Noah": "Tom",  # en_US male
-    "Priya": "Isha",  # en_IN female
-    "Jonas": "Eddy",  # en_US male
-    "Camila": "Paulina",  # es_MX female
-    "Marco": "Lee",  # en_AU male (it_IT "Luca" not installed; Lee keeps it male + distinct)
-    "Hanna": "Anna",  # de_DE female
-    "Owen": "Reed",  # en_US male
-    "Ava": "Kathy",  # en_US female
-    "Tariq": "Rishi",  # en_IN male
-    "Elise": "Amélie",  # fr_CA female (exact installed name carries the accent)
-    "Daniel": "Oliver",  # en_GB male
-    "Isabel": "Mónica",  # es_ES female (exact installed name carries the accent)
-    "Kasper": "Ralph",  # en_US male
-    # p07-p09 recurring cast (#1170). Were falling to the novelty hash-fallback,
-    # which collided two humans onto one voice (p09_e03: Sam+Skanda both -> Shelley,
-    # so exp=3 was acoustically unreachable) and voiced the recurring guest
-    # inconsistently across episodes (Skanda -> Trinoids in e02 but Shelley in e03).
-    # Curated to distinct, natural, accent-appropriate voices matching each
-    # sidecar's declared voice/host_voice intent.
-    "Sam": "Nathan",  # en_US male host (host_voice=en-US)
-    "Skanda": "Rishi",  # en_IN male guest (voice=en-IN); first-word rule covers
-    #                     both "Skanda Amarnauth" (e02) and "Skanda Amarnath" (e03)
-    "Renee": "Allison",  # en_US female guest (voice=en-US)
-    "Scott": "Fred",  # en_US male panelist (was Whisper; distinct from Oliver/Moira)
-    # Period-names — exact-match keys (first-word "A."/"Dr." would over-match). These
-    # were regex-dropped before (#1170): host folded into hash voice / guest folded
-    # into the host voice. Now they get their own distinct, accent-appropriate voice.
-    "A. correspondent": "Tom",  # en_US male host (host_voice=en-US); non-NER name kept
-    "Dr. Elena Fischer": "Anna",  # de_DE female guest (voice=de-DE)
-    # p02/p04/p05/p06 guests+hosts that were falling to novelty hash-fallback
-    # voices (Trinoids/Nicky/Bells/Whisper) — unrealistic for humans and fragile
-    # to diarize. Curated to natural, accent-appropriate, in-fixture-distinct voices.
-    "Joll": "Nathan",  # en_US male guest (voice=en-US), distinct from host Ethan
-    "Tarek": "Majed",  # ar male guest (voice=ar-EG), multi-accent vs en_GB host Leo
-    "Rich": "Tom",  # en_US male guest (voice=en-US), distinct from en_IE host Nora
-    "Cam": "Evan",  # en_US host of p06 (host_voice=en-US)
-    "Jordan": "Allison",  # en_US female guest of p06 (voice=en-US), distinct from Cam
-    # #1170 cameo voices — a genuine brief 3rd voice, distinct from that episode's
-    # host + guest, so the diarization squelch keeps a real ~3s cameo.
-    "Caller": "Karen",  # en_AU F call-in (p02_e05) — max-distinct from Ethan/Priya
-    "Nadia Sereni": "Anna",  # de_DE F archival clip (p05_e05) — max-distinct from Nora/Daniel
-    # Synthetic / non-human speakers (RFC-059 §3 / issue #109).
-    # Pre-recorded mid-roll ads use the ``Ad:`` speaker label; Zarvox is
-    # deliberately robotic so listeners + diarization both flag it as
-    # distinct from the host-read sponsor segments.
+    # --- Hosts (one voice per show host) ---
+    # Maya @en-US (host)
+    "Maya": "Samantha",
+    # Ethan @en-US (host)
+    "Ethan": "Alex",
+    # Rina @en-US (host)
+    "Rina": "Allison",
+    # Leo @en-GB (host)
+    "Leo": "Daniel",
+    # Nora @en-US (host)
+    "Nora": "Kathy",
+    # Cam @en-US (host)
+    "Cam": "Fiona",
+    # Alex Morgan @en-AU (host)
+    "Alex Morgan": "Lee",
+    # A. correspondent @en-US (host)
+    "A. correspondent": "Karen",
+    # Sam @en-US (host)
+    "Sam": "Evan",
+    # --- Guests (one voice per identity; cross-show guests keep it; garbles fold in) ---
+    # Ava Lemoine @fr-CA (guest)
+    "Ava Lemoine": "Amélie",
+    "Ava Lemonne": "Amélie",
+    "Ava Lemoyne": "Amélie",
+    # Daniel Cho @en-US (guest)
+    "Daniel Cho": "Fred",
+    "Daniel Choh": "Fred",
+    "Daniel Joh": "Fred",
+    # Daniel Olufemi @en-NG (guest)
+    "Daniel Olufemi": "Xander",
+    "Daniel Olufemy": "Xander",
+    "Daniel Olufoemi": "Xander",
+    # Dr. Elena Fischer @de-DE (guest)
+    "Dr. Elena Fischer": "Anna",
+    "Dr. Elena Fischner": "Anna",
+    "Dr. Elena Fisher": "Anna",
+    # Hanna Crebo-Rediker @en-GB (guest)
+    "Hanna Crebo Rediker": "Kate",
+    "Hanna Crebo-Rediker": "Kate",
+    "Hanna Krebo-Rediker": "Kate",
+    "Hanna Krebohticker": "Kate",
+    # Jonas Weisenthal @en-US (guest)
+    "Joll Wisenthal": "Nathan",
+    "Jonas Wassenthal": "Nathan",
+    "Jonas Weisenthal": "Nathan",
+    "Jonas Wisenthal": "Nathan",
+    # Jordan Park @en-US (guest)
+    "Jordan Park": "Matilda",
+    # Liam Verbeek @en-US (guest)
+    "Liam Verbeak": "Ralph",
+    "Liam Verbeck": "Ralph",
+    "Liam Verbeek": "Ralph",
+    # Marco Bianchi @it-IT (guest)
+    "Marco Biancchi": "Thomas",
+    "Marco Bianchi": "Thomas",
+    "Marco Bianci": "Thomas",
+    # Marco Silva @pt-BR (guest)
+    "Marco Silva": "Jacques",
+    "Marco Silvah": "Jacques",
+    "Marco Sylva": "Jacques",
+    # Noah Brier @en-US (guest)
+    "Noah Brier": "Tom",
+    "Noah Brier-ah": "Tom",
+    "Noah Bryer": "Tom",
+    # Priya Nair @en-IN (guest)
+    "Priya Naar": "Isha",
+    "Priya Nair": "Isha",
+    "Priya Nayar": "Isha",
+    # Renee Montagne-Park @en-US (guest)
+    "Renee Montagne-Park": "Moira",
+    "Renee Montague-Park": "Moira",
+    # Richard Clarida @en-US (guest)
+    "Rich Clarida": "Oliver",
+    "Richard Clarida": "Oliver",
+    "Richard Claridah": "Oliver",
+    # Scott Bessent @en-US (guest)
+    "Scott Bessant": "Jamie",
+    "Scott Bessent": "Jamie",
+    "Scott Bessett": "Jamie",
+    # Skanda Amarnath @en-IN (guest)
+    "Skanda Amarnath": "Rishi",
+    "Skanda Amarnauth": "Rishi",
+    "Skanda Eminas": "Rishi",
+    # Sophie Laurent @en-US (guest)
+    "Sophie Laurent": "Tessa",
+    "Sophie Lorent": "Tessa",
+    "Sophie Lorenz": "Tessa",
+    # Tariq Hassan @ar-EG (guest)
+    "Tarek Hassan": "Majed",
+    "Tariq Hasaan": "Majed",
+    "Tariq Hassan": "Majed",
+    # --- Cameos (#1170) ---
+    # Caller @ (cameo)
+    "Caller": "Veena",
+    # Nadia Sereni @ (cameo)
+    "Nadia Sereni": "Alice",
+    # Bare first-name aliases (standalone smoke fixtures; unambiguous)
+    "Liam": "Ralph",
+    "Noah": "Tom",
+    "Sophie": "Tessa",
+    # Synthetic / non-human
     "Ad": "Zarvox",
 }
 

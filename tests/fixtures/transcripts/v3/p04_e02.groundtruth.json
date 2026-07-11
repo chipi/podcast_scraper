@@ -15,5 +15,13 @@
     "asr_garble",
     "high_person_density",
     "multi_accent"
-  ]
+  ],
+  "voice_map": {
+    "Leo": "Daniel",
+    "Tarek Hassan": "Majed",
+    "Ad": "Zarvox"
+  },
+  "cameo": null,
+  "transcript_sha256": "c7d2d84f22039ec7227c47d0ecc834b9c0b3496121af94ef77a03dc41ca8e715",
+  "audio_sha256": "e45a831d8ba57fa250544e254535a2450b9581732b8800ef7a8ff7695794dc30"
 }

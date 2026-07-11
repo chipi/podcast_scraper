@@ -11,5 +11,12 @@
   "has_commercial": false,
   "num_ad_voices": 0,
   "expected_diarized_voices": 2,
-  "failure_modes": []
+  "failure_modes": [],
+  "voice_map": {
+    "Alex Morgan": "Lee",
+    "Dr. Elena Fischer": "Anna"
+  },
+  "cameo": null,
+  "transcript_sha256": "59895482345f27f0c7ec6dc39a98acd5f34d856928ebc0e9fd89d26fdd0d976f",
+  "audio_sha256": "4abdf5c990960dd2a5c460de748354f24a8057c6765f65f9d94f223a8c5017c5"
 }

@@ -14,5 +14,13 @@
   "failure_modes": [
     "multi_accent",
     "recurring_guest"
-  ]
+  ],
+  "voice_map": {
+    "Sam": "Evan",
+    "Dr. Elena Fischer": "Anna",
+    "Ad": "Zarvox"
+  },
+  "cameo": null,
+  "transcript_sha256": "de2af94cdd9809a1855a37fb81782c17011660224412afd16a861ac76a62d009",
+  "audio_sha256": "87678c5d417387bb5dc4599d70425c0d57a2a9124114b54a97ec3781df2401f5"
 }

@@ -15,5 +15,13 @@
     "asr_garble_severe",
     "multi_accent",
     "recurring_guest"
-  ]
+  ],
+  "voice_map": {
+    "Alex Morgan": "Lee",
+    "Skanda Eminas": "Rishi",
+    "Ad": "Zarvox"
+  },
+  "cameo": null,
+  "transcript_sha256": "d1909a3e858410a3d398894cd59c2202261d80be32aa9f293fd6769668a286c4",
+  "audio_sha256": "a3414e0d58e87537f61149c996790956c688a5cf447e006f447b2b4892150bbd"
 }

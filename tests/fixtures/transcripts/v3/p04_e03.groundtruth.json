@@ -14,5 +14,13 @@
   "failure_modes": [
     "frame_topic_cross_domain",
     "same_first_distinct"
-  ]
+  ],
+  "voice_map": {
+    "Leo": "Daniel",
+    "Daniel Olufemi": "Xander",
+    "Ad": "Zarvox"
+  },
+  "cameo": null,
+  "transcript_sha256": "6bc33f4293c2bdcca426b36f33b911bf4c38453caade2b914b397297b2d8ac53",
+  "audio_sha256": "1e9f586527bee4c0da8a3921198d8bf5122fef9f316e3c548f9ab8ae7da3cd5f"
 }

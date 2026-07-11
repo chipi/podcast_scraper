@@ -14,5 +14,13 @@
   "expected_diarized_voices": 3,
   "failure_modes": [
     "high_person_density"
-  ]
+  ],
+  "voice_map": {
+    "Nora": "Kathy",
+    "Daniel Cho": "Fred",
+    "Scott Bessent": "Jamie"
+  },
+  "cameo": null,
+  "transcript_sha256": "3c41d471851440db06a2c889be678c24ae690a6b8e6cb41b1200c829e4336d42",
+  "audio_sha256": "30e14f8f7c6aeac994e9196bbd82abe580c37b8f2128eb558e00bacea13c5e69"
 }

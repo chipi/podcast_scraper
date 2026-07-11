@@ -17,5 +17,13 @@
     "high_person_density",
     "multi_accent",
     "recurring_guest"
-  ]
+  ],
+  "voice_map": {
+    "Leo": "Daniel",
+    "Ava Lemoine": "Amélie",
+    "Ad": "Zarvox"
+  },
+  "cameo": null,
+  "transcript_sha256": "89e625ad6ce4cdc415ac73a9fec746f5bd16fccf58c47c507add283eb583d6ed",
+  "audio_sha256": "a996b08f4982fdd3c98661c621a9b17bb2302d89eff46e2159a125abedb92b75"
 }

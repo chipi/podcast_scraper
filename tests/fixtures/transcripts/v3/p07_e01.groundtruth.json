@@ -16,5 +16,13 @@
     "long_context_chunk_boundary",
     "multi_accent",
     "recurring_guest"
-  ]
+  ],
+  "voice_map": {
+    "Alex Morgan": "Lee",
+    "Dr. Elena Fischer": "Anna",
+    "Ad": "Zarvox"
+  },
+  "cameo": null,
+  "transcript_sha256": "27ff3e4852c835c1402c0b4969cf9f29d6916050120bbd6ca1e6fec978df225d",
+  "audio_sha256": "91ee8d7e680b326f51aa158e7382b6bf4f4fddc287b4ba919c6e7f1e4b7952cd"
 }

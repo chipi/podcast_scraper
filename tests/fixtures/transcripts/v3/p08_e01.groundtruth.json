@@ -13,5 +13,13 @@
   "expected_diarized_voices": 3,
   "failure_modes": [
     "zero_host_ner"
-  ]
+  ],
+  "voice_map": {
+    "A. correspondent": "Karen",
+    "Renee Montagne-Park": "Moira",
+    "Ad": "Zarvox"
+  },
+  "cameo": null,
+  "transcript_sha256": "2bdb9ce0ca0de336c7a22f31e817422d1a7eabcab26341d704532c5a58bede17",
+  "audio_sha256": "fdc836371500620b21a8a880c301f925d05438c7335596cd799a844a1a4e1c1d"
 }

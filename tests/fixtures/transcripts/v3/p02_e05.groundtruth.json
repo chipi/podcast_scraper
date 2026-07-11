@@ -14,5 +14,17 @@
   "expected_diarized_voices": 3,
   "failure_modes": [
     "cameo"
-  ]
+  ],
+  "voice_map": {
+    "Ethan": "Alex",
+    "Priya Nair": "Isha",
+    "Caller": "Veena"
+  },
+  "cameo": {
+    "speaker": "Caller",
+    "voice": "Veena",
+    "turns": 1
+  },
+  "transcript_sha256": "d6a9fb11c9d75327d17ffbe07f8b78f49e519563eb384eb58fcf91ffc12d41fc",
+  "audio_sha256": "122587b2c8ad7767c3b407b3c07d9f5c5d3aaf859944a5f9f5299cc0b6ef1008"
 }

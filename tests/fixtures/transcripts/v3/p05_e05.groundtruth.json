@@ -14,5 +14,17 @@
   "expected_diarized_voices": 3,
   "failure_modes": [
     "cameo"
-  ]
+  ],
+  "voice_map": {
+    "Nora": "Kathy",
+    "Daniel Cho": "Fred",
+    "Nadia Sereni": "Alice"
+  },
+  "cameo": {
+    "speaker": "Nadia Sereni",
+    "voice": "Alice",
+    "turns": 1
+  },
+  "transcript_sha256": "ac769eda455d234224aafda2b07879630e01453b27b65e733a993e75844d403f",
+  "audio_sha256": "d19598e038100bf43b613f7836b02b7bafc4f196beef29b85b43cbd86d20f351"
 }

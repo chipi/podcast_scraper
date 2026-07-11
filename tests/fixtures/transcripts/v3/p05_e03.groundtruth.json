@@ -15,5 +15,13 @@
     "asr_garble",
     "nickname_variant",
     "same_first_distinct"
-  ]
+  ],
+  "voice_map": {
+    "Nora": "Kathy",
+    "Scott Bessett": "Jamie",
+    "Ad": "Zarvox"
+  },
+  "cameo": null,
+  "transcript_sha256": "0024083e57728ad78ba6947eda290e3968d3cca0845594b9f1cf2b43746d0d57",
+  "audio_sha256": "c03d70a2620991c75b91a4df0e0515a9750703ba8c738fa1b772b8ebfcefd5e5"
 }
