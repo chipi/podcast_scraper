@@ -106,10 +106,18 @@ run the production re-diarization.
 
 ## Status / results (fill in as experiments land)
 
+> **Superseded for pyannote 3.1 vs community-1 (2026-07-11, #1170).** The rows below
+> were an EARLY sweep, before the fixture fixes (voice-collision + period-regex) and
+> the segment-length squelch. The locked, cross-validated result is in
+> [`EVAL_DIARIZATION_31_VS_COMMUNITY1_RTTM_2026_07`](../guides/eval-reports/EVAL_DIARIZATION_31_VS_COMMUNITY1_RTTM_2026_07.md):
+> on the curated-8 **3.1 = 8/8, community-1 = 7/8**; on the full 45-fixture set
+> **community-1 wins** (count 40/45 vs 32/45, DER 7.1% vs 10.8%). community-1 is the
+> promoted default. The Exp A/B/C embedding rows below remain open.
+
 | model | embedding | best exact | over | under | gate | config |
 |---|---|---|---|---|---|---|
-| pyannote 3.1 | wespeaker | 5/8 | | | fail | (25-config loop) |
-| pyannote community-1 (v4) | wespeaker | 4/8 | 2 | 2 | fail | thr 0.6, Fb 0.6 |
+| pyannote 3.1 | wespeaker | 8/8 curated / 32/45 full | | | see report | one-voice fixtures + squelch |
+| pyannote community-1 (v4) | wespeaker | 7/8 curated / 40/45 full | | | **default** | one-voice fixtures + squelch |
 | pyannote + ECAPA | speechbrain | — | | | | (Exp A) |
 | pyannote + TitaNet | nvidia | — | | | | (Exp A) |
 | Deepgram | — | — | | | | (Exp B) |

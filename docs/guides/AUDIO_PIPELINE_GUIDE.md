@@ -72,6 +72,9 @@ voice embeddings, aligned to Whisper segments by maximum overlap.
 | `diarization_max_speakers` | `20` | Auto-detect ceiling |
 | `diarization_device` | `auto` | `cpu`, `cuda`, or `mps` |
 | `diarization_model` | `pyannote/speaker-diarization-community-1` | HuggingFace pipeline id (v4, non-gated; 3.1 fallback) |
+| `diarization_clustering_threshold` | `None` | pyannote clustering-threshold override; higher merges → fewer speakers (curbs over-segmentation) |
+| `diarization_min_cluster_size` | `None` | Clusters smaller than this (≈12) reassigned to nearest speaker — drops short over-seg fragments |
+| `diarization_min_segment_ms` | `None` | Squelch: drop any speaker whose longest segment < this (ms); kills phantom micro-clusters, keeps real cameos. Per-feed overridable |
 
 **Install:** `pip install -e ".[ml]"` (pyannote + torchaudio bundled in `[ml]`; pinned in `[dev]` for
 CI). Lazy-imported — package loads without pyannote when diarization is off.

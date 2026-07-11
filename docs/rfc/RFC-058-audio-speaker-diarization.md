@@ -322,7 +322,7 @@ diarization_num_speakers: Optional[int] = None  # None = auto-detect
 diarization_min_speakers: int = 2
 diarization_max_speakers: int = 20
 diarization_device: str = "auto"  # "cpu", "cuda", "mps"
-diarization_model: str = "pyannote/speaker-diarization-3.1"
+diarization_model: str = "pyannote/speaker-diarization-community-1"  # 3.1 = fallback (#1170)
 ```
 
 CLI flags:

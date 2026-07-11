@@ -428,6 +428,9 @@ Neural speaker diarization runs as an **additive second pass** after local Whisp
 | `diarization_max_speakers` | `--diarization-max-speakers` | `20` | Maximum speakers when auto-detecting |
 | `diarization_device` | `--diarization-device` | `auto` | `cpu`, `cuda`, or `mps` |
 | `diarization_model` | `--diarization-model` | `pyannote/speaker-diarization-community-1` | HuggingFace pipeline id (v4, non-gated; 3.1 is the fallback) |
+| `diarization_clustering_threshold` | _(config only)_ | `None` | pyannote clustering-threshold override; higher merges → fewer speakers (curbs over-segmentation) |
+| `diarization_min_cluster_size` | _(config only)_ | `None` | Clusters smaller than this (≈12 default) are reassigned to the nearest speaker — drops short over-seg fragments |
+| `diarization_min_segment_ms` | _(config only)_ | `None` | Squelch: drop any speaker whose longest segment < this (ms); kills phantom micro-clusters, keeps real cameos. Per-feed overridable |
 
 When diarization fails, the pipeline falls back to gap-based screenplay (`screenplay_gap_s`). Full
 narrative: [Audio Pipeline Guide](../guides/AUDIO_PIPELINE_GUIDE.md).
@@ -1114,9 +1117,9 @@ If either is set to an LLM (e.g. openai, anthropic), the corresponding API key m
 | Field | CLI Flag | Default | Description |
 | ----- | -------- | ------- | ----------- |
 | `monitor` | `--monitor` | `false` | Spawn a subprocess that shows live **RSS**, **CPU%**, and pipeline **stage** (reads/writes **`.pipeline_status.json`** under the effective output directory). Uses **psutil** + **rich** (core deps). See [Live Pipeline Monitor Guide](../guides/LIVE_PIPELINE_MONITOR.md) and [RFC-065](../rfc/RFC-065-live-pipeline-monitor.md). |
-| *(environment)* | — | — | **`PODCAST_SCRAPER_MONITOR_FILE_LOG`**: when set to a truthy value (`1`, `true`, `yes`), the monitor subprocess **always** appends ticks to **`.monitor.log`** instead of using **`rich.Live`** on stderr, even when stderr is a TTY. **`freeze_profile.py`** sets this for the measured run when the monitor is enabled so **`.monitor.log`** can be archived next to frozen profiles. |
+| _(environment)_ | — | — | **`PODCAST_SCRAPER_MONITOR_FILE_LOG`**: when set to a truthy value (`1`, `true`, `yes`), the monitor subprocess **always** appends ticks to **`.monitor.log`** instead of using **`rich.Live`** on stderr, even when stderr is a TTY. **`freeze_profile.py`** sets this for the measured run when the monitor is enabled so **`.monitor.log`** can be archived next to frozen profiles. |
 | `memray` | `--memray` | `false` | Re-exec the CLI or service under **memray** for heap profiling (optional extra **`.[monitor]`**). Sets **`PODCAST_SCRAPER_MEMRAY_ACTIVE=1`** in the child to avoid re-exec loops. |
-| `memray_output` | `--memray-output` | *(derived)* | Memray capture **`.bin`** path. Default: **`<output_dir>/debug/memray_<timestamp>.bin`**, or **`./debug/...`** when `output_dir` is unset (service: cwd-based default). |
+| `memray_output` | `--memray-output` | _(derived)_ | Memray capture **`.bin`** path. Default: **`<output_dir>/debug/memray_<timestamp>.bin`**, or **`./debug/...`** when `output_dir` is unset (service: cwd-based default). |
 
 #### Logging & Operational Configuration (Issue #379)
 
@@ -1531,7 +1534,7 @@ cfg = Config(
 
 There are **no** checked-in `config.example.multi-feed.*` files. A multi-feed CLI run combines:
 
-1. **Operator YAML** (`--config`): set **`output_dir`** when **two or more** feeds are active and add any corpus/runtime overrides. **Profile preset** — either put **`profile:`** in this YAML *or* pass **`--profile <name>`** on the CLI (same merge order; the CLI flag is injected into `Config` even when the operator file omits **`profile:`**). You may start from `config/examples/config.example.yaml` / `config.example.json`, add **`profile:`** (or use **`--profile`**), and drop inline **`rss`** when using **`--feeds-spec`**.
+1. **Operator YAML** (`--config`): set **`output_dir`** when **two or more** feeds are active and add any corpus/runtime overrides. **Profile preset** — either put **`profile:`** in this YAML _or_ pass **`--profile <name>`** on the CLI (same merge order; the CLI flag is injected into `Config` even when the operator file omits **`profile:`**). You may start from `config/examples/config.example.yaml` / `config.example.json`, add **`profile:`** (or use **`--profile`**), and drop inline **`rss`** when using **`--feeds-spec`**.
 2. **Feed list**: either **`--feeds-spec`** pointing at `{ feeds: [...] }` (illustration: `config/examples/feeds.spec.example.yaml` / `.json`) or **`feeds:`** / **`rss_urls:`** in the same operator YAML.
 
 **CLI shape** (operator file + structured feeds; profile on the command line):
