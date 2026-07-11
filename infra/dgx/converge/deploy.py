@@ -305,9 +305,18 @@ server.shell(
 PYANNOTE_INSTALL_ROOT = "/opt/pyannote-server"
 PYANNOTE_COMPOSE_FILE = f"{PYANNOTE_INSTALL_ROOT}/docker-compose.yml"
 PYANNOTE_BUILD_CTX = f"{PYANNOTE_INSTALL_ROOT}/build"
-PYANNOTE_IMAGE = "podcast-pyannote:0.1.0"
+# community-1 (v4) promoted to default (#1170) — beats 3.1 on the v3 fixtures and is
+# NON-GATED (loads offline from the shared HF cache, no HF_TOKEN). The pyannote-4
+# image is built FROM the 3.x image (Dockerfile.community1). Rollback: the 0.1.0
+# image + the pre-cutover container are kept on the DGX (see the runbook), so
+# reverting is `docker stop pyannote && docker start pyannote-31-rollback`.
+PYANNOTE_IMAGE = "podcast-pyannote:0.2.0-community1"
+PYANNOTE_DOCKERFILE = "Dockerfile.community1"
 PYANNOTE_PORT = 8001
-PYANNOTE_MODEL = "pyannote/speaker-diarization-3.1"
+PYANNOTE_MODEL = "pyannote/speaker-diarization-community-1"
+# Rollback pins (3.1, gated): PYANNOTE_IMAGE_ROLLBACK = "podcast-pyannote:0.1.0",
+# PYANNOTE_DOCKERFILE_ROLLBACK = "Dockerfile",
+# PYANNOTE_MODEL_ROLLBACK = "pyannote/speaker-diarization-3.1"
 # We BUILD the image on DGX (no public registry yet) — sources for the
 # Dockerfile + app live in the repo at infra/dgx/pyannote-server/. The
 # deploy reads those files and ships their contents up.
@@ -334,9 +343,19 @@ files.directory(
 
 # Push Dockerfile + app.py to the build context on DGX.
 files.put(
-    name="ship: pyannote-server/Dockerfile",
+    name="ship: pyannote-server/Dockerfile (3.1 rollback build)",
     src=str(_PYANNOTE_SRC / "Dockerfile"),
     dest=f"{PYANNOTE_BUILD_CTX}/Dockerfile",
+    mode="644",
+    create_remote_dir=False,
+    _sudo=True,
+)
+
+# Active build: the pyannote-4 / community-1 Dockerfile (built FROM the 3.x image).
+files.put(
+    name="ship: pyannote-server/Dockerfile.community1 (active build)",
+    src=str(_PYANNOTE_SRC / "Dockerfile.community1"),
+    dest=f"{PYANNOTE_BUILD_CTX}/{PYANNOTE_DOCKERFILE}",
     mode="644",
     create_remote_dir=False,
     _sudo=True,
@@ -359,7 +378,9 @@ PYANNOTE_COMPOSE_CONTENT = f"""# Auto-generated. Edit infra/dgx/converge/deploy.
 
 services:
   pyannote:
-    build: {PYANNOTE_BUILD_CTX}
+    build:
+      context: {PYANNOTE_BUILD_CTX}
+      dockerfile: {PYANNOTE_DOCKERFILE}
     image: {PYANNOTE_IMAGE}
     container_name: pyannote
     restart: unless-stopped
@@ -370,6 +391,10 @@ services:
     environment:
       - PYANNOTE_MODEL={PYANNOTE_MODEL}
       - PYANNOTE_DEVICE=cuda
+      # community-1 is non-gated: load it OFFLINE from the shared HF cache
+      # (no HF_TOKEN, no download). Swap these out if rolling back to gated 3.1.
+      - HF_HUB_OFFLINE=1
+      - HF_HUB_CACHE={HF_CACHE_HOST}
       - LOG_LEVEL=INFO
       - UVICORN_HOST=0.0.0.0
       - UVICORN_PORT={PYANNOTE_PORT}
@@ -395,7 +420,13 @@ server.shell(
 
 server.shell(
     name="build: pyannote image (one-time + on Dockerfile/app changes)",
-    commands=[f"cd {PYANNOTE_INSTALL_ROOT} && docker compose build"],
+    commands=[
+        # Dockerfile.community1 does ``FROM podcast-pyannote:0.1.0`` — build the 3.x
+        # base first so a clean host can build (and so the 0.1.0 rollback image
+        # always exists on the box). Then compose builds the active community-1 image.
+        f"cd {PYANNOTE_BUILD_CTX} && docker build -t podcast-pyannote:0.1.0 -f Dockerfile .",
+        f"cd {PYANNOTE_INSTALL_ROOT} && docker compose build",
+    ],
     _sudo=True,
 )
 

@@ -1,0 +1,38 @@
+# DGX pyannote.audio 4.x diarization service — speaker-diarization-community-1 (#1170).
+#
+# Parallel to the 3.x image (Dockerfile → podcast-pyannote:0.1.0): built FROM it so
+# it inherits the hard-won torch 2.7 / CUDA-12 / torchaudio-2.7 stack, then upgrades
+# pyannote in place to the 4.x line. This is exactly the layering the #1170 eval
+# proved on this NGC base (community-1 loaded + diarized all 46 v3 fixtures):
+#
+#   pip install --no-deps "pyannote.audio>=4,<5"   # keep the base's compatible deps
+#                                                   # (torchaudio 2.7, lightning, etc.)
+#   pip install <otel + rich>                       # pyannote 4 imports these
+#
+# --no-deps is deliberate: a normal install would drag in torchaudio 2.11 (CUDA-13)
+# and break the ABI, exactly the trap the base Dockerfile documents. app.py loads
+# audio via torchaudio and unwraps DiarizeOutput via getattr, so it is 3.x/4.x
+# compatible. community-1 is NON-GATED — the service loads it offline from the
+# mounted HF cache with no HF_TOKEN.
+#
+# Build:  docker build -t podcast-pyannote:0.2.0-community1 \
+#             -f infra/dgx/pyannote-server/Dockerfile.community1 infra/dgx/pyannote-server/
+#
+# Rollback to 3.1 is the 0.1.0 image (kept on disk) — see deploy.py.
+
+FROM podcast-pyannote:0.1.0
+
+# Upgrade pyannote in place to 4.x without disturbing the pinned torch/torchaudio
+# stack. otel + rich are pyannote 4 import-time deps not present in the 3.x base.
+RUN pip install --no-deps "pyannote.audio>=4,<5" \
+ && pip install \
+        "opentelemetry-exporter-otlp-proto-http" \
+        "opentelemetry-exporter-otlp-proto-common" \
+        "rich"
+
+# Refresh app.py (optional HF_TOKEN: community-1 is non-gated).
+COPY app.py /app/app.py
+
+EXPOSE 8001
+
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8001"]
