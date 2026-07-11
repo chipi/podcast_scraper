@@ -15,9 +15,10 @@ episode — the diarization/speaker eval's source of truth (not parsed at eval t
                              ONE-VOICE-PER-PERSON map (FIXTURES_SPEC.md) — records EXACTLY who
                              sounds like what
 - ``cameo``                  when ``cameo`` tagged: {speaker, voice, turns} of the brief 3rd voice
-- ``transcript_sha256`` / ``audio_sha256``  reality-check hashes. ``--check`` recomputes both from
-                             disk and fails if they drift, so audio/transcript can never change
-                             without the sidecar being regenerated to match.
+- ``transcript_sha256`` / ``audio_sha256`` / ``rttm_sha256``  reality-check hashes (rttm =
+                             the per-turn diarization reference; null for the _fast fixture).
+                             ``--check`` recomputes them and fails if they drift, so transcript,
+                             audio, or RTTM cannot change without a matching sidecar regen.
 
 The sidecar is the full per-episode spec and the fixtures' reality check: whenever a transcript,
 the voice map, or an audio file changes, regenerate the sidecars (they carry the new hashes).
@@ -144,6 +145,10 @@ def build_groundtruth(transcript_path: str) -> dict:
         cameo = {"speaker": cam, "voice": voice_map.get(cam), "turns": turns.get(cam, 0)}
     fixture = os.path.basename(transcript_path).replace(".txt", "")
     audio_path = os.path.join(AUDIO_V3_DIR, fixture + ".mp3")
+    # Per-turn diarization reference (#1170). Co-located with the transcript, emitted by
+    # transcripts_to_mp3.py --rttm-only from the deterministic aiff timeline. None for the
+    # ffmpeg-truncated _fast fixture, which is not a diarization eval fixture.
+    rttm_path = os.path.splitext(transcript_path)[0] + ".rttm"
     return {
         "fixture": fixture,
         "podcast": podcast,
@@ -160,6 +165,7 @@ def build_groundtruth(transcript_path: str) -> dict:
         "cameo": cameo,
         "transcript_sha256": _sha256(transcript_path),
         "audio_sha256": _sha256(audio_path),
+        "rttm_sha256": _sha256(rttm_path),
     }
 
 

@@ -22,5 +22,6 @@
   },
   "cameo": null,
   "transcript_sha256": "50441af3b26d759a0d35ac176a7e4b583f1dba85406abf126f8f21f3cb5542de",
-  "audio_sha256": "4f9fea691bcc98ba24e855535b36ad3abf33d153205a03bac8d31a2a1cacf08d"
+  "audio_sha256": "4f9fea691bcc98ba24e855535b36ad3abf33d153205a03bac8d31a2a1cacf08d",
+  "rttm_sha256": "42f28d4c164d52f1d54150cf915cfcc68c5211764348bf94a6b2e58760dcc9d7"
 }

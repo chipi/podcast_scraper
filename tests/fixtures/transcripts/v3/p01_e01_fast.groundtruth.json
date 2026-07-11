@@ -18,5 +18,6 @@
   },
   "cameo": null,
   "transcript_sha256": "5e92919c63366ee78515c761daefa3ab5719f4db2d13b719d1313ca523acf446",
-  "audio_sha256": "a98992b7b2251a5024fcefba197a7895f5b3a37726aaad665b95db5057becc2b"
+  "audio_sha256": "a98992b7b2251a5024fcefba197a7895f5b3a37726aaad665b95db5057becc2b",
+  "rttm_sha256": null
 }

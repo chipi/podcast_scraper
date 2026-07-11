@@ -510,6 +510,34 @@ def render_segments_via_gemini(
         )
 
 
+def aiff_duration(path: Path) -> float:
+    """Duration (seconds) of a rendered aiff via ffprobe. The ``say`` aiff render is
+    byte-deterministic, so these durations reproduce the concatenated mp3's timeline
+    exactly — the basis for the free per-turn RTTM ground truth (#1170)."""
+    out = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=True,
+    )
+    return float(out.stdout.strip())
+
+
+def write_rttm(file_id: str, turns: list[tuple[str, float]], out_rttm: Path) -> None:
+    """Write a NIST RTTM from ``(speaker_label, duration_s)`` turns in speaking order.
+
+    Onset is the cumulative sum of prior turn durations. The speaker label is the
+    ``say`` voice (one-voice-per-person makes it a faithful person identity, and DER
+    solves the optimal label mapping so the string itself is irrelevant)."""
+    lines: list[str] = []
+    onset = 0.0
+    for label, dur in turns:
+        lines.append(f"SPEAKER {file_id} 1 {onset:.3f} {dur:.3f} <NA> <NA> {label} <NA> <NA>")
+        onset += dur
+    out_rttm.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def concat_aiff_to_mp3(aiffs: list[Path], out_mp3: Path, bitrate: str) -> None:
     with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as f:
         playlist = Path(f.name)
@@ -538,6 +566,35 @@ def concat_aiff_to_mp3(aiffs: list[Path], out_mp3: Path, bitrate: str) -> None:
         )
     finally:
         playlist.unlink(missing_ok=True)
+
+
+def render_say_fixture(
+    segments: list[tuple[str, str]],
+    *,
+    stem: str,
+    out_mp3: Path,
+    rttm_path: Path,
+    rate: int | None,
+    bitrate: str,
+    rttm_only: bool,
+) -> None:
+    """Render one fixture with the ``say`` backend: one aiff per turn, an exact per-turn
+    RTTM from the (deterministic) aiff durations, and — unless ``rttm_only`` — the
+    concatenated mp3. The RTTM therefore matches the mp3 timeline turn-for-turn."""
+    with tempfile.TemporaryDirectory() as td:
+        td_path = Path(td)
+        aiffs: list[Path] = []
+        turns: list[tuple[str, float]] = []
+        for i, (speaker, text) in enumerate(segments, start=1):
+            voice = get_voice_for_speaker(speaker)
+            safe_speaker = re.sub(r"[^A-Za-z0-9_]", "_", speaker)[:24] or "spk"
+            out_aiff = td_path / f"{stem}_{i:03d}_{safe_speaker}.aiff"
+            say_to_aiff(text.strip(), out_aiff, voice=voice, rate=rate)
+            aiffs.append(out_aiff)
+            turns.append((voice, aiff_duration(out_aiff)))
+        write_rttm(stem, turns, rttm_path)
+        if not rttm_only:
+            concat_aiff_to_mp3(aiffs, out_mp3, bitrate=bitrate)
 
 
 def host_for_file(stem: str) -> str:
@@ -597,6 +654,14 @@ def main() -> int:
     ap.add_argument("--bitrate", default="64k", help="MP3 bitrate (default: 64k)")
     ap.add_argument("--overwrite", action="store_true", help="Overwrite existing mp3 files")
     ap.add_argument(
+        "--rttm-only",
+        action="store_true",
+        help=(
+            "Emit per-turn RTTM ground truth next to each transcript and skip mp3 output "
+            "(say backend only). Pure additive artifact — never touches the audio."
+        ),
+    )
+    ap.add_argument(
         "--list-voices",
         action="store_true",
         help="List available macOS 'say' voices and exit",
@@ -619,6 +684,9 @@ def main() -> int:
 
     if not args.transcripts:
         ap.error("transcripts argument required (unless --list-voices)")
+
+    if args.rttm_only and args.backend != "say":
+        ap.error("--rttm-only requires --backend say (per-turn timings need the aiff render)")
 
     # Collect all transcript files
     txt_files: list[Path] = []
@@ -670,10 +738,18 @@ def main() -> int:
             continue
 
         audio_dir = fixtures_dir / "audio" / version
-        audio_dir.mkdir(parents=True, exist_ok=True)
         out_mp3 = audio_dir / f"{txt.stem}.mp3"
-        if out_mp3.exists() and not args.overwrite:
-            continue
+        rttm_path = txt.with_suffix(".rttm")
+        if args.rttm_only:
+            # `_fast` is an ffmpeg 60s truncation of p01_e01 (not a `say` render), so a
+            # re-rendered RTTM would not match its audio — and it is not a diarization
+            # eval fixture. Skip it.
+            if txt.stem.endswith("_fast"):
+                continue
+        else:
+            audio_dir.mkdir(parents=True, exist_ok=True)
+            if out_mp3.exists() and not args.overwrite:
+                continue
 
         raw = txt.read_text(encoding="utf-8").strip()
         if not raw:
@@ -699,19 +775,17 @@ def main() -> int:
                 api_key=gemini_api_key,
             )
         else:
-            with tempfile.TemporaryDirectory() as td:
-                td_path = Path(td)
-                aiffs: list[Path] = []
-                for i, (speaker, text) in enumerate(segments, start=1):
-                    voice = get_voice_for_speaker(speaker)
-                    chunk = text.strip()
-                    safe_speaker = re.sub(r"[^A-Za-z0-9_]", "_", speaker)[:24] or "spk"
-                    out_aiff = td_path / f"{txt.stem}_{i:03d}_{safe_speaker}.aiff"
-                    say_to_aiff(chunk, out_aiff, voice=voice, rate=args.rate)
-                    aiffs.append(out_aiff)
-                concat_aiff_to_mp3(aiffs, out_mp3, bitrate=args.bitrate)
+            render_say_fixture(
+                segments,
+                stem=txt.stem,
+                out_mp3=out_mp3,
+                rttm_path=rttm_path,
+                rate=args.rate,
+                bitrate=args.bitrate,
+                rttm_only=args.rttm_only,
+            )
 
-        print(f"Wrote {out_mp3}")
+        print(f"Wrote {rttm_path if args.rttm_only else out_mp3}")
 
     return 0
 
