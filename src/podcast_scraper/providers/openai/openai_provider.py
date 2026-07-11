@@ -505,20 +505,18 @@ class OpenAIProvider:
 
             def _make_api_call():
                 with open(audio_path, "rb") as audio_file:
-                    # Use verbose_json format to get segments
+                    # verbose_json + word timestamps: whisper's segment-level times drift on
+                    # long audio; word-level times are accurate and we reset segment bounds
+                    # from them below (#1173).
+                    kwargs: dict[str, Any] = {
+                        "model": self.transcription_model,
+                        "file": audio_file,
+                        "response_format": "verbose_json",
+                        "timestamp_granularities": ["word", "segment"],
+                    }
                     if effective_language is not None:
-                        return self.client.audio.transcriptions.create(
-                            model=self.transcription_model,
-                            file=audio_file,
-                            language=effective_language,
-                            response_format="verbose_json",  # Get full response with segments
-                        )
-                    else:
-                        return self.client.audio.transcriptions.create(
-                            model=self.transcription_model,
-                            file=audio_file,
-                            response_format="verbose_json",  # Get full response with segments
-                        )
+                        kwargs["language"] = effective_language
+                    return self.client.audio.transcriptions.create(**kwargs)
 
             try:
                 response = retry_with_metrics(
@@ -615,6 +613,18 @@ class OpenAIProvider:
                                 "text": getattr(seg, "text", ""),
                             }
                         )
+
+            # Reset each segment's start/end from the accurate word-level times — whisper's
+            # segment-level timestamps drift on long audio (up to tens of seconds), word-level
+            # do not (#1173). No-op when the model/response carries no words.
+            raw_words = getattr(response, "words", None)
+            if raw_words:
+                from podcast_scraper.transcription.word_timestamps import (
+                    apply_word_timestamps,
+                    word_dicts,
+                )
+
+                segments = apply_word_timestamps(segments, word_dicts(raw_words))
 
             result_dict: dict[str, object] = {
                 "text": response.text if hasattr(response, "text") else str(response),
