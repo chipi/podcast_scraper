@@ -34,6 +34,8 @@ MODEL = os.environ.get("DIAR_MODEL", "pyannote/speaker-diarization-3.1")
 TAG = "v4" if "community" in MODEL else "31"
 OUT = os.path.join(WORK, os.environ.get("OUT_DIR", f"segments_{TAG}"))
 os.makedirs(OUT, exist_ok=True)
+if not torch.cuda.is_available():
+    raise SystemExit("CUDA not available — run this on the DGX GPU (docker run --gpus all).")
 DEV = torch.device("cuda")
 
 audio = {os.path.basename(p)[:-4]: p for p in glob.glob(f"{WORK}/audio/*.mp3")}
@@ -43,7 +45,8 @@ print(
 )
 
 pipe = Pipeline.from_pretrained(MODEL)
-assert pipe is not None, f"failed to load pipeline {MODEL}"
+if pipe is None:
+    raise SystemExit(f"failed to load pipeline {MODEL} (check the mounted model cache + HF token).")
 pipe = pipe.to(DEV)
 
 for k in fixtures:
