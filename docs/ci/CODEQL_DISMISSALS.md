@@ -293,6 +293,8 @@ number, file, line, date, and a short comment.
 | 1 | #411 | server/app_user_store.py | 102 | 2026-07-05 | Type 1: same — ``get_user`` read guarded (PR #1141) |
 | 1 | #412 | server/app_user_store.py | 208 | 2026-07-05 | Type 1: same — ``delete_user`` ``rmtree`` guarded by ``_is_safe_user_id`` (PR #1141) |
 | 1 | #413 | server/app_user_store.py | 210 | 2026-07-05 | Type 1: same — ``delete_user`` guarded (PR #1141) |
+| 1 | #418 | server/feed_signals.py | 57 | 2026-07-11 | Type 1: ``_read_kg_artifact`` — ``root`` route-confined (corpus-path chain); ``relpath`` rejected up-front if absolute or containing ``..`` (``Path(relpath).parts``), then realpath-under-root guard (``target.startswith(root_real + os.sep)``) before ``read_text``. Same class as #307/#414; CodeQL misses the inline+realpath barrier. Dismissed ``gh api`` (PR #1172) |
+| 1 | #419 | server/feed_signals.py | 119 | 2026-07-11 | Type 1: ``_read_enrichment_data`` — ``enricher_id`` is a literal constant at every caller (``topic_theme_clusters`` / ``temporal_velocity`` / ``grounding_rate``) and validated to a bare ``[A-Za-z0-9_-]`` token before ``os.path.join``; path is ``<root>/enrichments/<token>.json`` (constant suffix) on the route-confined corpus root. Same class as #390. Dismissed ``gh api`` (PR #1172) |
 
 ## Still open (not yet dismissed)
 
