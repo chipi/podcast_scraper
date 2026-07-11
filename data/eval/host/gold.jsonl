@@ -1,0 +1,10 @@
+{"show_id": "invest_like_the_best", "show_title": "Invest Like the Best with Patrick O'Shaughnessy", "split": "dev", "hosts": ["Patrick O'Shaughnessy"], "notes": "single host, named in title"}
+{"show_id": "no_priors", "show_title": "No Priors: Artificial Intelligence | Technology", "split": "dev", "hosts": ["Sarah Guo", "Elad Gil"], "notes": "co-hosted"}
+{"show_id": "unhedged", "show_title": "Unhedged", "split": "dev", "hosts": ["Katie Martin", "Rob Armstrong"], "notes": "FT/acast; org author is 'Financial Times'"}
+{"show_id": "planet_money", "show_title": "Planet Money", "split": "dev", "hosts": ["Kenny Malone", "Amanda Aronczyk", "Alexi Horowitz-Ghazi", "Erika Beras", "Jeff Guo", "Sarah Gonzalez", "Mary Childs", "Nick Fountain"], "notes": "ROTATING ensemble; score coverage+precision over recall for this show"}
+{"show_id": "the_journal", "show_title": "The Journal.", "split": "dev", "hosts": ["Kate Linebaugh", "Ryan Knutson", "Jessica Mendoza"], "notes": "WSJ/Gimlet; org author"}
+{"show_id": "nvidia_ai_podcast", "show_title": "NVIDIA AI Podcast", "split": "test", "hosts": ["Noah Kravitz"], "notes": "single host; org author 'NVIDIA'"}
+{"show_id": "hard_fork", "show_title": "Hard Fork", "split": "test", "hosts": ["Kevin Roose", "Casey Newton"], "notes": "NYT; co-hosted; org author"}
+{"show_id": "the_daily", "show_title": "The Daily", "split": "test", "hosts": ["Michael Barbaro", "Sabrina Tavernise"], "notes": "NYT; Barbaro primary, Tavernise + others rotate co-host"}
+{"show_id": "latent_space", "show_title": "Latent Space: The AI Engineer Podcast", "split": "test", "hosts": ["Shawn Wang", "Alessio Fanelli"], "notes": "swyx = Shawn Wang (alias — matcher must handle); co-hosted"}
+{"show_id": "odd_lots", "show_title": "Odd Lots", "split": "test", "hosts": ["Joe Weisenthal", "Tracy Alloway"], "notes": "Bloomberg; org author 'Bloomberg' currently mislabelled host"}
