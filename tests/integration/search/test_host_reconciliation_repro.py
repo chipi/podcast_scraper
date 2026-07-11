@@ -101,3 +101,64 @@ def test_network_feed_host_named_across_show_with_reconciliation(tmp_path: Path)
     # The relational layer now connects Katie to Sam (the u3 guest) via shared topic.
     co = {n.id for n in rq.co_speakers(graph, "person:katie-martin", k=20)}
     assert "person:sam" in co
+
+
+def _kg_with_noise_host(episode_id: str) -> dict:
+    """One episode where the feed-description NER added a bogus ``Twitter`` as role=host
+    (never speaks), alongside the real speaking host Katie."""
+    return {
+        "schema_version": "1.2",
+        "episode_id": episode_id,
+        "nodes": [
+            {"id": "podcast:unhedged", "type": "Podcast", "properties": {"title": "Unhedged"}},
+            {"id": f"episode:{episode_id}", "type": "Episode", "properties": {}},
+            {
+                "id": "person:katie-martin",
+                "type": "Person",
+                "properties": {"name": "Katie Martin", "role": "host"},
+            },
+            {
+                "id": "person:twitter",
+                "type": "Person",
+                "properties": {"name": "Twitter", "role": "host"},
+            },
+            {
+                "id": f"insight:{episode_id}h",
+                "type": "Insight",
+                "properties": {"text": "Katie on markets", "episode_id": episode_id},
+            },
+        ],
+        "edges": [
+            {"type": "HAS_EPISODE", "from": "podcast:unhedged", "to": f"episode:{episode_id}"},
+            {"type": "MENTIONS", "from": "person:katie-martin", "to": f"episode:{episode_id}"},
+            {"type": "MENTIONS", "from": "person:twitter", "to": f"episode:{episode_id}"},
+            {
+                "type": "HAS_INSIGHT",
+                "from": f"episode:{episode_id}",
+                "to": f"insight:{episode_id}h",
+            },
+            {"type": "STATES", "from": "person:katie-martin", "to": f"insight:{episode_id}h"},
+        ],
+    }
+
+
+def test_voice_match_demotes_speechless_metadata_host(tmp_path: Path) -> None:
+    """#1169 voice-match: a role=host person with no attributed speech (feed-description NER
+    noise like 'Twitter') is demoted to 'mentioned'; the real speaking host is kept."""
+    for eid in ("u1", "u2"):
+        (tmp_path / f"{eid}.kg.json").write_text(json.dumps(_kg_with_noise_host(eid)))
+    graph = CorpusGraph.build(tmp_path, derive_speaker_links=True, reconcile_hosts=True)
+    katie = graph.get_node("person:katie-martin")
+    twitter = graph.get_node("person:twitter")
+    assert katie is not None and katie.payload.get("role") == "host"  # speaks → kept
+    assert twitter is not None and twitter.payload.get("role") == "mentioned"  # no speech → demoted
+
+
+def test_voice_match_off_without_reconciliation(tmp_path: Path) -> None:
+    """Without reconciliation the noise host is left as-is (faithful union) — the demotion is
+    part of the opt-in reconcile pass, not the raw graph."""
+    for eid in ("u1", "u2"):
+        (tmp_path / f"{eid}.kg.json").write_text(json.dumps(_kg_with_noise_host(eid)))
+    graph = CorpusGraph.build(tmp_path, derive_speaker_links=True)
+    twitter = graph.get_node("person:twitter")
+    assert twitter is not None and twitter.payload.get("role") == "host"  # untouched
