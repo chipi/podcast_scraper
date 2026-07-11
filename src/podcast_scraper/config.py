@@ -903,9 +903,13 @@ class Config(BaseModel):
         description="Device for diarization: auto, cpu, cuda, or mps",
     )
     diarization_model: str = Field(
-        default="pyannote/speaker-diarization-3.1",
+        default="pyannote/speaker-diarization-community-1",
         alias="diarization_model",
-        description="HuggingFace pyannote diarization pipeline model id",
+        description=(
+            "HuggingFace pyannote diarization pipeline model id. Default community-1 "
+            "(v4) — beats 3.1 on the v3 fixtures (count 40/45, DER 7.1%); non-gated. "
+            "Registry: pyannote_diarization_community1. 3.1 is the fallback."
+        ),
     )
     run_id: Optional[str] = Field(default=None, alias="run_id")
     seed: Optional[int] = Field(
@@ -1177,13 +1181,13 @@ class Config(BaseModel):
         ),
     )
     dgx_diarize_model: str = Field(
-        default="pyannote/speaker-diarization-3.1",
+        default="pyannote/speaker-diarization-community-1",
         alias="dgx_diarize_model",
         description=(
             "Hugging Face repo ID for the pyannote model that the DGX diarize "
-            "service loads. The HF model is gated; HF_TOKEN must be in the "
-            "operator's ~/.env on DGX, which the deploy env_file injects into the "
-            "container."
+            "service loads. Default community-1 (v4, non-gated — no HF_TOKEN needed, "
+            "unlike 3.1). Registry: tailnet_dgx_diarization_community1; 3.1 is the "
+            "fallback, kept deployable on a parallel container for instant rollback."
         ),
     )
     dgx_request_timeout_sec: float = Field(

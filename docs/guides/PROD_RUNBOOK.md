@@ -446,7 +446,7 @@ panel with `--calls N --concurrency C` scaled to the production operating point 
 | Stage | Provider | Endpoint | Why this routing |
 | --- | --- | --- | --- |
 | Transcription | `tailnet_dgx` whisper-openai | `dgx:8002` (`large-v3`) | WER 0.10 mean / 4.6× realtime — matches MPS within noise, ~3× faster. **Cloud Whisper API stays the configured fallback** (`transcription_fallback_provider: openai`). |
-| Diarization | `tailnet_dgx` pyannote | `dgx:8001` (`speaker-diarization-3.1`) | DGX ties Apple MPS within noise (~23s / 5-min episode, ~13× realtime). Same model + same numerics; falls back to local pyannote on circuit-open. |
+| Diarization | `tailnet_dgx` pyannote | `dgx:8001` (`speaker-diarization-community-1`; 3.1 kept for rollback) | DGX ties Apple MPS within noise (~23s / 5-min episode, ~13× realtime). Same model + same numerics; falls back to local pyannote on circuit-open. |
 | Summary | Gemini | `gemini-2.5-flash-lite` | Cloud kept for the summary stage — Ollama qwen3.5:35b is the DGX-only alternative; Gemini is cheaper, faster, and reliability-floor validated (§ Provider model selection above). |
 | Speaker-detector | Gemini | `speaker_detector_provider: gemini` | Cloud kept — Ollama-on-DGX measured at 80s/call (vs Gemini 0.6s/call) at the same accuracy floor; the 133× latency penalty disqualifies DGX for this stage. spaCy is 17× worse on the production-relevant metric (faithful guest extraction from RSS metadata). See [EVAL_SPEAKER_DETECTION_NAMING_2026_06_15.md](eval-reports/EVAL_SPEAKER_DETECTION_NAMING_2026_06_15.md). |
 

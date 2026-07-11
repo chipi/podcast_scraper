@@ -427,7 +427,7 @@ Neural speaker diarization runs as an **additive second pass** after local Whisp
 | `diarization_min_speakers` | `--diarization-min-speakers` | `2` | Minimum speakers when auto-detecting |
 | `diarization_max_speakers` | `--diarization-max-speakers` | `20` | Maximum speakers when auto-detecting |
 | `diarization_device` | `--diarization-device` | `auto` | `cpu`, `cuda`, or `mps` |
-| `diarization_model` | `--diarization-model` | `pyannote/speaker-diarization-3.1` | HuggingFace pipeline id |
+| `diarization_model` | `--diarization-model` | `pyannote/speaker-diarization-community-1` | HuggingFace pipeline id (v4, non-gated; 3.1 is the fallback) |
 
 When diarization fails, the pipeline falls back to gap-based screenplay (`screenplay_gap_s`). Full
 narrative: [Audio Pipeline Guide](../guides/AUDIO_PIPELINE_GUIDE.md).

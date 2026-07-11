@@ -623,13 +623,13 @@ def preload_diarization_models() -> None:
     """Preload the pyannote speaker-diarization pipeline into the HF cache.
 
     Loading ``Pipeline.from_pretrained`` downloads and caches every sub-model
-    (segmentation-3.0, speaker-diarization-community-1, embeddings) so later runs
-    load offline (``HF_HUB_OFFLINE=1``). These are **gated** models: without an HF
-    token (with accepted terms) this is skipped — diarization is optional, so a
-    missing token must not fail the build.
+    (segmentation + embedding) so later runs load offline (``HF_HUB_OFFLINE=1``).
+    The default community-1 (v4) is **non-gated** — it caches with no HF token. The
+    3.1 fallback is gated (needs a token with accepted terms); without one its
+    preload 403s harmlessly (warned, not fatal — diarization is optional).
 
-    Controlled by ``DIARIZATION_MODEL`` (default ``pyannote/speaker-diarization-3.1``)
-    and skipped entirely with ``SKIP_DIARIZATION=1``.
+    Controlled by ``DIARIZATION_MODEL`` (default = manifest ``DIARIZATION_PIPELINE_ID``,
+    community-1) and skipped entirely with ``SKIP_DIARIZATION=1``.
     """
     from podcast_scraper import config as _config
 
@@ -648,17 +648,15 @@ def preload_diarization_models() -> None:
     if os.environ.get("HF_HUB_CACHE") != cache_dir_str:
         os.environ["HF_HUB_CACHE"] = cache_dir_str
 
-    model = os.environ.get("DIARIZATION_MODEL", "pyannote/speaker-diarization-3.1").strip()
-    cfg = _config.Config(rss="https://example.com/feed.xml", transcription_provider="whisper")
-    token = resolve_hf_token(cfg)
-    if not token:
-        print(
-            "  No HF token (HF_TOKEN / ~/.cache/huggingface/token) and gated model; "
-            "skipping diarization preload. Accept terms + set a token to cache it."
-        )
-        return
+    from podcast_scraper.providers.ml.model_manifest import DIARIZATION_PIPELINE_ID
 
-    print(f"  Loading {model} (downloads + caches all gated sub-models)...")
+    model = os.environ.get("DIARIZATION_MODEL", DIARIZATION_PIPELINE_ID).strip()
+    cfg = _config.Config(rss="https://example.com/feed.xml", transcription_provider="whisper")
+    # community-1 (default) is non-gated → token optional. A gated model (3.1) without
+    # a token 403s in the try below (warned, not fatal). Pass token when we have one.
+    token = resolve_hf_token(cfg)
+
+    print(f"  Loading {model} (downloads + caches its sub-models)...")
     try:
         Pipeline.from_pretrained(model, token=token)
         print(f"  diarization model cached: {model}")

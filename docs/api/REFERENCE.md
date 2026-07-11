@@ -135,7 +135,7 @@ See [Audio Pipeline Guide](../guides/AUDIO_PIPELINE_GUIDE.md).
 - `diarization_min_speakers` (`int`, default: `2`): Auto-detect minimum.
 - `diarization_max_speakers` (`int`, default: `20`): Auto-detect maximum.
 - `diarization_device` (`str`, default: `"auto"`): `cpu`, `cuda`, or `mps`.
-- `diarization_model` (`str`, default: `"pyannote/speaker-diarization-3.1"`): HuggingFace pipeline id.
+- `diarization_model` (`str`, default: `"pyannote/speaker-diarization-community-1"`): HuggingFace pipeline id (v4, non-gated; 3.1 is the fallback).
 
 #### Deepgram transcription
 

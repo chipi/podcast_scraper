@@ -47,6 +47,8 @@ _ROUTING_FIELDS = (
     "gil_evidence_nli_mode",
     "topic_cluster_threshold",
     "insight_cluster_threshold",
+    "diarization_model",
+    "dgx_diarize_model",
 )
 
 

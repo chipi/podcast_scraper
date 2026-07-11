@@ -259,7 +259,7 @@ def test_check_pyannote_diarize_health_required_model_present(
     mock_resp.status_code = 200
     mock_resp.json.return_value = {
         "object": "list",
-        "data": [{"id": "pyannote/speaker-diarization-3.1"}],
+        "data": [{"id": "pyannote/speaker-diarization-community-1"}],
     }
     mock_client = MagicMock()
     mock_client.__enter__.return_value = mock_client
@@ -267,7 +267,9 @@ def test_check_pyannote_diarize_health_required_model_present(
     mock_client_cls.return_value = mock_client
 
     assert (
-        check_pyannote_diarize_health("dgx-host", require_model_substring="speaker-diarization-3.1")
+        check_pyannote_diarize_health(
+            "dgx-host", require_model_substring="speaker-diarization-community-1"
+        )
         is True
     )
 

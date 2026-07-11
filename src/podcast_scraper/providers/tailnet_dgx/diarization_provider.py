@@ -82,7 +82,7 @@ class TailnetDgxDiarizationProvider:
         self._host = (cfg.dgx_tailnet_host or "").strip()
         self._port = int(getattr(cfg, "dgx_diarize_port", None) or 8001)
         self._model = (
-            getattr(cfg, "dgx_diarize_model", None) or "pyannote/speaker-diarization-3.1"
+            getattr(cfg, "dgx_diarize_model", None) or "pyannote/speaker-diarization-community-1"
         ).strip()
         # Diarization-specific timeout knobs: pyannote is far faster than Whisper
         # transcription, so the budget is much tighter (keeps a breaker half-open

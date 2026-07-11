@@ -76,7 +76,7 @@ class _DGXStubHandler(BaseHTTPRequestHandler):
                     "object": "list",
                     "data": [
                         {"id": "large-v3", "object": "model"},
-                        {"id": "pyannote/speaker-diarization-3.1", "object": "model"},
+                        {"id": "pyannote/speaker-diarization-community-1", "object": "model"},
                     ],
                 },
             )
@@ -100,7 +100,7 @@ class _DGXStubHandler(BaseHTTPRequestHandler):
             self._json(
                 200,
                 {
-                    "model_name": "pyannote/speaker-diarization-3.1",
+                    "model_name": "pyannote/speaker-diarization-community-1",
                     "num_speakers": 2,
                     "segments": [
                         {"start": 0.0, "end": 4.5, "speaker": "SPEAKER_00"},

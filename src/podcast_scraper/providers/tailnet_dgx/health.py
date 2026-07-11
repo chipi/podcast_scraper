@@ -286,7 +286,7 @@ def check_pyannote_diarize_health(
 
     Same single-flight semantics as :func:`check_faster_whisper_health`: liveness is a TCP
     connect so a GPU-busy diarize service is not a false ``down`` (#956). The diarize service
-    publishes its loaded pipeline as ``{"data": [{"id": "pyannote/speaker-diarization-3.1"}]}``;
+    publishes its loaded pipeline id under ``data[].id`` (e.g. the community-1 repo);
     ``require_model_substring`` matches against that pipeline id when the server answers.
     """
     return _check_dgx_http_health(

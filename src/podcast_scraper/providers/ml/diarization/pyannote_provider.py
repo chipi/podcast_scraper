@@ -152,7 +152,7 @@ class PyAnnoteDiarizationProvider:
         hf_token: str,
         *,
         device: str = "auto",
-        model_name: str = "pyannote/speaker-diarization-3.1",
+        model_name: str = "pyannote/speaker-diarization-community-1",
         clustering_threshold: Optional[float] = None,
         min_cluster_size: Optional[int] = None,
         min_segment_ms: Optional[int] = None,
