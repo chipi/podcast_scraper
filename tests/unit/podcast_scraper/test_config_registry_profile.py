@@ -22,6 +22,7 @@ from podcast_scraper.providers.ml.model_registry import (
     get_diarization_option,
     get_diarization_options,
     get_profile_preset,
+    resolve_profile_to_settings,
 )
 
 
@@ -128,3 +129,21 @@ class TestProfilePresets:
             assert preset.diarization in all_dia, (
                 f"profile {name!r} references unknown diarization option " f"{preset.diarization!r}"
             )
+
+    def test_resolver_routes_diarization_model_by_backend(self) -> None:
+        """resolve_profile_to_settings routes the diarization model to the config field
+        for the option's backend (pyannote->diarization_model, tailnet_dgx->
+        dgx_diarize_model, deepgram->deepgram_diarization_model) + a research ref."""
+        # local -> in-process pyannote
+        s = resolve_profile_to_settings("local", dgx_tailnet_host="h")
+        assert s["diarization_model"] == "pyannote/speaker-diarization-community-1"
+        assert "dgx_diarize_model" not in s and "deepgram_diarization_model" not in s
+        assert s.get("_diarization_research_ref")
+        # eval_default -> DGX diarize service
+        s = resolve_profile_to_settings("eval_default", dgx_tailnet_host="h")
+        assert s["dgx_diarize_model"] == "pyannote/speaker-diarization-community-1"
+        assert "diarization_model" not in s and "deepgram_diarization_model" not in s
+        # cloud_balanced -> standalone Deepgram pass
+        s = resolve_profile_to_settings("cloud_balanced", dgx_tailnet_host="h")
+        assert s["deepgram_diarization_model"] == "nova-3-general"
+        assert "diarization_model" not in s and "dgx_diarize_model" not in s

@@ -48,6 +48,11 @@ def test_apply_diarization_enriches_segments(mock_create_provider) -> None:
     assert enriched["segments"][0]["speaker"] == "SPEAKER_00"
     assert enriched["segments"][0]["speaker_label"] == "SPEAKER_00", "host kept raw"
     assert enriched["segments"][1]["speaker_label"] == "Guest", "guest named"
+    # enrichment sidecar + role hint (harden #1170): the diagnostics dict is attached,
+    # and an unnamed host segment carries speaker_role="host" (renders as "Host", not SPEAKER).
+    assert "speaker_diagnostics" in enriched, "speaker_diagnostics sidecar attached"
+    assert enriched["segments"][0]["speaker_role"] == "host", "unnamed host tagged for display"
+    assert "speaker_role" not in enriched["segments"][1], "named guest needs no role hint"
 
 
 @patch("podcast_scraper.providers.ml.diarization.pipeline.create_diarization_provider")
