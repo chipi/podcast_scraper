@@ -37,6 +37,7 @@ whisper_model: small.en
 # prod profile has these on, so Stage A must too.
 screenplay: true
 diarize: true
+diarization_model: pyannote/speaker-diarization-community-1  # from registry: pyannote_diarization_community1
 
 audio_preprocessing_profile: speech_optimal_v1
 

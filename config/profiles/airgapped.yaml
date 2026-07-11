@@ -41,6 +41,7 @@ whisper_model: medium.en
 # Screenplay + neural diarization (RFC-058)
 screenplay: true
 diarize: true
+diarization_model: pyannote/speaker-diarization-community-1  # from registry: pyannote_diarization_community1
 
 # Audio preprocessing — named preset (#634 Scope 1).
 audio_preprocessing_profile: speech_optimal_v1

@@ -49,6 +49,7 @@ _ROUTING_FIELDS = (
     "insight_cluster_threshold",
     "diarization_model",
     "dgx_diarize_model",
+    "deepgram_diarization_model",
 )
 
 
@@ -251,6 +252,53 @@ def test_every_profile_pins_model_for_its_summary_provider() -> None:
                 f"{path.name}: pins `summary_provider: {provider}` but not "
                 f"`{expected_key}`. Pin it explicitly (or add stem to the "
                 f"exempt list with a rationale)."
+            )
+
+    assert not violations, "\n".join(violations)
+
+
+# Diarization backend -> the config field a profile must pin so it MATERIALIZES the
+# registry's diarization choice (rather than inheriting a silent Field default). #1170.
+_DIARIZATION_PROVIDER_TO_MODEL_KEY = {
+    "local": "diarization_model",  # in-process pyannote
+    "tailnet_dgx": "dgx_diarize_model",  # DGX diarize service
+    "deepgram": "deepgram_diarization_model",  # standalone Deepgram pass
+    # gemini diarizes inline (no separate model knob) — exempted below.
+}
+
+
+def test_every_diarizing_profile_pins_its_diarization_model() -> None:
+    """Profiles are a MATERIALIZATION of the registry: a profile that diarizes MUST
+    explicitly pin the diarization model for its backend (``diarization_provider``),
+    so the choice is registry-sourced (``resolve_profile_to_settings``) and
+    drift-checked — never a silent Field default. #1170.
+
+    Mirrors ``test_every_profile_pins_model_for_its_summary_provider`` for the
+    diarization stage. Test/legacy profiles are exempt.
+    """
+    _EXEMPT: set[str] = {"test_default", "profile_freeze.example"}
+    if not _PROFILE_DIR.is_dir():
+        pytest.skip("profile dir absent")
+
+    violations: List[str] = []
+    for path in sorted(_PROFILE_DIR.glob("*.yaml")):
+        try:
+            data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        except yaml.YAMLError:
+            continue
+        if not isinstance(data, dict) or path.stem in _EXEMPT:
+            continue
+        if not data.get("diarize"):
+            continue  # profile doesn't diarize — nothing to materialize
+        provider = data.get("diarization_provider", "local")
+        if provider == "gemini":
+            continue  # gemini diarizes inline; no separate model knob
+        key = _DIARIZATION_PROVIDER_TO_MODEL_KEY.get(provider)
+        if key and key not in data:
+            violations.append(
+                f"{path.name}: diarizes with diarization_provider={provider!r} but "
+                f"does not pin `{key}`. Materialize it from the registry preset "
+                f"(resolve_profile_to_settings), or add the stem to the exempt list."
             )
 
     assert not violations, "\n".join(violations)

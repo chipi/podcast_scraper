@@ -1428,6 +1428,19 @@ _DIARIZATION_OPTIONS: Dict[str, StageOption] = {
         tier="fallback",
         resident_memory_gb=2.0,
     ),
+    # Deepgram standalone diarization pass — the cloud profiles' backend
+    # (``diarization_provider: deepgram``). Not pyannote: Deepgram diarizes as a
+    # separate cloud call, so these profiles never touch the pyannote pipeline.
+    "deepgram_diarization_nova3": StageOption(
+        stage="diarization",
+        option_id="deepgram_diarization_nova3",
+        provider="deepgram",
+        model="nova-3-general",
+        research_ref="docs/guides/eval-reports/EVAL_DEEPGRAM_TRANSCRIPTION_2026_06_13.md",
+        headline_metric="cloud-profile diarization via Deepgram nova-3-general (standalone pass)",
+        measured_at="2026-06-13",
+        tier="primary",
+    ),
 }
 
 
@@ -1463,7 +1476,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         ner="gemini_speaker_detector",
         clustering="topic_clusters_default_0_75",
         gi="provider_n12_grounded_bundled",
-        diarization="pyannote_diarization_community1",
+        diarization="deepgram_diarization_nova3",
         notes="Production cloud default. Best compound (quality × cost × latency).",
     ),
     "cloud_thin": ProfilePreset(
@@ -1474,7 +1487,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         ner="gemini_speaker_detector",
         clustering="topic_clusters_default_0_75",
         gi="provider_n12_grounded_bundled",
-        diarization="pyannote_diarization_community1",
+        diarization="deepgram_diarization_nova3",
         notes="Minimal cloud feature set. Same providers as cloud_balanced.",
     ),
     "cloud_with_dgx_primary": ProfilePreset(
@@ -1620,7 +1633,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         ner="gemini_speaker_detector",  # 2026-06-17 drift fix: YAML chose Gemini per v3 research
         clustering="topic_clusters_default_0_75",
         gi="provider_n12_grounded_bundled",
-        diarization="pyannote_diarization_community1",
+        diarization="deepgram_diarization_nova3",
         notes=(
             "Cloud quality-first profile: Deepgram for transcription (best WER + best "
             "latency on v2 fixtures), Anthropic Haiku 4.5 for summary "
@@ -1934,13 +1947,16 @@ def resolve_profile_to_settings(
         settings["insight_cluster_threshold"] = threshold
     settings["_clustering_research_ref"] = clustering.research_ref
 
-    # Diarization: the pyannote pipeline id, routed to the in-process provider
-    # (``diarization_model``) or the DGX diarize service (``dgx_diarize_model``)
-    # by the option's provider. The stage on/off (``diarize``) is a YAML toggle.
+    # Diarization: route the model id to the backend's config field by the option's
+    # provider — pyannote in-process (``diarization_model``), the DGX diarize service
+    # (``dgx_diarize_model``), or the Deepgram standalone pass
+    # (``deepgram_diarization_model``). The stage on/off (``diarize``) is a YAML toggle.
     if dia.model is not None:
         if dia.provider == "tailnet_dgx":
             settings["dgx_diarize_model"] = dia.model
-        else:
+        elif dia.provider == "deepgram":
+            settings["deepgram_diarization_model"] = dia.model
+        else:  # pyannote / local
             settings["diarization_model"] = dia.model
 
     settings["_profile_preset"] = preset.name
