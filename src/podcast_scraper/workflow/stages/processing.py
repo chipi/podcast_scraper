@@ -301,7 +301,7 @@ def _detect_hosts_from_feed(
     """
     feed_hosts = speaker_detector.detect_hosts(
         feed_title=feed.title,
-        feed_description=None,  # TODO: Extract from feed XML if needed
+        feed_description=feed.description,  # show blurb usually names the host (#1169)
         feed_authors=feed.authors if feed.authors else None,
     )
     return cast(set[str], feed_hosts)

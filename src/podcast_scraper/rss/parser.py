@@ -303,6 +303,41 @@ def _plain_title_from_element(elem: Optional[ET.Element]) -> str:
     return _strip_html(raw).strip()
 
 
+def _channel_description(xml_bytes: bytes) -> Optional[str]:
+    """The channel-level ``<description>`` from feed XML — the show's blurb, which usually
+    names the host(s) ("hosted by …").
+
+    Parsed here rather than widening :func:`parse_rss_items` (whose 3-tuple return is unpacked
+    by ~17 call sites) so host detection can finally read the show description (#1169). Returns
+    ``None`` when the XML is unparsable or carries no channel description.
+    """
+    if not xml_bytes:
+        return None
+    try:
+        root = safe_fromstring(xml_bytes)
+    except (DefusedXMLParseError, ValueError, TypeError):
+        return None
+    if root is None:
+        return None
+    channel = root.find("channel")
+    if channel is None:
+        channel = next(
+            (e for e in root.iter() if isinstance(e.tag, str) and e.tag.endswith("channel")),
+            None,
+        )
+    if channel is None:
+        return None
+    desc_elem = channel.find("description")
+    if desc_elem is None:
+        desc_elem = next(
+            (e for e in channel.iter() if isinstance(e.tag, str) and e.tag.endswith("description")),
+            None,
+        )
+    if desc_elem is not None and desc_elem.text:
+        return _strip_html(desc_elem.text.strip())
+    return None
+
+
 def extract_episode_title(item: ET.Element, idx: int) -> Tuple[str, str]:
     """Extract episode title from RSS item and create safe filename version.
 
@@ -784,5 +819,9 @@ def fetch_and_parse_rss(cfg: config.Config) -> RssFeed:  # type: ignore[valid-ty
         feed_cache.write_cached_rss(cfg.rss_url, rss_bytes)
 
     return RssFeed(  # type: ignore[no-any-return]
-        title=feed_title, authors=feed_authors, items=items, base_url=feed_base_url
+        title=feed_title,
+        authors=feed_authors,
+        items=items,
+        base_url=feed_base_url,
+        description=_channel_description(rss_bytes),
     )

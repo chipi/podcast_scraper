@@ -25,6 +25,8 @@ class RssFeed:
         items: List of XML elements representing individual episodes (<item> elements).
         base_url: Base URL of the RSS feed, used for resolving relative URLs.
         authors: List of author names extracted from the feed metadata.
+        description: The channel-level <description> — the show's own blurb, which
+            usually names the host(s) ("hosted by …"). Feeds host detection (#1169).
 
     Example:
         >>> feed = RssFeed(
@@ -39,6 +41,7 @@ class RssFeed:
     items: List[ET.Element]
     base_url: str
     authors: List[str] = field(default_factory=list)
+    description: Optional[str] = None
 
 
 @dataclass
