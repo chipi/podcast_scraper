@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from podcast_scraper.enrichment.enrichers._loaders import is_unresolved_speaker_placeholder
 from podcast_scraper.server.schemas import AppEntity, AppTopic
 
 
@@ -59,11 +60,14 @@ def entities_from_kg(artifact: Any) -> tuple[list[AppEntity], list[AppEntity], l
         # Person / Org entities — typed nodes (v2) or legacy ``Entity`` + ``kind``.
         kind = props.get("kind")
         if ntype == "Person" or node_id.startswith("person:") or kind == "person":
+            person_name = _name(props, node_id)
+            # Unresolved diarization voices (``person:speaker-NN``) are anonymous
+            # labels, not real people — never surface them as Person entities (#1167).
+            if is_unresolved_speaker_placeholder(node_id, person_name):
+                continue
             persons.setdefault(
                 node_id,
-                AppEntity(
-                    id=node_id, name=_name(props, node_id), kind="person", role=_role_of(props)
-                ),
+                AppEntity(id=node_id, name=person_name, kind="person", role=_role_of(props)),
             )
         elif ntype in ("Organization", "Org") or node_id.startswith("org:") or kind == "org":
             orgs.setdefault(node_id, AppEntity(id=node_id, name=_name(props, node_id), kind="org"))
