@@ -294,7 +294,12 @@ def _name_guest_voices(
             out[v] = SpeakerRole(name=guest_names[gi], role="guest", named=True, source="guest")
             gi += 1
         else:
-            role = "guest" if (guest_names or voice_intro) else "unknown"
+            # Paint a leftover unnamed voice as "guest" only with positive GUEST
+            # evidence: detected guest names, or a self-intro from a NON-host voice.
+            # ``voice_intro`` is episode-wide and includes the host's own intro, so a
+            # host-only-intro show must leave leftovers "unknown", not "guest" (#1170).
+            has_guest_intro = any(vid not in assigned for vid in voice_intro)
+            role = "guest" if (guest_names or has_guest_intro) else "unknown"
             out[v] = SpeakerRole(name=v, role=role, named=False, source="raw")
     return out
 

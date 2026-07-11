@@ -77,6 +77,26 @@ def test_panel_extra_guest_kept_raw() -> None:
     assert len(raw_guests) == 1
 
 
+def test_host_selfintro_no_guests_leftover_is_unknown() -> None:
+    # Regression (#1170 harden): a host self-introduces but NO guests are detected.
+    # A leftover unnamed voice (backchannel / phantom / short interjection) must be
+    # role="unknown", NOT "guest" — the episode-wide self-intro dict includes the
+    # host's own intro, and that must not paint unrelated voices as guests.
+    diar = _diar([("HOST", 0, 300), ("OTHER", 300, 320)], 2)
+    r = resolve_speaker_roster(
+        diar,
+        "I'm Patrick O'Shaughnessy and today we talk markets.",
+        voice_texts={
+            "HOST": "I'm Patrick O'Shaughnessy and today we talk markets.",
+            "OTHER": "yeah mm-hmm right",
+        },
+    )
+    assert r.by_voice["HOST"].role == "host"
+    other = r.by_voice["OTHER"]
+    assert other.named is False
+    assert other.role == "unknown", f"leftover voice should be unknown, got {other.role!r}"
+
+
 def test_co_hosted_via_known_hosts() -> None:
     # Two intro-dominant voices + two known host names → both named as hosts.
     diar = _diar([("H1", 0, 50), ("H2", 50, 90), ("GUEST", 90, 400), ("H1", 400, 420)], 3)
