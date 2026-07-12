@@ -56,7 +56,7 @@ summary_provider: ollama
 ollama_api_base: http://${DGX_TAILNET_HOST:-dgx-llm-1}:11434/v1
 ollama_summary_model: qwen3.5:35b
 ollama_num_ctx: 32768
-llm_pipeline_mode: bundled
+llm_pipeline_mode: staged
 
 generate_metadata: true
 generate_summaries: true

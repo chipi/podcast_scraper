@@ -173,19 +173,52 @@ def _judge(
         return None
 
 
-def _latest_runs(corpus: Path) -> List[Path]:
+def _summary_text(meta: Dict[str, Any]) -> str:
+    """The summary as a human would read it.
+
+    ``summary`` on disk is an OBJECT (``short_summary`` + ``bullets`` + provenance), not a string.
+    An earlier version of this harness did ``str(summary)`` and handed the judges a stringified
+    Python dict — braces, quotes, ``generated_at`` timestamps and all. They dutifully scored it,
+    and the numbers were garbage. Never feed a judge a repr.
+    """
+    raw = meta.get("summary") or (meta.get("content") or {}).get("summary")
+    if isinstance(raw, str):
+        return raw.strip()
+    if not isinstance(raw, dict):
+        return ""
+
+    parts: List[str] = []
+    prose = str(raw.get("short_summary") or raw.get("summary") or "").strip()
+    if prose:
+        parts.append(prose)
+    bullets = raw.get("bullets")
+    if isinstance(bullets, list):
+        points = [f"- {str(b).strip()}" for b in bullets if str(b).strip()]
+        if points:
+            parts.append("\n".join(points))
+    return "\n\n".join(parts).strip()
+
+
+def _latest_runs(corpus: Path, feed_filter: str = "") -> List[Path]:
     runs = []
     for feed in sorted(corpus.glob("feeds/*")):
+        if feed_filter and feed_filter not in feed.name:
+            continue
         feed_runs = sorted(feed.glob("run_*"))
         if feed_runs:
             runs.append(feed_runs[-1])
     return runs
 
 
-def _episodes(corpus: Path) -> Dict[str, Dict[str, Any]]:
-    """guid -> {title, summary, transcript} from the newest run of each feed."""
+def _episodes(corpus: Path, feed_filter: str = "") -> Dict[str, Dict[str, Any]]:
+    """guid -> {title, summary, transcript} from the newest run of each feed.
+
+    ``feed_filter`` matters when one corpus is a PARTIAL rebuild: its untouched feeds still hold
+    the ORIGINAL runs, so without it the judges grade a corpus against its own copies and report
+    a tie — a confident, expensive, meaningless result.
+    """
     out: Dict[str, Dict[str, Any]] = {}
-    for run in _latest_runs(corpus):
+    for run in _latest_runs(corpus, feed_filter):
         for meta_path in sorted((run / "metadata").glob("*.metadata.json")):
             try:
                 meta = json.loads(meta_path.read_text())
@@ -195,14 +228,14 @@ def _episodes(corpus: Path) -> Dict[str, Dict[str, Any]]:
             guid = episode.get("guid")
             if not guid:
                 continue
-            summary = (meta.get("content") or {}).get("summary") or meta.get("summary")
+            summary = _summary_text(meta)
             stem = meta_path.name[: -len(".metadata.json")]
             transcript_path = run / "transcripts" / f"{stem}.txt"
             if not summary or not transcript_path.is_file():
                 continue
             out[guid] = {
                 "title": episode.get("title", ""),
-                "summary": str(summary),
+                "summary": summary,
                 "transcript": transcript_path.read_text(encoding="utf-8", errors="replace"),
             }
     return out
@@ -233,13 +266,21 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--num-ctx", type=int, default=32768)
     ap.add_argument("--episodes", type=int, default=20, help="How many shared episodes to judge")
     ap.add_argument("--seed", type=int, default=7)
+    ap.add_argument(
+        "--feed",
+        default="",
+        help=(
+            "Only judge feeds whose directory name contains this. REQUIRED when a corpus is a "
+            "partial rebuild, or the judges grade its untouched copies against themselves."
+        ),
+    )
     ap.add_argument("--out", type=Path, help="Directory to write results into")
     args = ap.parse_args(argv)
 
     # The rule, enforced before a single token is spent.
     _assert_cross_vendor(args.judges, [args.a_model, args.b_model])
 
-    eps_a, eps_b = _episodes(args.a), _episodes(args.b)
+    eps_a, eps_b = _episodes(args.a, args.feed), _episodes(args.b, args.feed)
     shared = sorted(set(eps_a) & set(eps_b))
     if not shared:
         print("error: no shared episodes with both a summary and a transcript", file=sys.stderr)
@@ -259,8 +300,20 @@ def main(argv: Optional[List[str]] = None) -> int:
         row: Dict[str, Any] = {"guid": guid, "title": a["title"], "judges": {}}
         for judge in args.judges:
             # Each summary is graded against the transcript ITS OWN pipeline produced.
-            sa = _judge(args.ollama_host, judge, a["transcript"], a["summary"], args.num_ctx)
-            sb = _judge(args.ollama_host, judge, b["transcript"], b["summary"], args.num_ctx)
+            sa = _judge(
+                judge,
+                a["transcript"],
+                a["summary"],
+                ollama_host=args.ollama_host,
+                num_ctx=args.num_ctx,
+            )
+            sb = _judge(
+                judge,
+                b["transcript"],
+                b["summary"],
+                ollama_host=args.ollama_host,
+                num_ctx=args.num_ctx,
+            )
             row["judges"][judge] = {args.a_label: sa, args.b_label: sb}
         results.append(row)
 

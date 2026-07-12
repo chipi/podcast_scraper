@@ -57,7 +57,12 @@ summary_provider: ollama
 ollama_api_base: http://${DGX_TAILNET_HOST:-dgx-llm-1}:11434/v1
 ollama_summary_model: qwen3.5:35b
 ollama_num_ctx: 32768 # transcripts are long; a smaller window truncates them silently
-llm_pipeline_mode: bundled # 35b handles bundled cleanly (see local_dgx_balanced)
+# staged, NOT bundled. Measured on the pilot: qwen3.5:35b either emits invalid JSON for the
+# bundled clean+summary call (falls back to staged) or — worse — emits VALID JSON containing the
+# prompt's few-shot style examples verbatim, so an episode about Tim Cook was summarised as
+# "Speed gains come from braking earlier...". A silent success with the wrong content is far
+# more dangerous than a loud failure. The staged prompt (long_v1) carries no such examples.
+llm_pipeline_mode: staged
 
 generate_metadata: true
 generate_summaries: true

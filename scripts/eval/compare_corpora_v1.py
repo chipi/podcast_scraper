@@ -67,20 +67,28 @@ def _load_json(path: Path) -> Any:
         return None
 
 
-def _latest_runs(corpus: Path) -> List[Path]:
+def _latest_runs(corpus: Path, feed_filter: str = "") -> List[Path]:
     """Newest run per feed — what the corpus actually serves."""
     runs = []
     for feed in sorted(corpus.glob("feeds/*")):
+        if feed_filter and feed_filter not in feed.name:
+            continue
         feed_runs = sorted(feed.glob("run_*"))
         if feed_runs:
             runs.append(feed_runs[-1])
     return runs
 
 
-def _episodes(corpus: Path) -> Dict[str, Dict[str, Path]]:
-    """guid -> {metadata, transcript, segments, gi, kg, media} for the newest run of each feed."""
+def _episodes(corpus: Path, feed_filter: str = "") -> Dict[str, Dict[str, Path]]:
+    """guid -> {metadata, transcript, segments, gi, kg, media} for the newest run of each feed.
+
+    ``feed_filter`` restricts to feeds whose directory name contains it. That matters when a
+    corpus is a *partial* rebuild: a corpus copied from another and then rebuilt for one feed still
+    holds the ORIGINAL runs for every other feed, and comparing those against their own source
+    yields a stream of zero deltas that silently dilutes the real result toward "no difference".
+    """
     out: Dict[str, Dict[str, Path]] = {}
-    for run in _latest_runs(corpus):
+    for run in _latest_runs(corpus, feed_filter):
         for meta_path in sorted((run / "metadata").glob("*.metadata.json")):
             meta = _load_json(meta_path)
             if not isinstance(meta, dict):
@@ -197,6 +205,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--b", type=Path, required=True, help="Corpus B root (challenger, e.g. DGX)")
     ap.add_argument("--a-label", default="A")
     ap.add_argument("--b-label", default="B")
+    ap.add_argument(
+        "--feed",
+        default="",
+        help=(
+            "Only compare feeds whose directory name contains this. Required when one corpus is "
+            "a PARTIAL rebuild: its untouched feeds still hold the original runs, and comparing "
+            "those against their own source floods the aggregate with zero deltas."
+        ),
+    )
     ap.add_argument("--out", type=Path, help="Write a markdown scorecard here")
     args = ap.parse_args(argv)
 
@@ -205,7 +222,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             print(f"error: not a corpus root: {root}", file=sys.stderr)
             return 2
 
-    eps_a, eps_b = _episodes(args.a), _episodes(args.b)
+    eps_a, eps_b = _episodes(args.a, args.feed), _episodes(args.b, args.feed)
     shared = sorted(set(eps_a) & set(eps_b))
     if not shared:
         print("error: the two corpora share no episode GUIDs", file=sys.stderr)
