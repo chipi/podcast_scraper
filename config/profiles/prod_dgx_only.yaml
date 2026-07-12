@@ -42,9 +42,14 @@ preprocessing_enabled: true
 audio_preprocessing_profile: speech_optimal_v1
 save_adfree_transcript: true
 
-# --- speaker naming: local NER -------------------------------------------------------------------
-speaker_detector_provider: spacy
-ner_model: en_core_web_trf
+# --- speaker naming: the pinned local LLM ---------------------------------------------------------
+# The cloud profile detects speakers with an LLM (gemini). Using spaCy here would swap the LLM for
+# plain NER, so a worse host/guest result could not be read as "the local LLM is weaker" — it would
+# just mean "no LLM ran". Keeping the stage on the same pinned local model is what makes the
+# cloud-vs-local comparison say something.
+speaker_detector_provider: ollama
+ollama_speaker_model: qwen3.5:35b
+ner_model: en_core_web_trf # still used by the local entity stage
 auto_speakers: true
 
 # --- summary / GI / KG: the pinned Ollama model ---------------------------------------------------
