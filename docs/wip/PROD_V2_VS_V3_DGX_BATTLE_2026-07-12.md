@@ -212,7 +212,22 @@ a Qwen judge crowned a Qwen candidate rank 1 while cloud judges put it at 8). Th
 Each summary is judged **against its own transcript** — grading v3's summary against v2's text
 would punish it for correctly reporting what it saw.
 
-## 7. Method: pilot before commitment
+## 7. Method: pilot before commitment — and then HOLD
+
+**Decision (2026-07-12): the full v3 build is ON HOLD.** The remaining ~89 episodes are *not*
+being processed. Reason: there is no point spending ~14 h of GPU building a corpus on
+`large-v3` when the audio-side stack may be replaced within days — `large-v3-turbo` (#1178) and
+MOSS (#1174/#1177) are both credible replacements for exactly that stage, and the 10k-episode
+target makes the ASR choice load-bearing (40 days vs ~8).
+
+So the **10-episode pilot becomes the common benchmark set**: every contender in the deathmatch
+(#1179) runs the same 10 episodes, same audio, same downstream LLM. Only the ASR/diarization
+stage varies. The full corpus gets built **once**, with the winner.
+
+Order: finish the pilot → evaluate it → settle the audio stack (#1178, #1177, #1174, #1179) →
+*then* build the corpus.
+
+### Original pilot rationale
 
 Operator call: **stop after feed 1 (10 episodes) completes fully**, evaluate, and only commit the
 remaining ~89 episodes (15–20 h of GPU) if the pilot shows the local stack is competitive. The
