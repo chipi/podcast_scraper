@@ -1941,10 +1941,13 @@ class OpenAIProvider:
         from ...prompts.store import render_prompt
 
         system = (
-            "Extract all short verbatim quotes from the transcript that support "
-            "the given insight. Quotes must be from different parts of the "
-            "transcript. Reply with ONLY a JSON object: "
-            '{"quotes": ["exact quote 1", "exact quote 2"]}'
+            "Extract all short verbatim quotes from the transcript that "
+            "support the given insight. CRITICAL: each quote must be a "
+            "DIFFERENT passage — never repeat the same text. Find evidence "
+            "from separate parts of the transcript, including the later parts. "
+            "Reply with ONLY a JSON object: "
+            '{"quotes": ["quote from early in transcript", '
+            '"quote from middle", "quote from end"]}'
         )
         user = render_prompt(
             "openai/evidence/extract_quote/v1",

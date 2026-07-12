@@ -1790,10 +1790,13 @@ class AnthropicProvider:
         from ...gi.grounding import QuoteCandidate, resolve_llm_quote_span
 
         system = (
-            "Extract all short verbatim quotes from the transcript that support "
-            "the given insight. Quotes must be from different parts of the "
-            "transcript. Reply with ONLY a JSON object: "
-            '{"quotes": ["exact quote 1", "exact quote 2"]}'
+            "Extract all short verbatim quotes from the transcript that "
+            "support the given insight. CRITICAL: each quote must be a "
+            "DIFFERENT passage — never repeat the same text. Find evidence "
+            "from separate parts of the transcript, including the later parts. "
+            "Reply with ONLY a JSON object: "
+            '{"quotes": ["quote from early in transcript", '
+            '"quote from middle", "quote from end"]}'
         )
         excerpt = transcript.strip()[: config_constants.GI_QUOTE_TRANSCRIPT_MAX_CHARS]
         user = (
