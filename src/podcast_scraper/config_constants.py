@@ -23,6 +23,13 @@ GI_MAX_INSIGHTS_CEILING = 50
 # Token budget per requested insight, floored so short requests still get room to answer.
 GI_INSIGHT_TOKENS_EACH = 150
 GI_INSIGHT_TOKENS_FLOOR = 1024
+# How much transcript quote extraction may see. Providers hardcoded 50_000, which is shorter than
+# a real episode (67k-117k chars here): the last third of every episode was invisible to the quote
+# extractor, and zero of 1418 grounded quotes in the v2 corpus fell beyond the cut. That looked
+# like "insight density is concentrated early" and was in fact the truncation.
+# 150_000 clears the longest episode measured (116,596) and still fits the narrowest cloud context
+# in use (DeepSeek, 64k tokens) with room for the instructions and the reply.
+GI_QUOTE_TRANSCRIPT_MAX_CHARS = 150_000
 DEFAULT_NUM_SPEAKERS = 2
 DEFAULT_SCREENPLAY_GAP_SECONDS = 1.25
 DEFAULT_TIMEOUT_SECONDS = 20

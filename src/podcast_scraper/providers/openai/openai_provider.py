@@ -1948,7 +1948,7 @@ class OpenAIProvider:
         )
         user = render_prompt(
             "openai/evidence/extract_quote/v1",
-            transcript=transcript.strip()[:50000],
+            transcript=transcript.strip()[: config_constants.GI_QUOTE_TRANSCRIPT_MAX_CHARS],
             insight=insight_text.strip(),
         )
         try:

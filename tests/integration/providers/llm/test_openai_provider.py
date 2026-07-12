@@ -1078,6 +1078,36 @@ class TestOpenAIProviderPricing(unittest.TestCase):
         self.assertEqual(result[0].qa_score, 1.0)
         mock_client.chat.completions.create.assert_called_once()
 
+    @patch("podcast_scraper.prompts.store.render_prompt", return_value="p")
+    def test_extract_quotes_sees_past_the_old_50k_cut(self, mock_render):
+        """Quote extraction must see the whole episode, not the first 50k characters.
+
+        Providers truncated the transcript to a hardcoded 50_000 chars. Real episodes run
+        67k-117k, so the last third was invisible to the quote extractor: zero of 1418
+        grounded quotes in the v2 corpus fell beyond the cut, which read as "insights are
+        front-loaded" and was really the truncation. A quote only reachable past 50k is the
+        only thing that catches this.
+        """
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.content = '{"quote_text": "late evidence"}'
+        mock_client = Mock()
+        mock_client.chat.completions.create.return_value = mock_response
+
+        provider = OpenAIProvider(self.cfg)
+        provider.client = mock_client
+        provider._summarization_initialized = True
+        provider.summary_model = "gpt-4o-mini"
+
+        # Marker sits at ~60k — inside a real episode, past the old cut.
+        transcript = ("filler. " * 7500) + "LATE_EVIDENCE_MARKER" + (" trailing." * 100)
+        self.assertGreater(len(transcript), 50000)
+
+        provider.extract_quotes(transcript=transcript, insight_text="An insight.")
+
+        sent = mock_render.call_args[1]["transcript"]
+        self.assertIn("LATE_EVIDENCE_MARKER", sent)
+
     def test_extract_quotes_not_initialized_returns_empty(self):
         """extract_quotes when not initialized returns empty."""
         provider = OpenAIProvider(self.cfg)

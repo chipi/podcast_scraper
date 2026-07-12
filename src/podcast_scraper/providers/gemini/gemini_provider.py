@@ -2000,8 +2000,9 @@ class GeminiProvider:
             '{"quotes": ["quote from early in transcript", '
             '"quote from middle", "quote from end"]}'
         )
+        excerpt = transcript.strip()[: config_constants.GI_QUOTE_TRANSCRIPT_MAX_CHARS]
         user = (
-            f"Transcript (excerpt):\n{transcript.strip()[:50000]}\n\n"
+            f"Transcript (excerpt):\n{excerpt}\n\n"
             f"Insight: {insight_text.strip()}\n\n"
             "Return JSON with quote_text only."
         )
