@@ -120,6 +120,12 @@ def merge_eval_task_into_summarizer_config(
         min_tier = p.get("gi_value_gate_min_tier")
         if isinstance(min_tier, int) and 0 <= min_tier <= 3:
             updates["gi_value_gate_min_tier"] = min_tier
+        # The judge pin MUST be forwarded. Without it each arm grades its own output, and
+        # self-grading is ~6x more lenient (qwen drops 4% of its own insights; anthropic drops 26%
+        # of the same ones) — so a head-to-head would compare two different strictnesses.
+        gate_judge = p.get("gi_value_gate_provider")
+        if isinstance(gate_judge, str) and gate_judge:
+            updates["gi_value_gate_provider"] = gate_judge
         # #698 GIL evidence-stack bundling — forward mode flags from the
         # experiment YAML's ``params:`` dict to the runtime Config so the
         # bundled dispatch in ``gi/pipeline.py`` actually fires for matrix
