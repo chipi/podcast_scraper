@@ -91,7 +91,7 @@ def _raw_screenplay_requested(value: Any) -> bool:
 # change — its self-diarized output feeds the ``deepgram`` diarization_provider
 # (new in the same change), and a Deepgram-paired pyannote pass also runs cleanly.
 _DIARIZATION_ELIGIBLE_TRANSCRIPTION_PROVIDERS = frozenset(
-    {"whisper", "tailnet_dgx_whisper", "openai", "deepgram"}
+    {"whisper", "tailnet_dgx_whisper", "openai", "deepgram", "moss"}
 )
 
 # Of the eligible providers, these default ``diarize`` ON (the local Whisper paths
@@ -105,7 +105,11 @@ _DIARIZATION_DEFAULT_ON_TRANSCRIPTION_PROVIDERS = frozenset({"whisper", "tailnet
 # API (no local pyannote pass) and can therefore self-format a screenplay. Screenplay
 # stays enabled for these even when ``diarize`` (the pyannote pass) is off — the
 # transcription response carries the speaker labels natively.
-_NATIVE_SCREENPLAY_TRANSCRIPTION_PROVIDERS = frozenset({"deepgram"})
+#
+# ``moss`` belongs here for the same reason deepgram does, and more so: it is a *joint* model, so
+# its single pass emits speaker labels with the transcript (#1177). A MOSS run needs no separate
+# diarizer at all — ``diarization_provider: moss`` simply reads the same cached inference.
+_NATIVE_SCREENPLAY_TRANSCRIPTION_PROVIDERS = frozenset({"deepgram", "moss"})
 
 
 def _screenplay_strict_env_enabled() -> bool:
@@ -1076,7 +1080,7 @@ class Config(BaseModel):
         description="Speaker detection provider type (default: 'spacy' for spaCy NER).",
     )
     transcription_provider: Literal[
-        "whisper", "openai", "gemini", "mistral", "deepgram", "tailnet_dgx_whisper"
+        "whisper", "openai", "gemini", "mistral", "deepgram", "tailnet_dgx_whisper", "moss"
     ] = Field(
         default="whisper",
         alias="transcription_provider",
@@ -1152,7 +1156,7 @@ class Config(BaseModel):
             "until the measurement pass on prod-v2 corpus pins the optimal value."
         ),
     )
-    diarization_provider: Literal["local", "tailnet_dgx", "gemini", "deepgram"] = Field(
+    diarization_provider: Literal["local", "tailnet_dgx", "gemini", "deepgram", "moss"] = Field(
         default="local",
         alias="diarization_provider",
         description=(
@@ -1221,6 +1225,34 @@ class Config(BaseModel):
             "Connection-level blips are retried with exponential backoff; a genuine "
             "timeout (slow/contended GPU past the scaled budget) falls back without "
             "piling a duplicate request onto the busy server."
+        ),
+    )
+    moss_port: int = Field(
+        default=8004,
+        gt=0,
+        alias="moss_port",
+        description=(
+            "Port of the DGX MOSS-Transcribe-Diarize service (#1177). MOSS is a joint model: "
+            "``transcription_provider: moss`` and ``diarization_provider: moss`` read the same "
+            "single inference, which the service caches by audio digest so the second stage does "
+            "not re-run the model."
+        ),
+    )
+    moss_model: str = Field(
+        default="OpenMOSS-Team/MOSS-Transcribe-Diarize",
+        alias="moss_model",
+        description=(
+            "MOSS model id (0.9B, Apache-2.0). Emits transcript + speakers + timestamps in one "
+            "pass. Note: **segment-level timestamps only** — no word-level output."
+        ),
+    )
+    moss_request_timeout_sec: float = Field(
+        default=1800.0,
+        gt=0,
+        alias="moss_request_timeout_sec",
+        description=(
+            "HTTP timeout (seconds) for a MOSS call. Generous by default: a 90-minute episode is "
+            "transcribed and diarized in a single autoregressive pass."
         ),
     )
     dgx_diarize_request_timeout_sec: float = Field(
@@ -4326,10 +4358,11 @@ class Config(BaseModel):
             "deepgram",
             "anthropic",
             "tailnet_dgx_whisper",
+            "moss",
         ):
             raise ValueError(
                 "transcription_provider must be 'whisper', 'openai', 'gemini', "
-                "'mistral', 'deepgram', 'anthropic', or 'tailnet_dgx_whisper'"
+                "'mistral', 'deepgram', 'anthropic', 'tailnet_dgx_whisper', or 'moss'"
             )
         return value_str  # type: ignore[return-value]
 
