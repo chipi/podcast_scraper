@@ -639,6 +639,122 @@ make lint-markdown # Check markdown
 make fix-md        # Auto-fix markdown
 ```
 
+### Migrations — WHEN to add one (read this before editing artifact shapes)
+
+**Trigger:** any time your change would leave an already-deployed corpus
+unable to serve correctly under the new code, you must add a framework
+migration under `src/podcast_scraper/upgrade/migrations/mNNNN_<name>.py`.
+In practice that means:
+
+- You are editing a JSON schema
+  (`docs/architecture/gi/gi.schema.json`,
+  `docs/architecture/kg/kg.schema.json`,
+  `src/podcast_scraper/enrichment/_schema/enrichment.schema.json`) in a
+  non-additive way (rename, remove, retype, enum vocab shift).
+- You are changing the shape of any on-disk artifact under a corpus root
+  (`*.gi.json`, `*.kg.json`, `*.metadata.json`, `corpus_manifest.json`,
+  `run_summary.json`, `feeds.spec.yaml`, sidecars under
+  `<corpus>/metadata/enrichments/` or `<corpus>/search/`).
+- You are bumping an on-disk index format (LanceDB layout, embedding
+  dimensionality, cache-path scheme).
+
+**You do not need a migration when:** you add an optional field with a
+tolerant reader; you add a new derived sidecar that readers ignore when
+absent; you change internal implementation without touching on-disk shape.
+
+**Full checklist** (also in
+`docs/guides/CORPUS_UPGRADE.md` → "Adding a migration"):
+
+1. Add `upgrade/migrations/mNNNN_<name>.py`; register in `registry.py`;
+   idempotent `apply`.
+2. Bump `config/corpus_snapshot_format.json`'s `corpus_format_version`.
+3. Extend `config/corpus_snapshot_reader_support.json`
+   (`supported_corpus_format_version_max`; bump min only for
+   non-backward-compatible changes — coordinate with operator).
+4. Unit tests in `tests/unit/upgrade/`; e2e row in
+   `tests/integration/upgrade/test_end_to_end.py`.
+5. Read-time shim in
+   `src/podcast_scraper/migrations/gil_kg_identity_migrations.py` when
+   serving legacy artifacts without migration is still supported.
+6. Update three docs: this file's "Registered migrations" list, the API
+   `MIGRATION_GUIDE.md` version section, and the RFC/ADR you're
+   implementing (link the migration id back).
+
+**When in doubt, add one.** A no-op migration recorded in the ledger is a
+permanent breadcrumb.
+
+### After every prod deploy — the prod-state pin (mostly automated)
+
+`config/last_deployed_prod_version.json` names the exact code version and
+migration set currently running on prod. The pinned fixture at
+`tests/fixtures/upgrade/corpus_at_last_prod_release/` MUST match it.
+
+**`.github/workflows/deploy-prod.yml` auto-opens a PR after every green
+deploy** (via `scripts/ops/bump_prod_marker.py`) that updates:
+
+1. `config/last_deployed_prod_version.json`.
+2. The fixture's `upgrade_ledger.json`.
+3. The fixture's `corpus_manifest.json.produced_by.code_version`.
+
+**Manual step remaining:** the fixture's on-disk artifact shapes
+(`metadata/*.gi.json`, etc.). If a deployed migration changed those, hand-edit
+the fixture in the auto-opened PR before merging. The unit test
+`test_pinned_fixture_shape.py` fails the PR if you skip it — pointing at the
+exact file that drifted.
+
+Skipping this maintenance would make the CI net (workflow C — prod-gap test)
+lose signal — every future PR would be testing an ever-widening gap between
+prod and HEAD, most of which is history and not the real risk.
+
+### Migrations — pick the right surface
+
+Three migration surfaces exist. Do not conflate them.
+
+- **On-disk corpus migrations** (versioned, ledgered, idempotent) — the
+  framework in `src/podcast_scraper/upgrade/`. Invoke via
+  `make upgrade-status / upgrade-check / upgrade-corpus / upgrade-verify`.
+  Guide: `docs/guides/CORPUS_UPGRADE.md`. This is where you add a step to
+  migrate an existing deployed corpus across releases (`upgrade/migrations/mNNNN_*`).
+- **Read-time schema shims** — pure functions in
+  `src/podcast_scraper/migrations/gil_kg_identity_migrations.py` used by the
+  server / graph build to accept legacy artifact shapes without an in-place
+  rewrite. Use when you need to read older artifacts you cannot upgrade;
+  prefer the framework path when you own the corpus.
+- **API surface changes per version** — `docs/api/MIGRATION_GUIDE.md`.
+  Endpoint additions, response-shape moves, config renames, upgrade recipes
+  for callers of the HTTP API and the Python library.
+
+Restore paths run the corpus-upgrade framework automatically
+(`scripts/ops/restore_corpus_from_tarball_host.sh`, wired in #1176). Local
+`make restore-corpus` / `make import-corpus` do NOT — always follow those with
+`make upgrade-corpus CORPUS_DIR=...` before pointing anything at the corpus.
+
+### Corpus backup / restore — pick the right surface
+
+Four independent surfaces exist; do not conflate them. SSOT lives at
+`docs/guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md`; the surface matrix names
+every target.
+
+- **Scheduled cloud backup / restore** (`backup-corpus.yml`,
+  `backup-corpus-prod.yml`, `prod-restore-corpus.yml`,
+  `drill-restore-corpus.yml`). Use for daily snapshots to
+  `chipi/podcast_scraper-backup` and controlled prod / drill restores.
+- **Local restore from a released tag** (`make restore-corpus`,
+  `make restore-corpus-prod`). Use to pull a specific `snapshot-YYYYMMDD` release
+  down to a codespace or prod host. Requires `gh auth` on the backup repo.
+- **Instance-to-instance transfer without CI** (`make export-corpus`,
+  `make import-corpus` — #1175). Use when moving a corpus laptop ↔ VPS,
+  prod ↔ codespace, or across an airgap. No `gh` dependency; operator owns the
+  transport. Produces the same tarball format as `backup-corpus.yml`, so the
+  two paths are bit-format compatible. Detailed recipes:
+  `docs/guides/CORPUS_AIRGAP_RUNBOOK.md`.
+- **Stack-test debug export** (`make stack-test-export`). Copies the compose
+  volume — for debugging only, not portable.
+
+Reach for `export-corpus` / `import-corpus` when the operator asks to "move",
+"transfer", "airgap", or "sneakernet" a corpus; reach for the CI backup flow
+when they ask for "scheduled backup" or "prod restore".
+
 ### Materialize autoresearch decisions in the registry, regenerate profiles
 
 After **every** autoresearch finding that changes a default — transcription

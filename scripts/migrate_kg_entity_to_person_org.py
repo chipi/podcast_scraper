@@ -10,6 +10,15 @@ Idempotent. Back up your corpus before running. Examples:
   python scripts/migrate_kg_entity_to_person_org.py --corpus /path/to/corpus
 
 Wraps ``podcast_scraper.migrations.gil_kg_identity_migrations.migrate_kg_document_v2``.
+
+Status (see #1176): historical one-shot for the RFC-097 v2.0 KG shape
+(typed ``Person`` / ``Organization`` nodes replacing the legacy
+``Entity(kind=...)`` form). The read-time shim ``migrate_kg_document_v2`` in
+``src/podcast_scraper/migrations/gil_kg_identity_migrations.py`` handles the
+same rewrite transparently at read time, so serving a legacy corpus does not
+require running this script. Prefer ``make upgrade-corpus`` (framework path)
+when you own the corpus and can rewrite files — this script stays as an
+escape hatch for one-off surgery.
 """
 
 from __future__ import annotations

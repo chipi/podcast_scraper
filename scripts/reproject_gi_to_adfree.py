@@ -15,7 +15,13 @@ Note: this is a data-layer fixup, not a full pipeline run — it does NOT update
 produced_by stamp" when serving the reprojected corpus. A subsequent ``make reindex``
 or a faithful re-diarization stamps it. Usage::
 
-    python scripts/migrate/reproject_gi_to_adfree.py <corpus_root>
+    python scripts/reproject_gi_to_adfree.py <corpus_root>
+
+Status (see #1176): historical one-shot for the #974 ad-free processing base
+switch. Intentionally NOT frameworked: it does not fit the mNNNN registered-
+migrations model because it is a data reprojection whose "correct" behaviour
+depends on the pre-#974 processing state of the source corpus, not on a schema
+version. Kept as an on-demand tool for validation / stopgap serving.
 """
 
 from __future__ import annotations

@@ -33,6 +33,7 @@ when on-disk corpus layout changes in a breaking way ([ADR-092](../adr/ADR-092-c
 | **Pre-prod / Codespace** | Cloud backup tarball to backup repo; optional local pull | **`backup-corpus.yml`**; **`make codespace-backup-cloud`**; **`make restore-corpus`** | Codespace tags: `snapshot-YYYYMMDD`. |
 | **Production VPS** | Corpus snapshot; controlled restore | **`backup-corpus-prod.yml`**, **`prod-restore-corpus.yml`**; on-host rehearsal: **`make restore-corpus-prod`** | Prod tags: `snapshot-prod-YYYYMMDD`; tarball top-level **`corpus/`**. |
 | **DR drill** | Restore drill host from backup repo | **`drill-restore-corpus.yml`** | Uses **`snapshot-prod-*`** selection like prod. |
+| **Instance-to-instance (local)** | Move a corpus laptop ↔ VPS, prod ↔ codespace, or across an airgap **without** going through the backup repo | **`make export-corpus`** + **`make import-corpus`** (#1175) | Same tarball format as `backup-corpus.yml`; no `gh` dependency; operator owns the transport (scp / USB / etc.). See [Instance-to-instance transfer](#instance-to-instance-transfer) below and the [Corpus airgap runbook](CORPUS_AIRGAP_RUNBOOK.md). |
 
 **GitHub projects:** Workflows live on **`chipi/podcast_scraper`**. Published assets go to
 **`chipi/podcast_scraper-backup`** (or `PODCAST_BACKUP_REPO`) unless overridden.
@@ -75,6 +76,62 @@ diverge **after extract** on the VPS:
 | **`prod-restore-corpus.yml`** / **`drill-restore-corpus.yml`** | Controlled GHA restore (typed confirm on manual runs) | Runner uploads tarball + **`restore_corpus_from_tarball_host.sh`**; host script backs up prior **`corpus/`**, extracts, asserts **`corpus/`**, **`compose up --force-recreate api viewer`**, in-container **`/api/health`** on **`api`** `:8000`. |
 
 Codespace layout restore stays on **`make restore-corpus`** (``.codespace_corpus/`` in tarball).
+
+## Instance-to-instance transfer
+
+For moving a corpus between two instances **without** publishing to `chipi/podcast_scraper-backup`
+(#1175): use `make export-corpus` on the source and `make import-corpus` on the target. The
+resulting tarball is bit-format identical to what `backup-corpus.yml` produces, so it is
+consumable by the CI restore path — and vice versa: a CI-produced `snapshot.tgz` sitting on
+local disk works with `make import-corpus` without any `gh` calls.
+
+### Export (source instance)
+
+```bash
+make export-corpus \
+    CORPUS_DIR=/path/to/corpus_root \
+    OUT=/tmp/snapshot.tgz \
+    [LAYOUT=codespace|prod]        # default: codespace
+```
+
+- `CORPUS_DIR` must be the corpus root (the parent that contains `feeds.spec.yaml`).
+- `LAYOUT=codespace` → archive root is `.codespace_corpus/`. `LAYOUT=prod` → `corpus/`.
+- Producer identity (`git_sha`) falls back to `git rev-parse HEAD` when neither `GITHUB_SHA`
+  nor `GIT_SHA` is set in the environment.
+- Sanity checks refuse to pack: missing `feeds.spec.yaml`, no `*.gi.json` under the tree,
+  or a suspiciously small tarball (< 1 KiB — override via
+  `CORPUS_SNAPSHOT_MIN_TARBALL_BYTES` for tests only).
+- Output: `OUT` (the tarball) plus a sibling `snapshot.manifest.json` next to it, carrying
+  `archive.sha256`.
+
+### Import (target instance)
+
+```bash
+make import-corpus \
+    FILE=/tmp/snapshot.tgz \
+    WORKSPACE_DIR=/path/to/target_parent \
+    [LAYOUT=codespace|prod]        # default: codespace
+```
+
+- Prefers the sibling `snapshot.manifest.json` (has `archive.sha256`); falls back to the
+  inner one at archive root when the sibling is missing.
+- Runs the same `validate_snapshot_manifest.sh` + reader-range check
+  (`config/corpus_snapshot_reader_support.json`) that the CI restore path runs after
+  `gh release download`.
+- Verifies `archive.sha256` when the sibling manifest carries one. Skip with
+  `CORPUS_SNAPSHOT_SKIP_SHA256_VERIFY=1` (only when you already trust the transport).
+- Refuses to overwrite an existing `<workspace>/.codespace_corpus/` or `<workspace>/corpus/`
+  — move or remove the prior tree first to avoid clobbering live data.
+- No `gh` dependency. Works on a fully offline host as long as the tarball is on disk.
+
+### Non-goals
+
+- The pair does not add a network transport. Moving the tarball between hosts (scp, S3
+  CLI, USB) is the operator's choice; see the runbook for worked recipes.
+- It does not replace the CI backup path. `backup-corpus.yml` / `backup-corpus-prod.yml`
+  stay authoritative for scheduled snapshots to `chipi/podcast_scraper-backup`.
+
+Detailed operator recipes live in the [Corpus airgap runbook](CORPUS_AIRGAP_RUNBOOK.md).
 
 ## When newest-compatible default is wrong
 

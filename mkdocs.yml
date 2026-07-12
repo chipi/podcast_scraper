@@ -21,6 +21,7 @@ nav:
       - Corpus upgrade framework (#862): guides/CORPUS_UPGRADE.md
       - Stack contract (cross-surface audit): guides/STACK_CONTRACT.md
       - Corpus snapshot manifest and restore: guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md
+      - Corpus airgap runbook (#1175): guides/CORPUS_AIRGAP_RUNBOOK.md
       - Prod Operator Cheat Sheet: guides/PROD_OPERATOR_CHEAT_SHEET.md
       - Observability control plane (#803): guides/OBSERVABILITY_CONTROL_PLANE.md
       - Observability extensions (optional 3rd-party o11y): guides/OBSERVABILITY_EXTENSIONS.md

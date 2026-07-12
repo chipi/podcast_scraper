@@ -39,6 +39,21 @@ COMPOSE=(
   -f compose/docker-compose.prod.yml
   -f compose/docker-compose.vps-prod.yml
 )
+
+# #862 / #1176 — apply any pending corpus upgrade migrations BEFORE we boot the
+# API on the restored corpus. Idempotent: already-recorded migrations skip. If
+# this step fails, roll the corpus/ bind-mount back to the timestamped backup so
+# api never boots on a partially-migrated tree.
+if ! "${COMPOSE[@]}" run --rm --no-deps --entrypoint "" api \
+  python -m podcast_scraper.cli upgrade run --corpus-dir /app/output --yes; then
+  echo "ERROR: corpus upgrade failed — rolling back to prior corpus." >&2
+  rm -rf corpus
+  if [ -d "corpus.bak.$STAMP" ]; then
+    mv "corpus.bak.$STAMP" corpus
+  fi
+  exit 1
+fi
+
 "${COMPOSE[@]}" up -d --force-recreate api viewer
 sleep 8
 "${COMPOSE[@]}" exec -T api curl -fsS http://127.0.0.1:8000/api/health | head -c 200
