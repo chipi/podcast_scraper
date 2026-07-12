@@ -1636,6 +1636,10 @@ def _finalize_pipeline(
         pipeline_metrics.finalize_parallelism_snapshot(
             pipeline_wall_seconds=pipeline_metrics.run_duration_seconds or None
         )
+        # #1180 gap 4: single INFO line so the ratios show up in normal logs,
+        # not just the DEBUG dump inside log_metrics. Guarded so the run
+        # completes even if the summary emission itself raises.
+        pipeline_metrics.log_parallelism_summary()
     except Exception:  # pragma: no cover - observability must never break the run
         logger.debug("finalize_parallelism_snapshot failed (non-fatal)", exc_info=True)
     pipeline_metrics.log_metrics()

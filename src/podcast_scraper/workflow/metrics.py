@@ -573,6 +573,43 @@ class Metrics:
                 self.safety_net_processed_episodes_count,
             )
 
+    def log_parallelism_summary(self) -> None:
+        """Emit a single INFO-level line with the #1180 parallelism ratios.
+
+        Runs after ``finalize_parallelism_snapshot``. Format:
+
+            Parallelism: overlap=0.72 busy=0.85 queue_idle=1.2s
+                         inline=42 safety_net=0 handoff_p95=0.34s
+
+        Ratios show as ``n/a`` when the corresponding thread never engaged
+        (dry-run, disabled). Handoff p95 falls back to the max when there is
+        only one sample, and shows ``n/a`` when there are none.
+        """
+        overlap = self.processing_overlap_ratio
+        busy = self.processing_thread_busy_ratio
+        overlap_s = f"{overlap:.2f}" if overlap is not None else "n/a"
+        busy_s = f"{busy:.2f}" if busy is not None else "n/a"
+
+        latencies = self.handoff_latency_seconds_per_episode
+        if latencies:
+            sorted_lat = sorted(latencies)
+            p95_idx = max(0, int(round(0.95 * (len(sorted_lat) - 1))))
+            p95 = sorted_lat[p95_idx]
+            handoff_s = f"{p95:.2f}s"
+        else:
+            handoff_s = "n/a"
+
+        logger.info(
+            "Parallelism: overlap=%s busy=%s queue_idle=%.1fs "
+            "inline=%d safety_net=%d handoff_p95=%s",
+            overlap_s,
+            busy_s,
+            self.processing_thread_queue_idle_seconds,
+            self.inline_processed_episodes_count,
+            self.safety_net_processed_episodes_count,
+            handoff_s,
+        )
+
     def _parallelism_snapshot_dict(self) -> Dict[str, Any]:
         """Export subset for the parallelism observability fields (#1180).
 

@@ -231,6 +231,57 @@ def test_validate_metrics_requires_new_keys() -> None:
     m._validate_metrics(d)
 
 
+# ---------- log_parallelism_summary (#1180 gap 4) ---------------------------
+
+
+def test_log_parallelism_summary_emits_info_line_with_all_fields(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The one-liner emits at INFO with every field labelled."""
+    m = Metrics()
+    m.record_transcription_thread_active(0.0, 10.0)
+    m.record_processing_thread_active(5.0, 15.0)
+    m.record_inline_processed_episode()
+    m.record_inline_processed_episode()
+    m.record_safety_net_processed_episode()
+    m.record_processing_queue_idle_time(3.5)
+    m.record_handoff_latency(0.1)
+    m.record_handoff_latency(0.5)
+    m.record_handoff_latency(1.2)
+    m.finalize_parallelism_snapshot(pipeline_wall_seconds=15.0)
+
+    caplog.set_level(logging.INFO, logger="podcast_scraper.workflow.metrics")
+    m.log_parallelism_summary()
+
+    matches = [rec for rec in caplog.records if rec.message.startswith("Parallelism:")]
+    assert len(matches) == 1, f"expected exactly one 'Parallelism:' line, got {caplog.records}"
+    line = matches[0].message
+    assert "overlap=0.50" in line
+    assert "busy=" in line
+    assert "queue_idle=3.5s" in line
+    assert "inline=2" in line
+    assert "safety_net=1" in line
+    # 3 samples → p95_idx = round(0.95 * 2) = 2 → sorted[2] = 1.2s.
+    assert "handoff_p95=1.20s" in line
+
+
+def test_log_parallelism_summary_uses_na_when_no_threads_engaged(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Dry-run / disabled: ratios read `n/a`, not misleading 0.00."""
+    m = Metrics()
+    m.finalize_parallelism_snapshot()
+    caplog.set_level(logging.INFO, logger="podcast_scraper.workflow.metrics")
+    m.log_parallelism_summary()
+
+    matches = [rec for rec in caplog.records if rec.message.startswith("Parallelism:")]
+    assert matches
+    line = matches[0].message
+    assert "overlap=n/a" in line
+    assert "busy=n/a" in line
+    assert "handoff_p95=n/a" in line
+
+
 def test_pipeline_status_json_payload_does_not_carry_parallelism_keys(
     tmp_path: object,
 ) -> None:

@@ -123,6 +123,17 @@ writes at end-of-run) that let you see whether the overlap actually happened.
 NOT carry these fields; a live-monitor view of overlap would need its own
 sampling loop against the accumulating interval lists.
 
+Every run also emits a single `INFO`-level one-liner right before the
+detailed metrics dump (`log_parallelism_summary`), formatted as:
+
+```text
+Parallelism: overlap=0.72 busy=0.85 queue_idle=1.2s inline=42 safety_net=0 handoff_p95=0.34s
+```
+
+`n/a` in the overlap / busy / handoff fields means the corresponding thread
+did not engage on this run (dry-run, disabled, or purely fresh cache). Grep
+for `Parallelism:` in the run log to eyeball trends across runs.
+
 | Metric | Meaning |
 | ------ | ------- |
 | `processing_overlap_ratio` | Of the TranscriptionProcessor's active window, the fraction the ProcessingProcessor was ALSO active. Range `[0, 1]`. `None` when transcription didn't run. |
