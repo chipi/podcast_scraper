@@ -23,11 +23,20 @@ def transcript_cache_stem(
     audio_hash: str,
     provider_name: Optional[str] = None,
     model: Optional[str] = None,
+    preprocessing: Optional[str] = None,
 ) -> str:
-    """Cache filename stem: audio hash plus optional provider/model fingerprint."""
-    if not provider_name and not model:
+    """Cache filename stem: audio hash plus a provider/model/preprocessing fingerprint.
+
+    ``audio_hash`` is taken over the *original* media, but the transcriber never sees that file —
+    it sees the **preprocessed** one. So the preprocessing settings are part of what produced the
+    transcript and must be part of its key: without them, changing the preprocessing silently
+    re-serves a transcript built under the old settings. That is exactly what happened in #1173,
+    where transcripts cut from silence-stripped audio (and therefore carrying drifted timestamps)
+    were replayed even after the preprocessor was fixed.
+    """
+    if not provider_name and not model and not preprocessing:
         return audio_hash
-    fp_source = f"{provider_name or ''}|{model or ''}"
+    fp_source = f"{provider_name or ''}|{model or ''}|{preprocessing or ''}"
     fp = hashlib.sha256(fp_source.encode("utf-8")).hexdigest()[:8]
     return f"{audio_hash}_{fp}"
 
@@ -114,6 +123,7 @@ def get_cached_transcript_entry(
     *,
     provider_name: Optional[str] = None,
     model: Optional[str] = None,
+    preprocessing: Optional[str] = None,
 ) -> Optional[Tuple[str, Optional[List[Dict[str, Any]]]]]:
     """Load transcript and optional segments from cache.
 
@@ -122,11 +132,13 @@ def get_cached_transcript_entry(
         cache_dir: Cache directory path
         provider_name: Transcription provider id for fingerprinted lookup
         model: Transcription model id for fingerprinted lookup
+        preprocessing: Fingerprint of the audio-preprocessing settings (#1173) — the transcriber
+            sees the preprocessed audio, so these settings are part of the transcript's identity
 
     Returns:
         ``(transcript, segments)`` on hit (segments may be None), else None.
     """
-    stem = transcript_cache_stem(audio_hash, provider_name, model)
+    stem = transcript_cache_stem(audio_hash, provider_name, model, preprocessing)
     cache_path = _cache_path_for_stem(stem, cache_dir)
     used_legacy_fallback = False
     if not os.path.exists(cache_path) and stem != audio_hash:
@@ -166,6 +178,7 @@ def get_cached_transcript(
     *,
     provider_name: Optional[str] = None,
     model: Optional[str] = None,
+    preprocessing: Optional[str] = None,
 ) -> Optional[str]:
     """Check if transcript exists in cache.
 
@@ -181,6 +194,7 @@ def get_cached_transcript(
         cache_dir,
         provider_name=provider_name,
         model=model,
+        preprocessing=preprocessing,
     )
     if entry is None:
         return None
@@ -194,6 +208,7 @@ def save_transcript_to_cache(
     model: Optional[str] = None,
     cache_dir: str = TRANSCRIPT_CACHE_DIR,
     segments: Optional[List[Dict[str, Any]]] = None,
+    preprocessing: Optional[str] = None,
 ) -> str:
     """Save transcript to cache.
 
@@ -210,13 +225,15 @@ def save_transcript_to_cache(
         Path to cached transcript file
     """
     os.makedirs(cache_dir, exist_ok=True)
-    stem = transcript_cache_stem(audio_hash, provider_name, model)
+    stem = transcript_cache_stem(audio_hash, provider_name, model, preprocessing)
     cache_path = _cache_path_for_stem(stem, cache_dir)
 
     cache_data: Dict[str, Any] = {
         "transcript": transcript,
         "cached_at": datetime.utcnow().isoformat(),
     }
+    if preprocessing:
+        cache_data["preprocessing"] = preprocessing
     if provider_name:
         cache_data["provider"] = provider_name
     if model:

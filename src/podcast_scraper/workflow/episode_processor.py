@@ -21,6 +21,7 @@ else:
     Episode = models.Episode  # type: ignore[assignment]
     TranscriptionJob = models.TranscriptionJob  # type: ignore[assignment]
 from ..exceptions import ProviderError, ProviderRuntimeError
+from ..preprocessing.audio.factory import preprocessing_fingerprint
 from ..rss import choose_transcript_url, downloader
 from ..rss.downloader import OPENAI_MAX_FILE_SIZE_BYTES
 from ..transcript_formats import parse_srt, parse_webvtt
@@ -752,6 +753,7 @@ def _check_transcript_cache(
         cache_dir,
         provider_name=provider_name,
         model=model,
+        preprocessing=preprocessing_fingerprint(cfg),
     )
     if cached_entry:
         cached_transcript, cached_segments = cached_entry
@@ -1213,6 +1215,7 @@ def _save_transcript_to_cache_if_needed(
             model=model,
             cache_dir=cache_dir,
             segments=segments,
+            preprocessing=preprocessing_fingerprint(cfg),
         )
         logger.debug("[%s] Saved transcript to cache (hash=%s)", job.idx, audio_hash)
     except Exception as exc:
