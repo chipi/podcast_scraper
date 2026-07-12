@@ -27,11 +27,15 @@ preprocessing_sample_rate: 16000
 # comfortably under OpenAI's 25 MB upload cap on long episodes too.
 preprocessing_mp3_bitrate_kbps: 32
 
-# Silence trim — moderate setting from the #577 Exp 2-prod sweep on NPR audio.
-# 3.6% duration cut at < 1% transcript char drop. Was -50 dB / 2.0 s (null lever
-# — that config trims nothing on real podcast audio); bumped to -30 / 0.5 for
-# real savings. The more aggressive -25 / 0.5 (6.7% cut) is held pending
-# diverse-podcast validation.
+# Silence trim — OFF (#1173). The #577 Exp 2 sweep only ever scored silence
+# removal on transcript *char drop* (< 1%), never on *timestamp fidelity*, and
+# the 3.6% "duration cut" it counted as a win is precisely the damage: cutting
+# interior pauses shortens the audio the transcriber sees, while the timestamps
+# are stored against the original mp3 the player seeks. Every removed pause
+# shifts everything after it earlier, so the error accumulates — measured on the
+# prod corpus at -20 s (r01, 32 s cut) to -162 s (r07, 401 s cut).
+# The threshold/duration below are inert unless removal is re-enabled.
+preprocessing_silence_removal: false
 preprocessing_silence_threshold: "-30dB"
 preprocessing_silence_duration: 0.5
 

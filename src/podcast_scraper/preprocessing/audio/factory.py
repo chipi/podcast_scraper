@@ -80,6 +80,7 @@ def build_ffmpeg_preprocessor_with_bitrate(cfg, mp3_bitrate_kbps: int) -> FFmpeg
         silence_duration=cfg.preprocessing_silence_duration,
         target_loudness=cfg.preprocessing_target_loudness,
         mp3_bitrate_kbps=kb,
+        silence_removal=getattr(cfg, "preprocessing_silence_removal", False),
     )
 
 

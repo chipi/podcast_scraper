@@ -876,7 +876,11 @@ class MLProvider:
         step_start = time.time()
         logger.debug("  [TIMING] Starting Whisper model.transcribe() call...")
         result = self._whisper_model.transcribe(
-            audio_path, task="transcribe", language=language, verbose=False
+            audio_path,
+            task="transcribe",
+            language=language,
+            verbose=False,
+            word_timestamps=True,  # segment-level times drift on long audio (#1173)
         )
         whisper_transcribe_time = time.time() - step_start
         logger.debug(
@@ -893,6 +897,11 @@ class MLProvider:
             whisper_transcribe_time,
         )
         segments = result.get("segments")
+        if isinstance(segments, list):
+            from podcast_scraper.transcription.word_timestamps import apply_nested_word_timestamps
+
+            segments = apply_nested_word_timestamps(segments)
+            result["segments"] = segments
         logger.debug(
             "Whisper transcription finished in %.2fs (segments=%s text_chars=%s)",
             elapsed,

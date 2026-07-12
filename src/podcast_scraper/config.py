@@ -2987,15 +2987,27 @@ class Config(BaseModel):
         alias="preprocessing_sample_rate",
         description="Target sample rate for preprocessing in Hz (default: 16000).",
     )
+    preprocessing_silence_removal: bool = Field(
+        default=False,
+        alias="preprocessing_silence_removal",
+        description=(
+            "Drop interior silence during preprocessing (default: False). Shrinks the file, but "
+            "the transcriber then sees a shorter timeline than the original audio, so every "
+            "timestamp after a removed pause lands early — drift accumulating to minutes on long "
+            "episodes (GitHub #1173). Leave off unless the transcript timestamps are unused."
+        ),
+    )
     preprocessing_silence_threshold: str = Field(
         default="-50dB",
         alias="preprocessing_silence_threshold",
-        description="Silence detection threshold (default: -50dB).",
+        description="Silence detection threshold (default: -50dB). Only used when "
+        "preprocessing_silence_removal is enabled.",
     )
     preprocessing_silence_duration: float = Field(
         default=2.0,
         alias="preprocessing_silence_duration",
-        description="Minimum silence duration to remove in seconds (default: 2.0).",
+        description="Minimum silence duration to remove in seconds (default: 2.0). Only used "
+        "when preprocessing_silence_removal is enabled.",
     )
     preprocessing_target_loudness: int = Field(
         default=-16,

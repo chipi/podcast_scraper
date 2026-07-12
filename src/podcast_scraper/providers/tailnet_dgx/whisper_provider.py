@@ -52,6 +52,29 @@ _whisper_breaker = CircuitBreaker(
 )
 
 
+def _refine_segment_times(
+    segments: list[dict[str, object]], flat_words: object
+) -> list[dict[str, object]]:
+    """Reset segment start/end from word-level times (#1173).
+
+    faster-whisper-server may return the words flat alongside the segments (the OpenAI shape) or
+    nested inside each segment, depending on version — accept either, and return the segments
+    untouched when the server returned no word timestamps at all.
+    """
+    from podcast_scraper.transcription.word_timestamps import (
+        apply_nested_word_timestamps,
+        apply_word_timestamps,
+        word_dicts,
+    )
+
+    words = word_dicts(flat_words)
+    if words:
+        return cast(List[dict[str, object]], apply_word_timestamps(segments, words))
+    if any(isinstance(s.get("words"), list) for s in segments):
+        return cast(List[dict[str, object]], apply_nested_word_timestamps(segments))
+    return segments
+
+
 class TailnetDgxWhisperTranscriptionProvider:
     """Transcribe on DGX faster-whisper-server; fall back to cloud on failure."""
 
@@ -337,6 +360,9 @@ class TailnetDgxWhisperTranscriptionProvider:
             data: dict[str, Any] = {
                 "model": effective_model,
                 "response_format": "verbose_json",
+                # Segment-level times drift on long audio; word-level ones don't (#1173). If the
+                # server ignores this, the refinement below simply no-ops.
+                "timestamp_granularities[]": ["word", "segment"],
             }
             if language:
                 data["language"] = language
@@ -357,4 +383,5 @@ class TailnetDgxWhisperTranscriptionProvider:
         segments: list[dict[str, object]] = []
         if isinstance(payload.get("segments"), list):
             segments = [s for s in payload["segments"] if isinstance(s, dict)]
+            segments = _refine_segment_times(segments, payload.get("words"))
         return text, segments, duration

@@ -44,6 +44,14 @@ def test_punctuation_and_spacing_tolerant() -> None:
     assert (out[0]["start"], out[0]["end"]) == (2.0, 2.9)
 
 
+def test_word_dicts_ignores_non_list_words() -> None:
+    """A provider whose ``words`` attribute isn't a list must degrade, not crash."""
+    from unittest.mock import Mock
+
+    assert word_dicts(Mock()) == []
+    assert word_dicts(None) == []
+
+
 def test_word_dicts_normalizes_objects_and_drops_untimed() -> None:
     class _W:
         def __init__(self, word, start, end):

@@ -66,10 +66,36 @@ def apply_word_timestamps(
     return out
 
 
-def word_dicts(raw_words: Sequence[Any]) -> List[Dict[str, Any]]:
-    """Normalize provider word objects (dict or SDK object) to ``{word,start,end}`` dicts."""
+def apply_nested_word_timestamps(segments: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Refine segments that carry their own ``words`` list (openai-whisper's ``word_timestamps``).
+
+    Unlike the OpenAI API — which returns one flat ``words`` list alongside the segments — the
+    local ``whisper`` package nests each segment's words inside it. Each segment's times are taken
+    straight from its own first/last word; segments without words keep theirs. The ``words`` key is
+    dropped so the stored segment JSON keeps its existing shape.
+    """
     out: List[Dict[str, Any]] = []
-    for w in raw_words or []:
+    for seg in segments:
+        new = dict(seg)
+        words = word_dicts(new.pop("words", None))
+        if words:
+            new["start"] = float(words[0]["start"])
+            new["end"] = float(words[-1]["end"])
+        out.append(new)
+    return out
+
+
+def word_dicts(raw_words: Any) -> List[Dict[str, Any]]:
+    """Normalize provider word objects (dict or SDK object) to ``{word,start,end}`` dicts.
+
+    Returns ``[]`` for anything that is not a list/tuple of words — a provider that omits word
+    timestamps (or whose SDK exposes ``words`` as some other shape) must degrade to segment-level
+    times, never crash the transcription.
+    """
+    if not isinstance(raw_words, (list, tuple)):
+        return []
+    out: List[Dict[str, Any]] = []
+    for w in raw_words:
         if isinstance(w, dict):
             out.append({"word": w.get("word", ""), "start": w.get("start"), "end": w.get("end")})
         else:
