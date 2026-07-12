@@ -133,17 +133,43 @@ For a **live** view during a single dev run (stage + RSS + CPU on **stderr**, or
 
 ### Parallel Processing
 
-**Default behavior:**
+**Default behavior (three concurrent threads):**
 
-- Downloads: Parallel (limited by `max_workers`)
-- Transcription: Sequential (provider-dependent)
-- Summarization: Sequential (provider-dependent)
+- **Main thread:** Downloads + audio preprocessing (parallel downloads
+  limited by `max_workers`).
+- **TranscriptionProcessor thread:** consumes the transcription queue at
+  `transcription_parallelism` (default 1). Whisper local stays at 1 to
+  avoid GPU/CPU contention; API providers can safely go higher.
+- **ProcessingProcessor thread:** consumes the LLM queue at
+  `processing_parallelism` (default 2) — this is where metadata + summary +
+  GI + KG run per episode. Concurrent with audio work by design.
+
+Handoff: as soon as a transcript is saved, a `ProcessingJob` is queued and
+the ProcessingProcessor picks it up while the NEXT episode is still being
+transcribed. See
+[Pipeline and workflow → Concurrency swim-lane](PIPELINE_AND_WORKFLOW.md#concurrency-swim-lane-1180)
+for the diagram.
 
 **Memory-aware worker calculation:**
 
 - Automatically calculates optimal workers based on available RAM
 - Reserves 4GB for system operations
 - Caps at 8 workers for CPU efficiency
+
+### Tuning parallelism (#1180)
+
+Every run's summary JSON reports six numbers you can use to decide which
+knob to move (see
+[Pipeline and workflow → Parallelism observability](PIPELINE_AND_WORKFLOW.md#parallelism-observability-1180)
+for definitions). Rule of thumb:
+
+| Symptom | Diagnosis | Action |
+| ------- | --------- | ------ |
+| `processing_overlap_ratio` low + `processing_thread_queue_idle_seconds` high | Audio-bound; LLM path is waiting on transcripts | Bump `transcription_parallelism` (API providers only — Whisper local stays at 1) or switch to a faster transcription provider |
+| `processing_overlap_ratio` low + `processing_thread_busy_ratio` high + queue-idle low | LLM-bound; audio finishes before LLM catches up | Bump `processing_parallelism` if the LLM API rate limits allow |
+| `processing_overlap_ratio` high + `processing_thread_busy_ratio` high | Balanced; both threads full | Diminishing returns from further bumps — look at faster models or hardware |
+| `safety_net_processed_episodes_count > 0` | Inline path is silently skipping episodes | Investigate `stages/processing.py` and the transcription→processing queue handoff BEFORE tuning knobs |
+| `handoff_latency_seconds_per_episode` p95 > few seconds | Queue backpressure or thread stall | Check `transcription_queue_size`; check whether `should_serialize_mps` fired unexpectedly |
 
 ---
 

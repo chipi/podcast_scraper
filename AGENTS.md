@@ -729,6 +729,29 @@ Restore paths run the corpus-upgrade framework automatically
 `make restore-corpus` / `make import-corpus` do NOT — always follow those with
 `make upgrade-corpus CORPUS_DIR=...` before pointing anything at the corpus.
 
+### Pipeline parallelism (audio ↔ LLM overlap) — where to look
+
+Within one `run_pipeline(feed)` the pipeline runs three concurrent threads
+with queue handoffs (`workflow/orchestration.py:1974-2036`): main
+(downloads + preprocessing) → TranscriptionProcessor (Whisper /
+transcript IO) → ProcessingProcessor (metadata + summary + GI + KG). Audio
+and LLM overlap by design.
+
+- Two knobs: `cfg.transcription_parallelism` (default 1; local Whisper
+  stays at 1) and `cfg.processing_parallelism` (default 2).
+- Overlap serializes only under `should_serialize_mps` (Apple MPS shared
+  by Whisper + local LLM).
+- Cross-feed pipelining is currently absent — feeds run sequentially in
+  `corpus_operations.py`. Separate RFC when we get there.
+
+Every run reports the six #1180 parallelism metrics in the summary JSON
+(`processing_overlap_ratio`, `processing_thread_busy_ratio`,
+`processing_thread_queue_idle_seconds`,
+`inline_processed_episodes_count`, `safety_net_processed_episodes_count`,
+`handoff_latency_seconds_per_episode`). Full guides:
+`docs/guides/PIPELINE_AND_WORKFLOW.md` → "Parallelism observability",
+`docs/guides/PERFORMANCE.md` → "Tuning parallelism".
+
 ### Corpus backup / restore — pick the right surface
 
 Four independent surfaces exist; do not conflate them. SSOT lives at

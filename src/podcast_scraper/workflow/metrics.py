@@ -8,9 +8,54 @@ import threading
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Tuple
 
 logger = logging.getLogger(__name__)
+
+
+# ---- Interval helpers (#1180 parallelism overlap math) --------------------
+
+
+def _merge_intervals(intervals: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
+    """Return a sorted, non-overlapping union of ``[start, end]`` intervals.
+
+    Runs O(n log n). Preserves the input's units — used with monotonic-clock
+    seconds. Empty input → empty list. Assumes ``start <= end``; callers
+    (``record_*_thread_active``) enforce that at insert time.
+    """
+    if not intervals:
+        return []
+    ordered = sorted(intervals, key=lambda ab: ab[0])
+    merged: List[Tuple[float, float]] = [ordered[0]]
+    for s, e in ordered[1:]:
+        prev_s, prev_e = merged[-1]
+        if s <= prev_e:
+            merged[-1] = (prev_s, max(prev_e, e))
+        else:
+            merged.append((s, e))
+    return merged
+
+
+def _intervals_intersection_total(
+    a: List[Tuple[float, float]], b: List[Tuple[float, float]]
+) -> float:
+    """Total length of the intersection between two sets of intervals.
+
+    Both inputs must already be sorted + merged (from ``_merge_intervals``).
+    Linear time via two-pointer sweep.
+    """
+    total = 0.0
+    i = j = 0
+    while i < len(a) and j < len(b):
+        s = max(a[i][0], b[j][0])
+        e = min(a[i][1], b[j][1])
+        if e > s:
+            total += e - s
+        if a[i][1] < b[j][1]:
+            i += 1
+        else:
+            j += 1
+    return total
 
 
 @dataclass
@@ -119,6 +164,39 @@ class Metrics:
     time_writing_storage: float = (
         0.0  # Actual file write time only (open/write/flush) - should be tiny
     )
+
+    # Parallelism / overlap observability (#1180). These let us tell — without
+    # a profiler — whether the two-thread audio↔LLM handoff (`orchestration.py`
+    # TranscriptionProcessor + ProcessingProcessor) is actually overlapping
+    # audio and LLM work, or silently serializing. See
+    # docs/guides/PIPELINE_AND_WORKFLOW.md → "Parallelism observability".
+    #
+    # Intervals are appended live from the transcription/processing thread
+    # entry+exit points; `_compute_overlap_ratio` merges + intersects at
+    # snapshot time. Both lists carry (start, end) monotonic-clock timestamps
+    # relative to the process; overlap math treats them as opaque numbers.
+    transcription_thread_intervals: List[Tuple[float, float]] = field(default_factory=list)
+    processing_thread_intervals: List[Tuple[float, float]] = field(default_factory=list)
+
+    # Populated once at end-of-run via `finalize_parallelism_snapshot`; visible
+    # in the run summary + `.pipeline_status.json`. Kept as raw fields so a
+    # partial pipeline (crash between record and finalize) still exports the
+    # intervals for post-mortem analysis.
+    processing_overlap_ratio: Optional[float] = None
+    processing_thread_busy_ratio: Optional[float] = None
+    processing_thread_queue_idle_seconds: float = 0.0
+
+    # Inline vs safety-net (#1180). Every episode is expected to be processed
+    # by the inline ProcessingProcessor while transcription is still going. If
+    # the tail `parallel_episode_summarization` picks any up, that's the
+    # inline path silently skipping episodes — surface it so we can debug.
+    inline_processed_episodes_count: int = 0
+    safety_net_processed_episodes_count: int = 0
+
+    # Per-episode handoff latency: how long from transcript-saved to
+    # processing-job-picked-up. Small p95 = healthy handoff; large = queue
+    # backpressure or thread stall. Values in seconds, one per episode.
+    handoff_latency_seconds_per_episode: List[float] = field(default_factory=list)
 
     # Per-episode operation timing (key = episode.idx, 1-based; safe under parallel workers)
     download_media_time_by_episode: Dict[int, float] = field(default_factory=dict)
@@ -394,6 +472,134 @@ class Metrics:
             duration: Wall-clock duration in seconds
         """
         self.io_and_waiting_wall_seconds += duration
+
+    # ---- Parallelism observability (#1180) ---------------------------------
+
+    def record_transcription_thread_active(self, start: float, end: float) -> None:
+        """Record one busy interval of the TranscriptionProcessor thread.
+
+        Called from ``stages/transcription.py`` around each per-job unit of
+        work (transcript IO or blocking Whisper call). Many small intervals is
+        fine — ``_compute_overlap_ratio`` merges before intersecting.
+        """
+        if end > start:
+            self.transcription_thread_intervals.append((start, end))
+
+    def record_processing_thread_active(self, start: float, end: float) -> None:
+        """Record one busy interval of the ProcessingProcessor thread.
+
+        Called from ``stages/processing.py`` around per-episode LLM/GI/KG
+        work. Excludes queue.get() waits — those live in
+        ``record_processing_queue_idle_time``.
+        """
+        if end > start:
+            self.processing_thread_intervals.append((start, end))
+
+    def record_processing_queue_idle_time(self, duration: float) -> None:
+        """Cumulative time the processing thread was blocked on an empty queue.
+
+        High = upstream stall (transcription is the bottleneck; bump
+        ``transcription_parallelism``). Low = queue was full or downstream
+        keeping up (bump ``processing_parallelism`` if wall-clock still slow).
+        """
+        if duration > 0:
+            self.processing_thread_queue_idle_seconds += duration
+
+    def record_inline_processed_episode(self) -> None:
+        """One episode processed by the inline ProcessingProcessor thread."""
+        self.inline_processed_episodes_count += 1
+
+    def record_safety_net_processed_episode(self) -> None:
+        """One episode processed by the tail ``parallel_episode_summarization``.
+
+        Should be zero on a healthy run — inline path handles everything.
+        Non-zero here is a signal the inline path skipped episodes; a warning
+        is logged in ``finalize_parallelism_snapshot``.
+        """
+        self.safety_net_processed_episodes_count += 1
+
+    def record_handoff_latency(self, seconds: float) -> None:
+        """One (transcript-saved → job-picked-up) delta, in seconds."""
+        if seconds >= 0:
+            self.handoff_latency_seconds_per_episode.append(seconds)
+
+    def finalize_parallelism_snapshot(
+        self, *, pipeline_wall_seconds: Optional[float] = None
+    ) -> None:
+        """Compute derived parallelism ratios from the recorded intervals.
+
+        Idempotent: safe to call multiple times (recomputes from source
+        intervals). Emits an operational-warning log line when the safety-net
+        counter is non-zero, per #1180 acceptance criteria.
+
+        Args:
+            pipeline_wall_seconds: If given, used as the denominator for
+                ``processing_thread_busy_ratio``. Otherwise the widest
+                interval span across all recorded intervals is used.
+        """
+        tx_merged = _merge_intervals(self.transcription_thread_intervals)
+        proc_merged = _merge_intervals(self.processing_thread_intervals)
+
+        tx_active = sum(e - s for s, e in tx_merged)
+        proc_active = sum(e - s for s, e in proc_merged)
+        overlap_active = _intervals_intersection_total(tx_merged, proc_merged)
+
+        # Ratios stay None when the corresponding thread never engaged (dry-run,
+        # disabled). A 0.0 would misread as "we tried and got zero overlap".
+        self.processing_overlap_ratio = (overlap_active / tx_active) if tx_active > 0 else None
+
+        # Busy ratio: only meaningful when the processing thread ran at least
+        # once. Default denominator is the pipeline wall span.
+        wall = pipeline_wall_seconds
+        if wall is None and (tx_merged or proc_merged):
+            starts = [s for s, _ in (tx_merged + proc_merged)]
+            ends = [e for _, e in (tx_merged + proc_merged)]
+            wall = max(ends) - min(starts) if starts and ends else None
+        if proc_merged and wall and wall > 0:
+            self.processing_thread_busy_ratio = proc_active / wall
+        else:
+            self.processing_thread_busy_ratio = None
+
+        if self.safety_net_processed_episodes_count > 0 and (
+            self.inline_processed_episodes_count > 0
+        ):
+            logger.warning(
+                "parallelism observability (#1180): %d episode(s) were processed "
+                "by the tail parallel_episode_summarization safety net despite "
+                "the inline ProcessingProcessor being enabled. This usually means "
+                "the inline path skipped those episodes silently — investigate "
+                "before tuning parallelism knobs.",
+                self.safety_net_processed_episodes_count,
+            )
+
+    def _parallelism_snapshot_dict(self) -> Dict[str, Any]:
+        """Export subset for the parallelism observability fields (#1180).
+
+        Extracted from ``finish`` so that method stays under the project's
+        cognitive-complexity budget while still surfacing every #1180 field in
+        the run summary + ``.pipeline_status.json``. Ratios are ``None`` on
+        runs where the corresponding thread never ran (dry-run, disabled).
+        """
+        return {
+            "processing_overlap_ratio": (
+                round(self.processing_overlap_ratio, 4)
+                if self.processing_overlap_ratio is not None
+                else None
+            ),
+            "processing_thread_busy_ratio": (
+                round(self.processing_thread_busy_ratio, 4)
+                if self.processing_thread_busy_ratio is not None
+                else None
+            ),
+            "processing_thread_queue_idle_seconds": round(
+                self.processing_thread_queue_idle_seconds, 2
+            ),
+            "inline_processed_episodes_count": self.inline_processed_episodes_count,
+            "safety_net_processed_episodes_count": self.safety_net_processed_episodes_count,
+            "handoff_latency_seconds_per_episode": [
+                round(x, 3) for x in self.handoff_latency_seconds_per_episode
+            ],
+        }
 
     def record_transcription_device(self, device: str) -> None:
         """Record device used for transcription stage (Issue #387).
@@ -1296,6 +1502,9 @@ class Metrics:
             "time_writing_storage": round(
                 self.time_writing_storage, 2
             ),  # Actual file write time only
+            # Parallelism observability (#1180). Extracted so `finish` stays
+            # within the cognitive-complexity budget.
+            **self._parallelism_snapshot_dict(),
             # Per-episode averages
             "avg_download_media_seconds": avg_download_media,
             "avg_transcribe_seconds": avg_transcribe,
@@ -1599,6 +1808,14 @@ class Metrics:
             "time_summarization_wait_seconds",
             "time_thread_sync_seconds",
             "time_queue_wait_seconds",
+            # Parallelism observability (#1180). Always present in the export
+            # even when None (dry-run / disabled) so schema stays stable.
+            "processing_overlap_ratio",
+            "processing_thread_busy_ratio",
+            "processing_thread_queue_idle_seconds",
+            "inline_processed_episodes_count",
+            "safety_net_processed_episodes_count",
+            "handoff_latency_seconds_per_episode",
             "schema_version",
             "vector_index_seconds",
         }

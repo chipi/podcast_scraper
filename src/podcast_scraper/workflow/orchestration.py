@@ -1629,6 +1629,15 @@ def _finalize_pipeline(
         Tuple of (count, summary) from generate_pipeline_summary
     """
     wf_helpers.cleanup_pipeline(temp_dir=transcription_resources.temp_dir)
+    # #1180: compute overlap / busy ratios BEFORE log_metrics + save so both
+    # export paths see the final numbers. finalize_parallelism_snapshot is
+    # idempotent — safe if a caller ever calls this twice.
+    try:
+        pipeline_metrics.finalize_parallelism_snapshot(
+            pipeline_wall_seconds=pipeline_metrics.run_duration_seconds or None
+        )
+    except Exception:  # pragma: no cover - observability must never break the run
+        logger.debug("finalize_parallelism_snapshot failed (non-fatal)", exc_info=True)
     pipeline_metrics.log_metrics()
     _log_episode_results(pipeline_metrics, episodes)
     metrics_path = _finalize_metrics_path(cfg, effective_output_dir)

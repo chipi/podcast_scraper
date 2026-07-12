@@ -47,13 +47,21 @@ class TranscriptionResources:
 
 
 class ProcessingJob(NamedTuple):
-    """Job for processing (metadata/summarization) stage."""
+    """Job for processing (metadata/summarization) stage.
+
+    ``queued_at`` (#1180) is a ``time.monotonic()`` timestamp set at enqueue by
+    the transcription thread; ``time.monotonic()`` at dequeue minus this is the
+    per-episode handoff latency reported in the run summary. None on legacy
+    call sites that don't stamp — the processor treats those as opt-out and
+    records no handoff sample.
+    """
 
     episode: Episode  # type: ignore[valid-type]
     transcript_path: str
     transcript_source: Literal["direct_download", "whisper_transcription"]
     detected_names: Optional[List[str]]
     whisper_model: Optional[str]
+    queued_at: Optional[float] = None
 
 
 class ProcessingResources(NamedTuple):

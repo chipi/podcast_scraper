@@ -20,6 +20,14 @@ This guide describes how the podcast_scraper pipeline runs: entry points, flow, 
 
 ## Pipeline Flow Diagram
 
+**The per-episode work is not linear.** The pipeline runs three concurrent
+threads with queue handoffs so audio work (Whisper / diarization / preprocessing)
+overlaps with LLM work (metadata / summary / GI / KG). The linear flow below is
+a per-episode logical order; below it is the concurrency swim-lane showing how
+those steps distribute across threads at runtime.
+
+### Per-episode logical order
+
 ```mermaid
 flowchart TD
     Start([CLI Entry]) --> Parse[Parse CLI Args & Config Files]
@@ -70,6 +78,73 @@ flowchart TD
     style ExtractGIL fill:#e8daef
     style ExtractKG fill:#d5f5e3
 ```
+
+### Concurrency swim-lane (#1180)
+
+```mermaid
+flowchart LR
+    subgraph M[Main thread]
+        direction TB
+        M1[Download Media] --> M2[Preprocess Audio]
+    end
+    subgraph T[TranscriptionProcessor thread]
+        direction TB
+        T1[Whisper transcription] --> T2[Format screenplay + save transcript]
+    end
+    subgraph P[ProcessingProcessor thread]
+        direction TB
+        P1[Metadata generation] --> P2[Summary]
+        P2 --> P3[GI extraction + grounding]
+        P3 --> P4[KG extraction]
+    end
+
+    M2 -.transcription_jobs queue.-> T1
+    T2 -.processing_jobs queue.-> P1
+```
+
+- **Main thread** drives downloads + preprocessing. Backpressure via
+  ``cfg.transcription_queue_size`` on the transcription queue.
+- **TranscriptionProcessor thread** consumes the transcription queue at
+  ``cfg.transcription_parallelism`` (default **1**; API providers can safely
+  bump).
+- **ProcessingProcessor thread** consumes the processing queue at
+  ``cfg.processing_parallelism`` (default **2**). This is where all LLM-side
+  work lands per episode.
+- **Queue handoff** — the moment a transcript is saved to disk, the
+  transcription thread queues a `ProcessingJob` (`stages/transcription.py`
+  ProcessingJob enqueue). The processing thread picks it up while the next
+  audio episode is still being transcribed.
+
+## Parallelism observability (#1180)
+
+Every run reports six numbers in the summary JSON + `.pipeline_status.json`
+that let you see whether the overlap actually happened:
+
+| Metric | Meaning |
+| ------ | ------- |
+| `processing_overlap_ratio` | Of the TranscriptionProcessor's active window, the fraction the ProcessingProcessor was ALSO active. Range `[0, 1]`. `None` when transcription didn't run. |
+| `processing_thread_busy_ratio` | Of the pipeline's wall time, the fraction the ProcessingProcessor was active. `None` when processing didn't run. |
+| `processing_thread_queue_idle_seconds` | Cumulative time the ProcessingProcessor was blocked on an empty queue. High = upstream stall; bump `transcription_parallelism`. |
+| `inline_processed_episodes_count` | Episodes summarized by the inline ProcessingProcessor. Expected to equal the total on a healthy run. |
+| `safety_net_processed_episodes_count` | Episodes summarized by the tail `parallel_episode_summarization` fallback. Should be `0` on a healthy run — non-zero triggers a warning in the logs (inline path silently skipped these). |
+| `handoff_latency_seconds_per_episode` | Per-episode delta from transcript-saved to processing-job-picked-up. Small p95 = healthy handoff. |
+
+**Reading them (rule of thumb):**
+
+- Overlap high + busy_ratio high → pipeline is balanced. Bumping either knob
+  gives you diminishing returns.
+- Overlap low + busy_ratio low + queue_idle high → audio-bound. Processing
+  thread waits on transcription. Bump `transcription_parallelism` (for API
+  providers) or invest in a faster transcription provider.
+- Overlap low + busy_ratio high + queue_idle low → LLM-bound. Processing
+  thread keeps up until audio slows down. Bump `processing_parallelism` if
+  the LLM path can accept more concurrency (rate-limits permitting).
+- `safety_net_processed_episodes_count > 0` → investigate the inline path
+  before tuning knobs. A parallelism bump won't help if episodes are silently
+  falling through.
+
+Implementation lives in `workflow/metrics.py` (`_merge_intervals`,
+`_intervals_intersection_total`, `finalize_parallelism_snapshot`).
 
 ## Module Roles in the Pipeline
 

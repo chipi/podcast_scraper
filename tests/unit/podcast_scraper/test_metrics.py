@@ -412,6 +412,13 @@ class TestFinish(unittest.TestCase):
             "time_normalizing",
             "time_io_and_waiting",
             "time_writing_storage",
+            # #1180 parallelism observability keys — always present in the export
+            "processing_overlap_ratio",
+            "processing_thread_busy_ratio",
+            "processing_thread_queue_idle_seconds",
+            "inline_processed_episodes_count",
+            "safety_net_processed_episodes_count",
+            "handoff_latency_seconds_per_episode",
             "vector_index_seconds",
             "topic_clusters_built",
             "topic_cluster_count",
@@ -1098,6 +1105,15 @@ class TestMetricsHygiene(unittest.TestCase):
             "time_summarization_wait_seconds": 0.0,
             "time_thread_sync_seconds": 0.0,
             "time_queue_wait_seconds": 0.0,
+            # #1180 parallelism observability keys (present so this test still
+            # exercises the schema-version missing path, not the parallelism
+            # keys missing path).
+            "processing_overlap_ratio": None,
+            "processing_thread_busy_ratio": None,
+            "processing_thread_queue_idle_seconds": 0.0,
+            "inline_processed_episodes_count": 0,
+            "safety_net_processed_episodes_count": 0,
+            "handoff_latency_seconds_per_episode": [],
         }
         with self.assertRaises(ValueError) as cm:
             m._validate_metrics(incomplete_metrics)
@@ -1124,6 +1140,13 @@ class TestMetricsHygiene(unittest.TestCase):
             "time_summarization_wait_seconds": 0.0,
             "time_thread_sync_seconds": 0.0,
             "time_queue_wait_seconds": 0.0,
+            # #1180 parallelism observability keys (default values).
+            "processing_overlap_ratio": None,
+            "processing_thread_busy_ratio": None,
+            "processing_thread_queue_idle_seconds": 0.0,
+            "inline_processed_episodes_count": 0,
+            "safety_net_processed_episodes_count": 0,
+            "handoff_latency_seconds_per_episode": [],
             "vector_index_seconds": 0.0,
             "schema_version": "3.0",
         }
