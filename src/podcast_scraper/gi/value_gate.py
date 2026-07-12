@@ -25,7 +25,8 @@ it is worse than the filler the gate exists to remove.
 from __future__ import annotations
 
 import logging
-from typing import Any, List, Optional, Tuple
+import threading
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,57 @@ TIER_USEFUL = 2
 TIER_CORE = 3
 
 DEFAULT_MIN_TIER = TIER_USEFUL
+
+
+_judge_cache: Dict[str, Any] = {}
+_judge_lock = threading.Lock()
+
+
+def _resolve_judge(provider: Optional[Any], cfg: Optional[Any]) -> Optional[Any]:
+    """Return the provider that grades the insights.
+
+    By default the extractor grades its own output. That is the #939 same-vendor bias: a model
+    asked to judge its own work is lenient. Measured across 7 providers, self-grading drops ~10%
+    of insights where an independent judge drops ~25% of the same output — roughly half as strict.
+
+    It also makes comparisons unfair: if gemini grades gemini and qwen grades qwen, each arm is
+    filtered by a different strictness and the surviving counts are not comparable. Set
+    ``gi_value_gate_provider`` to pin ONE judge across every arm.
+    """
+    if cfg is None:
+        return provider
+    name = getattr(cfg, "gi_value_gate_provider", None)
+    if not name:
+        return provider
+
+    cached = _judge_cache.get(name)
+    if cached is not None:
+        return cached
+
+    with _judge_lock:
+        # Re-check under the lock: concurrent episodes must not each build a judge (and torch's
+        # lazy init races when they do — see gi/about_edges.py).
+        cached = _judge_cache.get(name)
+        if cached is not None:
+            return cached
+        try:
+            from ..summarization.factory import create_summarization_provider
+
+            judge_cfg = cfg.model_copy(update={"summary_provider": name})
+            judge = create_summarization_provider(judge_cfg)
+            judge.initialize()
+            _judge_cache[name] = judge
+            logger.info("value gate: grading with a pinned judge (%s), not the extractor", name)
+            return judge
+        except Exception as exc:  # noqa: BLE001 — fail-open, as everywhere in this module
+            logger.warning(
+                "value gate: could not build the pinned judge %r (%s); falling back to the "
+                "extractor grading its own output, which is lenient: %s",
+                name,
+                type(exc).__name__,
+                exc,
+            )
+            return provider
 
 
 def apply_value_gate(
@@ -66,7 +118,8 @@ def apply_value_gate(
 
     min_tier = int(getattr(cfg, "gi_value_gate_min_tier", DEFAULT_MIN_TIER) or DEFAULT_MIN_TIER)
 
-    classify = getattr(provider, "classify_insights", None)
+    judge = _resolve_judge(provider, cfg)
+    classify = getattr(judge, "classify_insights", None)
     if not callable(classify):
         logger.debug(
             "value gate enabled but provider %s cannot classify insights; keeping all %d",

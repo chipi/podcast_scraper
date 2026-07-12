@@ -2261,6 +2261,16 @@ class Config(BaseModel):
             "evidence path. Fail-open: a broken gate keeps every insight."
         ),
     )
+    gi_value_gate_provider: Optional[str] = Field(
+        default=None,
+        alias="gi_value_gate_provider",
+        description=(
+            "Provider that GRADES insights for the value gate. Default (None) lets the extractor "
+            "grade its own output — the #939 same-vendor bias: self-grading drops ~10% of "
+            "insights where an independent judge drops ~25% of the same output. Pin one judge "
+            "(e.g. 'anthropic') so every arm of a comparison is filtered by the same strictness."
+        ),
+    )
     gi_value_gate_min_tier: int = Field(
         default=2,
         ge=0,
