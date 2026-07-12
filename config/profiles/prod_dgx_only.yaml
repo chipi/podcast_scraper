@@ -1,0 +1,95 @@
+# prod_dgx_only — the whole pipeline on our own hardware. No cloud API, at any stage.
+#
+# Pairs with `gpu-mode-swap.sh prod` on the DGX, which stops every vLLM (they hold ~79 GB and
+# starve the services below) and keeps the pinned LLM warm. The three GPU consumers here are
+# faster-whisper (:8000), pyannote (:8001) and Ollama (:11434).
+#
+# Every model is pinned to what our own evals actually blessed:
+#   summary/GI/KG  qwen3.5:35b   #928 finale 🥇 5.00/5 (Sonnet) + 4.90 (GPT-5.4), 100% judge
+#                                agreement; reconfirmed by the 2026-07 judges matrix
+#                                ("June's champion qwen3.5:35b holds up"). Changing it
+#                                invalidates those evals — it is a decision, not a default.
+#   diarization    pyannote community-1 (v4) — beat 3.1 on the 45-fixture RTTM ground truth
+#   transcription  faster-whisper large-v3 on the DGX
+#
+# There is deliberately no cloud fallback: ADR-096 requires *a* fallback, so transcription falls
+# back to the LOCAL whisper. A DGX outage degrades to our own hardware; it can never silently
+# start billing an API.
+#
+# No `profile:` key: this composition has no ModelRegistry preset yet, and declaring `profile:`
+# is what opts a YAML into the registry-drift check. Register it before treating it as the
+# canonical production profile.
+
+dgx_tailnet_host: ${DGX_TAILNET_HOST:-dgx-llm-1}
+
+# --- transcription: DGX faster-whisper -----------------------------------------------------------
+transcription_provider: tailnet_dgx_whisper
+dgx_whisper_model: Systran/faster-whisper-large-v3
+dgx_whisper_port: 8000
+transcription_fallback_provider: whisper # LOCAL whisper, never a cloud provider
+whisper_model: small.en # only ever used if the DGX is down
+
+# --- diarization: pyannote v4 --------------------------------------------------------------------
+screenplay: true
+diarize: true
+diarization_provider: tailnet_dgx
+dgx_diarize_port: 8001
+dgx_diarize_model: pyannote/speaker-diarization-community-1
+dgx_diarize_request_timeout_sec: 600.0
+
+# --- audio: timeline-preserving (#1173) ----------------------------------------------------------
+preprocessing_enabled: true
+audio_preprocessing_profile: speech_optimal_v1
+save_adfree_transcript: true
+
+# --- speaker naming: local NER -------------------------------------------------------------------
+speaker_detector_provider: spacy
+ner_model: en_core_web_trf
+auto_speakers: true
+
+# --- summary / GI / KG: the pinned Ollama model ---------------------------------------------------
+summary_provider: ollama
+ollama_api_base: http://${DGX_TAILNET_HOST:-dgx-llm-1}:11434/v1
+ollama_summary_model: qwen3.5:35b
+ollama_num_ctx: 32768 # transcripts are long; a smaller window truncates them silently
+llm_pipeline_mode: bundled # 35b handles bundled cleanly (see local_dgx_balanced)
+
+generate_metadata: true
+generate_summaries: true
+generate_gi: true
+gi_insight_source: provider
+gi_max_insights: 12
+gi_require_grounding: true
+generate_kg: true
+kg_extraction_source: provider
+kg_max_topics: 10
+kg_max_entities: 15
+
+# --- search / enrichment: local models ------------------------------------------------------------
+vector_search: true
+vector_embedding_provider: sentence_transformers
+
+degradation_policy:
+  continue_on_stage_failure: true
+
+language: en
+log_level: INFO
+
+enrichment:
+  enabled: true
+  enrichers:
+    topic_cooccurrence_corpus: {}
+    topic_theme_clusters: {}
+    temporal_velocity: {}
+    grounding_rate: {}
+    guest_coappearance: {}
+    insight_density: {}
+    insight_sentiment: {}
+    topic_similarity:
+      provider:
+        type: sentence_transformer_local
+        model: all-MiniLM-L6-v2
+    topic_consensus:
+      provider:
+        type: consensus_local
+        embed_model: all-MiniLM-L6-v2

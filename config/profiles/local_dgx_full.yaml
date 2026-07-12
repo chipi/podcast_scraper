@@ -26,7 +26,11 @@ dgx_diarize_port: 8001
 dgx_diarize_model: pyannote/speaker-diarization-community-1
 
 summary_provider: ollama
-ollama_summary_model: llama3.3:70b
+# qwen3.5:35b, not llama3.3:70b — the #928 summary/GI/KG championship crowned it (finale 5.00/5
+# Sonnet, 4.90 GPT-5.4, 100% judge agreement) and the 2026-07 judges matrix reconfirmed it. The
+# 70b pin predated that eval and no report ever blessed it, so the profile was quietly running a
+# model our own evidence does not support.
+ollama_summary_model: qwen3.5:35b
 llm_pipeline_mode: bundled
 
 # GI/KG insights come from the configured LLM provider (ollama, via
