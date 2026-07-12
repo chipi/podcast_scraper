@@ -389,3 +389,56 @@ Four hardcoded-prompt/param defects in one day (ollama entailment, ollama extrac
 max_insights+token clamp in all 7 providers, the 50k cut in 6). Every one produced plausible output
 and reported success. The audit is not optional hygiene — inline prompts and magic literals in
 provider code are where this project's silent failures live.
+
+## 11. A retraction, and the methodology bug behind it (late evening)
+
+### 11.1 RETRACTED: "the clamp fix lifted grounding 66.7% -> 72.7%"
+
+It did not. That comparison was **loop3 vs loop4 — different episodes.**
+
+The feed published new episodes between the two runs, and `--max-episodes 3` takes the
+*newest* three. loop3 ran on OpenAI's Big Reset / Tim Cook / A.I. Backlash; loop4 and loop5 ran
+on Do Social Media Bans / Fable Ban Reversed / The Daily. Different content grounds differently,
+so the grounding delta is uninterpretable and is withdrawn.
+
+**What does survive:** loop4 produced **12 and 11** insights on two episodes. Under a hard cap of
+10 that is arithmetically impossible, whatever the episodes. The clamp is provably gone. The
+*count* is the evidence; the grounding number never was.
+
+**Rule going forward:** a live RSS feed plus "newest N" means the episode set silently drifts
+between runs. Any pipeline A/B must pin the set — `--until YYYY-MM-DD`, or
+`--reprocess-existing-only` (GUID-matched against what is already on disk). The data/eval path is
+immune by construction: its dataset pins episodes by transcript path + sha256.
+
+### 11.2 The quote fixes bought less than predicted
+
+loop4 vs loop5 IS a clean comparison (same 3 episodes, only the quote fixes differ):
+
+| | loop4 | loop5 (uncapped quotes + 2048-token reply) |
+|---|---|---|
+| candidates / call | 2.62 | 2.65 |
+| NLI gate pass | 40.4% | **44.4%** |
+| grounded | 72.7% | 72.7% |
+
++4pp on the NLI gate, nothing on grounding. I predicted the 3-quote cap was the dominant
+constraint on candidate supply. **It was not.** A direct probe of the provider confirms the cap is
+genuinely gone (mean 3.00 quotes/call, max 4 — impossible under a cap of 3), and qwen still
+returns ~3 where gemini returns 5.47.
+
+And gemini's advantage is not duplicate quotes: only 6.0% of its v2 quotes are duplicated
+(qwen: 0.0%). So the supply gap is a **real model difference**, not our bug. My earlier claim that
+"the candidate-supply gap is substantially self-inflicted" was overstated: the cap was worth
+~+0.15 candidates/call, not the 2x I implied.
+
+### 11.3 What the caps *were* worth
+
+Honest scorecard on the four cap fixes:
+
+- **insight clamp (f16d1f30)** — real. 10 -> 12/11/10; the ceiling is provably gone.
+- **50k transcript cut (848448bd)** — real, and large: 0 of 1418 v2 quotes fell past it.
+- **3-quote cap (5e1ae3f2)** — small: ~+0.15 candidates/call.
+- **512-token reply cap (bb8f7787)** — no measured gain, but it was a *latent* hazard: with the
+  prompt uncapped, an over-long reply would have been cut mid-JSON and yielded zero quotes.
+
+Two of four mattered. The discipline of measuring each one separately is what made that visible;
+had they shipped as one commit, the 50k fix would have carried the credit for all four.
