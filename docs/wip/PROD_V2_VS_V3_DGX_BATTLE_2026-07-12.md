@@ -304,3 +304,88 @@ worse than a crash.
 - **11:45** `bundled` clean+summary fails on qwen3.5:35b (invalid JSON) and falls back to
   `staged`. Summaries still produced; the profile comment claiming 35b handles bundled cleanly
   is wrong on real transcripts.
+
+## 10. Two findings that invalidate earlier readings (evening)
+
+### 10.1 The "insight yield gap" was ours, not qwen's
+
+The DGX corpus showed 10 insights/episode against v2's 12, and the obvious reading was that the
+local model is a weaker idea-generator. It is not. Every episode landed on **exactly** 10, on 17 of
+18 episodes — a perfectly integral average is a ceiling, not a model deciding how many ideas an
+episode holds.
+
+All 26 profiles set `gi_max_insights: 12`. Config validated it, the pipeline passed it. Then every
+one of the 7 LLM providers did `max_insights = min(max(1, max_insights), 10)` and rendered
+"Extract 10 key takeaways" into the prompt. The knob has been dead repo-wide since 2026-03-29
+(359691d3). **Qwen followed instructions perfectly; it was never asked for 12.**
+
+Fixed in f16d1f30. The token budget was capped the same way (`min(1024, max_insights * 150)`);
+lifting the clamp alone would have truncated insights 11-12 away and made the fix look like a
+no-op, so both moved together.
+
+### 10.2 "Insight density is front-loaded" was a magic number
+
+We had noted that insights cluster in the first two-thirds of an episode and treated it as a
+property of podcast speech. It was `[:50000]`.
+
+Six providers (gemini, anthropic, deepseek, grok, mistral, openai) truncated the transcript to a
+hardcoded 50,000 chars before quote extraction. Episodes here run 67k-117k chars, so 26-36% of
+every long episode was invisible. 68dcd0a2 had fixed this in **ollama only**.
+
+The v2 corpus proves it. Of 1418 grounded quotes located across 60 long episodes, **4** fall
+beyond 50,000 chars. Deepest quote per episode: 48,612 / 48,665 / 48,903 / 48,934 / 49,152 —
+walking up to the cut and stopping. The final 20% of every episode contains **zero** quotes.
+
+| quote position (% of episode) | quotes |
+|---|---|
+| 0-10% | 502 |
+| 10-20% | 398 |
+| 20-30% | 267 |
+| 30-40% | 152 |
+| 40-50% | 48 |
+| 50-60% | 32 |
+| 60-70% | 10 (the 50k cut lands here) |
+| 70-80% | 9 |
+| 80-90% | **0** |
+| 90-100% | **0** |
+
+Fixed in 848448bd; budget is now a measured constant (150k chars: clears the longest episode seen,
+116,596, and fits DeepSeek's 64k-token context).
+
+**Consequence for the comparison:** gemini reached 91.3% grounding while blind to a third of every
+episode. The cloud baseline is *stronger* than we credited, not weaker.
+
+### 10.3 prod-v2 is not a fair baseline
+
+Chasing 10.1 surfaced that v2 was built by materially different code:
+
+- its 12 insights came through a path the (then-live) clamp did not gate;
+- its two runs used **different evidence paths** — the June run records
+  `gi_evidence_extract_quotes_calls = 0` with 346 NLI candidates, the May run 148 calls;
+- its GI artifacts carry `Topic: 10` and no `Person`/`Organization` nodes; v3's carry `Topic: 3`
+  plus both.
+
+The funnel table we built therefore attributed to "gemini vs qwen" a delta that is substantially
+**old code vs new code**, and it summed two incompatible gemini pipelines into one column. Before
+any v2-vs-v3 number is trusted, a cloud LLM needs a run through *current* code on the same
+episodes.
+
+### 10.4 The entailment threshold is a dead lever
+
+Calibration at 0.6 returned 95.0% recall / 80.0% rejection — **identical to 0.5**. The graded
+entailment prompt only ever emits {0.0, 0.3, 0.7, 1.0}, so every threshold in (0.3, 0.7] produces
+the same partition. The knob is three-valued, not continuous:
+
+- threshold <= 0.7 → accepts {0.7, 1.0} → 95% recall / 80% rejection
+- threshold > 0.7  → accepts {1.0} only → 65% recall / 95% rejection  ← current (0.75)
+
+Our strict setting has ~65% recall against gemini's ~66%, i.e. **our gate is about as permissive as
+gemini's**. That points away from "the gate is too strict" and toward candidate supply. Tuning must
+happen in the prompt (more graded levels), not the threshold.
+
+### 10.5 Pattern, not coincidence
+
+Four hardcoded-prompt/param defects in one day (ollama entailment, ollama extract_quote, the
+max_insights+token clamp in all 7 providers, the 50k cut in 6). Every one produced plausible output
+and reported success. The audit is not optional hygiene — inline prompts and magic literals in
+provider code are where this project's silent failures live.
