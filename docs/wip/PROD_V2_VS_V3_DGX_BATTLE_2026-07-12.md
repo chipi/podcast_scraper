@@ -242,6 +242,54 @@ summaries and nothing for the judges to grade.
 - [ ] Is the DGX case better made on *eval sweeps* than on pipeline runs? (the sweeps are where
       cloud spend actually lands)
 
+## 8a. The pilot verdict — and the bug it exposed
+
+**The deterministic half of the local stack beat the cloud outright:**
+
+| metric | v2 cloud | v3 DGX | |
+| --- | ---: | ---: | --- |
+| `timeline_error_pct` | 1.92 | **0.19** | the #1173 fix, on real audio |
+| `voices_named` / `voices` | 2.67 / 8.11 (33%) | **6.11 / 7.44 (82%)** | pyannote v4 + local LLM name far more speakers |
+| `kg_persons` | 0.0 | **8.44** | v2's KG had **no Person nodes at all** |
+
+**The LLM half was never actually tested — we tested our prompts.** The summaries came back
+scoring 1.92/5 (Sonnet) and 2.64/5 (GPT-5.4) against the cloud's 3.86/3.97, with **coverage at the
+floor (1.00) on every episode**. The cause was not model weakness:
+
+> An episode about **Tim Cook's retirement** was summarized as *"Speed gains come from braking
+> earlier and smoother rather than taking bigger risks — a counterintuitive but reliable principle
+> for riders at any level."*
+
+That sentence is a **verbatim line from our own prompt's few-shot style examples**. The prompt
+says in plain English that the examples are style references, "not from the current episode".
+Gemini obeys; qwen3.5:35b copies them. It failed in two ways, and the second is the dangerous one:
+
+- invalid JSON -> falls back to staged (loud, harmless)
+- **VALID JSON containing the copied examples -> "succeeds" and writes fiction into the corpus**
+  (silent, poisonous). Nothing flagged it. The judges caught it after the fact, for money.
+
+Insights were **fine** (10/episode, on-topic and specific), and direct probes showed quote
+extraction and entailment both work on qwen. So the LLM is capable — our prompts were the problem.
+
+**Fix loop (each iteration surfaced a distinct bug):**
+
+| iteration | result |
+| --- | --- |
+| 1 — pilot | 10/10 summaries poisoned; quotes -90% |
+| 2 — `llm_pipeline_mode: staged` | poison 10/10 -> **2/10**; a SECOND source found: the *shared* bullets prompt |
+| 3 — shared prompt hardened + runtime guard | in progress |
+
+The examples live in **eight** prompt files, so hardening the text is necessary but not sufficient.
+`_warn_if_prompt_examples_leaked` now inspects every generated summary and shouts
+`SUMMARY POISONED` if the model copied the prompt. A green run that writes fabricated content is
+worse than a crash.
+
+**Two accelerants found along the way:**
+- The transcript cache (now correctly keyed) means a re-run **skips ASR entirely** — 10/10 cache
+  hits. That turns the iteration loop from ~2 h into ~25 min, since ASR is 98% of the wall-clock.
+- Probing a provider directly (one transcript, no pipeline) validates a prompt fix in **90
+  seconds** instead of 13 minutes.
+
 ## 9. Running log
 
 - **11:01** first reprocess launched → aborted: 99/99 transcript-cache hits (bug 3).
