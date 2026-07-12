@@ -112,3 +112,36 @@ def test_metrics_record_what_was_dropped() -> None:
 def test_non_list_response_keeps_every_insight(bad) -> None:
     provider = _Provider(tiers=bad)
     assert apply_value_gate(SPECS, provider=provider, cfg=_cfg()) == SPECS
+
+
+def test_pinned_judge_uses_the_configured_model_not_the_provider_default() -> None:
+    """The judge model must be explicit.
+
+    Inheriting the target provider's DEFAULT model 404'd (claude-3-5-sonnet-20241022 is
+    deprecated). Every classify call threw, the gate failed open, and a full 10-episode run
+    completed with ZERO insights gated while reporting success. Fail-open saved the episodes and
+    hid the misconfiguration.
+    """
+    from podcast_scraper.gi import value_gate as vg
+
+    captured = {}
+
+    class _Cfg:
+        gi_value_gate_provider = "anthropic"
+        gi_value_gate_model = "claude-haiku-4-5-20251001"
+
+        def model_copy(self, update):
+            captured.update(update)
+            return self
+
+    vg._judge_cache.clear()
+    try:
+        vg._resolve_judge(None, _Cfg())
+    except Exception:
+        pass  # provider construction will fail in unit tests; we only care about the update dict
+
+    assert captured.get("summary_provider") == "anthropic"
+    assert (
+        captured.get("anthropic_summary_model") == "claude-haiku-4-5-20251001"
+    ), "the judge must use the configured model, not the provider default"
+    vg._judge_cache.clear()

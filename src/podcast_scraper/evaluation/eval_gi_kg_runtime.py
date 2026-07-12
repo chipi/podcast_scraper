@@ -126,6 +126,9 @@ def merge_eval_task_into_summarizer_config(
         gate_judge = p.get("gi_value_gate_provider")
         if isinstance(gate_judge, str) and gate_judge:
             updates["gi_value_gate_provider"] = gate_judge
+        gate_model = p.get("gi_value_gate_model")
+        if isinstance(gate_model, str) and gate_model:
+            updates["gi_value_gate_model"] = gate_model
         # #698 GIL evidence-stack bundling — forward mode flags from the
         # experiment YAML's ``params:`` dict to the runtime Config so the
         # bundled dispatch in ``gi/pipeline.py`` actually fires for matrix

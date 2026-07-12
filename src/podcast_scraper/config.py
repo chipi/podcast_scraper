@@ -2271,6 +2271,16 @@ class Config(BaseModel):
             "(e.g. 'anthropic') so every arm of a comparison is filtered by the same strictness."
         ),
     )
+    gi_value_gate_model: Optional[str] = Field(
+        default=None,
+        alias="gi_value_gate_model",
+        description=(
+            "Model the value-gate judge uses. Without it the judge inherits the target provider's "
+            "DEFAULT model — which 404'd (claude-3-5-sonnet-20241022, deprecated), so every "
+            "classify call threw, the gate failed open, and a 10-episode run completed ungated "
+            "while reporting success. Pin the judge model explicitly."
+        ),
+    )
     gi_value_gate_min_tier: int = Field(
         default=2,
         ge=0,

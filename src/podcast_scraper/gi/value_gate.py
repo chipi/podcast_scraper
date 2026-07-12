@@ -73,7 +73,13 @@ def _resolve_judge(provider: Optional[Any], cfg: Optional[Any]) -> Optional[Any]
         try:
             from ..summarization.factory import create_summarization_provider
 
-            judge_cfg = cfg.model_copy(update={"summary_provider": name})
+            update: Dict[str, Any] = {"summary_provider": name}
+            # The judge model must be explicit. Inheriting the provider's default model is how a
+            # full 10-episode run silently completed with the gate failing open on a 404.
+            model = getattr(cfg, "gi_value_gate_model", None)
+            if model:
+                update[f"{name}_summary_model"] = model
+            judge_cfg = cfg.model_copy(update=update)
             judge = create_summarization_provider(judge_cfg)
             judge.initialize()
             _judge_cache[name] = judge
