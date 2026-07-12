@@ -297,14 +297,16 @@ def _episode_summary_params(cfg: ExperimentConfig) -> Dict[str, Any]:
             "word_overlap": cfg.chunking.word_overlap if cfg.chunking else None,
             "preprocessing_profile": cfg.preprocessing_profile,
         }
-    if cfg.backend.type == "ollama":
-        api_params = cfg.params or {}
-        return {
-            "preprocessing_profile": cfg.preprocessing_profile,
-            "max_length": api_params.get("max_length", 800),
-            "min_length": api_params.get("min_length", 200),
-        }
-    return {"preprocessing_profile": cfg.preprocessing_profile}
+    # Every API backend gets the same summary budget. This used to be ollama-only, so a
+    # gemini-vs-qwen cell ran qwen with max_length from the YAML and gemini with the internal
+    # default — different configurations reported as a like-for-like comparison. It also
+    # truncated gemini's summary on long episodes (finish_reason=length -> the run aborted).
+    api_params = cfg.params or {}
+    return {
+        "preprocessing_profile": cfg.preprocessing_profile,
+        "max_length": api_params.get("max_length", 800),
+        "min_length": api_params.get("min_length", 200),
+    }
 
 
 def _cleanup_gil_evidence_extras(extra_providers: List[Any]) -> None:
