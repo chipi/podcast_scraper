@@ -67,6 +67,61 @@ _ENTAILMENT_FALLBACK = (
 )
 
 
+# Roughly 3.5 characters per token for English prose. Used only to keep the transcript inside the
+# context window we were actually configured with, instead of a hardcoded guess.
+_CHARS_PER_TOKEN = 3.5
+# Headroom for the instructions, the insight, and the model's own output.
+_EXTRACT_QUOTE_RESERVE_TOKENS = 2000
+
+
+def _transcript_budget_chars(num_ctx: int) -> int:
+    """How much transcript actually fits in the configured context window.
+
+    The old code truncated to a hardcoded 50 000 characters. Real episodes here are 67 000-78 000,
+    so **the last third of every episode was invisible to quote extraction** — an insight drawn
+    from it could never be grounded, no matter how good the model or the gate. With num_ctx=32768
+    the true budget is ~107 000 characters, and nothing needs truncating at all.
+    """
+    usable = max(0, int(num_ctx) - _EXTRACT_QUOTE_RESERVE_TOKENS)
+    return int(usable * _CHARS_PER_TOKEN)
+
+
+def _render_extract_quote_prompt(transcript: str, insight: str, num_ctx: int) -> "tuple[str, str]":
+    """``(system, user)`` for GIL quote extraction, from the ollama prompt template.
+
+    The old inline prompt had three defects, each silently costing evidence: it truncated the
+    transcript to 50 000 chars (below our episode length); its system and user messages disagreed
+    about the output shape (``{"quotes": [...]}`` vs "quote_text only"); and it embedded a copyable
+    example string, which is exactly what local models reproduce verbatim (#1179).
+    """
+    from ...prompts.store import render_prompt
+
+    budget = _transcript_budget_chars(num_ctx)
+    text = transcript.strip()
+    if len(text) > budget:
+        logger.warning(
+            "transcript %d chars exceeds the %d-char context budget; quote extraction will not "
+            "see the tail of this episode",
+            len(text),
+            budget,
+        )
+        text = text[:budget]
+
+    try:
+        return "", render_prompt(
+            "ollama/evidence/extract_quote/v1",
+            transcript=text,
+            insight=insight.strip(),
+        )
+    except Exception as exc:  # noqa: BLE001 — a missing template must not break grounding
+        logger.warning("ollama extract_quote template unavailable (%s); using inline fallback", exc)
+        return (
+            "Extract short verbatim quotes from the transcript that support the insight. "
+            'Reply with ONLY a JSON object with a single key "quotes" (a list of exact strings).',
+            f"Transcript:\n{text}\n\nInsight: {insight.strip()}",
+        )
+
+
 def _render_entailment_prompt(premise: str, hypothesis: str) -> "tuple[str, str]":
     """``(system, user)`` for the GIL entailment gate, from the ollama prompt template.
 
@@ -1908,17 +1963,7 @@ class OllamaProvider:
 
         from ...gi.grounding import QuoteCandidate, resolve_llm_quote_span
 
-        system = (
-            "Extract all short verbatim quotes from the transcript that support "
-            "the given insight. Quotes must be from different parts of the "
-            "transcript. Reply with ONLY a JSON object: "
-            '{"quotes": ["exact quote 1", "exact quote 2"]}'
-        )
-        user = (
-            f"Transcript (excerpt):\n{transcript.strip()[:50000]}\n\n"
-            f"Insight: {insight_text.strip()}\n\n"
-            "Return JSON with quote_text only."
-        )
+        system, user = _render_extract_quote_prompt(transcript, insight_text, self.summary_num_ctx)
         try:
             from ...utils.provider_metrics import (
                 _safe_openai_retryable,

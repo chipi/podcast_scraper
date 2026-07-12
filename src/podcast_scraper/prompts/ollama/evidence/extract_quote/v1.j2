@@ -1,6 +1,21 @@
-Transcript (excerpt):
+You find EVIDENCE in a podcast transcript.
+
+Given an insight drawn from the episode, find the passages where it was actually said.
+
+Rules:
+- Copy the words EXACTLY as they appear in the transcript, character for character. Do not
+  paraphrase, do not tidy grammar, do not fix disfluencies. A quote that is not an exact copy is
+  useless — it cannot be located in the transcript, so it cannot support anything.
+- Each quote should be one to three sentences: enough to stand on its own, no more.
+- Prefer the passage where a speaker states or demonstrates the claim most directly.
+- Give up to 3 quotes, from different parts of the transcript. One good quote beats three weak ones.
+- If the transcript does not actually support the insight, return an empty list. Never invent a
+  quote to fill the slot.
+
+Return a JSON object with a single key "quotes", whose value is a list of exact transcript strings.
+No other keys, no commentary, no markdown fences.
+
+Transcript:
 {{ transcript }}
 
 Insight: {{ insight }}
-
-Return JSON with quote_text only. Example: {"quote_text": "exact quote from transcript"}
