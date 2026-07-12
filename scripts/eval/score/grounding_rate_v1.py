@@ -14,13 +14,25 @@ Measured on the same episodes:
     v2 cloud (gemini):  91.3%   PASS
     v3 DGX  (qwen):     13.3%   FAIL
 
-Reports the rate plus the stage-by-stage attrition, because "grounding is low" is not actionable —
-knowing *where* the evidence is lost is:
+Reports the whole **funnel**, not just the survivors, because "grounding is low" is not actionable
+and the artifacts only contain what lived. Reading the run metrics gives the full attrition, and it
+is the only view that says *which stage* is losing the evidence:
 
-    insights            how many claims were made
-    with a quote        the extractor found evidence at all
-    quote verbatim      the quote can be located in the transcript (ADR-053: auditable spans)
-    grounded            it survived the QA + NLI gates
+    insights                     claims made
+    candidates reaching NLI      the extractor + QA gate found evidence at all
+    quotes surviving NLI         the entailment gate accepted it
+    grounded                     >=1 surviving quote (ADR-053)
+
+That view is what located the DGX pilot's failure. Per insight:
+
+                          gemini      qwen
+    candidates -> NLI       3.21      2.77     <- qwen's supply is FINE (86% of gemini's)
+    surviving quotes        2.13      0.17     <- 66% pass vs 6% pass
+    grounded               91.3%     13.3%
+
+Extraction, the QA gate, and verbatim-ness (100% in both) are all healthy. The entire collapse is
+the entailment gate, with an 11x lower pass rate on candidates qwen already found. Scoring only the
+survivors would have blamed the extractor.
 
 Usage:
     python scripts/eval/score/grounding_rate_v1.py <corpus_root> [--feed SUBSTR]

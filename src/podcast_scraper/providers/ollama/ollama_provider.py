@@ -59,6 +59,38 @@ from .. import guardrails as _guardrails
 
 logger = logging.getLogger(__name__)
 
+# The old inline wording, kept only as the fallback if the template is missing. Do not tune here —
+# tune the template, which is what the calibration harness measures.
+_ENTAILMENT_FALLBACK = (
+    "You rate how much the premise supports the hypothesis. "
+    "Reply with ONLY a number between 0 and 1 (0=not at all, 1=fully supports)."
+)
+
+
+def _render_entailment_prompt(premise: str, hypothesis: str) -> "tuple[str, str]":
+    """``(system, user)`` for the GIL entailment gate, from the ollama prompt template.
+
+    The wording IS the gate. Strict textual entailment ("does the premise support the hypothesis")
+    is not the question the pipeline means — a quote can be excellent evidence for an insight
+    without logically entailing it — and asking it strictly cost 60% of the evidence a trusted
+    annotator had accepted (#1179). Keeping this in a template is what lets it be calibrated.
+    """
+    from ...prompts.store import render_prompt
+
+    try:
+        rendered = render_prompt(
+            "ollama/evidence/entailment/v1",
+            premise=premise.strip(),
+            hypothesis=hypothesis.strip(),
+        )
+        return "", rendered
+    except Exception as exc:  # noqa: BLE001 — a missing template must not break grounding
+        logger.warning("ollama entailment template unavailable (%s); using inline fallback", exc)
+        return (
+            _ENTAILMENT_FALLBACK,
+            f"Premise: {premise.strip()}\n\nHypothesis: {hypothesis.strip()}",
+        )
+
 
 def _ollama_openai_chat_extra_kwargs(model: str, num_ctx: Optional[int] = None) -> Dict[str, Any]:
     """Extra kwargs for Ollama's OpenAI-compatible ``/v1/chat/completions``.
@@ -1985,14 +2017,20 @@ class OllamaProvider:
         hypothesis: str,
         **kwargs: Any,
     ) -> float:
-        """Score entailment of hypothesis given premise (GIL NLI via LLM). 0–1."""
+        """Score entailment of hypothesis given premise (GIL NLI via LLM). 0–1.
+
+        The prompt comes from ``ollama/evidence/entailment`` rather than being hardcoded here.
+        That is not tidying: the wording *is* the gate. Asked for strict textual entailment (the
+        old inline wording), qwen3.5:35b accepted only 40% of the evidence a trusted annotator had
+        accepted, and the corpus grounded 13.3% of its insights against the cloud's 91.3%. Asked
+        the question the pipeline actually means — "is this quote EVIDENCE for this insight?" — it
+        accepts 95%. The template is calibrated against gemini's own judgements
+        (scripts/eval/score/entailment_calibration_v1.py); a hardcoded string cannot be.
+        """
         if not self._summarization_initialized or not (premise and hypothesis):
             return 0.0
-        system = (
-            "You rate how much the premise supports the hypothesis. "
-            "Reply with ONLY a number between 0 and 1 (0=not at all, 1=fully supports)."
-        )
-        user = f"Premise: {premise.strip()}\n\nHypothesis: {hypothesis.strip()}"
+
+        system, user = _render_entailment_prompt(premise, hypothesis)
         try:
             from ...utils.provider_metrics import (
                 _safe_openai_retryable,
