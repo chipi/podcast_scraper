@@ -10,8 +10,13 @@ survive get promoted (eval report → `docs/guides/eval-reports/`, decisions →
 
 ## 1. The question, stated honestly
 
-The naive framing ("DGX saves API spend") **does not survive contact with the data**. The v2 corpus
-manifest records what the cloud actually charged to build all 99 episodes:
+> **CORRECTION (2026-07-12).** This section first claimed the cloud built the whole corpus for
+> **$0.51**, and concluded the DGX could never pay itself back. **That was wrong by ~54x.** The
+> $0.51 is only the *LLM* stages. It omitted **transcription** — which the v2 manifest reports as
+> `llm_transcription_cost_usd: 0.0` *because v2 already transcribed on the DGX*, not because ASR is
+> free. The original claim rested on the one stage that barely costs anything. Corrected below.
+
+The v2 corpus manifest records the LLM spend:
 
 | stage | cloud cost |
 | --- | ---: |
@@ -19,16 +24,30 @@ manifest records what the cloud actually charged to build all 99 episodes:
 | summarization | $0.117 |
 | speaker detection | $0.064 |
 | KG extraction | $0.000 |
-| **total (99 episodes)** | **$0.514** |
+| LLM subtotal | $0.514 |
 
-**Fifty-one cents to build the entire corpus.** The DGX cannot pay itself back on corpus builds.
-If the investment is to make sense the case must rest on:
+But a real all-cloud rebuild also pays for ASR, and that dominates:
 
-- **quality parity** — can local match cloud at all? (if not, cost is irrelevant)
-- **unmetered experimentation** — our eval sweeps and judge matrices are where cloud spend actually
-  explodes, not the pipeline
+| component | cost of one full rebuild |
+| --- | ---: |
+| transcription — 75.2 h of audio @ whisper-1 $0.006/min | **$27.08** |
+| all LLM stages | $0.51 |
+| **true cloud cost** | **~$27.59** |
+| **DGX** | **$0 marginal** |
+
+**98% of the cloud bill is the exact stage the DGX does for free.** At ~$3.5k for the box the
+break-even is ~**127 rebuilds** — reachable, since every pipeline change invites another (we
+rebuilt this corpus several times in a single day).
+
+The case for the box therefore rests on:
+
+- **quality parity** — can local match cloud at all? (if not, none of the rest matters)
+- **rebuild economics** — ~$27.59 a rebuild, and reprocessing is routine
+- **unmetered experimentation** — eval sweeps and judge matrices are where cloud spend really
+  compounds; they run free here
+- **perf-per-dollar** — ~4x slower than an API fleet on H100/H200-class silicon costing 10-100x
+  more is a strong result, not a weakness
 - **privacy** — audio and transcripts never leave the house
-- **no rate limits / no vendor lock-in**
 
 Operator decision (2026-07-12): score **quality parity** first. The rest is moot if local loses.
 
