@@ -51,6 +51,40 @@ The case for the box therefore rests on:
 
 Operator decision (2026-07-12): score **quality parity** first. The rest is moot if local loses.
 
+### 1a. Scaling to the real target: 500 → 1 000 → 10 000 episodes
+
+Operator's aspiration is **10 000 episodes** once the pipeline is solid, via 500 → 1 000 → 10 000.
+On measured numbers (45.1 min/episode from this corpus; whisper-1 at $0.006/min):
+
+| episodes | cloud $ **per rebuild** | DGX (large-v3) | audio storage |
+| ---: | ---: | ---: | ---: |
+| 100 (today) | $28 | 0.4 d | 4.9 GB |
+| 500 | $138 | 2.0 d | 24 GB |
+| 1 000 | $276 | 4.0 d | 49 GB |
+| **10 000** | **$2 759** | **40 d** | **488 GB** |
+
+**At 10 000 episodes the box pays for itself in ~1.3 rebuilds** (one cloud build = $2 759 vs a
+one-off ~$3.5k), and every rebuild after that is free. Since reprocessing follows every pipeline
+change, the economics stop being arguable at this scale.
+
+Two walls arrive before 10 000, and both are cheaper to fix now:
+
+**Wall 1 — time, not money.** 40 days of serial ASR is not an iteration loop. The lever is the ASR
+model, not the hardware: `large-v3-turbo` is ~5x faster at near-equal WER → ~8 days for 10 000.
+That one swap dominates every other optimisation available to us. Testable against the oracles we
+already have (45-fixture RTTM, real-10). Folds naturally into #1174, which is already an ASR
+alternatives evaluation.
+
+**Wall 2 — storage, which is self-inflicted.** 488 GB of audio, against 60 GB free on the laptop
+(94% used). But **we do not need to keep the audio**: our own policy is bridge-only / never rehost.
+Audio is a transient input — download → transcribe → discard. The GUID-keyed audio cache (#947) is
+an optimisation, not a requirement. Transcripts for 10 000 episodes are ~1 GB. The wall dissolves
+if we stop hoarding media, and the corpus should live on the DGX rather than the laptop regardless.
+
+**Pre-10k agenda:** (1) swap the ASR model — the only thing between us and a usable loop at scale;
+(2) stop persisting audio, move the corpus off the laptop; (3) solidify the pipeline (today's work)
+so a 10k run is worth starting.
+
 ## 2. What actually differs between v2 and v3
 
 Established from v2's own `config_snapshot`, not assumed:
