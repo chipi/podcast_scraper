@@ -96,8 +96,12 @@ def _reject_destroyed_cleaning(original: str, cleaned: str, episode_idx: object)
     The raw text is used instead: an uncleaned transcript is a far smaller problem than a
     confidently-summarized fragment.
     """
-    source_len = len(original or "")
-    cleaned_len = len(cleaned or "")
+    # Only a real string can be judged; anything else (a provider stub, a mock) passes through.
+    if not isinstance(original, str) or not isinstance(cleaned, str):
+        return cleaned
+
+    source_len = len(original)
+    cleaned_len = len(cleaned)
     if source_len == 0:
         return cleaned
     if cleaned_len >= source_len * _MIN_CLEANED_RATIO:
