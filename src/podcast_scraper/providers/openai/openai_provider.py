@@ -1976,7 +1976,7 @@ class OpenAIProvider:
                         {"role": "user", "content": user},
                     ],
                     temperature=0.0,
-                    max_tokens=512,
+                    max_tokens=config_constants.GI_QUOTE_RESPONSE_TOKENS,
                 )
 
             try:

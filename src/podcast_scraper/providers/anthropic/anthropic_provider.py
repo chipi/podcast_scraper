@@ -1822,7 +1822,7 @@ class AnthropicProvider:
             def _make_api_call():
                 return self.client.messages.create(
                     model=self.summary_model,
-                    max_tokens=512,
+                    max_tokens=config_constants.GI_QUOTE_RESPONSE_TOKENS,
                     temperature=0.0,
                     system=system,
                     messages=[{"role": "user", "content": user}],

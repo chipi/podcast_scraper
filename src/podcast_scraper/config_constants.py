@@ -30,6 +30,12 @@ GI_INSIGHT_TOKENS_FLOOR = 1024
 # 150_000 clears the longest episode measured (116,596) and still fits the narrowest cloud context
 # in use (DeepSeek, 64k tokens) with room for the instructions and the reply.
 GI_QUOTE_TRANSCRIPT_MAX_CHARS = 150_000
+# Reply budget for quote extraction. Was 512 in every provider, which tops out near 8-10 quotes —
+# and a reply that overruns does not degrade gracefully: the JSON is cut mid-string, fails to
+# parse, and the call yields ZERO quotes. Do not cap the top of the funnel; the QA and NLI gates
+# below are what trim. 2048 leaves room for a densely-evidenced insight without inviting padding
+# (the prompt forbids that), and unused budget costs nothing.
+GI_QUOTE_RESPONSE_TOKENS = 2048
 DEFAULT_NUM_SPEAKERS = 2
 DEFAULT_SCREENPLAY_GAP_SECONDS = 1.25
 DEFAULT_TIMEOUT_SECONDS = 20

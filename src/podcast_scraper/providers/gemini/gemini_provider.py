@@ -2025,7 +2025,7 @@ class GeminiProvider:
                 self.summary_model,
                 {
                     "temperature": 0.0,
-                    "max_output_tokens": 512,
+                    "max_output_tokens": config_constants.GI_QUOTE_RESPONSE_TOKENS,
                     "system_instruction": system,
                 },
             )
