@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from .... import config
 from .alignment import align_segments_to_speakers
@@ -28,6 +28,51 @@ def _voice_texts_from_aligned(aligned: List[Any]) -> Dict[str, str]:
         if txt:
             chunks.setdefault(speaker_id, []).append(txt)
     return {v: " ".join(c) for v, c in chunks.items()}
+
+
+def _ad_intervals(segments: List[Dict[str, Any]]) -> List[Tuple[float, float]]:
+    """Ad regions of the episode as ``(start_s, end_s)`` time intervals.
+
+    The ad detector works in *character* space over the transcript, while the roster reasons in
+    *time* over diarization turns — this bridges the two. Without it the roster gets no ads at
+    all, so a pre-roll ad read is indistinguishable from the host's intro and the episode's
+    opening voice (the #1169 host rule) resolves to the **ad narrator**; the sponsor voice also
+    never trips the ``COMMERCIAL_AD_FRACTION`` demotion. Both were live on real, ad-laden feeds.
+
+    Returns ``[]`` when no ads are detected, which restores the previous (ad-blind) behaviour.
+    """
+    from ....gi.ad_regions import excise_ad_regions
+
+    spans: List[Tuple[int, int, Dict[str, Any]]] = []
+    parts: List[str] = []
+    cursor = 0
+    for seg in segments:
+        if not isinstance(seg, dict):
+            continue
+        text = str(seg.get("text", "") or "")
+        parts.append(text)
+        spans.append((cursor, cursor + len(text), seg))
+        cursor += len(text) + 1  # the space " ".join puts between segments
+
+    try:
+        _, _, meta = excise_ad_regions(" ".join(parts))
+    except Exception as exc:  # noqa: BLE001 — ad detection must never break diarization
+        logger.warning("Ad-region detection failed; diarizing without ad intervals: %s", exc)
+        return []
+
+    intervals: List[Tuple[float, float]] = []
+    for char_start, char_end in meta.excised_ranges:
+        covered = [
+            seg
+            for start, end, seg in spans
+            if not (end <= char_start or start >= char_end)  # overlaps the ad span
+        ]
+        if not covered:
+            continue
+        intervals.append(
+            (float(covered[0].get("start") or 0.0), float(covered[-1].get("end") or 0.0))
+        )
+    return intervals
 
 
 def _enriched_segments(aligned: List[Any], roster: Any) -> List[Dict[str, Any]]:
@@ -125,6 +170,7 @@ def apply_diarization_to_result(
         detected_guests=guests,
         known_hosts=known_hosts,
         voice_texts=voice_texts,
+        ad_intervals=_ad_intervals(segments),
     )
 
     enriched_result = dict(result)
