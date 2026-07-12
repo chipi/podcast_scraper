@@ -298,7 +298,7 @@ class TailnetDgxDiarizationProvider:
             }
             if num_speakers is not None:
                 data["num_speakers"] = str(num_speakers)
-            with hardened_http_client(timeout) as client:
+            with hardened_http_client(timeout, subsystem="dgx_diarize") as client:
                 resp = client.post(url, data=data, files=files)
         resp.raise_for_status()
         payload = resp.json()
