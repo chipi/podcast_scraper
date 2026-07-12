@@ -411,6 +411,36 @@ def _expand_env_in_string(value: str) -> str:
     return _ENV_VAR_PATTERN.sub(_replace, value)
 
 
+def _profile_setting(profile_name: str, key: str) -> Any:
+    """One setting from a profile YAML, read without merging the whole profile.
+
+    Pydantic runs ``mode="before"`` model validators bottom-up, so a validator can fire *before*
+    ``_resolve_profile`` has merged the profile. Any such validator that reads a setting the
+    operator may have set in a profile has to look it up itself, or it silently sees the code
+    default and acts on it — which is how the GIL evidence providers were promoted to the summary
+    LLM even though the profile disabled exactly that (#1179).
+
+    Returns ``None`` when the profile or key is absent, so the caller keeps its own default.
+    """
+    from pathlib import Path
+
+    for candidate in (
+        Path("config/profiles") / f"{profile_name}.yaml",
+        Path(__file__).parent.parent.parent / "config" / "profiles" / f"{profile_name}.yaml",
+    ):
+        if not candidate.is_file():
+            continue
+        try:
+            import yaml
+
+            settings = yaml.safe_load(candidate.read_text(encoding="utf-8")) or {}
+        except (OSError, yaml.YAMLError):
+            return None
+        if isinstance(settings, dict):
+            return settings.get(key)
+    return None
+
+
 def _expand_env_vars(data: Any) -> Any:
     """Recursively expand ``${VAR}`` / ``${VAR:-default}`` in a parsed YAML/JSON tree.
 
@@ -3518,8 +3548,26 @@ class Config(BaseModel):
         if not isinstance(data, dict):
             return data
         merged = dict(data)
-        if merged.get("gil_evidence_match_summary_provider", True) is not True:
+
+        # Pydantic runs mode="before" model validators bottom-up, so this fires BEFORE
+        # ``_resolve_profile`` has merged the profile YAML. A profile that sets
+        # ``gil_evidence_match_summary_provider: false`` was therefore invisible here: this
+        # promoted the evidence providers to the summary provider anyway, wrote them into the
+        # payload, and a payload value then outranks a profile default — so the profile could never
+        # win. The DGX pilot lost ~91% of its grounded quotes to that (see #1179: qwen3.5:35b
+        # answers NLI with a binary 0/1, so an LLM must not be the entailment backend).
+        #
+        # Read the profile's own setting before deciding.
+        match_summary = merged.get("gil_evidence_match_summary_provider")
+        if match_summary is None and merged.get("profile"):
+            match_summary = _profile_setting(
+                str(merged["profile"]), "gil_evidence_match_summary_provider"
+            )
+        if match_summary is None:
+            match_summary = True
+        if match_summary is not True:
             return merged
+
         if not merged.get("generate_gi", False):
             return merged
         summary = merged.get("summary_provider", "transformers")
