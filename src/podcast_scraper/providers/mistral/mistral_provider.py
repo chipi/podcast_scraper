@@ -74,7 +74,7 @@ from ...workflow import metrics
 logger = logging.getLogger(__name__)
 
 # Default speaker names when detection fails
-from .. import guardrails as _guardrails
+from .. import guardrails as _guardrails, insight_salvage as _insight_salvage
 from ..ml.speaker_detection import DEFAULT_SPEAKER_NAMES
 
 # Pricing for Mistral models lives in ``config/pricing_assumptions.yaml`` (#651).
@@ -1590,9 +1590,15 @@ class MistralProvider:
                 _guardrails.check_chat_response(
                     content, service="mistral", finish_reason=finish_reason_gi
                 )
-            except _guardrails.GuardrailViolation:
+            except _guardrails.GuardrailViolation as gv:
                 _emit_gi_cost(triggered_guardrail=True)
-                raise
+                # A truncated LINE LIST is recoverable: the cut lands in the final line and
+                # every earlier one is intact. Re-raising here loses the whole episode to the
+                # stub fallback — 40 good insights discarded because the 41st was clipped.
+                salvaged = _insight_salvage.salvage_truncated_lines(gv, content)
+                if salvaged is None:
+                    raise
+                content = salvaged
             _emit_gi_cost()
             lines = [
                 line.strip()

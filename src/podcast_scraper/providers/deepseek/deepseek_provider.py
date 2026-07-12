@@ -44,7 +44,7 @@ from ...utils.log_redaction import format_exception_for_log
 from ...utils.provider_metadata import warn_if_truncated
 from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
-from .. import guardrails as _guardrails
+from .. import guardrails as _guardrails, insight_salvage as _insight_salvage
 
 logger = logging.getLogger(__name__)
 
@@ -1297,9 +1297,15 @@ class DeepSeekProvider:
                 _guardrails.check_chat_response(
                     content, service="deepseek", finish_reason=finish_reason
                 )
-            except _guardrails.GuardrailViolation:
+            except _guardrails.GuardrailViolation as gv:
                 _emit_gi_cost(triggered_guardrail=True)
-                raise
+                # A truncated LINE LIST is recoverable: the cut lands in the final line and
+                # every earlier one is intact. Re-raising here loses the whole episode to the
+                # stub fallback — 40 good insights discarded because the 41st was clipped.
+                salvaged = _insight_salvage.salvage_truncated_lines(gv, content)
+                if salvaged is None:
+                    raise
+                content = salvaged
             _emit_gi_cost()
             lines = [
                 line.strip()
