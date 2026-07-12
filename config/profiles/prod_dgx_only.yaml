@@ -73,15 +73,6 @@ ollama_num_ctx: 32768 # transcripts are long; a smaller window truncates them si
 # more dangerous than a loud failure. The staged prompt (long_v1) carries no such examples.
 llm_pipeline_mode: staged
 
-# --- GI evidence: the purpose-built models, NOT the summary LLM -----------------------------------
-# `gil_evidence_match_summary_provider` defaults to TRUE, which silently promotes the evidence
-# providers to whatever summarises — here, ollama. That is right for a cloud model and wrong for a
-# local one: asked "reply with a number between 0 and 1", qwen3.5:35b answers a binary 0 or 1, never
-# a graded score, so the nli_min=0.5 gate degenerates into a harsh verdict and rejected ~91% of
-# quotes (2.2 per episode vs the cloud's 24.7). Entailment is a job for an entailment model.
-# Keeping this false leaves evidence on gi_nli_model (cross-encoder/nli-deberta-v3-base) and
-# gi_qa_model (roberta-base-squad2), which return calibrated scores the threshold can actually use.
-gil_evidence_match_summary_provider: false
 
 generate_metadata: true
 generate_summaries: true
