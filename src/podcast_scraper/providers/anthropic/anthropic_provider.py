@@ -25,7 +25,7 @@ except ImportError:
     anthropic = None  # type: ignore
     Anthropic = None  # type: ignore
 
-from ... import config
+from ... import config, config_constants
 
 if TYPE_CHECKING:
     from ...models import Episode
@@ -1577,7 +1577,11 @@ class AnthropicProvider:
 
         from ...prompts.store import render_prompt
 
-        max_insights = min(max(1, max_insights), 10)
+        max_insights = max(1, min(int(max_insights), config_constants.GI_MAX_INSIGHTS_CEILING))
+        insight_max_tokens = max(
+            config_constants.GI_INSIGHT_TOKENS_FLOOR,
+            max_insights * config_constants.GI_INSIGHT_TOKENS_EACH,
+        )
         text_slice = (text or "").strip()
         if len(text_slice) > 120000:
             text_slice = text_slice[:120000] + "\n\n[Transcript truncated.]"
@@ -1595,7 +1599,7 @@ class AnthropicProvider:
             )
             response = self.client.messages.create(
                 model=self.summary_model,
-                max_tokens=min(1024, max_insights * 150),
+                max_tokens=insight_max_tokens,
                 temperature=0.3,
                 system=system_prompt,
                 messages=[{"role": "user", "content": user_prompt}],

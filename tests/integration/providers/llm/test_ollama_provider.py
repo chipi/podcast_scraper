@@ -26,7 +26,7 @@ _patch_ollama = patch.dict(
         "httpx": mock_httpx,
     },
 )
-from podcast_scraper import config
+from podcast_scraper import config, config_constants
 from podcast_scraper.providers.ml import speaker_detection
 from podcast_scraper.providers.ollama.ollama_provider import (
     _flatten_json_speaker_names,
@@ -1045,6 +1045,40 @@ class TestOllamaProviderGIL(unittest.TestCase):
         provider.initialize()
         provider.generate_insights("o" * 120_001, max_insights=2)
         self.assertIn("[Transcript truncated.]", mock_render.call_args[1]["transcript"])
+
+    @patch("podcast_scraper.prompts.store.render_prompt", return_value="p")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
+    def test_generate_insights_does_not_clamp_below_requested_count(
+        self, mock_openai, mock_httpx, mock_render
+    ):
+        """The count the caller asks for is the count rendered into the prompt.
+
+        Providers used to clamp to a literal 10, silently overriding the validated
+        ``gi_max_insights``. Every profile requested 12 and every prompt said 10, so no
+        run could exceed 10 insights. Only counts above the old clamp catch this.
+        """
+        mock_health = Mock()
+        mock_health.raise_for_status = Mock()
+        mock_models = Mock()
+        mock_models.raise_for_status = Mock()
+        mock_models.json.return_value = {"models": [{"name": "llama3.1:8b"}]}
+        mock_httpx.get.side_effect = [mock_health, mock_models]
+        mock_client = Mock()
+        mock_resp = Mock()
+        mock_resp.choices = [Mock(message=Mock(content="I1"))]
+        mock_client.chat.completions.create.return_value = mock_resp
+        mock_openai.return_value = mock_client
+        provider = OllamaProvider(self.cfg)
+        provider.initialize()
+
+        provider.generate_insights("transcript", max_insights=12)
+
+        self.assertEqual(mock_render.call_args[1]["max_insights"], 12)
+        # The token budget must scale with the count, or insights 11 and 12 get
+        # truncated away and the clamp fix hides itself.
+        sent = mock_client.chat.completions.create.call_args[1]["max_tokens"]
+        self.assertGreaterEqual(sent, 12 * config_constants.GI_INSIGHT_TOKENS_EACH)
 
     @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
     @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")

@@ -2242,7 +2242,7 @@ class Config(BaseModel):
     gi_max_insights: int = Field(
         default=config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX,
         ge=1,
-        le=50,
+        le=config_constants.GI_MAX_INSIGHTS_CEILING,
         alias="gi_max_insights",
         description=(
             "Max insights when gi_insight_source is 'provider'. "

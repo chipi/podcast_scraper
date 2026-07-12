@@ -26,7 +26,7 @@ try:
 except ImportError:
     OpenAI = None  # type: ignore
 
-from ... import config
+from ... import config, config_constants
 
 if TYPE_CHECKING:
     from ...models import Episode
@@ -1282,7 +1282,11 @@ class GrokProvider:
 
         from ...prompts.store import render_prompt
 
-        max_insights = min(max(1, max_insights), 10)
+        max_insights = max(1, min(int(max_insights), config_constants.GI_MAX_INSIGHTS_CEILING))
+        insight_max_tokens = max(
+            config_constants.GI_INSIGHT_TOKENS_FLOOR,
+            max_insights * config_constants.GI_INSIGHT_TOKENS_EACH,
+        )
         text_slice = (text or "").strip()
         if len(text_slice) > 120000:
             text_slice = text_slice[:120000] + "\n\n[Transcript truncated.]"
@@ -1305,7 +1309,7 @@ class GrokProvider:
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=0.3,
-                max_tokens=min(1024, max_insights * 150),
+                max_tokens=insight_max_tokens,
             )
             _record_grok_llm_call(
                 response,

@@ -18,7 +18,7 @@ import re
 import time
 from typing import Any, cast, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 
-from ... import config, models
+from ... import config, config_constants, models
 
 if TYPE_CHECKING:
     from ...models import Episode
@@ -1737,7 +1737,11 @@ class OpenAIProvider:
 
         from ...prompts.store import render_prompt
 
-        max_insights = min(max(1, max_insights), 10)
+        max_insights = max(1, min(int(max_insights), config_constants.GI_MAX_INSIGHTS_CEILING))
+        insight_max_tokens = max(
+            config_constants.GI_INSIGHT_TOKENS_FLOOR,
+            max_insights * config_constants.GI_INSIGHT_TOKENS_EACH,
+        )
         # Truncate transcript for context (e.g. ~100k chars) to avoid token limits
         text_slice = (text or "").strip()
         if len(text_slice) > 120000:
@@ -1761,7 +1765,7 @@ class OpenAIProvider:
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=0.3,
-                max_tokens=min(1024, max_insights * 150),
+                max_tokens=insight_max_tokens,
             )
             in_tok, out_tok = _openai_chat_usage_tokens(response)
             # Cost computed up-front so it can be emitted on both happy-path

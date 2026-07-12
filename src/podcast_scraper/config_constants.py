@@ -15,6 +15,14 @@ DEFAULT_LOG_LEVEL = "INFO"
 DEFAULT_SUMMARY_BULLET_MIN = 3
 # How many summary bullets GI/KG may consume by default (ceilings; lower to save grounding cost).
 DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX = 20
+# Hard ceiling on Config.gi_max_insights, and the only bound a provider may impose on the
+# insight count it is asked for. Providers previously clamped to a literal 10, which silently
+# overrode the validated config value: every profile requested 12 and every provider rendered
+# "Extract 10 key takeaways" into the prompt, so no run could ever exceed 10 insights.
+GI_MAX_INSIGHTS_CEILING = 50
+# Token budget per requested insight, floored so short requests still get room to answer.
+GI_INSIGHT_TOKENS_EACH = 150
+GI_INSIGHT_TOKENS_FLOOR = 1024
 DEFAULT_NUM_SPEAKERS = 2
 DEFAULT_SCREENPLAY_GAP_SECONDS = 1.25
 DEFAULT_TIMEOUT_SECONDS = 20
