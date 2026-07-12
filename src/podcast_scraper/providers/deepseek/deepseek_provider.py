@@ -1370,6 +1370,7 @@ class DeepSeekProvider:
             response_format={"type": "json_object"},
         )
         content = (response.choices[0].message.content or "").strip()
+        content = _insight_salvage.strip_json_fence(content)
         _guardrails.check_chat_response(content, service="deepseek", expect_json=True)
         tiers = _json.loads(content)
         # Preserve input order; a missing id keeps the insight (tier 3) rather than dropping it.

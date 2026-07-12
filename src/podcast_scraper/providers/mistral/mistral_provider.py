@@ -1665,6 +1665,7 @@ class MistralProvider:
         )
         raw = response.choices[0].message.content
         content = ((raw if isinstance(raw, str) else "") or "").strip()
+        content = _insight_salvage.strip_json_fence(content)
         _guardrails.check_chat_response(content, service="mistral", expect_json=True)
         tiers = _json.loads(content)
         # Preserve input order; a missing id keeps the insight (tier 3) rather than dropping it.

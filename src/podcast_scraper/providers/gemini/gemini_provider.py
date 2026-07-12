@@ -1943,6 +1943,7 @@ class GeminiProvider:
             config=cast(Any, generation_config),
         )
         content = (getattr(response, "text", "") or "").strip()
+        content = _insight_salvage.strip_json_fence(content)
         _guardrails.check_chat_response(
             content,
             service="gemini",

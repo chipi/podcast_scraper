@@ -1745,6 +1745,7 @@ class AnthropicProvider:
         if response.content and len(response.content) > 0:
             first = response.content[0]
             content = (getattr(first, "text", "") or "").strip()
+        content = _insight_salvage.strip_json_fence(content)
         _guardrails.check_chat_response(content, service="anthropic", expect_json=True)
         tiers = _json.loads(content)
         # Preserve input order; a missing id keeps the insight (tier 3) rather than dropping it.

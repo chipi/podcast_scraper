@@ -28,6 +28,24 @@ from .guardrails.exceptions import GuardrailViolation
 logger = logging.getLogger(__name__)
 
 
+def strip_json_fence(content: Optional[str]) -> str:
+    """Unwrap a ```json ... ``` fence.
+
+    Anthropic wraps JSON replies in a markdown fence even when asked not to, so a strict
+    ``expect_json`` guardrail rejects an otherwise perfect response. Cheap to strip, and harmless
+    for providers that never fence.
+    """
+    body = (content or "").strip()
+    if not body.startswith("```"):
+        return body
+    lines = body.splitlines()
+    if lines and lines[0].startswith("```"):
+        lines = lines[1:]
+    if lines and lines[-1].strip().startswith("```"):
+        lines = lines[:-1]
+    return "\n".join(lines).strip()
+
+
 def salvage_truncated_lines(exc: GuardrailViolation, content: Optional[str]) -> Optional[str]:
     """Return the usable prefix of a truncated line list, or ``None`` if unsalvageable.
 
