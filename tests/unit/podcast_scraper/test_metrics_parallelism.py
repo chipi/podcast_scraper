@@ -229,3 +229,45 @@ def test_validate_metrics_requires_new_keys() -> None:
     d = m.finish()
     # If validation raises, one of the keys is missing.
     m._validate_metrics(d)
+
+
+def test_pipeline_status_json_payload_does_not_carry_parallelism_keys(
+    tmp_path: object,
+) -> None:
+    """`.pipeline_status.json` is a per-stage progress tracker
+    (`monitor/status.py::maybe_update_pipeline_status`), NOT a metrics dump.
+    The #1180 parallelism fields live in the run summary JSON only. Pin the
+    contract so a future refactor doesn't quietly widen `.pipeline_status.json`
+    without matching the docs.
+    """
+    from podcast_scraper.monitor import status as monitor_status
+
+    class _FakeCfg:
+        monitor = True
+
+    monitor_status.maybe_update_pipeline_status(
+        _FakeCfg(),
+        str(tmp_path),
+        stage="transcription",
+        episode_idx=1,
+        episode_total=3,
+    )
+    payload = monitor_status.read_pipeline_status(str(tmp_path))
+    assert payload is not None
+    # These are the fields `.pipeline_status.json` actually carries.
+    for expected in ("pid", "stage", "started_at", "stage_started_at"):
+        assert expected in payload
+    # And these must NOT be there — they belong to the run summary JSON.
+    for parallel_only_key in (
+        "processing_overlap_ratio",
+        "processing_thread_busy_ratio",
+        "processing_thread_queue_idle_seconds",
+        "inline_processed_episodes_count",
+        "safety_net_processed_episodes_count",
+        "handoff_latency_seconds_per_episode",
+    ):
+        assert parallel_only_key not in payload, (
+            f".pipeline_status.json now carries {parallel_only_key!r} — update "
+            "docs/guides/PIPELINE_AND_WORKFLOW.md → 'Parallelism observability' "
+            "section which currently says only the run summary carries these."
+        )

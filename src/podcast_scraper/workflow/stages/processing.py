@@ -1472,8 +1472,13 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     break
 
                 # Wait a bit before checking again
-                # Track queue wait time (Issue #387)
+                # Track queue wait time (Issue #387) and, when the whole worker
+                # pool is idle (no futures pending), the #1180 processing-thread
+                # queue-idle counter. `len(futures) == 0` here means _submit_new_jobs
+                # found nothing to submit AND no future is in-flight — the
+                # ProcessingProcessor genuinely has no work.
                 queue_wait_start = time.time()
+                workers_all_idle = len(futures) == 0
                 if not (transcription_complete_event and transcription_complete_event.is_set()):
                     time.sleep(0.1)
                     queue_wait_duration = time.time() - queue_wait_start
@@ -1482,6 +1487,8 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     queue_wait_duration = time.time() - queue_wait_start
                 if pipeline_metrics is not None:
                     pipeline_metrics.record_queue_wait_time(queue_wait_duration)
+                    if workers_all_idle:
+                        pipeline_metrics.record_processing_queue_idle_time(queue_wait_duration)
 
         return (jobs_processed_ok[0], jobs_processed_failed[0])
 

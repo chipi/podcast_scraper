@@ -117,8 +117,11 @@ flowchart LR
 
 ## Parallelism observability (#1180)
 
-Every run reports six numbers in the summary JSON + `.pipeline_status.json`
-that let you see whether the overlap actually happened:
+Every run reports six numbers in the run summary JSON (the file `metrics.py`
+writes at end-of-run) that let you see whether the overlap actually happened.
+`.pipeline_status.json` is a separate per-stage progress tracker and does
+NOT carry these fields; a live-monitor view of overlap would need its own
+sampling loop against the accumulating interval lists.
 
 | Metric | Meaning |
 | ------ | ------- |

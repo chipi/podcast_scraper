@@ -179,9 +179,10 @@ class Metrics:
     processing_thread_intervals: List[Tuple[float, float]] = field(default_factory=list)
 
     # Populated once at end-of-run via `finalize_parallelism_snapshot`; visible
-    # in the run summary + `.pipeline_status.json`. Kept as raw fields so a
-    # partial pipeline (crash between record and finalize) still exports the
-    # intervals for post-mortem analysis.
+    # in the run summary JSON export (``.pipeline_status.json`` is a separate
+    # per-stage progress tracker and does not carry these fields). Kept as raw
+    # fields so a partial pipeline (crash between record and finalize) still
+    # exports the intervals for post-mortem analysis.
     processing_overlap_ratio: Optional[float] = None
     processing_thread_busy_ratio: Optional[float] = None
     processing_thread_queue_idle_seconds: float = 0.0
@@ -577,8 +578,8 @@ class Metrics:
 
         Extracted from ``finish`` so that method stays under the project's
         cognitive-complexity budget while still surfacing every #1180 field in
-        the run summary + ``.pipeline_status.json``. Ratios are ``None`` on
-        runs where the corresponding thread never ran (dry-run, disabled).
+        the run summary JSON export. Ratios are ``None`` on runs where the
+        corresponding thread never ran (dry-run, disabled).
         """
         return {
             "processing_overlap_ratio": (
