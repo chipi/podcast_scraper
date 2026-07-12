@@ -92,9 +92,51 @@ cites 99.6% as evidence of correctness.
 | GPU | 79–91% util, 3 models resident | whisper + pyannote + Ollama (28 GB) all on one GB10 |
 | stage parallelism | transcription **serial** (single-flight, #876) | concurrent requests just queue server-side |
 
-**Bottleneck:** one GPU hosting three models, stages serial. Est. 15–20 h for 99 episodes. The
-cloud would fan all 99 out at once. This asymmetry is the real cost of going local and must be
-priced in the verdict.
+**Bottleneck:** one GPU hosting three models, stages serial. Est. ~14 h for 99 episodes — almost
+entirely ASR. The cloud would fan all 99 out at once. This asymmetry is the real cost of going
+local and must be priced in the verdict.
+
+### 5a. Transcription speed: cloud vs DGX (measured, not assumed)
+
+v2 recorded `transcribe_time` per episode, so this is from the corpus itself (n = 189):
+
+| provider | n | median speed |
+| --- | ---: | ---: |
+| openai whisper-1 (cloud) | 99 | **25.2× realtime** |
+| tailnet_dgx_whisper (v2) | 90 | **6.0× realtime** |
+| DGX faster-whisper large-v3 (v3, live) | — | **~7.8× realtime** |
+
+Transcription dominates wall-clock in **both** stacks — the LLM stages are noise beside it
+(3–11 s vs ~510 s per episode). So "ASR is the bottleneck" is not a DGX-specific problem.
+
+But the cloud was **~3–4× faster per episode**, *and* the API parallelises across episodes while
+the DGX serializes. So:
+
+- "transcription is the bottleneck stage" → true in both, nothing new
+- "therefore the DGX costs nothing on throughput" → **false**: ~4× slower per episode, and serial
+
+Caveat in the DGX's favour: it runs `large-v3`, a heavier model than the cloud's `whisper-1`. Part
+of the slowdown buys a bigger model — whether it buys a *better transcript* is what the quality
+comparison must answer.
+
+### 5b. `bundled` LLM mode is unreliable on qwen3.5:35b
+
+Repeated on real transcripts:
+
+```text
+[3] Bundled clean+summary failed, falling back to staged: Bundled JSON missing non-empty summary
+[8] Bundled clean+summary failed, falling back to staged: ...
+```
+
+The model does not reliably emit the bundled clean+summary JSON, and the pipeline degrades to
+`staged` — which works, so summaries are still produced. But it contradicts the comment in
+`local_dgx_balanced.yaml` ("35b handles bundled mode cleanly"): on real prod transcripts it does
+not. This is a genuine **structured-output reliability gap** for the local model, and precisely
+the sort of thing a quality comparison exists to surface. The graceful `staged` fallback is what
+keeps it from being an outage.
+
+Open: pin `llm_pipeline_mode: staged` for the local profile rather than paying for a bundled
+attempt that usually fails.
 
 ## 6. Evaluation design
 
@@ -139,3 +181,10 @@ summaries and nothing for the judges to grade.
 - **11:28** Ollama summarization confirmed live in-pipeline; first metadata/GI artifacts written.
 - **11:30** first v3 episode: timeline error **0.01%** (v2: 3.05%). #1173 confirmed end-to-end on
   real prod audio through the real pipeline.
+- **11:45** measured, against the operator's prior that "ASR was the bottleneck on cloud too, so
+  nothing new": half right. ASR dominates in both stacks, but the cloud did it at **25.2x**
+  realtime vs the DGX's **6-8x** — ~4x slower per episode, and serial where the API fans out.
+  Throughput is a real cost of going local, not a wash.
+- **11:45** `bundled` clean+summary fails on qwen3.5:35b (invalid JSON) and falls back to
+  `staged`. Summaries still produced; the profile comment claiming 35b handles bundled cleanly
+  is wrong on real transcripts.
