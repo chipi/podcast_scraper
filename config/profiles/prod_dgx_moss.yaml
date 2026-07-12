@@ -51,6 +51,15 @@ ollama_speaker_model: qwen3.5:35b
 ner_model: en_core_web_trf
 auto_speakers: true
 
+# --- transcript cleaning: pattern, NOT the LLM ---------------------------------------------------
+# The default is `hybrid` (pattern + a conditional LLM pass). Measured on the pilot: asking
+# qwen3.5:35b to return a cleaned 70k-char transcript gives back ~150 characters — or nothing at
+# all. The summariser then faithfully summarises that fragment, which is why every episode came out
+# as a summary of its own outro ("The podcast invites listeners to email..."). The cloud path never
+# did LLM cleaning either (llm_cleaning_cost_usd: 0.0 in the v2 manifest). Pattern cleaning is
+# deterministic and cannot destroy the transcript.
+transcript_cleaning_strategy: pattern
+
 # --- summary / GI / KG: unchanged, so the comparison isolates the audio stage ---------------------
 summary_provider: ollama
 ollama_api_base: http://${DGX_TAILNET_HOST:-dgx-llm-1}:11434/v1

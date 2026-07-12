@@ -77,6 +77,45 @@ def _warn_if_prompt_examples_leaked(title: Optional[str], bullets: Optional[List
         )
 
 
+# Cleaning strips ads, intros and meta-commentary. It removes a slice, never the episode. Below
+# this fraction of the original the "cleaned" text cannot be a cleaned transcript.
+_MIN_CLEANED_RATIO = 0.30
+
+
+def _reject_destroyed_cleaning(original: str, cleaned: str, episode_idx: object) -> str:
+    """Fall back to the raw transcript when cleaning has destroyed it.
+
+    An LLM cleaner is asked to return the whole transcript minus the ads — tens of thousands of
+    characters. A model that cannot sustain that (measured on the DGX pilot: qwen3.5:35b returned
+    ~150 characters of a 75 000-char transcript, and sometimes an empty string) does not fail
+    loudly; it returns a *plausible fragment*. Everything downstream then works perfectly on that
+    fragment, and the episode is summarized from its own outro — which is exactly what happened,
+    silently, across all ten pilot episodes.
+
+    So a cleaner that returns almost nothing is treated as a failed cleaner, not as a transcript.
+    The raw text is used instead: an uncleaned transcript is a far smaller problem than a
+    confidently-summarized fragment.
+    """
+    source_len = len(original or "")
+    cleaned_len = len(cleaned or "")
+    if source_len == 0:
+        return cleaned
+    if cleaned_len >= source_len * _MIN_CLEANED_RATIO:
+        return cleaned
+
+    logger.error(
+        "[%s] CLEANING DESTROYED THE TRANSCRIPT: %d chars -> %d (%.1f%%). A cleaner removes ads, "
+        "not the episode. Falling back to the RAW transcript — summarizing the remnant would "
+        "produce a confident summary of nothing. Check the cleaning strategy for the model in use "
+        "(transcript_cleaning_strategy: pattern is deterministic and cannot do this).",
+        episode_idx,
+        source_len,
+        cleaned_len,
+        (100.0 * cleaned_len / source_len),
+    )
+    return original
+
+
 # #653 Part D — leading stopwords stripped when deriving a short topic phrase
 # from a summary bullet (staged-mode fallback when KG prefilled topics absent).
 _BULLET_LEADING_STOPWORDS: frozenset[str] = frozenset(
@@ -2558,6 +2597,10 @@ def _generate_episode_summary(  # noqa: C901
                         pipeline_metrics.record_cleaning_time(
                             time.perf_counter() - cleaning_started, episode_idx
                         )
+
+                cleaned_text = _reject_destroyed_cleaning(
+                    transcript_text, cleaned_text, episode_idx
+                )
                 # Safely get lengths for logging (handle Mock objects in tests)
                 try:
                     original_len = len(transcript_text) if transcript_text else 0
