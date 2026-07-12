@@ -1273,7 +1273,7 @@ class GrokProvider:
     ) -> List[str]:
         """Generate a list of short insight statements from transcript (GIL).
 
-        Uses grok/insight_extraction/v1 prompt; parses response as one insight per line.
+        Uses grok/insight_extraction/v2 prompt; parses response as one insight per line.
         Returns empty list on failure so GIL can fall back to stub.
         """
         if not self._summarization_initialized:
@@ -1293,7 +1293,7 @@ class GrokProvider:
 
         try:
             user_prompt = render_prompt(
-                "grok/insight_extraction/v1",
+                "grok/insight_extraction/v2",
                 transcript=text_slice,
                 title=episode_title or "",
                 max_insights=max_insights,
@@ -1386,6 +1386,17 @@ class GrokProvider:
                     s = s[2:].strip()
                 if s:
                     cleaned.append(s)
+            if len(cleaned) > max_insights:
+                # Overproduction is a signal, not a detail to swallow. Truncating silently is
+                # what hid the fact that the model was returning 300+ lines and we were keeping
+                # 50 — which read as "it obediently returned exactly the cap".
+                logger.warning(
+                    "generate_insights: model returned %d insights for a ceiling of %d; "
+                    "keeping the first %d. The prompt is not constraining the count.",
+                    len(cleaned),
+                    max_insights,
+                    max_insights,
+                )
             return cleaned[:max_insights]
         except _guardrails.GuardrailViolation:
             # ADR-100: GI is fail-up. Propagate so FallbackAware routes.
@@ -1393,6 +1404,40 @@ class GrokProvider:
         except Exception as e:
             logger.debug("Grok generate_insights failed: %s", e, exc_info=True)
             return []
+
+    def classify_insights(self, insights: List[str]) -> List[int]:
+        """Tier each insight 0-3 for the value gate (see ``gi.value_gate``).
+
+        One call for the whole episode. Raises on failure — the gate fails open and owns the
+        decision to keep everything, so this must not paper over a bad response.
+        """
+        if not insights:
+            return []
+        if not self._summarization_initialized:
+            raise RuntimeError("Grok summarization not initialized for classify_insights")
+
+        import json as _json
+
+        from ...prompts.store import render_prompt
+
+        listing = "\n".join(f"i{idx}: {text}" for idx, text in enumerate(insights))
+        user_prompt = render_prompt("grok/insight_value_gate/v1", insights=listing)
+        gate_max_tokens = max(
+            config_constants.GI_INSIGHT_TOKENS_FLOOR,
+            len(insights) * config_constants.GI_VALUE_GATE_TOKENS_EACH,
+        )
+        response = self.client.chat.completions.create(
+            model=self.summary_model,
+            messages=[{"role": "user", "content": user_prompt}],
+            temperature=0.0,
+            max_tokens=gate_max_tokens,
+            response_format={"type": "json_object"},
+        )
+        content = (response.choices[0].message.content or "").strip()
+        _guardrails.check_chat_response(content, service="grok", expect_json=True)
+        tiers = _json.loads(content)
+        # Preserve input order; a missing id keeps the insight (tier 3) rather than dropping it.
+        return [int(tiers.get(f"i{idx}", 3)) for idx in range(len(insights))]
 
     def extract_kg_graph(
         self,

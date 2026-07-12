@@ -111,6 +111,15 @@ def merge_eval_task_into_summarizer_config(
         }
         if max_insights is not None:
             updates["gi_max_insights"] = int(max_insights)
+        # Value gate. Unforwarded params are dropped silently by this allowlist, so a gate
+        # configured in the experiment YAML would sit inert and the cell would look like a
+        # no-op result rather than a misconfiguration.
+        value_gate = p.get("gi_value_gate_enabled")
+        if value_gate is not None:
+            updates["gi_value_gate_enabled"] = bool(value_gate)
+        min_tier = p.get("gi_value_gate_min_tier")
+        if isinstance(min_tier, int) and 0 <= min_tier <= 3:
+            updates["gi_value_gate_min_tier"] = min_tier
         # #698 GIL evidence-stack bundling — forward mode flags from the
         # experiment YAML's ``params:`` dict to the runtime Config so the
         # bundled dispatch in ``gi/pipeline.py`` actually fires for matrix

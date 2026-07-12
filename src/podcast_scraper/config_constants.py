@@ -36,6 +36,9 @@ GI_QUOTE_TRANSCRIPT_MAX_CHARS = 150_000
 # below are what trim. 2048 leaves room for a densely-evidenced insight without inviting padding
 # (the prompt forbids that), and unused budget costs nothing.
 GI_QUOTE_RESPONSE_TOKENS = 2048
+# Value gate replies with one small integer per insight, as JSON. Cheap, but budget it from
+# the insight count rather than a literal — that literal is how the last three ceilings bit us.
+GI_VALUE_GATE_TOKENS_EACH = 24
 DEFAULT_NUM_SPEAKERS = 2
 DEFAULT_SCREENPLAY_GAP_SECONDS = 1.25
 DEFAULT_TIMEOUT_SECONDS = 20

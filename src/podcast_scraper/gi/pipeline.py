@@ -1012,6 +1012,19 @@ def _resolve_insight_specs(
                             resolved_specs.append(p)
                     resolved_specs = resolved_specs[:max_insights]
                     if resolved_specs:
+                        # The extractor cannot be made selective by prompting — across three
+                        # prompt variants the CORE count barely moved (13.3 / 10.3 / 12.0 per
+                        # episode) while filler tracked whatever the prompt encouraged. So filler
+                        # is trimmed here, by a gate, exactly like the QA and NLI gates trim the
+                        # evidence path. Fail-open: every insight survives a broken gate.
+                        from .value_gate import apply_value_gate
+
+                        resolved_specs = apply_value_gate(
+                            resolved_specs,
+                            provider=insight_provider,
+                            cfg=cfg,
+                            pipeline_metrics=pipeline_metrics,
+                        )
                         # RFC-097 v3.0 chunk-5: classify any unknown-typed
                         # specs (providers returning ``List[str]`` flow in
                         # as ``"unknown"``; structured dict items keep their

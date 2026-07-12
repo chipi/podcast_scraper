@@ -67,6 +67,23 @@ _ENTAILMENT_FALLBACK = (
 )
 
 
+def _json_object_from_response(text: str) -> str:
+    """Pull the JSON object out of a chat reply.
+
+    qwen3.5 reasons before answering, and the reasoning is full of digits and braces. Scoping past
+    any ``</think>`` block first is what stops us parsing the model's scratch work as the answer.
+    """
+    body = text or ""
+    marker = body.rfind("</think>")
+    if marker != -1:
+        body = body[marker + len("</think>") :]
+    start = body.find("{")
+    end = body.rfind("}")
+    if start == -1 or end == -1 or end < start:
+        raise ValueError("no JSON object in response")
+    return body[start : end + 1]
+
+
 # Roughly 3.5 characters per token for English prose. Used only to keep the transcript inside the
 # context window we were actually configured with, instead of a hardcoded guess.
 _CHARS_PER_TOKEN = 3.5
@@ -1774,7 +1791,7 @@ class OllamaProvider:
     ) -> List[str]:
         """Generate a list of short insight statements from transcript (GIL).
 
-        Uses ollama/insight_extraction/v1 prompt; parses response as one insight per line.
+        Uses ollama/insight_extraction/v2 prompt; parses response as one insight per line.
         Returns empty list on failure so GIL can fall back to stub.
         """
         if not self._summarization_initialized:
@@ -1794,7 +1811,7 @@ class OllamaProvider:
 
         try:
             user_prompt = render_prompt(
-                "ollama/insight_extraction/v1",
+                "ollama/insight_extraction/v2",
                 transcript=text_slice,
                 title=episode_title or "",
                 max_insights=max_insights,
@@ -1878,6 +1895,17 @@ class OllamaProvider:
                     s = s[2:].strip()
                 if s:
                     cleaned.append(s)
+            if len(cleaned) > max_insights:
+                # Overproduction is a signal, not a detail to swallow. Truncating silently is
+                # what hid the fact that the model was returning 300+ lines and we were keeping
+                # 50 — which read as "it obediently returned exactly the cap".
+                logger.warning(
+                    "generate_insights: model returned %d insights for a ceiling of %d; "
+                    "keeping the first %d. The prompt is not constraining the count.",
+                    len(cleaned),
+                    max_insights,
+                    max_insights,
+                )
             return cleaned[:max_insights]
         except _guardrails.GuardrailViolation:
             # ADR-100: GI is fail-up. Propagate so FallbackAware routes.
@@ -1885,6 +1913,39 @@ class OllamaProvider:
         except Exception as e:
             logger.debug("Ollama generate_insights failed: %s", e, exc_info=True)
             return []
+
+    def classify_insights(self, insights: List[str]) -> List[int]:
+        """Tier each insight 0-3 for the value gate (see ``gi.value_gate``).
+
+        One call for the whole episode. Raises on failure — the gate fails open and owns the
+        decision to keep everything, so this must not paper over a bad response.
+        """
+        if not insights:
+            return []
+        if not self._summarization_initialized:
+            raise RuntimeError("Ollama summarization not initialized for classify_insights")
+
+        import json as _json
+
+        from ...prompts.store import render_prompt
+
+        listing = "\n".join(f"i{idx}: {text}" for idx, text in enumerate(insights))
+        user_prompt = render_prompt("ollama/insight_value_gate/v1", insights=listing)
+        response = self.client.chat.completions.create(
+            model=self.summary_model,
+            messages=[{"role": "user", "content": user_prompt}],
+            temperature=0.0,
+            max_tokens=max(
+                config_constants.GI_INSIGHT_TOKENS_FLOOR,
+                len(insights) * config_constants.GI_VALUE_GATE_TOKENS_EACH,
+            ),
+            **_ollama_openai_chat_extra_kwargs(self.summary_model),
+        )
+        content = (response.choices[0].message.content or "").strip()
+        _guardrails.check_chat_response(content, service="ollama")
+        tiers = _json.loads(_json_object_from_response(content))
+        # Preserve input order; a missing id keeps the insight (tier 3) rather than dropping it.
+        return [int(tiers.get(f"i{idx}", 3)) for idx in range(len(insights))]
 
     def extract_kg_graph(
         self,

@@ -1,0 +1,25 @@
+You are grading insights extracted from a podcast episode.
+
+Grade each insight on how much genuine knowledge it carries for someone who has NOT heard the
+episode. Judge the CLAIM, not the wording. A fluent sentence that says nothing scores low.
+
+  3 = CORE. A substantive claim about the world: a decision, deal, launch, departure or result;
+      a concrete number or finding; a causal argument ("X happened because Y"); a substantive
+      position a named person took, or a real disagreement between speakers. Belongs in a
+      briefing on this episode.
+  2 = USEFUL. A real supporting detail or secondary point. Specific and true, but not central.
+  1 = MINOR. Incidental, obvious, or so generic it could apply to many episodes on the topic
+      ("AI is advancing rapidly", "this raises important questions", "the hosts discuss the news").
+  0 = FILLER. Not an insight: chit-chat, an ad or sponsor read, a topic label, a restatement of
+      the episode title, or a claim with no content.
+
+Be strict. Most episodes contain only a handful of 3s.
+
+Return ONLY a JSON object mapping each insight id to its integer tier. No commentary, no
+markdown fences.
+
+Example shape (ids will differ):
+{"i0": 3, "i1": 1, "i2": 2}
+
+INSIGHTS:
+{{ insights }}

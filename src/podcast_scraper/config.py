@@ -2245,8 +2245,31 @@ class Config(BaseModel):
         le=config_constants.GI_MAX_INSIGHTS_CEILING,
         alias="gi_max_insights",
         description=(
-            "Max insights when gi_insight_source is 'provider'. "
-            "Default matches DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX (avoid truncating long lists)."
+            "Ceiling on insights when gi_insight_source is 'provider' — a hard cap, not a target. "
+            "The prompt states a substance bar; the count comes from the episode. Size this so it "
+            "does not bind."
+        ),
+    )
+    gi_value_gate_enabled: bool = Field(
+        default=False,
+        alias="gi_value_gate_enabled",
+        description=(
+            "Drop insights that carry no real knowledge, after extraction. The extractor cannot "
+            "be made selective by prompting — measured across three prompt variants the CORE "
+            "count barely moves (13.3 / 10.3 / 12.0 per episode) while filler tracks whatever the "
+            "prompt encourages. So filler is removed by a gate, like the QA and NLI gates on the "
+            "evidence path. Fail-open: a broken gate keeps every insight."
+        ),
+    )
+    gi_value_gate_min_tier: int = Field(
+        default=2,
+        ge=0,
+        le=3,
+        alias="gi_value_gate_min_tier",
+        description=(
+            "Lowest insight tier the value gate keeps. 3=CORE only (a briefing), 2=CORE+USEFUL "
+            "(the knowledge graph — supporting detail is what retrieval lands on), 1 keeps minor "
+            "points, 0 disables filtering."
         ),
     )
     gi_typed_mentions_use_ner: bool = Field(

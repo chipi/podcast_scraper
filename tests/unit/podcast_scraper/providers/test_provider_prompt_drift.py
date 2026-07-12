@@ -87,6 +87,46 @@ def test_extract_quotes_prompt_forbids_duplicate_passages() -> None:
     assert "never repeat" in text.lower()
 
 
+PROMPTS_ROOT = _REPO_ROOT / "src" / "podcast_scraper" / "prompts"
+
+
+def test_insight_extraction_templates_are_identical_across_providers() -> None:
+    """One prompt, seven copies. They must stay byte-identical."""
+    paths = sorted(PROMPTS_ROOT.glob("*/insight_extraction/v2.j2"))
+    assert len(paths) >= 7, f"expected a v2 template per provider, found {len(paths)}"
+    digests = {hashlib.sha256(p.read_bytes()).hexdigest(): p.parent.parent.name for p in paths}
+    assert len(digests) == 1, (
+        "insight_extraction/v2 has drifted between providers: "
+        f"{sorted(digests.values())}. Update every provider, or move it to a shared template."
+    )
+
+
+def test_insight_extraction_prompt_sets_a_value_bar_not_a_quota() -> None:
+    """The count must come from the episode, not from us — but the ceiling must still bind.
+
+    v1 said "Extract {{ max_insights }} key takeaways" — a target. Gemini appeared to return
+    exactly 12.0 / 25.0 / 50.0 at caps 12 / 25 / 50, which looked like obedience and was actually
+    ``cleaned[:max_insights]`` hiding an overproduction of 300+ lines.
+
+    A first attempt at a value bar removed the count anchor entirely ("there is NO target
+    number"). Gemini then emitted 270-486 lines, blew max_output_tokens, and the guardrail turned
+    that into ZERO insights on 8 of 15 runs. So the prompt needs both halves: a hard ceiling that
+    binds, and explicit permission to return fewer.
+    """
+    text = (PROMPTS_ROOT / "gemini" / "insight_extraction" / "v2.j2").read_text()
+    # the ceiling must be stated as a hard limit, not buried
+    assert "AT MOST {{ max_insights }}" in text
+    assert "at most {{ max_insights }} lines" in text
+    # the count must be neutral: the bar decides, not a target in either direction.
+    # Biasing it DOWNWARD ("fewer is expected", "if in doubt leave it out") cost 3 CORE and
+    # 13.7 USEFUL insights per episode to remove 6.3 filler — precision up, recall down.
+    assert "no more, and no fewer" in text
+    assert "Do not pad" in text
+    assert "Do not hold back" in text
+    # the old quota phrasing must not come back
+    assert "Extract {{ max_insights }} key takeaways" not in text
+
+
 def _texts(site: str) -> List[str]:
     out: List[str] = []
     for path in sorted(PROVIDERS_ROOT.rglob("*_provider.py")):
