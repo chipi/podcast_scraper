@@ -156,3 +156,4 @@ WIP file is removed.
 - **2026-05-22** — Removed `GRAPH_NAVIGATION_HANDOFF_ANALYSIS.md`; superseded by
   shipped graph handoff orchestrator ([ADR-094](../adr/ADR-094-graph-handoff-orchestrator-fsm.md),
   [RFC-085](../rfc/RFC-085-graph-handoff-orchestrator-retrospective.md)).
+- [SESSION_LOG_GI_2026-07-12_13.md](SESSION_LOG_GI_2026-07-12_13.md) — grounded-insights session: nine silent defects, every claim made and retracted, and the twelve gaps still open. Headline: production runs a configuration we never measured (gate OFF, ceiling 12, temperature 0.3).
