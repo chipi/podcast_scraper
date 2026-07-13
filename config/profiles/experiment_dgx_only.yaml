@@ -1,4 +1,4 @@
-# prod_dgx_only — the whole pipeline on our own hardware. No cloud API, at any stage.
+# experiment_dgx_only — the whole pipeline on our own hardware. No cloud API, at any stage.
 #
 # Pairs with `gpu-mode-swap.sh prod` on the DGX, which stops every vLLM (they hold ~79 GB and
 # starve the services below) and keeps the pinned LLM warm. The three GPU consumers here are
@@ -16,13 +16,15 @@
 # back to the LOCAL whisper. A DGX outage degrades to our own hardware; it can never silently
 # start billing an API.
 #
-# No `profile:` key: this composition has no ModelRegistry preset yet, and declaring `profile:`
-# is what opts a YAML into the registry-drift check. Register it before treating it as the
-# canonical production profile.
+# Registry-driven: this file is a thin VIEWER over the `experiment_dgx_only` preset. Models AND
+# params (insight ceiling, chunking, dedupe, value gate, temperature) come from the registry, and
+# the drift guard cross-checks anything restated below. To change what this profile extracts,
+# change the StageOption — not this file.
 #
-# Registry status: yaml-only — no entry in `_PROFILE_PRESETS`. Every model is pinned explicitly
-# below, so an operator reading this file sees exactly what a production run loads without having
-# to resolve a preset indirection.
+# It is named `experiment_`, not `prod_`, on purpose. The DGX profile set is being consolidated once
+# the qwen work lands; calling this production before that decision would be claiming a conclusion
+# we have not reached.
+profile: experiment_dgx_only
 
 dgx_tailnet_host: ${DGX_TAILNET_HOST:-dgx-llm-1}
 
@@ -104,9 +106,18 @@ gi_nli_entailment_min: 0.75
 generate_metadata: true
 generate_summaries: true
 generate_gi: true
-gi_insight_source: provider
-gi_max_insights: 12
-gi_require_grounding: true
+
+# The GI stage's parameters come from the REGISTRY, not from here.
+#
+# This profile maps to the `experiment_dgx_only` preset, whose GI option (`provider_chunked_gated_v3`)
+# carries the params the evals established: insight ceiling, chunking, dedupe threshold, value gate,
+# and temperature 0. They are deliberately NOT restated below — a profile that repeats a registry
+# value can silently disagree with it, and `gi_max_insights: 12` sat here doing exactly that: it
+# overrode the registry, and no run could ever produce more than 12 insights however the registry
+# was tuned.
+#
+# To change what this profile extracts, change the StageOption. The drift guard enforces that the
+# resolved config matches the registry.
 generate_kg: true
 kg_extraction_source: provider
 kg_max_topics: 10

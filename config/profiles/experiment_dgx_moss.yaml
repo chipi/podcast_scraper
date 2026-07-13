@@ -1,4 +1,4 @@
-# prod_dgx_moss — the MOSS contender for the audio stack (#1177 / #1179).
+# experiment_dgx_moss — the MOSS contender for the audio stack (#1177 / #1179).
 #
 # Identical to `prod_dgx_only` except for the audio side: MOSS replaces BOTH faster-whisper and
 # pyannote, because it is a joint model — one autoregressive pass emits transcript, speaker labels
@@ -29,6 +29,7 @@
 # Registry status: yaml-only — no entry in `_PROFILE_PRESETS`. It is a contender profile pinned
 # explicitly against `prod_dgx_only`; a preset would imply it is a supported default, which it is
 # not until MOSS wins the audio bake-off.
+
 
 dgx_tailnet_host: ${DGX_TAILNET_HOST:-dgx-llm-1}
 

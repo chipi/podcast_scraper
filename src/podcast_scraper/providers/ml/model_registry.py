@@ -1257,7 +1257,48 @@ _GI_OPTIONS: Dict[str, StageOption] = {
             "bundled per EVAL_GIL_BUNDLING_2026_05"
         ),
         measured_at="2026-06-13",
-        tier="primary",
+        tier="fallback",
+    ),
+    # The v3 tuning. Every value below was measured, not chosen — the registry now carries the
+    # PARAMS an eval established, not just the model, so a profile cannot quietly run a different
+    # configuration than the one we validated.
+    #
+    # n=12 was never derived from anything; it was a historic default that the providers clamped to
+    # 10 anyway, so no run could ever honour it. Lifting the ceiling and letting the gates trim is
+    # what the evals actually support: the value gate drops filler, and grounding drops anything
+    # unsupported, so the ceiling is not what protects quality.
+    "provider_chunked_gated_v3": StageOption(
+        stage="gi",
+        option_id="provider_chunked_gated_v3",
+        provider="provider",
+        extra_settings={
+            "max_insights": 50,
+            "require_grounding": True,
+            "evidence_quote_mode": "bundled",
+            "evidence_nli_mode": "bundled",
+            # Local models saturate per CALL, not per episode: qwen emits ~18 insights however long
+            # the episode is, while gemini scales with the material. Context was never the limit —
+            # so give it more calls, not a bigger window.
+            "insight_chunk_chars": 30000,
+            "insight_dedupe_threshold": 0.75,
+            # Filler rises with chunking, which is what the gate is for. Trimming filler is cheap;
+            # nothing recovers knowledge that was never extracted.
+            "value_gate_enabled": True,
+            "value_gate_min_tier": 2,
+            # Reproducibility. The providers hardcoded 0.3 and ignored config: the SAME config run
+            # twice gave 28.0 vs 18.3 insights/episode and grounding on either side of the 80%
+            # floor. A corpus that cannot be reproduced cannot be debugged.
+            "insight_temperature": 0.0,
+        },
+        research_ref="docs/guides/eval-reports/EVAL_GEMINI_VS_QWEN_10EP_2026_07.md",
+        headline_metric=(
+            "chunked extraction lifts grounded insights/episode 17.1 -> 43.2 (gemini) and "
+            "16.1 -> 27.7 (qwen) on 10 pinned episodes; temperature 0 cuts re-run drift from "
+            "9.7 insights / 14.7pp grounding to 0.7 / 0.9pp. OPEN: chunked qwen grounds at 75.1%, "
+            "below the 80% floor — see the report before shipping this on a local-only profile."
+        ),
+        measured_at="2026-07-13",
+        tier="experimental",
     ),
 }
 
@@ -1361,6 +1402,19 @@ _NER_OPTIONS: Dict[str, StageOption] = {
             "Gemini handles NER + speaker detection inline with summary calls"
         ),
         measured_at="2026-06-08",
+        tier="primary",
+    ),
+    "ollama_speaker_detector": StageOption(
+        stage="ner",
+        option_id="ollama_speaker_detector",
+        provider="ollama",
+        model="en_core_web_trf",  # the local entity stage still runs spaCy alongside
+        research_ref="docs/guides/eval-reports/EVAL_SPEAKER_DETECTION_NAMING_2026_06_15.md",
+        headline_metric=(
+            "speaker/host detection served by the same DGX-resident LLM, so an all-DGX profile "
+            "needs no cloud call for it (#1169)"
+        ),
+        measured_at="2026-06-15",
         tier="primary",
     ),
     "spacy_trf": StageOption(
@@ -1582,6 +1636,31 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         gi="provider_n12_grounded_bundled",
         diarization="tailnet_dgx_diarization_community1",
         notes="Higher resident memory budget; same registry choices as balanced today.",
+    ),
+    # The profile the v3 work is actually measured on. Everything the DGX evals ran — the grounding
+    # bake-off, the gemini-vs-qwen comparison, the chunking and value-gate tuning — ran THIS shape,
+    # and until now it had no registry entry at all: it was a YAML-only profile, so the registry
+    # could not govern the one profile that mattered. Meanwhile the registered prod_dgx_* presets
+    # point at the vLLM `autoresearch` slot, a stack GI has never been evaluated on.
+    #
+    # Named `experiment_` deliberately: the DGX profile set is being consolidated once the qwen work
+    # lands, and calling this `prod` before that decision is made would be claiming a conclusion we
+    # have not reached.
+    "experiment_dgx_only": ProfilePreset(
+        name="experiment_dgx_only",
+        transcription="tailnet_dgx_whisper_openai",
+        summary="ollama_qwen35_35b",
+        kg="provider_n10_15",
+        ner="ollama_speaker_detector",
+        clustering="topic_clusters_default_0_75",
+        gi="provider_chunked_gated_v3",  # the tuned params, carried BY the registry
+        diarization="tailnet_dgx_diarization_community1",
+        grounding="llm_matched_to_summary",  # qwen grounds its own insights: 82% cov, 0% fabricated
+        notes=(
+            "All-DGX, no cloud call at any stage: faster-whisper (:8000), pyannote community-1 "
+            "(:8001), qwen3.5:35b on Ollama (:11434). The GI stage carries the v3 tuning "
+            "(uncapped ceiling + chunking + value gate + temperature 0)."
+        ),
     ),
     "prod_dgx_full_with_fallback": ProfilePreset(
         name="prod_dgx_full_with_fallback",
@@ -1982,17 +2061,57 @@ def resolve_profile_to_settings(
     if sm.extra_settings:
         settings["summary_extra"] = dict(sm.extra_settings)
 
-    # GI: insight source + caps + grounding + evidence-stack bundling.
+    # GI: insight source + caps + grounding + evidence-stack bundling + the tuned params.
+    #
+    # The registry carries the PARAMS an eval established, not just the model. Anything measured in
+    # data/eval and then left out of this mapping is a setting production silently does not run —
+    # which is exactly how the pipeline came to be evaluated in one configuration and shipped in
+    # another. Add the key here when you add it to a StageOption.
     settings["gi_insight_source"] = gi.provider
-    if gi.extra_settings:
-        if "max_insights" in gi.extra_settings:
-            settings["gi_max_insights"] = gi.extra_settings["max_insights"]
-        if "require_grounding" in gi.extra_settings:
-            settings["gi_require_grounding"] = gi.extra_settings["require_grounding"]
-        if "evidence_quote_mode" in gi.extra_settings:
-            settings["gil_evidence_quote_mode"] = gi.extra_settings["evidence_quote_mode"]
-        if "evidence_nli_mode" in gi.extra_settings:
-            settings["gil_evidence_nli_mode"] = gi.extra_settings["evidence_nli_mode"]
+    _GI_SETTING_TO_CONFIG_KEY = {
+        "max_insights": "gi_max_insights",
+        "require_grounding": "gi_require_grounding",
+        "evidence_quote_mode": "gil_evidence_quote_mode",
+        "evidence_nli_mode": "gil_evidence_nli_mode",
+        "insight_chunk_chars": "gi_insight_chunk_chars",
+        "insight_dedupe_threshold": "gi_insight_dedupe_threshold",
+        "value_gate_enabled": "gi_value_gate_enabled",
+        "value_gate_min_tier": "gi_value_gate_min_tier",
+        "value_gate_provider": "gi_value_gate_provider",
+        "value_gate_model": "gi_value_gate_model",
+        # Temperature is per-provider (`ollama_temperature`, `gemini_temperature`), so it is mapped
+        # against the summariser below rather than to one fixed field.
+        "insight_temperature": f"{sm.provider}_temperature",
+    }
+    for key, value in (gi.extra_settings or {}).items():
+        config_key = _GI_SETTING_TO_CONFIG_KEY.get(key)
+        if config_key is None:
+            # NOT ValueError: Config._resolve_profile catches ValueError to mean "not a registry
+            # preset" and silently drops to YAML-only. A typo here would therefore disable the
+            # whole registry for this profile without a word — the exact silent-fallback class of
+            # bug this stage exists to prevent.
+            raise RuntimeError(
+                f"GI option '{gi.option_id}' sets '{key}', which this resolver does not map to a "
+                "Config field. A param the registry records but never plumbs is a setting "
+                "production silently does not run — add it to _GI_SETTING_TO_CONFIG_KEY."
+            )
+        settings[config_key] = value
+
+    # Grounding: who finds the quote. `match_summary` means the summarising LLM grounds its own
+    # insights (Config._auto_promote_evidence_providers resolves it); anything else is explicit.
+    grounding = get_grounding_option(preset.grounding)
+    if grounding.provider != "match_summary":
+        settings["quote_extraction_provider"] = grounding.provider
+        settings["entailment_provider"] = grounding.provider
+    for key, value in (grounding.extra_settings or {}).items():
+        if key == "nli_entailment_min":
+            settings["gi_nli_entailment_min"] = value
+        elif key == "qa_model":
+            settings["gi_qa_model"] = value
+        elif key == "nli_model":
+            settings["gi_nli_model"] = value
+        elif key == "qa_window_chars":
+            settings["gi_qa_window_chars"] = value
 
     # KG: extraction source + caps.
     settings["kg_extraction_source"] = kg.provider

@@ -147,18 +147,18 @@ def test_both_factories_resolve_to_moss() -> None:
     assert isinstance(create_diarization_provider(cfg), MossDiarizationProvider)
 
 
-def test_prod_dgx_moss_profile_is_fully_local() -> None:
+def test_experiment_dgx_moss_profile_is_fully_local() -> None:
     """The MOSS profile must not leak to a commercial API on any stage."""
     import os
 
     os.environ.setdefault("DGX_TAILNET_HOST", "dgx-llm-1")
     cfg = config.Config.model_validate(
-        {"profile": "prod_dgx_moss", "rss_url": "https://example.com/feed.xml"}
+        {"profile": "experiment_dgx_moss", "rss_url": "https://example.com/feed.xml"}
     )
 
     assert cfg.transcription_provider == "moss"
     assert cfg.diarization_provider == "moss"
-    # The LLM stages stay identical to prod_dgx_only, so a diff isolates the audio stage.
+    # The LLM stages stay identical to experiment_dgx_only, so a diff isolates the audio stage.
     assert cfg.ollama_summary_model == "qwen3.5:35b"
     assert cfg.preprocessing_silence_removal is False  # the #1173 invariant
 

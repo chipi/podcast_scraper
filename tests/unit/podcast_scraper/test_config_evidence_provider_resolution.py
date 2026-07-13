@@ -42,10 +42,11 @@ class TestEvidenceAlignsToTheSummariser:
     def test_llm_summariser_grounds_with_itself_when_it_comes_FROM_A_PROFILE(self) -> None:
         """The regression that mattered: a profile-sourced summary_provider must align too.
 
-        prod_dgx_only summarises with qwen, so it must ground with qwen. It used to fall through to
-        the ML QA/NLI grounder — the stack meant for the ML profiles — and ground nothing.
+        experiment_dgx_only summarises with qwen, so it must ground with qwen. It used to fall
+        through to the ML QA/NLI grounder — the stack meant for the ML profiles — and ground
+        nothing.
         """
-        assert _resolved(profile="prod_dgx_only") == ("ollama", "ollama")
+        assert _resolved(profile="experiment_dgx_only") == ("ollama", "ollama")
 
     def test_local_summariser_keeps_the_ML_grounder(self) -> None:
         """The ML grounder is correct for the ML profiles — that is what it is for."""
@@ -109,7 +110,7 @@ class TestEvalMatchesProduction:
             merge_eval_task_into_summarizer_config as merge,
         )
 
-        prod = Config.model_validate({"profile": "prod_dgx_only", "generate_gi": True})
+        prod = Config.model_validate({"profile": "experiment_dgx_only", "generate_gi": True})
         cell = merge(prod, "grounded_insights", {"gi_insight_source": "provider"})
 
         assert (cell.quote_extraction_provider, cell.entailment_provider) == (
@@ -123,7 +124,7 @@ class TestEvalMatchesProduction:
             merge_eval_task_into_summarizer_config as merge,
         )
 
-        base = Config.model_validate({"profile": "prod_dgx_only", "generate_gi": True})
+        base = Config.model_validate({"profile": "experiment_dgx_only", "generate_gi": True})
         cell = merge(
             base,
             "grounded_insights",
@@ -145,6 +146,6 @@ class TestNliThresholdMatchesItsEntailer:
     """
 
     def test_prod_dgx_entailer_is_the_llm_the_threshold_was_calibrated_for(self) -> None:
-        cfg = Config.model_validate({"profile": "prod_dgx_only", "generate_gi": True})
+        cfg = Config.model_validate({"profile": "experiment_dgx_only", "generate_gi": True})
         assert cfg.gi_nli_entailment_min == pytest.approx(0.75)
         assert cfg.entailment_provider == "ollama"

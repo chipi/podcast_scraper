@@ -185,7 +185,7 @@ def main() -> int:
     ap.add_argument("--insights", required=True, help="finished run_id to freeze insights from")
     ap.add_argument("--dataset", default="prod_v3_10ep_v1")
     ap.add_argument("--grounders", default="transformers,ollama,gemini")
-    ap.add_argument("--profile", default="prod_dgx_only")
+    ap.add_argument("--profile", default="experiment_dgx_only")
     ap.add_argument(
         "--per-episode",
         type=int,
