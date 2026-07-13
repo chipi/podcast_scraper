@@ -2261,6 +2261,30 @@ class Config(BaseModel):
             "evidence path. Fail-open: a broken gate keeps every insight."
         ),
     )
+    gi_insight_chunk_chars: int = Field(
+        default=0,
+        ge=0,
+        le=200_000,
+        alias="gi_insight_chunk_chars",
+        description=(
+            "Extract insights in passes of roughly this many characters. 0 disables chunking. "
+            "Local models saturate per CALL, not per episode: qwen3.5:35b returns about eighteen "
+            "insights however long the episode is, while gemini scales with the material. Context "
+            "is not the limit — a 90k transcript fits — so more calls, not a bigger window, is the "
+            "fix. On 65-77k episodes, 3 passes took insights 24.7 -> 56.0 and CORE knowledge "
+            "10.7 -> 17.3, with grounding rising to 96-98%. Episodes under 40k are never chunked."
+        ),
+    )
+    gi_insight_dedupe_threshold: float = Field(
+        default=0.75,
+        ge=0.0,
+        le=1.0,
+        alias="gi_insight_dedupe_threshold",
+        description=(
+            "Cosine similarity above which a chunked insight is treated as restating one already "
+            "kept. Chunks overlap in subject even when they do not overlap in text."
+        ),
+    )
     gi_value_gate_provider: Optional[str] = Field(
         default=None,
         alias="gi_value_gate_provider",

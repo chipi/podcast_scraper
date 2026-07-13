@@ -129,6 +129,12 @@ def merge_eval_task_into_summarizer_config(
         gate_model = p.get("gi_value_gate_model")
         if isinstance(gate_model, str) and gate_model:
             updates["gi_value_gate_model"] = gate_model
+        chunk_chars = p.get("gi_insight_chunk_chars")
+        if isinstance(chunk_chars, int) and chunk_chars >= 0:
+            updates["gi_insight_chunk_chars"] = chunk_chars
+        dedupe_t = p.get("gi_insight_dedupe_threshold")
+        if isinstance(dedupe_t, (int, float)):
+            updates["gi_insight_dedupe_threshold"] = float(dedupe_t)
         # #698 GIL evidence-stack bundling — forward mode flags from the
         # experiment YAML's ``params:`` dict to the runtime Config so the
         # bundled dispatch in ``gi/pipeline.py`` actually fires for matrix

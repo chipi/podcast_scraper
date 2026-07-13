@@ -997,11 +997,17 @@ def _resolve_insight_specs(
         gen = getattr(insight_provider, "generate_insights", None)
         if callable(gen):
             try:
-                out = gen(
-                    text=transcript_text or "",
+                from .chunked_extraction import generate_chunked
+
+                out = generate_chunked(
+                    gen,
+                    transcript_text or "",
                     episode_title=episode_title,
                     max_insights=max_insights,
-                    params=None,
+                    chunk_chars=int(getattr(cfg, "gi_insight_chunk_chars", 0) or 0),
+                    dedupe_threshold=float(
+                        getattr(cfg, "gi_insight_dedupe_threshold", 0.75) or 0.75
+                    ),
                     pipeline_metrics=pipeline_metrics,
                 )
                 if isinstance(out, list):
@@ -1010,7 +1016,16 @@ def _resolve_insight_specs(
                         p = _parse_insight_item(item)
                         if p:
                             resolved_specs.append(p)
-                    resolved_specs = resolved_specs[:max_insights]
+                    # The cap is per PASS, not per episode. Truncating the merged list to
+                    # gi_max_insights would clip a 3-pass extraction (56 insights) straight back to
+                    # 50 and silently erase the whole gain of chunking.
+                    from .chunked_extraction import plan_chunks
+
+                    passes = plan_chunks(
+                        transcript_text or "",
+                        int(getattr(cfg, "gi_insight_chunk_chars", 0) or 0),
+                    )
+                    resolved_specs = resolved_specs[: max_insights * passes]
                     if resolved_specs:
                         # The extractor cannot be made selective by prompting — across three
                         # prompt variants the CORE count barely moved (13.3 / 10.3 / 12.0 per
