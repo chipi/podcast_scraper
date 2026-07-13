@@ -16,7 +16,6 @@ alongside NLI and embedding, so the three loaders share one shape.
 from __future__ import annotations
 
 import logging
-import math
 import threading
 from dataclasses import dataclass
 from typing import Any, ClassVar, Dict, List, Optional, Tuple
@@ -138,14 +137,33 @@ class QAEvidenceBackend(HFEvidenceBackend):
             offsets = offset_mappings[chunk_idx]
             seq_ids = bat.sequence_ids(chunk_idx)
 
+            # Mask to CLS + context before the softmax, exactly as
+            # transformers.QuestionAnsweringPipeline does. Question tokens and padding must not
+            # take probability mass, or the distribution is meaningless — softmaxing the raw
+            # logits (padding included) makes the model look like it abstains everywhere.
             context_mask = torch.tensor([sid == 1 for sid in seq_ids], dtype=torch.bool)
+            allowed = context_mask.clone()
+            allowed[0] = True  # CLS: the null answer must stay in the distribution
             neg_inf = torch.finfo(s_logits.dtype).min
-            s_logits = torch.where(context_mask, s_logits, torch.full_like(s_logits, neg_inf))
-            e_logits = torch.where(context_mask, e_logits, torch.full_like(e_logits, neg_inf))
+            s_logits = torch.where(allowed, s_logits, torch.full_like(s_logits, neg_inf))
+            e_logits = torch.where(allowed, e_logits, torch.full_like(e_logits, neg_inf))
+
+            # Softmax over the chunk so the probabilities are absolute and therefore comparable
+            # ACROSS chunks. The previous code softmaxed over only the top_k spans it had already
+            # picked, so the best span in ANY chunk came back at ~1.0 — a chunk about nothing
+            # scored as high as the chunk holding the evidence, and the cross-chunk winner was
+            # arbitrary. That is how a 70k transcript returned "Codex" at qa_score=1.000 for every
+            # insight, and why qa_score_min gated on nothing.
+            s_probs = torch.softmax(s_logits, dim=-1)
+            e_probs = torch.softmax(e_logits, dim=-1)
+
+            zeros = torch.zeros_like(s_probs)
+            s_ctx = torch.where(context_mask, s_probs, zeros)
+            e_ctx = torch.where(context_mask, e_probs, zeros)
 
             n_best = max(top_k * 4, 20)
-            start_idx = torch.topk(s_logits, min(n_best, s_logits.numel())).indices.tolist()
-            end_idx = torch.topk(e_logits, min(n_best, e_logits.numel())).indices.tolist()
+            start_idx = torch.topk(s_ctx, min(n_best, s_ctx.numel())).indices.tolist()
+            end_idx = torch.topk(e_ctx, min(n_best, e_ctx.numel())).indices.tolist()
 
             for si in start_idx:
                 for ei in end_idx:
@@ -159,7 +177,7 @@ class QAEvidenceBackend(HFEvidenceBackend):
                     char_end = int(offsets[ei][1])
                     if char_end <= char_start:
                         continue
-                    score = float(s_logits[si].item() + e_logits[ei].item())
+                    score = float(s_ctx[si].item() * e_ctx[ei].item())
                     candidates.append(
                         QASpan(
                             answer=context[char_start:char_end],
@@ -183,20 +201,6 @@ class QAEvidenceBackend(HFEvidenceBackend):
             unique.append(cand)
             if len(unique) >= top_k:
                 break
-
-        max_score = max(u.score for u in unique)
-        exps = [math.exp(u.score - max_score) for u in unique]
-        total = sum(exps)
-        if total > 0:
-            unique = [
-                QASpan(
-                    answer=u.answer,
-                    start=u.start,
-                    end=u.end,
-                    score=exps[i] / total,
-                )
-                for i, u in enumerate(unique)
-            ]
         return unique
 
     def answer_top1(self, question: str, context: str) -> QASpan:
