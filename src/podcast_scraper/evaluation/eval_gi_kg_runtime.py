@@ -148,15 +148,20 @@ def merge_eval_task_into_summarizer_config(
         chunk = p.get("gil_evidence_nli_chunk_size")
         if isinstance(chunk, int) and 1 <= chunk <= 100:
             updates["gil_evidence_nli_chunk_size"] = chunk
-        # Auto-align evidence providers to match summary_provider when the
-        # summarizer is an LLM (same logic as Config._auto_promote_evidence_providers
-        # which only runs at construction time, not on model_copy).
-        summary_prov = getattr(base, "summary_provider", "transformers")
-        if summary_prov != "transformers":
-            quote_prov = p.get("quote_extraction_provider", summary_prov)
-            entail_prov = p.get("entailment_provider", summary_prov)
-            updates["quote_extraction_provider"] = quote_prov
-            updates["entailment_provider"] = entail_prov
+        # Do NOT re-derive who grounds the insights. The eval used to reimplement the evidence
+        # auto-align here, and its copy disagreed with the real one: it pointed quote-extraction
+        # and entailment at the summarising LLM, while production leaves them on the local QA/NLI
+        # models. Every GI eval in this repo's history therefore measured a grounding stack
+        # production does not run — the pipeline has two independent stages (write the insight,
+        # find the quote) and the eval silently swapped the second one.
+        #
+        # Inherit the stack the config already resolved, and override only when an experiment names
+        # a provider on purpose — which is what makes "who should ground?" an answerable question
+        # instead of an accident.
+        for key in ("quote_extraction_provider", "entailment_provider"):
+            chosen = p.get(key)
+            if isinstance(chosen, str) and chosen:
+                updates[key] = chosen
         return base.model_copy(update=updates)
     if task == _TASK_KG:
         raw_kg = p.get("kg_extraction_source", "provider")

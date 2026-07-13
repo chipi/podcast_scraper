@@ -65,6 +65,47 @@ class TestEvidenceProviderResolution:
         )
 
 
+class TestEvalMatchesProduction:
+    """The eval must run the pipeline production runs, not a reimplementation of it.
+
+    The GI pipeline has two independent stages: write the insight, then find the quote that backs
+    it. The eval harness used to re-derive who does the second stage, and its copy disagreed with
+    the real one — it pointed quote-extraction at the summarising LLM while production left it on
+    the local QA/NLI models. Every GI eval in this repo's history measured a grounding stack
+    production does not run.
+    """
+
+    def test_eval_inherits_the_production_evidence_stack(self) -> None:
+        from podcast_scraper.evaluation.eval_gi_kg_runtime import (
+            merge_eval_task_into_summarizer_config as merge,
+        )
+
+        prod = Config.model_validate({"profile": "prod_dgx_only", "generate_gi": True})
+        base = prod.model_copy(update={"summary_provider": "ollama"})
+        cell = merge(base, "grounded_insights", {"gi_insight_source": "provider"})
+
+        assert (cell.quote_extraction_provider, cell.entailment_provider) == (
+            prod.quote_extraction_provider,
+            prod.entailment_provider,
+        )
+
+    def test_an_experiment_can_still_name_the_grounder_on_purpose(self) -> None:
+        """Choosing an LLM to ground must be possible — but only by asking for it."""
+        from podcast_scraper.evaluation.eval_gi_kg_runtime import (
+            merge_eval_task_into_summarizer_config as merge,
+        )
+
+        base = Config.model_validate({"profile": "prod_dgx_only", "generate_gi": True}).model_copy(
+            update={"summary_provider": "ollama"}
+        )
+        cell = merge(
+            base,
+            "grounded_insights",
+            {"quote_extraction_provider": "ollama", "entailment_provider": "ollama"},
+        )
+        assert (cell.quote_extraction_provider, cell.entailment_provider) == ("ollama", "ollama")
+
+
 class TestNliThresholdCalibrationMatchesItsModel:
     """gi_nli_entailment_min: 0.75 is calibrated for qwen's graded LLM entailment (see the comment
     in prod_dgx_only.yaml). A transformers NLI model emits a softmax probability on a different
