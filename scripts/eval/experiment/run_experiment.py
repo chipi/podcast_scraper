@@ -1261,6 +1261,14 @@ def run_experiment(  # noqa: C901
             _ollama_timeout_kw: Dict[str, int] = {}
             if _ollama_read.isdigit():
                 _ollama_timeout_kw["ollama_timeout"] = int(_ollama_read)
+            # The ollama branch never applied backend.base_url, so a cell configured against the
+            # DGX (base_url: http://dgx-llm-1:11434) silently ran on localhost instead — the whole
+            # "DGX" arm of a head-to-head executed on the laptop, and the wall-clock and model
+            # quantisation were both wrong while the run reported success.
+            _ollama_base_kw: Dict[str, Any] = {}
+            _ollama_base = getattr(cfg.backend, "base_url", None)
+            if _ollama_base:
+                _ollama_base_kw["ollama_api_base"] = _ollama_base
             cfg_obj = config.Config(
                 rss_url="",
                 summary_provider="ollama",
@@ -1274,6 +1282,7 @@ def run_experiment(  # noqa: C901
                 ollama_summary_user_prompt=user_prompt,
                 ollama_summary_system_prompt=system_prompt,
                 transcribe_missing=False,
+                **_ollama_base_kw,
                 **_ollama_timeout_kw,
                 **_eval_podcast_scraper_config_overrides(cfg),
             )
