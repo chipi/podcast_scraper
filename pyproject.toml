@@ -150,7 +150,7 @@ llm = [
   # 1.x: ThinkingConfig.thinking_budget for gemini-2.5-flash (Issue #572); 0.x lacked the field
   "google-genai>=1.0.0,<2.0.0",
   "google-api-core>=2.30.3,<3.0.0",  # Required by google-genai for some operations
-  "anthropic>=0.111.0,<1.0.0",  # Anthropic API provider (Issue #106)
+  "anthropic>=0.116.0,<1.0.0",  # Anthropic API provider (Issue #106)
   # Mistral API provider (Issue #106). PyPI ``mistralai`` is quarantined (no installable
   # files on https://pypi.org/simple/mistralai/ as of 2026-05). Pin the official v2.4.5
   # tree (commit matches tag v2.4.5) until PyPI restores the project.
