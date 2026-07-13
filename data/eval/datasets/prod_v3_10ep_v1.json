@@ -1,0 +1,89 @@
+{
+  "dataset_id": "prod_v3_10ep_v1",
+  "version": 1,
+  "description": "10 episodes from the existing prod-v3 DGX corpus (tailnet_dgx_whisper / faster-whisper-large-v3, tailnet_dgx diarization). Curated from data already on disk \u2014 NOT re-fetched from the live feed. Both LLM arms read these exact transcripts, so ASR and diarization are constant and only the LLM varies. Paths point into gitignored .test_outputs; real podcast content never enters the tracked tree.",
+  "content_regime": "real_prod",
+  "num_episodes": 10,
+  "episodes": [
+    {
+      "episode_id": "v3p10_e01",
+      "title": "0001 - OpenAI_s Big Reset _ A.I. in the_20260712-152629_48f9b76a",
+      "transcript_path": ".test_outputs/manual/prod-v3/corpus/feeds/rss_feeds.simplecast.com_2e104dc7/run_20260712-152629_48f9b76a/transcripts/0001 - OpenAI_s Big Reset _ A.I. in the_20260712-152629_48f9b76a.cleaned.txt",
+      "transcript_hash": "9abe4d6f85fa4fb2de48a376e16755bb0525f12625cea85a3c18db4821e69e31",
+      "preprocessing_profile": "pattern",
+      "chars": 74173
+    },
+    {
+      "episode_id": "v3p10_e02",
+      "title": "0002 - Tim Cook_s Legacy _ The Future o_20260712-152629_48f9b76a",
+      "transcript_path": ".test_outputs/manual/prod-v3/corpus/feeds/rss_feeds.simplecast.com_2e104dc7/run_20260712-152629_48f9b76a/transcripts/0002 - Tim Cook_s Legacy _ The Future o_20260712-152629_48f9b76a.cleaned.txt",
+      "transcript_hash": "167adfbe6fc8a1c7db82e5164963bf449bc47be6f0b8c63a039bb8e290f9318d",
+      "preprocessing_profile": "pattern",
+      "chars": 77108
+    },
+    {
+      "episode_id": "v3p10_e03",
+      "title": "0003 - A.I. Backlash Turns Violent _ Ka_20260712-152629_48f9b76a",
+      "transcript_path": ".test_outputs/manual/prod-v3/corpus/feeds/rss_feeds.simplecast.com_2e104dc7/run_20260712-152629_48f9b76a/transcripts/0003 - A.I. Backlash Turns Violent _ Ka_20260712-152629_48f9b76a.cleaned.txt",
+      "transcript_hash": "c3d3d793cc181e169e2d0d06ed96fd6799e60015dedbb5a98673dae93fd0de17",
+      "preprocessing_profile": "pattern",
+      "chars": 67468
+    },
+    {
+      "episode_id": "v3p10_e04",
+      "title": "0004 - Anthropic_s Cybersecurity Shock _20260712-152629_48f9b76a",
+      "transcript_path": ".test_outputs/manual/prod-v3/corpus/feeds/rss_feeds.simplecast.com_2e104dc7/run_20260712-152629_48f9b76a/transcripts/0004 - Anthropic_s Cybersecurity Shock _20260712-152629_48f9b76a.cleaned.txt",
+      "transcript_hash": "aa60dac91ef67ef79db40014b6c9cd8e6b8b674ab0d6a15f36692a0131043aea",
+      "preprocessing_profile": "pattern",
+      "chars": 65571
+    },
+    {
+      "episode_id": "v3p10_e05",
+      "title": "0005 - The Future of Addictive Design __20260712-152629_48f9b76a",
+      "transcript_path": ".test_outputs/manual/prod-v3/corpus/feeds/rss_feeds.simplecast.com_2e104dc7/run_20260712-152629_48f9b76a/transcripts/0005 - The Future of Addictive Design __20260712-152629_48f9b76a.cleaned.txt",
+      "transcript_hash": "5505555ee91486782e7d455be70cbf9a07be99ec2c87a717fb263d6252746296",
+      "preprocessing_profile": "pattern",
+      "chars": 73801
+    },
+    {
+      "episode_id": "v3p10_e06",
+      "title": "0006 - The Ezra Klein Show_ How Fast Wi_20260712-152629_48f9b76a",
+      "transcript_path": ".test_outputs/manual/prod-v3/corpus/feeds/rss_feeds.simplecast.com_2e104dc7/run_20260712-152629_48f9b76a/transcripts/0006 - The Ezra Klein Show_ How Fast Wi_20260712-152629_48f9b76a.cleaned.txt",
+      "transcript_hash": "bba0a51f7cd042fdc2bebaaf3ba0afcc9051d0a5f076ef084f35edac562df754",
+      "preprocessing_profile": "pattern",
+      "chars": 95483
+    },
+    {
+      "episode_id": "v3p10_e07",
+      "title": "0007 - _A.I.-Washing_ Layoffs_ _ Why L._20260712-152629_48f9b76a",
+      "transcript_path": ".test_outputs/manual/prod-v3/corpus/feeds/rss_feeds.simplecast.com_2e104dc7/run_20260712-152629_48f9b76a/transcripts/0007 - _A.I.-Washing_ Layoffs_ _ Why L._20260712-152629_48f9b76a.cleaned.txt",
+      "transcript_hash": "048f8475b3e3d4d5bbc97e0d7a868d79ee8c8374b0ba78c43a9e30d2030ff2db",
+      "preprocessing_profile": "pattern",
+      "chars": 68087
+    },
+    {
+      "episode_id": "v3p10_e08",
+      "title": "0008 - A.I. Goes to War _ Is _A.I. Brai_20260712-152629_48f9b76a",
+      "transcript_path": ".test_outputs/manual/prod-v3/corpus/feeds/rss_feeds.simplecast.com_2e104dc7/run_20260712-152629_48f9b76a/transcripts/0008 - A.I. Goes to War _ Is _A.I. Brai_20260712-152629_48f9b76a.cleaned.txt",
+      "transcript_hash": "8dba2cd052ffc849997c95137ba81944faecacd51df0e190f95dbaddd29c72ef",
+      "preprocessing_profile": "pattern",
+      "chars": 66931
+    },
+    {
+      "episode_id": "v3p10_e09",
+      "title": "0009 - OpenAI_s Fog of War _ Betting on_20260712-152629_48f9b76a",
+      "transcript_path": ".test_outputs/manual/prod-v3/corpus/feeds/rss_feeds.simplecast.com_2e104dc7/run_20260712-152629_48f9b76a/transcripts/0009 - OpenAI_s Fog of War _ Betting on_20260712-152629_48f9b76a.cleaned.txt",
+      "transcript_hash": "3014978751770b87eb27d6541ff1157acb431cda05251d887e686bbfeab7622f",
+      "preprocessing_profile": "pattern",
+      "chars": 71530
+    },
+    {
+      "episode_id": "v3p10_e10",
+      "title": "0010 - At the Pentagon_ OpenAI is In an_20260712-152629_48f9b76a",
+      "transcript_path": ".test_outputs/manual/prod-v3/corpus/feeds/rss_feeds.simplecast.com_2e104dc7/run_20260712-152629_48f9b76a/transcripts/0010 - At the Pentagon_ OpenAI is In an_20260712-152629_48f9b76a.cleaned.txt",
+      "transcript_hash": "2a7eaad3c7bacdc96291d3a8b8ccb99732d2595187cadc18c5f9a5a6bbc63858",
+      "preprocessing_profile": "pattern",
+      "chars": 31098
+    }
+  ]
+}

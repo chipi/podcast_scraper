@@ -1,0 +1,171 @@
+{
+  "dataset_id": "prod_generalization_2x10feed_v3_cleaned",
+  "version": 1,
+  "description": "Same 18 episodes as v2 but PATTERN-CLEANED (sponsors/outros removed), which is what production feeds to GI. v2 used raw transcripts and qwen scored 74% of gemini there vs 90% on the cleaned Hard Fork set \u2014 this isolates whether cleaning is what closes the gap.",
+  "content_regime": "real_prod",
+  "num_episodes": 18,
+  "episodes": [
+    {
+      "episode_id": "gen_01",
+      "title": "0003 - The Fed holds steady_20260613-234602_ba02775e",
+      "feed": "rss_feeds.acast.com_f08ef8e2",
+      "transcript_path": ".test_outputs/eval/cleaned_gen3/gen_01.txt",
+      "transcript_hash": "c838ca0a12141bc98cff1eada210348a15027ba109b67ce1bae11966a3fac596",
+      "preprocessing_profile": "pattern",
+      "chars": 20117
+    },
+    {
+      "episode_id": "gen_02",
+      "title": "0007 - Boing_ Springtime for the market_20260613-234602_ba02775e",
+      "feed": "rss_feeds.acast.com_f08ef8e2",
+      "transcript_path": ".test_outputs/eval/cleaned_gen3/gen_02.txt",
+      "transcript_hash": "ec546fdb18ba0cb24aaaf4dc3d10ba0cf226eedce2f3912c318f40cb12602ddb",
+      "preprocessing_profile": "pattern",
+      "chars": 16207
+    },
+    {
+      "episode_id": "gen_03",
+      "title": "0001 - Brian Chesky - AI Founder Mode_20260613-143403_ba02775e",
+      "feed": "rss_feeds.megaphone.fm_3581c092",
+      "transcript_path": ".test_outputs/eval/cleaned_gen3/gen_03.txt",
+      "transcript_hash": "466af59d3d701c0067644b223de9260448bffbb6bcf661e65d130401eccaf624",
+      "preprocessing_profile": "pattern",
+      "chars": 84119
+    },
+    {
+      "episode_id": "gen_04",
+      "title": "0008 - Mitchell Green - Lessons from Co_20260613-143403_ba02775e",
+      "feed": "rss_feeds.megaphone.fm_3581c092",
+      "transcript_path": ".test_outputs/eval/cleaned_gen3/gen_04.txt",
+      "transcript_hash": "51e6871fd3b0e7b929b73941e814cae3736193b54d09311fc2a9ed608d270a94",
+      "preprocessing_profile": "pattern",
+      "chars": 63057
+    },
+    {
+      "episode_id": "gen_05",
+      "title": "0005 - Powering the AI Inference Wave w_20260613-222035_ba02775e",
+      "feed": "rss_feeds.megaphone.fm_370fb395",
+      "transcript_path": ".test_outputs/eval/cleaned_gen3/gen_05.txt",
+      "transcript_hash": "c311f05770a5104dcf0eb2ac23bfea8c8cd22f237640e0137dedc301a42e2369",
+      "preprocessing_profile": "pattern",
+      "chars": 32333
+    },
+    {
+      "episode_id": "gen_06",
+      "title": "0007 - Safer_ Faster Public Transportat_20260613-222035_ba02775e",
+      "feed": "rss_feeds.megaphone.fm_370fb395",
+      "transcript_path": ".test_outputs/eval/cleaned_gen3/gen_06.txt",
+      "transcript_hash": "57829fb240015736dbfac8cc6ccd68bda5e2031451acd8b41a833d2f5301e16b",
+      "preprocessing_profile": "pattern",
+      "chars": 29078
+    },
+    {
+      "episode_id": "gen_07",
+      "title": "0009 - From SaaS to AI-First_ How Compa_20260613-120852_ba02775e",
+      "feed": "rss_feeds.megaphone.fm_755f5437",
+      "transcript_path": ".test_outputs/eval/cleaned_gen3/gen_07.txt",
+      "transcript_hash": "117bf12ad0b2de1661a168e595e2bdd2a7f8fab486e197231ca42ca00197c7ed",
+      "preprocessing_profile": "pattern",
+      "chars": 45666
+    },
+    {
+      "episode_id": "gen_08",
+      "title": "0010 - Rivian_s Roadmap to AI Architect_20260613-120852_ba02775e",
+      "feed": "rss_feeds.megaphone.fm_755f5437",
+      "transcript_path": ".test_outputs/eval/cleaned_gen3/gen_08.txt",
+      "transcript_hash": "6f83910a55b5f0a196567cca9bd855f85f98a1cc694370d2fb9afaaf0851aa2f",
+      "preprocessing_profile": "pattern",
+      "chars": 35252
+    },
+    {
+      "episode_id": "gen_09",
+      "title": "0009 - Reese_s heir vs. chocolate skimp_20260613-165729_ba02775e",
+      "feed": "rss_feeds.npr.org_7ce5b183",
+      "transcript_path": ".test_outputs/eval/cleaned_gen3/gen_09.txt",
+      "transcript_hash": "5a8650aa6d5cb33a8db86398d23aac6bbf71d1b7a5d3d17c6a366392ef4e2286",
+      "preprocessing_profile": "pattern",
+      "chars": 33433
+    },
+    {
+      "episode_id": "gen_10",
+      "title": "0002 - Spirit Airlines and the future o_20260613-165729_ba02775e",
+      "feed": "rss_feeds.npr.org_7ce5b183",
+      "transcript_path": ".test_outputs/eval/cleaned_gen3/gen_10.txt",
+      "transcript_hash": "823f63f49bbb9a3d74c650b466c8907dbf76e0fed015333670103231ae1b219c",
+      "preprocessing_profile": "pattern",
+      "chars": 27720
+    },
+    {
+      "episode_id": "gen_11",
+      "title": "0008 - A.I. Goes to War _ Is _A.I. Brai_20260613-093137_ba02775e",
+      "feed": "rss_feeds.simplecast.com_2e104dc7",
+      "transcript_path": ".test_outputs/eval/cleaned_gen3/gen_11.txt",
+      "transcript_hash": "6caf52d1bf06c5f3fcdffead38e83afcdd62e4663e4963ea9433866c98415294",
+      "preprocessing_profile": "pattern",
+      "chars": 71230
+    },
+    {
+      "episode_id": "gen_12",
+      "title": "0007 - _A.I.-Washing_ Layoffs_ _ Why L._20260613-093137_ba02775e",
+      "feed": "rss_feeds.simplecast.com_2e104dc7",
+      "transcript_path": ".test_outputs/eval/cleaned_gen3/gen_12.txt",
+      "transcript_hash": "bd33a9efe5f92a65beb62f251b9acbe2fc0ae5698ea1732884ac9fcf1a698954",
+      "preprocessing_profile": "pattern",
+      "chars": 67805
+    },
+    {
+      "episode_id": "gen_13",
+      "title": "0005 - Hegseth in the Hot Seat_20260613-205101_ba02775e",
+      "feed": "rss_feeds.simplecast.com_999571cd",
+      "transcript_path": ".test_outputs/eval/cleaned_gen3/gen_13.txt",
+      "transcript_hash": "c0c981001257abed16a117fb9afa749944d71a43b0447bbe95bb2825350a869f",
+      "preprocessing_profile": "pattern",
+      "chars": 29355
+    },
+    {
+      "episode_id": "gen_14",
+      "title": "0001 - Democratic Anger and Republican _20260613-205101_ba02775e",
+      "feed": "rss_feeds.simplecast.com_999571cd",
+      "transcript_path": ".test_outputs/eval/cleaned_gen3/gen_14.txt",
+      "transcript_hash": "29f29dd9a69c6216cf729ca93479ddad69854077e2eb59f81c23ad1a9c73d67b",
+      "preprocessing_profile": "pattern",
+      "chars": 24448
+    },
+    {
+      "episode_id": "gen_15",
+      "title": "0002 - Physical AI that Moves the World_20260613-180825_ba02775e",
+      "feed": "rss_rss.flightcast.com_c63dc3c0",
+      "transcript_path": ".test_outputs/eval/cleaned_gen3/gen_15.txt",
+      "transcript_hash": "0da78d6dfd05fe8387adee86b7c624d5ae21b820bb1b941310206f482afc61a7",
+      "preprocessing_profile": "pattern",
+      "chars": 80430
+    },
+    {
+      "episode_id": "gen_16",
+      "title": "0009 - Moonlake_ Causal World Models sh_20260613-180825_ba02775e",
+      "feed": "rss_rss.flightcast.com_c63dc3c0",
+      "transcript_path": ".test_outputs/eval/cleaned_gen3/gen_16.txt",
+      "transcript_hash": "bc1856ef02b920b490c1abb322b28e516ad8b9c6799d7c1c1c73805609f0d169",
+      "preprocessing_profile": "pattern",
+      "chars": 64236
+    },
+    {
+      "episode_id": "gen_17",
+      "title": "0005 - Inside Meta_s Big AI Pivot_20260613-135102_ba02775e",
+      "feed": "rss_video-api.wsj.com_9acc908e",
+      "transcript_path": ".test_outputs/eval/cleaned_gen3/gen_17.txt",
+      "transcript_hash": "bd096515539f4c4cefc77dde52fa21ba9adf85d375f298ab1be9dcb6dc265572",
+      "preprocessing_profile": "pattern",
+      "chars": 17933
+    },
+    {
+      "episode_id": "gen_18",
+      "title": "0006 - Why Air Travel Costs Will Contin_20260613-135102_ba02775e",
+      "feed": "rss_video-api.wsj.com_9acc908e",
+      "transcript_path": ".test_outputs/eval/cleaned_gen3/gen_18.txt",
+      "transcript_hash": "fab650e7541d7f7ea39b186a299acae42c50b6224385bbc982cce93174d5723a",
+      "preprocessing_profile": "pattern",
+      "chars": 14994
+    }
+  ]
+}
