@@ -1,0 +1,166 @@
+{
+  "benchmark_run": {
+    "fingerprint_hash": "9855cbee4c38d7df3a8bb6e3c8e2ee622a00165dbf1b02a6aae3e1ec0a671f8a",
+    "metrics": {
+      "dataset_id": "curated_5feeds_benchmark_v1",
+      "episode_count": 10,
+      "intrinsic": {
+        "gates": {
+          "boilerplate_leak_rate": 0.0,
+          "episode_gate_failures": {},
+          "failed_episodes": [],
+          "speaker_label_leak_rate": 0.0,
+          "truncation_rate": 0.0
+        },
+        "length": {
+          "avg_tokens": 264.0,
+          "max_tokens": 299,
+          "min_tokens": 221
+        },
+        "performance": {
+          "avg_latency_ms": 57588.88750076294,
+          "avg_latency_ms_excluding_first": 56866.58814218309,
+          "median_latency_ms": 53908.11800956726,
+          "p95_latency_ms": 65188.54641914368
+        },
+        "warnings": {
+          "speaker_name_leak_rate": 0.0
+        }
+      },
+      "run_id": "baseline_ml_dev_authority_benchmark_v1",
+      "schema": "metrics_summarization_v2",
+      "task": "summarization",
+      "vs_reference": null
+    },
+    "present": true,
+    "run_id": "baseline_ml_dev_authority_benchmark_v1"
+  },
+  "captured_at": "2026-07-13T05:24:10+00:00",
+  "experiment_run": {
+    "fingerprint_hash": "9855cbee4c38d7df3a8bb6e3c8e2ee622a00165dbf1b02a6aae3e1ec0a671f8a",
+    "metrics": {
+      "dataset_id": "curated_5feeds_benchmark_v1",
+      "episode_count": 10,
+      "intrinsic": {
+        "gates": {
+          "boilerplate_leak_rate": 0.0,
+          "episode_gate_failures": {},
+          "failed_episodes": [],
+          "speaker_label_leak_rate": 0.0,
+          "truncation_rate": 0.0
+        },
+        "length": {
+          "avg_tokens": 264.0,
+          "max_tokens": 299,
+          "min_tokens": 221
+        },
+        "performance": {
+          "avg_latency_ms": 57588.88750076294,
+          "avg_latency_ms_excluding_first": 56866.58814218309,
+          "median_latency_ms": 53908.11800956726,
+          "p95_latency_ms": 65188.54641914368
+        },
+        "warnings": {
+          "speaker_name_leak_rate": 0.0
+        }
+      },
+      "run_id": "baseline_ml_dev_authority_benchmark_v1",
+      "schema": "metrics_summarization_v2",
+      "task": "summarization",
+      "vs_reference": null
+    },
+    "present": true,
+    "run_id": "baseline_ml_dev_authority_benchmark_v1"
+  },
+  "setup_probe": {
+    "captured_at": "2026-07-13T05:13:52+00:00",
+    "datasets": {
+      "curated_5feeds_benchmark_v1": {
+        "episodes": 10,
+        "feeds": 1
+      },
+      "curated_5feeds_benchmark_v2": {
+        "episodes": 5,
+        "feeds": 1
+      },
+      "curated_5feeds_cil_v2": {
+        "episodes": 15,
+        "feeds": 1
+      },
+      "curated_5feeds_cleaning_v2": {
+        "episodes": 15,
+        "feeds": 1
+      },
+      "curated_5feeds_dev_v1": {
+        "episodes": 10,
+        "feeds": 1
+      },
+      "curated_5feeds_kg_v2": {
+        "episodes": 15,
+        "feeds": 1
+      },
+      "curated_5feeds_raw_v1": {
+        "episodes": 15,
+        "feeds": 1
+      },
+      "curated_5feeds_smoke_v1": {
+        "episodes": 5,
+        "feeds": 1
+      },
+      "curated_5feeds_smoke_v2": {
+        "episodes": 5,
+        "feeds": 1
+      },
+      "curated_5feeds_smoke_v3": {
+        "episodes": 5,
+        "feeds": 1
+      },
+      "integration_gi_kg_stub_v1": {
+        "episodes": 1,
+        "feeds": 1
+      },
+      "qmsum_phase21_v1": {
+        "episodes": 35,
+        "feeds": 1
+      }
+    },
+    "dgx_vllm": {
+      "reachable": false,
+      "reason": "no_endpoint"
+    },
+    "git": {
+      "branch": "main",
+      "commit": "84b17ab77c3914a5eae3df48b11ae532975f10eb",
+      "describe": "84b17ab"
+    },
+    "model_registry": {
+      "file_present": true,
+      "preset_count_hint": 14,
+      "preset_hash": "f969be0b12a0748b"
+    },
+    "profiles": {
+      "count": 16,
+      "names": [
+        "airgapped",
+        "airgapped_thin",
+        "cloud_balanced",
+        "cloud_quality",
+        "cloud_thin",
+        "cloud_with_dgx_primary",
+        "dev",
+        "eval_default",
+        "local",
+        "local_dgx_balanced",
+        "local_dgx_full",
+        "preprod_local_whisper",
+        "prod_dgx_balanced",
+        "prod_dgx_full_with_fallback",
+        "profile_freeze.example",
+        "test_default"
+      ]
+    },
+    "recent_runs": []
+  },
+  "snapshot_version": 1,
+  "week_id": "2026-W29"
+}
