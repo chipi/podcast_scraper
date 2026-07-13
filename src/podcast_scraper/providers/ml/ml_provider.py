@@ -1563,14 +1563,19 @@ class MLProvider:
             return []
         results: list = []
         for span in spans:
-            verbatim = (
-                transcript[span.start : span.end] if span.end <= len(transcript) else span.answer
-            )
+            if span.end > len(transcript):
+                continue
+            # A QA model answers a question; it does not quote. Its span is the ANSWER — a few
+            # words ("Codex", median 40 chars) — and a fragment that short cannot entail a full
+            # claim, so the NLI gate rejected every one of them and nothing ever grounded. Expand
+            # the span to the sentence containing it: that is the evidence a reader wants to see,
+            # and it is what NLI needs as a premise.
+            start, end = extractive_qa.expand_span_to_sentence(transcript, span.start, span.end)
             results.append(
                 QuoteCandidate(
-                    char_start=span.start,
-                    char_end=span.end,
-                    text=verbatim,
+                    char_start=start,
+                    char_end=end,
+                    text=transcript[start:end],
                     qa_score=span.score,
                 )
             )
