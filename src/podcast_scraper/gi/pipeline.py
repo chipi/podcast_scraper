@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 import textwrap
-from typing import Any, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple, TYPE_CHECKING
 from unittest.mock import Mock
 
 from .. import config_constants
@@ -31,6 +31,7 @@ from ..graph_id_utils import (
 from ..utils.log_redaction import format_exception_for_log
 from .grounding import GroundedQuote
 from .provenance import resolve_gil_artifact_model_version
+from .speakers import build_unverified_named_turns, speaker_for_char
 
 if TYPE_CHECKING:
     from podcast_scraper import config
@@ -1330,6 +1331,38 @@ def build_artifact(
         )
 
 
+def _speaker_for_insight(
+    quotes: Sequence[Any],
+    transcript_text: str,
+    transcript_segments: Optional[List[Dict[str, Any]]],
+    named_turns: Sequence[Tuple[int, str]],
+) -> Optional[str]:
+    """Who said this insight — the speaker of the turn its first grounded quote sits in.
+
+    An insight is a claim a PERSON made, and its worth depends on who made it: a host summarising a
+    deal is a headline, while the guest expert taking a position is the reason the episode exists.
+    Without the speaker the two are indistinguishable, and a "stance" is unfalsifiable — a position
+    needs an owner.
+
+    Prefers diarized segments when they exist; otherwise reads the name straight out of the
+    transcript's own speaker markers. An ungrounded insight has no quote and therefore, correctly,
+    no speaker.
+    """
+    for gq in quotes:
+        if not isinstance(gq, GroundedQuote):
+            continue
+        who: Optional[str] = None
+        if transcript_segments:
+            who = _speaker_id_for_char_range(
+                transcript_text, gq.char_start, gq.char_end, transcript_segments
+            )
+        elif named_turns:
+            who = speaker_for_char(gq.char_start, named_turns)
+        if who:
+            return who
+    return None
+
+
 def _artifact_from_multi_insight(
     episode_id: str,
     insight_specs: List[Tuple[str, str]],
@@ -1413,6 +1446,16 @@ def _artifact_from_multi_insight(
             use_segments = aligned
     else:
         use_segments = False
+
+    # Fallback speaker source: the diarized transcript names its own speakers ("Kevin Roose: ...").
+    # Segments were the pipeline's ONLY speaker path, and no profile produces them
+    # (backfill_transcript_segments is false everywhere, and enabling it forces a re-transcription),
+    # so every quote has shipped with speaker_id=None and no insight has ever known who said it —
+    # while the name sat in the transcript, unread.
+    named_turns: List[Tuple[int, str]] = []
+    if not use_segments and (transcript_text or "").strip():
+        named_turns = build_unverified_named_turns(transcript_text or "")
+
     topic_node_specs = _dedupe_topic_node_specs(topic_labels)
     for tid, display_label in topic_node_specs:
         nodes.append(
@@ -1476,6 +1519,16 @@ def _artifact_from_multi_insight(
         # fall back to 0.5 — the midpoint default for "we don't know where
         # in the episode this lives".
         insight_props["position_hint"] = ph if ph is not None else 0.5
+
+        speaker_for_insight = _speaker_for_insight(
+            quotes,
+            transcript_text or "",
+            transcript_segments if use_segments else None,
+            named_turns,
+        )
+        if speaker_for_insight:
+            insight_props["speaker"] = speaker_for_insight
+
         insight_node: Dict[str, Any] = {
             "id": insight_id,
             "type": "Insight",
@@ -1524,10 +1577,18 @@ def _artifact_from_multi_insight(
                     gq.char_end,
                     transcript_segments,
                 )
-                if speaker_label:
-                    # Episode-scope the id for an unnamed voice (SPEAKER_00) so it can't merge
-                    # across episodes; a real, resolved name stays a global person id (#1b).
-                    person_id_for_quote = person_node_id(speaker_label, episode_id)
+            elif named_turns:
+                # No segments — but the diarized transcript names its speakers in plain text, and
+                # the quote knows its char offset. Segments are the ONLY speaker path the pipeline
+                # had, and no profile generates them (backfill_transcript_segments is false
+                # everywhere, and turning it on forces a re-transcription), so every insight has
+                # shipped without knowing who said it. Read the name out of the transcript instead.
+                speaker_label = speaker_for_char(gq.char_start, named_turns)
+
+            if speaker_label:
+                # Episode-scope the id for an unnamed voice (SPEAKER_00) so it can't merge
+                # across episodes; a real, resolved name stays a global person id (#1b).
+                person_id_for_quote = person_node_id(speaker_label, episode_id)
             nodes.append(
                 {
                     "id": quote_id,

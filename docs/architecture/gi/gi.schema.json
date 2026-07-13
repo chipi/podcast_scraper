@@ -36,71 +36,170 @@
     },
     "nodes": {
       "type": "array",
-      "items": { "$ref": "#/$defs/node" },
+      "items": {
+        "$ref": "#/$defs/node"
+      },
       "description": "All nodes in this episode's GIL data"
     },
     "edges": {
       "type": "array",
-      "items": { "$ref": "#/$defs/edge" },
+      "items": {
+        "$ref": "#/$defs/edge"
+      },
       "description": "All edges in this episode's GIL data"
     }
   },
   "$defs": {
     "node": {
       "oneOf": [
-        { "$ref": "#/$defs/podcast_node" },
-        { "$ref": "#/$defs/episode_node" },
-        { "$ref": "#/$defs/speaker_node" },
-        { "$ref": "#/$defs/person_node" },
-        { "$ref": "#/$defs/organization_node" },
-        { "$ref": "#/$defs/topic_node" },
-        { "$ref": "#/$defs/insight_node" },
-        { "$ref": "#/$defs/quote_node" }
+        {
+          "$ref": "#/$defs/podcast_node"
+        },
+        {
+          "$ref": "#/$defs/episode_node"
+        },
+        {
+          "$ref": "#/$defs/speaker_node"
+        },
+        {
+          "$ref": "#/$defs/person_node"
+        },
+        {
+          "$ref": "#/$defs/organization_node"
+        },
+        {
+          "$ref": "#/$defs/topic_node"
+        },
+        {
+          "$ref": "#/$defs/insight_node"
+        },
+        {
+          "$ref": "#/$defs/quote_node"
+        }
       ]
     },
     "node_base": {
       "type": "object",
-      "required": ["id", "type", "properties"],
+      "required": [
+        "id",
+        "type",
+        "properties"
+      ],
       "properties": {
-        "id": { "type": "string", "minLength": 1, "description": "Unique node identifier" },
-        "type": { "type": "string", "enum": ["Podcast", "Episode", "Speaker", "Person", "Organization", "Topic", "Insight", "Quote"], "description": "Node type" },
-        "properties": { "type": "object", "description": "Type-specific properties" },
-        "confidence": { "type": "number", "minimum": 0, "maximum": 1, "description": "Extraction confidence (optional, for ML-derived nodes)" }
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Unique node identifier"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "Podcast",
+            "Episode",
+            "Speaker",
+            "Person",
+            "Organization",
+            "Topic",
+            "Insight",
+            "Quote"
+          ],
+          "description": "Node type"
+        },
+        "properties": {
+          "type": "object",
+          "description": "Type-specific properties"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Extraction confidence (optional, for ML-derived nodes)"
+        }
       }
     },
     "podcast_node": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "type", "properties"],
+      "required": [
+        "id",
+        "type",
+        "properties"
+      ],
       "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "type": { "const": "Podcast" },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "const": "Podcast"
+        },
         "properties": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["title"],
-          "description": "RFC-097 chunk-4 sweep: rss_url is OPTIONAL — the enrich-edges post-pass (add_episode_show_edges) only has show_title and cannot synthesise an rss_url. Workflow-driven emissions that DO have rss_url should still set it.",
-          "properties": { "title": { "type": "string", "minLength": 1 }, "rss_url": { "type": "string", "minLength": 1 }, "publisher": { "type": "string" } }
+          "required": [
+            "title"
+          ],
+          "description": "RFC-097 chunk-4 sweep: rss_url is OPTIONAL \u2014 the enrich-edges post-pass (add_episode_show_edges) only has show_title and cannot synthesise an rss_url. Workflow-driven emissions that DO have rss_url should still set it.",
+          "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 1
+            },
+            "rss_url": {
+              "type": "string",
+              "minLength": 1
+            },
+            "publisher": {
+              "type": "string"
+            }
+          }
         }
       }
     },
     "episode_node": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "type", "properties"],
+      "required": [
+        "id",
+        "type",
+        "properties"
+      ],
       "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "type": { "const": "Episode" },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "const": "Episode"
+        },
         "properties": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["podcast_id", "title", "publish_date"],
+          "required": [
+            "podcast_id",
+            "title",
+            "publish_date"
+          ],
           "properties": {
-            "podcast_id": { "type": "string", "minLength": 1 },
-            "title": { "type": "string", "minLength": 1 },
-            "publish_date": { "type": "string", "format": "date-time" },
-            "audio_url": { "type": "string" },
-            "duration_ms": { "type": "integer", "minimum": 0 },
+            "podcast_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "title": {
+              "type": "string",
+              "minLength": 1
+            },
+            "publish_date": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "audio_url": {
+              "type": "string"
+            },
+            "duration_ms": {
+              "type": "integer",
+              "minimum": 0
+            },
             "feed_id": {
               "type": "string",
               "description": "Stable feed identifier for cross-feed graph filtering (#658). Empty string when the pipeline can't resolve a feed (e.g. ad-hoc single-URL runs without feeds.spec); omit otherwise. Same value as `GET /api/corpus/feeds[].feed_id`."
@@ -112,116 +211,298 @@
     "speaker_node": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "type", "properties"],
+      "required": [
+        "id",
+        "type",
+        "properties"
+      ],
       "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "type": { "const": "Speaker" },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "const": "Speaker"
+        },
         "properties": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["name"],
-          "properties": { "name": { "type": "string", "minLength": 1 }, "aliases": { "type": "array", "items": { "type": "string" } } }
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "aliases": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
         }
       }
     },
     "person_node": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "type", "properties"],
+      "required": [
+        "id",
+        "type",
+        "properties"
+      ],
       "properties": {
-        "id": { "type": "string", "minLength": 1, "description": "RFC-072: person:{slug}" },
-        "type": { "const": "Person" },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "RFC-072: person:{slug}"
+        },
+        "type": {
+          "const": "Person"
+        },
         "properties": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["name"],
-          "properties": { "name": { "type": "string", "minLength": 1 }, "aliases": { "type": "array", "items": { "type": "string" } } }
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "aliases": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
         }
       }
     },
     "organization_node": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "type", "properties"],
+      "required": [
+        "id",
+        "type",
+        "properties"
+      ],
       "description": "v3.0 (RFC-097): first-class Organization node. Id: org:{slug}.",
       "properties": {
-        "id": { "type": "string", "minLength": 1, "description": "org:{slug}" },
-        "type": { "const": "Organization" },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "org:{slug}"
+        },
+        "type": {
+          "const": "Organization"
+        },
         "properties": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["name"],
-          "properties": { "name": { "type": "string", "minLength": 1 }, "aliases": { "type": "array", "items": { "type": "string" } } }
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "aliases": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
         }
       }
     },
     "topic_node": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "type", "properties"],
+      "required": [
+        "id",
+        "type",
+        "properties"
+      ],
       "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "type": { "const": "Topic" },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "const": "Topic"
+        },
         "properties": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["label"],
-          "properties": { "label": { "type": "string", "minLength": 1 }, "aliases": { "type": "array", "items": { "type": "string" } } }
+          "required": [
+            "label"
+          ],
+          "properties": {
+            "label": {
+              "type": "string",
+              "minLength": 1
+            },
+            "aliases": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
         }
       }
     },
     "insight_node": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "type", "properties"],
+      "required": [
+        "id",
+        "type",
+        "properties"
+      ],
       "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "type": { "const": "Insight" },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "const": "Insight"
+        },
         "properties": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["text", "episode_id", "grounded", "insight_type", "position_hint"],
+          "required": [
+            "text",
+            "episode_id",
+            "grounded",
+            "insight_type",
+            "position_hint"
+          ],
           "properties": {
-            "text": { "type": "string", "minLength": 1, "description": "The insight statement (can be rephrased for clarity)" },
-            "episode_id": { "type": "string", "minLength": 1, "description": "Episode where insight was extracted" },
-            "grounded": { "type": "boolean", "description": "Whether insight has ≥1 supporting quote (CRITICAL: must be explicit)" },
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The insight statement (can be rephrased for clarity)"
+            },
+            "episode_id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Episode where insight was extracted"
+            },
+            "grounded": {
+              "type": "boolean",
+              "description": "Whether insight has \u22651 supporting quote (CRITICAL: must be explicit)"
+            },
             "insight_type": {
               "type": "string",
-              "enum": ["claim", "recommendation", "observation", "question", "unknown"],
+              "enum": [
+                "claim",
+                "recommendation",
+                "observation",
+                "question",
+                "unknown"
+              ],
               "description": "v3.0 strict (RFC-097 chunk 9 / ADR-101): required. v2.0 LLM-classifier output; falls back to 'unknown' when the classifier abstains."
             },
             "position_hint": {
               "type": "number",
               "minimum": 0,
               "maximum": 1,
-              "description": "v3.0 strict (RFC-097 chunk 9 / ADR-101): required. mean(quote_start_ms)/episode_duration_ms per RFC-072 §3 (4-step waterfall)."
+              "description": "v3.0 strict (RFC-097 chunk 9 / ADR-101): required. mean(quote_start_ms)/episode_duration_ms per RFC-072 \u00a73 (4-step waterfall)."
+            },
+            "speaker": {
+              "type": "string",
+              "description": "Who said it. Taken from the speaker turn containing the insight's first grounded quote. Absent when the insight has no grounded quote \u2014 an unevidenced claim has no attributable speaker. An insight is a claim a PERSON made, and its worth depends on who made it: a host summarising a deal is a headline; the guest expert taking a position is why the episode exists."
             }
           }
         },
-        "confidence": { "type": "number", "minimum": 0, "maximum": 1, "description": "Extraction confidence (0.0-1.0)" }
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Extraction confidence (0.0-1.0)"
+        }
       },
       "description": "A key takeaway or conclusion extracted from episode content"
     },
     "quote_node": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "type", "properties"],
+      "required": [
+        "id",
+        "type",
+        "properties"
+      ],
       "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "type": { "const": "Quote" },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "const": "Quote"
+        },
         "properties": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["text", "episode_id", "char_start", "char_end", "timestamp_start_ms", "timestamp_end_ms", "transcript_ref"],
+          "required": [
+            "text",
+            "episode_id",
+            "char_start",
+            "char_end",
+            "timestamp_start_ms",
+            "timestamp_end_ms",
+            "transcript_ref"
+          ],
           "properties": {
-            "text": { "type": "string", "minLength": 1, "description": "VERBATIM text from transcript (no paraphrasing!)" },
-            "episode_id": { "type": "string", "minLength": 1, "description": "Episode containing the quote" },
-            "speaker_id": { "type": ["string", "null"], "description": "person:{slug} when diarization present; null otherwise (RFC-072; legacy speaker: or raw labels may appear in old corpora)" },
-            "char_start": { "type": "integer", "minimum": 0, "description": "Character start in transcript text" },
-            "char_end": { "type": "integer", "minimum": 0, "description": "Character end in transcript text" },
-            "timestamp_start_ms": { "type": "integer", "minimum": 0, "description": "Timestamp start (milliseconds)" },
-            "timestamp_end_ms": { "type": "integer", "minimum": 0, "description": "Timestamp end (milliseconds)" },
-            "transcript_ref": { "type": "string", "minLength": 1, "description": "Reference to transcript artifact (e.g., transcript.json)" }
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "description": "VERBATIM text from transcript (no paraphrasing!)"
+            },
+            "episode_id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Episode containing the quote"
+            },
+            "speaker_id": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "person:{slug} when diarization present; null otherwise (RFC-072; legacy speaker: or raw labels may appear in old corpora)"
+            },
+            "char_start": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Character start in transcript text"
+            },
+            "char_end": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Character end in transcript text"
+            },
+            "timestamp_start_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Timestamp start (milliseconds)"
+            },
+            "timestamp_end_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Timestamp end (milliseconds)"
+            },
+            "transcript_ref": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Reference to transcript artifact (e.g., transcript.json)"
+            }
           }
         }
       },
@@ -230,22 +511,79 @@
     "edge": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "from", "to"],
+      "required": [
+        "type",
+        "from",
+        "to"
+      ],
       "properties": {
-        "type": { "type": "string", "enum": ["HAS_EPISODE", "SPOKE_IN", "HAS_INSIGHT", "SUPPORTED_BY", "SPOKEN_BY", "ABOUT", "MENTIONS", "MENTIONS_PERSON", "MENTIONS_ORG", "RELATED_TO"], "description": "Edge type. v3.0 (RFC-097) adds MENTIONS_PERSON (Insight → Person) and MENTIONS_ORG (Insight → Organization) as descriptive edges; replaces deferred v1.1 generic MENTIONS → Entity. See docs/architecture/corpus/ontology.md two-tier contract." },
-        "from": { "type": "string", "minLength": 1, "description": "Source node ID" },
-        "to": { "type": "string", "minLength": 1, "description": "Target node ID" },
-        "properties": { "type": "object", "additionalProperties": true, "description": "Optional edge properties" }
+        "type": {
+          "type": "string",
+          "enum": [
+            "HAS_EPISODE",
+            "SPOKE_IN",
+            "HAS_INSIGHT",
+            "SUPPORTED_BY",
+            "SPOKEN_BY",
+            "ABOUT",
+            "MENTIONS",
+            "MENTIONS_PERSON",
+            "MENTIONS_ORG",
+            "RELATED_TO"
+          ],
+          "description": "Edge type. v3.0 (RFC-097) adds MENTIONS_PERSON (Insight \u2192 Person) and MENTIONS_ORG (Insight \u2192 Organization) as descriptive edges; replaces deferred v1.1 generic MENTIONS \u2192 Entity. See docs/architecture/corpus/ontology.md two-tier contract."
+        },
+        "from": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Source node ID"
+        },
+        "to": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Target node ID"
+        },
+        "properties": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Optional edge properties"
+        }
       },
       "allOf": [
         {
-          "if": { "properties": { "type": { "enum": ["ABOUT", "MENTIONS_PERSON", "MENTIONS_ORG", "RELATED_TO"] } } },
-          "then": { "properties": { "properties": { "type": "object", "additionalProperties": true, "properties": { "confidence": { "type": "number", "minimum": 0, "maximum": 1, "description": "Edge confidence (optional, from semantic-match post-pass)" } } } } }
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "ABOUT",
+                  "MENTIONS_PERSON",
+                  "MENTIONS_ORG",
+                  "RELATED_TO"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "properties": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                  "confidence": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Edge confidence (optional, from semantic-match post-pass)"
+                  }
+                }
+              }
+            }
+          }
         }
       ]
     },
     "edge_class_metadata": {
-      "description": "Non-validating schema metadata: maps each edge type to its edge_class per RFC-097 two-tier edge contract. Source of truth: docs/architecture/corpus/ontology.md. Consumed by viewer stylesheet + relational query layer + ontology contributors; never written to per-edge instances. SUPPORTED_BY is the only evidentiary edge — only it promotes Insight.grounded=true.",
+      "description": "Non-validating schema metadata: maps each edge type to its edge_class per RFC-097 two-tier edge contract. Source of truth: docs/architecture/corpus/ontology.md. Consumed by viewer stylesheet + relational query layer + ontology contributors; never written to per-edge instances. SUPPORTED_BY is the only evidentiary edge \u2014 only it promotes Insight.grounded=true.",
       "classes": {
         "SUPPORTED_BY": "evidentiary",
         "HAS_EPISODE": "structural",
