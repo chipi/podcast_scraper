@@ -34,12 +34,36 @@ with a quality summary that makes a bad corpus impossible to ship by accident.
 
 ### 1. Per-episode quality fields (`EpisodeMetrics`)
 
+**Context — without these, every quality number is uninterpretable:**
+
+- `episode_duration_ms` — how long the episode actually is
+- `transcript_chars` — how much material the stage was given
+
+**Quality:**
+
 - `gi_insights_emitted` — before the value gate
 - `gi_insights_dropped_by_gate`
 - `gi_insights_grounded`
 - `gi_quotes_total`
 - `gi_grounding_rate_pct`
 - `gi_quotes_per_insight`
+
+**Normalised — the numbers that are actually comparable across episodes:**
+
+- `gi_insights_per_10k_chars`
+- `gi_grounded_per_10k_chars`
+
+Duration and transcript size are not decoration. "19 insights" means something completely
+different for a 15-minute episode than a 90-minute one, and a raw count hides that. It took a
+manual correlation of insight counts against character counts to discover that qwen3.5:35b emits a
+roughly **constant** number of insights regardless of episode length (+2.3 insights from a <40k to
+a >=40k transcript) while gemini scales with the material (+6.6). That is the single biggest driver
+of the quality gap on 45-90 minute episodes — the target format — and it was invisible in the
+per-episode counts alone.
+
+Normalised metrics make that visible in the run itself: a model whose `insights_per_10k_chars`
+falls as episodes get longer is saturating, and you can see it happening rather than deducing it
+months later.
 
 ### 2. Failure flags — one per known silent mode
 
@@ -56,8 +80,8 @@ Each flag exists because that failure actually happened and was invisible:
 ### 3. One-line per-episode quality log
 
 ```text
-[quality] ep=0007 insights=24 (gate dropped 11) grounded=20 (83.3%) quotes=41 q/i=1.71  OK
-[quality] ep=0008 insights=1  (gate dropped 0)  grounded=0  (0.0%)  quotes=0  q/i=0.00  STUB_FALLBACK ZERO_QUOTES
+[quality] ep=0007 62min 74k-chars insights=24 (gate -11) grounded=20 (83.3%) q/i=1.71 per-10k=3.2  OK
+[quality] ep=0008 71min 88k-chars insights=1  (gate  -0) grounded=0  ( 0.0%) q/i=0.00 per-10k=0.1  STUB_FALLBACK ZERO_QUOTES
 ```
 
 Visible in a real run without opening a JSON file.
