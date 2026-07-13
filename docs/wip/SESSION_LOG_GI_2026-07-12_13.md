@@ -61,39 +61,6 @@ be either. It must be measured head-to-head on the same insights before prod v3 
 measurement is also the real answer to "solve qwen's grounding problem", because the retriever we
 were trying to fix may not be the one that ships.
 
-### What production actually produces — measured on prod-v2 (209 episodes)
-
-prod-v2 was built with a cloud profile, and every profile grounds with the local transformers
-stack — so **the shipped corpus is the only production-faithful grounding measurement we own**, and
-it was sitting on disk all session.
-
-| prod-v2, 209 episodes with a GI graph | |
-| --- | --- |
-| insights | **12.0 /ep** |
-| grounded insights | 10.3 /ep |
-| grounding rate | 85.6% |
-| quotes per insight | **2.01** |
-| episodes below the 80% floor | **49 / 209 (23%)** |
-| episodes with zero grounded insights | 0 |
-
-Three things follow, and they reframe the whole gemini-vs-qwen question:
-
-1. **The 12-insight cap is binding on 99% of the corpus** — 207 of 209 episodes sit at *exactly* 12.
-   Every one was truncated: the model had more to say and we cut it off. This is the single largest
-   and most concrete knowledge loss in production, and it is a one-line config change.
-2. **The transformers retriever is good** — 2.01 quotes/insight, better than qwen grounding itself
-   (1.52) and close to gemini (2.17). Since production runs it for *both* models, qwen's "no
-   evidence margin" is an artifact of the eval config. **The qwen grounding problem is very likely a
-   non-problem in production.**
-3. **23% of the shipped corpus is below the 80% grounding floor** — a real, live quality problem
-   nobody knew about. (But no episode is a total failure, so the feared blob-transcript catastrophe
-   is not present in the GI graphs.)
-
-**Consequence for prod v3:** in production the two models share a retriever and a gate, and both get
-truncated to 12 insights — so at the shipped cap, "qwen delivers 70% of gemini's grounded insights"
-is moot; both deliver 12. The lever that matters is not which model writes the insights. It is
-**raising the cap and adding chunking**, then letting the shared retriever ground the result.
-
 ### The decisions this forces
 
 - **Which grounding stack does prod v3 use** — qwen (what every eval measured) or transformers (what
