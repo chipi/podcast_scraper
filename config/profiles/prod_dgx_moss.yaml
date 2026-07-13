@@ -25,6 +25,10 @@
 #     the true count.
 #
 # No `profile:` key — pins no ModelRegistry preset (same reasoning as prod_dgx_only).
+#
+# Registry status: yaml-only — no entry in `_PROFILE_PRESETS`. It is a contender profile pinned
+# explicitly against `prod_dgx_only`; a preset would imply it is a supported default, which it is
+# not until MOSS wins the audio bake-off.
 
 dgx_tailnet_host: ${DGX_TAILNET_HOST:-dgx-llm-1}
 

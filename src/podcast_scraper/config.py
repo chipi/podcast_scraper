@@ -3640,9 +3640,14 @@ class Config(BaseModel):
         summary = merged.get("summary_provider", "transformers")
         if summary not in GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS:
             return merged
-        quote = merged.get("quote_extraction_provider", "transformers")
-        entail = merged.get("entailment_provider", "transformers")
-        if quote == "transformers" and entail == "transformers":
+        # Only promote when the caller left the evidence providers UNSET. Comparing against
+        # "transformers" cannot tell "I did not choose" from "I chose transformers", so an explicit
+        # pin to the local QA/NLI stack used to be silently overwritten with the LLM — the one
+        # combination #1179 says destroys grounding.
+        if (
+            merged.get("quote_extraction_provider") is None
+            and merged.get("entailment_provider") is None
+        ):
             merged["quote_extraction_provider"] = summary
             merged["entailment_provider"] = summary
         return merged

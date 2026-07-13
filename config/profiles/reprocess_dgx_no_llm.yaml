@@ -26,6 +26,9 @@
 #
 # No ``profile:`` key on purpose: this pins no LLM models, so it has no ModelRegistry preset and
 # opts out of the profile/registry drift check by design.
+#
+# Registry status: yaml-only — no entry in `_PROFILE_PRESETS`. It is a one-shot maintenance profile
+# for rebuilding the deterministic layer of an existing corpus, not a pipeline default.
 
 # --- transcription: DGX faster-whisper (self-hosted) --------------------------------------------
 transcription_provider: tailnet_dgx_whisper
