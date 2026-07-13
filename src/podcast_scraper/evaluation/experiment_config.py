@@ -187,11 +187,20 @@ class MistralBackendConfig(BaseModel):
 
 
 class OllamaBackendConfig(BaseModel):
-    """Config for local Ollama models (summarization only, single-pass LLM)."""
+    """Config for Ollama models (summarization only, single-pass LLM)."""
 
     type: Literal["ollama"] = "ollama"
     model: str = Field(
         description="Ollama model tag, e.g. 'qwen2.5:7b', 'llama3.1:8b'.",
+    )
+    base_url: Optional[str] = Field(
+        default=None,
+        description=(
+            "Ollama endpoint, e.g. 'http://dgx-llm-1:11434/v1'. Without this the provider "
+            "falls back to localhost. This field did not exist, so a cell configured against "
+            "the DGX silently ran on the local machine — pydantic dropped the key and the run "
+            "reported success. Every ollama eval cell before this ran on localhost."
+        ),
     )
 
 
