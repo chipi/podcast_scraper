@@ -158,3 +158,4 @@ WIP file is removed.
   [RFC-085](../rfc/RFC-085-graph-handoff-orchestrator-retrospective.md)).
 - [SESSION_LOG_GI_2026-07-12_13.md](SESSION_LOG_GI_2026-07-12_13.md) — grounded-insights session: nine silent defects, every claim made and retracted, and the twelve gaps still open. Headline: production runs a configuration we never measured (gate OFF, ceiling 12, temperature 0.3).
 - [GI_TWO_MODULES.md](GI_TWO_MODULES.md) — the insight pipeline is two modules (write the insight / find the quote). They must be measured separately, and who owns module 2 is an open decision before prod v3.
+- [GI_WHAT_TO_SURFACE.md](GI_WHAT_TO_SURFACE.md) — what an insight should BE: route (surface/connect/drop) instead of rank-and-truncate; no cutoff baked into the corpus; why a stance needs a speaker.
