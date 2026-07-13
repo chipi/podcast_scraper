@@ -1,140 +1,151 @@
-# Gemini vs qwen3.5:35b on the DGX — 10 prod episodes, one pinned judge
+# Gemini vs qwen3.5:35b on the DGX — can we build prod v3 on our own hardware?
 
 **Date:** 2026-07-13
-**Dataset:** `prod_v3_10ep_v1` — 10 episodes curated from the existing prod-v3 DGX corpus
-(`tailnet_dgx_whisper` / `faster-whisper-large-v3`, `tailnet_dgx` diarization). Pinned by
-transcript path + sha256. **Not re-fetched from the live feed.**
-**Runs:** `data/eval/runs/h2h_gemini_10ep`, `data/eval/runs/h2h_qwen_10ep`
-
-## Question
-
-Can qwen3.5:35b on the DGX match `gemini-2.5-flash-lite` on grounded-insight quality, so prod v3
-can be built entirely on our own hardware?
+**Runs:** `h2h_gemini_10ep`, `h2h_qwen_10ep`, `gen3_gemini`, `gen3_qwen`, `gate_allprov_*`
 
 ## Answer
 
-**Yes, on quality.** qwen delivers **90%** of gemini's grounded insights per episode, clears the
-ADR-053 grounding contract, and a two-judge panel scores it **at or above gemini on CORE insights
-with half the filler**.
+**On one show, yes. Across nine shows, no — qwen delivers about 70% of gemini's grounded
+insights.** Both clear the 80% grounding floor everywhere, and qwen is the more *reliable* of the
+two (gemini fell back to a stub on one episode; qwen never did). But qwen extracts less.
 
-The remaining gap is **evidence density** — 1.27 vs 2.08 quotes per insight. qwen finds fewer
-supporting passages for each claim it makes.
+| | qwen as % of gemini's grounded insights |
+| --- | --- |
+| Hard Fork only (10 episodes, one show) | **94%** |
+| Nine shows (17 episodes, 2 per feed) | **70%** |
 
-## Method — what was held constant
+Parity is show-specific. It does not generalize.
+
+## Read this first: everything before today was measured on a broken pipeline
+
+Every provider hardcoded `temperature=0.3` for insight generation and ignored the configured value.
+The same config, on the same three episodes, run twice:
+
+| | insights/ep | grounding | quotes/insight |
+| --- | --- | --- | --- |
+| run A | 28.0 | 79.8% | 1.51 |
+| run B | 18.3 | 94.5% | 6.00 |
+
+Grounding landed on either side of the 80% floor on a re-run of an *identical* configuration.
+Nothing this repo has ever measured was free of that noise.
+
+Fixed: the temperature is now honoured, and a re-run drifts by **0.7 insights and 0.9pp grounding**
+instead of 9.7 and 14.7pp. Every number below was measured after the fix, with temperature pinned
+to 0.
+
+## Method — what is held constant
 
 Only the LLM varies:
 
 | held constant | how |
 | --- | --- |
-| episodes | pinned by path + sha256 (a live feed silently drifts — see §Pitfalls) |
-| ASR + diarization | the same DGX transcripts feed both arms |
-| code | same commit |
+| episodes | pinned by transcript path + sha256 (a live feed silently drifts) |
+| transcripts | cleaned, as production feeds them to the insight stage |
+| ASR + diarization | identical DGX transcripts to both arms |
 | insight ceiling | 50, non-binding for both |
-| summary params | identical (they were **not**, until this run — see §Pitfalls) |
-| value gate | ON, `min_tier=2` |
-| **gate judge** | **pinned to `claude-haiku-4-5`** — vendor-disjoint from both candidates |
+| temperature | 0 (it was ignored entirely until today) |
+| value gate | on, keeping tier >= 2 |
+| **gate judge** | **one pinned judge (`claude-haiku`) for every arm** |
 
-The pinned judge is the load-bearing control. Letting each model grade its own output is the #939
-same-vendor bias, and it is large: qwen rejects **4%** of its own insights where an independent
-judge rejects **26%** of the same ones.
+The pinned judge is load-bearing. Letting each model grade its own output is a same-vendor bias, and
+it is large: qwen rejects **4%** of its own insights where an independent judge rejects **26%** of
+the same ones. Unpinned, each arm would be filtered by a different strictness.
 
-## Results
+## Result 1 — Hard Fork, 10 episodes
 
-qwen ran on the **actual DGX** (verified: `/api/ps` shows `qwen3.5:35b` resident in 29 GB of VRAM
-while the request is served). An earlier version of this report used numbers from a run that
-silently executed on the laptop — see §Pitfalls 6.
+qwen ran on the actual DGX (verified: `/api/ps` shows `qwen3.5:35b` resident in 29 GB of VRAM while
+serving).
 
 | per episode | gemini-2.5-flash-lite | qwen3.5:35b (DGX) |
 | --- | --- | --- |
-| insights kept (post-gate) | 24.4 | 22.2 |
-| **grounded insights** | **20.1** | **18.0** |
-| grounding rate | 82.4% | 81.1% |
-| quotes / episode | 49.8 | 28.1 |
-| quotes per insight | 2.08 | 1.27 |
-| wall-clock | 33s | 119s |
+| insights kept | 19.2 | 19.4 |
+| **grounded insights** | **17.1** | **16.1** |
+| grounding rate | 89.1% | 83.0% |
+| quotes per insight | 3.01 | 1.53 |
+| wall-clock | 48s | 114s |
 
-Both clear ADR-053 (grounding ≥ 80%). **qwen delivers 90% of gemini's grounded insights.**
+qwen produces **the same number of insights** as gemini and delivers **94%** of the grounded ones.
+On this show they are equivalent.
 
-### The judge's verdict — gemini pads, qwen does not
+## Result 2 — nine shows, 18 episodes (2 per feed)
 
-Same judge, both arms, so the rejection rates are directly comparable:
+This is the test that matters, and it is the one that says no.
 
-| arm | emitted | rejected as filler | reject rate |
-| --- | --- | --- | --- |
-| gemini | 440 | 196 | **45%** |
-| qwen | 259 | 56 | **22%** |
+| per episode | gemini | qwen |
+| --- | --- | --- |
+| grounded insights | 20.5 | 14.4 |
+| grounding rate | 88.5% | 84.4% |
 
-**Nearly half of gemini's insights are filler. Only a fifth of qwen's are.** Gemini is prolific and
-noisy; qwen is sparser and disciplined. The raw insight counts flattered gemini because we were
-counting its padding as knowledge.
+**qwen = 70% of gemini's grounded insights.** (Excluding one episode where *gemini* fell back to a
+stub — including it flatters qwen to 76%, which would be crediting it for gemini's failure.)
 
-### Two-judge panel (blind, shuffled, tiered)
+Two per feed was deliberate: with one episode per feed you cannot tell a hard *show* from a noisy
+*episode*. The per-episode spread is wide (44%–212%), so individual feed numbers are not
+trustworthy; the aggregate over 17 episodes is.
 
-Judges vendor-disjoint from both candidates. Scored on post-gate insights.
+**Reliability cuts the other way:** gemini produced a stub fallback on 1 of 18 episodes. qwen
+produced none.
 
-| metric | judge | gemini | qwen (DGX) |
-| --- | --- | --- | --- |
-| CORE / ep | anthropic | 6.6 | **9.0** |
-| CORE / ep | openai | 11.6 | 11.2 |
-| USEFUL+ / ep | anthropic | 18.4 | **19.0** |
-| USEFUL+ / ep | openai | 24.0 | 21.8 |
-| FILLER / ep | anthropic | 6.0 | **3.2** |
-| FILLER / ep | openai | 0.4 | 0.4 |
+## Result 3 — all providers, same 3 episodes, one pinned judge
 
-**qwen matches or beats gemini on CORE, with half the filler.**
+| provider | insights/ep | grounded/ep | grounding | quotes/insight | s/ep |
+| --- | --- | --- | --- | --- | --- |
+| anthropic (haiku-4.5) | 27.0 | 26.0 | 96.3% | 2.01 | 140 |
+| **qwen3.5:35b (DGX)** | 24.3 | **20.3** | 83.6% | 1.48 | 131 |
+| deepseek-chat | 18.3 | 18.0 | 98.2% | 1.91 | 48 |
+| gemini-2.5-flash-lite | 23.0 | 18.0 | **78.3%** | 5.65 | 55 |
+| openai (gpt-4o-mini) | 14.7 | 13.0 | 88.6% | 1.32 | 86 |
 
-Inter-judge agreement: exact 52–61%, within-1 **92–96%**, keep/drop 76–88%. The judges disagree on
-absolute strictness (openai is markedly more lenient) but **rank the arms identically** — the
-conclusion is judge-independent even though the absolute tiers are not. Do not quote a single
-judge's absolute numbers as fact.
+Three episodes is too small to rank on — treat this as directional. Note gemini falls *below* the
+80% floor here while qwen clears it, which is the opposite of the head-to-head and a good
+illustration of why n=3 decides nothing.
 
 ## What is left to close
 
-1. **Evidence density** — 1.27 vs 2.08 quotes per insight. Decomposed on identical insights and
-   transcript, the gap is **supply, not the gate**: gemini finds 4.75 candidates per insight
-   (range 1–18, tracking how much the episode discusses the claim); qwen finds 2.00 (range 1–3).
-   Both arms ran the NLI threshold at 0.5, which already accepts everything above "related but does
-   not support" — so the threshold is not the lever. Making the prompt's expectation concrete
-   ("sweep the whole transcript, two quotes is usually too few") lifted qwen to 2.50 (+25%), which
-   is shipped. qwen still looks structurally reluctant past ~3.
-2. **Speed** — 119s vs 33s per episode. Known, expected, not a quality question.
+**Evidence density.** qwen finds 1.5 quotes per insight against gemini's 3.0. Decomposed on
+identical insights and transcript, the gap is **supply, not the gate**: gemini finds 4.75 candidate
+quotes per insight (range 1–18, tracking how much the episode actually discusses the claim); qwen
+finds 2.00 (range 1–3). The entailment threshold is already permissive, so it is not the lever.
+Sharpening the prompt lifted qwen 2.00 → 2.50 and the ceiling did not move — it looks structural.
 
-## Pitfalls found while building this comparison
+Insights with **zero** evidence are at parity (18% vs 19%), so qwen's evidence is *thin*, not
+*missing*. Tracked separately; deferred unless a consumer actually uses multiple quotes per insight.
 
-Every one would have produced a confident, wrong number. The comparison is only worth what the
-method is worth.
+## Nine ways this comparison nearly lied to us
 
-1. **A live RSS feed silently changes the episode set.** `--max-episodes N` takes the newest N, so
-   two runs an hour apart compared *different episodes*. An earlier grounding delta (66.7% → 72.7%)
-   was reported as a fix and was actually different content. **Retracted.**
-2. **Summary params were ollama-only.** `_episode_summary_params` passed `max_length` for ollama and
-   *nothing* for every cloud backend. Two different configurations, reported as like-for-like — and
-   it truncated gemini's summary on long episodes, aborting the run.
-3. **The pinned judge inherited a 404 model.** `gi_value_gate_provider: anthropic` swapped the
-   provider but inherited its *default* model (deprecated, 404). Every classify call threw, the gate
+Every one produced a confident, wrong number. The comparison is only worth what the method is worth.
+
+1. **A live RSS feed changes the episode set between runs.** `--max-episodes N` takes the newest N,
+   so two runs an hour apart compared *different episodes*. A grounding "improvement" (66.7% → 72.7%)
+   was reported as a fix and was actually different content. Retracted.
+2. **Summary params were ollama-only.** Every cloud backend silently got the internal default. Two
+   different configurations, reported as like-for-like — and it truncated gemini's summary on long
+   episodes, aborting the run.
+3. **The pinned judge inherited a deprecated model and 404'd.** Every classify call threw, the gate
    failed open, and a full 10-episode run completed **ungated** while reporting a healthy 44.3
-   insights/episode. A broken gate and a permissive gate produce the same artifact; the only tell was
-   zero drop-lines across ten episodes.
-4. **The eval allowlist silently drops unknown params.** It voided three gate settings in turn
-   (`enabled`, `provider`, `model`). Each time the cell ran and looked like a result.
-5. **A transcript set destroyed by the cleaning bug.** Three of six 10-episode prod-v3 runs have
-   `.cleaned.txt` files of ~144 chars. A dataset built on those would be silently worthless. The
-   builder now asserts transcript length.
-6. **`OllamaBackendConfig` had no `base_url` — every ollama eval cell ever ran on localhost.** The
-   schema declared only `type` and `model`, so a `base_url` in the YAML was dropped by pydantic, and
-   run_experiment's ollama branch never applied one. This machine has a local ollama with
-   qwen3.5:35b, so the "DGX" arm ran on the MacBook and reported success. The first published
-   version of this report used those numbers.
-7. **The prompt store lru_caches templates.** An A/B that swapped a template on disk compared the
-   same prompt twice; byte-identical counts gave it away.
+   insights/episode. A broken gate and a permissive gate produce the same artifact; the only tell
+   was zero drop-lines across ten episodes.
+4. **The experiment allowlist silently drops unknown params.** It voided three gate settings in turn
+   (enabled, provider, model). Each time the cell ran and looked like a result.
+5. **A transcript set destroyed by the cleaning bug** (~144 chars per episode). A dataset built on
+   those would be silently worthless. The builder now asserts transcript length.
+6. **The ollama backend config had no `base_url` field** — every ollama eval cell in this repo's
+   history ran on localhost. This machine has a local qwen3.5:35b, so the "DGX" arm ran on the
+   MacBook and reported success. The first version of this report used those numbers.
+7. **Half the prod-v2 corpus is a single unbroken line** (speaker turns concatenated, no separator).
+   The insight stage produces **zero quotes** on those, for every provider, while reporting success.
+   A dataset that mixed them in showed 8 of 20 episodes with zero grounded insights in *both* arms.
+8. **The prompt store caches templates.** An A/B that swapped a template on disk compared the same
+   prompt twice; byte-identical counts gave it away.
+9. **Insight temperature was hardcoded** — see the top of this report. The worst of the nine,
+   because it made every measurement unreliable rather than one stage.
 
-The common shape: **the pipeline reports success while a stage is inert, misdirected, or
-destroyed.** Every check here exists because that happened.
+The common shape: **the pipeline reports success while a stage is inert, misdirected, or destroyed.**
 
 ## Caveats
 
-- **10 episodes from ONE feed** (Hard Fork). This says which stack is better *for this show*. It is
-  not a general result.
-- Grounding rate carried **±10pp run-to-run noise** at n=3; 10 episodes reduces but does not remove it.
-- The gate judge (`claude-haiku`) and one panel judge (`claude-sonnet`) share a vendor. The openai
-  panel judge is the independent check, and it agrees on the ranking.
+- Nine shows is broader than one, but it is still one corpus. Grounding rate carries real
+  per-episode variance; individual feed numbers are noisy and only the aggregate is meaningful.
+- The gate judge and one panel judge share a vendor. The openai panel judge is the independent
+  check, and it agrees on the ranking.
+- The 3-episode provider table is directional only.

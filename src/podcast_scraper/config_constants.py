@@ -42,7 +42,7 @@ GI_VALUE_GATE_TOKENS_EACH = 24
 # Insight generation ran at a hardcoded 0.3 in every provider, ignoring the configured
 # temperature entirely. The pipeline was therefore never reproducible: the same config on
 # the same 3 episodes produced 28.0 vs 18.3 insights/episode and 1.51 vs 6.00
-# quotes/insight, with grounding straddling the ADR-053 line (79.8% vs 94.5%). Evals must
+# quotes/insight, with grounding landing either side of the 80% floor (79.8% vs 94.5%). Evals
 # be able to pin this to 0.
 GI_INSIGHT_TEMPERATURE_DEFAULT = 0.3
 DEFAULT_NUM_SPEAKERS = 2

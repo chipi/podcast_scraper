@@ -33,8 +33,8 @@ def resolve_insight_temperature(cfg: Any, provider: str) -> float:
 
     Every provider hardcoded 0.3 and ignored the configured value, so the pipeline was not
     reproducible: the same config on the same 3 episodes gave 28.0 vs 18.3 insights/episode and
-    1.51 vs 6.00 quotes/insight, with grounding straddling the ADR-053 line (79.8% vs 94.5%).
-    Evals need to pin this to 0.
+    1.51 vs 6.00 quotes/insight, with grounding landing either side of the 80% floor (79.8% vs
+    94.5%). Evals need to pin this to 0.
     """
     from .. import config_constants
 
