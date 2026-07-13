@@ -1272,6 +1272,59 @@ _GI_OPTIONS: Dict[str, StageOption] = {
 # sweeps, so a "winner" doesn't meaningfully apply. The canonicalization
 # thresholds 0.65 / 0.70 baked into ``entity_clusters.py`` ARE measured
 # (see #853 report).
+_GROUNDING_RESEARCH_REF = "docs/guides/eval-reports/EVAL_GROUNDING_WHO_FINDS_THE_QUOTE_2026_07.md"
+
+# GROUNDING — who finds the quote that backs an insight.
+#
+# This stage had no registry entry at all until now: the QA and NLI models were loose config fields,
+# so a profile could not pin its grounder the way it pins every other stage. That is precisely how
+# the choice drifted invisibly — every LLM profile silently fell back to the ML stack and grounded
+# 0% of its insights, and nothing in the registry could contradict it.
+#
+# Writing the insight and finding its evidence are different jobs. The measurement holds the insight
+# set FIXED and varies only the grounder, so a model that writes fewer insights cannot look like a
+# better grounder.
+_GROUNDING_OPTIONS: Dict[str, StageOption] = {
+    "llm_matched_to_summary": StageOption(
+        stage="grounding",
+        option_id="llm_matched_to_summary",
+        # Not a model id: the grounder IS the summarising LLM. Config resolves it in
+        # _auto_promote_evidence_providers, so an LLM grounds the insights it wrote.
+        provider="match_summary",
+        extra_settings={"nli_entailment_min": 0.75},
+        research_ref=_GROUNDING_RESEARCH_REF,
+        headline_metric=(
+            "82% of insights grounded (vs 8% for the ML QA+NLI stack) on a frozen 100-insight set; "
+            "100% of returned quotes verbatim, 0% drift, 0% fabricated — an LLM asked for a quote "
+            "copies it exactly, so the silent-drop risk is absent in practice"
+        ),
+        measured_at="2026-07-13",
+        tier="primary",
+    ),
+    "ml_qa_nli": StageOption(
+        stage="grounding",
+        option_id="ml_qa_nli",
+        provider="transformers",
+        extra_settings={
+            "qa_model": "deepset/roberta-base-squad2",
+            "nli_model": "cross-encoder/nli-deberta-v3-base",
+            "qa_window_chars": 1800,
+        },
+        research_ref=_GROUNDING_RESEARCH_REF,
+        headline_metric=(
+            "8% of insights grounded on the same frozen set. Two structural faults, neither "
+            "fixable by a threshold: QA answers WITHIN a window and nothing asks which of ~40 "
+            "windows is about the claim (no retrieval step); and the NLI head demands strict "
+            "entailment while insights are abstractive (transcript hedges, insight asserts -> "
+            "0.007). Needs embedding retrieval + a graded verifier. For the local/offline "
+            "profiles, which have no LLM."
+        ),
+        measured_at="2026-07-13",
+        tier="fallback",
+    ),
+}
+
+
 _KG_OPTIONS: Dict[str, StageOption] = {
     "provider_n10_15": StageOption(
         stage="kg",
@@ -1463,6 +1516,9 @@ class ProfilePreset:
     clustering: str  # StageOption.option_id key into _CLUSTERING_OPTIONS
     gi: str  # StageOption.option_id key into _GI_OPTIONS
     diarization: str  # StageOption.option_id key into _DIARIZATION_OPTIONS
+    # Who finds the quote that backs an insight. Writing the insight and grounding it are different
+    # jobs, and until this stage existed the choice was made by a config fallback nobody could see.
+    grounding: str = "llm_matched_to_summary"  # key into _GROUNDING_OPTIONS
     notes: Optional[str] = None
 
 
@@ -1669,6 +1725,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         clustering="topic_clusters_default_0_75",
         gi="provider_n12_grounded_bundled",
         diarization="pyannote_diarization_community1",
+        grounding="ml_qa_nli",  # no LLM in this profile
         notes=(
             "Airgapped quality default: medium.en Whisper + SummLlama 3.2-3B "
             "paragraph + spaCy trf. No network, no Ollama. SummLlama is "
@@ -1687,6 +1744,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         clustering="topic_clusters_default_0_75",
         gi="provider_n12_grounded_bundled",
         diarization="pyannote_diarization_community1",
+        grounding="ml_qa_nli",  # no LLM in this profile
         notes=(
             "Airgapped thin: tiny.en Whisper + bart-small+long-fast "
             "(ml_small_authority mode) + spaCy sm. Lowest RAM / startup "
@@ -1707,6 +1765,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         clustering="topic_clusters_default_0_75",
         gi="provider_n12_grounded_bundled",
         diarization="pyannote_diarization_community1",
+        grounding="ml_qa_nli",  # no LLM in this profile
         notes=(
             "Dev / CI: same shape as airgapped_thin (tiny.en + "
             "bart-small+long-fast + spaCy sm) but the YAML disables GI / "
@@ -1807,6 +1866,18 @@ def get_clustering_option(option_id: str) -> StageOption:
     if option_id not in _CLUSTERING_OPTIONS:
         raise ValueError(f"Unknown clustering option '{option_id}'")
     return _CLUSTERING_OPTIONS[option_id]
+
+
+def get_grounding_options() -> Dict[str, StageOption]:
+    """All registered grounding options (id → StageOption)."""
+    return dict(_GROUNDING_OPTIONS)
+
+
+def get_grounding_option(option_id: str) -> StageOption:
+    """Look up a single grounding option by id."""
+    if option_id not in _GROUNDING_OPTIONS:
+        raise ValueError(f"Unknown grounding option '{option_id}'")
+    return _GROUNDING_OPTIONS[option_id]
 
 
 def get_diarization_options() -> Dict[str, StageOption]:
