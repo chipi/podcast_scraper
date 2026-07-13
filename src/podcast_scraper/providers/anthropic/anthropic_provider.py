@@ -205,10 +205,13 @@ class AnthropicProvider:
         if cfg.anthropic_api_base:
             client_kwargs["base_url"] = cfg.anthropic_api_base
 
-        # Configure HTTP timeouts with separate connect/read timeouts
-        # Note: Anthropic SDK may support timeout parameter (verify SDK version)
-        # If not supported, this will be ignored but won't break
-        timeout_config = get_http_timeout(cfg)
+        # The generic HTTP timeout is sized for RSS fetches: a 20s read. That is far too short for
+        # an LLM call summarizing a 74k-char transcript, which takes 30-60s+, so anthropic cells
+        # died with "Request timed out or interrupted" while every other provider completed.
+        # Read gets the summarization budget; connect/write/pool keep the short HTTP values.
+        timeout_config = get_http_timeout(
+            cfg, read_timeout=float(config_constants.DEFAULT_SUMMARIZATION_TIMEOUT_SECONDS)
+        )
         if timeout_config is not None:
             client_kwargs["timeout"] = timeout_config
 
