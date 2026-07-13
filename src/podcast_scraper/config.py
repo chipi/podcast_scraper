@@ -3637,13 +3637,28 @@ class Config(BaseModel):
 
         if not merged.get("generate_gi", False):
             return merged
-        summary = merged.get("summary_provider", "transformers")
+
+        # Read the profile's summary_provider, not just an explicitly-passed one. This validator
+        # runs BEFORE the profile is merged, so a profile-sourced `summary_provider: ollama` was
+        # invisible here and the align silently never fired. Every LLM profile therefore fell back
+        # to the local QA/NLI grounder — the ML stack, intended for the ML profiles — and that
+        # grounder returns a single answer-fragment per insight and grounds 0%.
+        #
+        # The design is: an LLM summariser grounds with that same LLM (its evidence prompt asks the
+        # question the pipeline actually means — "is this quote EVIDENCE for this insight?" — on a
+        # graded scale); a transformers/summllama summariser grounds with the local QA + NLI models.
+        # `gi_nli_entailment_min: 0.75` is calibrated for the former. Restore that.
+        summary = merged.get("summary_provider")
+        if summary is None and merged.get("profile"):
+            summary = _profile_setting(str(merged["profile"]), "summary_provider")
+        if summary is None:
+            summary = "transformers"
         if summary not in GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS:
             return merged
+
         # Only promote when the caller left the evidence providers UNSET. Comparing against
         # "transformers" cannot tell "I did not choose" from "I chose transformers", so an explicit
-        # pin to the local QA/NLI stack used to be silently overwritten with the LLM — the one
-        # combination #1179 says destroys grounding.
+        # pin to the local QA/NLI stack would otherwise be silently overwritten.
         if (
             merged.get("quote_extraction_provider") is None
             and merged.get("entailment_provider") is None

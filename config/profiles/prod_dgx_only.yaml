@@ -78,34 +78,27 @@ ollama_num_ctx: 32768 # transcripts are long; a smaller window truncates them si
 llm_pipeline_mode: staged
 
 
-# --- GI evidence stack: WHO grounds the insights --------------------------------------------------
-# qwen writes the insights; the LOCAL extractive-QA + NLI models find and certify the quotes.
+# --- GI evidence gate: qwen writes the insights AND finds the quotes ------------------------------
+# The evidence stack is NOT pinned here: an LLM summariser aligns to itself for quote extraction and
+# entailment (Config._auto_promote_evidence_providers). The local extractive-QA + NLI models are the
+# ML profiles' grounder, not this one — pointing an LLM profile at them grounds 0% of insights,
+# because a QA model returns an answer-fragment and a strict NLI head rejects an abstractive claim.
 #
-# State this explicitly. Until now it was an accident: the evidence auto-align only fires for a
-# summary_provider passed in code, never one that arrives from a profile, so this profile landed on
-# the local stack without asking for it. Anyone "fixing" that asymmetry would have silently flipped
-# production to qwen-grounded evidence — the exact configuration that lost ~91% of grounded quotes
-# in the DGX pilot (qwen3.5:35b answers NLI with a near-binary 0/1). The pin below makes the choice
-# survive that fix.
-gil_evidence_match_summary_provider: false
-quote_extraction_provider: transformers
-entailment_provider: transformers
-
-# WARNING — this threshold does NOT match the model above.
+# 0.75 is calibrated for exactly this configuration. The shipped (openai) entailment prompt asks for
+# strict textual entailment; qwen3.5:35b answers it strictly and threw away 60% of genuine evidence
+# — grounding 13.3% where the cloud grounded 91.3%. The ollama prompt asks the question the pipeline
+# actually means ("is this quote EVIDENCE for this insight?") on a graded scale, and 0.75 keeps only
+# "clearly supports".
 #
-# 0.75 was calibrated against qwen answering an evidence-framed prompt on a graded scale
-# (scripts/eval/score/entailment_calibration_v1.py, 20 pos / 20 neg pairs from gemini's own
-# SUPPORTED_BY edges):
+# Calibrated on 20 pos / 20 neg pairs taken from gemini's own SUPPORTED_BY edges on the SAME
+# episodes (scripts/eval/score/entailment_calibration_v1.py):
 #
 #   shipped prompt   @ 0.50   recall 40%   rejection 95%   <- discards real evidence
 #   evidence-framed  @ 0.50   recall 95%   rejection 80%   <- certifies unrelated pairs
 #   evidence-framed  @ 0.75   recall 65%   rejection 95%   <- gemini's gate passes ~66%
 #
-# But the entailment provider is `transformers`, whose score is a softmax probability on a
-# different scale entirely. The number is a threshold from one model applied to another model's
-# distribution. It must be recalibrated against the NLI model actually in use before prod v3 is
-# built. Recall alone is gameable — a gate that accepts everything scores 100% recall and certifies
-# hallucinations — so both recall and rejection have to hold.
+# Recall alone is gameable: a gate that accepts everything scores 100% and certifies hallucinations,
+# which is the exact failure the grounding contract exists to prevent. Both numbers have to hold.
 gi_nli_entailment_min: 0.75
 
 generate_metadata: true
