@@ -1743,6 +1743,9 @@ class OpenAIProvider:
             max_insights * config_constants.GI_INSIGHT_TOKENS_EACH,
         )
         # Truncate transcript for context (e.g. ~100k chars) to avoid token limits
+        # Honour the configured temperature. This was hardcoded to 0.3 in every provider,
+        # so evals could not pin it and the pipeline was not reproducible.
+        insight_temperature = _insight_salvage.resolve_insight_temperature(self.cfg, "openai")
         text_slice = (text or "").strip()
         if len(text_slice) > 120000:
             text_slice = text_slice[:120000] + "\n\n[Transcript truncated.]"
@@ -1764,7 +1767,7 @@ class OpenAIProvider:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
-                temperature=0.3,
+                temperature=insight_temperature,
                 max_tokens=insight_max_tokens,
             )
             in_tok, out_tok = _openai_chat_usage_tokens(response)

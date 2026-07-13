@@ -1509,6 +1509,9 @@ class MistralProvider:
             config_constants.GI_INSIGHT_TOKENS_FLOOR,
             max_insights * config_constants.GI_INSIGHT_TOKENS_EACH,
         )
+        # Honour the configured temperature. This was hardcoded to 0.3 in every provider,
+        # so evals could not pin it and the pipeline was not reproducible.
+        insight_temperature = _insight_salvage.resolve_insight_temperature(self.cfg, "mistral")
         text_slice = (text or "").strip()
         if len(text_slice) > 120000:
             text_slice = text_slice[:120000] + "\n\n[Transcript truncated.]"
@@ -1530,7 +1533,7 @@ class MistralProvider:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
-                temperature=0.3,
+                temperature=insight_temperature,
                 max_tokens=insight_max_tokens,
             )
             _record_mistral_llm_call(

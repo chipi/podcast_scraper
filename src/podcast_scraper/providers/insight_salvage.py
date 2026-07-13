@@ -20,12 +20,28 @@ time costing the episode its entire insight set.
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from typing import Any, Optional
 
 from .guardrails.chat import REASON_CHAT_FINISH_LENGTH
 from .guardrails.exceptions import GuardrailViolation
 
 logger = logging.getLogger(__name__)
+
+
+def resolve_insight_temperature(cfg: Any, provider: str) -> float:
+    """Temperature for insight generation, from config.
+
+    Every provider hardcoded 0.3 and ignored the configured value, so the pipeline was not
+    reproducible: the same config on the same 3 episodes gave 28.0 vs 18.3 insights/episode and
+    1.51 vs 6.00 quotes/insight, with grounding straddling the ADR-053 line (79.8% vs 94.5%).
+    Evals need to pin this to 0.
+    """
+    from .. import config_constants
+
+    value = getattr(cfg, f"{provider}_temperature", None)
+    if value is None:
+        return float(config_constants.GI_INSIGHT_TEMPERATURE_DEFAULT)
+    return float(value)
 
 
 def strip_json_fence(content: Optional[str]) -> str:

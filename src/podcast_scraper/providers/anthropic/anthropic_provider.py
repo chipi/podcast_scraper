@@ -1582,6 +1582,9 @@ class AnthropicProvider:
             config_constants.GI_INSIGHT_TOKENS_FLOOR,
             max_insights * config_constants.GI_INSIGHT_TOKENS_EACH,
         )
+        # Honour the configured temperature. This was hardcoded to 0.3 in every provider,
+        # so evals could not pin it and the pipeline was not reproducible.
+        insight_temperature = _insight_salvage.resolve_insight_temperature(self.cfg, "anthropic")
         text_slice = (text or "").strip()
         if len(text_slice) > 120000:
             text_slice = text_slice[:120000] + "\n\n[Transcript truncated.]"
@@ -1600,7 +1603,7 @@ class AnthropicProvider:
             response = self.client.messages.create(
                 model=self.summary_model,
                 max_tokens=insight_max_tokens,
-                temperature=0.3,
+                temperature=insight_temperature,
                 system=system_prompt,
                 messages=[{"role": "user", "content": user_prompt}],
             )

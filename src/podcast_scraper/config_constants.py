@@ -39,6 +39,12 @@ GI_QUOTE_RESPONSE_TOKENS = 2048
 # Value gate replies with one small integer per insight, as JSON. Cheap, but budget it from
 # the insight count rather than a literal — that literal is how the last three ceilings bit us.
 GI_VALUE_GATE_TOKENS_EACH = 24
+# Insight generation ran at a hardcoded 0.3 in every provider, ignoring the configured
+# temperature entirely. The pipeline was therefore never reproducible: the same config on
+# the same 3 episodes produced 28.0 vs 18.3 insights/episode and 1.51 vs 6.00
+# quotes/insight, with grounding straddling the ADR-053 line (79.8% vs 94.5%). Evals must
+# be able to pin this to 0.
+GI_INSIGHT_TEMPERATURE_DEFAULT = 0.3
 DEFAULT_NUM_SPEAKERS = 2
 DEFAULT_SCREENPLAY_GAP_SECONDS = 1.25
 DEFAULT_TIMEOUT_SECONDS = 20
