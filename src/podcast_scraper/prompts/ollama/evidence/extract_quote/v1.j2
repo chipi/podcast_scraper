@@ -7,15 +7,17 @@ Rules:
   paraphrase, do not tidy grammar, do not fix disfluencies. A quote that is not an exact copy is
   useless — it cannot be located in the transcript, so it cannot support anything.
 - Each quote should be one to three sentences: enough to stand on its own, no more.
-- Prefer the passage where a speaker states or demonstrates the claim most directly.
-- Give EVERY passage that genuinely supports the insight. Do not stop at a fixed number — an
-  insight discussed at length has more evidence than one mentioned once, and you should return
-  all of it.
+- SWEEP THE WHOLE TRANSCRIPT. A claim that matters is stated, restated, argued over and responded
+  to in several places. Look in the beginning, the middle AND the end.
+- Do not stop after the first good quote. Two quotes is usually too few. If the episode returns to
+  this claim four times, return four quotes.
+- A passage where a speaker DISAGREES with or qualifies the claim is also evidence — it shows the
+  claim was made and contested. Include it.
 - CRITICAL: each quote must be a DIFFERENT passage. Never repeat the same text, and never return
-  two quotes that overlap. Draw them from separate parts of the transcript, including the later
-  parts — evidence is not only near the beginning.
-- If the transcript does not actually support the insight, return an empty list. Never invent a
-  quote, and never pad the list with weak matches to make it longer.
+  two quotes that overlap.
+- Quality still governs: never invent a quote, and never pad the list with passages that do not
+  bear on the insight. If the transcript does not actually support the insight, return an empty
+  list.
 
 Return a JSON object with a single key "quotes", whose value is a list of exact transcript strings.
 No other keys, no commentary, no markdown fences.
