@@ -53,13 +53,40 @@ gets.
    graded LLM entailment* (20 pos / 20 neg pairs, #1179). Production runs a **transformers NLI**
    model, whose score is a softmax probability on an entirely different scale. The gate is a
    threshold from one model applied to another model's distribution.
-3. prod-v2's 1418 quotes were produced by the **transformers** extractive-QA path — so the corpus we
-   have been reasoning about all session was grounded by a component we never evaluated.
-
 **Not yet known:** whether transformers grounding is better or worse than qwen grounding. It could
 be either. It must be measured head-to-head on the same insights before prod v3 is built — and that
 measurement is also the real answer to "solve qwen's grounding problem", because the retriever we
 were trying to fix may not be the one that ships.
+
+**Do NOT try to answer this from the prod-v2 corpus.** See the correction below — prod-v2 was built
+by a commit that does not exist in this repository, so nothing in it can be attributed to this
+code's configuration. The only way to learn what this code does in production is to run it.
+
+### Correction — prod-v2 cannot be used as evidence about this codebase
+
+I measured the prod-v2 corpus and reported three things from it. All three were unsound, and the
+commit that recorded them has been reverted. Written down so the mistake is not repeated:
+
+- **"209 episodes."** It is ~100 episodes counted **twice** — prod-v2 holds two run generations of
+  the same episodes (`run_20260505-*` pre-diarization and `run_20260613-*` diarized) and I globbed
+  both. This is the identical double-counting that voided the generalization dataset earlier in the
+  same session.
+- **"prod-v2 shows what production's grounding stack produces."** It does not. Its manifest records
+  `git_sha: b7cc303`, which **exists neither in this repository nor anywhere on this machine**. The
+  corpus was produced by a codebase I cannot inspect. None of its numbers can be attributed to this
+  repo's config, providers, or evidence stack.
+- **"The 12-insight cap is binding on 99% of the corpus; every episode was truncated."** Invented.
+  This repo clamped insights to **10** from 2026-03-29 until the fix on 2026-07-12 — verified by
+  reading the provider at that commit. A codebase that clamps to 10 cannot emit exactly 12. The
+  contradiction was visible in my own two claims and I built a causal story on top of it instead of
+  stopping.
+
+What *is* verified about prod-v2: its insights were written by `gemini-2.5-flash-lite`
+(`model_version` in the artifacts). That is all.
+
+The lesson generalises: **a foreign artifact cannot answer a question about this code.** Defect #10
+survives precisely because it was established by resolving `Config` against the profiles *in this
+repo*, not by reading a corpus.
 
 ### The decisions this forces
 
