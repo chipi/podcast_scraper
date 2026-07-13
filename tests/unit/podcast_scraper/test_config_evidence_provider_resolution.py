@@ -98,14 +98,40 @@ class TestEveryShippedProfileGroundsWithItsIntendedStack:
 
 
 class TestEvalMatchesProduction:
-    """The eval must run the pipeline production runs, not a reimplementation of it.
+    """The eval must resolve the same evidence stack production does.
 
-    The harness used to re-derive the evidence stack itself. Its copy happened to be RIGHT (it
-    aligned to the LLM) while production was wrong — so the eval measured the intended design and
-    production shipped the broken one, and the two numbers could never be reconciled.
+    The subtlety that bit us: an eval cell is built with ``base.model_copy(update=...)``, and
+    **model_copy does not re-run validators**. So Config's evidence auto-align never fires on an
+    eval cell — it would summarise with qwen while keeping the base profile's grounder (the local
+    QA/NLI stack, which grounds ~8%).
+
+    The harness therefore has to re-apply the align itself. That is not a reimplementation of the
+    pipeline; it is compensation for a model_copy limitation. Deleting it as "duplication" produced
+    a 10-episode run with 513 insights and ZERO grounded quotes, which is what these tests exist to
+    prevent.
     """
 
-    def test_eval_inherits_the_production_evidence_stack(self) -> None:
+    def test_a_model_copied_cell_still_aligns_to_its_summariser(self) -> None:
+        """THE REGRESSION. A base profile that summarises locally, model_copied onto an LLM
+        backend, must ground with that LLM — not with the base profile's ML stack."""
+        from podcast_scraper.evaluation.eval_gi_kg_runtime import (
+            merge_eval_task_into_summarizer_config as merge,
+        )
+
+        base = Config.model_validate({"profile": "test_default", "generate_gi": True})
+        assert base.summary_provider == "transformers"
+        assert base.quote_extraction_provider == "transformers"
+
+        # what run_experiment does when the experiment names an ollama backend
+        cell = base.model_copy(update={"summary_provider": "ollama"})
+        assert cell.quote_extraction_provider == "transformers", "model_copy skips validators"
+
+        merged = merge(cell, "grounded_insights", {"gi_insight_source": "provider"})
+        assert merged.summary_provider == "ollama"
+        assert merged.quote_extraction_provider == "ollama"
+        assert merged.entailment_provider == "ollama"
+
+    def test_eval_matches_the_production_evidence_stack(self) -> None:
         from podcast_scraper.evaluation.eval_gi_kg_runtime import (
             merge_eval_task_into_summarizer_config as merge,
         )

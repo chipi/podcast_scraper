@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, cast, Dict, Literal, Optional
 
 from podcast_scraper import config_constants
-from podcast_scraper.config import Config
+from podcast_scraper.config import Config, GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS
 
 _TASK_GI = "grounded_insights"
 _TASK_KG = "knowledge_graph"
@@ -148,20 +148,27 @@ def merge_eval_task_into_summarizer_config(
         chunk = p.get("gil_evidence_nli_chunk_size")
         if isinstance(chunk, int) and 1 <= chunk <= 100:
             updates["gil_evidence_nli_chunk_size"] = chunk
-        # Do NOT re-derive who grounds the insights. The eval used to reimplement the evidence
-        # auto-align here, and its copy disagreed with the real one: it pointed quote-extraction
-        # and entailment at the summarising LLM, while production leaves them on the local QA/NLI
-        # models. Every GI eval in this repo's history therefore measured a grounding stack
-        # production does not run — the pipeline has two independent stages (write the insight,
-        # find the quote) and the eval silently swapped the second one.
+        # Re-align the evidence stack to the summariser. This MUST happen here, and the reason is
+        # subtle enough that it was already deleted once:
         #
-        # Inherit the stack the config already resolved, and override only when an experiment names
-        # a provider on purpose — which is what makes "who should ground?" an answerable question
-        # instead of an accident.
+        # An eval cell is built as `base.model_copy(update={"summary_provider": ...})`, and
+        # model_copy does NOT re-run validators. So Config's evidence auto-align — which points
+        # quote-extraction and entailment at the summarising LLM — never fires on an eval cell. The
+        # cell would summarise with qwen and keep the base profile's grounder (the local QA/NLI
+        # stack), which grounds ~8% of insights. That is not a hypothetical: removing this block
+        # produced a 10-episode run with 513 insights and ZERO grounded quotes.
+        #
+        # This is compensation for a model_copy limitation, not a reimplementation of the pipeline.
+        # An experiment can still name a grounder on purpose (that is how the grounding bake-off
+        # compares them); naming one just wins over the align.
+        summary_prov = str(getattr(base, "summary_provider", "transformers"))
+        aligned = summary_prov in GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS
         for key in ("quote_extraction_provider", "entailment_provider"):
             chosen = p.get(key)
             if isinstance(chosen, str) and chosen:
                 updates[key] = chosen
+            elif aligned:
+                updates[key] = summary_prov
         return base.model_copy(update=updates)
     if task == _TASK_KG:
         raw_kg = p.get("kg_extraction_source", "provider")
