@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from .... import config
@@ -101,6 +103,54 @@ def _resolve_diarization_cache_dir(cfg: config.Config, cache_dir: Optional[str])
     if cache_dir:
         return cache_dir
     return diarization_cache_dir_for_output(cfg.output_dir)
+
+
+_recurring_cache: Dict[str, set] = {}
+_recurring_lock = threading.Lock()
+
+
+def _feed_recurring_text(cfg: config.Config) -> set:
+    """The script THIS FEED repeats across its own episodes (#1188).
+
+    A mid-roll house ad is short but sits in the middle, so the edge rule cannot see it, and it
+    carries no sponsor language, so the keyword patterns score zero. It gives itself away only
+    across episodes: it is read from the same script every week. `Jonathan Knight` (NYT Games) got
+    into 7 of 10 Hard Fork episodes as a named person because no single episode could tell.
+
+    Built from the transcripts already on disk for this output dir, once per feed. Fewer than three
+    transcripts and there is nothing to compare, so the rule abstains.
+    """
+    out_dir = str(getattr(cfg, "output_dir", "") or "")
+    if not out_dir:
+        return set()
+    cached = _recurring_cache.get(out_dir)
+    if cached is not None:
+        return cached
+    with _recurring_lock:
+        cached = _recurring_cache.get(out_dir)
+        if cached is not None:
+            return cached
+        try:
+            from ....speaker_detectors.boilerplate import shingles_from_transcript_files
+
+            paths = [
+                p
+                for p in Path(out_dir).glob("**/transcripts/*.txt")
+                if ".adfree" not in p.name and ".cleaned" not in p.name
+            ]
+            shingles = shingles_from_transcript_files(paths)
+            if shingles:
+                logger.info(
+                    "#1188: indexed %d repeated passages across %d transcripts of this feed — "
+                    "a voice that only reads them is a recording, not a person",
+                    len(shingles),
+                    len(paths),
+                )
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("recurring-text index unavailable (%s); mid-roll ad rule abstains", exc)
+            shingles = set()
+        _recurring_cache[out_dir] = shingles
+        return shingles
 
 
 def _resolve_voices_via_llm(
@@ -261,6 +311,7 @@ def apply_diarization_to_result(
         ad_intervals=_ad_intervals(segments),
         metadata_named=list(metadata_named or ()),
         llm_voice_names=llm_voice_names,
+        recurring_text=_feed_recurring_text(cfg),
     )
 
     enriched_result = dict(result)

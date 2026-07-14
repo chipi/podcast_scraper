@@ -26,6 +26,7 @@ import re
 from dataclasses import dataclass, replace
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
+from ....speaker_detectors.boilerplate import recorded_voices
 from ....speaker_detectors.hosts import (
     _clean_stated_name as _clean_intro_name,
     _GUEST_INTRODUCED_BY_HOST as _GUEST_INTRODUCED_BY_HOST_RE,
@@ -760,6 +761,7 @@ def resolve_speaker_roster(
     ad_intervals: Optional[Sequence[Tuple[float, float]]] = None,
     metadata_named: Sequence[str] = (),
     llm_voice_names: Optional[Dict[str, str]] = None,
+    recurring_text: Optional[set] = None,
     intro_window_s: float = INTRO_WINDOW_SECONDS,
 ) -> SpeakerRoster:
     """Resolve every diarized voice to a ``SpeakerRole`` (see module docstring).
@@ -775,6 +777,10 @@ def resolve_speaker_roster(
     them. It never names a voice on its own — it only decides whether an unnamed voice is a defect
     (``unknown``) or a person nobody could have named (``unidentified``). A name we saw and could
     not place is a failure of ours, whatever our reason for declining to use it.
+
+    ``recurring_text`` is the script this FEED repeats across its own episodes (#1188). A voice that
+    is mostly reading it, and barely speaks, is a recording — the mid-roll house ad the edge rule
+    cannot see. Omitted → only the edge rule, as before.
     """
     if not diarization.segments:
         return SpeakerRoster(by_voice={}, num_speakers=diarization.num_speakers or 0)
@@ -783,6 +789,20 @@ def resolve_speaker_roster(
     # episode and reads its own name, so it wins both the "opening voice = host" rule and the
     # most-trusted self-introduction rule unless it is removed from contention up front.
     ad_voices = _edge_ad_voices(diarization)
+
+    # ...and the ad the edge rule CANNOT see (#1188). A mid-roll house ad sits in the middle of the
+    # episode, so "short and at the edges" misses it, and it carries no sponsor language, so the
+    # keyword patterns score zero. It gives itself away across EPISODES: it is read from the same
+    # script every week, and the show is not.
+    #
+    #     Jonathan Knight   1.3-1.7% of talk, 77-100% of his words repeat across the feed
+    #     Robert Armstrong  3.4-3.6% of talk, 70-77% repeat — he reads the CREDITS, and he is a HOST
+    #
+    # Which is why BOTH tests must hold: repetition alone would strip a co-host reading the credits.
+    if recurring_text:
+        ad_voices = ad_voices | recorded_voices(
+            voice_texts or {}, _talk_time(diarization), recurring_text
+        )
 
     # The intro window is the SHOW's intro, not the advert's. Measured from 0 it was mostly ad, so a
     # co-host who speaks a minute in barely registered and never cleared CO_HOST_INTRO_SHARE — which
