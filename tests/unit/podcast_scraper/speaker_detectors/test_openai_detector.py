@@ -20,6 +20,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 # Import from parent conftest explicitly to avoid conflicts
+import importlib.machinery
 import importlib.util
 from pathlib import Path
 
@@ -43,6 +44,17 @@ from unittest.mock import MagicMock
 
 mock_openai = MagicMock()
 mock_openai.OpenAI = Mock()
+
+# A stand-in module still needs a __spec__. This patch is started at IMPORT time (the imports below
+# need it) and is never stopped — it cannot be: restoring the real `openai` mid-session re-imports a
+# C extension and segfaults the interpreter. So the mock lives in sys.modules for the rest of the
+# run, and anything that later called importlib.util.find_spec("openai") died with
+# "ValueError: openai.__spec__ is not set".
+#
+# That took out 33 tests in unrelated modules (summarizer security, run manifest, reproducibility
+# seeds) on a full run, while every one of them passed in isolation. A suite that is red only when
+# run whole is a suite people learn to ignore.
+mock_openai.__spec__ = importlib.machinery.ModuleSpec("openai", loader=None)
 
 
 # Add real exception classes so they can be used in retry_with_metrics
