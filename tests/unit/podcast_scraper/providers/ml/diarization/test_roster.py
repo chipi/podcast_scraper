@@ -234,18 +234,23 @@ def test_speaker_diagnostics_explains_what_tried_and_why_unresolved() -> None:
         "num_speakers": 2,
         "named": 1,
         "unresolved": 1,
-        "by_voice_type": {"person": 1, "unknown": 1},
+        "by_voice_type": {"person": 1, "unidentified": 1},
         "show_centric": False,
-        "expected_unresolved": 0,
-        "truly_unknown": 1,  # SPEAKER_01 is a substantive person we failed to name
+        "expected_unresolved": 1,
+        # SPEAKER_01 is substantive, and NOBODY NAMES THEM — that is tape, not a failure.
+        "truly_unknown": 0,
     }
     assert diag["tried"]["host_self_intro"] == "Noah Kravitz"
     by_voice = {v["voice"]: v for v in diag["voices"]}
     assert by_voice["HOST"]["named"] is True and by_voice["HOST"]["source"] == "self_intro"
     assert by_voice["HOST"]["voice_type"] == "person"
     assert by_voice["SPEAKER_01"]["named"] is False
-    assert by_voice["SPEAKER_01"]["voice_type"] == "unknown"  # 340s talk time -> substantive
-    assert by_voice["SPEAKER_01"]["expected"] is False  # a genuine miss, not expected
+    assert (
+        by_voice["SPEAKER_01"]["voice_type"] == "unidentified"
+    )  # substantive, but nobody names them
+    # NOBODY names SPEAKER_01, so there was nothing to fail at: `expected`, not a miss. That
+    # distinction is what keeps `truly_unknown` meaningful as a defect count.
+    assert by_voice["SPEAKER_01"]["expected"] is True
     assert by_voice["SPEAKER_01"]["reason"]  # a non-empty "why it failed" explanation
 
 
@@ -258,20 +263,23 @@ def test_speaker_diagnostics_show_centric_host_is_expected() -> None:
     assert r.by_voice["HOST"].role == "host" and r.by_voice["HOST"].named is False
     assert by_voice["HOST"]["expected"] is True
     assert "show-centric" in by_voice["HOST"]["reason"]
-    # The substantive guest is still a genuine miss.
-    assert by_voice["GUEST"]["expected"] is False
+    # Nobody names the guest either — that is tape, not a miss.
+    assert by_voice["GUEST"]["expected"] is True
     assert diag["summary"]["show_centric"] is True
-    assert diag["summary"]["expected_unresolved"] == 1
-    assert diag["summary"]["truly_unknown"] == 1  # the guest
+    # BOTH are expected: the show-centric host (renders "Host") and the guest nobody names.
+    # `truly_unknown` is now the honest "we should have named this and did not" residual.
+    assert diag["summary"]["expected_unresolved"] == 2
+    assert diag["summary"]["truly_unknown"] == 0
 
 
 def test_voice_type_cameo_commercial_and_unknown() -> None:
-    # HOST named; SPEAKER_01 is a long unnamed voice (unknown), SPEAKER_02 a brief cameo (<20s),
-    # SPEAKER_03 speaks only inside an ad region (commercial).
+    # HOST named; SPEAKER_01 is a long unnamed voice that NOBODY NAMES -> "unidentified" (the
+    # tape / vox-pop of a narrated piece); SPEAKER_02 a brief cameo (<20s); SPEAKER_03 speaks only
+    # inside an ad region (commercial).
     diar = _diar(
         [
             ("HOST", 0, 60),
-            ("SPEAKER_01", 60, 400),  # 340s -> unknown (substantive)
+            ("SPEAKER_01", 60, 400),  # 340s, and nobody names them -> unidentified
             ("SPEAKER_02", 400, 408),  # 8s -> cameo
             ("SPEAKER_03", 500, 560),  # 60s but all inside the ad region -> commercial
         ],
@@ -283,14 +291,49 @@ def test_voice_type_cameo_commercial_and_unknown() -> None:
         ad_intervals=[(495.0, 570.0)],
     )
     assert r.by_voice["HOST"].voice_type == "person"
-    assert r.by_voice["SPEAKER_01"].voice_type == "unknown"
+    assert r.by_voice["SPEAKER_01"].voice_type == "unidentified"
     assert r.by_voice["SPEAKER_02"].voice_type == "cameo"
     assert r.by_voice["SPEAKER_03"].voice_type == "commercial"
     # Friendly display labels for the non-person voices (id-bearing label stays raw).
     assert r.display_label_for("SPEAKER_02") == "Brief speaker"
     assert r.display_label_for("SPEAKER_03") == "Advertisement"
-    assert r.display_label_for("SPEAKER_01") == "SPEAKER_01"  # substantive unknown keeps raw id
-    assert r.label_for("SPEAKER_02") == "SPEAKER_02"  # id-bearing label never swapped
+    assert r.display_label_for("SPEAKER_01") == "Unidentified speaker"
+    assert r.label_for("SPEAKER_01") == "SPEAKER_01"  # id-bearing label never swapped
+    assert r.label_for("SPEAKER_02") == "SPEAKER_02"
+
+
+def test_a_voice_we_FAILED_to_name_keeps_the_raw_id_as_a_defect_marker() -> None:
+    """The distinction the corpus audit made possible.
+
+    "Nobody named them" and "we failed to name them" are not the same thing, and until the audit
+    existed we could not tell them apart — so both rendered as a bare SPEAKER_07.
+
+    Here a guest name is DECLARED and goes unclaimed. A name existed; we did not attach it. That
+    voice keeps its raw id, because the raw id is the defect marker: it means "we should have named
+    this and did not". Showing that marker on a voice nobody could have named turns a signal into
+    noise, and a signal nobody trusts stops being a signal.
+    """
+    diar = _diar(
+        [
+            ("HOST", 0, 60),
+            ("SPEAKER_01", 60, 400),
+            ("SPEAKER_02", 400, 800),
+        ],
+        3,
+    )
+    r = resolve_speaker_roster(
+        diar,
+        "Welcome. I'm Noah Kravitz.",
+        known_hosts=["Noah Kravitz"],
+        detected_guests=["Ada Lovelace", "Alan Turing"],  # two names, and a voice left over
+    )
+    leftover = [v for v, role in r.by_voice.items() if not role.named]
+    for v in leftover:
+        assert r.by_voice[v].voice_type != "unidentified", (
+            f"{v} was typed 'unidentified', but a declared guest name was still going spare — "
+            "we FAILED to name it, and the raw id has to say so"
+        )
+        assert r.display_label_for(v) == v
 
 
 def test_unnamed_host_displays_as_host() -> None:
@@ -308,4 +351,5 @@ def test_voice_type_commercial_needs_ad_intervals() -> None:
     # Without ad_intervals the same in-ad voice is only cameo/unknown (no commercial guess).
     diar = _diar([("HOST", 0, 60), ("SPEAKER_03", 500, 560)], 2)
     r = resolve_speaker_roster(diar, "I'm Noah Kravitz.")
-    assert r.by_voice["SPEAKER_03"].voice_type == "unknown"  # 60s, no ad info -> substantive
+    # 60s, no ad info, and nobody names them -> unidentified (tape), not a defect
+    assert r.by_voice["SPEAKER_03"].voice_type == "unidentified"
