@@ -22,6 +22,7 @@ Resolution, per diarized **voice** (``SPEAKER_xx``):
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, replace
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -535,20 +536,67 @@ def _canonicalize_to_known_host(name: str, known_hosts: Sequence[str]) -> str:
     return name
 
 
-def _self_intros_by_voice(voice_texts: Optional[Dict[str, str]]) -> Dict[str, str]:
+def _vouched_by_metadata(candidate: str, metadata_named: Sequence[str]) -> Optional[str]:
+    """A weak self-introduction the METADATA can vouch for, resolved to the full stated name.
+
+    "This is Alessio" is the single most common way a host opens a show, and we threw it away: a
+    one-token intro could be "I'm American", so the guest path demanded first+last. Correct — and it
+    cost us every host who uses their first name. On Latent Space that is *every episode*.
+
+    The metadata settles it. The conversation says which VOICE; the metadata says WHO. A weak intro
+    binds only when the episode metadata already states that person, and only when it states exactly
+    one such person — an ambiguous first name ("Chris") names nobody, and neither does a show
+    talking about itself ("This is Unhedged").
+    """
+    cand = (candidate or "").strip().lower()
+    if len(cand) < 2:
+        return None
+    hits = {
+        n
+        for n in metadata_named
+        if n.lower() == cand or n.lower().split()[0] == cand  # "Alessio" -> "Alessio Fanelli"
+    }
+    return hits.pop() if len(hits) == 1 else None
+
+
+# "This is Alessio." — the other way a host opens a show, and it is NOT a safe self-introduction on
+# its own: the same construction is how a show names ITSELF ("This is Unhedged", "This is Planet
+# Money"), which is precisely why `extract_self_introduced_host` only ever matched "I'm <Name>".
+#
+# The metadata dissolves the ambiguity. A "this is X" match binds ONLY when the episode metadata
+# states X as a person — whatever its token count, because "This is Latent Space Podcast" is three
+# tokens and no more a person than "Unhedged" is.
+_THIS_IS_INTRO = re.compile(r"\b[Tt]his is\s+([A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+){0,3})")
+
+
+def _self_intros_by_voice(
+    voice_texts: Optional[Dict[str, str]], metadata_named: Sequence[str] = ()
+) -> Dict[str, str]:
     """Per-voice self-introductions ``{voice: name}`` — a voice that says "I'm <First Last>"
     in its *own* turns IS that person. The most reliable per-voice signal, so it names the
     guests/co-hosts that the opening-host self-intro + position-ordered detected-guest list
     miss (the #876 "partial-naming" case: "Hi, I'm Nic Harrigan" rendering as SPEAKER_1).
 
     Requires a first+last name (≥2 tokens) — guarding the guest path against "I'm American"-style
-    false positives; the single main host is still covered by the opening-intro pool.
+    false positives; the single main host is still covered by the opening-intro pool. A ONE-token
+    "I'm <X>", and ANY "this is <X>", are accepted only when ``metadata_named`` vouches for them —
+    which is what rescues "This is Alessio" without admitting "I'm American" or "This is Unhedged".
     """
     out: Dict[str, str] = {}
     for voice, text in (voice_texts or {}).items():
+        head = (text or "")[:5000]
         name = extract_self_introduced_host(text, intro_chars=5000)
         if name and len(name.split()) >= 2:
             out[voice] = name
+            continue
+        # A bare first name, or a "this is <X>" — neither stands up alone. The metadata decides.
+        candidates = [name] if name else []
+        candidates += [m.group(1).strip(" .,") for m in _THIS_IS_INTRO.finditer(head)]
+        for cand in candidates:
+            stated = _vouched_by_metadata(cand, metadata_named)
+            if stated:
+                out[voice] = stated
+                break
     return out
 
 
@@ -725,9 +773,14 @@ def resolve_speaker_roster(
     # what makes the most-trusted signal the easiest one to poison.
     # ...and the name it gives is the ASR's spelling, so it is snapped onto the configured host
     # when it is plainly the same person ("Kevin Russo" / "Kevin Roos" -> "Kevin Roose").
+    # The metadata is handed in so a bare "This is Alessio" can be vouched for; it never names a
+    # voice on its own.
+    intro_sources = (
+        list(metadata_named or ()) + list(known_hosts or ()) + list(detected_guests or ())
+    )
     voice_intro = {
         v: _canonicalize_to_known_host(n, known_hosts)
-        for v, n in _self_intros_by_voice(voice_texts).items()
+        for v, n in _self_intros_by_voice(voice_texts, intro_sources).items()
         if v not in ad_voices
     }
 
@@ -740,7 +793,9 @@ def resolve_speaker_roster(
             voice_intro[v] = _canonicalize_to_known_host(n, known_hosts)
 
     ad_names_lower = {
-        n.lower() for v, n in _self_intros_by_voice(voice_texts).items() if v in ad_voices and n
+        n.lower()
+        for v, n in _self_intros_by_voice(voice_texts, intro_sources).items()
+        if v in ad_voices and n
     }
 
     # A transcript-level self-introduction has NO VOICE ATTACHED TO IT.
@@ -847,6 +902,27 @@ def resolve_speaker_roster(
     for n in sorted(guests_introduced_by_the_host(voice_texts)):
         if n.lower() not in {d.lower() for d in declared}:
             declared.append(n)
+
+    # DELIBERATELY NOT DONE HERE: an "anchor" rule, letting one confirmed guest vouch for the other
+    # people the description names ("Qasar Younis and Peter Ludwig have spent the last decade...";
+    # Peter self-introduces, so Qasar must speak too). A tempting rule. It was built, replayed over
+    # the corpus, and REMOVED. On 160 episodes it admitted 8 names: 3 real guests (Qasar
+    # Younis, Dan Gural, Marc Andreessen) and 5 that were never in the room —
+    #
+    #     HB Reese   the founder of Reese's, discussed by a Planet Money episode. He died in 1956.
+    #     "Marc"     a bare first name, landing on a SECOND voice in the Marc Andreessen episode
+    #     "Bill"     a first name, on a voice with 0.0% of the talk
+    #     "Er"       an NER fragment, on a voice with 0.0% of the talk
+    #
+    # That is the #876 failure exactly: a person an episode DISCUSSES, painted onto a voice. A
+    # description that names several people is a guest list or a topic list, and one member speaking
+    # does not tell you which — the vouching has to be scoped to the PHRASE the anchor appears in,
+    # and the metadata names have to be whole. Until both hold, no name.
+    #
+    # A wrong name is worse than no name. The only metadata-vouched naming we do is the one where
+    # the VOICE ITSELF says it (`_vouched_by_metadata`, warrant (c)) — that admitted 3 names across
+    # the corpus and all 3 were right.
+
     guest_names = [
         g
         for g in declared
@@ -943,7 +1019,9 @@ def build_speaker_diagnostics(
     host is then flagged ``expected`` (rendered "Host"), not a detection failure.
     """
     talk = _talk_time(diarization)
-    per_voice_intro = _self_intros_by_voice(voice_texts)
+    per_voice_intro = _self_intros_by_voice(
+        voice_texts, list(metadata_named or ()) + list(known_hosts or ()) + list(detected_guests)
+    )
     guests_available = bool(_clean_person_names(detected_guests))
     named = sum(1 for r in roster.by_voice.values() if r.named)
     type_counts: Dict[str, int] = {}

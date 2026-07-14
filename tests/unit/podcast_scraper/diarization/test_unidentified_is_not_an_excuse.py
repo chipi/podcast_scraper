@@ -126,6 +126,128 @@ class TestThePerEpisodeAlarm:
         assert summary["unbound_names"] == []
 
 
+class TestNamingTheVoicesWeWereLosing:
+    """Latent Space named NOBODY — 100% of the talk, on nearly every episode.
+
+    The feed states no host (its author tag is the org, "Latent.Space"), so the only evidence is the
+    conversation, and both of the show's habits defeated us.
+    """
+
+    def _run(self, turns, metadata_named, known_hosts=()):
+        diar = DiarizationResult(
+            segments=[DiarizationSegment(s, e, v) for v, s, e, _ in turns],
+            num_speakers=len({v for v, _, _, _ in turns}),
+        )
+        voice_texts: Dict[str, str] = {}
+        for v, _, _, text in turns:
+            voice_texts[v] = (voice_texts.get(v, "") + " " + text).strip()
+        return resolve_speaker_roster(
+            diar,
+            " ".join(t for _, _, _, t in turns),
+            detected_guests=[],  # corroboration rejected them — that is the situation under test
+            known_hosts=list(known_hosts),
+            voice_texts=voice_texts,
+            ordered_turns=[(v, t) for v, _, _, t in turns],
+            metadata_named=metadata_named,
+        )
+
+    def test_a_FIRST_NAME_self_intro_binds_when_the_metadata_vouches_for_it(self) -> None:
+        """ "Hey everyone, welcome to the Latent Space Podcast. This is Alessio."
+
+        One token, so the guest path threw it away ("I'm American"). The metadata names him, and
+        the conversation says which voice — together that is a warrant, and it costs us every host
+        who uses their first name.
+        """
+        roster = self._run(
+            [
+                (
+                    "SPEAKER_04",
+                    0.0,
+                    300.0,
+                    "Hey everyone, welcome to the podcast. This is Alessio.",
+                ),
+                (
+                    "SPEAKER_01",
+                    300.0,
+                    900.0,
+                    "Thanks for having me. So the thesis is quite simple.",
+                ),
+            ],
+            metadata_named=["Alessio Fanelli", "Marc Andreessen"],
+        )
+        host = roster.by_voice["SPEAKER_04"]
+        assert host.named
+        assert host.name == "Alessio Fanelli", "a bare first name the metadata states must bind"
+
+    def test_a_bare_first_name_the_metadata_does_NOT_state_still_binds_nobody(self) -> None:
+        """The guard that made the first+last rule right in the first place."""
+        roster = self._run(
+            [
+                ("SPEAKER_04", 0.0, 300.0, "Welcome to the show. I'm American, and I love this."),
+                ("SPEAKER_01", 300.0, 900.0, "Thanks for having me. The thesis is quite simple."),
+            ],
+            metadata_named=["Marc Andreessen"],
+        )
+        assert roster.by_voice["SPEAKER_04"].name != "American"
+
+    def test_an_AMBIGUOUS_first_name_binds_nobody(self) -> None:
+        """Two stated people share the first name. The conversation cannot say which — so neither
+        of them gets it."""
+        roster = self._run(
+            [
+                ("SPEAKER_04", 0.0, 300.0, "Welcome to the show. This is Chris."),
+                ("SPEAKER_01", 300.0, 900.0, "Thanks for having me. The thesis is quite simple."),
+            ],
+            metadata_named=["Chris Wright", "Chris Lattner"],
+        )
+        assert not roster.by_voice["SPEAKER_04"].named
+
+    def test_the_metadata_NEVER_names_a_voice_that_did_not_say_it(self) -> None:
+        """THE RULE THAT WAS TESTED, BUILT, MEASURED, AND REMOVED.
+
+        The tempting rule: let one confirmed guest vouch for the people named beside him. "Qasar
+        Younis and Peter Ludwig have spent the last decade..." — Peter self-introduces, so surely
+        Qasar (35% of the episode) is a speaker too?
+
+        It was implemented and replayed over all 160 episodes. It admitted 8 names: 3 real guests
+        and 5 people who were never in the room, including **HB Reese** — the founder of Reese's,
+        discussed by a Planet Money episode, dead since 1956 — painted onto a voice. That is the
+        #876 failure exactly.
+
+        A description that names several people is a guest list or a topic list, and one member
+        speaking does not tell you which. So the metadata alone vouches for NOBODY: it may only
+        confirm a name the VOICE ITSELF uttered.
+        """
+        roster = self._run(
+            [
+                ("SPEAKER_00", 0.0, 300.0, "Welcome back. I'm Alexi Horowitz-Gazi."),
+                (
+                    "SPEAKER_03",
+                    300.0,
+                    900.0,
+                    "Yeah, hi, I'm Brad Reese, and my family started the company.",
+                ),
+                (
+                    "SPEAKER_09",
+                    900.0,
+                    1500.0,
+                    "It was one of the greatest things that ever happened.",
+                ),
+            ],
+            # Brad Reese speaks and is stated. HB Reese is stated too — dead since 1956.
+            metadata_named=["Alexi Horowitz-Gazi", "Brad Reese", "HB Reese"],
+            known_hosts=["Alexi Horowitz-Gazi"],
+        )
+        assert roster.by_voice["SPEAKER_03"].name == "Brad Reese", "his own mouth names him"
+
+        tape = roster.by_voice["SPEAKER_09"]
+        assert not tape.named, (
+            "a confirmed speaker was allowed to vouch for the OTHER people the description names, "
+            "and a man dead since 1956 was given a voice"
+        )
+        assert tape.name != "HB Reese"
+
+
 def test_the_diarization_pipeline_actually_FORWARDS_the_stated_names() -> None:
     """A parameter nobody passes is a parameter that does not exist.
 

@@ -239,6 +239,12 @@ def test_speaker_diagnostics_explains_what_tried_and_why_unresolved() -> None:
         "expected_unresolved": 1,
         # SPEAKER_01 is substantive, and NOBODY NAMES THEM — that is tape, not a failure.
         "truly_unknown": 0,
+        # ...but 85% of the episode is still attributable to nobody, and THAT is worth an alarm
+        # even when it is not our fault. `unbound_names` is empty: no metadata name went unplaced,
+        # so there is nobody to go and find.
+        "unattributed_talk_share": 0.85,
+        "unattributed_alarm": True,
+        "unbound_names": [],
     }
     assert diag["tried"]["host_self_intro"] == "Noah Kravitz"
     by_voice = {v["voice"]: v for v in diag["voices"]}
