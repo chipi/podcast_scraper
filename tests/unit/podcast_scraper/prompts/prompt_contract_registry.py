@@ -38,15 +38,27 @@ SUMMARIZATION_TRANSCRIPT_EXCLUDE_FILENAMES: Final[frozenset[str]] = frozenset(
     }
 )
 
-# One ``v1`` per API provider today (no ``shared/`` insight template).
+# Every insight-extraction template on disk (no ``shared/`` insight template).
+#
+# ``v2`` is the shipped prompt — ``gi_insight_prompt_version`` selects it, and every provider has
+# one. ``ollama/v3`` is the speech-act variant that LOST its A/B (route kappa 0.57 vs v2's 0.67); it
+# stays on disk as the record of a measured experiment, and is not selected by any profile.
 INSIGHT_EXTRACTION_V1_LOGICAL_NAMES: Final[tuple[str, ...]] = (
     "anthropic/insight_extraction/v1",
+    "anthropic/insight_extraction/v2",
     "deepseek/insight_extraction/v1",
+    "deepseek/insight_extraction/v2",
     "gemini/insight_extraction/v1",
+    "gemini/insight_extraction/v2",
     "grok/insight_extraction/v1",
+    "grok/insight_extraction/v2",
     "mistral/insight_extraction/v1",
+    "mistral/insight_extraction/v2",
     "ollama/insight_extraction/v1",
+    "ollama/insight_extraction/v2",
+    "ollama/insight_extraction/v3",
     "openai/insight_extraction/v1",
+    "openai/insight_extraction/v2",
 )
 
 # Parser-facing JSON instructions must not drift silently.

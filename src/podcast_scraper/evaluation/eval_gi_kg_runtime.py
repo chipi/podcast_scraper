@@ -135,6 +135,9 @@ def merge_eval_task_into_summarizer_config(
         dedupe_t = p.get("gi_insight_dedupe_threshold")
         if isinstance(dedupe_t, (int, float)):
             updates["gi_insight_dedupe_threshold"] = float(dedupe_t)
+        prompt_v = p.get("gi_insight_prompt_version")
+        if isinstance(prompt_v, str) and prompt_v:
+            updates["gi_insight_prompt_version"] = prompt_v
         # #698 GIL evidence-stack bundling — forward mode flags from the
         # experiment YAML's ``params:`` dict to the runtime Config so the
         # bundled dispatch in ``gi/pipeline.py`` actually fires for matrix

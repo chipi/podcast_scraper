@@ -2285,6 +2285,18 @@ class Config(BaseModel):
             "kept. Chunks overlap in subject even when they do not overlap in text."
         ),
     )
+    gi_insight_prompt_version: str = Field(
+        default="v2",
+        alias="gi_insight_prompt_version",
+        description=(
+            "Which insight-extraction prompt to render (e.g. 'v2', 'v3'). The prompt decides what "
+            "an insight IS, so it is a tuned parameter like any other and must be selectable — it "
+            "was hardcoded, which made the extraction prompt the one part of this stage that could "
+            "not be A/B tested. v3 keeps the speech act: v2 orders the model to strip first "
+            "person, so 'I think prescribing is unsafe' ships as 'Prescribing is unsafe' — an "
+            "opinion published as a fact, attributed to nobody."
+        ),
+    )
     gi_value_gate_provider: Optional[str] = Field(
         default=None,
         alias="gi_value_gate_provider",

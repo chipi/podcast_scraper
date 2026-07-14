@@ -1813,8 +1813,12 @@ class OllamaProvider:
             text_slice = text_slice[:120000] + "\n\n[Transcript truncated.]"
 
         try:
+            # The prompt decides what an insight IS, so it is a tuned parameter like any other.
+            # Hardcoding it made the extraction prompt the only part of this stage that could not
+            # be A/B tested.
+            prompt_version = str(getattr(self.cfg, "gi_insight_prompt_version", "v2") or "v2")
             user_prompt = render_prompt(
-                "ollama/insight_extraction/v2",
+                f"ollama/insight_extraction/{prompt_version}",
                 transcript=text_slice,
                 title=episode_title or "",
                 max_insights=max_insights,
