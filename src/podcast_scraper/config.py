@@ -1092,6 +1092,19 @@ class Config(BaseModel):
             "These will be used as hosts if auto-detection fails or finds no hosts."
         ),
     )
+    speaker_resolution_llm: bool = Field(
+        default=True,
+        alias="speaker_resolution_llm",
+        description=(
+            "ADR-110: after diarization, ask the LLM which STATED name each voice is, using that "
+            "voice's own words plus the retrieved passages where the name is spoken. Speaker "
+            "detection runs before the audio is even downloaded, so it can only answer from show "
+            "notes -- which name the people an episode is ABOUT as readily as the people in the "
+            "room. This resolves identity where the evidence actually is. The model may only MATCH "
+            "a name the metadata stated; it can never author one. A no-op on profiles without an "
+            "LLM (airgapped/spacy), which keep the deterministic cue matcher. Set false to disable."
+        ),
+    )
     show_centric: bool = Field(
         default=False,
         alias="show_centric",

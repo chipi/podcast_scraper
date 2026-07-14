@@ -368,6 +368,25 @@ _GUEST_INTRODUCED_BY_HOST = re.compile(
     re.IGNORECASE,
 )
 
+# ...and the same introduction with the NAME FIRST. Every cue above expects "cue, then name"
+# ("joined by Jia Li"), and hosts phrase it the other way round just as often:
+#
+#     [NVIDIA AI Podcast] "Welcome to the NVIDIA AI podcast. I'm Noah Kravitz.
+#                          Jia Li is with us today."      <- introduced, and we heard nothing
+#
+# The cue still has to be there — the name alone proves nothing, or every person an episode
+# discusses becomes a speaker. It is the cue that makes it an introduction.
+_GUEST_INTRODUCED_NAME_FIRST = re.compile(
+    rf"(?P<names>{_NAMES})\s+"
+    r"(?:"
+    r"(?:is|are)\s+(?:here\s+)?with\s+(?:me|us)"
+    r"|(?:is|are)\s+(?:my|our)\s+guests?"
+    r"|(?:is|are)\s+joining\s+(?:me|us)"
+    r"|joins?\s+(?:me|us)"
+    r")",
+    re.IGNORECASE,
+)
+
 # "I'm Coming Out", "I'm Not Sure" — the self-introduction regex matches any capitalised run, and
 # the ASR capitalises plenty of things that are not people. Found in The Daily, where a voice was
 # recorded as introducing itself as "Coming Out".
@@ -451,10 +470,18 @@ def guests_introduced_by_the_host(voice_texts: Optional[Dict[str, str]]) -> Set[
     Splits a multi-guest introduction into people. "My guests today are Red Hat's Chris Wright and
     NVIDIA's Justin Boitano" is two guests, each behind an employer's possessive — and it was being
     recorded as ONE person with that entire string as their name.
+
+    Reads the introduction in BOTH directions. Every cue we knew put the name after it ("joined by
+    Jia Li"), and hosts say it the other way round just as often — "Jia Li is with us today" — so a
+    whole class of on-air introduction was going in the bin while the episode sat at 75% of its talk
+    attributable to nobody. An on-air introduction is a stated fact from the conversation and cannot
+    invent anybody, which is exactly what makes it worth reading properly.
     """
     out: Set[str] = set()
     for text in (voice_texts or {}).values():
-        for m in _GUEST_INTRODUCED_BY_HOST.finditer(text or ""):
+        matches = list(_GUEST_INTRODUCED_BY_HOST.finditer(text or ""))
+        matches += list(_GUEST_INTRODUCED_NAME_FIRST.finditer(text or ""))
+        for m in matches:
             for raw in _NAME_RE.findall(m.group("names")):
                 name = _clean_stated_name(raw)
                 if len(name.split()) >= 2 and not has_org_markers(name):

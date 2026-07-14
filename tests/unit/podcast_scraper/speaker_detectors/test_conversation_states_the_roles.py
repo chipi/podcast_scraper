@@ -113,3 +113,40 @@ class TestAMultiGuestIntroduction:
         assert guests_introduced_by_the_host(
             {"H": "Our guest is Patrick O'Shaughnessy today."}
         ) == {"Patrick O'Shaughnessy"}
+
+
+class TestTheIntroductionRunsBothWays:
+    """FOUND BY THE 160-EPISODE ALARM — the episodes with the worst numbers all shared this.
+
+    Every cue we knew put the name AFTER it ("joined by Jia Li"). Hosts say it the other way round
+    just as often, and we heard nothing:
+
+        [NVIDIA AI Podcast] "Welcome to the NVIDIA AI podcast. I'm Noah Kravitz.
+                             Jia Li is with us today."
+
+    The guest is announced in the first thirty seconds and the episode still came out with 75% of
+    its talk attributable to nobody. An on-air introduction is a stated fact from the conversation —
+    it cannot invent anyone — which is exactly why it is worth reading in both directions.
+    """
+
+    def test_the_name_may_come_FIRST(self) -> None:
+        assert guests_introduced_by_the_host(
+            {"HOST": "Welcome to the NVIDIA AI podcast. I'm Noah Kravitz. Jia Li is with us today."}
+        ) == {"Jia Li"}
+
+    def test_two_guests_who_join_us(self) -> None:
+        assert guests_introduced_by_the_host(
+            {"HOST": "Deepak Pathak and Abhinav Gupta join us today to talk about robots."}
+        ) == {"Deepak Pathak", "Abhinav Gupta"}
+
+    def test_the_CUE_is_what_makes_it_an_introduction(self) -> None:
+        """A name alone proves nothing — or every person an episode DISCUSSES becomes a speaker.
+
+        This is the #876 failure, and reading names in both directions must not reopen it.
+        """
+        assert (
+            guests_introduced_by_the_host(
+                {"HOST": "Elon Musk is suing OpenAI, and Sam Altman is fighting back."}
+            )
+            == set()
+        )

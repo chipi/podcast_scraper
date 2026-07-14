@@ -634,11 +634,38 @@ def _name_guest_voices(
     guest_names: Sequence[str],
     host_names_lower: set,
     used_lower: set,
+    talk: Optional[Dict[str, float]] = None,
 ) -> Dict[str, SpeakerRole]:
-    """Name the remaining voices: own self-introduction first, else the detected-guest list by
-    talk-time; unmatched voices stay raw (never painted with someone else's name)."""
+    """Name the remaining voices from EVIDENCE, never from position.
+
+    A voice is named by its own self-introduction, by an on-air introduction, or by the post-
+    diarization resolution (all three arrive in ``voice_intro``) — and otherwise only when the match
+    is FORCED: one name left, one voice left, therefore no choice and therefore no guess.
+
+    What used to happen instead was ``guest_names[gi]``: hand the detected names out in TALK-TIME
+    ORDER. That is the invention mechanism behind every wrong name we have shipped. Nothing tied the
+    name to the voice; the second-loudest speaker simply got the second name. Caught in the act on
+    FT Unhedged, where it painted Robert Armstrong onto the wrong voice and put Katie Martin — the
+    show's lead host — on a voice with 4% of the talk (ADR-110).
+
+    An unnamed voice costs us a `SPEAKER_01`. A misnamed one puts words in a real person's mouth.
+    """
     out: Dict[str, SpeakerRole] = {}
-    gi = 0
+    # A CAMEO IS NOT A CANDIDATE. Counting a two-second "Yeah." as a voice that might be the guest
+    # turns "one name, one voice" into "one name, two voices" and the forced match declines — which
+    # is how removing positional painting first cost the NVIDIA guest her name, on an episode whose
+    # host says "Jia Li is with us today" out loud.
+    unassigned = [
+        v
+        for v in voices_by_total
+        if v not in assigned
+        and v not in voice_intro
+        and (talk is None or talk.get(v, 0.0) >= CAMEO_MAX_TALK_S)
+    ]
+    spare = [g for g in guest_names if g.lower() not in used_lower]
+    # One name, one voice: the assignment is forced, so it is not a guess.
+    forced = spare[0] if (len(spare) == 1 and len(unassigned) == 1) else None
+
     for v in voices_by_total:
         if v in assigned:
             continue
@@ -646,9 +673,9 @@ def _name_guest_voices(
         if iname and iname.lower() not in used_lower and iname.lower() not in host_names_lower:
             used_lower.add(iname.lower())
             out[v] = SpeakerRole(name=iname, role="guest", named=True, source="self_intro")
-        elif gi < len(guest_names):
-            out[v] = SpeakerRole(name=guest_names[gi], role="guest", named=True, source="guest")
-            gi += 1
+        elif forced is not None and v == unassigned[0]:
+            used_lower.add(forced.lower())
+            out[v] = SpeakerRole(name=forced, role="guest", named=True, source="forced")
         else:
             # Paint a leftover unnamed voice as "guest" only with positive GUEST
             # evidence: detected guest names, or a self-intro from a NON-host voice.
@@ -728,6 +755,7 @@ def resolve_speaker_roster(
     ordered_turns: Optional[Sequence[Tuple[str, str]]] = None,
     ad_intervals: Optional[Sequence[Tuple[float, float]]] = None,
     metadata_named: Sequence[str] = (),
+    llm_voice_names: Optional[Dict[str, str]] = None,
     intro_window_s: float = INTRO_WINDOW_SECONDS,
 ) -> SpeakerRoster:
     """Resolve every diarized voice to a ``SpeakerRole`` (see module docstring).
@@ -789,6 +817,18 @@ def resolve_speaker_roster(
     # plenty of guests never say their own name, and are named FOR them. A voice that already
     # introduced itself keeps its own word for it.
     for v, n in _voice_named_by_the_introduction(ordered_turns).items():
+        if v not in ad_voices and v not in voice_intro:
+            voice_intro[v] = _canonicalize_to_known_host(n, known_hosts)
+
+    # ...and the voices an LLM matched to a STATED name from their own words (ADR-110). It ranks
+    # BELOW both of the above on purpose: a voice that says "I'm Peter Ludwig" needs no model's
+    # opinion, and a name the host spoke aloud is a fact. The model only fills what neither covers —
+    # the reporter who files under her byline, the co-host nobody ever introduces — which on desk
+    # shows is most of the newsroom.
+    #
+    # It can only ever MATCH a name the metadata already stated (the resolver enforces the closed
+    # list), so it cannot invent a speaker here; the worst it can do is misplace a real one.
+    for v, n in (llm_voice_names or {}).items():
         if v not in ad_voices and v not in voice_intro:
             voice_intro[v] = _canonicalize_to_known_host(n, known_hosts)
 
@@ -938,6 +978,7 @@ def resolve_speaker_roster(
             guest_names,
             host_names_lower,
             used_lower,
+            talk=total,
         )
     )
     # They still belong in the roster — as "Advertisement", not as a missing id.

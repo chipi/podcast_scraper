@@ -83,9 +83,21 @@ def test_solo_no_intro_stays_raw() -> None:
     assert role.name == "SPEAKER_00" and role.named is False and role.source == "raw"
 
 
-def test_panel_extra_guest_kept_raw() -> None:
-    # HOST + three guest voices, but only two guest names → third guest stays raw, never
-    # painted with a wrong name.
+def test_panel_names_nobody_it_cannot_place() -> None:
+    """ADR-110 — CHANGED BEHAVIOUR, deliberately.
+
+    HOST + three guest voices, two guest names. This test used to assert that Alice and Bob were
+    handed to the two loudest guest voices, in talk-time order. Nothing tied either name to either
+    voice: the second-loudest speaker simply got the second name.
+
+    That is the invention mechanism behind every wrong name we have shipped, and it was caught in
+    the act on FT Unhedged — Robert Armstrong painted onto the wrong voice, and Katie Martin, the
+    show's lead host, onto a voice with 4% of the talk.
+
+    With two names and three unplaced voices there is a CHOICE, so there is a GUESS. We do not
+    guess. The names go unused and the voices stay raw; the LLM resolution (ADR-110) is what places
+    them, from what they actually said.
+    """
     diar = _diar(
         [("HOST", 0, 50), ("G1", 50, 220), ("G2", 220, 380), ("G3", 380, 430), ("HOST", 430, 440)],
         4,
@@ -97,10 +109,19 @@ def test_panel_extra_guest_kept_raw() -> None:
     )
     assert r.by_voice["HOST"].name == "Patrick O'Shaughnessy"
     named_guests = {v.name for v in r.by_voice.values() if v.role == "guest" and v.named}
-    assert named_guests == {"Alice", "Bob"}
-    # exactly one guest voice left unnamed (the third)
-    raw_guests = [v for v in r.by_voice.values() if v.role == "guest" and not v.named]
-    assert len(raw_guests) == 1
+    assert named_guests == set(), "a name was painted on a voice with no evidence tying it there"
+
+
+def test_one_name_one_voice_is_FORCED_and_so_is_not_a_guess() -> None:
+    """The other side of the rule. One name left, one voice left — there is no choice to make."""
+    diar = _diar([("HOST", 0, 60), ("GUEST", 60, 300)], 2)
+    r = resolve_speaker_roster(
+        diar,
+        "I'm Patrick O'Shaughnessy.",
+        detected_guests=["Brian Chesky"],
+    )
+    assert r.by_voice["GUEST"].name == "Brian Chesky"
+    assert r.by_voice["GUEST"].source == "forced"
 
 
 def test_host_selfintro_no_guests_leftover_is_unknown() -> None:
@@ -174,15 +195,24 @@ def test_guest_name_never_painted_on_host() -> None:
     assert r.by_voice["GUEST"].name == "Brian Chesky"
 
 
-def test_more_names_than_voices_drops_extras() -> None:
+def test_three_candidate_names_and_one_voice_names_NOBODY() -> None:
+    """ADR-110 — CHANGED BEHAVIOUR, deliberately.
+
+    This used to assign the FIRST detected name, because the list happened to be in that order.
+    Show notes name the people an episode is ABOUT alongside the people in the room, so "the first
+    one" is a coin toss between a guest and a lawsuit defendant. With three candidates and one
+    voice there is a choice, and a choice made without evidence is a guess.
+
+    A `SPEAKER_01` costs us an unnamed voice. A wrong name puts words in a real person's mouth.
+    """
     diar = _diar([("HOST", 0, 60), ("GUEST", 60, 300)], 2)
     r = resolve_speaker_roster(
         diar,
         "I'm Patrick O'Shaughnessy.",
         detected_guests=["Brian Chesky", "Unused Person", "Also Unused"],
     )
-    assert r.by_voice["GUEST"].name == "Brian Chesky"
-    assert {v.name for v in r.by_voice.values()} == {"Patrick O'Shaughnessy", "Brian Chesky"}
+    assert not r.by_voice["GUEST"].named
+    assert {v.name for v in r.by_voice.values() if v.named} == {"Patrick O'Shaughnessy"}
 
 
 def test_empty_diarization_returns_empty_roster() -> None:

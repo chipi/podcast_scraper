@@ -103,6 +103,61 @@ def _resolve_diarization_cache_dir(cfg: config.Config, cache_dir: Optional[str])
     return diarization_cache_dir_for_output(cfg.output_dir)
 
 
+def _resolve_voices_via_llm(
+    cfg: config.Config,
+    *,
+    stated_names: List[str],
+    voice_texts: Dict[str, str],
+    known_hosts: List[str],
+    ordered_turns: List[Tuple[str, str]],
+) -> Dict[str, str]:
+    """ADR-110 — match the stated names to the voices, using each voice's own words.
+
+    Returns ``{}`` for every profile without an LLM. `airgapped`, `local`, `dev` and
+    `reprocess_dgx_no_llm` run `speaker_detector_provider: spacy`, keep the deterministic cue
+    matcher, and nothing about them changes.
+
+    This never fails the episode. A speaker we cannot name costs an unnamed voice; a speaker we name
+    WRONGLY puts words in a real person's mouth, and those are not symmetric (#876).
+    """
+    if not stated_names or not voice_texts:
+        return {}
+    if not bool(getattr(cfg, "speaker_resolution_llm", True)):
+        return {}
+
+    try:
+        from ....speaker_detectors.resolution import (
+            completion_fn_for,
+            resolve_voices_from_conversation,
+        )
+        from ....summarization.factory import create_summarization_provider
+
+        provider = create_summarization_provider(cfg)
+        provider.initialize()
+        complete = completion_fn_for(provider)
+        if complete is None:
+            logger.debug(
+                "speaker resolution: %s has no completion endpoint — the deterministic cue "
+                "matcher stays in charge",
+                type(provider).__name__,
+            )
+            return {}
+        return resolve_voices_from_conversation(
+            stated_names,
+            voice_texts,
+            complete,
+            known_hosts=known_hosts,
+            ordered_turns=ordered_turns,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "speaker resolution unavailable (%s: %s); falling back to the deterministic cues",
+            type(exc).__name__,
+            exc,
+        )
+        return {}
+
+
 def apply_diarization_to_result(
     result: dict,
     audio_path: str,
@@ -175,6 +230,27 @@ def apply_diarization_to_result(
     ordered_turns = [
         (str(speaker_id), str((seg or {}).get("text", ""))) for seg, speaker_id in aligned
     ]
+
+    # ADR-110 — NOW we can hear them, so now we ask who they are.
+    #
+    # `detect_speakers` runs before the audio is even downloaded and its interface cannot take a
+    # transcript, so it answers from show notes and returns the people the episode is ABOUT as
+    # readily as the people in the room (#876: Elon Musk, named only as the man SUING OpenAI).
+    # Here the voices exist. The model is shown each voice's own words plus the retrieved passages
+    # where each stated name is actually spoken, and it may only MATCH a name from that closed list
+    # — never author one. A voice it cannot place stays unnamed.
+    # The HOSTS are candidates too. `detect_speakers` hands hosts back on a separate channel, so a
+    # naive candidate list is guests-only — and then the voice holding 75% of a interview show has
+    # no name it is allowed to be matched to.
+    candidates = list(dict.fromkeys([*(metadata_named or ()), *guests, *known_hosts]))
+    llm_voice_names = _resolve_voices_via_llm(
+        cfg,
+        stated_names=candidates,
+        voice_texts=voice_texts,
+        known_hosts=known_hosts,
+        ordered_turns=ordered_turns,
+    )
+
     roster = resolve_speaker_roster(
         diarization,
         transcript_text,
@@ -184,6 +260,7 @@ def apply_diarization_to_result(
         ordered_turns=ordered_turns,
         ad_intervals=_ad_intervals(segments),
         metadata_named=list(metadata_named or ()),
+        llm_voice_names=llm_voice_names,
     )
 
     enriched_result = dict(result)

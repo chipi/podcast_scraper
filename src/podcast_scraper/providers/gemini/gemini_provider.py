@@ -1957,6 +1957,34 @@ class GeminiProvider:
         # Preserve input order; a missing id keeps the insight (tier 3) rather than dropping it.
         return [int(tiers.get(f"i{idx}", 3)) for idx in range(len(insights))]
 
+    def complete_text(self, prompt: str) -> str:
+        """One prompt in, one JSON answer out — the generic call ADR-110's resolver needs.
+
+        `detect_speakers` is asked who speaks BEFORE the audio is downloaded, so it can only answer
+        from show notes and returns the people an episode is ABOUT (that is how Elon Musk became a
+        speaker, #876). The resolver asks the same model the same question AFTER diarization, with
+        each voice's own words in hand — and that needs a plain completion, not a task method whose
+        prompt is baked in.
+        """
+        if not self._summarization_initialized:
+            raise RuntimeError("Gemini summarization not initialized for complete_text")
+
+        generation_config = _merge_generate_content_config(
+            self.summary_model,
+            {
+                "temperature": 0.0,
+                "max_output_tokens": 800,
+                "response_mime_type": "application/json",
+            },
+        )
+        response = self.client.models.generate_content(
+            model=self.summary_model,
+            contents=prompt,
+            config=cast(Any, generation_config),
+        )
+        content = (getattr(response, "text", "") or "").strip()
+        return _insight_salvage.strip_json_fence(content)
+
     def extract_kg_graph(
         self,
         text: str,
