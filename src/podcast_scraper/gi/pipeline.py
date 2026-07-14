@@ -882,6 +882,50 @@ def _is_advertisement_span(
     return vt in VOICE_TYPE_NEVER_GROUND
 
 
+def _dedupe_insight_specs(
+    specs: List[Tuple[str, str]],
+    cfg: Any,
+    pipeline_metrics: Optional[Any] = None,
+) -> List[Tuple[str, str]]:
+    """Drop insights that restate one already kept — on EVERY path, not only the chunked one.
+
+    The value gate cannot do this: it grades each insight in isolation, so two copies of the same
+    claim both score well and both survive. Redundancy is invisible to a per-item judge.
+    """
+    if len(specs) < 2:
+        return specs
+    threshold = float(getattr(cfg, "gi_insight_dedupe_threshold", 0.75) or 0.75)
+    if threshold >= 1.0:
+        return specs
+
+    from .chunked_extraction import dedupe
+
+    kept_texts = set(dedupe([t for t, _ in specs], threshold))
+    out: List[Tuple[str, str]] = []
+    seen: set = set()
+    for text, kind in specs:
+        if text in kept_texts and text not in seen:
+            seen.add(text)
+            out.append((text, kind))
+
+    dropped = len(specs) - len(out)
+    if dropped:
+        logger.info(
+            "insight dedup: %d/%d insights restated one already kept (threshold %.2f)",
+            dropped,
+            len(specs),
+            threshold,
+        )
+        if pipeline_metrics is not None:
+            try:
+                pipeline_metrics.gi_insights_deduped = (
+                    getattr(pipeline_metrics, "gi_insights_deduped", 0) + dropped
+                )
+            except Exception:  # noqa: BLE001 — metrics must never break the pipeline
+                pass
+    return out
+
+
 def _gate_on_evidence(
     insight_specs: List[Tuple[str, str]],
     insight_quotes: List[List[Any]],
@@ -1274,6 +1318,27 @@ def _resolve_insight_specs(
                         int(getattr(cfg, "gi_insight_chunk_chars", 0) or 0),
                     )
                     resolved_specs = resolved_specs[: max_insights * passes]
+
+                    # THE SAME CLAIM, TWICE, IS NOT TWO INSIGHTS.
+                    #
+                    # `dedupe()` existed but only ever ran inside the CHUNKED path, and a normal
+                    # episode does not chunk — so on the path production actually takes there was no
+                    # deduplication at all. Measured on 18 episodes, gemini emitted 21.6 surfaceable
+                    # insights per episode of which only 14.1 were distinct: **35% redundancy**, and
+                    # not the subtle kind —
+                    #
+                    #   sim 1.00  "Paul Tudor Jones believes the greatest challenge in the coming
+                    #              years will be finding significance..."   (emitted verbatim twice)
+                    #   sim 0.96  "...the most important thing for young people to focus on is
+                    #              communication..." / "...for young people is to focus on..."
+                    #
+                    # The value gate cannot catch this: it grades each insight in ISOLATION, so both
+                    # copies score the same and both survive. An episode holds a finite amount of
+                    # knowledge, and emitting it twice does not create more.
+                    #
+                    # Deduped here, BEFORE grounding, so we do not pay QA+NLI to ground a duplicate.
+                    resolved_specs = _dedupe_insight_specs(resolved_specs, cfg, pipeline_metrics)
+
                     if resolved_specs:
                         # THE VALUE GATE USED TO RUN HERE, and that was the bug. It ran BEFORE
                         # grounding, so the quotes did not exist yet — it graded a bare sentence
