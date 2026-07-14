@@ -22,7 +22,7 @@ and what we are still missing. The fixture ladder at the bottom is the proposal.
 The dominant class. In every case the code was correct, tested, and **never reached**.
 
 | what broke | how it announced itself |
-|---|---|
+| --- | --- |
 | evidence align read `summary_provider` from args, never from the profile | silence — production grounded with a model no eval ever used |
 | `model_copy` does not re-run validators, so eval cells lost their grounder | **513 insights, 0 quotes** |
 | GI had no detected-person list, so `build_named_turns` never ran | every quote shipped `speaker_id: None` |
@@ -39,7 +39,7 @@ this arc. The registry and enricher cases were caught by tests that **already ex
 ### B. The most-trusted signal is the easiest one to poison
 
 | signal | why it was trusted | who exploits it |
-|---|---|---|
+| --- | --- | --- |
 | `_self_intros_by_voice` — "a voice that says *I'm X* **is** X" | the strongest per-voice evidence we have | an **ad narrator**, whose entire job is to read its own name aloud |
 | the LLM speaker detector's name list | it returns `success: True` | qwen3.5:35b, naming Elon Musk as a *speaker* of an episode he is being sued in |
 | "the host is the voice that opens the episode" | true of every podcast | the **pre-roll ad**, which opens it first |
@@ -58,7 +58,7 @@ passes any implementation, including the broken one.
 Every one of these was a rule that was *correct in spirit* and wrong at the boundary.
 
 | rule | how it broke |
-|---|---|
+| --- | --- |
 | QA span softmax computed within each window's top-k | every window claimed ~1.0 → `"Codex"` at `qa_score=1.000`, and `qa_score_min` gated on nothing |
 | ad voice = "under 90s of talk, only at the edges" (absolute) | on a 3-minute fixture **every** voice is near an edge → the entire cast typed as advertising |
 | ad voice = "**zero** turns outside the edge window" | pyannote mis-assigned **one 2-second turn** → the ad narrator was cleared, took a host slot, and the real co-host was pushed out and given the guest's name |
@@ -72,7 +72,7 @@ always fixture **both** ends — the short episode *and* the noisy one.
 ### D. Eval ≠ production
 
 | divergence | consequence |
-|---|---|
+| --- | --- |
 | the eval dataset reads `.cleaned.txt`; production resolves `.adfree.txt` | the eval measured a transcript production never sees |
 | the eval harness re-implemented the pipeline's provider wiring | its numbers could never match production, by construction |
 | `prod-v2` (built by a commit that exists nowhere on this machine) used to answer questions about *current* code | conclusions retracted |
@@ -86,7 +86,7 @@ is a gap.
 ### E. Content contamination
 
 | thing | status |
-|---|---|
+| --- | --- |
 | **house ads / cross-promos** — no sponsor language, so `_AD_PATTERNS` scores **0 hits** | **9 of 10 feeds** miss their pre-roll. Fixed structurally in the roster (`_edge_ad_voices`), not by keywords |
 | **mid-roll house ads** (`Jonathan Knight`, NYT Games, 7/10 episodes) | **STILL OPEN** — sits mid-episode, so the edge rule cannot see it (#1188) |
 | `anonymize_speakers` missed titled speakers (`Dr.`, `Prof.`, `Sen.`) | the *guests* — the one name a summary must never parrot — leaked while the hosts were scrubbed |
@@ -110,7 +110,7 @@ that would have saved us was already there, already red, and already ignored.
 ## What our fixtures cover today, and the blind spot
 
 | tier | what it is | status |
-|---|---|---|
+| --- | --- | --- |
 | 0 | **unit traps** — adversarial synthetic inputs (`speaker_detection_traps.yaml`, roster ad fixtures, GI invariants) | good, and they now carry the *real* production text |
 | 1 | **mutation testing** — re-break each fix, assert something goes red | done **ad hoc**, in a scratch script. Not repeatable. |
 | 2 | **wiring contracts** — drive the real chokepoint, assert the guard is *reached* | thin. One for speakers, one for GI. |
@@ -185,6 +185,121 @@ Before a 100-episode build is authorised:
 4. `make test-unit` and `make test-integration` are green **run whole**, not just in isolation.
 5. The mid-roll ad (#1188) is either fixed or explicitly accepted, in writing, with its blast radius
    measured.
+
+---
+
+## The anatomy of a real episode — and why our fixtures are lying to us
+
+Our synthetic fixtures are two speakers alternating politely for three minutes. **No real episode
+looks like that**, and every bug we shipped lived in the difference.
+
+This is Hard Fork ep1, measured from the actual diarization (2-minute blocks, dominant voice):
+
+```
+  0:00 – 0:30    PRE-ROLL AD        two voices, neither ever heard again, both self-introducing
+  0:30 – 30:00   HOSTS              Kevin/Casey alternating every 2–6 min: banter, then news
+ ~36:00          MID-ROLL AD        one voice, ~50s, self-introducing, same copy in 7/10 episodes
+ 30:00 – 52:00   GUEST INTERVIEW    the guest holds the floor for 22 CONTIGUOUS MINUTES
+ 52:00 – 56:00   HANDOFF            back to hosts
+ 56:00 – 70:00   SECOND GUEST       a different guest, a different segment
+ 70:00 – 72:00   OUTRO + CREDITS    hosts, then producer names nobody speaks
+```
+
+Eight voices. Two of them are adverts. Two are hosts. Two are guests. One is a 15-second cameo. One
+is a mid-roll advertiser. **A two-speaker toy fixture cannot express a single one of the failures
+this arc produced.**
+
+### What each structural feature does to us
+
+| feature | what it breaks |
+| --- | --- |
+| **pre-roll ad opens the episode** | "the host is the opening voice" hands the show to the advertiser |
+| **ad narrators self-introduce** | the most-trusted naming signal is the one the ad is built to trigger |
+| **a guest holds the floor for 22 min** | the guest out-talks the host over any short window → intro-share co-host detection swaps them (#1169) |
+| **hosts alternate in 2–6 min blocks** | neither host dominates the intro window → a real co-host fails `CO_HOST_INTRO_SHARE` and falls through to *guest* naming |
+| **rapid banter, tiny backchannel turns** ("Yeah." "Right.") | dozens of sub-second turns; one mis-assigned 2-second turn was enough to defeat the ad rule |
+| **mid-roll ad, 35–40% in** | outside any edge window — invisible to a structural edge rule (#1188, still open) |
+| **credits name people who never speak** | producers/editors are perfect NER bait |
+| **the same show is sometimes a guest feed** (ep6 is an Ezra Klein cross-post) | the "hosts" of the episode are not the hosts of the feed |
+
+### Why this is *the* grounding problem, not just a roster problem
+
+Speaker attribution is derived from the **character offset** of the grounded quote. So the accuracy
+of grounding is bounded by the accuracy of the turn boundaries, and the danger is not uniform across
+the episode:
+
+- **Inside the 22-minute guest block** — attribution is *forgiving*. An offset can be wrong by a
+  paragraph and still land on the right speaker.
+- **In the banter** — attribution is *brutal*. Turns are seconds long, so an offset that is wrong by
+  one sentence flips Kevin into Casey. This is where an insight silently changes mouths.
+- **At a handoff** (52:00) — the host and guest are adjacent, so an off-by-one-turn error swaps a
+  guest's claim onto a host. This is the single most dangerous position in the episode and we do not
+  test it at all.
+- **Inside an ad** — a quote grounded here is *always* wrong, and worse, it is fluent, confident,
+  and quotable ("If you play our games, you probably know there's something a bit different about
+  them"). Ad copy is written to be memorable. It is the perfect false insight.
+
+> The grounding invariant we actually want: **a quote may never be grounded inside an ad region, and
+> a quote adjacent to a turn boundary must be attributed conservatively or not at all.**
+
+### The fixture we should build: one realistic show, not twenty toy ones
+
+Build a single **canonical episode fixture** with the structure above, and derive the variants from
+it. It costs nothing to run (it is timings + text, no audio, no GPU) and it exercises every failure
+mode at once:
+
+```
+episode: hardfork_canonical
+  0:00–0:30    AD_1, AD_2      self-introduce; never return          -> must be "Advertisement"
+  0:30–30:00   HOST_A, HOST_B  alternate in 2–6 min blocks           -> both must be hosts
+  ~36:00       AD_3            self-introduces; ~50s; mid-roll       -> must NOT be a guest  (#1188)
+  30:00–52:00  GUEST_1         22 contiguous minutes                 -> must be a guest, named
+  52:00–56:00  HOST_A          handoff                               -> boundary attribution
+  56:00–70:00  GUEST_2         second segment                        -> not introduced in description
+  70:00–72:00  HOST_A, HOST_B  outro + credits naming non-speakers   -> credits must not become guests
+```
+
+Assertions it should carry, all of which we have shipped bugs against:
+
+1. `AD_1`, `AD_2`, `AD_3` are never named, and never appear as `person` / `host` / `guest`.
+2. `HOST_A` and `HOST_B` are both hosts — even with `known_hosts` empty, even though neither
+   dominates the intro window.
+3. `GUEST_1` gets the guest name; **no host ever wears it**.
+4. `GUEST_2` is *not* in the episode description → the corroboration gate drops the name → the voice
+   must fall back to its own self-introduction, or stay `SPEAKER_NN`. It must **not** inherit
+   `GUEST_1`'s name.
+5. Every producer named in the credits is absent from the roster.
+6. A quote taken from inside `AD_3` is refused by grounding.
+7. A quote taken 1 second either side of the 52:00 handoff is attributed correctly, or not at all.
+
+Then perturb it — this is where the real bugs were:
+
+- **`+noise`**: reassign one 2-second turn from `AD_1` to a random mid-episode position. (This exact
+  perturbation, in real pyannote output, put the guest's name on a host.)
+- **`+short`**: the same show cut to 4 minutes. (Guards the scale rule.)
+- **`+swap`**: the guest answers at length inside the first 90 seconds. (#1169.)
+- **`+solo`**: no guests at all — a news round-up. (The roster must not invent one.)
+- **`+panel`**: three real guests.
+- **`+crosspost`**: the episode is another show's feed (ep6) — the feed's hosts are not the episode's.
+
+### How this changes what we ask the LLM for
+
+The same realism argument applies to the *dialogue* we feed the extraction prompt. Today the GI
+prompt sees a flat screenplay. It does not know:
+
+- **where the ads are** (so it can quote one),
+- **who is the host and who is the guest** (so it cannot tell a question from a claim), or
+- **which segment it is in** (so it cannot tell "we're doing the news" from "we're interviewing an
+  expert").
+
+A host asking *"So is prescribing via chatbot actually unsafe?"* and a guest answering *"Prescribing
+via chatbot is unsafe"* produce nearly identical sentences — and only one of them is a STANCE. That
+is not a prompt-tuning problem, it is a **missing input** problem. Feeding the extractor the segment
+structure (`ad` / `banter` / `interview` / `outro`) and the speaker's *role*, not just their name,
+is the highest-leverage change available to insight quality — and we already compute all of it in
+the roster.
+
+---
 
 ## Open items
 
