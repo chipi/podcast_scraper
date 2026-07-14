@@ -92,6 +92,7 @@ def _relabel(path: Path, feed_hosts: List[str], title: str, description: str, nl
         detected_guests=guests,
         known_hosts=feed_hosts,
         voice_texts=dict(voice_texts),
+        ordered_turns=[(str(s["speaker"]), (s.get("text") or "")) for s in segs],
     )
 
     for s in segs:

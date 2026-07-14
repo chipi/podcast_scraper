@@ -123,6 +123,7 @@ def _audit_episode(
         detected_guests=guests,
         known_hosts=feed_hosts,
         voice_texts=dict(voice_texts),
+        ordered_turns=[(str(s["speaker"]), (s.get("text") or "")) for s in segs],
     )
 
     hosts_lower = {h.lower() for h in feed_hosts}

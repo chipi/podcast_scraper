@@ -26,6 +26,9 @@ from dataclasses import dataclass, replace
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from ....speaker_detectors.hosts import (
+    _clean_stated_name as _clean_intro_name,
+    _GUEST_INTRODUCED_BY_HOST as _GUEST_INTRODUCED_BY_HOST_RE,
+    _NAME_RE as _INTRO_NAME_RE,
     extract_self_introduced_host,
     guests_introduced_by_the_host,
     has_org_markers,
@@ -478,6 +481,18 @@ def _canonicalize_to_known_host(name: str, known_hosts: Sequence[str]) -> str:
             continue
         if _soundex(last) == _soundex(h[-1]) or _edit_distance(last, h[-1]) <= 3:
             return host
+        # A shared surname STEM, on top of the exact first-name match. "Natalie Kitcher" is the
+        # ASR's rendering of Natalie Kitroeff, a stated host of The Daily: soundex misses it and the
+        # edit distance is 4 — one over the threshold. Demanding an exact first name, a shared
+        # three-letter surname stem AND a bounded edit distance is a far narrower claim than any of
+        # the three alone, and it leaves "Kevin Systrom" / "Casey Affleck" untouched.
+        if (
+            len(last) >= 4
+            and len(h[-1]) >= 4
+            and last[:3].lower() == h[-1][:3].lower()
+            and _edit_distance(last, h[-1]) <= 5
+        ):
+            return host
     return name
 
 
@@ -558,6 +573,63 @@ def _name_guest_voices(
     return out
 
 
+def _voice_named_by_the_introduction(
+    ordered_turns: Optional[Sequence[Tuple[str, str]]],
+) -> Dict[str, str]:
+    """``{voice: name}`` for a voice the HOST introduced by name — "and now, Bobby Allen".
+
+    The person a host introduces is the person who SPEAKS NEXT. That is conversation structure, and
+    it is the only per-voice way to use an introduction: knowing that "Bobby Allen" was named
+    somewhere in the episode does not say WHICH cluster he is, and handing introduced names out by
+    talk order is just the talk-share mistake wearing a different hat.
+
+    Worth 5% of the corpus's talk. Planet Money is a narrated desk that hands off constantly
+    ("joined by...", "here with me is..."), and every one of those reporters came out as SPEAKER_NN.
+
+    Only the FIRST introduction of a voice is used, and a name already claimed by another voice is
+    never reused — under-naming beats naming the wrong person (#876).
+    """
+    if not ordered_turns:
+        return {}
+
+    # ASR segments are 14-50 characters — a fragment of a sentence. An introduction ("we spoke with
+    # assistant managing editor Patrick Healy, who oversees...") spans several of them, so a regex
+    # applied per SEGMENT sees only fragments and matches nothing. Merge consecutive segments by the
+    # same speaker into one utterance first: that is what a conversational "turn" actually is.
+    merged: List[Tuple[str, str]] = []
+    for speaker, text in ordered_turns:
+        if merged and merged[-1][0] == speaker:
+            merged[-1] = (speaker, merged[-1][1] + " " + (text or ""))
+        else:
+            merged.append((speaker, text or ""))
+    ordered_turns = merged
+
+    out: Dict[str, str] = {}
+    taken: set = set()
+    for i, (_speaker, text) in enumerate(ordered_turns):
+        for m in _GUEST_INTRODUCED_BY_HOST_RE.finditer(text or ""):
+            names = [
+                n
+                for n in (_clean_intro_name(x) for x in _INTRO_NAME_RE.findall(m.group("names")))
+                if n
+            ]
+            if not names:
+                continue
+            # whoever speaks next, that is who was just introduced
+            introducer = ordered_turns[i][0]
+            for j in range(i + 1, min(i + 6, len(ordered_turns))):
+                nxt = ordered_turns[j][0]
+                if nxt == introducer or nxt in out:
+                    continue
+                name = names[0]
+                if name.lower() in taken:
+                    break
+                out[nxt] = name
+                taken.add(name.lower())
+                break
+    return out
+
+
 def resolve_speaker_roster(
     diarization: DiarizationResult,
     transcript_text: Optional[str],
@@ -566,6 +638,7 @@ def resolve_speaker_roster(
     detected_guests: Sequence[str] = (),
     known_hosts: Sequence[str] = (),
     voice_texts: Optional[Dict[str, str]] = None,
+    ordered_turns: Optional[Sequence[Tuple[str, str]]] = None,
     ad_intervals: Optional[Sequence[Tuple[float, float]]] = None,
     intro_window_s: float = INTRO_WINDOW_SECONDS,
 ) -> SpeakerRoster:
@@ -612,6 +685,14 @@ def resolve_speaker_roster(
         for v, n in _self_intros_by_voice(voice_texts).items()
         if v not in ad_voices
     }
+
+    # A voice the HOST introduced by name — "and now, Bobby Allen" — is that person, because the
+    # person a host introduces is the person who speaks next. It complements the self-introduction:
+    # plenty of guests never say their own name, and are named FOR them. A voice that already
+    # introduced itself keeps its own word for it.
+    for v, n in _voice_named_by_the_introduction(ordered_turns).items():
+        if v not in ad_voices and v not in voice_intro:
+            voice_intro[v] = _canonicalize_to_known_host(n, known_hosts)
 
     ad_names_lower = {
         n.lower() for v, n in _self_intros_by_voice(voice_texts).items() if v in ad_voices and n

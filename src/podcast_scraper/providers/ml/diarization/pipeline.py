@@ -164,12 +164,18 @@ def apply_diarization_to_result(
     voice_texts = _voice_texts_from_aligned(aligned)
     guests = detected_speaker_names or []
     known_hosts = list(getattr(cfg, "known_hosts", None) or [])
+    # Ordered turns let the roster use the host's introduction ("and now, Bobby Allen") to name the
+    # voice that speaks NEXT — the only per-voice way to use an introduction.
+    ordered_turns = [
+        (str(speaker_id), str((seg or {}).get("text", ""))) for seg, speaker_id in aligned
+    ]
     roster = resolve_speaker_roster(
         diarization,
         transcript_text,
         detected_guests=guests,
         known_hosts=known_hosts,
         voice_texts=voice_texts,
+        ordered_turns=ordered_turns,
         ad_intervals=_ad_intervals(segments),
     )
 

@@ -169,6 +169,12 @@ def extract_self_introduced_host(
             continue
         if is_known_network(name):
             continue
+        # "I'm Coming Out" is not a self-introduction. The regex takes any capitalised run and the
+        # ASR capitalises freely; The Daily had a voice recorded as introducing itself as
+        # "Coming Out". A single-token match is still allowed here (a mononym host — Oprah, Sting),
+        # so the guard only fires on a multi-token run containing an ordinary English word.
+        if len(name.split()) >= 2 and not looks_like_a_person_name(name):
+            continue
         return name
     return None
 
@@ -339,14 +345,86 @@ _GUEST_SPEECH_ACTS = [
         r"\b(?:glad|happy|great|good) to be (?:here|on|back)\b",
     )
 ]
-# "My guest today is Brian Chesky, the co-founder..." — the host names the guest.
+# The host hands the floor to someone, BY NAME. "My guest today is Brian Chesky" is only one of the
+# ways they do it, and knowing only that phrasing left 5.2% of the corpus's talk anonymous —
+# measured by `scripts/audit/attribution_ceiling.py`. Planet Money is full of it: a narrated desk
+# where the host introduces reporter after reporter ("joined by", "here with me is") and every one
+# of them came out as SPEAKER_NN.
 #
-# And often names TWO, each behind their employer's possessive: "My guests today are Red Hat's Chris
-# Wright and NVIDIA's Justin Boitano". Capturing a single greedy run turned that into one person
-# called "Red Hat's Chris Wright and NVIDIA's Justin Boitano" — found by auditing the corpus.
+# The host also often names TWO, each behind their employer's possessive: "My guests today are Red
+# Hat's Chris Wright and NVIDIA's Justin Boitano" — which a single greedy capture turned into one
+# person with that entire string as their name.
 _GUEST_INTRODUCED_BY_HOST = re.compile(
-    rf"\b(?:my|our) guests? (?:today )?(?:is|are)\s+(?P<names>{_NAMES})", re.IGNORECASE
+    r"\b(?:"
+    r"(?:my|our)\s+guests?\s+(?:today\s+)?(?:is|are)"
+    r"|joined\s+(?:today\s+)?by"
+    r"|joining\s+(?:me|us)(?:\s+(?:today|now|this\s+week))?\s+(?:is|are)"
+    r"|(?:i'?m|we'?re)\s+(?:here\s+)?(?:joined\s+)?with"
+    r"|(?:i|we)\s+(?:spoke|talked|sat\s+down)\s+with"
+    r"|(?:please\s+)?welcome\s+(?:back\s+)?"
+    r"|here\s+with\s+me\s+(?:is|are)"
+    r")"
+    rf"\s+(?:the\s+|our\s+)?(?P<names>{_NAMES})",
+    re.IGNORECASE,
 )
+
+# "I'm Coming Out", "I'm Not Sure" — the self-introduction regex matches any capitalised run, and
+# the ASR capitalises plenty of things that are not people. Found in The Daily, where a voice was
+# recorded as introducing itself as "Coming Out".
+_NOT_A_NAME_TOKEN = frozenset(
+    {
+        "coming",
+        "going",
+        "not",
+        "sorry",
+        "sure",
+        "just",
+        "here",
+        "there",
+        "really",
+        "gonna",
+        "trying",
+        "talking",
+        "telling",
+        "saying",
+        "looking",
+        "thinking",
+        "working",
+        "wondering",
+        "curious",
+        "afraid",
+        "worried",
+        "excited",
+        "glad",
+        "happy",
+        "good",
+        "great",
+        "fine",
+        "okay",
+        "back",
+        "out",
+        "in",
+        "so",
+        "very",
+        "always",
+        "still",
+        "also",
+        "the",
+        "a",
+        "an",
+    }
+)
+
+
+def looks_like_a_person_name(name: str) -> bool:
+    """A capitalised run is not a name if any of its tokens is an ordinary English word.
+
+    "I'm Coming Out" is not a person. Requires First-Last shape and no stop-token.
+    """
+    toks = (name or "").split()
+    if len(toks) < 2:
+        return False
+    return not any(t.lower().strip(".,'’") in _NOT_A_NAME_TOKEN for t in toks)
 
 
 def roles_from_conversation(voice_texts: Optional[Dict[str, str]]) -> Dict[str, str]:
