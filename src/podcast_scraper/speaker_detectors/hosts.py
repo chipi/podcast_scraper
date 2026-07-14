@@ -229,13 +229,99 @@ def detect_hosts_from_transcript_intro(
     return detected_names
 
 
+# The feed STATES its hosts. Read the statement — do not just run NER over the paragraph.
+#
+#   Hard Fork      "journalists Kevin Roose and Casey Newton explore..."
+#   The Journal    "Hosted by Ryan Knutson and Jessica Mendoza."
+#   No Priors      "co-hosts Elad Gil and Sarah Guo talk to..."
+#   Odd Lots       "Bloomberg's Joe Weisenthal and Tracy Alloway explore..."
+#   Invest Like…   in the TITLE: "Invest Like the Best with Patrick O'Shaughnessy"
+#
+# Bare NER over the description is not good enough, and Latent Space is the proof: its description
+# lists PAST GUESTS (Bret Taylor, Chris Lattner, George Hotz...), and NER offered every one of them
+# as a host. The phrase is the signal, not the entity.
+_NAME = r"[A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+)+"
+_NAMES = rf"{_NAME}(?:\s*(?:,|and|&)\s*{_NAME})*"
+# Presenting verbs — what a show's own description says its hosts DO.
+_PRESENTS = r"(?:explore|explain|discuss|talk|cover|host|present|bring)s?\b"
+_HOST_PHRASES = [
+    re.compile(p, re.IGNORECASE)
+    for p in (
+        rf"\bhosted\s+by\s+(?P<names>{_NAMES})",
+        rf"\bco-?hosts?\s+(?P<names>{_NAMES})",
+        rf"\bjournalists?\s+(?P<names>{_NAMES})",
+        # "Joe Weisenthal and Tracy Alloway explore..." / "Katie Martin, Robert Armstrong and other
+        # markets nerds at the Financial Times explain..." — names, then a presenting verb. The
+        # filler between them is bounded so the verb belongs to THESE names.
+        rf"(?P<names>{_NAMES})[\w\s,'’\-]{{0,60}}?\s+{_PRESENTS}",
+        rf"\bwith\s+(?P<names>{_NAME})\s*$",  # the show title: "... with Patrick O'Shaughnessy"
+    )
+]
+_NAME_RE = re.compile(_NAME)
+
+
+def hosts_from_feed_statement(
+    feed_title: Optional[str], feed_description: Optional[str]
+) -> Set[str]:
+    """Hosts the feed EXPLICITLY names ("Hosted by X and Y"), rather than every person it mentions.
+
+    This is the authoritative source: the show says who presents it. Only used for the names inside
+    the host phrase, so a description that also lists past guests cannot smuggle them in.
+    """
+    title_lower = (feed_title or "").lower()
+    out: Set[str] = set()
+    for is_title, text in ((True, feed_title or ""), (False, feed_description or "")):
+        if not text.strip():
+            continue
+        for pat in _HOST_PHRASES:
+            m = pat.search(text)
+            if not m:
+                continue
+            for raw in _NAME_RE.findall(m.group("names")):
+                clean = _clean_stated_name(raw)
+                if len(clean.split()) < 2 or has_org_markers(clean):
+                    continue
+                # In the DESCRIPTION, a capitalised run that echoes the show's own name is the show,
+                # not a person: "At Planet Money, we explore...". In the TITLE it is the opposite —
+                # that is where the host lives ("Invest Like the Best with Patrick O'Shaughnessy"),
+                # so the same guard there would throw the host away.
+                if not is_title and clean.lower() in title_lower:
+                    continue
+                out.add(clean)
+    return out
+
+
+# A capitalised run is not automatically a name: it can start with a preposition ("At Planet
+# Money"), or be prefixed by the publisher's possessive ("Bloomberg's Joe Weisenthal").
+_LEADING_JUNK = re.compile(r"^(?:At|In|On|By|With|From|The)\s+", re.IGNORECASE)
+_POSSESSIVE_PREFIX = re.compile(r"^[\w'’\-]+['’]s\s+")
+
+
+def _clean_stated_name(name: str) -> str:
+    clean = (name or "").strip()
+    clean = _POSSESSIVE_PREFIX.sub("", clean)
+    clean = _LEADING_JUNK.sub("", clean)
+    return clean.strip()
+
+
 def detect_hosts_from_feed(
     feed_title: Optional[str],
     feed_description: Optional[str],
     feed_authors: Optional[List[str]] = None,
     nlp: Optional[Any] = None,
 ) -> Set[str]:
-    """Detect host names from feed-level metadata."""
+    """Detect host names from feed-level metadata.
+
+    Order of authority: the feed's own HOST STATEMENT ("Hosted by ..."), then non-organisation
+    author tags, then NER over the title/description as a last resort. NER is last because it cannot
+    tell a host from anyone else the description happens to mention — on Latent Space it returns a
+    list of past guests, and on Planet Money it returns the word "Wanna".
+    """
+    stated = hosts_from_feed_statement(feed_title, feed_description)
+    if stated:
+        logger.debug("Hosts stated by the feed: %s", sorted(stated))
+        return stated
+
     hosts: Set[str] = set()
 
     if feed_authors:
@@ -266,14 +352,22 @@ def detect_hosts_from_feed(
                 "NER from feed title/description, episode-level authors, or config known_hosts",
             )
 
-    if nlp:
-        if feed_title:
-            title_persons = _extract_person_entities(feed_title, nlp)
-            hosts.update(name for name, _ in title_persons)
-        if feed_description:
-            desc_persons = _extract_person_entities(feed_description, nlp)
-            hosts.update(name for name, _ in desc_persons)
+    # Last resort: NER over the TITLE only, and only for real First-Last names.
+    #
+    # NOT the description. NER cannot tell a host from anyone else a paragraph mentions, and the
+    # description is exactly where the other people are: Latent Space lists its PAST GUESTS (Bret
+    # Taylor, Chris Lattner, George Hotz), and NER offered all of them as hosts of the show. Planet
+    # Money's description opens "Wanna see a trick?" and NER offered "Wanna".
+    #
+    # A title does not list guests. And when the feed neither states its hosts nor carries a
+    # personal author tag, the right answer is NO HOSTS — the roster then leaves those voices
+    # unnamed, the safe direction (#876). Guessing is what put an advertiser's name on a podcast.
+    if nlp and feed_title:
+        for name, _score in _extract_person_entities(feed_title, nlp):
+            clean = (name or "").strip()
+            if len(clean.split()) >= 2 and not has_org_markers(clean):
+                hosts.add(clean)
         if hosts:
-            logger.debug("Detected hosts via NER from feed metadata: %s", list(hosts))
+            logger.debug("Detected hosts via NER from the feed TITLE: %s", sorted(hosts))
 
     return hosts
