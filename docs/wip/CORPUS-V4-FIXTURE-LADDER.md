@@ -33,11 +33,26 @@ The dominant class. In every case the code was correct, tested, and **never reac
 | GI invariants — thoroughly tested, never called by the stage | suite stayed green with the call **deleted** |
 | registry raised `ValueError`, which `_resolve_profile` catches to mean "not a preset" | a typo would silently disable the whole registry |
 | renaming `prod_dgx_only` → `experiment_dgx_only` dropped it out of a prefix match | **empty enricher set** — nine enrichers silently off, on the profile v3 was about to run |
+| `surfaceable` — written by GI, read by **nobody** | unattributable insights published to the UI as somebody's opinion. Shipped by the same agent, one hour after writing the gate |
+| the relabel tool wrote **no** `voice_type` at all | every voice gate INERT across the corpus. Two causes: never set, *and* `format_diarized_screenplay_with_offsets` **rebuilds** each segment dict and drops unknown keys — so setting it *before* formatting would have looked right and done nothing |
+| the **eval harness** never passed `transcript_segments` to `build_artifact` | every voice gate dead in every eval run. The head-to-head that was about to decide prod-v3 would have scored a pipeline **neither model would ever run under** (2026-07-14) |
 
 **What catches this:** mutation testing (re-break the fix, does anything go red?) and *wiring
 contracts* that drive the real chokepoint rather than calling the unit under test. Both were added
 this arc. The registry and enricher cases were caught by tests that **already existed and were red**
 — see §F.
+
+**And the trap inside the cure — a guard that is not a guard.** The first test written for the eval
+wiring bug asserted the *source text* of `run_experiment.py` mentioned `gi_text`. Under mutation it
+**survived**: replacing `gi_text = raw_text if segments else text` with `gi_text = text` — the exact
+bug — still passed, because the name was still there. A test that greps for a symbol proves the
+symbol exists, not that it carries the right value.
+
+The fix was structural, not a better assertion: make the bug **unrepresentable**. `build_artifact`'s
+text and its segments are one decision, so they are now returned by **one call**
+(`gi_transcript_and_segments`) and cannot be mismatched by a caller. Then all four mutations went
+red. *When a guard survives its own mutation, do not sharpen the guard — remove the degree of
+freedom it was trying to police.*
 
 ### B. The most-trusted signal is the easiest one to poison
 
@@ -80,11 +95,24 @@ always fixture **both** ends — the short episode *and* the noisy one.
 | the eval harness re-implemented the pipeline's provider wiring | its numbers could never match production, by construction |
 | `prod-v2` (built by a commit that exists nowhere on this machine) used to answer questions about *current* code | conclusions retracted |
 | the corpus-battle pilot compared gemini-on-v2-transcripts vs qwen-on-v3-transcripts | measured **transcript × LLM together**; cannot isolate the model. Its own `caveat` field says so |
+| the eval harness never handed GI the diarized segments | the ad-drop, `surfaceable` and person-node gates were **all dead in eval** while live in production (see §A) |
+| **offsets belong to a string, not to a file** | `char_start`/`char_end` index the RAW screenplay; eval preprocesses the text first. Feed GI the cleaned text with raw offsets and only **0–8%** of segments still resolve — every voice lookup lands on whichever speaker the shift happened to hit |
 
 **What catches this:** a parity assertion — for every shipped profile, the resolved eval config and
 the resolved production config must agree on the stack. Exists now
 (`TestEvalMatchesProduction`). It does **not** yet cover which transcript *variant* is read. That
 is a gap.
+
+**The generalisation, and it is the sharpest lesson of the arc:** *the instrument must run the thing
+it is measuring.* The eval was about to answer "is qwen good enough to rebuild the corpus" by
+scoring a pipeline with none of the quality gates that make the corpus good. Ad copy is **written**
+to be quotable — it is the most fluent, most confident false insight available — so an ungated
+harness does not merely omit the gate, it actively rewards whichever model hallucinates most
+eagerly on advertisements.
+
+**A mis-attributing gate is worse than an absent one.** Hence the loader refuses segments whose
+offsets no longer resolve (>=95% must hit) rather than silently trusting them. A gate that is off
+is a known gap; a gate that is confidently wrong is a lie with a green check next to it.
 
 ### E. Content contamination
 
@@ -94,6 +122,54 @@ is a gap.
 | **mid-roll house ads** (`Jonathan Knight`, NYT Games, 7/10 episodes) | **STILL OPEN** — sits mid-episode, so the edge rule cannot see it (#1188) |
 | `anonymize_speakers` missed titled speakers (`Dr.`, `Prof.`, `Sen.`) | the *guests* — the one name a summary must never parrot — leaked while the hosts were scrubbed |
 | `cleaning_v4` anonymises speakers, which is right for summarisation and fatal for GI | GI attributed **nobody**, silently. `cleaning_v5` exists for this |
+
+### E2. "Unnamed" is four different things, and collapsing them costs a genre
+
+Every voice we could not put a name to used to render `SPEAKER_NN`. That single bucket hid a
+distinction the product depends on:
+
+| voice_type | what it means | renders as | grounded? | surfaceable? |
+| --- | --- | --- | --- | --- |
+| `person` | a named human | the real name | yes | yes |
+| `unidentified` | a real person **nobody in the episode ever names** — the vox-pop, the tape | "Unidentified speaker" | **yes** | no |
+| `commercial` | an advertisement | "Advertisement" | **never** | no |
+| `cameo` | a brief incidental voice | "Brief speaker" | yes | no |
+| `unknown` | a person we **FAILED** to name | `SPEAKER_NN` | yes | no — **and counted, because a defect that costs nothing gets fixed by nobody** |
+
+Measured over 160 episodes / 9 shows: `person` **77.45%** of talk, `unidentified` **17.57%**,
+`commercial` 1.09%, `cameo` 0.37%, and `unknown` **3.52%** — the honest defect number, no longer
+inflated by voices nobody could ever have named.
+
+**Why `unidentified` must stay grounded.** On Planet Money and The Daily the tape **is the story** —
+36–40% of the episode. Dropping unnamed speech outright would gut the narrated shows to protect them
+from a problem they do not have. So: a fact is still a fact and stays eligible for CONNECT; only a
+**STANCE** needs a name, because an unattributed stance is not a stance — nobody holds it and nobody
+can disagree with it.
+
+**And do not mint a Person for a non-person.** 19.1% of the Person nodes in the shipped corpus (69
+of 361) were named `SPEAKER_NN`. #1167 filtered them back out downstream — a **mop, not a gate**, and
+one that worked *only because the id happened to be ugly*. Give those voices a friendly label and it
+breaks. The roster already knows the voice is not a person; the graph must not be told otherwise.
+
+**Fixtures must cover:** a narrated episode (host + tape + ad), so that dropping `unidentified`
+visibly guts it, and a `SPEAKER_NN` that must **not** become a Person node.
+
+### F0. The instrument invented the number
+
+I reported that **5.8%** of the corpus was "unambiguously recoverable" and set out to fix it. The
+diagnostic (`attribution_ceiling.py`) used a **looser regex than the roster actually ships**, so it
+counted as recoverable a great deal the pipeline could never have caught.
+
+Honest figures: **0.88%** recoverable (not 5.8%), **6.39%** genuinely nameless (not 1.5%), ceiling
+**92.15%** (not 97%).
+
+**The rule:** a diagnostic must **import the shipped code path**, never re-implement it. A measuring
+script that re-states the rule in its own words is measuring its own words. `attribution_ceiling.py`
+now imports the exact `_GUEST_INTRODUCED_BY_HOST` regex the roster ships, so the diagnostic
+*cannot* disagree with what we deploy.
+
+Related, same family: quoting a number my own tool produced without asking what the tool assumed. Any
+figure that motivates work must be traceable to shipped code or to a frozen artifact.
 
 ### F. Suite rot — the thing that made all of it possible
 
@@ -447,3 +523,15 @@ test. It is checkable, it is cheap, and it belongs in the corpus audit (tier 4).
   appear only in the transcript, not the description (`David Duvenaud`, `Andrew Marantz`). The
   roster's per-voice self-intro is the safety net. This trade is deliberate (#876 — a wrong name is
   worse than no name), but it should be **measured**, not assumed.
+
+- **The eval harness needs the same parity assertion the profiles have** (§D). `TestEvalMatchesProduction`
+  compares *configs*; it did not notice that the harness passed no `transcript_segments` at all, so
+  every voice gate was dead in eval while live in production. Fixed for GI
+  (`gi_transcript_and_segments`, guarded by mutation-tested wiring contracts), but the **KG** branch
+  of `run_experiment.py` should be audited for the same omission before it is trusted to score
+  anything.
+
+- **The 6.39% nobody-names-them bucket.** Now honestly classified as `unidentified` rather than
+  counted as our defect (§E2). It is a real ceiling, not a bug — but it is worth revisiting whether
+  a narrated-show fixture could recover any of it from the narrator's own framing ("*a school
+  teacher in Ohio told us…*").

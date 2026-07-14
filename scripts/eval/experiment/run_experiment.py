@@ -26,7 +26,7 @@ import shutil
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 # Add parent directory to path to import podcast_scraper modules
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -318,6 +318,68 @@ def _cleanup_gil_evidence_extras(extra_providers: List[Any]) -> None:
                 fn()
             except Exception as exc:
                 logger.warning("GIL evidence provider cleanup failed: %s", exc)
+
+
+SEGMENT_ALIGNMENT_MIN_HIT_RATE = 0.95
+
+
+def gi_transcript_and_segments(
+    transcript_path: Path, raw_text: str, cleaned_text: str
+) -> Tuple[str, Optional[List[Any]]]:
+    """Pick the transcript GI must read, and the segments that index it — together, or not at all.
+
+    These two are one decision, so they are returned by one call. The segments carry WHO speaks and
+    WHAT KIND of voice it is, and GI reads both: an advertisement is never grounded, and an insight
+    from a voice nobody names is not surfaceable. Their ``char_start``/``char_end`` index the RAW
+    screenplay — while the summariser reads the PREPROCESSED text, exactly as the shipped pipeline
+    does. Returning the text and the segments separately is what let the eval hand GI cleaned text
+    with raw offsets, where every voice lookup lands on whichever speaker the shift happened to hit.
+    """
+    segments = _load_aligned_segments(transcript_path, raw_text)
+    if segments is None:
+        return cleaned_text, None
+    return raw_text, segments
+
+
+def _load_aligned_segments(transcript_path: Path, transcript_text: str) -> Optional[List[Any]]:
+    """Load the diarized segments beside a transcript, and prove they still index it.
+
+    A gate that mis-attributes is worse than a gate that is absent, so offsets that no longer
+    resolve to the segment's own text are refused outright rather than trusted.
+    """
+    segments_path = transcript_path.with_suffix(".segments.json")
+    if not segments_path.exists():
+        return None
+    try:
+        segments = json.loads(segments_path.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Could not read %s: %s — GI voice gates stay off", segments_path.name, exc)
+        return None
+    if not isinstance(segments, list) or not segments:
+        return None
+
+    aligned = 0
+    for seg in segments:
+        start, end = seg.get("char_start"), seg.get("char_end")
+        if start is None or end is None:
+            continue
+        if transcript_text[int(start) : int(end)].strip() == str(seg.get("text", "")).strip():
+            aligned += 1
+    hit_rate = aligned / len(segments)
+    if hit_rate < SEGMENT_ALIGNMENT_MIN_HIT_RATE:
+        logger.error(
+            "Segment offsets do not index this transcript (%.1f%% of %d segments resolve). "
+            "Dropping them rather than attributing quotes to the wrong speaker.",
+            100 * hit_rate,
+            len(segments),
+        )
+        return None
+    logger.info(
+        "Loaded %d diarized segments (%.1f%% offsets aligned) — GI voice gates are live",
+        len(segments),
+        100 * hit_rate,
+    )
+    return list(segments)
 
 
 def create_run_readme(
@@ -1378,10 +1440,13 @@ def run_experiment(  # noqa: C901
                 logger.info(f"Processing episode: {episode_id}")
 
                 # Read transcript
-                text = path.read_text(encoding="utf-8").strip()
+                raw_text = path.read_text(encoding="utf-8")
+                text = raw_text.strip()
                 if not text:
                     logger.warning(f"Skipping empty transcript: {path}")
                     continue
+
+                _raw_text_for_gi = raw_text
 
                 # Apply preprocessing profile (for both summarization and NER tasks)
                 preprocessing_profile = cfg.preprocessing_profile
@@ -1641,15 +1706,20 @@ def run_experiment(  # noqa: C901
                         from podcast_scraper.gi.pipeline import build_artifact
                         from podcast_scraper.schemas.summary_schema import parse_summary_output
 
+                        gi_text, episode_segments = gi_transcript_and_segments(
+                            path, _raw_text_for_gi, text
+                        )
+
                         if cfg.backend.type == "eval_stub":
                             rt_cfg = runtime_config_for_grounded_insights_eval(cfg.params)
                             gil_payload = build_artifact(
                                 episode_id,
-                                text,
+                                gi_text,
                                 podcast_id=f"eval_dataset:{dataset_id}",
                                 episode_title=episode_id,
                                 publish_date=None,
                                 transcript_ref=path.name,
+                                transcript_segments=episode_segments,
                                 cfg=rt_cfg,
                                 pipeline_metrics=None,
                                 episode_duration_ms=_episode_duration_ms,
@@ -1712,11 +1782,12 @@ def run_experiment(  # noqa: C901
 
                             gil_payload = build_artifact(
                                 episode_id,
-                                text,
+                                gi_text,
                                 podcast_id=f"eval_dataset:{dataset_id}",
                                 episode_title=episode_id,
                                 publish_date=None,
                                 transcript_ref=path.name,
+                                transcript_segments=episode_segments,
                                 cfg=cfg_obj,
                                 insight_texts=ins_texts,
                                 insight_provider=ins_prov,
