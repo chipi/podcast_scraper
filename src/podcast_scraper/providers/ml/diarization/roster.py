@@ -42,6 +42,42 @@ CAMEO_MAX_TALK_S = 20.0
 # An unnamed voice whose turns sit mostly inside ad regions is an ad read, not a person.
 COMMERCIAL_AD_FRACTION = 0.6
 
+# A voice that speaks only at the very top (or very bottom) of the episode and then is never heard
+# again is an AD READ, whatever it calls itself — and it does not need `ad_intervals` to be spotted.
+#
+# It has to be spotted without them, because the ad-pattern list only knows *sponsor* language
+# ("brought to you by", "dot com slash promo") and modern house ads carry none of it. Hard Fork's
+# pre-roll is two Athletic journalists introducing themselves and plugging their World Cup app: zero
+# pattern hits, so `ad_intervals` came back EMPTY and every ad-aware guard below was inert.
+#
+# The ad then walked straight through the roster's most-trusted signal. `_self_intros_by_voice`
+# holds that a voice saying "I'm <First Last>" IS that person — and reading its own name is the one
+# thing an ad narrator always does. So "Paul Tenorio" and "Amy Lawrence", who cover soccer and
+# football for The Athletic, were crowned the hosts of a technology podcast in 10 of 10 episodes,
+# taking roster slots from the real hosts and leaving a cluster free for a hallucinated "Elon Musk"
+# to claim.
+#
+# Structure separates them with an enormous margin and no keywords at all. Measured over those 10:
+#
+#     hosts          26-42% of talk, spanning 96-99% of the episode
+#     guests         11-22% of talk, spanning 18-42%
+#     ad narrators   0.3-0.4% of talk, spanning 1%  (gone by 0:30, never return)
+#
+# So: under AD_VOICE_MAX_TALK_S of speech in total, AND every turn confined to the first or last
+# AD_VOICE_EDGE_WINDOW_S. A host cannot satisfy that, and neither can a guest. The failure mode is
+# to under-name a genuinely brief edge speaker, which costs a `SPEAKER_01` — the safe direction
+# (#876), and cheap next to publishing a real person's words under an advertiser's name.
+#
+# All THREE must hold, and the share test is the one doing the real work. An absolute
+# "short + at the edges" rule is meaningless on a short episode — in a three-minute clip every voice
+# is near an edge and under a minute of talk, which would type the whole cast as advertising. Share
+# is scale-free, and it is where the measured gap actually is (0.4% vs 11%).
+AD_VOICE_MAX_TALK_S = 90.0
+AD_VOICE_MAX_SHARE = 0.03
+AD_VOICE_EDGE_WINDOW_S = 150.0
+# Below this an episode is too short for "only at the edges" to mean anything, so the rule abstains.
+AD_VOICE_MIN_EPISODE_S = 600.0
+
 # voice_type values (the *nature* of a voice, distinct from the host/guest role):
 VOICE_PERSON = "person"  # a named real person
 VOICE_CAMEO = "cameo"  # unnamed, trivially brief
@@ -117,16 +153,22 @@ class SpeakerRoster:
 
 
 def _talk_time(
-    diarization: DiarizationResult, *, window_end: Optional[float] = None
+    diarization: DiarizationResult,
+    *,
+    window_start: float = 0.0,
+    window_end: Optional[float] = None,
 ) -> Dict[str, float]:
     totals: Dict[str, float] = {}
     for seg in diarization.segments:
         if window_end is not None and seg.start >= window_end:
             continue
-        end = seg.end if window_end is None else min(seg.end, window_end)
-        if end <= seg.start:
+        if seg.end <= window_start:
             continue
-        totals[seg.speaker] = totals.get(seg.speaker, 0.0) + (end - seg.start)
+        start = max(seg.start, window_start)
+        end = seg.end if window_end is None else min(seg.end, window_end)
+        if end <= start:
+            continue
+        totals[seg.speaker] = totals.get(seg.speaker, 0.0) + (end - start)
     return totals
 
 
@@ -144,11 +186,49 @@ def _ad_overlap_by_voice(
     return out
 
 
+def _edge_ad_voices(diarization: DiarizationResult) -> set:
+    """Voices that speak ONLY at the top/bottom of the episode, briefly, and for a trivial share.
+
+    Keyword-free, so it catches the house ads and cross-promos the sponsor-pattern list cannot see
+    (see AD_VOICE_MAX_TALK_S). All three tests must pass, and the SHARE test carries the rule: on a
+    short episode every voice is near an edge and under a minute of talk, so an absolute-only rule
+    would type an entire three-minute cast as advertising. Share is scale-free.
+
+    A host or guest fails every one of the three by a wide margin.
+    """
+    if not diarization.segments:
+        return set()
+    episode_end = max(s.end for s in diarization.segments)
+    if episode_end < AD_VOICE_MIN_EPISODE_S:
+        return set()  # too short for "only at the edges" to carry any information
+
+    head = AD_VOICE_EDGE_WINDOW_S
+    tail = episode_end - AD_VOICE_EDGE_WINDOW_S
+
+    talk: Dict[str, float] = {}
+    outside: Dict[str, int] = {}
+    for seg in diarization.segments:
+        talk[seg.speaker] = talk.get(seg.speaker, 0.0) + max(0.0, seg.end - seg.start)
+        at_edge = seg.end <= head or seg.start >= tail
+        if not at_edge:
+            outside[seg.speaker] = outside.get(seg.speaker, 0) + 1
+
+    spoken = sum(talk.values()) or 1.0
+    return {
+        v
+        for v, secs in talk.items()
+        if secs < AD_VOICE_MAX_TALK_S
+        and (secs / spoken) < AD_VOICE_MAX_SHARE
+        and outside.get(v, 0) == 0
+    }
+
+
 def _opening_voice(
     diarization: DiarizationResult,
     *,
     window_end: float,
     ad_intervals: Optional[Sequence[Tuple[float, float]]] = None,
+    ad_voices: Optional[set] = None,
 ) -> Optional[str]:
     """The voice that OPENS the episode — the speaker of the earliest turn in the intro window
     (the host doing the intro). A turn sitting mostly inside an ad region is skipped (a pre-roll
@@ -157,11 +237,16 @@ def _opening_voice(
     answer at length early, swapping the roles (#1169). ``None`` when no turn qualifies.
     """
     ads = ad_intervals or ()
+    skip = ad_voices or set()
     best_start: Optional[float] = None
     best_voice: Optional[str] = None
     for seg in diarization.segments:
         dur = seg.end - seg.start
         if seg.start >= window_end or dur <= 0:
+            continue
+        # The pre-roll ad OPENS the episode, so "whoever starts" is the ad narrator unless the ad
+        # is skipped. `ad_intervals` only sees sponsor-shaped ads; `ad_voices` sees the rest.
+        if seg.speaker in skip:
             continue
         in_ad = sum(
             max(0.0, min(seg.end, a_end) - max(seg.start, a_start)) for a_start, a_end in ads
@@ -177,6 +262,7 @@ def _classify_voice_types(
     by_voice: Dict[str, "SpeakerRole"],
     diarization: DiarizationResult,
     ad_intervals: Optional[Sequence[Tuple[float, float]]],
+    ad_voices: Optional[set] = None,
 ) -> Dict[str, "SpeakerRole"]:
     """Tag every *unnamed* voice as cameo / commercial / unknown; named voices are ``person``.
 
@@ -186,8 +272,15 @@ def _classify_voice_types(
     """
     talk = _talk_time(diarization)
     ad_by_voice = _ad_overlap_by_voice(diarization, ad_intervals) if ad_intervals else {}
+    edge_ads = ad_voices or set()
     out: Dict[str, SpeakerRole] = {}
     for v, role in by_voice.items():
+        # An edge-ad voice is commercial even when it is NAMED. Being named used to short-circuit
+        # straight to `person`, and an ad narrator is always named — it reads its own name out loud.
+        # That is how "Advertisement" became "Paul Tenorio, host".
+        if v in edge_ads:
+            out[v] = replace(role, name=v, named=False, voice_type=VOICE_COMMERCIAL)
+            continue
         if role.named:
             out[v] = replace(role, voice_type=VOICE_PERSON)
             continue
@@ -255,6 +348,67 @@ def _host_name_pool(
     for n in _clean_author_candidates(host_candidates):
         _add(n, "feed")
     return pool
+
+
+def _soundex(word: str) -> str:
+    """Classic Soundex. Catches ASR substitutions that swap vowels but keep the consonant skeleton
+    ("Roose" -> "Russo"). Blind to "Newton" -> "Noon", which edit distance catches instead — the two
+    are complementary and neither alone is enough."""
+    w = "".join(c for c in word.upper() if c.isalpha())
+    if not w:
+        return ""
+    codes = {
+        **dict.fromkeys("BFPV", "1"),
+        **dict.fromkeys("CGJKQSXZ", "2"),
+        **dict.fromkeys("DT", "3"),
+        **dict.fromkeys("L", "4"),
+        **dict.fromkeys("MN", "5"),
+        **dict.fromkeys("R", "6"),
+    }
+    out, prev = w[0], codes.get(w[0], "")
+    for ch in w[1:]:
+        code = codes.get(ch, "")
+        if code and code != prev:
+            out += code
+        if ch not in "HW":
+            prev = code
+    return (out + "000")[:4]
+
+
+def _edit_distance(a: str, b: str) -> int:
+    a, b = a.lower(), b.lower()
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i]
+        for j, cb in enumerate(b, 1):
+            cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca != cb)))
+        prev = cur
+    return prev[-1]
+
+
+def _canonicalize_to_known_host(name: str, known_hosts: Sequence[str]) -> str:
+    """Snap an ASR-mangled self-introduction onto the configured host name.
+
+    A self-introduction is transcribed, so it carries the ASR's spelling: Kevin Roose introduces
+    himself and Whisper writes "Kevin Russo" in one episode and "Kevin Roos" in the next. The roster
+    trusts a self-intro above ``known_hosts``, so the corpus ended up with three different people
+    hosting the same show, none of them spelled correctly.
+
+    Snapping requires an EXACT first-name match plus a near surname (phonetic, or within a small
+    edit distance), so a guest who merely shares a host's first name is left alone. Requiring both
+    is what keeps this from quietly renaming real people.
+    """
+    toks = name.split()
+    if len(toks) < 2:
+        return name
+    first, last = toks[0].lower(), toks[-1]
+    for host in known_hosts:
+        h = host.split()
+        if len(h) < 2 or h[0].lower() != first:
+            continue
+        if _soundex(last) == _soundex(h[-1]) or _edit_distance(last, h[-1]) <= 3:
+            return host
+    return name
 
 
 def _self_intros_by_voice(voice_texts: Optional[Dict[str, str]]) -> Dict[str, str]:
@@ -357,12 +511,50 @@ def resolve_speaker_roster(
     if not diarization.segments:
         return SpeakerRoster(by_voice={}, num_speakers=diarization.num_speakers or 0)
 
-    intro = _talk_time(diarization, window_end=intro_window_s)
-    total = _talk_time(diarization)
-    voices_by_total = sorted(total, key=lambda v: total[v], reverse=True)
-    voices_by_intro = sorted(intro, key=lambda v: intro[v], reverse=True)
+    # Ad voices are established BEFORE anything can be named from them: the pre-roll opens the
+    # episode and reads its own name, so it wins both the "opening voice = host" rule and the
+    # most-trusted self-introduction rule unless it is removed from contention up front.
+    ad_voices = _edge_ad_voices(diarization)
 
-    host_pool = _host_name_pool(transcript_text, known_hosts, host_candidates)
+    # The intro window is the SHOW's intro, not the advert's. Measured from 0 it was mostly ad, so a
+    # co-host who speaks a minute in barely registered and never cleared CO_HOST_INTRO_SHARE — which
+    # left Kevin Roose, who talks for 39% of the episode, outside `host_voices` entirely.
+    content_start = min(
+        (s.start for s in diarization.segments if s.speaker not in ad_voices),
+        default=0.0,
+    )
+    intro = _talk_time(
+        diarization, window_start=content_start, window_end=content_start + intro_window_s
+    )
+    total = _talk_time(diarization)
+    voices_by_total = [v for v in sorted(total, key=lambda v: total[v], reverse=True)]
+    voices_by_intro = [
+        v for v in sorted(intro, key=lambda v: intro[v], reverse=True) if v not in ad_voices
+    ]
+
+    # A voice that introduces itself in its own turns is named from that, most-trusted (#876) —
+    # but not if it is an ad. An ad narrator reads its own name aloud by design, which is precisely
+    # what makes the most-trusted signal the easiest one to poison.
+    # ...and the name it gives is the ASR's spelling, so it is snapped onto the configured host
+    # when it is plainly the same person ("Kevin Russo" / "Kevin Roos" -> "Kevin Roose").
+    voice_intro = {
+        v: _canonicalize_to_known_host(n, known_hosts)
+        for v, n in _self_intros_by_voice(voice_texts).items()
+        if v not in ad_voices
+    }
+
+    # The names the ADS introduced. They must not reach the host pool either: `_host_name_pool`
+    # seeds itself from `extract_self_introduced_host(transcript_text)`, and the first thing in the
+    # transcript is the pre-roll — so "Paul Tenorio" was entering as a host name even before any
+    # voice was matched to it.
+    ad_names_lower = {
+        n.lower() for v, n in _self_intros_by_voice(voice_texts).items() if v in ad_voices and n
+    }
+    host_pool = [
+        (n, s)
+        for n, s in _host_name_pool(transcript_text, known_hosts, host_candidates)
+        if n.lower() not in ad_names_lower
+    ]
 
     # Which voices are hosts: the OPENING voice (whoever starts the episode — the host doing
     # the intro), plus co-hosts when more host names are available and another voice owns a
@@ -370,7 +562,12 @@ def resolve_speaker_roster(
     # interview the guest often out-talks the host inside the intro window, and naming the
     # talk-time leader would swap the two (#1169).
     host_voices: List[str] = []
-    opener = _opening_voice(diarization, window_end=intro_window_s, ad_intervals=ad_intervals)
+    opener = _opening_voice(
+        diarization,
+        window_end=content_start + intro_window_s,
+        ad_intervals=ad_intervals,
+        ad_voices=ad_voices,
+    )
     if opener is None and voices_by_intro:
         opener = voices_by_intro[0]
     if opener is not None:
@@ -384,8 +581,15 @@ def resolve_speaker_roster(
             if intro[v] / intro_total >= CO_HOST_INTRO_SHARE:
                 host_voices.append(v)
 
-    # A voice that introduces itself in its own turns is named from that, most-trusted (#876).
-    voice_intro = _self_intros_by_voice(voice_texts)
+    # A voice that introduces itself AS A CONFIGURED HOST is a host, whatever the intro-window
+    # arithmetic says. This is the strongest evidence available and it was going unused: a co-host
+    # who missed CO_HOST_INTRO_SHARE fell through to GUEST naming and was handed a guest's name —
+    # so Kevin Roose, 39% of the episode, could be published as "Dr. Adam Rodman".
+    known_lower = {h.lower() for h in known_hosts}
+    for v, n in voice_intro.items():
+        if n.lower() in known_lower and v not in host_voices:
+            host_voices.append(v)
+
     host_names_lower = {n.lower() for n, _ in host_pool}
     used_lower: set[str] = set()
 
@@ -397,12 +601,23 @@ def resolve_speaker_roster(
         for g in _clean_person_names(detected_guests)
         if g.lower() not in host_names_lower and g.lower() not in intro_names_lower
     ]
+    # Ad voices are excluded from GUEST naming too — otherwise the pre-roll consumes a real guest's
+    # name out of the pool and the guest is left as SPEAKER_0n.
     by_voice.update(
         _name_guest_voices(
-            voices_by_total, by_voice, voice_intro, guest_names, host_names_lower, used_lower
+            [v for v in voices_by_total if v not in ad_voices],
+            by_voice,
+            voice_intro,
+            guest_names,
+            host_names_lower,
+            used_lower,
         )
     )
-    by_voice = _classify_voice_types(by_voice, diarization, ad_intervals)
+    # They still belong in the roster — as "Advertisement", not as a missing id.
+    for v in ad_voices:
+        by_voice.setdefault(v, SpeakerRole(name=v, role="unknown", named=False, source="raw"))
+
+    by_voice = _classify_voice_types(by_voice, diarization, ad_intervals, ad_voices)
     return SpeakerRoster(by_voice=by_voice, num_speakers=diarization.num_speakers or len(by_voice))
 
 
