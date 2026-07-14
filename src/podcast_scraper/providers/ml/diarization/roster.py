@@ -613,16 +613,25 @@ def resolve_speaker_roster(
         if v not in ad_voices
     }
 
-    # The names the ADS introduced. They must not reach the host pool either: `_host_name_pool`
-    # seeds itself from `extract_self_introduced_host(transcript_text)`, and the first thing in the
-    # transcript is the pre-roll — so "Paul Tenorio" was entering as a host name even before any
-    # voice was matched to it.
     ad_names_lower = {
         n.lower() for v, n in _self_intros_by_voice(voice_texts).items() if v in ad_voices and n
     }
+
+    # A transcript-level self-introduction has NO VOICE ATTACHED TO IT.
+    #
+    # `extract_self_introduced_host(transcript_text)` scans the whole transcript for the first
+    # "I'm <Name>" and offers it as a host name. On Latent Space — a feed that states no host — the
+    # first "I'm ..." in the transcript is the GUEST introducing himself ("Yeah, I'm Peter Ludwig,
+    # co-founder and CTO of Applied Intuition"). His name was handed to the host voice, and the
+    # voice that actually said it was left as SPEAKER_03 with 48% of the episode.
+    #
+    # Per-voice self-introductions (`voice_intro`) carry the same signal AND say who said it, so
+    # when we have them the transcript-level scan is strictly worse and is skipped. It survives only
+    # for callers that pass no `voice_texts` at all.
+    intro_source = None if voice_texts else transcript_text
     host_pool = [
         (n, s)
-        for n, s in _host_name_pool(transcript_text, known_hosts, host_candidates)
+        for n, s in _host_name_pool(intro_source, known_hosts, host_candidates)
         if n.lower() not in ad_names_lower
     ]
 

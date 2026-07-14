@@ -253,3 +253,46 @@ class TestCanonicalizingAnAsrMangledHost:
 
     def test_an_unrelated_name_is_untouched(self) -> None:
         assert _canonicalize_to_known_host("Adam Rodman", HOSTS) == "Adam Rodman"
+
+
+def test_a_transcript_level_self_intro_never_names_a_voice_that_did_not_say_it() -> None:
+    """FOUND BY THE 160-EPISODE AUDIT — the guest's name was given to the host.
+
+    `extract_self_introduced_host(transcript_text)` scans the WHOLE transcript for the first
+    "I'm <Name>" and offers it as a host name. It has NO VOICE ATTACHED TO IT.
+
+    On Latent Space — a feed that states no host — the first "I'm ..." in the transcript is the
+    GUEST introducing himself ("Yeah, I'm Peter Ludwig, co-founder and CTO of Applied Intuition").
+    His name went to the host voice, and the voice that actually said it was left as SPEAKER_03,
+    holding 48% of the episode.
+
+    Per-voice self-introductions carry the same signal AND say who said it. Where we have them, the
+    transcript-level scan is strictly worse.
+    """
+    segs = [_seg("SPEAKER_HOST", 0.0, 60.0)]
+    t = 60.0
+    while t < 3600.0:
+        segs.append(_seg("SPEAKER_GUEST", t, t + 90))
+        segs.append(_seg("SPEAKER_HOST", t + 90, t + 120))
+        t += 120.0
+    diar = DiarizationResult(segments=segs, num_speakers=2)
+
+    roster = resolve_speaker_roster(
+        diar,
+        # the transcript's first "I'm ..." belongs to the GUEST
+        "Just introduce yourself so people know the voice on the mic. "
+        "Oh, sure. Yeah, I'm Peter Ludwig. I'm the co-founder and CTO of Applied Intuition.",
+        detected_guests=[],
+        known_hosts=[],  # the feed states no host, as Latent Space does not
+        voice_texts={
+            "SPEAKER_HOST": "Welcome to the podcast. Let's get into it.",
+            "SPEAKER_GUEST": "Yeah, I'm Peter Ludwig. I'm the co-founder and CTO.",
+        },
+    )
+
+    assert (
+        roster.by_voice["SPEAKER_GUEST"].name == "Peter Ludwig"
+    ), "the name was taken from the voice that actually said it"
+    assert (
+        roster.by_voice["SPEAKER_HOST"].name != "Peter Ludwig"
+    ), "the guest's self-introduction was handed to the HOST voice"
