@@ -90,3 +90,26 @@ class TestItStaysSilentWhenNobodyPerforms:
         assert roles_from_conversation({}) == {}
         assert roles_from_conversation(None) == {}
         assert guests_introduced_by_the_host(None) == set()
+
+
+class TestAMultiGuestIntroduction:
+    """FOUND BY THE 160-EPISODE AUDIT.
+
+    "My guests today are Red Hat's Chris Wright and NVIDIA's Justin Boitano" is TWO people, each
+    behind their employer's possessive. It was being recorded as ONE guest, whose name was that
+    entire string.
+    """
+
+    def test_two_guests_behind_two_possessives(self) -> None:
+        assert guests_introduced_by_the_host(
+            {
+                "HOST": "Welcome to the NVIDIA AI Podcast. I'm your host, Noah Kravitz. My guests "
+                "today are Red Hat's Chris Wright and NVIDIA's Justin Boitano, and we talk AI."
+            }
+        ) == {"Chris Wright", "Justin Boitano"}
+
+    def test_an_apostrophe_in_a_surname_is_not_a_possessive(self) -> None:
+        """O'Shaughnessy must survive the possessive-stripper intact."""
+        assert guests_introduced_by_the_host(
+            {"H": "Our guest is Patrick O'Shaughnessy today."}
+        ) == {"Patrick O'Shaughnessy"}

@@ -294,7 +294,9 @@ def hosts_from_feed_statement(
 # A capitalised run is not automatically a name: it can start with a preposition ("At Planet
 # Money"), or be prefixed by the publisher's possessive ("Bloomberg's Joe Weisenthal").
 _LEADING_JUNK = re.compile(r"^(?:At|In|On|By|With|From|The)\s+", re.IGNORECASE)
-_POSSESSIVE_PREFIX = re.compile(r"^[\w'’\-]+['’]s\s+")
+# "Bloomberg's Joe Weisenthal", "Red Hat's Chris Wright" — the employer, then the person. Non-greedy
+# so it strips through the FIRST possessive only, leaving "Patrick O'Shaughnessy" (no "'s ") alone.
+_POSSESSIVE_PREFIX = re.compile(r"^.*?['’]s\s+")
 
 
 def _clean_stated_name(name: str) -> str:
@@ -338,8 +340,12 @@ _GUEST_SPEECH_ACTS = [
     )
 ]
 # "My guest today is Brian Chesky, the co-founder..." — the host names the guest.
+#
+# And often names TWO, each behind their employer's possessive: "My guests today are Red Hat's Chris
+# Wright and NVIDIA's Justin Boitano". Capturing a single greedy run turned that into one person
+# called "Red Hat's Chris Wright and NVIDIA's Justin Boitano" — found by auditing the corpus.
 _GUEST_INTRODUCED_BY_HOST = re.compile(
-    rf"\b(?:my|our) guests? (?:today )?(?:is|are)\s+(?P<name>{_NAME})", re.IGNORECASE
+    rf"\b(?:my|our) guests? (?:today )?(?:is|are)\s+(?P<names>{_NAMES})", re.IGNORECASE
 )
 
 
@@ -362,13 +368,19 @@ def roles_from_conversation(voice_texts: Optional[Dict[str, str]]) -> Dict[str, 
 
 
 def guests_introduced_by_the_host(voice_texts: Optional[Dict[str, str]]) -> Set[str]:
-    """Names the host introduces as guests ("My guest today is Brian Chesky")."""
+    """Names the host introduces as guests ("My guest today is Brian Chesky").
+
+    Splits a multi-guest introduction into people. "My guests today are Red Hat's Chris Wright and
+    NVIDIA's Justin Boitano" is two guests, each behind an employer's possessive — and it was being
+    recorded as ONE person with that entire string as their name.
+    """
     out: Set[str] = set()
     for text in (voice_texts or {}).values():
         for m in _GUEST_INTRODUCED_BY_HOST.finditer(text or ""):
-            name = _clean_stated_name(m.group("name"))
-            if len(name.split()) >= 2 and not has_org_markers(name):
-                out.add(name)
+            for raw in _NAME_RE.findall(m.group("names")):
+                name = _clean_stated_name(raw)
+                if len(name.split()) >= 2 and not has_org_markers(name):
+                    out.add(name)
     return out
 
 
