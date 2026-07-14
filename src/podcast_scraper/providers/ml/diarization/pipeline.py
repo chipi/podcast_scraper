@@ -109,9 +109,15 @@ def apply_diarization_to_result(
     cfg: config.Config,
     detected_speaker_names: Optional[List[str]],
     *,
+    metadata_named: Optional[List[str]] = None,
     cache_dir: Optional[str] = None,
 ) -> dict:
-    """Enrich transcription segments with diarized speaker labels."""
+    """Enrich transcription segments with diarized speaker labels.
+
+    ``metadata_named`` is every name the episode metadata stated, *before* corroboration filtered
+    it. It never names a voice — it only lets the roster tell our own failures apart from the
+    voices nobody could have named.
+    """
     segments = result.get("segments")
     if not isinstance(segments, list) or not segments:
         return result
@@ -177,6 +183,7 @@ def apply_diarization_to_result(
         voice_texts=voice_texts,
         ordered_turns=ordered_turns,
         ad_intervals=_ad_intervals(segments),
+        metadata_named=list(metadata_named or ()),
     )
 
     enriched_result = dict(result)
@@ -190,6 +197,7 @@ def apply_diarization_to_result(
         voice_texts=voice_texts,
         detected_guests=guests,
         known_hosts=known_hosts,
+        metadata_named=list(metadata_named or ()),
         show_centric=bool(getattr(cfg, "show_centric", False)),
     )
     enriched_result["diarization_num_speakers"] = roster.num_speakers

@@ -295,6 +295,7 @@ def download_media_for_transcription(
     effective_output_dir: str,
     run_suffix: Optional[str],
     detected_speaker_names: Optional[List[str]] = None,
+    metadata_named: Optional[List[str]] = None,
     pipeline_metrics=None,
 ) -> Optional[TranscriptionJob]:  # type: ignore[valid-type]
     """Download media file for Whisper transcription.
@@ -415,6 +416,7 @@ def download_media_for_transcription(
         ep_title_safe=episode.title_safe,
         temp_media=temp_media,
         detected_speaker_names=speaker_names_copy,
+        metadata_named=list(metadata_named) if metadata_named else None,
         episode=episode,
         media_download_elapsed=dl_elapsed,
     )
@@ -1632,6 +1634,7 @@ def transcribe_media_to_text(
                     media_for_transcription,
                     cfg,
                     job.detected_speaker_names,
+                    metadata_named=job.metadata_named,
                     cache_dir=os.path.join(effective_output_dir, ".cache", "diarization"),
                 )
             except (ProviderDependencyError, ValueError) as exc:
@@ -2037,6 +2040,7 @@ def process_episode_download(
     transcription_jobs: queue.Queue[TranscriptionJob],  # type: ignore[valid-type]
     transcription_jobs_lock: Optional[threading.Lock],
     detected_speaker_names: Optional[List[str]] = None,
+    metadata_named: Optional[List[str]] = None,
     pipeline_metrics=None,
 ) -> tuple[bool, Optional[str], Optional[str], int]:
     """Process a single episode: download transcript or prepare for Whisper transcription.
@@ -2082,6 +2086,7 @@ def process_episode_download(
             effective_output_dir,
             run_suffix,
             detected_speaker_names=detected_speaker_names,
+            metadata_named=metadata_named,
             pipeline_metrics=pipeline_metrics,
         )
         if job:

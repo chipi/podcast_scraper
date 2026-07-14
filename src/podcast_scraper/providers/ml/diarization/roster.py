@@ -149,6 +149,12 @@ VOICE_TYPE_LABELS = {
 # name the host, and "Host" is the correct outcome there, not a bare SPEAKER_NN failure.
 UNNAMED_HOST_LABEL = "Host"
 
+# When this much of an episode's TALK cannot be attributed to anybody, we did not lose a bit of
+# noise — we lost a PRINCIPAL. A vox-pop cutaway costs a few percent; a guest we failed to bind
+# costs a quarter of the episode or more. Measured on the real corpus, the misses cluster at 26-50%
+# while the genuinely-nameless tape of a narrated show sits well below it.
+UNATTRIBUTED_TALK_ALARM = 0.25
+
 
 def friendly_voice_label(voice_type: Optional[str]) -> Optional[str]:
     """Human label for a cameo/commercial voice ("Brief speaker" / "Advertisement"), else None.
@@ -673,6 +679,7 @@ def resolve_speaker_roster(
     voice_texts: Optional[Dict[str, str]] = None,
     ordered_turns: Optional[Sequence[Tuple[str, str]]] = None,
     ad_intervals: Optional[Sequence[Tuple[float, float]]] = None,
+    metadata_named: Sequence[str] = (),
     intro_window_s: float = INTRO_WINDOW_SECONDS,
 ) -> SpeakerRoster:
     """Resolve every diarized voice to a ``SpeakerRole`` (see module docstring).
@@ -683,6 +690,11 @@ def resolve_speaker_roster(
 
     ``ad_intervals`` (``(start_s, end_s)`` ad regions) lets an unnamed voice that speaks mostly
     inside ads be typed ``commercial``; omitted → only cameo vs unknown by talk time.
+
+    ``metadata_named`` is every person the episode METADATA states, *before* corroboration filters
+    them. It never names a voice on its own — it only decides whether an unnamed voice is a defect
+    (``unknown``) or a person nobody could have named (``unidentified``). A name we saw and could
+    not place is a failure of ours, whatever our reason for declining to use it.
     """
     if not diarization.segments:
         return SpeakerRoster(by_voice={}, num_speakers=diarization.num_speakers or 0)
@@ -866,8 +878,33 @@ def resolve_speaker_roster(
     # A substantive voice that is NOT nameable is `unidentified`: nobody in the episode ever says
     # who they are. Showing a defect marker there turns a signal into noise.
     leftover_names = [g for g in guest_names if g.lower() not in used_lower]
+
+    # ...and the names the METADATA STATED that never reached a voice — INCLUDING the ones
+    # corroboration threw away.
+    #
+    # This is the hole that let us launder our own failures. `unidentified` claims *no source names
+    # them*, and the episode description is a source. But `guest_names` only ever held the names
+    # that SURVIVED corroboration, so when corroboration rejected a real guest ("the episode text
+    # names them but never introduces them as speaking" — #876), the name vanished, no name was left
+    # going spare, and the roster concluded nobody could have been named. Two correct safety rules,
+    # compounding into a false innocence:
+    #
+    #     [Physical AI] description: "Qasar Younis and Peter Ludwig have spent the last decade..."
+    #                   SPEAKER_01, 35% of the episode -> "Unidentified speaker"  <- A LIE.
+    #
+    # We could not place him. That is a DEFECT, and it is counted as one.
+    #
+    # This deliberately errs pessimistic: a description that merely *mentions* someone who never
+    # speaks is indistinguishable here from one that names a guest we failed to bind, so both land
+    # in the defect bucket. Over-counting our own failures is the safe direction — the whole reason
+    # this exists is that the old rule under-counted them. ``unbound_stated_names`` in the
+    # diagnostics names exactly who we could not place, so the residual stays auditable.
+    stated_unbound = [
+        n for n in _clean_person_names(metadata_named or ()) if n.lower() not in used_lower
+    ]
+
     nameable = set(voice_intro)
-    if leftover_names:
+    if leftover_names or stated_unbound:
         # A name is still going spare, so ANY unnamed voice could have taken it — we cannot claim
         # nobody could be named.
         nameable |= {v for v, r in by_voice.items() if not r.named}
@@ -895,6 +932,7 @@ def build_speaker_diagnostics(
     voice_texts: Optional[Dict[str, str]] = None,
     detected_guests: Sequence[str] = (),
     known_hosts: Sequence[str] = (),
+    metadata_named: Sequence[str] = (),
     show_centric: bool = False,
 ) -> Dict[str, Any]:
     """Per-episode speaker-resolution diagnostics — *what we tried, what we resolved, and why
@@ -946,6 +984,26 @@ def build_speaker_diagnostics(
         voices.append(entry)
 
     unresolved = len(roster.by_voice) - named
+
+    # COUNT THE VOICE, NOT THE HEAD. Three cameos and one 50%-of-the-episode guest are both
+    # "1 unresolved voice" by headcount, and they are nothing alike: the first is noise, the second
+    # means we lost a PRINCIPAL and half the episode cannot be attributed to anybody.
+    #
+    # So the per-episode alarm is a SHARE OF TALK, and it is the number to look at first. A large
+    # one is never a rounding error — it says a specific voice went missing, and ``unbound_names``
+    # usually says whose.
+    total_talk = sum(talk.values()) or 1.0
+    unattributed_s = sum(
+        talk.get(v, 0.0)
+        for v, role in roster.by_voice.items()
+        if not role.named and role.voice_type in (VOICE_UNKNOWN, VOICE_UNIDENTIFIED)
+    )
+    unattributed_share = unattributed_s / total_talk
+    used_lower = {str(r.name).lower() for r in roster.by_voice.values() if r.named}
+    unbound_names = [
+        n for n in _clean_person_names(metadata_named or ()) if n.lower() not in used_lower
+    ]
+
     return {
         "summary": {
             "num_speakers": roster.num_speakers,
@@ -959,6 +1017,12 @@ def build_speaker_diagnostics(
             # genuine miss — ``truly_unknown`` is the real "we failed to name a person" residual.
             "expected_unresolved": expected_unnamed,
             "truly_unknown": unresolved - expected_unnamed,
+            # How much of the EPISODE nobody can be held to — the headline defect number.
+            "unattributed_talk_share": round(unattributed_share, 4),
+            "unattributed_alarm": unattributed_share >= UNATTRIBUTED_TALK_ALARM,
+            # Names the metadata stated and we could not place. When the alarm fires, this is
+            # usually the answer to "who did we lose".
+            "unbound_names": unbound_names,
         },
         "tried": {
             "host_self_intro": (
@@ -966,6 +1030,7 @@ def build_speaker_diagnostics(
             ),
             "known_hosts": list(known_hosts),
             "detected_guests": list(detected_guests),
+            "metadata_named": list(metadata_named or ()),
             "per_voice_self_intro": {v: per_voice_intro.get(v) for v in roster.by_voice},
         },
         "voices": voices,
