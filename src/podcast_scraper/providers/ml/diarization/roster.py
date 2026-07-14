@@ -85,30 +85,30 @@ AD_VOICE_EDGE_TIME_FRACTION = 0.75
 # Below this an episode is too short for "only at the edges" to mean anything, so the rule abstains.
 AD_VOICE_MIN_EPISODE_S = 600.0
 
-# A HOST is present from the first minute to the last; a guest arrives, is interviewed, and leaves.
-# The same measurement that separates the ads separates these:
+# WHO the hosts are is NOT inferred here. It is read from METADATA — the feed states it in plain
+# English — and passed in as `known_hosts`. This module's job is to work out WHICH VOICE each of
+# them is, not to guess who they are.
 #
-#     hosts   26-42% of talk, spanning 96-99% of the episode
-#     guests  11-22% of talk, spanning 18-42%
+# There was a `HOST_MIN_SHARE` / spanning rule here, derived from Hard Fork ("a host talks a lot and
+# is present start to finish"). It was wrong, because talk share and span INVERT by show format:
 #
-# Span is the discriminator, and it has to be, because host identity was previously CAPPED BY THE
-# NUMBER OF HOST NAMES AVAILABLE (`len(host_voices) >= max(1, len(host_pool))`). With an empty
-# `known_hosts` and a self-intro pool emptied by the ad filter, only ONE voice could be a host — so
-# the co-host fell through to GUEST naming and was handed a guest's name. Kevin Roose, talking for
-# 39% of the episode from minute one to minute seventy, was published as "Dr. Adam Rodman", while
-# Rodman's own cluster went unnamed.
+#     Invest Like the Best   the GUEST talks 82%, the host 17%
+#     Latent Space           the GUEST talks 85%
+#     Hard Fork              the HOSTS talk 26-39%, the guest 22%
+#     Hard Fork              the episode is OPENED by a pre-roll ADVERT, not by a host
 #
-# A voice that spans the episode is a host whether or not we have a name for it. An unnamed host
-# renders as "Host" (UNNAMED_HOST_LABEL), which is right; wearing a guest's name is not.
+# Any rule keyed on "who talks most" or "who spans the episode" is therefore tuned to whichever show
+# it was written against, and it promoted the guest to host on the interview-format feeds. Meanwhile
+# the feed simply says: "journalists Kevin Roose and Casey Newton"; "Hosted by Ryan Knutson and
+# Jessica Mendoza"; "co-hosts Elad Gil and Sarah Guo" — and Invest Like the Best puts its host in
+# the show TITLE. 7 of our 10 feeds name their hosts outright; the rest carry author tags.
 #
-# "Spans" means present at BOTH ENDS — opens the show and closes it. Raw span (last minus first) is
-# not enough: a guest who arrives a fifth of the way in and stays to the end also spans 80% of the
-# episode, and would be promoted to host. The host's signature is that they were there from the
-# beginning. Measured: hosts first speak within the opening ~1% and are still there at ~99%; guests
-# first speak 20-40% in.
-HOST_MAX_FIRST_FRACTION = 0.10
-HOST_MIN_LAST_FRACTION = 0.80
-HOST_MIN_SHARE = 0.10
+# So: metadata is the authority for WHO, diarization is the authority for WHICH VOICE, and the two
+# are cross-referenced. A statistic never overrules a stated fact.
+#
+# Talk share remains legitimate for exactly one question — AD vs PERSON (an ad reads for 30 seconds,
+# a host talks for 20 minutes, and that gap does not invert across formats). It is never used to
+# separate host from guest.
 
 # voice_type values (the *nature* of a voice, distinct from the host/guest role):
 VOICE_PERSON = "person"  # a named real person
@@ -261,38 +261,20 @@ def _edge_ad_voices(diarization: DiarizationResult) -> set:
     }
 
 
-def _spanning_voices(diarization: DiarizationResult, ad_voices: set) -> List[str]:
-    """Voices present from the start of the episode to the end — the hosts.
+def _voices_by_talk(diarization: DiarizationResult, ad_voices: set) -> List[str]:
+    """Non-ad voices, most talkative first — the order host NAMES from metadata are matched onto.
 
-    Keyed on SPAN, not on talk time and not on how many names we happen to hold. A guest can
-    out-talk a host inside any given window, but a guest does not open the show and close it.
-    Ordered by talk time so the primary host comes first.
+    This is an ORDERING, not a classification. It does not decide who is a host: the feed already
+    said that, and `known_hosts` carries it. It only decides which voice a given host name is
+    matched to first, which is why it is safe — the count of hosts comes from the metadata, so a
+    guest cannot become one by talking a lot.
     """
-    if not diarization.segments:
-        return []
-    episode_end = max(s.end for s in diarization.segments)
-    if episode_end <= 0:
-        return []
-
     talk: Dict[str, float] = {}
-    first: Dict[str, float] = {}
-    last: Dict[str, float] = {}
     for seg in diarization.segments:
         if seg.speaker in ad_voices:
             continue
         talk[seg.speaker] = talk.get(seg.speaker, 0.0) + max(0.0, seg.end - seg.start)
-        first.setdefault(seg.speaker, seg.start)
-        last[seg.speaker] = max(last.get(seg.speaker, 0.0), seg.end)
-
-    spoken = sum(talk.values()) or 1.0
-    hosts = [
-        v
-        for v, secs in talk.items()
-        if (first[v] / episode_end) <= HOST_MAX_FIRST_FRACTION
-        and (last[v] / episode_end) >= HOST_MIN_LAST_FRACTION
-        and (secs / spoken) >= HOST_MIN_SHARE
-    ]
-    return sorted(hosts, key=lambda v: talk[v], reverse=True)
+    return sorted(talk, key=lambda v: talk[v], reverse=True)
 
 
 def _opening_voice(
@@ -628,13 +610,29 @@ def resolve_speaker_roster(
         if n.lower() not in ad_names_lower
     ]
 
-    # Which voices are hosts: the OPENING voice (whoever starts the episode — the host doing
-    # the intro), plus co-hosts when more host names are available and another voice owns a
-    # meaningful share of the intro. The opener beats raw intro-window talk-time: in an
-    # interview the guest often out-talks the host inside the intro window, and naming the
-    # talk-time leader would swap the two (#1169).
+    # WHICH voices are the hosts.
+    #
+    # The METADATA already told us who they are and HOW MANY there are — `host_pool` carries the
+    # feed's own words ("journalists Kevin Roose and Casey Newton"). This block does not decide who
+    # hosts the show; it only decides which diarized voice each stated host IS. So the number of
+    # host voices is exactly `len(host_pool)`, and a guest cannot become a host by talking a lot.
+    #
+    # Matching, in order of evidence:
+    #   1. the voice whose OWN self-introduction names a stated host  — direct, unambiguous;
+    #   2. the voice that OPENS the show (ads excluded)               — the host does the intro;
+    #   3. the remaining most-talkative voices                        — only to fill leftover slots.
+    #
+    # Step 3 is an ORDERING, never a classification: it can only assign a name the feed already
+    # stated, to fill a slot the feed already counted.
     host_voices: List[str] = []
-    spanning = set(_spanning_voices(diarization, ad_voices))
+    known_lower = {h.lower() for h in known_hosts}
+
+    # 1. A voice that introduces itself as one of the feed's stated hosts IS that host.
+    for v, n in voice_intro.items():
+        if n.lower() in known_lower and v not in host_voices:
+            host_voices.append(v)
+
+    # 2. The opener — the host doing the intro (the pre-roll ad is excluded, or it wins this).
     opener = _opening_voice(
         diarization,
         window_end=content_start + intro_window_s,
@@ -643,43 +641,25 @@ def resolve_speaker_roster(
     )
     if opener is None and voices_by_intro:
         opener = voices_by_intro[0]
-    if opener is not None:
+    if (
+        opener is not None
+        and opener not in host_voices
+        and len(host_voices) < max(1, len(host_pool))
+    ):
         host_voices.append(opener)
-        intro_total = sum(intro.values()) or 1.0
-        for v in voices_by_intro:
-            if v in host_voices:
-                continue
 
-            if host_pool:
-                # We hold host NAMES, so the number of hosts is capped by them — and THE CAP is
-                # what stops a guest who answers at length early from being crowned a co-host and
-                # taking the host's name (#1169).
-                if len(host_voices) >= len(host_pool):
-                    break
-                # Within the cap, a co-host is admitted on intro share OR on structure. Intro share
-                # alone was not enough: Hard Fork's second host talks for 38% of the episode from
-                # minute one to minute seventy, yet does not clear CO_HOST_INTRO_SHARE in the first
-                # ninety seconds — so he fell through to GUEST naming and was published as
-                # "Dr. Adam Rodman", while Rodman's own cluster went unnamed. Spanning the whole
-                # episode is the thing a guest cannot do.
-                if intro[v] / intro_total >= CO_HOST_INTRO_SHARE or v in spanning:
-                    host_voices.append(v)
-                continue
-
-            # No host names at all. The cap used to collapse to ONE here, so a real co-host dropped
-            # through to GUEST naming and wore a guest's name — Kevin Roose, 39% of the episode and
-            # talking from minute one to minute seventy, was published as "Dr. Adam Rodman" while
-            # Rodman's own cluster went unnamed.
-            #
-            # Intro share cannot be trusted without the cap (a guest's long early answer clears it),
-            # so admit only on STRUCTURE: a voice that opens the episode AND closes it is a host,
-            # which a guest is not. It renders as "Host" — and, the point, it is now excluded from
-            # guest naming, so no guest's name can land on it.
-            if v in spanning:
-                host_voices.append(v)
-
-    # A voice that introduces itself AS A CONFIGURED HOST is a host, whatever the arithmetic says.
-    known_lower = {h.lower() for h in known_hosts}
+    # 3. Fill any host slots the feed counted but we have not matched yet, from the voices present
+    #    in the SHOW'S INTRO (ads excluded). The hosts open the show; that is what an intro is.
+    #
+    #    NOT by talk time. Filling by "who talks most" hands a host slot straight to the guest —
+    #    on Invest Like the Best the guest talks 82% and the host 17%, and even on a co-hosted show
+    #    a long first answer outweighs both hosts. Talk share does not identify a host, in any
+    #    format. The intro does, and the metadata caps how many slots there are to fill.
+    for v in voices_by_intro:
+        if len(host_voices) >= len(host_pool):
+            break
+        if v not in host_voices:
+            host_voices.append(v)
     for v, n in voice_intro.items():
         if n.lower() in known_lower and v not in host_voices:
             host_voices.append(v)

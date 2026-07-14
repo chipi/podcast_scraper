@@ -117,62 +117,68 @@ def test_the_guest_keeps_the_cluster_the_impostor_used_to_take() -> None:
     assert "Rodman" in roster.by_voice["SPEAKER_GUEST"].name
 
 
-def test_a_co_host_never_wears_a_guests_name_when_we_have_no_host_names() -> None:
-    """THE SECOND BUG, found by rebuilding the corpus and reading the output.
+def test_the_hosts_come_from_the_feed_and_the_ads_do_not_take_their_slots() -> None:
+    """THE SECOND BUG. The feed says who hosts the show — the roster only has to match the voices.
 
-    ``host_voices`` was capped by the number of host NAMES available. That cap is right when we
-    hold names — it stops a guest who answers at length early from being crowned a co-host (#1169).
-    But with ``known_hosts`` empty, and the self-intro pool emptied by the ad filter, the cap
-    collapsed to ONE: the co-host dropped through to GUEST naming and was handed a guest's name.
+    Hard Fork's feed says it plainly: "journalists Kevin Roose and Casey Newton". So there are TWO
+    host slots and both names are known. What went wrong is that an ADVERT took one of them: the
+    pre-roll narrator escaped the ad test, opened the episode, was named from her own ad self-intro,
+    and filled a host slot. The cap was then full, so the real co-host dropped through to GUEST
+    naming and was published as "Dr. Adam Rodman" — a guest's name on a host, which this module's
+    docstring promises never happens.
 
-    In the shipped rebuild, Kevin Roose — 39% of the episode, talking from minute one to minute
-    seventy — came out labelled "Dr. Adam Rodman", while Rodman's own voice cluster went unnamed.
-    A guest's name on a host is exactly what this module's docstring promises never happens.
-
-    With no names to hand out, a voice that OPENS the episode and CLOSES it is admitted as a host on
-    structure alone. It renders as "Host", and — the point — it can no longer be given a guest's
-    name.
+    Both hosts must be matched, under the FEED's spelling, and neither may be an advert.
     """
-    roster = resolve_speaker_roster(
-        _hardfork_shaped(),
-        "",  # no usable transcript intro
-        detected_guests=["Dr. Adam Rodman"],
-        known_hosts=[],  # <- nothing configured, as in the corpus backfill
-        voice_texts={"SPEAKER_GUEST": "I'm Adam Rodman, I research clinical decision making."},
+    roster = _roster()
+
+    hosts = {v: r for v, r in roster.by_voice.items() if r.role == "host"}
+    assert set(hosts) == {"SPEAKER_HOST1", "SPEAKER_HOST2"}, (
+        f"the feed names two hosts; the roster matched {sorted(hosts)} — an advert or a guest is "
+        "occupying a host slot"
     )
-
-    for host in ("SPEAKER_HOST1", "SPEAKER_HOST2"):
-        role = roster.by_voice[host]
-        assert role.role == "host", f"{host} spans the episode but was not treated as a host"
-        assert "Rodman" not in role.name, (
-            f"{host} is a HOST and was given the guest's name {role.name!r} — the invariant this "
-            "module promises ('a guest's name is never assigned to a host voice') was broken"
+    assert {r.name for r in hosts.values()} == set(HOSTS)
+    for r in hosts.values():
+        assert "Rodman" not in r.name, (
+            f"a HOST was given the guest's name {r.name!r} — the invariant this module promises "
+            "('a guest's name is never assigned to a host voice') was broken"
         )
-
-    # ...and the guest keeps his own name.
     assert "Rodman" in roster.by_voice["SPEAKER_GUEST"].name
 
 
-def test_one_stray_turn_does_not_rescue_an_ad_narrator() -> None:
-    """FOUND BY REBUILDING THE CORPUS — the rule did not survive real diarization.
+def test_talk_share_never_makes_a_guest_into_a_host() -> None:
+    """The rule that was tuned to one show, and the format that breaks it.
 
-    The first version demanded ZERO turns outside the edge windows. pyannote mis-assigned a single
-    mid-episode turn to Amy Lawrence's voice cluster, and that one turn was enough: she was no
-    longer an ad, so she was named from her own ad self-introduction; being named she OPENED the
-    episode, so she took a host slot; the host cap (two known hosts) was then full, so the REAL
-    co-host was pushed out to guest naming and handed Dr. Adam Rodman's name.
+    A previous fix inferred hosts structurally — "a host talks a lot and is present from the first
+    minute to the last". True of Hard Fork. FALSE of the interview format, where it inverts:
 
-    One stray turn, and the guest's name ends up on a host. The edge test is now a fraction of the
-    voice's speech, not an absolute.
+        Invest Like the Best   the GUEST talks 82%, the host 17%
+        Latent Space           the GUEST talks 85%
+
+    Here the guest holds ~80% of the episode and speaks from the opening minute to the last, and is
+    still the guest — because the FEED names the host. A statistic may not overrule a stated fact.
     """
-    segs = list(_hardfork_shaped().segments)
-    segs.append(_seg("SPEAKER_AD1", 1500.0, 1502.0))  # 2s of mis-assignment, mid-episode
-    diar = DiarizationResult(segments=segs, num_speakers=5)
+    segs = [_seg("HOST", 0.0, 60.0)]
+    t = 60.0
+    while t < 3600.0:  # long answers from the guest, short questions from the host
+        segs.append(_seg("GUEST", t, t + 100))
+        segs.append(_seg("HOST", t + 100, t + 120))
+        t += 120.0
+    diar = DiarizationResult(segments=segs, num_speakers=2)
 
-    assert "SPEAKER_AD1" in _edge_ad_voices(diar), (
-        "a single mis-assigned turn rescued the ad narrator from the ad test — this is the exact "
-        "failure that put a guest's name on a host in the corpus rebuild"
+    roster = resolve_speaker_roster(
+        diar,
+        "Welcome back to the show. My guest today is Brian Chesky.",
+        detected_guests=["Brian Chesky"],
+        known_hosts=["Patrick O'Shaughnessy"],  # the feed names ONE host
+        voice_texts={},
     )
+
+    assert roster.by_voice["HOST"].role == "host"
+    assert roster.by_voice["HOST"].name == "Patrick O'Shaughnessy"
+    assert (
+        roster.by_voice["GUEST"].role == "guest"
+    ), "the guest out-talks the host 4:1 and spans the whole episode — and is still the guest"
+    assert roster.by_voice["GUEST"].name == "Brian Chesky"
 
 
 def test_a_short_episode_has_no_ads() -> None:
