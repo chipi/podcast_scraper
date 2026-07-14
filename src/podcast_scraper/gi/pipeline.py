@@ -28,6 +28,7 @@ from ..graph_id_utils import (
     slugify_label,
     topic_node_id_from_slug,
 )
+from ..providers.ml.diarization.roster import friendly_voice_label
 from ..utils.log_redaction import format_exception_for_log
 from .grounding import GroundedQuote
 from .invariants import log_artifact_invariants
@@ -749,6 +750,72 @@ def _voice_type_for_char_range(
             vt = seg.get("voice_type")
             return str(vt) if vt else None
     return None
+
+
+def _resolve_quote_speaker(
+    gq: Any,
+    speaker_label: Optional[str],
+    episode_id: str,
+    transcript_text: Optional[str],
+    transcript_segments: Optional[List[Dict[str, Any]]],
+) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    """``(person_id, friendly_name, voice_type)`` for a quote's speaker.
+
+    A PERSON NODE MUST BE A PERSON, and "SPEAKER_09" is not one. We were minting a Person for every
+    unresolved voice and hanging a SPOKEN_BY edge on it — 19% of the Person nodes in the shipped
+    corpus were called SPEAKER_NN, and #1167 then filtered them back out of the trending/consensus
+    surfaces downstream. That is a mop, not a gate, and it only worked because the id happened to be
+    ugly: the moment those voices got a friendly name, it would have broken.
+
+    The roster already knows the voice is not a person. So no Person node, no SPOKEN_BY edge, and
+    the quote carries the friendly label instead ("Unidentified speaker") — the surface can name the
+    speaker without the graph inventing someone.
+    """
+    voice_type = (
+        _voice_type_for_char_range(
+            transcript_text or "", gq.char_start, gq.char_end, transcript_segments
+        )
+        if transcript_segments
+        else None
+    )
+    if voice_type:
+        return None, friendly_voice_label(voice_type), voice_type
+    if speaker_label:
+        # Episode-scope the id for an unnamed voice (SPEAKER_00) so it can't merge across
+        # episodes; a real, resolved name stays a global person id (#1b).
+        return person_node_id(speaker_label, episode_id), None, None
+    return None, None, None
+
+
+def _quote_props(
+    gq: Any,
+    *,
+    episode_id: str,
+    transcript_ref: str,
+    person_id: Optional[str],
+    speaker_name: Optional[str],
+    voice_type: Optional[str],
+    ts_start: int,
+    ts_end: int,
+) -> Dict[str, Any]:
+    """The Quote node's properties. ``speaker_name`` / ``speaker_voice_type`` appear ONLY for a
+    voice that is not a person — so a surface can name the speaker ("Unidentified speaker") without
+    the graph inventing one."""
+    props: Dict[str, Any] = {
+        "text": gq.text,
+        "episode_id": episode_id,
+        "speaker_id": person_id,
+        "char_start": gq.char_start,
+        "char_end": gq.char_end,
+        "timestamp_start_ms": ts_start,
+        "timestamp_end_ms": ts_end,
+        "transcript_ref": transcript_ref,
+    }
+    if voice_type:
+        props["speaker_voice_type"] = voice_type
+    if speaker_name:
+        props["speaker_name"] = speaker_name
+    return props
 
 
 def _apply_voice_flags(
@@ -1731,24 +1798,29 @@ def _artifact_from_multi_insight(
                 # shipped without knowing who said it. Read the name out of the transcript instead.
                 speaker_label = speaker_for_char(gq.char_start, named_turns)
 
-            if speaker_label:
-                # Episode-scope the id for an unnamed voice (SPEAKER_00) so it can't merge
-                # across episodes; a real, resolved name stays a global person id (#1b).
-                person_id_for_quote = person_node_id(speaker_label, episode_id)
+            person_id_for_quote, quote_speaker_name, quote_voice_type = _resolve_quote_speaker(
+                gq,
+                speaker_label,
+                episode_id,
+                transcript_text,
+                transcript_segments if use_segments else None,
+            )
+            if quote_voice_type:
+                speaker_label = None  # not a person — nothing to mint
             nodes.append(
                 {
                     "id": quote_id,
                     "type": "Quote",
-                    "properties": {
-                        "text": gq.text,
-                        "episode_id": episode_id,
-                        "speaker_id": person_id_for_quote,
-                        "char_start": gq.char_start,
-                        "char_end": gq.char_end,
-                        "timestamp_start_ms": ts_start,
-                        "timestamp_end_ms": ts_end,
-                        "transcript_ref": transcript_ref,
-                    },
+                    "properties": _quote_props(
+                        gq,
+                        episode_id=episode_id,
+                        transcript_ref=transcript_ref,
+                        person_id=person_id_for_quote,
+                        speaker_name=quote_speaker_name,
+                        voice_type=quote_voice_type,
+                        ts_start=ts_start,
+                        ts_end=ts_end,
+                    ),
                 }
             )
             edges.append({"type": "SUPPORTED_BY", "from": insight_id, "to": quote_id})

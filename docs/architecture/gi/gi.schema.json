@@ -517,6 +517,20 @@
               "type": "string",
               "minLength": 1,
               "description": "Reference to transcript artifact (e.g., transcript.json)"
+            },
+            "speaker_voice_type": {
+              "type": "string",
+              "enum": [
+                "cameo",
+                "commercial",
+                "unknown",
+                "unidentified"
+              ],
+              "description": "Set only when the speaking voice is NOT a named person (no Person node is minted)."
+            },
+            "speaker_name": {
+              "type": "string",
+              "description": "Friendly label for a non-person voice (\"Unidentified speaker\"). No Person node exists."
             }
           }
         }

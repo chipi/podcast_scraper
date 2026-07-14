@@ -72,6 +72,18 @@ def insights_from_gi(artifact: Any) -> list[AppInsight]:
         text = _opt_str(props.get("text"))
         if text is None:
             continue
+
+        # AN UNATTRIBUTED STANCE IS NOT A STANCE. It is a floating opinion that nobody holds and
+        # nobody can disagree with, so it does not belong on a surface — whatever the classifier
+        # called it. GI marks these `surfaceable: False` when the speaking voice is not a named
+        # person (an advertisement, a voice we failed to name, or the vox-pop of a narrated piece
+        # that nobody names).
+        #
+        # They stay in the artifact: a FACT is still a fact, and the corpus needs them for CONNECT —
+        # story threads across episodes never needed a speaker. This gate is about what we PUBLISH
+        # as somebody's insight, not about what we keep.
+        if props.get("surfaceable") is False:
+            continue
         insight_id = node.get("id")
 
         quote_models: list[AppQuote] = []

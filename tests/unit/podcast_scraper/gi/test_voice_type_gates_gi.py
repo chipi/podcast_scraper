@@ -170,3 +170,58 @@ def test_the_exclusions_are_logged_not_silent(caplog: pytest.LogCaptureFixture) 
     with caplog.at_level("INFO"):
         _artifact_for(AD_LINE)
     assert "advertisement" in caplog.text.lower()
+
+
+class TestThePersonNodeMustBeAPerson:
+    """19% of the Person nodes in the shipped corpus were called "SPEAKER_NN".
+
+    GI minted a Person for every unresolved voice and hung a SPOKEN_BY edge on it. #1167 then
+    filtered them back out of the trending/consensus surfaces — a mop, not a gate, and one that only
+    worked because the id happened to be ugly. Give those voices a friendly name and it breaks.
+
+    The roster already knows the voice is not a person. So the graph must not be told otherwise.
+    """
+
+    def test_an_unidentified_voice_mints_no_person(self) -> None:
+        artifact = _artifact_for(TAPE_LINE)
+        people = [n for n in artifact["nodes"] if n["type"] == "Person"]
+        assert not people, (
+            "a voice nobody names became a Person in the graph: "
+            f"{[(p.get('properties') or {}).get('name') for p in people]}"
+        )
+        assert not [e for e in artifact["edges"] if e["type"] == "SPOKEN_BY"]
+
+    def test_the_quote_still_says_who_spoke(self) -> None:
+        """The surface must be able to name the speaker WITHOUT the graph inventing one."""
+        q = _quotes(_artifact_for(TAPE_LINE))[0]["properties"]
+        assert q["speaker_name"] == "Unidentified speaker"
+        assert q["speaker_voice_type"] == "unidentified"
+        assert q["speaker_id"] is None
+
+    def test_a_real_person_still_gets_a_person_node(self) -> None:
+        artifact = _artifact_for(HOST_LINE)
+        names = {
+            (n.get("properties") or {}).get("name")
+            for n in artifact["nodes"]
+            if n["type"] == "Person"
+        }
+        assert "Alexi Horowitz-Gazi" in names
+        assert [e for e in artifact["edges"] if e["type"] == "SPOKEN_BY"]
+
+
+def test_an_unsurfaceable_insight_never_reaches_the_ui() -> None:
+    """`surfaceable` was written by GI and read by NOBODY — a gate wired to nothing.
+
+    `insights_from_gi` is the surfacing point. An unattributed stance must not come out of it,
+    however the classifier labelled it.
+    """
+    from podcast_scraper.server.app_gi_view import insights_from_gi
+
+    tape = _artifact_for(TAPE_LINE)
+    assert _insights(tape), "the insight must still EXIST — the corpus needs it for CONNECT"
+    assert (
+        insights_from_gi(tape) == []
+    ), "an insight spoken by a voice nobody can name was published to the UI as somebody's insight"
+
+    host = _artifact_for(HOST_LINE)
+    assert insights_from_gi(host), "a named person's insight must still surface"
