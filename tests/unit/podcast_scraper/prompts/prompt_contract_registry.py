@@ -40,25 +40,47 @@ SUMMARIZATION_TRANSCRIPT_EXCLUDE_FILENAMES: Final[frozenset[str]] = frozenset(
 
 # Every insight-extraction template on disk (no ``shared/`` insight template).
 #
-# ``v2`` is the shipped prompt — ``gi_insight_prompt_version`` selects it, and every provider has
-# one. ``ollama/v3`` is the speech-act variant that LOST its A/B (route kappa 0.57 vs v2's 0.67); it
-# stays on disk as the record of a measured experiment, and is not selected by any profile.
+# ``v2`` is the shipped prompt, and every profile now PINS it by name rather than inheriting a
+# default. ``v3`` is the speech-act variant that LOST its A/B (route kappa 0.57 against v2's 0.67);
+# it stays on disk as the record of a measured experiment and is selected by nothing.
+#
+# v3 and ``system_v1`` exist for EVERY provider now, not just ollama. Prompt asymmetry was the
+# quietest bias in the codebase: a model can only be compared against another if the harness around
+# it is the same, and v3 was reachable by ollama alone while the others were pinned to v2 in code.
+# Whichever prompt wins the next A/B, every provider must be able to run it.
+#
+# ``system_v1`` is the one-line output-shape instruction ("one per line, no numbering") that used to
+# be a string literal inside all seven providers. A prompt in a file is versioned, diffable and
+# reviewable; a prompt in code is a bug with nowhere to be seen (#1179).
 INSIGHT_EXTRACTION_V1_LOGICAL_NAMES: Final[tuple[str, ...]] = (
+    "anthropic/insight_extraction/system_v1",
     "anthropic/insight_extraction/v1",
     "anthropic/insight_extraction/v2",
+    "anthropic/insight_extraction/v3",
+    "deepseek/insight_extraction/system_v1",
     "deepseek/insight_extraction/v1",
     "deepseek/insight_extraction/v2",
+    "deepseek/insight_extraction/v3",
+    "gemini/insight_extraction/system_v1",
     "gemini/insight_extraction/v1",
     "gemini/insight_extraction/v2",
+    "gemini/insight_extraction/v3",
+    "grok/insight_extraction/system_v1",
     "grok/insight_extraction/v1",
     "grok/insight_extraction/v2",
+    "grok/insight_extraction/v3",
+    "mistral/insight_extraction/system_v1",
     "mistral/insight_extraction/v1",
     "mistral/insight_extraction/v2",
+    "mistral/insight_extraction/v3",
+    "ollama/insight_extraction/system_v1",
     "ollama/insight_extraction/v1",
     "ollama/insight_extraction/v2",
     "ollama/insight_extraction/v3",
+    "openai/insight_extraction/system_v1",
     "openai/insight_extraction/v1",
     "openai/insight_extraction/v2",
+    "openai/insight_extraction/v3",
 )
 
 # Parser-facing JSON instructions must not drift silently.

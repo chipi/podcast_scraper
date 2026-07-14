@@ -4179,6 +4179,21 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "gil_evidence_quote_mode",
         "gil_evidence_nli_mode",
         "gil_evidence_nli_chunk_size",
+        # THE GI QUALITY GATES. Same trap, one layer along: the profile sets them, the field exists
+        # on Config, and without a line here the ``--config`` path drops the override on the floor.
+        # `gi_value_gate_enabled` defaults to FALSE, so dropping it does not fail — it silently
+        # turns the judge off and the run looks fine.
+        "gi_value_gate_enabled",
+        "gi_value_gate_provider",
+        "gi_value_gate_model",
+        "gi_value_gate_min_tier",
+        "gi_insight_dedupe_threshold",
+        "gi_insight_prompt_version",
+        "speaker_resolution_llm",
+        # An LLM grounds with an LLM. These default to "transformers", so a profile that asks for
+        # LLM grounding and is not forwarded here quietly grounds with local DeBERTa instead.
+        "quote_extraction_provider",
+        "entailment_provider",
     )
     for _gil_key in _gil_tuning_keys:
         if hasattr(args, _gil_key):

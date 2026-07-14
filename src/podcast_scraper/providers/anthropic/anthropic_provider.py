@@ -1593,16 +1593,17 @@ class AnthropicProvider:
             text_slice = text_slice[:120000] + "\n\n[Transcript truncated.]"
 
         try:
+            # The prompt decides what an insight IS, so it is a tuned parameter like any
+            # other. Hardcoding it made the extraction prompt the only part of this stage that
+            # could not be A/B tested — and left the v3 speech-act prompt reachable by ollama alone.
+            prompt_version = str(getattr(self.cfg, "gi_insight_prompt_version", "v2") or "v2")
             user_prompt = render_prompt(
-                "anthropic/insight_extraction/v2",
+                f"anthropic/insight_extraction/{prompt_version}",
                 transcript=text_slice,
                 title=episode_title or "",
                 max_insights=max_insights,
             )
-            system_prompt = (
-                "Output only the list of key takeaways, one per line. "
-                "No numbering, bullets, or extra text."
-            )
+            system_prompt = render_prompt("anthropic/insight_extraction/system_v1")
             response = self.client.messages.create(
                 model=self.summary_model,
                 max_tokens=insight_max_tokens,

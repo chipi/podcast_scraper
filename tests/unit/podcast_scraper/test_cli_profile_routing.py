@@ -58,12 +58,33 @@ CLOUD_BALANCED_EXPECTED = {
     "cloud_llm_structured_min_output_tokens": 4096,
     "generate_gi": True,
     "gi_insight_source": "provider",
-    "gi_max_insights": 12,
+    # Generate broadly and let the GATE trim. The cap is a truncation, not a quality control — and
+    # prod ran 12 while every eval ran 50, so the comparison measured a pipeline prod never runs.
+    "gi_max_insights": 50,
     "gi_require_grounding": True,
+    # The GI quality gates. NOT ONE profile set any of these, so `gi_value_gate_enabled` fell back
+    # to its default of False and the value gate — the judge that removes filler — never ran in
+    # production at all. It ran only in evals.
+    "gi_value_gate_enabled": True,
+    # PIN the judge, vendor-disjoint from the extractor: a model grading its own output is lenient
+    # (#939), and if each arm is filtered by a different strictness the counts are not comparable.
+    "gi_value_gate_provider": "anthropic",
+    "gi_value_gate_model": "claude-haiku-4-5-20251001",
+    "gi_value_gate_min_tier": 2,
+    # The same claim twice is not two insights. The judge grades each one ALONE and cannot see
+    # redundancy — measured on the real corpus, 35% of one model's insights restated an earlier one.
+    "gi_insight_dedupe_threshold": 0.75,
+    # PINNED, not defaulted. v3 (speech-act) LOST its A/B: route kappa 0.57 vs v2 0.67.
+    "gi_insight_prompt_version": "v2",
     # #698 GIL evidence bundling — flipped to bundled defaults in PR #711.
     # ADR-078 records the per-provider champion decision.
     "gil_evidence_quote_mode": "bundled",
     "gil_evidence_nli_mode": "bundled",
+    # An LLM grounds with an LLM. The bundled modes above are an LLM-only path, and with the
+    # provider left at its "transformers" default they did NOTHING — this profile asked for bundled
+    # LLM grounding and quietly ground with local DeBERTa instead.
+    "quote_extraction_provider": "gemini",
+    "entailment_provider": "gemini",
     "generate_kg": True,
     "kg_extraction_source": "provider",
     "kg_max_topics": 10,

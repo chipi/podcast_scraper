@@ -1823,10 +1823,7 @@ class OllamaProvider:
                 title=episode_title or "",
                 max_insights=max_insights,
             )
-            system_prompt = (
-                "Output only the list of key takeaways, one per line. "
-                "No numbering, bullets, or extra text."
-            )
+            system_prompt = render_prompt("ollama/insight_extraction/system_v1")
             response = self.client.chat.completions.create(
                 model=self.summary_model,
                 messages=[

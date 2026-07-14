@@ -55,7 +55,9 @@ llm_circuit_breaker_enabled: true
 
 generate_gi: true
 gi_insight_source: provider
-gi_max_insights: 12
+# Generate broadly and let the GATE trim: the cap is not a quality control, it is a truncation.
+# Prod ran 12 while every eval ran 50, so the comparison measured a pipeline production never runs.
+gi_max_insights: 50
 gi_require_grounding: true
 
 # #698 GIL evidence bundling — Layer A + Layer B both bundled.
@@ -105,3 +107,26 @@ enrichment:
       provider:
         type: consensus_local
         embed_model: all-MiniLM-L6-v2
+
+# --- GI quality gates (wired 2026-07-14) -----------------------------------------------------------
+# Every knob below defaulted OFF or to a stale value, and NO profile set any of them. The value
+# gate — the judge that removes filler — therefore never ran in production at all; it ran only in
+# evals, which is how the eval and the product came to measure different pipelines.
+gi_value_gate_enabled: true
+# PIN the judge. A model grading its own output is lenient (#939), and if each arm is filtered by a
+# different strictness the surviving counts are not comparable. Vendor-disjoint from the extractor.
+gi_value_gate_provider: anthropic
+gi_value_gate_model: claude-haiku-4-5-20251001
+gi_value_gate_min_tier: 2
+# The same claim twice is not two insights. The judge grades each one ALONE, so it cannot see
+# redundancy: measured on the real corpus, 35% of one model's insights restated an earlier one.
+gi_insight_dedupe_threshold: 0.75
+# PINNED, not defaulted. v3 (the speech-act variant) LOST its A/B — route kappa 0.57 against
+# v2's 0.67 — and stays on disk only as the record of that measurement. Naming the winner
+# here means a future change of default cannot silently move this profile off it.
+gi_insight_prompt_version: v2
+# An LLM grounds with an LLM. `gil_evidence_*_mode: bundled` above is an LLM-only path, and with
+# the provider left at its "transformers" default it did nothing — these profiles asked for bundled
+# LLM grounding and got local DeBERTa.
+quote_extraction_provider: gemini
+entailment_provider: gemini

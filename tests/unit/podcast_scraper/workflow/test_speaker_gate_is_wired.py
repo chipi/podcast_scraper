@@ -85,20 +85,39 @@ def test_the_pipeline_rejects_the_speakers_the_llm_invented() -> None:
     Musk is being sued in this episode; Altman is discussed. Neither speaks. If either survives to
     here, their name is assigned to a diarized voice cluster and a real person's words are published
     under it.
+
+    Read `.guests` EXPLICITLY. When this function started returning a `DetectedSpeakers` tuple, a
+    bare ``"Elon Musk" not in result`` began comparing the string against the tuple's two LISTS —
+    never equal, always true — and this guard, the most important one in the file, passed while
+    testing nothing at all.
     """
-    guests = _run()
-    assert guests is not None
-    assert "Elon Musk" not in guests, f"the impostor reached the diarizer: {guests}"
-    assert "Sam Altman" not in guests, f"the impostor reached the diarizer: {guests}"
+    detected = _run()
+    assert detected is not None
+    assert "Elon Musk" not in detected.guests, f"the impostor reached the diarizer: {detected}"
+    assert "Sam Altman" not in detected.guests, f"the impostor reached the diarizer: {detected}"
+
+
+def test_the_invented_speakers_are_still_REMEMBERED_as_stated() -> None:
+    """ADR-110: corroboration's rejects are kept, not discarded.
+
+    `stated` is every name the metadata put forward, including the ones this gate threw away. The
+    roster needs them — otherwise a guest we could not place is filed as a person NOBODY could have
+    named, and our own failure is laundered into "not our fault".
+    """
+    detected = _run()
+    assert "Elon Musk" in detected.stated
+    assert "Dr. Adam Rodman" in detected.stated
 
 
 def test_the_pipeline_still_returns_the_real_guest() -> None:
     """A pipeline that drops everyone would pass the test above and be worthless."""
-    guests = _run()
-    assert any("Rodman" in g for g in guests), f"the real guest was lost: {guests}"
+    detected = _run()
+    assert any(
+        "Rodman" in g for g in detected.guests
+    ), f"the real guest was lost: {detected.guests}"
 
 
 def test_hosts_do_not_leak_into_the_guest_list() -> None:
-    guests = _run()
-    assert "Kevin Roose" not in guests
-    assert "Casey Newton" not in guests
+    detected = _run()
+    assert "Kevin Roose" not in detected.guests
+    assert "Casey Newton" not in detected.guests
