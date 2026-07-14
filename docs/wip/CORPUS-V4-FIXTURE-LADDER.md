@@ -2,6 +2,9 @@
 
 **Status:** WIP note. Not authoritative. Written 2026-07-14, at the end of the v3 speaker/ads arc.
 
+**Tracked by:** #1189 (golden fixtures — one per show, real diarization + feed metadata + hand-labelled
+truth). Mid-roll house ads: #1188.
+
 ## Why this note exists
 
 Every single bug in this arc was found by a **human reading output**, not by a test.
