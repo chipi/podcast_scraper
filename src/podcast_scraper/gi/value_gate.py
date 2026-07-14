@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import logging
 import threading
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -96,14 +96,42 @@ def _resolve_judge(provider: Optional[Any], cfg: Optional[Any]) -> Optional[Any]
             return provider
 
 
-def apply_value_gate(
+def format_insight_for_judging(text: str, evidence: Optional["InsightEvidence"]) -> str:
+    """The insight, WITH the evidence that grounds it — the thing the judge was never shown.
+
+    The rubric asks for "a substantive position a NAMED PERSON took", "a real disagreement BETWEEN
+    SPEAKERS", and "an AD or sponsor read". The judge could see none of those: it was handed a bare
+    sentence. It is asked to grade evidence-backed-ness while blind to the evidence.
+
+    Worse, it ran BEFORE grounding, so the quotes did not exist yet — the same defect as ADR-110,
+    one layer up: a decision made at a point in the pipeline where its evidence has not been
+    computed. So an insight with no verbatim support at all looked identical to one quoted from the
+    host, and "no quote exists for this" — the strongest FILLER signal there is — was invisible.
+    """
+    if evidence is None or not evidence.quote:
+        return f"{text}\n    EVIDENCE: NONE — no verbatim quote in the transcript supports this."
+    who = evidence.speaker or "an unnamed voice"
+    kind = f" [{evidence.voice_type}]" if evidence.voice_type else ""
+    return f'{text}\n    EVIDENCE: "{evidence.quote}" — said by {who}{kind}'
+
+
+class InsightEvidence(NamedTuple):
+    """What grounds an insight: the verbatim span, who said it, and what kind of voice that is."""
+
+    quote: Optional[str]
+    speaker: Optional[str]
+    voice_type: Optional[str]
+
+
+def value_gate_keep_mask(
     insight_specs: List[Tuple[str, str]],
     *,
     provider: Optional[Any],
     cfg: Optional[Any] = None,
     pipeline_metrics: Optional[Any] = None,
-) -> List[Tuple[str, str]]:
-    """Drop insights scoring below ``gi_value_gate_min_tier``.
+    evidence: Optional[List[Optional[InsightEvidence]]] = None,
+) -> List[bool]:
+    """Which insights clear ``gi_value_gate_min_tier`` — one boolean per insight, in order.
 
     Args:
         insight_specs: ``[(text, insight_type), ...]`` as resolved upstream.
@@ -111,16 +139,18 @@ def apply_value_gate(
             one integer tier per insight, in order. Providers without it skip the gate.
         cfg: config. Reads ``gi_value_gate_enabled`` and ``gi_value_gate_min_tier``.
         pipeline_metrics: optional counters.
+        evidence: per-insight grounding — the quote, its speaker, and the voice type. When supplied
+            the judge grades the CLAIM AND ITS SUPPORT; without it, the bare sentence as before.
 
     Returns:
-        The surviving specs, order preserved. Every spec on any failure.
+        A keep-mask, order preserved. All-True on any failure — the gate fails OPEN.
     """
     if not insight_specs:
-        return insight_specs
+        return []
 
     enabled = bool(getattr(cfg, "gi_value_gate_enabled", False)) if cfg else False
     if not enabled:
-        return insight_specs
+        return [True] * len(insight_specs)
 
     min_tier = int(getattr(cfg, "gi_value_gate_min_tier", DEFAULT_MIN_TIER) or DEFAULT_MIN_TIER)
 
@@ -133,9 +163,19 @@ def apply_value_gate(
             len(insight_specs),
         )
         _bump(pipeline_metrics, "gi_value_gate_unsupported")
-        return insight_specs
+        return [True] * len(insight_specs)
 
-    texts = [t for t, _ in insight_specs]
+    if evidence is not None and len(evidence) == len(insight_specs):
+        texts = [format_insight_for_judging(t, ev) for (t, _), ev in zip(insight_specs, evidence)]
+        grounded = sum(1 for ev in evidence if ev and ev.quote)
+        logger.info(
+            "value gate: grading %d insights WITH their evidence (%d grounded, %d unsupported)",
+            len(texts),
+            grounded,
+            len(texts) - grounded,
+        )
+    else:
+        texts = [t for t, _ in insight_specs]
     try:
         tiers = classify(texts)
     except Exception as exc:  # noqa: BLE001 — fail-open is the whole point
@@ -146,7 +186,7 @@ def apply_value_gate(
             exc,
         )
         _bump(pipeline_metrics, "gi_value_gate_failures")
-        return insight_specs
+        return [True] * len(insight_specs)
 
     if not isinstance(tiers, list) or len(tiers) != len(insight_specs):
         logger.warning(
@@ -155,23 +195,27 @@ def apply_value_gate(
             len(insight_specs),
         )
         _bump(pipeline_metrics, "gi_value_gate_failures")
-        return insight_specs
+        return [True] * len(insight_specs)
 
-    kept: List[Tuple[str, str]] = []
+    # A KEEP MASK, not a filtered list. The caller must drop each insight's QUOTES along with it,
+    # and they are index-aligned — identity cannot be used to re-pair them, because CPython shares
+    # one object for two equal constant tuples and an episode that says the same thing twice would
+    # then keep the wrong evidence. A quote attached to the wrong insight is a fabricated
+    # attribution, which is worse than the filler the gate exists to remove.
+    keep: List[bool] = []
     dropped = 0
-    for spec, tier in zip(insight_specs, tiers):
+    for tier in tiers:
         try:
             t = int(tier)
         except (TypeError, ValueError):
             t = TIER_CORE  # unparsable tier: keep, do not silently discard real content
-        if t >= min_tier:
-            kept.append(spec)
-        else:
+        keep.append(t >= min_tier)
+        if t < min_tier:
             dropped += 1
 
     # Never let the gate empty an episode. If nothing clears the bar, the gate is more likely
     # broken (or the rubric mismatched) than the episode genuinely worthless.
-    if not kept:
+    if not any(keep):
         logger.warning(
             "value gate rejected ALL %d insights (min_tier=%d); keeping them ungated rather "
             "than emitting an empty episode",
@@ -179,7 +223,7 @@ def apply_value_gate(
             min_tier,
         )
         _bump(pipeline_metrics, "gi_value_gate_rejected_all")
-        return insight_specs
+        return [True] * len(insight_specs)
 
     _bump(pipeline_metrics, "gi_value_gate_calls")
     _bump(pipeline_metrics, "gi_insights_dropped_by_value_gate", dropped)
@@ -190,7 +234,7 @@ def apply_value_gate(
             len(insight_specs),
             min_tier,
         )
-    return kept
+    return keep
 
 
 def _bump(metrics: Optional[Any], name: str, amount: int = 1) -> None:
@@ -200,3 +244,22 @@ def _bump(metrics: Optional[Any], name: str, amount: int = 1) -> None:
         setattr(metrics, name, getattr(metrics, name, 0) + amount)
     except Exception:  # noqa: BLE001
         pass
+
+
+def apply_value_gate(
+    insight_specs: List[Tuple[str, str]],
+    *,
+    provider: Optional[Any],
+    cfg: Optional[Any] = None,
+    pipeline_metrics: Optional[Any] = None,
+    evidence: Optional[List[Optional[InsightEvidence]]] = None,
+) -> List[Tuple[str, str]]:
+    """The surviving specs, for callers that carry nothing alongside them."""
+    mask = value_gate_keep_mask(
+        insight_specs,
+        provider=provider,
+        cfg=cfg,
+        pipeline_metrics=pipeline_metrics,
+        evidence=evidence,
+    )
+    return [spec for spec, keep in zip(insight_specs, mask) if keep]

@@ -882,6 +882,61 @@ def _is_advertisement_span(
     return vt in VOICE_TYPE_NEVER_GROUND
 
 
+def _gate_on_evidence(
+    insight_specs: List[Tuple[str, str]],
+    insight_quotes: List[List[Any]],
+    *,
+    cfg: Any,
+    provider: Any,
+    transcript_text: Optional[str],
+    transcript_segments: Optional[List[Dict[str, Any]]],
+    pipeline_metrics: Optional[Any],
+) -> Tuple[List[Tuple[str, str]], List[List[Any]]]:
+    """Run the value gate on the insight AND the evidence that grounds it.
+
+    The specs and their quote lists are filtered TOGETHER — they are index-aligned everywhere
+    downstream, and dropping one without the other would silently attach the wrong quote to the
+    wrong insight.
+    """
+    from .value_gate import InsightEvidence, value_gate_keep_mask
+
+    evidence: List[Optional[InsightEvidence]] = []
+    for quotes in insight_quotes:
+        first = next((q for q in quotes if isinstance(q, GroundedQuote)), None)
+        if first is None:
+            evidence.append(None)
+            continue
+        speaker: Optional[str] = None
+        voice_type: Optional[str] = None
+        if transcript_segments:
+            voice_type = _voice_type_for_char_range(
+                transcript_text or "", first.char_start, first.char_end, transcript_segments
+            )
+            speaker = _speaker_id_for_char_range(
+                transcript_text or "", first.char_start, first.char_end, transcript_segments
+            )
+        evidence.append(InsightEvidence(quote=first.text, speaker=speaker, voice_type=voice_type))
+
+    # A MASK, not a filtered list. The specs and their quote lists are index-aligned everywhere
+    # downstream, so they are dropped TOGETHER, BY POSITION. Re-pairing by identity or by content
+    # would mis-align an episode that says the same thing twice — CPython hands out one object for
+    # two equal constant tuples — and a quote attached to the wrong insight is a fabricated
+    # attribution, which is worse than the filler the gate exists to remove.
+    keep = value_gate_keep_mask(
+        insight_specs,
+        provider=provider,
+        cfg=cfg,
+        pipeline_metrics=pipeline_metrics,
+        evidence=evidence,
+    )
+    if all(keep):
+        return insight_specs, insight_quotes
+
+    specs_out = [spec for spec, k in zip(insight_specs, keep) if k]
+    quotes_out = [quotes for quotes, k in zip(insight_quotes, keep) if k]
+    return specs_out, quotes_out
+
+
 def _voice_flags_for_insight(
     quotes: List[Any],
     transcript_text: Optional[str],
@@ -1220,23 +1275,16 @@ def _resolve_insight_specs(
                     )
                     resolved_specs = resolved_specs[: max_insights * passes]
                     if resolved_specs:
-                        # The extractor cannot be made selective by prompting — across three
-                        # prompt variants the CORE count barely moved (13.3 / 10.3 / 12.0 per
-                        # episode) while filler tracked whatever the prompt encouraged. So filler
-                        # is trimmed here, by a gate, exactly like the QA and NLI gates trim the
-                        # evidence path. Fail-open: every insight survives a broken gate.
-                        from .value_gate import apply_value_gate
-
-                        resolved_specs = apply_value_gate(
-                            resolved_specs,
-                            provider=insight_provider,
-                            cfg=cfg,
-                            pipeline_metrics=pipeline_metrics,
-                        )
-                        # RFC-097 v3.0 chunk-5: classify any unknown-typed
-                        # specs (providers returning ``List[str]`` flow in
-                        # as ``"unknown"``; structured dict items keep their
-                        # provider-supplied type).
+                        # THE VALUE GATE USED TO RUN HERE, and that was the bug. It ran BEFORE
+                        # grounding, so the quotes did not exist yet — it graded a bare sentence
+                        # while its own rubric asked for "a position a NAMED PERSON took", "a
+                        # disagreement BETWEEN SPEAKERS" and "an AD read", none of which it could
+                        # see. It now runs in `build_artifact`, after the evidence exists
+                        # (ADR-110's lesson, one layer up).
+                        #
+                        # RFC-097 v3.0 chunk-5: classify any unknown-typed specs (providers
+                        # returning ``List[str]`` flow in as ``"unknown"``; structured dict items
+                        # keep their provider-supplied type).
                         return [(t, _classify_when_unknown(t, k)) for t, k in resolved_specs]
             except Exception as e:
                 logger.debug(
@@ -1439,6 +1487,25 @@ def build_artifact(
                 pipeline_metrics=pipeline_metrics,
                 prefetched_by_idx=prefetched_by_idx,
             )
+            # NOW the gate can see what it is grading. The extractor cannot be made selective by
+            # prompting — across three prompt variants the CORE count barely moved (13.3 / 10.3 /
+            # 12.0 per episode) while filler tracked whatever the prompt encouraged — so filler is
+            # trimmed by a judge. But the judge was being handed a bare sentence, BEFORE grounding,
+            # and asked to spot "a position a NAMED PERSON took" and "an AD read". It ran blind.
+            #
+            # Here it reads the insight together with the verbatim quote that supports it, who said
+            # it, and what kind of voice that is — and, decisively, it can now see when NOTHING
+            # supports it, which is the strongest FILLER signal there is.
+            insight_specs, insight_quotes = _gate_on_evidence(
+                insight_specs,
+                insight_quotes,
+                cfg=cfg,
+                provider=insight_provider,
+                transcript_text=transcript_text,
+                transcript_segments=transcript_segments,
+                pipeline_metrics=pipeline_metrics,
+            )
+
             total_grounded = sum(len(q) for q in insight_quotes)
             _handle_zero_grounded_quotes(
                 episode_id=episode_id,
