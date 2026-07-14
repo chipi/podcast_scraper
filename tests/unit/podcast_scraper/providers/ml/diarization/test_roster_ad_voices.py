@@ -117,6 +117,64 @@ def test_the_guest_keeps_the_cluster_the_impostor_used_to_take() -> None:
     assert "Rodman" in roster.by_voice["SPEAKER_GUEST"].name
 
 
+def test_a_co_host_never_wears_a_guests_name_when_we_have_no_host_names() -> None:
+    """THE SECOND BUG, found by rebuilding the corpus and reading the output.
+
+    ``host_voices`` was capped by the number of host NAMES available. That cap is right when we
+    hold names — it stops a guest who answers at length early from being crowned a co-host (#1169).
+    But with ``known_hosts`` empty, and the self-intro pool emptied by the ad filter, the cap
+    collapsed to ONE: the co-host dropped through to GUEST naming and was handed a guest's name.
+
+    In the shipped rebuild, Kevin Roose — 39% of the episode, talking from minute one to minute
+    seventy — came out labelled "Dr. Adam Rodman", while Rodman's own voice cluster went unnamed.
+    A guest's name on a host is exactly what this module's docstring promises never happens.
+
+    With no names to hand out, a voice that OPENS the episode and CLOSES it is admitted as a host on
+    structure alone. It renders as "Host", and — the point — it can no longer be given a guest's
+    name.
+    """
+    roster = resolve_speaker_roster(
+        _hardfork_shaped(),
+        "",  # no usable transcript intro
+        detected_guests=["Dr. Adam Rodman"],
+        known_hosts=[],  # <- nothing configured, as in the corpus backfill
+        voice_texts={"SPEAKER_GUEST": "I'm Adam Rodman, I research clinical decision making."},
+    )
+
+    for host in ("SPEAKER_HOST1", "SPEAKER_HOST2"):
+        role = roster.by_voice[host]
+        assert role.role == "host", f"{host} spans the episode but was not treated as a host"
+        assert "Rodman" not in role.name, (
+            f"{host} is a HOST and was given the guest's name {role.name!r} — the invariant this "
+            "module promises ('a guest's name is never assigned to a host voice') was broken"
+        )
+
+    # ...and the guest keeps his own name.
+    assert "Rodman" in roster.by_voice["SPEAKER_GUEST"].name
+
+
+def test_one_stray_turn_does_not_rescue_an_ad_narrator() -> None:
+    """FOUND BY REBUILDING THE CORPUS — the rule did not survive real diarization.
+
+    The first version demanded ZERO turns outside the edge windows. pyannote mis-assigned a single
+    mid-episode turn to Amy Lawrence's voice cluster, and that one turn was enough: she was no
+    longer an ad, so she was named from her own ad self-introduction; being named she OPENED the
+    episode, so she took a host slot; the host cap (two known hosts) was then full, so the REAL
+    co-host was pushed out to guest naming and handed Dr. Adam Rodman's name.
+
+    One stray turn, and the guest's name ends up on a host. The edge test is now a fraction of the
+    voice's speech, not an absolute.
+    """
+    segs = list(_hardfork_shaped().segments)
+    segs.append(_seg("SPEAKER_AD1", 1500.0, 1502.0))  # 2s of mis-assignment, mid-episode
+    diar = DiarizationResult(segments=segs, num_speakers=5)
+
+    assert "SPEAKER_AD1" in _edge_ad_voices(diar), (
+        "a single mis-assigned turn rescued the ad narrator from the ad test — this is the exact "
+        "failure that put a guest's name on a host in the corpus rebuild"
+    )
+
+
 def test_a_short_episode_has_no_ads() -> None:
     """GUARD ON THE GUARD. In a 3-minute clip every voice is near an edge and briefly spoken.
 

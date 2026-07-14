@@ -75,8 +75,40 @@ COMMERCIAL_AD_FRACTION = 0.6
 AD_VOICE_MAX_TALK_S = 90.0
 AD_VOICE_MAX_SHARE = 0.03
 AD_VOICE_EDGE_WINDOW_S = 150.0
+# Almost all of an ad voice's speech sits in the edge windows — but not necessarily ALL of it.
+# Requiring zero turns elsewhere was too brittle to survive real diarization: pyannote mis-assigned
+# a single mid-episode turn to Amy Lawrence's cluster, that one turn disqualified her from the ad
+# test, and the whole failure cascaded — she was named from her own ad self-intro, she OPENED the
+# episode so she took a host slot, the host cap (two known hosts) was then full, and the real
+# co-host was pushed out to GUEST naming and handed Dr. Adam Rodman's name.
+AD_VOICE_EDGE_TIME_FRACTION = 0.75
 # Below this an episode is too short for "only at the edges" to mean anything, so the rule abstains.
 AD_VOICE_MIN_EPISODE_S = 600.0
+
+# A HOST is present from the first minute to the last; a guest arrives, is interviewed, and leaves.
+# The same measurement that separates the ads separates these:
+#
+#     hosts   26-42% of talk, spanning 96-99% of the episode
+#     guests  11-22% of talk, spanning 18-42%
+#
+# Span is the discriminator, and it has to be, because host identity was previously CAPPED BY THE
+# NUMBER OF HOST NAMES AVAILABLE (`len(host_voices) >= max(1, len(host_pool))`). With an empty
+# `known_hosts` and a self-intro pool emptied by the ad filter, only ONE voice could be a host — so
+# the co-host fell through to GUEST naming and was handed a guest's name. Kevin Roose, talking for
+# 39% of the episode from minute one to minute seventy, was published as "Dr. Adam Rodman", while
+# Rodman's own cluster went unnamed.
+#
+# A voice that spans the episode is a host whether or not we have a name for it. An unnamed host
+# renders as "Host" (UNNAMED_HOST_LABEL), which is right; wearing a guest's name is not.
+#
+# "Spans" means present at BOTH ENDS — opens the show and closes it. Raw span (last minus first) is
+# not enough: a guest who arrives a fifth of the way in and stays to the end also spans 80% of the
+# episode, and would be promoted to host. The host's signature is that they were there from the
+# beginning. Measured: hosts first speak within the opening ~1% and are still there at ~99%; guests
+# first speak 20-40% in.
+HOST_MAX_FIRST_FRACTION = 0.10
+HOST_MIN_LAST_FRACTION = 0.80
+HOST_MIN_SHARE = 0.10
 
 # voice_type values (the *nature* of a voice, distinct from the host/guest role):
 VOICE_PERSON = "person"  # a named real person
@@ -194,7 +226,12 @@ def _edge_ad_voices(diarization: DiarizationResult) -> set:
     short episode every voice is near an edge and under a minute of talk, so an absolute-only rule
     would type an entire three-minute cast as advertising. Share is scale-free.
 
-    A host or guest fails every one of the three by a wide margin.
+    The edge test is a FRACTION of the voice's speech, not "no turns elsewhere". Demanding zero
+    stray turns did not survive contact with real diarization: pyannote mis-assigned one mid-episode
+    turn to the ad narrator's cluster, that single turn cleared her of being an ad, and everything
+    downstream fell over (see AD_VOICE_EDGE_TIME_FRACTION).
+
+    A host or guest fails every one of these by a wide margin.
     """
     if not diarization.segments:
         return set()
@@ -206,21 +243,56 @@ def _edge_ad_voices(diarization: DiarizationResult) -> set:
     tail = episode_end - AD_VOICE_EDGE_WINDOW_S
 
     talk: Dict[str, float] = {}
-    outside: Dict[str, int] = {}
+    edge_talk: Dict[str, float] = {}
     for seg in diarization.segments:
-        talk[seg.speaker] = talk.get(seg.speaker, 0.0) + max(0.0, seg.end - seg.start)
-        at_edge = seg.end <= head or seg.start >= tail
-        if not at_edge:
-            outside[seg.speaker] = outside.get(seg.speaker, 0) + 1
+        dur = max(0.0, seg.end - seg.start)
+        talk[seg.speaker] = talk.get(seg.speaker, 0.0) + dur
+        if seg.end <= head or seg.start >= tail:
+            edge_talk[seg.speaker] = edge_talk.get(seg.speaker, 0.0) + dur
 
     spoken = sum(talk.values()) or 1.0
     return {
         v
         for v, secs in talk.items()
-        if secs < AD_VOICE_MAX_TALK_S
+        if secs > 0
+        and secs < AD_VOICE_MAX_TALK_S
         and (secs / spoken) < AD_VOICE_MAX_SHARE
-        and outside.get(v, 0) == 0
+        and (edge_talk.get(v, 0.0) / secs) >= AD_VOICE_EDGE_TIME_FRACTION
     }
+
+
+def _spanning_voices(diarization: DiarizationResult, ad_voices: set) -> List[str]:
+    """Voices present from the start of the episode to the end — the hosts.
+
+    Keyed on SPAN, not on talk time and not on how many names we happen to hold. A guest can
+    out-talk a host inside any given window, but a guest does not open the show and close it.
+    Ordered by talk time so the primary host comes first.
+    """
+    if not diarization.segments:
+        return []
+    episode_end = max(s.end for s in diarization.segments)
+    if episode_end <= 0:
+        return []
+
+    talk: Dict[str, float] = {}
+    first: Dict[str, float] = {}
+    last: Dict[str, float] = {}
+    for seg in diarization.segments:
+        if seg.speaker in ad_voices:
+            continue
+        talk[seg.speaker] = talk.get(seg.speaker, 0.0) + max(0.0, seg.end - seg.start)
+        first.setdefault(seg.speaker, seg.start)
+        last[seg.speaker] = max(last.get(seg.speaker, 0.0), seg.end)
+
+    spoken = sum(talk.values()) or 1.0
+    hosts = [
+        v
+        for v, secs in talk.items()
+        if (first[v] / episode_end) <= HOST_MAX_FIRST_FRACTION
+        and (last[v] / episode_end) >= HOST_MIN_LAST_FRACTION
+        and (secs / spoken) >= HOST_MIN_SHARE
+    ]
+    return sorted(hosts, key=lambda v: talk[v], reverse=True)
 
 
 def _opening_voice(
@@ -562,6 +634,7 @@ def resolve_speaker_roster(
     # interview the guest often out-talks the host inside the intro window, and naming the
     # talk-time leader would swap the two (#1169).
     host_voices: List[str] = []
+    spanning = set(_spanning_voices(diarization, ad_voices))
     opener = _opening_voice(
         diarization,
         window_end=content_start + intro_window_s,
@@ -576,15 +649,36 @@ def resolve_speaker_roster(
         for v in voices_by_intro:
             if v in host_voices:
                 continue
-            if len(host_voices) >= max(1, len(host_pool)):
-                break
-            if intro[v] / intro_total >= CO_HOST_INTRO_SHARE:
+
+            if host_pool:
+                # We hold host NAMES, so the number of hosts is capped by them — and THE CAP is
+                # what stops a guest who answers at length early from being crowned a co-host and
+                # taking the host's name (#1169).
+                if len(host_voices) >= len(host_pool):
+                    break
+                # Within the cap, a co-host is admitted on intro share OR on structure. Intro share
+                # alone was not enough: Hard Fork's second host talks for 38% of the episode from
+                # minute one to minute seventy, yet does not clear CO_HOST_INTRO_SHARE in the first
+                # ninety seconds — so he fell through to GUEST naming and was published as
+                # "Dr. Adam Rodman", while Rodman's own cluster went unnamed. Spanning the whole
+                # episode is the thing a guest cannot do.
+                if intro[v] / intro_total >= CO_HOST_INTRO_SHARE or v in spanning:
+                    host_voices.append(v)
+                continue
+
+            # No host names at all. The cap used to collapse to ONE here, so a real co-host dropped
+            # through to GUEST naming and wore a guest's name — Kevin Roose, 39% of the episode and
+            # talking from minute one to minute seventy, was published as "Dr. Adam Rodman" while
+            # Rodman's own cluster went unnamed.
+            #
+            # Intro share cannot be trusted without the cap (a guest's long early answer clears it),
+            # so admit only on STRUCTURE: a voice that opens the episode AND closes it is a host,
+            # which a guest is not. It renders as "Host" — and, the point, it is now excluded from
+            # guest naming, so no guest's name can land on it.
+            if v in spanning:
                 host_voices.append(v)
 
-    # A voice that introduces itself AS A CONFIGURED HOST is a host, whatever the intro-window
-    # arithmetic says. This is the strongest evidence available and it was going unused: a co-host
-    # who missed CO_HOST_INTRO_SHARE fell through to GUEST naming and was handed a guest's name —
-    # so Kevin Roose, 39% of the episode, could be published as "Dr. Adam Rodman".
+    # A voice that introduces itself AS A CONFIGURED HOST is a host, whatever the arithmetic says.
     known_lower = {h.lower() for h in known_hosts}
     for v, n in voice_intro.items():
         if n.lower() in known_lower and v not in host_voices:

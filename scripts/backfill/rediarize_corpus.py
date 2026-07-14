@@ -65,7 +65,14 @@ def _discover(corpus_root: Path, transcripts: Path) -> list[tuple[Path, Path]]:
     return pairs
 
 
-def _build_cfg(host: str, port: int, model: str) -> Any:
+def _build_cfg(host: str, port: int, model: str, known_hosts: Optional[list[str]] = None) -> Any:
+    """The roster config for the rebuild.
+
+    ``known_hosts`` matters more than it looks. Without it the roster has no host names at all, and
+    the self-introduction it would otherwise fall back on carries the ASR's spelling — "Kevin Roos",
+    "Kevin Russo", "Casey Noon" — so one host becomes three people, none of them spelled correctly.
+    Supplying the configured names lets the roster snap the ASR's guess back onto the real person.
+    """
     from podcast_scraper import config as config_module
 
     return config_module.Config.model_validate(
@@ -75,6 +82,7 @@ def _build_cfg(host: str, port: int, model: str) -> Any:
             "dgx_tailnet_host": host,
             "dgx_diarize_port": port,
             "dgx_diarize_model": model,
+            "known_hosts": list(known_hosts or []),
         }
     )
 
@@ -101,11 +109,25 @@ def _preflight(host: str, port: int, expect_model: str) -> Optional[str]:
     return None
 
 
-def _detected_guests(corpus_root: Path, stem: str) -> list[str]:
-    """The episode's already-extracted guest names, from the corpus metadata sidecar.
+def _detected_guests(corpus_root: Path, stem: str, guests_json: Optional[Path] = None) -> list[str]:
+    """The episode's guest names, for the roster to name voices with.
 
-    Reused as-is so the roster can name voices without re-running any LLM extraction.
+    ``--guests-json`` (from ``build_clean_guests.py``) takes precedence, and on a corpus built
+    before the corroboration gate it is REQUIRED: the names recorded in the metadata sidecars came
+    straight from the LLM speaker detector, which returned Elon Musk (the man suing OpenAI) and Sam
+    Altman as *speakers* of an episode neither appears on. Reusing them would feed the rebuilt
+    roster the very names the rebuild exists to remove (#1188).
+
+    Falls back to the corpus sidecar, which is correct for a corpus built after the gate.
     """
+    if guests_json is not None:
+        try:
+            data = json.loads(guests_json.read_text())
+        except (OSError, json.JSONDecodeError):
+            data = {}
+        entry = data.get(stem) or {}
+        return [str(n) for n in (entry.get("guests") or []) if n]
+
     for sidecar in corpus_root.glob(f"feeds/*/run_*/metadata/{stem}.metadata.json"):
         try:
             meta = json.loads(sidecar.read_text())
@@ -137,7 +159,7 @@ def _diarize_episode(cfg: Any, media: Path, segments_file: Path, args: argparse.
         {"segments": segments, "text": transcript_text},
         str(media),
         cfg,
-        _detected_guests(args.corpus_root, stem),
+        _detected_guests(args.corpus_root, stem, getattr(args, "guests_json", None)),
         cache_dir=None,
     )
     merged = enriched.get("segments") or []
@@ -173,6 +195,22 @@ def main(argv: Optional[list[str]] = None) -> int:
         "--transcripts", type=Path, required=True, help="Dir of new *.segments.json to merge into"
     )
     parser.add_argument("--out", type=Path, required=True, help="Directory to write results to")
+    parser.add_argument(
+        "--known-hosts",
+        nargs="*",
+        default=[],
+        help="Configured host names, so the roster can snap the ASR's spelling back onto them.",
+    )
+    parser.add_argument(
+        "--guests-json",
+        type=Path,
+        default=None,
+        help=(
+            "Corroborated guests from build_clean_guests.py. REQUIRED for a corpus built before "
+            "the corroboration gate — its stored guest names include people the episode only "
+            "talks ABOUT (#1188)."
+        ),
+    )
     parser.add_argument("--apply", action="store_true", help="Actually diarize (default: dry run)")
     parser.add_argument("--host", default="dgx-llm-1", help="DGX host")
     parser.add_argument("--port", type=int, default=8001, help="DGX pyannote port")
@@ -224,7 +262,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         return 2
 
     args.out.mkdir(parents=True, exist_ok=True)
-    cfg = _build_cfg(args.host, args.port, args.model)
+    cfg = _build_cfg(args.host, args.port, args.model, args.known_hosts)
 
     records: list[dict] = []
     failures = 0
