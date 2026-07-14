@@ -59,6 +59,7 @@ def extract_episode_description(item):
     return rss_extract_episode_description(item)
 
 
+from ...speaker_detectors.corroboration import corroborate_guests
 from ...speaker_detectors.factory import create_speaker_detector
 from ...speaker_detectors.hosts import is_network_or_org_author
 from ..cost_monitoring import CostCapExceeded
@@ -725,7 +726,17 @@ def _detect_speakers_for_episode(
         for entry in detected_speakers or []:
             flat_speakers.extend(_flatten_speaker_name_entries(entry))
         host_strings = _speaker_names_to_str_set(detected_hosts_set)
-        return [name for name in flat_speakers if name not in host_strings]
+        proposed = [name for name in flat_speakers if name not in host_strings]
+
+        # An LLM detector's name list is a PROPOSAL, not a result — it returns success=True whatever
+        # it emits. Corroborate every proposed guest against the description before their name is
+        # painted onto a diarized voice cluster.
+        return corroborate_guests(
+            proposed,
+            episode_title=episode.title,
+            episode_description=episode_description,
+            known_hosts=host_strings | combined_hosts,
+        )
     return None
 
 

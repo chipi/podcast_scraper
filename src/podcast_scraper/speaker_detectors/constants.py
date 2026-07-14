@@ -26,7 +26,10 @@ MIN_SPEAKERS_REQUIRED = 2
 
 INTERVIEW_INDICATOR_PATTERNS = [
     r"interview(?:ed|ing|s)?\s+(?:with\s+)?",
-    r"(?:we(?:'re|'ve)?|i(?:'m|'ve)?)\s+(?:been\s+)?joined\s+by\s+",
+    # "we ARE joined by" / "I AM joined by" — the plain forms were missing, and they are the most
+    # common way a description introduces a guest.
+    r"(?:we(?:'re|'ve|\s+are|\s+have)?|i(?:'m|'ve|\s+am|\s+have)?)\s+(?:been\s+)?joined\s+by\s+",
+    r"speaks?\s+(?:with|to)\s+",
     r"speaking\s+(?:with|to)\s+",
     r"talking\s+(?:with|to)\s+",
     r"talks?\s+(?:with|to)\s+",
@@ -38,6 +41,21 @@ INTERVIEW_INDICATOR_PATTERNS = [
     r"sits?\s+down\s+with\s+",
     r"chats?\s+with\s+",
     r"joining\s+us\s+",
+    # A panel: "speaks with Chris Miller, author of Chip War, AND WITH analyst Stacy Rasgon".
+    # The leading cue only reaches the first name; the second guest is coordinated onto it.
+    r"(?:and|along)\s+with\s+",
+]
+
+# Cues that come AFTER the name ("Dr. Adam Rodman ... returns"). The list above only matches a
+# cue BEFORE the name, which is why the real guest of "OpenAI's Big Reset" was invisible to the
+# safe path — the description introduces him as "the A.I. researcher Dr. Adam Rodman, of Harvard
+# Medical School, returns to discuss...". A guest the detector cannot see leaves a voice cluster
+# free for a mentioned celebrity to claim.
+INTERVIEW_TRAILING_PATTERNS = [
+    r"\s*,?\s*(?:of|from|at)\s+[\w .'-]{2,40},?\s+returns?\b",
+    r"\s*,?\s*returns?\s+to\s+(?:discuss|talk|explain|join)",
+    r"\s*,?\s*(?:is\s+back|rejoins?|comes?\s+back)\b",
+    r"\s*,?\s*joins?\s+(?:us|the\s+show|me)\b",
 ]
 
 MENTIONED_ONLY_PATTERNS = [

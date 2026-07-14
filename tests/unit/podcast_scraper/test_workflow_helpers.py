@@ -1240,10 +1240,18 @@ class TestPrepareEpisodeDownloadArgs(unittest.TestCase):
             openai_api_key="sk-test123",
         )
 
-        # Create proper RSS item as XML element
+        # Create proper RSS item as XML element.
+        # The description has to actually INTRODUCE the guest the detector returns: a detected name
+        # is now corroborated against the episode text before it can be painted onto a diarized
+        # voice. The old fixture returned "Speaker1" against an empty description — a placeholder
+        # nobody introduces, which the gate correctly drops. This test is about the invalid
+        # Content-Length path, so the fixture is made realistic rather than the gate loosened.
         import xml.etree.ElementTree as ET
 
         item = ET.Element("item")
+        desc = ET.SubElement(item, "description")
+        desc.text = "This week we are joined by Jane Doe to discuss the news."
+
         episode = models.Episode(
             idx=1,
             title="Test Episode",
@@ -1259,7 +1267,7 @@ class TestPrepareEpisodeDownloadArgs(unittest.TestCase):
         mock_http_head.return_value = mock_response
 
         mock_detector = Mock()
-        mock_detector.detect_speakers.return_value = (["Speaker1"], set(), True, False)
+        mock_detector.detect_speakers.return_value = (["Jane Doe"], set(), True, False)
         mock_create_detector.return_value = mock_detector
 
         transcription_resources = TranscriptionResources(
@@ -1292,7 +1300,7 @@ class TestPrepareEpisodeDownloadArgs(unittest.TestCase):
         # Verify detected_speaker_names contains the detected speakers
         args_tuple = download_args[0]
         detected_speaker_names = args_tuple[7]  # 8th element (0-indexed)
-        self.assertEqual(detected_speaker_names, ["Speaker1"])
+        self.assertEqual(detected_speaker_names, ["Jane Doe"])
 
 
 @pytest.mark.unit
