@@ -27,8 +27,10 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from ....speaker_detectors.hosts import (
     extract_self_introduced_host,
+    guests_introduced_by_the_host,
     has_org_markers,
     is_network_or_org_author,
+    roles_from_conversation,
 )
 from .base import DiarizationResult
 
@@ -610,29 +612,49 @@ def resolve_speaker_roster(
         if n.lower() not in ad_names_lower
     ]
 
-    # WHICH voices are the hosts.
+    # WHICH voices are the hosts. Metadata and conversation are CROSS-REFERENCED here; neither
+    # replaces the other, and neither is a statistic.
     #
-    # The METADATA already told us who they are and HOW MANY there are — `host_pool` carries the
-    # feed's own words ("journalists Kevin Roose and Casey Newton"). This block does not decide who
-    # hosts the show; it only decides which diarized voice each stated host IS. So the number of
-    # host voices is exactly `len(host_pool)`, and a guest cannot become a host by talking a lot.
+    #   METADATA says WHO and HOW MANY  — `host_pool` carries the feed's own words ("journalists
+    #                                     Kevin Roose and Casey Newton").
+    #   The CONVERSATION says WHICH VOICE — the role is PERFORMED: the host welcomes you to the show
+    #                                     and introduces the guest; the guest says thanks for having
+    #                                     me. Measured on the shows whose feed states no host, this
+    #                                     is decisive where talk time is worthless — on Latent Space
+    #                                     the host talks 8.6% and the guest 84.5%.
     #
-    # Matching, in order of evidence:
-    #   1. the voice whose OWN self-introduction names a stated host  — direct, unambiguous;
-    #   2. the voice that OPENS the show (ads excluded)               — the host does the intro;
-    #   3. the remaining most-talkative voices                        — only to fill leftover slots.
-    #
-    # Step 3 is an ORDERING, never a classification: it can only assign a name the feed already
-    # stated, to fill a slot the feed already counted.
+    # When the feed states no host at all, the conversation is the ONLY source, and it is a good
+    # one: "hello and welcome to Planet Money. I'm Alexi Horowitz-Gazi" gives the role AND the name.
+    conv_roles = roles_from_conversation(voice_texts)
+    conv_hosts = [v for v, r in conv_roles.items() if r == "host" and v not in ad_voices]
+    conv_guests = {v for v, r in conv_roles.items() if r == "guest"}
+
     host_voices: List[str] = []
     known_lower = {h.lower() for h in known_hosts}
 
-    # 1. A voice that introduces itself as one of the feed's stated hosts IS that host.
+    # 1. A voice that introduces itself as one of the feed's STATED hosts IS that host. Both sources
+    #    agree — this is the cross-reference, and it is the strongest evidence available.
     for v, n in voice_intro.items():
-        if n.lower() in known_lower and v not in host_voices:
+        if n.lower() in known_lower and v not in host_voices and v not in conv_guests:
             host_voices.append(v)
 
-    # 2. The opener — the host doing the intro (the pre-roll ad is excluded, or it wins this).
+    # 2. A voice that PERFORMS the host's role is a host, even if the feed never named them.
+    #
+    #    But the feed says how MANY. When it named its hosts, that count is binding: a third voice
+    #    cannot host a two-host show, however host-like it sounds. Diarization merges a host's turn
+    #    into a guest's cluster often enough that the guest's cluster "performs" a host act, and on
+    #    Hard Fork that produced a third host. Where the feed named nobody, there is no count to
+    #    respect and the conversation is the only source — so it is uncapped there.
+    cap = len(host_pool) if host_pool else None
+    for v in conv_hosts:
+        if cap is not None and len(host_voices) >= cap:
+            break
+        if v not in host_voices:
+            host_voices.append(v)
+
+    # 3. The opener — the host does the intro (the pre-roll ad is excluded, or it wins this).
+    #    Skipped when the conversation already identified a host, and never applied to a voice the
+    #    conversation identified as a GUEST ("thanks for having me").
     opener = _opening_voice(
         diarization,
         window_end=content_start + intro_window_s,
@@ -643,25 +665,24 @@ def resolve_speaker_roster(
         opener = voices_by_intro[0]
     if (
         opener is not None
+        and not conv_hosts
         and opener not in host_voices
+        and opener not in conv_guests
         and len(host_voices) < max(1, len(host_pool))
     ):
         host_voices.append(opener)
 
-    # 3. Fill any host slots the feed counted but we have not matched yet, from the voices present
+    # 4. Fill any host slots the feed COUNTED but we have not matched yet, from the voices present
     #    in the SHOW'S INTRO (ads excluded). The hosts open the show; that is what an intro is.
     #
     #    NOT by talk time. Filling by "who talks most" hands a host slot straight to the guest —
     #    on Invest Like the Best the guest talks 82% and the host 17%, and even on a co-hosted show
     #    a long first answer outweighs both hosts. Talk share does not identify a host, in any
-    #    format. The intro does, and the metadata caps how many slots there are to fill.
+    #    format. And a voice the conversation heard say "thanks for having me" is never a host.
     for v in voices_by_intro:
         if len(host_voices) >= len(host_pool):
             break
-        if v not in host_voices:
-            host_voices.append(v)
-    for v, n in voice_intro.items():
-        if n.lower() in known_lower and v not in host_voices:
+        if v not in host_voices and v not in conv_guests:
             host_voices.append(v)
 
     host_names_lower = {n.lower() for n, _ in host_pool}
@@ -669,10 +690,17 @@ def resolve_speaker_roster(
 
     by_voice = _name_host_voices(host_voices, host_pool, voice_intro, used_lower)
 
+    # The host also NAMES the guest out loud — "My guest today is Brian Chesky". That is a stated
+    # fact from the conversation, and it complements the guests the episode description declared
+    # (which the corroboration gate may have had to drop for want of an interview cue).
     intro_names_lower = {n.lower() for n in voice_intro.values()}
+    declared = list(_clean_person_names(detected_guests))
+    for n in sorted(guests_introduced_by_the_host(voice_texts)):
+        if n.lower() not in {d.lower() for d in declared}:
+            declared.append(n)
     guest_names = [
         g
-        for g in _clean_person_names(detected_guests)
+        for g in declared
         if g.lower() not in host_names_lower and g.lower() not in intro_names_lower
     ]
     # Ad voices are excluded from GUEST naming too — otherwise the pre-roll consumes a real guest's

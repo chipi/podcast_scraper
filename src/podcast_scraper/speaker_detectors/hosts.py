@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 from .entities import extract_person_entities as _extract_person_entities_direct
 
@@ -302,6 +302,74 @@ def _clean_stated_name(name: str) -> str:
     clean = _POSSESSIVE_PREFIX.sub("", clean)
     clean = _LEADING_JUNK.sub("", clean)
     return clean.strip()
+
+
+# When the feed states no host, the CONVERSATION does. The role is performed, not measured: the host
+# welcomes you to the show and introduces the guest; the guest thanks them for having him.
+#
+# Measured on the three feeds that state no host — and it is decisive where talk time is worthless:
+#
+#   Latent Space   Alex Lupsasca talks 84.5% and performs NO host act. Brandon talks 8.6% and
+#                  says "welcome to the AI for Science podcast". Brandon is the host.
+#   Planet Money   "hello and welcome to Planet Money. I'm Alexi Horowitz-Gazi" — host + his name.
+#   NVIDIA         the cluster LABELLED "Nicolas Cerisier" says "I'm Noah Kravitz. My guest is
+#                  Nicolas Serissier" — the shipped labels were swapped, and the conversation
+#                  is what says so.
+#
+# The host usually announces himself and names his guest in one breath, which yields both roles and
+# both names from a single utterance.
+_HOST_SPEECH_ACTS = [
+    re.compile(p, re.IGNORECASE)
+    for p in (
+        r"\bwelcome (?:back )?to (?:the |my |our )?\w+",
+        r"\bi'?m your host\b",
+        r"\b(?:my|our) guests? (?:today )?(?:is|are)\b",
+        r"\b(?:joining|with) (?:me|us) (?:today|now|this week)\b",
+        r"\bthanks? (?:so much )?for (?:coming on|joining me|joining us|being here)\b",
+        r"\bthis week on (?:the )?\w+",
+    )
+]
+_GUEST_SPEECH_ACTS = [
+    re.compile(p, re.IGNORECASE)
+    for p in (
+        r"\bthanks? (?:so much )?for having me\b",
+        r"\bthank you for having me\b",
+        r"\b(?:glad|happy|great|good) to be (?:here|on|back)\b",
+    )
+]
+# "My guest today is Brian Chesky, the co-founder..." — the host names the guest.
+_GUEST_INTRODUCED_BY_HOST = re.compile(
+    rf"\b(?:my|our) guests? (?:today )?(?:is|are)\s+(?P<name>{_NAME})", re.IGNORECASE
+)
+
+
+def roles_from_conversation(voice_texts: Optional[Dict[str, str]]) -> Dict[str, str]:
+    """``{voice: "host" | "guest"}`` for the voices that PERFORM one of the two roles.
+
+    Complements the metadata; it does not replace it. Used when the feed states no host, and as a
+    cross-check when it does. Silent about voices that perform neither — those stay unknown, which
+    is the safe direction (#876).
+    """
+    out: Dict[str, str] = {}
+    for voice, text in (voice_texts or {}).items():
+        if not text:
+            continue
+        if any(p.search(text) for p in _HOST_SPEECH_ACTS):
+            out[voice] = "host"
+        elif any(p.search(text) for p in _GUEST_SPEECH_ACTS):
+            out[voice] = "guest"
+    return out
+
+
+def guests_introduced_by_the_host(voice_texts: Optional[Dict[str, str]]) -> Set[str]:
+    """Names the host introduces as guests ("My guest today is Brian Chesky")."""
+    out: Set[str] = set()
+    for text in (voice_texts or {}).values():
+        for m in _GUEST_INTRODUCED_BY_HOST.finditer(text or ""):
+            name = _clean_stated_name(m.group("name"))
+            if len(name.split()) >= 2 and not has_org_markers(name):
+                out.add(name)
+    return out
 
 
 def detect_hosts_from_feed(
