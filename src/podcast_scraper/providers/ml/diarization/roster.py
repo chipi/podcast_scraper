@@ -387,7 +387,20 @@ def _host_name_pool(
     known_hosts: Sequence[str],
     host_candidates: Sequence[str],
 ) -> List[Tuple[str, str]]:
-    """Ordered ``(name, source)`` host-name candidates, most-trusted first."""
+    """Ordered ``(name, source)`` host-name candidates, most-trusted first.
+
+    The FEED comes first. It states its hosts, and a statement outranks a guess.
+
+    The transcript self-introduction used to lead this list, and it is the wrong thing to trust:
+    ``extract_self_introduced_host`` reads the FIRST "I'm <Name>" in the transcript, and the first
+    thing in the transcript is the PRE-ROLL AD. On episode 5 of the rebuild that put "I'm Paul
+    Tenorio" (a soccer writer, reading an advert) at the head of the host pool, and his name was
+    then painted onto a voice holding 37% of a technology podcast.
+
+    So the self-intro is now a FALLBACK — used only when the feed names nobody, which is the case
+    for 3 of our 10 feeds. There it is genuinely useful ("hello and welcome to Planet Money, I'm
+    Alexi Horowitz-Gazi"). Where the feed HAS spoken, nothing in the audio may overrule it.
+    """
     pool: List[Tuple[str, str]] = []
     seen = set()
 
@@ -397,12 +410,13 @@ def _host_name_pool(
             seen.add(key)
             pool.append((name, source))
 
-    for n in _clean_person_names([extract_self_introduced_host(transcript_text) or ""]):
-        _add(n, "self_intro")
     for n in _clean_person_names(known_hosts):
         _add(n, "known_hosts")
     for n in _clean_author_candidates(host_candidates):
         _add(n, "feed")
+    if not pool:  # the feed named nobody — only then does the transcript get a vote
+        for n in _clean_person_names([extract_self_introduced_host(transcript_text) or ""]):
+            _add(n, "self_intro")
     return pool
 
 

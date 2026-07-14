@@ -181,6 +181,36 @@ def test_talk_share_never_makes_a_guest_into_a_host() -> None:
     assert roster.by_voice["GUEST"].name == "Brian Chesky"
 
 
+def test_the_ads_self_introduction_never_outranks_the_feed() -> None:
+    """FOUND BY AUDITING THE REBUILT CORPUS — the ad's name reached the HOST POOL.
+
+    `_host_name_pool` used to lead with `extract_self_introduced_host(transcript_text)`, which reads
+    the FIRST "I'm <Name>" in the transcript. The first thing in the transcript is the pre-roll ad.
+
+    So "I'm Paul Tenorio" — a soccer writer reading an advert — sat at the head of the host pool.
+    In episode 5 of the rebuild his name was assigned to a voice holding 37% of a technology
+    podcast, because that episode's second ad cluster landed a hair under the ad threshold and so
+    was never excluded.
+
+    The threshold is not the fix, and chasing it is the trap. The FEED STATES ITS HOSTS. A statement
+    outranks a guess, and nothing in the audio may overrule it.
+    """
+    roster = resolve_speaker_roster(
+        _hardfork_shaped(),
+        # the transcript opens with the advert, exactly as the real one does
+        "I'm Paul Tenorio. I cover soccer for The Athletic. And I'm Amy Lawrence.",
+        detected_guests=["Dr. Adam Rodman"],
+        known_hosts=HOSTS,  # the feed says: Kevin Roose, Casey Newton
+        voice_texts=_voice_texts(),
+    )
+
+    named = {r.name for r in roster.by_voice.values() if r.named}
+    assert (
+        "Paul Tenorio" not in named
+    ), "the advert's self-introduction was taken as a host name — it must never outrank the feed"
+    assert {r.name for r in roster.by_voice.values() if r.role == "host"} == set(HOSTS)
+
+
 def test_a_short_episode_has_no_ads() -> None:
     """GUARD ON THE GUARD. In a 3-minute clip every voice is near an edge and briefly spoken.
 
