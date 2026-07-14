@@ -420,6 +420,21 @@
             "speaker": {
               "type": "string",
               "description": "Who said it. Taken from the speaker turn containing the insight's first grounded quote. Absent when the insight has no grounded quote \u2014 an unevidenced claim has no attributable speaker. An insight is a claim a PERSON made, and its worth depends on who made it: a host summarising a deal is a headline; the guest expert taking a position is why the episode exists."
+            },
+            "speaker_voice_type": {
+              "type": "string",
+              "enum": [
+                "person",
+                "cameo",
+                "commercial",
+                "unknown",
+                "unidentified"
+              ],
+              "description": "The KIND of voice behind the insight's first grounded quote."
+            },
+            "surfaceable": {
+              "type": "boolean",
+              "description": "False when the insight cannot be SURFACEd because its speaker is not a named person. An unattributed STANCE is not a stance. Such an insight stays eligible for CONNECT \u2014 a fact is still a fact."
             }
           }
         },

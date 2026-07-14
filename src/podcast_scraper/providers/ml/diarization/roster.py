@@ -119,10 +119,32 @@ AD_VOICE_MIN_EPISODE_S = 600.0
 VOICE_PERSON = "person"  # a named real person
 VOICE_CAMEO = "cameo"  # unnamed, trivially brief
 VOICE_COMMERCIAL = "commercial"  # unnamed, mostly inside ad regions
-VOICE_UNKNOWN = "unknown"  # unnamed, substantive — a real person we failed to name
+VOICE_UNKNOWN = "unknown"  # unnamed, substantive — a real person we FAILED to name (a defect)
+# ...and a real person NOBODY NAMES. Not the same thing, and until the corpus audit existed we
+# could not tell them apart, so both rendered as a raw SPEAKER_07.
+#
+# This is TAPE: the vox-pop interviewee in a narrated documentary. Measured across the corpus, they
+# speak for 20-180 seconds — far too long to be a "Brief speaker" (the cameo rule stops at 20s), and
+# every one of them is substantive first-person testimony:
+#
+#     [Planet Money] SPEAKER_09, 151s: "I was in the shocks, which was the part that would tie off
+#                                       from the harness..."
+#
+# Nobody in the episode ever says who that is. There is no name to be had — from the feed, from the
+# description, from an introduction, or from their own mouth. So `SPEAKER_09` is not a failure
+# marker here, it is just ugly: we did nothing wrong.
+#
+# Keeping the two apart matters because the raw id is meant to MEAN something — "we should have
+# named this and did not". Showing it on a voice nobody could have named turns a defect signal into
+# noise, and a defect signal nobody trusts stops being a signal.
+VOICE_UNIDENTIFIED = "unidentified"  # unnamed, substantive — and NO source names them
 # Friendly display labels for the non-person types (surfaces render these instead of SPEAKER_xx).
-# ``unknown`` (a substantive person we failed to name) deliberately keeps its raw id, not a label.
-VOICE_TYPE_LABELS = {VOICE_CAMEO: "Brief speaker", VOICE_COMMERCIAL: "Advertisement"}
+# ``unknown`` (a person we FAILED to name) keeps its raw id — that raw id IS the defect marker.
+VOICE_TYPE_LABELS = {
+    VOICE_CAMEO: "Brief speaker",
+    VOICE_COMMERCIAL: "Advertisement",
+    VOICE_UNIDENTIFIED: "Unidentified speaker",
+}
 # An unnamed but intro-dominant voice is the host — many show-centric feeds (news desks) never
 # name the host, and "Host" is the correct outcome there, not a bare SPEAKER_NN failure.
 UNNAMED_HOST_LABEL = "Host"
@@ -322,12 +344,19 @@ def _classify_voice_types(
     diarization: DiarizationResult,
     ad_intervals: Optional[Sequence[Tuple[float, float]]],
     ad_voices: Optional[set] = None,
+    nameable: Optional[set] = None,
 ) -> Dict[str, "SpeakerRole"]:
-    """Tag every *unnamed* voice as cameo / commercial / unknown; named voices are ``person``.
+    """Tag every *unnamed* voice; named voices are ``person``.
 
-    Lets surfaces show "Brief speaker" / "Advertisement" instead of ``SPEAKER_03`` and lets
-    corpus enrichers drop the noise, while the id-bearing raw label is untouched. ``ad_intervals``
-    is optional — without it, commercial is not attempted (only cameo vs unknown by talk time).
+    Lets surfaces show "Brief speaker" / "Advertisement" / "Unidentified speaker" instead of
+    ``SPEAKER_03``, while the id-bearing raw label is untouched. ``ad_intervals`` is optional —
+    without it, commercial is not attempted.
+
+    ``nameable`` is the set of voices for which a name EXISTED somewhere — the voice introduced
+    itself, the host introduced it, or a declared guest name was still going spare. Those are the
+    ones we FAILED on, and they keep the raw ``SPEAKER_NN`` because that id is the defect marker.
+    A substantive voice that is NOT nameable is ``unidentified``: nobody in the episode ever says
+    who they are, so there was nothing to fail at.
     """
     talk = _talk_time(diarization)
     ad_by_voice = _ad_overlap_by_voice(diarization, ad_intervals) if ad_intervals else {}
@@ -349,6 +378,10 @@ def _classify_voice_types(
             vt = VOICE_COMMERCIAL
         elif total < CAMEO_MAX_TALK_S:
             vt = VOICE_CAMEO
+        elif nameable is not None and v not in nameable:
+            # Substantive, and NO source names them: the tape / vox-pop of a narrated documentary.
+            # Not a failure — there was no name to be had.
+            vt = VOICE_UNIDENTIFIED
         else:
             vt = VOICE_UNKNOWN
         out[v] = replace(role, voice_type=vt)
@@ -823,7 +856,25 @@ def resolve_speaker_roster(
     for v in ad_voices:
         by_voice.setdefault(v, SpeakerRole(name=v, role="unknown", named=False, source="raw"))
 
-    by_voice = _classify_voice_types(by_voice, diarization, ad_intervals, ad_voices)
+    # Which unnamed voices did we FAIL on, and which could nobody have named?
+    #
+    # A voice is "nameable" when a name existed for it and we did not attach it: it introduced
+    # itself, the host introduced it, or a declared guest name was left over unclaimed. Those keep
+    # the raw SPEAKER_NN, because that id is the defect marker — it means "we should have named this
+    # and did not".
+    #
+    # A substantive voice that is NOT nameable is `unidentified`: nobody in the episode ever says
+    # who they are. Showing a defect marker there turns a signal into noise.
+    leftover_names = [g for g in guest_names if g.lower() not in used_lower]
+    nameable = set(voice_intro)
+    if leftover_names:
+        # A name is still going spare, so ANY unnamed voice could have taken it — we cannot claim
+        # nobody could be named.
+        nameable |= {v for v, r in by_voice.items() if not r.named}
+
+    by_voice = _classify_voice_types(
+        by_voice, diarization, ad_intervals, ad_voices, nameable=nameable
+    )
     return SpeakerRoster(by_voice=by_voice, num_speakers=diarization.num_speakers or len(by_voice))
 
 
@@ -875,10 +926,14 @@ def build_speaker_diagnostics(
         }
         if not role.named:
             # A show-centric feed's unnamed host is the expected outcome, not a failure — it
-            # renders "Host". So are cameo/commercial voices (noise, not people we missed).
+            # renders "Host". So are cameo/commercial voices (noise, not people we missed), and so
+            # is an `unidentified` voice: nobody in the episode ever says who they are, so there was
+            # nothing to fail at. `truly_unknown` is the "we should have named this and did not"
+            # residual, and counting the tape in it made the defect number meaningless.
             expected = (show_centric and role.role == "host") or role.voice_type in (
                 VOICE_CAMEO,
                 VOICE_COMMERCIAL,
+                VOICE_UNIDENTIFIED,
             )
             entry["expected"] = expected
             entry["reason"] = (

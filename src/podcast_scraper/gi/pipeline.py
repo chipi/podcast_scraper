@@ -713,6 +713,130 @@ def _segment_speaker_label(seg: Dict[str, Any]) -> Optional[str]:
     return s or None
 
 
+# What the voice behind a quote is, and what may be done with it.
+#
+# The diarization roster already types every voice, and GI has been ignoring it — which is why ad
+# copy could be grounded as an insight and an anonymous voice could mint a Person node called
+# "SPEAKER_09". Ad copy is *written* to be quotable ("If you play our games, you probably know
+# there's something a bit different about them"), which makes it the perfect false insight.
+#
+#   commercial     an advertisement. NEVER grounded. There is no insight in an ad read.
+#   unknown        a person we FAILED to name. Not surfaceable — and COUNTED, because a defect that
+#                  costs nothing gets fixed by nobody.
+#   unidentified   a person NOBODY names: the vox-pop in a narrated piece. Not surfaceable — an
+#                  unattributed STANCE is not a stance, it is a floating opinion that nobody holds
+#                  and nobody can disagree with. But it stays eligible for CONNECT: a fact is still
+#                  a fact, and on Planet Money and The Daily the tape IS the story (36-40% of those
+#                  episodes), so discarding it outright would gut them.
+VOICE_TYPE_NEVER_GROUND = frozenset({"commercial"})
+VOICE_TYPE_NOT_SURFACEABLE = frozenset({"commercial", "unknown", "unidentified"})
+
+
+def _voice_type_for_char_range(
+    transcript: str,
+    char_start: int,
+    char_end: int,
+    segments: List[Dict[str, Any]],
+) -> Optional[str]:
+    """The ``voice_type`` of the voice speaking at ``char_start`` — ``None`` when it is a person."""
+    if not segments or char_start >= char_end:
+        return None
+    spans = _segment_char_spans(transcript, segments)
+    if not spans:
+        return None
+    for seg_start, seg_end, seg in spans:
+        if seg_start <= char_start < seg_end:
+            vt = seg.get("voice_type")
+            return str(vt) if vt else None
+    return None
+
+
+def _apply_voice_flags(
+    insight_props: Dict[str, Any],
+    quotes: List[Any],
+    transcript_text: Optional[str],
+    transcript_segments: Optional[List[Dict[str, Any]]],
+) -> int:
+    """Stamp the speaking voice's type on an insight.
+
+    Returns 1 when the insight is unsurfaceable BY OUR OWN FAULT (an ``unknown`` voice).
+
+    The rule this exists to enforce: AN UNATTRIBUTED STANCE IS NOT A STANCE. It is a floating
+    opinion that nobody holds and nobody can disagree with, so it cannot be SURFACEd whatever the
+    classifier calls it.
+
+    It stays eligible for CONNECT — a fact is still a fact. That distinction is not academic: on
+    Planet Money and The Daily the tape IS the story (36-40% of those episodes), and discarding it
+    outright would gut the narrated shows to protect them from a problem they do not have.
+    """
+    vt, is_defect = _voice_flags_for_insight(quotes, transcript_text, transcript_segments)
+    if not vt:
+        return 0
+    insight_props["speaker_voice_type"] = vt
+    if vt in VOICE_TYPE_NOT_SURFACEABLE:
+        insight_props["surfaceable"] = False
+    return 1 if is_defect else 0
+
+
+def _log_voice_exclusions(episode_id: str, dropped_ads: int, by_defect: int) -> None:
+    """A silent exclusion is a cost nobody sees, and a defect that costs nothing is never fixed."""
+    if dropped_ads:
+        logger.info(
+            "  → GI refused %d quote(s) grounded inside an advertisement [%s]",
+            dropped_ads,
+            episode_id,
+        )
+    if by_defect:
+        logger.warning(
+            "  → %d insight(s) cannot be surfaced because a voice went unnamed and a name WAS "
+            "available for it [%s] — this is our defect, and it costs us their words",
+            by_defect,
+            episode_id,
+        )
+
+
+def _is_advertisement_span(
+    gq: Any,
+    transcript_text: Optional[str],
+    transcript_segments: Optional[List[Dict[str, Any]]],
+) -> bool:
+    """True when this span was spoken inside an ADVERT. Such a span is never evidence.
+
+    Ad copy is written to be quotable — "if you play our games, you probably know there's something
+    a bit different about them" — which makes it the most fluent, most confident false insight
+    available. Refused here, where a span becomes a Quote, rather than filtered off a surface later
+    and left in the corpus.
+    """
+    if not transcript_segments:
+        return False
+    vt = _voice_type_for_char_range(
+        transcript_text or "", gq.char_start, gq.char_end, transcript_segments
+    )
+    return vt in VOICE_TYPE_NEVER_GROUND
+
+
+def _voice_flags_for_insight(
+    quotes: List[Any],
+    transcript_text: Optional[str],
+    transcript_segments: Optional[List[Dict[str, Any]]],
+) -> Tuple[Optional[str], bool]:
+    """``(voice_type, is_our_defect)`` for the voice behind an insight's first grounded quote.
+
+    ``voice_type`` is None when a real, named person said it. ``is_our_defect`` is True only for
+    ``unknown`` — a voice a name WAS available for and we failed to attach. That one is counted,
+    because a defect that costs nothing gets fixed by nobody.
+    """
+    if not transcript_segments or not quotes:
+        return None, False
+    first = next((q for q in quotes if isinstance(q, GroundedQuote)), None)
+    if first is None:
+        return None, False
+    vt = _voice_type_for_char_range(
+        transcript_text or "", first.char_start, first.char_end, transcript_segments
+    )
+    return vt, vt == "unknown"
+
+
 def _speaker_id_for_char_range(
     transcript: str,
     char_start: int,
@@ -1411,6 +1535,8 @@ def _artifact_from_multi_insight(
     ]
     edges: list = []
     quote_global_idx = 0
+    dropped_ad_quotes = 0  # spans refused because an advertisement is never evidence
+    unsurfaceable_by_defect = 0  # insights we cannot surface because WE failed to name a voice
     persons_added: Set[str] = set()
     use_segments_raw = bool(
         transcript_text and transcript_segments and len(transcript_segments) > 0
@@ -1530,6 +1656,18 @@ def _artifact_from_multi_insight(
         if speaker_for_insight:
             insight_props["speaker"] = speaker_for_insight
 
+        # What KIND of voice said it — so routing can honour the one rule that matters:
+        # AN UNATTRIBUTED STANCE IS NOT A STANCE. It is a floating opinion that nobody holds and
+        # nobody can disagree with, so it cannot be SURFACEd, whatever the classifier calls it.
+        #
+        # It stays eligible for CONNECT: a fact is still a fact. That distinction is not academic —
+        # on Planet Money and The Daily the tape IS the story (36-40% of those episodes), and
+        # discarding it outright would gut the narrated shows to protect against a problem they do
+        # not have.
+        unsurfaceable_by_defect += _apply_voice_flags(
+            insight_props, quotes, transcript_text, transcript_segments if use_segments else None
+        )
+
         insight_node: Dict[str, Any] = {
             "id": insight_id,
             "type": "Insight",
@@ -1554,6 +1692,13 @@ def _artifact_from_multi_insight(
         for gq in quotes:
             if not isinstance(gq, GroundedQuote):
                 continue
+
+            if _is_advertisement_span(
+                gq, transcript_text, transcript_segments if use_segments else None
+            ):
+                dropped_ad_quotes += 1
+                continue
+
             quote_id = gil_quote_node_id(
                 episode_id,
                 quote_global_idx,
@@ -1624,6 +1769,8 @@ def _artifact_from_multi_insight(
         "nodes": nodes,
         "edges": edges,
     }
+
+    _log_voice_exclusions(episode_id, dropped_ad_quotes, unsurfaceable_by_defect)
 
     # The stage checks its own output. Every GI bug in this arc shipped silently — insights with no
     # quotes, quotes with no speaker, a speaker who never holds the mic — and every one of them
