@@ -55,7 +55,12 @@ class TestRetrievalIsWhatSeparatesASpeakerFromASubject:
         hits = retrieve_mentions("Jia Li", TURNS)
         assert hits, "the host says her name out loud and retrieval found nothing"
         assert "is with us today" in hits[0]
-        assert "said by SPEAKER_00" in hits[0]
+        assert "SPEAKER_00" in hits[0]
+
+    def test_it_says_that_the_speaker_of_a_mention_is_NOT_the_person(self) -> None:
+        """The framing is load-bearing. "said by SPEAKER_01" reads as association, and that is how
+        53.5% of an FT Unhedged episode was handed to Jay Powell — by the co-host discussing him."""
+        assert "probably NOT them" in retrieve_mentions("Jia Li", TURNS)[0]
 
     def test_it_says_who_speaks_NEXT(self) -> None:
         """The person a host introduces is the person who speaks next — the model needs that."""
@@ -117,6 +122,40 @@ class TestTheModelMayOnlyChooseFromTheStatedNames:
             ordered_turns=TURNS,
         )
         assert list(got.values()) == ["Noah Kravitz"]
+
+    def test_a_voice_that_TALKS_ABOUT_someone_is_not_that_someone(self) -> None:
+        """FOUND ON THE REAL CORPUS. The retrieval that makes this work also misleads the model.
+
+        FT Unhedged, "The Fed holds steady" — Katie Martin and Rob Armstrong DISCUSSING the Fed
+        chair. The model was handed passages labelled `said by SPEAKER_01: "...Jay Powell, chair of
+        the Federal Reserve, made a joke..."`, read the name sitting beside the voice as
+        association, and gave **53.5% of the episode to Jay Powell**. SPEAKER_01 is Rob Armstrong.
+
+        A prompt is not an enforcement mechanism (#876), so this is CHECKED. If you say somebody's
+        name and never introduce yourself with it, you are talking about them, not being them.
+        """
+        armstrong = (
+            "You did, you missed it. Jay Powell, chair of the Federal Reserve, made a joke "
+            "yesterday, and Powell deeply bent his knees while the question was being asked."
+        )
+        got = resolve_voices_from_conversation(
+            ["Katie Martin", "Rob Armstrong", "Jay Powell"],
+            {"SPEAKER_01": armstrong},
+            _canned({"SPEAKER_01": "Jay Powell"}),
+            ordered_turns=[("SPEAKER_01", armstrong)],
+        )
+        assert got == {}, "a co-host discussing the Fed chair was published AS the Fed chair"
+
+    def test_but_a_voice_that_introduces_itself_still_binds(self) -> None:
+        """The rule must not eat the self-introduction it depends on."""
+        own = "Hello and welcome back, I'm Rob Armstrong, and today we talk about Jay Powell."
+        got = resolve_voices_from_conversation(
+            ["Rob Armstrong", "Jay Powell"],
+            {"SPEAKER_01": own},
+            _canned({"SPEAKER_01": "Rob Armstrong"}),
+            ordered_turns=[("SPEAKER_01", own)],
+        )
+        assert got == {"SPEAKER_01": "Rob Armstrong"}
 
     def test_a_dead_founder_the_notes_mention_is_not_given_a_voice(self) -> None:
         """HB Reese, founder of Reese's, died 1956 — and an earlier rule handed him a voice.

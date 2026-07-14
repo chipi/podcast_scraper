@@ -99,6 +99,35 @@ voice with no evidence tying it there. The gate is a sandbag in front of that ho
    matcher exactly as it is. LLM where there is an LLM; deterministic cues where there is not —
    the same split diarization and summarization already use.
 
+5. **A voice that TALKS ABOUT somebody is not that somebody — and that is CHECKED, not asked for.**
+   The retrieval that makes this work is also what misleads the model: it hands over passages
+   labelled with the voice that spoke them, and a model reads a name sitting beside a voice as
+   association. On FT Unhedged's "The Fed holds steady" it gave **53.5% of the episode to Jay
+   Powell** — SPEAKER_01 is Rob Armstrong, the co-host, discussing him. A prompt is not an
+   enforcement mechanism (#876), so the answer is verified: if a voice utters a name and never
+   introduces itself with it, the assignment is discarded. Across 90 episodes this fired **40
+   times**, and it is what removes Jay Powell, Donald Trump, Steve Witkoff and Mariska Hargitay.
+
+## Measured
+
+90 **distinct** episodes, 9 shows, prod detector (gemini-2.5-flash-lite), full roster.
+
+> The corpus is 90 episodes, not the 160 quoted in earlier notes: Hard Fork's 10 episodes sat in 8
+> run directories from our own diarization sweeps, so a naive glob counted them 8x and weighted a
+> well-named co-hosted show to half the sample.
+
+| | before | after |
+| --- | ---: | ---: |
+| **named** (`person`) | 65.17% | **71.91%** |
+| **our defect** (`unknown`) | 31.63% | **25.41%** |
+| episodes with >= 25% of talk unattributed | 45 / 90 | **36 / 90** |
+
+24 names newly admitted, every one via `llm_resolution` and every one read. Spot-checked against
+the audio's own words: **Tucker Carlson** (73.3% — the NYT *Interview* podcast, genuinely him:
+*"Thanks for having me. Most people don't come to this part of Maine"*), **Qasar Younis**, **Robert
+Armstrong** (x3), **Joe Leahy**, **swyx** and **Alessio** (the Latent Space hosts, whom the feed
+never names).
+
 ## Alternatives considered
 
 ### A. Relax the corroboration regex

@@ -605,6 +605,7 @@ def _name_host_voices(
     host_pool: Sequence[Tuple[str, str]],
     voice_intro: Dict[str, str],
     used_lower: set,
+    llm_named: Optional[set] = None,
 ) -> Dict[str, SpeakerRole]:
     """Name host voices: own self-introduction first, else the ordered host-name pool."""
     out: Dict[str, SpeakerRole] = {}
@@ -613,7 +614,8 @@ def _name_host_voices(
         iname = voice_intro.get(v)
         if iname and iname.lower() not in used_lower:
             used_lower.add(iname.lower())
-            out[v] = SpeakerRole(name=iname, role="host", named=True, source="self_intro")
+            src = "llm_resolution" if (llm_named and v in llm_named) else "self_intro"
+            out[v] = SpeakerRole(name=iname, role="host", named=True, source=src)
             continue
         while hi < len(host_pool) and host_pool[hi][0].lower() in used_lower:
             hi += 1
@@ -635,6 +637,7 @@ def _name_guest_voices(
     host_names_lower: set,
     used_lower: set,
     talk: Optional[Dict[str, float]] = None,
+    llm_named: Optional[set] = None,
 ) -> Dict[str, SpeakerRole]:
     """Name the remaining voices from EVIDENCE, never from position.
 
@@ -672,7 +675,8 @@ def _name_guest_voices(
         iname = voice_intro.get(v)
         if iname and iname.lower() not in used_lower and iname.lower() not in host_names_lower:
             used_lower.add(iname.lower())
-            out[v] = SpeakerRole(name=iname, role="guest", named=True, source="self_intro")
+            src = "llm_resolution" if (llm_named and v in llm_named) else "self_intro"
+            out[v] = SpeakerRole(name=iname, role="guest", named=True, source=src)
         elif forced is not None and v == unassigned[0]:
             used_lower.add(forced.lower())
             out[v] = SpeakerRole(name=forced, role="guest", named=True, source="forced")
@@ -828,9 +832,14 @@ def resolve_speaker_roster(
     #
     # It can only ever MATCH a name the metadata already stated (the resolver enforces the closed
     # list), so it cannot invent a speaker here; the worst it can do is misplace a real one.
+    llm_named: set = set()
     for v, n in (llm_voice_names or {}).items():
         if v not in ad_voices and v not in voice_intro:
             voice_intro[v] = _canonicalize_to_known_host(n, known_hosts)
+            # PROVENANCE. These must not be recorded as `self_intro`: an audit that cannot tell a
+            # name the voice SAID from a name a model INFERRED cannot audit the model at all, and
+            # the model is the part that needs watching.
+            llm_named.add(v)
 
     ad_names_lower = {
         n.lower()
@@ -932,7 +941,7 @@ def resolve_speaker_roster(
     host_names_lower = {n.lower() for n, _ in host_pool}
     used_lower: set[str] = set()
 
-    by_voice = _name_host_voices(host_voices, host_pool, voice_intro, used_lower)
+    by_voice = _name_host_voices(host_voices, host_pool, voice_intro, used_lower, llm_named)
 
     # The host also NAMES the guest out loud — "My guest today is Brian Chesky". That is a stated
     # fact from the conversation, and it complements the guests the episode description declared
@@ -979,6 +988,7 @@ def resolve_speaker_roster(
             host_names_lower,
             used_lower,
             talk=total,
+            llm_named=llm_named,
         )
     )
     # They still belong in the roster — as "Advertisement", not as a missing id.

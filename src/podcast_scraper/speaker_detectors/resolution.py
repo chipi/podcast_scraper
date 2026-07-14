@@ -73,9 +73,11 @@ def retrieve_mentions(
             hi = min(len(body), m.end() + context_chars // 2)
             passage = re.sub(r"\s+", " ", body[lo:hi]).strip()
             nxt = ordered_turns[i + 1][0] if i + 1 < len(ordered_turns) else None
+            # "said by X" reads as "X is associated with this name", which is the opposite of what a
+            # third-person mention means. Say what it actually is: somebody TALKING ABOUT them.
             out.append(
-                f'said by {voice}: "...{passage}..."'
-                + (f" -> the NEXT voice to speak is {nxt}" if nxt and nxt != voice else "")
+                f'{voice} says this ABOUT them (so {voice} is probably NOT them): "...{passage}..."'
+                + (f" | the NEXT voice to speak is {nxt}" if nxt and nxt != voice else "")
             )
             if len(out) >= MAX_MENTIONS_PER_NAME:
                 return out
@@ -173,6 +175,44 @@ def _parse(raw: str) -> Dict[str, Optional[str]]:
     return {str(k): (str(v) if v not in (None, "", "null") else None) for k, v in voices.items()}
 
 
+def _introduces_itself_as(text: str, name: str) -> bool:
+    """Does this voice say "I'm X" / "this is X" / "my name is X" in its own turns?"""
+    first = re.split(r"\s+", name.strip())[0]
+    return bool(
+        re.search(
+            rf"\b(?:I'?m|I am|my name is|this is)\s+(?:{re.escape(name)}|{re.escape(first)})\b",
+            text or "",
+            re.IGNORECASE,
+        )
+    )
+
+
+def _talks_about(text: str, name: str) -> bool:
+    """Does this voice utter the name at all (in any context)?"""
+    tokens = [t for t in re.split(r"\s+", name.strip()) if t]
+    if not tokens:
+        return False
+    return bool(
+        re.search(rf"\b(?:{re.escape(name)}|{re.escape(tokens[-1])})\b", text or "", re.IGNORECASE)
+    )
+
+
+def _refuted_by_third_person(voice_text: str, name: str) -> bool:
+    """IF YOU SAY SOMEBODY'S NAME IN THE THIRD PERSON, YOU ARE NOT THEM.
+
+    The retrieval that makes this work is also what misleads the model. It hands over passages
+    labelled "said by SPEAKER_01: '...Jay Powell, chair of the Federal Reserve, made a joke...'" and
+    a model reads the name sitting next to the voice as association — so on an FT Unhedged episode
+    ABOUT the Fed, it gave 53.5% of the show to Jay Powell. SPEAKER_01 is Rob Armstrong, the
+    co-host, discussing him.
+
+    So this is checked, not asked for. A voice that utters a name and never introduces itself with
+    it is talking ABOUT that person, and cannot BE them. Deterministic, like the closed-list rule —
+    a prompt is not an enforcement mechanism (#876).
+    """
+    return _talks_about(voice_text, name) and not _introduces_itself_as(voice_text, name)
+
+
 def resolve_voices_from_conversation(
     stated_names: Sequence[str],
     voice_texts: Dict[str, str],
@@ -204,6 +244,7 @@ def resolve_voices_from_conversation(
     out: Dict[str, str] = {}
     used: set = set()
     invented: List[str] = []
+    refuted: List[str] = []
 
     for voice, name in _parse(raw).items():
         if not name or voice not in voice_texts:
@@ -211,6 +252,9 @@ def resolve_voices_from_conversation(
         canonical = by_stated.get(name.strip().lower())
         if canonical is None:
             invented.append(name)
+            continue
+        if _refuted_by_third_person(voice_texts[voice], canonical):
+            refuted.append(f"{voice}={canonical}")
             continue
         if canonical.lower() in used:  # rule 4 — one person, one voice
             continue
@@ -223,6 +267,14 @@ def resolve_voices_from_conversation(
             "The model may identify a voice, never author a name.",
             len(invented),
             ", ".join(sorted(set(invented))),
+        )
+    if refuted:
+        logger.warning(
+            "speaker resolution assigned %d name(s) to a voice that TALKS ABOUT that person in the "
+            "third person and never introduces itself as them (%s) — DISCARDED. Saying somebody's "
+            "name does not make you them.",
+            len(refuted),
+            ", ".join(sorted(set(refuted))),
         )
     if out:
         logger.info(
