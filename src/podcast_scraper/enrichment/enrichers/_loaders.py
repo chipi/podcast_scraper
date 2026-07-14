@@ -92,6 +92,27 @@ def publish_date(art: dict[str, Any]) -> str | None:
     return None
 
 
+def is_surfaceable_insight(node: dict[str, Any]) -> bool:
+    """False when GI marked an insight unsurfaceable — its speaker is not a named person.
+
+    An unattributed STANCE is not a stance: nobody holds it, nobody can disagree with it. GI sets
+    ``surfaceable: False`` when the speaking voice is an advertisement, a person we failed to name,
+    or the vox-pop of a narrated piece that nobody names.
+
+    Enrichers that feed a SURFACE must honour it. ``insight_sentiment`` is the colour layer for the
+    **per-person position arc** — and an unsurfaceable insight has no person. ``insight_density``
+    feeds a timeline the user actually looks at, so counting insights they will never see inflates
+    it: on Planet Money and The Daily the tape is 36-40% of the episode.
+
+    Corpus-scope / CONNECT enrichers (topic co-occurrence, theme clusters) are free to keep them —
+    a fact is still a fact, and a story thread never needed a speaker.
+    """
+    props = node.get("properties")
+    if not isinstance(props, dict):
+        return True
+    return props.get("surfaceable") is not False
+
+
 def is_unresolved_speaker_placeholder(person_id: str, name: str | None = None) -> bool:
     """True when *person_id* / *name* looks like a per-episode diarization label.
 

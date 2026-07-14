@@ -20,6 +20,7 @@ from typing import Any
 from podcast_scraper.enrichment.enrichers._loaders import (
     edges_of_type,
     episode_duration_seconds,
+    is_surfaceable_insight,
     load_gi,
     load_metadata,
     nodes_of_type,
@@ -88,12 +89,23 @@ def _compute(
         qid = str(node.get("id") or "")
         if qid:
             quote_start[qid] = _quote_start_s(node)
+    # This feeds a timeline the user actually looks at, so it must count what the user can SEE.
+    # An unsurfaceable insight — an advert, a voice we failed to name, the vox-pop of a narrated
+    # piece that nobody names — never reaches a surface, and counting it inflates the density with
+    # insights nobody will ever be shown. On Planet Money and The Daily the tape is 36-40% of the
+    # episode, so this is not a rounding error.
+    surfaceable_ids = {
+        str(n.get("id") or "")
+        for n in nodes_of_type(gi, "Insight")
+        if is_surfaceable_insight(n) and n.get("id")
+    }
+
     # Insight id → Quote ids (via SUPPORTED_BY)
     insight_quotes: dict[str, list[str]] = {}
     for edge in edges_of_type(gi, "SUPPORTED_BY"):
         iid = str(edge.get("from") or "")
         qid = str(edge.get("to") or "")
-        if not iid or not qid:
+        if not iid or not qid or iid not in surfaceable_ids:
             continue
         insight_quotes.setdefault(iid, []).append(qid)
 
