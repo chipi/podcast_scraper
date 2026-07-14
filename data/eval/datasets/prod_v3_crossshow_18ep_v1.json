@@ -71,27 +71,27 @@
       "show": "rss_feeds.megaphone.fm_755f5437",
       "title": "0002 - SAP_ Bringing the _Operating Sys",
       "transcript_path": ".test_outputs/relabel-v3/rss_feeds.megaphone.fm_755f5437/0002 - SAP_ Bringing the _Operating Sys_20260613-120852_ba02775e.txt",
-      "transcript_hash": "c4682b47a3643b30534870ef3361c640420eb79c0196443616a466edb6e92132",
+      "transcript_hash": "300a6fb3a6d60781e2f971010f077049b266e46cbf7d6b47c1da93c09e4e881c",
       "preprocessing_profile": "cleaning_v5",
-      "chars": 47299
+      "chars": 47365
     },
     {
       "episode_id": "feeds.npr.org_7ce5b183_e01",
       "show": "rss_feeds.npr.org_7ce5b183",
       "title": "0001 - How to make a BOOK into a bestse",
       "transcript_path": ".test_outputs/relabel-v3/rss_feeds.npr.org_7ce5b183/0001 - How to make a BOOK into a bestse_20260613-165729_ba02775e.txt",
-      "transcript_hash": "f7832fa1e94a014c5d4009ffac86f23e87041d925ef09c33dea22b2286e2b1fe",
+      "transcript_hash": "fb7612f6ed92eff6c5cb491779c6eecb8279a2f0fc2ed589b4ff2aa92d7a88d4",
       "preprocessing_profile": "cleaning_v5",
-      "chars": 54489
+      "chars": 54501
     },
     {
       "episode_id": "feeds.npr.org_7ce5b183_e02",
       "show": "rss_feeds.npr.org_7ce5b183",
       "title": "0002 - Spirit Airlines and the future o",
       "transcript_path": ".test_outputs/relabel-v3/rss_feeds.npr.org_7ce5b183/0002 - Spirit Airlines and the future o_20260613-165729_ba02775e.txt",
-      "transcript_hash": "6fa7e9299792c46766adad8aed4cb3790de80fe2d45be2108340a7c0883d4aa5",
+      "transcript_hash": "ba31aece9704bfece8baa85e83bfff0ab0f9671c22be62676e2c231353b26bd8",
       "preprocessing_profile": "cleaning_v5",
-      "chars": 27804
+      "chars": 27822
     },
     {
       "episode_id": "feeds.simplecast.com_2_e01",
@@ -116,36 +116,36 @@
       "show": "rss_feeds.simplecast.com_999571cd",
       "title": "0001 - Democratic Anger and Republican",
       "transcript_path": ".test_outputs/relabel-v3/rss_feeds.simplecast.com_999571cd/0001 - Democratic Anger and Republican _20260613-205101_ba02775e.txt",
-      "transcript_hash": "9d03c2ff8e35d5b037b325540fc7842a92560e398d5bc705713d471633efca56",
+      "transcript_hash": "51f573236af0e4590fd3b83ef36e28839eb9c73da076775c87c211960a8e9719",
       "preprocessing_profile": "cleaning_v5",
-      "chars": 24774
+      "chars": 24918
     },
     {
       "episode_id": "feeds.simplecast.com_9_e02",
       "show": "rss_feeds.simplecast.com_999571cd",
       "title": "0002 - What Drives Political Violence i",
       "transcript_path": ".test_outputs/relabel-v3/rss_feeds.simplecast.com_999571cd/0002 - What Drives Political Violence i_20260613-205101_ba02775e.txt",
-      "transcript_hash": "ca39cc74ccb61e0623efca5f8484ed0b8c6c4b2c8404b7604fc9fd06391420d3",
+      "transcript_hash": "c6c0da8c8ca2ea4de6fc50d1d56bf065f70de955d2b2d989625fa5e955be2a01",
       "preprocessing_profile": "cleaning_v5",
-      "chars": 27617
+      "chars": 27539
     },
     {
       "episode_id": "rss.flightcast.com_c63_e01",
       "show": "rss_rss.flightcast.com_c63dc3c0",
       "title": "0001 - _Doing Vibe Physics _ Alex Lupsa",
       "transcript_path": ".test_outputs/relabel-v3/rss_rss.flightcast.com_c63dc3c0/0001 - _Doing Vibe Physics _ Alex Lupsa_20260613-180825_ba02775e.txt",
-      "transcript_hash": "d9fd9fead32342058a5335fbea186c7b8c09ca3525bd8ff66f185572799de2be",
+      "transcript_hash": "91946ed5ccb278e5803908f41bce30ad69fa0dd79b731a7a1a4862d53fc56a54",
       "preprocessing_profile": "cleaning_v5",
-      "chars": 91044
+      "chars": 91101
     },
     {
       "episode_id": "rss.flightcast.com_c63_e02",
       "show": "rss_rss.flightcast.com_c63dc3c0",
       "title": "0002 - Physical AI that Moves the World",
       "transcript_path": ".test_outputs/relabel-v3/rss_rss.flightcast.com_c63dc3c0/0002 - Physical AI that Moves the World_20260613-180825_ba02775e.txt",
-      "transcript_hash": "d126db652e2527154eef436c5097663fbbc3ca66fb4ad72f58ea62f5c9ceeebd",
+      "transcript_hash": "b4c71f93e6e5c5f1602d882efe5a7430c56b2c9382187813a6287ecfcb00c46c",
       "preprocessing_profile": "cleaning_v5",
-      "chars": 80339
+      "chars": 80379
     },
     {
       "episode_id": "video-api.wsj.com_9acc_e01",

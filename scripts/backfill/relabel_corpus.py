@@ -95,10 +95,36 @@ def _relabel(path: Path, feed_hosts: List[str], title: str, description: str, nl
         ordered_turns=[(str(s["speaker"]), (s.get("text") or "")) for s in segs],
     )
 
+    # `voice_type` and `speaker_role` are what GI's gates read: an advertisement is never grounded,
+    # and an unattributed voice is never surfaced. Writing only `speaker_label` leaves every one of
+    # those gates INERT — the transcripts look right and the gates guard nothing. This mirrors
+    # `_enriched_segments` in the production diarization pipeline, which is the contract GI expects.
     for s in segs:
-        s["speaker_label"] = roster.label_for(str(s["speaker"]))
+        vid = str(s["speaker"])
+        s["speaker_label"] = roster.label_for(vid)
+        role = roster.by_voice.get(vid)
+        if role is not None and not role.named:
+            if role.voice_type != "person":
+                s["voice_type"] = role.voice_type
+            if role.role == "host":
+                s["speaker_role"] = "host"
 
     text, offset_segs = format_diarized_screenplay_with_offsets(segs)
+
+    # The formatter REBUILDS each segment dict (start/end/speaker_label/text/char_start/char_end),
+    # so anything else on the input is dropped — including the `voice_type` GI's gates read. Without
+    # it every gate is inert: the transcripts look right and nothing is guarded. Re-attach it here,
+    # keyed on the label, since an unnamed voice's label IS its raw id.
+    by_label = {roster.label_for(v): r for v, r in roster.by_voice.items() if not r.named}
+    for seg in offset_segs:
+        role = by_label.get(str(seg.get("speaker_label")))
+        if role is None:
+            continue
+        if role.voice_type != "person":
+            seg["voice_type"] = role.voice_type
+        if role.role == "host":
+            seg["speaker_role"] = "host"
+
     named = sorted({r.name for r in roster.by_voice.values() if r.named})
     return {"segments": offset_segs, "text": text, "named": named, "guests": guests}
 
