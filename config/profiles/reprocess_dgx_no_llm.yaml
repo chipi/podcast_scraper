@@ -63,3 +63,11 @@ generate_summaries: false
 generate_gi: false
 generate_kg: false
 vector_search: false
+
+# This profile rebuilds a corpus's DETERMINISTIC layer only — no summariser, no LLM — so there is
+# nothing for the enrichers to read. Declared explicitly rather than omitted: an absent block used
+# to fall through to the unknown-profile warning, where "no enrichers because we decided so" and
+# "no enrichers because nobody mapped this profile" look identical in the output.
+enrichment:
+  enabled: false
+  enrichers: {}
