@@ -30,6 +30,7 @@ from ..graph_id_utils import (
 )
 from ..utils.log_redaction import format_exception_for_log
 from .grounding import GroundedQuote
+from .invariants import log_artifact_invariants
 from .provenance import resolve_gil_artifact_model_version
 from .speakers import build_unverified_named_turns, speaker_for_char
 
@@ -1615,7 +1616,7 @@ def _artifact_from_multi_insight(
                 persons_added,
             )
 
-    return {
+    artifact = {
         "schema_version": "3.0",  # RFC-097 chunk 9: v3.0 GI emit
         "model_version": model_version,
         "prompt_version": prompt_version,
@@ -1623,3 +1624,10 @@ def _artifact_from_multi_insight(
         "nodes": nodes,
         "edges": edges,
     }
+
+    # The stage checks its own output. Every GI bug in this arc shipped silently — insights with no
+    # quotes, quotes with no speaker, a speaker who never holds the mic — and every one of them
+    # reported success. Logging, not raising: a disconnected wire must be loud, but an episode that
+    # already paid for transcription should still emit what it has.
+    log_artifact_invariants(artifact, transcript_text, named_turns)
+    return artifact
