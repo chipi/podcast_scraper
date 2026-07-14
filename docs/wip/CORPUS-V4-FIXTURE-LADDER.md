@@ -133,12 +133,14 @@ Freeze the **real** pyannote output for a handful of episodes and hand-label the
 
 - **Input:** the actual diarization turns (`start`, `end`, `speaker`) — already on disk, no GPU to
   regenerate — plus each voice's own text.
+
 - **Ground truth:** for every voice: `host | guest | advertisement | cameo`, and the correct name.
 - **Assert:** the roster reproduces it exactly.
 - **Cost:** zero GPU, milliseconds to run, and it is the only tier that would have caught the two
   bugs that shipped.
 
 Seed it with the cases we already know are hard:
+
 1. **Hard Fork ep1** — pre-roll ad (2 voices), mid-roll ad, 2 hosts, 2 guests, one 2-second
    mis-assigned turn. This single episode is a better test than the entire synthetic suite.
 2. An episode with **no guests** (news round-up) — the roster must not invent one.
@@ -153,11 +155,14 @@ Some truths are only visible **across** episodes. These would have caught the ad
 - **An advertisement repeats; editorial does not.** Near-identical text blocks recurring across
   episodes of a feed are ads. This is the proposed fix for the mid-roll (#1188), and it is exact:
   `Jonathan Knight` reads the *same copy verbatim in 7 of 10 episodes*.
+
 - **A host recurs; a guest usually does not.** A "host" appearing in exactly one episode is
   suspicious. `Amy Lawrence` appeared in **10/10** with **0.3% talk share** — a host who never
   speaks is a contradiction, and it is checkable.
+
 - **A person's talk share should be consistent with their role.** A `host` under 5% of talk, or a
   `guest` over 50%, is a smell.
+
 - **No corpus-wide near-duplicate names.** `Kevin Roos` / `Kevin Russo` / `Kevin Roose` are one man.
 
 Run these as a **corpus audit** over the rebuilt 10 episodes and fail the build on violations.
@@ -195,7 +200,7 @@ looks like that**, and every bug we shipped lived in the difference.
 
 This is Hard Fork ep1, measured from the actual diarization (2-minute blocks, dominant voice):
 
-```
+```text
   0:00 – 0:30    PRE-ROLL AD        two voices, neither ever heard again, both self-introducing
   0:30 – 30:00   HOSTS              Kevin/Casey alternating every 2–6 min: banter, then news
  ~36:00          MID-ROLL AD        one voice, ~50s, self-introducing, same copy in 7/10 episodes
@@ -230,11 +235,14 @@ the episode:
 
 - **Inside the 22-minute guest block** — attribution is *forgiving*. An offset can be wrong by a
   paragraph and still land on the right speaker.
+
 - **In the banter** — attribution is *brutal*. Turns are seconds long, so an offset that is wrong by
   one sentence flips Kevin into Casey. This is where an insight silently changes mouths.
+
 - **At a handoff** (52:00) — the host and guest are adjacent, so an off-by-one-turn error swaps a
   guest's claim onto a host. This is the single most dangerous position in the episode and we do not
   test it at all.
+
 - **Inside an ad** — a quote grounded here is *always* wrong, and worse, it is fluent, confident,
   and quotable ("If you play our games, you probably know there's something a bit different about
   them"). Ad copy is written to be memorable. It is the perfect false insight.
@@ -248,7 +256,7 @@ Build a single **canonical episode fixture** with the structure above, and deriv
 it. It costs nothing to run (it is timings + text, no audio, no GPU) and it exercises every failure
 mode at once:
 
-```
+```text
 episode: hardfork_canonical
   0:00–0:30    AD_1, AD_2      self-introduce; never return          -> must be "Advertisement"
   0:30–30:00   HOST_A, HOST_B  alternate in 2–6 min blocks           -> both must be hosts
@@ -276,6 +284,7 @@ Then perturb it — this is where the real bugs were:
 
 - **`+noise`**: reassign one 2-second turn from `AD_1` to a random mid-episode position. (This exact
   perturbation, in real pyannote output, put the guest's name on a host.)
+
 - **`+short`**: the same show cut to 4 minutes. (Guards the scale rule.)
 - **`+swap`**: the guest answers at length inside the first 90 seconds. (#1169.)
 - **`+solo`**: no guests at all — a news round-up. (The roster must not invent one.)
@@ -301,11 +310,136 @@ the roster.
 
 ---
 
+---
+
+## G. Identity is READ, not inferred — and the fixtures must force that
+
+Added after the roster was rebuilt a third time. This is the failure I repeated most, so it gets its
+own section: **five times in three days I ignored the metadata and built a statistical rule instead.**
+
+### What went wrong
+
+I inferred hosts from talk share and span — "a host talks a lot and is present from the first minute
+to the last". That is not a property of podcasts. It is a property of **one** podcast, and it
+inverts by format:
+
+| show | who talks most | who actually hosts |
+| --- | --- | --- |
+| Invest Like the Best | the **guest**, 82% | Patrick O'Shaughnessy, **17%** |
+| Latent Space | the **guest**, 84.5% | Brandon, **8.6%** |
+| Hard Fork | the hosts, 26–39% | the hosts |
+| Hard Fork | the episode is **opened by a pre-roll ADVERT** | not a host at all |
+
+Any rule keyed on "who talks most" or "who opens" is tuned to whichever show it was written against.
+Meanwhile **the feed says who hosts it, in plain English** — 7 of our 10 state it outright:
+
+```text
+Hard Fork      "journalists Kevin Roose and Casey Newton explore..."
+The Journal    "Hosted by Ryan Knutson and Jessica Mendoza."
+No Priors      "co-hosts Elad Gil and Sarah Guo talk to..."
+Odd Lots       "Bloomberg's Joe Weisenthal and Tracy Alloway explore..."
+Invest Like…   in the TITLE: "Invest Like the Best with Patrick O'Shaughnessy"
+```
+
+### The contract the fixtures must now enforce
+
+| source | answers | must never |
+| --- | --- | --- |
+| **metadata** (feed title/description/authors; episode description) | **WHO** the hosts are, and **HOW MANY** | be overruled by a statistic |
+| **the conversation** (transcript) | **WHICH VOICE** each one is; and the whole answer when the feed is silent | promote a voice that performs no role |
+| **talk share** | **ad vs person** only (30 seconds vs 20 minutes — that gap does not invert) | ever separate host from guest |
+
+The role is **performed**: the host welcomes you to the show and introduces the guest; the guest says
+thanks for having me. That is format-independent, and it is what finally worked.
+
+### The cases the fixtures must simulate
+
+Every one of these is real, and each is a distinct trap. A fixture suite that omits any of them will
+let the same class of bug back in.
+
+| # | case | real example | what it breaks |
+| --- | --- | --- | --- |
+| 1 | **guest out-talks the host 5:1** | Invest Like the Best (82% / 17%) | any talk-share host rule |
+| 2 | **host holds <10% of the episode** | Latent Space (Brandon, 8.6%) | "the host talks a lot" |
+| 3 | **the labels are SWAPPED** | NVIDIA — the cluster labelled `Nicolas Cerisier` says *"I'm Noah Kravitz. My guest is Nicolas Serissier"* | everything downstream; only the conversation reveals it |
+| 4 | **the feed names NO host** | Planet Money, Latent Space, NVIDIA (3/10) | metadata-only designs |
+| 5 | **the description lists PAST GUESTS** | Latent Space — Bret Taylor, Chris Lattner, George Hotz | NER-over-description. A better NER does **not** fix it: they *are* people |
+| 6 | **the show's own name looks like a person** | "At **Planet Money**, we explore..." | naive capitalised-run extraction |
+| 7 | **publisher possessive glued to the name** | "**Bloomberg's** Joe Weisenthal" | name cleaning |
+| 8 | **the host is only in the TITLE** | "Invest Like the Best **with Patrick O'Shaughnessy**" | description-only parsing |
+| 9 | **an ad narrator self-introduces** | "I'm Paul Tenorio. I cover soccer for The Athletic." | the most-trusted naming signal |
+| 10 | **a host's turn merges into a guest's cluster** | Hard Fork — briefly produced a THIRD host | uncapped conversation-derived roles |
+| 11 | **rotating/narrated hosts, 13 voices** | Planet Money | two-speaker assumptions |
+| 12 | **a cross-post: the feed's hosts are not the episode's** | Hard Fork ep6 is an Ezra Klein show | feed-level `known_hosts` applied blindly |
+
+### How to build them: one golden fixture per SHOW, plus a metadata axis
+
+The tier-3 golden fixtures (real diarization + hand-labelled truth) need a **second half**: the
+metadata each episode was resolved against. A roster fixture without its feed metadata is testing
+half the system, and it is the half that was never the problem.
+
+Each show's fixture should therefore carry:
+
+```yaml
+show: hard_fork
+feed:
+  title: "Hard Fork"
+  description: "...journalists Kevin Roose and Casey Newton explore..."
+  authors: ["The New York Times"]          # an ORG — must not become a host
+expected_hosts_from_feed: ["Kevin Roose", "Casey Newton"]   # and HOW MANY: 2
+
+episode:
+  description: "...a trial against Elon Musk... Dr. Adam Rodman, of Harvard, returns..."
+expected_guests_after_gate: ["Dr. Adam Rodman"]             # Musk/Altman rejected
+
+diarization:            # the REAL pyannote turns, frozen. No audio, no GPU.
+  - {start: 0.0,   end: 15.0,  speaker: SPEAKER_04}
+  - ...
+voice_texts:            # each cluster's own words — where the role is PERFORMED
+  SPEAKER_04: "I'm Paul Tenorio. I cover soccer for The Athletic."
+  SPEAKER_07: "I'm Kevin Russo and this is Hard Fork."          # ASR mangles the name
+
+expected_roster:
+  SPEAKER_04: {role: advertisement, named: false}
+  SPEAKER_07: {role: host,  name: "Kevin Roose"}               # snapped to the FEED's spelling
+  SPEAKER_03: {role: guest, name: "Dr. Adam Rodman"}
+```
+
+**The perturbations, and which case each one guards:**
+
+| perturbation | how | guards |
+| --- | --- | --- |
+| `+no_feed_hosts` | blank the feed description | 4 — forces the conversation path |
+| `+swapped` | exchange two clusters' texts | 3 — the NVIDIA bug |
+| `+quiet_host` | shrink the host's turns to <10% | 2 |
+| `+loud_guest` | grow the guest's turns to >80% | 1 |
+| `+stray_turn` | move one 2-second turn of an ad voice to mid-episode | the cascade that put a guest's name on a host |
+| `+guest_soup` | add "Past guests include ..." to the feed description | 5 |
+| `+merged_cluster` | append a host sentence to the guest's `voice_texts` | 10 — the third-host bug |
+| `+short` | cut the episode to 4 minutes | the scale rule |
+| `+solo` | remove the guest entirely | the roster must not invent one |
+| `+crosspost` | swap in another show's hosts | 12 |
+
+Each perturbation is a **one-line edit to a frozen fixture**, costs no GPU, and reproduces a bug that
+actually shipped. That is the whole point of doing it this way rather than adding more toy strings.
+
+### The assertion that would have caught everything
+
+> **No name may appear in the roster that is not either (a) stated in the feed, (b) stated in the
+> episode description and corroborated, or (c) spoken in the transcript by the voice it is assigned
+> to.**
+
+`Amy Lawrence`, `Paul Tenorio`, `Elon Musk`, `Sam Altman`, `Tim Cook` — every single one fails that
+test. It is checkable, it is cheap, and it belongs in the corpus audit (tier 4).
+
+---
+
 ## Open items
 
 - **#1188 mid-roll house ads** — `Jonathan Knight` still enters the corpus as a *guest* of Hard Fork
   with `GUESTS_ON` edges. He does not displace a real guest and no longer poisons host detection, so
   it is corpus pollution rather than misattribution. Proposed fix: cross-episode repetition (tier 4).
+
 - **Under-attribution is now the failure mode.** The corroboration gate drops guests whose names
   appear only in the transcript, not the description (`David Duvenaud`, `Andrew Marantz`). The
   roster's per-voice self-intro is the safety net. This trade is deliberate (#876 — a wrong name is
