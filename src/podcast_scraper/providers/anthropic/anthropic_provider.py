@@ -1757,6 +1757,34 @@ class AnthropicProvider:
         # Preserve input order; a missing id keeps the insight (tier 3) rather than dropping it.
         return [int(tiers.get(f"i{idx}", 3)) for idx in range(len(insights))]
 
+    def complete_text(self, prompt: str) -> str:
+        """One prompt in, one JSON answer out — the generic call ADR-110's resolver needs.
+
+        `detect_speakers` is asked who speaks BEFORE the audio is downloaded, so it can only answer
+        from show notes and returns the people an episode is ABOUT (that is how Elon Musk became a
+        speaker, #876). The resolver asks the same model the same question AFTER diarization, with
+        each voice's own words in hand — and that needs a plain completion, not a task method whose
+        prompt is baked in.
+
+        A provider WITHOUT this silently resolves nobody: the pipeline degrades instead of failing,
+        and the model gets blamed for a method we never wrote.
+        """
+        if not self._summarization_initialized:
+            raise RuntimeError("Anthropic summarization not initialized for complete_text")
+
+        response = self.client.messages.create(
+            model=self.summary_model,
+            max_tokens=800,
+            temperature=0.0,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        content = ""
+        if response.content and len(response.content) > 0:
+            first = response.content[0]
+            content = (getattr(first, "text", "") or "").strip()
+        _guardrails.check_chat_response(content, service="anthropic", expect_json=True)
+        return _insight_salvage.strip_json_fence(content)
+
     def extract_kg_graph(
         self,
         text: str,
@@ -1848,21 +1876,13 @@ class AnthropicProvider:
         import json
 
         from ...gi.grounding import QuoteCandidate, resolve_llm_quote_span
+        from ..common.evidence_prompts import render_extract_quote_prompt
 
-        system = (
-            "Extract all short verbatim quotes from the transcript that "
-            "support the given insight. CRITICAL: each quote must be a "
-            "DIFFERENT passage — never repeat the same text. Find evidence "
-            "from separate parts of the transcript, including the later parts. "
-            "Reply with ONLY a JSON object: "
-            '{"quotes": ["quote from early in transcript", '
-            '"quote from middle", "quote from end"]}'
-        )
-        excerpt = transcript.strip()[: config_constants.GI_QUOTE_TRANSCRIPT_MAX_CHARS]
-        user = (
-            f"Transcript (excerpt):\n{excerpt}\n\n"
-            f"Insight: {insight_text.strip()}\n\n"
-            "Return JSON with quote_text only."
+        system, user = render_extract_quote_prompt(
+            "anthropic",
+            transcript,
+            insight_text,
+            config_constants.GI_QUOTE_TRANSCRIPT_MAX_CHARS,
         )
         try:
             from ...utils.provider_metrics import (
@@ -1967,11 +1987,9 @@ class AnthropicProvider:
         """Score entailment of hypothesis given premise (GIL NLI via LLM). 0–1."""
         if not self._summarization_initialized or not (premise and hypothesis):
             return 0.0
-        system = (
-            "You rate how much the premise supports the hypothesis. "
-            "Reply with ONLY a number between 0 and 1 (0=not at all, 1=fully supports)."
-        )
-        user = f"Premise: {premise.strip()}\n\nHypothesis: {hypothesis.strip()}"
+        from ..common.evidence_prompts import render_entailment_prompt
+
+        system, user = render_entailment_prompt("anthropic", premise, hypothesis)
         try:
             from ...utils.provider_metrics import (
                 _safe_anthropic_retryable,

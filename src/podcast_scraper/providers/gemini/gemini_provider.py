@@ -2083,21 +2083,13 @@ class GeminiProvider:
         import json
 
         from ...gi.grounding import QuoteCandidate, resolve_llm_quote_span
+        from ..common.evidence_prompts import render_extract_quote_prompt
 
-        system = (
-            "Extract all short verbatim quotes from the transcript that "
-            "support the given insight. CRITICAL: each quote must be a "
-            "DIFFERENT passage — never repeat the same text. Find evidence "
-            "from separate parts of the transcript, including the later parts. "
-            "Reply with ONLY a JSON object: "
-            '{"quotes": ["quote from early in transcript", '
-            '"quote from middle", "quote from end"]}'
-        )
-        excerpt = transcript.strip()[: config_constants.GI_QUOTE_TRANSCRIPT_MAX_CHARS]
-        user = (
-            f"Transcript (excerpt):\n{excerpt}\n\n"
-            f"Insight: {insight_text.strip()}\n\n"
-            "Return JSON with quote_text only."
+        system, user = render_extract_quote_prompt(
+            "gemini",
+            transcript,
+            insight_text,
+            config_constants.GI_QUOTE_TRANSCRIPT_MAX_CHARS,
         )
         try:
             from ...utils.provider_metrics import (
@@ -2340,11 +2332,9 @@ class GeminiProvider:
         """Score entailment of hypothesis given premise (GIL NLI via LLM). 0–1."""
         if not self._summarization_initialized or not (premise and hypothesis):
             return 0.0
-        system = (
-            "You rate how much the premise supports the hypothesis. "
-            "Reply with ONLY a number between 0 and 1 (0=not at all, 1=fully supports)."
-        )
-        user = f"Premise: {premise.strip()}\n\nHypothesis: {hypothesis.strip()}"
+        from ..common.evidence_prompts import render_entailment_prompt
+
+        system, user = render_entailment_prompt("gemini", premise, hypothesis)
         try:
             from ...utils.provider_metrics import (
                 _safe_gemini_retryable,
