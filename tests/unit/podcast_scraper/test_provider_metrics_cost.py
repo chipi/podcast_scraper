@@ -147,19 +147,16 @@ def test_record_provider_call_cost_backfills_when_cost_none() -> None:
 def test_record_provider_call_cost_emits_langfuse_span(monkeypatch: pytest.MonkeyPatch) -> None:
     """The cost choke point forwards every billable call to Langfuse tracing (#1052).
 
-    Validates the *wiring* (record_provider_call_cost -> emit_langfuse_span), which the
-    langfuse_tracing unit tests can't see. Langfuse is mocked, so no SDK/network is touched.
+    Validates the *wiring* end to end: record_provider_call_cost -> emit_llm_cost_event ->
+    emit_langfuse_span (the span now emits from the single cost choke point so gi/evidence/cleaning
+    are covered too, not just this path). Langfuse is mocked, so no SDK/network is touched; the real
+    emit_llm_cost_event runs so the delegation is exercised.
     """
     import podcast_scraper.utils.langfuse_tracing as lt
     from podcast_scraper.utils import correlation
-    from podcast_scraper.workflow import cost_monitoring
 
     spans: list[dict] = []
-    cost_events: list[dict] = []
     monkeypatch.setattr(lt, "emit_langfuse_span", lambda **kw: spans.append(kw))
-    monkeypatch.setattr(
-        cost_monitoring, "emit_llm_cost_event", lambda cfg, **kw: cost_events.append(kw)
-    )
 
     # The correlation join key (#1053): run id is process-global, episode id context-local.
     correlation._reset_for_tests()
@@ -195,9 +192,6 @@ def test_record_provider_call_cost_emits_langfuse_span(monkeypatch: pytest.Monke
     assert span["episode_id"] == "ep:7"
     assert span["feed_id"] == "https://feeds/x.xml"
     assert span["triggered_guardrail"] is True
-    # the SAME run_id lands on the Loki cost event.
-    assert len(cost_events) == 1
-    assert cost_events[0]["run_id"] == "run-ABC"
 
 
 @pytest.mark.unit

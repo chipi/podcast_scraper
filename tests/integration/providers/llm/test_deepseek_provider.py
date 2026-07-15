@@ -55,7 +55,7 @@ class TestDeepSeekProviderStandalone(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="deepseek",
             summary_provider="deepseek",
-            deepseek_api_key="test-api-key-123",
+            deepseek_api_key="test-key",
             auto_speakers=False,  # Disable to avoid API calls
             generate_summaries=False,  # Disable to avoid API calls
         )
@@ -255,7 +255,7 @@ class TestDeepSeekProviderSpeakerDetection(unittest.TestCase):
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="deepseek",
-            deepseek_api_key="test-api-key-123",
+            deepseek_api_key="test-key",
             auto_speakers=True,
         )
 
@@ -386,7 +386,7 @@ class TestDeepSeekProviderSummarization(unittest.TestCase):
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             summary_provider="deepseek",
-            deepseek_api_key="test-api-key-123",
+            deepseek_api_key="test-key",
             generate_summaries=True,
             generate_metadata=True,  # Required when generate_summaries=True
         )
@@ -536,7 +536,7 @@ class TestDeepSeekProviderSummarization(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="deepseek",
             summary_provider="deepseek",
-            deepseek_api_key="test-api-key-123",
+            deepseek_api_key="test-key",
             auto_speakers=False,
             generate_summaries=True,
             generate_metadata=True,
@@ -562,7 +562,7 @@ class TestDeepSeekProviderSummarization(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="deepseek",
             summary_provider="deepseek",
-            deepseek_api_key="test-api-key-123",
+            deepseek_api_key="test-key",
             auto_speakers=False,
             generate_summaries=True,
             generate_metadata=True,
@@ -584,7 +584,7 @@ class TestDeepSeekProviderGIL(unittest.TestCase):
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             summary_provider="deepseek",
-            deepseek_api_key="test-api-key-123",
+            deepseek_api_key="test-key",
             generate_summaries=True,
             generate_metadata=True,
         )
@@ -695,7 +695,10 @@ class TestDeepSeekProviderGIL(unittest.TestCase):
         provider = DeepSeekProvider(self.cfg)
         provider.initialize()
         provider.generate_insights("q" * 120_001, max_insights=2)
-        self.assertIn("[Transcript truncated.]", mock_render.call_args[1]["transcript"])
+        transcript_kw = next(
+            c.kwargs["transcript"] for c in mock_render.call_args_list if "transcript" in c.kwargs
+        )
+        self.assertIn("[Transcript truncated.]", transcript_kw)
 
     @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
     @patch("podcast_scraper.providers.deepseek.deepseek_provider.OpenAI")
@@ -729,7 +732,7 @@ class TestDeepSeekProviderKG(unittest.TestCase):
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             summary_provider="deepseek",
-            deepseek_api_key="test-api-key-123",
+            deepseek_api_key="test-key",
             generate_summaries=True,
             generate_metadata=True,
         )
@@ -841,7 +844,7 @@ class TestDeepSeekProviderErrorHandling(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="deepseek",
             summary_provider="deepseek",
-            deepseek_api_key="test-api-key-123",
+            deepseek_api_key="test-key",
             auto_speakers=True,
             generate_summaries=True,
             generate_metadata=True,
@@ -1087,7 +1090,7 @@ class TestDeepSeekProviderErrorHandling(unittest.TestCase):
         """Test that pattern cleaning strategy is selected correctly."""
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            deepseek_api_key="test-api-key-123",
+            deepseek_api_key="test-key",
             transcript_cleaning_strategy="pattern",
             speaker_detector_provider="deepseek",
         )
@@ -1106,7 +1109,7 @@ class TestDeepSeekProviderErrorHandling(unittest.TestCase):
         """Test that LLM cleaning strategy is selected correctly."""
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            deepseek_api_key="test-api-key-123",
+            deepseek_api_key="test-key",
             transcript_cleaning_strategy="llm",
             speaker_detector_provider="deepseek",
         )
@@ -1125,7 +1128,7 @@ class TestDeepSeekProviderErrorHandling(unittest.TestCase):
         """Test that hybrid cleaning strategy is selected correctly (default)."""
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            deepseek_api_key="test-api-key-123",
+            deepseek_api_key="test-key",
             transcript_cleaning_strategy="hybrid",
             speaker_detector_provider="deepseek",
         )
@@ -1144,7 +1147,7 @@ class TestDeepSeekProviderErrorHandling(unittest.TestCase):
         """Test that detect_speakers returns defaults when auto_speakers is disabled."""
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            deepseek_api_key="test-api-key-123",
+            deepseek_api_key="test-key",
             speaker_detector_provider="deepseek",
             auto_speakers=False,  # Disabled
         )
@@ -1173,7 +1176,7 @@ class TestDeepSeekSummarizeBundled(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="deepseek",
             summary_provider="deepseek",
-            deepseek_api_key="test-api-key-123",
+            deepseek_api_key="test-key",
             auto_speakers=False,
             generate_summaries=False,
             llm_pipeline_mode="bundled",

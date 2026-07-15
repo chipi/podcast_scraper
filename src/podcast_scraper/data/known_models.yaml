@@ -1,0 +1,90 @@
+# Allowlist of cloud LLM model ids we recognise — the fail-closed gate that stops a wrong or
+# fictional model from silently running to completion (see the sonnet-4-6 incident).
+#
+# HOW TO UPDATE: to start using a new real model, add its id under the right provider below. That is
+# the whole governance step — one line, no code change. An unknown model is REJECTED at config/profile
+# load with a "did you mean" suggestion, before any API spend. Failing closed on a real-but-unlisted
+# model (you add a line) is cheap; failing open on a fictional one (money burned, results mislabeled)
+# is not.
+#
+# claude-sonnet-4-6 is deliberately ABSENT: its status is unresolved (it is also the #932 sonnet46
+# judge default), so the allowlist fails closed on it until a served-model check or the provider
+# dashboard proves what it actually is.
+#
+# Local providers (ollama, tailnet_dgx_*, local vLLM) are intentionally NOT governed — arbitrary local
+# weights, no cloud spend to protect. Only providers listed under governed_providers are validated.
+
+schema_version: 1
+metadata:
+  notes: >-
+    Add a real model id under its provider to begin using it. Ids may carry a provider-pinned
+    dated/`-latest`/version suffix at call time (e.g. claude-sonnet-4-5-20250219); that suffix is
+    normalised off before matching, so only the family id needs listing here.
+
+# Only these providers' model ids are validated. Everything else is allow-all (local).
+governed_providers:
+  - openai
+  - anthropic
+  - gemini
+  - mistral
+  - deepseek
+  - grok
+
+providers:
+  openai:
+    # 'autoresearch' is the served-model name on the local DGX vLLM slot, reached through the
+    # OpenAI-compatible API (summary_provider=openai + a local base_url). Known, not cloud-billed.
+    - autoresearch
+    - gpt-4o
+    - gpt-4o-mini
+    - gpt-4-turbo
+    - gpt-5
+    - gpt-5-mini
+    - gpt-5.4
+    - gpt-5.4-mini
+    - gpt-5.4-nano
+    - gpt-5.5
+    - o1
+    - o1-mini
+    - o3
+    - o3-mini
+  anthropic:
+    - claude-3-haiku
+    - claude-3-opus
+    - claude-3-5-haiku
+    - claude-3-5-sonnet
+    - claude-haiku-4-5
+    - claude-sonnet-4
+    - claude-sonnet-4-5
+    - claude-sonnet-5
+    - claude-opus-4
+    - claude-opus-4-5
+    - claude-opus-4-7
+    - claude-opus-4-8
+  gemini:
+    - gemini-1.5-flash
+    - gemini-1.5-pro
+    - gemini-2.0-flash
+    - gemini-2.5-flash
+    - gemini-2.5-flash-lite
+    - gemini-2.5-pro
+  mistral:
+    - mistral-small
+    - mistral-small-latest
+    - mistral-medium
+    - mistral-medium-latest
+    - mistral-large
+    - mistral-large-latest
+  deepseek:
+    - deepseek-chat
+    - deepseek-reasoner
+    - deepseek-v4
+    - deepseek-v4-flash
+  grok:
+    - grok-2
+    - grok-3
+    - grok-3-mini
+    - grok-4
+    - grok-4-fast
+    - grok-4.3
+    - grok-beta

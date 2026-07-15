@@ -53,6 +53,27 @@ from ..ml.speaker_detection import DEFAULT_SPEAKER_NAMES
 
 # Pricing for DeepSeek models lives in ``config/pricing_assumptions.yaml`` (#651).
 
+# DeepSeek models that emit a reasoning block before the answer. deepseek-v4-* (flash/pro), the r1
+# line, and deepseek-reasoner all spend the token budget on `reasoning_content` first. deepseek-chat
+# does not. Matched on substrings so a dated snapshot ("deepseek-v4-flash-2026...") still hits.
+_REASONING_MODEL_MARKERS = ("v4", "-r1", "reasoner", "reasoning")
+
+# Room for the reasoning that must precede the answer on a reasoning model. Sized from observation:
+# a trivial entailment prompt already burned ~275 chars of reasoning and hit the limit with EMPTY
+# content; reasoning over a long premise runs longer. DeepSeek caps chat max_tokens at 8192, so this
+# headroom stays well inside the cap when added to the short evidence budgets.
+_REASONING_TOKEN_HEADROOM = 2048
+
+
+def _model_reasons(model: Optional[str]) -> bool:
+    """Does this DeepSeek model emit a reasoning block before its answer?
+
+    Load-bearing: a reasoning model handed a 10-token evidence budget returns empty content, which
+    silently disconnects the entire grounding stack (0 quotes, every insight unsupported).
+    """
+    name = (model or "").lower()
+    return any(marker in name for marker in _REASONING_MODEL_MARKERS)
+
 
 def _record_deepseek_llm_call(
     response: Any,
@@ -195,6 +216,15 @@ class DeepSeekProvider:
         # DeepSeek supports 64k context window
         self.max_context_tokens = 64000  # Conservative estimate
 
+        # deepseek-v4-* and the r1/reasoner line emit REASONING before the answer, spending the
+        # token budget on `reasoning_content` first. A tight `max_tokens` (score_entailment used 10)
+        # is therefore consumed entirely by reasoning and `content` comes back EMPTY with
+        # finish_reason="length" — so the whole evidence stack produced 0 grounded quotes and every
+        # insight was marked unsupported. There is no reasoning-off switch on these models
+        # (reasoning_effort="none" is ignored), so the fix is headroom: give the short evidence
+        # calls room for the reasoning that must precede the answer. See _evidence_max_tokens.
+        self._is_reasoning_model = _model_reasons(self.summary_model)
+
         # Initialization state
         self._speaker_detection_initialized = False
         self._summarization_initialized = False
@@ -241,6 +271,19 @@ class DeepSeekProvider:
         logger.debug("Initializing DeepSeek summarization (model: %s)", self.summary_model)
         self._summarization_initialized = True
         logger.debug("DeepSeek summarization initialized successfully")
+
+    def _evidence_max_tokens(self, content_budget: int) -> int:
+        """A ``max_tokens`` that leaves room for the answer AFTER any reasoning block.
+
+        On a non-reasoning model this is just ``content_budget``. On a reasoning model the budget
+        must also cover ``reasoning_content``, which is emitted FIRST — otherwise the answer is
+        truncated to empty and the caller sees ``finish_reason="length"`` with no content. Applied
+        to every short-budget call (entailment, quote extraction, insight classification, speaker
+        detection); the summary path already passes a budget large enough to absorb reasoning.
+        """
+        if not self._is_reasoning_model:
+            return content_budget
+        return min(content_budget + _REASONING_TOKEN_HEADROOM, 8192)
 
     # ============================================================================
     # SpeakerDetector Protocol Implementation
@@ -355,7 +398,7 @@ class DeepSeekProvider:
                         {"role": "user", "content": user_prompt},
                     ],
                     temperature=self.speaker_temperature,
-                    max_tokens=300,
+                    max_tokens=self._evidence_max_tokens(300),
                     response_format={"type": "json_object"},
                 ),
                 max_retries=2,
@@ -1244,7 +1287,7 @@ class DeepSeekProvider:
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=insight_temperature,
-                max_tokens=insight_max_tokens,
+                max_tokens=self._evidence_max_tokens(insight_max_tokens),
             )
             _record_deepseek_llm_call(
                 response,
@@ -1292,6 +1335,8 @@ class DeepSeekProvider:
                         prompt_tokens=in_tok_gi,
                         completion_tokens=out_tok_gi,
                         triggered_guardrail=triggered_guardrail,
+                        served_model=getattr(response, "model", None),
+                        response=response,
                     )
                 except Exception:  # noqa: BLE001
                     pass
@@ -1370,7 +1415,7 @@ class DeepSeekProvider:
             model=self.summary_model,
             messages=[{"role": "user", "content": user_prompt}],
             temperature=0.0,
-            max_tokens=gate_max_tokens,
+            max_tokens=self._evidence_max_tokens(gate_max_tokens),
             response_format={"type": "json_object"},
         )
         content = (response.choices[0].message.content or "").strip()
@@ -1399,7 +1444,7 @@ class DeepSeekProvider:
             model=self.summary_model,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.0,
-            max_tokens=800,
+            max_tokens=self._evidence_max_tokens(800),
             response_format={"type": "json_object"},
         )
         content = (response.choices[0].message.content or "").strip()
@@ -1456,7 +1501,7 @@ class DeepSeekProvider:
                         {"role": "user", "content": user_prompt},
                     ],
                     temperature=0.1,
-                    max_tokens=2048,
+                    max_tokens=self._evidence_max_tokens(2048),
                 )
 
             response = retry_with_metrics(
@@ -1629,7 +1674,7 @@ class DeepSeekProvider:
                         {"role": "user", "content": user},
                     ],
                     temperature=0.0,
-                    max_tokens=10,
+                    max_tokens=self._evidence_max_tokens(10),
                 )
 
             try:
@@ -1717,7 +1762,7 @@ class DeepSeekProvider:
                     {"role": "user", "content": user},
                 ],
                 temperature=0.0,
-                max_tokens=max_out,
+                max_tokens=self._evidence_max_tokens(max_out),
             )
 
         try:
@@ -1842,7 +1887,7 @@ class DeepSeekProvider:
                     {"role": "user", "content": user},
                 ],
                 temperature=0.0,
-                max_tokens=max_out,
+                max_tokens=self._evidence_max_tokens(max_out),
             )
 
         try:
@@ -2001,6 +2046,8 @@ class DeepSeekProvider:
                         prompt_tokens=in_tok_cl,
                         completion_tokens=out_tok_cl,
                         triggered_guardrail=triggered_guardrail,
+                        served_model=getattr(response, "model", None),
+                        response=response,
                     )
                 except Exception:  # noqa: BLE001
                     pass

@@ -687,6 +687,13 @@ def run_experiment(  # noqa: C901
                 "Expected summarization, ner_entities, grounded_insights, or knowledge_graph."
             )
 
+        # GUARD (known-model allowlist): fail closed on a wrong/fictional cloud model BEFORE
+        # creating the provider or spending a cent. This is the gate the sonnet-4-6 arm needed — an
+        # unknown id is a stop with a "did you mean", not 18 finished episodes on the wrong model.
+        from podcast_scraper.providers.known_models import validate_model_or_raise
+
+        validate_model_or_raise(cfg.backend.type, cfg.backend.model, context=f"arm {cfg.id}")
+
         # Create provider based on task and backend type
         # NER task is handled separately — must be checked BEFORE the
         # backend-type chain so that e.g. "openai" + "ner_entities" doesn't
@@ -1433,9 +1440,19 @@ def run_experiment(  # noqa: C901
 
         _episode_duration_ms_by_id = episode_duration_ms_map(getattr(cfg.data, "dataset_id", None))
 
+        # LLM call fuse: bound spend across the whole run and per episode. install_run once here so
+        # the run counter accumulates; install_episode at the top of each iteration resets the
+        # per-episode counter. A blown budget raises LLMCallBudgetExceeded and stops the run.
+        from podcast_scraper.utils import llm_call_fuse
+
+        llm_call_fuse.install_run(getattr(cfg, "llm_max_calls_per_run", 0))
+
         with open(predictions_path, "w", encoding="utf-8") as pred_f:
             for path in input_files:
                 episode_id = episode_id_from_path(path, cfg.data)
+                llm_call_fuse.install_episode(
+                    getattr(cfg, "llm_max_calls_per_episode", 0), episode_id
+                )
                 _episode_duration_ms = _episode_duration_ms_by_id.get(episode_id)
                 logger.info(f"Processing episode: {episode_id}")
 

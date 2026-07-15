@@ -109,6 +109,16 @@ def _record_anthropic_llm_call(
     getattr(pipeline_metrics, recorder_name)(in_tok, out_tok, cost_usd=cost)
 
 
+# The Claude 5 generation (claude-sonnet-5, claude-opus-4-8) DEPRECATED the `temperature` parameter:
+# the API rejects any request that carries it with a 400 "`temperature` is deprecated for this
+# model", which crashes the whole run at episode 1. Older 4.x models (sonnet-4-5/4-6, haiku-4-5)
+# still accept it. Rather than hardcode a model list that rots as Anthropic ships new models, the
+# provider LEARNS: it seeds the known rejecters, omits temperature for them, and on an unexpected
+# "temperature deprecated" 400 it records the model and retries without temperature. So a future
+# model that drops temperature self-heals after one failed call instead of taking down the run.
+_TEMPERATURE_DEPRECATED_SEED = frozenset({"claude-sonnet-5", "claude-opus-4-8"})
+
+
 class AnthropicProvider:
     """Unified Anthropic provider: SpeakerDetector and SummarizationProvider (no transcription).
 
@@ -236,6 +246,10 @@ class AnthropicProvider:
         # Claude 3.5 Sonnet supports 200K context window
         self.max_context_tokens = 200000
 
+        # Models known to reject `temperature` (see _TEMPERATURE_DEPRECATED_SEED). Grows at runtime
+        # when the API teaches us a new one. Shared across instances so the lesson is learned once.
+        self._temp_deprecated: Set[str] = set(_TEMPERATURE_DEPRECATED_SEED)
+
         # Initialization state
         self._transcription_initialized = False
         self._speaker_detection_initialized = False
@@ -245,6 +259,33 @@ class AnthropicProvider:
         # API providers handle rate limiting and retries internally via SDK
         # Anthropic SDK automatically handles retries with exponential backoff
         self._requires_separate_instances = False
+
+    def _messages_create(self, **kwargs: Any) -> Any:
+        """``client.messages.create`` that survives models which dropped ``temperature``.
+
+        Every Anthropic call routes through here. If the target model is known to reject
+        ``temperature`` (Claude 5 generation), the parameter is stripped before the call. If a model
+        we did NOT know about rejects it — a 400 whose message names ``temperature`` — the model is
+        recorded and the call retried once without the parameter, so the failure self-heals instead
+        of crashing the run at episode 1 (which is exactly what claude-sonnet-5 did).
+        """
+        model = kwargs.get("model")
+        if model in self._temp_deprecated:
+            kwargs.pop("temperature", None)
+        try:
+            return self.client.messages.create(**kwargs)
+        except Exception as exc:  # noqa: BLE001 — inspect, re-raise unless it is the temp case
+            msg = str(exc).lower()
+            if (
+                "temperature" in kwargs
+                and "temperature" in msg
+                and ("deprecat" in msg or "not support" in msg or "unsupported" in msg)
+            ):
+                if isinstance(model, str):
+                    self._temp_deprecated.add(model)
+                kwargs.pop("temperature", None)
+                return self.client.messages.create(**kwargs)
+            raise
 
     @staticmethod
     def get_pricing(model: str, capability: str) -> Dict[str, float]:
@@ -479,7 +520,7 @@ class AnthropicProvider:
             )
 
             response = retry_with_metrics(
-                lambda: self.client.messages.create(
+                lambda: self._messages_create(
                     model=self.speaker_model,
                     max_tokens=300,
                     temperature=self.speaker_temperature,
@@ -743,7 +784,7 @@ class AnthropicProvider:
 
             # Wrap API call with retry tracking
             def _make_api_call():
-                return self.client.messages.create(
+                return self._messages_create(
                     model=self.summary_model,
                     max_tokens=max_length,
                     temperature=self.summary_temperature,
@@ -988,7 +1029,7 @@ class AnthropicProvider:
         call_metrics.set_breaker_config_from_cfg(self.cfg)
 
         def _make_api_call() -> Any:
-            return self.client.messages.create(
+            return self._messages_create(
                 model=self.summary_model,
                 max_tokens=max_out,
                 temperature=0.0,
@@ -1074,7 +1115,7 @@ class AnthropicProvider:
         call_metrics.set_breaker_config_from_cfg(self.cfg)
 
         def _make_api_call() -> Any:
-            return self.client.messages.create(
+            return self._messages_create(
                 model=self.summary_model,
                 max_tokens=max_out,
                 temperature=0.0,
@@ -1156,7 +1197,7 @@ class AnthropicProvider:
         call_metrics.set_breaker_config_from_cfg(self.cfg)
 
         def _make_api_call() -> Any:
-            return self.client.messages.create(
+            return self._messages_create(
                 model=self.summary_model,
                 max_tokens=max_out,
                 temperature=self.summary_temperature,
@@ -1411,7 +1452,7 @@ class AnthropicProvider:
 
             # Wrap API call with retry tracking
             def _make_api_call():
-                return self.client.messages.create(
+                return self._messages_create(
                     model=self.cleaning_model,
                     max_tokens=clamp_cleaning_max_tokens(
                         estimate_cleaning_output_tokens(len(text.split())),
@@ -1496,6 +1537,8 @@ class AnthropicProvider:
                         prompt_tokens=in_tok_cl,
                         completion_tokens=out_tok_cl,
                         triggered_guardrail=triggered_guardrail,
+                        served_model=getattr(response, "model", None),
+                        response=response,
                     )
                 except Exception:  # noqa: BLE001
                     pass
@@ -1604,7 +1647,7 @@ class AnthropicProvider:
                 max_insights=max_insights,
             )
             system_prompt = render_prompt("anthropic/insight_extraction/system_v1")
-            response = self.client.messages.create(
+            response = self._messages_create(
                 model=self.summary_model,
                 max_tokens=insight_max_tokens,
                 temperature=insight_temperature,
@@ -1663,6 +1706,8 @@ class AnthropicProvider:
                         prompt_tokens=in_tok_gi,
                         completion_tokens=out_tok_gi,
                         triggered_guardrail=triggered_guardrail,
+                        served_model=getattr(response, "model", None),
+                        response=response,
                     )
                 except Exception:  # noqa: BLE001
                     pass
@@ -1742,7 +1787,7 @@ class AnthropicProvider:
             config_constants.GI_INSIGHT_TOKENS_FLOOR,
             len(insights) * config_constants.GI_VALUE_GATE_TOKENS_EACH,
         )
-        response = self.client.messages.create(
+        response = self._messages_create(
             model=self.summary_model,
             max_tokens=gate_max_tokens,
             temperature=0.0,
@@ -1773,7 +1818,7 @@ class AnthropicProvider:
         if not self._summarization_initialized:
             raise RuntimeError("Anthropic summarization not initialized for complete_text")
 
-        response = self.client.messages.create(
+        response = self._messages_create(
             model=self.summary_model,
             max_tokens=800,
             temperature=0.0,
@@ -1829,7 +1874,7 @@ class AnthropicProvider:
             )
 
             def _make_api_call():
-                return self.client.messages.create(
+                return self._messages_create(
                     model=model,
                     max_tokens=2048,
                     temperature=0.1,
@@ -1901,7 +1946,7 @@ class AnthropicProvider:
             pm = kwargs.get("pipeline_metrics")
 
             def _make_api_call():
-                return self.client.messages.create(
+                return self._messages_create(
                     model=self.summary_model,
                     max_tokens=config_constants.GI_QUOTE_RESPONSE_TOKENS,
                     temperature=0.0,
@@ -2007,7 +2052,7 @@ class AnthropicProvider:
             pm = kwargs.get("pipeline_metrics")
 
             def _make_api_call():
-                return self.client.messages.create(
+                return self._messages_create(
                     model=self.summary_model,
                     max_tokens=10,
                     temperature=0.0,
@@ -2097,7 +2142,7 @@ class AnthropicProvider:
         max_out = extract_quotes_bundled_max_tokens(len(insight_texts))
 
         def _make_api_call() -> Any:
-            return self.client.messages.create(
+            return self._messages_create(
                 model=self.summary_model,
                 max_tokens=max_out,
                 temperature=0.0,
@@ -2223,7 +2268,7 @@ class AnthropicProvider:
         max_out = score_entailment_bundled_max_tokens(len(chunk_pairs))
 
         def _make_api_call() -> Any:
-            return self.client.messages.create(
+            return self._messages_create(
                 model=self.summary_model,
                 max_tokens=max_out,
                 temperature=0.0,

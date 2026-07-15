@@ -173,9 +173,22 @@ gi_insight_dedupe_threshold: 0.75
 # PINNED, not defaulted. v3 (the speech-act variant) LOST its A/B — route kappa 0.57 against
 # v2's 0.67 — and stays on disk only as the record of that measurement. Naming the winner
 # here means a future change of default cannot silently move this profile off it.
+# Pinned so a reprocess is REPRODUCIBLE and so the eval measures the model, not the sampler.
+# Left unset, extraction samples at the provider default (0.3) and the same episode yields
+# different insights on every run — noise a model comparison reports as model quality.
+gi_insight_temperature: 0.0
 gi_insight_prompt_version: v2
 # An LLM grounds with an LLM. `gil_evidence_*_mode: bundled` above is an LLM-only path, and with
 # the provider left at its "transformers" default it did nothing — these profiles asked for bundled
 # LLM grounding and got local DeBERTa.
 quote_extraction_provider: gemini
 entailment_provider: gemini
+
+# --- registry-materialized (make profiles-materialize) — do not hand-edit ---
+summary_model: gemini-2.5-flash-lite
+topic_cluster_threshold: 0.75
+insight_cluster_threshold: 0.75
+gi_insight_chunk_chars: 30000
+gi_qa_score_min: 0.3
+gi_nli_entailment_min: 0.75
+gil_evidence_match_summary_provider: true

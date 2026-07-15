@@ -43,8 +43,34 @@ _judge_cache: Dict[str, Any] = {}
 _judge_lock = threading.Lock()
 
 
+def _extractor_can_judge(cfg: Optional[Any]) -> bool:
+    """Is there an LLM on this path at all?
+
+    The gate is an LLM being ASKED whether an insight is worth surfacing. On the pure-ML path —
+    sentence-transformers, summllama, the local extractive stack — there is no LLM, so there is no
+    judge and there cannot be one. The gate is INAPPLICABLE there, not merely switched off.
+
+    The registry's resolver already refuses to hand a judge to a profile with no LLM. This is the
+    same rule at the point of USE, for a caller that builds a bare Config with no profile: the flag
+    now defaults to True, so without this the gate would fall through to "the extractor grades
+    itself" and press a summarisation model into service as a judge — loading a transformers model
+    to answer a question it has no way to answer.
+
+    Deliberately a POSITIVE identification of a non-LLM, not an inference about one: anything we
+    cannot positively name as LLM-less is left alone, so this can only ever turn the gate OFF where
+    it provably cannot run.
+    """
+    # Imported lazily and from the REGISTRY: one definition of "is an LLM", not a second copy here
+    # that can drift from the resolver's. Lazy because providers.ml pulls in the whole torch stack,
+    # which this module must not drag in just to answer a question about a string.
+    from ..providers.ml.model_registry import _LLM_PROVIDERS
+
+    name = getattr(cfg, "summary_provider", None)
+    return not (isinstance(name, str) and name not in _LLM_PROVIDERS)
+
+
 def _resolve_judge(provider: Optional[Any], cfg: Optional[Any]) -> Optional[Any]:
-    """Return the provider that grades the insights.
+    """Return the provider that grades the insights, or None when nothing here can judge.
 
     By default the extractor grades its own output. That is the #939 same-vendor bias: a model
     asked to judge its own work is lenient. Measured across 7 providers, self-grading drops ~10%
@@ -52,8 +78,11 @@ def _resolve_judge(provider: Optional[Any], cfg: Optional[Any]) -> Optional[Any]
 
     It also makes comparisons unfair: if gemini grades gemini and qwen grades qwen, each arm is
     filtered by a different strictness and the surviving counts are not comparable. Set
-    ``gi_value_gate_provider`` to pin ONE judge across every arm.
+    ``gi_value_gate_provider`` to pin ONE judge across every arm (the registry derives it, always
+    vendor-disjoint from the summariser).
     """
+    if not _extractor_can_judge(cfg):
+        return None
     if cfg is None:
         return provider
     name = getattr(cfg, "gi_value_gate_provider", None)

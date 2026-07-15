@@ -54,7 +54,8 @@ def _variants() -> Dict[str, Dict[str, List[str]]]:
             for idx, line in enumerate(lines):
                 if re.search(pattern, line):
                     text = _collect_literal(lines, idx)
-                    digest = hashlib.sha1(text.encode()).hexdigest()[:8]
+                    # Non-security digest: a short fingerprint to group identical prompt literals.
+                    digest = hashlib.sha1(text.encode(), usedforsecurity=False).hexdigest()[:8]
                     found[site][digest].append(path.parent.name)
                     break
     return found

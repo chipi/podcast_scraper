@@ -35,9 +35,22 @@ def resolve_insight_temperature(cfg: Any, provider: str) -> float:
     reproducible: the same config on the same 3 episodes gave 28.0 vs 18.3 insights/episode and
     1.51 vs 6.00 quotes/insight, with grounding landing either side of the 80% floor (79.8% vs
     94.5%). Evals need to pin this to 0.
+
+    Un-hardcoding it was not enough, because there was still no knob an eval could TURN. This read
+    only ``<provider>_temperature``, so an arm YAML saying ``temperature: 0.0`` pinned nothing —
+    the key mapped to no Config field and extraction sampled at 0.3 regardless. A head-to-head run
+    that way partly measures the sampler: re-run the SAME model and it disagrees with itself, and
+    that disagreement is indistinguishable from "the other model found different knowledge".
+
+    ``gi_insight_temperature`` is that knob, and it wins when set. It is deliberately NOT
+    ``<provider>_temperature``, which also drives summarisation and speaker detection — pinning
+    insight extraction must not silently re-tune two unrelated stages.
     """
     from .. import config_constants
 
+    pinned = getattr(cfg, "gi_insight_temperature", None)
+    if pinned is not None:
+        return float(pinned)
     value = getattr(cfg, f"{provider}_temperature", None)
     if value is None:
         return float(config_constants.GI_INSIGHT_TEMPERATURE_DEFAULT)

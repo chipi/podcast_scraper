@@ -60,11 +60,13 @@ class MossDiarizationProvider:
         self._initialized = False
 
     def initialize(self) -> None:
+        """Require the DGX tailnet host and mark the provider ready (no local model load)."""
         if not self._host:
             raise ValueError("dgx_tailnet_host is required for the moss diarization provider")
         self._initialized = True
 
     def cleanup(self) -> None:
+        """Release provider state (idempotent; no local resources held)."""
         self._initialized = False
 
     def diarize(

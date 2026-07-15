@@ -1104,7 +1104,10 @@ class TestGeminiProviderGIL(unittest.TestCase):
         provider = GeminiProvider(self.cfg)
         provider.initialize()
         provider.generate_insights("g" * 120_001, max_insights=3)
-        self.assertIn("[Transcript truncated.]", mock_render.call_args[1]["transcript"])
+        transcript_kw = next(
+            c.kwargs["transcript"] for c in mock_render.call_args_list if "transcript" in c.kwargs
+        )
+        self.assertIn("[Transcript truncated.]", transcript_kw)
 
     @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")

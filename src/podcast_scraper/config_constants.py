@@ -45,6 +45,11 @@ GI_VALUE_GATE_TOKENS_EACH = 24
 # quotes/insight, with grounding landing either side of the 80% floor (79.8% vs 94.5%). Evals
 # be able to pin this to 0.
 GI_INSIGHT_TEMPERATURE_DEFAULT = 0.3
+
+# The registry's researched ceiling (provider_chunked_gated_v3). Kept equal to the registry by
+# test_the_config_default_is_not_a_trap: a caller with no profile must not run a different
+# pipeline than the one we measured.
+GI_DEFAULT_MAX_INSIGHTS = 50
 DEFAULT_NUM_SPEAKERS = 2
 DEFAULT_SCREENPLAY_GAP_SECONDS = 1.25
 DEFAULT_TIMEOUT_SECONDS = 20

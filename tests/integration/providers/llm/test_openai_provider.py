@@ -858,8 +858,10 @@ class TestOpenAIProviderPricing(unittest.TestCase):
         self.assertEqual(pricing["output_cost_per_1m_tokens"], 10.00)
 
     def test_get_pricing_unsupported_model(self):
-        """Test pricing lookup for unsupported model returns empty dict."""
-        pricing = OpenAIProvider.get_pricing("gpt-5", "summarization")
+        """An unlisted OpenAI model returns {} — OpenAI has no ``default`` pricing row (cost is
+        unknown, not guessed). Uses a clearly-fictional id so a real model added later can't make
+        this pass by accident."""
+        pricing = OpenAIProvider.get_pricing("gpt-nonexistent-9000", "summarization")
         self.assertEqual(pricing, {})
 
     def test_get_pricing_unsupported_capability(self):
@@ -1050,7 +1052,11 @@ class TestOpenAIProviderPricing(unittest.TestCase):
         provider.client = mock_client
         provider._summarization_initialized = True
         provider.generate_insights("z" * 120_001, max_insights=3)
-        transcript_kw = mock_render_prompt.call_args[1]["transcript"]
+        transcript_kw = next(
+            c.kwargs["transcript"]
+            for c in mock_render_prompt.call_args_list
+            if "transcript" in c.kwargs
+        )
         self.assertIn("[Transcript truncated.]", transcript_kw)
 
     def test_extract_quotes_returns_quote_candidate(self):
@@ -1105,7 +1111,9 @@ class TestOpenAIProviderPricing(unittest.TestCase):
 
         provider.extract_quotes(transcript=transcript, insight_text="An insight.")
 
-        sent = mock_render.call_args[1]["transcript"]
+        sent = next(
+            c.kwargs["transcript"] for c in mock_render.call_args_list if "transcript" in c.kwargs
+        )
         self.assertIn("LATE_EVIDENCE_MARKER", sent)
 
     def test_extract_quotes_not_initialized_returns_empty(self):

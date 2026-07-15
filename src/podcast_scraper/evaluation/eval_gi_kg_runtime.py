@@ -138,6 +138,13 @@ def merge_eval_task_into_summarizer_config(
         prompt_v = p.get("gi_insight_prompt_version")
         if isinstance(prompt_v, str) and prompt_v:
             updates["gi_insight_prompt_version"] = prompt_v
+        # Without this line an arm CANNOT pin its sampler. The YAMLs already said
+        # `temperature: 0.0`, but that key mapped to no Config field, so extraction sampled at the
+        # 0.3 default and two runs of the SAME model disagreed with each other — noise a model
+        # comparison would have reported as one model "finding knowledge the other missed".
+        insight_temp = p.get("gi_insight_temperature")
+        if isinstance(insight_temp, (int, float)):
+            updates["gi_insight_temperature"] = float(insight_temp)
         # #698 GIL evidence-stack bundling — forward mode flags from the
         # experiment YAML's ``params:`` dict to the runtime Config so the
         # bundled dispatch in ``gi/pipeline.py`` actually fires for matrix

@@ -39,6 +39,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("moss-server")
 
 _MODEL_NAME = os.environ.get("MOSS_MODEL", "OpenMOSS-Team/MOSS-Transcribe-Diarize")
+# Pin the Hub revision (a tag/branch/commit) so a silent upstream change can't alter what we serve.
+# Default ``main``; set MOSS_MODEL_REVISION to a commit SHA for a hard pin.
+_MODEL_REVISION = os.environ.get("MOSS_MODEL_REVISION", "main")
 _DEVICE = os.environ.get("MOSS_DEVICE", "cuda")
 
 _model: Any = None
@@ -58,9 +61,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     logger.info("Loading %s on %s", _MODEL_NAME, _DEVICE)
     started = time.time()
-    _processor = AutoProcessor.from_pretrained(_MODEL_NAME, trust_remote_code=True)
+    _processor = AutoProcessor.from_pretrained(
+        _MODEL_NAME, revision=_MODEL_REVISION, trust_remote_code=True
+    )
     _model = AutoModelForCausalLM.from_pretrained(
-        _MODEL_NAME, trust_remote_code=True, torch_dtype="bfloat16"
+        _MODEL_NAME, revision=_MODEL_REVISION, trust_remote_code=True, torch_dtype="bfloat16"
     ).to(_DEVICE)
     _model.eval()
     logger.info("Loaded in %.1fs", time.time() - started)
@@ -149,4 +154,8 @@ async def transcribe(file: UploadFile = File(...)) -> Dict[str, Any]:
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("UVICORN_PORT", "8004")))
+    # Binds all interfaces by design: this runs inside the DGX container and is reached over the
+    # tailnet by the pipeline; the host is env-overridable for a narrower bind. nosec B104 —
+    # intentional service bind, not an accidental exposure.
+    _host = os.environ.get("UVICORN_HOST", "0.0.0.0")  # nosec B104
+    uvicorn.run(app, host=_host, port=int(os.environ.get("UVICORN_PORT", "8004")))

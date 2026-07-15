@@ -167,6 +167,15 @@ def test_merge_eval_task_applies_numeric_params() -> None:
     assert kg_cfg.kg_max_entities == 7
 
 
+def _default(field: str):
+    """The Config field's default — which the REGISTRY owns (test_the_config_default_is_not_a_trap).
+
+    Tests that hardcode a default's value break when the registry promotes a better one, and the
+    red is meaningless: the merge behaviour they actually guard did not change at all.
+    """
+    return RuntimeConfig.model_fields[field].default
+
+
 def _gi_base_for_bundling() -> RuntimeConfig:
     """Use ``transformers`` summary_provider so no API key is required for Config validation."""
     return RuntimeConfig.model_validate(
@@ -190,7 +199,10 @@ def test_merge_eval_task_forwards_gil_evidence_quote_mode_bundled() -> None:
         {"gil_evidence_quote_mode": "bundled"},
     )
     assert cfg.gil_evidence_quote_mode == "bundled"
-    assert cfg.gil_evidence_nli_mode == "staged"  # untouched default
+    # UNTOUCHED — asserted against the field default, not a literal. This said "staged"; when the
+    # registry made "bundled" the researched default, the literal turned a correct test red for the
+    # wrong reason. The claim here is "the merge did not touch this field", so say THAT.
+    assert cfg.gil_evidence_nli_mode == _default("gil_evidence_nli_mode")
 
 
 def test_merge_eval_task_forwards_gil_evidence_nli_mode_bundled() -> None:
@@ -202,7 +214,7 @@ def test_merge_eval_task_forwards_gil_evidence_nli_mode_bundled() -> None:
     )
     assert cfg.gil_evidence_nli_mode == "bundled"
     assert cfg.gil_evidence_nli_chunk_size == 10
-    assert cfg.gil_evidence_quote_mode == "staged"  # untouched default
+    assert cfg.gil_evidence_quote_mode == _default("gil_evidence_quote_mode")  # untouched
 
 
 def test_merge_eval_task_invalid_quote_mode_falls_back_to_default() -> None:
@@ -211,7 +223,7 @@ def test_merge_eval_task_invalid_quote_mode_falls_back_to_default() -> None:
         "grounded_insights",
         {"gil_evidence_quote_mode": "garbage"},
     )
-    assert cfg.gil_evidence_quote_mode == "staged"  # default preserved
+    assert cfg.gil_evidence_quote_mode == _default("gil_evidence_quote_mode")
 
 
 def test_merge_eval_task_invalid_chunk_size_ignored() -> None:
@@ -239,14 +251,14 @@ def test_merge_eval_task_invalid_chunk_size_ignored() -> None:
 
 
 def test_merge_eval_task_no_bundling_params_preserves_staged_defaults() -> None:
-    """Params without any gil_evidence_*_mode → both modes stay staged."""
+    """Params without any gil_evidence_*_mode -> both modes keep the REGISTRY default."""
     cfg = merge_eval_task_into_summarizer_config(
         _gi_base_for_bundling(),
         "grounded_insights",
         {"gi_insight_source": "provider"},
     )
-    assert cfg.gil_evidence_quote_mode == "staged"
-    assert cfg.gil_evidence_nli_mode == "staged"
+    assert cfg.gil_evidence_quote_mode == _default("gil_evidence_quote_mode")
+    assert cfg.gil_evidence_nli_mode == _default("gil_evidence_nli_mode")
 
 
 def test_runtime_config_gi_has_gil_enabled() -> None:

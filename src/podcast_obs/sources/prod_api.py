@@ -45,6 +45,38 @@ def health(target: TargetConfig) -> dict:
     return ok("prod_api.health", data)
 
 
+def resilience(target: TargetConfig) -> dict:
+    """GET ``{api_base}/api/resilience`` — open LLM/RSS circuit breakers, their cooldowns, and the
+    configured LLM call-fuse budgets. The "is the deploy backing off or out of money?" probe."""
+    base = _base(target)
+    if not base:
+        return err("prod_api.resilience", _NOT_CONFIGURED, configured=False)
+    url = f"{base}/api/resilience"
+    try:
+        data = get_json(url, timeout=target.timeout)
+    except Exception as exc:  # noqa: BLE001 — surface any transport/HTTP error as a result
+        return err("prod_api.resilience", f"GET {url} failed: {exc}")
+    return ok("prod_api.resilience", data)
+
+
+def usage(target: TargetConfig, *, group_by: str = "provider,model", run_id: str = "") -> dict:
+    """GET ``{api_base}/api/usage`` — LLM token/cost rollup sliced by ``group_by`` (model/operation/
+    episode/run/provider), with the input/output/cached token breakdown and de-dup by request_id.
+    The "what did tokens cost, and where did they go?" probe — self-contained, no Loki needed."""
+    base = _base(target)
+    if not base:
+        return err("prod_api.usage", _NOT_CONFIGURED, configured=False)
+    params = {"group_by": group_by}
+    if run_id:
+        params["run_id"] = run_id
+    url = f"{base}/api/usage"
+    try:
+        data = get_json(url, params=params, timeout=target.timeout)
+    except Exception as exc:  # noqa: BLE001 — surface any transport/HTTP error as a result
+        return err("prod_api.usage", f"GET {url} failed: {exc}")
+    return ok("prod_api.usage", data)
+
+
 def deployed_version(target: TargetConfig) -> dict:
     """The running code version + the corpus stamp it's serving (derived from health)."""
     result = health(target)

@@ -56,7 +56,7 @@ llm_pipeline_mode: bundled
 # Grounded Insights
 generate_gi: true
 gi_insight_source: provider
-gi_max_insights: 12
+gi_max_insights: 50
 gi_require_grounding: true
 
 # #698 GIL evidence bundling — Layer A + Layer B both bundled. On local
@@ -113,3 +113,17 @@ enrichment:
       provider:
         type: consensus_local
         embed_model: all-MiniLM-L6-v2
+
+# --- registry-materialized (make profiles-materialize) — do not hand-edit ---
+summary_model: hermes3:8b
+topic_cluster_threshold: 0.75
+insight_cluster_threshold: 0.75
+gi_insight_chunk_chars: 30000
+gi_insight_dedupe_threshold: 0.75
+gi_insight_temperature: 0.0
+gi_insight_prompt_version: v2
+gi_value_gate_enabled: true
+gi_value_gate_min_tier: 2
+gi_qa_score_min: 0.3
+gi_nli_entailment_min: 0.75
+gil_evidence_match_summary_provider: true

@@ -44,6 +44,20 @@ logger = logging.getLogger(__name__)
 # Avoids mapping quote char offsets to wrong audio after reformatting or edited transcripts.
 SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA = 50
 
+# Insights per bundled extract_quotes call. The whole-episode call (all insights at once) truncated
+# its JSON past the 8192-token cap and timed out on the oversized request; ~256 output tokens per
+# insight means a chunk of 10 lands near ~2.5k tokens — comfortably inside every provider's limits.
+QUOTE_BUNDLE_CHUNK_SIZE = 10
+
+# Money guardrail: the most live per-pair NLI calls one episode may make when the bundled call
+# fails
+# and grounding falls back to scoring pairs one at a time. A large episode has hundreds of
+# pairs, and
+# an unbounded fallback ran gpt-5.5 to ~3500 calls on ONE episode. Past this, remaining pairs score
+# 0 (ungrounded) and the run logs LOUD — a bounded truncation beats an unbounded bill. Generous
+# enough that a healthy episode whose bundled call merely omitted a few scores never trips it.
+MAX_PER_PAIR_ENTAILMENT_FALLBACK_CALLS = 200
+
 # Stub insight text used when no real insights (single stub)
 _STUB_INSIGHT_TEXT = "Summary insight (stub)."
 
@@ -249,15 +263,38 @@ def _ground_insights_with_bundled_nli(
         pipeline_metrics.gi_evidence_score_entailment_bundled_calls += chunk_count
 
     # Per-pair fallback for any pair the bundled call didn't score.
+    #
+    # HARD CAP — the money guardrail. When the bundled entailment call returns empty content (a
+    # reasoning model whose thinking exhausts the budget), the WHOLE batch lands here, and a big
+    # episode has hundreds of (insight, quote) pairs. Each is a live LLM call with retries, so
+    # gpt-5.5 this ran away to ~3500 calls on ONE episode over an hour before anyone noticed —
+    # real money, on an expensive model, for a result that came back 0-grounded anyway. Nothing in
+    # the grounding path bounded it. Now it does: past the cap we stop CALLING (score the rest 0,
+    # i.e. ungrounded) and log LOUD. A truncated episode is recoverable; a runaway bill is not.
     score_fn = getattr(entailment_provider, "score_entailment", None)
     final_scores: Dict[int, float] = {}
+    fallback_calls = 0
+    capped = False
     for pair_idx, (_, _, premise, hypothesis) in enumerate(pair_list):
         if pair_idx in bundled_scores:
             final_scores[pair_idx] = bundled_scores[pair_idx]
             continue
-        if not callable(score_fn):
+        if not callable(score_fn) or capped:
             final_scores[pair_idx] = 0.0
             continue
+        if fallback_calls >= MAX_PER_PAIR_ENTAILMENT_FALLBACK_CALLS:
+            capped = True
+            final_scores[pair_idx] = 0.0
+            logger.error(
+                "GI grounding hit the per-episode per-pair entailment cap (%d calls) — the bundled "
+                "NLI call is failing and the staged fallback would keep calling the LLM per pair. "
+                "Scoring the remaining %d pairs as ungrounded and STOPPING to bound spend. Fix the "
+                "bundled path for this provider rather than raising the cap.",
+                MAX_PER_PAIR_ENTAILMENT_FALLBACK_CALLS,
+                len(pair_list) - pair_idx,
+            )
+            continue
+        fallback_calls += 1
         try:
             final_scores[pair_idx] = float(
                 score_fn(
@@ -280,12 +317,17 @@ def _ground_insights_with_bundled_nli(
         if score < nli_entailment_min:
             continue
         c = per_insight_candidates[i_idx][q_idx]
+        # ABSENT IS NOT ZERO. The bundled path has no extractive-QA stage, so a candidate carries
+        # no `qa_score` — defaulting it to 0.0 would publish "this evidence scored zero on QA" for
+        # a stage that never ran, a measurement claim we have not earned. `None` says "not
+        # measured"; the scorer skips it rather than averaging a fiction into the corpus.
+        raw_qa = getattr(c, "qa_score", None)
         grounded_by_insight[i_idx].append(
             GroundedQuote(
                 char_start=int(c.char_start),
                 char_end=int(c.char_end),
                 text=str(c.text),
-                qa_score=float(getattr(c, "qa_score", 0.0)),
+                qa_score=float(raw_qa) if raw_qa is not None else None,
                 nli_score=score,
             )
         )
@@ -356,37 +398,70 @@ def _maybe_prefetch_bundled_candidates(
     extract_bundled_fn = getattr(quote_extraction_provider, "extract_quotes_bundled", None)
     if quote_mode != "bundled" or not callable(extract_bundled_fn):
         return None
-    try:
-        prefetched = extract_bundled_fn(
-            transcript=transcript,
-            insight_texts=insight_texts,
-            pipeline_metrics=pipeline_metrics,
-        )
-    except Exception as exc:
-        logger.warning(
-            "extract_quotes_bundled failed; falling back to staged: %s",
-            format_exception_for_log(exc),
-        )
-        if pipeline_metrics is not None and hasattr(
-            pipeline_metrics, "gi_evidence_extract_quotes_bundled_fallbacks"
-        ):
-            pipeline_metrics.gi_evidence_extract_quotes_bundled_fallbacks += 1
-        return None
-    if pipeline_metrics is not None and hasattr(
-        pipeline_metrics, "gi_evidence_extract_quotes_bundled_calls"
-    ):
-        pipeline_metrics.gi_evidence_extract_quotes_bundled_calls += 1
-    if not isinstance(prefetched, dict):
-        return None
+
+    # CHUNK the bundled quote extraction. Sent whole, one call carried EVERY insight plus the
+    # transcript and asked for quotes for all of them — the response is ~256 tokens/insight, so a
+    # 50-insight episode blew past the 8192-token cap and came back as truncated (unterminated) JSON
+    # on deepseek, or timed out server-side (gemini 504) / client-side (mistral) on the oversized
+    # request. Any of those raised, and the WHOLE episode fell back to one extract_quotes call PER
+    # insight — the 8x request blow-up behind DeepSeek's "5 hours". score_entailment_bundled already
+    # chunks; this brings quote extraction in line. A chunk that still fails drops only ITS insights
+    # to the per-insight path (the caller falls back per missing index), not the whole episode.
+    chunk = max(1, int(getattr(cfg, "gil_evidence_quote_bundle_chunk", QUOTE_BUNDLE_CHUNK_SIZE)))
     out: Dict[int, List[Any]] = {}
-    for k, v in prefetched.items():
+    any_success = False
+
+    # Work queue of (global_start, batch). A batch that raises — a reasoning model whose reasoning
+    # plus a 10-insight JSON payload still overran the token cap and truncated — is BISECTED and
+    # retried, so it shrinks only where a provider needs it instead of dropping the whole chunk to
+    # per-insight. A size-1 batch that still fails is the only thing handed back to the staged path.
+    queue: List[Tuple[int, List[str]]] = [
+        (start, insight_texts[start : start + chunk])
+        for start in range(0, len(insight_texts), chunk)
+    ]
+    while queue:
+        start, batch = queue.pop()
         try:
-            idx = int(k)
-        except (TypeError, ValueError):
+            prefetched = extract_bundled_fn(
+                transcript=transcript,
+                insight_texts=batch,
+                pipeline_metrics=pipeline_metrics,
+            )
+        except Exception as exc:
+            if len(batch) > 1:
+                mid = len(batch) // 2
+                queue.append((start, batch[:mid]))
+                queue.append((start + mid, batch[mid:]))
+                continue
+            logger.warning(
+                "extract_quotes_bundled failed for insight %d even alone; falls back to "
+                "staged: %s",
+                start,
+                format_exception_for_log(exc),
+            )
+            if pipeline_metrics is not None and hasattr(
+                pipeline_metrics, "gi_evidence_extract_quotes_bundled_fallbacks"
+            ):
+                pipeline_metrics.gi_evidence_extract_quotes_bundled_fallbacks += 1
             continue
-        if isinstance(v, list):
-            out[idx] = v
-    return out
+        if pipeline_metrics is not None and hasattr(
+            pipeline_metrics, "gi_evidence_extract_quotes_bundled_calls"
+        ):
+            pipeline_metrics.gi_evidence_extract_quotes_bundled_calls += 1
+        if not isinstance(prefetched, dict):
+            continue
+        any_success = True
+        # Remap the batch-local indices (0..len(batch)) back to global insight indices.
+        for k, v in prefetched.items():
+            try:
+                local_idx = int(k)
+            except (TypeError, ValueError):
+                continue
+            if 0 <= local_idx < len(batch) and isinstance(v, list):
+                out[start + local_idx] = v
+
+    # None only if EVERY batch failed — then the caller runs the fully-staged path as before.
+    return out if any_success else None
 
 
 def _record_stub_fallback(pipeline_metrics: Optional[Any], exc: Exception) -> None:
@@ -815,7 +890,39 @@ def _quote_props(
         props["speaker_voice_type"] = voice_type
     if speaker_name:
         props["speaker_name"] = speaker_name
+    # The grounding scores do NOT live here — they live on the SUPPORTED_BY edge. A score grades
+    # the RELATION between an insight and a quote: the same span can be strong evidence for one
+    # insight and irrelevant to another, so it has no score of its own. The schema enforces this.
     return props
+
+
+def _support_edge(insight_id: str, quote_id: str, gq: GroundedQuote) -> Dict[str, Any]:
+    """The SUPPORTED_BY edge, carrying HOW STRONGLY the quote supports the insight.
+
+    The scores decide whether a quote survives grounding at all (``nli >= gi_nli_entailment_min``),
+    and for a long time they were computed and then dropped on the floor here — the edge was built
+    as a bare ``{type, from, to}``. So ``gi_scorer``, which averages the NLI score, averaged an
+    empty list and reported ``mean_nli_score: 0.0`` across a real 18-episode run: a number
+    indistinguishable from "every piece of evidence in the corpus contradicts its own insight". We
+    were FILTERING on a number we refused to REPORT.
+
+    The scores go in the edge's nested ``properties`` — the schema's sanctioned home for edge
+    metadata (``$defs.edge.properties.properties``, ``additionalProperties: true``), the same slot
+    the semantic-match edges use for ``confidence``. The top level is ``additionalProperties:
+    false`` and would reject them, which is why this never worked: ``gi_scorer`` read the score
+    from the top level, a place the contract forbids it from ever being.
+
+    A score is omitted rather than zeroed when the stage did not run — absent is not zero.
+    """
+    edge: Dict[str, Any] = {"type": "SUPPORTED_BY", "from": insight_id, "to": quote_id}
+    scores: Dict[str, Any] = {}
+    if gq.nli_score is not None:
+        scores["nli_score"] = float(gq.nli_score)
+    if gq.qa_score is not None:
+        scores["qa_score"] = float(gq.qa_score)
+    if scores:
+        edge["properties"] = scores
+    return edge
 
 
 def _apply_voice_flags(
@@ -1955,7 +2062,7 @@ def _artifact_from_multi_insight(
                     ),
                 }
             )
-            edges.append({"type": "SUPPORTED_BY", "from": insight_id, "to": quote_id})
+            edges.append(_support_edge(insight_id, quote_id, gq))
             _attach_person_for_quote(
                 nodes,
                 edges,

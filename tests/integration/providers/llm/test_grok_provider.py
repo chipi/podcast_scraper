@@ -56,7 +56,7 @@ class TestGrokProviderStandalone(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="grok",
             summary_provider="grok",
-            grok_api_key="test-api-key-123",
+            grok_api_key="test-key",
             auto_speakers=False,  # Disable to avoid API calls
             generate_summaries=False,  # Disable to avoid API calls
         )
@@ -206,7 +206,7 @@ class TestGrokProviderSpeakerDetection(unittest.TestCase):
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="grok",
-            grok_api_key="test-api-key-123",
+            grok_api_key="test-key",
             auto_speakers=True,
         )
 
@@ -310,7 +310,7 @@ class TestGrokProviderSummarization(unittest.TestCase):
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             summary_provider="grok",
-            grok_api_key="test-api-key-123",
+            grok_api_key="test-key",
             generate_summaries=True,
             generate_metadata=True,
         )
@@ -442,7 +442,7 @@ class TestGrokProviderGIL(unittest.TestCase):
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             summary_provider="grok",
-            grok_api_key="test-api-key-123",
+            grok_api_key="test-key",
             generate_summaries=True,
             generate_metadata=True,
         )
@@ -553,7 +553,10 @@ class TestGrokProviderGIL(unittest.TestCase):
         provider = GrokProvider(self.cfg)
         provider.initialize()
         provider.generate_insights("y" * 120_001, max_insights=3)
-        self.assertIn("[Transcript truncated.]", mock_render.call_args[1]["transcript"])
+        transcript_kw = next(
+            c.kwargs["transcript"] for c in mock_render.call_args_list if "transcript" in c.kwargs
+        )
+        self.assertIn("[Transcript truncated.]", transcript_kw)
 
     @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
     @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
@@ -587,7 +590,7 @@ class TestGrokProviderKG(unittest.TestCase):
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             summary_provider="grok",
-            grok_api_key="test-api-key-123",
+            grok_api_key="test-key",
             generate_summaries=True,
             generate_metadata=True,
         )
@@ -691,7 +694,7 @@ class TestGrokProviderEdgeCases(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="grok",
             summary_provider="grok",
-            grok_api_key="test-api-key-123",
+            grok_api_key="test-key",
             auto_speakers=True,
             generate_summaries=True,
             generate_metadata=True,
@@ -856,7 +859,7 @@ class TestGrokProviderErrorHandling(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="grok",
             summary_provider="grok",
-            grok_api_key="test-api-key-123",
+            grok_api_key="test-key",
             auto_speakers=True,
             generate_summaries=True,
             generate_metadata=True,
@@ -1035,7 +1038,7 @@ class TestGrokProviderErrorHandling(unittest.TestCase):
         """Test that pattern cleaning strategy is selected correctly."""
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            grok_api_key="test-api-key-123",
+            grok_api_key="test-key",
             transcript_cleaning_strategy="pattern",
             speaker_detector_provider="grok",
         )
@@ -1054,7 +1057,7 @@ class TestGrokProviderErrorHandling(unittest.TestCase):
         """Test that LLM cleaning strategy is selected correctly."""
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            grok_api_key="test-api-key-123",
+            grok_api_key="test-key",
             transcript_cleaning_strategy="llm",
             speaker_detector_provider="grok",
         )
@@ -1073,7 +1076,7 @@ class TestGrokProviderErrorHandling(unittest.TestCase):
         """Test that hybrid cleaning strategy is selected correctly (default)."""
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            grok_api_key="test-api-key-123",
+            grok_api_key="test-key",
             transcript_cleaning_strategy="hybrid",
             speaker_detector_provider="grok",
         )
@@ -1097,7 +1100,7 @@ class TestGrokSummarizeBundled(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="grok",
             summary_provider="grok",
-            grok_api_key="test-api-key-123",
+            grok_api_key="test-key",
             auto_speakers=False,
             generate_summaries=False,
             llm_pipeline_mode="bundled",

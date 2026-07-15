@@ -869,7 +869,9 @@ class TestAnthropicProviderGIL(unittest.TestCase):
         provider.initialize()
         long_text = "w" * 120_001
         provider.generate_insights(long_text, max_insights=3)
-        transcript_arg = mock_render.call_args[1]["transcript"]
+        transcript_arg = next(
+            c.kwargs["transcript"] for c in mock_render.call_args_list if "transcript" in c.kwargs
+        )
         self.assertIn("[Transcript truncated.]", transcript_arg)
         self.assertLessEqual(len(transcript_arg), 120_000 + 50)
 

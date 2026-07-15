@@ -1361,6 +1361,8 @@ class GrokProvider:
                         prompt_tokens=in_tok_gi,
                         completion_tokens=out_tok_gi,
                         triggered_guardrail=triggered_guardrail,
+                        served_model=getattr(response, "model", None),
+                        response=response,
                     )
                 except Exception:  # noqa: BLE001
                     pass
@@ -2059,6 +2061,8 @@ class GrokProvider:
                         prompt_tokens=in_tok_cl,
                         completion_tokens=out_tok_cl,
                         triggered_guardrail=triggered_guardrail,
+                        served_model=getattr(response, "model", None),
+                        response=response,
                     )
                 except Exception:  # noqa: BLE001
                     pass

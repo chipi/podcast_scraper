@@ -801,8 +801,41 @@ class Config(BaseModel):
     # existing dev/CI flows are unchanged; profiles that benefit (cloud_thin,
     # cloud_balanced) flip ``llm_circuit_breaker_enabled: true``.
     # ------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # LLM CALL FUSE (the money guardrail). A hard ceiling on how many LLM calls one episode / one
+    # run may make, across EVERY provider (cloud AND ollama/vllm). Distinct from the failure breaker
+    # below: the breaker trips on ERRORS, but the runaway that motivated this was ~3,500 SUCCESSFUL
+    # calls (200 OK, empty content) storming the per-pair fallback: a failure breaker never fires
+    # success. Past the budget the fuse BLOWS: raises and aborts the run loudly. Counts calls, not
+    # dollars, because call count is reliable while our per-provider cost logging is not (yet).
+    # ``0`` disables a scope. Defaults are safety backstops, not tight limits — normal is ~15-80
+    # calls/episode, and the per-pair entailment fallback is already separately capped at 200.
+    # ------------------------------------------------------------------
+    llm_max_calls_per_episode: int = Field(
+        default=500,
+        alias="llm_max_calls_per_episode",
+        ge=0,
+        le=100000,
+        description=(
+            "Hard ceiling on LLM calls while grounding/summarising ONE episode; 0 disables. "
+            "Catches a single runaway episode (the gpt-5.5 storm hit ~3,500) before it burns $."
+        ),
+    )
+    llm_max_calls_per_run: int = Field(
+        default=8000,
+        alias="llm_max_calls_per_run",
+        ge=0,
+        le=1000000,
+        description=(
+            "Hard ceiling on LLM calls across a whole run/session; 0 disables. Catches "
+            "cumulative overspend even when no single episode looks pathological."
+        ),
+    )
     llm_circuit_breaker_enabled: bool = Field(
-        default=False,
+        # Enriched-resilience decision: default ON so slow/failing model endpoints get graceful
+        # wait-and-resume everywhere, matching the RSS layer's posture, instead of only where a
+        # profile happened to flip it.
+        default=True,
         alias="llm_circuit_breaker_enabled",
         description=(
             "Enable per-provider wait-and-resume circuit breaker for cloud "
@@ -2118,7 +2151,11 @@ class Config(BaseModel):
         ),
     )
     gil_evidence_quote_mode: Literal["staged", "bundled"] = Field(
-        default="staged",
+        # THE DEFAULT IS THE DEFAULT (registry: provider_chunked_gated_v3). This said "staged", so
+        # any caller that did not load a profile ground with the local DeBERTa stack instead of the
+        # LLM — a different product wearing the same config. Bound to the registry by
+        # test_the_config_default_is_not_a_trap.
+        default="bundled",
         alias="gil_evidence_quote_mode",
         description=(
             "GIL evidence-stack extract_quotes mode (#698). ``staged`` (default) issues one "
@@ -2129,7 +2166,8 @@ class Config(BaseModel):
         ),
     )
     gil_evidence_nli_mode: Literal["staged", "bundled"] = Field(
-        default="staged",
+        # See gil_evidence_quote_mode: the registry's researched value, not a stale fallback.
+        default="bundled",
         alias="gil_evidence_nli_mode",
         description=(
             "GIL evidence-stack score_entailment mode (#698 Layer B). ``staged`` (default) "
@@ -2253,7 +2291,9 @@ class Config(BaseModel):
         ),
     )
     gi_max_insights: int = Field(
-        default=config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX,
+        # The registry's measured ceiling (50), not the old 20. n=12/20 were never derived from
+        # anything; the gates trim filler, so the cap is not what protects quality.
+        default=config_constants.GI_DEFAULT_MAX_INSIGHTS,
         ge=1,
         le=config_constants.GI_MAX_INSIGHTS_CEILING,
         alias="gi_max_insights",
@@ -2264,7 +2304,9 @@ class Config(BaseModel):
         ),
     )
     gi_value_gate_enabled: bool = Field(
-        default=False,
+        # Defaulting this to False is how the judge we spent two days building never ran in
+        # production: a profile that forgot the key did not fail, it silently shipped ungated.
+        default=True,
         alias="gi_value_gate_enabled",
         description=(
             "Drop insights that carry no real knowledge, after extraction. The extractor cannot "
@@ -2296,6 +2338,21 @@ class Config(BaseModel):
         description=(
             "Cosine similarity above which a chunked insight is treated as restating one already "
             "kept. Chunks overlap in subject even when they do not overlap in text."
+        ),
+    )
+    gi_insight_temperature: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=2.0,
+        alias="gi_insight_temperature",
+        description=(
+            "Sampling temperature for INSIGHT EXTRACTION specifically. None falls back to the "
+            "provider's general temperature (0.3), which is what every arm silently ran: the eval "
+            "YAMLs said `temperature: 0.0`, but that key mapped to nothing and insight extraction "
+            "sampled at 0.3 anyway. A model comparison at t=0.3 partly measures the RNG — re-runs "
+            "of the SAME model disagree — so a bake-off must pin this to 0. Kept separate from "
+            "`<provider>_temperature` because that field also drives summarisation and speaker "
+            "detection, and pinning insights must not silently re-tune two other stages."
         ),
     )
     gi_insight_prompt_version: str = Field(

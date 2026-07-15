@@ -453,31 +453,42 @@ class MLProvider:
         Returns:
             Device string: 'mps', 'cuda', or 'cpu'
         """
+
+        # transformers-v5 Whisper (#1145) requests float64 during feature extraction, which Apple's
+        # Metal (MPS) backend rejects ("Cannot convert a MPS Tensor to float64"). So MPS is NOT a
+        # valid Whisper device: coerce any mps → cpu (a Mac dev box transcribes on CPU, slower, but
+        # does not crash). CUDA / CPU are unaffected, so CI (Linux/CUDA) and the DGX are unchanged.
+        def _no_mps(dev: str) -> str:
+            if dev == "mps":
+                logger.warning(
+                    "Whisper does not support MPS (transformers-v5 uses float64, which Metal "
+                    "rejects); transcribing on CPU instead"
+                )
+                return "cpu"
+            return dev
+
         # Stage-level device config takes precedence (Issue #387)
         if self.cfg.transcription_device:
             logger.debug(
                 "Using stage-level transcription_device: %s", self.cfg.transcription_device
             )
-            return self.cfg.transcription_device.lower()
+            return _no_mps(self.cfg.transcription_device.lower())
         # Fallback to provider-specific device config
         if self.cfg.whisper_device:
             logger.debug("Using configured whisper_device: %s", self.cfg.whisper_device)
-            return self.cfg.whisper_device
+            return _no_mps(self.cfg.whisper_device.lower())
 
-        # Auto-detect: prefer MPS (Apple Silicon) > CUDA (NVIDIA) > CPU
+        # Auto-detect: CUDA (NVIDIA) > CPU. MPS is skipped (see _no_mps).
         try:
             import torch
 
-            if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-                logger.debug("Auto-detected MPS (Apple Silicon) for Whisper")
-                return "mps"
             if torch.cuda.is_available():
                 logger.debug("Auto-detected CUDA for Whisper")
                 return "cuda"
         except ImportError:
             pass
 
-        logger.debug("Using CPU for Whisper (no GPU detected)")
+        logger.debug("Using CPU for Whisper (no CUDA GPU; MPS unsupported for Whisper)")
         return "cpu"
 
     def _initialize_whisper(self) -> None:  # noqa: C901

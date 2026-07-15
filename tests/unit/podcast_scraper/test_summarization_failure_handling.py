@@ -41,18 +41,38 @@ def create_test_config(**kwargs):
     return config.Config(**defaults)
 
 
+def _restore_transformers(original):
+    """Put ``sys.modules['transformers']`` back the way we found it.
+
+    A mocked module left in ``sys.modules`` is not a local lie — it is a GLOBAL one. Every import
+    for the rest of the process gets the Mock, including the real ML tests, which then assert
+    against ``MagicMock.max_new_tokens`` instead of 600.
+    """
+    if original is None:
+        sys.modules.pop("transformers", None)
+    else:
+        sys.modules["transformers"] = original
+
+
 class TestSummarizationInitializationFailure(unittest.TestCase):
     """Test summarization provider initialization failure handling."""
 
     def setUp(self):
         """Set up test fixtures."""
         self.output_dir = tempfile.mkdtemp()
+        # Two tests below install a Mock as `sys.modules["transformers"]` and never took it back
+        # out, so the mock OUTLIVED this file and every later test in the session imported it. The
+        # victim was whichever ML test ran next and asked the real library a question — it got a
+        # MagicMock and compared it to 600. Order-dependent, so it hid until an unrelated new file
+        # shifted collection order.
+        self._original_transformers = sys.modules.get("transformers")
 
     def tearDown(self):
         """Clean up test fixtures."""
         import shutil
 
         shutil.rmtree(self.output_dir, ignore_errors=True)
+        _restore_transformers(self._original_transformers)
 
     @patch("podcast_scraper.providers.ml.ml_provider.MLProvider._initialize_transformers")
     @patch("podcast_scraper.workflow.stages.setup.initialize_ml_environment")

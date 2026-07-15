@@ -110,6 +110,13 @@ def _record_openai_summarization_call(
     pipeline_metrics.record_llm_summarization_call(in_tok, out_tok, cost_usd=cost)
 
 
+# Models that reject any explicit temperature other than the default (1). gpt-5.5 does;
+# gpt-5.4-mini
+# gpt-5.4-mini does not. Seeded here, grown at runtime from the API error (see _chat_create),
+# so a future model that fixes temperature self-heals after one failed call, not a crash.
+_TEMPERATURE_FIXED_MODELS = frozenset({"gpt-5.5", "gpt-5.5-pro"})
+
+
 class OpenAIProvider:
     """Unified OpenAI provider implementing TranscriptionProvider, SpeakerDetector, and SummarizationProvider.
 
@@ -269,6 +276,58 @@ class OpenAIProvider:
         # Mark provider as thread-safe (API clients can be shared across threads)
         # API providers handle rate limiting internally, so parallelism isn't needed
         self._requires_separate_instances = False
+
+        # Models that reject any explicit ``temperature`` other than the default (1). gpt-5.4-mini
+        # still accepts temperature=0, but gpt-5.5 rejects it with a 400 "temperature does not
+        # support 0 ... only the default (1)". Seeded and grown at runtime — see _chat_create.
+        self._temp_fixed_at_default: Set[str] = set(_TEMPERATURE_FIXED_MODELS)
+
+    def _chat_create(self, **kwargs: Any) -> Any:
+        """``chat.completions.create`` that survives models which fixed ``temperature`` at default.
+
+        Every OpenAI call routes through here. If the model is known to allow only the default
+        temperature, the parameter is dropped up front. If a model we did not know about rejects a
+        non-default temperature — a 400 that names ``temperature`` — the model is recorded and the
+        call retried once without it. So gpt-5.5 (and whatever comes next) self-heals instead of
+        crashing the run at episode 1, and only the FIRST call per model pays the retry.
+        """
+        model = kwargs.get("model")
+        if model in self._temp_fixed_at_default:
+            kwargs.pop("temperature", None)
+        try:
+            return self.client.chat.completions.create(**kwargs)
+        except Exception as exc:  # noqa: BLE001 — inspect, re-raise unless it is the temp case
+            msg = str(exc).lower()
+            if (
+                "temperature" in kwargs
+                and "temperature" in msg
+                and (
+                    "does not support" in msg
+                    or "only the default" in msg
+                    or "unsupported_value" in msg
+                )
+            ):
+                if isinstance(model, str):
+                    self._temp_fixed_at_default.add(model)
+                kwargs.pop("temperature", None)
+                return self.client.chat.completions.create(**kwargs)
+            raise
+
+    def _token_kwarg(self, n: int, model: Optional[str] = None) -> Dict[str, Any]:
+        """The right token-limit kwarg for this model, as a dict to spread into a create() call.
+
+        The o1/o3/gpt-5 series RENAMED ``max_tokens`` to ``max_completion_tokens`` and hard-reject
+        the old name with a 400. The summarization path already knew this, but the EVIDENCE calls
+        (quote extraction, entailment) still sent ``max_tokens`` — so on gpt-5 every grounding call
+        400'd, fell back to staged, 400'd again, and the whole arm produced 0 grounded quotes while
+        looking like it had "completed". One helper, used at every call site, so the rename cannot
+        be honoured in one place and forgotten in another. ``model`` defaults to the summary model;
+        the cleaning path passes its own.
+        """
+        name = model or self.summary_model
+        if name.startswith(("o1", "o3", "gpt-5")):
+            return {"max_completion_tokens": n}
+        return {"max_tokens": n}
 
     @staticmethod
     def get_pricing(model: str, capability: str) -> Dict[str, float]:
@@ -781,14 +840,14 @@ class OpenAIProvider:
             )
 
             response = retry_with_metrics(
-                lambda: self.client.chat.completions.create(
+                lambda: self._chat_create(
                     model=self.speaker_model,
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},
                     ],
                     temperature=self.speaker_temperature,
-                    max_tokens=300,
+                    **self._token_kwarg(300),
                     response_format={"type": "json_object"},
                 ),
                 max_retries=2,
@@ -1166,7 +1225,7 @@ class OpenAIProvider:
                 }
                 if self.summary_seed is not None:
                     kwargs["seed"] = self.summary_seed
-                return self.client.chat.completions.create(**kwargs)
+                return self._chat_create(**kwargs)
 
             try:
                 response = retry_with_metrics(
@@ -1402,7 +1461,7 @@ class OpenAIProvider:
                 kwargs["response_format"] = {"type": "json_object"}
             if self.summary_seed is not None:
                 kwargs["seed"] = self.summary_seed
-            return self.client.chat.completions.create(**kwargs)
+            return self._chat_create(**kwargs)
 
         try:
             resp = retry_with_metrics(
@@ -1500,7 +1559,7 @@ class OpenAIProvider:
                 kwargs["response_format"] = {"type": "json_object"}
             if self.summary_seed is not None:
                 kwargs["seed"] = self.summary_seed
-            return self.client.chat.completions.create(**kwargs)
+            return self._chat_create(**kwargs)
 
         try:
             resp = retry_with_metrics(
@@ -1596,7 +1655,7 @@ class OpenAIProvider:
                 kwargs["response_format"] = {"type": "json_object"}
             if self.summary_seed is not None:
                 kwargs["seed"] = self.summary_seed
-            return self.client.chat.completions.create(**kwargs)
+            return self._chat_create(**kwargs)
 
         try:
             response = retry_with_metrics(
@@ -1762,14 +1821,14 @@ class OpenAIProvider:
                 max_insights=max_insights,
             )
             system_prompt = render_prompt("openai/insight_extraction/system_v1")
-            response = self.client.chat.completions.create(
+            response = self._chat_create(
                 model=self.insight_model,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=insight_temperature,
-                max_tokens=insight_max_tokens,
+                **self._token_kwarg(insight_max_tokens),
             )
             in_tok, out_tok = _openai_chat_usage_tokens(response)
             # Cost computed up-front so it can be emitted on both happy-path
@@ -1804,6 +1863,8 @@ class OpenAIProvider:
                         prompt_tokens=int(in_tok),
                         completion_tokens=int(out_tok),
                         triggered_guardrail=triggered_guardrail,
+                        served_model=getattr(response, "model", None),
+                        response=response,
                     )
                 except Exception:  # noqa: BLE001 - defensive; never block GI on telemetry
                     pass
@@ -1885,11 +1946,11 @@ class OpenAIProvider:
             config_constants.GI_INSIGHT_TOKENS_FLOOR,
             len(insights) * config_constants.GI_VALUE_GATE_TOKENS_EACH,
         )
-        response = self.client.chat.completions.create(
+        response = self._chat_create(
             model=self.summary_model,
             messages=[{"role": "user", "content": user_prompt}],
             temperature=0.0,
-            max_tokens=gate_max_tokens,
+            **self._token_kwarg(gate_max_tokens),
             response_format={"type": "json_object"},
         )
         content = (response.choices[0].message.content or "").strip()
@@ -1914,11 +1975,11 @@ class OpenAIProvider:
         if not self._summarization_initialized:
             raise RuntimeError("OpenAI summarization not initialized for complete_text")
 
-        response = self.client.chat.completions.create(
+        response = self._chat_create(
             model=self.summary_model,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.0,
-            max_tokens=800,
+            **self._token_kwarg(800),
             response_format={"type": "json_object"},
         )
         content = (response.choices[0].message.content or "").strip()
@@ -1968,14 +2029,14 @@ class OpenAIProvider:
             )
 
             def _make_api_call():
-                return self.client.chat.completions.create(
+                return self._chat_create(
                     model=model,
                     messages=[
                         {"role": "system", "content": system_msg},
                         {"role": "user", "content": user_prompt},
                     ],
                     temperature=0.1,
-                    max_tokens=2048,
+                    **self._token_kwarg(2048),
                 )
 
             response = retry_with_metrics(
@@ -2043,14 +2104,14 @@ class OpenAIProvider:
             pm = kwargs.get("pipeline_metrics")
 
             def _make_api_call():
-                return self.client.chat.completions.create(
+                return self._chat_create(
                     model=self.summary_model,
                     messages=[
                         {"role": "system", "content": system},
                         {"role": "user", "content": user},
                     ],
                     temperature=0.0,
-                    max_tokens=config_constants.GI_QUOTE_RESPONSE_TOKENS,
+                    **self._token_kwarg(config_constants.GI_QUOTE_RESPONSE_TOKENS),
                 )
 
             try:
@@ -2138,14 +2199,14 @@ class OpenAIProvider:
             pm = kwargs.get("pipeline_metrics")
 
             def _make_api_call():
-                return self.client.chat.completions.create(
+                return self._chat_create(
                     model=self.summary_model,
                     messages=[
                         {"role": "system", "content": system},
                         {"role": "user", "content": user},
                     ],
                     temperature=0.0,
-                    max_tokens=10,
+                    **self._token_kwarg(10),
                 )
 
             try:
@@ -2223,14 +2284,14 @@ class OpenAIProvider:
         max_out = extract_quotes_bundled_max_tokens(len(insight_texts))
 
         def _make_api_call() -> Any:
-            return self.client.chat.completions.create(
+            return self._chat_create(
                 model=self.summary_model,
                 messages=[
                     {"role": "system", "content": system},
                     {"role": "user", "content": user},
                 ],
                 temperature=0.0,
-                max_tokens=max_out,
+                **self._token_kwarg(max_out),
             )
 
         try:
@@ -2350,14 +2411,14 @@ class OpenAIProvider:
         max_out = score_entailment_bundled_max_tokens(len(chunk_pairs))
 
         def _make_api_call() -> Any:
-            return self.client.chat.completions.create(
+            return self._chat_create(
                 model=self.summary_model,
                 messages=[
                     {"role": "system", "content": system},
                     {"role": "user", "content": user},
                 ],
                 temperature=0.0,
-                max_tokens=max_out,
+                **self._token_kwarg(max_out),
             )
 
         try:
@@ -2552,16 +2613,19 @@ class OpenAIProvider:
             call_metrics.set_breaker_config_from_cfg(self.cfg)
 
             def _make_api_call():
-                return self.client.chat.completions.create(
+                return self._chat_create(
                     model=self.cleaning_model,
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},
                     ],
                     temperature=self.cleaning_temperature,
-                    max_tokens=clamp_cleaning_max_tokens(
-                        estimate_cleaning_output_tokens(len(text.split())),
-                        OPENAI_CLEANING_MAX_TOKENS,
+                    **self._token_kwarg(
+                        clamp_cleaning_max_tokens(
+                            estimate_cleaning_output_tokens(len(text.split())),
+                            OPENAI_CLEANING_MAX_TOKENS,
+                        ),
+                        model=self.cleaning_model,
                     ),
                 )
 
@@ -2618,6 +2682,8 @@ class OpenAIProvider:
                         prompt_tokens=int(in_tok),
                         completion_tokens=int(out_tok),
                         triggered_guardrail=triggered_guardrail,
+                        served_model=getattr(response, "model", None),
+                        response=response,
                     )
                 except Exception:  # noqa: BLE001 - defensive
                     pass

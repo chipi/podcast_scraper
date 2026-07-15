@@ -1044,7 +1044,10 @@ class TestOllamaProviderGIL(unittest.TestCase):
         provider = OllamaProvider(self.cfg)
         provider.initialize()
         provider.generate_insights("o" * 120_001, max_insights=2)
-        self.assertIn("[Transcript truncated.]", mock_render.call_args[1]["transcript"])
+        transcript_kw = next(
+            c.kwargs["transcript"] for c in mock_render.call_args_list if "transcript" in c.kwargs
+        )
+        self.assertIn("[Transcript truncated.]", transcript_kw)
 
     @patch("podcast_scraper.prompts.store.render_prompt", return_value="p")
     @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
@@ -1074,7 +1077,14 @@ class TestOllamaProviderGIL(unittest.TestCase):
 
         provider.generate_insights("transcript", max_insights=12)
 
-        self.assertEqual(mock_render.call_args[1]["max_insights"], 12)
+        # generate_insights renders the user prompt (carrying max_insights) then a separate system
+        # prompt; assert on the render call that actually received the count, not the last call.
+        max_insights_kw = next(
+            c.kwargs["max_insights"]
+            for c in mock_render.call_args_list
+            if "max_insights" in c.kwargs
+        )
+        self.assertEqual(max_insights_kw, 12)
         # The token budget must scale with the count, or insights 11 and 12 get
         # truncated away and the clamp fix hides itself.
         sent = mock_client.chat.completions.create.call_args[1]["max_tokens"]

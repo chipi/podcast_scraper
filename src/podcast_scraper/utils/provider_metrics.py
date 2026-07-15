@@ -9,7 +9,6 @@ from __future__ import annotations
 import importlib
 import json
 import logging
-import os
 import random
 import time
 from dataclasses import dataclass, field
@@ -42,26 +41,40 @@ class ProviderCallMetrics:
     _breaker_config: Optional[Any] = field(
         default=None, init=False, repr=False
     )  # LLMCircuitBreakerConfig derived from cfg, populated lazily.
+    _resilience_profile: Optional[Any] = field(
+        default=None, init=False, repr=False
+    )  # Per-model ResilienceProfile; retry_with_metrics reads retries/backoff from it.
 
     def set_breaker_config_from_cfg(self, cfg: Any) -> None:
-        """Derive :class:`LLMCircuitBreakerConfig` from ``cfg`` and attach.
+        """Attach the per-model resilience profile AND (if enabled) the circuit-breaker config.
 
-        ADR-100 follow-up: lets cloud providers wire the per-provider
-        circuit breaker without threading ``circuit_breaker_config`` through
-        every :func:`retry_with_metrics` call site. The breaker is opt-in
-        via ``cfg.llm_circuit_breaker_enabled``; default is off.
+        ADR-100 follow-up: lets cloud providers wire per-provider resilience without threading it
+        through every :func:`retry_with_metrics` call site — they already call this. The per-model
+        profile (retries/backoff, and the breaker's own threshold/cooldown) is resolved here from
+        ``_provider_name`` + the summary model, so gemini-2.5-flash-lite backs off harder than a
+        heavier model WITHOUT any call-site changes.
         """
         if cfg is None:
             return
+        # Resolve the per-model resilience profile UNCONDITIONALLY (independent of the breaker
+        # toggle): its retries/backoff apply on every retry_with_metrics call.
+        from .llm_resilience import resolve_resilience
+
+        model = getattr(cfg, f"{self._provider_name}_summary_model", None)
+        profile = resolve_resilience(self._provider_name, model)
+        self._resilience_profile = profile
+
         if not getattr(cfg, "llm_circuit_breaker_enabled", False):
             return
         from .llm_circuit_breaker import LLMCircuitBreakerConfig
 
+        # The model's profile wins on breaker threshold/cooldown so flash-lite trips sooner and
+        # cools down longer than the global default.
         self._breaker_config = LLMCircuitBreakerConfig(
             enabled=True,
-            failure_threshold=int(getattr(cfg, "llm_circuit_breaker_failure_threshold", 3)),
+            failure_threshold=profile.breaker_failure_threshold,
             window_seconds=float(getattr(cfg, "llm_circuit_breaker_window_seconds", 30.0)),
-            cooldown_seconds=float(getattr(cfg, "llm_circuit_breaker_cooldown_seconds", 60.0)),
+            cooldown_seconds=profile.breaker_cooldown_seconds,
         )
 
     def set_provider_name(self, name: str) -> None:
@@ -185,13 +198,15 @@ def record_provider_call_cost(
             audio_minutes=audio_minutes,
         )
     final = call_metrics.estimated_cost
-    if final is None or final <= 0:
-        return
+    # NOT gated on cost>0 any more: a call with tokens but no known price (an unpriced model, or a
+    # capability the pricing lookup can't resolve) must still record its token usage — tokens are
+    # ground truth, cost is a projection. emit_llm_cost_event drops only a truly-empty call, stamps
+    # run/episode from correlation itself, and emits the Langfuse span (the SINGLE tracing choke
+    # point) — so we no longer emit a span here (that would double-count).
     # #1053: the correlation join key for every signal emitted for this LLM call.
     from podcast_scraper.utils import correlation
 
     run_id = correlation.get_run_id()
-    episode_id = correlation.get_episode_id()
 
     try:
         from podcast_scraper.workflow.cost_monitoring import emit_llm_cost_event
@@ -201,7 +216,7 @@ def record_provider_call_cost(
             provider=provider_type,
             stage=capability,
             model=model,
-            estimated_cost_usd=float(final),
+            estimated_cost_usd=float(final or 0.0),
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             run_id=run_id,
@@ -209,28 +224,6 @@ def record_provider_call_cost(
         )
     except Exception as exc:
         logger.debug("llm_cost_event emission skipped: %s", exc)
-
-    # Langfuse AI-quality lens (#1052): same choke point, no-op unless keys set.
-    # Group a run's calls under one trace seeded by the run_id correlation key (#1053),
-    # so the trace is directly addressable as create_trace_id(seed=run_id).
-    try:
-        from podcast_scraper.utils.langfuse_tracing import emit_langfuse_span
-
-        emit_langfuse_span(
-            provider=provider_type,
-            capability=capability,
-            model=model,
-            cost=float(final),
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            run_seed=run_id or getattr(cfg, "output_dir", None),
-            episode_id=episode_id,
-            feed_id=getattr(cfg, "rss_url", None),
-            triggered_guardrail=triggered_guardrail,
-            env=os.environ.get("PODCAST_ENV"),
-        )
-    except Exception as exc:
-        logger.debug("langfuse span emission skipped: %s", exc)
 
 
 def transcription_model_for_cfg(cfg: Any) -> str:
@@ -473,6 +466,15 @@ def retry_with_metrics(  # noqa: C901
         which can cause a "thundering herd" problem. The jitter adds ±10% random
         variation to the calculated delay.
     """
+    # Per-model resilience profile (attached to metrics by set_breaker_config_from_cfg). When
+    # present it OVERRIDES the call site's hardcoded retries/backoff, so flash-lite retries
+    # more patiently with longer backoff than a heavier model — without touching the ~75 call sites.
+    _profile = getattr(metrics, "_resilience_profile", None) if metrics is not None else None
+    if _profile is not None:
+        max_retries = _profile.max_retries
+        initial_delay = _profile.initial_delay
+        max_delay = _profile.max_delay
+
     last_exception: Optional[Exception] = None
     delay = initial_delay
     total_retry_sleep_seconds = 0.0
@@ -498,7 +500,15 @@ def retry_with_metrics(  # noqa: C901
 
         _breaker = _llm_breaker_module
 
+    from . import llm_call_fuse as _llm_fuse
+
     for attempt in range(max_retries + 1):
+        # THE LLM CALL FUSE. Ticked once per attempt (retries cost money too), OUTSIDE the try so a
+        # blown budget raises straight through as a hard abort instead of being swallowed by the
+        # retry handler below. This is the count ceiling neither the failure breaker nor the HTTP
+        # resilience layer provides — it is what would have stopped gpt-5.5's ~3,500-call runaway.
+        # A no-op when no budget is installed (unit tests, ad-hoc scripts).
+        _llm_fuse.tick()
         try:
             if _breaker is not None:
                 _breaker.wait_if_overloaded(
@@ -510,6 +520,22 @@ def retry_with_metrics(  # noqa: C901
             return result
         except retryable_exceptions as e:
             last_exception = e
+            # TERMINAL first — out of money / credit / access. No backoff fixes this, so do NOT
+            # retry: raise a clear hard stop (the money/access fuse, mirroring the call-count fuse).
+            # This is the class the old binary retryable-or-not check missed — it lumped every
+            # "quota" string into retryable and looped on the exact 400 that stopped our Anthropic
+            # account mid-run.
+            from .llm_error_taxonomy import (
+                classify_llm_error,
+                LLMErrorClass,
+                LLMTerminalError,
+                terminal_message,
+            )
+
+            if classify_llm_error(e) is LLMErrorClass.TERMINAL:
+                msg = terminal_message(_provider_name, e)
+                logger.error(msg)
+                raise LLMTerminalError(msg) from e
             # #697: record overload-class failures into the circuit breaker so
             # repeated 503s within the window trip the breaker for the next call.
             if _breaker is not None:

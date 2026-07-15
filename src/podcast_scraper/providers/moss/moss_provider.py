@@ -28,6 +28,7 @@ _DEFAULT_TIMEOUT_SEC = 1800.0
 
 
 def moss_base_url(host: str, port: int) -> str:
+    """The MOSS service base URL for a tailnet ``host``:``port``."""
     return f"http://{host}:{port}"
 
 
@@ -49,11 +50,13 @@ class MossTranscriptionProvider:
         self._initialized = False
 
     def initialize(self) -> None:
+        """Require the DGX tailnet host and mark the provider ready (no local model load)."""
         if not self._host:
             raise ValueError("dgx_tailnet_host is required for the moss provider")
         self._initialized = True
 
     def cleanup(self) -> None:
+        """Release provider state (idempotent; no local resources held)."""
         self._initialized = False
 
     def _call(self, audio_path: str) -> Dict[str, Any]:
@@ -75,6 +78,7 @@ class MossTranscriptionProvider:
         return payload
 
     def transcribe(self, audio_path: str, language: Optional[str] = None) -> str:
+        """Transcribe ``audio_path`` and return the plain text (segments dropped)."""
         return str(self._call(audio_path).get("text") or "").strip()
 
     def transcribe_with_segments(

@@ -20,6 +20,14 @@ from podcast_scraper.evaluation.judges.base import JudgeResult, JudgeUnavailable
 logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL = "claude-sonnet-4-6"
+# UNRESOLVED (flagged during the sonnet-4-6 bake-off incident): "claude-sonnet-4-6" is NOT on the
+# known-model allowlist (config/known_models.yaml) — its reality is unconfirmed (it is absent from
+# pricing_assumptions.yaml, and a bake-off arm requesting it appears to have been billed as
+# sonnet-5). This judge default is DELIBERATELY left unchanged pending evidence: either an operator
+# provider-dashboard line item, or the served-model check (verify_served_model / the
+# llm_model_substitution log) confirming what Anthropic actually serves for this id. Do NOT blindly
+# rename to claude-sonnet-4-5 — if 4-6 is real that breaks a #932 judge; if it is fake, the judge
+# has been scoring on a substituted model and THAT is the finding. Resolve, then update here.
 # Anthropic public pricing — Sonnet 4.6 input/output per million tokens.
 # Authoritative copy lives in pricing_assumptions.yaml; the values here are
 # duplicated only so the judge can self-report cost without loading the YAML.
