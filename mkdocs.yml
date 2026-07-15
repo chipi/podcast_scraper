@@ -377,6 +377,7 @@ nav:
       - RFC-102 Knowledge Clusters & Entity Cards: rfc/RFC-102-knowledge-clusters-entity-cards.md
       - RFC-103 Momentum Layer (Trending): rfc/RFC-103-momentum-layer.md
       - RFC-104 Operator Shows Library: rfc/RFC-104-operator-shows-library.md
+      - RFC-105 Cross-feed audio↔LLM pipelining: rfc/RFC-105-cross-feed-audio-llm-pipelining.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md

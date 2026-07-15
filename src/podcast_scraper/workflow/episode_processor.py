@@ -1637,7 +1637,14 @@ def transcribe_media_to_text(
                     metadata_named=job.metadata_named,
                     cache_dir=os.path.join(effective_output_dir, ".cache", "diarization"),
                 )
-            except (ProviderDependencyError, ValueError) as exc:
+            except (ProviderDependencyError, ValueError, OSError, RuntimeError) as exc:
+                # Broadened catch (Whisper-e2e diagnosis, #1180 follow-up).
+                # A diarization failure MUST NOT lose the successfully-computed
+                # transcript. HuggingFace Hub errors from an uncached pyannote
+                # model raise OSError; torch/pyannote instantiation issues raise
+                # RuntimeError; both were previously escaping to the outer
+                # transcription except clause and getting mislabeled as
+                # "Whisper transcription failed" while dropping the transcript.
                 logger.warning(
                     "[%s] Diarization failed; falling back to gap-based screenplay: %s",
                     job.idx,

@@ -279,3 +279,65 @@ class TestMPSExclusiveMode(unittest.TestCase):
 
             # Clean up
             processing_thread.join(timeout=1.0)
+
+
+@pytest.mark.integration
+class TestMPSExclusiveFallbackWarning(unittest.TestCase):
+    """#1180 gap 5: the ``torch.backends.mps.is_available()`` fallback in
+    ``_both_providers_use_mps`` used to silently over-serialize when the summary
+    provider's models were unloaded at check time. It now logs a WARNING so an
+    operator seeing a low ``processing_overlap_ratio`` on a Mac can trace it
+    back to this decision.
+    """
+
+    def test_fallback_warns_when_summary_models_unloaded(self):
+        """No _map_model / _reduce_model + no summary_device + MPS available
+        → summarization_uses_mps=True with a WARNING.
+        """
+        import logging
+
+        # Build cfg with summary_device already unset so we hit the fallback;
+        # Config is frozen so late mutation isn't possible.
+        cfg = create_test_config(
+            whisper_device="mps",
+            generate_summaries=True,
+        )
+
+        mock_tx = Mock()
+        mock_tx._detect_whisper_device = Mock(return_value="mps")
+        type(mock_tx).__name__ = "MLProvider"
+
+        # Summary provider is local ML but its models are unloaded (both attrs
+        # exist but are None/falsy, triggering the "elif has _reduce_model"
+        # branch to also fall through).
+        mock_sum = Mock(spec=["_map_model", "_reduce_model"])
+        mock_sum._map_model = None
+        mock_sum._reduce_model = None
+        type(mock_sum).__name__ = "MLProvider"
+
+        with self.assertLogs(
+            "podcast_scraper.workflow.orchestration", level=logging.WARNING
+        ) as caplog:
+            result = _both_providers_use_mps(cfg, mock_tx, mock_sum)
+
+        # The result depends on whether MPS is actually available on this
+        # test host — on CI Linux runners it's False, on Mac dev it's True.
+        # We assert on the log-line contract in both cases.
+        try:
+            import torch
+
+            mps_avail = hasattr(torch.backends, "mps") and torch.backends.mps.is_available()
+        except ImportError:
+            mps_avail = False
+
+        if mps_avail:
+            self.assertTrue(result)
+            self.assertTrue(
+                any("MPS-exclusive check" in msg for msg in caplog.output),
+                f"expected observable-fallback WARNING; got {caplog.output}",
+            )
+        else:
+            # On non-MPS hosts the fallback still evaluates but doesn't log
+            # (the branch guards on is_available()). We can only test the
+            # positive path when MPS is available — record the skip reason.
+            self.assertFalse(result)

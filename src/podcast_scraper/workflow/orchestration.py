@@ -981,26 +981,45 @@ def _both_providers_use_mps(
                 # Fallback: check summary_device from config
                 if not summarization_uses_mps and cfg.summary_device:
                     summarization_uses_mps = cfg.summary_device == "mps"
-                # Final fallback: auto-detect if MPS is available (when device not explicitly set)
+                # Final fallback: auto-detect if MPS is available (when device not explicitly set).
+                # #1180 gap 5: models may be unloaded at pipeline setup time, so we cannot query
+                # their actual device. Assuming MPS-when-available prevents crashes but silently
+                # over-serializes when the provider will resolve to CPU. Log a WARNING so the
+                # operator can trace a low processing_overlap_ratio back to this decision.
                 if not summarization_uses_mps and not cfg.summary_device:
                     try:
                         import torch
 
                         if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
                             summarization_uses_mps = True
+                            logger.warning(
+                                "MPS-exclusive check: summarization provider models "
+                                "unloaded at setup time; falling back to "
+                                "torch.backends.mps.is_available()=True. If the provider "
+                                "will actually run on CPU, this over-serializes and disables "
+                                "audio↔LLM overlap. Set cfg.summarization_device or "
+                                "cfg.summary_device explicitly, or cfg.mps_exclusive=False, "
+                                "to override. See #1180 audit."
+                            )
                     except ImportError:
                         summarization_uses_mps = False
             except Exception:
                 # If attributes don't exist or fail, check config
                 if cfg.summary_device:
                     summarization_uses_mps = cfg.summary_device == "mps"
-                # Final fallback: auto-detect if MPS is available
+                # Final fallback: auto-detect if MPS is available (see #1180 gap 5 comment
+                # above — the same over-serialize / silent-overlap-loss risk applies here).
                 elif not cfg.summary_device:
                     try:
                         import torch
 
                         if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
                             summarization_uses_mps = True
+                            logger.warning(
+                                "MPS-exclusive check: summarization provider raised while "
+                                "probing model device; falling back to "
+                                "torch.backends.mps.is_available()=True. See #1180 audit."
+                            )
                     except ImportError:
                         summarization_uses_mps = False
 
