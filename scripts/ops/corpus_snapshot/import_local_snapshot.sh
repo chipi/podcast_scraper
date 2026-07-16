@@ -182,7 +182,14 @@ if [[ -e "$WORKSPACE_ABS/$LAYOUT_ROOT" ]]; then
 fi
 
 echo "INFO: extracting into $WORKSPACE_ABS/ (layout root=$LAYOUT_ROOT/)"
-tar -xzf "$FILE_ABS" -C "$WORKSPACE_ABS" "$LAYOUT_ROOT"
+# ``finalize_backup_bundle.sh`` re-tars with ``tar -czf ARCHIVE -C WORKDIR .``,
+# which stores members with a leading ``./`` prefix. GNU tar (Ubuntu 24.04's
+# 1.35) does not fuzzy-match plain ``LAYOUT_ROOT`` against ``./LAYOUT_ROOT/*``
+# — it prints "Not found in archive" and exits 2. BSD tar (macOS) DOES. Try
+# the ``./`` form first, fall back to the bare form so packs produced by
+# either toolchain extract cleanly.
+tar -xzf "$FILE_ABS" -C "$WORKSPACE_ABS" "./$LAYOUT_ROOT" 2>/dev/null \
+  || tar -xzf "$FILE_ABS" -C "$WORKSPACE_ABS" "$LAYOUT_ROOT"
 
 echo ""
 echo "OK: $WORKSPACE_ABS/$LAYOUT_ROOT/"

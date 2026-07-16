@@ -22,6 +22,12 @@ from podcast_scraper.providers.ml import ml_provider
 
 pytestmark = pytest.mark.unit
 
+# The DTW-patch tests import ``whisper.timing`` to swap the ``dtw`` symbol.
+# CI's test-unit environment does not ship openai-whisper (it's a heavy ML
+# extra pinned only in ml/DGX profiles). Skip the module cleanly when the
+# dependency is missing, rather than surfacing 5x ModuleNotFoundError.
+pytest.importorskip("whisper", reason="openai-whisper not installed (ml extra)")
+
 
 def _reset_patch_flag() -> None:
     """Force the patch to re-apply on next call."""
