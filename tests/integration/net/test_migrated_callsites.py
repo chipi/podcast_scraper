@@ -289,3 +289,54 @@ def test_hardened_http_client_honors_verify_false(mock_tls_server) -> None:
     with hardened_http_client(10.0, subsystem="dgx_diarize") as client:
         resp = client.get(mock_tls_server.base_url + "/audio.mp3")
     assert resp.status_code == 200
+
+
+# --- RSS downloader seams (#1194 chunk 3c) ---------------------------------
+#
+# ``rss.downloader.fetch_url`` / ``fetch_rss_feed_url`` used to build a
+# ``requests.Session`` with its own urllib3 ``Retry`` — bypassing the outbound
+# factory entirely. #1194 migrated both onto ``create_client`` with a
+# ``RetryTransport`` wrapper. The two seams below prove media + feed calls
+# now route through the configured proxy under the expected subsystems.
+
+
+def test_rss_downloader_fetch_url_routes_through_proxy(mock_http_proxy, mock_target_server) -> None:
+    """``fetch_url`` (transcripts / episode media) routes through the outbound proxy
+    under the ``rss_generic`` subsystem after #1194.
+    """
+    from podcast_scraper.rss import downloader
+
+    get_registry().swap(OutboundConfig(proxy=ProxyConfig(enabled=True, url=mock_http_proxy.url)))
+    downloader.reset_http_sessions()
+    try:
+        resp = downloader.fetch_url(mock_target_server.base_url + "/rss.xml", "ua", 5)
+        assert resp is not None
+        assert resp.status_code == 200
+    finally:
+        downloader.reset_http_sessions()
+    assert any(
+        hop["subsystem"] == "rss_generic" and "/rss.xml" in hop["url"] and hop["method"] == "GET"
+        for hop in mock_http_proxy.seen
+    )
+
+
+def test_rss_downloader_fetch_rss_feed_url_routes_through_proxy(
+    mock_http_proxy, mock_target_server
+) -> None:
+    """``fetch_rss_feed_url`` (feed XML) routes through the outbound proxy under the
+    ``rss_feed`` subsystem after #1194.
+    """
+    from podcast_scraper.rss import downloader
+
+    get_registry().swap(OutboundConfig(proxy=ProxyConfig(enabled=True, url=mock_http_proxy.url)))
+    downloader.reset_http_sessions()
+    try:
+        resp = downloader.fetch_rss_feed_url(mock_target_server.base_url + "/feed.xml", "ua", 5)
+        assert resp is not None
+        assert resp.status_code == 200
+    finally:
+        downloader.reset_http_sessions()
+    assert any(
+        hop["subsystem"] == "rss_feed" and "/feed.xml" in hop["url"] and hop["method"] == "GET"
+        for hop in mock_http_proxy.seen
+    )

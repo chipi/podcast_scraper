@@ -326,7 +326,7 @@ class TestHTTPClientIntegration:
 
         # Read content in chunks (streaming)
         content_parts = []
-        for chunk in resp.iter_content(chunk_size=1024):  # type: ignore[attr-defined]
+        for chunk in resp.iter_bytes(chunk_size=1024):  # type: ignore[attr-defined]
             if chunk:
                 content_parts.append(chunk)
 

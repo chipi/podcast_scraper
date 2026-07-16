@@ -13,11 +13,10 @@ from __future__ import annotations
 import os
 import unittest
 from tempfile import TemporaryDirectory
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
+import httpx
 import pytest
-import requests
-from requests.structures import CaseInsensitiveDict
 
 from podcast_scraper.rss import downloader, http_policy
 
@@ -82,23 +81,34 @@ class TestHttpHead(unittest.TestCase):
     def setUp(self) -> None:
         http_policy.configure_http_policy()
 
-    @patch("podcast_scraper.rss.downloader._get_thread_request_session")
-    def test_success(self, mock_session_fn: Mock) -> None:
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.headers = {"Content-Length": "1024"}
-        mock_resp.raise_for_status = Mock()
-        mock_session = MagicMock()
-        mock_session.head.return_value = mock_resp
-        mock_session_fn.return_value = mock_session
+    @patch("podcast_scraper.rss.downloader._get_thread_request_client")
+    def test_success(self, mock_client_fn: Mock) -> None:
+        mock_resp = httpx.Response(
+            200,
+            headers={"Content-Length": "1024"},
+            request=httpx.Request("HEAD", "https://cdn.example/ep.mp3"),
+        )
+        mock_client = Mock(spec=httpx.Client)
+        mock_client.build_request.side_effect = (
+            lambda method, url, headers=None, timeout=None: httpx.Request(
+                method, url, headers=headers or {}
+            )
+        )
+        mock_client.send.return_value = mock_resp
+        mock_client_fn.return_value = mock_client
         result = downloader.http_head("https://cdn.example/ep.mp3", "ua", 30)
         self.assertIsNotNone(result)
 
-    @patch("podcast_scraper.rss.downloader._get_thread_request_session")
-    def test_request_exception(self, mock_session_fn: Mock) -> None:
-        mock_session = MagicMock()
-        mock_session.head.side_effect = requests.ConnectionError("fail")
-        mock_session_fn.return_value = mock_session
+    @patch("podcast_scraper.rss.downloader._get_thread_request_client")
+    def test_request_exception(self, mock_client_fn: Mock) -> None:
+        mock_client = Mock(spec=httpx.Client)
+        mock_client.build_request.side_effect = (
+            lambda method, url, headers=None, timeout=None: httpx.Request(
+                method, url, headers=headers or {}
+            )
+        )
+        mock_client.send.side_effect = httpx.ConnectError("fail")
+        mock_client_fn.return_value = mock_client
         result = downloader.http_head("https://cdn.example/ep.mp3", "ua", 30)
         self.assertIsNone(result)
 
@@ -129,39 +139,48 @@ class TestOpenHttpRequest(unittest.TestCase):
         self.assertIsNone(result)
         http_policy.configure_http_policy()
 
-    @patch("podcast_scraper.rss.downloader._get_thread_request_session")
-    def test_raise_for_status_failure_records_circuit(self, mock_session_fn: Mock) -> None:
+    @patch("podcast_scraper.rss.downloader._get_thread_request_client")
+    def test_raise_for_status_failure_records_circuit(self, mock_client_fn: Mock) -> None:
         http_policy.configure_http_policy(circuit_breaker_enabled=True)
-        mock_resp = MagicMock()
-        mock_resp.status_code = 503
-        err_resp = MagicMock()
-        err_resp.status_code = 503
-        exc = requests.HTTPError(response=err_resp)
-        mock_resp.raise_for_status.side_effect = exc
-        mock_session = MagicMock()
-        mock_session.get.return_value = mock_resp
-        mock_session_fn.return_value = mock_session
+        err_resp = httpx.Response(503, request=httpx.Request("GET", "https://cdn.example/ep.mp3"))
+        mock_client = Mock(spec=httpx.Client)
+        mock_client.build_request.side_effect = (
+            lambda method, url, headers=None, timeout=None: httpx.Request(
+                method, url, headers=headers or {}
+            )
+        )
+        mock_client.send.return_value = err_resp
+        mock_client_fn.return_value = mock_client
         result = downloader._open_http_request("https://cdn.example/ep.mp3", "ua", 30)
         self.assertIsNone(result)
         http_policy.configure_http_policy()
 
-    @patch("podcast_scraper.rss.downloader._get_thread_request_session")
-    def test_connection_error_records_zero_status(self, mock_session_fn: Mock) -> None:
+    @patch("podcast_scraper.rss.downloader._get_thread_request_client")
+    def test_connection_error_records_zero_status(self, mock_client_fn: Mock) -> None:
         http_policy.configure_http_policy(circuit_breaker_enabled=True)
-        mock_session = MagicMock()
-        mock_session.get.side_effect = requests.ConnectionError("fail")
-        mock_session_fn.return_value = mock_session
+        mock_client = Mock(spec=httpx.Client)
+        mock_client.build_request.side_effect = (
+            lambda method, url, headers=None, timeout=None: httpx.Request(
+                method, url, headers=headers or {}
+            )
+        )
+        mock_client.send.side_effect = httpx.ConnectError("fail")
+        mock_client_fn.return_value = mock_client
         result = downloader._open_http_request("https://cdn.example/ep.mp3", "ua", 30)
         self.assertIsNone(result)
         http_policy.configure_http_policy()
 
-    @patch("podcast_scraper.rss.downloader._get_thread_request_session")
-    def test_304_with_accept_not_modified(self, mock_session_fn: Mock) -> None:
-        mock_resp = MagicMock()
-        mock_resp.status_code = 304
-        mock_session = MagicMock()
-        mock_session.get.return_value = mock_resp
-        mock_session_fn.return_value = mock_session
+    @patch("podcast_scraper.rss.downloader._get_thread_request_client")
+    def test_304_with_accept_not_modified(self, mock_client_fn: Mock) -> None:
+        mock_resp = httpx.Response(304, request=httpx.Request("GET", "https://cdn.example/rss"))
+        mock_client = Mock(spec=httpx.Client)
+        mock_client.build_request.side_effect = (
+            lambda method, url, headers=None, timeout=None: httpx.Request(
+                method, url, headers=headers or {}
+            )
+        )
+        mock_client.send.return_value = mock_resp
+        mock_client_fn.return_value = mock_client
         result = downloader._open_http_request(
             "https://cdn.example/rss", "ua", 30, accept_not_modified=True
         )
@@ -183,7 +202,7 @@ class TestFetchRssFeedUrl(unittest.TestCase):
         self.assertIsNone(result)
 
     @patch("podcast_scraper.rss.downloader._open_http_request")
-    @patch("podcast_scraper.rss.downloader._get_thread_feed_request_session")
+    @patch("podcast_scraper.rss.downloader._get_thread_feed_request_client")
     def test_304_with_cached_body(self, mock_sess: Mock, mock_open: Mock) -> None:
         with TemporaryDirectory() as tmp:
             http_policy.configure_http_policy(rss_conditional_get=True, rss_cache_dir=tmp)
@@ -192,9 +211,7 @@ class TestFetchRssFeedUrl(unittest.TestCase):
             url = "https://f.example/rss"
             cond.update_from_success(url, '"e"', "lm", b"<rss>cached</rss>")
 
-            mock_resp = MagicMock()
-            mock_resp.status_code = 304
-            mock_resp.close = Mock()
+            mock_resp = httpx.Response(304, request=httpx.Request("GET", url))
             mock_open.return_value = mock_resp
 
             result = downloader.fetch_rss_feed_url(url, "ua", 30)
@@ -203,28 +220,29 @@ class TestFetchRssFeedUrl(unittest.TestCase):
             self.assertEqual(result.content, b"<rss>cached</rss>")
 
     @patch("podcast_scraper.rss.downloader._open_http_request")
-    @patch("podcast_scraper.rss.downloader._get_thread_feed_request_session")
+    @patch("podcast_scraper.rss.downloader._get_thread_feed_request_client")
     def test_304_without_cached_body_returns_none(self, mock_sess: Mock, mock_open: Mock) -> None:
         with TemporaryDirectory() as tmp:
             http_policy.configure_http_policy(rss_conditional_get=True, rss_cache_dir=tmp)
-            mock_resp = MagicMock()
-            mock_resp.status_code = 304
-            mock_resp.close = Mock()
+            mock_resp = httpx.Response(304, request=httpx.Request("GET", "https://f.example/rss"))
             mock_open.return_value = mock_resp
 
             result = downloader.fetch_rss_feed_url("https://f.example/rss", "ua", 30)
             self.assertIsNone(result)
 
     @patch("podcast_scraper.rss.downloader._open_http_request")
-    @patch("podcast_scraper.rss.downloader._get_thread_feed_request_session")
+    @patch("podcast_scraper.rss.downloader._get_thread_feed_request_client")
     def test_200_updates_cache(self, mock_sess: Mock, mock_open: Mock) -> None:
         with TemporaryDirectory() as tmp:
             http_policy.configure_http_policy(rss_conditional_get=True, rss_cache_dir=tmp)
-            mock_resp = MagicMock()
-            mock_resp.status_code = 200
-            mock_resp.content = b"<rss>new</rss>"
-            mock_resp.headers = CaseInsensitiveDict(
-                {"ETag": '"new-etag"', "Last-Modified": "Mon, 01 Jan 2025 00:00:00 GMT"}
+            mock_resp = httpx.Response(
+                200,
+                content=b"<rss>new</rss>",
+                headers={
+                    "ETag": '"new-etag"',
+                    "Last-Modified": "Mon, 01 Jan 2025 00:00:00 GMT",
+                },
+                request=httpx.Request("GET", "https://f.example/rss"),
             )
             mock_open.return_value = mock_resp
 
@@ -246,12 +264,12 @@ class TestHttpGet(unittest.TestCase):
 
     @patch("podcast_scraper.rss.downloader.fetch_url")
     def test_returns_body_and_content_type(self, mock_fetch: Mock) -> None:
-        mock_resp = MagicMock()
-        mock_resp.headers = CaseInsensitiveDict(
-            {"Content-Type": "text/plain", "Content-Length": "5"}
+        mock_resp = httpx.Response(
+            200,
+            content=b"hello",
+            headers={"Content-Type": "text/plain", "Content-Length": "5"},
+            request=httpx.Request("GET", "https://x.example/t"),
         )
-        mock_resp.iter_content.return_value = [b"hello"]
-        mock_resp.close = Mock()
         mock_fetch.return_value = mock_resp
         data, ctype = downloader.http_get("https://x.example/t", "ua", 30)
         self.assertEqual(data, b"hello")
@@ -259,21 +277,21 @@ class TestHttpGet(unittest.TestCase):
 
     @patch("podcast_scraper.rss.downloader.fetch_url")
     def test_malformed_content_length(self, mock_fetch: Mock) -> None:
-        mock_resp = MagicMock()
-        mock_resp.headers = CaseInsensitiveDict(
-            {"Content-Type": "text/plain", "Content-Length": "not-a-number"}
+        mock_resp = httpx.Response(
+            200,
+            content=b"data",
+            headers={"Content-Type": "text/plain", "Content-Length": "not-a-number"},
+            request=httpx.Request("GET", "https://x.example/t"),
         )
-        mock_resp.iter_content.return_value = [b"data"]
-        mock_resp.close = Mock()
         mock_fetch.return_value = mock_resp
         data, ctype = downloader.http_get("https://x.example/t", "ua", 30)
         self.assertEqual(data, b"data")
 
     @patch("podcast_scraper.rss.downloader.fetch_url")
     def test_read_error_returns_none(self, mock_fetch: Mock) -> None:
-        mock_resp = MagicMock()
-        mock_resp.headers = CaseInsensitiveDict({"Content-Type": "text/plain"})
-        mock_resp.iter_content.side_effect = requests.ConnectionError("fail")
+        mock_resp = Mock(spec=httpx.Response)
+        mock_resp.headers = httpx.Headers({"Content-Type": "text/plain"})
+        mock_resp.iter_bytes.side_effect = httpx.ConnectError("fail")
         mock_resp.close = Mock()
         mock_fetch.return_value = mock_resp
         data, ctype = downloader.http_get("https://x.example/t", "ua", 30)
@@ -294,10 +312,12 @@ class TestHttpDownloadToFile(unittest.TestCase):
     def test_success_writes_file(self, mock_fetch: Mock) -> None:
         with TemporaryDirectory() as tmp:
             out_path = os.path.join(tmp, "ep.mp3")
-            mock_resp = MagicMock()
-            mock_resp.headers = CaseInsensitiveDict({"Content-Length": "5"})
-            mock_resp.iter_content.return_value = [b"audio"]
-            mock_resp.close = Mock()
+            mock_resp = httpx.Response(
+                200,
+                content=b"audio",
+                headers={"Content-Length": "5"},
+                request=httpx.Request("GET", "https://x.example/ep.mp3"),
+            )
             mock_fetch.return_value = mock_resp
             ok, size = downloader.http_download_to_file(
                 "https://x.example/ep.mp3", "ua", 30, out_path
@@ -311,9 +331,9 @@ class TestHttpDownloadToFile(unittest.TestCase):
     def test_write_error_removes_partial(self, mock_fetch: Mock) -> None:
         with TemporaryDirectory() as tmp:
             out_path = os.path.join(tmp, "ep.mp3")
-            mock_resp = MagicMock()
-            mock_resp.headers = CaseInsensitiveDict({})
-            mock_resp.iter_content.side_effect = OSError("disk full")
+            mock_resp = Mock(spec=httpx.Response)
+            mock_resp.headers = httpx.Headers({})
+            mock_resp.iter_bytes.side_effect = OSError("disk full")
             mock_resp.close = Mock()
             mock_fetch.return_value = mock_resp
             ok, size = downloader.http_download_to_file(
@@ -326,10 +346,12 @@ class TestHttpDownloadToFile(unittest.TestCase):
     def test_malformed_content_length(self, mock_fetch: Mock) -> None:
         with TemporaryDirectory() as tmp:
             out_path = os.path.join(tmp, "ep.mp3")
-            mock_resp = MagicMock()
-            mock_resp.headers = CaseInsensitiveDict({"Content-Length": "bad"})
-            mock_resp.iter_content.return_value = [b"data"]
-            mock_resp.close = Mock()
+            mock_resp = httpx.Response(
+                200,
+                content=b"data",
+                headers={"Content-Length": "bad"},
+                request=httpx.Request("GET", "https://x.example/ep.mp3"),
+            )
             mock_fetch.return_value = mock_resp
             ok, size = downloader.http_download_to_file(
                 "https://x.example/ep.mp3", "ua", 30, out_path
@@ -343,5 +365,5 @@ class TestSyntheticRssResponse(unittest.TestCase):
         resp = downloader._synthetic_rss_response("https://f.example/rss", b"<rss></rss>")
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.content, b"<rss></rss>")
-        self.assertEqual(resp.url, "https://f.example/rss")
+        self.assertEqual(str(resp.url), "https://f.example/rss")
         self.assertIn("Content-Type", resp.headers)

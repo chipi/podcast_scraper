@@ -806,7 +806,9 @@ def fetch_and_parse_rss(cfg: config.Config) -> RssFeed:  # type: ignore[valid-ty
             raise ValueError("Failed to fetch RSS feed.")
         try:
             rss_bytes = resp.content
-            feed_base_url = resp.url or cfg.rss_url
+            # httpx.Response.url is an httpx.URL object; downstream ``urljoin``
+            # expects a plain str.
+            feed_base_url = str(resp.url) if resp.url else cfg.rss_url
         finally:
             resp.close()
 

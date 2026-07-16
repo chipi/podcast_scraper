@@ -22,8 +22,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+import httpx
 import pytest
-import requests
 
 from podcast_scraper.rss import downloader
 
@@ -79,48 +79,41 @@ TEST_TRANSCRIPT_TYPE_VTT = parent_conftest.TEST_TRANSCRIPT_TYPE_VTT
 class TestHTTPSessionConfiguration(unittest.TestCase):
     """Tests for HTTP session retry configuration."""
 
-    def test_configure_http_session_mounts_retry_adapters(self):
-        session = requests.Session()
-        try:
-            downloader._configure_http_session(session)
-            https_adapter = session.get_adapter("https://")
-            http_adapter = session.get_adapter("http://")
+    def test_generic_client_has_retry_transport(self):
+        """Generic HTTP client is configured with RetryTransport."""
+        from podcast_scraper.rss.http_retry import RetryTransport
 
-            self.assertIsInstance(https_adapter, requests.adapters.HTTPAdapter)
-            self.assertIsInstance(http_adapter, requests.adapters.HTTPAdapter)
+        # Clear any existing thread-local client
+        if hasattr(downloader._THREAD_LOCAL, "client"):
+            delattr(downloader._THREAD_LOCAL, "client")
 
-            https_retry = https_adapter.max_retries
-            http_retry = http_adapter.max_retries
+        client = downloader._get_thread_request_client()
+        self.assertIsInstance(client, httpx.Client)
+        # Transport should be a RetryTransport wrapping an HTTPTransport
+        self.assertIsInstance(client._transport, RetryTransport)
+        self.assertEqual(client._transport._total, downloader.DEFAULT_HTTP_RETRY_TOTAL)
+        self.assertEqual(client._transport._backoff_factor, downloader.DEFAULT_HTTP_BACKOFF_FACTOR)
+        self.assertEqual(
+            set(client._transport._status_forcelist), set(downloader.HTTP_RETRY_STATUS_CODES)
+        )
+        self.assertEqual(client._transport._allowed_methods, downloader.HTTP_RETRY_ALLOWED_METHODS)
 
-            self.assertEqual(https_retry.total, downloader.DEFAULT_HTTP_RETRY_TOTAL)
-            self.assertEqual(http_retry.total, downloader.DEFAULT_HTTP_RETRY_TOTAL)
-            self.assertEqual(https_retry.backoff_factor, downloader.DEFAULT_HTTP_BACKOFF_FACTOR)
-            self.assertEqual(http_retry.backoff_factor, downloader.DEFAULT_HTTP_BACKOFF_FACTOR)
-            self.assertEqual(https_retry.allowed_methods, downloader.HTTP_RETRY_ALLOWED_METHODS)
-            self.assertEqual(http_retry.allowed_methods, downloader.HTTP_RETRY_ALLOWED_METHODS)
-            self.assertEqual(
-                set(https_retry.status_forcelist), set(downloader.HTTP_RETRY_STATUS_CODES)
-            )
-            self.assertEqual(
-                set(http_retry.status_forcelist), set(downloader.HTTP_RETRY_STATUS_CODES)
-            )
-        finally:
-            session.close()
+    def test_rss_feed_client_uses_stronger_retry(self):
+        """RSS feed client uses stronger retry total/backoff than default."""
+        from podcast_scraper.rss.http_retry import RetryTransport
 
-    def test_configure_rss_feed_http_session_mounts_retry_adapters(self):
-        """RSS feed session uses stronger retry total/backoff than default."""
-        session = requests.Session()
-        try:
-            downloader._configure_rss_feed_http_session(session)
-            https_adapter = session.get_adapter("https://")
-            https_retry = https_adapter.max_retries
-            self.assertEqual(https_retry.total, downloader.RSS_FEED_HTTP_RETRY_TOTAL)
-            self.assertEqual(https_retry.backoff_factor, downloader.RSS_FEED_HTTP_BACKOFF_FACTOR)
-            self.assertEqual(
-                set(https_retry.status_forcelist), set(downloader.HTTP_RETRY_STATUS_CODES)
-            )
-        finally:
-            session.close()
+        # Clear any existing thread-local client
+        if hasattr(downloader._THREAD_LOCAL, "feed_client"):
+            delattr(downloader._THREAD_LOCAL, "feed_client")
+
+        client = downloader._get_thread_feed_request_client()
+        self.assertIsInstance(client, httpx.Client)
+        self.assertIsInstance(client._transport, RetryTransport)
+        self.assertEqual(client._transport._total, downloader.RSS_FEED_HTTP_RETRY_TOTAL)
+        self.assertEqual(client._transport._backoff_factor, downloader.RSS_FEED_HTTP_BACKOFF_FACTOR)
+        self.assertEqual(
+            set(client._transport._status_forcelist), set(downloader.HTTP_RETRY_STATUS_CODES)
+        )
 
 
 class TestNormalizeURL(unittest.TestCase):
@@ -195,77 +188,76 @@ class TestShouldLogDownloadSummary(unittest.TestCase):
 
 
 class TestGetThreadRequestSession(unittest.TestCase):
-    """Tests for _get_thread_request_session function."""
+    """Tests for _get_thread_request_client function."""
 
-    def test_get_thread_request_session_creates_new(self):
-        """Test _get_thread_request_session creates new session."""
-        # Clear any existing session
-        if hasattr(downloader._THREAD_LOCAL, "session"):
-            delattr(downloader._THREAD_LOCAL, "session")
+    def test_get_thread_request_client_creates_new(self):
+        """Test _get_thread_request_client creates new client."""
+        # Clear any existing client
+        if hasattr(downloader._THREAD_LOCAL, "client"):
+            delattr(downloader._THREAD_LOCAL, "client")
 
-        session = downloader._get_thread_request_session()
-        self.assertIsInstance(session, requests.Session)
-        self.assertIs(session, downloader._THREAD_LOCAL.session)
+        client = downloader._get_thread_request_client()
+        self.assertIsInstance(client, httpx.Client)
+        self.assertIs(client, downloader._THREAD_LOCAL.client)
 
-    def test_get_thread_request_session_reuses_existing(self):
-        """Test _get_thread_request_session reuses existing session."""
-        # Create a session first
-        session1 = downloader._get_thread_request_session()
+    def test_get_thread_request_client_reuses_existing(self):
+        """Test _get_thread_request_client reuses existing client."""
+        # Create a client first
+        client1 = downloader._get_thread_request_client()
         # Get it again
-        session2 = downloader._get_thread_request_session()
+        client2 = downloader._get_thread_request_client()
         # Should be the same object
-        self.assertIs(session1, session2)
+        self.assertIs(client1, client2)
 
-    def test_get_thread_request_session_configures_retry(self):
-        """Test _get_thread_request_session configures session with retry."""
-        # Clear any existing session
-        if hasattr(downloader._THREAD_LOCAL, "session"):
-            delattr(downloader._THREAD_LOCAL, "session")
+    def test_get_thread_request_client_configures_retry(self):
+        """Test _get_thread_request_client configures client with retry."""
+        from podcast_scraper.rss.http_retry import RetryTransport
 
-        session = downloader._get_thread_request_session()
-        # Check that adapters are mounted
-        https_adapter = session.get_adapter("https://")
-        http_adapter = session.get_adapter("http://")
-        self.assertIsInstance(https_adapter, requests.adapters.HTTPAdapter)
-        self.assertIsInstance(http_adapter, requests.adapters.HTTPAdapter)
+        # Clear any existing client
+        if hasattr(downloader._THREAD_LOCAL, "client"):
+            delattr(downloader._THREAD_LOCAL, "client")
+
+        client = downloader._get_thread_request_client()
+        # Check that transport is RetryTransport
+        self.assertIsInstance(client._transport, RetryTransport)
 
 
 class TestCloseAllSessions(unittest.TestCase):
     """Tests for _close_all_sessions function."""
 
-    def test_close_all_sessions_closes_registered_sessions(self):
-        """Test _close_all_sessions closes all registered sessions."""
-        # Create a mock session
-        mock_session = Mock(spec=requests.Session)
+    def test_close_all_sessions_closes_registered_clients(self):
+        """Test _close_all_sessions closes all registered clients."""
+        # Create a mock client
+        mock_client = Mock(spec=httpx.Client)
         with downloader._SESSION_REGISTRY_LOCK:
-            downloader._SESSION_REGISTRY.append(mock_session)
+            downloader._SESSION_REGISTRY.append(mock_client)
 
-        # Close all sessions
+        # Close all clients
         downloader._close_all_sessions()
 
-        # Session should have been closed
-        mock_session.close.assert_called_once()
+        # Client should have been closed
+        mock_client.close.assert_called_once()
 
     def test_close_all_sessions_handles_errors(self):
         """Test _close_all_sessions handles errors gracefully."""
-        # Create a mock session that raises on close
-        mock_session = Mock()
-        mock_session.close.side_effect = Exception("Close error")
+        # Create a mock client that raises on close
+        mock_client = Mock()
+        mock_client.close.side_effect = Exception("Close error")
 
         with downloader._SESSION_REGISTRY_LOCK:
-            downloader._SESSION_REGISTRY.append(mock_session)
+            downloader._SESSION_REGISTRY.append(mock_client)
 
         # Should not raise
         downloader._close_all_sessions()
 
     def test_close_all_sessions_clears_registry(self):
         """Test _close_all_sessions clears the registry."""
-        # Add a session
-        session = requests.Session()
+        # Add a client
+        mock_client = Mock(spec=httpx.Client)
         with downloader._SESSION_REGISTRY_LOCK:
-            downloader._SESSION_REGISTRY.append(session)
+            downloader._SESSION_REGISTRY.append(mock_client)
 
-        # Close all sessions
+        # Close all clients
         downloader._close_all_sessions()
 
         # Registry should be empty
@@ -273,28 +265,34 @@ class TestCloseAllSessions(unittest.TestCase):
             self.assertEqual(len(downloader._SESSION_REGISTRY), 0)
 
     def test_reset_http_sessions_closes_registry(self):
-        """Public alias closes sessions like _close_all_sessions."""
-        mock_session = Mock(spec=requests.Session)
+        """Public alias closes clients like _close_all_sessions."""
+        mock_client = Mock(spec=httpx.Client)
         with downloader._SESSION_REGISTRY_LOCK:
-            downloader._SESSION_REGISTRY.append(mock_session)
+            downloader._SESSION_REGISTRY.append(mock_client)
         downloader.reset_http_sessions()
-        mock_session.close.assert_called_once()
+        mock_client.close.assert_called_once()
 
 
 class TestOpenHTTPRequest(unittest.TestCase):
     """Tests for _open_http_request function."""
 
-    @patch("podcast_scraper.rss.downloader._get_thread_request_session")
+    @patch("podcast_scraper.rss.downloader._get_thread_request_client")
     @patch("podcast_scraper.rss.downloader.normalize_url")
-    def test_open_http_request_success(self, mock_normalize, mock_get_session):
+    def test_open_http_request_success(self, mock_normalize, mock_get_client):
         """Test successful HTTP request."""
-        mock_session = Mock()
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.headers = {"Content-Length": "100"}
-        mock_response.raise_for_status = Mock()
-        mock_session.get.return_value = mock_response
-        mock_get_session.return_value = mock_session
+        mock_resp = httpx.Response(
+            200,
+            headers={"Content-Length": "100"},
+            request=httpx.Request("GET", "https://example.com/test"),
+        )
+        mock_client = Mock(spec=httpx.Client)
+        mock_client.build_request.side_effect = (
+            lambda method, url, headers=None, timeout=None: httpx.Request(
+                method, url, headers=headers or {}
+            )
+        )
+        mock_client.send.return_value = mock_resp
+        mock_get_client.return_value = mock_client
         mock_normalize.return_value = "https://example.com/test"
 
         result = downloader._open_http_request(
@@ -302,26 +300,27 @@ class TestOpenHTTPRequest(unittest.TestCase):
         )
 
         self.assertIsNotNone(result)
-        self.assertEqual(result, mock_response)
-        mock_session.get.assert_called_once_with(
-            "https://example.com/test",
-            headers={"User-Agent": "test-agent"},
-            timeout=10,
-            stream=False,
-        )
-        mock_response.raise_for_status.assert_called_once()
+        self.assertEqual(result, mock_resp)
+        mock_client.build_request.assert_called_once()
+        mock_client.send.assert_called_once()
 
-    @patch("podcast_scraper.rss.downloader._get_thread_request_session")
+    @patch("podcast_scraper.rss.downloader._get_thread_request_client")
     @patch("podcast_scraper.rss.downloader.normalize_url")
-    def test_open_http_request_with_stream(self, mock_normalize, mock_get_session):
+    def test_open_http_request_with_stream(self, mock_normalize, mock_get_client):
         """Test HTTP request with stream=True."""
-        mock_session = Mock()
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.headers = {}
-        mock_response.raise_for_status = Mock()
-        mock_session.get.return_value = mock_response
-        mock_get_session.return_value = mock_session
+        mock_resp = httpx.Response(
+            200,
+            headers={},
+            request=httpx.Request("GET", "https://example.com/test"),
+        )
+        mock_client = Mock(spec=httpx.Client)
+        mock_client.build_request.side_effect = (
+            lambda method, url, headers=None, timeout=None: httpx.Request(
+                method, url, headers=headers or {}
+            )
+        )
+        mock_client.send.return_value = mock_resp
+        mock_get_client.return_value = mock_client
         mock_normalize.return_value = "https://example.com/test"
 
         result = downloader._open_http_request(
@@ -329,20 +328,21 @@ class TestOpenHTTPRequest(unittest.TestCase):
         )
 
         self.assertIsNotNone(result)
-        mock_session.get.assert_called_once_with(
-            "https://example.com/test",
-            headers={"User-Agent": "test-agent"},
-            timeout=5,
-            stream=True,
-        )
+        mock_client.build_request.assert_called_once()
+        mock_client.send.assert_called_once()
 
-    @patch("podcast_scraper.rss.downloader._get_thread_request_session")
+    @patch("podcast_scraper.rss.downloader._get_thread_request_client")
     @patch("podcast_scraper.rss.downloader.normalize_url")
-    def test_open_http_request_failure(self, mock_normalize, mock_get_session):
+    def test_open_http_request_failure(self, mock_normalize, mock_get_client):
         """Test HTTP request failure returns None."""
-        mock_session = Mock()
-        mock_session.get.side_effect = requests.RequestException("Connection error")
-        mock_get_session.return_value = mock_session
+        mock_client = Mock(spec=httpx.Client)
+        mock_client.build_request.side_effect = (
+            lambda method, url, headers=None, timeout=None: httpx.Request(
+                method, url, headers=headers or {}
+            )
+        )
+        mock_client.send.side_effect = httpx.RequestError("Connection error")
+        mock_get_client.return_value = mock_client
         mock_normalize.return_value = "https://example.com/test"
 
         result = downloader._open_http_request("https://example.com/test", "test-agent", 10)
@@ -361,11 +361,11 @@ class TestOpenHTTPRequest(unittest.TestCase):
         mock_open.assert_called_once_with("https://example.com", "test-agent", 10, stream=True)
 
     @patch("podcast_scraper.rss.downloader._open_http_request")
-    @patch("podcast_scraper.rss.downloader._get_thread_feed_request_session")
-    def test_fetch_rss_feed_url_uses_feed_session(self, mock_feed_session, mock_open):
-        """fetch_rss_feed_url passes the RSS feed thread-local session to _open_http_request."""
-        mock_sess = Mock(spec=requests.Session)
-        mock_feed_session.return_value = mock_sess
+    @patch("podcast_scraper.rss.downloader._get_thread_feed_request_client")
+    def test_fetch_rss_feed_url_uses_feed_client(self, mock_feed_client, mock_open):
+        """fetch_rss_feed_url passes the RSS feed thread-local client to _open_http_request."""
+        mock_client = Mock(spec=httpx.Client)
+        mock_feed_client.return_value = mock_client
         mock_open.return_value = Mock()
 
         downloader.fetch_rss_feed_url("https://example.com/feed.xml", "ua", 15, stream=False)
@@ -375,7 +375,7 @@ class TestOpenHTTPRequest(unittest.TestCase):
             "ua",
             15,
             stream=False,
-            session=mock_sess,
+            session=mock_client,
             extra_headers=None,
             accept_not_modified=False,
         )
@@ -388,9 +388,11 @@ class TestHTTPGet(unittest.TestCase):
     @patch("podcast_scraper.rss.downloader.progress.progress_context")
     def test_http_get_success(self, mock_progress, mock_fetch):
         """Test successful http_get request."""
-        mock_response = Mock()
-        mock_response.headers = {"Content-Type": "text/plain", "Content-Length": "13"}
-        mock_response.iter_content.return_value = [b"Hello, World!"]
+        mock_response = Mock(spec=httpx.Response)
+        mock_response.headers = httpx.Headers(
+            {"Content-Type": "text/plain", "Content-Length": "13"}
+        )
+        mock_response.iter_bytes.return_value = [b"Hello, World!"]
         mock_response.close = Mock()
         mock_fetch.return_value = mock_response
 
@@ -403,16 +405,18 @@ class TestHTTPGet(unittest.TestCase):
         self.assertEqual(content, b"Hello, World!")
         self.assertEqual(content_type, "text/plain")
         mock_fetch.assert_called_once_with("https://example.com", "test-agent", 10, stream=True)
-        mock_response.iter_content.assert_called_once()
+        mock_response.iter_bytes.assert_called_once()
         mock_response.close.assert_called_once()
 
     @patch("podcast_scraper.rss.downloader.fetch_url")
     @patch("podcast_scraper.rss.downloader.progress.progress_context")
     def test_http_get_multiple_chunks(self, mock_progress, mock_fetch):
         """Test http_get with multiple chunks."""
-        mock_response = Mock()
-        mock_response.headers = {"Content-Type": "application/json", "Content-Length": "24"}
-        mock_response.iter_content.return_value = [b"chunk1", b"chunk2", b"chunk3"]
+        mock_response = Mock(spec=httpx.Response)
+        mock_response.headers = httpx.Headers(
+            {"Content-Type": "application/json", "Content-Length": "24"}
+        )
+        mock_response.iter_bytes.return_value = [b"chunk1", b"chunk2", b"chunk3"]
         mock_response.close = Mock()
         mock_fetch.return_value = mock_response
 
@@ -432,9 +436,9 @@ class TestHTTPGet(unittest.TestCase):
     @patch("podcast_scraper.rss.downloader.progress.progress_context")
     def test_http_get_no_content_length(self, mock_progress, mock_fetch):
         """Test http_get without Content-Length header."""
-        mock_response = Mock()
-        mock_response.headers = {"Content-Type": "text/html"}
-        mock_response.iter_content.return_value = [b"content"]
+        mock_response = Mock(spec=httpx.Response)
+        mock_response.headers = httpx.Headers({"Content-Type": "text/html"})
+        mock_response.iter_bytes.return_value = [b"content"]
         mock_response.close = Mock()
         mock_fetch.return_value = mock_response
 
@@ -453,9 +457,11 @@ class TestHTTPGet(unittest.TestCase):
     @patch("podcast_scraper.rss.downloader.progress.progress_context")
     def test_http_get_invalid_content_length(self, mock_progress, mock_fetch):
         """Test http_get with invalid Content-Length header."""
-        mock_response = Mock()
-        mock_response.headers = {"Content-Type": "text/plain", "Content-Length": "invalid"}
-        mock_response.iter_content.return_value = [b"content"]
+        mock_response = Mock(spec=httpx.Response)
+        mock_response.headers = httpx.Headers(
+            {"Content-Type": "text/plain", "Content-Length": "invalid"}
+        )
+        mock_response.iter_bytes.return_value = [b"content"]
         mock_response.close = Mock()
         mock_fetch.return_value = mock_response
 
@@ -473,9 +479,9 @@ class TestHTTPGet(unittest.TestCase):
     @patch("podcast_scraper.rss.downloader.progress.progress_context")
     def test_http_get_empty_chunks_skipped(self, mock_progress, mock_fetch):
         """Test http_get skips empty chunks."""
-        mock_response = Mock()
-        mock_response.headers = {"Content-Type": "text/plain"}
-        mock_response.iter_content.return_value = [b"chunk1", b"", b"chunk2", None]
+        mock_response = Mock(spec=httpx.Response)
+        mock_response.headers = httpx.Headers({"Content-Type": "text/plain"})
+        mock_response.iter_bytes.return_value = [b"chunk1", b"", b"chunk2", None]
         mock_response.close = Mock()
         mock_fetch.return_value = mock_response
 
@@ -503,9 +509,9 @@ class TestHTTPGet(unittest.TestCase):
     @patch("podcast_scraper.rss.downloader.progress.progress_context")
     def test_http_get_read_error(self, mock_progress, mock_fetch):
         """Test http_get handles read errors gracefully."""
-        mock_response = Mock()
-        mock_response.headers = {"Content-Type": "text/plain"}
-        mock_response.iter_content.side_effect = requests.RequestException("Read error")
+        mock_response = Mock(spec=httpx.Response)
+        mock_response.headers = httpx.Headers({"Content-Type": "text/plain"})
+        mock_response.iter_bytes.side_effect = httpx.RequestError("Read error")
         mock_response.close = Mock()
         mock_fetch.return_value = mock_response
 
@@ -523,9 +529,9 @@ class TestHTTPGet(unittest.TestCase):
     @patch("podcast_scraper.rss.downloader.progress.progress_context")
     def test_http_get_os_error(self, mock_progress, mock_fetch):
         """Test http_get handles OSError gracefully."""
-        mock_response = Mock()
-        mock_response.headers = {"Content-Type": "text/plain"}
-        mock_response.iter_content.side_effect = OSError("IO error")
+        mock_response = Mock(spec=httpx.Response)
+        mock_response.headers = httpx.Headers({"Content-Type": "text/plain"})
+        mock_response.iter_bytes.side_effect = OSError("IO error")
         mock_response.close = Mock()
         mock_fetch.return_value = mock_response
 
@@ -553,9 +559,9 @@ class TestHTTPDownloadToFile(unittest.TestCase):
         self, mock_basename, mock_dirname, mock_makedirs, mock_open, mock_progress, mock_fetch
     ):
         """Test successful file download."""
-        mock_response = Mock()
-        mock_response.headers = {"Content-Length": "13"}
-        mock_response.iter_content.return_value = [b"Hello, World!"]
+        mock_response = Mock(spec=httpx.Response)
+        mock_response.headers = httpx.Headers({"Content-Length": "13"})
+        mock_response.iter_bytes.return_value = [b"Hello, World!"]
         mock_response.close = Mock()
         mock_fetch.return_value = mock_response
 
@@ -591,9 +597,9 @@ class TestHTTPDownloadToFile(unittest.TestCase):
         self, mock_basename, mock_dirname, mock_makedirs, mock_open, mock_progress, mock_fetch
     ):
         """Test file download with multiple chunks."""
-        mock_response = Mock()
-        mock_response.headers = {"Content-Length": "18"}
-        mock_response.iter_content.return_value = [b"chunk1", b"chunk2", b"chunk3"]
+        mock_response = Mock(spec=httpx.Response)
+        mock_response.headers = httpx.Headers({"Content-Length": "18"})
+        mock_response.iter_bytes.return_value = [b"chunk1", b"chunk2", b"chunk3"]
         mock_response.close = Mock()
         mock_fetch.return_value = mock_response
 
@@ -628,9 +634,9 @@ class TestHTTPDownloadToFile(unittest.TestCase):
         self, mock_basename, mock_dirname, mock_makedirs, mock_open, mock_progress, mock_fetch
     ):
         """Test file download without Content-Length header."""
-        mock_response = Mock()
-        mock_response.headers = {}
-        mock_response.iter_content.return_value = [b"content"]
+        mock_response = Mock(spec=httpx.Response)
+        mock_response.headers = httpx.Headers({})
+        mock_response.iter_bytes.return_value = [b"content"]
         mock_response.close = Mock()
         mock_fetch.return_value = mock_response
 
@@ -680,9 +686,9 @@ class TestHTTPDownloadToFile(unittest.TestCase):
         self, mock_basename, mock_dirname, mock_makedirs, mock_open, mock_progress, mock_fetch
     ):
         """Test file download with empty dirname (current directory)."""
-        mock_response = Mock()
-        mock_response.headers = {"Content-Length": "5"}
-        mock_response.iter_content.return_value = [b"data"]
+        mock_response = Mock(spec=httpx.Response)
+        mock_response.headers = httpx.Headers({"Content-Length": "5"})
+        mock_response.iter_bytes.return_value = [b"data"]
         mock_response.close = Mock()
         mock_fetch.return_value = mock_response
 
@@ -716,9 +722,9 @@ class TestHTTPDownloadToFile(unittest.TestCase):
         self, mock_basename, mock_dirname, mock_makedirs, mock_open, mock_progress, mock_fetch
     ):
         """Test file download uses URL basename when path basename is empty."""
-        mock_response = Mock()
-        mock_response.headers = {"Content-Length": "5"}
-        mock_response.iter_content.return_value = [b"data"]
+        mock_response = Mock(spec=httpx.Response)
+        mock_response.headers = httpx.Headers({"Content-Length": "5"})
+        mock_response.iter_bytes.return_value = [b"data"]
         mock_response.close = Mock()
         mock_fetch.return_value = mock_response
 
@@ -755,9 +761,9 @@ class TestHTTPDownloadToFile(unittest.TestCase):
         self, mock_basename, mock_dirname, mock_makedirs, mock_open, mock_progress, mock_fetch
     ):
         """Test file download handles write errors gracefully."""
-        mock_response = Mock()
-        mock_response.headers = {"Content-Length": "5"}
-        mock_response.iter_content.return_value = [b"data"]
+        mock_response = Mock(spec=httpx.Response)
+        mock_response.headers = httpx.Headers({"Content-Length": "5"})
+        mock_response.iter_bytes.return_value = [b"data"]
         mock_response.close = Mock()
         mock_fetch.return_value = mock_response
 
@@ -791,9 +797,9 @@ class TestHTTPDownloadToFile(unittest.TestCase):
         self, mock_basename, mock_dirname, mock_makedirs, mock_open, mock_progress, mock_fetch
     ):
         """Test file download handles request errors gracefully."""
-        mock_response = Mock()
-        mock_response.headers = {"Content-Length": "5"}
-        mock_response.iter_content.side_effect = requests.RequestException("Request error")
+        mock_response = Mock(spec=httpx.Response)
+        mock_response.headers = httpx.Headers({"Content-Length": "5"})
+        mock_response.iter_bytes.side_effect = httpx.RequestError("Request error")
         mock_response.close = Mock()
         mock_fetch.return_value = mock_response
 
@@ -826,9 +832,9 @@ class TestHTTPDownloadToFile(unittest.TestCase):
         self, mock_basename, mock_dirname, mock_makedirs, mock_open, mock_progress, mock_fetch
     ):
         """Test file download skips empty chunks."""
-        mock_response = Mock()
-        mock_response.headers = {"Content-Length": "10"}
-        mock_response.iter_content.return_value = [b"chunk1", b"", b"chunk2", None]
+        mock_response = Mock(spec=httpx.Response)
+        mock_response.headers = httpx.Headers({"Content-Length": "10"})
+        mock_response.iter_bytes.return_value = [b"chunk1", b"", b"chunk2", None]
         mock_response.close = Mock()
         mock_fetch.return_value = mock_response
 
@@ -863,14 +869,14 @@ class TestHTTPDownloadToFile(unittest.TestCase):
         tmpdir = tempfile.mkdtemp()
         try:
             out_path = os.path.join(tmpdir, "partial.bin")
-            mock_response = Mock()
-            mock_response.headers = {"Content-Length": "100"}
+            mock_response = Mock(spec=httpx.Response)
+            mock_response.headers = httpx.Headers({"Content-Length": "100"})
 
             def _failing_stream(chunk_size=None):
                 yield b"partial"
-                raise requests.RequestException("connection reset")
+                raise httpx.RequestError("connection reset")
 
-            mock_response.iter_content = Mock(side_effect=_failing_stream)
+            mock_response.iter_bytes = Mock(side_effect=_failing_stream)
             mock_response.close = Mock()
             mock_fetch.return_value = mock_response
             mock_reporter = Mock()
@@ -895,52 +901,63 @@ class TestHTTPDownloadToFile(unittest.TestCase):
 class TestHTTPHead(unittest.TestCase):
     """Tests for http_head function."""
 
-    @patch("podcast_scraper.rss.downloader._get_thread_request_session")
+    @patch("podcast_scraper.rss.downloader._get_thread_request_client")
     @patch("podcast_scraper.rss.downloader.normalize_url")
-    def test_http_head_success(self, mock_normalize, mock_get_session):
+    def test_http_head_success(self, mock_normalize, mock_get_client):
         """Test successful HTTP HEAD request."""
-        mock_session = Mock()
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.headers = {"Content-Length": "1000"}
-        mock_response.raise_for_status = Mock()
-        mock_session.head.return_value = mock_response
-        mock_get_session.return_value = mock_session
+        mock_resp = httpx.Response(
+            200,
+            headers={"Content-Length": "1000"},
+            request=httpx.Request("HEAD", "https://example.com/test"),
+        )
+        mock_client = Mock(spec=httpx.Client)
+        mock_client.build_request.side_effect = (
+            lambda method, url, headers=None, timeout=None: httpx.Request(
+                method, url, headers=headers or {}
+            )
+        )
+        mock_client.send.return_value = mock_resp
+        mock_get_client.return_value = mock_client
         mock_normalize.return_value = "https://example.com/test"
 
         result = downloader.http_head("https://example.com/test", "test-agent", 10)
 
         self.assertIsNotNone(result)
-        self.assertEqual(result, mock_response)
-        mock_session.head.assert_called_once_with(
-            "https://example.com/test",
-            headers={"User-Agent": "test-agent"},
-            timeout=10,
-        )
-        mock_response.raise_for_status.assert_called_once()
+        self.assertEqual(result, mock_resp)
+        mock_client.build_request.assert_called_once()
+        mock_client.send.assert_called_once()
 
-    @patch("podcast_scraper.rss.downloader._get_thread_request_session")
+    @patch("podcast_scraper.rss.downloader._get_thread_request_client")
     @patch("podcast_scraper.rss.downloader.normalize_url")
-    def test_http_head_failure(self, mock_normalize, mock_get_session):
+    def test_http_head_failure(self, mock_normalize, mock_get_client):
         """Test HTTP HEAD request failure returns None."""
-        mock_session = Mock()
-        mock_session.head.side_effect = requests.RequestException("Connection error")
-        mock_get_session.return_value = mock_session
+        mock_client = Mock(spec=httpx.Client)
+        mock_client.build_request.side_effect = (
+            lambda method, url, headers=None, timeout=None: httpx.Request(
+                method, url, headers=headers or {}
+            )
+        )
+        mock_client.send.side_effect = httpx.RequestError("Connection error")
+        mock_get_client.return_value = mock_client
         mock_normalize.return_value = "https://example.com/test"
 
         result = downloader.http_head("https://example.com/test", "test-agent", 10)
 
         self.assertIsNone(result)
 
-    @patch("podcast_scraper.rss.downloader._get_thread_request_session")
+    @patch("podcast_scraper.rss.downloader._get_thread_request_client")
     @patch("podcast_scraper.rss.downloader.normalize_url")
-    def test_http_head_http_error(self, mock_normalize, mock_get_session):
+    def test_http_head_http_error(self, mock_normalize, mock_get_client):
         """Test HTTP HEAD request with HTTP error returns None."""
-        mock_session = Mock()
-        mock_response = Mock()
-        mock_response.raise_for_status.side_effect = requests.HTTPError("404 Not Found")
-        mock_session.head.return_value = mock_response
-        mock_get_session.return_value = mock_session
+        err_resp = httpx.Response(404, request=httpx.Request("HEAD", "https://example.com/test"))
+        mock_client = Mock(spec=httpx.Client)
+        mock_client.build_request.side_effect = (
+            lambda method, url, headers=None, timeout=None: httpx.Request(
+                method, url, headers=headers or {}
+            )
+        )
+        mock_client.send.return_value = err_resp
+        mock_get_client.return_value = mock_client
         mock_normalize.return_value = "https://example.com/test"
 
         result = downloader.http_head("https://example.com/test", "test-agent", 10)

@@ -1,9 +1,19 @@
 """HTTP session management and download helpers for podcast_scraper.
 
-RSS feed fetches use :func:`fetch_rss_feed_url`, which applies a dedicated urllib3
-``Retry`` policy (more attempts and gentler exponential backoff than generic
-:func:`fetch_url`) for flaky feed hosts. Transcripts and episode media still use
-:func:`fetch_url` / :func:`http_download_to_file`.
+RSS feed fetches use :func:`fetch_rss_feed_url`, which applies a dedicated
+retry policy (more attempts and gentler exponential backoff than generic
+:func:`fetch_url`) for flaky feed hosts. Transcripts and episode media still
+use :func:`fetch_url` / :func:`http_download_to_file`.
+
+Transport is ``httpx`` behind :func:`podcast_scraper.net.create_client` so
+admin-configured outbound proxy (#1129) + TLS trust (#1130) apply to every
+feed / media call (#1194). Retry semantics come from
+:class:`podcast_scraper.rss.http_retry.RetryTransport` — the same
+408 / 429 / 500 / 502 / 503 / 504 status list, the same
+GET / HEAD / OPTIONS allowed methods, and the same exponential-backoff
+formula the previous urllib3 ``Retry`` used, so
+``metrics.json``'s ``http_retry_events`` counter stays comparable across the
+migration.
 
 The retry event counter (see :func:`get_http_retry_event_count`) is
 **process-wide**. It is reset in :func:`configure_downloader`, which
@@ -17,8 +27,9 @@ The counter is exposed under two keys in the run summary JSON:
 - ``http_urllib3_retry_events`` — DEPRECATED alias for the same value. Marked
   in :mod:`podcast_scraper.workflow.metrics`; removal is gated on no
   Grafana / alerting query referencing the alias for 30 days plus one
-  release overlap. Underlying implementation is still urllib3 today; the
-  canonical key stays valid whenever RSS moves to httpx.
+  release overlap. Once the alias hits its removal criterion, the RSS
+  downloader's http_retry_events counter (still process-wide) stays valid;
+  only the legacy name goes away.
 """
 
 from __future__ import annotations
@@ -29,17 +40,20 @@ import os
 import sys
 import threading
 from typing import cast, Dict, List, Optional, Tuple
+from urllib.parse import quote, unquote
 
-import requests
-from requests.adapters import HTTPAdapter
-from requests.structures import CaseInsensitiveDict
-from requests.utils import requote_uri
-from urllib3.util.retry import Retry
+import httpx
 
+from ..net import create_client
 from ..utils import progress
 from ..utils.log_redaction import format_exception_for_log, redact_for_log
 from ..utils.progress import ProgressReporter
 from . import http_policy
+from .http_retry import RetryTransport
+
+# Character set matches ``requests.utils.requote_uri`` so URL normalization
+# behavior is unchanged across the httpx migration (#1194).
+_URL_SAFE_CHARS = "!#$%&'()*+,/:;=?@[]~"
 
 logger = logging.getLogger(__name__)
 
@@ -199,7 +213,7 @@ def _effective_rss_backoff_factor() -> float:
 
 
 _THREAD_LOCAL = threading.local()
-_SESSION_REGISTRY: List[requests.Session] = []
+_SESSION_REGISTRY: List[httpx.Client] = []
 _SESSION_REGISTRY_LOCK = threading.Lock()
 
 
@@ -212,125 +226,108 @@ def should_log_download_summary() -> bool:
 
 
 def normalize_url(url: str) -> str:
-    """Normalize URLs while preserving already-encoded segments."""
-    normalized = requote_uri(url)
+    """Normalize URLs while preserving already-encoded segments.
+
+    Reproduces ``requests.utils.requote_uri`` semantics on the stdlib:
+    unquote once (so already-encoded sequences aren't double-encoded),
+    then re-quote with the URI-safe character set.
+    """
+    try:
+        normalized = quote(unquote(url), safe=_URL_SAFE_CHARS)
+    except Exception:  # pragma: no cover - malformed % triplet in caller input
+        normalized = quote(url, safe=_URL_SAFE_CHARS)
     if normalized != url:
         logger.debug("Normalized URL %s -> %s", url, normalized)
     else:
         logger.debug("URL %s did not require normalization", url)
-    return cast(str, normalized)
+    return normalized
 
 
-def _create_logging_retry(
+def _make_retry_transport_wrapper(
     total: int,
     backoff_factor: float,
-    status_forcelist: Tuple[int, ...],
-) -> Retry:
-    """Build urllib3 Retry with WARNING logs on each urllib3 retry attempt."""
+) -> "callable":  # type: ignore[valid-type]
+    """Build a factory-compatible ``transport_wrapper`` for :func:`create_client`.
 
-    class LoggingRetry(Retry):
-        def increment(self, method=None, url=None, *args, **kwargs):  # type: ignore[override]
-            new_retry = super().increment(method=method, url=url, *args, **kwargs)
-            _increment_http_retry_events()
-            attempt = len(new_retry.history) + 1
-            reason = kwargs.get("error") or kwargs.get("response")
-            logger.warning(
-                f"Retrying HTTP request (attempt {attempt}/{new_retry.total}) "
-                f"{method or ''} {url or ''} due to {reason}"
-            )
-            resp_obj = kwargs.get("response")
-            if resp_obj is not None:
-                try:
-                    http_policy.note_retry_after_from_response(resp_obj, request_url=url)
-                except Exception:  # pragma: no cover - defensive
-                    logger.debug("Retry-After note failed", exc_info=True)
-            return new_retry
+    Returns a callable that wraps the underlying (proxy / TLS) transport in a
+    :class:`RetryTransport` configured with our status list, allowed methods,
+    and the process-wide retry counter + Retry-After hook.
+    """
 
-    return LoggingRetry(
-        total=total,
-        read=total,
-        connect=total,
-        status=total,
-        backoff_factor=backoff_factor,
-        status_forcelist=status_forcelist,
-        allowed_methods=HTTP_RETRY_ALLOWED_METHODS,
-        raise_on_status=False,
-        respect_retry_after_header=True,
-    )
+    def _on_retry_after(response: httpx.Response, url: str) -> None:
+        try:
+            http_policy.note_retry_after_from_response(response, request_url=url)
+        except Exception:  # pragma: no cover - defensive
+            logger.debug("Retry-After note failed", exc_info=True)
+
+    def _wrap(base: httpx.HTTPTransport) -> RetryTransport:
+        return RetryTransport(
+            base,
+            total=total,
+            backoff_factor=backoff_factor,
+            status_forcelist=HTTP_RETRY_STATUS_CODES,
+            allowed_methods=HTTP_RETRY_ALLOWED_METHODS,
+            on_retry=_increment_http_retry_events,
+            on_retry_after=_on_retry_after,
+        )
+
+    return _wrap
 
 
-def _configure_http_session(session: requests.Session) -> None:
-    """Attach retry-enabled HTTP adapters (default policy for media/transcripts)."""
-    retry = _create_logging_retry(
-        _effective_http_retry_total(),
-        _effective_http_backoff_factor(),
-        HTTP_RETRY_STATUS_CODES,
-    )
-    adapter = HTTPAdapter(max_retries=retry)
-    session.mount("http://", adapter)
-    session.mount("https://", adapter)
-    logger.debug("Configured HTTP session %s with retry-enabled adapters", hex(id(session)))
-
-
-def _configure_rss_feed_http_session(session: requests.Session) -> None:
-    """Attach retry/backoff policy tuned for RSS feed XML fetches."""
-    retry = _create_logging_retry(
-        _effective_rss_retry_total(),
-        _effective_rss_backoff_factor(),
-        HTTP_RETRY_STATUS_CODES,
-    )
-    adapter = HTTPAdapter(max_retries=retry)
-    session.mount("http://", adapter)
-    session.mount("https://", adapter)
-    logger.debug(
-        "Configured RSS feed HTTP session %s with retry-enabled adapters", hex(id(session))
-    )
-
-
-def _get_thread_request_session() -> requests.Session:
-    # Suppress urllib3 debug logs on first use
+def _get_thread_request_client() -> httpx.Client:
+    """Thread-local ``httpx.Client`` for media / transcript / generic fetches."""
     _suppress_urllib3_debug_logs()
 
-    session = getattr(_THREAD_LOCAL, "session", None)
-    if session is None:
-        session = requests.Session()
-        _configure_http_session(session)
-        setattr(_THREAD_LOCAL, "session", session)
+    client = getattr(_THREAD_LOCAL, "client", None)
+    if client is None:
+        client = create_client(
+            subsystem="rss_generic",
+            transport_wrapper=_make_retry_transport_wrapper(
+                _effective_http_retry_total(),
+                _effective_http_backoff_factor(),
+            ),
+        )
+        setattr(_THREAD_LOCAL, "client", client)
         with _SESSION_REGISTRY_LOCK:
-            _SESSION_REGISTRY.append(session)
-        logger.debug("Created new thread-local HTTP session %s", hex(id(session)))
+            _SESSION_REGISTRY.append(client)
+        logger.debug("Created new thread-local HTTP client %s", hex(id(client)))
     else:
-        logger.debug("Reusing thread-local HTTP session %s", hex(id(session)))
-    return session
+        logger.debug("Reusing thread-local HTTP client %s", hex(id(client)))
+    return client
 
 
-def _get_thread_feed_request_session() -> requests.Session:
-    """Thread-local session for RSS feed XML (stronger retries/backoff than generic fetch)."""
+def _get_thread_feed_request_client() -> httpx.Client:
+    """Thread-local ``httpx.Client`` for RSS feed XML (RSS-tuned retry policy)."""
     _suppress_urllib3_debug_logs()
 
-    session = getattr(_THREAD_LOCAL, "feed_session", None)
-    if session is None:
-        session = requests.Session()
-        _configure_rss_feed_http_session(session)
-        setattr(_THREAD_LOCAL, "feed_session", session)
+    client = getattr(_THREAD_LOCAL, "feed_client", None)
+    if client is None:
+        client = create_client(
+            subsystem="rss_feed",
+            transport_wrapper=_make_retry_transport_wrapper(
+                _effective_rss_retry_total(),
+                _effective_rss_backoff_factor(),
+            ),
+        )
+        setattr(_THREAD_LOCAL, "feed_client", client)
         with _SESSION_REGISTRY_LOCK:
-            _SESSION_REGISTRY.append(session)
-        logger.debug("Created new thread-local RSS feed HTTP session %s", hex(id(session)))
+            _SESSION_REGISTRY.append(client)
+        logger.debug("Created new thread-local RSS feed HTTP client %s", hex(id(client)))
     else:
-        logger.debug("Reusing thread-local RSS feed HTTP session %s", hex(id(session)))
-    return session
+        logger.debug("Reusing thread-local RSS feed HTTP client %s", hex(id(client)))
+    return client
 
 
 def _close_all_sessions() -> None:
     with _SESSION_REGISTRY_LOCK:
-        for session in _SESSION_REGISTRY:
+        for client in _SESSION_REGISTRY:
             try:
-                session.close()
+                client.close()
             # Best-effort cleanup; ignore shutdown errors
             except Exception:  # pragma: no cover  # nosec B110
                 pass
         _SESSION_REGISTRY.clear()
-    for attr in ("session", "feed_session"):
+    for attr in ("client", "feed_client"):
         try:
             delattr(_THREAD_LOCAL, attr)
         except AttributeError:
@@ -350,14 +347,15 @@ def reset_http_sessions() -> None:
     _close_all_sessions()
 
 
-def _synthetic_rss_response(url: str, body: bytes) -> requests.Response:
+def _synthetic_rss_response(url: str, body: bytes) -> httpx.Response:
     """Build a 200 OK response with in-memory RSS body (after server 304 + cache)."""
-    r = requests.Response()
-    r.status_code = 200
-    r._content = body
-    r.url = url
-    r.headers = CaseInsensitiveDict({"Content-Type": "application/rss+xml; charset=utf-8"})
-    return r
+    request = httpx.Request("GET", url)
+    return httpx.Response(
+        200,
+        content=body,
+        headers={"Content-Type": "application/rss+xml; charset=utf-8"},
+        request=request,
+    )
 
 
 def _open_http_request(
@@ -366,17 +364,13 @@ def _open_http_request(
     timeout: int,
     *,
     stream: bool = False,
-    session: Optional[requests.Session] = None,
+    session: Optional[httpx.Client] = None,
     extra_headers: Optional[Dict[str, str]] = None,
     accept_not_modified: bool = False,
-) -> Optional[requests.Response]:
+) -> Optional[httpx.Response]:
     """Execute an HTTP GET request and return the response if successful."""
     normalized_url = normalize_url(url)
-    # ``requests.Session.get`` types ``headers`` as
-    # ``MutableMapping[str, str | bytes] | None`` in newer types-requests stubs;
-    # ``CaseInsensitiveDict`` satisfies that contract where a bare ``dict[str, str]``
-    # trips invariance.
-    headers: CaseInsensitiveDict = CaseInsensitiveDict({"User-Agent": user_agent})
+    headers: Dict[str, str] = {"User-Agent": user_agent}
     if extra_headers:
         headers.update(extra_headers)
 
@@ -392,16 +386,17 @@ def _open_http_request(
             return None
 
     try:
-        sess = session if session is not None else _get_thread_request_session()
+        sess = session if session is not None else _get_thread_request_client()
         logger.debug(
-            "Opening HTTP connection to %s (timeout=%s, stream=%s) via session %s",
+            "Opening HTTP connection to %s (timeout=%s, stream=%s) via client %s",
             normalized_url,
             timeout,
             stream,
             hex(id(sess)),
         )
         with http_policy.gated_http_request(normalized_url):
-            resp = sess.get(normalized_url, headers=headers, timeout=timeout, stream=stream)
+            request = sess.build_request("GET", normalized_url, headers=headers, timeout=timeout)
+            resp = sess.send(request, stream=stream)
 
         if accept_not_modified and resp.status_code == 304:
             if br is not None:
@@ -419,7 +414,7 @@ def _open_http_request(
             resp.headers.get("Content-Length"),
         )
         return resp
-    except requests.RequestException as exc:
+    except httpx.HTTPError as exc:
         if br is not None:
             err_resp = getattr(exc, "response", None)
             if err_resp is not None:
@@ -434,7 +429,7 @@ def _open_http_request(
         return None
 
 
-def http_head(url: str, user_agent: str, timeout: int) -> Optional[requests.Response]:
+def http_head(url: str, user_agent: str, timeout: int) -> Optional[httpx.Response]:
     """Execute an HTTP HEAD request to get headers without downloading the body.
 
     This is useful for checking Content-Length before downloading large files.
@@ -448,9 +443,7 @@ def http_head(url: str, user_agent: str, timeout: int) -> Optional[requests.Resp
         Response object with headers, or None if request failed
     """
     normalized_url = normalize_url(url)
-    # ``CaseInsensitiveDict`` satisfies the ``MutableMapping[str, str | bytes]``
-    # contract that newer ``types-requests`` stubs require for ``Session.head``.
-    headers: CaseInsensitiveDict = CaseInsensitiveDict({"User-Agent": user_agent})
+    headers: Dict[str, str] = {"User-Agent": user_agent}
     br = http_policy._STATE.circuit
     if br is not None:
         try:
@@ -459,15 +452,16 @@ def http_head(url: str, user_agent: str, timeout: int) -> Optional[requests.Resp
             logger.debug("HEAD skipped (circuit open): %s", redact_for_log(normalized_url))
             return None
     try:
-        session = _get_thread_request_session()
+        client = _get_thread_request_client()
         logger.debug(
-            "Checking file size via HEAD request to %s (timeout=%s) via session %s",
+            "Checking file size via HEAD request to %s (timeout=%s) via client %s",
             normalized_url,
             timeout,
-            hex(id(session)),
+            hex(id(client)),
         )
         with http_policy.gated_http_request(normalized_url):
-            resp = session.head(normalized_url, headers=headers, timeout=timeout)
+            request = client.build_request("HEAD", normalized_url, headers=headers, timeout=timeout)
+            resp = client.send(request)
         resp.raise_for_status()
         if br is not None:
             br.record_success(normalized_url)
@@ -479,7 +473,7 @@ def http_head(url: str, user_agent: str, timeout: int) -> Optional[requests.Resp
             content_length,
         )
         return resp
-    except requests.RequestException as exc:
+    except httpx.HTTPError as exc:
         if br is not None:
             err_resp = getattr(exc, "response", None)
             if err_resp is not None:
@@ -492,7 +486,7 @@ def http_head(url: str, user_agent: str, timeout: int) -> Optional[requests.Resp
 
 def fetch_url(
     url: str, user_agent: str, timeout: int, *, stream: bool = False
-) -> Optional[requests.Response]:
+) -> Optional[httpx.Response]:
     """HTTP GET with default retry/backoff (transcripts, episode media, generic fetches)."""
 
     return _open_http_request(url, user_agent, timeout, stream=stream)
@@ -500,8 +494,8 @@ def fetch_url(
 
 def fetch_rss_feed_url(
     url: str, user_agent: str, timeout: int, *, stream: bool = False
-) -> Optional[requests.Response]:
-    """HTTP GET for RSS feed XML with RSS-tuned urllib3 retries and exponential backoff."""
+) -> Optional[httpx.Response]:
+    """HTTP GET for RSS feed XML with RSS-tuned retries and exponential backoff."""
 
     extra: Dict[str, str] = {}
     cond = http_policy._STATE.conditional
@@ -515,7 +509,7 @@ def fetch_rss_feed_url(
         user_agent,
         timeout,
         stream=stream,
-        session=_get_thread_feed_request_session(),
+        session=_get_thread_feed_request_client(),
         extra_headers=extra if extra else None,
         accept_not_modified=use_cond,
     )
@@ -574,14 +568,14 @@ def http_get(url: str, user_agent: str, timeout: int) -> Tuple[Optional[bytes], 
 
         body_parts: List[bytes] = []
         with progress.progress_context(total_size, "Downloading") as reporter:
-            for chunk in resp.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE):
+            for chunk in resp.iter_bytes(chunk_size=DOWNLOAD_CHUNK_SIZE):
                 if not chunk:
                     continue
                 body_parts.append(chunk)
                 cast(ProgressReporter, reporter).update(len(chunk))
 
         return b"".join(body_parts), ctype
-    except (requests.RequestException, OSError) as exc:
+    except (httpx.HTTPError, OSError) as exc:
         logger.warning(
             "Failed to read response from %s: %s",
             url,
@@ -626,7 +620,7 @@ def http_download_to_file(
                 f"Downloading {filename}" if filename else "Downloading",
             ) as reporter,
         ):
-            for chunk in resp.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE):
+            for chunk in resp.iter_bytes(chunk_size=DOWNLOAD_CHUNK_SIZE):
                 if not chunk:
                     continue
                 f.write(chunk)
@@ -635,7 +629,7 @@ def http_download_to_file(
                 cast(ProgressReporter, reporter).update(chunk_size)
         logger.debug("Finished downloading %s (%s bytes written)", url, total_bytes)
         return True, total_bytes
-    except (requests.RequestException, OSError) as exc:
+    except (httpx.HTTPError, OSError) as exc:
         logger.warning(
             "Failed to download %s to %s: %s",
             redact_for_log(url),
