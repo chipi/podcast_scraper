@@ -83,3 +83,19 @@ value preserved.
 3. Next tier scope. Operator direction (2026-07-16): halos, sizes, circles and
    lines — move away from same-size circles and same-thickness lines. Colour +
    shape variance next, not community detection yet.
+
+## Tier 2 — E/F/G/H
+
+| # | Change | Files | Notes |
+|---|---|---|---|
+| E | Halo + PNG-export bg follow `--ps-graph-canvas` | `utils/cyGraphStylesheet.ts`, `components/graph/GraphCanvas.vue`, `PS_TOKEN_FALLBACKS` | Resolves A deferral. Verified: `text-outline` / `text-background` now `rgb(10,13,16)`. |
+| F | Semantic shape per node type | `utils/cyGraphStylesheet.ts` `shapeByType` | Podcast=hexagon, Episode=round-rectangle, Insight=diamond, Quote=round-tag, Speaker=round-diamond, Entity_organization=round-rectangle. Person / Entity_person / Topic stay ellipse. TopicCluster keeps `roundrectangle` compound. Speaker + Quote emit 0 in prod-v2 slice — code-verified only, live-verify pending on a corpus that emits them. |
+| G | Edge width tiers widened | `utils/cyGraphStylesheet.ts` | Structural 2 → 2.75 (HAS_INSIGHT, SPOKE_IN, HAS_EPISODE). HAS_MEMBER 1.5 → 2. Evidence + discovery 1 → 0.75-0.85 (SUPPORTED_BY, RELATED_TO, MENTIONS). Descriptive confidence-mapped unchanged (already scaled). Compact profile scales proportionally. Aggregate mapData(weight) untouched. |
+| H | Episode base 18 → 22, aspect W 1.35 → renders 30×22 card | `utils/cyGraphStylesheet.ts` `NODE_ASPECT_W`, `scaledNodeWidth` | mapData(degreeHeat) specialization scales width vs height independently against per-type bases so aspect ratio is preserved across the 0.7×–1.5× range. |
+
+## Not done (still)
+
+- Speaker + Quote shape live-verify — pending a corpus that emits either.
+- fcose repulsion / edge-length tuning still unchanged. Docs' `nodeRepulsion: 8000 /
+  gravity: 0.08` proposals not applied (units differ from current 880_000 base;
+  needs isolated tuning session).

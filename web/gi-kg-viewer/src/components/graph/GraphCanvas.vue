@@ -2429,17 +2429,19 @@ function zoomReset100(): void {
 }
 
 function canvasExportBg(): string {
+  /* graph-v3 E — mirror the on-screen canvas token so PNG exports match
+     what the user sees. Falls through to --ps-canvas on light theme where
+     --ps-graph-canvas aliases it. */
   try {
-    const v = getComputedStyle(document.documentElement)
-      .getPropertyValue('--ps-canvas')
-      .trim()
-    if (v.length) {
-      return v
-    }
+    const root = document.documentElement
+    const g = getComputedStyle(root).getPropertyValue('--ps-graph-canvas').trim()
+    if (g.length) return g
+    const v = getComputedStyle(root).getPropertyValue('--ps-canvas').trim()
+    if (v.length) return v
   } catch {
     /* ignore */
   }
-  return '#111418'
+  return '#0a0d10'
 }
 
 function clearInteractionState(opts?: { skipRedraw?: boolean }): void {

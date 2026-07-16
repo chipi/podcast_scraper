@@ -17,15 +17,22 @@ export function cytoscapeNodeLabelColorFromTheme(): string {
   return '#e5e8eb'
 }
 
-/** Canvas fill — used as label halo so text does not blend into edge strokes. */
+/** Canvas fill — used as label halo so text does not blend into edge strokes.
+ *  graph-v3 E — prefer --ps-graph-canvas (the graph-scoped darker token) so
+ *  halos match the canvas exactly instead of leaving a ~3-shade lighter
+ *  rectangle behind each label. Falls through to --ps-canvas on light theme
+ *  (where the graph-canvas var aliases --ps-canvas). */
 export function cytoscapeNodeLabelHaloColorFromTheme(): string {
   try {
-    const v = getComputedStyle(document.documentElement).getPropertyValue('--ps-canvas').trim()
+    const root = document.documentElement
+    const g = getComputedStyle(root).getPropertyValue('--ps-graph-canvas').trim()
+    if (g) return g
+    const v = getComputedStyle(root).getPropertyValue('--ps-canvas').trim()
     if (v) return v
   } catch {
     /* ignore */
   }
-  return '#111418'
+  return '#0a0d10'
 }
 
 /**
@@ -38,6 +45,7 @@ export function cytoscapeNodeLabelHaloColorFromTheme(): string {
  */
 const PS_TOKEN_FALLBACKS: Record<string, string> = {
   '--ps-canvas': '#111418',
+  '--ps-graph-canvas': '#0a0d10',
   '--ps-canvas-foreground': '#e5e8eb',
   '--ps-border': '#404854',
   '--ps-muted': '#8f99a8',
@@ -77,7 +85,10 @@ const LABEL_SHORT_TIER_TYPES = [
   'Entity_organization',
 ] as const
 
-/** Main profile node diameters (WIP §3.1), before compact scale. */
+/** Main profile node diameters (WIP §3.1), before compact scale.
+ *  graph-v3 H — Episode bumped 18 → 22 so its round-rectangle has room
+ *  to read as a card without dominating the graph. Paired with an aspect
+ *  scale (see NODE_ASPECT_W below). */
 const NODE_DIAMETER_MAIN_PX: Record<string, number> = {
   Insight: 44,
   Topic: 40,
@@ -86,8 +97,15 @@ const NODE_DIAMETER_MAIN_PX: Record<string, number> = {
   Entity_organization: 26,
   Quote: 22,
   Speaker: 18,
-  Episode: 18,
+  Episode: 22,
   Podcast: 18,
+}
+
+/** graph-v3 H — width multiplier for rectangular shapes so they read as
+ *  cards (wider than tall). Height stays at the base diameter. Unlisted
+ *  types default to 1 (uniform width = height). */
+const NODE_ASPECT_W: Record<string, number> = {
+  Episode: 1.35,
 }
 
 function scaledNodeSize(type: string, compact: boolean): number {
@@ -96,6 +114,12 @@ function scaledNodeSize(type: string, compact: boolean): number {
     return base
   }
   return Math.max(12, Math.round((base * 14) / 18))
+}
+
+function scaledNodeWidth(type: string, compact: boolean): number {
+  const h = scaledNodeSize(type, compact)
+  const wScale = NODE_ASPECT_W[type] ?? 1
+  return Math.round(h * wScale)
 }
 
 function graphNodeOpacity(ele: NodeSingular): number {
@@ -388,16 +412,40 @@ export function buildGiKgCyStylesheet(options?: {
     },
   ]
 
+  /* graph-v3 F — semantic shape per node type so "same-size circles" stop
+     dominating the read. Person + Topic stay ellipse (humans + concepts are
+     the mental-model default); everything else gets a shape that carries
+     meaning:
+       - Podcast → hexagon (container-of-episodes, distinct silhouette)
+       - Episode → round-rectangle (content card, familiar UI paradigm)
+       - Insight → diamond (proposition, stands out at neighbourhood zoom)
+       - Quote → round-tag (attributed snippet)
+       - Speaker → round-diamond (small speech-act marker, disjoint from Insight)
+       - Entity_organization → round-rectangle (institution)
+     TopicCluster keeps its existing `roundrectangle` compound shape. */
+  const shapeByType: Partial<Record<(typeof VISUAL_TYPES)[number], string>> = {
+    Podcast: 'hexagon',
+    Episode: 'round-rectangle',
+    Insight: 'diamond',
+    Quote: 'round-tag',
+    Speaker: 'round-diamond',
+    Entity_organization: 'round-rectangle',
+  }
+
   const sizeByDegree = Boolean(options?.enableNodeSizeByDegree)
   for (const t of VISUAL_TYPES) {
-    const side = scaledNodeSize(t, compact)
+    const h = scaledNodeSize(t, compact)
+    const w = scaledNodeWidth(t, compact)
+    const baseStyle: Record<string, unknown> = {
+      'background-color': graphNodeFill(t),
+      width: w,
+      height: h,
+    }
+    const shape = shapeByType[t]
+    if (shape) baseStyle.shape = shape
     style.push({
       selector: `node[type = "${t}"]`,
-      style: {
-        'background-color': graphNodeFill(t),
-        width: side,
-        height: side,
-      },
+      style: baseStyle,
     })
     // RFC-080 V5: scale Topic + Episode width/height by `degreeHeat`.
     // Other types stay fixed because their degree distribution is
@@ -405,14 +453,18 @@ export function buildGiKgCyStylesheet(options?: {
     // (`[type][degreeHeat]`) only fires for elements that actually
     // carry the field — nodes without `degreeHeat` keep the fixed
     // base above rather than triggering a mapData warning.
+    // graph-v3 H — aspect preserved by scaling width and height
+    // independently against their per-type base.
     if (sizeByDegree && (t === 'Topic' || t === 'Episode')) {
-      const lo = Math.round(side * 0.7)
-      const hi = Math.round(side * 1.5)
+      const wLo = Math.round(w * 0.7)
+      const wHi = Math.round(w * 1.5)
+      const hLo = Math.round(h * 0.7)
+      const hHi = Math.round(h * 1.5)
       style.push({
         selector: `node[type = "${t}"][degreeHeat]`,
         style: {
-          width: `mapData(degreeHeat, 0, 1, ${lo}, ${hi})`,
-          height: `mapData(degreeHeat, 0, 1, ${lo}, ${hi})`,
+          width: `mapData(degreeHeat, 0, 1, ${wLo}, ${wHi})`,
+          height: `mapData(degreeHeat, 0, 1, ${hLo}, ${hHi})`,
         },
       })
     }
@@ -512,11 +564,17 @@ export function buildGiKgCyStylesheet(options?: {
     },
   })
 
+  /* graph-v3 G — widen the semantic-tier width spread so "same-thickness"
+     lines stop dominating the read. Structural chunky (2.75px), descriptive
+     confidence-mapped (0.75×–1.5× base), evidence + discovery thinner
+     (0.75px) so they recede into the canvas hum. Compact profile scales
+     proportionally. Aggregates keep their existing mapData(weight) so the
+     chunkiest render at 5px. */
   const edgeStrokes: { selector: string; style: Record<string, unknown> }[] = [
     {
       selector: 'edge[edgeType = "HAS_INSIGHT"]',
       style: {
-        width: compact ? 1.5 : 2,
+        width: compact ? 2 : 2.75,
         'line-color': psPrimary,
         'line-style': 'solid',
         'target-arrow-shape': 'triangle',
@@ -541,7 +599,7 @@ export function buildGiKgCyStylesheet(options?: {
     {
       selector: 'edge[edgeType = "SUPPORTED_BY"]',
       style: {
-        width: compact ? 0.85 : 1,
+        width: compact ? 0.7 : 0.85,
         'line-color': psMuted,
         'line-style': 'dashed',
         'target-arrow-shape': 'triangle',
@@ -551,7 +609,7 @@ export function buildGiKgCyStylesheet(options?: {
     {
       selector: 'edge[edgeType = "RELATED_TO"]',
       style: {
-        width: compact ? 1 : 1,
+        width: compact ? 0.7 : 0.85,
         'line-color': psKg,
         'line-style': 'solid',
         'target-arrow-shape': 'none',
@@ -560,7 +618,7 @@ export function buildGiKgCyStylesheet(options?: {
     {
       selector: 'edge[edgeType = "MENTIONS"]',
       style: {
-        width: compact ? 1 : 1,
+        width: compact ? 0.7 : 0.85,
         'line-color': psMuted,
         'line-style': 'dotted',
         'target-arrow-shape': 'none',
@@ -569,7 +627,7 @@ export function buildGiKgCyStylesheet(options?: {
     {
       selector: 'edge[edgeType = "SPOKE_IN"]',
       style: {
-        width: compact ? 1.5 : 2,
+        width: compact ? 2 : 2.75,
         'line-color': psPrimary,
         'line-style': 'solid',
         'target-arrow-shape': 'triangle',
@@ -579,7 +637,7 @@ export function buildGiKgCyStylesheet(options?: {
     {
       selector: 'edge[edgeType = "HAS_MEMBER"]',
       style: {
-        width: compact ? 1.25 : 1.5,
+        width: compact ? 1.5 : 2,
         'line-color': psKg,
         'line-style': 'solid',
         'target-arrow-shape': 'none',
@@ -623,7 +681,7 @@ export function buildGiKgCyStylesheet(options?: {
       // structural: Podcast → Episode, same visual class as HAS_INSIGHT.
       selector: 'edge[edgeType = "HAS_EPISODE"]',
       style: {
-        width: compact ? 1.5 : 2,
+        width: compact ? 2 : 2.75,
         'line-color': psPrimary,
         'line-style': 'solid',
         'target-arrow-shape': 'triangle',
