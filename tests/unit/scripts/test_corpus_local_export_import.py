@@ -303,9 +303,17 @@ def test_import_uses_inner_manifest_when_sibling_absent(tmp_path: Path) -> None:
 
 def test_import_refuses_when_no_manifest_anywhere(tmp_path: Path) -> None:
     """Non-conformant tarball → refuse."""
+    # Pack the tarball OUTSIDE the directory we're archiving so GNU tar does
+    # not see the growing output file as a member and error with "file changed
+    # as we read it" (BSD tar tolerates this; GNU tar 1.35 on Ubuntu 24.04
+    # returns exit 1). Matches the same pattern in
+    # ``scripts/ops/corpus_snapshot/finalize_backup_bundle.sh``.
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "placeholder.txt").write_text("not a corpus")
     fake = tmp_path / "notasnapshot.tgz"
     subprocess.check_call(
-        ["/usr/bin/env", "tar", "-czf", str(fake), "-C", str(tmp_path), "."],
+        ["/usr/bin/env", "tar", "-czf", str(fake), "-C", str(src), "."],
         cwd=str(tmp_path),
     )
     result = _run(
