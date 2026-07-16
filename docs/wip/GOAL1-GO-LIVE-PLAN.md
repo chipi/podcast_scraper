@@ -90,7 +90,7 @@ the box is still tailnet-only. Nothing is public. This is the safe rehearsal.
 
 | # | Step | Owner |
 |---|---|---|
-| 3.1 | Walk the [THREAT_MODEL pre-public gate](../security/THREAT_MODEL.md) checklist | 🤝 |
+| 3.1 | Walk the [THREAT_MODEL pre-public gate](../security/THREAT_MODEL.md#pre-public-gate--run-before-any-new-public-vhost) checklist | 🤝 |
 | 3.2 | Sign off: orrery clears it (static, no `docker.sock`, no keys) | 🧑 |
 
 **No firewall opens until 3.2 is signed off.**

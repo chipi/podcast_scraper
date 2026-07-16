@@ -25,7 +25,7 @@ def _api_paths(output_dir: Path) -> set[str]:
     return {getattr(r, "path", "") for r in app.routes if getattr(r, "path", "").startswith("/api")}
 
 
-def test_full_mode_mounts_operator_read_api(tmp_path: pytest.TempPathFactory, monkeypatch) -> None:
+def test_full_mode_mounts_operator_read_api(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.delenv("PODCAST_SERVE_APP_ONLY", raising=False)
     paths = _api_paths(Path(str(tmp_path)))
     # Sanity: the default (non-app-only) build DOES mount the operator/read plane.

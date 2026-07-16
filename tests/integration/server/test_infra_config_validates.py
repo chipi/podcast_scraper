@@ -51,7 +51,7 @@ def test_player_nginx_preserves_forwarded_proto() -> None:
     assert "proxy_set_header X-Forwarded-Proto $lp_forwarded_proto" in conf
 
 
-def test_player_nginx_rate_limits_api(nginx_conf=None) -> None:
+def test_player_nginx_rate_limits_api() -> None:
     conf = NGINX_CONF.read_text()
     # Rate limiting (T-06) keyed on the REAL client IP (real_ip recovers it from XFF).
     assert (

@@ -143,8 +143,8 @@ still rolling out; **No** = not started (including accepted ADRs waiting on impl
 **Counts (reconcile when adding ADRs):** **118** files under `docs/adr/ADR-*.md` (ADR-001–ADR-118;
 numbering has historical gaps). ADR-099 was a duplicate — the response-shape-guardrails file was
 renumbered to ADR-105 (2026-07-07); ADR-106/107/108 added the same day. ADR-114–118 are the
-infra/edge programme (shared Caddy edge, secrets, privilege-split, observability, Cloudflare). From the index table: **1** **Proposed** (**ADR-055**, tied to Draft
-RFC-053; ADR-104 was promoted to Accepted with RFC-088 chunk 8), **3** **Superseded** (**ADR-056**,
+infra/edge programme (shared Caddy edge, secrets, privilege-split, observability, Cloudflare). From the index table: **8** **Proposed** (**ADR-055** tied to Draft
+RFC-053, plus **ADR-109/110/111** and infra programme **ADR-114/115/116/117**; ADR-104 was promoted to Accepted with RFC-088 chunk 8), **3** **Superseded** (**ADR-056**,
 RFC-054 shipped in different shape — per-provider mocks rather than the centralized router this ADR
 drafted; **ADR-060** + **ADR-061**, FAISS retired for LanceDB — superseded by ADR-099), **1** **Accepted** with **Code = No**
 (**ADR-054**, tied to Draft RFC-051 Postgres projection), **3** **Accepted** with **Code = Partial**
