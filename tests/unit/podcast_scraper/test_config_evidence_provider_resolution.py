@@ -71,6 +71,28 @@ class TestEvidenceAlignsToTheSummariser:
         )
 
 
+@pytest.fixture
+def _dummy_provider_keys(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Dummy (never real) keys so every profile's provider-key validators pass.
+
+    This test checks config RESOLUTION (which grounder aligns with which summariser), not live
+    auth — so a placeholder key for every cloud provider lets even the prod DGX/cloud profiles
+    construct and be checked, instead of the old ``except: skip`` that silently exempted them.
+    """
+    for var in (
+        "OPENAI_API_KEY",
+        "GEMINI_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "DEEPSEEK_API_KEY",
+        "GROK_API_KEY",
+        "XAI_API_KEY",
+        "MISTRAL_API_KEY",
+        "DEEPGRAM_API_KEY",
+        "VLLM_API_KEY",
+    ):
+        monkeypatch.setenv(var, "test-key")
+
+
 class TestEveryShippedProfileGroundsWithItsIntendedStack:
     """No profile may silently ground with the other stack."""
 
@@ -78,11 +100,15 @@ class TestEveryShippedProfileGroundsWithItsIntendedStack:
         "profile",
         sorted(p.stem for p in PROFILE_DIR.glob("*.yaml")) if PROFILE_DIR.is_dir() else [],
     )
-    def test_profile_grounder_matches_its_summariser(self, profile: str) -> None:
-        try:
-            cfg = Config.model_validate({"profile": profile, "generate_gi": True})
-        except Exception:  # noqa: BLE001 — a profile that cannot build is another test's problem
-            pytest.skip(f"profile {profile} does not construct")
+    def test_profile_grounder_matches_its_summariser(
+        self, profile: str, _dummy_provider_keys: None
+    ) -> None:
+        # generate_metadata is a prerequisite for generate_gi; set both so EVERY shipped profile
+        # (including the no-LLM reprocess profile) constructs and the grounder invariant is really
+        # checked — no silent skip that could hide a mis-aligned production profile.
+        cfg = Config.model_validate(
+            {"profile": profile, "generate_gi": True, "generate_metadata": True}
+        )
 
         summary = cfg.summary_provider
         expected = summary if summary in GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS else "transformers"

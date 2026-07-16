@@ -79,7 +79,7 @@ auto_speakers: true
 # top-quality reserve.
 # `llm_pipeline_mode: staged` retained per #912 workaround.
 summary_provider: openai
-openai_base_url: http://${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}:8003/v1
+openai_api_base: http://${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}:8003/v1
 openai_summary_model: autoresearch  # served-model-name on the vLLM slot
 openai_api_key_env: VLLM_API_KEY
 llm_pipeline_mode: staged

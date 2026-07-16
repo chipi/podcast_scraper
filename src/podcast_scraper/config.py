@@ -1427,6 +1427,14 @@ class Config(BaseModel):
         "Used for E2E testing with mock servers and for routing autoresearch "
         "summarize calls at OpenAI-compatible endpoints like local vLLM (#960).",
     )
+    openai_api_key_env: Optional[str] = Field(
+        default=None,
+        alias="openai_api_key_env",
+        description="Name of the environment variable to read the OpenAI-compatible API key from "
+        "when 'openai_api_key' is not set directly. Lets a profile point at a non-default key env "
+        "(e.g. 'VLLM_API_KEY' for a DGX vLLM endpoint) symmetric with the eval harness's "
+        "api_key_env. Resolved in _preprocess_config_data before the key-required validators.",
+    )
     openai_extra_body: Optional[Dict[str, Any]] = Field(
         default=None,
         alias="openai_extra_body",
@@ -5115,6 +5123,21 @@ class Config(BaseModel):
                 "on-disk episodes will be skipped under skip_existing (no-op). Pair it "
                 "with reprocess_source=whisper_transcription to actually re-diarize (#876)."
             )
+        return self
+
+    @model_validator(mode="after")
+    def _resolve_openai_api_key_env(self) -> "Config":
+        """Resolve ``openai_api_key`` from the env var named by ``openai_api_key_env``.
+
+        Runs as an after-validator (fields fully populated post profile-merge) and BEFORE
+        :meth:`_validate_openai_provider_requirements`, so a profile that points a DGX vLLM endpoint
+        at ``VLLM_API_KEY`` satisfies the key-required check without hardcoding a secret. A directly
+        provided ``openai_api_key`` always wins.
+        """
+        if self.openai_api_key is None and self.openai_api_key_env:
+            val = os.getenv(str(self.openai_api_key_env))
+            if val and val.strip():
+                object.__setattr__(self, "openai_api_key", val.strip())
         return self
 
     @model_validator(mode="after")
