@@ -85,19 +85,38 @@ jobs:
         if: steps.preflight.outputs.skip != 'true'
         env:
           OVERRIDE: ${{ inputs.override_image_sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: chipi
+          PKG: podcast-scraper-stack-api
         run: |
           set -euo pipefail
+          # An explicit override always wins. Otherwise resolve to the NEWEST
+          # sha-<7> tag actually PUBLISHED to GHCR — NOT github.sha (main HEAD).
+          # #1088 real cause: the scheduled drill has no build gate, so main HEAD's
+          # image is often absent (its stack-test failed, or main advanced past the
+          # last green build). Run 28072149152 resolved sha-c48b01b whose build had
+          # FAILED, so `docker manifest inspect` hit `manifest unknown`. Deploying
+          # the latest published image is both real (it exists) and prod-equivalent.
           SHA_SHORT="${OVERRIDE:-}"
+          SHA_SHORT="${SHA_SHORT#sha-}"
+          SRC="override"
           if [ -z "$SHA_SHORT" ]; then
-            SHA_SHORT=$(echo "${{ github.sha }}" | cut -c1-7)
+            SRC="latest-published"
+            TAG=$(gh api "/users/${OWNER}/packages/container/${PKG}/versions?per_page=100" \
+              --jq '[.[].metadata.container.tags[]? | select(test("^sha-[0-9a-f]{7,40}$"))] | .[0] // empty')
+            SHA_SHORT="${TAG#sha-}"
+          fi
+          if [ -z "$SHA_SHORT" ]; then
+            echo "::error::no published sha-<7> image for ${PKG} (source: ${SRC}). Has any stack-test build succeeded?"
+            exit 1
           fi
           if ! [[ "$SHA_SHORT" =~ ^[a-f0-9]{7,40}$ ]]; then
-            echo "::error::override_image_sha must match ^[a-f0-9]{7,40}$ (got: ${SHA_SHORT})"
+            echo "::error::resolved image sha must match ^[a-f0-9]{7,40}$ (source: ${SRC}, got: ${SHA_SHORT})"
             exit 1
           fi
           echo "short=$SHA_SHORT" >> "$GITHUB_OUTPUT"
           echo "git_ref=$SHA_SHORT" >> "$GITHUB_OUTPUT"
-          echo "::notice::Deploying to drill — image tag sha-$SHA_SHORT (git reset target: $SHA_SHORT)"
+          echo "::notice::Deploying to drill — image tag sha-$SHA_SHORT (source: ${SRC}, git reset target: $SHA_SHORT)"
 
       - name: "DR drill — validate: GHCR image manifest exists (pre-SSH)"
         if: steps.preflight.outputs.skip != 'true'

@@ -87,7 +87,10 @@ jobs:
         id: sha
         if: steps.preflight.outputs.skip != 'true'
         env:
-          OVERRIDE: ${{ github.event.inputs.override_image_sha }}
+          # `inputs.*` (not `github.event.inputs.*`) so this stays correct if a
+          # `workflow_call` trigger is ever added (RFC-082 Decision 6); equivalent
+          # under the current workflow_dispatch trigger.
+          OVERRIDE: ${{ inputs.override_image_sha }}
         run: |
           set -euo pipefail
           SHA_SHORT="${OVERRIDE:-}"
