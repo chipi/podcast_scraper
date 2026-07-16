@@ -40,6 +40,12 @@ export interface GraphLensFlags {
   nodeSizeByDegree: boolean
   themeClusterRegions: boolean
   bridgeRing: boolean
+  /* graph-v3 Tier 5C — enricher-based decoration lenses. */
+  velocityHalo: boolean
+  personCredibility: boolean
+  /* graph-v3 Tier 5D — enricher-based edge overlays. */
+  consensusEdges: boolean
+  coGuestEdges: boolean
 }
 
 const DEFAULT_FLAGS: GraphLensFlags = {
@@ -54,6 +60,16 @@ const DEFAULT_FLAGS: GraphLensFlags = {
      already validated on prod-v2 in commit d8447b8a. Users who find
      the rose rings noisy can toggle off. */
   bridgeRing: true,
+  /* graph-v3 Tier 5C/5D — enricher-based lenses, opt-in during rollout.
+     Each is enricher-gated in the popover (hidden when the underlying
+     artifact is absent). Insight sentiment tint (originally scoped as
+     tier 5C-3) deferred pending a corpus-scope sentiment aggregation
+     endpoint — the current shape ships per-episode sidecars that would
+     need N per-episode fetches to render across the whole graph. */
+  velocityHalo: false,
+  personCredibility: false,
+  consensusEdges: false,
+  coGuestEdges: false,
 }
 
 function readBool(v: unknown, fallback: boolean): boolean {
@@ -79,6 +95,10 @@ function readInitialFlags(): GraphLensFlags {
         DEFAULT_FLAGS.themeClusterRegions,
       ),
       bridgeRing: readBool(parsed.bridgeRing, DEFAULT_FLAGS.bridgeRing),
+      velocityHalo: readBool(parsed.velocityHalo, DEFAULT_FLAGS.velocityHalo),
+      personCredibility: readBool(parsed.personCredibility, DEFAULT_FLAGS.personCredibility),
+      consensusEdges: readBool(parsed.consensusEdges, DEFAULT_FLAGS.consensusEdges),
+      coGuestEdges: readBool(parsed.coGuestEdges, DEFAULT_FLAGS.coGuestEdges),
     }
   } catch {
     return { ...DEFAULT_FLAGS }
@@ -91,35 +111,40 @@ export const useGraphLensesStore = defineStore('graphLenses', () => {
   const nodeSizeByDegree = ref(initial.nodeSizeByDegree)
   const themeClusterRegions = ref(initial.themeClusterRegions)
   const bridgeRing = ref(initial.bridgeRing)
+  const velocityHalo = ref(initial.velocityHalo)
+  const personCredibility = ref(initial.personCredibility)
+  const consensusEdges = ref(initial.consensusEdges)
+  const coGuestEdges = ref(initial.coGuestEdges)
 
   const flags = computed<GraphLensFlags>(() => ({
     aggregatedEdges: aggregatedEdges.value,
     nodeSizeByDegree: nodeSizeByDegree.value,
     themeClusterRegions: themeClusterRegions.value,
     bridgeRing: bridgeRing.value,
+    velocityHalo: velocityHalo.value,
+    personCredibility: personCredibility.value,
+    consensusEdges: consensusEdges.value,
+    coGuestEdges: coGuestEdges.value,
   }))
 
-  function setAggregatedEdges(v: boolean): void {
-    aggregatedEdges.value = v
-  }
-
-  function setNodeSizeByDegree(v: boolean): void {
-    nodeSizeByDegree.value = v
-  }
-
-  function setThemeClusterRegions(v: boolean): void {
-    themeClusterRegions.value = v
-  }
-
-  function setBridgeRing(v: boolean): void {
-    bridgeRing.value = v
-  }
+  function setAggregatedEdges(v: boolean): void { aggregatedEdges.value = v }
+  function setNodeSizeByDegree(v: boolean): void { nodeSizeByDegree.value = v }
+  function setThemeClusterRegions(v: boolean): void { themeClusterRegions.value = v }
+  function setBridgeRing(v: boolean): void { bridgeRing.value = v }
+  function setVelocityHalo(v: boolean): void { velocityHalo.value = v }
+  function setPersonCredibility(v: boolean): void { personCredibility.value = v }
+  function setConsensusEdges(v: boolean): void { consensusEdges.value = v }
+  function setCoGuestEdges(v: boolean): void { coGuestEdges.value = v }
 
   function resetToDefaults(): void {
     aggregatedEdges.value = DEFAULT_FLAGS.aggregatedEdges
     nodeSizeByDegree.value = DEFAULT_FLAGS.nodeSizeByDegree
     themeClusterRegions.value = DEFAULT_FLAGS.themeClusterRegions
     bridgeRing.value = DEFAULT_FLAGS.bridgeRing
+    velocityHalo.value = DEFAULT_FLAGS.velocityHalo
+    personCredibility.value = DEFAULT_FLAGS.personCredibility
+    consensusEdges.value = DEFAULT_FLAGS.consensusEdges
+    coGuestEdges.value = DEFAULT_FLAGS.coGuestEdges
   }
 
   watch(
@@ -141,11 +166,19 @@ export const useGraphLensesStore = defineStore('graphLenses', () => {
     nodeSizeByDegree,
     themeClusterRegions,
     bridgeRing,
+    velocityHalo,
+    personCredibility,
+    consensusEdges,
+    coGuestEdges,
     flags,
     setAggregatedEdges,
     setNodeSizeByDegree,
     setThemeClusterRegions,
     setBridgeRing,
+    setVelocityHalo,
+    setPersonCredibility,
+    setConsensusEdges,
+    setCoGuestEdges,
     resetToDefaults,
   }
 })

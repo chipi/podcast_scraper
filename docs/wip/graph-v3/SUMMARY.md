@@ -112,6 +112,34 @@ already at idealEdgeLength 120.
 - Speaker + Quote shape live-verify — pending a corpus that emits either.
 - Halo colour on light-theme graph canvas is still `--ps-graph-canvas` = `--ps-canvas`
   (i.e. same as canvas). That's correct; noting for completeness.
+- **Insight sentiment lens** (originally scoped as Tier 5C-3) — deferred. Sentiment
+  is emitted per-episode as `metadata/enrichments/{stem}.insight_sentiment.json`
+  sidecars; there's no corpus-scope aggregation endpoint yet, and doing 99 per-episode
+  fetches to render is unreasonable. Ships in ~30 min once we add
+  `/api/corpus/enrichments/insight-sentiment` (or equivalent) using the same
+  fetchCachedCorpusEnvelope pattern as the other 4 Tier 5C/5D lenses.
+
+## Tier 5C/5D — 4 enricher-based lenses shipped
+
+| # | Lens | Enricher | Visual signal | Prod-v2 live count |
+|---|---|---|---|---|
+| 5C-1 | Velocity halo | `temporal_velocity` | Bright border on Topic + Person: green ↑ / red ↓ / amber → based on `velocity_last_over_6mo` and shared `utils/trend.ts` thresholds | 164 up, 129 down |
+| 5C-2 | Person credibility border | `grounding_rate` | Border colour per Person: green solid ≥0.7 / amber ≥0.4 / red dashed <0.4 | 51 high |
+| 5D-1 | Consensus edges | `topic_consensus` | Green unbundled-bezier arcs between two Persons who corroborate on a Topic. Deduped per (pair, topic). | 5 edges |
+| 5D-2 | Co-guest edges | `guest_coappearance` | Dotted amber arcs between Persons sharing ≥2 episodes. Width scales with `episode_count`. | 1 edge |
+
+Shared shape:
+
+- Lens flags live in `useGraphLensesStore` (localStorage-backed); resetToDefaults + persistence tests carry them.
+- Stylesheet classes / edge-type selectors added in `cyGraphStylesheet.ts`.
+- Apply/clear helpers in `utils/cyGraphLensOverlays.ts` (Cytoscape-typed, envelope-shaped) — kept out of the 4400-line GraphCanvas.vue for testability.
+- GraphCanvas exposes `refreshEnricherLensOverlays()` — fired from `finishLayoutPass` + a single watcher over the 4 flags. Envelopes fetched via existing `fetchCachedCorpusEnvelope` (Map-based cache) so live toggles reuse the same fetch.
+- GraphLensesChip probes availability on mount + on corpus-path change; rows hide when the artifact is missing (enricher-gated per operator direction).
+
+Every enricher-driven lens composes with the others: a Topic can carry the theme
+underlay + velocity border + degree size + bridge ring simultaneously. Cytoscape
+selectors resolve by source order; interaction states (`.search-hit`, `:selected`)
+still win over lens overlays.
 
 ## Tier 4 — N (dropped MCL), R/S/T/U/V/Q — theme-cluster regions + lens menu
 

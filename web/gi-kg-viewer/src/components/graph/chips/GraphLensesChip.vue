@@ -13,13 +13,16 @@
  * current corpus (`artifacts.themeClustersDoc === null`). Operator
  * direction (graph-v3 V): hide, don't disable — no dead controls.
  */
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useGraphLensesStore } from '../../../stores/graphLenses'
 import { useArtifactsStore } from '../../../stores/artifacts'
+import { useShellStore } from '../../../stores/shell'
 import { useFilterChipPopover } from '../../../composables/useFilterChipPopover'
+import { fetchCachedCorpusEnvelope } from '../../../composables/useEnrichmentEnvelopeCache'
 
 const lenses = useGraphLensesStore()
 const artifacts = useArtifactsStore()
+const shell = useShellStore()
 const anchorRef = ref<HTMLButtonElement | null>(null)
 const panelRef = ref<HTMLDivElement | null>(null)
 const { open, toggle } = useFilterChipPopover(anchorRef, panelRef)
@@ -27,8 +30,57 @@ const { open, toggle } = useFilterChipPopover(anchorRef, panelRef)
 /** Theme-cluster lens is enricher-gated. */
 const themeClustersAvailable = computed(() => artifacts.themeClustersDoc != null)
 
+/* graph-v3 Tier 5C/5D — enricher-based lens rows are hidden when the
+   underlying corpus artifact is absent. Availability is probed on mount
+   + on corpus-path change (each fetch is cached, so subsequent lens
+   toggles reuse the same result without a re-request). */
+const velocityAvailable = ref(false)
+const credibilityAvailable = ref(false)
+const consensusAvailable = ref(false)
+const coguestAvailable = ref(false)
+
+async function probeEnricherAvailability(root: string): Promise<void> {
+  const missingRoot = !root.trim()
+  if (missingRoot) {
+    velocityAvailable.value = false
+    credibilityAvailable.value = false
+    consensusAvailable.value = false
+    coguestAvailable.value = false
+    return
+  }
+  const [velocity, credibility, consensus, coguest] = await Promise.all([
+    fetchCachedCorpusEnvelope(root, 'temporal_velocity').catch(() => null),
+    fetchCachedCorpusEnvelope(root, 'grounding_rate').catch(() => null),
+    fetchCachedCorpusEnvelope(root, 'topic_consensus').catch(() => null),
+    fetchCachedCorpusEnvelope(root, 'guest_coappearance').catch(() => null),
+  ])
+  velocityAvailable.value = velocity != null
+  credibilityAvailable.value = credibility != null
+  consensusAvailable.value = consensus != null
+  coguestAvailable.value = coguest != null
+}
+
+onMounted(() => {
+  void probeEnricherAvailability(shell.corpusPath.trim())
+})
+
+watch(
+  () => shell.corpusPath,
+  (next) => {
+    void probeEnricherAvailability(String(next).trim())
+  },
+)
+
 interface LensRow {
-  key: 'aggregatedEdges' | 'nodeSizeByDegree' | 'themeClusterRegions' | 'bridgeRing'
+  key:
+    | 'aggregatedEdges'
+    | 'nodeSizeByDegree'
+    | 'themeClusterRegions'
+    | 'bridgeRing'
+    | 'velocityHalo'
+    | 'personCredibility'
+    | 'consensusEdges'
+    | 'coGuestEdges'
   label: string
   description: string
   testid: string
@@ -59,6 +111,34 @@ const rows = computed<LensRow[]>(() => {
       available: themeClustersAvailable.value,
     },
     {
+      key: 'velocityHalo',
+      label: 'Velocity halo',
+      description: 'Green / red / amber border on Topics + Persons by 6-month trend.',
+      testid: 'lens-velocity-halo',
+      available: velocityAvailable.value,
+    },
+    {
+      key: 'personCredibility',
+      label: 'Person credibility',
+      description: 'Border colour reflects Person grounded-insight rate (green ≥ 0.7).',
+      testid: 'lens-person-credibility',
+      available: credibilityAvailable.value,
+    },
+    {
+      key: 'consensusEdges',
+      label: 'Consensus edges',
+      description: 'Green arcs between Persons who corroborate on a topic (topic_consensus).',
+      testid: 'lens-consensus-edges',
+      available: consensusAvailable.value,
+    },
+    {
+      key: 'coGuestEdges',
+      label: 'Co-guest edges',
+      description: 'Dotted arcs between Persons sharing ≥ 2 episodes (guest_coappearance).',
+      testid: 'lens-coguest-edges',
+      available: coguestAvailable.value,
+    },
+    {
       key: 'aggregatedEdges',
       label: 'Aggregated edges',
       description: 'Roll per-Insight edges up to Episode↔Topic / Episode↔Person aggregates.',
@@ -86,6 +166,10 @@ function setLens(key: LensRow['key'], value: boolean): void {
   else if (key === 'nodeSizeByDegree') lenses.setNodeSizeByDegree(value)
   else if (key === 'themeClusterRegions') lenses.setThemeClusterRegions(value)
   else if (key === 'bridgeRing') lenses.setBridgeRing(value)
+  else if (key === 'velocityHalo') lenses.setVelocityHalo(value)
+  else if (key === 'personCredibility') lenses.setPersonCredibility(value)
+  else if (key === 'consensusEdges') lenses.setConsensusEdges(value)
+  else if (key === 'coGuestEdges') lenses.setCoGuestEdges(value)
 }
 
 function reset(): void {

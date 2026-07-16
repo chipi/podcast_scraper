@@ -864,6 +864,94 @@ export function buildGiKgCyStylesheet(options?: {
     })
   })
 
+  /* graph-v3 Tier 5C-1 — velocity halo. Bright coloured border on
+     Topic + Person nodes when the temporal_velocity envelope classes
+     them rising / cooling / steady. Uses the same palette as the
+     Digest / Trending Topics trend arrows (`utils/trend.ts`) so the
+     app tells one story about "is this topic hot right now".
+     Border-width bump above the type default so the halo reads at
+     mid-zoom without needing a label. */
+  const velocityBorder = compact ? 1.5 : 2.25
+  const velocityColours = { up: '#22c55e', down: '#ef4444', steady: '#f59e0b' }
+  ;(['up', 'down', 'steady'] as const).forEach((dir) => {
+    style.push({
+      selector: `node.velocity-${dir}`,
+      style: {
+        'border-width': velocityBorder,
+        'border-style': 'solid',
+        'border-color': velocityColours[dir],
+        'border-opacity': dir === 'steady' ? 0.7 : 0.9,
+      },
+    })
+  })
+
+  /* graph-v3 Tier 5C-2 — Person credibility border. Reads the
+     grounding_rate envelope (Insights supported by a Person that are
+     grounded / total). High = solid green, medium = solid amber, low
+     = dashed red. Direct analog of `.insight-ungrounded` for Persons. */
+  const credibilityBorder = compact ? 1.5 : 2
+  style.push({
+    selector: 'node.credibility-high',
+    style: {
+      'border-width': credibilityBorder,
+      'border-style': 'solid',
+      'border-color': '#22c55e',
+      'border-opacity': 0.85,
+    },
+  })
+  style.push({
+    selector: 'node.credibility-med',
+    style: {
+      'border-width': credibilityBorder,
+      'border-style': 'solid',
+      'border-color': '#f59e0b',
+      'border-opacity': 0.8,
+    },
+  })
+  style.push({
+    selector: 'node.credibility-low',
+    style: {
+      'border-width': credibilityBorder,
+      'border-style': 'dashed',
+      'border-color': '#ef4444',
+      'border-opacity': 0.8,
+    },
+  })
+
+  /* graph-v3 Tier 5D-1 — consensus edges (topic_consensus). Thin
+     bright-green arcs between two Persons who corroborate on a Topic.
+     No arrow (symmetric). Distinct hue from HAS_INSIGHT primary blue
+     so the overlay doesn't blend into structural edges. */
+  style.push({
+    selector: 'edge.lens-consensus-edge',
+    style: {
+      width: compact ? 1 : 1.5,
+      'line-color': '#22c55e',
+      'line-style': 'solid',
+      'line-opacity': 0.65,
+      'target-arrow-shape': 'none',
+      'curve-style': 'unbundled-bezier',
+      'z-index': 4,
+    },
+  })
+
+  /* graph-v3 Tier 5D-2 — co-guest edges (guest_coappearance). Dotted
+     amber arcs between Persons who share ≥2 episodes. Weight-scaled
+     width so a pair with 5 shared episodes reads chunkier than a
+     pair with 2. Muted opacity so the base graph still dominates. */
+  style.push({
+    selector: 'edge.lens-coguest-edge',
+    style: {
+      width: `mapData(weight, 2, 10, ${compact ? 0.7 : 1}, ${compact ? 2 : 3})`,
+      'line-color': '#f59e0b',
+      'line-style': 'dotted',
+      'line-opacity': 0.55,
+      'target-arrow-shape': 'none',
+      'curve-style': 'unbundled-bezier',
+      'z-index': 3,
+    },
+  })
+
   if (options?.includeSearchHit) {
     style.push({
       selector: 'node.search-hit',

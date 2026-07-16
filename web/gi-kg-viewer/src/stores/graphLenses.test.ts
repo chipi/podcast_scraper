@@ -18,16 +18,19 @@ describe('useGraphLensesStore (RFC-080)', () => {
     setActivePinia(createPinia())
   })
 
-  it('defaults: V1 off, V5 on (graph-v3 C), V6 off, V7 on', async () => {
+  it('defaults: V1 off, V5 on (graph-v3 C), V6 off, V7 on, Tier 5C/5D off', async () => {
     const { useGraphLensesStore } = await import('./graphLenses')
     const s = useGraphLensesStore()
     expect(s.aggregatedEdges).toBe(false)
-    // graph-v3 C — nodeSizeByDegree promoted to default-on.
     expect(s.nodeSizeByDegree).toBe(true)
-    // graph-v3 V — theme-cluster regions opt-in during rollout.
     expect(s.themeClusterRegions).toBe(false)
-    // graph-v3 K — bridge ring validated on prod-v2, default-on.
     expect(s.bridgeRing).toBe(true)
+    // graph-v3 Tier 5C — enricher-based decoration lenses default off.
+    expect(s.velocityHalo).toBe(false)
+    expect(s.personCredibility).toBe(false)
+    // graph-v3 Tier 5D — enricher-based edge overlays default off.
+    expect(s.consensusEdges).toBe(false)
+    expect(s.coGuestEdges).toBe(false)
   })
 
   it('persists all four toggles to localStorage as a single JSON blob', async () => {
@@ -125,7 +128,7 @@ describe('useGraphLensesStore (RFC-080)', () => {
     expect(s.bridgeRing).toBe(true)
   })
 
-  it('exposes a flags computed that reads all four flags atomically', async () => {
+  it('exposes a flags computed that reads all eight flags atomically', async () => {
     const { useGraphLensesStore } = await import('./graphLenses')
     const s = useGraphLensesStore()
     s.setAggregatedEdges(true)
@@ -134,6 +137,10 @@ describe('useGraphLensesStore (RFC-080)', () => {
       nodeSizeByDegree: true,
       themeClusterRegions: false,
       bridgeRing: true,
+      velocityHalo: false,
+      personCredibility: false,
+      consensusEdges: false,
+      coGuestEdges: false,
     })
   })
 })

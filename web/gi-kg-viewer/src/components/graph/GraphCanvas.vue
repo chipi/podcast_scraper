@@ -38,6 +38,21 @@ import {
   THEME_REGION_PALETTE_SIZE,
   themeRegionIndex,
 } from '../../utils/themeRegionPalette'
+import {
+  applyCoGuestEdges,
+  applyConsensusEdges,
+  applyCredibilityBorder,
+  applyVelocityHalo,
+  clearCoGuestEdges,
+  clearConsensusEdges,
+  clearCredibilityBorder,
+  clearVelocityHalo,
+  type CoGuestEnvelopeData,
+  type ConsensusEnvelopeData,
+  type GroundingEnvelopeData,
+  type VelocityEnvelopeData,
+} from '../../utils/cyGraphLensOverlays'
+import { fetchCachedCorpusEnvelope } from '../../composables/useEnrichmentEnvelopeCache'
 import { degreeBucketFor, emptyDegreeCounts } from '../../utils/graphDegreeBuckets'
 import {
   findEpisodeGraphNodeIdForMetadataPath,
@@ -1041,6 +1056,70 @@ function clearThemeRegionClasses(core: Core): void {
   })
 }
 
+/** graph-v3 Tier 5C/5D — refresh every enricher-based lens overlay
+ *  based on the current lens flags + corpus. Each lens fetches its
+ *  envelope via the cached helper (so subsequent calls are a Map hit)
+ *  and either paints classes / adds edges OR clears them. Called from
+ *  finishLayoutPass (after each redraw) + from per-lens watchers so a
+ *  live toggle takes effect without a full re-layout. */
+function refreshEnricherLensOverlays(): void {
+  const core = cy
+  if (!core) return
+  const root = shell.corpusPath.trim()
+  // Velocity halo (Topic/Person)
+  if (lenses.velocityHalo && root) {
+    void fetchCachedCorpusEnvelope<VelocityEnvelopeData>(root, 'temporal_velocity')
+      .then((env) => {
+        if (!cy) return
+        applyVelocityHalo(cy, env?.data ?? null)
+      })
+      .catch(() => {
+        /* silently degrade — lens stays clear */
+      })
+  } else {
+    clearVelocityHalo(core)
+  }
+  // Person credibility border
+  if (lenses.personCredibility && root) {
+    void fetchCachedCorpusEnvelope<GroundingEnvelopeData>(root, 'grounding_rate')
+      .then((env) => {
+        if (!cy) return
+        applyCredibilityBorder(cy, env?.data ?? null)
+      })
+      .catch(() => {
+        /* silently degrade */
+      })
+  } else {
+    clearCredibilityBorder(core)
+  }
+  // Consensus edges
+  if (lenses.consensusEdges && root) {
+    void fetchCachedCorpusEnvelope<ConsensusEnvelopeData>(root, 'topic_consensus')
+      .then((env) => {
+        if (!cy) return
+        applyConsensusEdges(cy, env?.data ?? null)
+      })
+      .catch(() => {
+        /* silently degrade */
+      })
+  } else {
+    clearConsensusEdges(core)
+  }
+  // Co-guest edges
+  if (lenses.coGuestEdges && root) {
+    void fetchCachedCorpusEnvelope<CoGuestEnvelopeData>(root, 'guest_coappearance')
+      .then((env) => {
+        if (!cy) return
+        applyCoGuestEdges(cy, env?.data ?? null)
+      })
+      .catch(() => {
+        /* silently degrade */
+      })
+  } else {
+    clearCoGuestEdges(core)
+  }
+}
+
 /** graph-v3 Tier 5B — annotate bridge nodes with the themes they bridge.
  *  For each node carrying the `graph-bridge` class, walk its neighbourhood
  *  and collect the distinct themeClusterId values touched by neighbours;
@@ -1632,6 +1711,10 @@ function finishLayoutPass(core: Core): void {
   // node with the set of themes it connects. Data-only for now (surfaced in
   // NodeDetail below); a future iteration could paint a specific glyph.
   annotateBridgesWithThemes(cy, artifacts.themeClustersDoc)
+  /* graph-v3 Tier 5C/5D — enricher-based lens overlays. Fire-and-forget
+     async fetches (cache-warm after first call). Each apply function is
+     a no-op when the envelope is null. */
+  refreshEnricherLensOverlays()
   applyDegreeVisibility(cy)
   applyViewportPreserveOrFit(cy, snap)
   // Clear the fit request flag after applying viewport (fit or preserve)
@@ -3978,6 +4061,23 @@ watch(
         applyThemeRegionClasses(c, artifacts.themeClustersDoc)
       }
     })
+  },
+)
+
+/* graph-v3 Tier 5C/5D — enricher-lens toggles route through
+   refreshEnricherLensOverlays which handles both enable + disable
+   (fetch + apply / clear). Each watcher is intentionally tiny — the
+   real work is factored into the helper so all four toggles share the
+   same fetch cadence and error handling. */
+watch(
+  () => [
+    lenses.velocityHalo,
+    lenses.personCredibility,
+    lenses.consensusEdges,
+    lenses.coGuestEdges,
+  ] as const,
+  () => {
+    safeGraphWatch('enricherLenses', () => refreshEnricherLensOverlays())
   },
 )
 
