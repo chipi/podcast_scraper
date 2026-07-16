@@ -149,3 +149,17 @@ def test_run_pipeline_installs_the_run_fuse() -> None:
     src = inspect.getsource(orchestration.run_pipeline)
     assert "install_run" in src, "run_pipeline must call llm_call_fuse.install_run"
     assert "llm_max_calls_per_run" in src
+
+
+def test_generate_episode_metadata_installs_the_episode_fuse() -> None:
+    """The per-episode ceiling must be installed where a single-episode LLM storm actually runs
+    (generate_episode_metadata: cleaning + GI + KG). Otherwise a ~3,500-call bundled-evidence storm
+    slips under the coarser run ceiling (default 8000) and the fuse never fires for the very
+    incident it exists to stop."""
+    import inspect
+
+    from podcast_scraper.workflow import metadata_generation
+
+    src = inspect.getsource(metadata_generation.generate_episode_metadata)
+    assert "install_episode" in src, "generate_episode_metadata must install the per-episode fuse"
+    assert "llm_max_calls_per_episode" in src

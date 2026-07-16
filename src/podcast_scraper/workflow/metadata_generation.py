@@ -39,7 +39,7 @@ from ..exceptions import (
 )
 from ..kg.llm_extract import strip_known_ml_bullet_prefixes
 from ..schemas.summary_schema import parse_summary_output
-from ..utils import filesystem
+from ..utils import filesystem, llm_call_fuse
 from ..utils.log_redaction import format_exception_for_log, redact_for_log
 
 logger = logging.getLogger(__name__)
@@ -3524,6 +3524,14 @@ def generate_episode_metadata(  # noqa: C901
         episode_number,
         cfg,
     )
+
+    # Per-episode LLM call fuse: bound ONE episode's spend. This is where the ~3,500-call incident
+    # lives — a bundled evidence (GI) call failing into a per-pair fallback storm — and the run fuse
+    # (default 8000) is too coarse to catch a single-episode storm below it. The GI evidence path is
+    # sequential-in-thread (no internal pool), so this contextvar scope is visible to every tick()
+    # during the storm, in whatever worker runs this episode. Re-installed per episode (overwrite),
+    # mirroring the eval harness; the process-global run fuse still bounds the whole run.
+    llm_call_fuse.install_episode(getattr(cfg, "llm_max_calls_per_episode", 0), episode_id)
 
     feed_metadata, episode_metadata, speakers, diarization_num_speakers = (
         _prepare_base_metadata_objects(
