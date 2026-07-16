@@ -1,0 +1,111 @@
+# Backup the consumer player's per-user data (#1163 / #3) from the prod VPS.
+#
+# player_appdata (playback/notes/favorites) is a HOST bind mount at
+# /srv/podcast-scraper/player-appdata (see docker-compose.player-public.yml). Unlike the
+# corpus it is NOT regenerable — it's real user data — so it needs its own backup. Streams
+# the dir as a tarball over the tailnet and uploads to the backup repo. workflow_dispatch
+# only for now (a schedule can be added once the player is live).
+
+name: Backup player app-data (prod VPS)
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run without uploading (log the would-do tarball size)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: backup-player-appdata
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Pre-flight — required secrets/variables present?
+        id: preflight
+        env:
+          TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
+          PROD_SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+          BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -z "${TS_AUTHKEY:-}" ] && MISSING="$MISSING TS_AUTHKEY"
+          [ -z "${PROD_SSH_PRIVATE_KEY:-}" ] && MISSING="$MISSING PROD_SSH_PRIVATE_KEY"
+          [ -z "${PROD_TAILNET_FQDN:-}" ] && MISSING="$MISSING PROD_TAILNET_FQDN"
+          [ -z "${BACKUP_REPO_TOKEN:-}" ] && MISSING="$MISSING BACKUP_REPO_TOKEN"
+          if [ -n "$MISSING" ]; then
+            echo "::warning::Missing prereqs:$MISSING"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout (resolver script)
+        if: steps.preflight.outputs.skip != 'true'
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Join the tailnet
+        if: steps.preflight.outputs.skip != 'true'
+        uses: tailscale/github-action@v4
+        with:
+          authkey: ${{ secrets.TS_AUTHKEY }}
+          tags: tag:gha-deployer
+          version: 1.96.4
+
+      - name: Install SSH identity for deploy@ (PROD_SSH_PRIVATE_KEY)
+        if: steps.preflight.outputs.skip != 'true'
+        uses: ./.github/actions/prod-ssh-key
+        with:
+          ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+
+      - name: Resolve prod MagicDNS host
+        id: ts_host
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          R=$(bash scripts/ops/resolve_prod_tailnet_host.sh)
+          echo "resolved_fqdn=$R" >> "$GITHUB_OUTPUT"
+
+      - name: Pull player app-data from VPS over Tailscale
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+        run: |
+          set -euo pipefail
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            'tar -czf - -C /srv/podcast-scraper player-appdata' > player-appdata.tgz
+          echo "Tarball: $(du -h player-appdata.tgz | cut -f1)"
+          size=$(stat -c%s player-appdata.tgz)
+          if [ "$size" -lt 32 ]; then
+            echo "::error::Tarball is empty/corrupt ($size bytes); aborting." >&2
+            exit 1
+          fi
+          # An empty player-appdata (no users yet) is OK — no content sanity gate.
+
+      - name: Upload to backup repo
+        if: steps.preflight.outputs.skip != 'true' && inputs.dry_run != true
+        env:
+          GH_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+          BACKUP_REPO: ${{ vars.PODCAST_BACKUP_REPO || 'chipi/podcast_scraper-backup' }}
+        run: |
+          set -euo pipefail
+          TAG="player-appdata-prod-$(date -u +%Y%m%d)"
+          if gh release view "$TAG" --repo "$BACKUP_REPO" >/dev/null 2>&1; then
+            gh release upload "$TAG" player-appdata.tgz --repo "$BACKUP_REPO" --clobber
+          else
+            gh release create "$TAG" player-appdata.tgz --repo "$BACKUP_REPO" \
+              --title "Player app-data snapshot $TAG (prod VPS)" \
+              --notes "Automated backup of /srv/podcast-scraper/player-appdata (consumer user data) over Tailscale."
+          fi
+          echo "Uploaded player-appdata.tgz as release tag $TAG"

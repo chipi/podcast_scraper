@@ -9,3 +9,11 @@ creation_rules:
     # OPERATOR: replace with the public key from `age-keygen` (starts with "age1").
     # The matching PRIVATE key lives in your password manager (operator's choice).
     age: 'age1yerjgvcm5trle7xl7jkmt53dp290y2fr9rt5zjpljzeyv0nkr5qqffhm00'
+
+  # ADR-115 app secrets (infra/secrets/*.yaml). Encrypt to the VPS age recipient
+  # — the box holds the matching PRIVATE key at /etc/vps-secrets/age.key so it can
+  # decrypt at deploy. This is DISTINCT from the tfstate key above (whose private
+  # key stays in the operator's password manager and never touches the box).
+  # OPERATOR: replace the placeholder with the VPS recipient public key.
+  - path_regex: 'infra/secrets/.*\.yaml$'
+    age: 'age1PLACEHOLDER0vps0recipient0replace0with0age0keygen0public0key00000'

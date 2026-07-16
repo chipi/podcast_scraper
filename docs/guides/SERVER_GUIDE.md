@@ -511,7 +511,7 @@ existing **Grafana Agent** docker log pipeline (`compose/grafana-agent.yaml`)
 ships them with stable labels (**env**, **release**, **app**=`podcast_scraper`,
 compose **service** surfaced as **service_name** in Grafana Cloud). Use LogQL
 `| json | event_type="run_finished"` in Explore or the imported dashboard
-`config/grafana/grafana-dashboard-pipeline-execution.json` (also linked from
+`config/grafana/dashboards/common/grafana-dashboard-pipeline-execution.json` (also linked from
 `config/manual/`). Prometheus **`/metrics`** on the API container remains
 separate from this JSONL path.
 

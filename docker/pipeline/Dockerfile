@@ -287,6 +287,12 @@ COPY --chown=podcast:podcast config/pricing_assumptions.yaml /app/config/pricing
 COPY --chown=podcast:podcast docker/pipeline/supervisord.conf /etc/supervisor/supervisord.conf
 COPY --chown=podcast:podcast docker/pipeline/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
+# ADR-115 C1: secret shim wraps the entrypoint (exports /run/secrets/* file
+# mounts as env, then execs the real entrypoint). Tolerant of an absent secrets
+# dir → non-breaking pre-cutover. Runs as podcast; 0755 keeps it executable.
+COPY docker/secrets-shim.sh /secrets-shim.sh
+RUN chmod +x /secrets-shim.sh
+ENV WRAPPED_ENTRYPOINT=/app/entrypoint.sh
 
 WORKDIR /app
 
@@ -334,5 +340,5 @@ USER podcast
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD python -c "import podcast_scraper; import sys; sys.exit(0)" || exit 1
 
-# Use entrypoint script for service-oriented execution
-ENTRYPOINT ["/app/entrypoint.sh"]
+# Use entrypoint script for service-oriented execution (via the ADR-115 secret shim)
+ENTRYPOINT ["/secrets-shim.sh"]

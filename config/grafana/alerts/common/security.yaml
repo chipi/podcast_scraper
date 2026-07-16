@@ -1,0 +1,82 @@
+# Common security alert rules (T-11 / ADR-117) — the box + edge substrate.
+#
+# Grafana alerting provisioning format. These fire on the host security logs shipped to
+# Loki by the Alloy security-log pipeline (sshd / fail2ban / Caddy access log), all
+# tenant=common. The sync (`scripts/obs/grafana_sync.sh`) resolves ${LOKI_UID} from the
+# target account's Loki datasource and posts to the Grafana provisioning API.
+#
+# Rules are intentionally conservative starters — tune thresholds against real traffic
+# once the box is live (they only fire when the box + these log sources are running).
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: security-common
+    folder: "Common (Box & Edge)"
+    interval: 1m
+    rules:
+      # --- SSH brute force / auth-failure spike -----------------------------------
+      - uid: sec-common-ssh-authfail
+        title: "SSH auth failures spiking"
+        condition: threshold
+        for: 5m
+        labels: { tenant: common, severity: warning, kind: security }
+        annotations:
+          summary: "Elevated SSH auth failures on the prod VPS (possible brute force)."
+        data:
+          - refId: rate
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: ${LOKI_UID}
+            model:
+              expr: 'sum(count_over_time({tenant="common", unit="ssh.service"} |~ "(?i)failed password|authentication failure" [5m]))'
+              queryType: instant
+          - refId: threshold
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: rate
+              conditions: [{ evaluator: { type: gt, params: [20] } }]
+
+      # --- fail2ban ban (any ban is worth surfacing) ------------------------------
+      - uid: sec-common-fail2ban-ban
+        title: "fail2ban issued a ban"
+        condition: threshold
+        for: 0m
+        labels: { tenant: common, severity: info, kind: security }
+        annotations:
+          summary: "fail2ban banned a host — someone tripped a jail."
+        data:
+          - refId: rate
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: ${LOKI_UID}
+            model:
+              expr: 'sum(count_over_time({tenant="common", unit="fail2ban.service"} |~ "(?i) Ban " [5m]))'
+              queryType: instant
+          - refId: threshold
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: rate
+              conditions: [{ evaluator: { type: gt, params: [0] } }]
+
+      # --- Caddy edge 5xx anomaly -------------------------------------------------
+      - uid: sec-common-caddy-5xx
+        title: "Caddy edge 5xx rate elevated"
+        condition: threshold
+        for: 5m
+        labels: { tenant: common, severity: warning, kind: security }
+        annotations:
+          summary: "Elevated 5xx from the public Caddy edge (backend failure or probing)."
+        data:
+          - refId: rate
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: ${LOKI_UID}
+            model:
+              expr: 'sum(count_over_time({tenant="common", job="caddy"} | json | status >= 500 [5m]))'
+              queryType: instant
+          - refId: threshold
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: rate
+              conditions: [{ evaluator: { type: gt, params: [50] } }]

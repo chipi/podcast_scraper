@@ -33,6 +33,7 @@ packages:
   - gnupg
   - lsb-release
   - unattended-upgrades
+  - fail2ban
   - jq
   - git
 
@@ -105,6 +106,132 @@ write_files:
     permissions: '0644'
     owner: root:root
 
+  # === Security hardening (#1160 Phase 2 — host) ===
+  # cloud-init is first-boot-only and hcloud_server ignores user_data drift, so
+  # editing this block does NOT change the live VPS — it is for future rebuilds.
+  # Apply the same steps imperatively once on the live box (tailscale-serve
+  # precedent) to harden the running host.
+
+  # SSH: assert key-only auth explicitly (defends against image-default drift).
+  # ``prohibit-password`` keeps root key-based emergency access (see the root
+  # authorized_keys install in runcmd) while denying any password login.
+  - path: /etc/ssh/sshd_config.d/99-hardening.conf
+    content: |
+      PermitRootLogin prohibit-password
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+    permissions: '0644'
+    owner: root:root
+
+  # fail2ban: ban brute-force on sshd (defense-in-depth — SSH is tailnet-only via
+  # the Hetzner firewall, but troubleshoot CIDRs can open :22). journald backend.
+  - path: /etc/fail2ban/jail.d/sshd.local
+    content: |
+      [sshd]
+      enabled = true
+      backend = systemd
+      maxretry = 5
+      findtime = 10m
+      bantime = 1h
+    permissions: '0644'
+    owner: root:root
+
+  # T-11 (ADR-117 / #1160): ban scanners probing the public edge. Caddy logs one
+  # JSON access line per request; this filter bans an IP that racks up a burst of
+  # 4xx (path scanning, auth probing, or our own 429 rate-limit rejections).
+  # Host-level Caddy => the ban lands in the INPUT chain and drops the peer.
+  # Keys on `client_ip` (ADR-118), NOT `remote_ip`: pre-Cloudflare the two are
+  # equal (direct peer → real drop); once CF fronts the box, remote_ip is a CF
+  # edge and banning it would take the whole site down — client_ip stays the real
+  # visitor (behind CF the ban is a harmless no-op; CF-side rules take over).
+  - path: /etc/fail2ban/filter.d/caddy-access.conf
+    content: |
+      [Definition]
+      failregex = "client_ip":"<HOST>".*"status":4\d\d
+      ignoreregex =
+    permissions: '0644'
+    owner: root:root
+
+  - path: /etc/fail2ban/jail.d/caddy.local
+    content: |
+      [caddy-access]
+      enabled = true
+      filter = caddy-access
+      logpath = /var/log/caddy/access.log
+      maxretry = 30
+      findtime = 2m
+      bantime = 1h
+    permissions: '0644'
+    owner: root:root
+
+  # T-07 / T-10 (metadata slice): block containers from reaching the cloud
+  # metadata endpoint (169.254.169.254) — kills SSRF-to-cloud-creds from any app
+  # container. A oneshot unit re-inserts the DOCKER-USER rule after docker starts
+  # (idempotent) so it survives reboots — plain iptables rules do not persist.
+  - path: /usr/local/sbin/block-metadata-egress.sh
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      if ! iptables -C DOCKER-USER -d 169.254.169.254 -j DROP 2>/dev/null; then
+        iptables -I DOCKER-USER -d 169.254.169.254 -j DROP
+      fi
+    permissions: '0755'
+    owner: root:root
+
+  - path: /etc/systemd/system/block-metadata-egress.service
+    content: |
+      [Unit]
+      Description=Block container egress to cloud metadata IP (SSRF guard)
+      After=docker.service
+      Requires=docker.service
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/usr/local/sbin/block-metadata-egress.sh
+
+      [Install]
+      WantedBy=multi-user.target
+    permissions: '0644'
+    owner: root:root
+
+  # === Secret infra (ADR-115) ===
+  # Shared multi-tenant secret-decrypt helper (sops/age -> /run/secrets/<tenant>
+  # tmpfs files). Injected via file() (see main.tf ``decrypt_secrets_body``) so
+  # its shell ``$${..}`` syntax survives templatefile — tailscale-serve precedent.
+  - path: /usr/local/sbin/decrypt-secrets.sh
+    content: |
+      ${decrypt_secrets_body}
+    permissions: '0755'
+    owner: root:root
+
+  # podcast_scraper (tenant zero) may decrypt ITS secrets into /run/secrets/podcast.
+  # Exact-command pin (tenant + enc path), same tightness as the *-tailscale-serve
+  # grants. Each future tenant adds its own 99-<tenant>-decrypt-secrets line.
+  - path: /etc/sudoers.d/99-podcast-decrypt-secrets
+    content: "deploy ALL=(root) NOPASSWD: /usr/local/sbin/decrypt-secrets.sh podcast /srv/podcast-scraper/infra/secrets/prod.enc.yaml\n"
+    permissions: '0440'
+    owner: root:root
+
+  # === Public edge: shared Caddy engine (ADR-114 / #1158) ===
+  # Base Caddyfile staged here, then copied to /etc/caddy/Caddyfile in runcmd
+  # AFTER ``apt-get install caddy`` (avoids dpkg clobbering our conffile) — same
+  # staging pattern as the Alloy config below. file()-injected (see main.tf
+  # ``caddy_base_body``) so Caddy ``{..}`` syntax survives templatefile.
+  - path: /var/lib/cloud/data/caddy-base.Caddyfile
+    content: |
+      ${caddy_base_body}
+    permissions: '0644'
+    owner: root:root
+
+  # Shared reload grant — any tenant's deploy (running as ``deploy``) reloads the
+  # engine after dropping its /etc/caddy/sites/<app>.caddy vhost. Engine-level, so
+  # one line covers all tenants (mirrors the caddy-reload grant in ADR-114 §5).
+  - path: /etc/sudoers.d/99-caddy-reload
+    content: "deploy ALL=(root) NOPASSWD: /usr/bin/systemctl reload caddy\n"
+    permissions: '0440'
+    owner: root:root
+
 %{ if alloy_enabled ~}
   - path: /var/lib/cloud/data/alloy-host-metrics.river
     content: |
@@ -124,6 +251,44 @@ write_files:
           }
         }
       }
+
+      // Security logs -> Loki (T-11 / ADR-117, tenant=common): sshd + fail2ban from the
+      // journal, the Caddy access log from file. Feeds the common security alert rules.
+      loki.relabel "journal" {
+        forward_to = []
+        rule {
+          source_labels = ["__journal__systemd_unit"]
+          target_label  = "unit"
+        }
+      }
+
+      loki.source.journal "security" {
+        forward_to    = [loki.process.tenant_common.receiver]
+        relabel_rules = loki.relabel.journal.rules
+        labels        = { job = "systemd-journal" }
+      }
+
+      loki.source.file "caddy" {
+        targets    = [{ __path__ = "/var/log/caddy/access.log", job = "caddy" }]
+        forward_to = [loki.process.tenant_common.receiver]
+      }
+
+      loki.process "tenant_common" {
+        forward_to = [loki.write.grafana_cloud.receiver]
+        stage.static_labels {
+          values = { tenant = "common" }
+        }
+      }
+
+      loki.write "grafana_cloud" {
+        endpoint {
+          url = sys.env("GRAFANA_CLOUD_LOKI_URL")
+          basic_auth {
+            username = sys.env("GRAFANA_CLOUD_LOKI_USER")
+            password = sys.env("GRAFANA_CLOUD_API_KEY")
+          }
+        }
+      }
     permissions: '0644'
     owner: root:root
 
@@ -132,6 +297,8 @@ write_files:
       GRAFANA_CLOUD_REMOTE_WRITE_URL=${grafana_cloud_metrics_remote_write_url}
       GRAFANA_CLOUD_PROM_USER=${grafana_cloud_metrics_username}
       GRAFANA_CLOUD_API_KEY=${grafana_cloud_metrics_password}
+      GRAFANA_CLOUD_LOKI_URL=${grafana_cloud_logs_url}
+      GRAFANA_CLOUD_LOKI_USER=${grafana_cloud_logs_username}
     permissions: '0600'
     owner: root:root
 
@@ -178,6 +345,37 @@ runcmd:
   - apt-get update
   - apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
   - systemctl enable --now docker
+
+  # === Security hardening (#1160 Phase 2) ===
+  # SSH drop-in: validate then reload (never reload a config that fails -t).
+  - sshd -t && systemctl reload ssh || echo "sshd -t failed; not reloading ssh" >&2
+  # fail2ban (installed via packages) — enable the sshd jail.
+  - systemctl enable --now fail2ban
+  # Metadata-egress SSRF guard — oneshot unit re-inserts the DOCKER-USER DROP.
+  - systemctl daemon-reload
+  - systemctl enable --now block-metadata-egress.service
+  # ADR-115: dir for the VPS age identity. The PRIVATE key is staged by
+  # deploy-prod.yml over the tailnet from a GH secret — deliberately NOT baked
+  # into user_data (retrievable via the Hetzner metadata API). 0700 root.
+  - install -d -m 0700 -o root -g root /etc/vps-secrets
+
+  # === Public edge: install vanilla Caddy (ADR-114 / #1158) ===
+  # Official Caddy apt repo (Cloudsmith) — standard ACME/Let's Encrypt, no plugins.
+  - apt-get install -y debian-keyring debian-archive-keyring apt-transport-https
+  - curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+  - curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
+  - apt-get update
+  - apt-get install -y caddy
+  # Per-tenant vhost drop-in dir (deploy-owned so a tenant deploy can scp its
+  # <app>.caddy) + access-log dir (owned by the caddy service user).
+  - install -d -o deploy -g deploy -m 0755 /etc/caddy/sites
+  - install -d -o caddy -g caddy -m 0755 /var/log/caddy
+  - cp /var/lib/cloud/data/caddy-base.Caddyfile /etc/caddy/Caddyfile
+  # Validate before starting — never run the engine on a config that fails check.
+  - caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile && systemctl enable --now caddy || echo "caddy config invalid; engine NOT started" >&2
+  # T-11: attach the caddy-access jail now that /var/log/caddy/access.log exists
+  # (fail2ban was enabled earlier, before Caddy created its log dir).
+  - systemctl reload-or-restart fail2ban
 
   # === Tailscale (official tailscale repo; supports both amd64 + arm64) ===
   - curl -fsSL "https://pkgs.tailscale.com/stable/ubuntu/$(. /etc/os-release && echo "$VERSION_CODENAME").noarmor.gpg" -o /usr/share/keyrings/tailscale-archive-keyring.gpg
@@ -236,6 +434,9 @@ runcmd:
   - chmod 0640 /etc/alloy/config.alloy
   - chown root:root /etc/alloy/grafana-cloud.env
   - chmod 0600 /etc/alloy/grafana-cloud.env
+  # T-11 (ADR-117): let Alloy read the journal (sshd/fail2ban) + the Caddy access log.
+  - usermod -aG systemd-journal alloy || true
+  - usermod -aG caddy alloy 2>/dev/null || true
   - systemctl daemon-reload
   - systemctl enable --now alloy
 %{ endif ~}

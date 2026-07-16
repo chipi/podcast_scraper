@@ -90,6 +90,12 @@ COPY config/search.yaml ./config/search.yaml
 
 COPY docker/api/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+# ADR-115 C1: secret shim wraps the entrypoint — exports /run/secrets/* file
+# mounts as env, then execs the real entrypoint. Tolerant of an absent secrets
+# dir, so this is non-breaking pre-cutover.
+COPY docker/secrets-shim.sh /secrets-shim.sh
+RUN chmod +x /secrets-shim.sh
+ENV WRAPPED_ENTRYPOINT=/entrypoint.sh
 
 # #666 review item #5: run as a non-root user, consistent with
 # ``docker/pipeline/Dockerfile``. The entrypoint chowns ``/app/output``
@@ -110,7 +116,7 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
     CMD curl -fsS "http://127.0.0.1:8000/api/health" >/dev/null || exit 1
 
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/secrets-shim.sh"]
 # Default to per-corpus operator-config mode (the API writes
 # ``<corpus>/viewer_operator.yaml`` for each corpus root, no static
 # ``--config-file``). Operators that want single-config mode can

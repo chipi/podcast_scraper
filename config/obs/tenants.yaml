@@ -1,0 +1,35 @@
+# Multi-tenant observability registry (ADR-117). Drives `make obs-sync`.
+#
+# Each tenant syncs its Grafana dashboards+alerts and Sentry alert rules to an ACCOUNT.
+# `grafana.account` / `sentry.account` name the account KEY; the sync scripts resolve the
+# real endpoint + token from env (NEVER committed here):
+#   GRAFANA_<ACCOUNT>_URL   + GRAFANA_<ACCOUNT>_TOKEN   (account upper-cased, - -> _)
+#   SENTRY_<ACCOUNT>_ORG    + SENTRY_<ACCOUNT>_TOKEN
+#
+# `account: common` = the shared infra account (folder isolation). A tenant with its own
+# account gets full isolation (§3a). Config for tenant <t> lives under
+# config/grafana/{dashboards,alerts}/<t>/ and config/sentry/<t>/.
+
+tenants:
+  # Infra-owned box + edge plane (host metrics, sshd/fail2ban/Caddy/firewall security, T-11).
+  common:
+    grafana: { account: common, folder: "Common (Box & Edge)" }
+    sentry: { account: common } # optional; box errors are few
+
+  # Static PWA (Goal 1). Starts in the shared `common` account (its signal is mostly the
+  # shared Caddy's view of its vhost). Change to account: orrery for full independence.
+  orrery:
+    grafana: { account: common, folder: "orrery" }
+    sentry: { account: common }
+
+  # Consumer app (Goal 2) — its own account. Placeholder until the player o11y lands.
+  podcast-player:
+    enabled: false
+    grafana: { account: podcast-player, folder: "podcast-player" }
+    sentry: { account: podcast-player }
+
+  # kg/gi operator UI (Goal 3, tailnet) — its own account. Placeholder.
+  podcast-operator:
+    enabled: false
+    grafana: { account: podcast-operator, folder: "podcast-operator" }
+    sentry: { account: podcast-operator }

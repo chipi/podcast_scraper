@@ -61,11 +61,47 @@ services:
     image: ghcr.io/chipi/podcast-scraper-stack-viewer:${PODCAST_IMAGE_TAG:-main}
     build: !reset null
     restart: unless-stopped
+    # Hardening (#1160 T-04): block privilege escalation + drop all Linux caps,
+    # re-adding only what hardened nginx needs (bind :80, spawn workers, chown).
+    # read_only rootfs with tmpfs for the paths nginx writes at runtime — note
+    # /etc/nginx/conf.d is written by the image's envsubst-on-templates step.
+    # Boot-verified 2026-07-08 (api+viewer two-service boot, / and /api/health 200).
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - CHOWN
+      - SETUID
+      - SETGID
+      - DAC_OVERRIDE
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+      - /etc/nginx/conf.d
 
   api:
     image: ghcr.io/chipi/podcast-scraper-stack-api:${PODCAST_IMAGE_TAG:-main}
     build: !reset null
     restart: unless-stopped
+    # Hardening (#1160 T-04): drop all caps, re-add only what the entrypoint
+    # needs to chown /app/output + mirror the docker.sock GID + su-exec drop to
+    # the non-root ``podcast`` user. NOT read_only — the entrypoint writes
+    # HF_HOME / LanceDB locks / output. RW docker.sock kept by design (T-01a:
+    # this service stays tailnet-private). Boot-verified 2026-07-08 (/api/health 200).
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETUID
+      - SETGID
     # Docker job-mode wiring (mirror of stack-test). The api spawns
     # ``pipeline-llm`` containers via ``docker compose run --rm`` rather
     # than running pipeline code in-process; the published ``api`` image
@@ -163,6 +199,20 @@ services:
   pipeline-llm:
     image: ghcr.io/chipi/podcast-scraper-stack-pipeline-llm:${PODCAST_IMAGE_TAG:-main}
     build: !reset null
+    # Hardening (#1160 T-04): same cap profile as ``api`` — parity by shared
+    # non-root/su-exec entrypoint pattern (chown output + drop to ``podcast``).
+    # Validated by parity, not standalone boot (one-shot job); a missing cap
+    # fails the operator-triggered pipeline run loudly, off the critical path.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETUID
+      - SETGID
     # No restart: pipeline runs are one-shot ``docker compose run --rm``
     # invocations spawned by the api factory; not a long-lived service.
 
@@ -173,6 +223,12 @@ services:
   grafana-agent:
     image: grafana/agent:v0.43.4
     restart: unless-stopped
+    # Hardening (#1160 T-04): no-new-privileges only. ``cap_drop: ALL`` was
+    # boot-tested 2026-07-08 and FAILS here (`exec /bin/grafana-agent:
+    # operation not permitted` — the agent binary carries file-capabilities that
+    # no_new_privs + dropped caps blocks). Left at no-new-privileges.
+    security_opt:
+      - no-new-privileges:true
     volumes:
       - ../compose/grafana-agent.yaml:/etc/agent/agent.yaml:ro
       # Read-only docker socket for ``docker_sd`` log discovery.

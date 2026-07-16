@@ -30,6 +30,7 @@ infra/
 > **DR drill only (GitHub Actions, confirms, orchestrator):** [DR_DRILL_RUNBOOK.md](../docs/guides/DR_DRILL_RUNBOOK.md).
 > **Architecture narrative (how hosting fits together):** [Hosting and infrastructure](../docs/architecture/HOSTING_AND_INFRASTRUCTURE.md).
 > **Stack contract (compose, health, gates by surface):** [STACK_CONTRACT.md](../docs/guides/STACK_CONTRACT.md).
+> **Security SSOT (threat register + pre-public gate):** [THREAT_MODEL.md](../docs/security/THREAT_MODEL.md).
 > Account-prerequisite checklist: [#714](https://github.com/chipi/podcast_scraper/issues/714).
 
 One-time setup (per operator):

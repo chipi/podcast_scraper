@@ -1,0 +1,155 @@
+# Deploy the PUBLIC consumer player (#1163 / ADR-116) to the always-on VPS.
+#
+# Standalone from deploy-prod.yml: brings up compose/docker-compose.player-public.yml
+# (a low-privilege app-only backend — no docker.sock, no keys — + the player PWA) and
+# drops the player.caddy vhost into the shared Caddy edge (ADR-114). The operator/kg-gi
+# surface is untouched. Manual (workflow_dispatch); typed confirm; tailnet-only SSH.
+#
+# Prereqs (stage once, like deploy-prod #714):
+#   secrets: TS_AUTHKEY, PROD_SSH_PRIVATE_KEY, PLAYER_APP_SESSION_SECRET,
+#            PLAYER_GOOGLE_CLIENT_SECRET
+#   vars:    PROD_TAILNET_FQDN, PLAYER_DOMAIN, PODCAST_CORPUS_VOLUME, PLAYER_GOOGLE_CLIENT_ID
+# The Caddy edge + firewall 80/443 must already be live on the box, and DNS for
+# PLAYER_DOMAIN must point at the VPS (see docs/guides/PLAYER_PUBLIC_LAUNCH.md).
+
+name: Deploy player (public)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type PLAYER_DEPLOY to confirm'
+        required: true
+
+concurrency:
+  group: deploy-player
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: prod
+    steps:
+      - name: Confirm PLAYER_DEPLOY
+        run: |
+          if [ "${{ inputs.confirm }}" != "PLAYER_DEPLOY" ]; then
+            echo "::error::Must type PLAYER_DEPLOY to confirm. Got: '${{ inputs.confirm }}'"
+            exit 1
+          fi
+
+      - name: Pre-flight — required secrets/variables present?
+        id: preflight
+        env:
+          TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
+          PROD_SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+          PLAYER_DOMAIN: ${{ vars.PLAYER_DOMAIN }}
+          PODCAST_CORPUS_VOLUME: ${{ vars.PODCAST_CORPUS_VOLUME }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -z "${TS_AUTHKEY:-}" ] && MISSING="$MISSING TS_AUTHKEY"
+          [ -z "${PROD_SSH_PRIVATE_KEY:-}" ] && MISSING="$MISSING PROD_SSH_PRIVATE_KEY"
+          [ -z "${PROD_TAILNET_FQDN:-}" ] && MISSING="$MISSING PROD_TAILNET_FQDN"
+          [ -z "${PLAYER_DOMAIN:-}" ] && MISSING="$MISSING PLAYER_DOMAIN"
+          [ -z "${PODCAST_CORPUS_VOLUME:-}" ] && MISSING="$MISSING PODCAST_CORPUS_VOLUME"
+          if [ -n "$MISSING" ]; then
+            echo "::warning::Missing prereqs:$MISSING — stage them then re-run."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout (resolver scripts)
+        if: steps.preflight.outputs.skip != 'true'
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Join the tailnet
+        if: steps.preflight.outputs.skip != 'true'
+        uses: tailscale/github-action@v4
+        with:
+          authkey: ${{ secrets.TS_AUTHKEY }}
+          tags: tag:gha-deployer
+          version: 1.96.4
+
+      - name: Install SSH identity for deploy@ (PROD_SSH_PRIVATE_KEY)
+        if: steps.preflight.outputs.skip != 'true'
+        uses: ./.github/actions/prod-ssh-key
+        with:
+          ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+
+      - name: Resolve prod MagicDNS host
+        id: ts_host
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          R=$(bash scripts/ops/resolve_prod_tailnet_host.sh)
+          echo "resolved_fqdn=$R" >> "$GITHUB_OUTPUT"
+
+      - name: Refresh repo on the box to this ref
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+        run: |
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "set -euo pipefail; cd /srv/podcast-scraper; \
+             git fetch --depth=50 origin '+refs/heads/*:refs/remotes/origin/*'; \
+             git reset --hard origin/main"
+
+      - name: Stage .env.player (secrets via /dev/shm scp, never inline over ssh)
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          PLAYER_DOMAIN: ${{ vars.PLAYER_DOMAIN }}
+          PODCAST_CORPUS_VOLUME: ${{ vars.PODCAST_CORPUS_VOLUME }}
+          GOOGLE_CLIENT_ID: ${{ vars.PLAYER_GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.PLAYER_GOOGLE_CLIENT_SECRET }}
+          APP_SESSION_SECRET: ${{ secrets.PLAYER_APP_SESSION_SECRET }}
+        run: |
+          set -euo pipefail
+          ENVTMP="$(mktemp -p /dev/shm)"
+          {
+            echo "PLAYER_DOMAIN=${PLAYER_DOMAIN}"
+            echo "PODCAST_CORPUS_VOLUME=${PODCAST_CORPUS_VOLUME}"
+            echo "APP_OAUTH_PROVIDER=google"
+            echo "APP_OAUTH_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}"
+            echo "APP_OAUTH_GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}"
+            echo "APP_SESSION_SECRET=${APP_SESSION_SECRET}"
+            echo "PLAYER_PORT=8092"
+          } > "$ENVTMP"
+          scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            "$ENVTMP" "${SSH_TARGET}:/srv/podcast-scraper/.env.player.staged"
+          rm -f "$ENVTMP"
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "set -euo pipefail; cd /srv/podcast-scraper; \
+             mv .env.player.staged .env.player; chmod 600 .env.player"
+
+      - name: Deploy (build + up + vhost drop + reload + health)
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+        run: |
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "/srv/podcast-scraper/infra/deploy/deploy-player.sh"
+
+      - name: External health probe (public player domain)
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          PROBE: https://${{ vars.PLAYER_DOMAIN }}/api/app/auth/status
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 12); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$PROBE" || echo 000)
+            if [ "$code" = "200" ]; then echo "player public health OK"; exit 0; fi
+            sleep 5
+          done
+          echo "::error::public player probe did not return 200 ($PROBE)"; exit 1

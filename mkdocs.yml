@@ -23,6 +23,7 @@ nav:
       - Corpus snapshot manifest and restore: guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md
       - Corpus airgap runbook (#1175): guides/CORPUS_AIRGAP_RUNBOOK.md
       - Prod Operator Cheat Sheet: guides/PROD_OPERATOR_CHEAT_SHEET.md
+      - Player public launch (#1163): guides/PLAYER_PUBLIC_LAUNCH.md
       - Observability control plane (#803): guides/OBSERVABILITY_CONTROL_PLANE.md
       - Observability extensions (optional 3rd-party o11y): guides/OBSERVABILITY_EXTENSIONS.md
       - GHCR image retention (#802): operations/GHCR_RETENTION.md
@@ -81,6 +82,8 @@ nav:
       - SRE Book Infra Critique: guides/SRE_BOOK_INFRA_CRITIQUE.md
       - Chip Huyen ML / AI Critique: guides/CHIP_HUYEN_ML_AI_CRITIQUE.md
       - Glossary: guides/GLOSSARY.md
+  - Security:
+      - Threat model (VPS + public edge, SSOT): security/THREAT_MODEL.md
   - Architecture:
       - architecture/index.md
       - architecture/ARCHITECTURE.md

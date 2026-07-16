@@ -2470,7 +2470,7 @@ docker-clean:
 	@echo "Cleaned up Docker test images"
 
 # --- Observability control plane (podcast_obs, #803) ---
-.PHONY: obs-test obs-e2e obs-docker-build obs-summary obs-serve
+.PHONY: obs-test obs-e2e obs-docker-build obs-summary obs-serve obs-sync
 
 obs-test: ## Unit tests for the observability control plane (podcast_obs). Fast, no network.
 	$(PYTHON) -m pytest tests/unit/podcast_obs/ -q --no-cov --disable-socket --allow-hosts=127.0.0.1,localhost
@@ -2486,6 +2486,10 @@ obs-summary: ## Control-plane glance for the configured target. Needs PODCAST_OB
 
 obs-serve: ## Run the observability MCP server. Usage: make obs-serve OBS_ARGS="--transport http --port 8848"
 	$(PYTHON) -m podcast_obs serve $(OBS_ARGS)
+
+obs-sync: ## GitOps (ADR-117): sync Grafana dashboards+alerts + Sentry rules per tenant. Dry run by default; APPLY=1 to upload.
+	$(PYTHON) scripts/obs/grafana_sync.py $(if $(APPLY),--apply,)
+	$(PYTHON) scripts/obs/sentry_sync.py $(if $(APPLY),--apply,)
 
 install-hooks:
 	@if [ ! -d .git ]; then echo "Error: Not a git repository"; exit 1; fi
