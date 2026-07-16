@@ -1,0 +1,145 @@
+# Adversarial fixtures for speaker detection.
+#
+# A wrong name painted on a diarized voice is worse than no name at all: it puts words in a real,
+# named person's mouth. Every case here is a trap that the pipeline shipped into production —
+# they are not hypotheticals.
+#
+# The one that started this: Hard Fork's "OpenAI's Big Reset". Elon Musk is the SUBJECT of a lawsuit
+# the hosts discuss; Dr. Adam Rodman is the actual guest. The pipeline detected Musk and Altman as
+# speakers, painted their names onto the guests' diarized voices, and every insight the doctor spoke
+# was attributed to Elon Musk. The stage returned success.
+#
+# Each case says who MUST be found and who MUST NOT. "must_not" is the important half — a detector
+# that finds every real guest is worthless if it also invents three.
+
+cases:
+  - id: topic_person_vs_real_guest
+    why: |
+      THE PRODUCTION BUG. One description containing both a person the episode is ABOUT and a person
+      the episode INTERVIEWS. The interview cue ("returns") belongs to Rodman; the unbounded `.*?`
+      in the cue matcher let it reach backwards and "introduce" Elon Musk, 200 chars earlier, in a
+      sentence about him being sued.
+    title: "OpenAI's Big Reset + A.I. in the Doctor's Office + Talkie, a pre-1930s LLM"
+    description: >
+      This week, OpenAI announced a loosened partnership with Microsoft and an aggressive new
+      strategy to secure computing power. We unpack what these updates signal about OpenAI's
+      business strategy and whether the company can scale while balancing a trial against Elon Musk
+      and investor concerns over missed financial targets. Then, the A.I. researcher Dr. Adam
+      Rodman, of Harvard Medical School, returns to discuss how doctors are using chatbots.
+    known_hosts: ["Kevin Roose", "Casey Newton"]
+    llm_proposes: ["Casey Newton", "Kevin Roose", "Elon Musk", "Sam Altman", "Dr. Adam Rodman", "David Duvenaud"]
+    must_include: ["Adam Rodman"]
+    must_not_include: ["Elon Musk", "Sam Altman", "Microsoft", "OpenAI"]
+
+  - id: subject_of_the_episode_is_not_a_guest
+    why: |
+      The whole episode is ABOUT Tim Cook. He is in the title. He does not speak. A detector that
+      keys on prominence rather than on an interview cue will take him every time.
+    title: "Tim Cook's Legacy + The Future of Apple"
+    description: >
+      Tim Cook is stepping down as Apple's chief executive after fourteen years. We look back at his
+      tenure, the Apple Watch, and the company's bet on health. John Ternus takes over as CEO.
+    known_hosts: ["Kevin Roose", "Casey Newton"]
+    llm_proposes: ["Kevin Roose", "Casey Newton", "Tim Cook", "John Ternus"]
+    must_include: []
+    must_not_include: ["Tim Cook", "John Ternus", "Apple"]
+
+  - id: company_is_not_a_person
+    why: |
+      _is_likely_actual_guest currently returns True for "Microsoft". A company is never a speaker.
+    title: "The Microsoft Deal"
+    description: >
+      Microsoft and OpenAI have rewritten their partnership. We are joined by reporter Karen Hao to
+      explain what changed.
+    known_hosts: ["Kevin Roose"]
+    llm_proposes: ["Kevin Roose", "Karen Hao", "Microsoft", "OpenAI"]
+    must_include: ["Karen Hao"]
+    must_not_include: ["Microsoft", "OpenAI"]
+
+  - id: credits_are_not_guests
+    why: |
+      Production credits name real people who never speak. The prompt forbids this explicitly and
+      the NER path has no defence.
+    title: "The A.I. Backlash"
+    description: >
+      This episode was produced by Rachel Cohn and edited by Jen Poyant. Fact-checking by Caitlin
+      Love. Original music by Dan Powell.
+    known_hosts: ["Kevin Roose", "Casey Newton"]
+    llm_proposes: ["Kevin Roose", "Casey Newton", "Rachel Cohn", "Jen Poyant", "Caitlin Love", "Dan Powell"]
+    must_include: []
+    must_not_include: ["Rachel Cohn", "Jen Poyant", "Caitlin Love", "Dan Powell"]
+
+  - id: host_only_episode_has_no_guests
+    why: |
+      A news round-up with no interview. The guests list must be EMPTY. Inventing a guest here is
+      how a mentioned celebrity ends up owning a voice cluster.
+    title: "Hard Fork's Week in Review"
+    description: >
+      Kevin and Casey discuss the week's news: Anthropic's funding round, the Pentagon's new
+      posture on A.I., and whether Sam Altman can keep OpenAI's investors happy.
+    known_hosts: ["Kevin Roose", "Casey Newton"]
+    llm_proposes: ["Kevin Roose", "Casey Newton", "Sam Altman"]
+    must_include: []
+    must_not_include: ["Sam Altman", "Anthropic"]
+
+  - id: real_guest_with_adjacent_cue_is_found
+    why: |
+      The detector must not become so timid it finds nobody. This is the plain case it MUST get
+      right — a bounded cue sitting directly before the name.
+    title: "A.I. and the Law"
+    description: >
+      We are joined by Professor Lawrence Lessig of Harvard Law School to discuss the coming wave of
+      A.I. copyright litigation.
+    known_hosts: ["Kevin Roose"]
+    llm_proposes: ["Kevin Roose", "Lawrence Lessig"]
+    must_include: ["Lawrence Lessig"]
+    must_not_include: []
+
+  - id: a_cue_cannot_reach_across_the_sentence
+    why: |
+      THE BOUND ITSELF. Every other fixture here passes even with the gap UNBOUNDED, because none of
+      them puts an interview cue *before* an impostor — so none of them actually tests the bound that
+      fixed the production bug. Found by re-breaking the fix and watching the suite stay green.
+
+      Here the cue ("joined by") introduces Karen Hao, and Elon Musk sits 51 characters further into
+      the SAME sentence. Unbounded, the cue reaches him and he becomes a guest. Bounded to 40, it
+      cannot. This is the case that pins _CUE_MAX_GAP.
+    title: "OpenAI's New Structure"
+    description: >
+      We are joined by Karen Hao to talk about the antitrust trial against Elon Musk and what a
+      restructured OpenAI means for Sam Altman.
+    known_hosts: ["Kevin Roose"]
+    llm_proposes: ["Kevin Roose", "Karen Hao", "Elon Musk", "Sam Altman"]
+    must_include: ["Karen Hao"]
+    must_not_include: ["Elon Musk", "Sam Altman"]
+
+  - id: an_honorific_must_not_hide_a_real_guest
+    why: |
+      A REGRESSION I INTRODUCED, caught by an existing integration test. Bounding the cue gap fixed
+      the Musk bug — but the gap's character class excludes "." (deliberately: that is what stops a
+      cue reaching into the NEXT sentence), so "our guest Dr. Sarah Chen" no longer matched and a
+      real guest was silently dropped.
+
+      Tightening a matcher trades false positives for false negatives. This case is the other side
+      of that trade, kept next to the traps so neither direction can be optimised alone.
+    title: "The Future of Energy"
+    description: >
+      In this episode we explore renewable energy trends and battery storage. Our guest Dr. Sarah
+      Chen, a professor of materials science at MIT, joins us to discuss solar panel efficiency
+      and what it means for residential adoption.
+    known_hosts: ["Alex Morgan"]
+    llm_proposes: ["Alex Morgan", "Dr. Sarah Chen", "MIT"]
+    must_include: ["Dr. Sarah Chen"]
+    must_not_include: ["MIT"]
+
+  - id: two_real_guests_a_panel
+    why: |
+      Panels are real. Both guests are introduced with cues; both must be found.
+    title: "The Chip Wars"
+    description: >
+      Kevin speaks with Chris Miller, author of Chip War, and with analyst Stacy Rasgon about
+      Taiwan, export controls, and what happens next.
+    known_hosts: ["Kevin Roose"]
+    llm_proposes: ["Kevin Roose", "Chris Miller", "Stacy Rasgon", "Taiwan"]
+    must_include: ["Chris Miller", "Stacy Rasgon"]
+    must_not_include: ["Taiwan"]

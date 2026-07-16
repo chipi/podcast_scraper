@@ -151,7 +151,19 @@ def lookup_external_pricing(
     if capability == "transcription":
         section = prov.get("transcription")
         return _match_model_section(section, model)
-    if capability in ("speaker_detection", "summarization"):
+    # Every text-generation capability prices off the provider's ``text`` section. This list used to
+    # be just ("speaker_detection", "summarization"), which silently returned None for gi / evidence
+    # / cleaning / kg calls — so those (the bulk of GI spend) were unpriced and their cost events
+    # dropped. That was the Mistral "12× undercount" (only summarization logged). Any text
+    # capability → text pricing.
+    if capability in (
+        "speaker_detection",
+        "summarization",
+        "gi",
+        "evidence",
+        "cleaning",
+        "kg",
+    ):
         section = prov.get("text")
         return _match_model_section(section, model)
     return None

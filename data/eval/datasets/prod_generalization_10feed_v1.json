@@ -1,0 +1,99 @@
+{
+  "dataset_id": "prod_generalization_10feed_v1",
+  "version": 1,
+  "description": "One episode from each of 10 different feeds \u2014 the generalization set. The Hard Fork result is 10 episodes of ONE show, which is ~1 sample of 'show type'. This gives 10 independent samples of format, length, ad density and audio quality. Transcripts are the existing DGX ones (prod-v2 ran tailnet_dgx_whisper); RAW ASR, not cleaned. Paths point into gitignored .test_outputs.",
+  "content_regime": "real_prod",
+  "num_episodes": 10,
+  "episodes": [
+    {
+      "episode_id": "gen_01",
+      "title": "0003 - The Fed holds steady_20260505-230601_5252ca4f",
+      "feed": "rss_feeds.acast.com_f08ef8e2",
+      "transcript_path": ".test_outputs/manual/prod-v2/corpus/feeds/rss_feeds.acast.com_f08ef8e2/run_20260505-230601_5252ca4f/transcripts/0003 - The Fed holds steady_20260505-230601_5252ca4f.txt",
+      "transcript_hash": "8c5344d64cf2fdf3734a8be29a5c1099aac4ef72c7526bc25973a920c29d9812",
+      "preprocessing_profile": "raw",
+      "chars": 20047
+    },
+    {
+      "episode_id": "gen_02",
+      "title": "0009 - William Hockey - Building the Op_20260505-193911_5252ca4f",
+      "feed": "rss_feeds.megaphone.fm_3581c092",
+      "transcript_path": ".test_outputs/manual/prod-v2/corpus/feeds/rss_feeds.megaphone.fm_3581c092/run_20260505-193911_5252ca4f/transcripts/0009 - William Hockey - Building the Op_20260505-193911_5252ca4f.txt",
+      "transcript_hash": "348b6df74bbfc9bf026460715ef71ff1e51a3c34352dc79ca9f3a6433a760da1",
+      "preprocessing_profile": "raw",
+      "chars": 83724
+    },
+    {
+      "episode_id": "gen_03",
+      "title": "0009 - How AI-Powered Holograms Are Rei_20260613-222035_ba02775e",
+      "feed": "rss_feeds.megaphone.fm_370fb395",
+      "transcript_path": ".test_outputs/manual/prod-v2/corpus/feeds/rss_feeds.megaphone.fm_370fb395/run_20260613-222035_ba02775e/transcripts/0009 - How AI-Powered Holograms Are Rei_20260613-222035_ba02775e.txt",
+      "transcript_hash": "ac8512f674634f4dbb3583b407f5b04152dde016ce85403b47b38006e877507c",
+      "preprocessing_profile": "raw",
+      "chars": 30473
+    },
+    {
+      "episode_id": "gen_04",
+      "title": "0001 - Baseten CEO Tuhin Srivastava on _20260613-120852_ba02775e",
+      "feed": "rss_feeds.megaphone.fm_755f5437",
+      "transcript_path": ".test_outputs/manual/prod-v2/corpus/feeds/rss_feeds.megaphone.fm_755f5437/run_20260613-120852_ba02775e/transcripts/0001 - Baseten CEO Tuhin Srivastava on _20260613-120852_ba02775e.txt",
+      "transcript_hash": "6e036e564c15a55f7153b984c199b49317c14bee0d199eb914992c787efba627",
+      "preprocessing_profile": "raw",
+      "chars": 43587
+    },
+    {
+      "episode_id": "gen_05",
+      "title": "0003 - Battlefield rare earths_ How the_20260505-204548_5252ca4f",
+      "feed": "rss_feeds.npr.org_7ce5b183",
+      "transcript_path": ".test_outputs/manual/prod-v2/corpus/feeds/rss_feeds.npr.org_7ce5b183/run_20260505-204548_5252ca4f/transcripts/0003 - Battlefield rare earths_ How the_20260505-204548_5252ca4f.txt",
+      "transcript_hash": "ebc8d414b28e763e448230ec7075e9583c30be781ffac1fa5ed3d386b5af500c",
+      "preprocessing_profile": "raw",
+      "chars": 30628
+    },
+    {
+      "episode_id": "gen_06",
+      "title": "0008 - A.I. Goes to War _ Is _A.I. Brai_20260505-171553_5252ca4f",
+      "feed": "rss_feeds.simplecast.com_2e104dc7",
+      "transcript_path": ".test_outputs/manual/prod-v2/corpus/feeds/rss_feeds.simplecast.com_2e104dc7/run_20260505-171553_5252ca4f/transcripts/0008 - A.I. Goes to War _ Is _A.I. Brai_20260505-171553_5252ca4f.txt",
+      "transcript_hash": "1b412794a6359a08747d5c907c002a6428f5b8694d897c3c7869c3d4425a0505",
+      "preprocessing_profile": "raw",
+      "chars": 68986
+    },
+    {
+      "episode_id": "gen_07",
+      "title": "0009 - Who_s Really Running Iran__20260505-220439_5252ca4f",
+      "feed": "rss_feeds.simplecast.com_999571cd",
+      "transcript_path": ".test_outputs/manual/prod-v2/corpus/feeds/rss_feeds.simplecast.com_999571cd/run_20260505-220439_5252ca4f/transcripts/0009 - Who_s Really Running Iran__20260505-220439_5252ca4f.txt",
+      "transcript_hash": "7fd06d4385fcc406b121869f36322e84ae7d506f32cf06ade0d0826ddee8d312",
+      "preprocessing_profile": "raw",
+      "chars": 31375
+    },
+    {
+      "episode_id": "gen_08",
+      "title": "0002 - Physical AI that Moves the World_20260505-211151_5252ca4f",
+      "feed": "rss_rss.flightcast.com_c63dc3c0",
+      "transcript_path": ".test_outputs/manual/prod-v2/corpus/feeds/rss_rss.flightcast.com_c63dc3c0/run_20260505-211151_5252ca4f/transcripts/0002 - Physical AI that Moves the World_20260505-211151_5252ca4f.txt",
+      "transcript_hash": "f001029fa779da2aec74c828fa99501090d4a8ed145f373d796e509a60b28078",
+      "preprocessing_profile": "raw",
+      "chars": 75950
+    },
+    {
+      "episode_id": "gen_09",
+      "title": "0005 - Inside Meta_s Big AI Pivot_20260505-191358_5252ca4f",
+      "feed": "rss_video-api.wsj.com_9acc908e",
+      "transcript_path": ".test_outputs/manual/prod-v2/corpus/feeds/rss_video-api.wsj.com_9acc908e/run_20260505-191358_5252ca4f/transcripts/0005 - Inside Meta_s Big AI Pivot_20260505-191358_5252ca4f.txt",
+      "transcript_hash": "5167c68d95f98de688a18cd3ef67b6bc06f840e2e365bf8c3722e17b6d000d83",
+      "preprocessing_profile": "raw",
+      "chars": 16879
+    },
+    {
+      "episode_id": "gen_10",
+      "title": "0001 - How Baltimore_s Mayor Is Fighting the City_s Vacant Housing Cri",
+      "feed": "rss_www.omnycontent.com_c9fdce2d",
+      "transcript_path": ".test_outputs/manual/prod-v2/corpus/feeds/rss_www.omnycontent.com_c9fdce2d/run_20260505-203215_5252ca4f/transcripts/0001 - How Baltimore_s Mayor Is Fighting the City_s Vacant Housing Crisis_20260505-203215_5252ca4f.txt",
+      "transcript_hash": "da1c83bbb1baa890104f7448d2615ae58b41a9455619caae22f501795ff17a20",
+      "preprocessing_profile": "raw",
+      "chars": 61531
+    }
+  ]
+}

@@ -886,8 +886,9 @@ Audio preprocessing optimizes audio files before transcription, reducing file si
 | `preprocessing_enabled` | `--enable-preprocessing` | `false` | Enable audio preprocessing before transcription |
 | `preprocessing_cache_dir` | `--preprocessing-cache-dir` | `.cache/preprocessing` | Custom cache directory for preprocessed audio |
 | `preprocessing_sample_rate` | `--preprocessing-sample-rate` | `16000` | Target sample rate in Hz before MP3 encode (default `16000`; use values FFmpeg accepts for `-ar`, e.g. 8000, 16000, 22050, 44100, 48000) |
-| `preprocessing_silence_threshold` | `--preprocessing-silence-threshold` | `-50dB` | Silence detection threshold for VAD |
-| `preprocessing_silence_duration` | `--preprocessing-silence-duration` | `2.0` | Minimum silence duration to remove in seconds |
+| `preprocessing_silence_removal` | `--preprocessing-silence-removal` | `false` | Drop interior silence. **Off by default — it breaks the transcript↔audio timeline** (GitHub #1173, see below). |
+| `preprocessing_silence_threshold` | `--preprocessing-silence-threshold` | `-50dB` | Silence detection threshold for VAD. Only used when `preprocessing_silence_removal` is on. |
+| `preprocessing_silence_duration` | `--preprocessing-silence-duration` | `2.0` | Minimum silence duration to remove in seconds. Only used when `preprocessing_silence_removal` is on. |
 | `preprocessing_target_loudness` | `--preprocessing-target-loudness` | `-16` | Target loudness in LUFS for normalization |
 | `preprocessing_mp3_bitrate_kbps` | `--preprocessing-mp3-bitrate-kbps` | `null` (auto) | MP3 encode bitrate in kbps (`24`–`128`). **Auto** (unset): `64` for local transcription (for example `whisper`), `48` for `openai` / `gemini` (GitHub #561). Other cloud STT providers (for example `mistral`, `deepgram`) use the same **auto** rule as Whisper unless you set this field explicitly. **Explicit `24`** is the minimum rung: there are **no further** phase-2 re-encode steps below it; if the file is still too large after re-encode, **`AudioChunker`** splits the file for API transcription (GitHub #286 — see [Audio Pipeline Guide](../guides/AUDIO_PIPELINE_GUIDE.md)). When the first pass is still over the API budget, `openai` / `gemini` runs extra FFmpeg re-encodes at lower standard rungs until under a target size or that floor. |
 
@@ -895,9 +896,22 @@ Audio preprocessing optimizes audio files before transcription, reducing file si
 
 1. Converts audio to mono
 2. Resamples to configured sample rate (default: 16 kHz)
-3. Removes silence using Voice Activity Detection (VAD)
-4. Normalizes loudness to configured target (default: -16 LUFS)
-5. Encodes to **MP3** with **`libmp3lame`** at a configurable constant bitrate (default **auto**: `64` kbps for local transcribe, `48` kbps for `openai` / `gemini`; see `preprocessing_mp3_bitrate_kbps` and GitHub **#561**). [ADR-039](../adr/ADR-039-speech-optimized-codec-opus.md) discusses historical Opus exploration; the shipped preprocessor uses **MP3** for broad API compatibility.
+3. Normalizes loudness to configured target (default: -16 LUFS)
+4. Encodes to **MP3** with **`libmp3lame`** at a configurable constant bitrate (default **auto**: `64` kbps for local transcribe, `48` kbps for `openai` / `gemini`; see `preprocessing_mp3_bitrate_kbps` and GitHub **#561**). [ADR-039](../adr/ADR-039-speech-optimized-codec-opus.md) discusses historical Opus exploration; the shipped preprocessor uses **MP3** for broad API compatibility.
+5. _(Opt-in, off by default)_ Removes silence using Voice Activity Detection (VAD) — see the timeline warning below.
+
+**The preprocessor is timeline-preserving (GitHub #1173)**
+
+Transcript timestamps are stored against the **original** audio — the player seeks it and the
+knowledge graph cites it — but the transcriber only ever sees the **preprocessed** file. Mono,
+resampling, loudness normalization and MP3 encoding all keep the duration intact, so the two
+timelines agree.
+
+Silence removal does not. Cutting interior pauses shortens the audio the transcriber sees, so every
+timestamp after a removed pause lands **early**, and the error accumulates through the episode. Prod
+measurements: a 25-minute episode lost 32 s of pauses and drifted **-20 s**; a 1 h 54 m episode lost
+401 s and drifted **-162 s**. It is therefore **off by default** and gated behind
+`preprocessing_silence_removal`. Only enable it where transcript timestamps are unused.
 
 **Benefits**:
 
@@ -918,8 +932,7 @@ Audio preprocessing optimizes audio files before transcription, reducing file si
 ```yaml
 preprocessing_enabled: true
 preprocessing_sample_rate: 16000
-preprocessing_silence_threshold: -50dB
-preprocessing_silence_duration: 2.0
+preprocessing_silence_removal: false  # keep the transcript↔audio timeline intact (#1173)
 preprocessing_target_loudness: -16
 ```
 

@@ -177,7 +177,23 @@ def _inline_cta_corroborated(text: str, match_start: int, match_end: int) -> boo
 
 def _paragraph_start(text: str, index: int) -> int:
     prev_break = text.rfind("\n\n", 0, index)
-    return 0 if prev_break == -1 else prev_break + 2
+    if prev_break != -1:
+        return prev_break + 2
+
+    # No paragraph break before the match. Returning 0 here — the start of the transcript — is what
+    # ``_paragraph_end`` already refuses to do at the other end, and for the same reason: a
+    # screenplay transcript separates speaker turns with a SINGLE newline, so a whole episode is
+    # one "paragraph". A sponsor mention 70 000 chars in then yields a block of [0, 70 800] and the
+    # cleaner deletes the episode. Measured: a 77 868-char transcript cleaned to **0 chars**, after
+    # which every LLM stage — summary, GI, KG — ran happily on nothing.
+    #
+    # The cap was already written for exactly this case; it was only ever applied to the end.
+    # Symmetry: walk back to a sentence boundary within the same window.
+    window_start = max(0, index - _SPONSOR_BLOCK_MAX_CHARS)
+    sentence_starts = list(re.finditer(r"[.!?](?:\s|$)|\n", text[window_start:index]))
+    if sentence_starts:
+        return window_start + sentence_starts[-1].end()
+    return window_start
 
 
 def _paragraph_end(text: str, index: int) -> int:

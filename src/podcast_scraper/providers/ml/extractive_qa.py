@@ -16,10 +16,9 @@ alongside NLI and embedding, so the three loaders share one shape.
 from __future__ import annotations
 
 import logging
-import math
 import threading
 from dataclasses import dataclass
-from typing import Any, ClassVar, List, Optional, Tuple
+from typing import Any, ClassVar, Dict, List, Optional, Tuple
 
 from .hf_evidence_backend import HFEvidenceBackend, standard_hf_load_kwargs
 
@@ -138,14 +137,33 @@ class QAEvidenceBackend(HFEvidenceBackend):
             offsets = offset_mappings[chunk_idx]
             seq_ids = bat.sequence_ids(chunk_idx)
 
+            # Mask to CLS + context before the softmax, exactly as
+            # transformers.QuestionAnsweringPipeline does. Question tokens and padding must not
+            # take probability mass, or the distribution is meaningless — softmaxing the raw
+            # logits (padding included) makes the model look like it abstains everywhere.
             context_mask = torch.tensor([sid == 1 for sid in seq_ids], dtype=torch.bool)
+            allowed = context_mask.clone()
+            allowed[0] = True  # CLS: the null answer must stay in the distribution
             neg_inf = torch.finfo(s_logits.dtype).min
-            s_logits = torch.where(context_mask, s_logits, torch.full_like(s_logits, neg_inf))
-            e_logits = torch.where(context_mask, e_logits, torch.full_like(e_logits, neg_inf))
+            s_logits = torch.where(allowed, s_logits, torch.full_like(s_logits, neg_inf))
+            e_logits = torch.where(allowed, e_logits, torch.full_like(e_logits, neg_inf))
+
+            # Softmax over the chunk so the probabilities are absolute and therefore comparable
+            # ACROSS chunks. The previous code softmaxed over only the top_k spans it had already
+            # picked, so the best span in ANY chunk came back at ~1.0 — a chunk about nothing
+            # scored as high as the chunk holding the evidence, and the cross-chunk winner was
+            # arbitrary. That is how a 70k transcript returned "Codex" at qa_score=1.000 for every
+            # insight, and why qa_score_min gated on nothing.
+            s_probs = torch.softmax(s_logits, dim=-1)
+            e_probs = torch.softmax(e_logits, dim=-1)
+
+            zeros = torch.zeros_like(s_probs)
+            s_ctx = torch.where(context_mask, s_probs, zeros)
+            e_ctx = torch.where(context_mask, e_probs, zeros)
 
             n_best = max(top_k * 4, 20)
-            start_idx = torch.topk(s_logits, min(n_best, s_logits.numel())).indices.tolist()
-            end_idx = torch.topk(e_logits, min(n_best, e_logits.numel())).indices.tolist()
+            start_idx = torch.topk(s_ctx, min(n_best, s_ctx.numel())).indices.tolist()
+            end_idx = torch.topk(e_ctx, min(n_best, e_ctx.numel())).indices.tolist()
 
             for si in start_idx:
                 for ei in end_idx:
@@ -159,7 +177,7 @@ class QAEvidenceBackend(HFEvidenceBackend):
                     char_end = int(offsets[ei][1])
                     if char_end <= char_start:
                         continue
-                    score = float(s_logits[si].item() + e_logits[ei].item())
+                    score = float(s_ctx[si].item() * e_ctx[ei].item())
                     candidates.append(
                         QASpan(
                             answer=context[char_start:char_end],
@@ -183,20 +201,6 @@ class QAEvidenceBackend(HFEvidenceBackend):
             unique.append(cand)
             if len(unique) >= top_k:
                 break
-
-        max_score = max(u.score for u in unique)
-        exps = [math.exp(u.score - max_score) for u in unique]
-        total = sum(exps)
-        if total > 0:
-            unique = [
-                QASpan(
-                    answer=u.answer,
-                    start=u.start,
-                    end=u.end,
-                    score=exps[i] / total,
-                )
-                for i, u in enumerate(unique)
-            ]
         return unique
 
     def answer_top1(self, question: str, context: str) -> QASpan:
@@ -375,6 +379,45 @@ def answer(
     return backend.answer_top1(question, context)
 
 
+_SENTENCE_END = (". ", "? ", "! ", ".\n", "?\n", "!\n", "\n")
+# A speaker turn can run for a paragraph; past this we are quoting a monologue, not evidence.
+MAX_QUOTE_CHARS = 400
+
+
+def expand_span_to_sentence(text: str, start: int, end: int) -> Tuple[int, int]:
+    """Grow a QA answer span outwards to the sentence that contains it.
+
+    An extractive QA model returns the ANSWER to a question — typically a few words. That is not a
+    quote, and it is far too thin to serve as an NLI premise: a 40-character fragment entails
+    nothing, so the grounding gate rejects it. The sentence around it is the actual evidence.
+
+    Bounded by MAX_QUOTE_CHARS so a transcript with no sentence punctuation (a single-line blob,
+    which this corpus has plenty of) cannot swallow the whole episode.
+    """
+    if not text or start < 0 or end > len(text) or start >= end:
+        return start, end
+
+    left = max(0, start - MAX_QUOTE_CHARS)
+    cut = left
+    for mark in _SENTENCE_END:
+        found = text.rfind(mark, left, start)
+        if found != -1:
+            cut = max(cut, found + len(mark))
+    new_start = cut
+
+    right = min(len(text), end + MAX_QUOTE_CHARS)
+    stop = right
+    for mark in _SENTENCE_END:
+        found = text.find(mark, end, right)
+        if found != -1:
+            stop = min(stop, found + len(mark))
+    new_end = stop
+
+    if new_end <= new_start:
+        return start, end
+    return new_start, min(new_end, new_start + MAX_QUOTE_CHARS)
+
+
 def answer_candidates(
     context: str,
     question: str,
@@ -385,22 +428,61 @@ def answer_candidates(
     window_overlap_chars: int = 250,
     top_k: int = 3,
 ) -> List[QASpan]:
-    """Extractive QA returning up to ``top_k`` candidate spans (Issue #487 / EV-1)."""
+    """Extractive QA returning up to ``top_k`` candidate spans (Issue #487 / EV-1).
+
+    The windowed branch used to collapse to a single best span, silently discarding ``top_k``.
+    Since a real transcript (~70k chars) always exceeds the window (1800), that branch is the only
+    one production ever takes — so the grounding stage got exactly one candidate per insight, no
+    matter what it asked for. Now every window contributes its own top-k and the best ``top_k``
+    across the whole transcript are returned.
+    """
     backend = _get_qa_backend(model_id, device=device)
     top_k_i = max(1, min(int(top_k), 10))
 
     if window_chars <= 0 or len(context) <= window_chars:
         return backend.answer_top_k(question, context, top_k=top_k_i)
 
-    single = answer(
-        context,
-        question,
-        model_id,
-        device=device,
-        window_chars=window_chars,
-        window_overlap_chars=window_overlap_chars,
-    )
-    return [single]
+    overlap = max(0, window_overlap_chars)
+    collected: List[QASpan] = []
+    for win_start, win_end, slice_ in _iter_context_windows(context, window_chars, overlap):
+        try:
+            spans = backend.answer_top_k(question, slice_, top_k=top_k_i)
+        except Exception as e:  # noqa: BLE001 — one bad window must not lose the episode
+            logger.debug("QA window [%s:%s] failed: %s", win_start, win_end, e)
+            continue
+        for span in spans:
+            g_start = win_start + span.start
+            g_end = win_start + span.end
+            if g_start < 0 or g_end > len(context) or g_end < g_start:
+                logger.debug(
+                    "QA window [%s:%s] produced out-of-range global span [%s:%s]",
+                    win_start,
+                    win_end,
+                    g_start,
+                    g_end,
+                )
+                continue
+            collected.append(
+                QASpan(
+                    answer=context[g_start:g_end],
+                    start=g_start,
+                    end=g_end,
+                    score=span.score,
+                )
+            )
+
+    if not collected:
+        return []
+
+    # Overlapping windows re-find the same span; keep the best-scoring instance of each.
+    best_by_span: Dict[Tuple[int, int], QASpan] = {}
+    for cand in collected:
+        key = (cand.start, cand.end)
+        if key not in best_by_span or cand.score > best_by_span[key].score:
+            best_by_span[key] = cand
+
+    ranked = sorted(best_by_span.values(), key=lambda s: s.score, reverse=True)
+    return ranked[:top_k_i]
 
 
 def answer_multi(

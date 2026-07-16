@@ -50,6 +50,26 @@ def test_dedupes_by_id() -> None:
     assert len(persons) == 1
 
 
+def test_drops_unresolved_speaker_placeholder_persons() -> None:
+    """Unresolved diarization voices must not surface as Person entities (#1167).
+
+    ``person:speaker-NN`` (global) and ``person:speaker-{ep}-NN`` (episode-scoped)
+    are anonymous diarization labels, not real people — they must be excluded from
+    the consumer entities projection that feeds person cards, discover, etc.
+    """
+    kg = {
+        "nodes": [
+            {"id": "person:jane-doe", "type": "Person", "properties": {"name": "Jane Doe"}},
+            {"id": "person:speaker-00", "type": "Person", "properties": {"name": "SPEAKER_00"}},
+            {"id": "person:speaker-ep1-02", "type": "Person", "properties": {"name": "Speaker 2"}},
+            # legacy Entity(kind=person) placeholder shape
+            {"id": "SPEAKER_03", "type": "Entity", "properties": {"kind": "person"}},
+        ]
+    }
+    persons, _orgs, _topics = entities_from_kg(kg)
+    assert [(p.id, p.name) for p in persons] == [("person:jane-doe", "Jane Doe")]
+
+
 def test_malformed_inputs_return_empty() -> None:
     assert entities_from_kg(None) == ([], [], [])
     assert entities_from_kg({"nodes": "nope"}) == ([], [], [])

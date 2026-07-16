@@ -96,7 +96,13 @@ def _gil_grounding_metrics(gil: Dict[str, Any]) -> Tuple[int, int, int, float]:
         src = ed.get("source") or ed.get("from")
         if src:
             grounded_insight_ids.add(str(src))
-        nli = ed.get("nli_score")
+        # The score lives in the edge's nested ``properties`` — the only place the artifact schema
+        # permits it (the top level is ``additionalProperties: false``). This read used to look at
+        # the TOP LEVEL, so it was searching a location the contract forbids the value from ever
+        # occupying: `mean_nli_score` could not have been anything but 0.0, and it reported exactly
+        # that across a full 18-episode run — indistinguishable from evidence contradicting itself.
+        props = ed.get("properties")
+        nli = props.get("nli_score") if isinstance(props, dict) else None
         if isinstance(nli, (int, float)):
             nli_scores.append(float(nli))
 

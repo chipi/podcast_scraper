@@ -19,10 +19,12 @@ def test_tool_table_names_and_count() -> None:
     names = [fn.__name__ for fn in tools]
     assert names == [
         "prod_health",
+        "prod_resilience",
         "prod_version",
         "prod_recent_runs",
         "prod_recent_deploys",
         "prod_cost_today",
+        "prod_usage",
         "prod_recent_logs",
         "prod_recent_errors",
         "prod_recent_alerts",

@@ -155,6 +155,9 @@ def _build_simple_cfg(quote_mode: str = "staged") -> Any:
     cfg.gi_evidence_extract_retries = 0
     cfg.gi_qa_score_min = 0.3
     cfg.gi_nli_entailment_min = 0.5
+    # Bundled-quote chunk size (the chunking fix): pin it, else int(MagicMock)==1 forces a
+    # per-insight chunk and the single bundled call fans out to one call per insight.
+    cfg.gil_evidence_quote_bundle_chunk = 10
     return cfg
 
 

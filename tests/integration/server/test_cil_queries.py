@@ -1082,6 +1082,36 @@ def test_topic_perspectives_groups_insights_by_speaker(tmp_path: Path) -> None:
     assert by_person["person:alice"]["insights"][0]["properties"]["text"] == "Alice on AI"
 
 
+def test_topic_perspectives_excludes_unresolved_speaker(tmp_path: Path) -> None:
+    """An unresolved diarization voice is not a perspective owner (#1167)."""
+    meta = tmp_path / "metadata"
+    _write_bundle(
+        meta,
+        "a",
+        episode_id="episode:a",
+        publish_date="2024-01-01",
+        person="person:alice",
+        topic="topic:ai",
+        insight_id="ia",
+        quote_id="qa",
+        insight_text="Alice on AI",
+    )
+    _write_bundle(
+        meta,
+        "b",
+        episode_id="episode:b",
+        publish_date="2024-02-01",
+        person="person:speaker-00",
+        topic="topic:ai",
+        insight_id="ib",
+        quote_id="qb",
+        insight_text="SPEAKER_00 on AI",
+    )
+    root = str(tmp_path)
+    persp = cil_queries.topic_perspectives(root, root, "topic:ai")
+    assert {p["person_id"] for p in persp} == {"person:alice"}
+
+
 def test_topic_perspectives_scope_filters_by_episode(tmp_path: Path) -> None:
     """#1149 — keep_episode_ids restricts perspectives to the given episode set."""
     meta = tmp_path / "metadata"

@@ -21,6 +21,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Iterator, Sequence
 
+from podcast_scraper.enrichment.enrichers._loaders import is_unresolved_speaker_placeholder
 from podcast_scraper.gi.edge_normalization import normalize_gil_edge_type
 from podcast_scraper.search.corpus_scope import latest_feed_run_allowed_relpaths
 from podcast_scraper.server.corpus_catalog import (
@@ -1067,6 +1068,9 @@ def topic_perspectives(
 
     out: list[dict[str, Any]] = []
     for pid, data in by_person.items():
+        # Unresolved diarization voices are not real perspectives (#1167).
+        if is_unresolved_speaker_placeholder(pid, person_name.get(pid)):
+            continue
         insights = sorted(data["insights"], key=_position_hint)
         out.append(
             {

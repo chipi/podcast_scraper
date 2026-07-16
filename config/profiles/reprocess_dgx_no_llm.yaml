@@ -1,0 +1,73 @@
+# reprocess_dgx_no_llm — rebuild the *deterministic* layer of an existing corpus, on our own
+# hardware, without spending a cent of LLM budget and without touching anything an LLM produced.
+#
+# Purpose (#1173): transcripts built before the timeline fix came from silence-stripped audio, so
+# their timestamps run progressively early against the real media (-20 s on a 25-minute episode,
+# -162 s on a long one). Everything derived from those timestamps — segments, the ad-free
+# transcript, insight/quote times — inherits the error. Re-transcribing on a timeline-preserving
+# preprocess is the ground-truth repair.
+#
+# WHAT THIS REWRITES (per episode, all deterministic):
+#   <ep>.txt · <ep>.segments.json · <ep>.adfree.{txt,segments.json,admap.json} · speaker diagnostics
+#
+# WHAT IT LEAVES ALONE — the whole point of the profile:
+#   <ep>.metadata.json (summaries) · <ep>.gi.json (insights) · <ep>.kg.json · enricher sidecars
+#   ``generate_metadata: false`` SKIPS the metadata stage outright (it is not stubbed — it never
+#   runs), and that stage is where summaries, GI and KG live. They are never opened, so episode
+#   and show linkage survives untouched. Enrichment is off by default and stays off.
+#   Insight *timestamps* are re-anchored onto the new transcripts afterwards, deterministically —
+#   the insight text itself is never regenerated.
+#
+# Usage — pair with --reprocess-existing-only (#876/#925) so the episode set can only shrink,
+# never grow, and media comes from the GUID-keyed audio cache (#947) instead of the network:
+#
+#   podcast-scraper --profile reprocess_dgx_no_llm --rss <feed> \
+#       --output-dir <corpus-copy> --reprocess-existing-only
+#
+# No ``profile:`` key on purpose: this pins no LLM models, so it has no ModelRegistry preset and
+# opts out of the profile/registry drift check by design.
+#
+# Registry status: yaml-only — no entry in `_PROFILE_PRESETS`. It is a one-shot maintenance profile
+# for rebuilding the deterministic layer of an existing corpus, not a pipeline default.
+
+# --- transcription: DGX faster-whisper (self-hosted) --------------------------------------------
+transcription_provider: tailnet_dgx_whisper
+dgx_tailnet_host: ${DGX_TAILNET_HOST:-dgx-llm-1}
+dgx_whisper_model: Systran/faster-whisper-large-v3
+dgx_whisper_port: 8000
+# ADR-096 requires a fallback. Deliberately the *local* whisper, never a cloud provider: a DGX
+# outage must degrade to our own hardware, not silently start billing an API.
+transcription_fallback_provider: whisper
+
+# --- diarization: pyannote v4 (self-hosted) -----------------------------------------------------
+diarize: true
+screenplay: true
+diarization_provider: tailnet_dgx
+dgx_diarize_port: 8001
+dgx_diarize_model: pyannote/speaker-diarization-community-1
+dgx_diarize_request_timeout_sec: 600.0
+
+# --- speaker naming: local NER, no LLM ----------------------------------------------------------
+# The cloud profiles use a Gemini speaker detector; spaCy keeps naming local and free.
+speaker_detector_provider: spacy
+auto_speakers: true
+
+# --- audio: timeline-preserving preprocess (#1173) ----------------------------------------------
+preprocessing_enabled: true
+audio_preprocessing_profile: speech_optimal_v1
+save_adfree_transcript: true
+
+# --- every LLM stage: OFF -----------------------------------------------------------------------
+generate_metadata: false # skips summaries + GI + KG wholesale; preserves the existing artifacts
+generate_summaries: false
+generate_gi: false
+generate_kg: false
+vector_search: false
+
+# This profile rebuilds a corpus's DETERMINISTIC layer only — no summariser, no LLM — so there is
+# nothing for the enrichers to read. Declared explicitly rather than omitted: an absent block used
+# to fall through to the unknown-profile warning, where "no enrichers because we decided so" and
+# "no enrichers because nobody mapped this profile" look identical in the output.
+enrichment:
+  enabled: false
+  enrichers: {}

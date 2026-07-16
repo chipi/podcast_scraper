@@ -79,7 +79,7 @@ class TestMistralProviderStandalone(unittest.TestCase):
             transcription_provider="mistral",
             speaker_detector_provider="mistral",
             summary_provider="mistral",
-            mistral_api_key="test-key",
+            mistral_api_key="test-api-key-123",
             mistral_api_base="http://127.0.0.1:63436/v1",
             transcribe_missing=False,
             auto_speakers=False,
@@ -1010,7 +1010,10 @@ class TestMistralProviderGIL(unittest.TestCase):
         provider = MistralProvider(self.cfg)
         provider.initialize()
         provider.generate_insights("m" * 120_001, max_insights=4)
-        self.assertIn("[Transcript truncated.]", mock_render.call_args[1]["transcript"])
+        transcript_kw = next(
+            c.kwargs["transcript"] for c in mock_render.call_args_list if "transcript" in c.kwargs
+        )
+        self.assertIn("[Transcript truncated.]", transcript_kw)
 
     @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
     @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")

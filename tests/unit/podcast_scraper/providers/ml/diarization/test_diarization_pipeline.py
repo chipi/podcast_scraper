@@ -13,6 +13,65 @@ from podcast_scraper.providers.ml.diarization.pipeline import apply_diarization_
 pytestmark = pytest.mark.unit
 
 
+# A real pre-roll ad read: enough distinct _AD_PATTERNS hits (>= PREROLL_THRESHOLD) that the
+# ad-region detector actually fires on it, rather than a string that only "looks like" an ad.
+_PREROLL_AD = (
+    "This episode is sponsored by Acme. This show is brought to you by our sponsors at Acme. "
+    "Go to acme dot com slash deal to support the show. "
+)
+
+
+@patch("podcast_scraper.providers.ml.diarization.pipeline.create_diarization_provider")
+def test_preroll_ad_narrator_is_not_crowned_host(mock_create_provider) -> None:
+    """An episode that opens with a sponsor read must not make the ad narrator the host (#1169).
+
+    The host rule is "the voice that opens the episode". On real, ad-laden feeds the opening voice
+    is the *ad narrator*, so without ad intervals the sponsor voice becomes the host and the real
+    host's name gets pinned onto it. The roster has always accepted ``ad_intervals`` — the pipeline
+    simply never passed any, leaving the guard dead in production.
+    """
+    mock_provider = MagicMock()
+    mock_provider.diarize.return_value = DiarizationResult(
+        segments=[
+            DiarizationSegment(start=0.0, end=20.0, speaker="SPEAKER_09"),  # the ad read
+            DiarizationSegment(start=20.0, end=120.0, speaker="SPEAKER_00"),  # the real host
+            DiarizationSegment(start=120.0, end=400.0, speaker="SPEAKER_01"),  # the guest
+        ],
+        num_speakers=3,
+        model_name="test",
+    )
+    mock_create_provider.return_value = mock_provider
+
+    cfg = config.Config(
+        rss="https://example.com/feed.xml",
+        transcription_provider="whisper",
+        diarize=True,
+        screenplay=True,
+        hf_token="hf-test",
+    )
+    # Ad detection only runs on a real-length transcript (MIN_TRANSCRIPT_CHARS), so the body has
+    # to be episode-sized — a toy transcript would skip detection and pass for the wrong reason.
+    host_turn = "Welcome back to the show. I'm Katie Martin. " + ("Let's dig into markets. " * 60)
+    guest_turn = "Thanks for having me, glad to be here. " + ("Here is my long answer. " * 60)
+    segments = [
+        {"start": 0.0, "end": 20.0, "text": _PREROLL_AD},
+        {"start": 20.0, "end": 120.0, "text": host_turn},
+        {"start": 120.0, "end": 400.0, "text": guest_turn},
+    ]
+    enriched = apply_diarization_to_result(
+        {"text": "".join(str(s["text"]) for s in segments), "segments": segments},
+        "/tmp/audio.wav",
+        cfg,
+        ["Guest"],
+    )
+
+    labels = {seg["speaker"]: seg["speaker_label"] for seg in enriched["segments"]}
+    # The host name from the self-intro lands on the voice that speaks *after* the ad...
+    assert labels["SPEAKER_00"] == "Katie Martin"
+    # ...and never on the sponsor voice.
+    assert labels["SPEAKER_09"] != "Katie Martin"
+
+
 @patch("podcast_scraper.providers.ml.diarization.pipeline.create_diarization_provider")
 def test_apply_diarization_enriches_segments(mock_create_provider) -> None:
     mock_provider = MagicMock()

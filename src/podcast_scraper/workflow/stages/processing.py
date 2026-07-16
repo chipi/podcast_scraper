@@ -11,7 +11,7 @@ import os
 import threading
 import time
 from concurrent.futures import as_completed, ThreadPoolExecutor
-from typing import Any, cast, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
+from typing import Any, cast, Dict, List, NamedTuple, Optional, Set, Tuple, TYPE_CHECKING
 
 from ... import config, models
 
@@ -59,6 +59,7 @@ def extract_episode_description(item):
     return rss_extract_episode_description(item)
 
 
+from ...speaker_detectors.corroboration import corroborate_guests
 from ...speaker_detectors.factory import create_speaker_detector
 from ...speaker_detectors.hosts import is_network_or_org_author
 from ..cost_monitoring import CostCapExceeded
@@ -301,7 +302,7 @@ def _detect_hosts_from_feed(
     """
     feed_hosts = speaker_detector.detect_hosts(
         feed_title=feed.title,
-        feed_description=None,  # TODO: Extract from feed XML if needed
+        feed_description=feed.description,  # show blurb usually names the host (#1169)
         feed_authors=feed.authors if feed.authors else None,
     )
     return cast(set[str], feed_hosts)
@@ -655,17 +656,34 @@ def _get_speaker_detector(
     return detector
 
 
+class DetectedSpeakers(NamedTuple):
+    """What the detector found, and what SURVIVED corroboration — they are not the same list.
+
+    ``guests`` is what may be painted onto a voice. ``stated`` is every name the episode metadata
+    put forward, *including* the ones corroboration rejected, and it names nobody on its own.
+
+    Keeping the rejects is what stops us laundering our own failures. When corroboration threw a
+    real guest away ("the episode text names them but never introduces them as speaking"), the name
+    disappeared entirely — so the roster saw no name going spare and concluded that *nobody could
+    have named* the voice, filing a 35%-of-the-episode guest as "Unidentified speaker". The name
+    was right there in the show notes. We could not place it, and that is a defect, not innocence.
+    """
+
+    guests: List[str]
+    stated: List[str]
+
+
 def _detect_speakers_for_episode(
     episode: Episode,  # type: ignore[valid-type]
     cfg: config.Config,
     host_detection_result: HostDetectionResult,
     pipeline_metrics: metrics.Metrics,
     skip_speaker_detection: bool = False,
-) -> Optional[List[str]]:
-    """Run speaker detection for one episode; return list of guest names or None."""
+) -> Optional[DetectedSpeakers]:
+    """Run speaker detection for one episode; return corroborated guests + every stated name."""
     if not cfg.auto_speakers:
         if cfg.screenplay_speaker_names and len(cfg.screenplay_speaker_names) > 1:
-            return cfg.screenplay_speaker_names[1:]
+            return DetectedSpeakers(guests=cfg.screenplay_speaker_names[1:], stated=[])
         return None
     logger.debug("Episode %d: %s", episode.idx, episode.title)
     if skip_speaker_detection:
@@ -719,13 +737,30 @@ def _detect_speakers_for_episode(
         and cfg.screenplay_speaker_names
         and len(cfg.screenplay_speaker_names) >= 2
     ):
-        return cfg.screenplay_speaker_names[1:]
+        return DetectedSpeakers(guests=cfg.screenplay_speaker_names[1:], stated=[])
     if detection_succeeded:
         flat_speakers: List[str] = []
         for entry in detected_speakers or []:
             flat_speakers.extend(_flatten_speaker_name_entries(entry))
         host_strings = _speaker_names_to_str_set(detected_hosts_set)
-        return [name for name in flat_speakers if name not in host_strings]
+        proposed = [name for name in flat_speakers if name not in host_strings]
+
+        # An LLM detector's name list is a PROPOSAL, not a result — it returns success=True whatever
+        # it emits. Corroborate every proposed guest against the description before their name is
+        # painted onto a diarized voice cluster.
+        #
+        # But keep the PROPOSAL as well. A rejected name is still a name the metadata stated, and
+        # the roster needs to know it existed — otherwise a guest we could not place is filed as a
+        # person nobody could have named.
+        return DetectedSpeakers(
+            guests=corroborate_guests(
+                proposed,
+                episode_title=episode.title,
+                episode_description=episode_description,
+                known_hosts=host_strings | combined_hosts,
+            ),
+            stated=proposed,
+        )
     return None
 
 
@@ -789,7 +824,7 @@ def prepare_episode_download_args(
                         stage="append_skipped_complete",
                     )
                 continue
-        detected_speaker_names = _detect_speakers_for_episode(
+        detected = _detect_speakers_for_episode(
             episode,
             cfg,
             host_detection_result,
@@ -805,7 +840,8 @@ def prepare_episode_download_args(
                 run_suffix,
                 transcription_resources.transcription_jobs,
                 transcription_resources.transcription_jobs_lock,
-                detected_speaker_names,
+                list(detected.guests) if detected else None,
+                list(detected.stated) if detected else None,
             )
         )
 

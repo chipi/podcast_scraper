@@ -105,8 +105,26 @@ def apply_profile_with_stats(text: str, profile_id: str) -> Tuple[str, Dict[str,
     stats: Dict[str, int] = {"initial_lines": initial_lines}
 
     # Apply profile-specific tracking
-    if profile_id == "cleaning_v4":
-        # Track each step for cleaning_v4
+    if profile_id in ("cleaning_v4", "cleaning_v5"):
+        # cleaning_v5 is cleaning_v4 WITHOUT anonymize_speakers. Same steps otherwise.
+        #
+        # v4 rewrites "Kevin Roose:" to "A:", and that is CORRECT for the task it was built for:
+        # summarisation, where it cut the speaker-name leak rate from 80% to <10% (models were
+        # copying "Maya:" straight into the summary). Nothing is wrong with v4.
+        #
+        # It is wrong for GI, for two reasons:
+        #   * PRODUCTION does not anonymise — it cleans with PatternBasedCleaner and keeps the
+        #     names. A GI eval on v4 therefore extracts insights from an anonymised transcript while
+        #     production extracts from a named one, which is the eval-vs-production split this
+        #     pipeline keeps getting caught by.
+        #   * It destroys the only signal speaker attribution has. An insight cannot know who said
+        #     it if the transcript has been stripped of who said it — and a STANCE with no owner is
+        #     unfalsifiable, which is exactly how the category collapsed into a catch-all.
+        #
+        # So: v4 stays untouched (summarisation evals keep working and stay comparable), and
+        # anything that needs the speakers — GI, host/guest, attribution — uses v5.
+        anonymise = profile_id == "cleaning_v4"
+
         lines_before = len(text.splitlines())
         cleaned = preprocessing.strip_episode_header(text)
         lines_after = len(cleaned.splitlines())
@@ -128,8 +146,9 @@ def apply_profile_with_stats(text: str, profile_id: str) -> Tuple[str, Dict[str,
         lines_after = len(cleaned.splitlines())
         stats["step_junk_filtered"] = lines_before - lines_after
 
-        # Anonymize speakers (doesn't remove lines, just modifies them)
-        cleaned = preprocessing.anonymize_speakers(cleaned)
+        # Anonymize speakers (doesn't remove lines, just modifies them). v5 keeps the names.
+        if anonymise:
+            cleaned = preprocessing.anonymize_speakers(cleaned)
 
         # Standard cleaning (may collapse blank lines)
         lines_before = len(cleaned.splitlines())
@@ -392,6 +411,48 @@ def _cleaning_v4(text: str) -> str:
     # that leak into summaries (e.g., "=-", "///", "TextColor", "Subur-", "Exting")
     cleaned = preprocessing.artifact_scrub_v1(cleaned)
 
+    return cleaned
+
+
+def _cleaning_v5(text: str) -> str:
+    """cleaning_v4, but the speakers keep their names.
+
+    v4 anonymises ("Kevin Roose:" -> "A:") and that is right for SUMMARISATION, which is what it was
+    built for: it cut the speaker-name leak rate from 80% to <10%, because models were copying
+    "Maya:" straight into the summary. v4 is not broken and is not changed here.
+
+    It is wrong for GROUNDED INSIGHTS:
+
+    * PRODUCTION does not anonymise. It cleans with PatternBasedCleaner, which keeps the names. A GI
+      eval on v4 extracts insights from an anonymised transcript while production extracts from a
+      named one — the eval-vs-production divergence this pipeline keeps getting caught by.
+    * It destroys the only signal speaker attribution has. An insight cannot know who said it if the
+      transcript no longer says who said it, and a STANCE with no owner is unfalsifiable — which is
+      precisely how that category collapsed into a catch-all.
+
+    Use v5 for anything that needs to know who spoke: GI, attribution, host/guest.
+    """
+    cleaned = preprocessing.strip_episode_header(text)
+    cleaned = preprocessing.strip_credits(cleaned)
+    cleaned = preprocessing.strip_garbage_lines(cleaned)
+    lines = cleaned.splitlines()
+    cleaned = "\n".join(line for line in lines if not preprocessing.is_junk_line(line))
+
+    # (v4 anonymises here. v5 does not — that is the whole difference.)
+
+    cleaned = preprocessing.clean_transcript(
+        cleaned,
+        remove_timestamps=True,
+        normalize_speakers=True,
+        collapse_blank_lines=True,
+        remove_fillers=False,
+    )
+    cleaned = str(preprocessing.remove_sponsor_blocks(cleaned))  # type: ignore[attr-defined]
+    cleaned = str(preprocessing.remove_outro_blocks(cleaned))  # type: ignore[attr-defined]
+    cleaned = preprocessing.remove_summarization_artifacts(cleaned)
+    cleaned = str(cleaned)  # type: ignore[attr-defined]
+    cleaned = preprocessing.artifact_scrub_v1(cleaned)
+
     return cleaned.strip()
 
 
@@ -408,6 +469,7 @@ register_profile("cleaning_v1", _cleaning_v1)
 register_profile("cleaning_v2", _cleaning_v2)
 register_profile("cleaning_v3", _cleaning_v3)
 register_profile("cleaning_v4", _cleaning_v4)
+register_profile("cleaning_v5", _cleaning_v5)
 register_profile("cleaning_hybrid_after_pattern", _cleaning_hybrid_after_pattern)
 register_profile("cleaning_none", _cleaning_none)
 

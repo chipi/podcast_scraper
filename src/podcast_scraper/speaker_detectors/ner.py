@@ -5,7 +5,8 @@ from __future__ import annotations
 import logging
 import subprocess  # nosec B404
 import sys
-from typing import Any, Callable, Optional
+import threading
+from typing import Any, Callable, Dict, Optional
 
 from .. import config
 from .constants import _VALID_MODEL_NAME_PATTERN, MAX_MODEL_NAME_LENGTH
@@ -32,13 +33,42 @@ def _validate_model_name(model_name: str) -> bool:
     return bool(_VALID_MODEL_NAME_PATTERN.match(model_name))
 
 
+_spacy_cache: Dict[str, Any] = {}
+# The default prod NER model is en_core_web_trf — a *transformer*. This loader had no cache at all,
+# so every episode reloaded it, and concurrent episodes constructed it simultaneously in worker
+# threads. torch's lazy meta-device init races there and raises "Cannot copy out of meta tensor;
+# no data!", which is not a broken install (the model loads fine on its own) but a missing lock.
+#
+# The failure is quiet: the NER pre-pass is skipped, speaker/entity detection silently degrades,
+# and the run reports success. Same defect, same day, as the GI encoder cache (#1179).
+_spacy_cache_lock = threading.Lock()
+
+
 def _load_spacy_model(model_name: str) -> Optional[Any]:
-    """Load spaCy model, automatically downloading if missing."""
+    """Load spaCy model, automatically downloading if missing. Cached; safe across threads."""
     import spacy  # noqa: F401
 
     if not _validate_model_name(model_name):
         logger.error("Invalid spaCy model name: %s (contains invalid characters)", model_name)
         return None
+
+    cached = _spacy_cache.get(model_name)
+    if cached is not None:
+        return cached
+
+    with _spacy_cache_lock:
+        cached = _spacy_cache.get(model_name)
+        if cached is not None:
+            return cached
+        loaded = _load_spacy_model_uncached(model_name)
+        if loaded is not None:
+            _spacy_cache[model_name] = loaded
+        return loaded
+
+
+def _load_spacy_model_uncached(model_name: str) -> Optional[Any]:
+    """The actual load. Call via :func:`_load_spacy_model`, which caches and serializes it."""
+    import spacy  # noqa: F401
 
     try:
         try:

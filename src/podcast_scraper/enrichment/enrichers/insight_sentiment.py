@@ -28,7 +28,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from podcast_scraper.enrichment.enrichers._loaders import load_gi, nodes_of_type
+from podcast_scraper.enrichment.enrichers._loaders import (
+    is_surfaceable_insight,
+    load_gi,
+    nodes_of_type,
+)
 from podcast_scraper.enrichment.protocol import (
     EnricherManifest,
     EnricherResult,
@@ -80,6 +84,11 @@ def _compute(
     insights: list[dict[str, Any]] = []
     counts = {"negative": 0, "neutral": 0, "positive": 0}
     for node in nodes_of_type(gi, "Insight"):
+        # This is the colour layer for the PER-PERSON position arc, and an unsurfaceable
+        # insight has no person — an advert, or a voice nobody names. Tinting a person's arc
+        # with it would attribute a mood to somebody who never said it.
+        if not is_surfaceable_insight(node):
+            continue
         iid = str(node.get("id") or "")
         text = str((node.get("properties") or {}).get("text") or "").strip()
         if not iid or not text:

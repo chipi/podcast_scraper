@@ -43,7 +43,7 @@ amendment, and ``docs/guides/EXPERIMENT_GUIDE.md`` § Step 6 for the flow.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, Final, Optional
+from typing import Any, Dict, Final, Optional, Tuple
 
 
 @dataclass(frozen=True)
@@ -783,6 +783,12 @@ class StageOption:
     # Recommendation tier
     tier: str = "primary"  # "primary" | "fallback" | "experimental" | "deprecated"
 
+    # Why a superseded option was abandoned. Superseded research is kept as HISTORY rather than
+    # deleted — knowing that n=12 was never derived from anything (and that the providers clamped to
+    # 10 regardless, so no run could ever honour it) is worth more than the 12 ever was.
+    deprecated_at: Optional[str] = None  # YYYY-MM-DD
+    deprecation_reason: Optional[str] = None
+
     # Capacity hints (for GB10 unified-memory sizing per DGX_RUNBOOK)
     resident_memory_gb: Optional[float] = None  # GPU + CPU memory if loaded
     realtime_multiple: Optional[float] = None  # for transcription stages
@@ -1240,10 +1246,19 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
 # Bundling (`bundled_ab`) is the cross-provider champion per #921
 # (EVAL_GIL_BUNDLING_2026_05). Grounding is treated as universal-on.
 _GI_OPTIONS: Dict[str, StageOption] = {
+    # SUPERSEDED by provider_chunked_gated_v3. Kept as history, not deleted: n=12 was never derived
+    # from anything (the providers clamped to 10 anyway, so no run could honour it), and recording
+    # WHY a value was abandoned is worth more than the value was.
     "provider_n12_grounded_bundled": StageOption(
         stage="gi",
         option_id="provider_n12_grounded_bundled",
         provider="provider",
+        tier="deprecated",
+        deprecated_at="2026-07-14",
+        deprecation_reason=(
+            "n=12 was a historic default, never measured; providers clamped to 10 regardless. "
+            "Superseded by provider_chunked_gated_v3, whose every value cites an eval."
+        ),
         extra_settings={
             "max_insights": 12,
             "require_grounding": True,
@@ -1257,7 +1272,64 @@ _GI_OPTIONS: Dict[str, StageOption] = {
             "bundled per EVAL_GIL_BUNDLING_2026_05"
         ),
         measured_at="2026-06-13",
-        tier="primary",
+    ),
+    # The v3 tuning. Every value below was measured, not chosen — the registry now carries the
+    # PARAMS an eval established, not just the model, so a profile cannot quietly run a different
+    # configuration than the one we validated.
+    #
+    # n=12 was never derived from anything; it was a historic default that the providers clamped to
+    # 10 anyway, so no run could ever honour it. Lifting the ceiling and letting the gates trim is
+    # what the evals actually support: the value gate drops filler, and grounding drops anything
+    # unsupported, so the ceiling is not what protects quality.
+    "provider_chunked_gated_v3": StageOption(
+        stage="gi",
+        option_id="provider_chunked_gated_v3",
+        provider="provider",
+        extra_settings={
+            "max_insights": 50,
+            "require_grounding": True,
+            "evidence_quote_mode": "bundled",
+            "evidence_nli_mode": "bundled",
+            # Local models saturate per CALL, not per episode: qwen emits ~18 insights however long
+            # the episode is, while gemini scales with the material. Context was never the limit —
+            # so give it more calls, not a bigger window.
+            "insight_chunk_chars": 30000,
+            "insight_dedupe_threshold": 0.75,
+            # Filler rises with chunking, which is what the gate is for. Trimming filler is cheap;
+            # nothing recovers knowledge that was never extracted.
+            "value_gate_enabled": True,
+            "value_gate_min_tier": 2,
+            # Reproducibility. The providers hardcoded 0.3 and ignored config: the SAME config run
+            # twice gave 28.0 vs 18.3 insights/episode and grounding on either side of the 80%
+            # floor. A corpus that cannot be reproduced cannot be debugged. Worse, at 0.3 a model
+            # disagrees with ITSELF between runs, and a head-to-head reports that disagreement as
+            # "the other model found knowledge this one missed".
+            "insight_temperature": 0.0,
+            # The prompt decides what an insight IS. v3 rewrote extraction as speech acts and LOST
+            # its A/B (route kappa 0.57 vs v2's 0.67), so v2 is the MEASURED choice — recorded here
+            # rather than left to a code default, which is how a regression nearly shipped as an
+            # upgrade.
+            "insight_prompt_version": "v2",
+            # The evidence floors: what counts as SUPPORT. Asking for strict textual entailment is
+            # not the question this pipeline means, and asking it strictly cost 60% of the evidence
+            # a trusted annotator accepted (#1179).
+            "qa_score_min": 0.3,
+            "nli_entailment_min": 0.5,
+            # An LLM grounds with an LLM. This switch is what makes the evidence providers follow
+            # the summariser; without it they fall back to the local transformers stack, so a
+            # profile that asks for LLM grounding quietly grounds with DeBERTa instead and the
+            # model gets the blame. It is a researched guarantee, not an implementation detail.
+            "evidence_match_summary_provider": True,
+        },
+        research_ref="docs/guides/eval-reports/EVAL_GEMINI_VS_QWEN_10EP_2026_07.md",
+        headline_metric=(
+            "chunked extraction lifts grounded insights/episode 17.1 -> 43.2 (gemini) and "
+            "16.1 -> 27.7 (qwen) on 10 pinned episodes; temperature 0 cuts re-run drift from "
+            "9.7 insights / 14.7pp grounding to 0.7 / 0.9pp. OPEN: chunked qwen grounds at 75.1%, "
+            "below the 80% floor — see the report before shipping this on a local-only profile."
+        ),
+        measured_at="2026-07-13",
+        tier="experimental",
     ),
 }
 
@@ -1272,6 +1344,59 @@ _GI_OPTIONS: Dict[str, StageOption] = {
 # sweeps, so a "winner" doesn't meaningfully apply. The canonicalization
 # thresholds 0.65 / 0.70 baked into ``entity_clusters.py`` ARE measured
 # (see #853 report).
+_GROUNDING_RESEARCH_REF = "docs/guides/eval-reports/EVAL_GROUNDING_WHO_FINDS_THE_QUOTE_2026_07.md"
+
+# GROUNDING — who finds the quote that backs an insight.
+#
+# This stage had no registry entry at all until now: the QA and NLI models were loose config fields,
+# so a profile could not pin its grounder the way it pins every other stage. That is precisely how
+# the choice drifted invisibly — every LLM profile silently fell back to the ML stack and grounded
+# 0% of its insights, and nothing in the registry could contradict it.
+#
+# Writing the insight and finding its evidence are different jobs. The measurement holds the insight
+# set FIXED and varies only the grounder, so a model that writes fewer insights cannot look like a
+# better grounder.
+_GROUNDING_OPTIONS: Dict[str, StageOption] = {
+    "llm_matched_to_summary": StageOption(
+        stage="grounding",
+        option_id="llm_matched_to_summary",
+        # Not a model id: the grounder IS the summarising LLM. Config resolves it in
+        # _auto_promote_evidence_providers, so an LLM grounds the insights it wrote.
+        provider="match_summary",
+        extra_settings={"nli_entailment_min": 0.75},
+        research_ref=_GROUNDING_RESEARCH_REF,
+        headline_metric=(
+            "82% of insights grounded (vs 8% for the ML QA+NLI stack) on a frozen 100-insight set; "
+            "100% of returned quotes verbatim, 0% drift, 0% fabricated — an LLM asked for a quote "
+            "copies it exactly, so the silent-drop risk is absent in practice"
+        ),
+        measured_at="2026-07-13",
+        tier="primary",
+    ),
+    "ml_qa_nli": StageOption(
+        stage="grounding",
+        option_id="ml_qa_nli",
+        provider="transformers",
+        extra_settings={
+            "qa_model": "deepset/roberta-base-squad2",
+            "nli_model": "cross-encoder/nli-deberta-v3-base",
+            "qa_window_chars": 1800,
+        },
+        research_ref=_GROUNDING_RESEARCH_REF,
+        headline_metric=(
+            "8% of insights grounded on the same frozen set. Two structural faults, neither "
+            "fixable by a threshold: QA answers WITHIN a window and nothing asks which of ~40 "
+            "windows is about the claim (no retrieval step); and the NLI head demands strict "
+            "entailment while insights are abstractive (transcript hedges, insight asserts -> "
+            "0.007). Needs embedding retrieval + a graded verifier. For the local/offline "
+            "profiles, which have no LLM."
+        ),
+        measured_at="2026-07-13",
+        tier="fallback",
+    ),
+}
+
+
 _KG_OPTIONS: Dict[str, StageOption] = {
     "provider_n10_15": StageOption(
         stage="kg",
@@ -1308,6 +1433,19 @@ _NER_OPTIONS: Dict[str, StageOption] = {
             "Gemini handles NER + speaker detection inline with summary calls"
         ),
         measured_at="2026-06-08",
+        tier="primary",
+    ),
+    "ollama_speaker_detector": StageOption(
+        stage="ner",
+        option_id="ollama_speaker_detector",
+        provider="ollama",
+        model="en_core_web_trf",  # the local entity stage still runs spaCy alongside
+        research_ref="docs/guides/eval-reports/EVAL_SPEAKER_DETECTION_NAMING_2026_06_15.md",
+        headline_metric=(
+            "speaker/host detection served by the same DGX-resident LLM, so an all-DGX profile "
+            "needs no cloud call for it (#1169)"
+        ),
+        measured_at="2026-06-15",
         tier="primary",
     ),
     "spacy_trf": StageOption(
@@ -1463,7 +1601,115 @@ class ProfilePreset:
     clustering: str  # StageOption.option_id key into _CLUSTERING_OPTIONS
     gi: str  # StageOption.option_id key into _GI_OPTIONS
     diarization: str  # StageOption.option_id key into _DIARIZATION_OPTIONS
+    # Who finds the quote that backs an insight. Writing the insight and grounding it are different
+    # jobs, and until this stage existed the choice was made by a config fallback nobody could see.
+    grounding: str = "llm_matched_to_summary"  # key into _GROUNDING_OPTIONS
     notes: Optional[str] = None
+
+
+# The value gate's judge, in preference order. NOT a fixed choice — a POLICY, because the right
+# judge depends on who is being judged.
+#
+# #939: a model asked to grade its own output is lenient. Measured across 7 providers, self-grading
+# drops ~10% of insights where an independent judge drops ~25% of the SAME output — half as strict.
+# So a pinned literal judge is a trap: pin `anthropic` and the Anthropic candidate grades itself and
+# collects a free pass, while every other arm is held to the stricter bar. The bake-off would report
+# our judge assignment as model quality.
+#
+# The resolver therefore DERIVES the judge: first entry whose vendor differs from the summariser.
+_VALUE_GATE_JUDGES: Tuple[Tuple[str, str], ...] = (
+    ("anthropic", "claude-haiku-4-5-20251001"),
+    ("gemini", "gemini-2.5-flash-lite"),
+    ("openai", "gpt-5.4-mini"),
+)
+
+# THE GATE IS AN LLM ASKING A QUESTION. That single fact decides all of this.
+#
+# On the pure-ML path — sentence-transformers, summllama, the local extractive stack — there is no
+# LLM to ask. The gate is not "disabled by preference" there; it is INAPPLICABLE, and there is no
+# such thing as a judge on that path. Enabling it would either crash or, far worse, reach for a
+# hosted judge: an `airgapped` profile making a network call is the one thing airgapped means it
+# cannot do, and a `dev` profile doing it would put real paid LLM calls into CI.
+_LLM_PROVIDERS: frozenset = frozenset(
+    {"anthropic", "deepseek", "gemini", "grok", "mistral", "ollama", "openai"}
+)
+
+# LLMs that run locally. They CAN judge, but no INDEPENDENT judge is reachable from them — the only
+# model on the box is the one being graded. So the gate self-grades, which is lenient (#939) and
+# recorded here explicitly rather than being quietly true: an offline run still trims filler, but
+# its gate counts are not comparable with a cloud arm's.
+_LOCAL_ONLY_LLM: frozenset = frozenset({"ollama"})
+
+
+def resolve_value_gate(summary_provider: str) -> Tuple[bool, Optional[Tuple[str, str]]]:
+    """``(gate_enabled, judge)`` for a summariser. The registry's voice on who grades what.
+
+    Three tiers, because there are three genuinely different situations:
+
+    * **not an LLM** (transformers / summllama) -> NO GATE. Nothing to judge with.
+    * **local LLM** (ollama) -> gate on, no independent judge; it self-grades.
+    * **hosted LLM** -> gate on, judged by the first policy vendor that is NOT the defendant.
+    """
+    if summary_provider not in _LLM_PROVIDERS:
+        return False, None
+    if summary_provider in _LOCAL_ONLY_LLM:
+        return True, None
+    for provider, model in _VALUE_GATE_JUDGES:
+        if provider != summary_provider:
+            return True, (provider, model)
+    raise RuntimeError(
+        f"No vendor-disjoint judge available for summariser '{summary_provider}'. Every judge in "
+        f"_VALUE_GATE_JUDGES shares its vendor, so the gate would self-grade (#939)."
+    )
+
+
+# The fields the REGISTRY owns. A profile YAML does not get a vote on these — it is a downstream
+# VIEW, regenerated from here by `make profiles-materialize`, and the drift test fails if it says
+# anything different.
+#
+# Declared ONCE, and read by both the materialiser and the drift test, because the alternative is a
+# fourth hand-maintained allowlist and the first three are what put us here: a key nobody copies
+# does not error, it silently takes a default, and the default is usually "off". Concretely, this
+# repo shipped `gi_max_insights` = 12 in the registry, 50 in the profile and 20 in the Config
+# default — three doors, three answers — while the researched configuration
+# (`provider_chunked_gated_v3`, with the temperature pin an eval had already established) sat in the
+# registry as an ORPHAN that no preset pointed at.
+#
+# To promote a newly-measured value: change it HERE (in the StageOption, with a research_ref), run
+# `make profiles-materialize`, and every profile inherits it. That is the whole loop.
+REGISTRY_GOVERNED_FIELDS: Tuple[str, ...] = (
+    # Routing — which model runs each stage.
+    "transcription_provider",
+    "summary_provider",
+    "summary_model",
+    "kg_extraction_source",
+    "kg_max_topics",
+    "kg_max_entities",
+    "speaker_detector_provider",
+    "ner_model",
+    "topic_cluster_threshold",
+    "insight_cluster_threshold",
+    "diarization_model",
+    "dgx_diarize_model",
+    "deepgram_diarization_model",
+    # GI tuning — what an insight IS, and what evidence it must carry. Every one of these was
+    # measured; leaving any of them to a code default is how the eval and the pipeline came to run
+    # two different configurations.
+    "gi_insight_source",
+    "gi_max_insights",
+    "gi_require_grounding",
+    "gil_evidence_quote_mode",
+    "gil_evidence_nli_mode",
+    "gi_insight_chunk_chars",
+    "gi_insight_dedupe_threshold",
+    "gi_insight_temperature",
+    "gi_insight_prompt_version",
+    "gi_value_gate_enabled",
+    "gi_value_gate_min_tier",
+    "gi_qa_score_min",
+    "gi_nli_entailment_min",
+    "gil_evidence_match_summary_provider",
+)
 
 
 # Profile presets — canonical compositions. Profile YAMLs are downstream views.
@@ -1475,7 +1721,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         kg="provider_n10_15",
         ner="gemini_speaker_detector",
         clustering="topic_clusters_default_0_75",
-        gi="provider_n12_grounded_bundled",
+        gi="provider_chunked_gated_v3",
         diarization="deepgram_diarization_nova3",
         notes="Production cloud default. Best compound (quality × cost × latency).",
     ),
@@ -1486,7 +1732,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         kg="provider_n10_15",
         ner="gemini_speaker_detector",
         clustering="topic_clusters_default_0_75",
-        gi="provider_n12_grounded_bundled",
+        gi="provider_chunked_gated_v3",
         diarization="deepgram_diarization_nova3",
         notes="Minimal cloud feature set. Same providers as cloud_balanced.",
     ),
@@ -1497,7 +1743,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         kg="provider_n10_15",
         ner="gemini_speaker_detector",
         clustering="topic_clusters_default_0_75",
-        gi="provider_n12_grounded_bundled",
+        gi="provider_chunked_gated_v3",
         diarization="tailnet_dgx_diarization_community1",
         notes=(
             "Production hybrid: DGX whisper-openai for transcription, cloud Gemini for summary. "
@@ -1512,7 +1758,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         kg="provider_n10_15",
         ner="spacy_trf",  # +13pp v2 recall vs sm per #906 Tier 3
         clustering="topic_clusters_default_0_75",
-        gi="provider_n12_grounded_bundled",
+        gi="provider_chunked_gated_v3",
         diarization="tailnet_dgx_diarization_community1",
         notes="Local pipeline with DGX summary; laptop runs MPS transcription.",
     ),
@@ -1523,9 +1769,34 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         kg="provider_n10_15",
         ner="spacy_trf",
         clustering="topic_clusters_default_0_75",
-        gi="provider_n12_grounded_bundled",
+        gi="provider_chunked_gated_v3",
         diarization="tailnet_dgx_diarization_community1",
         notes="Higher resident memory budget; same registry choices as balanced today.",
+    ),
+    # The profile the v3 work is actually measured on. Everything the DGX evals ran — the grounding
+    # bake-off, the gemini-vs-qwen comparison, the chunking and value-gate tuning — ran THIS shape,
+    # and until now it had no registry entry at all: it was a YAML-only profile, so the registry
+    # could not govern the one profile that mattered. Meanwhile the registered prod_dgx_* presets
+    # point at the vLLM `autoresearch` slot, a stack GI has never been evaluated on.
+    #
+    # Named `experiment_` deliberately: the DGX profile set is being consolidated once the qwen work
+    # lands, and calling this `prod` before that decision is made would be claiming a conclusion we
+    # have not reached.
+    "experiment_dgx_only": ProfilePreset(
+        name="experiment_dgx_only",
+        transcription="tailnet_dgx_whisper_openai",
+        summary="ollama_qwen35_35b",
+        kg="provider_n10_15",
+        ner="ollama_speaker_detector",
+        clustering="topic_clusters_default_0_75",
+        gi="provider_chunked_gated_v3",  # the tuned params, carried BY the registry
+        diarization="tailnet_dgx_diarization_community1",
+        grounding="llm_matched_to_summary",  # qwen grounds its own insights: 82% cov, 0% fabricated
+        notes=(
+            "All-DGX, no cloud call at any stage: faster-whisper (:8000), pyannote community-1 "
+            "(:8001), qwen3.5:35b on Ollama (:11434). The GI stage carries the v3 tuning "
+            "(uncapped ceiling + chunking + value gate + temperature 0)."
+        ),
     ),
     "prod_dgx_full_with_fallback": ProfilePreset(
         name="prod_dgx_full_with_fallback",
@@ -1535,7 +1806,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         kg="provider_n10_15",
         ner="gemini_speaker_detector",  # sub-cent, better than spacy on names
         clustering="topic_clusters_default_0_75",
-        gi="provider_n12_grounded_bundled",
+        gi="provider_chunked_gated_v3",
         diarization="tailnet_dgx_diarization_community1",
         notes=(
             "Prod-ready all-DGX (#923): whisper + summary + GI + KG on the GB10, "
@@ -1572,7 +1843,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         kg="provider_n10_15",
         ner="gemini_speaker_detector",
         clustering="topic_clusters_default_0_75",
-        gi="provider_n12_grounded_bundled",
+        gi="provider_chunked_gated_v3",
         diarization="tailnet_dgx_diarization_community1",
         notes=(
             "Prod variant of prod_dgx_full_with_fallback that swaps the summary "
@@ -1605,7 +1876,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         kg="provider_n10_15",
         ner="gemini_speaker_detector",
         clustering="topic_clusters_default_0_75",
-        gi="provider_n12_grounded_bundled",
+        gi="provider_chunked_gated_v3",
         diarization="tailnet_dgx_diarization_community1",
         notes=(
             "Internal autoresearch eval-loop default. Uses Moonlight-16B-A3B "
@@ -1632,7 +1903,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         kg="provider_n10_15",
         ner="gemini_speaker_detector",  # 2026-06-17 drift fix: YAML chose Gemini per v3 research
         clustering="topic_clusters_default_0_75",
-        gi="provider_n12_grounded_bundled",
+        gi="provider_chunked_gated_v3",
         diarization="deepgram_diarization_nova3",
         notes=(
             "Cloud quality-first profile: Deepgram for transcription (best WER + best "
@@ -1648,7 +1919,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         kg="provider_n10_15",
         ner="spacy_trf",
         clustering="topic_clusters_default_0_75",
-        gi="provider_n12_grounded_bundled",
+        gi="provider_chunked_gated_v3",
         diarization="pyannote_diarization_community1",
         notes=(
             "Laptop-only profile: small.en whisper (quality upgrade over base.en) + "
@@ -1667,8 +1938,9 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         kg="provider_n10_15",
         ner="spacy_trf",
         clustering="topic_clusters_default_0_75",
-        gi="provider_n12_grounded_bundled",
+        gi="provider_chunked_gated_v3",
         diarization="pyannote_diarization_community1",
+        grounding="ml_qa_nli",  # no LLM in this profile
         notes=(
             "Airgapped quality default: medium.en Whisper + SummLlama 3.2-3B "
             "paragraph + spaCy trf. No network, no Ollama. SummLlama is "
@@ -1685,8 +1957,9 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         kg="provider_n10_15",
         ner="spacy_sm",
         clustering="topic_clusters_default_0_75",
-        gi="provider_n12_grounded_bundled",
+        gi="provider_chunked_gated_v3",
         diarization="pyannote_diarization_community1",
+        grounding="ml_qa_nli",  # no LLM in this profile
         notes=(
             "Airgapped thin: tiny.en Whisper + bart-small+long-fast "
             "(ml_small_authority mode) + spaCy sm. Lowest RAM / startup "
@@ -1705,8 +1978,9 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         kg="provider_n10_15",
         ner="spacy_sm",
         clustering="topic_clusters_default_0_75",
-        gi="provider_n12_grounded_bundled",
+        gi="provider_chunked_gated_v3",
         diarization="pyannote_diarization_community1",
+        grounding="ml_qa_nli",  # no LLM in this profile
         notes=(
             "Dev / CI: same shape as airgapped_thin (tiny.en + "
             "bart-small+long-fast + spaCy sm) but the YAML disables GI / "
@@ -1725,7 +1999,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         kg="provider_n10_15",
         ner="gemini_speaker_detector",
         clustering="topic_clusters_default_0_75",
-        gi="provider_n12_grounded_bundled",
+        gi="provider_chunked_gated_v3",
         diarization="pyannote_diarization_community1",
         notes=(
             "Stage-A dress rehearsal for cloud_with_dgx_primary: mirrors "
@@ -1807,6 +2081,18 @@ def get_clustering_option(option_id: str) -> StageOption:
     if option_id not in _CLUSTERING_OPTIONS:
         raise ValueError(f"Unknown clustering option '{option_id}'")
     return _CLUSTERING_OPTIONS[option_id]
+
+
+def get_grounding_options() -> Dict[str, StageOption]:
+    """All registered grounding options (id → StageOption)."""
+    return dict(_GROUNDING_OPTIONS)
+
+
+def get_grounding_option(option_id: str) -> StageOption:
+    """Look up a single grounding option by id."""
+    if option_id not in _GROUNDING_OPTIONS:
+        raise ValueError(f"Unknown grounding option '{option_id}'")
+    return _GROUNDING_OPTIONS[option_id]
 
 
 def get_diarization_options() -> Dict[str, StageOption]:
@@ -1911,17 +2197,89 @@ def resolve_profile_to_settings(
     if sm.extra_settings:
         settings["summary_extra"] = dict(sm.extra_settings)
 
-    # GI: insight source + caps + grounding + evidence-stack bundling.
+    # GI: insight source + caps + grounding + evidence-stack bundling + the tuned params.
+    #
+    # The registry carries the PARAMS an eval established, not just the model. Anything measured in
+    # data/eval and then left out of this mapping is a setting production silently does not run —
+    # which is exactly how the pipeline came to be evaluated in one configuration and shipped in
+    # another. Add the key here when you add it to a StageOption.
     settings["gi_insight_source"] = gi.provider
-    if gi.extra_settings:
-        if "max_insights" in gi.extra_settings:
-            settings["gi_max_insights"] = gi.extra_settings["max_insights"]
-        if "require_grounding" in gi.extra_settings:
-            settings["gi_require_grounding"] = gi.extra_settings["require_grounding"]
-        if "evidence_quote_mode" in gi.extra_settings:
-            settings["gil_evidence_quote_mode"] = gi.extra_settings["evidence_quote_mode"]
-        if "evidence_nli_mode" in gi.extra_settings:
-            settings["gil_evidence_nli_mode"] = gi.extra_settings["evidence_nli_mode"]
+
+    # The judge is DERIVED, never copied: it must not share a vendor with the model it grades
+    # (#939). A literal in the YAML cannot satisfy that, because the correct judge changes with the
+    # summariser — which is exactly the bug waiting in the bake-off, where the Anthropic arm would
+    # have been graded by the pinned Anthropic judge and scored against rivals held to a stricter
+    # bar.
+    _gate_on, _judge = resolve_value_gate(sm.provider)
+    if _judge is not None:
+        settings["gi_value_gate_provider"], settings["gi_value_gate_model"] = _judge
+
+    _GI_SETTING_TO_CONFIG_KEY = {
+        "max_insights": "gi_max_insights",
+        "require_grounding": "gi_require_grounding",
+        "evidence_quote_mode": "gil_evidence_quote_mode",
+        "evidence_nli_mode": "gil_evidence_nli_mode",
+        "insight_chunk_chars": "gi_insight_chunk_chars",
+        "insight_dedupe_threshold": "gi_insight_dedupe_threshold",
+        "value_gate_enabled": "gi_value_gate_enabled",
+        "value_gate_min_tier": "gi_value_gate_min_tier",
+        "value_gate_provider": "gi_value_gate_provider",
+        "value_gate_model": "gi_value_gate_model",
+        # A DEDICATED field, not `{provider}_temperature`. That field also drives summarisation and
+        # speaker detection, so routing the insight pin through it silently re-tuned two unrelated
+        # stages — and a "model difference" in a bake-off would have included a summariser we
+        # quietly changed underneath it.
+        "insight_temperature": "gi_insight_temperature",
+        # The prompt decides what an insight IS, so it is a tuned parameter like any other and
+        # belongs to the researched configuration, not to a code default. (v3 LOST its A/B — route
+        # kappa 0.57 vs v2's 0.67 — so v2 is the measured choice, and the registry must say so
+        # rather than leaving it to whoever last edited a YAML.)
+        "insight_prompt_version": "gi_insight_prompt_version",
+        # The evidence floors. These decide what counts as SUPPORT, which is the difference between
+        # a grounded corpus and a plausible one.
+        "qa_score_min": "gi_qa_score_min",
+        "nli_entailment_min": "gi_nli_entailment_min",
+        "evidence_match_summary_provider": "gil_evidence_match_summary_provider",
+    }
+    for key, value in (gi.extra_settings or {}).items():
+        config_key = _GI_SETTING_TO_CONFIG_KEY.get(key)
+        if config_key is None:
+            # NOT ValueError: Config._resolve_profile catches ValueError to mean "not a registry
+            # preset" and silently drops to YAML-only. A typo here would therefore disable the
+            # whole registry for this profile without a word — the exact silent-fallback class of
+            # bug this stage exists to prevent.
+            raise RuntimeError(
+                f"GI option '{gi.option_id}' sets '{key}', which this resolver does not map to a "
+                "Config field. A param the registry records but never plumbs is a setting "
+                "production silently does not run — add it to _GI_SETTING_TO_CONFIG_KEY."
+            )
+        settings[config_key] = value
+
+    # The GI option enables the gate for the researched (LLM) configuration. It CANNOT apply where
+    # there is no LLM to run it: on the pure-ML path the "judge" would have to be a hosted model,
+    # and handing one to `airgapped` means a network call — the single thing airgapped exists to
+    # forbid — while handing one to `dev` puts paid LLM calls into CI.
+    #
+    # So capability overrides the blanket default. This is not the registry being ignored; it IS the
+    # registry, speaking through the resolver, about a profile that cannot honour the setting.
+    if not _gate_on:
+        settings["gi_value_gate_enabled"] = False
+
+    # Grounding: who finds the quote. `match_summary` means the summarising LLM grounds its own
+    # insights (Config._auto_promote_evidence_providers resolves it); anything else is explicit.
+    grounding = get_grounding_option(preset.grounding)
+    if grounding.provider != "match_summary":
+        settings["quote_extraction_provider"] = grounding.provider
+        settings["entailment_provider"] = grounding.provider
+    for key, value in (grounding.extra_settings or {}).items():
+        if key == "nli_entailment_min":
+            settings["gi_nli_entailment_min"] = value
+        elif key == "qa_model":
+            settings["gi_qa_model"] = value
+        elif key == "nli_model":
+            settings["gi_nli_model"] = value
+        elif key == "qa_window_chars":
+            settings["gi_qa_window_chars"] = value
 
     # KG: extraction source + caps.
     settings["kg_extraction_source"] = kg.provider

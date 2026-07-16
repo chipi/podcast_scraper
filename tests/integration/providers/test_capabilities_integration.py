@@ -43,7 +43,7 @@ class TestCapabilitiesIntegration(unittest.TestCase):
         cfg_openai = config.Config(
             rss_url="https://example.com",
             transcription_provider="openai",
-            openai_api_key="test-key",
+            openai_api_key="test-api-key-123",
         )
 
         from podcast_scraper.transcription.factory import create_transcription_provider
@@ -60,7 +60,7 @@ class TestCapabilitiesIntegration(unittest.TestCase):
         cfg_openai = config.Config(
             rss_url="https://example.com",
             summary_provider="openai",
-            openai_api_key="test-key",
+            openai_api_key="test-api-key-123",
         )
         cfg_ml = config.Config(
             rss_url="https://example.com",
@@ -85,7 +85,7 @@ class TestCapabilitiesIntegration(unittest.TestCase):
         cfg_anthropic = config.Config(
             rss_url="https://example.com",
             speaker_detector_provider="anthropic",
-            anthropic_api_key="test-key",
+            anthropic_api_key="test-api-key-123",
         )
 
         from podcast_scraper.speaker_detectors.factory import create_speaker_detector
@@ -111,12 +111,12 @@ class TestCapabilitiesIntegration(unittest.TestCase):
         cfg_gemini = config.Config(
             rss_url="https://example.com",
             summary_provider="gemini",
-            gemini_api_key="test-key",
+            gemini_api_key="test-api-key-123",
         )
         cfg_openai = config.Config(
             rss_url="https://example.com",
             summary_provider="openai",
-            openai_api_key="test-key",
+            openai_api_key="test-api-key-123",
         )
 
         from podcast_scraper.summarization.factory import create_summarization_provider

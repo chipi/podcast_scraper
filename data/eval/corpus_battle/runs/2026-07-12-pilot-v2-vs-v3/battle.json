@@ -1,0 +1,370 @@
+{
+  "candidates": {
+    "v2-cloud": "gemini-2.5-flash-lite",
+    "v3-dgx": "qwen3.5:35b"
+  },
+  "judges": [
+    "anthropic:claude-sonnet-4-6",
+    "openai:gpt-5.4"
+  ],
+  "episodes_judged": 9,
+  "per_episode": [
+    {
+      "guid": "13d2f84d-6429-44bb-ae39-0fbd54c537e4",
+      "title": "At the Pentagon, OpenAI is In and Anthropic Is Out",
+      "judges": {
+        "anthropic:claude-sonnet-4-6": {
+          "v2-cloud": {
+            "faithfulness": 5.0,
+            "coverage": 4.0,
+            "coherence": 4.0,
+            "fluency": 5.0
+          },
+          "v3-dgx": {
+            "faithfulness": 1.0,
+            "coverage": 1.0,
+            "coherence": 2.0,
+            "fluency": 3.0
+          }
+        },
+        "openai:gpt-5.4": {
+          "v2-cloud": {
+            "faithfulness": 4.0,
+            "coverage": 4.0,
+            "coherence": 5.0,
+            "fluency": 5.0
+          },
+          "v3-dgx": {
+            "faithfulness": 1.0,
+            "coverage": 1.0,
+            "coherence": 2.0,
+            "fluency": 4.0
+          }
+        }
+      }
+    },
+    {
+      "guid": "82d7600c-cde8-4cb0-8f45-c04fcccbd73a",
+      "title": "The Future of Addictive Design + Going Deep at DeepMind + HatGPT",
+      "judges": {
+        "anthropic:claude-sonnet-4-6": {
+          "v2-cloud": {
+            "faithfulness": 5.0,
+            "coverage": 2.0,
+            "coherence": 4.0,
+            "fluency": 5.0
+          },
+          "v3-dgx": {
+            "faithfulness": 2.0,
+            "coverage": 1.0,
+            "coherence": 2.0,
+            "fluency": 3.0
+          }
+        },
+        "openai:gpt-5.4": {
+          "v2-cloud": {
+            "faithfulness": 5.0,
+            "coverage": 2.0,
+            "coherence": 4.0,
+            "fluency": 5.0
+          },
+          "v3-dgx": {
+            "faithfulness": 4.0,
+            "coverage": 1.0,
+            "coherence": 3.0,
+            "fluency": 4.0
+          }
+        }
+      }
+    },
+    {
+      "guid": "efb4bd27-b1f9-4cbd-b39f-01ae8de65cbf",
+      "title": "The Ezra Klein Show: How Fast Will A.I. Agents Rip Through the Economy?",
+      "judges": {
+        "anthropic:claude-sonnet-4-6": {
+          "v2-cloud": {
+            "faithfulness": 5.0,
+            "coverage": 3.0,
+            "coherence": 4.0,
+            "fluency": 5.0
+          },
+          "v3-dgx": {
+            "faithfulness": 2.0,
+            "coverage": 1.0,
+            "coherence": 2.0,
+            "fluency": 3.0
+          }
+        },
+        "openai:gpt-5.4": {
+          "v2-cloud": {
+            "faithfulness": 5.0,
+            "coverage": 4.0,
+            "coherence": 4.0,
+            "fluency": 5.0
+          },
+          "v3-dgx": {
+            "faithfulness": 3.0,
+            "coverage": 1.0,
+            "coherence": 2.0,
+            "fluency": 4.0
+          }
+        }
+      }
+    },
+    {
+      "guid": "4873f2a4-b3b5-4786-89d2-f919072f7104",
+      "title": "\u2018A.I.-Washing\u2019 Layoffs? + Why L.L.M.s Can\u2019t Write Well + Tokenmaxxing",
+      "judges": {
+        "anthropic:claude-sonnet-4-6": {
+          "v2-cloud": {
+            "faithfulness": 4.0,
+            "coverage": 3.0,
+            "coherence": 4.0,
+            "fluency": 5.0
+          },
+          "v3-dgx": {
+            "faithfulness": 2.0,
+            "coverage": 1.0,
+            "coherence": 2.0,
+            "fluency": 3.0
+          }
+        },
+        "openai:gpt-5.4": {
+          "v2-cloud": {
+            "faithfulness": 4.0,
+            "coverage": 2.0,
+            "coherence": 4.0,
+            "fluency": 4.0
+          },
+          "v3-dgx": {
+            "faithfulness": 4.0,
+            "coverage": 1.0,
+            "coherence": 3.0,
+            "fluency": 4.0
+          }
+        }
+      }
+    },
+    {
+      "guid": "0f36a6e1-f828-41f0-8e1e-9c3319bf21e6",
+      "title": "Anthropic\u2019s Cybersecurity Shock Wave + Ronan Farrow and Andrew Marantz on Their Sam Altman Investigation + One Good Thing",
+      "judges": {
+        "anthropic:claude-sonnet-4-6": {
+          "v2-cloud": {
+            "faithfulness": 3.0,
+            "coverage": 2.0,
+            "coherence": 4.0,
+            "fluency": 5.0
+          },
+          "v3-dgx": {
+            "faithfulness": 2.0,
+            "coverage": 1.0,
+            "coherence": 2.0,
+            "fluency": 3.0
+          }
+        },
+        "openai:gpt-5.4": {
+          "v2-cloud": {
+            "faithfulness": 5.0,
+            "coverage": 2.0,
+            "coherence": 4.0,
+            "fluency": 5.0
+          },
+          "v3-dgx": {
+            "faithfulness": 5.0,
+            "coverage": 1.0,
+            "coherence": 3.0,
+            "fluency": 5.0
+          }
+        }
+      }
+    },
+    {
+      "guid": "f68ce78e-7a05-4d8a-ac75-c3dee0496d4e",
+      "title": "Tim Cook\u2019s Legacy + The Future of U.B.I. With Andrew Yang + HatGPT",
+      "judges": {
+        "anthropic:claude-sonnet-4-6": {
+          "v2-cloud": {
+            "faithfulness": 5.0,
+            "coverage": 2.0,
+            "coherence": 4.0,
+            "fluency": 5.0
+          },
+          "v3-dgx": {
+            "faithfulness": 1.0,
+            "coverage": 1.0,
+            "coherence": 2.0,
+            "fluency": 3.0
+          }
+        },
+        "openai:gpt-5.4": {
+          "v2-cloud": {
+            "faithfulness": 4.0,
+            "coverage": 2.0,
+            "coherence": 4.0,
+            "fluency": 5.0
+          },
+          "v3-dgx": {
+            "faithfulness": 1.0,
+            "coverage": 1.0,
+            "coherence": 2.0,
+            "fluency": 5.0
+          }
+        }
+      }
+    },
+    {
+      "guid": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "title": "A.I. Backlash Turns Violent + Kara Swisher on Healthmaxxing + The Zuck Bot Is Coming",
+      "judges": {
+        "anthropic:claude-sonnet-4-6": {
+          "v2-cloud": {
+            "faithfulness": 4.0,
+            "coverage": 2.0,
+            "coherence": 4.0,
+            "fluency": 5.0
+          },
+          "v3-dgx": {
+            "faithfulness": 2.0,
+            "coverage": 1.0,
+            "coherence": 2.0,
+            "fluency": 3.0
+          }
+        },
+        "openai:gpt-5.4": {
+          "v2-cloud": {
+            "faithfulness": 5.0,
+            "coverage": 2.0,
+            "coherence": 4.0,
+            "fluency": 5.0
+          },
+          "v3-dgx": {
+            "faithfulness": 2.0,
+            "coverage": 1.0,
+            "coherence": 3.0,
+            "fluency": 4.0
+          }
+        }
+      }
+    },
+    {
+      "guid": "1b1fa0cb-44ba-479e-870b-441ffdc987e0",
+      "title": "OpenAI\u2019s Big Reset + A.I. in the Doctor\u2019s Office + Talkie, a pre-1930s LLM",
+      "judges": {
+        "anthropic:claude-sonnet-4-6": {
+          "v2-cloud": {
+            "faithfulness": 4.0,
+            "coverage": 2.0,
+            "coherence": 4.0,
+            "fluency": 5.0
+          },
+          "v3-dgx": {
+            "faithfulness": 1.0,
+            "coverage": 1.0,
+            "coherence": 2.0,
+            "fluency": 3.0
+          }
+        },
+        "openai:gpt-5.4": {
+          "v2-cloud": {
+            "faithfulness": 4.0,
+            "coverage": 2.0,
+            "coherence": 4.0,
+            "fluency": 5.0
+          },
+          "v3-dgx": {
+            "faithfulness": 2.0,
+            "coverage": 1.0,
+            "coherence": 3.0,
+            "fluency": 5.0
+          }
+        }
+      }
+    },
+    {
+      "guid": "7be0148e-c8fa-497b-8043-7976870788c7",
+      "title": "A.I. Goes to War + Is \u2018A.I. Brain Fry\u2019 Real? + How Grammarly Stole Casey\u2019s Identity",
+      "judges": {
+        "anthropic:claude-sonnet-4-6": {
+          "v2-cloud": {
+            "faithfulness": 3.0,
+            "coverage": 2.0,
+            "coherence": 3.0,
+            "fluency": 4.0
+          },
+          "v3-dgx": {
+            "faithfulness": 2.0,
+            "coverage": 1.0,
+            "coherence": 2.0,
+            "fluency": 3.0
+          }
+        },
+        "openai:gpt-5.4": {
+          "v2-cloud": {
+            "faithfulness": 4.0,
+            "coverage": 2.0,
+            "coherence": 4.0,
+            "fluency": 5.0
+          },
+          "v3-dgx": {
+            "faithfulness": 1.0,
+            "coverage": 1.0,
+            "coherence": 3.0,
+            "fluency": 4.0
+          }
+        }
+      }
+    }
+  ],
+  "aggregate": [
+    {
+      "judge": "anthropic:claude-sonnet-4-6",
+      "side": "v2-cloud",
+      "dims": {
+        "faithfulness": 4.222222222222222,
+        "coverage": 2.4444444444444446,
+        "coherence": 3.888888888888889,
+        "fluency": 4.888888888888889
+      },
+      "overall": 3.861111111111111,
+      "n": 9
+    },
+    {
+      "judge": "anthropic:claude-sonnet-4-6",
+      "side": "v3-dgx",
+      "dims": {
+        "faithfulness": 1.6666666666666667,
+        "coverage": 1.0,
+        "coherence": 2.0,
+        "fluency": 3.0
+      },
+      "overall": 1.9166666666666667,
+      "n": 9
+    },
+    {
+      "judge": "openai:gpt-5.4",
+      "side": "v2-cloud",
+      "dims": {
+        "faithfulness": 4.444444444444445,
+        "coverage": 2.4444444444444446,
+        "coherence": 4.111111111111111,
+        "fluency": 4.888888888888889
+      },
+      "overall": 3.9722222222222223,
+      "n": 9
+    },
+    {
+      "judge": "openai:gpt-5.4",
+      "side": "v3-dgx",
+      "dims": {
+        "faithfulness": 2.5555555555555554,
+        "coverage": 1.0,
+        "coherence": 2.6666666666666665,
+        "fluency": 4.333333333333333
+      },
+      "overall": 2.638888888888889,
+      "n": 9
+    }
+  ],
+  "caveat": "As-shipped arm: each side's summary was written from its own transcript, so this measures transcript x LLM together, not the LLM alone. To isolate the model, run both LLMs over the SAME transcripts."
+}

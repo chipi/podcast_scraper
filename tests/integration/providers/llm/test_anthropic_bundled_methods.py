@@ -41,7 +41,7 @@ pytestmark = [pytest.mark.integration]
 def _make_provider() -> AnthropicProvider:
     cfg = config.Config(
         summary_provider="anthropic",
-        anthropic_api_key="test-key",
+        anthropic_api_key="test-api-key-123",
         anthropic_summary_model="claude-haiku-4-5",
     )
     provider = AnthropicProvider(cfg)

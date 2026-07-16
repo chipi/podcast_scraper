@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 from .entities import extract_person_entities as _extract_person_entities_direct
 
@@ -169,6 +169,12 @@ def extract_self_introduced_host(
             continue
         if is_known_network(name):
             continue
+        # "I'm Coming Out" is not a self-introduction. The regex takes any capitalised run and the
+        # ASR capitalises freely; The Daily had a voice recorded as introducing itself as
+        # "Coming Out". A single-token match is still allowed here (a mononym host — Oprah, Sting),
+        # so the guard only fires on a multi-token run containing an ordinary English word.
+        if len(name.split()) >= 2 and not looks_like_a_person_name(name):
+            continue
         return name
     return None
 
@@ -229,13 +235,278 @@ def detect_hosts_from_transcript_intro(
     return detected_names
 
 
+# The feed STATES its hosts. Read the statement — do not just run NER over the paragraph.
+#
+#   Hard Fork      "journalists Kevin Roose and Casey Newton explore..."
+#   The Journal    "Hosted by Ryan Knutson and Jessica Mendoza."
+#   No Priors      "co-hosts Elad Gil and Sarah Guo talk to..."
+#   Odd Lots       "Bloomberg's Joe Weisenthal and Tracy Alloway explore..."
+#   Invest Like…   in the TITLE: "Invest Like the Best with Patrick O'Shaughnessy"
+#
+# Bare NER over the description is not good enough, and Latent Space is the proof: its description
+# lists PAST GUESTS (Bret Taylor, Chris Lattner, George Hotz...), and NER offered every one of them
+# as a host. The phrase is the signal, not the entity.
+_NAME = r"[A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+)+"
+_NAMES = rf"{_NAME}(?:\s*(?:,|and|&)\s*{_NAME})*"
+# Presenting verbs — what a show's own description says its hosts DO.
+_PRESENTS = r"(?:explore|explain|discuss|talk|cover|host|present|bring)s?\b"
+_HOST_PHRASES = [
+    re.compile(p, re.IGNORECASE)
+    for p in (
+        rf"\bhosted\s+by\s+(?P<names>{_NAMES})",
+        rf"\bco-?hosts?\s+(?P<names>{_NAMES})",
+        rf"\bjournalists?\s+(?P<names>{_NAMES})",
+        # "Joe Weisenthal and Tracy Alloway explore..." / "Katie Martin, Robert Armstrong and other
+        # markets nerds at the Financial Times explain..." — names, then a presenting verb. The
+        # filler between them is bounded so the verb belongs to THESE names.
+        rf"(?P<names>{_NAMES})[\w\s,'’\-]{{0,60}}?\s+{_PRESENTS}",
+        rf"\bwith\s+(?P<names>{_NAME})\s*$",  # the show title: "... with Patrick O'Shaughnessy"
+    )
+]
+_NAME_RE = re.compile(_NAME)
+
+
+def hosts_from_feed_statement(
+    feed_title: Optional[str], feed_description: Optional[str]
+) -> Set[str]:
+    """Hosts the feed EXPLICITLY names ("Hosted by X and Y"), rather than every person it mentions.
+
+    This is the authoritative source: the show says who presents it. Only used for the names inside
+    the host phrase, so a description that also lists past guests cannot smuggle them in.
+    """
+    title_lower = (feed_title or "").lower()
+    out: Set[str] = set()
+    for is_title, text in ((True, feed_title or ""), (False, feed_description or "")):
+        if not text.strip():
+            continue
+        for pat in _HOST_PHRASES:
+            m = pat.search(text)
+            if not m:
+                continue
+            for raw in _NAME_RE.findall(m.group("names")):
+                clean = _clean_stated_name(raw)
+                if len(clean.split()) < 2 or has_org_markers(clean):
+                    continue
+                # In the DESCRIPTION, a capitalised run that echoes the show's own name is the show,
+                # not a person: "At Planet Money, we explore...". In the TITLE it is the opposite —
+                # that is where the host lives ("Invest Like the Best with Patrick O'Shaughnessy"),
+                # so the same guard there would throw the host away.
+                if not is_title and clean.lower() in title_lower:
+                    continue
+                out.add(clean)
+    return out
+
+
+# A capitalised run is not automatically a name: it can start with a preposition ("At Planet
+# Money"), or be prefixed by the publisher's possessive ("Bloomberg's Joe Weisenthal").
+_LEADING_JUNK = re.compile(r"^(?:At|In|On|By|With|From|The)\s+", re.IGNORECASE)
+# "Bloomberg's Joe Weisenthal", "Red Hat's Chris Wright" — the employer, then the person. Non-greedy
+# so it strips through the FIRST possessive only, leaving "Patrick O'Shaughnessy" (no "'s ") alone.
+_POSSESSIVE_PREFIX = re.compile(r"^.*?['’]s\s+")
+
+
+def _clean_stated_name(name: str) -> str:
+    clean = (name or "").strip()
+    clean = _POSSESSIVE_PREFIX.sub("", clean)
+    clean = _LEADING_JUNK.sub("", clean)
+    return clean.strip()
+
+
+# When the feed states no host, the CONVERSATION does. The role is performed, not measured: the host
+# welcomes you to the show and introduces the guest; the guest thanks them for having him.
+#
+# Measured on the three feeds that state no host — and it is decisive where talk time is worthless:
+#
+#   Latent Space   Alex Lupsasca talks 84.5% and performs NO host act. Brandon talks 8.6% and
+#                  says "welcome to the AI for Science podcast". Brandon is the host.
+#   Planet Money   "hello and welcome to Planet Money. I'm Alexi Horowitz-Gazi" — host + his name.
+#   NVIDIA         the cluster LABELLED "Nicolas Cerisier" says "I'm Noah Kravitz. My guest is
+#                  Nicolas Serissier" — the shipped labels were swapped, and the conversation
+#                  is what says so.
+#
+# The host usually announces himself and names his guest in one breath, which yields both roles and
+# both names from a single utterance.
+_HOST_SPEECH_ACTS = [
+    re.compile(p, re.IGNORECASE)
+    for p in (
+        r"\bwelcome (?:back )?to (?:the |my |our )?\w+",
+        r"\bi'?m your host\b",
+        r"\b(?:my|our) guests? (?:today )?(?:is|are)\b",
+        r"\b(?:joining|with) (?:me|us) (?:today|now|this week)\b",
+        r"\bthanks? (?:so much )?for (?:coming on|joining me|joining us|being here)\b",
+        r"\bthis week on (?:the )?\w+",
+    )
+]
+_GUEST_SPEECH_ACTS = [
+    re.compile(p, re.IGNORECASE)
+    for p in (
+        r"\bthanks? (?:so much )?for having me\b",
+        r"\bthank you for having me\b",
+        r"\b(?:glad|happy|great|good) to be (?:here|on|back)\b",
+    )
+]
+# The host hands the floor to someone, BY NAME. "My guest today is Brian Chesky" is only one of the
+# ways they do it, and knowing only that phrasing left 5.2% of the corpus's talk anonymous —
+# measured by `scripts/audit/attribution_ceiling.py`. Planet Money is full of it: a narrated desk
+# where the host introduces reporter after reporter ("joined by", "here with me is") and every one
+# of them came out as SPEAKER_NN.
+#
+# The host also often names TWO, each behind their employer's possessive: "My guests today are Red
+# Hat's Chris Wright and NVIDIA's Justin Boitano" — which a single greedy capture turned into one
+# person with that entire string as their name.
+_GUEST_INTRODUCED_BY_HOST = re.compile(
+    r"\b(?:"
+    r"(?:my|our)\s+guests?\s+(?:today\s+)?(?:is|are)"
+    r"|joined\s+(?:today\s+)?by"
+    r"|joining\s+(?:me|us)(?:\s+(?:today|now|this\s+week))?\s+(?:is|are)"
+    r"|(?:i'?m|we'?re)\s+(?:here\s+)?(?:joined\s+)?with"
+    r"|(?:i|we)\s+(?:spoke|talked|sat\s+down)\s+with"
+    r"|(?:please\s+)?welcome\s+(?:back\s+)?"
+    r"|here\s+with\s+me\s+(?:is|are)"
+    r")"
+    rf"\s+(?:the\s+|our\s+)?(?P<names>{_NAMES})",
+    re.IGNORECASE,
+)
+
+# ...and the same introduction with the NAME FIRST. Every cue above expects "cue, then name"
+# ("joined by Jia Li"), and hosts phrase it the other way round just as often:
+#
+#     [NVIDIA AI Podcast] "Welcome to the NVIDIA AI podcast. I'm Noah Kravitz.
+#                          Jia Li is with us today."      <- introduced, and we heard nothing
+#
+# The cue still has to be there — the name alone proves nothing, or every person an episode
+# discusses becomes a speaker. It is the cue that makes it an introduction.
+_GUEST_INTRODUCED_NAME_FIRST = re.compile(
+    rf"(?P<names>{_NAMES})\s+"
+    r"(?:"
+    r"(?:is|are)\s+(?:here\s+)?with\s+(?:me|us)"
+    r"|(?:is|are)\s+(?:my|our)\s+guests?"
+    r"|(?:is|are)\s+joining\s+(?:me|us)"
+    r"|joins?\s+(?:me|us)"
+    r")",
+    re.IGNORECASE,
+)
+
+# "I'm Coming Out", "I'm Not Sure" — the self-introduction regex matches any capitalised run, and
+# the ASR capitalises plenty of things that are not people. Found in The Daily, where a voice was
+# recorded as introducing itself as "Coming Out".
+_NOT_A_NAME_TOKEN = frozenset(
+    {
+        "coming",
+        "going",
+        "not",
+        "sorry",
+        "sure",
+        "just",
+        "here",
+        "there",
+        "really",
+        "gonna",
+        "trying",
+        "talking",
+        "telling",
+        "saying",
+        "looking",
+        "thinking",
+        "working",
+        "wondering",
+        "curious",
+        "afraid",
+        "worried",
+        "excited",
+        "glad",
+        "happy",
+        "good",
+        "great",
+        "fine",
+        "okay",
+        "back",
+        "out",
+        "in",
+        "so",
+        "very",
+        "always",
+        "still",
+        "also",
+        "the",
+        "a",
+        "an",
+    }
+)
+
+
+def looks_like_a_person_name(name: str) -> bool:
+    """A capitalised run is not a name if any of its tokens is an ordinary English word.
+
+    "I'm Coming Out" is not a person. Requires First-Last shape and no stop-token.
+    """
+    toks = (name or "").split()
+    if len(toks) < 2:
+        return False
+    return not any(t.lower().strip(".,'’") in _NOT_A_NAME_TOKEN for t in toks)
+
+
+def roles_from_conversation(voice_texts: Optional[Dict[str, str]]) -> Dict[str, str]:
+    """``{voice: "host" | "guest"}`` for the voices that PERFORM one of the two roles.
+
+    Complements the metadata; it does not replace it. Used when the feed states no host, and as a
+    cross-check when it does. Silent about voices that perform neither — those stay unknown, which
+    is the safe direction (#876).
+    """
+    out: Dict[str, str] = {}
+    for voice, text in (voice_texts or {}).items():
+        if not text:
+            continue
+        if any(p.search(text) for p in _HOST_SPEECH_ACTS):
+            out[voice] = "host"
+        elif any(p.search(text) for p in _GUEST_SPEECH_ACTS):
+            out[voice] = "guest"
+    return out
+
+
+def guests_introduced_by_the_host(voice_texts: Optional[Dict[str, str]]) -> Set[str]:
+    """Names the host introduces as guests ("My guest today is Brian Chesky").
+
+    Splits a multi-guest introduction into people. "My guests today are Red Hat's Chris Wright and
+    NVIDIA's Justin Boitano" is two guests, each behind an employer's possessive — and it was being
+    recorded as ONE person with that entire string as their name.
+
+    Reads the introduction in BOTH directions. Every cue we knew put the name after it ("joined by
+    Jia Li"), and hosts say it the other way round just as often — "Jia Li is with us today" — so a
+    whole class of on-air introduction was going in the bin while the episode sat at 75% of its talk
+    attributable to nobody. An on-air introduction is a stated fact from the conversation and cannot
+    invent anybody, which is exactly what makes it worth reading properly.
+    """
+    out: Set[str] = set()
+    for text in (voice_texts or {}).values():
+        matches = list(_GUEST_INTRODUCED_BY_HOST.finditer(text or ""))
+        matches += list(_GUEST_INTRODUCED_NAME_FIRST.finditer(text or ""))
+        for m in matches:
+            for raw in _NAME_RE.findall(m.group("names")):
+                name = _clean_stated_name(raw)
+                if len(name.split()) >= 2 and not has_org_markers(name):
+                    out.add(name)
+    return out
+
+
 def detect_hosts_from_feed(
     feed_title: Optional[str],
     feed_description: Optional[str],
     feed_authors: Optional[List[str]] = None,
     nlp: Optional[Any] = None,
 ) -> Set[str]:
-    """Detect host names from feed-level metadata."""
+    """Detect host names from feed-level metadata.
+
+    Order of authority: the feed's own HOST STATEMENT ("Hosted by ..."), then non-organisation
+    author tags, then NER over the title/description as a last resort. NER is last because it cannot
+    tell a host from anyone else the description happens to mention — on Latent Space it returns a
+    list of past guests, and on Planet Money it returns the word "Wanna".
+    """
+    stated = hosts_from_feed_statement(feed_title, feed_description)
+    if stated:
+        logger.debug("Hosts stated by the feed: %s", sorted(stated))
+        return stated
+
     hosts: Set[str] = set()
 
     if feed_authors:
@@ -266,14 +537,22 @@ def detect_hosts_from_feed(
                 "NER from feed title/description, episode-level authors, or config known_hosts",
             )
 
-    if nlp:
-        if feed_title:
-            title_persons = _extract_person_entities(feed_title, nlp)
-            hosts.update(name for name, _ in title_persons)
-        if feed_description:
-            desc_persons = _extract_person_entities(feed_description, nlp)
-            hosts.update(name for name, _ in desc_persons)
+    # Last resort: NER over the TITLE only, and only for real First-Last names.
+    #
+    # NOT the description. NER cannot tell a host from anyone else a paragraph mentions, and the
+    # description is exactly where the other people are: Latent Space lists its PAST GUESTS (Bret
+    # Taylor, Chris Lattner, George Hotz), and NER offered all of them as hosts of the show. Planet
+    # Money's description opens "Wanna see a trick?" and NER offered "Wanna".
+    #
+    # A title does not list guests. And when the feed neither states its hosts nor carries a
+    # personal author tag, the right answer is NO HOSTS — the roster then leaves those voices
+    # unnamed, the safe direction (#876). Guessing is what put an advertiser's name on a podcast.
+    if nlp and feed_title:
+        for name, _score in _extract_person_entities(feed_title, nlp):
+            clean = (name or "").strip()
+            if len(clean.split()) >= 2 and not has_org_markers(clean):
+                hosts.add(clean)
         if hosts:
-            logger.debug("Detected hosts via NER from feed metadata: %s", list(hosts))
+            logger.debug("Detected hosts via NER from the feed TITLE: %s", sorted(hosts))
 
     return hosts

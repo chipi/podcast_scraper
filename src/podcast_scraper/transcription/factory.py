@@ -276,9 +276,20 @@ def create_transcription_provider(  # noqa: C901
         )
         verify_protocol_compliance(provider, TranscriptionProvider, "TranscriptionProvider")
         return provider
+    elif provider_type == "moss":
+        # MOSS is a joint transcribe+diarize model (#1177): this branch takes the transcript half,
+        # the diarization factory takes the speaker half, and the DGX service caches the inference
+        # so the second stage does not re-run the model.
+        from ..providers.moss.moss_provider import MossTranscriptionProvider
+
+        if experiment_mode:
+            raise ValueError("moss is not supported in experiment mode")
+        provider = cast(TranscriptionProvider, MossTranscriptionProvider(cfg))
+        verify_protocol_compliance(provider, TranscriptionProvider, "TranscriptionProvider")
+        return provider
     else:
         raise ValueError(
             f"Unsupported transcription provider: {provider_type}. "
             "Supported providers: 'whisper', 'openai', 'gemini', 'mistral', 'deepgram', "
-            "'anthropic', 'tailnet_dgx_whisper'"
+            "'anthropic', 'tailnet_dgx_whisper', 'moss'"
         )

@@ -199,6 +199,22 @@ def materialize_dataset(dataset_file: Path, output_base: Path) -> None:  # noqa:
             errors.append(f"Episode {episode_id}: failed to copy transcript: {e}")
             continue
 
+        # Carry the diarized segments through, when the source transcript has them.
+        #
+        # The segments are what tell GI WHO is speaking and WHAT KIND of voice it is
+        # (person / cameo / commercial / unidentified). Without them the eval runs a pipeline that
+        # cannot drop an advertisement or mark an insight unsurfaceable — i.e. not the pipeline we
+        # ship. Their char offsets index the RAW transcript, so they travel with it unmodified.
+        source_segments = transcript_path.parent / f"{transcript_path.stem}.segments.json"
+        materialized_segments: Path | None = None
+        if source_segments.exists():
+            materialized_segments = materialized_dir / f"{episode_id}.segments.json"
+            try:
+                shutil.copy2(source_segments, materialized_segments)
+            except Exception as e:  # noqa: BLE001
+                errors.append(f"Episode {episode_id}: failed to copy segments: {e}")
+                continue
+
         # Try to load speakers, expectations, and metadata_version from source metadata file
         from podcast_scraper.evaluation.metadata_validator import validate_episode_metadata
 
@@ -243,6 +259,9 @@ def materialize_dataset(dataset_file: Path, output_base: Path) -> None:  # noqa:
             "source_transcript_path": str(transcript_path),
             "preprocessing_profile": episode.get("preprocessing_profile", "cleaning_v3"),
         }
+
+        if materialized_segments is not None:
+            episode_meta["segments_path"] = materialized_segments.name
 
         # Add optional fields
         if "title" in episode:

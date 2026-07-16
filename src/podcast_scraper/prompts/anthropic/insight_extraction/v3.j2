@@ -1,0 +1,71 @@
+Identify the important insights in this podcast episode.
+
+HARD LIMIT: return AT MOST {{ max_insights }} insights. Never more.
+
+Return EVERY insight that clears the bar below — no more, and no fewer. The bar decides what
+goes in, not a target count. Do not pad the list with material that fails the bar to reach the
+limit. Do not hold back an insight that clears it. If an episode yields eight, return eight; if
+it yields thirty, return thirty.
+
+THE BAR — include an insight only if a well-informed reader who missed the episode would be
+worse off not knowing it. It must be significant, not merely true:
+
+- a decision, deal, launch, departure, or result that actually happened;
+- a concrete number, measurement, or finding;
+- a causal argument someone makes ("X happened because Y", "X will lead to Y");
+- a substantive position a named person took, or a real disagreement between speakers;
+- a non-obvious claim about how something works.
+
+DO NOT list every fact the episode states. This is not a transcript summary and not an
+exhaustive fact extraction. Most sentences in an episode are not insights — but every sentence
+that IS an insight belongs in the list.
+
+REJECT, however true or fluent:
+
+- generic claims that could apply to almost any episode on the topic
+  ("AI is advancing rapidly", "this raises important questions", "the technology has promise");
+- topic labels, or restatements of the episode title;
+- background, setup, and context the hosts give before making a point;
+- chit-chat, banter, and hedging with no claim inside it;
+- ads and sponsor reads. Skip them entirely: no insight may come from a sponsor read, a host
+  disclosure ("brought to you by...", "I work at..."), a promo code, or a subscription pitch,
+  nor from a passage describing a product as "built for X" or "helps you Y".
+
+A fluent sentence that says nothing is not an insight. Leave it out.
+
+FORM: third-person claims that KEEP THE SPEECH ACT.
+
+When the claim is somebody's VIEW — a judgement, an opinion, a prediction, a characterisation —
+attribute it to them:
+
+    "Rodman argues that autonomous AI prescribing is unsafe."
+    "Musk expects AI to extend life expectancy mainly through better access to basic care."
+    "Roose credits Tim Cook with seeing the health opportunity early."
+
+Do NOT strip the attribution and state the opinion as a bare fact about the world. "I think we're a
+long way from letting these things write scripts" is NOT "Autonomous AI prescribing is unsafe" — it
+is what one doctor thinks. Erasing that makes us assert as fact what was said as opinion, and it is
+the single most misleading thing this stage can do.
+
+When the claim is something that HAPPENED — a deal, a launch, a departure, a ruling, a number —
+state it plainly, with no attribution:
+
+    "OpenAI signed a $50 billion deal with Amazon."
+    "Tim Cook stepped down as Apple CEO."
+
+Keep the third person throughout: no "we", "I", "you", "let's", "okay", and no conversational filler
+("you know", "I mean"). Attribution is not first person — "Musk argues that..." is third person.
+
+ORDER: most important first.
+
+OUTPUT: one insight per line. Each line a standalone statement of one or two sentences. No
+numbering, no bullets, no text before or after the list. At most {{ max_insights }} lines.
+
+{% if title %}
+Episode: {{ title }}
+{% endif %}
+
+Transcript:
+{{ transcript }}
+
+The most important insights (one per line, most important first, at most {{ max_insights }} lines):

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 import textwrap
-from typing import Any, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple, TYPE_CHECKING
 from unittest.mock import Mock
 
 from .. import config_constants
@@ -28,9 +28,12 @@ from ..graph_id_utils import (
     slugify_label,
     topic_node_id_from_slug,
 )
+from ..providers.ml.diarization.roster import friendly_voice_label
 from ..utils.log_redaction import format_exception_for_log
 from .grounding import GroundedQuote
+from .invariants import log_artifact_invariants
 from .provenance import resolve_gil_artifact_model_version
+from .speakers import build_unverified_named_turns, speaker_for_char
 
 if TYPE_CHECKING:
     from podcast_scraper import config
@@ -40,6 +43,20 @@ logger = logging.getLogger(__name__)
 # Max |len(transcript) - sum(segment text)| before skipping segment-based timestamps (FR2.2).
 # Avoids mapping quote char offsets to wrong audio after reformatting or edited transcripts.
 SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA = 50
+
+# Insights per bundled extract_quotes call. The whole-episode call (all insights at once) truncated
+# its JSON past the 8192-token cap and timed out on the oversized request; ~256 output tokens per
+# insight means a chunk of 10 lands near ~2.5k tokens — comfortably inside every provider's limits.
+QUOTE_BUNDLE_CHUNK_SIZE = 10
+
+# Money guardrail: the most live per-pair NLI calls one episode may make when the bundled call
+# fails
+# and grounding falls back to scoring pairs one at a time. A large episode has hundreds of
+# pairs, and
+# an unbounded fallback ran gpt-5.5 to ~3500 calls on ONE episode. Past this, remaining pairs score
+# 0 (ungrounded) and the run logs LOUD — a bounded truncation beats an unbounded bill. Generous
+# enough that a healthy episode whose bundled call merely omitted a few scores never trips it.
+MAX_PER_PAIR_ENTAILMENT_FALLBACK_CALLS = 200
 
 # Stub insight text used when no real insights (single stub)
 _STUB_INSIGHT_TEXT = "Summary insight (stub)."
@@ -246,15 +263,38 @@ def _ground_insights_with_bundled_nli(
         pipeline_metrics.gi_evidence_score_entailment_bundled_calls += chunk_count
 
     # Per-pair fallback for any pair the bundled call didn't score.
+    #
+    # HARD CAP — the money guardrail. When the bundled entailment call returns empty content (a
+    # reasoning model whose thinking exhausts the budget), the WHOLE batch lands here, and a big
+    # episode has hundreds of (insight, quote) pairs. Each is a live LLM call with retries, so
+    # gpt-5.5 this ran away to ~3500 calls on ONE episode over an hour before anyone noticed —
+    # real money, on an expensive model, for a result that came back 0-grounded anyway. Nothing in
+    # the grounding path bounded it. Now it does: past the cap we stop CALLING (score the rest 0,
+    # i.e. ungrounded) and log LOUD. A truncated episode is recoverable; a runaway bill is not.
     score_fn = getattr(entailment_provider, "score_entailment", None)
     final_scores: Dict[int, float] = {}
+    fallback_calls = 0
+    capped = False
     for pair_idx, (_, _, premise, hypothesis) in enumerate(pair_list):
         if pair_idx in bundled_scores:
             final_scores[pair_idx] = bundled_scores[pair_idx]
             continue
-        if not callable(score_fn):
+        if not callable(score_fn) or capped:
             final_scores[pair_idx] = 0.0
             continue
+        if fallback_calls >= MAX_PER_PAIR_ENTAILMENT_FALLBACK_CALLS:
+            capped = True
+            final_scores[pair_idx] = 0.0
+            logger.error(
+                "GI grounding hit the per-episode per-pair entailment cap (%d calls) — the bundled "
+                "NLI call is failing and the staged fallback would keep calling the LLM per pair. "
+                "Scoring the remaining %d pairs as ungrounded and STOPPING to bound spend. Fix the "
+                "bundled path for this provider rather than raising the cap.",
+                MAX_PER_PAIR_ENTAILMENT_FALLBACK_CALLS,
+                len(pair_list) - pair_idx,
+            )
+            continue
+        fallback_calls += 1
         try:
             final_scores[pair_idx] = float(
                 score_fn(
@@ -277,12 +317,17 @@ def _ground_insights_with_bundled_nli(
         if score < nli_entailment_min:
             continue
         c = per_insight_candidates[i_idx][q_idx]
+        # ABSENT IS NOT ZERO. The bundled path has no extractive-QA stage, so a candidate carries
+        # no `qa_score` — defaulting it to 0.0 would publish "this evidence scored zero on QA" for
+        # a stage that never ran, a measurement claim we have not earned. `None` says "not
+        # measured"; the scorer skips it rather than averaging a fiction into the corpus.
+        raw_qa = getattr(c, "qa_score", None)
         grounded_by_insight[i_idx].append(
             GroundedQuote(
                 char_start=int(c.char_start),
                 char_end=int(c.char_end),
                 text=str(c.text),
-                qa_score=float(getattr(c, "qa_score", 0.0)),
+                qa_score=float(raw_qa) if raw_qa is not None else None,
                 nli_score=score,
             )
         )
@@ -353,37 +398,70 @@ def _maybe_prefetch_bundled_candidates(
     extract_bundled_fn = getattr(quote_extraction_provider, "extract_quotes_bundled", None)
     if quote_mode != "bundled" or not callable(extract_bundled_fn):
         return None
-    try:
-        prefetched = extract_bundled_fn(
-            transcript=transcript,
-            insight_texts=insight_texts,
-            pipeline_metrics=pipeline_metrics,
-        )
-    except Exception as exc:
-        logger.warning(
-            "extract_quotes_bundled failed; falling back to staged: %s",
-            format_exception_for_log(exc),
-        )
-        if pipeline_metrics is not None and hasattr(
-            pipeline_metrics, "gi_evidence_extract_quotes_bundled_fallbacks"
-        ):
-            pipeline_metrics.gi_evidence_extract_quotes_bundled_fallbacks += 1
-        return None
-    if pipeline_metrics is not None and hasattr(
-        pipeline_metrics, "gi_evidence_extract_quotes_bundled_calls"
-    ):
-        pipeline_metrics.gi_evidence_extract_quotes_bundled_calls += 1
-    if not isinstance(prefetched, dict):
-        return None
+
+    # CHUNK the bundled quote extraction. Sent whole, one call carried EVERY insight plus the
+    # transcript and asked for quotes for all of them — the response is ~256 tokens/insight, so a
+    # 50-insight episode blew past the 8192-token cap and came back as truncated (unterminated) JSON
+    # on deepseek, or timed out server-side (gemini 504) / client-side (mistral) on the oversized
+    # request. Any of those raised, and the WHOLE episode fell back to one extract_quotes call PER
+    # insight — the 8x request blow-up behind DeepSeek's "5 hours". score_entailment_bundled already
+    # chunks; this brings quote extraction in line. A chunk that still fails drops only ITS insights
+    # to the per-insight path (the caller falls back per missing index), not the whole episode.
+    chunk = max(1, int(getattr(cfg, "gil_evidence_quote_bundle_chunk", QUOTE_BUNDLE_CHUNK_SIZE)))
     out: Dict[int, List[Any]] = {}
-    for k, v in prefetched.items():
+    any_success = False
+
+    # Work queue of (global_start, batch). A batch that raises — a reasoning model whose reasoning
+    # plus a 10-insight JSON payload still overran the token cap and truncated — is BISECTED and
+    # retried, so it shrinks only where a provider needs it instead of dropping the whole chunk to
+    # per-insight. A size-1 batch that still fails is the only thing handed back to the staged path.
+    queue: List[Tuple[int, List[str]]] = [
+        (start, insight_texts[start : start + chunk])
+        for start in range(0, len(insight_texts), chunk)
+    ]
+    while queue:
+        start, batch = queue.pop()
         try:
-            idx = int(k)
-        except (TypeError, ValueError):
+            prefetched = extract_bundled_fn(
+                transcript=transcript,
+                insight_texts=batch,
+                pipeline_metrics=pipeline_metrics,
+            )
+        except Exception as exc:
+            if len(batch) > 1:
+                mid = len(batch) // 2
+                queue.append((start, batch[:mid]))
+                queue.append((start + mid, batch[mid:]))
+                continue
+            logger.warning(
+                "extract_quotes_bundled failed for insight %d even alone; falls back to "
+                "staged: %s",
+                start,
+                format_exception_for_log(exc),
+            )
+            if pipeline_metrics is not None and hasattr(
+                pipeline_metrics, "gi_evidence_extract_quotes_bundled_fallbacks"
+            ):
+                pipeline_metrics.gi_evidence_extract_quotes_bundled_fallbacks += 1
             continue
-        if isinstance(v, list):
-            out[idx] = v
-    return out
+        if pipeline_metrics is not None and hasattr(
+            pipeline_metrics, "gi_evidence_extract_quotes_bundled_calls"
+        ):
+            pipeline_metrics.gi_evidence_extract_quotes_bundled_calls += 1
+        if not isinstance(prefetched, dict):
+            continue
+        any_success = True
+        # Remap the batch-local indices (0..len(batch)) back to global insight indices.
+        for k, v in prefetched.items():
+            try:
+                local_idx = int(k)
+            except (TypeError, ValueError):
+                continue
+            if 0 <= local_idx < len(batch) and isinstance(v, list):
+                out[start + local_idx] = v
+
+    # None only if EVERY batch failed — then the caller runs the fully-staged path as before.
+    return out if any_success else None
 
 
 def _record_stub_fallback(pipeline_metrics: Optional[Any], exc: Exception) -> None:
@@ -711,6 +789,327 @@ def _segment_speaker_label(seg: Dict[str, Any]) -> Optional[str]:
     return s or None
 
 
+# What the voice behind a quote is, and what may be done with it.
+#
+# The diarization roster already types every voice, and GI has been ignoring it — which is why ad
+# copy could be grounded as an insight and an anonymous voice could mint a Person node called
+# "SPEAKER_09". Ad copy is *written* to be quotable ("If you play our games, you probably know
+# there's something a bit different about them"), which makes it the perfect false insight.
+#
+#   commercial     an advertisement. NEVER grounded. There is no insight in an ad read.
+#   unknown        a person we FAILED to name. Not surfaceable — and COUNTED, because a defect that
+#                  costs nothing gets fixed by nobody.
+#   unidentified   a person NOBODY names: the vox-pop in a narrated piece. Not surfaceable — an
+#                  unattributed STANCE is not a stance, it is a floating opinion that nobody holds
+#                  and nobody can disagree with. But it stays eligible for CONNECT: a fact is still
+#                  a fact, and on Planet Money and The Daily the tape IS the story (36-40% of those
+#                  episodes), so discarding it outright would gut them.
+VOICE_TYPE_NEVER_GROUND = frozenset({"commercial"})
+VOICE_TYPE_NOT_SURFACEABLE = frozenset({"commercial", "unknown", "unidentified"})
+
+
+def _voice_type_for_char_range(
+    transcript: str,
+    char_start: int,
+    char_end: int,
+    segments: List[Dict[str, Any]],
+) -> Optional[str]:
+    """The ``voice_type`` of the voice speaking at ``char_start`` — ``None`` when it is a person."""
+    if not segments or char_start >= char_end:
+        return None
+    spans = _segment_char_spans(transcript, segments)
+    if not spans:
+        return None
+    for seg_start, seg_end, seg in spans:
+        if seg_start <= char_start < seg_end:
+            vt = seg.get("voice_type")
+            return str(vt) if vt else None
+    return None
+
+
+def _resolve_quote_speaker(
+    gq: Any,
+    speaker_label: Optional[str],
+    episode_id: str,
+    transcript_text: Optional[str],
+    transcript_segments: Optional[List[Dict[str, Any]]],
+) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    """``(person_id, friendly_name, voice_type)`` for a quote's speaker.
+
+    A PERSON NODE MUST BE A PERSON, and "SPEAKER_09" is not one. We were minting a Person for every
+    unresolved voice and hanging a SPOKEN_BY edge on it — 19% of the Person nodes in the shipped
+    corpus were called SPEAKER_NN, and #1167 then filtered them back out of the trending/consensus
+    surfaces downstream. That is a mop, not a gate, and it only worked because the id happened to be
+    ugly: the moment those voices got a friendly name, it would have broken.
+
+    The roster already knows the voice is not a person. So no Person node, no SPOKEN_BY edge, and
+    the quote carries the friendly label instead ("Unidentified speaker") — the surface can name the
+    speaker without the graph inventing someone.
+    """
+    voice_type = (
+        _voice_type_for_char_range(
+            transcript_text or "", gq.char_start, gq.char_end, transcript_segments
+        )
+        if transcript_segments
+        else None
+    )
+    if voice_type:
+        return None, friendly_voice_label(voice_type), voice_type
+    if speaker_label:
+        # Episode-scope the id for an unnamed voice (SPEAKER_00) so it can't merge across
+        # episodes; a real, resolved name stays a global person id (#1b).
+        return person_node_id(speaker_label, episode_id), None, None
+    return None, None, None
+
+
+def _quote_props(
+    gq: Any,
+    *,
+    episode_id: str,
+    transcript_ref: str,
+    person_id: Optional[str],
+    speaker_name: Optional[str],
+    voice_type: Optional[str],
+    ts_start: int,
+    ts_end: int,
+) -> Dict[str, Any]:
+    """The Quote node's properties. ``speaker_name`` / ``speaker_voice_type`` appear ONLY for a
+    voice that is not a person — so a surface can name the speaker ("Unidentified speaker") without
+    the graph inventing one."""
+    props: Dict[str, Any] = {
+        "text": gq.text,
+        "episode_id": episode_id,
+        "speaker_id": person_id,
+        "char_start": gq.char_start,
+        "char_end": gq.char_end,
+        "timestamp_start_ms": ts_start,
+        "timestamp_end_ms": ts_end,
+        "transcript_ref": transcript_ref,
+    }
+    if voice_type:
+        props["speaker_voice_type"] = voice_type
+    if speaker_name:
+        props["speaker_name"] = speaker_name
+    # The grounding scores do NOT live here — they live on the SUPPORTED_BY edge. A score grades
+    # the RELATION between an insight and a quote: the same span can be strong evidence for one
+    # insight and irrelevant to another, so it has no score of its own. The schema enforces this.
+    return props
+
+
+def _support_edge(insight_id: str, quote_id: str, gq: GroundedQuote) -> Dict[str, Any]:
+    """The SUPPORTED_BY edge, carrying HOW STRONGLY the quote supports the insight.
+
+    The scores decide whether a quote survives grounding at all (``nli >= gi_nli_entailment_min``),
+    and for a long time they were computed and then dropped on the floor here — the edge was built
+    as a bare ``{type, from, to}``. So ``gi_scorer``, which averages the NLI score, averaged an
+    empty list and reported ``mean_nli_score: 0.0`` across a real 18-episode run: a number
+    indistinguishable from "every piece of evidence in the corpus contradicts its own insight". We
+    were FILTERING on a number we refused to REPORT.
+
+    The scores go in the edge's nested ``properties`` — the schema's sanctioned home for edge
+    metadata (``$defs.edge.properties.properties``, ``additionalProperties: true``), the same slot
+    the semantic-match edges use for ``confidence``. The top level is ``additionalProperties:
+    false`` and would reject them, which is why this never worked: ``gi_scorer`` read the score
+    from the top level, a place the contract forbids it from ever being.
+
+    A score is omitted rather than zeroed when the stage did not run — absent is not zero.
+    """
+    edge: Dict[str, Any] = {"type": "SUPPORTED_BY", "from": insight_id, "to": quote_id}
+    scores: Dict[str, Any] = {}
+    if gq.nli_score is not None:
+        scores["nli_score"] = float(gq.nli_score)
+    if gq.qa_score is not None:
+        scores["qa_score"] = float(gq.qa_score)
+    if scores:
+        edge["properties"] = scores
+    return edge
+
+
+def _apply_voice_flags(
+    insight_props: Dict[str, Any],
+    quotes: List[Any],
+    transcript_text: Optional[str],
+    transcript_segments: Optional[List[Dict[str, Any]]],
+) -> int:
+    """Stamp the speaking voice's type on an insight.
+
+    Returns 1 when the insight is unsurfaceable BY OUR OWN FAULT (an ``unknown`` voice).
+
+    The rule this exists to enforce: AN UNATTRIBUTED STANCE IS NOT A STANCE. It is a floating
+    opinion that nobody holds and nobody can disagree with, so it cannot be SURFACEd whatever the
+    classifier calls it.
+
+    It stays eligible for CONNECT — a fact is still a fact. That distinction is not academic: on
+    Planet Money and The Daily the tape IS the story (36-40% of those episodes), and discarding it
+    outright would gut the narrated shows to protect them from a problem they do not have.
+    """
+    vt, is_defect = _voice_flags_for_insight(quotes, transcript_text, transcript_segments)
+    if not vt:
+        return 0
+    insight_props["speaker_voice_type"] = vt
+    if vt in VOICE_TYPE_NOT_SURFACEABLE:
+        insight_props["surfaceable"] = False
+    return 1 if is_defect else 0
+
+
+def _log_voice_exclusions(episode_id: str, dropped_ads: int, by_defect: int) -> None:
+    """A silent exclusion is a cost nobody sees, and a defect that costs nothing is never fixed."""
+    if dropped_ads:
+        logger.info(
+            "  → GI refused %d quote(s) grounded inside an advertisement [%s]",
+            dropped_ads,
+            episode_id,
+        )
+    if by_defect:
+        logger.warning(
+            "  → %d insight(s) cannot be surfaced because a voice went unnamed and a name WAS "
+            "available for it [%s] — this is our defect, and it costs us their words",
+            by_defect,
+            episode_id,
+        )
+
+
+def _is_advertisement_span(
+    gq: Any,
+    transcript_text: Optional[str],
+    transcript_segments: Optional[List[Dict[str, Any]]],
+) -> bool:
+    """True when this span was spoken inside an ADVERT. Such a span is never evidence.
+
+    Ad copy is written to be quotable — "if you play our games, you probably know there's something
+    a bit different about them" — which makes it the most fluent, most confident false insight
+    available. Refused here, where a span becomes a Quote, rather than filtered off a surface later
+    and left in the corpus.
+    """
+    if not transcript_segments:
+        return False
+    vt = _voice_type_for_char_range(
+        transcript_text or "", gq.char_start, gq.char_end, transcript_segments
+    )
+    return vt in VOICE_TYPE_NEVER_GROUND
+
+
+def _dedupe_insight_specs(
+    specs: List[Tuple[str, str]],
+    cfg: Any,
+    pipeline_metrics: Optional[Any] = None,
+) -> List[Tuple[str, str]]:
+    """Drop insights that restate one already kept — on EVERY path, not only the chunked one.
+
+    The value gate cannot do this: it grades each insight in isolation, so two copies of the same
+    claim both score well and both survive. Redundancy is invisible to a per-item judge.
+    """
+    if len(specs) < 2:
+        return specs
+    threshold = float(getattr(cfg, "gi_insight_dedupe_threshold", 0.75) or 0.75)
+    if threshold >= 1.0:
+        return specs
+
+    from .chunked_extraction import dedupe
+
+    kept_texts = set(dedupe([t for t, _ in specs], threshold))
+    out: List[Tuple[str, str]] = []
+    seen: set = set()
+    for text, kind in specs:
+        if text in kept_texts and text not in seen:
+            seen.add(text)
+            out.append((text, kind))
+
+    dropped = len(specs) - len(out)
+    if dropped:
+        logger.info(
+            "insight dedup: %d/%d insights restated one already kept (threshold %.2f)",
+            dropped,
+            len(specs),
+            threshold,
+        )
+        if pipeline_metrics is not None:
+            try:
+                pipeline_metrics.gi_insights_deduped = (
+                    getattr(pipeline_metrics, "gi_insights_deduped", 0) + dropped
+                )
+            except Exception:  # noqa: BLE001 — metrics must never break the pipeline
+                pass
+    return out
+
+
+def _gate_on_evidence(
+    insight_specs: List[Tuple[str, str]],
+    insight_quotes: List[List[Any]],
+    *,
+    cfg: Any,
+    provider: Any,
+    transcript_text: Optional[str],
+    transcript_segments: Optional[List[Dict[str, Any]]],
+    pipeline_metrics: Optional[Any],
+) -> Tuple[List[Tuple[str, str]], List[List[Any]]]:
+    """Run the value gate on the insight AND the evidence that grounds it.
+
+    The specs and their quote lists are filtered TOGETHER — they are index-aligned everywhere
+    downstream, and dropping one without the other would silently attach the wrong quote to the
+    wrong insight.
+    """
+    from .value_gate import InsightEvidence, value_gate_keep_mask
+
+    evidence: List[Optional[InsightEvidence]] = []
+    for quotes in insight_quotes:
+        first = next((q for q in quotes if isinstance(q, GroundedQuote)), None)
+        if first is None:
+            evidence.append(None)
+            continue
+        speaker: Optional[str] = None
+        voice_type: Optional[str] = None
+        if transcript_segments:
+            voice_type = _voice_type_for_char_range(
+                transcript_text or "", first.char_start, first.char_end, transcript_segments
+            )
+            speaker = _speaker_id_for_char_range(
+                transcript_text or "", first.char_start, first.char_end, transcript_segments
+            )
+        evidence.append(InsightEvidence(quote=first.text, speaker=speaker, voice_type=voice_type))
+
+    # A MASK, not a filtered list. The specs and their quote lists are index-aligned everywhere
+    # downstream, so they are dropped TOGETHER, BY POSITION. Re-pairing by identity or by content
+    # would mis-align an episode that says the same thing twice — CPython hands out one object for
+    # two equal constant tuples — and a quote attached to the wrong insight is a fabricated
+    # attribution, which is worse than the filler the gate exists to remove.
+    keep = value_gate_keep_mask(
+        insight_specs,
+        provider=provider,
+        cfg=cfg,
+        pipeline_metrics=pipeline_metrics,
+        evidence=evidence,
+    )
+    if all(keep):
+        return insight_specs, insight_quotes
+
+    specs_out = [spec for spec, k in zip(insight_specs, keep) if k]
+    quotes_out = [quotes for quotes, k in zip(insight_quotes, keep) if k]
+    return specs_out, quotes_out
+
+
+def _voice_flags_for_insight(
+    quotes: List[Any],
+    transcript_text: Optional[str],
+    transcript_segments: Optional[List[Dict[str, Any]]],
+) -> Tuple[Optional[str], bool]:
+    """``(voice_type, is_our_defect)`` for the voice behind an insight's first grounded quote.
+
+    ``voice_type`` is None when a real, named person said it. ``is_our_defect`` is True only for
+    ``unknown`` — a voice a name WAS available for and we failed to attach. That one is counted,
+    because a defect that costs nothing gets fixed by nobody.
+    """
+    if not transcript_segments or not quotes:
+        return None, False
+    first = next((q for q in quotes if isinstance(q, GroundedQuote)), None)
+    if first is None:
+        return None, False
+    vt = _voice_type_for_char_range(
+        transcript_text or "", first.char_start, first.char_end, transcript_segments
+    )
+    return vt, vt == "unknown"
+
+
 def _speaker_id_for_char_range(
     transcript: str,
     char_start: int,
@@ -997,11 +1396,17 @@ def _resolve_insight_specs(
         gen = getattr(insight_provider, "generate_insights", None)
         if callable(gen):
             try:
-                out = gen(
-                    text=transcript_text or "",
+                from .chunked_extraction import generate_chunked
+
+                out = generate_chunked(
+                    gen,
+                    transcript_text or "",
                     episode_title=episode_title,
                     max_insights=max_insights,
-                    params=None,
+                    chunk_chars=int(getattr(cfg, "gi_insight_chunk_chars", 0) or 0),
+                    dedupe_threshold=float(
+                        getattr(cfg, "gi_insight_dedupe_threshold", 0.75) or 0.75
+                    ),
                     pipeline_metrics=pipeline_metrics,
                 )
                 if isinstance(out, list):
@@ -1010,12 +1415,48 @@ def _resolve_insight_specs(
                         p = _parse_insight_item(item)
                         if p:
                             resolved_specs.append(p)
-                    resolved_specs = resolved_specs[:max_insights]
+                    # The cap is per PASS, not per episode. Truncating the merged list to
+                    # gi_max_insights would clip a 3-pass extraction (56 insights) straight back to
+                    # 50 and silently erase the whole gain of chunking.
+                    from .chunked_extraction import plan_chunks
+
+                    passes = plan_chunks(
+                        transcript_text or "",
+                        int(getattr(cfg, "gi_insight_chunk_chars", 0) or 0),
+                    )
+                    resolved_specs = resolved_specs[: max_insights * passes]
+
+                    # THE SAME CLAIM, TWICE, IS NOT TWO INSIGHTS.
+                    #
+                    # `dedupe()` existed but only ever ran inside the CHUNKED path, and a normal
+                    # episode does not chunk — so on the path production actually takes there was no
+                    # deduplication at all. Measured on 18 episodes, gemini emitted 21.6 surfaceable
+                    # insights per episode of which only 14.1 were distinct: **35% redundancy**, and
+                    # not the subtle kind —
+                    #
+                    #   sim 1.00  "Paul Tudor Jones believes the greatest challenge in the coming
+                    #              years will be finding significance..."   (emitted verbatim twice)
+                    #   sim 0.96  "...the most important thing for young people to focus on is
+                    #              communication..." / "...for young people is to focus on..."
+                    #
+                    # The value gate cannot catch this: it grades each insight in ISOLATION, so both
+                    # copies score the same and both survive. An episode holds a finite amount of
+                    # knowledge, and emitting it twice does not create more.
+                    #
+                    # Deduped here, BEFORE grounding, so we do not pay QA+NLI to ground a duplicate.
+                    resolved_specs = _dedupe_insight_specs(resolved_specs, cfg, pipeline_metrics)
+
                     if resolved_specs:
-                        # RFC-097 v3.0 chunk-5: classify any unknown-typed
-                        # specs (providers returning ``List[str]`` flow in
-                        # as ``"unknown"``; structured dict items keep their
-                        # provider-supplied type).
+                        # THE VALUE GATE USED TO RUN HERE, and that was the bug. It ran BEFORE
+                        # grounding, so the quotes did not exist yet — it graded a bare sentence
+                        # while its own rubric asked for "a position a NAMED PERSON took", "a
+                        # disagreement BETWEEN SPEAKERS" and "an AD read", none of which it could
+                        # see. It now runs in `build_artifact`, after the evidence exists
+                        # (ADR-110's lesson, one layer up).
+                        #
+                        # RFC-097 v3.0 chunk-5: classify any unknown-typed specs (providers
+                        # returning ``List[str]`` flow in as ``"unknown"``; structured dict items
+                        # keep their provider-supplied type).
                         return [(t, _classify_when_unknown(t, k)) for t, k in resolved_specs]
             except Exception as e:
                 logger.debug(
@@ -1218,6 +1659,25 @@ def build_artifact(
                 pipeline_metrics=pipeline_metrics,
                 prefetched_by_idx=prefetched_by_idx,
             )
+            # NOW the gate can see what it is grading. The extractor cannot be made selective by
+            # prompting — across three prompt variants the CORE count barely moved (13.3 / 10.3 /
+            # 12.0 per episode) while filler tracked whatever the prompt encouraged — so filler is
+            # trimmed by a judge. But the judge was being handed a bare sentence, BEFORE grounding,
+            # and asked to spot "a position a NAMED PERSON took" and "an AD read". It ran blind.
+            #
+            # Here it reads the insight together with the verbatim quote that supports it, who said
+            # it, and what kind of voice that is — and, decisively, it can now see when NOTHING
+            # supports it, which is the strongest FILLER signal there is.
+            insight_specs, insight_quotes = _gate_on_evidence(
+                insight_specs,
+                insight_quotes,
+                cfg=cfg,
+                provider=insight_provider,
+                transcript_text=transcript_text,
+                transcript_segments=transcript_segments,
+                pipeline_metrics=pipeline_metrics,
+            )
+
             total_grounded = sum(len(q) for q in insight_quotes)
             _handle_zero_grounded_quotes(
                 episode_id=episode_id,
@@ -1302,6 +1762,38 @@ def build_artifact(
         )
 
 
+def _speaker_for_insight(
+    quotes: Sequence[Any],
+    transcript_text: str,
+    transcript_segments: Optional[List[Dict[str, Any]]],
+    named_turns: Sequence[Tuple[int, str]],
+) -> Optional[str]:
+    """Who said this insight — the speaker of the turn its first grounded quote sits in.
+
+    An insight is a claim a PERSON made, and its worth depends on who made it: a host summarising a
+    deal is a headline, while the guest expert taking a position is the reason the episode exists.
+    Without the speaker the two are indistinguishable, and a "stance" is unfalsifiable — a position
+    needs an owner.
+
+    Prefers diarized segments when they exist; otherwise reads the name straight out of the
+    transcript's own speaker markers. An ungrounded insight has no quote and therefore, correctly,
+    no speaker.
+    """
+    for gq in quotes:
+        if not isinstance(gq, GroundedQuote):
+            continue
+        who: Optional[str] = None
+        if transcript_segments:
+            who = _speaker_id_for_char_range(
+                transcript_text, gq.char_start, gq.char_end, transcript_segments
+            )
+        elif named_turns:
+            who = speaker_for_char(gq.char_start, named_turns)
+        if who:
+            return who
+    return None
+
+
 def _artifact_from_multi_insight(
     episode_id: str,
     insight_specs: List[Tuple[str, str]],
@@ -1349,6 +1841,8 @@ def _artifact_from_multi_insight(
     ]
     edges: list = []
     quote_global_idx = 0
+    dropped_ad_quotes = 0  # spans refused because an advertisement is never evidence
+    unsurfaceable_by_defect = 0  # insights we cannot surface because WE failed to name a voice
     persons_added: Set[str] = set()
     use_segments_raw = bool(
         transcript_text and transcript_segments and len(transcript_segments) > 0
@@ -1385,6 +1879,16 @@ def _artifact_from_multi_insight(
             use_segments = aligned
     else:
         use_segments = False
+
+    # Fallback speaker source: the diarized transcript names its own speakers ("Kevin Roose: ...").
+    # Segments were the pipeline's ONLY speaker path, and no profile produces them
+    # (backfill_transcript_segments is false everywhere, and enabling it forces a re-transcription),
+    # so every quote has shipped with speaker_id=None and no insight has ever known who said it —
+    # while the name sat in the transcript, unread.
+    named_turns: List[Tuple[int, str]] = []
+    if not use_segments and (transcript_text or "").strip():
+        named_turns = build_unverified_named_turns(transcript_text or "")
+
     topic_node_specs = _dedupe_topic_node_specs(topic_labels)
     for tid, display_label in topic_node_specs:
         nodes.append(
@@ -1448,6 +1952,28 @@ def _artifact_from_multi_insight(
         # fall back to 0.5 — the midpoint default for "we don't know where
         # in the episode this lives".
         insight_props["position_hint"] = ph if ph is not None else 0.5
+
+        speaker_for_insight = _speaker_for_insight(
+            quotes,
+            transcript_text or "",
+            transcript_segments if use_segments else None,
+            named_turns,
+        )
+        if speaker_for_insight:
+            insight_props["speaker"] = speaker_for_insight
+
+        # What KIND of voice said it — so routing can honour the one rule that matters:
+        # AN UNATTRIBUTED STANCE IS NOT A STANCE. It is a floating opinion that nobody holds and
+        # nobody can disagree with, so it cannot be SURFACEd, whatever the classifier calls it.
+        #
+        # It stays eligible for CONNECT: a fact is still a fact. That distinction is not academic —
+        # on Planet Money and The Daily the tape IS the story (36-40% of those episodes), and
+        # discarding it outright would gut the narrated shows to protect against a problem they do
+        # not have.
+        unsurfaceable_by_defect += _apply_voice_flags(
+            insight_props, quotes, transcript_text, transcript_segments if use_segments else None
+        )
+
         insight_node: Dict[str, Any] = {
             "id": insight_id,
             "type": "Insight",
@@ -1472,6 +1998,13 @@ def _artifact_from_multi_insight(
         for gq in quotes:
             if not isinstance(gq, GroundedQuote):
                 continue
+
+            if _is_advertisement_span(
+                gq, transcript_text, transcript_segments if use_segments else None
+            ):
+                dropped_ad_quotes += 1
+                continue
+
             quote_id = gil_quote_node_id(
                 episode_id,
                 quote_global_idx,
@@ -1496,27 +2029,40 @@ def _artifact_from_multi_insight(
                     gq.char_end,
                     transcript_segments,
                 )
-                if speaker_label:
-                    # Episode-scope the id for an unnamed voice (SPEAKER_00) so it can't merge
-                    # across episodes; a real, resolved name stays a global person id (#1b).
-                    person_id_for_quote = person_node_id(speaker_label, episode_id)
+            elif named_turns:
+                # No segments — but the diarized transcript names its speakers in plain text, and
+                # the quote knows its char offset. Segments are the ONLY speaker path the pipeline
+                # had, and no profile generates them (backfill_transcript_segments is false
+                # everywhere, and turning it on forces a re-transcription), so every insight has
+                # shipped without knowing who said it. Read the name out of the transcript instead.
+                speaker_label = speaker_for_char(gq.char_start, named_turns)
+
+            person_id_for_quote, quote_speaker_name, quote_voice_type = _resolve_quote_speaker(
+                gq,
+                speaker_label,
+                episode_id,
+                transcript_text,
+                transcript_segments if use_segments else None,
+            )
+            if quote_voice_type:
+                speaker_label = None  # not a person — nothing to mint
             nodes.append(
                 {
                     "id": quote_id,
                     "type": "Quote",
-                    "properties": {
-                        "text": gq.text,
-                        "episode_id": episode_id,
-                        "speaker_id": person_id_for_quote,
-                        "char_start": gq.char_start,
-                        "char_end": gq.char_end,
-                        "timestamp_start_ms": ts_start,
-                        "timestamp_end_ms": ts_end,
-                        "transcript_ref": transcript_ref,
-                    },
+                    "properties": _quote_props(
+                        gq,
+                        episode_id=episode_id,
+                        transcript_ref=transcript_ref,
+                        person_id=person_id_for_quote,
+                        speaker_name=quote_speaker_name,
+                        voice_type=quote_voice_type,
+                        ts_start=ts_start,
+                        ts_end=ts_end,
+                    ),
                 }
             )
-            edges.append({"type": "SUPPORTED_BY", "from": insight_id, "to": quote_id})
+            edges.append(_support_edge(insight_id, quote_id, gq))
             _attach_person_for_quote(
                 nodes,
                 edges,
@@ -1526,7 +2072,7 @@ def _artifact_from_multi_insight(
                 persons_added,
             )
 
-    return {
+    artifact = {
         "schema_version": "3.0",  # RFC-097 chunk 9: v3.0 GI emit
         "model_version": model_version,
         "prompt_version": prompt_version,
@@ -1534,3 +2080,12 @@ def _artifact_from_multi_insight(
         "nodes": nodes,
         "edges": edges,
     }
+
+    _log_voice_exclusions(episode_id, dropped_ad_quotes, unsurfaceable_by_defect)
+
+    # The stage checks its own output. Every GI bug in this arc shipped silently — insights with no
+    # quotes, quotes with no speaker, a speaker who never holds the mic — and every one of them
+    # reported success. Logging, not raising: a disconnected wire must be loud, but an episode that
+    # already paid for transcription should still emit what it has.
+    log_artifact_invariants(artifact, transcript_text, named_turns)
+    return artifact

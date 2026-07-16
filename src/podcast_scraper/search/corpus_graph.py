@@ -186,6 +186,47 @@ class CorpusGraph:
             if (n := self._nodes.get(nbr)) is not None and n.type == "episode"
         ]
 
+    def _person_has_speech(self, person_id: str) -> bool:
+        """True when the person is attributed any speech in the corpus — a ``SPOKEN_BY``
+        quote or a derived ``STATES`` insight.
+
+        The voice-match signal (#1169): a ``role == "host"`` person who never speaks anywhere
+        in the corpus is a **metadata-only name** — feed-description NER noise ("Twitter") or a
+        non-speaking mention — not a real host *voice*. This is the deterministic filter that
+        recurrence alone cannot do: a feed description is constant across episodes, so a bogus
+        name recurs just like the real host; only "does this name actually speak" separates them.
+        """
+        for etype in ("SPOKEN_BY", "STATES"):
+            for nbr in self.typed_neighbors(person_id, etype):
+                n = self._nodes.get(nbr)
+                if n is not None and n.type in ("quote", "insight"):
+                    return True
+        return False
+
+    def _demote_speechless_hosts(self) -> None:
+        """Demote a named ``role == "host"`` person with no attributed speech to ``mentioned``.
+
+        A host name that never speaks in the corpus is a metadata-only artefact (feed-description
+        NER noise, a non-speaking mention), not a real host *voice* (#1169). Unnamed ``SPEAKER_NN``
+        host voices are left untouched — the back-fill merge in :meth:`_reconcile_feed_hosts`
+        handles those, not this demotion.
+
+        No-op when the corpus carries no speech attribution at all (no ``SPOKEN_BY`` / ``STATES``
+        anywhere): without it there is no basis to tell a real host voice from a name, so every
+        host is left as-is (a KG-only corpus with no GI quotes stays a faithful union).
+        """
+        persons = [(nid, node) for nid, node in self._nodes.items() if node.type == "person"]
+        if not any(self._person_has_speech(nid) for nid, _ in persons):
+            return
+        for nid, node in persons:
+            if str(node.payload.get("role") or "").lower() != "host":
+                continue
+            if _looks_like_speaker_label(node.payload.get("name") or node.payload.get("label")):
+                continue  # unnamed SPEAKER_NN host voice — back-fill handles it, not demotion
+            if not self._person_has_speech(nid):
+                node.payload["role"] = "mentioned"
+                node.payload["host_demoted_reason"] = "no attributed speech (metadata-only, #1169)"
+
     def _reconcile_feed_hosts(self) -> None:
         """Name recurring hosts of network-authored feeds across a show (#1056).
 
@@ -206,7 +247,13 @@ class CorpusGraph:
           is ambiguous and skipped);
         - the target must recur as host in ≥2 episodes of that feed;
         - exactly one such recurring named host per feed (else it's a co-host show).
+
+        Runs a **voice-match confirmation** first (#1169): a named ``role == "host"`` person
+        with no attributed speech anywhere is a metadata-only name (feed-description NER noise,
+        a non-speaking mention) and is demoted to ``mentioned`` before the merge below — so the
+        show-description host path can supply high-recall candidates without leaking false hosts.
         """
+        self._demote_speechless_hosts()
         named, unnamed_pods, unnamed_eps = self._collect_feed_host_voices()
 
         # Aggregate feed-exclusive unnamed host voices per podcast. Episode-scoped ids (#1b) turn

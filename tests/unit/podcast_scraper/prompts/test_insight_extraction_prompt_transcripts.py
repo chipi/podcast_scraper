@@ -24,8 +24,17 @@ def test_insight_extraction_v1_logical_names_match_disk() -> None:
 
 
 def test_insight_extraction_v1_templates_include_transcript_placeholder() -> None:
+    """Every USER template must carry the episode text.
+
+    ``system_*`` is exempt by construction: it is the output-shape instruction ("one per line, no
+    numbering"), it is sent as the system message, and it never sees a transcript. It lives in a
+    file for the same reason every other prompt does — a prompt buried in code is a bug with nowhere
+    to be seen (#1179).
+    """
     root = get_prompt_dir()
     for path in sorted(root.glob("**/insight_extraction/*.j2")):
+        if path.stem.startswith("system"):
+            continue
         text = path.read_text(encoding="utf-8")
         rel = path.relative_to(root).as_posix()
         assert (

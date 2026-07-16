@@ -43,7 +43,7 @@ try:
 except ImportError:
     OpenAI = None  # type: ignore
 
-from ... import config
+from ... import config, config_constants
 from ...cleaning import PatternBasedCleaner
 from ...cleaning.base import TranscriptCleaningProcessor
 from ...utils.cleaning_max_tokens import (
@@ -55,9 +55,113 @@ from ...utils.log_redaction import format_exception_for_log
 from ...utils.provider_metadata import warn_if_truncated
 from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
-from .. import guardrails as _guardrails
+from .. import guardrails as _guardrails, insight_salvage as _insight_salvage
 
 logger = logging.getLogger(__name__)
+
+# The old inline wording, kept only as the fallback if the template is missing. Do not tune here —
+# tune the template, which is what the calibration harness measures.
+_ENTAILMENT_FALLBACK = (
+    "You rate how much the premise supports the hypothesis. "
+    "Reply with ONLY a number between 0 and 1 (0=not at all, 1=fully supports)."
+)
+
+
+def _json_object_from_response(text: str) -> str:
+    """Pull the JSON object out of a chat reply.
+
+    qwen3.5 reasons before answering, and the reasoning is full of digits and braces. Scoping past
+    any ``</think>`` block first is what stops us parsing the model's scratch work as the answer.
+    """
+    body = text or ""
+    marker = body.rfind("</think>")
+    if marker != -1:
+        body = body[marker + len("</think>") :]
+    start = body.find("{")
+    end = body.rfind("}")
+    if start == -1 or end == -1 or end < start:
+        raise ValueError("no JSON object in response")
+    return body[start : end + 1]
+
+
+# Roughly 3.5 characters per token for English prose. Used only to keep the transcript inside the
+# context window we were actually configured with, instead of a hardcoded guess.
+_CHARS_PER_TOKEN = 3.5
+# Headroom for the instructions, the insight, and the model's own output.
+_EXTRACT_QUOTE_RESERVE_TOKENS = 2000
+
+
+def _transcript_budget_chars(num_ctx: int) -> int:
+    """How much transcript actually fits in the configured context window.
+
+    The old code truncated to a hardcoded 50 000 characters. Real episodes here are 67 000-78 000,
+    so **the last third of every episode was invisible to quote extraction** — an insight drawn
+    from it could never be grounded, no matter how good the model or the gate. With num_ctx=32768
+    the true budget is ~107 000 characters, and nothing needs truncating at all.
+    """
+    usable = max(0, int(num_ctx) - _EXTRACT_QUOTE_RESERVE_TOKENS)
+    return int(usable * _CHARS_PER_TOKEN)
+
+
+def _render_extract_quote_prompt(transcript: str, insight: str, num_ctx: int) -> "tuple[str, str]":
+    """``(system, user)`` for GIL quote extraction, from the ollama prompt template.
+
+    The old inline prompt had three defects, each silently costing evidence: it truncated the
+    transcript to 50 000 chars (below our episode length); its system and user messages disagreed
+    about the output shape (``{"quotes": [...]}`` vs "quote_text only"); and it embedded a copyable
+    example string, which is exactly what local models reproduce verbatim (#1179).
+    """
+    from ...prompts.store import render_prompt
+
+    budget = _transcript_budget_chars(num_ctx)
+    text = transcript.strip()
+    if len(text) > budget:
+        logger.warning(
+            "transcript %d chars exceeds the %d-char context budget; quote extraction will not "
+            "see the tail of this episode",
+            len(text),
+            budget,
+        )
+        text = text[:budget]
+
+    try:
+        return "", render_prompt(
+            "ollama/evidence/extract_quote/v1",
+            transcript=text,
+            insight=insight.strip(),
+        )
+    except Exception as exc:  # noqa: BLE001 — a missing template must not break grounding
+        logger.warning("ollama extract_quote template unavailable (%s); using inline fallback", exc)
+        return (
+            "Extract short verbatim quotes from the transcript that support the insight. "
+            'Reply with ONLY a JSON object with a single key "quotes" (a list of exact strings).',
+            f"Transcript:\n{text}\n\nInsight: {insight.strip()}",
+        )
+
+
+def _render_entailment_prompt(premise: str, hypothesis: str) -> "tuple[str, str]":
+    """``(system, user)`` for the GIL entailment gate, from the ollama prompt template.
+
+    The wording IS the gate. Strict textual entailment ("does the premise support the hypothesis")
+    is not the question the pipeline means — a quote can be excellent evidence for an insight
+    without logically entailing it — and asking it strictly cost 60% of the evidence a trusted
+    annotator had accepted (#1179). Keeping this in a template is what lets it be calibrated.
+    """
+    from ...prompts.store import render_prompt
+
+    try:
+        rendered = render_prompt(
+            "ollama/evidence/entailment/v1",
+            premise=premise.strip(),
+            hypothesis=hypothesis.strip(),
+        )
+        return "", rendered
+    except Exception as exc:  # noqa: BLE001 — a missing template must not break grounding
+        logger.warning("ollama entailment template unavailable (%s); using inline fallback", exc)
+        return (
+            _ENTAILMENT_FALLBACK,
+            f"Premise: {premise.strip()}\n\nHypothesis: {hypothesis.strip()}",
+        )
 
 
 def _ollama_openai_chat_extra_kwargs(model: str, num_ctx: Optional[int] = None) -> Dict[str, Any]:
@@ -1687,7 +1791,7 @@ class OllamaProvider:
     ) -> List[str]:
         """Generate a list of short insight statements from transcript (GIL).
 
-        Uses ollama/insight_extraction/v1 prompt; parses response as one insight per line.
+        Uses ollama/insight_extraction/v2 prompt; parses response as one insight per line.
         Returns empty list on failure so GIL can fall back to stub.
         """
         if not self._summarization_initialized:
@@ -1696,30 +1800,38 @@ class OllamaProvider:
 
         from ...prompts.store import render_prompt
 
-        max_insights = min(max(1, max_insights), 10)
+        max_insights = max(1, min(int(max_insights), config_constants.GI_MAX_INSIGHTS_CEILING))
+        insight_max_tokens = max(
+            config_constants.GI_INSIGHT_TOKENS_FLOOR,
+            max_insights * config_constants.GI_INSIGHT_TOKENS_EACH,
+        )
+        # Honour the configured temperature. This was hardcoded to 0.3 in every provider,
+        # so evals could not pin it and the pipeline was not reproducible.
+        insight_temperature = _insight_salvage.resolve_insight_temperature(self.cfg, "ollama")
         text_slice = (text or "").strip()
         if len(text_slice) > 120000:
             text_slice = text_slice[:120000] + "\n\n[Transcript truncated.]"
 
         try:
+            # The prompt decides what an insight IS, so it is a tuned parameter like any other.
+            # Hardcoding it made the extraction prompt the only part of this stage that could not
+            # be A/B tested.
+            prompt_version = str(getattr(self.cfg, "gi_insight_prompt_version", "v2") or "v2")
             user_prompt = render_prompt(
-                "ollama/insight_extraction/v1",
+                f"ollama/insight_extraction/{prompt_version}",
                 transcript=text_slice,
                 title=episode_title or "",
                 max_insights=max_insights,
             )
-            system_prompt = (
-                "Output only the list of key takeaways, one per line. "
-                "No numbering, bullets, or extra text."
-            )
+            system_prompt = render_prompt("ollama/insight_extraction/system_v1")
             response = self.client.chat.completions.create(
                 model=self.summary_model,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
-                temperature=0.3,
-                max_tokens=min(1024, max_insights * 150),
+                temperature=insight_temperature,
+                max_tokens=insight_max_tokens,
                 **_ollama_openai_chat_extra_kwargs(self.summary_model),
             )
             content = (response.choices[0].message.content or "").strip()
@@ -1767,9 +1879,15 @@ class OllamaProvider:
             # ADR-100: GI is fail-up. Cost emitted in BOTH branches.
             try:
                 _guardrails.check_chat_response(content, service="ollama")
-            except _guardrails.GuardrailViolation:
+            except _guardrails.GuardrailViolation as gv:
                 _emit_gi_cost(triggered_guardrail=True)
-                raise
+                # A truncated LINE LIST is recoverable: the cut lands in the final line and
+                # every earlier one is intact. Re-raising here loses the whole episode to the
+                # stub fallback — 40 good insights discarded because the 41st was clipped.
+                salvaged = _insight_salvage.salvage_truncated_lines(gv, content)
+                if salvaged is None:
+                    raise
+                content = salvaged
             _emit_gi_cost()
             lines = [
                 line.strip()
@@ -1787,6 +1905,17 @@ class OllamaProvider:
                     s = s[2:].strip()
                 if s:
                     cleaned.append(s)
+            if len(cleaned) > max_insights:
+                # Overproduction is a signal, not a detail to swallow. Truncating silently is
+                # what hid the fact that the model was returning 300+ lines and we were keeping
+                # 50 — which read as "it obediently returned exactly the cap".
+                logger.warning(
+                    "generate_insights: model returned %d insights for a ceiling of %d; "
+                    "keeping the first %d. The prompt is not constraining the count.",
+                    len(cleaned),
+                    max_insights,
+                    max_insights,
+                )
             return cleaned[:max_insights]
         except _guardrails.GuardrailViolation:
             # ADR-100: GI is fail-up. Propagate so FallbackAware routes.
@@ -1794,6 +1923,61 @@ class OllamaProvider:
         except Exception as e:
             logger.debug("Ollama generate_insights failed: %s", e, exc_info=True)
             return []
+
+    def classify_insights(self, insights: List[str]) -> List[int]:
+        """Tier each insight 0-3 for the value gate (see ``gi.value_gate``).
+
+        One call for the whole episode. Raises on failure — the gate fails open and owns the
+        decision to keep everything, so this must not paper over a bad response.
+        """
+        if not insights:
+            return []
+        if not self._summarization_initialized:
+            raise RuntimeError("Ollama summarization not initialized for classify_insights")
+
+        import json as _json
+
+        from ...prompts.store import render_prompt
+
+        listing = "\n".join(f"i{idx}: {text}" for idx, text in enumerate(insights))
+        user_prompt = render_prompt("ollama/insight_value_gate/v1", insights=listing)
+        response = self.client.chat.completions.create(
+            model=self.summary_model,
+            messages=[{"role": "user", "content": user_prompt}],
+            temperature=0.0,
+            max_tokens=max(
+                config_constants.GI_INSIGHT_TOKENS_FLOOR,
+                len(insights) * config_constants.GI_VALUE_GATE_TOKENS_EACH,
+            ),
+            **_ollama_openai_chat_extra_kwargs(self.summary_model),
+        )
+        content = (response.choices[0].message.content or "").strip()
+        _guardrails.check_chat_response(content, service="ollama")
+        tiers = _json.loads(_json_object_from_response(content))
+        # Preserve input order; a missing id keeps the insight (tier 3) rather than dropping it.
+        return [int(tiers.get(f"i{idx}", 3)) for idx in range(len(insights))]
+
+    def complete_text(self, prompt: str) -> str:
+        """One prompt in, one JSON answer out — the generic call ADR-110's resolver needs.
+
+        `detect_speakers` is asked who speaks BEFORE the audio is downloaded, so it can only answer
+        from show notes and returns the people an episode is ABOUT (#876). The resolver asks the
+        same model the same question AFTER diarization, with each voice's own words in hand — and
+        that needs a plain completion, not a task method whose prompt is baked in.
+        """
+        if not self._summarization_initialized:
+            raise RuntimeError("Ollama summarization not initialized for complete_text")
+
+        response = self.client.chat.completions.create(
+            model=self.summary_model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.0,
+            max_tokens=800,
+            **_ollama_openai_chat_extra_kwargs(self.summary_model),
+        )
+        content = (response.choices[0].message.content or "").strip()
+        _guardrails.check_chat_response(content, service="ollama")
+        return content
 
     def extract_kg_graph(
         self,
@@ -1876,17 +2060,7 @@ class OllamaProvider:
 
         from ...gi.grounding import QuoteCandidate, resolve_llm_quote_span
 
-        system = (
-            "Extract all short verbatim quotes from the transcript that support "
-            "the given insight. Quotes must be from different parts of the "
-            "transcript. Reply with ONLY a JSON object: "
-            '{"quotes": ["exact quote 1", "exact quote 2"]}'
-        )
-        user = (
-            f"Transcript (excerpt):\n{transcript.strip()[:50000]}\n\n"
-            f"Insight: {insight_text.strip()}\n\n"
-            "Return JSON with quote_text only."
-        )
+        system, user = _render_extract_quote_prompt(transcript, insight_text, self.summary_num_ctx)
         try:
             from ...utils.provider_metrics import (
                 _safe_openai_retryable,
@@ -1909,7 +2083,7 @@ class OllamaProvider:
                         {"role": "user", "content": user},
                     ],
                     temperature=0.0,
-                    max_tokens=512,
+                    max_tokens=config_constants.GI_QUOTE_RESPONSE_TOKENS,
                     **_ollama_openai_chat_extra_kwargs(self.summary_model),
                 )
 
@@ -1985,14 +2159,20 @@ class OllamaProvider:
         hypothesis: str,
         **kwargs: Any,
     ) -> float:
-        """Score entailment of hypothesis given premise (GIL NLI via LLM). 0–1."""
+        """Score entailment of hypothesis given premise (GIL NLI via LLM). 0–1.
+
+        The prompt comes from ``ollama/evidence/entailment`` rather than being hardcoded here.
+        That is not tidying: the wording *is* the gate. Asked for strict textual entailment (the
+        old inline wording), qwen3.5:35b accepted only 40% of the evidence a trusted annotator had
+        accepted, and the corpus grounded 13.3% of its insights against the cloud's 91.3%. Asked
+        the question the pipeline actually means — "is this quote EVIDENCE for this insight?" — it
+        accepts 95%. The template is calibrated against gemini's own judgements
+        (scripts/eval/score/entailment_calibration_v1.py); a hardcoded string cannot be.
+        """
         if not self._summarization_initialized or not (premise and hypothesis):
             return 0.0
-        system = (
-            "You rate how much the premise supports the hypothesis. "
-            "Reply with ONLY a number between 0 and 1 (0=not at all, 1=fully supports)."
-        )
-        user = f"Premise: {premise.strip()}\n\nHypothesis: {hypothesis.strip()}"
+
+        system, user = _render_entailment_prompt(premise, hypothesis)
         try:
             from ...utils.provider_metrics import (
                 _safe_openai_retryable,

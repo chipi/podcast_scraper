@@ -329,6 +329,10 @@ class TestGeminiProviderErrorHandling(unittest.TestCase):
         mock_genai.Client.return_value = mock_client
         mock_exists.return_value = True
         mock_file = Mock()
+        # read() must return real bytes: pydantic 2.13 (pulled by the transformers-v5 bump) strictly
+        # validates the genai Blob's ``data`` as bytes, so a bare Mock trips a Blob ValidationError
+        # before the intended API-error path is reached.
+        mock_file.read.return_value = b"fake audio data"
         mock_open.return_value.__enter__.return_value = mock_file
         mock_open.return_value.__exit__.return_value = None
 

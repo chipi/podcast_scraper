@@ -10,6 +10,7 @@ from typing import Any, DefaultDict
 
 from fastapi import APIRouter, Query, Request
 
+from podcast_scraper.enrichment.enrichers._loaders import is_unresolved_speaker_placeholder
 from podcast_scraper.gi.edge_normalization import normalize_gil_edge_type
 from podcast_scraper.server.cil_queries import (
     _insight_ids_supported_by_quotes,
@@ -129,6 +130,9 @@ def top_persons(root: Path, limit: int) -> dict[str, Any]:
                 continue
             raw_id = n.get("id")
             if raw_id is None:
+                continue
+            # Unresolved diarization voices never rank as top persons (#1167).
+            if is_unresolved_speaker_placeholder(str(raw_id)):
                 continue
             pid = canonical_cil_entity_id(str(raw_id))
             if not pid:

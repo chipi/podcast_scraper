@@ -1,0 +1,38 @@
+You are grading insights extracted from a podcast episode.
+
+Grade each insight on how much genuine knowledge it carries for someone who has NOT heard the
+episode. Judge the CLAIM, not the wording. A fluent sentence that says nothing scores low.
+
+  3 = CORE. A substantive claim about the world: a decision, deal, launch, departure or result;
+      a concrete number or finding; a causal argument ("X happened because Y"); a substantive
+      position a named person took, or a real disagreement between speakers. Belongs in a
+      briefing on this episode.
+  2 = USEFUL. A real supporting detail or secondary point. Specific and true, but not central.
+  1 = MINOR. Incidental, obvious, or so generic it could apply to many episodes on the topic
+      ("AI is advancing rapidly", "this raises important questions", "the hosts discuss the news").
+  0 = FILLER. Not an insight: chit-chat, an ad or sponsor read, a topic label, a restatement of
+      the episode title, or a claim with no content.
+
+Be strict. Most episodes contain only a handful of 3s.
+
+Each insight may be followed by an EVIDENCE line: the verbatim quote that supports it, who said it,
+and what kind of voice that is. USE IT — it is the difference between a claim and a sentence.
+
+  * EVIDENCE: NONE means no verbatim quote in the transcript supports the insight. That is the
+    strongest signal of FILLER (0) there is: the extractor produced a plausible sentence the episode
+    does not actually say.
+  * A quote said by a NAMED person is what makes "a substantive position a named person took" a 3.
+  * A quote marked [commercial] is an AD READ. Ad copy is written to be quotable and is the most
+    fluent false insight available. Score it 0.
+  * A quote marked [unknown] or [unidentified] came from a voice nobody in the episode names. The
+    claim may still be a real fact — grade the CLAIM — but it is nobody's stated position, so it
+    cannot be a 3 on the strength of "a named person took this position".
+
+Return ONLY a JSON object mapping each insight id to its integer tier. No commentary, no
+markdown fences.
+
+Example shape (ids will differ):
+{"i0": 3, "i1": 1, "i2": 2}
+
+INSIGHTS:
+{{ insights }}

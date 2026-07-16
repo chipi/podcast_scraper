@@ -25,6 +25,7 @@ from typing import Any
 
 from podcast_scraper.enrichment.enrichers._loaders import (
     edges_of_type,
+    is_unresolved_speaker_placeholder,
     load_gi,
     nodes_of_type,
 )
@@ -72,8 +73,13 @@ def _topic_insight_speaker_index(
         for e in edges_of_type(gi, "ABOUT"):
             iid, tid = str(e.get("from") or ""), str(e.get("to") or "")
             spk = insight_speaker.get(iid)
-            if iid and tid and spk:
-                by_topic.setdefault(tid, []).append((iid, spk, insight_text.get(iid, "")))
+            if not (iid and tid and spk):
+                continue
+            # An unresolved diarization voice is not a real person — excluding it
+            # stops cross-episode SPEAKER_NN coincidences counting as consensus (#1167).
+            if is_unresolved_speaker_placeholder(spk, person_label.get(spk)):
+                continue
+            by_topic.setdefault(tid, []).append((iid, spk, insight_text.get(iid, "")))
     return by_topic, person_label
 
 

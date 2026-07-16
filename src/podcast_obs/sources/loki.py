@@ -197,10 +197,17 @@ def cost_for_run(
                 for key in (
                     "provider",
                     "stage",
+                    "operation",
                     "model",
+                    "served_model",
+                    "request_id",
+                    "episode_id",
                     "estimated_cost_usd",
                     "prompt_tokens",
                     "completion_tokens",
+                    "cached_input_tokens",
+                    "cache_write_tokens",
+                    "triggered_guardrail",
                 )
             }
         )

@@ -298,11 +298,19 @@ class TestSpeakerDetection(unittest.TestCase):
 
     @patch.object(speaker_detection, "extract_person_entities")
     def test_detect_hosts_from_feed_ner(self, mock_extract):
-        """Test detecting hosts from feed title using NER."""
+        """The feed's STATEMENT wins, and NER is not consulted at all when there is one.
+
+        This used to run NER over the title AND the description and return the union. The
+        description is the worst place to run NER: it is where a show lists its PAST GUESTS.
+        Latent Space names Bret Taylor, Chris Lattner and George Hotz there, and every one of them
+        came back as a host. A better NER model does not fix that — they really are people.
+
+        So a feed that says "Hosted by Jane Smith" is hosted by Jane Smith, and nothing else is
+        guessed at.
+        """
         mock_nlp = unittest.mock.MagicMock()
         mock_extract.side_effect = [
-            [("John Doe", 0.9)],  # Title entities
-            [("Jane Smith", 0.85)],  # Description entities
+            [("John Doe", 0.9)],  # would be the title entities, if NER were reached
         ]
 
         hosts = speaker_detection.detect_hosts_from_feed(
@@ -312,11 +320,24 @@ class TestSpeakerDetection(unittest.TestCase):
             nlp=mock_nlp,
         )
 
-        self.assertEqual(len(hosts), 2)
-        self.assertIn("John Doe", hosts)
-        self.assertIn("Jane Smith", hosts)
-        # Verify extract_person_entities was called twice (title and description)
-        self.assertEqual(mock_extract.call_count, 2)
+        self.assertEqual(hosts, {"Jane Smith"})
+        self.assertEqual(mock_extract.call_count, 0, "NER must not run when the feed states a host")
+
+    @unittest.mock.patch("podcast_scraper.speaker_detectors.hosts._extract_person_entities")
+    def test_detect_hosts_from_feed_ner_fallback_is_title_only(self, mock_extract):
+        """With no statement and no personal author tag, NER over the TITLE is the last resort."""
+        mock_nlp = unittest.mock.MagicMock()
+        mock_extract.side_effect = [[("John Doe", 0.9)]]
+
+        hosts = speaker_detection.detect_hosts_from_feed(
+            feed_title="The John Doe Podcast",
+            feed_description="A show about things that happen.",
+            feed_authors=None,
+            nlp=mock_nlp,
+        )
+
+        self.assertEqual(hosts, {"John Doe"})
+        self.assertEqual(mock_extract.call_count, 1, "the description must not be handed to NER")
 
     @patch.object(speaker_detection, "extract_person_entities")
     def test_detect_speaker_names_guests(self, mock_extract):

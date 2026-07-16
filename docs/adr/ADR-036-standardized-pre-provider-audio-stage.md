@@ -33,6 +33,26 @@ We introduce a **Standardized Pre-Provider Audio Stage**.
 - **Positive**: Dramatically lower costs; faster processing; 100% API success rate.
 - **Negative**: Adds a system dependency on `ffmpeg`.
 
+## Amendment (2026-07-12, GitHub #1173): silence removal is off
+
+The VAD silence-removal clause in **Decision** is superseded; the rest of the ADR stands.
+
+This ADR treated the stage as free — it optimizes the signal, nothing downstream can tell. That is
+true of mono conversion, resampling, loudness normalization and MP3 encoding, all of which preserve
+the audio's **duration**. It is not true of silence removal, which deletes interior pauses and so
+hands the transcriber a **shorter timeline than the audio the rest of the system uses**. Transcript
+timestamps are stored against the *original* file (the player seeks it, the KG cites it), so every
+timestamp after a removed pause lands early and the error accumulates: measured on the prod corpus
+at **-20 s** on a 25-minute episode (32 s of pauses cut) and **-162 s** on a 1 h 54 m one (401 s
+cut).
+
+The "Cost/Performance: 30-60%" rationale also over-credited this stage: the bitrate/sample-rate
+work (#561) delivers the file-size win, while silence removal cut only ~3% of duration.
+
+Preprocessing is therefore now **timeline-preserving by default**. Silence removal survives behind
+`preprocessing_silence_removal` (default `false`) for deployments that never use transcript
+timestamps. A unit test pins the invariant (duration in == duration out).
+
 ## References
 
 - [RFC-040: Audio Preprocessing Pipeline for Podcast Ingestion](../rfc/RFC-040-audio-preprocessing-pipeline.md)

@@ -1,0 +1,171 @@
+{
+  "dataset_id": "prod_generalization_2x10feed_v2",
+  "version": 1,
+  "description": "TWO episodes from each of 10 different feeds, DIARIZED runs only (run_20260613-*). The Hard Fork result is 10 episodes of ONE show, which is ~1 sample of 'show type'. This gives 10 independent samples of format, length, ad density and audio quality. Transcripts are the existing DGX ones (prod-v2 ran tailnet_dgx_whisper); RAW ASR, not cleaned. Paths point into gitignored .test_outputs.",
+  "content_regime": "real_prod",
+  "num_episodes": 18,
+  "episodes": [
+    {
+      "episode_id": "gen_01",
+      "title": "0003 - The Fed holds steady_20260613-234602_ba02775e",
+      "feed": "rss_feeds.acast.com_f08ef8e2",
+      "transcript_path": ".test_outputs/manual/prod-v2/corpus/feeds/rss_feeds.acast.com_f08ef8e2/run_20260613-234602_ba02775e/transcripts/0003 - The Fed holds steady_20260613-234602_ba02775e.txt",
+      "transcript_hash": "21f85e2abd36efb9473dd947b5420047385073bd611ed47aaa281f482d3595d9",
+      "preprocessing_profile": "raw",
+      "chars": 20498
+    },
+    {
+      "episode_id": "gen_02",
+      "title": "0007 - Boing_ Springtime for the market_20260613-234602_ba02775e",
+      "feed": "rss_feeds.acast.com_f08ef8e2",
+      "transcript_path": ".test_outputs/manual/prod-v2/corpus/feeds/rss_feeds.acast.com_f08ef8e2/run_20260613-234602_ba02775e/transcripts/0007 - Boing_ Springtime for the market_20260613-234602_ba02775e.txt",
+      "transcript_hash": "d7a9a5fac2b07b8755a13b17797dbb06bb13473789e1fe866c79c52a0112cc4a",
+      "preprocessing_profile": "raw",
+      "chars": 18852
+    },
+    {
+      "episode_id": "gen_03",
+      "title": "0001 - Brian Chesky - AI Founder Mode_20260613-143403_ba02775e",
+      "feed": "rss_feeds.megaphone.fm_3581c092",
+      "transcript_path": ".test_outputs/manual/prod-v2/corpus/feeds/rss_feeds.megaphone.fm_3581c092/run_20260613-143403_ba02775e/transcripts/0001 - Brian Chesky - AI Founder Mode_20260613-143403_ba02775e.txt",
+      "transcript_hash": "ea9c0fb34ccf9d59791c1f930489fca0e23d916a709ee2295e6c801bc65746e6",
+      "preprocessing_profile": "raw",
+      "chars": 86965
+    },
+    {
+      "episode_id": "gen_04",
+      "title": "0008 - Mitchell Green - Lessons from Co_20260613-143403_ba02775e",
+      "feed": "rss_feeds.megaphone.fm_3581c092",
+      "transcript_path": ".test_outputs/manual/prod-v2/corpus/feeds/rss_feeds.megaphone.fm_3581c092/run_20260613-143403_ba02775e/transcripts/0008 - Mitchell Green - Lessons from Co_20260613-143403_ba02775e.txt",
+      "transcript_hash": "0f3cee76e63c558dbe5ef0d1239bb0f0d661dea8577963f2fd7413459d97bca6",
+      "preprocessing_profile": "raw",
+      "chars": 65944
+    },
+    {
+      "episode_id": "gen_05",
+      "title": "0005 - Powering the AI Inference Wave w_20260613-222035_ba02775e",
+      "feed": "rss_feeds.megaphone.fm_370fb395",
+      "transcript_path": ".test_outputs/manual/prod-v2/corpus/feeds/rss_feeds.megaphone.fm_370fb395/run_20260613-222035_ba02775e/transcripts/0005 - Powering the AI Inference Wave w_20260613-222035_ba02775e.txt",
+      "transcript_hash": "4ed377194b3e57360172d72df2560c732d2eedcf6fd448c4c69443ea97e997ab",
+      "preprocessing_profile": "raw",
+      "chars": 32572
+    },
+    {
+      "episode_id": "gen_06",
+      "title": "0007 - Safer_ Faster Public Transportat_20260613-222035_ba02775e",
+      "feed": "rss_feeds.megaphone.fm_370fb395",
+      "transcript_path": ".test_outputs/manual/prod-v2/corpus/feeds/rss_feeds.megaphone.fm_370fb395/run_20260613-222035_ba02775e/transcripts/0007 - Safer_ Faster Public Transportat_20260613-222035_ba02775e.txt",
+      "transcript_hash": "69d792685fc4395f5f3b3b1e2aef1febe2f6439f842165e568ffc73836e2fbf5",
+      "preprocessing_profile": "raw",
+      "chars": 29208
+    },
+    {
+      "episode_id": "gen_07",
+      "title": "0009 - From SaaS to AI-First_ How Compa_20260613-120852_ba02775e",
+      "feed": "rss_feeds.megaphone.fm_755f5437",
+      "transcript_path": ".test_outputs/manual/prod-v2/corpus/feeds/rss_feeds.megaphone.fm_755f5437/run_20260613-120852_ba02775e/transcripts/0009 - From SaaS to AI-First_ How Compa_20260613-120852_ba02775e.txt",
+      "transcript_hash": "328a647f5a8031f92650b18a7d0a233264409ad8cfb76465faa01236ce77f2fe",
+      "preprocessing_profile": "raw",
+      "chars": 45728
+    },
+    {
+      "episode_id": "gen_08",
+      "title": "0010 - Rivian_s Roadmap to AI Architect_20260613-120852_ba02775e",
+      "feed": "rss_feeds.megaphone.fm_755f5437",
+      "transcript_path": ".test_outputs/manual/prod-v2/corpus/feeds/rss_feeds.megaphone.fm_755f5437/run_20260613-120852_ba02775e/transcripts/0010 - Rivian_s Roadmap to AI Architect_20260613-120852_ba02775e.txt",
+      "transcript_hash": "d603a88190c5195e4bd72d757fa76cb82fa99e39a920f93c5fb731b10a518ebb",
+      "preprocessing_profile": "raw",
+      "chars": 35466
+    },
+    {
+      "episode_id": "gen_09",
+      "title": "0009 - Reese_s heir vs. chocolate skimp_20260613-165729_ba02775e",
+      "feed": "rss_feeds.npr.org_7ce5b183",
+      "transcript_path": ".test_outputs/manual/prod-v2/corpus/feeds/rss_feeds.npr.org_7ce5b183/run_20260613-165729_ba02775e/transcripts/0009 - Reese_s heir vs. chocolate skimp_20260613-165729_ba02775e.txt",
+      "transcript_hash": "edfe324cfda4f2e65712896eea0959ec6cc0adc469fc469c1b3468055eccb3a0",
+      "preprocessing_profile": "raw",
+      "chars": 34038
+    },
+    {
+      "episode_id": "gen_10",
+      "title": "0002 - Spirit Airlines and the future o_20260613-165729_ba02775e",
+      "feed": "rss_feeds.npr.org_7ce5b183",
+      "transcript_path": ".test_outputs/manual/prod-v2/corpus/feeds/rss_feeds.npr.org_7ce5b183/run_20260613-165729_ba02775e/transcripts/0002 - Spirit Airlines and the future o_20260613-165729_ba02775e.txt",
+      "transcript_hash": "52f315279aa30e95d95050fbdd1e4c15374122cc38f8b9d0f77c026df61d1f9b",
+      "preprocessing_profile": "raw",
+      "chars": 27827
+    },
+    {
+      "episode_id": "gen_11",
+      "title": "0008 - A.I. Goes to War _ Is _A.I. Brai_20260613-093137_ba02775e",
+      "feed": "rss_feeds.simplecast.com_2e104dc7",
+      "transcript_path": ".test_outputs/manual/prod-v2/corpus/feeds/rss_feeds.simplecast.com_2e104dc7/run_20260613-093137_ba02775e/transcripts/0008 - A.I. Goes to War _ Is _A.I. Brai_20260613-093137_ba02775e.txt",
+      "transcript_hash": "307f7a6619e6971da1e0a79f21a8785421d523644bde715949bc959cc0061e80",
+      "preprocessing_profile": "raw",
+      "chars": 71631
+    },
+    {
+      "episode_id": "gen_12",
+      "title": "0007 - _A.I.-Washing_ Layoffs_ _ Why L._20260613-093137_ba02775e",
+      "feed": "rss_feeds.simplecast.com_2e104dc7",
+      "transcript_path": ".test_outputs/manual/prod-v2/corpus/feeds/rss_feeds.simplecast.com_2e104dc7/run_20260613-093137_ba02775e/transcripts/0007 - _A.I.-Washing_ Layoffs_ _ Why L._20260613-093137_ba02775e.txt",
+      "transcript_hash": "537542dee5970cb16fa215e10edd58fa5dace4db155f297aa714ba888d6be363",
+      "preprocessing_profile": "raw",
+      "chars": 68151
+    },
+    {
+      "episode_id": "gen_13",
+      "title": "0005 - Hegseth in the Hot Seat_20260613-205101_ba02775e",
+      "feed": "rss_feeds.simplecast.com_999571cd",
+      "transcript_path": ".test_outputs/manual/prod-v2/corpus/feeds/rss_feeds.simplecast.com_999571cd/run_20260613-205101_ba02775e/transcripts/0005 - Hegseth in the Hot Seat_20260613-205101_ba02775e.txt",
+      "transcript_hash": "cd3e5c2dedf6746a663bf45054d2434cbbd9ffd020f0ea00a55b6c3d632ac87c",
+      "preprocessing_profile": "raw",
+      "chars": 29641
+    },
+    {
+      "episode_id": "gen_14",
+      "title": "0001 - Democratic Anger and Republican _20260613-205101_ba02775e",
+      "feed": "rss_feeds.simplecast.com_999571cd",
+      "transcript_path": ".test_outputs/manual/prod-v2/corpus/feeds/rss_feeds.simplecast.com_999571cd/run_20260613-205101_ba02775e/transcripts/0001 - Democratic Anger and Republican _20260613-205101_ba02775e.txt",
+      "transcript_hash": "7f53d35081e27aec70529921ec7d8ee80e4a96def6e22c8f73073985715b68e8",
+      "preprocessing_profile": "raw",
+      "chars": 24550
+    },
+    {
+      "episode_id": "gen_15",
+      "title": "0002 - Physical AI that Moves the World_20260613-180825_ba02775e",
+      "feed": "rss_rss.flightcast.com_c63dc3c0",
+      "transcript_path": ".test_outputs/manual/prod-v2/corpus/feeds/rss_rss.flightcast.com_c63dc3c0/run_20260613-180825_ba02775e/transcripts/0002 - Physical AI that Moves the World_20260613-180825_ba02775e.txt",
+      "transcript_hash": "68b6b189e3ba1c66b025692e06d2c1f533d05d14113b2d243327a35849819e98",
+      "preprocessing_profile": "raw",
+      "chars": 80431
+    },
+    {
+      "episode_id": "gen_16",
+      "title": "0009 - Moonlake_ Causal World Models sh_20260613-180825_ba02775e",
+      "feed": "rss_rss.flightcast.com_c63dc3c0",
+      "transcript_path": ".test_outputs/manual/prod-v2/corpus/feeds/rss_rss.flightcast.com_c63dc3c0/run_20260613-180825_ba02775e/transcripts/0009 - Moonlake_ Causal World Models sh_20260613-180825_ba02775e.txt",
+      "transcript_hash": "aa62becce3ba5c934e8820a2078e80b615d13d0e5e4f740ad5bf14ad72c16ba9",
+      "preprocessing_profile": "raw",
+      "chars": 64602
+    },
+    {
+      "episode_id": "gen_17",
+      "title": "0005 - Inside Meta_s Big AI Pivot_20260613-135102_ba02775e",
+      "feed": "rss_video-api.wsj.com_9acc908e",
+      "transcript_path": ".test_outputs/manual/prod-v2/corpus/feeds/rss_video-api.wsj.com_9acc908e/run_20260613-135102_ba02775e/transcripts/0005 - Inside Meta_s Big AI Pivot_20260613-135102_ba02775e.txt",
+      "transcript_hash": "d57e28b43e7a37c7427e655810e58f1c0b150bacc268378d5665184ec83da4ca",
+      "preprocessing_profile": "raw",
+      "chars": 17990
+    },
+    {
+      "episode_id": "gen_18",
+      "title": "0006 - Why Air Travel Costs Will Contin_20260613-135102_ba02775e",
+      "feed": "rss_video-api.wsj.com_9acc908e",
+      "transcript_path": ".test_outputs/manual/prod-v2/corpus/feeds/rss_video-api.wsj.com_9acc908e/run_20260613-135102_ba02775e/transcripts/0006 - Why Air Travel Costs Will Contin_20260613-135102_ba02775e.txt",
+      "transcript_hash": "43f9cb77687d07ffd93b4bed7cca7ae1bea9cbf57f3df22ee8201d722ce25642",
+      "preprocessing_profile": "raw",
+      "chars": 15106
+    }
+  ]
+}

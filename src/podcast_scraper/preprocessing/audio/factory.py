@@ -18,6 +18,32 @@ _DEFAULT_MP3_KBPS_API_TRANSCRIBE = 48
 _MP3_BITRATE_RUNG_DESC: List[int] = [64, 56, 48, 40, 32, 24]
 
 
+def preprocessing_fingerprint(cfg) -> str:
+    """Identity of the audio the transcriber will actually see (#1173).
+
+    The transcript cache is keyed on the *original* media's hash, but transcription runs on the
+    *preprocessed* file — so two runs with identical audio and identical models can still produce
+    different transcripts if the preprocessing changed. Folding this fingerprint into the cache key
+    is what stops a preprocessing fix from silently re-serving transcripts built under the old
+    settings (in #1173, transcripts whose timestamps were drifted by silence removal).
+
+    Only the knobs that change the produced audio belong here.
+    """
+    if not getattr(cfg, "preprocessing_enabled", False):
+        return "pp=off"
+    return "|".join(
+        (
+            "pp=on",
+            f"sr={getattr(cfg, 'preprocessing_sample_rate', '')}",
+            f"silrm={bool(getattr(cfg, 'preprocessing_silence_removal', False))}",
+            f"silth={getattr(cfg, 'preprocessing_silence_threshold', '')}",
+            f"sildur={getattr(cfg, 'preprocessing_silence_duration', '')}",
+            f"loud={getattr(cfg, 'preprocessing_target_loudness', '')}",
+            f"mp3={resolve_preprocessing_mp3_bitrate_kbps(cfg)}",
+        )
+    )
+
+
 def resolve_preprocessing_mp3_bitrate_kbps(cfg) -> int:
     """Resolve effective MP3 bitrate for the first full preprocess pass.
 
@@ -80,6 +106,7 @@ def build_ffmpeg_preprocessor_with_bitrate(cfg, mp3_bitrate_kbps: int) -> FFmpeg
         silence_duration=cfg.preprocessing_silence_duration,
         target_loudness=cfg.preprocessing_target_loudness,
         mp3_bitrate_kbps=kb,
+        silence_removal=getattr(cfg, "preprocessing_silence_removal", False),
     )
 
 

@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from podcast_scraper.evaluation.gi_scorer import compute_gil_prediction_stats
 from podcast_scraper.gi import validate_artifact
 from podcast_scraper.gi.grounding import GroundedQuote
 from podcast_scraper.gi.pipeline import (
@@ -1002,3 +1003,82 @@ class TestStubFallbackRegression701:
             "When sentence-transformers is missing, the wrapper should return "
             f"one empty list per insight (graceful degradation); got {result}"
         )
+
+
+class TestTheGroundingScoresSURVIVEToTheMetric:
+    """The grounding scores decide which quotes live. They were never written down.
+
+    ``find_grounded_quotes_via_providers`` computes a QA score and an NLI score per candidate,
+    KEEPS the quote only if ``nli >= gi_nli_entailment_min``, and returns them on the
+    ``GroundedQuote``. Both were then dropped on the floor: ``_quote_props`` did not copy them onto
+    the Quote node, and the ``SUPPORTED_BY`` edge was built as a bare ``{type, from, to}``.
+
+    So every shipped quote carried ``nli_score: None``, ``gi_scorer`` averaged an empty list, and
+    ``mean_nli_score`` reported **0.0** across a real 18-episode run — a number indistinguishable
+    from "every piece of evidence in the corpus flatly contradicts its insight". The pipeline was
+    FILTERING on a number it refused to REPORT, so the one axis that says whether the evidence is
+    any good was the one axis we could not see.
+
+    The existing grounded-path test above builds its quote with ``qa_score=0.8, nli_score=0.7`` and
+    asserts the text and the edge types. The evidence was sitting in the fixture the whole time and
+    nothing looked at it. These tests look at it.
+    """
+
+    def _artifact(self, nli: float = 0.7, qa: float = 0.8):
+        cfg = MagicMock()
+        cfg.generate_gi = True
+        cfg.gi_require_grounding = True
+        cfg.gi_fail_on_missing_grounding = False
+        with (
+            patch(
+                "podcast_scraper.gi.deps.create_gil_evidence_providers",
+                return_value=(MagicMock(), MagicMock()),
+            ),
+            patch(
+                "podcast_scraper.gi.grounding.find_grounded_quotes_via_providers",
+                return_value=[
+                    GroundedQuote(
+                        char_start=0, char_end=8, text="Evidence", qa_score=qa, nli_score=nli
+                    )
+                ],
+            ),
+        ):
+            return build_artifact("ep:1", "Evidence here.", cfg=cfg)
+
+    def test_the_support_edge_carries_the_score_the_scorer_reads(self):
+        """The scorer averages the NLI score off the EDGE, in the nested ``properties`` the schema
+        sanctions. The score grades the RELATION between insight and quote, not the quote alone."""
+        out = self._artifact(nli=0.7, qa=0.8)
+        edge = next(e for e in out["edges"] if e["type"] == "SUPPORTED_BY")
+        props = edge.get("properties") or {}
+        assert props.get("nli_score") == pytest.approx(0.7), (
+            f"SUPPORTED_BY dropped the NLI score: {edge}. gi_scorer averages this field; with it "
+            f"missing, mean_nli_score silently reports 0.0."
+        )
+        assert props.get("qa_score") == pytest.approx(0.8)
+        validate_artifact(out)  # the score must live where the CONTRACT allows it
+
+    def test_the_score_does_NOT_live_on_the_quote_node(self):
+        """The artifact schema rejects it, and the schema is RIGHT.
+
+        A quote has no score of its own: the same span can be strong evidence for one insight and
+        irrelevant to another. The score belongs to the RELATION. I tried to put it on the node and
+        the schema stopped me — this test keeps the next person from trying."""
+        out = self._artifact()
+        props = next(n for n in out["nodes"] if n["type"] == "Quote")["properties"]
+        assert "nli_score" not in props
+        validate_artifact(out)
+
+    def test_the_reported_metric_is_the_score_we_actually_grounded_with(self):
+        """THE REGRESSION, at the surface the operator reads.
+
+        Not "a property exists somewhere" — the number that lands in ``metrics.json``. This is the
+        assertion that would have gone red on the real run, and the only one that proves the whole
+        chain (grounding -> edge -> scorer -> report) is connected."""
+        out = self._artifact(nli=0.9)
+        stats = compute_gil_prediction_stats([{"output": {"gil": out}}])
+        assert stats["mean_nli_score"] == pytest.approx(0.9), (
+            f"mean_nli_score={stats['mean_nli_score']} — the metric is dead. It reported 0.0 for a "
+            f"corpus whose every quote had passed an NLI threshold of 0.5."
+        )
+        assert stats["mean_nli_score"] > 0.0

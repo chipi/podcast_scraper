@@ -18,7 +18,7 @@ import re
 import time
 from typing import Any, cast, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 
-from ... import config, models
+from ... import config, config_constants, models
 
 if TYPE_CHECKING:
     from ...models import Episode
@@ -40,7 +40,7 @@ from ...utils.provider_metadata import (
 )
 from ...utils.timeout_config import get_openai_client_timeout
 from ...workflow import metrics
-from .. import guardrails as _guardrails
+from .. import guardrails as _guardrails, insight_salvage as _insight_salvage
 from ..capabilities import ProviderCapabilities
 
 logger = logging.getLogger(__name__)
@@ -108,6 +108,13 @@ def _record_openai_summarization_call(
         completion_tokens=out_tok,
     )
     pipeline_metrics.record_llm_summarization_call(in_tok, out_tok, cost_usd=cost)
+
+
+# Models that reject any explicit temperature other than the default (1). gpt-5.5 does;
+# gpt-5.4-mini
+# gpt-5.4-mini does not. Seeded here, grown at runtime from the API error (see _chat_create),
+# so a future model that fixes temperature self-heals after one failed call, not a crash.
+_TEMPERATURE_FIXED_MODELS = frozenset({"gpt-5.5", "gpt-5.5-pro"})
 
 
 class OpenAIProvider:
@@ -269,6 +276,58 @@ class OpenAIProvider:
         # Mark provider as thread-safe (API clients can be shared across threads)
         # API providers handle rate limiting internally, so parallelism isn't needed
         self._requires_separate_instances = False
+
+        # Models that reject any explicit ``temperature`` other than the default (1). gpt-5.4-mini
+        # still accepts temperature=0, but gpt-5.5 rejects it with a 400 "temperature does not
+        # support 0 ... only the default (1)". Seeded and grown at runtime — see _chat_create.
+        self._temp_fixed_at_default: Set[str] = set(_TEMPERATURE_FIXED_MODELS)
+
+    def _chat_create(self, **kwargs: Any) -> Any:
+        """``chat.completions.create`` that survives models which fixed ``temperature`` at default.
+
+        Every OpenAI call routes through here. If the model is known to allow only the default
+        temperature, the parameter is dropped up front. If a model we did not know about rejects a
+        non-default temperature — a 400 that names ``temperature`` — the model is recorded and the
+        call retried once without it. So gpt-5.5 (and whatever comes next) self-heals instead of
+        crashing the run at episode 1, and only the FIRST call per model pays the retry.
+        """
+        model = kwargs.get("model")
+        if model in self._temp_fixed_at_default:
+            kwargs.pop("temperature", None)
+        try:
+            return self.client.chat.completions.create(**kwargs)
+        except Exception as exc:  # noqa: BLE001 — inspect, re-raise unless it is the temp case
+            msg = str(exc).lower()
+            if (
+                "temperature" in kwargs
+                and "temperature" in msg
+                and (
+                    "does not support" in msg
+                    or "only the default" in msg
+                    or "unsupported_value" in msg
+                )
+            ):
+                if isinstance(model, str):
+                    self._temp_fixed_at_default.add(model)
+                kwargs.pop("temperature", None)
+                return self.client.chat.completions.create(**kwargs)
+            raise
+
+    def _token_kwarg(self, n: int, model: Optional[str] = None) -> Dict[str, Any]:
+        """The right token-limit kwarg for this model, as a dict to spread into a create() call.
+
+        The o1/o3/gpt-5 series RENAMED ``max_tokens`` to ``max_completion_tokens`` and hard-reject
+        the old name with a 400. The summarization path already knew this, but the EVIDENCE calls
+        (quote extraction, entailment) still sent ``max_tokens`` — so on gpt-5 every grounding call
+        400'd, fell back to staged, 400'd again, and the whole arm produced 0 grounded quotes while
+        looking like it had "completed". One helper, used at every call site, so the rename cannot
+        be honoured in one place and forgotten in another. ``model`` defaults to the summary model;
+        the cleaning path passes its own.
+        """
+        name = model or self.summary_model
+        if name.startswith(("o1", "o3", "gpt-5")):
+            return {"max_completion_tokens": n}
+        return {"max_tokens": n}
 
     @staticmethod
     def get_pricing(model: str, capability: str) -> Dict[str, float]:
@@ -505,20 +564,18 @@ class OpenAIProvider:
 
             def _make_api_call():
                 with open(audio_path, "rb") as audio_file:
-                    # Use verbose_json format to get segments
+                    # verbose_json + word timestamps: whisper's segment-level times drift on
+                    # long audio; word-level times are accurate and we reset segment bounds
+                    # from them below (#1173).
+                    kwargs: dict[str, Any] = {
+                        "model": self.transcription_model,
+                        "file": audio_file,
+                        "response_format": "verbose_json",
+                        "timestamp_granularities": ["word", "segment"],
+                    }
                     if effective_language is not None:
-                        return self.client.audio.transcriptions.create(
-                            model=self.transcription_model,
-                            file=audio_file,
-                            language=effective_language,
-                            response_format="verbose_json",  # Get full response with segments
-                        )
-                    else:
-                        return self.client.audio.transcriptions.create(
-                            model=self.transcription_model,
-                            file=audio_file,
-                            response_format="verbose_json",  # Get full response with segments
-                        )
+                        kwargs["language"] = effective_language
+                    return self.client.audio.transcriptions.create(**kwargs)
 
             try:
                 response = retry_with_metrics(
@@ -615,6 +672,18 @@ class OpenAIProvider:
                                 "text": getattr(seg, "text", ""),
                             }
                         )
+
+            # Reset each segment's start/end from the accurate word-level times — whisper's
+            # segment-level timestamps drift on long audio (up to tens of seconds), word-level
+            # do not (#1173). No-op when the model/response carries no words.
+            raw_words = getattr(response, "words", None)
+            if raw_words:
+                from podcast_scraper.transcription.word_timestamps import (
+                    apply_word_timestamps,
+                    word_dicts,
+                )
+
+                segments = apply_word_timestamps(segments, word_dicts(raw_words))
 
             result_dict: dict[str, object] = {
                 "text": response.text if hasattr(response, "text") else str(response),
@@ -771,14 +840,14 @@ class OpenAIProvider:
             )
 
             response = retry_with_metrics(
-                lambda: self.client.chat.completions.create(
+                lambda: self._chat_create(
                     model=self.speaker_model,
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},
                     ],
                     temperature=self.speaker_temperature,
-                    max_tokens=300,
+                    **self._token_kwarg(300),
                     response_format={"type": "json_object"},
                 ),
                 max_retries=2,
@@ -1156,7 +1225,7 @@ class OpenAIProvider:
                 }
                 if self.summary_seed is not None:
                     kwargs["seed"] = self.summary_seed
-                return self.client.chat.completions.create(**kwargs)
+                return self._chat_create(**kwargs)
 
             try:
                 response = retry_with_metrics(
@@ -1392,7 +1461,7 @@ class OpenAIProvider:
                 kwargs["response_format"] = {"type": "json_object"}
             if self.summary_seed is not None:
                 kwargs["seed"] = self.summary_seed
-            return self.client.chat.completions.create(**kwargs)
+            return self._chat_create(**kwargs)
 
         try:
             resp = retry_with_metrics(
@@ -1490,7 +1559,7 @@ class OpenAIProvider:
                 kwargs["response_format"] = {"type": "json_object"}
             if self.summary_seed is not None:
                 kwargs["seed"] = self.summary_seed
-            return self.client.chat.completions.create(**kwargs)
+            return self._chat_create(**kwargs)
 
         try:
             resp = retry_with_metrics(
@@ -1586,7 +1655,7 @@ class OpenAIProvider:
                 kwargs["response_format"] = {"type": "json_object"}
             if self.summary_seed is not None:
                 kwargs["seed"] = self.summary_seed
-            return self.client.chat.completions.create(**kwargs)
+            return self._chat_create(**kwargs)
 
         try:
             response = retry_with_metrics(
@@ -1718,7 +1787,7 @@ class OpenAIProvider:
     ) -> List[str]:
         """Generate a list of short insight statements from transcript (GIL).
 
-        Uses openai/insight_extraction/v1 prompt; parses response as one insight per line.
+        Uses openai/insight_extraction/v2 prompt; parses response as one insight per line.
         Returns empty list on failure so GIL can fall back to stub.
         """
         if not self._summarization_initialized:
@@ -1727,31 +1796,39 @@ class OpenAIProvider:
 
         from ...prompts.store import render_prompt
 
-        max_insights = min(max(1, max_insights), 10)
+        max_insights = max(1, min(int(max_insights), config_constants.GI_MAX_INSIGHTS_CEILING))
+        insight_max_tokens = max(
+            config_constants.GI_INSIGHT_TOKENS_FLOOR,
+            max_insights * config_constants.GI_INSIGHT_TOKENS_EACH,
+        )
         # Truncate transcript for context (e.g. ~100k chars) to avoid token limits
+        # Honour the configured temperature. This was hardcoded to 0.3 in every provider,
+        # so evals could not pin it and the pipeline was not reproducible.
+        insight_temperature = _insight_salvage.resolve_insight_temperature(self.cfg, "openai")
         text_slice = (text or "").strip()
         if len(text_slice) > 120000:
             text_slice = text_slice[:120000] + "\n\n[Transcript truncated.]"
 
         try:
+            # The prompt decides what an insight IS, so it is a tuned parameter like any
+            # other. Hardcoding it made the extraction prompt the only part of this stage that
+            # could not be A/B tested — and left the v3 speech-act prompt reachable by ollama alone.
+            prompt_version = str(getattr(self.cfg, "gi_insight_prompt_version", "v2") or "v2")
             user_prompt = render_prompt(
-                "openai/insight_extraction/v1",
+                f"openai/insight_extraction/{prompt_version}",
                 transcript=text_slice,
                 title=episode_title or "",
                 max_insights=max_insights,
             )
-            system_prompt = (
-                "Output only the list of key takeaways, one per line. "
-                "No numbering, bullets, or extra text."
-            )
-            response = self.client.chat.completions.create(
+            system_prompt = render_prompt("openai/insight_extraction/system_v1")
+            response = self._chat_create(
                 model=self.insight_model,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
-                temperature=0.3,
-                max_tokens=min(1024, max_insights * 150),
+                temperature=insight_temperature,
+                **self._token_kwarg(insight_max_tokens),
             )
             in_tok, out_tok = _openai_chat_usage_tokens(response)
             # Cost computed up-front so it can be emitted on both happy-path
@@ -1786,6 +1863,8 @@ class OpenAIProvider:
                         prompt_tokens=int(in_tok),
                         completion_tokens=int(out_tok),
                         triggered_guardrail=triggered_guardrail,
+                        served_model=getattr(response, "model", None),
+                        response=response,
                     )
                 except Exception:  # noqa: BLE001 - defensive; never block GI on telemetry
                     pass
@@ -1799,9 +1878,15 @@ class OpenAIProvider:
                 _guardrails.check_chat_response(
                     content, service="openai", finish_reason=finish_reason
                 )
-            except _guardrails.GuardrailViolation:
+            except _guardrails.GuardrailViolation as gv:
                 _emit_gi_cost(triggered_guardrail=True)
-                raise
+                # A truncated LINE LIST is recoverable: the cut lands in the final line and
+                # every earlier one is intact. Re-raising here loses the whole episode to the
+                # stub fallback — 40 good insights discarded because the 41st was clipped.
+                salvaged = _insight_salvage.salvage_truncated_lines(gv, content)
+                if salvaged is None:
+                    raise
+                content = salvaged
             _emit_gi_cost()
             lines = [
                 line.strip()
@@ -1820,6 +1905,17 @@ class OpenAIProvider:
                     s = s[2:].strip()
                 if s:
                     cleaned.append(s)
+            if len(cleaned) > max_insights:
+                # Overproduction is a signal, not a detail to swallow. Truncating silently is
+                # what hid the fact that the model was returning 300+ lines and we were keeping
+                # 50 — which read as "it obediently returned exactly the cap".
+                logger.warning(
+                    "generate_insights: model returned %d insights for a ceiling of %d; "
+                    "keeping the first %d. The prompt is not constraining the count.",
+                    len(cleaned),
+                    max_insights,
+                    max_insights,
+                )
             return cleaned[:max_insights]
         except _guardrails.GuardrailViolation:
             # ADR-100: GI is fail-up. Propagate so FallbackAware can route to
@@ -1828,6 +1924,67 @@ class OpenAIProvider:
         except Exception as e:
             logger.debug("OpenAI generate_insights failed: %s", e, exc_info=True)
             return []
+
+    def classify_insights(self, insights: List[str]) -> List[int]:
+        """Tier each insight 0-3 for the value gate (see ``gi.value_gate``).
+
+        One call for the whole episode. Raises on failure — the gate fails open and owns the
+        decision to keep everything, so this must not paper over a bad response.
+        """
+        if not insights:
+            return []
+        if not self._summarization_initialized:
+            raise RuntimeError("OpenAI summarization not initialized for classify_insights")
+
+        import json as _json
+
+        from ...prompts.store import render_prompt
+
+        listing = "\n".join(f"i{idx}: {text}" for idx, text in enumerate(insights))
+        user_prompt = render_prompt("openai/insight_value_gate/v1", insights=listing)
+        gate_max_tokens = max(
+            config_constants.GI_INSIGHT_TOKENS_FLOOR,
+            len(insights) * config_constants.GI_VALUE_GATE_TOKENS_EACH,
+        )
+        response = self._chat_create(
+            model=self.summary_model,
+            messages=[{"role": "user", "content": user_prompt}],
+            temperature=0.0,
+            **self._token_kwarg(gate_max_tokens),
+            response_format={"type": "json_object"},
+        )
+        content = (response.choices[0].message.content or "").strip()
+        content = _insight_salvage.strip_json_fence(content)
+        _guardrails.check_chat_response(content, service="openai", expect_json=True)
+        tiers = _json.loads(content)
+        # Preserve input order; a missing id keeps the insight (tier 3) rather than dropping it.
+        return [int(tiers.get(f"i{idx}", 3)) for idx in range(len(insights))]
+
+    def complete_text(self, prompt: str) -> str:
+        """One prompt in, one JSON answer out — the generic call ADR-110's resolver needs.
+
+        `detect_speakers` is asked who speaks BEFORE the audio is downloaded, so it can only answer
+        from show notes and returns the people an episode is ABOUT (that is how Elon Musk became a
+        speaker, #876). The resolver asks the same model the same question AFTER diarization, with
+        each voice's own words in hand — and that needs a plain completion, not a task method whose
+        prompt is baked in.
+
+        A provider WITHOUT this silently resolves nobody: the pipeline degrades instead of failing,
+        and the model gets blamed for a method we never wrote.
+        """
+        if not self._summarization_initialized:
+            raise RuntimeError("OpenAI summarization not initialized for complete_text")
+
+        response = self._chat_create(
+            model=self.summary_model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.0,
+            **self._token_kwarg(800),
+            response_format={"type": "json_object"},
+        )
+        content = (response.choices[0].message.content or "").strip()
+        _guardrails.check_chat_response(content, service="openai", expect_json=True)
+        return _insight_salvage.strip_json_fence(content)
 
     def extract_kg_graph(
         self,
@@ -1872,14 +2029,14 @@ class OpenAIProvider:
             )
 
             def _make_api_call():
-                return self.client.chat.completions.create(
+                return self._chat_create(
                     model=model,
                     messages=[
                         {"role": "system", "content": system_msg},
                         {"role": "user", "content": user_prompt},
                     ],
                     temperature=0.1,
-                    max_tokens=2048,
+                    **self._token_kwarg(2048),
                 )
 
             response = retry_with_metrics(
@@ -1924,18 +2081,13 @@ class OpenAIProvider:
         if not self._summarization_initialized or not (transcript and insight_text):
             return []
         from ...gi.grounding import QuoteCandidate, resolve_llm_quote_span
-        from ...prompts.store import render_prompt
+        from ..common.evidence_prompts import render_extract_quote_prompt
 
-        system = (
-            "Extract all short verbatim quotes from the transcript that support "
-            "the given insight. Quotes must be from different parts of the "
-            "transcript. Reply with ONLY a JSON object: "
-            '{"quotes": ["exact quote 1", "exact quote 2"]}'
-        )
-        user = render_prompt(
-            "openai/evidence/extract_quote/v1",
-            transcript=transcript.strip()[:50000],
-            insight=insight_text.strip(),
+        system, user = render_extract_quote_prompt(
+            "openai",
+            transcript,
+            insight_text,
+            config_constants.GI_QUOTE_TRANSCRIPT_MAX_CHARS,
         )
         try:
             from ...utils.provider_metrics import (
@@ -1952,14 +2104,14 @@ class OpenAIProvider:
             pm = kwargs.get("pipeline_metrics")
 
             def _make_api_call():
-                return self.client.chat.completions.create(
+                return self._chat_create(
                     model=self.summary_model,
                     messages=[
                         {"role": "system", "content": system},
                         {"role": "user", "content": user},
                     ],
                     temperature=0.0,
-                    max_tokens=512,
+                    **self._token_kwarg(config_constants.GI_QUOTE_RESPONSE_TOKENS),
                 )
 
             try:
@@ -2029,17 +2181,9 @@ class OpenAIProvider:
         """Score entailment of hypothesis given premise (GIL NLI via LLM). 0–1."""
         if not self._summarization_initialized or not (premise and hypothesis):
             return 0.0
-        from ...prompts.store import render_prompt
+        from ..common.evidence_prompts import render_entailment_prompt
 
-        system = (
-            "You rate how much the premise supports the hypothesis. "
-            "Reply with ONLY a number between 0 and 1 (0=not at all, 1=fully supports)."
-        )
-        user = render_prompt(
-            "openai/evidence/entailment/v1",
-            premise=premise.strip(),
-            hypothesis=hypothesis.strip(),
-        )
+        system, user = render_entailment_prompt("openai", premise, hypothesis)
         try:
             from ...utils.provider_metrics import (
                 _safe_openai_retryable,
@@ -2055,14 +2199,14 @@ class OpenAIProvider:
             pm = kwargs.get("pipeline_metrics")
 
             def _make_api_call():
-                return self.client.chat.completions.create(
+                return self._chat_create(
                     model=self.summary_model,
                     messages=[
                         {"role": "system", "content": system},
                         {"role": "user", "content": user},
                     ],
                     temperature=0.0,
-                    max_tokens=10,
+                    **self._token_kwarg(10),
                 )
 
             try:
@@ -2140,14 +2284,14 @@ class OpenAIProvider:
         max_out = extract_quotes_bundled_max_tokens(len(insight_texts))
 
         def _make_api_call() -> Any:
-            return self.client.chat.completions.create(
+            return self._chat_create(
                 model=self.summary_model,
                 messages=[
                     {"role": "system", "content": system},
                     {"role": "user", "content": user},
                 ],
                 temperature=0.0,
-                max_tokens=max_out,
+                **self._token_kwarg(max_out),
             )
 
         try:
@@ -2267,14 +2411,14 @@ class OpenAIProvider:
         max_out = score_entailment_bundled_max_tokens(len(chunk_pairs))
 
         def _make_api_call() -> Any:
-            return self.client.chat.completions.create(
+            return self._chat_create(
                 model=self.summary_model,
                 messages=[
                     {"role": "system", "content": system},
                     {"role": "user", "content": user},
                 ],
                 temperature=0.0,
-                max_tokens=max_out,
+                **self._token_kwarg(max_out),
             )
 
         try:
@@ -2469,16 +2613,19 @@ class OpenAIProvider:
             call_metrics.set_breaker_config_from_cfg(self.cfg)
 
             def _make_api_call():
-                return self.client.chat.completions.create(
+                return self._chat_create(
                     model=self.cleaning_model,
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},
                     ],
                     temperature=self.cleaning_temperature,
-                    max_tokens=clamp_cleaning_max_tokens(
-                        estimate_cleaning_output_tokens(len(text.split())),
-                        OPENAI_CLEANING_MAX_TOKENS,
+                    **self._token_kwarg(
+                        clamp_cleaning_max_tokens(
+                            estimate_cleaning_output_tokens(len(text.split())),
+                            OPENAI_CLEANING_MAX_TOKENS,
+                        ),
+                        model=self.cleaning_model,
                     ),
                 )
 
@@ -2535,6 +2682,8 @@ class OpenAIProvider:
                         prompt_tokens=int(in_tok),
                         completion_tokens=int(out_tok),
                         triggered_guardrail=triggered_guardrail,
+                        served_model=getattr(response, "model", None),
+                        response=response,
                     )
                 except Exception:  # noqa: BLE001 - defensive
                     pass

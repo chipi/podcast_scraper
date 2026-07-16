@@ -28,7 +28,12 @@ def _gil_payload(
             "target": f"q{k % max(quotes, 1)}",
         }
         if k < len(scores):
-            edge["nli_score"] = scores[k]
+            # NESTED, as the artifact schema requires and as gi.pipeline._support_edge emits. This
+            # helper used to hang the score off the edge's TOP LEVEL — a shape the real pipeline
+            # never produces and `$defs.edge` (`additionalProperties: false`) forbids outright. So
+            # the scorer was verified against an artifact that could not exist, and its read of the
+            # top level passed here while returning nothing at all on every real run.
+            edge["properties"] = {"nli_score": scores[k]}
         edges.append(edge)
     return {"nodes": nodes, "edges": edges}
 
@@ -100,7 +105,14 @@ class TestGroundingRate:
                 {"id": "i0", "type": "Insight"},
                 {"id": "q0", "type": "Quote"},
             ],
-            "edges": [{"type": "supported_by", "source": "i0", "target": "q0", "nli_score": 0.85}],
+            "edges": [
+                {
+                    "type": "supported_by",
+                    "source": "i0",
+                    "target": "q0",
+                    "properties": {"nli_score": 0.85},
+                }
+            ],
         }
         out = compute_gil_prediction_stats([{"output": {"gil": gil}}])
         assert out["grounding_rate"] == 1.0

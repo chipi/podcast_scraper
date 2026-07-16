@@ -469,8 +469,22 @@ def anonymize_speakers(text: str) -> str:
         True
         >>> "Liam" not in result
         True
+
+        A titled speaker is anonymized too — this used to leak:
+
+        >>> "Dr. Adam Rodman" not in anonymize_speakers("Dr. Adam Rodman: Hello")
+        True
     """
-    speaker_pattern = r"^([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)(?:\s*\([^)]+\))?\s*:"
+    # An honorific prefix ("Dr.", "Prof.", "Sen.") used to defeat this entirely: the old pattern was
+    # ``[A-Z][a-z]+`` optionally twice, so it anonymized "Kevin Roose:" but walked straight past
+    # "Dr. Adam Rodman:" — the period is not a space. Titled speakers are overwhelmingly the GUESTS
+    # (doctors, professors, senators), so the speaker-name leak this function exists to stop was
+    # still wide open for exactly the people the episode is built around. Also allows a third name
+    # token ("Ana Maria Cox:"), which the two-token cap dropped for the same silent reason.
+    speaker_pattern = (
+        r"^((?:(?:Dr|Mr|Mrs|Ms|Prof|Sen|Rep|Gov|Lt|Sgt|Capt|Rev|Fr)\.?\s+)?"
+        r"[A-Z][a-z]+(?:\s[A-Z][a-z'’-]+){0,2})(?:\s*\([^)]+\))?\s*:"
+    )
     speakers_seen: dict[str, str] = {}
     lines = text.splitlines()
     result = []

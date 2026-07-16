@@ -2348,7 +2348,7 @@ class TestGetProviderModelName(unittest.TestCase):
         cfg = create_test_config(
             transcription_provider="openai",
             openai_transcription_model="whisper-1",
-            openai_api_key="test-key",  # Required for OpenAI provider
+            openai_api_key="test-api-key-123",  # Required for OpenAI provider
         )
         mock_provider = Mock()
         # Mock provider has non-string model (like Whisper object)

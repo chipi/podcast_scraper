@@ -25,7 +25,7 @@ except ImportError:
     anthropic = None  # type: ignore
     Anthropic = None  # type: ignore
 
-from ... import config
+from ... import config, config_constants
 
 if TYPE_CHECKING:
     from ...models import Episode
@@ -43,7 +43,7 @@ from ...utils.cleaning_max_tokens import (
 from ...utils.log_redaction import format_exception_for_log
 from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
-from .. import guardrails as _guardrails
+from .. import guardrails as _guardrails, insight_salvage as _insight_salvage
 from ..capabilities import ProviderCapabilities
 
 logger = logging.getLogger(__name__)
@@ -107,6 +107,16 @@ def _record_anthropic_llm_call(
         completion_tokens=out_tok,
     )
     getattr(pipeline_metrics, recorder_name)(in_tok, out_tok, cost_usd=cost)
+
+
+# The Claude 5 generation (claude-sonnet-5, claude-opus-4-8) DEPRECATED the `temperature` parameter:
+# the API rejects any request that carries it with a 400 "`temperature` is deprecated for this
+# model", which crashes the whole run at episode 1. Older 4.x models (sonnet-4-5/4-6, haiku-4-5)
+# still accept it. Rather than hardcode a model list that rots as Anthropic ships new models, the
+# provider LEARNS: it seeds the known rejecters, omits temperature for them, and on an unexpected
+# "temperature deprecated" 400 it records the model and retries without temperature. So a future
+# model that drops temperature self-heals after one failed call instead of taking down the run.
+_TEMPERATURE_DEPRECATED_SEED = frozenset({"claude-sonnet-5", "claude-opus-4-8"})
 
 
 class AnthropicProvider:
@@ -205,10 +215,13 @@ class AnthropicProvider:
         if cfg.anthropic_api_base:
             client_kwargs["base_url"] = cfg.anthropic_api_base
 
-        # Configure HTTP timeouts with separate connect/read timeouts
-        # Note: Anthropic SDK may support timeout parameter (verify SDK version)
-        # If not supported, this will be ignored but won't break
-        timeout_config = get_http_timeout(cfg)
+        # The generic HTTP timeout is sized for RSS fetches: a 20s read. That is far too short for
+        # an LLM call summarizing a 74k-char transcript, which takes 30-60s+, so anthropic cells
+        # died with "Request timed out or interrupted" while every other provider completed.
+        # Read gets the summarization budget; connect/write/pool keep the short HTTP values.
+        timeout_config = get_http_timeout(
+            cfg, read_timeout=float(config_constants.DEFAULT_SUMMARIZATION_TIMEOUT_SECONDS)
+        )
         if timeout_config is not None:
             client_kwargs["timeout"] = timeout_config
 
@@ -233,6 +246,10 @@ class AnthropicProvider:
         # Claude 3.5 Sonnet supports 200K context window
         self.max_context_tokens = 200000
 
+        # Models known to reject `temperature` (see _TEMPERATURE_DEPRECATED_SEED). Grows at runtime
+        # when the API teaches us a new one. Shared across instances so the lesson is learned once.
+        self._temp_deprecated: Set[str] = set(_TEMPERATURE_DEPRECATED_SEED)
+
         # Initialization state
         self._transcription_initialized = False
         self._speaker_detection_initialized = False
@@ -242,6 +259,33 @@ class AnthropicProvider:
         # API providers handle rate limiting and retries internally via SDK
         # Anthropic SDK automatically handles retries with exponential backoff
         self._requires_separate_instances = False
+
+    def _messages_create(self, **kwargs: Any) -> Any:
+        """``client.messages.create`` that survives models which dropped ``temperature``.
+
+        Every Anthropic call routes through here. If the target model is known to reject
+        ``temperature`` (Claude 5 generation), the parameter is stripped before the call. If a model
+        we did NOT know about rejects it — a 400 whose message names ``temperature`` — the model is
+        recorded and the call retried once without the parameter, so the failure self-heals instead
+        of crashing the run at episode 1 (which is exactly what claude-sonnet-5 did).
+        """
+        model = kwargs.get("model")
+        if model in self._temp_deprecated:
+            kwargs.pop("temperature", None)
+        try:
+            return self.client.messages.create(**kwargs)
+        except Exception as exc:  # noqa: BLE001 — inspect, re-raise unless it is the temp case
+            msg = str(exc).lower()
+            if (
+                "temperature" in kwargs
+                and "temperature" in msg
+                and ("deprecat" in msg or "not support" in msg or "unsupported" in msg)
+            ):
+                if isinstance(model, str):
+                    self._temp_deprecated.add(model)
+                kwargs.pop("temperature", None)
+                return self.client.messages.create(**kwargs)
+            raise
 
     @staticmethod
     def get_pricing(model: str, capability: str) -> Dict[str, float]:
@@ -476,7 +520,7 @@ class AnthropicProvider:
             )
 
             response = retry_with_metrics(
-                lambda: self.client.messages.create(
+                lambda: self._messages_create(
                     model=self.speaker_model,
                     max_tokens=300,
                     temperature=self.speaker_temperature,
@@ -740,7 +784,7 @@ class AnthropicProvider:
 
             # Wrap API call with retry tracking
             def _make_api_call():
-                return self.client.messages.create(
+                return self._messages_create(
                     model=self.summary_model,
                     max_tokens=max_length,
                     temperature=self.summary_temperature,
@@ -985,7 +1029,7 @@ class AnthropicProvider:
         call_metrics.set_breaker_config_from_cfg(self.cfg)
 
         def _make_api_call() -> Any:
-            return self.client.messages.create(
+            return self._messages_create(
                 model=self.summary_model,
                 max_tokens=max_out,
                 temperature=0.0,
@@ -1071,7 +1115,7 @@ class AnthropicProvider:
         call_metrics.set_breaker_config_from_cfg(self.cfg)
 
         def _make_api_call() -> Any:
-            return self.client.messages.create(
+            return self._messages_create(
                 model=self.summary_model,
                 max_tokens=max_out,
                 temperature=0.0,
@@ -1153,7 +1197,7 @@ class AnthropicProvider:
         call_metrics.set_breaker_config_from_cfg(self.cfg)
 
         def _make_api_call() -> Any:
-            return self.client.messages.create(
+            return self._messages_create(
                 model=self.summary_model,
                 max_tokens=max_out,
                 temperature=self.summary_temperature,
@@ -1408,7 +1452,7 @@ class AnthropicProvider:
 
             # Wrap API call with retry tracking
             def _make_api_call():
-                return self.client.messages.create(
+                return self._messages_create(
                     model=self.cleaning_model,
                     max_tokens=clamp_cleaning_max_tokens(
                         estimate_cleaning_output_tokens(len(text.split())),
@@ -1493,6 +1537,8 @@ class AnthropicProvider:
                         prompt_tokens=in_tok_cl,
                         completion_tokens=out_tok_cl,
                         triggered_guardrail=triggered_guardrail,
+                        served_model=getattr(response, "model", None),
+                        response=response,
                     )
                 except Exception:  # noqa: BLE001
                     pass
@@ -1568,7 +1614,7 @@ class AnthropicProvider:
     ) -> List[str]:
         """Generate a list of short insight statements from transcript (GIL).
 
-        Uses anthropic/insight_extraction/v1 prompt; parses response as one insight per line.
+        Uses anthropic/insight_extraction/v2 prompt; parses response as one insight per line.
         Returns empty list on failure so GIL can fall back to stub.
         """
         if not self._summarization_initialized:
@@ -1577,26 +1623,34 @@ class AnthropicProvider:
 
         from ...prompts.store import render_prompt
 
-        max_insights = min(max(1, max_insights), 10)
+        max_insights = max(1, min(int(max_insights), config_constants.GI_MAX_INSIGHTS_CEILING))
+        insight_max_tokens = max(
+            config_constants.GI_INSIGHT_TOKENS_FLOOR,
+            max_insights * config_constants.GI_INSIGHT_TOKENS_EACH,
+        )
+        # Honour the configured temperature. This was hardcoded to 0.3 in every provider,
+        # so evals could not pin it and the pipeline was not reproducible.
+        insight_temperature = _insight_salvage.resolve_insight_temperature(self.cfg, "anthropic")
         text_slice = (text or "").strip()
         if len(text_slice) > 120000:
             text_slice = text_slice[:120000] + "\n\n[Transcript truncated.]"
 
         try:
+            # The prompt decides what an insight IS, so it is a tuned parameter like any
+            # other. Hardcoding it made the extraction prompt the only part of this stage that
+            # could not be A/B tested — and left the v3 speech-act prompt reachable by ollama alone.
+            prompt_version = str(getattr(self.cfg, "gi_insight_prompt_version", "v2") or "v2")
             user_prompt = render_prompt(
-                "anthropic/insight_extraction/v1",
+                f"anthropic/insight_extraction/{prompt_version}",
                 transcript=text_slice,
                 title=episode_title or "",
                 max_insights=max_insights,
             )
-            system_prompt = (
-                "Output only the list of key takeaways, one per line. "
-                "No numbering, bullets, or extra text."
-            )
-            response = self.client.messages.create(
+            system_prompt = render_prompt("anthropic/insight_extraction/system_v1")
+            response = self._messages_create(
                 model=self.summary_model,
-                max_tokens=min(1024, max_insights * 150),
-                temperature=0.3,
+                max_tokens=insight_max_tokens,
+                temperature=insight_temperature,
                 system=system_prompt,
                 messages=[{"role": "user", "content": user_prompt}],
             )
@@ -1652,6 +1706,8 @@ class AnthropicProvider:
                         prompt_tokens=in_tok_gi,
                         completion_tokens=out_tok_gi,
                         triggered_guardrail=triggered_guardrail,
+                        served_model=getattr(response, "model", None),
+                        response=response,
                     )
                 except Exception:  # noqa: BLE001
                     pass
@@ -1665,9 +1721,15 @@ class AnthropicProvider:
                     service="anthropic",
                     finish_reason=_anthropic_finish_reason(response),
                 )
-            except _guardrails.GuardrailViolation:
+            except _guardrails.GuardrailViolation as gv:
                 _emit_gi_cost(triggered_guardrail=True)
-                raise
+                # A truncated LINE LIST is recoverable: the cut lands in the final line and
+                # every earlier one is intact. Re-raising here loses the whole episode to the
+                # stub fallback — 40 good insights discarded because the 41st was clipped.
+                salvaged = _insight_salvage.salvage_truncated_lines(gv, content)
+                if salvaged is None:
+                    raise
+                content = salvaged
             _emit_gi_cost()
             lines = [
                 line.strip()
@@ -1685,6 +1747,17 @@ class AnthropicProvider:
                     s = s[2:].strip()
                 if s:
                     cleaned.append(s)
+            if len(cleaned) > max_insights:
+                # Overproduction is a signal, not a detail to swallow. Truncating silently is
+                # what hid the fact that the model was returning 300+ lines and we were keeping
+                # 50 — which read as "it obediently returned exactly the cap".
+                logger.warning(
+                    "generate_insights: model returned %d insights for a ceiling of %d; "
+                    "keeping the first %d. The prompt is not constraining the count.",
+                    len(cleaned),
+                    max_insights,
+                    max_insights,
+                )
             return cleaned[:max_insights]
         except _guardrails.GuardrailViolation:
             # ADR-100: GI is fail-up. Propagate so FallbackAware routes.
@@ -1692,6 +1765,71 @@ class AnthropicProvider:
         except Exception as e:
             logger.debug("Anthropic generate_insights failed: %s", e, exc_info=True)
             return []
+
+    def classify_insights(self, insights: List[str]) -> List[int]:
+        """Tier each insight 0-3 for the value gate (see ``gi.value_gate``).
+
+        One call for the whole episode. Raises on failure — the gate fails open and owns the
+        decision to keep everything, so this must not paper over a bad response.
+        """
+        if not insights:
+            return []
+        if not self._summarization_initialized:
+            raise RuntimeError("Anthropic summarization not initialized for classify_insights")
+
+        import json as _json
+
+        from ...prompts.store import render_prompt
+
+        listing = "\n".join(f"i{idx}: {text}" for idx, text in enumerate(insights))
+        user_prompt = render_prompt("anthropic/insight_value_gate/v1", insights=listing)
+        gate_max_tokens = max(
+            config_constants.GI_INSIGHT_TOKENS_FLOOR,
+            len(insights) * config_constants.GI_VALUE_GATE_TOKENS_EACH,
+        )
+        response = self._messages_create(
+            model=self.summary_model,
+            max_tokens=gate_max_tokens,
+            temperature=0.0,
+            messages=[{"role": "user", "content": user_prompt}],
+        )
+        content = ""
+        if response.content and len(response.content) > 0:
+            first = response.content[0]
+            content = (getattr(first, "text", "") or "").strip()
+        content = _insight_salvage.strip_json_fence(content)
+        _guardrails.check_chat_response(content, service="anthropic", expect_json=True)
+        tiers = _json.loads(content)
+        # Preserve input order; a missing id keeps the insight (tier 3) rather than dropping it.
+        return [int(tiers.get(f"i{idx}", 3)) for idx in range(len(insights))]
+
+    def complete_text(self, prompt: str) -> str:
+        """One prompt in, one JSON answer out — the generic call ADR-110's resolver needs.
+
+        `detect_speakers` is asked who speaks BEFORE the audio is downloaded, so it can only answer
+        from show notes and returns the people an episode is ABOUT (that is how Elon Musk became a
+        speaker, #876). The resolver asks the same model the same question AFTER diarization, with
+        each voice's own words in hand — and that needs a plain completion, not a task method whose
+        prompt is baked in.
+
+        A provider WITHOUT this silently resolves nobody: the pipeline degrades instead of failing,
+        and the model gets blamed for a method we never wrote.
+        """
+        if not self._summarization_initialized:
+            raise RuntimeError("Anthropic summarization not initialized for complete_text")
+
+        response = self._messages_create(
+            model=self.summary_model,
+            max_tokens=800,
+            temperature=0.0,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        content = ""
+        if response.content and len(response.content) > 0:
+            first = response.content[0]
+            content = (getattr(first, "text", "") or "").strip()
+        _guardrails.check_chat_response(content, service="anthropic", expect_json=True)
+        return _insight_salvage.strip_json_fence(content)
 
     def extract_kg_graph(
         self,
@@ -1736,7 +1874,7 @@ class AnthropicProvider:
             )
 
             def _make_api_call():
-                return self.client.messages.create(
+                return self._messages_create(
                     model=model,
                     max_tokens=2048,
                     temperature=0.1,
@@ -1784,17 +1922,13 @@ class AnthropicProvider:
         import json
 
         from ...gi.grounding import QuoteCandidate, resolve_llm_quote_span
+        from ..common.evidence_prompts import render_extract_quote_prompt
 
-        system = (
-            "Extract all short verbatim quotes from the transcript that support "
-            "the given insight. Quotes must be from different parts of the "
-            "transcript. Reply with ONLY a JSON object: "
-            '{"quotes": ["exact quote 1", "exact quote 2"]}'
-        )
-        user = (
-            f"Transcript (excerpt):\n{transcript.strip()[:50000]}\n\n"
-            f"Insight: {insight_text.strip()}\n\n"
-            "Return JSON with quote_text only."
+        system, user = render_extract_quote_prompt(
+            "anthropic",
+            transcript,
+            insight_text,
+            config_constants.GI_QUOTE_TRANSCRIPT_MAX_CHARS,
         )
         try:
             from ...utils.provider_metrics import (
@@ -1812,9 +1946,9 @@ class AnthropicProvider:
             pm = kwargs.get("pipeline_metrics")
 
             def _make_api_call():
-                return self.client.messages.create(
+                return self._messages_create(
                     model=self.summary_model,
-                    max_tokens=512,
+                    max_tokens=config_constants.GI_QUOTE_RESPONSE_TOKENS,
                     temperature=0.0,
                     system=system,
                     messages=[{"role": "user", "content": user}],
@@ -1899,11 +2033,9 @@ class AnthropicProvider:
         """Score entailment of hypothesis given premise (GIL NLI via LLM). 0–1."""
         if not self._summarization_initialized or not (premise and hypothesis):
             return 0.0
-        system = (
-            "You rate how much the premise supports the hypothesis. "
-            "Reply with ONLY a number between 0 and 1 (0=not at all, 1=fully supports)."
-        )
-        user = f"Premise: {premise.strip()}\n\nHypothesis: {hypothesis.strip()}"
+        from ..common.evidence_prompts import render_entailment_prompt
+
+        system, user = render_entailment_prompt("anthropic", premise, hypothesis)
         try:
             from ...utils.provider_metrics import (
                 _safe_anthropic_retryable,
@@ -1920,7 +2052,7 @@ class AnthropicProvider:
             pm = kwargs.get("pipeline_metrics")
 
             def _make_api_call():
-                return self.client.messages.create(
+                return self._messages_create(
                     model=self.summary_model,
                     max_tokens=10,
                     temperature=0.0,
@@ -2010,7 +2142,7 @@ class AnthropicProvider:
         max_out = extract_quotes_bundled_max_tokens(len(insight_texts))
 
         def _make_api_call() -> Any:
-            return self.client.messages.create(
+            return self._messages_create(
                 model=self.summary_model,
                 max_tokens=max_out,
                 temperature=0.0,
@@ -2136,7 +2268,7 @@ class AnthropicProvider:
         max_out = score_entailment_bundled_max_tokens(len(chunk_pairs))
 
         def _make_api_call() -> Any:
-            return self.client.messages.create(
+            return self._messages_create(
                 model=self.summary_model,
                 max_tokens=max_out,
                 temperature=0.0,

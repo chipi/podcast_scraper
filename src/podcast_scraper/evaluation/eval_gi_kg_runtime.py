@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, cast, Dict, Literal, Optional
 
 from podcast_scraper import config_constants
-from podcast_scraper.config import Config
+from podcast_scraper.config import Config, GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS
 
 _TASK_GI = "grounded_insights"
 _TASK_KG = "knowledge_graph"
@@ -111,6 +111,40 @@ def merge_eval_task_into_summarizer_config(
         }
         if max_insights is not None:
             updates["gi_max_insights"] = int(max_insights)
+        # Value gate. Unforwarded params are dropped silently by this allowlist, so a gate
+        # configured in the experiment YAML would sit inert and the cell would look like a
+        # no-op result rather than a misconfiguration.
+        value_gate = p.get("gi_value_gate_enabled")
+        if value_gate is not None:
+            updates["gi_value_gate_enabled"] = bool(value_gate)
+        min_tier = p.get("gi_value_gate_min_tier")
+        if isinstance(min_tier, int) and 0 <= min_tier <= 3:
+            updates["gi_value_gate_min_tier"] = min_tier
+        # The judge pin MUST be forwarded. Without it each arm grades its own output, and
+        # self-grading is ~6x more lenient (qwen drops 4% of its own insights; anthropic drops 26%
+        # of the same ones) — so a head-to-head would compare two different strictnesses.
+        gate_judge = p.get("gi_value_gate_provider")
+        if isinstance(gate_judge, str) and gate_judge:
+            updates["gi_value_gate_provider"] = gate_judge
+        gate_model = p.get("gi_value_gate_model")
+        if isinstance(gate_model, str) and gate_model:
+            updates["gi_value_gate_model"] = gate_model
+        chunk_chars = p.get("gi_insight_chunk_chars")
+        if isinstance(chunk_chars, int) and chunk_chars >= 0:
+            updates["gi_insight_chunk_chars"] = chunk_chars
+        dedupe_t = p.get("gi_insight_dedupe_threshold")
+        if isinstance(dedupe_t, (int, float)):
+            updates["gi_insight_dedupe_threshold"] = float(dedupe_t)
+        prompt_v = p.get("gi_insight_prompt_version")
+        if isinstance(prompt_v, str) and prompt_v:
+            updates["gi_insight_prompt_version"] = prompt_v
+        # Without this line an arm CANNOT pin its sampler. The YAMLs already said
+        # `temperature: 0.0`, but that key mapped to no Config field, so extraction sampled at the
+        # 0.3 default and two runs of the SAME model disagreed with each other — noise a model
+        # comparison would have reported as one model "finding knowledge the other missed".
+        insight_temp = p.get("gi_insight_temperature")
+        if isinstance(insight_temp, (int, float)):
+            updates["gi_insight_temperature"] = float(insight_temp)
         # #698 GIL evidence-stack bundling — forward mode flags from the
         # experiment YAML's ``params:`` dict to the runtime Config so the
         # bundled dispatch in ``gi/pipeline.py`` actually fires for matrix
@@ -124,15 +158,27 @@ def merge_eval_task_into_summarizer_config(
         chunk = p.get("gil_evidence_nli_chunk_size")
         if isinstance(chunk, int) and 1 <= chunk <= 100:
             updates["gil_evidence_nli_chunk_size"] = chunk
-        # Auto-align evidence providers to match summary_provider when the
-        # summarizer is an LLM (same logic as Config._auto_promote_evidence_providers
-        # which only runs at construction time, not on model_copy).
-        summary_prov = getattr(base, "summary_provider", "transformers")
-        if summary_prov != "transformers":
-            quote_prov = p.get("quote_extraction_provider", summary_prov)
-            entail_prov = p.get("entailment_provider", summary_prov)
-            updates["quote_extraction_provider"] = quote_prov
-            updates["entailment_provider"] = entail_prov
+        # Re-align the evidence stack to the summariser. This MUST happen here, and the reason is
+        # subtle enough that it was already deleted once:
+        #
+        # An eval cell is built as `base.model_copy(update={"summary_provider": ...})`, and
+        # model_copy does NOT re-run validators. So Config's evidence auto-align — which points
+        # quote-extraction and entailment at the summarising LLM — never fires on an eval cell. The
+        # cell would summarise with qwen and keep the base profile's grounder (the local QA/NLI
+        # stack), which grounds ~8% of insights. That is not a hypothetical: removing this block
+        # produced a 10-episode run with 513 insights and ZERO grounded quotes.
+        #
+        # This is compensation for a model_copy limitation, not a reimplementation of the pipeline.
+        # An experiment can still name a grounder on purpose (that is how the grounding bake-off
+        # compares them); naming one just wins over the align.
+        summary_prov = str(getattr(base, "summary_provider", "transformers"))
+        aligned = summary_prov in GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS
+        for key in ("quote_extraction_provider", "entailment_provider"):
+            chosen = p.get(key)
+            if isinstance(chosen, str) and chosen:
+                updates[key] = chosen
+            elif aligned:
+                updates[key] = summary_prov
         return base.model_copy(update=updates)
     if task == _TASK_KG:
         raw_kg = p.get("kg_extraction_source", "provider")

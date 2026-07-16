@@ -72,8 +72,9 @@ class TestAudioPreprocessingProfileWiring:
         joined = " ".join(cmd)
         assert "-b:a" in cmd and "32k" in cmd, joined
         assert "-ar" in cmd and "16000" in cmd, joined
-        assert "start_threshold=-30dB" in joined, joined
-        assert "stop_threshold=-30dB" in joined, joined
-        assert "start_duration=0.5" in joined, joined
-        assert "stop_duration=0.5" in joined, joined
         assert "loudnorm=I=-16" in joined, joined
+        # No silenceremove: the profile carries thresholds, but removal is off, so the filter
+        # never reaches ffmpeg. Cutting interior pauses would shorten the audio the transcriber
+        # sees while the timestamps are stored against the original mp3 (#1173).
+        assert not prep.silence_removal
+        assert "silenceremove" not in joined, joined

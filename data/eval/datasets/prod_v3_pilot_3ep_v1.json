@@ -1,0 +1,33 @@
+{
+  "dataset_id": "prod_v3_pilot_3ep_v1",
+  "version": 1,
+  "description": "3 pilot episodes, v3 DGX transcripts. Both providers read these exact files, so the only variable is the LLM. Paths point into gitignored .test_outputs \u2014 real podcast content never enters the tracked tree.",
+  "content_regime": "real_prod",
+  "num_episodes": 3,
+  "episodes": [
+    {
+      "episode_id": "v3p_e01",
+      "title": "0001 - OpenAI_s Big Reset _ A.I. in the_20260712-192132_48f9",
+      "transcript_path": ".test_outputs/manual/loop3/corpus/feeds/rss_feeds.simplecast.com_2e104dc7/run_20260712-192132_48f9b76a/transcripts/0001 - OpenAI_s Big Reset _ A.I. in the_20260712-192132_48f9b76a.cleaned.txt",
+      "transcript_hash": "9abe4d6f85fa4fb2de48a376e16755bb0525f12625cea85a3c18db4821e69e31",
+      "preprocessing_profile": "pattern",
+      "chars": 74173
+    },
+    {
+      "episode_id": "v3p_e02",
+      "title": "0002 - Tim Cook_s Legacy _ The Future o_20260712-192132_48f9",
+      "transcript_path": ".test_outputs/manual/loop3/corpus/feeds/rss_feeds.simplecast.com_2e104dc7/run_20260712-192132_48f9b76a/transcripts/0002 - Tim Cook_s Legacy _ The Future o_20260712-192132_48f9b76a.cleaned.txt",
+      "transcript_hash": "167adfbe6fc8a1c7db82e5164963bf449bc47be6f0b8c63a039bb8e290f9318d",
+      "preprocessing_profile": "pattern",
+      "chars": 77108
+    },
+    {
+      "episode_id": "v3p_e03",
+      "title": "0003 - A.I. Backlash Turns Violent _ Ka_20260712-192132_48f9",
+      "transcript_path": ".test_outputs/manual/loop3/corpus/feeds/rss_feeds.simplecast.com_2e104dc7/run_20260712-192132_48f9b76a/transcripts/0003 - A.I. Backlash Turns Violent _ Ka_20260712-192132_48f9b76a.cleaned.txt",
+      "transcript_hash": "c3d3d793cc181e169e2d0d06ed96fd6799e60015dedbb5a98673dae93fd0de17",
+      "preprocessing_profile": "pattern",
+      "chars": 67468
+    }
+  ]
+}

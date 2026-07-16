@@ -1,0 +1,92 @@
+# Who should judge the value gate, on a profile that may not call the cloud?
+#
+# The value gate classifies each insight 0-3 (FILLER / MINOR / USEFUL / CORE) and drops anything
+# below the floor. Who judges is load-bearing: a model grading its OWN output is far more lenient
+# than an independent one, so self-grading leaves the filler in and the gate becomes decoration.
+#
+# A pinned cloud judge fixes that but breaks the one thing an all-DGX profile exists for: no cloud
+# call at any stage. This experiment asks whether a SECOND LOCAL model can do the job.
+#
+# Re-run:
+#   PYTHONPATH=. .venv/bin/python scripts/eval/experiment/value_gate_judge_bakeoff.py \
+#       --config data/eval/configs/value_gate_judge_bakeoff_v1.yaml
+
+id: value_gate_judge_bakeoff_v1
+task: value_gate_judge
+
+data:
+  # Episodes are pinned by the dataset; the INSIGHTS come from a frozen run over them.
+  dataset_id: prod_v3_10ep_v1
+
+  # MUST be a run with the value gate OFF. A gated run's insights are the ones the gate already
+  # KEPT, so re-judging them measures nothing: the reference judge sees only its own survivors and
+  # dutifully drops ~nothing. The first version of this experiment made exactly that mistake.
+  insight_source_run: ungated_qwen_10ep
+  per_episode: 12 # insights per episode, evenly spread across the episode, deterministic
+
+params:
+  floor: 2 # keep tier >= USEFUL, matching gi_value_gate_min_tier
+
+# SILVER — ground truth is a CONSENSUS, not one opinion.
+#
+# Two independent cloud judges grade the same insights; a label counts only where they AGREE. Both
+# vendors are disjoint from the candidate (qwen), so the silver itself is free of the #939
+# same-vendor bias. Their agreement rate is also the NOISE CEILING of the task: where two flagship
+# judges cannot agree whether an insight is CORE or FILLER, the label is ambiguous rather than
+# wrong, and no local judge can be held above that bar.
+silver:
+  - { provider: anthropic, model: claude-haiku-4-5-20251001 }
+  - { provider: gemini, model: gemini-2.5-flash-lite }
+
+# The candidate grading its own homework — the known-bad floor the gate exists to avoid.
+baseline:
+  { provider: ollama, model: "qwen3.5:35b", label: "qwen SELF [known-bad]" }
+
+# CANDIDATE JUDGES — every non-qwen model on the DGX that fits the budget.
+#
+# The box is 121 GB and the pipeline holds whisper + pyannote + qwen3.5:35b (~30 GB), so a judge has
+# real headroom — but not 65 GB. Three constraints knocked out every judge we had already validated
+# in EVAL_AUTORESEARCH_JUDGE_TRUST_MATRIX_2026_07:
+#
+#   * #939 same-vendor bias excludes ALL qwen-family judges. That costs us judge_qwen_next
+#     (rho +0.958 vs cloud), the best judge we own, and we take the hit.
+#   * `gpu-mode-swap prod` STOPS EVERY vLLM, so vLLM-served judges (qwen_next, nemotron,
+#     llama-70b-NVFP4) cannot coexist with the pipeline at all.
+#   * gpt-oss:120b clears both rules (rho +0.937, Ollama, OpenAI-OSS family) but is 65 GB —
+#     co-resident with qwen that is 89 GB before whisper and pyannote, so Ollama would evict and
+#     reload a 65 GB model every episode.
+#
+# What is left is the small cohort we already evaluated as summarisation candidates. NOTE the
+# assumption under test: those scores measure GENERATION quality, not JUDGING ability. Writing a
+# good summary and reliably grading someone else's claim are different skills, and the trust matrix
+# only ever measured judging on the 70-120B models. This experiment is what settles it.
+judges:
+  - { provider: ollama, model: "llama3.3:70b", label: "llama3.3:70b (42G)" }
+  - { provider: ollama, model: "gemma3:27b-it-q8_0", label: "gemma3:27b-q8 (30G)" }
+  - { provider: ollama, model: "gemma3:27b", label: "gemma3:27b (17G)" }
+  - { provider: ollama, model: "gemma2:27b", label: "gemma2:27b (16G)" }
+  - { provider: ollama, model: "mistral-small3.2:latest", label: "mistral-small3.2 (15G)" }
+  - { provider: ollama, model: "mistral-small:24b", label: "mistral-small:24b (14G)" }
+  - { provider: ollama, model: "gpt-oss:20b", label: "gpt-oss:20b (14G)" }
+  - { provider: ollama, model: "phi4:14b", label: "phi4:14b (9G)" }
+  - { provider: ollama, model: "deepseek-r1:14b", label: "deepseek-r1:14b (9G)" }
+  - { provider: ollama, model: "mistral-nemo:12b", label: "mistral-nemo:12b (7G)" }
+  - { provider: ollama, model: "gemma2:9b", label: "gemma2:9b (5G)" }
+  - { provider: ollama, model: "llama3.1:8b", label: "llama3.1:8b (5G)" }
+  - { provider: ollama, model: "hermes3:8b", label: "hermes3:8b (5G)" }
+  - { provider: ollama, model: "mistral:7b", label: "mistral:7b (4G)" }
+  - { provider: ollama, model: "llama3.2:3b", label: "llama3.2:3b (2G)" }
+
+# SCORING
+#
+#   drop_rate  share of insights the judge rejects at the floor
+#   agreement  raw keep/drop match against the silver consensus
+#   kappa      Cohen's kappa vs silver — agreement CORRECTED FOR CHANCE. This is the number that
+#              ranks them. A judge that keeps everything scores high raw agreement with any
+#              permissive baseline while deciding nothing; kappa scores that ~0 and exposes it.
+#              That is precisely the self-grading failure mode the gate exists to prevent.
+#
+# A judge is USABLE at kappa >= 0.4, weak at >= 0.2, and a rubber-stamp below that.
+scoring:
+  metrics: [drop_rate, agreement, kappa]
+  usable_kappa: 0.4

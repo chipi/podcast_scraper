@@ -3833,6 +3833,54 @@ def _build_config_for_feed_entry(
     return merge_feed_entry_into_config(base.model_copy(update={"rss_urls": None}), entry)
 
 
+GIL_TUNING_KEYS = (
+    "gi_require_grounding",
+    "gi_fail_on_missing_grounding",
+    "gi_evidence_extract_retries",
+    "gi_qa_score_min",
+    "gi_nli_entailment_min",
+    "gi_qa_window_chars",
+    "gi_qa_window_overlap_chars",
+    "gi_qa_model",
+    "gi_nli_model",
+    "gi_embedding_model",
+    "extractive_qa_device",
+    "nli_device",
+    # #698 — GIL evidence stack bundling modes (Layer A / Layer B). Profiles
+    # set these to ``bundled`` after PR #711; without copying them here the
+    # ``--config`` path would silently drop the override and run staged.
+    "gil_evidence_quote_mode",
+    "gil_evidence_nli_mode",
+    "gil_evidence_nli_chunk_size",
+    # THE GI QUALITY GATES. Same trap, one layer along: the profile sets them, the field exists
+    # on Config, and without a line here the ``--config`` path drops the override on the floor.
+    # `gi_value_gate_enabled` defaults to FALSE, so dropping it does not fail — it silently
+    # turns the judge off and the run looks fine.
+    "gi_value_gate_enabled",
+    "gi_value_gate_provider",
+    "gi_value_gate_model",
+    "gi_value_gate_min_tier",
+    "gi_insight_dedupe_threshold",
+    "gi_insight_prompt_version",
+    "gi_insight_temperature",
+    "speaker_resolution_llm",
+    # An LLM grounds with an LLM. These default to "transformers", so a profile that asks for
+    # LLM grounding and is not forwarded here quietly grounds with local DeBERTa instead.
+    "quote_extraction_provider",
+    "entailment_provider",
+)
+"""Profile keys forwarded from YAML to ``Config`` on the ``--config`` path.
+
+THE ALLOWLIST (ADR-111). A key that is not on this list is not rejected — it is silently
+DROPPED, and ``Config`` falls back to its default. The defaults are mostly "off", so omitting a
+key does not break a run; it quietly disables a stage and the run still looks fine. That is how
+``gi_value_gate_enabled`` shipped switched off, and how ``gi_insight_temperature`` let every
+scored arm sample at 0.3 while its YAML said 0.0.
+
+Module-level ON PURPOSE: an allowlist nobody can inspect is how keys go missing. Tests read it.
+"""
+
+
 def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
     """Materialize a Config object from already-validated CLI arguments."""
     speaker_names_list = [s.strip() for s in (args.speaker_names or "").split(",") if s.strip()]
@@ -4157,30 +4205,8 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         payload["hybrid_internal_preprocessing_after_pattern"] = (
             args.hybrid_internal_preprocessing_after_pattern
         )
-    # GIL / evidence tuning from config file: _load_and_merge_config puts these on args via
-    # set_defaults(model_dump); they must be copied here or CLI runs ignore YAML (Issue: gi_qa
-    # thresholds appeared to "do nothing").
-    _gil_tuning_keys = (
-        "gi_require_grounding",
-        "gi_fail_on_missing_grounding",
-        "gi_evidence_extract_retries",
-        "gi_qa_score_min",
-        "gi_nli_entailment_min",
-        "gi_qa_window_chars",
-        "gi_qa_window_overlap_chars",
-        "gi_qa_model",
-        "gi_nli_model",
-        "gi_embedding_model",
-        "extractive_qa_device",
-        "nli_device",
-        # #698 — GIL evidence stack bundling modes (Layer A / Layer B). Profiles
-        # set these to ``bundled`` after PR #711; without copying them here the
-        # ``--config`` path would silently drop the override and run staged.
-        "gil_evidence_quote_mode",
-        "gil_evidence_nli_mode",
-        "gil_evidence_nli_chunk_size",
-    )
-    for _gil_key in _gil_tuning_keys:
+    # GIL / evidence tuning from the config file (see GIL_TUNING_KEYS).
+    for _gil_key in GIL_TUNING_KEYS:
         if hasattr(args, _gil_key):
             payload[_gil_key] = getattr(args, _gil_key)
     # Vector / semantic corpus (#484): CLI + YAML via set_defaults must reach Config.

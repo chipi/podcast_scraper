@@ -132,7 +132,15 @@ def extract_audio_metadata(audio_path: str) -> Optional[Dict[str, Any]]:
 
 
 class FFmpegAudioPreprocessor:
-    """Audio preprocessor using ffmpeg for format conversion and silence removal."""
+    """Audio preprocessor using ffmpeg for format conversion and loudness normalization.
+
+    **Timeline-preserving by default (#1173).** Transcript timestamps are stored against the
+    *original* audio (the player seeks it, the KG cites it), so every stage here must keep the
+    output duration equal to the input duration. Mono/resample/loudnorm/bitrate all do. Interior
+    silence removal does not — it deletes pauses, so the transcriber sees a shorter timeline and
+    every timestamp after a cut pause lands early, drift accumulating to minutes on long episodes.
+    It is therefore opt-in via ``silence_removal`` and off by default.
+    """
 
     def __init__(
         self,
@@ -141,17 +149,22 @@ class FFmpegAudioPreprocessor:
         silence_duration: float = 2.0,
         target_loudness: int = -16,
         mp3_bitrate_kbps: int = 64,
+        silence_removal: bool = False,
     ):
         """Initialize preprocessor with configuration.
 
         Args:
             sample_rate: Target sample rate in Hz (default: 16000).
                 Recommended: 8000, 12000, 16000, 24000, or 48000.
-            silence_threshold: Silence detection threshold (default: -50dB)
-            silence_duration: Minimum silence duration to remove in seconds (default: 2.0)
+            silence_threshold: Silence detection threshold (default: -50dB). Only used when
+                ``silence_removal`` is enabled.
+            silence_duration: Minimum silence duration to remove in seconds (default: 2.0). Only
+                used when ``silence_removal`` is enabled.
             target_loudness: Target loudness in LUFS for normalization (default: -16)
             mp3_bitrate_kbps: libmp3lame constant bitrate for speech output (default: 64).
                 GitHub #561: lower values for API transcription size limits; see CONFIGURATION.md.
+            silence_removal: Drop interior silence (default: False). Shrinks the file but
+                **breaks the transcript↔audio timeline** — see the class docstring (#1173).
         """
         STANDARD_RATES = [8000, 12000, 16000, 24000, 48000]
         if sample_rate not in STANDARD_RATES:
@@ -169,6 +182,7 @@ class FFmpegAudioPreprocessor:
         self.silence_duration = silence_duration
         self.target_loudness = target_loudness
         self.mp3_bitrate_kbps = int(mp3_bitrate_kbps)
+        self.silence_removal = bool(silence_removal)
 
         # Check ffmpeg availability
         if not _check_ffmpeg_available():
@@ -183,9 +197,11 @@ class FFmpegAudioPreprocessor:
         Pipeline stages:
         1. Convert to mono
         2. Resample to configured sample rate (default: 16 kHz)
-        3. Remove silence (VAD)
-        4. Normalize loudness to configured target (default: -16 LUFS)
-        5. Encode to MP3 via libmp3lame at ``mp3_bitrate_kbps`` (default 64; GitHub #561).
+        3. Normalize loudness to configured target (default: -16 LUFS)
+        4. Encode to MP3 via libmp3lame at ``mp3_bitrate_kbps`` (default 64; GitHub #561).
+        5. Remove silence (VAD) — **only if** ``silence_removal`` is enabled; this is the one
+           stage that changes the duration, so the output no longer shares a timeline with the
+           input (#1173).
 
         Args:
             input_path: Path to raw audio file
@@ -204,11 +220,22 @@ class FFmpegAudioPreprocessor:
         # -vn: disable video (audio-only output)
         # -ac 1: convert to mono
         # -ar <sample_rate>: resample to configured sample rate
-        # -af silenceremove: remove silence (conservative thresholds)
         # -af loudnorm: normalize loudness to configured target
         # -c:a libmp3lame: MP3 codec (widely supported by OpenAI API)
         # -b:a <n>k: constant bitrate for speech (GitHub #561 tunes this for API caps)
         br = int(self.mp3_bitrate_kbps)
+        filters = []
+        if self.silence_removal:
+            filters.append(
+                f"silenceremove="
+                f"start_periods=1:"
+                f"start_threshold={self.silence_threshold}:"
+                f"start_duration={self.silence_duration}:"
+                f"stop_periods=-1:"
+                f"stop_threshold={self.silence_threshold}:"
+                f"stop_duration={self.silence_duration}"
+            )
+        filters.append(f"loudnorm=I={self.target_loudness}:LRA=11:TP=-1.5")
         cmd = [
             "ffmpeg",
             "-i",
@@ -219,16 +246,7 @@ class FFmpegAudioPreprocessor:
             "-ar",
             str(self.sample_rate),  # Sample rate
             "-af",
-            (
-                f"silenceremove="
-                f"start_periods=1:"
-                f"start_threshold={self.silence_threshold}:"
-                f"start_duration={self.silence_duration}:"
-                f"stop_periods=-1:"
-                f"stop_threshold={self.silence_threshold}:"
-                f"stop_duration={self.silence_duration},"
-                f"loudnorm=I={self.target_loudness}:LRA=11:TP=-1.5"
-            ),
+            ",".join(filters),
             "-c:a",
             "libmp3lame",  # MP3 codec (widely supported, reliable)
             "-b:a",
@@ -343,7 +361,8 @@ class FFmpegAudioPreprocessor:
             f"{self.silence_threshold}|"
             f"{self.silence_duration}|"
             f"{self.target_loudness}|"
-            f"mp3={self.mp3_bitrate_kbps}"
+            f"mp3={self.mp3_bitrate_kbps}|"
+            f"silrm={self.silence_removal}"
         )
         hasher.update(config_str.encode("utf-8"))
 

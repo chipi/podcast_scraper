@@ -44,6 +44,82 @@ from ..utils.log_redaction import format_exception_for_log, redact_for_log
 
 logger = logging.getLogger(__name__)
 
+# Distinctive fragments of the few-shot *style examples* carried in the summarization prompts.
+# They are about motorcycling, software architecture and scuba diving — subjects no podcast episode
+# we ingest is about — so if one appears in a generated summary, the model copied the prompt's
+# example instead of summarizing the transcript.
+#
+# This is not theoretical: qwen3.5:35b did exactly that on the DGX pilot, and an episode about Tim
+# Cook's retirement was summarized as "Speed gains come from braking earlier...". The prompts say
+# in plain English that the examples are style references only; Gemini obeys, a 35B local model
+# does not. The prompts are hardened, but they live in eight files and any future local model can
+# fall into the same trap — so the leak is *detected* here rather than trusted not to happen. A
+# silent success with fabricated content is far more dangerous than a loud failure.
+_PROMPT_EXAMPLE_FRAGMENTS: tuple[str, ...] = (
+    "braking earlier",
+    "riders at any level",
+    "underwater stress",
+    "lack of rehearsal",
+    "cost vs. reliability, speed vs. correctness",
+)
+
+
+def _warn_if_prompt_examples_leaked(title: Optional[str], bullets: Optional[List[str]]) -> None:
+    """Log loudly when a summary contains the prompt's own few-shot examples."""
+    haystack = " ".join([str(title or "")] + [str(b) for b in (bullets or [])]).lower()
+    leaked = [f for f in _PROMPT_EXAMPLE_FRAGMENTS if f in haystack]
+    if leaked:
+        logger.error(
+            "SUMMARY POISONED: the model copied the prompt's style examples verbatim (%s). "
+            "This summary is about the example's subject, not the episode — treat it as "
+            "fabricated. Check the summarization prompt for the model in use.",
+            ", ".join(repr(f) for f in leaked),
+        )
+
+
+# Cleaning strips ads, intros and meta-commentary. It removes a slice, never the episode. Below
+# this fraction of the original the "cleaned" text cannot be a cleaned transcript.
+_MIN_CLEANED_RATIO = 0.30
+
+
+def _reject_destroyed_cleaning(original: str, cleaned: str, episode_idx: object) -> str:
+    """Fall back to the raw transcript when cleaning has destroyed it.
+
+    An LLM cleaner is asked to return the whole transcript minus the ads — tens of thousands of
+    characters. A model that cannot sustain that (measured on the DGX pilot: qwen3.5:35b returned
+    ~150 characters of a 75 000-char transcript, and sometimes an empty string) does not fail
+    loudly; it returns a *plausible fragment*. Everything downstream then works perfectly on that
+    fragment, and the episode is summarized from its own outro — which is exactly what happened,
+    silently, across all ten pilot episodes.
+
+    So a cleaner that returns almost nothing is treated as a failed cleaner, not as a transcript.
+    The raw text is used instead: an uncleaned transcript is a far smaller problem than a
+    confidently-summarized fragment.
+    """
+    # Only a real string can be judged; anything else (a provider stub, a mock) passes through.
+    if not isinstance(original, str) or not isinstance(cleaned, str):
+        return cleaned
+
+    source_len = len(original)
+    cleaned_len = len(cleaned)
+    if source_len == 0:
+        return cleaned
+    if cleaned_len >= source_len * _MIN_CLEANED_RATIO:
+        return cleaned
+
+    logger.error(
+        "[%s] CLEANING DESTROYED THE TRANSCRIPT: %d chars -> %d (%.1f%%). A cleaner removes ads, "
+        "not the episode. Falling back to the RAW transcript — summarizing the remnant would "
+        "produce a confident summary of nothing. Check the cleaning strategy for the model in use "
+        "(transcript_cleaning_strategy: pattern is deterministic and cannot do this).",
+        episode_idx,
+        source_len,
+        cleaned_len,
+        (100.0 * cleaned_len / source_len),
+    )
+    return original
+
+
 # #653 Part D — leading stopwords stripped when deriving a short topic phrase
 # from a summary bullet (staged-mode fallback when KG prefilled topics absent).
 _BULLET_LEADING_STOPWORDS: frozenset[str] = frozenset(
@@ -2525,6 +2601,10 @@ def _generate_episode_summary(  # noqa: C901
                         pipeline_metrics.record_cleaning_time(
                             time.perf_counter() - cleaning_started, episode_idx
                         )
+
+                cleaned_text = _reject_destroyed_cleaning(
+                    transcript_text, cleaned_text, episode_idx
+                )
                 # Safely get lengths for logging (handle Mock objects in tests)
                 try:
                     original_len = len(transcript_text) if transcript_text else 0
@@ -2727,6 +2807,8 @@ def _generate_episode_summary(  # noqa: C901
                     pe = result_meta.get("prefilled_extraction")
                     if isinstance(pe, dict):
                         prefilled_extraction = pe
+
+            _warn_if_prompt_examples_leaked(schema.title, schema.bullets)
 
             # Build SummaryMetadata with required schema fields
             return (

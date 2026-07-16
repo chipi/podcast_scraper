@@ -174,7 +174,7 @@ class TestGrokProviderStandalone(unittest.TestCase):
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="grok",
-            grok_api_key="test-key",
+            grok_api_key="test-api-key-123",
             grok_api_base="http://localhost:8000/v1",
         )
         GrokProvider(cfg)  # Create provider to test initialization
@@ -553,7 +553,10 @@ class TestGrokProviderGIL(unittest.TestCase):
         provider = GrokProvider(self.cfg)
         provider.initialize()
         provider.generate_insights("y" * 120_001, max_insights=3)
-        self.assertIn("[Transcript truncated.]", mock_render.call_args[1]["transcript"])
+        transcript_kw = next(
+            c.kwargs["transcript"] for c in mock_render.call_args_list if "transcript" in c.kwargs
+        )
+        self.assertIn("[Transcript truncated.]", transcript_kw)
 
     @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
     @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
@@ -831,7 +834,7 @@ class TestGrokProviderEdgeCases(unittest.TestCase):
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="grok",
-            grok_api_key="test-key",
+            grok_api_key="test-api-key-123",
             auto_speakers=False,  # Disabled
         )
         provider = GrokProvider(cfg)

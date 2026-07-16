@@ -26,7 +26,7 @@ import shutil
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 # Add parent directory to path to import podcast_scraper modules
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -297,14 +297,16 @@ def _episode_summary_params(cfg: ExperimentConfig) -> Dict[str, Any]:
             "word_overlap": cfg.chunking.word_overlap if cfg.chunking else None,
             "preprocessing_profile": cfg.preprocessing_profile,
         }
-    if cfg.backend.type == "ollama":
-        api_params = cfg.params or {}
-        return {
-            "preprocessing_profile": cfg.preprocessing_profile,
-            "max_length": api_params.get("max_length", 800),
-            "min_length": api_params.get("min_length", 200),
-        }
-    return {"preprocessing_profile": cfg.preprocessing_profile}
+    # Every API backend gets the same summary budget. This used to be ollama-only, so a
+    # gemini-vs-qwen cell ran qwen with max_length from the YAML and gemini with the internal
+    # default — different configurations reported as a like-for-like comparison. It also
+    # truncated gemini's summary on long episodes (finish_reason=length -> the run aborted).
+    api_params = cfg.params or {}
+    return {
+        "preprocessing_profile": cfg.preprocessing_profile,
+        "max_length": api_params.get("max_length", 800),
+        "min_length": api_params.get("min_length", 200),
+    }
 
 
 def _cleanup_gil_evidence_extras(extra_providers: List[Any]) -> None:
@@ -316,6 +318,68 @@ def _cleanup_gil_evidence_extras(extra_providers: List[Any]) -> None:
                 fn()
             except Exception as exc:
                 logger.warning("GIL evidence provider cleanup failed: %s", exc)
+
+
+SEGMENT_ALIGNMENT_MIN_HIT_RATE = 0.95
+
+
+def gi_transcript_and_segments(
+    transcript_path: Path, raw_text: str, cleaned_text: str
+) -> Tuple[str, Optional[List[Any]]]:
+    """Pick the transcript GI must read, and the segments that index it — together, or not at all.
+
+    These two are one decision, so they are returned by one call. The segments carry WHO speaks and
+    WHAT KIND of voice it is, and GI reads both: an advertisement is never grounded, and an insight
+    from a voice nobody names is not surfaceable. Their ``char_start``/``char_end`` index the RAW
+    screenplay — while the summariser reads the PREPROCESSED text, exactly as the shipped pipeline
+    does. Returning the text and the segments separately is what let the eval hand GI cleaned text
+    with raw offsets, where every voice lookup lands on whichever speaker the shift happened to hit.
+    """
+    segments = _load_aligned_segments(transcript_path, raw_text)
+    if segments is None:
+        return cleaned_text, None
+    return raw_text, segments
+
+
+def _load_aligned_segments(transcript_path: Path, transcript_text: str) -> Optional[List[Any]]:
+    """Load the diarized segments beside a transcript, and prove they still index it.
+
+    A gate that mis-attributes is worse than a gate that is absent, so offsets that no longer
+    resolve to the segment's own text are refused outright rather than trusted.
+    """
+    segments_path = transcript_path.with_suffix(".segments.json")
+    if not segments_path.exists():
+        return None
+    try:
+        segments = json.loads(segments_path.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Could not read %s: %s — GI voice gates stay off", segments_path.name, exc)
+        return None
+    if not isinstance(segments, list) or not segments:
+        return None
+
+    aligned = 0
+    for seg in segments:
+        start, end = seg.get("char_start"), seg.get("char_end")
+        if start is None or end is None:
+            continue
+        if transcript_text[int(start) : int(end)].strip() == str(seg.get("text", "")).strip():
+            aligned += 1
+    hit_rate = aligned / len(segments)
+    if hit_rate < SEGMENT_ALIGNMENT_MIN_HIT_RATE:
+        logger.error(
+            "Segment offsets do not index this transcript (%.1f%% of %d segments resolve). "
+            "Dropping them rather than attributing quotes to the wrong speaker.",
+            100 * hit_rate,
+            len(segments),
+        )
+        return None
+    logger.info(
+        "Loaded %d diarized segments (%.1f%% offsets aligned) — GI voice gates are live",
+        len(segments),
+        100 * hit_rate,
+    )
+    return list(segments)
 
 
 def create_run_readme(
@@ -622,6 +686,15 @@ def run_experiment(  # noqa: C901
                 f"Unsupported experiment task: {cfg.task}. "
                 "Expected summarization, ner_entities, grounded_insights, or knowledge_graph."
             )
+
+        # GUARD (known-model allowlist): fail closed on a wrong/fictional cloud model BEFORE
+        # creating the provider or spending a cent. This is the gate the sonnet-4-6 arm needed — an
+        # unknown id is a stop with a "did you mean", not 18 finished episodes on the wrong model.
+        from podcast_scraper.providers.known_models import validate_model_or_raise
+
+        validate_model_or_raise(
+            cfg.backend.type, getattr(cfg.backend, "model", "") or "", context=f"arm {cfg.id}"
+        )
 
         # Create provider based on task and backend type
         # NER task is handled separately — must be checked BEFORE the
@@ -1259,6 +1332,14 @@ def run_experiment(  # noqa: C901
             _ollama_timeout_kw: Dict[str, int] = {}
             if _ollama_read.isdigit():
                 _ollama_timeout_kw["ollama_timeout"] = int(_ollama_read)
+            # The ollama branch never applied backend.base_url, so a cell configured against the
+            # DGX (base_url: http://dgx-llm-1:11434) silently ran on localhost instead — the whole
+            # "DGX" arm of a head-to-head executed on the laptop, and the wall-clock and model
+            # quantisation were both wrong while the run reported success.
+            _ollama_base_kw: Dict[str, Any] = {}
+            _ollama_base = getattr(cfg.backend, "base_url", None)
+            if _ollama_base:
+                _ollama_base_kw["ollama_api_base"] = _ollama_base
             cfg_obj = config.Config(
                 rss_url="",
                 summary_provider="ollama",
@@ -1272,6 +1353,7 @@ def run_experiment(  # noqa: C901
                 ollama_summary_user_prompt=user_prompt,
                 ollama_summary_system_prompt=system_prompt,
                 transcribe_missing=False,
+                **_ollama_base_kw,
                 **_ollama_timeout_kw,
                 **_eval_podcast_scraper_config_overrides(cfg),
             )
@@ -1360,17 +1442,30 @@ def run_experiment(  # noqa: C901
 
         _episode_duration_ms_by_id = episode_duration_ms_map(getattr(cfg.data, "dataset_id", None))
 
+        # LLM call fuse: bound spend across the whole run and per episode. install_run once here so
+        # the run counter accumulates; install_episode at the top of each iteration resets the
+        # per-episode counter. A blown budget raises LLMCallBudgetExceeded and stops the run.
+        from podcast_scraper.utils import llm_call_fuse
+
+        llm_call_fuse.install_run(getattr(cfg, "llm_max_calls_per_run", 0))
+
         with open(predictions_path, "w", encoding="utf-8") as pred_f:
             for path in input_files:
                 episode_id = episode_id_from_path(path, cfg.data)
+                llm_call_fuse.install_episode(
+                    getattr(cfg, "llm_max_calls_per_episode", 0), episode_id
+                )
                 _episode_duration_ms = _episode_duration_ms_by_id.get(episode_id)
                 logger.info(f"Processing episode: {episode_id}")
 
                 # Read transcript
-                text = path.read_text(encoding="utf-8").strip()
+                raw_text = path.read_text(encoding="utf-8")
+                text = raw_text.strip()
                 if not text:
                     logger.warning(f"Skipping empty transcript: {path}")
                     continue
+
+                _raw_text_for_gi = raw_text
 
                 # Apply preprocessing profile (for both summarization and NER tasks)
                 preprocessing_profile = cfg.preprocessing_profile
@@ -1630,15 +1725,20 @@ def run_experiment(  # noqa: C901
                         from podcast_scraper.gi.pipeline import build_artifact
                         from podcast_scraper.schemas.summary_schema import parse_summary_output
 
+                        gi_text, episode_segments = gi_transcript_and_segments(
+                            path, _raw_text_for_gi, text
+                        )
+
                         if cfg.backend.type == "eval_stub":
                             rt_cfg = runtime_config_for_grounded_insights_eval(cfg.params)
                             gil_payload = build_artifact(
                                 episode_id,
-                                text,
+                                gi_text,
                                 podcast_id=f"eval_dataset:{dataset_id}",
                                 episode_title=episode_id,
                                 publish_date=None,
                                 transcript_ref=path.name,
+                                transcript_segments=episode_segments,
                                 cfg=rt_cfg,
                                 pipeline_metrics=None,
                                 episode_duration_ms=_episode_duration_ms,
@@ -1701,11 +1801,12 @@ def run_experiment(  # noqa: C901
 
                             gil_payload = build_artifact(
                                 episode_id,
-                                text,
+                                gi_text,
                                 podcast_id=f"eval_dataset:{dataset_id}",
                                 episode_title=episode_id,
                                 publish_date=None,
                                 transcript_ref=path.name,
+                                transcript_segments=episode_segments,
                                 cfg=cfg_obj,
                                 insight_texts=ins_texts,
                                 insight_provider=ins_prov,

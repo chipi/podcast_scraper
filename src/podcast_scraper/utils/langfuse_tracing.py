@@ -113,6 +113,10 @@ def emit_langfuse_span(
     cost: Optional[float],
     prompt_tokens: Optional[int] = None,
     completion_tokens: Optional[int] = None,
+    cached_input_tokens: Optional[int] = None,
+    cache_write_tokens: Optional[int] = None,
+    served_model: Optional[str] = None,
+    request_id: Optional[str] = None,
     run_seed: Optional[str] = None,
     episode_id: Optional[str] = None,
     feed_id: Optional[str] = None,
@@ -143,18 +147,28 @@ def emit_langfuse_span(
         if run_seed:
             trace_context = {"trace_id": client.create_trace_id(seed=str(run_seed))}
 
+        # Langfuse ``usage_details`` keys: ``input`` / ``output`` and the cache breakdown
+        # (``cache_read_input_tokens`` / ``cache_creation_input_tokens``) so cached spend is visible
+        # in the Langfuse UI exactly as in the local telemetry — no divergence between the two.
         usage: dict[str, int] = {}
         if prompt_tokens is not None:
             usage["input"] = int(prompt_tokens)
         if completion_tokens is not None:
             usage["output"] = int(completion_tokens)
+        if cached_input_tokens is not None:
+            usage["cache_read_input_tokens"] = int(cached_input_tokens)
+        if cache_write_tokens is not None:
+            usage["cache_creation_input_tokens"] = int(cache_write_tokens)
 
         metadata: dict[str, Any] = {
             "provider": provider,
             "stage": capability,
+            "operation": capability,
             "run_id": run_seed,
             "episode_id": episode_id,
             "feed_id": feed_id,
+            "request_id": request_id,
+            "served_model": served_model or model,
             "triggered_guardrail": bool(triggered_guardrail),
             "env": env,
         }
@@ -167,7 +181,7 @@ def emit_langfuse_span(
             trace_context=trace_context,
             name=f"{capability}:{model}",
             as_type="generation",
-            model=str(model),
+            model=str(served_model or model),
             metadata=metadata,
             usage_details=usage or None,
             cost_details=({"total": float(cost)} if cost is not None else None),

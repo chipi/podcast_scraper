@@ -61,6 +61,12 @@ def _build_tools(config: ObservabilityConfig) -> list[Callable[..., dict]]:
         """The running code version and the corpus stamp (git sha) a deploy is serving."""
         return _run(config, target, prod_api.deployed_version)
 
+    def prod_resilience(target: Optional[str] = None) -> dict:
+        """Is the deploy backing off or out of money? Open LLM/RSS circuit breakers (per provider),
+        their cooldowns, and the configured LLM call-fuse budgets. Non-empty ``llm_breakers_open``
+        means we are actively backing off a provider (e.g. gemini-flash-lite under load)."""
+        return _run(config, target, prod_api.resilience)
+
     def prod_recent_runs(target: Optional[str] = None, limit: int = 10) -> dict:
         """Recent pipeline runs (/api/jobs) for a deploy, newest first."""
         return _run(config, target, prod_api.recent_pipeline_runs, limit=limit)
@@ -72,6 +78,18 @@ def _build_tools(config: ObservabilityConfig) -> list[Callable[..., dict]]:
     def prod_cost_today(target: Optional[str] = None) -> dict:
         """Estimated LLM spend over the last 24h for a deploy (from Loki cost events)."""
         return _run(config, target, loki.cost_today)
+
+    def prod_usage(
+        target: Optional[str] = None,
+        group_by: str = "provider,model",
+        run_id: Optional[str] = None,
+    ) -> dict:
+        """LLM token/cost rollup for a deploy, sliced by ``group_by`` — attribute tokens+cost to a
+        model, operation (gi/evidence/cleaning/summarization), episode, or run. Carries the
+        input/output/cached/cache-write breakdown and is de-duplicated by request_id (no double
+        counting). Self-contained (no Loki). ``group_by`` is a comma list of: provider, model,
+        served_model, operation, stage, episode_id, run_id, feed_id."""
+        return _run(config, target, prod_api.usage, group_by=group_by, run_id=run_id or "")
 
     def prod_recent_logs(
         target: Optional[str] = None,
@@ -189,10 +207,12 @@ def _build_tools(config: ObservabilityConfig) -> list[Callable[..., dict]]:
 
     return [
         prod_health,
+        prod_resilience,
         prod_version,
         prod_recent_runs,
         prod_recent_deploys,
         prod_cost_today,
+        prod_usage,
         prod_recent_logs,
         prod_recent_errors,
         prod_recent_alerts,

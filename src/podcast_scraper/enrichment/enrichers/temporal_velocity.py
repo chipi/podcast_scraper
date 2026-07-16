@@ -36,6 +36,7 @@ from pathlib import Path
 from typing import Any
 
 from podcast_scraper.enrichment.enrichers._loaders import (
+    is_unresolved_speaker_placeholder,
     load_kg,
     node_label,
     nodes_of_type,
@@ -312,9 +313,14 @@ def _tally_content_week(
     """Fold one episode's nodes of ``node_type`` into the full-history weekly tally (in place)."""
     for n in nodes_of_type(kg, node_type):
         nid = str(n.get("id") or "")
-        if nid:
-            labels[nid] = node_label(n)
-            weekly[nid][week] += 1
+        if not nid:
+            continue
+        # Unresolved diarization voices are not real people — keep them out of the
+        # trending person series (#1167). Topic ids are never placeholders.
+        if node_type == "Person" and is_unresolved_speaker_placeholder(nid, node_label(n)):
+            continue
+        labels[nid] = node_label(n)
+        weekly[nid][week] += 1
 
 
 def _content_series(bundles: list[EpisodeArtifactBundle]) -> dict[str, Any]:

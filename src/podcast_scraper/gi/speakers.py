@@ -114,6 +114,26 @@ def build_named_turns(transcript: str, known_names: Dict[str, str]) -> List[Tupl
     return turns
 
 
+def build_unverified_named_turns(transcript: str) -> List[Tuple[int, str]]:
+    """``[(char_offset, name)]`` for line-start ``<Name>:`` markers, with NO whitelist.
+
+    :func:`build_named_turns` only attributes a marker that matches an already-detected person, and
+    the GI pipeline never had a detected-person list to give it — so that path never ran and every
+    quote shipped with ``speaker_id: None``. Meanwhile the diarized transcript already carries the
+    names ("Kevin Roose: ..."), so the speaker is sitting in the text, unread.
+
+    This reads them directly. Since there is no whitelist to reject prose, the person heuristic does
+    that job: a label must look like a person (>= 2 tokens, no publisher/network token), so
+    ``Note:`` and ``Bloomberg:`` are ignored. Under-attributing beats attributing wrongly.
+    """
+    turns: List[Tuple[int, str]] = []
+    for m in _NAMED_TURN_RE.finditer(transcript):
+        label = m.group(1).strip()
+        if _looks_like_person(label):
+            turns.append((m.start(1), label))
+    return turns
+
+
 def map_clusters_to_people(
     turns: Sequence[Tuple[int, str]],
     *,

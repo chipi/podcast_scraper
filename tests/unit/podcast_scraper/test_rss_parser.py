@@ -112,6 +112,27 @@ class TestParseRSSItems(unittest.TestCase):
         self.assertEqual(len(authors), 0)
         self.assertEqual(len(items), 1)
 
+    def test_channel_description_extracted(self):
+        """#1169: the channel <description> (which names the host) is parsed + HTML-stripped."""
+        xml_bytes = f"""<?xml version="1.0"?>
+        <rss version="2.0">
+            <channel>
+                <title>{TEST_FEED_TITLE}</title>
+                <description>&lt;p&gt;Hosted by Katie Martin.&lt;/p&gt;</description>
+                <item><title>Episode 1</title></item>
+            </channel>
+        </rss>""".encode()
+        desc = rss_parser._channel_description(xml_bytes)
+        assert desc == "Hosted by Katie Martin."
+
+    def test_channel_description_none_when_absent(self):
+        """No channel description → None (never raises on missing / unparsable XML)."""
+        xml_bytes = f"""<?xml version="1.0"?>
+        <rss version="2.0"><channel><title>{TEST_FEED_TITLE}</title></channel></rss>""".encode()
+        assert rss_parser._channel_description(xml_bytes) is None
+        assert rss_parser._channel_description(b"") is None
+        assert rss_parser._channel_description(b"<not xml") is None
+
     def test_parse_rss_with_author_tags(self):
         """Test parsing RSS feed with author tags."""
         xml_bytes = f"""<?xml version="1.0"?>

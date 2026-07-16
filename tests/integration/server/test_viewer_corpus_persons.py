@@ -70,6 +70,35 @@ def test_corpus_persons_top_ranking(tmp_path: Path) -> None:
     assert p0["top_topics"] == ["topic:tax"]
 
 
+def test_corpus_persons_top_excludes_unresolved_speaker(tmp_path: Path) -> None:
+    """An unnamed diarization voice must not rank as a top person (#1167)."""
+    meta = tmp_path / "metadata"
+    meta.mkdir()
+    stem = meta / "ep99"
+    (stem.with_suffix(".metadata.json")).write_text(json.dumps(_episode_doc()), encoding="utf-8")
+    gi = _minimal_gi()
+    # A placeholder speaker with its own grounded insight — must be dropped, not ranked.
+    gi["nodes"] += [
+        {"id": "person:speaker-00", "type": "Person", "properties": {"name": "SPEAKER_00"}},
+        {"id": "q2", "type": "Quote", "properties": {"text": "yo"}},
+        {"id": "i2", "type": "Insight", "properties": {"text": "noise"}},
+    ]
+    gi["edges"] += [
+        {"type": "SPOKEN_BY", "from": "q2", "to": "person:speaker-00"},
+        {"type": "SUPPORTED_BY", "from": "i2", "to": "q2"},
+        {"type": "ABOUT", "from": "i2", "to": "topic:tax"},
+    ]
+    (stem.with_suffix(".gi.json")).write_text(json.dumps(gi), encoding="utf-8")
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    r = client.get("/api/corpus/persons/top", params={"path": str(tmp_path), "limit": 5})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["total_persons"] == 1
+    assert [p["person_id"] for p in body["persons"]] == ["person:alice"]
+
+
 def test_corpus_persons_top_two_episodes_ranking(tmp_path: Path) -> None:
     meta = tmp_path / "metadata"
     meta.mkdir()

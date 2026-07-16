@@ -268,3 +268,44 @@ class TestTranscriptCache(unittest.TestCase):
         assert entry is not None
         self.assertEqual(entry[0], "ok")
         self.assertIsNone(entry[1])
+
+    def test_preprocessing_change_invalidates_cached_transcript(self):
+        """A transcript is only valid for the preprocessing that produced it (#1173).
+
+        The cache is keyed on the *original* audio, but the transcriber only ever sees the
+        *preprocessed* file. When silence removal was disabled to fix the transcript-audio
+        timeline, the old (drifted) transcripts were still being served, because the key knew
+        nothing about preprocessing — the re-transcription silently replayed the bug.
+        """
+        audio_hash = "same_audio_bytes"
+        drifted = "transcript produced from silence-stripped audio"
+        transcript_cache.save_transcript_to_cache(
+            audio_hash,
+            drifted,
+            provider_name="tailnet_dgx_whisper",
+            model="large-v3",
+            cache_dir=self.cache_dir,
+            preprocessing="pp=on|silrm=True",
+        )
+
+        # Same audio, same provider, same model — but the preprocessing changed.
+        entry = transcript_cache.get_cached_transcript_entry(
+            audio_hash,
+            cache_dir=self.cache_dir,
+            provider_name="tailnet_dgx_whisper",
+            model="large-v3",
+            preprocessing="pp=on|silrm=False",
+        )
+        self.assertIsNone(entry, "changed preprocessing must miss, not replay the old transcript")
+
+        # The original preprocessing still hits, so this is isolation and not a blanket bust.
+        same = transcript_cache.get_cached_transcript_entry(
+            audio_hash,
+            cache_dir=self.cache_dir,
+            provider_name="tailnet_dgx_whisper",
+            model="large-v3",
+            preprocessing="pp=on|silrm=True",
+        )
+        self.assertIsNotNone(same)
+        assert same is not None
+        self.assertEqual(same[0], drifted)

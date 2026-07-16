@@ -1,0 +1,171 @@
+# experiment_dgx_only — the whole pipeline on our own hardware. No cloud API, at any stage.
+#
+# Pairs with `gpu-mode-swap.sh prod` on the DGX, which stops every vLLM (they hold ~79 GB and
+# starve the services below) and keeps the pinned LLM warm. The three GPU consumers here are
+# faster-whisper (:8000), pyannote (:8001) and Ollama (:11434).
+#
+# Every model is pinned to what our own evals actually blessed:
+#   summary/GI/KG  qwen3.5:35b   #928 finale 🥇 5.00/5 (Sonnet) + 4.90 (GPT-5.4), 100% judge
+#                                agreement; reconfirmed by the 2026-07 judges matrix
+#                                ("June's champion qwen3.5:35b holds up"). Changing it
+#                                invalidates those evals — it is a decision, not a default.
+#   diarization    pyannote community-1 (v4) — beat 3.1 on the 45-fixture RTTM ground truth
+#   transcription  faster-whisper large-v3 on the DGX
+#
+# There is deliberately no cloud fallback: ADR-096 requires *a* fallback, so transcription falls
+# back to the LOCAL whisper. A DGX outage degrades to our own hardware; it can never silently
+# start billing an API.
+#
+# Registry-driven: this file is a thin VIEWER over the `experiment_dgx_only` preset. Models AND
+# params (insight ceiling, chunking, dedupe, value gate, temperature) come from the registry, and
+# the drift guard cross-checks anything restated below. To change what this profile extracts,
+# change the StageOption — not this file.
+#
+# It is named `experiment_`, not `prod_`, on purpose. The DGX profile set is being consolidated once
+# the qwen work lands; calling this production before that decision would be claiming a conclusion
+# we have not reached.
+profile: experiment_dgx_only
+
+dgx_tailnet_host: ${DGX_TAILNET_HOST:-dgx-llm-1}
+
+# --- transcription: DGX faster-whisper -----------------------------------------------------------
+transcription_provider: tailnet_dgx_whisper
+dgx_whisper_model: Systran/faster-whisper-large-v3
+dgx_whisper_port: 8000
+transcription_fallback_provider: whisper # LOCAL whisper, never a cloud provider
+whisper_model: small.en # only ever used if the DGX is down
+
+# --- diarization: pyannote v4 --------------------------------------------------------------------
+screenplay: true
+diarize: true
+diarization_provider: tailnet_dgx
+dgx_diarize_port: 8001
+dgx_diarize_model: pyannote/speaker-diarization-community-1
+dgx_diarize_request_timeout_sec: 600.0
+
+# --- audio: timeline-preserving (#1173) ----------------------------------------------------------
+preprocessing_enabled: true
+audio_preprocessing_profile: speech_optimal_v1
+save_adfree_transcript: true
+
+# --- speaker naming: the pinned local LLM ---------------------------------------------------------
+# The cloud profile detects speakers with an LLM (gemini). Using spaCy here would swap the LLM for
+# plain NER, so a worse host/guest result could not be read as "the local LLM is weaker" — it would
+# just mean "no LLM ran". Keeping the stage on the same pinned local model is what makes the
+# cloud-vs-local comparison say something.
+speaker_detector_provider: ollama
+ollama_speaker_model: qwen3.5:35b
+ner_model: en_core_web_trf # still used by the local entity stage
+auto_speakers: true
+
+# --- transcript cleaning: pattern, NOT the LLM ---------------------------------------------------
+# The default is `hybrid` (pattern + a conditional LLM pass). Measured on the pilot: asking
+# qwen3.5:35b to return a cleaned 70k-char transcript gives back ~150 characters — or nothing at
+# all. The summariser then faithfully summarises that fragment, which is why every episode came out
+# as a summary of its own outro ("The podcast invites listeners to email..."). The cloud path never
+# did LLM cleaning either (llm_cleaning_cost_usd: 0.0 in the v2 manifest). Pattern cleaning is
+# deterministic and cannot destroy the transcript.
+transcript_cleaning_strategy: pattern
+
+# --- summary / GI / KG: the pinned Ollama model ---------------------------------------------------
+summary_provider: ollama
+ollama_api_base: http://${DGX_TAILNET_HOST:-dgx-llm-1}:11434/v1
+ollama_summary_model: qwen3.5:35b
+ollama_num_ctx: 32768 # transcripts are long; a smaller window truncates them silently
+# staged, NOT bundled. Measured on the pilot: qwen3.5:35b either emits invalid JSON for the
+# bundled clean+summary call (falls back to staged) or — worse — emits VALID JSON containing the
+# prompt's few-shot style examples verbatim, so an episode about Tim Cook was summarised as
+# "Speed gains come from braking earlier...". A silent success with the wrong content is far
+# more dangerous than a loud failure. The staged prompt (long_v1) carries no such examples.
+llm_pipeline_mode: staged
+
+
+# --- GI evidence gate: qwen writes the insights AND finds the quotes ------------------------------
+# The evidence stack is NOT pinned here: an LLM summariser aligns to itself for quote extraction and
+# entailment (Config._auto_promote_evidence_providers). The local extractive-QA + NLI models are the
+# ML profiles' grounder, not this one — pointing an LLM profile at them grounds 0% of insights,
+# because a QA model returns an answer-fragment and a strict NLI head rejects an abstractive claim.
+#
+# 0.75 is calibrated for exactly this configuration. The shipped (openai) entailment prompt asks for
+# strict textual entailment; qwen3.5:35b answers it strictly and threw away 60% of genuine evidence
+# — grounding 13.3% where the cloud grounded 91.3%. The ollama prompt asks the question the pipeline
+# actually means ("is this quote EVIDENCE for this insight?") on a graded scale, and 0.75 keeps only
+# "clearly supports".
+#
+# Calibrated on 20 pos / 20 neg pairs taken from gemini's own SUPPORTED_BY edges on the SAME
+# episodes (scripts/eval/score/entailment_calibration_v1.py):
+#
+#   shipped prompt   @ 0.50   recall 40%   rejection 95%   <- discards real evidence
+#   evidence-framed  @ 0.50   recall 95%   rejection 80%   <- certifies unrelated pairs
+#   evidence-framed  @ 0.75   recall 65%   rejection 95%   <- gemini's gate passes ~66%
+#
+# Recall alone is gameable: a gate that accepts everything scores 100% and certifies hallucinations,
+# which is the exact failure the grounding contract exists to prevent. Both numbers have to hold.
+gi_nli_entailment_min: 0.75
+
+generate_metadata: true
+generate_summaries: true
+generate_gi: true
+
+# The GI stage's parameters come from the REGISTRY, not from here.
+#
+# This profile maps to the `experiment_dgx_only` preset, whose GI option (`provider_chunked_gated_v3`)
+# carries the params the evals established: insight ceiling, chunking, dedupe threshold, value gate,
+# and temperature 0. They are deliberately NOT restated below — a profile that repeats a registry
+# value can silently disagree with it, and `gi_max_insights: 12` sat here doing exactly that: it
+# overrode the registry, and no run could ever produce more than 12 insights however the registry
+# was tuned.
+#
+# To change what this profile extracts, change the StageOption. The drift guard enforces that the
+# resolved config matches the registry.
+generate_kg: true
+kg_extraction_source: provider
+kg_max_topics: 10
+kg_max_entities: 15
+
+# --- search / enrichment: local models ------------------------------------------------------------
+vector_search: true
+vector_embedding_provider: sentence_transformers
+
+degradation_policy:
+  continue_on_stage_failure: true
+
+language: en
+log_level: INFO
+
+enrichment:
+  enabled: true
+  enrichers:
+    topic_cooccurrence_corpus: {}
+    topic_theme_clusters: {}
+    temporal_velocity: {}
+    grounding_rate: {}
+    guest_coappearance: {}
+    insight_density: {}
+    insight_sentiment: {}
+    topic_similarity:
+      provider:
+        type: sentence_transformer_local
+        model: all-MiniLM-L6-v2
+    topic_consensus:
+      provider:
+        type: consensus_local
+        embed_model: all-MiniLM-L6-v2
+
+# --- registry-materialized (make profiles-materialize) — do not hand-edit ---
+summary_model: qwen3.5:35b
+topic_cluster_threshold: 0.75
+insight_cluster_threshold: 0.75
+gi_insight_source: provider
+gi_max_insights: 50
+gi_require_grounding: true
+gil_evidence_quote_mode: bundled
+gil_evidence_nli_mode: bundled
+gi_insight_chunk_chars: 30000
+gi_insight_dedupe_threshold: 0.75
+gi_insight_temperature: 0.0
+gi_insight_prompt_version: v2
+gi_value_gate_enabled: true
+gi_value_gate_min_tier: 2
+gi_qa_score_min: 0.3
+gil_evidence_match_summary_provider: true

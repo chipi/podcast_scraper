@@ -15,6 +15,41 @@ DEFAULT_LOG_LEVEL = "INFO"
 DEFAULT_SUMMARY_BULLET_MIN = 3
 # How many summary bullets GI/KG may consume by default (ceilings; lower to save grounding cost).
 DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX = 20
+# Hard ceiling on Config.gi_max_insights, and the only bound a provider may impose on the
+# insight count it is asked for. Providers previously clamped to a literal 10, which silently
+# overrode the validated config value: every profile requested 12 and every provider rendered
+# "Extract 10 key takeaways" into the prompt, so no run could ever exceed 10 insights.
+GI_MAX_INSIGHTS_CEILING = 50
+# Token budget per requested insight, floored so short requests still get room to answer.
+GI_INSIGHT_TOKENS_EACH = 150
+GI_INSIGHT_TOKENS_FLOOR = 1024
+# How much transcript quote extraction may see. Providers hardcoded 50_000, which is shorter than
+# a real episode (67k-117k chars here): the last third of every episode was invisible to the quote
+# extractor, and zero of 1418 grounded quotes in the v2 corpus fell beyond the cut. That looked
+# like "insight density is concentrated early" and was in fact the truncation.
+# 150_000 clears the longest episode measured (116,596) and still fits the narrowest cloud context
+# in use (DeepSeek, 64k tokens) with room for the instructions and the reply.
+GI_QUOTE_TRANSCRIPT_MAX_CHARS = 150_000
+# Reply budget for quote extraction. Was 512 in every provider, which tops out near 8-10 quotes —
+# and a reply that overruns does not degrade gracefully: the JSON is cut mid-string, fails to
+# parse, and the call yields ZERO quotes. Do not cap the top of the funnel; the QA and NLI gates
+# below are what trim. 2048 leaves room for a densely-evidenced insight without inviting padding
+# (the prompt forbids that), and unused budget costs nothing.
+GI_QUOTE_RESPONSE_TOKENS = 2048
+# Value gate replies with one small integer per insight, as JSON. Cheap, but budget it from
+# the insight count rather than a literal — that literal is how the last three ceilings bit us.
+GI_VALUE_GATE_TOKENS_EACH = 24
+# Insight generation ran at a hardcoded 0.3 in every provider, ignoring the configured
+# temperature entirely. The pipeline was therefore never reproducible: the same config on
+# the same 3 episodes produced 28.0 vs 18.3 insights/episode and 1.51 vs 6.00
+# quotes/insight, with grounding landing either side of the 80% floor (79.8% vs 94.5%). Evals
+# be able to pin this to 0.
+GI_INSIGHT_TEMPERATURE_DEFAULT = 0.3
+
+# The registry's researched ceiling (provider_chunked_gated_v3). Kept equal to the registry by
+# test_the_config_default_is_not_a_trap: a caller with no profile must not run a different
+# pipeline than the one we measured.
+GI_DEFAULT_MAX_INSIGHTS = 50
 DEFAULT_NUM_SPEAKERS = 2
 DEFAULT_SCREENPLAY_GAP_SECONDS = 1.25
 DEFAULT_TIMEOUT_SECONDS = 20

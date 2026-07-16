@@ -88,13 +88,26 @@ def _resolve_device(device: str) -> str:
             dependency="torch",
             suggestion="Install with: pip install -e '.[ml]'",
         ) from exc
+
+    # pyannote is NOT MPS-compatible: the pipeline requests float64, which Apple's Metal (MPS)
+    # backend rejects ("Cannot convert a MPS Tensor to float64"). Coerce MPS -> CPU — the same
+    # posture the QA evidence backend takes (resolve_evidence_device(mps_supported=False)) — so a
+    # Mac dev box diarizes on CPU (slower) instead of crashing. CUDA / CPU are unaffected, so CI
+    # (Linux/CUDA) and the DGX are unchanged.
+    def _no_mps(dev: str) -> str:
+        if dev == "mps":
+            logger.warning(
+                "pyannote does not support MPS (its pipeline uses float64, which Metal rejects); "
+                "diarizing on CPU instead"
+            )
+            return "cpu"
+        return dev
+
     if device != "auto":
-        return device
+        return _no_mps(device)
     if torch.cuda.is_available():
         return "cuda"
-    mps_backend = getattr(torch.backends, "mps", None)
-    if mps_backend is not None and mps_backend.is_available():
-        return "mps"
+    # Deliberately skip MPS here (see _no_mps): pyannote is float64-incompatible with Metal.
     return "cpu"
 
 

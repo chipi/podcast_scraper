@@ -234,7 +234,7 @@ class TestDeepSeekProviderStandalone(unittest.TestCase):
 
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            deepseek_api_key="test-key",
+            deepseek_api_key="test-api-key-123",
             deepseek_api_base="https://custom.deepseek.com",
             speaker_detector_provider="deepseek",
         )
@@ -695,7 +695,10 @@ class TestDeepSeekProviderGIL(unittest.TestCase):
         provider = DeepSeekProvider(self.cfg)
         provider.initialize()
         provider.generate_insights("q" * 120_001, max_insights=2)
-        self.assertIn("[Transcript truncated.]", mock_render.call_args[1]["transcript"])
+        transcript_kw = next(
+            c.kwargs["transcript"] for c in mock_render.call_args_list if "transcript" in c.kwargs
+        )
+        self.assertIn("[Transcript truncated.]", transcript_kw)
 
     @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
     @patch("podcast_scraper.providers.deepseek.deepseek_provider.OpenAI")

@@ -66,6 +66,11 @@ def _get_state(provider_name: str) -> _BreakerState:
 
 def reset_for_test() -> None:
     """Clear all per-provider state. Test-only."""
+    reset_all()
+
+
+def reset_all() -> None:
+    """Force-close every provider breaker (operator "plug it back in" before the cooldown)."""
     with _state_lock:
         _provider_state.clear()
 

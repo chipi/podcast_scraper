@@ -60,8 +60,10 @@ from podcast_scraper.server.routes import (
     ops,
     query_activity,
     relational,
+    resilience as resilience_routes,
     scheduled_jobs as scheduled_jobs_route,
     search,
+    usage as usage_routes,
 )
 
 logger = logging.getLogger(__name__)
@@ -237,6 +239,8 @@ def create_app(
             )
 
     app.include_router(health.router, prefix="/api")
+    app.include_router(resilience_routes.router, prefix="/api")
+    app.include_router(usage_routes.router, prefix="/api")
     app.include_router(artifacts.router, prefix="/api")
     app.include_router(index_stats.router, prefix="/api")
     app.include_router(index_rebuild.router, prefix="/api")

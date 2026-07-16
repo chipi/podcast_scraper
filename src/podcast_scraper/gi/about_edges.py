@@ -18,6 +18,7 @@ edges — they remain in the graph as Insight nodes, just untagged.
 from __future__ import annotations
 
 import logging
+import threading
 from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
@@ -27,14 +28,34 @@ ABOUT_EDGE_DEFAULT_FLOOR = 0.25
 ABOUT_EDGE_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
 _encoder_cache: Dict[str, Any] = {}
+# The GI stage runs across worker threads. Without this lock two threads miss the cache together,
+# both construct a SentenceTransformer, and torch's lazy meta-device init races — raising
+# "Cannot copy out of meta tensor; no data!". The model loads perfectly well on its own, so the
+# failure looks like a broken install and is really a missing lock.
+#
+# It does not crash loudly enough to notice: `_rank_about_edges_for_insights` throws, the GI
+# artifact build for that episode collapses, and the episode lands with 1 insight instead of 10
+# while the run reports success. Measured on the DGX pilot — one episode in three, every run.
+#
+# Every sibling loader (nli_loader, embedding_loader, extractive_qa) already guards its cache this
+# way; this one was simply missed.
+_encoder_cache_lock = threading.Lock()
 
 
 def _get_encoder(model_id: str) -> Any:
-    if model_id not in _encoder_cache:
-        from sentence_transformers import SentenceTransformer
+    encoder = _encoder_cache.get(model_id)
+    if encoder is not None:
+        return encoder
 
-        _encoder_cache[model_id] = SentenceTransformer(model_id)
-    return _encoder_cache[model_id]
+    with _encoder_cache_lock:
+        # Re-check under the lock: another thread may have loaded it while we waited.
+        encoder = _encoder_cache.get(model_id)
+        if encoder is None:
+            from sentence_transformers import SentenceTransformer
+
+            encoder = SentenceTransformer(model_id)
+            _encoder_cache[model_id] = encoder
+    return encoder
 
 
 def rank_about_edges(

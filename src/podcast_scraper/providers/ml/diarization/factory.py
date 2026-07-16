@@ -81,6 +81,15 @@ def create_diarization_provider(cfg: config.Config) -> DiarizationProvider:
         provider = TailnetDgxDiarizationProvider(cfg)
         provider.initialize()
         return provider
+    if backend == "moss":
+        # The speaker half of the joint MOSS model (#1177). Pairs with
+        # ``transcription_provider: moss`` — the DGX service caches its inference, so whichever
+        # stage runs second reads the same pass rather than re-running the model.
+        from .moss_provider import MossDiarizationProvider
+
+        moss = MossDiarizationProvider(cfg)
+        moss.initialize()
+        return moss
     if backend == "gemini":
         from .gemini_provider import GeminiDiarizationProvider
 

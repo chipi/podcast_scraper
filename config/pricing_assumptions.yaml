@@ -64,6 +64,36 @@ providers:
       autoresearch:
         input_cost_per_1m_tokens: 0.0
         output_cost_per_1m_tokens: 0.0
+      # gpt-5 series (list-price ESTIMATES — verify against the OpenAI pricing page and update).
+      # Tokens are captured exactly regardless; these rates only drive the derived-cost projection.
+      # cache_hit rate is the OpenAI cached-input tier (~10% of input).
+      gpt-5.4-mini:
+        input_cost_per_1m_tokens: 0.25
+        output_cost_per_1m_tokens: 2.00
+        cache_hit_input_cost_per_1m_tokens: 0.025
+      gpt-5.4-nano:
+        input_cost_per_1m_tokens: 0.05
+        output_cost_per_1m_tokens: 0.40
+        cache_hit_input_cost_per_1m_tokens: 0.005
+      gpt-5.4:
+        input_cost_per_1m_tokens: 1.25
+        output_cost_per_1m_tokens: 10.00
+        cache_hit_input_cost_per_1m_tokens: 0.125
+      gpt-5.5:
+        input_cost_per_1m_tokens: 1.25
+        output_cost_per_1m_tokens: 10.00
+        cache_hit_input_cost_per_1m_tokens: 0.125
+      gpt-5:
+        input_cost_per_1m_tokens: 1.25
+        output_cost_per_1m_tokens: 10.00
+        cache_hit_input_cost_per_1m_tokens: 0.125
+      gpt-5-mini:
+        input_cost_per_1m_tokens: 0.25
+        output_cost_per_1m_tokens: 2.00
+        cache_hit_input_cost_per_1m_tokens: 0.025
+      # NB: OpenAI has NO ``default`` row on purpose — an unlisted model returns {} (cost unknown),
+      # which is honest (tokens are still captured; cost is just not projected) and keeps the
+      # ``cost_appears_uninstrumented`` signal meaningful. Add real models above as we adopt them.
 
   gemini:
     transcription:
@@ -118,9 +148,25 @@ providers:
       claude-sonnet-4-5:
         input_cost_per_1m_tokens: 3.00
         output_cost_per_1m_tokens: 15.00
+        # Anthropic prompt caching: cache-read ~0.1x input, cache-write ~1.25x input.
+        cache_hit_input_cost_per_1m_tokens: 0.30
+        cache_write_cost_per_1m_tokens: 3.75
+      # Claude 5 generation (list-price ESTIMATES — verify + update; tokens captured exactly).
+      claude-sonnet-5:
+        input_cost_per_1m_tokens: 3.00
+        output_cost_per_1m_tokens: 15.00
+        cache_hit_input_cost_per_1m_tokens: 0.30
+        cache_write_cost_per_1m_tokens: 3.75
+      claude-opus-4-8:
+        input_cost_per_1m_tokens: 5.00
+        output_cost_per_1m_tokens: 25.00
+        cache_hit_input_cost_per_1m_tokens: 0.50
+        cache_write_cost_per_1m_tokens: 6.25
       claude-haiku-4-5:
         input_cost_per_1m_tokens: 1.00
         output_cost_per_1m_tokens: 5.00
+        cache_hit_input_cost_per_1m_tokens: 0.10
+        cache_write_cost_per_1m_tokens: 1.25
       # Claude 3.x generation
       claude-3-5-sonnet:
         input_cost_per_1m_tokens: 3.00
@@ -153,6 +199,13 @@ providers:
       mistral-small-latest:
         input_cost_per_1m_tokens: 0.20
         output_cost_per_1m_tokens: 0.60
+      mistral-medium:
+        # mistral-medium-3 tier (list-price ESTIMATE — verify + update).
+        input_cost_per_1m_tokens: 0.40
+        output_cost_per_1m_tokens: 2.00
+      mistral-medium-latest:
+        input_cost_per_1m_tokens: 0.40
+        output_cost_per_1m_tokens: 2.00
       mistral-large:
         input_cost_per_1m_tokens: 2.00
         output_cost_per_1m_tokens: 6.00
@@ -184,6 +237,15 @@ providers:
         input_cost_per_1m_tokens: 0.28
         output_cost_per_1m_tokens: 0.42
         cache_hit_input_cost_per_1m_tokens: 0.028
+      # deepseek-v4 family (v4-flash is a reasoning model); same V3.2 unified rates.
+      deepseek-v4:
+        input_cost_per_1m_tokens: 0.28
+        output_cost_per_1m_tokens: 0.42
+        cache_hit_input_cost_per_1m_tokens: 0.028
+      deepseek-v4-flash:
+        input_cost_per_1m_tokens: 0.28
+        output_cost_per_1m_tokens: 0.42
+        cache_hit_input_cost_per_1m_tokens: 0.028
       default:
         input_cost_per_1m_tokens: 0.28
         output_cost_per_1m_tokens: 0.42
@@ -194,6 +256,10 @@ providers:
     # remains available. Mini variants are substantially cheaper.
     text:
       grok-4:
+        input_cost_per_1m_tokens: 3.00
+        output_cost_per_1m_tokens: 15.00
+      grok-4.3:
+        # Judge model (#939); same tier as grok-4.
         input_cost_per_1m_tokens: 3.00
         output_cost_per_1m_tokens: 15.00
       grok-4-fast:

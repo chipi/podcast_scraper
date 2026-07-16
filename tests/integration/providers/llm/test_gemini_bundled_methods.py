@@ -65,7 +65,7 @@ def _make_provider() -> GeminiProvider:
     cfg = config.Config(
         summary_provider="gemini",
         gemini_summary_model="gemini-2.5-flash-lite",
-        gemini_api_key="test-key",
+        gemini_api_key="test-api-key-123",
     )
     provider = GeminiProvider(cfg)
     provider.client = MagicMock()

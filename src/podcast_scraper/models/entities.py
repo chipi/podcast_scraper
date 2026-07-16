@@ -25,6 +25,8 @@ class RssFeed:
         items: List of XML elements representing individual episodes (<item> elements).
         base_url: Base URL of the RSS feed, used for resolving relative URLs.
         authors: List of author names extracted from the feed metadata.
+        description: The channel-level <description> — the show's own blurb, which
+            usually names the host(s) ("hosted by …"). Feeds host detection (#1169).
 
     Example:
         >>> feed = RssFeed(
@@ -39,6 +41,7 @@ class RssFeed:
     items: List[ET.Element]
     base_url: str
     authors: List[str] = field(default_factory=list)
+    description: Optional[str] = None
 
 
 @dataclass
@@ -111,6 +114,10 @@ class TranscriptionJob:
     ep_title_safe: str
     temp_media: str
     detected_speaker_names: Optional[List[str]] = None
+    # Every name the episode metadata STATED, including the ones corroboration rejected. It names
+    # nobody on its own — it only lets the roster tell "we failed to place a stated name" (a defect)
+    # apart from "nobody in the episode was ever named" (the vox-pop of a narrated show).
+    metadata_named: Optional[List[str]] = None
     episode: Optional[Episode] = None
     # Wall time for the media HTTP download (set when enqueueing Whisper jobs). Recorded in
     # metrics only after a transcript-cache miss so cache hits stay 0 for download_media_time.

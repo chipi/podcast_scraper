@@ -1,0 +1,130 @@
+# experiment_dgx_moss — the MOSS contender for the audio stack (#1177 / #1179).
+#
+# Identical to `prod_dgx_only` except for the audio side: MOSS replaces BOTH faster-whisper and
+# pyannote, because it is a joint model — one autoregressive pass emits transcript, speaker labels
+# and timestamps together. The LLM stages stay on the same pinned qwen3.5:35b, so a comparison
+# against prod_dgx_only isolates the audio stage and nothing else.
+#
+# Run it over the SAME 10 pilot episodes and diff with scripts/eval/compare_corpora_v1.py.
+#
+# What we are testing (and what we do not yet know):
+#   speed         claimed 50-100x realtime vs large-v3's measured 7.8x. If it holds, it is the
+#                 difference between a 10k-episode corpus taking ~8 days and taking ~40.
+#   diarization   MOSS attributes speakers in the same pass, with no chunk boundaries to drift
+#                 across (128k context = a 90-minute episode in one go). Gate: beat pyannote
+#                 community-1's 40/45 count and 7.1% DER on the RTTM fixtures (#1174).
+#   English       **completely unmeasured.** Every published MOSS benchmark is Mandarin, scored in
+#                 CER. There is no English WER anywhere. This is the load-bearing unknown, and no
+#                 amount of good DER excuses a model that hallucinates English words.
+#
+# Known limits going in:
+#   - **segment-level timestamps only** — no word-level. A precision trade (p95 ~0.26s -> ~1.6s),
+#     NOT a return of the #1173 drift, which came from silence removal, not granularity.
+#   - min/max/num_speakers are ignored: MOSS decides the speaker count autoregressively and offers
+#     no knob to bound it. Worth remembering when comparing DER against a diarizer that was handed
+#     the true count.
+#
+# No `profile:` key — pins no ModelRegistry preset (same reasoning as prod_dgx_only).
+#
+# Registry status: yaml-only — no entry in `_PROFILE_PRESETS`. It is a contender profile pinned
+# explicitly against `prod_dgx_only`; a preset would imply it is a supported default, which it is
+# not until MOSS wins the audio bake-off.
+
+
+dgx_tailnet_host: ${DGX_TAILNET_HOST:-dgx-llm-1}
+
+# --- audio: MOSS for BOTH stages (one model, one inference) --------------------------------------
+transcription_provider: moss
+diarization_provider: moss
+moss_port: 8004
+moss_model: OpenMOSS-Team/MOSS-Transcribe-Diarize
+moss_request_timeout_sec: 1800.0
+transcription_fallback_provider: whisper # LOCAL whisper; never a cloud provider
+whisper_model: small.en # only if the DGX is down
+
+screenplay: true
+diarize: true
+
+# --- audio preprocessing: timeline-preserving (#1173) --------------------------------------------
+preprocessing_enabled: true
+audio_preprocessing_profile: speech_optimal_v1
+save_adfree_transcript: true
+
+# --- speaker naming: the pinned local LLM (same as prod_dgx_only, so it is not a variable) -------
+speaker_detector_provider: ollama
+ollama_speaker_model: qwen3.5:35b
+ner_model: en_core_web_trf
+auto_speakers: true
+
+# --- transcript cleaning: pattern, NOT the LLM ---------------------------------------------------
+# The default is `hybrid` (pattern + a conditional LLM pass). Measured on the pilot: asking
+# qwen3.5:35b to return a cleaned 70k-char transcript gives back ~150 characters — or nothing at
+# all. The summariser then faithfully summarises that fragment, which is why every episode came out
+# as a summary of its own outro ("The podcast invites listeners to email..."). The cloud path never
+# did LLM cleaning either (llm_cleaning_cost_usd: 0.0 in the v2 manifest). Pattern cleaning is
+# deterministic and cannot destroy the transcript.
+transcript_cleaning_strategy: pattern
+
+# --- summary / GI / KG: unchanged, so the comparison isolates the audio stage ---------------------
+summary_provider: ollama
+ollama_api_base: http://${DGX_TAILNET_HOST:-dgx-llm-1}:11434/v1
+ollama_summary_model: qwen3.5:35b
+ollama_num_ctx: 32768
+llm_pipeline_mode: staged
+
+
+# --- GI evidence gate: calibrated against gemini's own judgements (#1179) -------------------------
+# The shipped (openai) entailment prompt asks for strict textual entailment. qwen3.5:35b answers it
+# strictly and threw away 60% of genuine evidence — grounding 13.3% where the cloud grounded 91.3%.
+# The ollama prompt asks the question the pipeline actually means ("is this quote EVIDENCE for this
+# insight?") on a graded scale, and 0.75 keeps only "clearly supports".
+#
+# Calibrated on 20 pos / 20 neg pairs taken from gemini's own SUPPORTED_BY edges on the SAME
+# episodes (scripts/eval/score/entailment_calibration_v1.py):
+#
+#   shipped prompt   @ 0.50   recall 40%   rejection 95%   <- discards real evidence
+#   evidence-framed  @ 0.50   recall 95%   rejection 80%   <- certifies unrelated pairs
+#   evidence-framed  @ 0.75   recall 65%   rejection 95%   <- gemini's gate passes ~66%
+#
+# Recall alone is gameable: a gate that accepts everything scores 100% and certifies hallucinations,
+# which is the exact failure ADR-053 exists to prevent. Both numbers have to hold.
+gi_nli_entailment_min: 0.75
+
+generate_metadata: true
+generate_summaries: true
+generate_gi: true
+gi_insight_source: provider
+gi_max_insights: 12
+gi_require_grounding: true
+generate_kg: true
+kg_extraction_source: provider
+kg_max_topics: 10
+kg_max_entities: 15
+
+vector_search: true
+vector_embedding_provider: sentence_transformers
+
+degradation_policy:
+  continue_on_stage_failure: true
+
+language: en
+log_level: INFO
+
+enrichment:
+  enabled: true
+  enrichers:
+    topic_cooccurrence_corpus: {}
+    topic_theme_clusters: {}
+    temporal_velocity: {}
+    grounding_rate: {}
+    guest_coappearance: {}
+    insight_density: {}
+    insight_sentiment: {}
+    topic_similarity:
+      provider:
+        type: sentence_transformer_local
+        model: all-MiniLM-L6-v2
+    topic_consensus:
+      provider:
+        type: consensus_local
+        embed_model: all-MiniLM-L6-v2

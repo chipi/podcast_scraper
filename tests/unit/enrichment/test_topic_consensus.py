@@ -135,6 +135,22 @@ def test_same_speaker_not_paired(tmp_path: Path) -> None:
     assert data["pairs_scored"] == 0 and data["consensus"] == []
 
 
+def test_unresolved_speaker_not_paired(tmp_path: Path) -> None:
+    """An unresolved diarization voice must not form a consensus pair (#1167)."""
+    gi = _two_speaker_gi()
+    # Bob's quote is attributed to an anonymous diarization voice → excluded, so the
+    # only remaining speaker is Alice and there is no cross-Person pair to score.
+    gi["nodes"].append(
+        {"type": "Person", "id": "person:speaker-00", "properties": {"name": "SPEAKER_00"}}
+    )
+    for e in gi["edges"]:
+        if e.get("from") == "quote:qb":
+            e["to"] = "person:speaker-00"
+    bundle = _bundle(tmp_path / "e1", "e1", gi)
+    data = _run(TopicConsensusEnricher(_scorer(0.9, 0.0)), [bundle])
+    assert data["pairs_scored"] == 0 and data["consensus"] == []
+
+
 def test_manifest_ml_tier_and_gate() -> None:
     manifest = TopicConsensusEnricher(FixedConsensusScorer()).manifest
     assert manifest.id == "topic_consensus"

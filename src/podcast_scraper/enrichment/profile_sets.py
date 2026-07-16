@@ -95,6 +95,10 @@ _NO_ENRICHERS_PROFILES: frozenset[str] = frozenset(
         # Pre-prod is for local Whisper testing — keep enrichment off so
         # operator-side benchmarking is uncoupled.
         "preprod_local_whisper",
+        # Rebuilds a corpus's DETERMINISTIC layer only — no summariser, no LLM, and its YAML
+        # declares no enrichers. The empty set is the right answer here; it is listed so it is a
+        # DECISION rather than an unknown-profile fallback that happens to look the same.
+        "reprocess_dgx_no_llm",
     }
 )
 
@@ -191,9 +195,16 @@ def enricher_set_for_profile(profile: str | None, *, eval_root: Path | None = No
     # config/profiles/ are matched here ('prod' was dropped because
     # there is no config/profiles/prod.yaml; the production-shaped
     # profiles are prod_dgx_balanced / prod_dgx_full_with_fallback).
+    # `experiment_dgx_*` is matched here because renaming `prod_dgx_only` -> `experiment_dgx_only`
+    # dropped it out of the `prod_dgx_` prefix and straight into the unknown-profile fallback: an
+    # EMPTY enricher set. The profile still declares all nine enrichers in its YAML and still runs a
+    # real LLM, so the corpus would simply have shipped with no grounding_rate, no insight_density,
+    # no guest_coappearance and no topic clusters — a WARNING in a log nobody was reading. A profile
+    # rename quietly turned off a whole layer of the pipeline.
     if (
         name.startswith("local_dgx_")
         or name.startswith("prod_dgx_")
+        or name.startswith("experiment_dgx_")
         or name
         in (
             "cloud_with_dgx_primary",

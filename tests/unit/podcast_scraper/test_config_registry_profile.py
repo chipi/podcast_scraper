@@ -147,3 +147,55 @@ class TestProfilePresets:
         s = resolve_profile_to_settings("cloud_balanced", dgx_tailnet_host="h")
         assert s["deepgram_diarization_model"] == "nova-3-general"
         assert "diarization_model" not in s and "dgx_diarize_model" not in s
+
+
+class TestARegisteredParamMustReachProduction:
+    """A param the registry records but never plumbs is a setting production silently does not run.
+
+    Found by re-breaking the fix: the resolver raises ``RuntimeError`` on an unmapped GI setting,
+    and that exception TYPE is load-bearing — ``Config._resolve_profile`` catches ``ValueError`` to
+    mean "not a registry preset" and quietly drops to YAML-only. Downgrade the raise to
+    ``ValueError`` and a single typo disables the whole registry for that profile without a word,
+    which is the exact silent-fallback class of bug the registry exists to prevent. Nothing caught
+    that downgrade, so nothing stopped it from happening again.
+    """
+
+    def test_an_unmapped_gi_setting_raises_RUNTIME_error_not_value_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import dataclasses
+
+        from podcast_scraper.providers.ml import model_registry as reg
+
+        preset = reg.get_profile_preset("experiment_dgx_only")
+        original = reg.get_gi_option(preset.gi)
+        poisoned = dataclasses.replace(
+            original,
+            extra_settings={**(original.extra_settings or {}), "a_knob_nobody_plumbed": 1},
+        )
+        monkeypatch.setitem(reg._GI_OPTIONS, preset.gi, poisoned)
+
+        # ValueError would be swallowed by Config._resolve_profile and the profile would silently
+        # run on YAML defaults. RuntimeError is what makes it impossible to miss.
+        with pytest.raises(RuntimeError, match="a_knob_nobody_plumbed"):
+            resolve_profile_to_settings("experiment_dgx_only")
+
+    def test_every_registered_gi_param_is_actually_plumbed(self) -> None:
+        """The completeness half: no shipped option may carry a param the resolver cannot map.
+
+        The test above proves an unmapped param fails LOUDLY. This proves none exists today — so
+        the registry's recorded params and the settings production runs cannot drift apart.
+        """
+        from podcast_scraper.providers.ml.model_registry import (
+            _PROFILE_PRESETS,
+            get_gi_options,
+        )
+
+        for name, preset in _PROFILE_PRESETS.items():
+            if not preset.gi:
+                continue
+            option = get_gi_options()[preset.gi]
+            for key in option.extra_settings or {}:
+                resolved = resolve_profile_to_settings(name)
+                assert resolved, f"{name}: resolved to nothing"
+                # If `key` were unmapped, resolve_profile_to_settings would have raised above.

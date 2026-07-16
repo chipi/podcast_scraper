@@ -1121,8 +1121,14 @@ class TestMLProviderGILEvidence(unittest.TestCase):
         )
 
     @patch("podcast_scraper.providers.ml.extractive_qa.answer_candidates")
-    def test_extract_quotes_returns_quote_candidates(self, mock_qa_candidates):
-        """extract_quotes returns list of QuoteCandidate from extractive_qa."""
+    def test_extract_quotes_expands_the_answer_span_to_its_sentence(self, mock_qa_candidates):
+        """A QA model answers a question; it does not quote.
+
+        Its span is the ANSWER — a few words — and a fragment that short cannot serve as an NLI
+        premise, so the grounding gate rejected every one of them and nothing ever grounded. The
+        provider now returns the sentence CONTAINING the answer, which is the evidence a reader
+        wants and what NLI needs.
+        """
         from podcast_scraper.gi.grounding import QuoteCandidate
 
         # answer_candidates returns a list of QASpan objects (top_k=3)
@@ -1141,9 +1147,11 @@ class TestMLProviderGILEvidence(unittest.TestCase):
         )
         self.assertEqual(len(result), 1)
         self.assertIsInstance(result[0], QuoteCandidate)
-        self.assertEqual(result[0].char_start, 3)
-        self.assertEqual(result[0].char_end, 11)
-        self.assertEqual(result[0].text, transcript[3:11])
+        # The bare answer span was [3:11] ("evidence"); the quote is the sentence around it.
+        self.assertLessEqual(result[0].char_start, 3)
+        self.assertGreaterEqual(result[0].char_end, 11)
+        self.assertIn("evidence", result[0].text)
+        self.assertEqual(result[0].text, transcript[result[0].char_start : result[0].char_end])
         self.assertEqual(result[0].qa_score, 0.88)
         mock_qa_candidates.assert_called_once()
 

@@ -21,6 +21,7 @@ else:
     Episode = models.Episode  # type: ignore[assignment]
     TranscriptionJob = models.TranscriptionJob  # type: ignore[assignment]
 from ..exceptions import ProviderError, ProviderRuntimeError
+from ..preprocessing.audio.factory import preprocessing_fingerprint
 from ..rss import choose_transcript_url, downloader
 from ..rss.downloader import OPENAI_MAX_FILE_SIZE_BYTES
 from ..transcript_formats import parse_srt, parse_webvtt
@@ -294,6 +295,7 @@ def download_media_for_transcription(
     effective_output_dir: str,
     run_suffix: Optional[str],
     detected_speaker_names: Optional[List[str]] = None,
+    metadata_named: Optional[List[str]] = None,
     pipeline_metrics=None,
 ) -> Optional[TranscriptionJob]:  # type: ignore[valid-type]
     """Download media file for Whisper transcription.
@@ -414,6 +416,7 @@ def download_media_for_transcription(
         ep_title_safe=episode.title_safe,
         temp_media=temp_media,
         detected_speaker_names=speaker_names_copy,
+        metadata_named=list(metadata_named) if metadata_named else None,
         episode=episode,
         media_download_elapsed=dl_elapsed,
     )
@@ -752,6 +755,7 @@ def _check_transcript_cache(
         cache_dir,
         provider_name=provider_name,
         model=model,
+        preprocessing=preprocessing_fingerprint(cfg),
     )
     if cached_entry:
         cached_transcript, cached_segments = cached_entry
@@ -1213,6 +1217,7 @@ def _save_transcript_to_cache_if_needed(
             model=model,
             cache_dir=cache_dir,
             segments=segments,
+            preprocessing=preprocessing_fingerprint(cfg),
         )
         logger.debug("[%s] Saved transcript to cache (hash=%s)", job.idx, audio_hash)
     except Exception as exc:
@@ -1629,6 +1634,7 @@ def transcribe_media_to_text(
                     media_for_transcription,
                     cfg,
                     job.detected_speaker_names,
+                    metadata_named=job.metadata_named,
                     cache_dir=os.path.join(effective_output_dir, ".cache", "diarization"),
                 )
             except (ProviderDependencyError, ValueError) as exc:
@@ -2034,6 +2040,7 @@ def process_episode_download(
     transcription_jobs: queue.Queue[TranscriptionJob],  # type: ignore[valid-type]
     transcription_jobs_lock: Optional[threading.Lock],
     detected_speaker_names: Optional[List[str]] = None,
+    metadata_named: Optional[List[str]] = None,
     pipeline_metrics=None,
 ) -> tuple[bool, Optional[str], Optional[str], int]:
     """Process a single episode: download transcript or prepare for Whisper transcription.
@@ -2079,6 +2086,7 @@ def process_episode_download(
             effective_output_dir,
             run_suffix,
             detected_speaker_names=detected_speaker_names,
+            metadata_named=metadata_named,
             pipeline_metrics=pipeline_metrics,
         )
         if job:

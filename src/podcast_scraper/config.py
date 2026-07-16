@@ -91,7 +91,7 @@ def _raw_screenplay_requested(value: Any) -> bool:
 # change — its self-diarized output feeds the ``deepgram`` diarization_provider
 # (new in the same change), and a Deepgram-paired pyannote pass also runs cleanly.
 _DIARIZATION_ELIGIBLE_TRANSCRIPTION_PROVIDERS = frozenset(
-    {"whisper", "tailnet_dgx_whisper", "openai", "deepgram"}
+    {"whisper", "tailnet_dgx_whisper", "openai", "deepgram", "moss"}
 )
 
 # Of the eligible providers, these default ``diarize`` ON (the local Whisper paths
@@ -105,7 +105,11 @@ _DIARIZATION_DEFAULT_ON_TRANSCRIPTION_PROVIDERS = frozenset({"whisper", "tailnet
 # API (no local pyannote pass) and can therefore self-format a screenplay. Screenplay
 # stays enabled for these even when ``diarize`` (the pyannote pass) is off — the
 # transcription response carries the speaker labels natively.
-_NATIVE_SCREENPLAY_TRANSCRIPTION_PROVIDERS = frozenset({"deepgram"})
+#
+# ``moss`` belongs here for the same reason deepgram does, and more so: it is a *joint* model, so
+# its single pass emits speaker labels with the transcript (#1177). A MOSS run needs no separate
+# diarizer at all — ``diarization_provider: moss`` simply reads the same cached inference.
+_NATIVE_SCREENPLAY_TRANSCRIPTION_PROVIDERS = frozenset({"deepgram", "moss"})
 
 
 def _screenplay_strict_env_enabled() -> bool:
@@ -405,6 +409,36 @@ def _expand_env_in_string(value: str) -> str:
         return match.group(0)
 
     return _ENV_VAR_PATTERN.sub(_replace, value)
+
+
+def _profile_setting(profile_name: str, key: str) -> Any:
+    """One setting from a profile YAML, read without merging the whole profile.
+
+    Pydantic runs ``mode="before"`` model validators bottom-up, so a validator can fire *before*
+    ``_resolve_profile`` has merged the profile. Any such validator that reads a setting the
+    operator may have set in a profile has to look it up itself, or it silently sees the code
+    default and acts on it — which is how the GIL evidence providers were promoted to the summary
+    LLM even though the profile disabled exactly that (#1179).
+
+    Returns ``None`` when the profile or key is absent, so the caller keeps its own default.
+    """
+    from pathlib import Path
+
+    for candidate in (
+        Path("config/profiles") / f"{profile_name}.yaml",
+        Path(__file__).parent.parent.parent / "config" / "profiles" / f"{profile_name}.yaml",
+    ):
+        if not candidate.is_file():
+            continue
+        try:
+            import yaml
+
+            settings = yaml.safe_load(candidate.read_text(encoding="utf-8")) or {}
+        except (OSError, yaml.YAMLError):
+            return None
+        if isinstance(settings, dict):
+            return settings.get(key)
+    return None
 
 
 def _expand_env_vars(data: Any) -> Any:
@@ -767,8 +801,41 @@ class Config(BaseModel):
     # existing dev/CI flows are unchanged; profiles that benefit (cloud_thin,
     # cloud_balanced) flip ``llm_circuit_breaker_enabled: true``.
     # ------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # LLM CALL FUSE (the money guardrail). A hard ceiling on how many LLM calls one episode / one
+    # run may make, across EVERY provider (cloud AND ollama/vllm). Distinct from the failure breaker
+    # below: the breaker trips on ERRORS, but the runaway that motivated this was ~3,500 SUCCESSFUL
+    # calls (200 OK, empty content) storming the per-pair fallback: a failure breaker never fires
+    # success. Past the budget the fuse BLOWS: raises and aborts the run loudly. Counts calls, not
+    # dollars, because call count is reliable while our per-provider cost logging is not (yet).
+    # ``0`` disables a scope. Defaults are safety backstops, not tight limits — normal is ~15-80
+    # calls/episode, and the per-pair entailment fallback is already separately capped at 200.
+    # ------------------------------------------------------------------
+    llm_max_calls_per_episode: int = Field(
+        default=500,
+        alias="llm_max_calls_per_episode",
+        ge=0,
+        le=100000,
+        description=(
+            "Hard ceiling on LLM calls while grounding/summarising ONE episode; 0 disables. "
+            "Catches a single runaway episode (the gpt-5.5 storm hit ~3,500) before it burns $."
+        ),
+    )
+    llm_max_calls_per_run: int = Field(
+        default=8000,
+        alias="llm_max_calls_per_run",
+        ge=0,
+        le=1000000,
+        description=(
+            "Hard ceiling on LLM calls across a whole run/session; 0 disables. Catches "
+            "cumulative overspend even when no single episode looks pathological."
+        ),
+    )
     llm_circuit_breaker_enabled: bool = Field(
-        default=False,
+        # Enriched-resilience decision: default ON so slow/failing model endpoints get graceful
+        # wait-and-resume everywhere, matching the RSS layer's posture, instead of only where a
+        # profile happened to flip it.
+        default=True,
         alias="llm_circuit_breaker_enabled",
         description=(
             "Enable per-provider wait-and-resume circuit breaker for cloud "
@@ -1058,6 +1125,19 @@ class Config(BaseModel):
             "These will be used as hosts if auto-detection fails or finds no hosts."
         ),
     )
+    speaker_resolution_llm: bool = Field(
+        default=True,
+        alias="speaker_resolution_llm",
+        description=(
+            "ADR-110: after diarization, ask the LLM which STATED name each voice is, using that "
+            "voice's own words plus the retrieved passages where the name is spoken. Speaker "
+            "detection runs before the audio is even downloaded, so it can only answer from show "
+            "notes -- which name the people an episode is ABOUT as readily as the people in the "
+            "room. This resolves identity where the evidence actually is. The model may only MATCH "
+            "a name the metadata stated; it can never author one. A no-op on profiles without an "
+            "LLM (airgapped/spacy), which keep the deterministic cue matcher. Set false to disable."
+        ),
+    )
     show_centric: bool = Field(
         default=False,
         alias="show_centric",
@@ -1076,7 +1156,7 @@ class Config(BaseModel):
         description="Speaker detection provider type (default: 'spacy' for spaCy NER).",
     )
     transcription_provider: Literal[
-        "whisper", "openai", "gemini", "mistral", "deepgram", "tailnet_dgx_whisper"
+        "whisper", "openai", "gemini", "mistral", "deepgram", "tailnet_dgx_whisper", "moss"
     ] = Field(
         default="whisper",
         alias="transcription_provider",
@@ -1152,7 +1232,7 @@ class Config(BaseModel):
             "until the measurement pass on prod-v2 corpus pins the optimal value."
         ),
     )
-    diarization_provider: Literal["local", "tailnet_dgx", "gemini", "deepgram"] = Field(
+    diarization_provider: Literal["local", "tailnet_dgx", "gemini", "deepgram", "moss"] = Field(
         default="local",
         alias="diarization_provider",
         description=(
@@ -1221,6 +1301,34 @@ class Config(BaseModel):
             "Connection-level blips are retried with exponential backoff; a genuine "
             "timeout (slow/contended GPU past the scaled budget) falls back without "
             "piling a duplicate request onto the busy server."
+        ),
+    )
+    moss_port: int = Field(
+        default=8004,
+        gt=0,
+        alias="moss_port",
+        description=(
+            "Port of the DGX MOSS-Transcribe-Diarize service (#1177). MOSS is a joint model: "
+            "``transcription_provider: moss`` and ``diarization_provider: moss`` read the same "
+            "single inference, which the service caches by audio digest so the second stage does "
+            "not re-run the model."
+        ),
+    )
+    moss_model: str = Field(
+        default="OpenMOSS-Team/MOSS-Transcribe-Diarize",
+        alias="moss_model",
+        description=(
+            "MOSS model id (0.9B, Apache-2.0). Emits transcript + speakers + timestamps in one "
+            "pass. Note: **segment-level timestamps only** — no word-level output."
+        ),
+    )
+    moss_request_timeout_sec: float = Field(
+        default=1800.0,
+        gt=0,
+        alias="moss_request_timeout_sec",
+        description=(
+            "HTTP timeout (seconds) for a MOSS call. Generous by default: a 90-minute episode is "
+            "transcribed and diarized in a single autoregressive pass."
         ),
     )
     dgx_diarize_request_timeout_sec: float = Field(
@@ -2043,7 +2151,11 @@ class Config(BaseModel):
         ),
     )
     gil_evidence_quote_mode: Literal["staged", "bundled"] = Field(
-        default="staged",
+        # THE DEFAULT IS THE DEFAULT (registry: provider_chunked_gated_v3). This said "staged", so
+        # any caller that did not load a profile ground with the local DeBERTa stack instead of the
+        # LLM — a different product wearing the same config. Bound to the registry by
+        # test_the_config_default_is_not_a_trap.
+        default="bundled",
         alias="gil_evidence_quote_mode",
         description=(
             "GIL evidence-stack extract_quotes mode (#698). ``staged`` (default) issues one "
@@ -2054,7 +2166,8 @@ class Config(BaseModel):
         ),
     )
     gil_evidence_nli_mode: Literal["staged", "bundled"] = Field(
-        default="staged",
+        # See gil_evidence_quote_mode: the registry's researched value, not a stale fallback.
+        default="bundled",
         alias="gil_evidence_nli_mode",
         description=(
             "GIL evidence-stack score_entailment mode (#698 Layer B). ``staged`` (default) "
@@ -2178,13 +2291,111 @@ class Config(BaseModel):
         ),
     )
     gi_max_insights: int = Field(
-        default=config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX,
+        # The registry's measured ceiling (50), not the old 20. n=12/20 were never derived from
+        # anything; the gates trim filler, so the cap is not what protects quality.
+        default=config_constants.GI_DEFAULT_MAX_INSIGHTS,
         ge=1,
-        le=50,
+        le=config_constants.GI_MAX_INSIGHTS_CEILING,
         alias="gi_max_insights",
         description=(
-            "Max insights when gi_insight_source is 'provider'. "
-            "Default matches DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX (avoid truncating long lists)."
+            "Ceiling on insights when gi_insight_source is 'provider' — a hard cap, not a target. "
+            "The prompt states a substance bar; the count comes from the episode. Size this so it "
+            "does not bind."
+        ),
+    )
+    gi_value_gate_enabled: bool = Field(
+        # Defaulting this to False is how the judge we spent two days building never ran in
+        # production: a profile that forgot the key did not fail, it silently shipped ungated.
+        default=True,
+        alias="gi_value_gate_enabled",
+        description=(
+            "Drop insights that carry no real knowledge, after extraction. The extractor cannot "
+            "be made selective by prompting — measured across three prompt variants the CORE "
+            "count barely moves (13.3 / 10.3 / 12.0 per episode) while filler tracks whatever the "
+            "prompt encourages. So filler is removed by a gate, like the QA and NLI gates on the "
+            "evidence path. Fail-open: a broken gate keeps every insight."
+        ),
+    )
+    gi_insight_chunk_chars: int = Field(
+        default=0,
+        ge=0,
+        le=200_000,
+        alias="gi_insight_chunk_chars",
+        description=(
+            "Extract insights in passes of roughly this many characters. 0 disables chunking. "
+            "Local models saturate per CALL, not per episode: qwen3.5:35b returns about eighteen "
+            "insights however long the episode is, while gemini scales with the material. Context "
+            "is not the limit — a 90k transcript fits — so more calls, not a bigger window, is the "
+            "fix. On 65-77k episodes, 3 passes took insights 24.7 -> 56.0 and CORE knowledge "
+            "10.7 -> 17.3, with grounding rising to 96-98%. Episodes under 40k are never chunked."
+        ),
+    )
+    gi_insight_dedupe_threshold: float = Field(
+        default=0.75,
+        ge=0.0,
+        le=1.0,
+        alias="gi_insight_dedupe_threshold",
+        description=(
+            "Cosine similarity above which a chunked insight is treated as restating one already "
+            "kept. Chunks overlap in subject even when they do not overlap in text."
+        ),
+    )
+    gi_insight_temperature: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=2.0,
+        alias="gi_insight_temperature",
+        description=(
+            "Sampling temperature for INSIGHT EXTRACTION specifically. None falls back to the "
+            "provider's general temperature (0.3), which is what every arm silently ran: the eval "
+            "YAMLs said `temperature: 0.0`, but that key mapped to nothing and insight extraction "
+            "sampled at 0.3 anyway. A model comparison at t=0.3 partly measures the RNG — re-runs "
+            "of the SAME model disagree — so a bake-off must pin this to 0. Kept separate from "
+            "`<provider>_temperature` because that field also drives summarisation and speaker "
+            "detection, and pinning insights must not silently re-tune two other stages."
+        ),
+    )
+    gi_insight_prompt_version: str = Field(
+        default="v2",
+        alias="gi_insight_prompt_version",
+        description=(
+            "Which insight-extraction prompt to render (e.g. 'v2', 'v3'). The prompt decides what "
+            "an insight IS, so it is a tuned parameter like any other and must be selectable — it "
+            "was hardcoded, which made the extraction prompt the one part of this stage that could "
+            "not be A/B tested. v3 keeps the speech act: v2 orders the model to strip first "
+            "person, so 'I think prescribing is unsafe' ships as 'Prescribing is unsafe' — an "
+            "opinion published as a fact, attributed to nobody."
+        ),
+    )
+    gi_value_gate_provider: Optional[str] = Field(
+        default=None,
+        alias="gi_value_gate_provider",
+        description=(
+            "Provider that GRADES insights for the value gate. Default (None) lets the extractor "
+            "grade its own output — the #939 same-vendor bias: self-grading drops ~10% of "
+            "insights where an independent judge drops ~25% of the same output. Pin one judge "
+            "(e.g. 'anthropic') so every arm of a comparison is filtered by the same strictness."
+        ),
+    )
+    gi_value_gate_model: Optional[str] = Field(
+        default=None,
+        alias="gi_value_gate_model",
+        description=(
+            "Model the value-gate judge uses. Without it the judge inherits the target provider's "
+            "DEFAULT model — which 404'd (claude-3-5-sonnet-20241022, deprecated), so every "
+            "classify call threw, the gate failed open, and a 10-episode run completed ungated "
+            "while reporting success. Pin the judge model explicitly."
+        ),
+    )
+    gi_value_gate_min_tier: int = Field(
+        default=2,
+        ge=0,
+        le=3,
+        alias="gi_value_gate_min_tier",
+        description=(
+            "Lowest insight tier the value gate keeps. 3=CORE only (a briefing), 2=CORE+USEFUL "
+            "(the knowledge graph — supporting detail is what retrieval lands on), 1 keeps minor "
+            "points, 0 disables filtering."
         ),
     )
     gi_typed_mentions_use_ner: bool = Field(
@@ -2987,15 +3198,27 @@ class Config(BaseModel):
         alias="preprocessing_sample_rate",
         description="Target sample rate for preprocessing in Hz (default: 16000).",
     )
+    preprocessing_silence_removal: bool = Field(
+        default=False,
+        alias="preprocessing_silence_removal",
+        description=(
+            "Drop interior silence during preprocessing (default: False). Shrinks the file, but "
+            "the transcriber then sees a shorter timeline than the original audio, so every "
+            "timestamp after a removed pause lands early — drift accumulating to minutes on long "
+            "episodes (GitHub #1173). Leave off unless the transcript timestamps are unused."
+        ),
+    )
     preprocessing_silence_threshold: str = Field(
         default="-50dB",
         alias="preprocessing_silence_threshold",
-        description="Silence detection threshold (default: -50dB).",
+        description="Silence detection threshold (default: -50dB). Only used when "
+        "preprocessing_silence_removal is enabled.",
     )
     preprocessing_silence_duration: float = Field(
         default=2.0,
         alias="preprocessing_silence_duration",
-        description="Minimum silence duration to remove in seconds (default: 2.0).",
+        description="Minimum silence duration to remove in seconds (default: 2.0). Only used "
+        "when preprocessing_silence_removal is enabled.",
     )
     preprocessing_target_loudness: int = Field(
         default=-16,
@@ -3474,16 +3697,54 @@ class Config(BaseModel):
         if not isinstance(data, dict):
             return data
         merged = dict(data)
-        if merged.get("gil_evidence_match_summary_provider", True) is not True:
+
+        # Pydantic runs mode="before" model validators bottom-up, so this fires BEFORE
+        # ``_resolve_profile`` has merged the profile YAML. A profile that sets
+        # ``gil_evidence_match_summary_provider: false`` was therefore invisible here: this
+        # promoted the evidence providers to the summary provider anyway, wrote them into the
+        # payload, and a payload value then outranks a profile default — so the profile could never
+        # win. The DGX pilot lost ~91% of its grounded quotes to that (see #1179: qwen3.5:35b
+        # answers NLI with a binary 0/1, so an LLM must not be the entailment backend).
+        #
+        # Read the profile's own setting before deciding.
+        match_summary = merged.get("gil_evidence_match_summary_provider")
+        if match_summary is None and merged.get("profile"):
+            match_summary = _profile_setting(
+                str(merged["profile"]), "gil_evidence_match_summary_provider"
+            )
+        if match_summary is None:
+            match_summary = True
+        if match_summary is not True:
             return merged
+
         if not merged.get("generate_gi", False):
             return merged
-        summary = merged.get("summary_provider", "transformers")
+
+        # Read the profile's summary_provider, not just an explicitly-passed one. This validator
+        # runs BEFORE the profile is merged, so a profile-sourced `summary_provider: ollama` was
+        # invisible here and the align silently never fired. Every LLM profile therefore fell back
+        # to the local QA/NLI grounder — the ML stack, intended for the ML profiles — and that
+        # grounder returns a single answer-fragment per insight and grounds 0%.
+        #
+        # The design is: an LLM summariser grounds with that same LLM (its evidence prompt asks the
+        # question the pipeline actually means — "is this quote EVIDENCE for this insight?" — on a
+        # graded scale); a transformers/summllama summariser grounds with the local QA + NLI models.
+        # `gi_nli_entailment_min: 0.75` is calibrated for the former. Restore that.
+        summary = merged.get("summary_provider")
+        if summary is None and merged.get("profile"):
+            summary = _profile_setting(str(merged["profile"]), "summary_provider")
+        if summary is None:
+            summary = "transformers"
         if summary not in GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS:
             return merged
-        quote = merged.get("quote_extraction_provider", "transformers")
-        entail = merged.get("entailment_provider", "transformers")
-        if quote == "transformers" and entail == "transformers":
+
+        # Only promote when the caller left the evidence providers UNSET. Comparing against
+        # "transformers" cannot tell "I did not choose" from "I chose transformers", so an explicit
+        # pin to the local QA/NLI stack would otherwise be silently overwritten.
+        if (
+            merged.get("quote_extraction_provider") is None
+            and merged.get("entailment_provider") is None
+        ):
             merged["quote_extraction_provider"] = summary
             merged["entailment_provider"] = summary
         return merged
@@ -4314,10 +4575,11 @@ class Config(BaseModel):
             "deepgram",
             "anthropic",
             "tailnet_dgx_whisper",
+            "moss",
         ):
             raise ValueError(
                 "transcription_provider must be 'whisper', 'openai', 'gemini', "
-                "'mistral', 'deepgram', 'anthropic', or 'tailnet_dgx_whisper'"
+                "'mistral', 'deepgram', 'anthropic', 'tailnet_dgx_whisper', or 'moss'"
             )
         return value_str  # type: ignore[return-value]
 
