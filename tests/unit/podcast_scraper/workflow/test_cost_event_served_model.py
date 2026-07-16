@@ -96,3 +96,41 @@ def test_provenance_served_model_is_on_the_billable_event(caplog) -> None:
         if r.getMessage().startswith("{") and '"llm_cost"' in r.getMessage()
     ]
     assert cost_events and cost_events[0]["served_model"] == "deepseek-v4-flash"
+
+
+def test_response_extraction_backfills_tokens_ids_and_emits_at_zero_cost(caplog) -> None:
+    """Passing ``response=`` makes emit extract prompt/completion/cached tokens, served_model and
+    request_id via token_accounting. And a zero-cost call (no pricing row) WITH real tokens is now
+    emitted, where it used to be silently dropped by the old ``cost <= 0`` early-return."""
+    from types import SimpleNamespace
+
+    usage = SimpleNamespace(
+        prompt_tokens=1200,
+        completion_tokens=340,
+        prompt_tokens_details=SimpleNamespace(cached_tokens=800),
+    )
+    # a dated pin of the requested family (not a substitution), so no spurious warning
+    response = SimpleNamespace(model="gpt-4o-2024-08-06", id="req_abc123", usage=usage)
+
+    with caplog.at_level(logging.INFO):
+        emit_llm_cost_event(
+            _Cfg(),
+            provider="openai",
+            stage="gi",
+            model="gpt-4o",
+            estimated_cost_usd=0.0,  # zero cost: tokens must still drive emission
+            response=response,
+        )
+
+    events = [
+        json.loads(r.getMessage())
+        for r in caplog.records
+        if r.getMessage().startswith("{") and '"llm_cost"' in r.getMessage()
+    ]
+    assert events, "a zero-cost call WITH tokens must still emit a cost event"
+    event = events[0]
+    assert event["prompt_tokens"] == 1200
+    assert event["completion_tokens"] == 340
+    assert event["cached_input_tokens"] == 800
+    assert event["served_model"] == "gpt-4o-2024-08-06"  # extracted from response.model
+    assert event["request_id"] == "req_abc123"  # extracted from response.id

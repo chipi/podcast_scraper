@@ -1477,6 +1477,16 @@ def _add_preprocessing_arguments(parser: argparse.ArgumentParser) -> None:
         help="Target sample rate for preprocessing in Hz (default: 16000)",
     )
     preprocessing_group.add_argument(
+        "--preprocessing-silence-removal",
+        action="store_true",
+        dest="preprocessing_silence_removal",
+        help=(
+            "Drop interior silence during preprocessing (default: off). WARNING: shortens the "
+            "audio timeline, so transcript timestamps after a removed pause drift early (GitHub "
+            "#1173). Leave off unless timestamps are unused."
+        ),
+    )
+    preprocessing_group.add_argument(
         "--preprocessing-silence-threshold",
         type=str,
         default="-50dB",
@@ -3996,6 +4006,7 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "preprocessing_enabled": getattr(args, "preprocessing_enabled", False),
         "preprocessing_cache_dir": getattr(args, "preprocessing_cache_dir", None),
         "preprocessing_sample_rate": getattr(args, "preprocessing_sample_rate", 16000),
+        "preprocessing_silence_removal": getattr(args, "preprocessing_silence_removal", False),
         "preprocessing_silence_threshold": getattr(
             args, "preprocessing_silence_threshold", "-50dB"
         ),

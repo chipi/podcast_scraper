@@ -113,3 +113,39 @@ def test_run_fuse_is_thread_safe() -> None:
     for t in threads:
         t.join()
     assert run.calls == 8000, f"lost increments under contention: {run.calls}"
+
+
+def test_run_fuse_fires_inside_a_pool_worker() -> None:
+    """The production guard: install_run runs in the main thread, but the LLM calls happen inside
+    ThreadPoolExecutor workers (summarization/processing). A ContextVar does NOT propagate into pool
+    workers, so the run ceiling must be enforced via the process-global reference — otherwise the
+    fuse silently never fires in production (the exact gap this wiring fixes)."""
+    import concurrent.futures
+
+    fuse.install_run(3)
+
+    def do_ticks_in_worker() -> str:
+        # a fresh pool thread does not inherit the main thread's ContextVar binding
+        assert fuse._run_fuse.get() is None, "worker should NOT see the ContextVar-installed fuse"
+        try:
+            for _ in range(10):
+                fuse.tick()  # must still blow via the global run fuse
+        except fuse.LLMCallBudgetExceeded as exc:
+            return str(exc)
+        return "did not blow"
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        result = executor.submit(do_ticks_in_worker).result()
+    assert "BLEW" in result, f"run fuse did not fire inside the worker: {result}"
+
+
+def test_run_pipeline_installs_the_run_fuse() -> None:
+    """orchestration.run_pipeline must install the run fuse in the main thread before any stage, so
+    the production ceiling is actually live (not only in the eval harness)."""
+    import inspect
+
+    from podcast_scraper.workflow import orchestration
+
+    src = inspect.getsource(orchestration.run_pipeline)
+    assert "install_run" in src, "run_pipeline must call llm_call_fuse.install_run"
+    assert "llm_max_calls_per_run" in src
