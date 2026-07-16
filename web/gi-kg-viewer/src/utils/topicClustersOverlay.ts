@@ -397,6 +397,14 @@ export function withTopicClustersOnDisplay(
  * coexist with the semantic compound boxes as a border instead. Sets
  * ``node.themeClusterId``; ``toCytoElements`` turns that into a ``theme-member``
  * class the stylesheet paints. Same teal ring as the player pills (--lp-theme).
+ *
+ * graph-v3 Tier 5A-2 — additionally propagates ``themeClusterId`` outward via
+ * the artifact's edge list so Insight / Episode / Person / Org / Podcast nodes
+ * carry the same field. Iteration order = doc order (member_count desc from
+ * the enricher) → first cluster wins for nodes bridging themes. Downstream:
+ * ``toCytoElements`` copies the field onto cy nodes for stylesheet region
+ * tints, and NodeDetail reads it to render "Theme region: <label>" so users
+ * can trace why a given node is a given colour.
  */
 export function applyThemeClustersOverlay(
   data: ArtifactData,
@@ -405,8 +413,12 @@ export function applyThemeClustersOverlay(
   if (!doc || !Array.isArray(doc.clusters) || doc.clusters.length === 0) {
     return data
   }
-  // topic_id (bare, e.g. "topic:oil-prices") → theme cluster id ("thc:…").
+  // topic_id (bare) → theme cluster id ("thc:…"). Doc order preserved via Map insertion.
   const memberToCluster = new Map<string, string>()
+  // episode_id (bare) → theme cluster id. Populated from cluster.members[].episode_ids
+  // (present in the artifact). Enables direct Episode tagging without walking
+  // Topic → HAS_INSIGHT → Episode.
+  const episodeToCluster = new Map<string, string>()
   for (const cl of doc.clusters) {
     if (!cl || typeof cl !== 'object') {
       continue
@@ -418,22 +430,97 @@ export function applyThemeClustersOverlay(
     const members = Array.isArray(cl.members) ? cl.members : []
     for (const m of members) {
       const tid = m && typeof m.topic_id === 'string' ? m.topic_id.trim() : ''
-      if (tid) {
+      if (tid && !memberToCluster.has(tid)) {
         memberToCluster.set(tid, clusterId)
+      }
+      const eids = m && Array.isArray(m.episode_ids) ? m.episode_ids : []
+      for (const eid of eids) {
+        if (typeof eid === 'string' && eid.trim() && !episodeToCluster.has(eid.trim())) {
+          episodeToCluster.set(eid.trim(), clusterId)
+        }
       }
     }
   }
-  if (memberToCluster.size === 0) {
+  if (memberToCluster.size === 0 && episodeToCluster.size === 0) {
     return data
   }
   const nodes = Array.isArray(data.nodes) ? data.nodes.map((n) => ({ ...n })) : []
+  // Direct tagging pass: Topics via memberToCluster, Episodes via episodeToCluster.
+  const nodeIdToCluster = new Map<string, string>()
   for (const n of nodes) {
-    if (!n || n.type !== 'Topic' || n.id == null) {
-      continue
+    if (!n || n.id == null) continue
+    const bareId = String(n.id)
+    let clusterId: string | undefined
+    if (n.type === 'Topic') {
+      clusterId = memberToCluster.get(stripLayerPrefixesForCil(bareId))
+    } else if (n.type === 'Episode') {
+      // Episode ids in the graph carry a `__unified_ep__:` prefix; the artifact
+      // stores the raw id. Try both.
+      const raw = bareId.startsWith('__unified_ep__:')
+        ? bareId.slice('__unified_ep__:'.length)
+        : bareId
+      clusterId = episodeToCluster.get(raw) ?? episodeToCluster.get(bareId)
     }
-    const clusterId = memberToCluster.get(stripLayerPrefixesForCil(String(n.id)))
     if (clusterId) {
       ;(n as RawGraphNode & { themeClusterId?: string }).themeClusterId = clusterId
+      nodeIdToCluster.set(bareId, clusterId)
+    }
+  }
+  // Propagation pass: walk the edge list to tag Insights, Persons, Orgs, and
+  // Podcasts from their tagged neighbours. Build an adjacency map keyed by
+  // stringified node id; a Set is enough (edge type doesn't matter — the
+  // clusters already encode which topics/episodes belong together, so any
+  // connectivity from a tagged neighbour is meaningful).
+  const edges = Array.isArray(data.edges) ? data.edges : []
+  const adjacency = new Map<string, Set<string>>()
+  for (const e of edges) {
+    if (!e || e.from == null || e.to == null) continue
+    const f = String(e.from)
+    const t = String(e.to)
+    if (!adjacency.has(f)) adjacency.set(f, new Set())
+    if (!adjacency.has(t)) adjacency.set(t, new Set())
+    adjacency.get(f)!.add(t)
+    adjacency.get(t)!.add(f)
+  }
+  const nodeById = new Map<string, RawGraphNode>()
+  for (const n of nodes) {
+    if (n?.id != null) nodeById.set(String(n.id), n)
+  }
+  // Two rounds of propagation: round 1 tags direct neighbours of seed nodes,
+  // round 2 tags one more hop out. Handles Topic → Insight → Person and
+  // Episode → Podcast. First-cluster-wins via nodeIdToCluster.
+  // Type names as they appear in the ARTIFACT (pre-merge, pre-visualGroup).
+  // `Person` + `Entity` come from the raw KG/GI; visualGroup later splits
+  // `Entity` into `Entity_person` / `Entity_organization` for the graph, but
+  // the propagation walks over the artifact's raw types.
+  const propagateToTypes = new Set([
+    'Insight',
+    'Person',
+    'Entity',
+    'Entity_person',
+    'Entity_organization',
+    'Podcast',
+    'Quote',
+  ])
+  for (let round = 0; round < 2; round++) {
+    const newly: Array<[string, string]> = []
+    for (const [nodeId, clusterId] of nodeIdToCluster) {
+      const neighbours = adjacency.get(nodeId)
+      if (!neighbours) continue
+      for (const nbId of neighbours) {
+        if (nodeIdToCluster.has(nbId)) continue
+        const nb = nodeById.get(nbId)
+        if (!nb || !propagateToTypes.has(String(nb.type))) continue
+        newly.push([nbId, clusterId])
+      }
+    }
+    for (const [nbId, clusterId] of newly) {
+      if (nodeIdToCluster.has(nbId)) continue
+      nodeIdToCluster.set(nbId, clusterId)
+      const nb = nodeById.get(nbId)
+      if (nb) {
+        ;(nb as RawGraphNode & { themeClusterId?: string }).themeClusterId = clusterId
+      }
     }
   }
   return { ...data, nodes }

@@ -1996,8 +1996,12 @@ export function toCytoElements(
     }
     // Theme-cluster membership (co-occurrence "Theme") is a node decoration — a
     // teal ring — not a compound parent, so it coexists with the semantic boxes.
+    // graph-v3 Tier 5A-2 bugfix: read from `raw` (the raw graph node populated
+    // by applyThemeClustersOverlay), not `n` (the visNode from toGraphElements
+    // which only carries {id, label, group, title, parent}). Prior code read
+    // from `n` and always missed → `.theme-member` class never actually fired.
     const classes: string[] = []
-    const themeClusterId = (n as { themeClusterId?: unknown }).themeClusterId
+    const themeClusterId = (raw as { themeClusterId?: unknown } | undefined)?.themeClusterId
     if (typeof themeClusterId === 'string' && themeClusterId) {
       data.themeClusterId = themeClusterId
       classes.push('theme-member')

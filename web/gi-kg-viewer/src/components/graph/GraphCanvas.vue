@@ -34,6 +34,10 @@ import { useShellStore } from '../../stores/shell'
 import { useThemeStore } from '../../stores/theme'
 import type { RawGraphNode } from '../../types/artifact'
 import type { TopicClustersDocument } from '../../api/corpusTopicClustersApi'
+import {
+  THEME_REGION_PALETTE_SIZE,
+  themeRegionIndex,
+} from '../../utils/themeRegionPalette'
 import { degreeBucketFor, emptyDegreeCounts } from '../../utils/graphDegreeBuckets'
 import {
   findEpisodeGraphNodeIdForMetadataPath,
@@ -76,6 +80,7 @@ import { visualNodeTypeCounts } from '../../utils/visualGroup'
 import GraphBottomBar from './GraphBottomBar.vue'
 import GraphFilterBar from './GraphFilterBar.vue'
 import GraphGestureOverlay from './GraphGestureOverlay.vue'
+import GraphThemeLegend from './GraphThemeLegend.vue'
 import GraphStatusLine from './GraphStatusLine.vue'
 
 registerNavigator(cytoscape)
@@ -997,129 +1002,34 @@ function applyGraphSelectionDimFromNode(core: Core, node: NodeSingular): void {
   })
 }
 
-/** graph-v3 U — number of theme-region colour classes emitted by the
- *  stylesheet. Cluster IDs hash into `[0, THEME_REGION_PALETTE_SIZE)` so
- *  different corpora reuse the same palette deterministically. Kept
- *  small (8) so the canvas doesn't paint dozens of near-identical hues. */
-const THEME_REGION_PALETTE_SIZE = 8
+// graph-v3 U — palette + hash extracted to `utils/themeRegionPalette.ts`
+// so the legend + tests can resolve the same colour for a given `thc:...`
+// id without duplicating the constants here.
 
-/** Stable, cheap hash → palette index. Djb2-style so the same
- *  `thc:...` id always maps to the same colour across sessions and
- *  browsers (no `Math.random`, no `Date.now`). */
-function themeRegionIndex(clusterId: string): number {
-  let h = 0
-  for (let i = 0; i < clusterId.length; i++) {
-    h = (h * 31 + clusterId.charCodeAt(i)) | 0
-  }
-  return Math.abs(h) % THEME_REGION_PALETTE_SIZE
-}
-
-/** Extract the bare topic id suffix from a merged-graph node id so we
- *  can match against `topic_theme_clusters.json` member ids that come
- *  without the `g:` / `k:` layer prefix. */
-function bareTopicIdFromNode(n: NodeSingular): string {
-  const id = String(n.id() ?? '')
-  const colon = id.lastIndexOf(':topic:')
-  if (colon >= 0) return id.slice(colon + 1)
-  return id.startsWith('topic:') ? id : id
-}
-
-/** Extract the bare episode id suffix. Merged graph episodes are keyed
- *  as `__unified_ep__:<episode_id>`; the artifact stores raw ids. */
-function bareEpisodeIdFromNode(n: NodeSingular): string {
-  const id = String(n.id() ?? '')
-  const prefix = '__unified_ep__:'
-  return id.startsWith(prefix) ? id.slice(prefix.length) : id
-}
-
-/** graph-v3 R-V — paint theme-cluster regions using the corpus
- *  `topic_theme_clusters.json` artifact (already loaded by the
- *  artifacts store). The enricher emits deterministic, labelled
- *  discourse clusters (co-occurrence lift + average-linkage); the
- *  viewer's job is to propagate that membership from Topics + Episodes
- *  (both fields present in the artifact) to their connected Insights,
- *  Persons, Orgs, and Podcasts, then apply a hash-based `theme-region-N`
- *  class the stylesheet paints as a soft underlay tint.
+/** graph-v3 R-V + Tier 5A-2 — paint theme-cluster region classes.
  *
- *  Multi-membership: cluster iteration order (doc order = member_count
- *  desc from the enricher) is stable and deterministic; first cluster
- *  a node touches wins, so a node that spans two themes joins the
- *  larger one. Enricher-gated: no-op when the artifact is absent. */
+ *  Propagation now runs artifact-side in `applyThemeClustersOverlay` so
+ *  every raw graph node with a theme membership already carries a
+ *  `themeClusterId` on its data (Topics + Episodes as direct seeds;
+ *  Insights + Persons + Orgs + Podcasts by edge-walk propagation).
+ *  This function only PAINTS: for each node with themeClusterId set,
+ *  add the matching `theme-region-N` class based on the stable hash.
+ *  Enricher-gated caller (finishLayoutPass / watcher) keeps this a
+ *  no-op when the artifact isn't loaded. */
 function applyThemeRegionClasses(
   core: Core,
   doc: TopicClustersDocument | null,
 ): void {
   if (!doc?.clusters?.length) return
-  const clusters = doc.clusters
-
   core.batch(() => {
-    // Clear all region classes first (idempotent — safe to call after a toggle).
     for (let i = 0; i < THEME_REGION_PALETTE_SIZE; i++) {
       core.nodes().removeClass(`theme-region-${i}`)
     }
-
-    const tagged = new Set<string>()
-
-    for (const cluster of clusters) {
-      const clusterId = cluster?.graph_compound_parent_id?.trim() ?? ''
-      if (!clusterId) continue
-      const cls = `theme-region-${themeRegionIndex(clusterId)}`
-
-      // Seed: Topics (matched by suffix) + Episodes (matched by id from
-      // member.episode_ids). Both fields are present in the artifact.
-      const seed = new Set<string>()
-      const memberTopicIds = new Set<string>()
-      const memberEpisodeIds = new Set<string>()
-      for (const m of cluster.members ?? []) {
-        const tid = typeof m?.topic_id === 'string' ? m.topic_id.trim() : ''
-        if (tid) memberTopicIds.add(tid)
-        for (const eid of m?.episode_ids ?? []) {
-          if (typeof eid === 'string' && eid.trim()) memberEpisodeIds.add(eid.trim())
-        }
-      }
-      core.nodes('[type = "Topic"]').forEach((n) => {
-        if (memberTopicIds.has(bareTopicIdFromNode(n))) seed.add(n.id())
-      })
-      core.nodes('[type = "Episode"]').forEach((n) => {
-        if (memberEpisodeIds.has(bareEpisodeIdFromNode(n))) seed.add(n.id())
-      })
-
-      // One-hop propagation to Insights via ABOUT/HAS_INSIGHT edges;
-      // two-hop to Persons/Orgs via MENTIONS_* + to Podcasts via
-      // HAS_EPISODE. Neighborhood() traverses without direction so both
-      // ABOUT (Insight→Topic) and HAS_INSIGHT (Episode→Insight) fire.
-      const toTag = new Set(seed)
-      seed.forEach((seedId) => {
-        const seedNode = core.$id(seedId)
-        if (seedNode.empty()) return
-        const seedType = seedNode.data('type')
-        if (seedType === 'Topic') {
-          seedNode.neighborhood('node[type = "Insight"]').forEach((insight) => {
-            toTag.add(insight.id())
-            insight
-              .neighborhood(
-                'node[type = "Entity_person"], node[type = "Entity_organization"]',
-              )
-              .forEach((entity) => toTag.add(entity.id()))
-          })
-        } else if (seedType === 'Episode') {
-          seedNode
-            .neighborhood('node[type = "Podcast"]')
-            .forEach((pod) => toTag.add(pod.id()))
-          seedNode
-            .neighborhood('node[type = "Insight"]')
-            .forEach((insight) => toTag.add(insight.id()))
-        }
-      })
-
-      // First-cluster-wins tagging (see fn docstring for multi-membership rule).
-      toTag.forEach((id) => {
-        if (tagged.has(id)) return
-        tagged.add(id)
-        const n = core.$id(id)
-        if (!n.empty()) n.addClass(cls)
-      })
-    }
+    core.nodes().forEach((n) => {
+      const raw = n.data('themeClusterId')
+      if (typeof raw !== 'string' || !raw.trim()) return
+      n.addClass(`theme-region-${themeRegionIndex(raw)}`)
+    })
   })
 }
 
@@ -1128,6 +1038,53 @@ function clearThemeRegionClasses(core: Core): void {
     for (let i = 0; i < THEME_REGION_PALETTE_SIZE; i++) {
       core.nodes().removeClass(`theme-region-${i}`)
     }
+  })
+}
+
+/** graph-v3 Tier 5B — annotate bridge nodes with the themes they bridge.
+ *  For each node carrying the `graph-bridge` class, walk its neighbourhood
+ *  and collect the distinct themeClusterId values touched by neighbours;
+ *  when the set has >=2 entries, store both the ids and the human labels
+ *  on the bridge node's data as `bridgedThemes` / `bridgedThemeLabels`.
+ *
+ *  Compositional signal: makes K's rose ring analytically meaningful when
+ *  the theme regions lens is on ("bridge between AI-and-jobs and
+ *  interest-rates"). No-op when either lens is off or when the theme-cluster
+ *  artifact isn't loaded — the empty label set falls out naturally. */
+function annotateBridgesWithThemes(
+  core: Core,
+  doc: TopicClustersDocument | null,
+): void {
+  const labelById = new Map<string, string>()
+  for (const cl of doc?.clusters ?? []) {
+    const id = typeof cl?.graph_compound_parent_id === 'string' ? cl.graph_compound_parent_id.trim() : ''
+    if (!id) continue
+    const lbl = typeof cl?.canonical_label === 'string' && cl.canonical_label.trim() ? cl.canonical_label.trim() : id
+    labelById.set(id, lbl)
+  }
+  core.batch(() => {
+    core.nodes('.graph-bridge').forEach((bridge) => {
+      const themes = new Set<string>()
+      bridge.neighborhood('node').forEach((nb) => {
+        const t = nb.data('themeClusterId')
+        if (typeof t === 'string' && t && labelById.has(t)) themes.add(t)
+      })
+      if (themes.size >= 2) {
+        const arr = Array.from(themes).sort()
+        bridge.data('bridgedThemes', arr)
+        bridge.data(
+          'bridgedThemeLabels',
+          arr.map((t) => labelById.get(t) ?? t),
+        )
+      } else {
+        try {
+          bridge.removeData('bridgedThemes')
+          bridge.removeData('bridgedThemeLabels')
+        } catch {
+          /* removeData is not available on all cytoscape versions; ignore */
+        }
+      }
+    })
   })
 }
 
@@ -1671,6 +1628,10 @@ function finishLayoutPass(core: Core): void {
   } else {
     clearThemeRegionClasses(cy)
   }
+  // graph-v3 Tier 5B — when both bridge + theme lenses are on, tag each bridge
+  // node with the set of themes it connects. Data-only for now (surfaced in
+  // NodeDetail below); a future iteration could paint a specific glyph.
+  annotateBridgesWithThemes(cy, artifacts.themeClustersDoc)
   applyDegreeVisibility(cy)
   applyViewportPreserveOrFit(cy, snap)
   // Clear the fit request flag after applying viewport (fit or preserve)
@@ -4419,6 +4380,8 @@ defineExpose({
             />
           </div>
         </div>
+        <!-- graph-v3 Tier 5A-1 — theme-cluster legend, opposite corner from minimap. -->
+        <GraphThemeLegend />
         </div>
         <GraphBottomBar
           v-if="gf.state"
