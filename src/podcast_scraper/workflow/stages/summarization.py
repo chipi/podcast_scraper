@@ -63,7 +63,11 @@ def _collect_episodes_for_summarization(
     if download_args is None:
         download_args = []
     for args in download_args:
-        episode_obj, _, _, _, _, _, _, detected_names = args
+        # Index access, not a fixed-arity unpack: the download-args tuple carries
+        # guests at [7] + stated names at [8] (processing.prepare_episode_download_args);
+        # matches how processing.py / transcription.py read args[7].
+        episode_obj = args[0]
+        detected_names = args[7]
         episode_to_detected_names[episode_obj.idx] = detected_names
 
     episodes_to_summarize = []

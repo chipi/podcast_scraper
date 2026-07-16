@@ -105,9 +105,10 @@ class TestPerProviderCircuitBreakerE2E:
         assert s["trips_total"] >= 1
         assert s["cooldown_seconds_total"] > 0
 
-    def test_breaker_disabled_by_default(self, e2e_server):
-        """Without ``llm_circuit_breaker_enabled=True``, the breaker stays
-        unwired — the existing soft retry/backoff path is unchanged."""
+    def test_breaker_when_explicitly_disabled(self, e2e_server):
+        """With ``llm_circuit_breaker_enabled=False`` the breaker stays unwired —
+        the existing soft retry/backoff path is unchanged and no trips are
+        recorded. (The default is now ON per ADR-113, so this must be explicit.)"""
         from podcast_scraper.providers.openai.openai_provider import OpenAIProvider
         from tests.e2e.fixtures.e2e_http_server import E2EHTTPRequestHandler
 
@@ -119,7 +120,7 @@ class TestPerProviderCircuitBreakerE2E:
                 "openai_api_base": e2e_server.urls.openai_api_base(),
                 "summary_provider": "openai",
                 "generate_summaries": True,
-                # breaker NOT enabled
+                "llm_circuit_breaker_enabled": False,  # default is ON (ADR-113)
             }
         )
         p = OpenAIProvider(cfg)

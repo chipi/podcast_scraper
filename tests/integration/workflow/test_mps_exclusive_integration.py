@@ -315,14 +315,11 @@ class TestMPSExclusiveFallbackWarning(unittest.TestCase):
         mock_sum._reduce_model = None
         type(mock_sum).__name__ = "MLProvider"
 
-        with self.assertLogs(
-            "podcast_scraper.workflow.orchestration", level=logging.WARNING
-        ) as caplog:
-            result = _both_providers_use_mps(cfg, mock_tx, mock_sum)
-
-        # The result depends on whether MPS is actually available on this
-        # test host — on CI Linux runners it's False, on Mac dev it's True.
-        # We assert on the log-line contract in both cases.
+        # Result + logging depend on whether MPS is actually available — True on
+        # Mac dev, False on CI Linux runners. ``assertLogs`` REQUIRES at least one
+        # matching record, and the WARNING is guarded on ``is_available()``, so only
+        # wrap the call in ``assertLogs`` when MPS is available; otherwise the call
+        # logs nothing and asserting logs would (wrongly) fail the test.
         try:
             import torch
 
@@ -331,13 +328,16 @@ class TestMPSExclusiveFallbackWarning(unittest.TestCase):
             mps_avail = False
 
         if mps_avail:
+            with self.assertLogs(
+                "podcast_scraper.workflow.orchestration", level=logging.WARNING
+            ) as caplog:
+                result = _both_providers_use_mps(cfg, mock_tx, mock_sum)
             self.assertTrue(result)
             self.assertTrue(
                 any("MPS-exclusive check" in msg for msg in caplog.output),
                 f"expected observable-fallback WARNING; got {caplog.output}",
             )
         else:
-            # On non-MPS hosts the fallback still evaluates but doesn't log
-            # (the branch guards on is_available()). We can only test the
-            # positive path when MPS is available — record the skip reason.
+            # On non-MPS hosts the fallback evaluates to False and logs nothing.
+            result = _both_providers_use_mps(cfg, mock_tx, mock_sum)
             self.assertFalse(result)
