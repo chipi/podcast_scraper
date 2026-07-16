@@ -56,7 +56,7 @@ def test_openai_sdk_http_client_routes_through_proxy(mock_http_proxy, mock_targe
     parse the mock target's plain-text response — that's fine: we only
     care about the proxy hop record, which is enough to prove the seam.
     """
-    from openai import OpenAI
+    OpenAI = pytest.importorskip("openai").OpenAI
 
     from podcast_scraper.net import sdk_http_client
 
@@ -87,7 +87,7 @@ def test_anthropic_sdk_http_client_routes_through_proxy(
     mock_http_proxy, mock_target_server
 ) -> None:
     """Anthropic SDK honors `http_client=sdk_http_client(...)`."""
-    from anthropic import Anthropic
+    Anthropic = pytest.importorskip("anthropic").Anthropic
 
     from podcast_scraper.net import sdk_http_client
 
@@ -117,7 +117,7 @@ def test_anthropic_sdk_http_client_routes_through_proxy(
 
 def test_deepseek_sdk_http_client_routes_through_proxy(mock_http_proxy, mock_target_server) -> None:
     """DeepSeek uses OpenAI SDK shape — its ``http_client=`` must route through the proxy."""
-    from openai import OpenAI
+    OpenAI = pytest.importorskip("openai").OpenAI
 
     from podcast_scraper.net import sdk_http_client
 
@@ -145,7 +145,7 @@ def test_deepseek_sdk_http_client_routes_through_proxy(mock_http_proxy, mock_tar
 
 def test_grok_sdk_http_client_routes_through_proxy(mock_http_proxy, mock_target_server) -> None:
     """Grok uses OpenAI SDK shape — its ``http_client=`` must route through the proxy."""
-    from openai import OpenAI
+    OpenAI = pytest.importorskip("openai").OpenAI
 
     from podcast_scraper.net import sdk_http_client
 
@@ -173,7 +173,7 @@ def test_grok_sdk_http_client_routes_through_proxy(mock_http_proxy, mock_target_
 
 def test_ollama_sdk_http_client_routes_through_proxy(mock_http_proxy, mock_target_server) -> None:
     """Ollama LLM provider uses OpenAI SDK shape — its ``http_client=`` must route through the proxy."""
-    from openai import OpenAI
+    OpenAI = pytest.importorskip("openai").OpenAI
 
     from podcast_scraper.net import sdk_http_client
 

@@ -62,7 +62,7 @@ is not a secret; the proxy password is inline inside `url`. Redaction handles it
 
 `OutboundConfigRegistry` (module-level singleton):
 
-- `get() -> OutboundConfig` — cheap read on every factory call.
+- `current() -> OutboundConfig` — cheap read on every factory call.
 - `swap(new: OutboundConfig)` — atomic replace under a lock; emits a
   `logger.info` with redacted diff.
 
@@ -136,30 +136,47 @@ Consequences of that scope:
 Full inventory from the recon pass. Each row lists the touch-up scope for the
 factory rollout.
 
-Status column reflects the AS-SHIPPED state after chunk 3e (2026-07-07).
+**Status column reflects the AS-SHIPPED state on `main` after the 2026-07-16
+option-3 rebase.** Rows marked ✅ shipped route production traffic through
+the outbound HTTP factory today. Rows marked 🔵 planned describe a designed
+migration that has NOT landed on `main` — the callsite still uses bare
+`httpx.Client` / `requests.Session` / SDK-default transport. Chunk names
+(3b / 3c / 3e) reference the original design plan, not merged commits;
+they're preserved so a future PR that lands one of these rows can cite the
+same chunk it belongs to.
+
+Legend: ✅ shipped · 🔵 planned (not yet merged) · ⛔ documented exception
 
 | # | Subsystem | Files | Migration | Status |
 | - | --- | --- | --- | --- |
-| 1 | RSS feed downloads | `rss/downloader.py` (was `requests.Session`) | Full swap to `httpx.Client` via `create_client(subsystem="rss_feed", transport_wrapper=RetryTransport(...))`; urllib3 `Retry` → new `rss/http_retry.py::RetryTransport`. | ✅ shipped (chunk 3c) |
-| 2 | Media/transcript downloads | same file | Same client, `subsystem="rss_generic"`. | ✅ shipped (chunk 3c) |
-| 3 | Audio bridge resolution | `server/app_audio_bridge.py::_head_request` | `create_client(subsystem="audio_bridge", ...)`. | ✅ shipped (chunk 3b) |
-| 4a | OpenAI SDK | `providers/openai/openai_provider.py` | `client_kwargs["http_client"] = sdk_http_client(subsystem="llm_openai", timeout=...)`. | ✅ shipped (chunk 3e) |
-| 4b | Anthropic SDK | `providers/anthropic/anthropic_provider.py` | Same, `subsystem="llm_anthropic"`. | ✅ shipped (chunk 3e) |
-| 4c | Mistral SDK | `providers/mistral/mistral_provider.py` | `Mistral(client=..., ...)` (2.x kwarg name) with `try/except TypeError` fallback for 1.x. `subsystem="llm_mistral"`. | ✅ shipped (chunk 3e) |
-| 4d | Grok SDK | `providers/grok/grok_provider.py` | OpenAI SDK, `subsystem="llm_grok"`. | ✅ shipped (chunk 3e) |
-| 4e | DeepSeek SDK | `providers/deepseek/deepseek_provider.py` | OpenAI SDK, `subsystem="llm_deepseek"`. | ✅ shipped (chunk 3e) |
-| 5 | Ollama LLM | `providers/ollama/ollama_provider.py` | OpenAI SDK via factory (`subsystem="llm_ollama"`). Direct `httpx.get/post` health calls left on env-mirror because test rig patches `httpx` at the module namespace. | ✅ SDK shipped, health calls on env-mirror (chunk 3e) |
-| 6a | DGX embed shim | `providers/ml/embedding_remote.py` | `create_client(subsystem="embedding_remote", ...)`. | ✅ shipped (chunk 3b) |
-| 6b | Ollama embed | `providers/ml/embedding_ollama.py` | `create_client(subsystem="embedding_ollama", ...)`. | ✅ shipped (chunk 3b) |
-| 7a | Ollama chat judge | `evaluation/judges/ollama_chat.py` | `create_client(subsystem="judge_ollama", ...)`. | ✅ shipped (chunk 3b) |
-| 7b | vLLM chat judge | `evaluation/judges/vllm_chat.py` | `create_client(subsystem="judge_vllm", ...)`. | ✅ shipped (chunk 3b) |
-| 8 | Tailnet DGX health | `providers/tailnet_dgx/health.py` | Three call sites: `dgx_health_probe` / `dgx_ollama_health` / `dgx_service_health`. | ✅ shipped (chunk 3b) |
-| 9 | Job webhooks | `server/job_webhook.py` | Extracted `_post_webhook(url, payload, timeout)` seam using `create_async_client(subsystem="webhook", ...)`; test rig patches the seam. | ✅ shipped (chunk 3e) |
-| 10 | OAuth identity | `server/app_oauth.py::GoogleProvider.exchange_code` | `create_client(subsystem="oauth_google", ...)`. | ✅ shipped (chunk 3b) |
-| 11 | Reference client | `server/app_reference_client.py` | Test harness — left on bare httpx; not factory-relevant. | ✅ documented no-op |
-| 12 | HF system prompt fetch | `providers/common/hf_system_prompt.py` | Extracted `_http_get(url, headers, timeout)` seam using `create_client(subsystem="hf_system_prompt", ...)`. Tests patch the seam. | ✅ shipped (chunk 3e) |
-| 13 | podcast_obs helpers | `podcast_obs/_http.py` | `create_client(subsystem="podcast_obs", ...)`. | ✅ shipped (chunk 3e) |
-| 14 | pyannote diarization | `providers/ml/diarization/pyannote_provider.py` | **Exception**: `huggingface_hub` owns the transport internally. Env-mirror (`HTTPS_PROXY` / `SSL_CERT_FILE`) covers proxy + CA. | ✅ documented exception |
+| 1 | RSS feed downloads | `rss/downloader.py` (currently `requests.Session` + urllib3 `Retry`) | Full swap to `httpx.Client` via `create_client(subsystem="rss_feed", transport_wrapper=RetryTransport(...))`; urllib3 `Retry` → a new `rss/http_retry.py::RetryTransport` (currently unwritten). | 🔵 planned (chunk 3c) |
+| 2 | Media/transcript downloads | same file | Same client, `subsystem="rss_generic"`. | 🔵 planned (chunk 3c) |
+| 3 | Audio bridge resolution | `server/app_audio_bridge.py::_head_request` | `create_client(subsystem="audio_bridge", ...)`. | 🔵 planned (chunk 3b) |
+| 4a | OpenAI SDK | `providers/openai/openai_provider.py` | `client_kwargs["http_client"] = sdk_http_client(subsystem="llm_openai", timeout=...)`. | 🔵 planned (chunk 3e) |
+| 4b | Anthropic SDK | `providers/anthropic/anthropic_provider.py` | Same, `subsystem="llm_anthropic"`. | 🔵 planned (chunk 3e) |
+| 4c | Mistral SDK | `providers/mistral/mistral_provider.py` | `Mistral(client=..., ...)` (2.x kwarg name) with `try/except TypeError` fallback for 1.x. `subsystem="llm_mistral"`. | 🔵 planned (chunk 3e) |
+| 4d | Grok SDK | `providers/grok/grok_provider.py` | OpenAI SDK, `subsystem="llm_grok"`. | 🔵 planned (chunk 3e) |
+| 4e | DeepSeek SDK | `providers/deepseek/deepseek_provider.py` | OpenAI SDK, `subsystem="llm_deepseek"`. | 🔵 planned (chunk 3e) |
+| 5 | Ollama LLM | `providers/ollama/ollama_provider.py` | OpenAI SDK via factory (`subsystem="llm_ollama"`). Direct `httpx.get/post` health calls will stay on env-mirror because test rig patches `httpx` at the module namespace. | 🔵 planned (chunk 3e) |
+| 6a | DGX embed shim | `providers/ml/embedding_remote.py` | `create_client(subsystem="embedding_remote", ...)`. | 🔵 planned (chunk 3b) |
+| 6b | Ollama embed | `providers/ml/embedding_ollama.py` | `create_client(subsystem="embedding_ollama", ...)`. | 🔵 planned (chunk 3b) |
+| 7a | Ollama chat judge | `evaluation/judges/ollama_chat.py` | `create_client(subsystem="judge_ollama", ...)`. | 🔵 planned (chunk 3b) |
+| 7b | vLLM chat judge | `evaluation/judges/vllm_chat.py` | `create_client(subsystem="judge_vllm", ...)`. | 🔵 planned (chunk 3b) |
+| 8 | Tailnet DGX health | `providers/tailnet_dgx/health.py` | Three call sites: `dgx_health_probe` / `dgx_ollama_health` / `dgx_service_health`. Currently uses bare `httpx.Client`. | 🔵 planned (chunk 3b) |
+| 9 | Job webhooks | `server/job_webhook.py` | Extracted `_post_webhook(url, payload, timeout)` seam using `create_async_client(subsystem="webhook", ...)`; test rig patches the seam. | 🔵 planned (chunk 3e) |
+| 10 | OAuth identity | `server/app_oauth.py::GoogleProvider.exchange_code` | `create_client(subsystem="oauth_google", ...)`. | 🔵 planned (chunk 3b) |
+| 11 | Reference client | `server/app_reference_client.py` | Test harness — bare httpx; not factory-relevant. | ⛔ documented no-op |
+| 12 | HF system prompt fetch | `providers/common/hf_system_prompt.py` | Extract `_http_get(url, headers, timeout)` seam using `create_client(subsystem="hf_system_prompt", ...)`. Tests patch the seam. | 🔵 planned (chunk 3e) |
+| 13 | podcast_obs helpers | `podcast_obs/_http.py` | `create_client(subsystem="podcast_obs", ...)`. | 🔵 planned (chunk 3e) |
+| 14 | pyannote diarization | `providers/ml/diarization/pyannote_provider.py` | **Exception**: `huggingface_hub` owns the transport internally. Env-mirror (`HTTPS_PROXY` / `SSL_CERT_FILE`) covers proxy + CA. | ⛔ documented exception |
+| 15 | DGX inference (Whisper) | `providers/tailnet_dgx/whisper_provider.py` | Uses `hardened_http_client(subsystem="dgx_whisper", ...)` which delegates to `create_client` (TCP keepalive + `Connection: close` + factory routing). | ✅ shipped |
+| 16 | DGX inference (Diarize) | `providers/tailnet_dgx/diarization_provider.py` | Same delegate, `subsystem="dgx_diarize"`. | ✅ shipped |
+| 17 | MOSS provider | `providers/moss/moss_provider.py` | Uses `hardened_http_client(...)` (default `subsystem="dgx_inference"`). | ✅ shipped |
+
+**Migration coverage today:** 3 of 17 callsites (rows 15, 16, 17) route through
+the factory via `hardened_http_client`. The other 14 rows are staged as
+follow-up work; the factory itself is landed and stable, so each of the
+planned migrations is a small independent PR.
 
 ### SDK-injection quick check (before writing code)
 

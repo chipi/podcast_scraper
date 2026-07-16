@@ -55,6 +55,8 @@ def test_async_client_subsystem_header() -> None:
     # verify the header stamp and then close it synchronously without ever
     # awaiting a request. This keeps the async transport path covered without
     # pulling in pytest-asyncio for a one-line assertion.
+    import asyncio
+
     import httpx
 
     c = create_async_client(subsystem="webhook")
@@ -62,8 +64,7 @@ def test_async_client_subsystem_header() -> None:
         assert isinstance(c, httpx.AsyncClient)
         assert c.headers.get("X-Outbound-Subsystem") == "webhook"
     finally:
-        # aclose() would need a loop; the transport hasn't been used, so this is safe.
-        pass
+        asyncio.run(c.aclose())
 
 
 def test_sdk_http_client_logs_error_and_returns_none_on_build_failure(

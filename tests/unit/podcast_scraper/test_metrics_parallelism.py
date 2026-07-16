@@ -188,6 +188,57 @@ def test_finalize_does_not_warn_when_inline_zero(caplog: pytest.LogCaptureFixtur
 # ---------- Export surface --------------------------------------------------
 
 
+def test_finalize_warns_when_safety_net_fires_and_inline_is_zero(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Pathological case (harden audit 2026-07-16): the inline
+    ProcessingProcessor was engaged (transcription ran) but processed ZERO
+    episodes inline, AND the safety net picked up the pieces. That means the
+    inline path crashed on job 1 or the queue handoff broke — worth surfacing.
+
+    Original #1180 warning gate required ``inline > 0`` to fire, which
+    suppressed this case. Widened to fire whenever ``transcription_thread_intervals``
+    is non-empty (i.e. the inline path COULD have engaged).
+    """
+    m = Metrics()
+    m.record_transcription_thread_active(0.0, 10.0)  # transcription ran
+    m.record_safety_net_processed_episode()
+    m.record_safety_net_processed_episode()
+    # inline_processed stays 0 — the pathological case.
+
+    caplog.set_level(logging.WARNING, logger="podcast_scraper.workflow.metrics")
+    m.finalize_parallelism_snapshot(pipeline_wall_seconds=10.0)
+
+    matches = [
+        rec.message
+        for rec in caplog.records
+        if "safety net" in rec.message and rec.levelno == logging.WARNING
+    ]
+    assert matches, (
+        "expected safety-net WARNING even when inline_processed==0, given " "transcription ran"
+    )
+    assert "inline_processed=0" in matches[0]
+
+
+def test_finalize_does_not_warn_when_transcription_did_not_run(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Dry-run / transcription-off / metadata-off: safety_net > 0 with no
+    transcription activity is NOT pathological (the whole inline path is
+    intentionally skipped by config).
+    """
+    m = Metrics()
+    m.record_safety_net_processed_episode()
+    # No transcription intervals recorded → inline path was not engaged.
+
+    caplog.set_level(logging.WARNING, logger="podcast_scraper.workflow.metrics")
+    m.finalize_parallelism_snapshot()
+
+    assert not any(
+        "safety net" in rec.message for rec in caplog.records
+    ), "should not warn when inline path was not engaged"
+
+
 def test_finish_exports_parallelism_keys() -> None:
     """Every #1180 field lands in the export dict, even on an empty run."""
     m = Metrics()

@@ -561,16 +561,34 @@ class Metrics:
         else:
             self.processing_thread_busy_ratio = None
 
-        if self.safety_net_processed_episodes_count > 0 and (
+        # Warn whenever the safety net fired AND we recorded any inline activity
+        # in this run, INCLUDING the case where inline == 0. Two patterns qualify:
+        #
+        #   1. safety_net > 0 AND inline > 0 — the inline path handled some
+        #      episodes but silently skipped others. Original #1180 wording.
+        #   2. safety_net > 0 AND inline == 0 (pre-#1180 harden audit gap):
+        #      pathological. Inline was enabled (transcription_thread_intervals
+        #      shows the transcription thread ran) but produced zero episodes
+        #      inline. Either the ProcessingProcessor crashed on the first job,
+        #      the queue handoff broke, or ``generate_metadata`` was disabled
+        #      and the whole inline branch was skipped — any of those is worth
+        #      surfacing before an operator tunes the parallelism knobs.
+        #
+        # The gate is: transcription actually ran (has intervals). If no
+        # transcription ran either, we're in a dry-run or transcription-off
+        # config; safety_net > 0 with no inline path is not pathological there.
+        inline_path_engaged = bool(self.transcription_thread_intervals) or (
             self.inline_processed_episodes_count > 0
-        ):
+        )
+        if self.safety_net_processed_episodes_count > 0 and inline_path_engaged:
             logger.warning(
                 "parallelism observability (#1180): %d episode(s) were processed "
-                "by the tail parallel_episode_summarization safety net despite "
-                "the inline ProcessingProcessor being enabled. This usually means "
-                "the inline path skipped those episodes silently — investigate "
-                "before tuning parallelism knobs.",
+                "by the tail parallel_episode_summarization safety net "
+                "(inline_processed=%d). The inline ProcessingProcessor was "
+                "engaged for this run; a healthy pipeline processes every "
+                "episode inline. Investigate before tuning parallelism knobs.",
                 self.safety_net_processed_episodes_count,
+                self.inline_processed_episodes_count,
             )
 
     def log_parallelism_summary(self) -> None:
@@ -1440,9 +1458,10 @@ class Metrics:
             "bytes_downloaded_total": self.bytes_downloaded_total,
             # #1129/#1130 gap 5: forward-compatible canonical name for the retry-event
             # counter. Backed today by the same urllib3-based downloader as
-            # ``http_urllib3_retry_events``. When RSS eventually moves to httpx (open
-            # follow-up), the semantics can broaden to include httpx retries without
-            # changing the exposed key. Dashboards should read this key.
+            # ``http_urllib3_retry_events``. When RSS moves to httpx (#1194 —
+            # chunk 3c follow-up tracking the migration), the semantics broaden
+            # to include httpx retries without changing the exposed key.
+            # Dashboards should read this key.
             "http_retry_events": http_urllib3_retry_events,
             # DEPRECATED alias — same value as ``http_retry_events``. Removal
             # criterion: no Grafana / alerting query has referenced

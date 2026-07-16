@@ -1202,7 +1202,7 @@ For download hardening observability it includes:
 
 | Field | Meaning |
 | :--- | :--- |
-| `http_urllib3_retry_events` | Count of urllib3 retry scheduling events (transient connection/read/status errors) since the downloader was last configured (pipeline start); process-wide |
+| `http_retry_events` (deprecated alias: `http_urllib3_retry_events`) | Count of HTTP retry scheduling events (transient connection/read/status errors) since the downloader was last configured (pipeline start); process-wide |
 | `episode_download_retries` | Number of application-level episode download retries (after urllib3 exhausted), when `episode_retry_max` > 0 |
 | `episode_download_retry_sleep_seconds` | Sum of configured backoff sleeps before those episode-level retries |
 | `host_throttle_wait_seconds` | Time spent in per-host throttle or `Retry-After` alignment waits (Issue #522) |
@@ -1214,7 +1214,7 @@ For download hardening observability it includes:
 | `rss_conditional_hit` | RSS responses served from cache after HTTP 304 |
 | `rss_conditional_miss` | RSS full-body 200 responses under conditional GET |
 
-**Semantics:** `http_urllib3_retry_events` is shared across all threads in the process. A normal single `run_pipeline` is fine. Do not run two full pipelines **concurrently** in one process if you need that field to represent one run only (use separate processes). See [CONFIGURATION.md -- Download resilience](../api/CONFIGURATION.md#download-resilience) (threading and metrics) and [WIP: concurrent pipelines and HTTP retry metrics](../wip/wip-concurrent-pipeline-http-retry-metrics.md).
+**Semantics:** `http_retry_events` (deprecated alias: `http_urllib3_retry_events`) is shared across all threads in the process. A normal single `run_pipeline` is fine. Do not run two full pipelines **concurrently** in one process if you need that field to represent one run only (use separate processes). See [CONFIGURATION.md -- Download resilience](../api/CONFIGURATION.md#download-resilience) (threading and metrics) and [WIP: concurrent pipelines and HTTP retry metrics](../wip/wip-concurrent-pipeline-http-retry-metrics.md).
 
 Configuration:
 [CONFIGURATION.md -- Download resilience](../api/CONFIGURATION.md#download-resilience).
@@ -1306,7 +1306,7 @@ Eval workflows often use **materialized** or **local** inputs so HTTP is out of 
 - **Long batch / production-like ingestion**: Rely on defaults or raise `http_retry_total`, `rss_retry_total`, and `episode_retry_max` if feeds are flaky. See [CONFIGURATION.md — Download resilience](../api/CONFIGURATION.md#download-resilience) and [recommended presets](../api/CONFIGURATION.md#recommended-presets-download-resilience) (canonical).
 - **Polite HTTP toward CDNs** (high parallelism, same host for RSS and media): Use the **Polite HTTP** preset in [CONFIGURATION.md — Recommended presets](../api/CONFIGURATION.md#recommended-presets-download-resilience) (copy keys into your YAML).
 - **Fast CI or smoke**: Lower retries (`episode_retry_max: 0`, small `http_retry_total`) so failures fail quickly; use the **Fast fail** preset / minimal-retry YAML in the same CONFIGURATION section.
-- **Triage**: Use `failure_summary` in `run.json` and `http_urllib3_retry_events` / `episode_download_retries` in `metrics.json` after the run (see [Pipeline run metrics](#pipeline-run-metrics-download-resilience) above).
+- **Triage**: Use `failure_summary` in `run.json` and `http_retry_events` (deprecated alias: `http_urllib3_retry_events`) / `episode_download_retries` in `metrics.json` after the run (see [Pipeline run metrics](#pipeline-run-metrics-download-resilience) above).
 
 CLI overrides: [CLI.md — Control Options](../api/CLI.md#control-options) (`--http-retry-total`, `--episode-retry-max`, etc.).
 
