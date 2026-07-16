@@ -669,6 +669,16 @@ def _name_guest_voices(
     spare = [g for g in guest_names if g.lower() not in used_lower]
     # One name, one voice: the assignment is forced, so it is not a guess.
     forced = spare[0] if (len(spare) == 1 and len(unassigned) == 1) else None
+    # The cameo floor exists to avoid painting a name onto a brief cutaway when
+    # OTHER voices compete for it — not to drop the ONLY remaining candidate. If
+    # exactly one name and one non-host/non-intro voice remain (ignoring the floor),
+    # that voice IS the guest however briefly it spoke, so force it. Without this a
+    # short two-voice episode leaves the guest as SPEAKER_NN.
+    if forced is None and len(spare) == 1:
+        remaining = [v for v in voices_by_total if v not in assigned and v not in voice_intro]
+        if len(remaining) == 1:
+            forced = spare[0]
+            unassigned = remaining
 
     for v in voices_by_total:
         if v in assigned:
