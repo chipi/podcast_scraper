@@ -93,9 +93,24 @@ value preserved.
 | G | Edge width tiers widened | `utils/cyGraphStylesheet.ts` | Structural 2 → 2.75 (HAS_INSIGHT, SPOKE_IN, HAS_EPISODE). HAS_MEMBER 1.5 → 2. Evidence + discovery 1 → 0.75-0.85 (SUPPORTED_BY, RELATED_TO, MENTIONS). Descriptive confidence-mapped unchanged (already scaled). Compact profile scales proportionally. Aggregate mapData(weight) untouched. |
 | H | Episode base 18 → 22, aspect W 1.35 → renders 30×22 card | `utils/cyGraphStylesheet.ts` `NODE_ASPECT_W`, `scaledNodeWidth` | mapData(degreeHeat) specialization scales width vs height independently against per-type bases so aspect ratio is preserved across the 0.7×–1.5× range. |
 
+## Tier 3 — I/J/K/L/M
+
+| # | Change | Files | Notes |
+|---|---|---|---|
+| I | Entity_organization aspect W=1.35 → 35×26 card | `utils/cyGraphStylesheet.ts` `NODE_ASPECT_W` | Same treatment as Episode. Verified live on Barclays, FT, The Flip Side Podcast. |
+| J | Extend degreeHeat to Episode + Entity_person + Entity_organization | `components/graph/GraphCanvas.vue` `applyTopicDegreeHeat` + mapData specialization in `utils/cyGraphStylesheet.ts` | Previously Topic-only; now 226/226 persons + 164/164 orgs + 32/32 episodes carry degreeHeat post-layout. Aspect ratio preserved through 0.7×–1.5× mapData range. Topic-heat-high class still Topic-only (existing selector contract). |
+| K | Bridge node ring via betweenness centrality | `components/graph/GraphCanvas.vue` `applyBridgeNodeClass` + `.graph-bridge` style | Threshold 0.05 on Topic/Podcast/Person/Org (Episode + Insight excluded — always structural connectors by graph shape). 44 bridges on prod-v2. Rose dashed border style. Cost ~200ms on 833 nodes. |
+| L | Brand palette shift across all 9 node types | `utils/colors.ts` `graphNodeTypeStyles` | Fixes pre-L Entity_person / TopicCluster purple collision (both were #9775fa). Person → amber #c49a28. Palette is the shared source of truth per UXS-014 → E chip, legend, and CIL topic pill shift with the graph. Coordinated brand-tone shift (less-neon), not a wholesale forest/sage/stone/terracotta rewrite. |
+| M | fcose gravity 0.18 → 0.12 | `utils/cyCoseLayoutOptions.ts` + test | Modest cluster-drift; not the docs' 0.08 (our bipartite graph would strand orphan Insights). idealEdgeLength + nodeRepulsion untouched. |
+
+Docs' "long cross-type edges" fcose proposal doesn't cleanly map to this graph:
+nearly every edge is already cross-type. RELATED_TO (the one same-type edge) is
+already at idealEdgeLength 120.
+
 ## Not done (still)
 
 - Speaker + Quote shape live-verify — pending a corpus that emits either.
-- fcose repulsion / edge-length tuning still unchanged. Docs' `nodeRepulsion: 8000 /
-  gravity: 0.08` proposals not applied (units differ from current 880_000 base;
-  needs isolated tuning session).
+- Community detection / Louvain colour blobs — user directed to defer this to after
+  I/J/K/L/M land. Next candidate tier.
+- Halo colour on light-theme graph canvas is still `--ps-graph-canvas` = `--ps-canvas`
+  (i.e. same as canvas). That's correct; noting for completeness.

@@ -996,11 +996,56 @@ function applyGraphSelectionDimFromNode(core: Core, node: NodeSingular): void {
   })
 }
 
-/** WIP §4.3 — Topic hub emphasis from graph degree (post-layout). */
+/** graph-v3 K — bridge nodes via normalized betweenness centrality.
+ *  Runs once post-layout. Semantically-eligible node types (Topic,
+ *  Podcast, Entity_person, Entity_organization) with betweenness above
+ *  the threshold get a `graph-bridge` class; the stylesheet paints a
+ *  distinctive dashed rose border so bridging entities stand out.
+ *
+ *  Episode + Insight are excluded up front. On this data-model episodes
+ *  always sit between insights and topics/persons and insights always
+ *  sit between quotes and topics, so their betweenness is high by
+ *  construction — flagging them as bridges makes the class synonymous
+ *  with "structural connector" (noise), not "community bridge" (signal).
+ *
+ *  Cost: O(V*E) — ~833 nodes / ~2-4k edges on prod-v2 measured under 200ms. */
+function applyBridgeNodeClass(core: Core): void {
+  try {
+    const bc = core.elements().betweennessCentrality({ directed: false })
+    /* Threshold chosen after scanning prod-v2 by type: Topic p90 ≈ 0.005,
+       Entity_organization p90 ≈ 0.05, Podcast p90 ≈ 0.35. 0.05 catches
+       the analytically interesting bridges across all four types without
+       flooding the canvas with false positives. */
+    const threshold = 0.05
+    const eligibleSelector =
+      '[type = "Topic"], [type = "Podcast"], [type = "Entity_person"], [type = "Entity_organization"]'
+    core.batch(() => {
+      core.nodes().removeClass('graph-bridge')
+      core.nodes(eligibleSelector).forEach((n) => {
+        const score = bc.betweennessNormalized(n)
+        if (Number.isFinite(score) && score >= threshold) {
+          n.addClass('graph-bridge')
+        }
+      })
+    })
+  } catch {
+    /* betweenness fails on empty graphs; safe to skip */
+  }
+}
+
+/** WIP §4.3 — hub emphasis from graph degree (post-layout).
+ *  graph-v3 J — extended beyond Topic to Episode + Entity_person +
+ *  Entity_organization so the mapData(degreeHeat) size specialization
+ *  actually fires for those types (upstream corpus doesn't ship
+ *  degreeHeat for non-Topic nodes). Cap 30 stays uniform; Topics tend to
+ *  saturate first because they're the connectors. */
 function applyTopicDegreeHeat(core: Core): void {
   const maxDegree = 30
   core.batch(() => {
-    core.nodes('[type = "Topic"]').forEach((n) => {
+    const sized = core.nodes(
+      '[type = "Topic"], [type = "Episode"], [type = "Entity_person"], [type = "Entity_organization"]',
+    )
+    sized.forEach((n) => {
       const d = n.degree(false)
       const heat = Math.min(1, d / maxDegree)
       try {
@@ -1008,6 +1053,10 @@ function applyTopicDegreeHeat(core: Core): void {
       } catch {
         /* ignore */
       }
+    })
+    // Topic-specific hub class kept for existing legend / focus selectors.
+    core.nodes('[type = "Topic"]').forEach((n) => {
+      const heat = Number(n.data('degreeHeat') ?? 0)
       if (heat > 0.7) {
         n.addClass('graph-topic-heat-high')
       } else {
@@ -1477,6 +1526,7 @@ function finishLayoutPass(core: Core): void {
 
   recomputeDegreeHistogram(cy)
   applyTopicDegreeHeat(cy)
+  applyBridgeNodeClass(cy)
   applyDegreeVisibility(cy)
   applyViewportPreserveOrFit(cy, snap)
   // Clear the fit request flag after applying viewport (fit or preserve)

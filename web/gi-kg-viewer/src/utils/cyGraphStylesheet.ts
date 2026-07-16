@@ -101,11 +101,14 @@ const NODE_DIAMETER_MAIN_PX: Record<string, number> = {
   Podcast: 18,
 }
 
-/** graph-v3 H — width multiplier for rectangular shapes so they read as
+/** graph-v3 H+I — width multiplier for rectangular shapes so they read as
  *  cards (wider than tall). Height stays at the base diameter. Unlisted
- *  types default to 1 (uniform width = height). */
+ *  types default to 1 (uniform width = height). Extended to
+ *  Entity_organization so institutional nodes get the same card treatment
+ *  as Episode. */
 const NODE_ASPECT_W: Record<string, number> = {
   Episode: 1.35,
+  Entity_organization: 1.35,
 }
 
 function scaledNodeSize(type: string, compact: boolean): number {
@@ -447,15 +450,20 @@ export function buildGiKgCyStylesheet(options?: {
       selector: `node[type = "${t}"]`,
       style: baseStyle,
     })
-    // RFC-080 V5: scale Topic + Episode width/height by `degreeHeat`.
-    // Other types stay fixed because their degree distribution is
-    // narrow (Quote / Speaker etc.). The specialization rule
-    // (`[type][degreeHeat]`) only fires for elements that actually
-    // carry the field — nodes without `degreeHeat` keep the fixed
-    // base above rather than triggering a mapData warning.
-    // graph-v3 H — aspect preserved by scaling width and height
-    // independently against their per-type base.
-    if (sizeByDegree && (t === 'Topic' || t === 'Episode')) {
+    // RFC-080 V5 + graph-v3 J: scale hub types (Topic, Episode,
+    // Entity_person, Entity_organization) by `degreeHeat`. GraphCanvas'
+    // applyTopicDegreeHeat writes the field post-layout for the same
+    // set. The specialization rule (`[type][degreeHeat]`) only fires
+    // for elements carrying the field, so Quote / Speaker / Insight /
+    // Podcast stay at their fixed base. Aspect ratio preserved by
+    // scaling width and height independently against per-type base.
+    if (
+      sizeByDegree &&
+      (t === 'Topic' ||
+        t === 'Episode' ||
+        t === 'Entity_person' ||
+        t === 'Entity_organization')
+    ) {
       const wLo = Math.round(w * 0.7)
       const wHi = Math.round(w * 1.5)
       const hLo = Math.round(h * 0.7)
@@ -801,6 +809,21 @@ export function buildGiKgCyStylesheet(options?: {
       'border-style': 'solid',
       'border-color': '#748ffc',
       'border-opacity': 0.95,
+    },
+  })
+
+  /* graph-v3 K — bridge nodes (high betweenness centrality). Distinct
+     dashed rose border so bridging entities stand out visually.
+     Ordered BEFORE search-hit / selection / expand rules so those
+     interaction-state borders still win when both apply. */
+  const bridgeRing = compact ? 1.5 : 2
+  style.push({
+    selector: 'node.graph-bridge',
+    style: {
+      'border-width': bridgeRing,
+      'border-style': 'dashed',
+      'border-color': '#f472b6',
+      'border-opacity': 0.85,
     },
   })
 

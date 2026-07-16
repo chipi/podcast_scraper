@@ -150,7 +150,8 @@ describe('giKgCoseLayoutOptionsMain', () => {
     const o = giKgCoseLayoutOptionsMain()
     expect(o.padding).toBe(36)
     expect(o.fit).toBe(false)
-    expect(o.gravity).toBe(0.18)
+    // graph-v3 M — gravity lowered so natural communities drift apart.
+    expect(o.gravity).toBe(0.12)
     expect(o.nodeDimensionsIncludeLabels).toBe(true)
   })
 
@@ -323,7 +324,8 @@ describe('giKgCoseLayoutOptionsMainFallback — static constants', () => {
     const o = giKgCoseLayoutOptionsMainFallback()
     expect(o.padding).toBe(36)
     expect(o.fit).toBe(false)
-    expect(o.gravity).toBe(0.18)
+    // graph-v3 M — gravity lowered so natural communities drift apart.
+    expect(o.gravity).toBe(0.12)
     expect(o.nodeDimensionsIncludeLabels).toBe(true)
     expect((o.edgeElasticity as () => number)()).toBe(100)
   })
