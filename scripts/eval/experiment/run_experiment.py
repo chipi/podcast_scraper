@@ -692,7 +692,9 @@ def run_experiment(  # noqa: C901
         # unknown id is a stop with a "did you mean", not 18 finished episodes on the wrong model.
         from podcast_scraper.providers.known_models import validate_model_or_raise
 
-        validate_model_or_raise(cfg.backend.type, cfg.backend.model, context=f"arm {cfg.id}")
+        validate_model_or_raise(
+            cfg.backend.type, getattr(cfg.backend, "model", "") or "", context=f"arm {cfg.id}"
+        )
 
         # Create provider based on task and backend type
         # NER task is handled separately — must be checked BEFORE the
