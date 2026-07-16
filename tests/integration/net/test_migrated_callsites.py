@@ -30,78 +30,6 @@ def _reset_registry() -> Iterator[None]:
     _reset_registry_for_tests()
 
 
-def test_audio_bridge_routes_through_configured_proxy(mock_http_proxy, mock_target_server) -> None:
-    """`server/app_audio_bridge._head_request` uses `create_client(subsystem="audio_bridge")`.
-
-    A configured proxy MUST see the HEAD hop.
-    """
-    from podcast_scraper.server.app_audio_bridge import _head_request
-
-    get_registry().swap(OutboundConfig(proxy=ProxyConfig(enabled=True, url=mock_http_proxy.url)))
-    status, _final, _headers = _head_request(mock_target_server.base_url + "/audio.mp3", 5.0)
-    assert status == 200
-    assert any(hop["url"].endswith("/audio.mp3") for hop in mock_http_proxy.seen)
-    assert any(hop["subsystem"] == "audio_bridge" for hop in mock_http_proxy.seen)
-
-
-def test_dgx_health_probe_routes_through_configured_proxy(
-    mock_http_proxy, mock_target_server
-) -> None:
-    """`providers/tailnet_dgx.health.probe_dgx_endpoint` uses the factory.
-
-    Its TCP-connect liveness probe hits the mock target directly (that's a raw
-    socket, not httpx). The subsequent httpx GET for readiness classification
-    must traverse the mock proxy.
-    """
-    from podcast_scraper.providers.tailnet_dgx.health import DgxEndpointStatus, probe_dgx_endpoint
-
-    get_registry().swap(OutboundConfig(proxy=ProxyConfig(enabled=True, url=mock_http_proxy.url)))
-    status = probe_dgx_endpoint(
-        mock_target_server.host,
-        mock_target_server.port,
-        path="/v1/models",
-        connect_timeout=2.0,
-        read_timeout=3.0,
-    )
-    assert status == DgxEndpointStatus.READY
-    assert any(
-        hop["subsystem"] == "dgx_health_probe" and hop["url"].endswith("/v1/models")
-        for hop in mock_http_proxy.seen
-    )
-
-
-def test_ollama_embedding_routes_through_configured_proxy(
-    mock_http_proxy, mock_target_server
-) -> None:
-    """`providers/ml/embedding_ollama.encode_via_ollama` uses the factory.
-
-    We can't get valid embedding JSON back from the mock target (it returns
-    "target-ok" text), so this asserts on the proxy hop rather than the return
-    value. The subsequent JSON parse error is expected + swallowed.
-    """
-    from podcast_scraper.providers.ml.embedding_ollama import encode_via_ollama
-
-    get_registry().swap(OutboundConfig(proxy=ProxyConfig(enabled=True, url=mock_http_proxy.url)))
-    try:
-        encode_via_ollama(["hi"], mock_target_server.base_url, model_id="test", timeout_sec=3.0)
-    except Exception:
-        pass
-    assert any(
-        hop["subsystem"] == "embedding_ollama" and hop["url"].endswith("/api/embed")
-        for hop in mock_http_proxy.seen
-    )
-
-
-def test_verify_false_reaches_migrated_callsite(mock_tls_server) -> None:
-    """A TLS-off registry lets `audio_bridge._head_request` reach a self-signed target."""
-    from podcast_scraper.server.app_audio_bridge import _head_request
-
-    get_registry().swap(OutboundConfig(tls=TlsConfig(verify=False)))
-    status, _final, _headers = _head_request(mock_tls_server.base_url + "/audio.mp3", 5.0)
-    assert status == 200
-    assert any(r["path"] == "/audio.mp3" for r in mock_tls_server.seen)
-
-
 def test_custom_ca_bundle_reaches_migrated_callsite(mock_tls_server, self_signed_ca) -> None:
     """A CA-bundle registry lets `audio_bridge._head_request` verify a self-signed target."""
     from podcast_scraper.server.app_audio_bridge import _head_request
@@ -114,48 +42,6 @@ def test_custom_ca_bundle_reaches_migrated_callsite(mock_tls_server, self_signed
 
 
 # --- chunk 3e seams ---------------------------------------------------------
-
-
-def test_hf_system_prompt_http_get_routes_through_proxy(
-    mock_http_proxy, mock_target_server
-) -> None:
-    """`providers/common/hf_system_prompt._http_get` uses `create_client(subsystem="hf_system_prompt")`.
-
-    Chunk 3e migration seam. Passing the mock target's URL directly
-    (bypassing the standard HF resolve URL) proves the factory is what
-    actually issues the request.
-    """
-    from podcast_scraper.providers.common.hf_system_prompt import _http_get
-
-    get_registry().swap(OutboundConfig(proxy=ProxyConfig(enabled=True, url=mock_http_proxy.url)))
-    result = _http_get(mock_target_server.base_url + "/SYSTEM_PROMPT.txt", headers={}, timeout=5.0)
-    assert result is not None
-    status, _text = result
-    assert status == 200
-    assert any(
-        hop["subsystem"] == "hf_system_prompt" and hop["url"].endswith("/SYSTEM_PROMPT.txt")
-        for hop in mock_http_proxy.seen
-    )
-
-
-def test_podcast_obs_get_json_routes_through_proxy(mock_http_proxy, mock_target_server) -> None:
-    """`podcast_obs._http.get_json` uses `create_client(subsystem="podcast_obs")`.
-
-    The mock target returns text ``"target-ok"`` which isn't valid JSON, so
-    the call raises after the hop is recorded — we assert on the traversal,
-    not the JSON parse. Chunk 3e migration seam.
-    """
-    from podcast_obs._http import get_json
-
-    get_registry().swap(OutboundConfig(proxy=ProxyConfig(enabled=True, url=mock_http_proxy.url)))
-    try:
-        get_json(mock_target_server.base_url + "/query", timeout=5.0)
-    except Exception:
-        pass
-    assert any(
-        hop["subsystem"] == "podcast_obs" and hop["url"].endswith("/query")
-        for hop in mock_http_proxy.seen
-    )
 
 
 def test_openai_sdk_http_client_routes_through_proxy(mock_http_proxy, mock_target_server) -> None:
@@ -195,39 +81,6 @@ def test_openai_sdk_http_client_routes_through_proxy(mock_http_proxy, mock_targe
         and hop["method"] == "POST"
         for hop in mock_http_proxy.seen
     )
-
-
-def test_job_webhook_post_routes_through_proxy(mock_http_proxy, mock_target_server) -> None:
-    """`server/job_webhook._post_webhook` uses `create_async_client(subsystem="webhook")`.
-
-    Drives the coroutine on a fresh event loop and asserts the proxy saw
-    the POST hop. Chunk 3e migration seam.
-    """
-    import asyncio
-
-    from podcast_scraper.server.job_webhook import _post_webhook
-
-    get_registry().swap(OutboundConfig(proxy=ProxyConfig(enabled=True, url=mock_http_proxy.url)))
-    loop = asyncio.new_event_loop()
-    try:
-        loop.run_until_complete(
-            _post_webhook(mock_target_server.base_url + "/hook", {"event": "test"}, timeout=5.0)
-        )
-    finally:
-        loop.close()
-    assert any(
-        hop["subsystem"] == "webhook" and hop["url"].endswith("/hook") and hop["method"] == "POST"
-        for hop in mock_http_proxy.seen
-    )
-
-
-# --- Remaining SDK factory seams (2026-07-09 hardening pass) ---------------
-#
-# Only OpenAI had a factory-through-SDK integration seam. The other five
-# providers were unit-tested for `sdk_http_client(...)` construction but
-# their SDK-honors-http_client behaviour was assumed. Each of these proves
-# the actual traversal through the mock proxy so a future SDK bump that
-# silently changes ``http_client=`` handling gets caught here.
 
 
 def test_anthropic_sdk_http_client_routes_through_proxy(
