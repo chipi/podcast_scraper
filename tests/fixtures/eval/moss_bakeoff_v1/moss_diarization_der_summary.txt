@@ -1,0 +1,6 @@
+
+=== MOSS diarization on 45 fixtures ===
+count exact:   38/45   (bar: community-1 40/45)
+count within1: 45/45
+mean DER:      3.3%   (bar: community-1 7.1%)
+median DER:    1.8%
