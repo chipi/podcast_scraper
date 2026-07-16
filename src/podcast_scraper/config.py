@@ -1422,10 +1422,14 @@ class Config(BaseModel):
     openai_api_base: Optional[str] = Field(
         default=None,
         alias="openai_api_base",
+        # validate_default so _load_openai_api_base_from_env runs even when the field is absent —
+        # that is how the OPENAI_API_BASE env fallback fires without a pre-merge preprocess line
+        # that would let a stale env var override an explicit profile route (the DGX footgun).
+        validate_default=True,
         description="OpenAI API base URL (e.g., 'https://api.openai.com/v1' or custom endpoint). "
-        "Can be set via OPENAI_API_BASE environment variable. "
-        "Used for E2E testing with mock servers and for routing autoresearch "
-        "summarize calls at OpenAI-compatible endpoints like local vLLM (#960).",
+        "Can be set via OPENAI_API_BASE environment variable (fallback only — an explicit value "
+        "in config or a profile wins). Used for E2E testing with mock servers and for routing "
+        "autoresearch summarize calls at OpenAI-compatible endpoints like local vLLM (#960).",
     )
     openai_api_key_env: Optional[str] = Field(
         default=None,
@@ -4103,7 +4107,11 @@ class Config(BaseModel):
         cls._load_string_env_var(data, "output_dir", "OUTPUT_DIR")
         cls._load_string_env_var(data, "log_file", "LOG_FILE")
         cls._load_string_env_var(data, "openai_api_key", "OPENAI_API_KEY")
-        cls._load_string_env_var(data, "openai_api_base", "OPENAI_API_BASE")
+        # NB: do NOT load openai_api_base from OPENAI_API_BASE here. This runs BEFORE the profile is
+        # merged, so injecting the ambient env var into ``data`` makes it masquerade as explicit
+        # config and silently override a profile's routing (a DGX profile pointing at api.openai.com
+        # — the footgun). The ``_load_openai_api_base_from_env`` field-validator already applies the
+        # env var with correct precedence: an explicit/profile value wins, env is only a fallback.
         cls._load_string_env_var(data, "gemini_api_key", "GEMINI_API_KEY")
         cls._load_string_env_var(data, "gemini_api_base", "GEMINI_API_BASE")
         cls._load_int_env_var(

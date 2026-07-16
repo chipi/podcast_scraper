@@ -610,6 +610,27 @@ class TestPrepareEpisodeDownloadArgsAppendResume(unittest.TestCase):
             pipeline_metrics,
         )
 
+    def test_download_args_tuple_arity_contract(self) -> None:
+        """Producer/consumer contract for the download_args tuple.
+
+        prepare_episode_download_args emits a 9-tuple; summarization unpacks all 9 (index 7 =
+        detected guests, index 8 = stated hosts) and transcription reads args[7]. When #1169 grew
+        the producer to 9 elements the 8-element unpack in summarization crashed EVERY real
+        summarization run, and only e2e caught it. This pins the arity cheaply at unit level.
+        """
+        ep = self._episode(1, "g1", "ep")
+        m = workflow_metrics.Metrics()
+        args_list = self._call_prepare([ep], append=False, pipeline_metrics=m)
+
+        self.assertEqual(len(args_list), 1)
+        args = args_list[0]
+        self.assertEqual(len(args), 9, f"download_args arity drifted: {len(args)} != 9")
+        # the exact unpack summarization._collect_episodes_for_summarization performs
+        episode_obj, _, _, _, _, _, _, detected_names, stated = args
+        self.assertIs(episode_obj, ep)
+        # transcription reads args[7]; it must be addressable (guests, or None)
+        self.assertEqual(args[7], detected_names)
+
     def test_append_skips_complete_episode_and_keeps_incomplete(self) -> None:
         """Complete on-disk episode is omitted from download args; incomplete is kept."""
         from podcast_scraper.workflow.helpers import get_episode_id_from_episode
