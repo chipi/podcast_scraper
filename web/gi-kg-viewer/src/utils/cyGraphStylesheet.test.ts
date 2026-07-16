@@ -211,17 +211,32 @@ describe('buildGiKgCyStylesheet', () => {
     expect(typeof episode.style.width).toBe('number')
   })
 
-  it('V5: enableNodeSizeByDegree maps Topic + Episode width/height through degreeHeat', () => {
+  it('V5: enableNodeSizeByDegree adds a [degreeHeat]-scoped mapData specialization for Topic + Episode', () => {
+    // graph-v3 C-fix — mapData is now on a `[type][degreeHeat]` specialization,
+    // not the base `[type]` rule. Nodes without degreeHeat fall through to the
+    // fixed base size (silences per-element Cytoscape warnings).
     const sheet = buildGiKgCyStylesheet({ compact: false, enableNodeSizeByDegree: true })
-    const topic = sheet.find(
+    const topicBase = sheet.find(
       (r) => (r as { selector?: string }).selector === 'node[type = "Topic"]',
     ) as { style: Record<string, unknown> }
-    const episode = sheet.find(
-      (r) => (r as { selector?: string }).selector === 'node[type = "Episode"]',
+    const topicSized = sheet.find(
+      (r) => (r as { selector?: string }).selector === 'node[type = "Topic"][degreeHeat]',
     ) as { style: Record<string, unknown> }
-    expect(String(topic.style.width)).toMatch(/^mapData\(degreeHeat, 0, 1, \d+, \d+\)$/)
-    expect(String(topic.style.height)).toMatch(/^mapData\(degreeHeat, 0, 1, \d+, \d+\)$/)
-    expect(String(episode.style.width)).toMatch(/^mapData\(degreeHeat, 0, 1, \d+, \d+\)$/)
+    const episodeSized = sheet.find(
+      (r) => (r as { selector?: string }).selector === 'node[type = "Episode"][degreeHeat]',
+    ) as { style: Record<string, unknown> }
+    expect(typeof topicBase.style.width).toBe('number')
+    expect(String(topicSized.style.width)).toMatch(/^mapData\(degreeHeat, 0, 1, \d+, \d+\)$/)
+    expect(String(topicSized.style.height)).toMatch(/^mapData\(degreeHeat, 0, 1, \d+, \d+\)$/)
+    expect(String(episodeSized.style.width)).toMatch(/^mapData\(degreeHeat, 0, 1, \d+, \d+\)$/)
+  })
+
+  it('V5 off: no [degreeHeat] specialization emitted', () => {
+    const sheet = buildGiKgCyStylesheet({ compact: false, enableNodeSizeByDegree: false })
+    const topicSized = sheet.find(
+      (r) => (r as { selector?: string }).selector === 'node[type = "Topic"][degreeHeat]',
+    )
+    expect(topicSized).toBeUndefined()
   })
 
   it('V5: other types (Quote, Speaker, …) keep fixed sizes even when V5 is on', () => {

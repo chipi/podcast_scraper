@@ -18,11 +18,14 @@ describe('useGraphLensesStore (RFC-080)', () => {
     setActivePinia(createPinia())
   })
 
-  it('defaults match RFC rollout (V1 + V5 off)', async () => {
+  it('defaults: V1 off, V5 on (graph-v3 C)', async () => {
     const { useGraphLensesStore } = await import('./graphLenses')
     const s = useGraphLensesStore()
     expect(s.aggregatedEdges).toBe(false)
-    expect(s.nodeSizeByDegree).toBe(false)
+    // graph-v3 C — nodeSizeByDegree promoted to default-on. Explicit user
+    // toggle persists via localStorage; the "never touched" default reads
+    // hub structure at a glance.
+    expect(s.nodeSizeByDegree).toBe(true)
   })
 
   it('persists toggles to localStorage as a single JSON blob', async () => {
@@ -56,7 +59,7 @@ describe('useGraphLensesStore (RFC-080)', () => {
     const { useGraphLensesStore } = await import('./graphLenses')
     const s = useGraphLensesStore()
     expect(s.aggregatedEdges).toBe(false)
-    expect(s.nodeSizeByDegree).toBe(false)
+    expect(s.nodeSizeByDegree).toBe(true)
   })
 
   it('falls back to default for missing keys in a partial blob', async () => {
@@ -66,23 +69,23 @@ describe('useGraphLensesStore (RFC-080)', () => {
     const { useGraphLensesStore } = await import('./graphLenses')
     const s = useGraphLensesStore()
     expect(s.aggregatedEdges).toBe(true)
-    expect(s.nodeSizeByDegree).toBe(false)
+    expect(s.nodeSizeByDegree).toBe(true)
   })
 
-  it('resetToDefaults clears all flags', async () => {
+  it('resetToDefaults clears aggregatedEdges and restores V5 default (on)', async () => {
     const { useGraphLensesStore } = await import('./graphLenses')
     const s = useGraphLensesStore()
     s.setAggregatedEdges(true)
-    s.setNodeSizeByDegree(true)
+    s.setNodeSizeByDegree(false)
     s.resetToDefaults()
     expect(s.aggregatedEdges).toBe(false)
-    expect(s.nodeSizeByDegree).toBe(false)
+    expect(s.nodeSizeByDegree).toBe(true)
   })
 
   it('exposes a flags computed that reads both flags atomically', async () => {
     const { useGraphLensesStore } = await import('./graphLenses')
     const s = useGraphLensesStore()
     s.setAggregatedEdges(true)
-    expect(s.flags).toEqual({ aggregatedEdges: true, nodeSizeByDegree: false })
+    expect(s.flags).toEqual({ aggregatedEdges: true, nodeSizeByDegree: true })
   })
 })

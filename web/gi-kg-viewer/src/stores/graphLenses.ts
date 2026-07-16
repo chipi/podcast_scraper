@@ -11,9 +11,10 @@ import { computed, ref, watch } from 'vue'
  *     and Episode↔Person aggregated edges (`ABOUT_AGG`,
  *     `SPOKE_IN_AGG`). Default-on decision deferred to a corpus-level
  *     validation round.
- *   - V5 `nodeSizeByDegree` — **off** initially. Replaces fixed Topic
- *     and Episode width/height with `mapData(degreeHeat, ...)`.
- *     Visually invasive, so staged before promotion.
+ *   - V5 `nodeSizeByDegree` — **on** by default (graph-v3 C). Replaces
+ *     fixed Topic and Episode width/height with `mapData(degreeHeat, ...)`
+ *     so hub structure reads at a glance. Users who prefer uniform sizing
+ *     can toggle it off; localStorage remembers their pick.
  *
  * V2 (Insight grounding + tier classes) is unconditional: the
  * stylesheet selectors only fire when the matching class is assigned
@@ -32,7 +33,10 @@ export interface GraphLensFlags {
 
 const DEFAULT_FLAGS: GraphLensFlags = {
   aggregatedEdges: false,
-  nodeSizeByDegree: false,
+  /* graph-v3 C — promote V5 to default-on. Hub Topic + Episode nodes
+     scale with degreeHeat (0.7×–1.5× base). Users who prefer fixed
+     sizing can still toggle it off; localStorage remembers their pick. */
+  nodeSizeByDegree: true,
 }
 
 function readInitialFlags(): GraphLensFlags {

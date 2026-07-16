@@ -115,6 +115,20 @@ function graphNodeOpacity(ele: NodeSingular): number {
   return recency
 }
 
+/* graph-v3 B — read theme once per callback (cheap; dataset lookup, not
+   getComputedStyle). Explicit ``data-theme`` wins; ``auto`` falls back to
+   matchMedia so OS-preference users get the right opacity too. */
+function isLightThemeActive(): boolean {
+  try {
+    const explicit = document.documentElement.dataset.theme
+    if (explicit === 'light') return true
+    if (explicit === 'dark') return false
+    return window.matchMedia?.('(prefers-color-scheme: light)').matches ?? false
+  } catch {
+    return false
+  }
+}
+
 function graphEdgeOpacity(ele: EdgeSingular): number {
   if (ele.hasClass('graph-edge-dimmed')) {
     return 0.2
@@ -122,7 +136,10 @@ function graphEdgeOpacity(ele: EdgeSingular): number {
   if (ele.hasClass('graph-edge-neighbour')) {
     return 0.9
   }
-  return 0.6
+  /* graph-v3 B — default edges recede so colour + type carry weight,
+     neighbour/focus (0.9) still pop. Light theme uses a higher default
+     because darker edge colours on a near-white canvas wash out at 0.3. */
+  return isLightThemeActive() ? 0.5 : 0.3
 }
 
 function insightBackgroundOpacity(ele: NodeSingular): number {
@@ -374,28 +391,31 @@ export function buildGiKgCyStylesheet(options?: {
   const sizeByDegree = Boolean(options?.enableNodeSizeByDegree)
   for (const t of VISUAL_TYPES) {
     const side = scaledNodeSize(t, compact)
-    const baseStyle: Record<string, unknown> = {
-      'background-color': graphNodeFill(t),
-      width: side,
-      height: side,
-    }
+    style.push({
+      selector: `node[type = "${t}"]`,
+      style: {
+        'background-color': graphNodeFill(t),
+        width: side,
+        height: side,
+      },
+    })
     // RFC-080 V5: scale Topic + Episode width/height by `degreeHeat`.
     // Other types stay fixed because their degree distribution is
-    // narrow (Quote / Speaker etc.). Cap the upper bound at the smaller
-    // of (1.5× base, 12% of viewport) so 60px Topics don't dominate
-    // mobile viewports — the canvasWidth clamp lives in GraphCanvas
-    // when it sets `degreeHeat`. The values here pick a reasonable
-    // bounded range based on the existing fixed sizes.
+    // narrow (Quote / Speaker etc.). The specialization rule
+    // (`[type][degreeHeat]`) only fires for elements that actually
+    // carry the field — nodes without `degreeHeat` keep the fixed
+    // base above rather than triggering a mapData warning.
     if (sizeByDegree && (t === 'Topic' || t === 'Episode')) {
       const lo = Math.round(side * 0.7)
       const hi = Math.round(side * 1.5)
-      baseStyle.width = `mapData(degreeHeat, 0, 1, ${lo}, ${hi})`
-      baseStyle.height = `mapData(degreeHeat, 0, 1, ${lo}, ${hi})`
+      style.push({
+        selector: `node[type = "${t}"][degreeHeat]`,
+        style: {
+          width: `mapData(degreeHeat, 0, 1, ${lo}, ${hi})`,
+          height: `mapData(degreeHeat, 0, 1, ${lo}, ${hi})`,
+        },
+      })
     }
-    style.push({
-      selector: `node[type = "${t}"]`,
-      style: baseStyle,
-    })
   }
 
   style.push({

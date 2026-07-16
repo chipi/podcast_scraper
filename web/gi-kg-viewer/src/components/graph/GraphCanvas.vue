@@ -3290,6 +3290,27 @@ function redraw(): void {
       }
     })
 
+    /* graph-v3 D — reveal neighbourhood on hover without needing a click.
+       Selection wins: if a node is :selected, skip so tapping-then-hovering
+       doesn't strip the selection dim. Transition-duration 120ms in the
+       stylesheet smooths the flicker as the cursor slides between nodes. */
+    core.on('mouseover', 'node', (e) => {
+      try {
+        if (core.nodes(':selected').length > 0) return
+        applyGraphSelectionDimFromNode(core, e.target as NodeSingular)
+      } catch {
+        /* ignore */
+      }
+    })
+    core.on('mouseout', 'node', () => {
+      try {
+        if (core.nodes(':selected').length > 0) return
+        clearGraphSelectionDim(core)
+      } catch {
+        /* ignore */
+      }
+    })
+
     core.on('tap', (evt) => {
     const t = evt.target
     if (t === core) {
@@ -4193,5 +4214,11 @@ defineExpose({
 #gi-kg-graph-minimap :deep(img) {
   max-width: 100%;
   max-height: 100%;
+}
+
+/* graph-v3 A — graph canvas leans darker than the shell in dark theme
+   (light theme falls through to --ps-canvas via tokens.css). */
+.graph-canvas {
+  background-color: var(--ps-graph-canvas);
 }
 </style>
