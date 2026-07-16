@@ -38,7 +38,7 @@ def _run(monkeypatch, tmp_path, forwarded_env: str | None, *, reload: bool = Fal
         monkeypatch.setenv("FORWARDED_ALLOW_IPS", forwarded_env)
 
     args = Namespace(
-        output_dir=str(tmp_path), host="0.0.0.0", port=8000, reload=reload, no_static=True
+        output_dir=str(tmp_path), host="127.0.0.1", port=8000, reload=reload, no_static=True
     )
     rc = cli_handlers.run_serve(args, logging.getLogger("test"))
     assert rc == 0

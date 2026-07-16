@@ -53,7 +53,9 @@ def player_base() -> Iterator[str]:
     if subprocess.run(["docker", "image", "inspect", IMAGE], capture_output=True).returncode != 0:
         pytest.skip(f"{IMAGE} not built (docker build web/learning-player -t {IMAGE})")
 
-    srv = http.server.ThreadingHTTPServer(("0.0.0.0", STUB_PORT), _StubUpstream)
+    # nosec B104 - the stub upstream must be reachable from the dockerized nginx
+    # (via host.docker.internal), so it binds all interfaces; test-local only.
+    srv = http.server.ThreadingHTTPServer(("0.0.0.0", STUB_PORT), _StubUpstream)  # nosec B104
     threading.Thread(target=srv.serve_forever, daemon=True).start()
 
     run = subprocess.run(
