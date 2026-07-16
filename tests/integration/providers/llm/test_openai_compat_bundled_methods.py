@@ -99,7 +99,7 @@ def _provider_factory(name: str) -> Tuple[Type, dict, str]:
 
         cfg_kwargs = dict(
             summary_provider="openai",
-            openai_api_key="test-key",
+            openai_api_key="test-api-key-123",
             openai_summary_model="gpt-4o-mini",
         )
         return OpenAIProvider, cfg_kwargs, "gpt-4o-mini"
@@ -108,7 +108,7 @@ def _provider_factory(name: str) -> Tuple[Type, dict, str]:
 
         cfg_kwargs = dict(
             summary_provider="deepseek",
-            deepseek_api_key="test-key",
+            deepseek_api_key="test-api-key-123",
             deepseek_summary_model="deepseek-chat",
         )
         return DeepSeekProvider, cfg_kwargs, "deepseek-chat"
@@ -117,7 +117,7 @@ def _provider_factory(name: str) -> Tuple[Type, dict, str]:
 
         cfg_kwargs = dict(
             summary_provider="grok",
-            grok_api_key="test-key",
+            grok_api_key="test-api-key-123",
             grok_summary_model="grok-3-fast",
         )
         return GrokProvider, cfg_kwargs, "grok-3-fast"
@@ -126,7 +126,7 @@ def _provider_factory(name: str) -> Tuple[Type, dict, str]:
 
         cfg_kwargs = dict(
             summary_provider="mistral",
-            mistral_api_key="test-key",
+            mistral_api_key="test-api-key-123",
             mistral_summary_model="mistral-small-latest",
         )
         return MistralProvider, cfg_kwargs, "mistral-small-latest"

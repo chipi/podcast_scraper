@@ -46,7 +46,7 @@ class TestMistralProviderStandalone(unittest.TestCase):
             transcription_provider="mistral",
             speaker_detector_provider="mistral",
             summary_provider="mistral",
-            mistral_api_key="test-key",
+            mistral_api_key="test-api-key-123",
             transcribe_missing=False,  # Disable to avoid API calls
             auto_speakers=False,  # Disable to avoid API calls
             generate_summaries=False,  # Disable to avoid API calls
@@ -79,7 +79,7 @@ class TestMistralProviderStandalone(unittest.TestCase):
             transcription_provider="mistral",
             speaker_detector_provider="mistral",
             summary_provider="mistral",
-            mistral_api_key="test-key",
+            mistral_api_key="test-api-key-123",
             mistral_api_base="http://127.0.0.1:63436/v1",
             transcribe_missing=False,
             auto_speakers=False,
@@ -300,7 +300,7 @@ class TestMistralProviderTranscription(unittest.TestCase):
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             transcription_provider="mistral",
-            mistral_api_key="test-key",
+            mistral_api_key="test-api-key-123",
             transcribe_missing=True,
         )
 
@@ -478,7 +478,7 @@ class TestMistralProviderTranscription(unittest.TestCase):
 
         cfg = config.Config(
             transcription_provider="mistral",
-            mistral_api_key="test-key",
+            mistral_api_key="test-api-key-123",
             transcribe_missing=True,
             preprocessing_mp3_bitrate_kbps=32,
         )
@@ -521,7 +521,7 @@ class TestMistralProviderTranscription(unittest.TestCase):
 
         cfg = config.Config(
             transcription_provider="mistral",
-            mistral_api_key="test-key",
+            mistral_api_key="test-api-key-123",
             transcribe_missing=True,
         )
         provider = MistralProvider(cfg)
@@ -544,7 +544,7 @@ class TestMistralProviderSpeakerDetection(unittest.TestCase):
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="mistral",
-            mistral_api_key="test-key",
+            mistral_api_key="test-api-key-123",
             auto_speakers=True,
         )
 
@@ -704,7 +704,7 @@ class TestMistralProviderSummarization(unittest.TestCase):
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             summary_provider="mistral",
-            mistral_api_key="test-key",
+            mistral_api_key="test-api-key-123",
             generate_summaries=True,
             generate_metadata=True,  # Required when generate_summaries=True
         )
@@ -847,7 +847,7 @@ class TestMistralProviderSummarization(unittest.TestCase):
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             summary_provider="mistral",
-            mistral_api_key="test-key",
+            mistral_api_key="test-api-key-123",
             generate_summaries=True,
             generate_metadata=True,
             auto_speakers=False,
@@ -873,7 +873,7 @@ class TestMistralProviderSummarization(unittest.TestCase):
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             summary_provider="mistral",
-            mistral_api_key="test-key",
+            mistral_api_key="test-api-key-123",
             generate_summaries=True,
             generate_metadata=True,
             auto_speakers=False,
@@ -896,7 +896,7 @@ class TestMistralProviderGIL(unittest.TestCase):
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             summary_provider="mistral",
-            mistral_api_key="test-key",
+            mistral_api_key="test-api-key-123",
             generate_summaries=True,
             generate_metadata=True,
             auto_speakers=False,
@@ -1047,7 +1047,7 @@ class TestMistralProviderKG(unittest.TestCase):
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             summary_provider="mistral",
-            mistral_api_key="test-key",
+            mistral_api_key="test-api-key-123",
             generate_summaries=True,
             generate_metadata=True,
             auto_speakers=False,
@@ -1195,7 +1195,7 @@ class TestMistralSummarizeBundled(unittest.TestCase):
             transcription_provider="mistral",
             speaker_detector_provider="mistral",
             summary_provider="mistral",
-            mistral_api_key="test-key",
+            mistral_api_key="test-api-key-123",
             transcribe_missing=False,
             auto_speakers=False,
             generate_summaries=False,

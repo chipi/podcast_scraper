@@ -82,7 +82,7 @@ class TestCapabilitiesE2E:
         cfg_api = config.Config(
             rss_url=feed_url,
             transcription_provider="openai",
-            openai_api_key="test-key",
+            openai_api_key="test-api-key-123",
         )
 
         # Even without valid API key, we can check capability detection

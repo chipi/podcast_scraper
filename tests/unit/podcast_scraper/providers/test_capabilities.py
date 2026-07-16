@@ -189,7 +189,7 @@ class TestGetProviderCapabilities(unittest.TestCase):
         cfg = config.Config(
             rss_url="https://example.com",
             transcription_provider="openai",
-            openai_api_key="test-key",
+            openai_api_key="test-api-key-123",
         )
         from podcast_scraper.providers.openai.openai_provider import OpenAIProvider
 
@@ -214,7 +214,7 @@ class TestGetProviderCapabilities(unittest.TestCase):
         cfg = config.Config(
             rss_url="https://example.com",
             transcription_provider="gemini",
-            gemini_api_key="test-key",
+            gemini_api_key="test-api-key-123",
         )
         from podcast_scraper.providers.gemini.gemini_provider import GeminiProvider
 
@@ -241,7 +241,7 @@ class TestGetProviderCapabilities(unittest.TestCase):
         cfg = config.Config(
             rss_url="https://example.com",
             speaker_detector_provider="anthropic",
-            anthropic_api_key="test-key",
+            anthropic_api_key="test-api-key-123",
         )
         from podcast_scraper.providers.anthropic.anthropic_provider import AnthropicProvider
 

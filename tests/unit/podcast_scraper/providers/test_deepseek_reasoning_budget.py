@@ -48,7 +48,7 @@ def _provider(model: str) -> DeepSeekProvider:
         rss="https://example.com/feed.xml",
         summary_provider="deepseek",
         deepseek_summary_model=model,
-        deepseek_api_key="test-key",
+        deepseek_api_key="test-api-key-123",
     )
     return DeepSeekProvider(cfg)
 

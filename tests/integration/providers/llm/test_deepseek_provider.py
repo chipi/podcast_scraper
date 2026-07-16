@@ -55,7 +55,7 @@ class TestDeepSeekProviderStandalone(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="deepseek",
             summary_provider="deepseek",
-            deepseek_api_key="test-key",
+            deepseek_api_key="test-api-key-123",
             auto_speakers=False,  # Disable to avoid API calls
             generate_summaries=False,  # Disable to avoid API calls
         )
@@ -234,7 +234,7 @@ class TestDeepSeekProviderStandalone(unittest.TestCase):
 
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            deepseek_api_key="test-key",
+            deepseek_api_key="test-api-key-123",
             deepseek_api_base="https://custom.deepseek.com",
             speaker_detector_provider="deepseek",
         )
@@ -255,7 +255,7 @@ class TestDeepSeekProviderSpeakerDetection(unittest.TestCase):
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="deepseek",
-            deepseek_api_key="test-key",
+            deepseek_api_key="test-api-key-123",
             auto_speakers=True,
         )
 
@@ -386,7 +386,7 @@ class TestDeepSeekProviderSummarization(unittest.TestCase):
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             summary_provider="deepseek",
-            deepseek_api_key="test-key",
+            deepseek_api_key="test-api-key-123",
             generate_summaries=True,
             generate_metadata=True,  # Required when generate_summaries=True
         )
@@ -536,7 +536,7 @@ class TestDeepSeekProviderSummarization(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="deepseek",
             summary_provider="deepseek",
-            deepseek_api_key="test-key",
+            deepseek_api_key="test-api-key-123",
             auto_speakers=False,
             generate_summaries=True,
             generate_metadata=True,
@@ -562,7 +562,7 @@ class TestDeepSeekProviderSummarization(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="deepseek",
             summary_provider="deepseek",
-            deepseek_api_key="test-key",
+            deepseek_api_key="test-api-key-123",
             auto_speakers=False,
             generate_summaries=True,
             generate_metadata=True,
@@ -584,7 +584,7 @@ class TestDeepSeekProviderGIL(unittest.TestCase):
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             summary_provider="deepseek",
-            deepseek_api_key="test-key",
+            deepseek_api_key="test-api-key-123",
             generate_summaries=True,
             generate_metadata=True,
         )
@@ -732,7 +732,7 @@ class TestDeepSeekProviderKG(unittest.TestCase):
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             summary_provider="deepseek",
-            deepseek_api_key="test-key",
+            deepseek_api_key="test-api-key-123",
             generate_summaries=True,
             generate_metadata=True,
         )
@@ -844,7 +844,7 @@ class TestDeepSeekProviderErrorHandling(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="deepseek",
             summary_provider="deepseek",
-            deepseek_api_key="test-key",
+            deepseek_api_key="test-api-key-123",
             auto_speakers=True,
             generate_summaries=True,
             generate_metadata=True,
@@ -1090,7 +1090,7 @@ class TestDeepSeekProviderErrorHandling(unittest.TestCase):
         """Test that pattern cleaning strategy is selected correctly."""
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            deepseek_api_key="test-key",
+            deepseek_api_key="test-api-key-123",
             transcript_cleaning_strategy="pattern",
             speaker_detector_provider="deepseek",
         )
@@ -1109,7 +1109,7 @@ class TestDeepSeekProviderErrorHandling(unittest.TestCase):
         """Test that LLM cleaning strategy is selected correctly."""
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            deepseek_api_key="test-key",
+            deepseek_api_key="test-api-key-123",
             transcript_cleaning_strategy="llm",
             speaker_detector_provider="deepseek",
         )
@@ -1128,7 +1128,7 @@ class TestDeepSeekProviderErrorHandling(unittest.TestCase):
         """Test that hybrid cleaning strategy is selected correctly (default)."""
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            deepseek_api_key="test-key",
+            deepseek_api_key="test-api-key-123",
             transcript_cleaning_strategy="hybrid",
             speaker_detector_provider="deepseek",
         )
@@ -1147,7 +1147,7 @@ class TestDeepSeekProviderErrorHandling(unittest.TestCase):
         """Test that detect_speakers returns defaults when auto_speakers is disabled."""
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            deepseek_api_key="test-key",
+            deepseek_api_key="test-api-key-123",
             speaker_detector_provider="deepseek",
             auto_speakers=False,  # Disabled
         )
@@ -1176,7 +1176,7 @@ class TestDeepSeekSummarizeBundled(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="deepseek",
             summary_provider="deepseek",
-            deepseek_api_key="test-key",
+            deepseek_api_key="test-api-key-123",
             auto_speakers=False,
             generate_summaries=False,
             llm_pipeline_mode="bundled",

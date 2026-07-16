@@ -45,6 +45,9 @@ def _iter_events_from_file(path: Path) -> Iterable[Dict[str, Any]]:
 def _discover_event_files(root: Path, run_id: Optional[str]) -> List[Path]:
     files: List[Path] = []
     for pattern in _EVENT_GLOBS:
+        # codeql[py/path-injection] -- root is validated by resolve_corpus_path_param at the
+        # /api/usage route (normpath+startswith anchor); run_id is a substring filter, not a path
+        # component. Same class as the other corpus routes; see docs/ci/CODEQL_DISMISSALS.md.
         for p in root.glob(pattern):
             if p.is_file() and (run_id is None or run_id in p.as_posix()):
                 files.append(p)
@@ -69,6 +72,8 @@ def usage_rollup_snapshot(
 
     root = Path(source)
     files: List[Path]
+    # codeql[py/path-injection] -- source is the route-validated corpus root
+    # (resolve_corpus_path_param); see docs/ci/CODEQL_DISMISSALS.md.
     if root.is_file():
         files = [root]
     elif root.is_dir():

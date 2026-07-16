@@ -295,6 +295,9 @@ number, file, line, date, and a short comment.
 | 1 | #413 | server/app_user_store.py | 210 | 2026-07-05 | Type 1: same — ``delete_user`` guarded (PR #1141) |
 | 1 | #418 | server/feed_signals.py | 57 | 2026-07-11 | Type 1: ``_read_kg_artifact`` — ``root`` route-confined (corpus-path chain); ``relpath`` rejected up-front if absolute or containing ``..`` (``Path(relpath).parts``), then realpath-under-root guard (``target.startswith(root_real + os.sep)``) before ``read_text``. Same class as #307/#414; CodeQL misses the inline+realpath barrier. Dismissed ``gh api`` (PR #1172) |
 | 1 | #419 | server/feed_signals.py | 119 | 2026-07-11 | Type 1: ``_read_enrichment_data`` — ``enricher_id`` is a literal constant at every caller (``topic_theme_clusters`` / ``temporal_velocity`` / ``grounding_rate``) and validated to a bare ``[A-Za-z0-9_-]`` token before ``os.path.join``; path is ``<root>/enrichments/<token>.json`` (constant suffix) on the route-confined corpus root. Same class as #390. Dismissed ``gh api`` (PR #1172) |
+| 1 | #420 | utils/usage_status.py | 48 | 2026-07-16 | Type 1: ``_discover_event_files`` globs under ``root``, which is validated by ``resolve_corpus_path_param`` at the ``/api/usage`` route (normpath+startswith anchor); ``run_id`` is a substring filter, not a path component. Same class as the corpus routes. Dismissed via ``gh api`` (PR #1190) |
+| 1 | #421 | utils/usage_status.py | 72 | 2026-07-16 | Type 1: ``usage_rollup_snapshot`` — ``source`` is the route-validated corpus root (``resolve_corpus_path_param``). Dismissed via ``gh api`` (PR #1190) |
+| 1 | #422 | utils/usage_status.py | 74 | 2026-07-16 | Type 1: same as #421 — route-validated corpus root. Dismissed via ``gh api`` (PR #1190) |
 
 ## Still open (not yet dismissed)
 

@@ -831,7 +831,7 @@ class TestOpenAIProviderPricing(unittest.TestCase):
         """Set up test fixtures."""
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            openai_api_key="test-key",
+            openai_api_key="test-api-key-123",
         )
 
     def test_get_pricing_whisper_transcription(self):

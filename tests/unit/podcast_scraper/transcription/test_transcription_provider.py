@@ -323,7 +323,7 @@ class TestTranscriptionFactoryConfigBranches(unittest.TestCase):
         cfg = config.Config(
             rss="",
             transcription_provider="gemini",
-            gemini_api_key="test-key",
+            gemini_api_key="test-api-key-123",
             auto_speakers=False,
         )
         provider = create_transcription_provider(cfg)
@@ -339,7 +339,7 @@ class TestTranscriptionFactoryConfigBranches(unittest.TestCase):
         cfg = config.Config(
             rss="",
             transcription_provider="mistral",
-            mistral_api_key="test-key",
+            mistral_api_key="test-api-key-123",
             auto_speakers=False,
         )
         provider = create_transcription_provider(cfg)

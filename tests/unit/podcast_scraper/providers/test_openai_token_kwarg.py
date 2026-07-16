@@ -23,7 +23,7 @@ def _provider(model: str) -> OpenAIProvider:
         rss="https://example.com/feed.xml",
         summary_provider="openai",
         openai_summary_model=model,
-        openai_api_key="test-key",
+        openai_api_key="test-api-key-123",
     )
     return OpenAIProvider(cfg)
 

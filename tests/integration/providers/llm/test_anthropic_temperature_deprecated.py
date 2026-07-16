@@ -27,7 +27,7 @@ def _provider(model: str) -> AnthropicProvider:
         rss="https://example.com/feed.xml",
         summary_provider="anthropic",
         anthropic_summary_model=model,
-        anthropic_api_key="test-key",
+        anthropic_api_key="test-api-key-123",
     )
     p = AnthropicProvider(cfg)
     p.client = MagicMock()
