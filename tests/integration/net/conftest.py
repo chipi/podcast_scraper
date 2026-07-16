@@ -364,6 +364,8 @@ def self_signed_ca(tmp_path_factory: pytest.TempPathFactory) -> SelfSignedTls:
 @pytest.fixture
 def mock_tls_server(self_signed_ca: SelfSignedTls) -> Iterator[MockTargetServer]:
     ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    # Reject TLS 1.0/1.1 in the mock server — CodeQL py/insecure-protocol.
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
     ctx.load_cert_chain(certfile=self_signed_ca.server_cert, keyfile=self_signed_ca.server_key)
     target, server, _thread = _start_target(ssl_ctx=ctx)
     try:
@@ -376,6 +378,8 @@ def mock_tls_server(self_signed_ca: SelfSignedTls) -> Iterator[MockTargetServer]
 @pytest.fixture
 def mock_mtls_server(self_signed_ca: SelfSignedTls) -> Iterator[MockTargetServer]:
     ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    # Reject TLS 1.0/1.1 in the mock server — CodeQL py/insecure-protocol.
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
     ctx.load_cert_chain(certfile=self_signed_ca.server_cert, keyfile=self_signed_ca.server_key)
     ctx.verify_mode = ssl.CERT_REQUIRED
     ctx.load_verify_locations(cafile=self_signed_ca.ca_pem)
