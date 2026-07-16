@@ -19,7 +19,7 @@ import pytest
 from podcast_scraper import config as cfgmod
 from podcast_scraper.providers.anthropic.anthropic_provider import AnthropicProvider
 
-pytestmark = pytest.mark.unit
+pytestmark = pytest.mark.integration
 
 
 def _provider(model: str) -> AnthropicProvider:

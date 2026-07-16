@@ -25,7 +25,7 @@ import pytest
 
 from podcast_scraper.gi.pipeline import _dedupe_insight_specs
 
-pytestmark = pytest.mark.unit
+pytestmark = pytest.mark.integration
 
 
 def _cfg(threshold: float = 0.75) -> Any:
