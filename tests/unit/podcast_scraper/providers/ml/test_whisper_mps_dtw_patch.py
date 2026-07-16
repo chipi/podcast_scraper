@@ -180,6 +180,41 @@ def test_patch_returns_early_when_timing_module_missing() -> None:
     _reset_patch_flag()
 
 
+def test_import_helper_patches_even_when_whisper_already_in_sys_modules() -> None:
+    """Regression guard (ci-fast, 2026-07-16): when ``whisper`` is already in
+    ``sys.modules`` (a common e2e-test setup — fixtures import whisper directly
+    before the provider factory runs), ``_import_third_party_whisper`` used to
+    return early without invoking the DTW patch. That let the MPS float64
+    crash resurface on the transcription path.
+
+    Assert the patch fires on the ``existing in sys.modules`` branch too.
+    """
+    _reset_patch_flag()
+
+    import sys
+
+    import whisper.timing as timing_mod
+
+    original = timing_mod.dtw
+    try:
+        # Simulate the "already imported" state — whisper is guaranteed to be
+        # in sys.modules right now anyway because we imported timing above.
+        assert "whisper" in sys.modules
+
+        # Now trigger the provider-side import helper.
+        ml_provider._import_third_party_whisper()
+
+        # The patch must have fired via the early-return branch.
+        assert timing_mod.dtw is not original, (
+            "_import_third_party_whisper returned early without applying the "
+            "MPS DTW patch (see #1180 followup)"
+        )
+        assert timing_mod.dtw.__name__ == "_dtw_mps_safe"
+    finally:
+        timing_mod.dtw = original
+        _reset_patch_flag()
+
+
 def test_detect_whisper_device_returns_mps_when_auto_detected() -> None:
     """After the patch, MPS is a valid Whisper device again — ``_detect_whisper_device``
     should return ``mps`` on Apple Silicon under auto-detect (no explicit config).

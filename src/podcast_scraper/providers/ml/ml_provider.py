@@ -98,6 +98,12 @@ def _import_third_party_whisper() -> ModuleType:
     if existing is not None:
         # Verify it's the real library by checking for load_model function
         if hasattr(existing, "load_model"):
+            # #1180 MPS: apply the DTW patch every time, not just on first import.
+            # Tests / other callers may import whisper directly before we get
+            # here; without this call the patch would silently skip and the
+            # MPS float64 crash would re-surface (idempotent-safe — guarded by
+            # ``_whisper_dtw_patched``).
+            _patch_whisper_dtw_for_mps(existing)
             return existing
         # If it's not the real library, remove it and try again
         sys.modules.pop("whisper", None)
